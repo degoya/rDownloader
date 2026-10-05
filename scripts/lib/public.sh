@@ -1,7 +1,7 @@
 # shellcheck shell=bash
-# Shared by export-public.sh and export-wiki.sh (RD-130-23): the secret scanner, the link check
-# against the exclude list, the identity that authors a public commit, and the local clone whose
-# tree an export replaces.
+# Shared by export-public.sh and export-wiki.sh (RD-130-23): the secret scanner, the exclude list
+# and the link check against it, the identity that authors a public commit, and the local clone
+# whose tree an export replaces.
 #
 # Sourced, never run. Every function exits the calling script on a refusal, with the reason.
 
@@ -44,6 +44,30 @@ rd_public_scan() {
         echo "   A real secret is removed at the source. A fixture gets an entry in .gitleaks.toml." >&2
         exit 1
     fi
+}
+
+# Removes from tree $1 every path the exclude list $2 names (its header states the format); a
+# path the tree does not have is named, not an error. Shared by the export and the preflight's
+# secret scan (scripts/lib/preflight.sh), so both scan the same public tree.
+rd_public_exclude() {
+    local stage="$1" list="$2" line path excluded=0
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        path="${line%%#*}"
+        path="${path#"${path%%[![:space:]]*}"}"
+        path="${path%"${path##*[![:space:]]}"}"
+        [[ -n "$path" ]] || continue
+        case "$path" in
+            /*|*..*) echo "refusing exclude entry outside the tree: $path" >&2; exit 1 ;;
+        esac
+        path="${path%/}"
+        if [[ -e "$stage/$path" || -L "$stage/$path" ]]; then
+            rm -rf -- "${stage:?}/$path"
+            excluded=$((excluded + 1))
+        else
+            echo "    (not in this tree: $path)"
+        fi
+    done < "$list"
+    echo "    left out $excluded path(s) named in scripts/public-exclude.txt"
 }
 
 # Refuses a link in tree $1 into a path the exclude list $2 names: it would be dead in the

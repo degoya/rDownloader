@@ -49,7 +49,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
 
-use super::{API_BASE, ApiFailure, ErrorKind, coded, invalid_url};
+use super::{API_BASE, ApiFailure, ErrorKind, invalid_url};
 use crate::messages;
 
 /// `/geturl` — the only endpoint the free flow calls more than once.
@@ -213,36 +213,36 @@ pub(crate) fn free_failure(failure: ApiFailure) -> ApiFailure {
         ErrorKind::RateLimited(seconds) | ErrorKind::Transient(seconds) => seconds,
         _ => None,
     };
-    let mut params = vec![("message", failure.message)];
-    if let Some(seconds) = retry_after_seconds {
-        params.push(("wait_seconds", seconds.to_string()));
-    }
-    ApiFailure {
-        kind: ErrorKind::IpBlocked(retry_after_seconds),
-        code: messages::FREE_LIMIT_REACHED,
-        message: messages::free_limit_reached(retry_after_seconds),
-        params,
+    let text = messages::free_limit_reached(retry_after_seconds);
+    let limited = ApiFailure::new(
+        ErrorKind::IpBlocked(retry_after_seconds),
+        (messages::FREE_LIMIT_REACHED, text.as_str()),
+    )
+    .with_param("message", failure.message);
+    match retry_after_seconds {
+        Some(seconds) => limited.with_param("wait_seconds", seconds.to_string()),
+        None => limited,
     }
 }
 
 /// The IP block a too-long or too-often-repeated countdown amounts to (JD lines 894-901).
 pub(crate) fn wait_limit_failure(seconds: u64) -> ApiFailure {
-    ApiFailure {
-        kind: ErrorKind::IpBlocked(Some(seconds)),
-        code: messages::FREE_LIMIT_REACHED,
-        message: messages::free_limit_reached(Some(seconds)),
-        params: vec![("wait_seconds", seconds.to_string())],
-    }
+    let text = messages::free_limit_reached(Some(seconds));
+    ApiFailure::new(
+        ErrorKind::IpBlocked(Some(seconds)),
+        (messages::FREE_LIMIT_REACHED, text.as_str()),
+    )
+    .with_param("wait_seconds", seconds.to_string())
 }
 
 /// The free flow ended without a download URL; carries the API's own wording as `diagnosis`.
 pub(crate) fn no_free_link_failure(diagnosis: &str) -> ApiFailure {
-    ApiFailure {
-        kind: ErrorKind::Permanent,
-        code: messages::NO_FREE_LINK,
-        message: messages::no_free_link(diagnosis),
-        params: vec![("diagnosis", diagnosis.to_owned())],
-    }
+    let text = messages::no_free_link(diagnosis);
+    ApiFailure::new(
+        ErrorKind::Permanent,
+        (messages::NO_FREE_LINK, text.as_str()),
+    )
+    .with_param("diagnosis", diagnosis)
 }
 
 /// The challenge id and the absolute image URL `/requestcaptcha` answered with. JD aborts when
@@ -250,9 +250,9 @@ pub(crate) fn no_free_link_failure(diagnosis: &str) -> ApiFailure {
 /// login captcha's (lines 1211-1219) rather than rejected.
 pub(crate) fn captcha_request(result: &RequestCaptchaResult) -> Result<(String, Url), ApiFailure> {
     let challenge = non_empty(result.challenge.as_deref())
-        .ok_or_else(|| coded(ErrorKind::Permanent, messages::CAPTCHA_UNAVAILABLE))?;
+        .ok_or_else(|| ApiFailure::new(ErrorKind::Permanent, messages::CAPTCHA_UNAVAILABLE))?;
     let raw = non_empty(result.captcha_url.as_deref())
-        .ok_or_else(|| coded(ErrorKind::Permanent, messages::CAPTCHA_UNAVAILABLE))?;
+        .ok_or_else(|| ApiFailure::new(ErrorKind::Permanent, messages::CAPTCHA_UNAVAILABLE))?;
     let raw = match raw.strip_prefix("http://") {
         Some(rest) => format!("https://{rest}"),
         None => raw.to_owned(),
@@ -275,7 +275,7 @@ pub(crate) fn image_mime(content_type: Option<&str>, data: &[u8]) -> Result<Stri
     }
     sniff_image_mime(data)
         .map(str::to_owned)
-        .ok_or_else(|| coded(ErrorKind::Permanent, messages::CAPTCHA_UNAVAILABLE))
+        .ok_or_else(|| ApiFailure::new(ErrorKind::Permanent, messages::CAPTCHA_UNAVAILABLE))
 }
 
 /// Magic-byte sniffing for the handful of formats a captcha is ever served as.

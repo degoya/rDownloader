@@ -24,6 +24,7 @@ import torrent from '@/locales/en/torrent.json'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { useTransfersStore } from '@/stores/transfers'
 import { axeViolations } from '@/test/axe'
+import { uiStubs } from '@/test/mount'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 
 import DownloadsView from './DownloadsView.vue'
@@ -98,6 +99,7 @@ const stubs = {
   UDashboardNavbar: passthrough,
   UDashboardPanel: { template: '<div><slot name="header" /><slot name="body" /></div>' },
   UDashboardSidebarCollapse: true,
+  UEmpty: uiStubs.UEmpty,
   UDashboardToolbar: { template: '<div><slot name="left" /><slot name="right" /></div>' },
   UDropdownMenu: passthrough,
   UIcon: { template: '<span aria-hidden="true" />' },

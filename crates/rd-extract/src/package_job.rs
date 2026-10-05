@@ -251,7 +251,7 @@ async fn prepare(
         .and_then(|id| categories.iter().find(|category| category.id == id));
     let chosen = PackageSettings::resolve(inner, &package, category, &settings, trigger);
     let directory = PathBuf::from(&package.destination);
-    let files: Vec<PathBuf> = downloads
+    let finished: Vec<PathBuf> = downloads
         .iter()
         .filter(|file| {
             matches!(
@@ -260,11 +260,11 @@ async fn prepare(
             )
         })
         .map(|file| directory.join(&file.file_name))
-        .filter(|path| path.is_file())
-        .filter(|path| {
-            !std::fs::metadata(path).is_ok_and(|meta| chosen.rules.is_sample(path, meta.len()))
-        })
         .collect();
+    let rules = chosen.rules.clone();
+    let files = tokio::task::spawn_blocking(move || rules.present_without_samples(finished))
+        .await
+        .context("join the package's file listing")?;
     let sets = group_archive_sets(&files);
     let sfv_indexes: Vec<PathBuf> = if chosen.sfv_verify {
         files.iter().filter(|path| is_sfv(path)).cloned().collect()

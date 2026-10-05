@@ -21,12 +21,5 @@ url.workspace = true
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:putio"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "resolver-plugin"
-
 [lints]
 workspace = true

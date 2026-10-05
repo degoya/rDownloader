@@ -2,15 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { JsonRefusal, useJsonImport } from './useJsonImport'
 
-/** A `change` event carrying one file, as the hidden input fires it. */
-function changeWith(text: string, name = 'bundle.json'): Event {
-  const input = document.createElement('input')
-  input.type = 'file'
-  const file = new File([text], name, { type: 'application/json' })
-  Object.defineProperty(input, 'files', { value: { item: () => file, length: 1 } })
-  const event = new Event('change')
-  Object.defineProperty(event, 'target', { value: input })
-  return event
+/** One file, as the `UFileUpload` reports it. */
+function fileWith(text: string, name = 'bundle.json'): File {
+  return new File([text], name, { type: 'application/json' })
 }
 
 /** The JSON import the four backup surfaces share (WEB-09). */
@@ -32,7 +26,7 @@ describe('the JSON import', () => {
   it('hands an accepted file over with its name', async () => {
     const { refuse, take, jsonImport } = setup()
 
-    await jsonImport.select(changeWith('{"format":"bundle"}', 'routing.json'))
+    await jsonImport.select(fileWith('{"format":"bundle"}', 'routing.json'))
 
     expect(refuse).not.toHaveBeenCalled()
     expect(take).toHaveBeenCalledWith({ format: 'bundle' }, expect.objectContaining({ name: 'routing.json' }))
@@ -41,23 +35,19 @@ describe('the JSON import', () => {
   it('says why a file is refused, and that a file is no JSON at all', async () => {
     const { refuse, take, jsonImport } = setup()
 
-    await jsonImport.select(changeWith('{"format":"other"}'))
-    await jsonImport.select(changeWith('{ not json'))
+    await jsonImport.select(fileWith('{"format":"other"}'))
+    await jsonImport.select(fileWith('{ not json'))
 
     expect(refuse.mock.calls).toEqual([['not a bundle'], ['unreadable']])
     expect(take).not.toHaveBeenCalled()
   })
 
-  it('opens the picker cleared, so the same file can be chosen twice', () => {
-    const { jsonImport } = setup()
-    const input = document.createElement('input')
-    input.type = 'file'
-    const click = vi.spyOn(input, 'click').mockImplementation(() => {})
-    jsonImport.fileInput.value = input
+  it('does nothing when the field reports no file', async () => {
+    const { refuse, take, jsonImport } = setup()
 
-    jsonImport.choose()
+    await jsonImport.select(null)
 
-    expect(input.value).toBe('')
-    expect(click).toHaveBeenCalledTimes(1)
+    expect(refuse).not.toHaveBeenCalled()
+    expect(take).not.toHaveBeenCalled()
   })
 })

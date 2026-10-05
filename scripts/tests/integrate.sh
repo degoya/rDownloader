@@ -9,7 +9,8 @@
 # a locale catalogue key by key, and a real conflict in either still stops the run.
 #
 # Past the merges, with stand-ins for check.sh, the generators and build-plugins.sh that log
-# their calls (RD-1100-13): a red gate stops the run before any generator with every error shown,
+# their calls (RD-1100-13): a red preflight stops the run before the gate with every finding shown
+# (RD-1110-15), a red gate stops it before any generator with every error shown,
 # a green one lets the generators run and archive-jobs' rewrite into the generated commit, and
 # the detached check runs --windows first and --full only after a green Windows lint.
 #
@@ -51,14 +52,20 @@ mkdir -p "$MAIN/web/src/locales/de" "$MAIN/docs/roadmap/jobs"
 printf '{\n  "a": {\n    "x": "1"\n  }\n}\n' > "$MAIN/web/src/locales/de/common.json"
 echo '| Job Inventory | 1 |' > "$MAIN/docs/roadmap/jobs/README.md"
 
-# Stand-ins for everything past the merges: each logs its call. check.sh fails --gate while
-# $FAKE/gate-red exists, with a failure list as the real one writes it, and --windows while
-# $FAKE/windows-red does; archive-jobs.sh rewrites the job index as its recount would.
+# Stand-ins for everything past the merges: each logs its call. check.sh fails --preflight while
+# $FAKE/preflight-red exists and --gate while $FAKE/gate-red does, each with a failure list as the
+# real one writes it, and --windows while $FAKE/windows-red does; archive-jobs.sh rewrites the job
+# index as its recount would.
 stub() {
     printf '#!/usr/bin/env bash\necho "%s $*" >> "$FAKE/calls"\n%s\n' "$1" "${2:-}" > "$MAIN/scripts/$1"
     chmod +x "$MAIN/scripts/$1"
 }
 stub check.sh '
+if [[ "$*" == --preflight ]]; then echo "job layout skipped: ${RD_SKIP_JOB_LAYOUT:-no}" >> "$FAKE/calls"; fi
+if [[ "$*" == --preflight && -f "$FAKE/preflight-red" ]]; then
+    printf "%s\n" "script test: scripts/tests/a.sh — exit 3, log preflight-07.log" > "$RD_CHECK_LOGS/failures"
+    exit 1
+fi
 if [[ "$*" == --gate && -f "$FAKE/gate-red" ]]; then
     printf "%s\n" "the Linux lint — exit 101, log gate-01.log" "    error[E0425]: cannot find value" > "$RD_CHECK_LOGS/failures"
     exit 1
@@ -172,19 +179,29 @@ git -C "$TREE2" merge --abort
 # shellcheck disable=SC2034  # read inside the expect_true strings
 TREE3="$MAIN-integration-w3"
 export RD_INTEGRATE_LOGS="$SCRATCH/logs-w3"
+touch "$FAKE/preflight-red"
+run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-check
+expect_status "a red preflight stops the run" 1
+expect_output "saying so" "the preflight is red"
+expect_output "with every finding from the failure list" "script test: scripts/tests/a.sh — exit 3"
+expect "the preflight ran, leaving the job layout to archive-jobs.sh" "check.sh --preflight|job layout skipped: 1" \
+    "$(paste -sd'|' - < "$FAKE/calls")"
+
+rm -f "$FAKE/preflight-red" "$FAKE/calls"
 touch "$FAKE/gate-red"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-check
 expect_status "a red gate stops the run" 1
 expect_output "saying so" "the gate is red"
 expect_output "with every error from the failure list" "error[E0425]: cannot find value"
-expect_true "the gate ran in the integration worktree" 'grep -qx "check.sh --gate" "$FAKE/calls"'
+expect_true "the gate ran in the integration worktree, after a green preflight" \
+    'grep -qx "check.sh --gate" "$FAKE/calls" && [[ "$(grep -m1 "^check.sh" "$FAKE/calls")" == "check.sh --preflight" ]]'
 expect_true "and no generator after it" '! grep -q "api-contract.sh" "$FAKE/calls"'
 
 rm -f "$FAKE/gate-red" "$FAKE/calls"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-check
 expect_status "a green gate lets the generators run" 0
-expect "the gate first, then the generators, archive-jobs among them" \
-    "check.sh --gate|api-contract.sh |mcp-coverage.sh |web-declarations.sh |archive-jobs.sh " \
+expect "the preflight and the gate first, then the generators, archive-jobs among them" \
+    "check.sh --preflight|check.sh --gate|api-contract.sh |mcp-coverage.sh |web-declarations.sh |archive-jobs.sh " \
     "$(grep -E '^(check|api-contract|mcp-coverage|web-declarations|archive-jobs)' "$FAKE/calls" | paste -sd'|' -)"
 expect_true "archive-jobs' rewrite is in the generated commit" \
     'git -C "$TREE3" log -1 --format=%s | grep -q "^chore(generated)" && git -C "$TREE3" show --name-only HEAD | grep -qx "docs/roadmap/jobs/README.md"'
@@ -199,7 +216,7 @@ rm -f "$FAKE/calls"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-gate
 expect_status "the detached check starts" 0
 expect "both green, and the prune" "full=0 windows=0 prune=0" "$(wait_status)"
-expect "--windows before --full" "check.sh --windows|check.sh --full" \
+expect "the preflight, then --windows before --full" "check.sh --preflight|check.sh --windows|check.sh --full" \
     "$(grep '^check.sh' "$FAKE/calls" | paste -sd'|' -)"
 expect_true "the run writes its failures beside its logs" 'grep -qx "export RD_CHECK_LOGS=.$RD_INTEGRATE_LOGS." "$RD_INTEGRATE_LOGS/run.sh"'
 

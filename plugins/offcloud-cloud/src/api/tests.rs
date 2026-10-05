@@ -1,8 +1,7 @@
 use super::{
-    ErrorEnvelope, ErrorKind, Stage, StatusEnvelope, classify_error, classify_not_available,
-    ensure_http_status, error_envelope, explore_files, failure_from, form_body, is_safe_request_id,
-    name_from_url, permille, place, remove_body, sanitize_error, stage_of, status_detail,
-    status_word,
+    ErrorEnvelope, ErrorKind, HTTP, Stage, StatusEnvelope, classify_error, classify_not_available,
+    error_envelope, explore_files, failure_from, form_body, is_safe_request_id, name_from_url,
+    permille, place, remove_body, sanitize_error, stage_of, status_detail, status_word,
 };
 use crate::messages;
 
@@ -283,27 +282,35 @@ fn a_status_outranks_prose_and_a_stable_word_outranks_the_status() {
 
 #[test]
 fn a_status_decides_when_no_document_explains_itself() {
-    assert!(ensure_http_status(200, None).is_ok());
+    assert!(HTTP.ensure_http_status(200, None).is_ok());
     assert_eq!(
-        ensure_http_status(401, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(401, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::AccountInvalid
     );
     assert_eq!(
-        ensure_http_status(404, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(404, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::Permanent
     );
     assert_eq!(
-        ensure_http_status(429, Some(120))
+        HTTP.ensure_http_status(429, Some(120))
             .expect_err("refused")
             .kind,
         ErrorKind::RateLimited(Some(120))
     );
     assert_eq!(
-        ensure_http_status(429, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(429, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::RateLimited(Some(3600))
     );
     assert_eq!(
-        ensure_http_status(502, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(502, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::Transient(Some(300))
     );
 }
@@ -313,11 +320,15 @@ fn a_status_decides_when_no_document_explains_itself() {
 #[test]
 fn a_takedown_is_gone_and_a_stated_outage_is_waited_out() {
     assert_eq!(
-        ensure_http_status(451, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(451, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::Offline
     );
     assert_eq!(
-        ensure_http_status(503, Some(40)).expect_err("refused").kind,
+        HTTP.ensure_http_status(503, Some(40))
+            .expect_err("refused")
+            .kind,
         ErrorKind::Transient(Some(40))
     );
 }

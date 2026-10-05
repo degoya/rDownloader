@@ -353,7 +353,8 @@
   },
   "messages": {
     "saved": "Ajustes guardados.",
-    "reset_done": "Todos los ajustes de ejecución se han restablecido a sus valores por defecto."
+    "reset_done": "Todos los ajustes de ejecución se han restablecido a sus valores por defecto.",
+    "number_empty": "Un campo numérico está vacío. Introduce un valor para guardar."
   },
   "reset": {
     "title": "¿Restaurar los ajustes de fábrica?",

@@ -187,8 +187,9 @@ const items = computed<NavigationMenuItem[][]>(() => [[
                 <section
                   v-for="(group, groupIndex) in SETTINGS_SECTION_GROUPS"
                   :key="group.value"
-                  :class="groupIndex > 0 ? 'mt-2 border-t border-muted pt-2' : undefined"
+                  :class="groupIndex > 0 ? 'mt-2' : undefined"
                 >
+                  <USeparator v-if="groupIndex > 0" class="mb-2" />
                   <p class="px-2 py-1 text-xs font-semibold text-toned">
                     {{ t(group.labelKey) }}
                   </p>
@@ -227,7 +228,8 @@ const items = computed<NavigationMenuItem[][]>(() => [[
              past it. Full width, it runs where the navigation's separator runs, in both
              states; on the rail the dot and the sign-out stack, since side by side they need
              56 of the 32 px between the paddings (RD-120-61). -->
-        <div data-testid="sidebar-footer" class="w-full min-w-0 border-t border-muted pt-2">
+        <div data-testid="sidebar-footer" class="w-full min-w-0">
+          <USeparator class="mb-2" />
           <UpdateNotice :collapsed="collapsed" />
           <PreferencesFooter :collapsed="collapsed" />
           <UTooltip :text="connectionLabel" :disabled="!collapsed">
@@ -240,8 +242,8 @@ const items = computed<NavigationMenuItem[][]>(() => [[
                    what a screen reader reads. Lost, the dot stops pulsing and turns red, and
                    the endpoint gives way to the words, which a colour alone would not carry. -->
               <span class="relative flex size-2 shrink-0" aria-hidden="true">
-                <span v-if="connected" class="absolute inline-flex size-full animate-ping bg-success opacity-50" />
-                <span class="relative inline-flex size-2" :class="connected ? 'bg-success' : 'bg-error'" />
+                <span v-if="connected" class="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
+                <UChip standalone :color="connected ? 'success' : 'error'" />
               </span>
               <span class="visually-hidden" role="status">{{ connectionLabel }}</span>
               <span v-if="!collapsed && connected" class="font-mono text-xs text-toned">{{ endpoint }}</span>

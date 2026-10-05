@@ -219,13 +219,15 @@ onUnmounted(() => {
       <div class="mt-5 grid gap-6 lg:grid-cols-2">
         <form class="space-y-4" data-testid="full-backup-key" @submit.prevent="savePassphrase">
           <h3 class="text-sm font-semibold text-highlighted">{{ t('system.backup.full.key.title') }}</h3>
-          <div class="flex items-center gap-2 border border-muted bg-elevated p-3 text-xs text-toned">
-            <UIcon :name="keyConfigured ? 'i-lucide-lock-keyhole' : 'i-lucide-lock-keyhole-open'" class="size-4 text-primary" />
-            <span v-if="keyConfigured && config">
-              {{ t('system.backup.full.key.configured', { fingerprint: config.key_fingerprint ?? '', date: formatMoment(config.key_set_at) }) }}
-            </span>
-            <span v-else>{{ t('system.backup.full.key.missing') }}</span>
-          </div>
+          <UAlert
+            color="neutral"
+            variant="subtle"
+            :icon="keyConfigured ? 'i-lucide-lock-keyhole' : 'i-lucide-lock-keyhole-open'"
+            :ui="{ icon: 'size-4 text-primary', description: 'text-xs text-toned' }"
+            :description="keyConfigured && config
+              ? t('system.backup.full.key.configured', { fingerprint: config.key_fingerprint ?? '', date: formatMoment(config.key_set_at) })
+              : t('system.backup.full.key.missing')"
+          />
           <p class="text-xs text-muted">{{ t('system.backup.full.key.hint') }}</p>
           <UFormField v-if="keyConfigured" name="full-backup-current" :label="t('system.backup.full.key.current')" required>
             <UInput v-model="currentPassphrase" type="password" autocomplete="current-password" class="w-full" data-testid="full-backup-current" />

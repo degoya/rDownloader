@@ -83,14 +83,12 @@ const jsonImport = useJsonImport<SettingsBundle>({
     importBundle.value = bundle
   }
 })
-const { fileInput, choose: chooseFile } = jsonImport
-
-async function selectFile(event: Event): Promise<void> {
+async function selectFile(file: File | null | undefined): Promise<void> {
   importError.value = null
   importBundle.value = null
   selectedFileName.value = null
   importPassphrase.value = ''
-  await jsonImport.select(event)
+  await jsonImport.select(file)
 }
 
 async function restoreBackup(): Promise<void> {
@@ -206,23 +204,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       />
       <UAlert v-if="importError" class="mt-5" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="importError" />
       <form class="mt-5 space-y-4" @submit.prevent="restoreBackup">
-        <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
         <div class="flex flex-wrap items-center gap-3">
-          <UButton
-            type="button"
-            icon="i-lucide-file-json-2"
-            :label="t('system.backup.import.choose_file')"
-            color="neutral"
-            variant="outline"
-            @click="chooseFile"
-          />
+          <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">
+            <UButton
+              type="button"
+              icon="i-lucide-file-json-2"
+              :label="t('system.backup.import.choose_file')"
+              color="neutral"
+              variant="outline"
+              @click="open()"
+            />
+          </UFileUpload>
           <span v-if="selectedFileName" class="min-w-0 truncate text-sm text-toned">{{ selectedFileName }}</span>
         </div>
-        <div v-if="importBundle" class="flex items-center gap-2 border border-muted bg-elevated p-3 text-xs text-toned">
-          <UIcon :name="importNeedsPassphrase ? 'i-lucide-lock-keyhole' : 'i-lucide-lock-keyhole-open'" class="size-4 text-primary" />
-          <span>{{ importNeedsPassphrase ? t('system.backup.import.encrypted') : t('system.backup.import.without_secrets') }}</span>
-          <span class="ml-auto font-mono text-muted">v{{ importBundle.version }} · rDownloader {{ importBundle.app_version }}</span>
-        </div>
+        <UAlert
+          v-if="importBundle"
+          color="neutral"
+          variant="subtle"
+          :icon="importNeedsPassphrase ? 'i-lucide-lock-keyhole' : 'i-lucide-lock-keyhole-open'"
+          :ui="{ icon: 'size-4 text-primary', description: 'flex flex-wrap items-center gap-2 text-xs text-toned' }"
+        >
+          <template #description>
+            <span>{{ importNeedsPassphrase ? t('system.backup.import.encrypted') : t('system.backup.import.without_secrets') }}</span>
+            <span class="ml-auto font-mono text-muted">v{{ importBundle.version }} · rDownloader {{ importBundle.app_version }}</span>
+          </template>
+        </UAlert>
         <UFormField
           v-if="importNeedsPassphrase"
           name="import-passphrase"

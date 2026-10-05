@@ -31,7 +31,7 @@
 //!   generous rather than eager, because the polling shares the account's budget with the
 //!   resolver minting this very job's addresses.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 
 use crate::{messages, source::Kind};
@@ -500,29 +500,6 @@ pub fn control_body(kind: Kind, remote_id: &str, operation: &str) -> Vec<u8> {
 
 // --- Failures --------------------------------------------------------------------------
 
-/// How a refusal is classified, without depending on either failure representation.
-#[derive(Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-    /// TorBox already holds this job. Not a failure at all at the one call site that can act
-    /// on it: the adoption path turns it into a handle.
-    Duplicate,
-}
-
-/// A classified refusal.
-#[derive(Debug)]
-pub struct ApiFailure {
-    pub kind: ErrorKind,
-    pub code: &'static str,
-    pub message: String,
-    pub params: Vec<(&'static str, String)>,
-}
-
 /// How long a provider-side outage is waited out. Five minutes, the figure the other
 /// multihoster plugins settled on.
 const BUSY_SECONDS: u64 = 300;
@@ -534,23 +511,26 @@ const QUOTA_SECONDS: u64 = 3600;
 /// minutes rather than hours.
 const COOLDOWN_SECONDS: u64 = 600;
 
-fn coded(kind: ErrorKind, (code, message): (&'static str, &str), api_code: &str) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![("api_code", api_code.to_owned())],
-    }
-}
-
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
+/// How TorBox's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+///
+/// A `404`/`410` is the job gone for good; a legal block (`451`) is `Offline` there and retried,
+/// still worded `REQUEST_REFUSED` like the words that say TorBox refused the request itself
+/// (RA-PLG-04). A `429` without a stated wait waits a minute, a `5xx` five minutes.
+pub const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::JOB_GONE,
+    unavailable: messages::REQUEST_REFUSED,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: Some(60),
+    server_error_wait: Some(BUSY_SECONDS),
+    other: HttpError {
+        code: messages::HTTP_ERROR.0,
+        text: messages::http_error,
+    },
+};
 
 /// Classifies one of TorBox's documented `error` words.
 ///
@@ -561,35 +541,40 @@ fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
 pub fn classify_error(api_code: &str, retry_after: Option<u64>) -> ApiFailure {
     match api_code {
         "BAD_TOKEN" | "AUTH_ERROR" | "NO_AUTH" | "OAUTH_VERIFICATION_ERROR" => {
-            coded(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code)
+            ApiFailure::with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code)
         }
         "PLAN_RESTRICTED_FEATURE" => {
-            coded(ErrorKind::Unsupported, messages::NOT_PERMITTED, api_code)
+            ApiFailure::with_api_code(ErrorKind::Unsupported, messages::NOT_PERMITTED, api_code)
         }
-        "DUPLICATE_ITEM" => coded(ErrorKind::Duplicate, messages::JOB_EXISTS, api_code),
+        // TorBox already holds this job. Reported as permanent so the host stops submitting:
+        // asking again only creates another one, and the adoption check is what turns this
+        // into a handle. `JOB_EXISTS` is what tells it apart from a refusal.
+        "DUPLICATE_ITEM" => {
+            ApiFailure::with_api_code(ErrorKind::Permanent, messages::JOB_EXISTS, api_code)
+        }
         "ITEM_NOT_FOUND" | "ENDPOINT_NOT_FOUND" => {
-            coded(ErrorKind::Offline, messages::JOB_GONE, api_code)
+            ApiFailure::with_api_code(ErrorKind::Offline, messages::JOB_GONE, api_code)
         }
         "LINK_OFFLINE" | "BOZO_RSS_FEED" => {
-            coded(ErrorKind::Offline, messages::SOURCE_GONE, api_code)
+            ApiFailure::with_api_code(ErrorKind::Offline, messages::SOURCE_GONE, api_code)
         }
         "DOWNLOAD_TOO_LARGE" | "TOO_MUCH_DATA" => {
-            coded(ErrorKind::Permanent, messages::TOO_LARGE, api_code)
+            ApiFailure::with_api_code(ErrorKind::Permanent, messages::TOO_LARGE, api_code)
         }
         // TorBox's own figure wins where it stated one: a word says which bucket a refusal is
         // in, a `Retry-After` says when the provider is ready, and guessing over an answer is
         // how a wait ends up either pointless or twice as long as it had to be.
-        "MONTHLY_LIMIT" | "ACTIVE_LIMIT" | "DOWNLOAD_LIMIT" => coded(
+        "MONTHLY_LIMIT" | "ACTIVE_LIMIT" | "DOWNLOAD_LIMIT" => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(retry_after.unwrap_or(QUOTA_SECONDS))),
             messages::LIMIT_REACHED,
             api_code,
         ),
-        "COOLDOWN_LIMIT" => coded(
+        "COOLDOWN_LIMIT" => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(retry_after.unwrap_or(COOLDOWN_SECONDS))),
             messages::COOLDOWN,
             api_code,
         ),
-        "TOO_MANY_REQUESTS" => coded(
+        "TOO_MANY_REQUESTS" => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(retry_after.unwrap_or(60))),
             messages::RATE_LIMITED,
             api_code,
@@ -598,13 +583,13 @@ pub fn classify_error(api_code: &str, retry_after: Option<u64>) -> ApiFailure {
         | "DOWNLOAD_SERVER_ERROR"
         | "NO_SERVERS_AVAILABLE_ERROR"
         | "VENDOR_ERROR"
-        | "VENDOR_DISABLED" => coded(
+        | "VENDOR_DISABLED" => ApiFailure::with_api_code(
             ErrorKind::Transient(Some(BUSY_SECONDS)),
             messages::SERVER_BUSY,
             api_code,
         ),
         "INVALID_OPTION" | "MISSING_REQUIRED_OPTION" | "TOO_MANY_OPTIONS" | "INVALID_DEVICE" => {
-            coded(ErrorKind::Permanent, messages::REQUEST_REFUSED, api_code)
+            ApiFailure::with_api_code(ErrorKind::Permanent, messages::REQUEST_REFUSED, api_code)
         }
         other => ApiFailure {
             kind: ErrorKind::Permanent,
@@ -633,7 +618,7 @@ pub fn failure_from(
         // than "permanent, unknown word", and it is the difference between a wait and a job
         // somebody has to start again by hand. The word still travels as the parameter.
         if classified.code == messages::API_ERROR.0
-            && let Err(by_status) = ensure_http_status(status, retry_after)
+            && let Err(by_status) = HTTP.ensure_http_status(status, retry_after)
         {
             return Some(ApiFailure {
                 params: vec![("api_code", api_code)],
@@ -647,45 +632,17 @@ pub fn failure_from(
         // carry one that says something; a `success: false` inside a 200 says only that the
         // call did not do what it was asked, and that is permanent rather than worth a retry.
         return Some(
-            ensure_http_status(status, retry_after)
+            HTTP.ensure_http_status(status, retry_after)
                 .err()
-                .unwrap_or_else(|| plain(ErrorKind::Permanent, messages::REQUEST_REFUSED)),
+                .unwrap_or_else(|| {
+                    ApiFailure::new(ErrorKind::Permanent, messages::REQUEST_REFUSED)
+                }),
         );
     }
     if !(200..=299).contains(&status) {
-        return ensure_http_status(status, retry_after).err();
+        return HTTP.ensure_http_status(status, retry_after).err();
     }
     None
-}
-
-/// Maps an HTTP status no `error` word explains: the mapping every plugin shares (RD-191-07),
-/// in this plugin's words and with its defaults. A `404`/`410` is the job gone for good; a
-/// legal block (`451`) is `Offline` there and retried, still worded `REQUEST_REFUSED` like the
-/// words that say TorBox refused the request itself (RA-PLG-04).
-///
-/// # Errors
-///
-/// The classified refusal, for every status that is not a 2xx.
-pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::JOB_GONE),
-        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::REQUEST_REFUSED),
-        HttpRefusal::RateLimited(wait) => plain(
-            ErrorKind::RateLimited(Some(wait.unwrap_or(60))),
-            messages::RATE_LIMITED,
-        ),
-        HttpRefusal::ServerError(wait) => plain(
-            ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
-            messages::SERVER_ERROR,
-        ),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR.0,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
 }
 
 // --- Cache check (RD-130-11) ----------------------------------------------------------

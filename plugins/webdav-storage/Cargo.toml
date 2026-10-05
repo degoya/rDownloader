@@ -11,12 +11,5 @@ wit-bindgen.workspace = true
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:webdav-storage"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "storage-plugin"
-
 [lints]
 workspace = true

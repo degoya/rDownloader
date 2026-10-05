@@ -7,11 +7,9 @@
 //! `plugins/katfile/src/native/api.rs`'s module doc for the ways KatFile's shape differs, namely
 //! its API base path).
 //!
-//! A consuming plugin owns its own `Failure` type (`rd_core::Failure` natively, the
-//! `wit_bindgen`-generated type under `wasm32`) and stable `code`/message text, so this module
-//! only classifies: [`ErrorKind`] is deliberately a smaller, target-neutral stand-in for
-//! `plugin_common::FailureKind`, and [`crate::glue::convert_kind`] converts it right after calling
-//! in here.
+//! A consuming plugin owns its stable `code`/message text, so this module only classifies: in
+//! [`ErrorKind`], the scheduler's own category from `plugin_common::failure` (RD-1110-03), which
+//! [`crate::glue`] puts under the plugin's codes.
 
 use serde::Deserialize;
 use url::Url;
@@ -80,19 +78,10 @@ pub struct ApiEnvelope<T> {
     pub result: Option<T>,
 }
 
-/// Target-neutral classification of an XFS status code; `None` from [`classify_http_status`] /
-/// [`classify_api_status`] means success. Every consuming plugin maps each variant to its own
-/// `FailureKind` (native or WIT-generated); see the module doc.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorKind {
-    AccountInvalid,
-    /// The file is withheld: a `451` on the transport (RD-191-07); retried. A `404` or `410` is
-    /// [`Self::Permanent`] (owner, 2026-10-04).
-    Offline,
-    Permanent,
-    RateLimited,
-    Transient,
-}
+/// The classification of an XFS status code; `None` from [`classify_http_status`] /
+/// [`classify_api_status`] means success. A `451` on the transport is `Offline` and retried, a
+/// `404` or `410` `Permanent` (RD-191-07, owner 2026-10-04).
+pub use plugin_common::failure::ErrorKind;
 
 /// Classifies a raw HTTP transport status (not the API envelope's own `status` field — see
 /// [`classify_api_status`] for that) with the mapping every plugin shares,
@@ -101,16 +90,9 @@ pub enum ErrorKind {
 /// response uses [`crate::glue::ensure_http_status`], which also keeps the `Retry-After`.
 #[must_use]
 pub fn classify_http_status(status: u16) -> Option<ErrorKind> {
-    use plugin_common::HttpRefusal;
-    match plugin_common::http_status(status, None) {
-        Ok(()) => None,
-        Err(HttpRefusal::Unauthorized) => Some(ErrorKind::AccountInvalid),
-        Err(HttpRefusal::Gone) => Some(ErrorKind::Permanent),
-        Err(HttpRefusal::Unavailable) => Some(ErrorKind::Offline),
-        Err(HttpRefusal::RateLimited(_)) => Some(ErrorKind::RateLimited),
-        Err(HttpRefusal::ServerError(_)) => Some(ErrorKind::Transient),
-        Err(HttpRefusal::Other(_)) => Some(ErrorKind::Permanent),
-    }
+    plugin_common::http_status(status, None)
+        .err()
+        .map(plugin_common::HttpRefusal::kind)
 }
 
 /// Classifies an [`ApiEnvelope`]'s `status` field. Mirrors ddownload's original
@@ -193,9 +175,12 @@ mod tests {
         assert_eq!(classify_http_status(410), Some(ErrorKind::Permanent));
         assert_eq!(classify_http_status(451), Some(ErrorKind::Offline));
         assert_eq!(classify_http_status(418), Some(ErrorKind::Permanent));
-        assert_eq!(classify_http_status(429), Some(ErrorKind::RateLimited));
-        assert_eq!(classify_http_status(500), Some(ErrorKind::Transient));
-        assert_eq!(classify_http_status(599), Some(ErrorKind::Transient));
+        assert_eq!(
+            classify_http_status(429),
+            Some(ErrorKind::RateLimited(None))
+        );
+        assert_eq!(classify_http_status(500), Some(ErrorKind::Transient(None)));
+        assert_eq!(classify_http_status(599), Some(ErrorKind::Transient(None)));
         assert_eq!(classify_http_status(999), Some(ErrorKind::Permanent));
     }
 

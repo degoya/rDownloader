@@ -136,13 +136,13 @@ expect "aarch64: its archive" \
     "source_aarch64=(\"rdownloader-1.6.0-aarch64.tar.gz::$base/rdownloader-linux-aarch64.tar.gz\")" \
     "$(grep '^source_aarch64=' "$pkgbuild")"
 expect "aarch64: its hash" "sha256sums_aarch64=('$(hash_of b)')" "$(grep '^sha256sums_aarch64=' "$pkgbuild")"
-service_hash="$(sha256sum "$ROOT/packaging/aur/rdownloader.service" | awk '{ print $1 }')"
-capture_hash="$(sha256sum "$ROOT/packaging/aur/rdownloader-capture.service" | awk '{ print $1 }')"
+service_hash="$(sha256sum "$ROOT/packaging/systemd/rdownloader.service" | awk '{ print $1 }')"
+capture_hash="$(sha256sum "$ROOT/packaging/systemd/rdownloader-capture.service" | awk '{ print $1 }')"
 expect "the units' hashes, in the order of source=()" "sha256sums=('$service_hash' '$capture_hash')" \
     "$(sed -n '/^sha256sums=(/,/)/p' "$pkgbuild" | tr -s ' \n' ' ' | sed 's/ $//')"
 expect "the units are copied as they are" "" \
-    "$(diff "$ROOT/packaging/aur/rdownloader.service" "$aur/rdownloader.service"; \
-       diff "$ROOT/packaging/aur/rdownloader-capture.service" "$aur/rdownloader-capture.service")"
+    "$(diff "$ROOT/packaging/systemd/rdownloader.service" "$aur/rdownloader.service"; \
+       diff "$ROOT/packaging/systemd/rdownloader-capture.service" "$aur/rdownloader-capture.service")"
 expect ".SRCINFO: the same version" "	pkgver = 1.6.0" "$(grep $'^\tpkgver = ' "$aur/.SRCINFO")"
 # What makepkg reads from the PKGBUILD, in .SRCINFO's order and spelling (the PKGBUILD only assigns
 # at its top level, so sourcing it runs nothing); package-channels.yml compares the whole file

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decode, encode } from './webauthn'
+import { decode, encode, publicKeyOptions } from './webauthn'
 
 /**
  * The codec between the server's JSON and the browser's `ArrayBuffer`s.
@@ -35,5 +35,22 @@ describe('base64url', () => {
   it('decodes the url-safe alphabet that plain base64 would reject', () => {
     // 0xFB 0xFF 0xBF encodes to "-_-_" in base64url and "+/+/" in base64.
     expect(new Uint8Array(decode('-_-_'))).toEqual(new Uint8Array([0xfb, 0xff, 0xbf]))
+  })
+})
+
+/**
+ * The one look inside the opaque ceremony options (audit R6): the member is handed on as it is,
+ * and an answer without one fails here instead of as a decoding fault on `undefined`.
+ */
+describe('publicKeyOptions', () => {
+  it('hands on the publicKey member unchanged', () => {
+    const publicKey = { challenge: 'ckRvd25sb2FkZXI', rpId: 'localhost' }
+    expect(publicKeyOptions({ publicKey, mediation: 'conditional' })).toBe(publicKey)
+  })
+
+  it('refuses options without an object under publicKey', () => {
+    for (const options of [{}, { publicKey: null }, { publicKey: 'x' }, { publicKey: [] }]) {
+      expect(() => publicKeyOptions(options), JSON.stringify(options)).toThrow(/publicKey/)
+    }
   })
 })

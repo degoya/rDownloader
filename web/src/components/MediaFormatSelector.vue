@@ -30,6 +30,7 @@ import MediaEmbedPolicyCard from '@/components/MediaEmbedPolicyCard.vue'
 import MediaOutputTemplateField from '@/components/MediaOutputTemplateField.vue'
 import MediaTrackSelector from '@/components/MediaTrackSelector.vue'
 import { formatBytes } from '@/utils/format'
+import { WHOLE, orNull } from '@/utils/numberInput'
 
 const { t } = useI18n()
 const props = defineProps<{
@@ -259,13 +260,13 @@ defineExpose({ setResolution })
         />
       </UFormField>
       <UFormField :label="t('linkgrabber.media.filters.max_height')">
-        <UInput v-model.number="criteria.max_height" type="number" min="0" size="xs" :disabled="props.busy" @change="touched" />
+        <UInputNumber :model-value="criteria.max_height" :min="0" :format-options="WHOLE" size="xs" :disabled="props.busy" @update:model-value="criteria.max_height = orNull($event)" @change="touched" />
       </UFormField>
       <UFormField :label="t('linkgrabber.media.filters.max_fps')">
-        <UInput v-model.number="criteria.max_fps" type="number" min="0" size="xs" :disabled="props.busy" @change="touched" />
+        <UInputNumber :model-value="criteria.max_fps" :min="0" :format-options="WHOLE" size="xs" :disabled="props.busy" @update:model-value="criteria.max_fps = orNull($event)" @change="touched" />
       </UFormField>
       <UFormField :label="t('linkgrabber.media.filters.max_bitrate')">
-        <UInput v-model.number="criteria.max_total_bitrate_kbps" type="number" min="0" size="xs" :disabled="props.busy" @change="touched" />
+        <UInputNumber :model-value="criteria.max_total_bitrate_kbps" :min="0" :format-options="WHOLE" size="xs" :disabled="props.busy" @update:model-value="criteria.max_total_bitrate_kbps = orNull($event)" @change="touched" />
       </UFormField>
       <UFormField v-if="languageItems.length" :label="t('linkgrabber.media.filters.language')">
         <USelectMenu

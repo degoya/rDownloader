@@ -1,8 +1,8 @@
 //! Keys and tokens of a stand-in identity provider, for tests in this crate and in `rd-api`.
 //!
-//! Public but hidden, like `LocalControl::for_token`: the integration tests run a fake provider
-//! (discovery, key set, token endpoint) and need to sign what it hands out exactly as a real one
-//! would. Nothing in the service calls this.
+//! Behind the `test-support` feature, which only dev-dependencies switch on (RD-1110-06): the
+//! integration tests run a fake provider (discovery, key set, token endpoint) and need to sign
+//! what it hands out exactly as a real one would. The service is built without it.
 
 use aws_lc_rs::{
     rand::SystemRandom,

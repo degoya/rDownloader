@@ -2,6 +2,10 @@
 
 use super::*;
 
+/// A root's name and its folder are each unique; a second one is a `409`, created or renamed.
+const ROOT_TAKEN: &str = "storage_root.name_or_path_taken";
+const ROOT_TAKEN_MESSAGE: &str = "A storage root with this name or folder already exists";
+
 /// Attaches the runtime persistence verdict to a root.
 ///
 /// One probe per request: reading the mount table costs a single small procfs read, and
@@ -65,7 +69,7 @@ pub(super) async fn validated_storage_root(
     })
 }
 
-#[utoipa::path(post, path = "/api/v1/storage-roots", tag = "configuration", request_body = CreateStorageRootRequest, responses((status = 201, body = crate::dto::StorageRootResponse)))]
+#[utoipa::path(post, path = "/api/v1/storage-roots", tag = "configuration", request_body = CreateStorageRootRequest, responses((status = 201, body = crate::dto::StorageRootResponse), (status = 409)))]
 pub async fn create_storage_root(
     State(state): State<AppState>,
     Json(request): Json<CreateStorageRootRequest>,
@@ -73,13 +77,17 @@ pub async fn create_storage_root(
     // One id for the directory that gets materialised and the row that records it.
     let id = rd_core::StorageRootId::new();
     let input = validated_storage_root(&state, id, request).await?;
-    let value = state.database.create_storage_root(id, input).await?;
+    let value = state
+        .database
+        .create_storage_root(id, input)
+        .await
+        .map_err(|error| store_duplicate(&error, ROOT_TAKEN, ROOT_TAKEN_MESSAGE))?;
     state.scheduler.reload_capacity_config().await?;
     let probe = rd_files::PersistenceProbe::detect();
     Ok((StatusCode::CREATED, Json(with_persistence(&probe, value))))
 }
 
-#[utoipa::path(put, path = "/api/v1/storage-roots/{id}", tag = "configuration", params(("id" = rd_core::StorageRootId, Path)), request_body = CreateStorageRootRequest, responses((status = 200, body = crate::dto::StorageRootResponse), (status = 404)))]
+#[utoipa::path(put, path = "/api/v1/storage-roots/{id}", tag = "configuration", params(("id" = rd_core::StorageRootId, Path)), request_body = CreateStorageRootRequest, responses((status = 200, body = crate::dto::StorageRootResponse), (status = 404), (status = 409)))]
 pub async fn update_storage_root(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<rd_core::StorageRootId>,
@@ -95,9 +103,9 @@ pub async fn update_storage_root(
                 &error,
                 "storage_root.not_found",
                 "Storage root not found",
-                StoreErrorKind::InUse,
-                "storage_root.in_use",
-                "The storage root is still used by categories",
+                StoreErrorKind::Duplicate,
+                ROOT_TAKEN,
+                ROOT_TAKEN_MESSAGE,
             )
         })?;
     state.scheduler.reload_capacity_config().await?;

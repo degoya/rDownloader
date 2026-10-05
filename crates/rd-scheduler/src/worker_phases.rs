@@ -39,14 +39,14 @@ pub(super) type Resolution = (
 );
 
 /// Records the stop the cancellation asked for and ends the run.
-async fn stopped<T>(scheduler: &SchedulerHandle, file: &DownloadFile) -> Step<T> {
+pub(super) async fn stopped<T>(scheduler: &SchedulerHandle, file: &DownloadFile) -> Step<T> {
     transition_stopped(scheduler, file)
         .await
         .map(ControlFlow::Break)
 }
 
 /// Records `failure` on the download and ends the run.
-async fn recorded<T>(
+pub(super) async fn recorded<T>(
     scheduler: &SchedulerHandle,
     file: &DownloadFile,
     failure: Failure,

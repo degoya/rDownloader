@@ -2,6 +2,7 @@ import { storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { components } from '@/api/schema'
 import type { StreamSchedule, StreamScheduleRequest } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
@@ -47,6 +48,17 @@ function emptySchedule(): ScheduleForm {
 function startMinute(value: string): number {
   const [hours = '0', minutes = '0'] = value.split(':')
   return Number(hours) * 60 + Number(minutes)
+}
+
+/**
+ * When a schedule fires, as the request takes it: a weekly one keeps its days and time, a one-off
+ * its moment. The union is the contract's own (`ScheduleKind`), so the narrowing on `kind` is all
+ * it takes to read `days` and `start_minute` (audit K10).
+ */
+function timing(entry: StreamSchedule): components['schemas']['ScheduleKind'] {
+  return entry.kind === 'weekly'
+    ? { kind: 'weekly', days: [...entry.days], start_minute: entry.start_minute }
+    : { kind: 'once', start: entry.start }
 }
 
 function minuteToTime(value: number): string {
@@ -99,7 +111,7 @@ export function useStreamSchedules() {
   }
 
   async function submitSchedule(): Promise<void> {
-    const body = {
+    const body: StreamScheduleRequest = {
       channel_id: schedule.channelId,
       name: schedule.name.trim(),
       enabled: true,
@@ -111,7 +123,7 @@ export function useStreamSchedules() {
       lead_minutes: schedule.leadMinutes,
       trail_minutes: schedule.trailMinutes,
       replay_from_start: schedule.replayFromStart
-    } as unknown as StreamScheduleRequest
+    }
     scheduleError.value = null
     const saved = await streams.saveSchedule(body, schedule.id ?? undefined)
     if (saved) resetSchedule()
@@ -124,22 +136,19 @@ export function useStreamSchedules() {
    * recorded so far stay with the original.
    */
   async function duplicateSchedule(entry: StreamSchedule): Promise<void> {
-    const source = entry as unknown as StreamSchedule & { days?: number[], start_minute?: number }
     duplicatingScheduleId.value = entry.id
     scheduleError.value = null
-    const body = {
+    const body: StreamScheduleRequest = {
       channel_id: entry.channel_id,
       name: copyName(entry.name, schedules.value.map(item => item.name), MAX_SCHEDULE_NAME),
       enabled: entry.enabled,
-      kind: 'weekly',
-      days: [...(source.days ?? [])],
-      start_minute: source.start_minute ?? 0,
+      ...timing(entry),
       timezone: entry.timezone,
       window_minutes: entry.window_minutes,
       lead_minutes: entry.lead_minutes,
       trail_minutes: entry.trail_minutes,
       replay_from_start: entry.replay_from_start
-    } as unknown as StreamScheduleRequest
+    }
     const saved = await streams.saveSchedule(body)
     duplicatingScheduleId.value = null
     if (!saved) return void (scheduleError.value = streams.error)
@@ -151,8 +160,9 @@ export function useStreamSchedules() {
     schedule.id = entry.id
     schedule.channelId = entry.channel_id
     schedule.name = entry.name
-    schedule.days = [...((entry as unknown as { days?: number[] }).days ?? [])]
-    schedule.startTime = minuteToTime((entry as unknown as { start_minute?: number }).start_minute ?? 0)
+    // The form edits weekly schedules; a one-off made through the API opens with no days.
+    schedule.days = entry.kind === 'weekly' ? [...entry.days] : []
+    schedule.startTime = minuteToTime(entry.kind === 'weekly' ? entry.start_minute : 0)
     schedule.timezone = entry.timezone
     schedule.windowMinutes = entry.window_minutes
     schedule.leadMinutes = entry.lead_minutes

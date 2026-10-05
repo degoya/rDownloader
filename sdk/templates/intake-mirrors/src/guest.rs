@@ -6,6 +6,8 @@
 
 wit_bindgen::generate!({
     path: "wit",
+    // The intake world plus `mirror-sets`. A parser that states no sources builds against
+    // `intake-plugin` instead and is asked nothing more.
     world: "intake-mirrors-plugin",
 });
 

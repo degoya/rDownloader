@@ -10,6 +10,7 @@ mod free;
 
 use std::collections::HashMap;
 
+pub(crate) use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
     LinkStatus, PluginHost, ResolveInput, Resolved,
@@ -49,7 +50,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     let response = call(host, "getKeyInfo", authenticated_query()).await?;
     let envelope: api::Envelope<api::KeyInfoResult> = parse_json(&response)?;
     if let Some(failure) = api::error_from_envelope(envelope.code, envelope.message.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     let result = envelope.result.ok_or_else(invalid_response)?;
     let active = result
@@ -83,7 +84,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     require_secret(host, account_id).await?;
     let metadata = file_info_one(host, &file_id).await?;
     let raw_url = download_link(host, &file_id).await?;
-    let url = api::parse_download_url(&raw_url).map_err(convert_failure)?;
+    let url = api::parse_download_url(&raw_url)?;
     Ok(Resolved {
         url: url.to_string(),
         file_name: metadata.name,
@@ -163,7 +164,7 @@ async fn download_link<H: PluginHost>(host: &H, file_id: &str) -> Result<String,
     let response = call(host, "getDownloadLink", query).await?;
     let envelope: api::Envelope<api::DownloadLinkResult> = parse_json(&response)?;
     if let Some(failure) = api::error_from_envelope(envelope.code, envelope.message.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     envelope
         .result
@@ -185,7 +186,7 @@ async fn file_info_batch<H: PluginHost>(
     .await?;
     let envelope: api::Envelope<api::FileInfoResult> = parse_json(&response)?;
     if let Some(failure) = api::error_from_envelope(envelope.code, envelope.message.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     Ok(envelope
         .result
@@ -223,17 +224,25 @@ async fn call<H: PluginHost>(
     path: &str,
     query: Vec<Header>,
 ) -> Result<HttpResponse, Failure> {
-    let response = host
-        .http(HttpRequest {
-            method: "GET".to_owned(),
-            url: format!("{}/{path}", api::API_BASE),
-            query,
-            headers: Vec::new(),
-            body: Vec::new(),
-        })
-        .await?;
-    ensure_http_status(&response)?;
-    Ok(response)
+    let request = HttpRequest {
+        method: "GET".to_owned(),
+        url: format!("{}/{path}", api::API_BASE),
+        query,
+        headers: Vec::new(),
+        body: Vec::new(),
+    };
+    send(host, request).await
+}
+
+/// One request; a status the JSON envelope does not explain is refused in Nitroflare's words.
+pub(crate) async fn send<H: PluginHost>(
+    host: &H,
+    request: HttpRequest,
+) -> Result<HttpResponse, Failure> {
+    plugin_common::failure::call(host, request, |status, retry_after, _| {
+        api::HTTP.ensure_http_status(status, retry_after).err()
+    })
+    .await
 }
 
 /// Fails before any request when the account has no premium key. `getFileInfo` is
@@ -251,31 +260,6 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
     Ok(())
 }
 
-pub(crate) fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    api::ensure_http_status(
-        response.status,
-        plugin_common::retry_after(&response.headers),
-    )
-    .map_err(convert_failure)
-}
-
-pub(crate) fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::AuthRequired => FailureKind::AuthRequired,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-        api::ErrorKind::NeedsCaptcha => FailureKind::NeedsCaptcha,
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
-}
-
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
     serde_json::from_slice(&response.body).map_err(|_| invalid_response())
 }
@@ -291,8 +275,4 @@ pub(crate) fn invalid_url(error: &url::ParseError) -> Failure {
         messages::invalid_url(error),
     )
     .with_param("error", error.to_string())
-}
-
-pub(crate) fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

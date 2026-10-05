@@ -1,6 +1,6 @@
 use super::{
-    ErrorEnvelope, ErrorKind, Stage, TorrentFile, classify_error, ensure_http_status, failure_from,
-    is_selected, magnet_body, pair_links, permille, selection_body, stage_of,
+    ErrorEnvelope, ErrorKind, HTTP, Stage, TorrentFile, classify_error, failure_from, is_selected,
+    magnet_body, pair_links, permille, selection_body, stage_of,
 };
 use crate::messages;
 
@@ -114,7 +114,7 @@ fn a_magnet_body_is_encoded_rather_than_pasted() {
 #[test]
 fn a_refusal_is_classified_by_its_number_and_never_by_its_sentence() {
     let failure = classify_error(22, None);
-    assert_eq!(failure.kind, ErrorKind::IpBlocked);
+    assert_eq!(failure.kind, ErrorKind::IpBlocked(None));
     assert_eq!(failure.code, messages::IP_NOT_ALLOWED.0);
     assert_eq!(failure.params, vec![("api_code", "22".to_owned())]);
     assert!(
@@ -152,18 +152,20 @@ fn a_success_status_carrying_an_error_code_is_still_a_refusal() {
     let empty = ErrorEnvelope::default();
     assert!(failure_from(200, None, &empty).is_none());
     assert!(failure_from(503, None, &empty).is_some());
-    assert!(ensure_http_status(204, None).is_ok());
+    assert!(HTTP.ensure_http_status(204, None).is_ok());
     // A legal block is `Offline` and retried, still worded as a refusal (RA-PLG-04); a 404 or
     // 410 is the torrent gone for good (owner, 2026-10-04).
-    let takedown = ensure_http_status(451, None).expect_err("a refusal");
+    let takedown = HTTP.ensure_http_status(451, None).expect_err("a refusal");
     assert_eq!(takedown.kind, ErrorKind::Offline);
     assert_eq!(takedown.code, messages::CONTENT_REFUSED.0);
     for gone in [404, 410] {
-        let gone = ensure_http_status(gone, None).expect_err("a refusal");
+        let gone = HTTP.ensure_http_status(gone, None).expect_err("a refusal");
         assert_eq!(gone.kind, ErrorKind::Permanent);
         assert_eq!(gone.code, messages::TORRENT_GONE.0);
     }
-    let limited = ensure_http_status(429, Some(120)).expect_err("a refusal");
+    let limited = HTTP
+        .ensure_http_status(429, Some(120))
+        .expect_err("a refusal");
     assert_eq!(limited.kind, ErrorKind::RateLimited(Some(120)));
 }
 

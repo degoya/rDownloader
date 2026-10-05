@@ -72,25 +72,8 @@ pub use plugin_common::percent_encode;
 /// Percent-decodes one path segment or query value, or `None` when it is not valid UTF-8.
 ///
 /// `+` is left alone: it is a plus sign in a path, and Dropbox's own links never encode a
-/// space that way.
-#[must_use]
-pub fn percent_decode(value: &str) -> Option<String> {
-    let bytes = value.as_bytes();
-    let mut decoded = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' {
-            let hex = bytes.get(index + 1..index + 3)?;
-            let text = std::str::from_utf8(hex).ok()?;
-            decoded.push(u8::from_str_radix(text, 16).ok()?);
-            index += 3;
-        } else {
-            decoded.push(bytes[index]);
-            index += 1;
-        }
-    }
-    String::from_utf8(decoded).ok()
-}
+/// space that way. One decoder for every plugin, in `plugin-common` (RD-1110-04).
+pub use plugin_common::encode::percent_decode_strict as percent_decode;
 
 /// A link key as Dropbox issues them — the `<key>` of `/s/<key>/`, the id and hash of
 /// `/scl/fo/<id>/<hash>`, the `rlkey`: URL-safe characters and nothing else.

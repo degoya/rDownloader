@@ -8,8 +8,9 @@
 
 use plugin_guest_oauth::{
     AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, form,
-    host, http, retry_after,
+    http, retry_after,
     types::{Failure, FailureKind},
+    unguessable_value,
 };
 
 use crate::{flow, pkce};
@@ -47,23 +48,6 @@ fn refuse(code: &str, message: String, category: FailureKind) -> Failure {
         code: Some(format!("example_oauth.{code}")),
         params: Vec::new(),
     }
-}
-
-/// A value nobody can recompute: the host's random bytes, base64url-encoded.
-///
-/// Asked for once per value rather than split from a single draw — the verifier and the `state`
-/// must not be two halves of one secret, which is exactly what the clock-derived pair this
-/// replaced amounted to. An empty answer means the host refused, and a sign-in is failed rather
-/// than continued with a value the plugin made up.
-fn unguessable_value() -> Result<String, Failure> {
-    let random = host::random_bytes(pkce::VERIFIER_BYTES as u32);
-    pkce::verifier(&random).ok_or_else(|| {
-        refuse(
-            "no_entropy",
-            "the host did not supply the randomness this sign-in needs".to_owned(),
-            FailureKind::Permanent,
-        )
-    })
 }
 
 /// Turns a token endpoint's answer into the outcome the host acts on.
@@ -130,8 +114,8 @@ impl Guest for Component {
         // Both values come from the host's random source and from nothing else. Neither the
         // account nor the time of day takes part: a value computed from those is a value
         // anybody holding them can recompute, and a recomputable verifier is no verifier.
-        let verifier = unguessable_value()?;
-        let state = unguessable_value()?;
+        let verifier = unguessable_value("example_oauth")?;
+        let state = unguessable_value("example_oauth")?;
         let authorization_url = format!(
             "{AUTHORIZE_ENDPOINT}?response_type=code&client_id={}&redirect_uri={}&scope={}\
              &state={}&code_challenge={}&code_challenge_method=S256",

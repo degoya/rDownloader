@@ -53,6 +53,8 @@ function mount() {
           template: '<div><slot name="header" /><slot name="body" /></div>'
         },
         UDashboardSidebarCollapse: true,
+        UEmpty: uiStubs.UEmpty,
+        UFileUpload: uiStubs.UFileUpload,
         UFormField: uiStubs.UFormField,
         UIcon: true,
         UInput: { props: ['modelValue'], emits: ['update:modelValue'], template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />' },

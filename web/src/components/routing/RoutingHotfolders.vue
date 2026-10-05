@@ -10,6 +10,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { WHOLE } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -241,11 +242,9 @@ async function remove(folder: HotFolder): Promise<void> {
       </template>
       <template #list>
         <form class="mb-4 border border-muted p-4" data-testid="hotfolder-poll" @submit.prevent="savePollInterval">
-          <UFormField data-settings-anchor="hotfolders.poll" :label="t('routing.hotfolder.poll_label')" :description="t('routing.hotfolder.poll_description')">
+          <UFormField hint="s" data-settings-anchor="hotfolders.poll" :label="t('routing.hotfolder.poll_label')" :description="t('routing.hotfolder.poll_description')">
             <div class="mt-2 flex flex-wrap items-center gap-2">
-              <UInput v-model.number="pollSeconds" type="number" min="5" max="3600" required icon="i-lucide-timer" class="w-32" :aria-label="t('routing.hotfolder.poll_label')">
-                <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-              </UInput>
+              <UInputNumber v-model="pollSeconds" required :min="5" :max="3600" :format-options="WHOLE" class="w-32" :aria-label="t('routing.hotfolder.poll_label')" />
               <UButton type="submit" size="sm" icon="i-lucide-save" :label="t('routing.hotfolder.poll_save')" :loading="pollPending" />
             </div>
           </UFormField>
@@ -255,7 +254,7 @@ async function remove(folder: HotFolder): Promise<void> {
         <div class="space-y-2">
           <div v-for="folder in hotfolders" :key="folder.id" class="border bg-default p-3" :class="editingId === folder.id ? 'border-primary' : 'border-muted'">
             <div class="flex items-center gap-3">
-              <span class="size-2 shrink-0" :class="folder.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" />
+              <UChip standalone color="success" :show="folder.enabled" class="w-2" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-highlighted">{{ folder.name }}</p>
                 <p class="truncate font-mono text-[11px] text-muted">{{ folder.path }}</p>
@@ -271,7 +270,7 @@ async function remove(folder: HotFolder): Promise<void> {
             <p class="mt-1 truncate font-mono text-[10px] text-muted">{{ t('routing.hotfolder.paths', { processed: folder.processed_path, failed: folder.failed_path }) }}</p>
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!hotfolders.length">
-            <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">{{ t('routing.hotfolder.empty') }}</p>
+            <UEmpty :description="t('routing.hotfolder.empty')" />
           </DataState>
         </div>
       </template>

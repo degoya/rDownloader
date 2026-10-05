@@ -215,14 +215,20 @@ async fn sync_bundled_plugins(
     // An image built without scripts/build-plugins.sh copies an empty directory, and the result
     // is a service with no hoster resolvers and nothing anywhere saying why. A *missing*
     // directory is the ordinary case for a plain binary and stays quiet.
-    if let Ok(entries) = std::fs::read_dir(&directory)
-        && !entries.flatten().any(|entry| {
-            entry
-                .path()
-                .extension()
-                .is_some_and(|extension| extension == "rdplug")
+    let listed = directory.clone();
+    let empty = tokio::task::spawn_blocking(move || {
+        std::fs::read_dir(&listed).is_ok_and(|entries| {
+            !entries.flatten().any(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .is_some_and(|extension| extension == "rdplug")
+            })
         })
-    {
+    })
+    .await
+    .unwrap_or(false);
+    if empty {
         tracing::warn!(
             directory = %directory.display(),
             "no bundled plugin packages found; hoster resolvers and other plugin providers will be missing"

@@ -4,10 +4,10 @@
 //! limit, authentication expiry and error — plus the two shapes that are specific to this
 //! provider: a refusal served with a 200, and a plan that does not include the API.
 
-use plugin_common::FailureKind;
+use plugin_common::{FailureKind, retry_after_seconds};
 use seedr_common::reason::ErrorEnvelope;
 
-use super::{UserRecord, failure_from, retry_after_seconds};
+use super::{UserRecord, failure_from};
 use crate::messages;
 
 fn envelope(body: &str) -> ErrorEnvelope {
@@ -32,7 +32,7 @@ fn a_refusal_on_a_two_hundred_is_still_a_refusal() {
     .expect("a refusal");
     assert_eq!(failure.code, messages::API_ERROR.0);
     assert_eq!(failure.kind, FailureKind::Permanent);
-    assert_eq!(failure.reason.as_deref(), Some("bad_request"));
+    assert_eq!(failure.param("reason"), Some("bad_request"));
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn a_status_no_document_explains_carries_the_number_and_nothing_else() {
     let failure = failure_from(418, None, &envelope("<html>418</html>")).expect("a refusal");
     assert_eq!(failure.code, messages::HTTP_ERROR.0);
     assert_eq!(failure.message, "Seedr HTTP status 418");
-    assert_eq!(failure.reason, None);
+    assert_eq!(failure.param("reason"), None);
 }
 
 /// A wrong wait is worse than the bucket's own default, which is at least one somebody can

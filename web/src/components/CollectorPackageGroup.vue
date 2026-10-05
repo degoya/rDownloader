@@ -108,7 +108,7 @@ const priorityModel = computed({
       <UCheckbox :model-value="allSelected ? true : someSelected ? 'indeterminate' : false" :disabled="!selectable.length" :aria-label="t('linkgrabber.package.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', selectable, value === true)" />
       <UButton :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('linkgrabber.package.hide_links') : t('linkgrabber.package.show_links')" @click="emit('toggle', props.package.id)" />
       <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">
-        <button type="button" class="min-w-50 flex-1 truncate text-left text-sm font-semibold text-highlighted hover:underline" :title="props.package.name" @click="emit('rename', props.package.id)">{{ props.package.name }}</button>
+        <UButton variant="link" color="neutral" class="min-w-50 flex-1 p-0 text-left text-sm font-semibold text-highlighted hover:text-highlighted hover:underline" :label="props.package.name" :title="props.package.name" @click="emit('rename', props.package.id)" />
         <span class="numeric hidden min-w-0 truncate text-xs text-muted @min-[32rem]:block">
           {{ t('common.units.link', { count: props.candidates.length }, props.candidates.length) }}
           <span v-if="online" class="text-success"> · {{ t('linkgrabber.package.online', { count: online }) }}</span>

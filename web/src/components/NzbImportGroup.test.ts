@@ -78,6 +78,19 @@ describe('NzbImportGroup failed badge', () => {
     expect(screen.queryByText(stepReason)).toBeNull()
   })
 
+  // The chevron opens the same files as the badge, and says so as the badge does (RD-1110-11).
+  it('says on the chevron whether the files are open', async () => {
+    respond([])
+    renderGroup(nzb({ state: 'imported', error: null }))
+    const chevron = screen.getByRole('button', { name: linkgrabber.nzb.show_files })
+    expect(chevron.tagName).toBe('BUTTON')
+    expect(chevron.getAttribute('aria-expanded')).toBe('false')
+
+    await fireEvent.click(chevron)
+    await screen.findByText('Some.Release.part01.rar')
+    expect(screen.getByRole('button', { name: linkgrabber.nzb.hide_files }).getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('says so when a failed import carries no reason at all', async () => {
     respond([])
     renderGroup(nzb({ error: null }))

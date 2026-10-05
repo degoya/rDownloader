@@ -39,9 +39,6 @@ pub const PLUGIN_INDEX_DOMAIN: &str = "rdownloader.plugin-index.v1";
 /// The index layout this build understands. Anything else is refused as a whole.
 pub const PLUGIN_INDEX_SCHEMA_VERSION: u32 = 1;
 
-/// The release asset the official index is published as.
-pub const PLUGIN_INDEX_FILE_NAME: &str = "rdownloader-plugin-index.json";
-
 /// Largest signed index accepted, checked before a byte of it is parsed. Roughly a thousand
 /// entries with full release notes; the official index is a few dozen.
 pub const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;

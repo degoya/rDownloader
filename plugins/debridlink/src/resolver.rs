@@ -5,6 +5,7 @@
 //! hoster catalogue merge — so what moves here is the sequence of calls that used to exist once
 //! per build.
 
+use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
     PluginHost, ResolveInput, Resolved,
@@ -29,7 +30,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     let response = call(host, "GET", "/account/infos", Vec::new()).await?;
     let envelope: api::Envelope<api::AccountInfoData> = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(envelope.success, envelope.error.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     let data = envelope.value.unwrap_or_default();
     Ok(Account {
@@ -58,13 +59,13 @@ pub(crate) async fn resolve<H: PluginHost>(
     let response = call(host, "POST", "/downloader/add", api::add_body(&request.url)).await?;
     let envelope: api::Envelope<api::AddData> = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(envelope.success, envelope.error.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     let data = envelope.value.unwrap_or_default();
     let raw_url = data
         .download_url
         .ok_or_else(|| coded(FailureKind::Permanent, messages::NO_DOWNLOAD_URL))?;
-    let url = api::parse_download_url(&raw_url).map_err(convert_failure)?;
+    let url = api::parse_download_url(&raw_url)?;
     Ok(Resolved {
         url: url.to_string(),
         file_name: data.name,
@@ -89,7 +90,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     .await?;
     let envelope: api::Envelope<Vec<api::HostEntry>> = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(envelope.success, envelope.error.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     Ok(api::merge_hosters(envelope.value.unwrap_or_default()))
 }
@@ -123,13 +124,10 @@ async fn call<H: PluginHost>(
         format!("Bearer {{{{secret:{}}}}}", api::API_KEY_REFERENCE),
     )
     .with_header("Content-Type", "application/x-www-form-urlencoded");
-    let response = host.http(request).await?;
-    api::ensure_http_status(
-        response.status,
-        plugin_common::retry_after(&response.headers),
-    )
-    .map_err(convert_failure)?;
-    Ok(response)
+    plugin_common::failure::call(host, request, |status, retry_after, _| {
+        api::HTTP.ensure_http_status(status, retry_after).err()
+    })
+    .await
 }
 
 /// Fails before any request when the account has no API key: every endpoint requires one.
@@ -143,29 +141,10 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
     Ok(())
 }
 
-fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
-}
-
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
     serde_json::from_slice(&response.body).map_err(|_| invalid_response())
 }
 
 fn invalid_response() -> Failure {
     coded(FailureKind::Transient(None), messages::INVALID_RESPONSE)
-}
-
-fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

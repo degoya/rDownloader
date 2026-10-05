@@ -296,7 +296,8 @@ async fn conformance(args: &ConformanceArgs) -> Result<()> {
         &args.package.trusted_keys,
         !args.package.no_default_plugin_key,
     )?;
-    let bytes = std::fs::read(&args.package.package)
+    let bytes = tokio::fs::read(&args.package.package)
+        .await
         .with_context(|| format!("read plugin package {}", args.package.package.display()))?;
     let report = rd_plugin_host::check_package(&bytes, &verifier).await;
     if args.json {
@@ -399,9 +400,12 @@ fn scaffold(args: &NewPluginArgs) -> Result<()> {
         key_path.display()
     );
     println!("next:");
-    println!("  cargo component build --release --target wasm32-unknown-unknown");
+    println!("  cargo build --release --target wasm32-unknown-unknown");
     println!(
-        "  rdownloader plugin package --manifest manifest.toml \\\n    --component target/wasm32-unknown-unknown/release/{slug}.wasm \\\n    --locales locales --key plugin-signing.key --output {slug}.rdplug"
+        "  wasm-tools component new target/wasm32-unknown-unknown/release/{slug}.wasm -o target/{slug}.wasm"
+    );
+    println!(
+        "  rdownloader plugin package --manifest manifest.toml \\\n    --component target/{slug}.wasm \\\n    --locales locales --key plugin-signing.key --output {slug}.rdplug"
     );
     Ok(())
 }
@@ -523,10 +527,10 @@ mod tests {
                 manifest.contains(&format!("plugin_type = \"{plugin_type}\"")),
                 "{name} template declares another plugin_type"
             );
-            let cargo =
-                std::fs::read_to_string(directory.join("Cargo.toml")).expect("template Cargo.toml");
+            let guest = std::fs::read_to_string(directory.join("src/guest.rs"))
+                .expect("template src/guest.rs");
             assert!(
-                cargo.contains(&format!("world = \"{name}-plugin\"")),
+                guest.contains(&format!("world: \"{name}-plugin\",")),
                 "{name} template builds another world"
             );
             assert!(

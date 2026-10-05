@@ -125,7 +125,7 @@ impl NativeHost {
             Some(key) => match self.secrets.put_string(key.to_string()).await {
                 Ok(reference) => Some(reference),
                 Err(error) => {
-                    let _ = self.secrets.remove(&new_token).await;
+                    self.drop_secret(&new_token).await;
                     return Err(super::permanent(error));
                 }
             },
@@ -137,9 +137,9 @@ impl NativeHost {
             .await
         {
             // Nothing references the entries just written, so they are ours to take back.
-            let _ = self.secrets.remove(&new_token).await;
+            self.drop_secret(&new_token).await;
             if let Some(orphan) = &new_key {
-                let _ = self.secrets.remove(orphan).await;
+                self.drop_secret(orphan).await;
             }
             return Err(super::permanent(error));
         }
@@ -149,7 +149,7 @@ impl NativeHost {
                 .flatten()
             {
                 if old != new_token && Some(&old) != new_key.as_ref() {
-                    let _ = self.secrets.remove(&old).await;
+                    self.drop_secret(&old).await;
                 }
             }
         }

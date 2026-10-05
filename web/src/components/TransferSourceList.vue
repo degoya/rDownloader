@@ -45,7 +45,8 @@ function isolatedReason(source: DownloadSourceView): string {
 </script>
 
 <template>
-  <div v-if="rows.length" class="grid gap-1.5 border-t border-muted pt-2">
+  <div v-if="rows.length" class="grid gap-1.5">
+    <USeparator class="mb-0.5" />
     <p class="text-xs text-toned">{{ t('downloads.transfer.sources.title', { count: rows.length }) }}</p>
     <p class="text-xs text-muted">{{ piecesLabel }}</p>
     <ul class="grid gap-1">

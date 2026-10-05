@@ -15,12 +15,5 @@ torrent-common = { path = "../torrent-common" }
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:realdebrid-torrents"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "remote-job-plugin"
-
 [lints]
 workspace = true

@@ -5,23 +5,32 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# The stand-in identity provider's keys (`oidc_testing`) for the tests here and in `rd-api`;
+# nothing in the service signs a token (RD-1110-06).
+test-support = ["dep:aws-lc-rs"]
+
 [dependencies]
-aws-lc-rs.workspace = true
+aws-lc-rs = { workspace = true, optional = true }
 base64.workspace = true
 chrono.workspace = true
-hex.workspace = true
 hmac.workspace = true
 openidconnect.workspace = true
 rand.workspace = true
+rd-sign = { path = "../rd-sign" }
 serde.workspace = true
 serde_json.workspace = true
 sha1.workspace = true
-sha2.workspace = true
 subtle.workspace = true
 thiserror.workspace = true
 url.workspace = true
 utoipa.workspace = true
 webauthn-rs.workspace = true
+
+[dev-dependencies]
+# The unit tests sign with `oidc_testing`; a dev-dependency on itself is how they get
+# `test-support` without the service getting it.
+rd-authn = { path = ".", features = ["test-support"] }
 
 [lints]
 workspace = true

@@ -167,7 +167,8 @@ async fn fetch_file<H: PluginHost>(host: &H, file_id: u64) -> Result<api::FileRe
 ///
 /// The whole vocabulary of "Put.io said no" lives here, so no caller decides a second time
 /// what a status meant — which is how a rate limit and an expired sign-in end up under one
-/// message.
+/// message. Not `plugin_common::failure::call`: the wait of a `429` needs the host's clock, and
+/// that is asked for only then.
 async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpResponse, Failure> {
     let response = host
         .http(request.with_header(
@@ -189,17 +190,11 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
     } else {
         None
     };
+    // The reason a refusal carries is sanitised in `putio_common::reason` before it ever gets
+    // here, so an error document that quoted something it should not have keeps nothing.
     match api::failure_from(response.status, reset, &envelope) {
         None => Ok(response),
-        Some(refusal) => {
-            let mut failure = Failure::coded(refusal.kind, refusal.code, refusal.message);
-            if let Some(reason) = refusal.reason {
-                // Sanitised in `putio_common::reason` before it ever gets here, so an error
-                // document that quoted something it should not have keeps nothing.
-                failure = failure.with_param("reason", reason);
-            }
-            Err(failure)
-        }
+        Some(refusal) => Err(refusal.into()),
     }
 }
 

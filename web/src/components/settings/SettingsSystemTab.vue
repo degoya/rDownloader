@@ -11,6 +11,7 @@ import SettingsUpdateCard from '@/components/settings/SettingsUpdateCard.vue'
 import { useAppTour } from '@/composables/useAppTour'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import { useSessionStore } from '@/stores/session'
+import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 /**
@@ -163,7 +164,7 @@ const systems = computed(() => [
           <div class="grid gap-3 lg:grid-cols-3">
             <UCard v-for="system in systems" :key="system.icon" as="article" class="relative">
               <div class="mb-8 flex items-start justify-between">
-                <div class="grid size-10 place-items-center bg-elevated text-primary"><UIcon :name="system.icon" class="size-5" /></div>
+                <UAvatar :icon="system.icon" color="primary" size="xl" />
                 <UBadge :color="system.color" variant="subtle">{{ system.status }}</UBadge>
               </div>
               <SectionHeader :eyebrow="system.eyebrow" :title="system.title" :description="system.description" />
@@ -205,10 +206,10 @@ const systems = computed(() => [
             <SettingsDataResetButton class="mt-4" target="logs" :count="dataCounts.logs" @cleared="loadDataCounts()" />
             <div class="mt-4 grid gap-4">
               <UFormField :label="t('settings.logs.records_label')" :description="t('settings.logs.records_description')">
-                <UInput v-model.number="settings.log_retention_records" type="number" min="1000" max="500000" step="1" icon="i-lucide-database" class="mt-2 w-full" />
+                <UInputNumber v-model="settings.log_retention_records" required :min="1000" :max="500000" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
               <UFormField :label="t('settings.logs.days_label')" :description="t('settings.logs.days_description')">
-                <UInput v-model.number="settings.log_retention_days" type="number" min="1" max="365" icon="i-lucide-calendar-days" class="mt-2 w-full" />
+                <UInputNumber v-model="settings.log_retention_days" required :min="1" :max="365" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
             </div>
           </UCard>
@@ -230,13 +231,14 @@ const systems = computed(() => [
             </div>
             <div class="mt-4 grid gap-4">
               <UFormField :label="t('settings.audit.records_label')" :description="t('settings.audit.records_description')">
-                <UInput v-model.number="settings.audit_retention_records" type="number" min="10000" max="2000000" step="1" icon="i-lucide-database" class="mt-2 w-full" />
+                <UInputNumber v-model="settings.audit_retention_records" required :min="10000" :max="2000000" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
               <UFormField :label="t('settings.audit.days_label')" :description="t('settings.audit.days_description')">
-                <UInput v-model.number="settings.audit_retention_days" type="number" min="30" max="3650" icon="i-lucide-calendar-days" class="mt-2 w-full" />
+                <UInputNumber v-model="settings.audit_retention_days" required :min="30" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
             </div>
-            <div class="mt-4 border-t border-muted pt-4">
+            <USeparator class="my-4" />
+            <div>
               <UFormField :label="t('settings.audit.otlp_enabled_label')" :description="t('settings.audit.otlp_enabled_description')" orientation="horizontal">
                 <USwitch v-model="settings.otlp_enabled" data-testid="otlp-enabled" />
               </UFormField>
@@ -244,10 +246,8 @@ const systems = computed(() => [
                 <UFormField :label="t('settings.audit.otlp_endpoint_label')" :description="t('settings.audit.otlp_endpoint_description')">
                   <UInput v-model="settings.otlp_endpoint" placeholder="http://127.0.0.1:4318/v1/traces" icon="i-lucide-waypoints" class="mt-2 w-full" data-testid="otlp-endpoint" />
                 </UFormField>
-                <UFormField :label="t('settings.audit.otlp_timeout_label')" :description="t('settings.audit.otlp_timeout_description')">
-                  <UInput v-model.number="settings.otlp_timeout_seconds" type="number" min="1" max="60" icon="i-lucide-timer" class="mt-2 w-full">
-                    <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-                  </UInput>
+                <UFormField hint="s" :label="t('settings.audit.otlp_timeout_label')" :description="t('settings.audit.otlp_timeout_description')">
+                  <UInputNumber v-model="settings.otlp_timeout_seconds" required :min="1" :max="60" :format-options="WHOLE" class="mt-2 w-full" />
                 </UFormField>
               </div>
             </div>
@@ -271,10 +271,10 @@ const systems = computed(() => [
             </div>
             <div class="mt-4 grid gap-4">
               <UFormField :label="t('settings.history.entries_label')" :description="t('settings.history.entries_description')">
-                <UInput v-model.number="settings.history_retention_entries" type="number" min="100" max="100000" step="1" icon="i-lucide-database" class="mt-2 w-full" />
+                <UInputNumber v-model="settings.history_retention_entries" required :min="100" :max="100000" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
               <UFormField :label="t('settings.history.days_label')" :description="t('settings.history.days_description')">
-                <UInput v-model.number="settings.history_retention_days" type="number" min="1" max="3650" icon="i-lucide-calendar-days" class="mt-2 w-full" />
+                <UInputNumber v-model="settings.history_retention_days" required :min="1" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
             </div>
           </UCard>
@@ -282,15 +282,11 @@ const systems = computed(() => [
           <UCard as="section" data-settings-anchor="system.stats_retention" class="mt-6" data-testid="stats-retention">
             <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
             <div class="mt-4 grid gap-4">
-              <UFormField :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
-                <UInput v-model.number="settings.stats_hourly_days" type="number" min="1" max="3650" icon="i-lucide-timer" class="mt-2 w-full">
-                  <template #trailing><span class="font-mono text-xs text-muted">d</span></template>
-                </UInput>
+              <UFormField hint="d" :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
+                <UInputNumber v-model="settings.stats_hourly_days" required :min="1" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
-              <UFormField :label="t('stats.retention.retention_label')" :description="t('stats.retention.retention_description')">
-                <UInput v-model.number="settings.stats_retention_days" type="number" min="7" max="3650" icon="i-lucide-archive" class="mt-2 w-full">
-                  <template #trailing><span class="font-mono text-xs text-muted">d</span></template>
-                </UInput>
+              <UFormField hint="d" :label="t('stats.retention.retention_label')" :description="t('stats.retention.retention_description')">
+                <UInputNumber v-model="settings.stats_retention_days" required :min="7" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
             </div>
             <SettingsDataResetButton class="mt-4" target="stats" :count="dataCounts.stats" @cleared="loadDataCounts()" />

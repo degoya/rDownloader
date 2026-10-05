@@ -282,6 +282,7 @@ pub async fn detect(tool: &str, path: &Path) -> DetectedVersion {
 }
 
 /// Forgets every cached answer. Called when a change could not have moved a file's timestamp.
+#[cfg(any(test, feature = "test-support"))]
 pub fn clear_cache() {
     if let Ok(mut cache) = CACHE.write() {
         cache.clear();

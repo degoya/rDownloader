@@ -1167,7 +1167,14 @@
     "sftp.no_username": "Der gespeicherte SFTP-Zugang nennt keinen Benutzernamen; trage einen ein",
     "hotfolder.protected_directory": "Ein Hotfolder darf kein Verzeichnis sein, enthalten oder in einem liegen, aus dem der Dienst Programme, Skripte oder Plugins startet oder in dem er seine Daten hält ({directory}).",
     "usenet.declared_size_implausible": "Die Artikel kündigen eine Datei mit {declared} Bytes an, weit mehr als die {listed} Bytes, die die NZB nennt; die Datei wurde nicht zusammengesetzt",
-    "usenet.gap_fill_no_space": "Nicht genug freier Speicher, um die Lücken der fehlenden Artikel zu füllen ({required} Bytes samt Reserve nötig, {free} frei); es wird später erneut versucht"
+    "usenet.gap_fill_no_space": "Nicht genug freier Speicher, um die Lücken der fehlenden Artikel zu füllen ({required} Bytes samt Reserve nötig, {free} frei); es wird später erneut versucht",
+    "api.token_expiry_range": "Ein Token läuft nach 1 bis {max} Tagen ab oder nie",
+    "notification.name_taken": "Ein Benachrichtigungsziel mit diesem Namen gibt es schon",
+    "usenet.server_name_taken": "Es gibt schon einen NNTP-Server mit diesem Namen",
+    "bandwidth.profile_name_taken": "Es gibt schon ein Bandbreitenprofil mit diesem Namen",
+    "storage_root.name_or_path_taken": "Es gibt schon einen Speicherort mit diesem Namen oder Ordner",
+    "category.name_taken": "Es gibt schon eine Kategorie mit diesem Namen",
+    "hotfolder.name_or_path_taken": "Es gibt schon einen Hotfolder mit diesem Namen oder Ordner"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

@@ -178,7 +178,8 @@ defineExpose({ reload: load })
       icon="i-lucide-gauge"
       :description="t('bandwidth.status.budget_exhausted')"
     />
-    <div v-if="partial.length" class="mt-4 border-t border-muted pt-4">
+    <USeparator v-if="partial.length" class="my-4" />
+    <div v-if="partial.length">
       <p class="text-xs font-medium text-highlighted">{{ t('bandwidth.capabilities.title') }}</p>
       <ul class="mt-2 space-y-1">
         <li v-for="entry in partial" :key="entry.kind" class="flex items-start gap-1.5 text-xs text-muted">

@@ -38,13 +38,9 @@ jobs:
         with:
           key: release-plugins
           save-if: false
-      # Prebuilt through cargo-binstall, as in ci.yml's `components` job whose cache this run
-      # reads, instead of a source build at every release (RD-191-09).
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: cargo-component@0.21.1
-      # For the import check scripts/build-plugins.sh runs on every component it builds, and the
-      # one below over all of them.
+      # Makes each core module a component (RD-1110-08), and reads the imports for the check
+      # scripts/build-plugins.sh runs on every component it builds and the one below over all of
+      # them; the version the script requires, as in ci-components.yml whose cache this run reads.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: wasm-tools@1.261.0
@@ -54,7 +50,7 @@ jobs:
         run: scripts/ci-plugins.sh list
       # Components are built only when their content changed (RD-150-10). The cache is the one
       # ci.yml's `components` job fills on `main` — a tag's run may read the default branch's
-      # caches and nothing else — keyed by what goes into a component: toolchain, cargo-component,
+      # caches and nothing else — keyed by what goes into a component: toolchain, wasm-tools,
       # the registry half of Cargo.lock and the root Cargo.toml (`deps`), and every plugin's source
       # hash (`sources`). A miss on `sources` restores the newest set with the same `deps`, and
       # build-plugins.sh rebuilds what its stamps call stale or missing. Every package is still
@@ -68,8 +64,8 @@ jobs:
           path: |
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
-          key: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
-          restore-keys: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
+          key: components-1.99.0-wt1.261.0-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
+          restore-keys: components-1.99.0-wt1.261.0-${{ steps.component-key.outputs.deps }}-
       - name: Build plugin components
         shell: bash
         run: scripts/build-plugins.sh --components-only

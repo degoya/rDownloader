@@ -66,6 +66,7 @@ pub const EXCLUSION_SECRETS: &str = "diagnostics.bundle.exclusion.secrets";
 pub const FIELDS_PARAMETER: &str = "fields";
 
 /// Every code this crate can emit, for the tests that hold the catalogues to it.
+#[cfg(any(test, feature = "test-support"))]
 pub const ALL_CODES: &[&str] = &[
     ENTRY_VERSIONS,
     ENTRY_CONFIGURATION,

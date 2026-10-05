@@ -6,24 +6,22 @@
 //! the status classification and the envelope conversion — different in nothing but the
 //! plugin's translation codes. They live here now, taking those codes as arguments; a plugin's
 //! `api.rs` keeps one-line wrappers that name its own codes, so its call sites read as before.
+//! The HTML sniff and `coded` are every hoster's, so they are `plugin_common`'s and re-exported
+//! here (RD-1110-03).
 
+use plugin_common::failure::HttpError;
+pub use plugin_common::failure::coded;
+pub use plugin_common::is_html;
+use plugin_common::retry_after;
 use plugin_common::{Failure, FailureKind, HttpRequest, HttpResponse};
 use serde::de::DeserializeOwned;
 
-use crate::api::{EnvelopeError, ErrorKind};
+use crate::api::EnvelopeError;
 
 /// A `GET` that asks for one byte, so a hotlink is recognised without downloading it.
 #[must_use]
 pub fn range_probe(url: impl Into<String>) -> HttpRequest {
     HttpRequest::get(url).with_header("Range", "bytes=0-0")
-}
-
-/// Whether a response is an HTML page rather than the file itself.
-#[must_use]
-pub fn is_html(response: &HttpResponse) -> bool {
-    response
-        .header("content-type")
-        .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"))
 }
 
 /// Every `Set-Cookie` value of a response, which `HttpResponse::header` cannot give: a sign-in
@@ -38,24 +36,6 @@ pub fn set_cookies(response: &HttpResponse) -> Vec<String> {
         .collect()
 }
 
-/// [`ErrorKind`] as the scheduler's category.
-#[must_use]
-pub const fn convert_kind(kind: ErrorKind) -> FailureKind {
-    match kind {
-        ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        ErrorKind::Offline => FailureKind::Offline,
-        ErrorKind::Permanent => FailureKind::Permanent,
-        ErrorKind::RateLimited => FailureKind::RateLimited(None),
-        ErrorKind::Transient => FailureKind::Transient(None),
-    }
-}
-
-/// A failure under one of the plugin's `(code, message)` pairs.
-#[must_use]
-pub fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
-}
-
 /// Classifies a transport status with the mapping every plugin shares
 /// ([`plugin_common::http_status`]), carrying the response's `Retry-After` into a rate limit or
 /// a server error. `code` and `text` are the plugin's `http_error` code and its English text.
@@ -66,39 +46,12 @@ pub fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
 /// The classified refusal, with a `status` parameter, for every status that is not a `2xx`.
 pub fn ensure_http_status(
     response: &HttpResponse,
-    code: &str,
+    code: &'static str,
     text: fn(u16) -> String,
 ) -> Result<(), Failure> {
-    plugin_common::http_status(
-        response.status,
-        plugin_common::retry_after(&response.headers),
-    )
-    .map_err(|refusal| {
-        Failure::coded(refusal.kind(), code, text(response.status))
-            .with_param("status", response.status.to_string())
-    })
-}
-
-/// As [`ensure_http_status`], for a request that carried no account: a `401` or `403` is a plain
-/// HTTP error there, never `AccountInvalid` — no account was sent, so none was refused, and a
-/// bot wall's `403` read as a refused account sends the person to fix credentials they never
-/// gave (RA-PLG-01, the way 1fichier's free flow reads it).
-///
-/// # Errors
-///
-/// The classified refusal, with a `status` parameter, for every status that is not a `2xx`.
-pub fn ensure_http_status_without_account(
-    response: &HttpResponse,
-    code: &str,
-    text: fn(u16) -> String,
-) -> Result<(), Failure> {
-    if matches!(response.status, 401 | 403) {
-        return Err(
-            Failure::coded(FailureKind::Permanent, code, text(response.status))
-                .with_param("status", response.status.to_string()),
-        );
-    }
-    ensure_http_status(response, code, text)
+    HttpError { code, text }
+        .ensure_http_status(response.status, retry_after(&response.headers))
+        .map_err(Failure::from)
 }
 
 /// The codes a plugin with an XFS JSON API reports its envelope failures under.
@@ -123,12 +76,10 @@ impl ApiMessages {
     #[must_use]
     pub fn envelope_error(&self, error: EnvelopeError) -> Failure {
         match error {
-            EnvelopeError::Status(kind, message) => Failure::coded(
-                convert_kind(kind),
-                self.api_error,
-                (self.api_error_text)(&message),
-            )
-            .with_param("message", message),
+            EnvelopeError::Status(kind, message) => {
+                Failure::coded(kind, self.api_error, (self.api_error_text)(&message))
+                    .with_param("message", message)
+            }
             EnvelopeError::MissingResult => self.invalid_response(),
         }
     }
@@ -157,9 +108,7 @@ pub fn invalid_url(
 mod tests {
     use plugin_common::{FailureKind, HttpResponse};
 
-    use super::{
-        ApiMessages, ensure_http_status, ensure_http_status_without_account, is_html, set_cookies,
-    };
+    use super::{ApiMessages, ensure_http_status, is_html, set_cookies};
     use crate::api::{EnvelopeError, ErrorKind};
 
     fn response(status: u16, headers: &[(&str, &str)]) -> HttpResponse {
@@ -202,33 +151,6 @@ mod tests {
         let refused =
             ensure_http_status(&response(403, &[]), "x.http_error", text).expect_err("a refusal");
         assert_eq!(refused.kind, FailureKind::AccountInvalid);
-    }
-
-    /// Without an account a 401 or 403 is an HTTP error, not a refused account (RA-PLG-01);
-    /// every other status is classified as with one.
-    #[test]
-    fn without_an_account_a_refusal_is_no_refused_account() {
-        for status in [401_u16, 403] {
-            let refused =
-                ensure_http_status_without_account(&response(status, &[]), "x.http_error", text)
-                    .expect_err("a refusal");
-            assert_eq!(refused.kind, FailureKind::Permanent, "{status}");
-            assert_eq!(refused.code.as_deref(), Some("x.http_error"));
-            assert_eq!(
-                refused.params,
-                vec![("status".to_owned(), status.to_string())]
-            );
-        }
-        assert!(
-            ensure_http_status_without_account(&response(200, &[]), "x.http_error", text).is_ok()
-        );
-        let limited = ensure_http_status_without_account(
-            &response(429, &[("Retry-After", "30")]),
-            "x.http_error",
-            text,
-        )
-        .expect_err("a refusal");
-        assert_eq!(limited.kind, FailureKind::RateLimited(Some(30)));
     }
 
     /// A rate limit carries the wait the provider named, which the copies dropped.

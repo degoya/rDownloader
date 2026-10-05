@@ -164,7 +164,8 @@
   "copy": {
     "failed_title": "No se pudo copiar",
     "failed_description": "El navegador no permitió acceder al portapapeles. Selecciona el texto y cópialo a mano.",
-    "links_copied": "Ningún enlace copiado | {count} enlace copiado | {count} enlaces copiados"
+    "links_copied": "Ningún enlace copiado | {count} enlace copiado | {count} enlaces copiados",
+    "copied": "Copiado"
   },
   "unsaved": {
     "title": "¿Descartar los cambios sin guardar?",

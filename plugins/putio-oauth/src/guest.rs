@@ -8,8 +8,9 @@
 
 use plugin_guest_oauth::{
     AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, form,
-    host, http, retry_after,
+    http, retry_after,
     types::{Failure, FailureKind},
+    unguessable_value,
 };
 
 use crate::{flow, pkce};
@@ -48,22 +49,6 @@ fn refuse(code: &str, message: String, category: FailureKind) -> Failure {
         code: Some(format!("putio_oauth.{code}")),
         params: Vec::new(),
     }
-}
-
-/// A value nobody can recompute: the host's random bytes, base64url-encoded.
-///
-/// An empty answer means the host refused, and a sign-in is failed rather than continued with
-/// a value the plugin made up. The `state` is the only thing standing between this flow and a
-/// callback somebody else wrote, so a guessable one is no protection at all.
-fn unguessable_value() -> Result<String, Failure> {
-    let random = host::random_bytes(pkce::VERIFIER_BYTES as u32);
-    pkce::verifier(&random).ok_or_else(|| {
-        refuse(
-            "no_entropy",
-            "the host did not supply the randomness this sign-in needs".to_owned(),
-            FailureKind::Permanent,
-        )
-    })
 }
 
 /// Turns the token endpoint's answer into the outcome the host acts on.
@@ -134,7 +119,7 @@ impl Guest for Component {
         _account_id: String,
         _credential_ref: Option<String>,
     ) -> Result<AuthorizationRequest, Failure> {
-        let state = unguessable_value()?;
+        let state = unguessable_value("putio_oauth")?;
         let authorization_url = format!(
             "{AUTHORIZE_ENDPOINT}?client_id={}&response_type=code&redirect_uri={}&state={}",
             // Left as the marker: the host substitutes this installation's own client id

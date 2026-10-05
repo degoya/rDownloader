@@ -211,6 +211,7 @@ pub async fn prune(database: &Database, settings: &LogRetentionSettings) -> Resu
 
 /// Stores whatever the channel holds right now. What the running sink does on a tick, for
 /// callers that need the store current at a known point — tests, mostly.
+#[cfg(any(test, feature = "test-support"))]
 pub async fn drain_now(stream: &mut LogStream, database: &Database) -> Result<u64> {
     let records = stream.drain_ready();
     if records.is_empty() {

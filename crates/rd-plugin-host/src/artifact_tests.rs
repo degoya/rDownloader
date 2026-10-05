@@ -21,9 +21,7 @@ fn workspace() -> tempfile::TempDir {
         "plugins/sample/Cargo.toml",
         "[dependencies]\n\
          common = { path = \"../common\" }\n\
-         rd-core = { path = \"../../crates/rd-core\" }\n\
-         [package.metadata.component.target]\n\
-         path = \"../../crates/rd-plugin-api/wit\"\n",
+         rd-core = { path = \"../../crates/rd-core\" }\n",
     );
     write("plugins/sample/manifest.toml", "version = \"1.0.0\"\n");
     write("plugins/sample/src/lib.rs", "pub fn resolve() {}\n");
@@ -172,8 +170,9 @@ fn a_change_to_the_contract_changes_the_source_hash() {
 
 #[test]
 fn the_bindings_cargo_component_generates_are_not_a_source() {
-    // A checkout that built the plugin has `src/bindings.rs`, a fresh one does not; both must
-    // agree with the same stamp. A module that merely has the same name deeper down counts.
+    // A checkout that built the plugin with cargo-component (before 1.11) has `src/bindings.rs`,
+    // a fresh one does not; both must agree with the same stamp. A module that merely has the
+    // same name deeper down counts.
     let root = workspace();
     let before = hash(&root);
     let generated = root.path().join("plugins/sample/src/bindings.rs");
@@ -222,7 +221,7 @@ fn a_component_without_a_stamp_is_stale() {
 #[test]
 fn a_component_rebuilt_without_a_stamp_is_stale() {
     // The stamp was written for another build of the same file name: a bare
-    // `cargo component build` since, here or in another checkout.
+    // `cargo build` since, here or in another checkout.
     let stamp = stamp_for("abc", b"the bytes the stamp saw");
     let complaint = staleness(
         "rd-plugin-example-oauth",

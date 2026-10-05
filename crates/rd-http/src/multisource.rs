@@ -19,12 +19,12 @@
 
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 use async_trait::async_trait;
-use rd_core::{ChunkId, Failure, FailureKind, PieceHashes};
+use rd_core::{ChunkId, PieceHashes};
 use rd_files::PartFile;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
@@ -33,6 +33,13 @@ use url::Url;
 use crate::{
     CheckpointSink, ChunkSpec, DownloadEngine, DownloadOutcome, HttpDownloadError,
     wind_down::wind_down,
+};
+
+#[path = "multisource_state.rs"]
+mod state;
+
+use state::{
+    Fetched, Pool, Tracked, failure_code, first_bad_piece, no_usable_source, piece_mismatch,
 };
 
 /// One address of the file, ready to be fetched from.
@@ -91,82 +98,6 @@ pub trait SourceLedger: CheckpointSink {
     async fn chunk_rewound(&self, chunk_id: ChunkId, committed: u64) -> anyhow::Result<()>;
 }
 
-/// Passes checkpoints on and remembers the last confirmed offset of every chunk, so a chunk
-/// whose source failed is handed on from exactly there.
-struct Tracked {
-    ledger: Arc<dyn SourceLedger>,
-    confirmed: Mutex<HashMap<ChunkId, u64>>,
-}
-
-impl Tracked {
-    fn confirmed(&self, chunk_id: ChunkId) -> Option<u64> {
-        self.confirmed
-            .lock()
-            .ok()
-            .and_then(|confirmed| confirmed.get(&chunk_id).copied())
-    }
-
-    fn record(&self, chunk_id: ChunkId, committed: u64) {
-        if let Ok(mut confirmed) = self.confirmed.lock() {
-            confirmed.insert(chunk_id, committed);
-        }
-    }
-}
-
-#[async_trait]
-impl CheckpointSink for Tracked {
-    async fn commit(&self, chunk_id: ChunkId, committed_offset: u64) -> anyhow::Result<()> {
-        self.ledger.commit(chunk_id, committed_offset).await?;
-        self.record(chunk_id, committed_offset);
-        Ok(())
-    }
-}
-
-/// Which sources are free, busy or out for the rest of this run.
-struct Pool {
-    sources: Vec<SourceEndpoint>,
-    parallel: usize,
-    busy: HashMap<u32, usize>,
-    out: HashSet<u32>,
-}
-
-impl Pool {
-    /// The source for the next chunk: among the first `parallel` sources still in, the one
-    /// with the fewest chunks in flight, earlier ones first on a tie. That is what spreads
-    /// consecutive chunks over two mirrors instead of stacking them on the first.
-    fn pick(&mut self) -> Option<SourceEndpoint> {
-        let chosen = self
-            .sources
-            .iter()
-            .filter(|source| !self.out.contains(&source.position))
-            .take(self.parallel)
-            .min_by_key(|source| self.busy.get(&source.position).copied().unwrap_or(0))?
-            .clone();
-        *self.busy.entry(chosen.position).or_default() += 1;
-        Some(chosen)
-    }
-
-    fn release(&mut self, position: u32) {
-        if let Some(count) = self.busy.get_mut(&position) {
-            *count = count.saturating_sub(1);
-        }
-    }
-
-    /// Takes a source out of this run; `false` when it already was.
-    fn exclude(&mut self, position: u32) -> bool {
-        self.out.insert(position)
-    }
-}
-
-/// What one fetch task hands back.
-struct Fetched {
-    chunk: ChunkSpec,
-    position: u32,
-    /// Confirmed offset when the fetch started, to count what this source delivered.
-    started_at: u64,
-    result: Result<DownloadOutcome, HttpDownloadError>,
-}
-
 impl DownloadEngine {
     /// Downloads every incomplete chunk of a file from a set of sources (RD-150-03).
     ///
@@ -184,322 +115,339 @@ impl DownloadEngine {
         let part = PartFile::open(request.part_path.clone(), Some(total))
             .await
             .map_err(HttpDownloadError::Local)?;
-        let tracked = Arc::new(Tracked {
-            ledger: Arc::clone(&ledger),
-            confirmed: Mutex::new(HashMap::new()),
-        });
-        let single_chunk = request.chunks.len() == 1;
-        let pieces = request.pieces.clone();
-        let mut pool = Pool {
-            sources: request.sources.clone(),
-            parallel: request.parallel_sources.max(1),
-            busy: HashMap::new(),
-            out: HashSet::new(),
+        let mut run = SourceRun {
+            tracked: Arc::new(Tracked {
+                ledger: Arc::clone(&ledger),
+                confirmed: Mutex::new(HashMap::new()),
+            }),
+            ledger,
+            part,
+            part_path: request.part_path,
+            total,
+            single_chunk: request.chunks.len() == 1,
+            pieces: request.pieces,
+            pool: Pool {
+                sources: request.sources,
+                parallel: request.parallel_sources.max(1),
+                busy: HashMap::new(),
+                out: HashSet::new(),
+            },
+            last_error: None,
+            pending: VecDeque::new(),
+            tasks: JoinSet::new(),
+            // The fetches' own token, so ending them leaves the caller's alone (TR-09).
+            workers: cancellation.child_token(),
         };
-        let mut last_error: Option<HttpDownloadError> = None;
-        let mut pending: VecDeque<ChunkSpec> = VecDeque::new();
-        for mut chunk in request.chunks {
+        run.queue_chunks(request.chunks, &request.unverified)
+            .await?;
+        loop {
+            run.dispatch(self).await?;
+            let Some(joined) = run.tasks.join_next().await else {
+                if run.pending.is_empty() {
+                    break;
+                }
+                // Chunks are left and no source is: every one of them failed or was
+                // isolated during this run.
+                return Err(run.last_error.unwrap_or_else(no_usable_source));
+            };
+            let fetched = match joined {
+                Ok(fetched) => fetched,
+                Err(error) => {
+                    run.wind_down().await;
+                    return Err(anyhow::Error::new(error).into());
+                }
+            };
+            run.pool.release(fetched.position);
+            if let Some(outcome) = run.settle(fetched).await? {
+                return Ok(outcome);
+            }
+        }
+        run.part
+            .sync_data()
+            .await
+            .map_err(HttpDownloadError::Local)?;
+        Ok(DownloadOutcome::Complete)
+    }
+}
+
+/// One multi-source download in progress: its sources, its open chunks and its fetches.
+struct SourceRun {
+    ledger: Arc<dyn SourceLedger>,
+    tracked: Arc<Tracked>,
+    part: PartFile,
+    part_path: PathBuf,
+    total: u64,
+    single_chunk: bool,
+    pieces: Option<Arc<PieceHashes>>,
+    pool: Pool,
+    last_error: Option<HttpDownloadError>,
+    pending: VecDeque<ChunkSpec>,
+    tasks: JoinSet<Fetched>,
+    workers: CancellationToken,
+}
+
+impl SourceRun {
+    /// Queues every incomplete chunk, and checks the complete ones an earlier run never
+    /// checked before anything counts them.
+    async fn queue_chunks(
+        &mut self,
+        chunks: Vec<ChunkSpec>,
+        unverified: &HashMap<ChunkId, Option<u32>>,
+    ) -> Result<(), HttpDownloadError> {
+        for mut chunk in chunks {
             if !chunk.is_complete() {
-                pending.push_back(chunk);
+                self.pending.push_back(chunk);
                 continue;
             }
             // A chunk finished by an earlier run and never checked. It is checked before
             // anything counts it; the source named for it answers for what it wrote.
             let (Some(pieces), Some(delivered_by)) =
-                (pieces.as_deref(), request.unverified.get(&chunk.id))
+                (self.pieces.as_deref(), unverified.get(&chunk.id))
             else {
                 continue;
             };
-            match first_bad_piece(&request.part_path, pieces, &chunk, total).await? {
-                None => ledger
+            match first_bad_piece(&self.part_path, pieces, &chunk, self.total).await? {
+                None => self
+                    .ledger
                     .chunk_marked(chunk.id, *delivered_by, true)
                     .await
                     .map_err(HttpDownloadError::Internal)?,
                 Some(bad) => {
                     // Isolated once, however many of its chunks fail the check.
                     if let Some(position) = delivered_by
-                        && pool.exclude(*position)
+                        && self.pool.exclude(*position)
                     {
-                        ledger
+                        self.ledger
                             .source_isolated(*position, rd_core::CODE_PIECE_MISMATCH)
                             .await
                             .map_err(HttpDownloadError::Internal)?;
                     }
-                    ledger
+                    self.ledger
                         .chunk_rewound(chunk.id, bad)
                         .await
                         .map_err(HttpDownloadError::Internal)?;
                     chunk.committed = bad;
-                    pending.push_back(chunk);
+                    self.pending.push_back(chunk);
                 }
             }
         }
+        Ok(())
+    }
 
-        let mut tasks: JoinSet<Fetched> = JoinSet::new();
-        // The fetches' own token, so ending them leaves the caller's alone (TR-09).
-        let workers = cancellation.child_token();
-        loop {
-            while let Some(chunk) = pending.pop_front() {
-                let Some(source) = pool.pick() else {
-                    pending.push_front(chunk);
-                    break;
-                };
-                // Named before a byte arrives, so a restart that finds the chunk complete and
-                // unchecked knows whom to hold to account for it.
-                if let Err(error) = ledger
-                    .chunk_marked(chunk.id, Some(source.position), false)
-                    .await
-                {
-                    wind_down(&mut tasks, &workers).await;
-                    return Err(HttpDownloadError::Internal(error));
-                }
-                let covers_whole_file =
-                    single_chunk && chunk.start == 0 && chunk.end == Some(total);
-                let engine = self.clone();
-                let part = part.clone();
-                let checkpoints: Arc<dyn CheckpointSink> = tracked.clone();
-                let cancellation = workers.clone();
-                tasks.spawn(async move {
-                    let started_at = chunk.committed;
-                    let result = match &source.via {
-                        Some(via) => {
-                            engine
-                                .fetch_via(via, part, checkpoints, cancellation, chunk.clone())
-                                .await
-                        }
-                        None => {
-                            engine
-                                .fetch_chunk(
-                                    source.url.clone(),
-                                    Arc::new(source.headers.clone()),
-                                    part,
-                                    checkpoints,
-                                    cancellation,
-                                    chunk.clone(),
-                                    covers_whole_file,
-                                )
-                                .await
-                        }
-                    };
-                    Fetched {
-                        chunk,
-                        position: source.position,
-                        started_at,
-                        result,
-                    }
-                });
+    /// Hands every pending chunk a source while one is free.
+    async fn dispatch(&mut self, engine: &DownloadEngine) -> Result<(), HttpDownloadError> {
+        while let Some(chunk) = self.pending.pop_front() {
+            let Some(source) = self.pool.pick() else {
+                self.pending.push_front(chunk);
+                break;
+            };
+            // Named before a byte arrives, so a restart that finds the chunk complete and
+            // unchecked knows whom to hold to account for it.
+            if let Err(error) = self
+                .ledger
+                .chunk_marked(chunk.id, Some(source.position), false)
+                .await
+            {
+                self.wind_down().await;
+                return Err(HttpDownloadError::Internal(error));
             }
-            let Some(joined) = tasks.join_next().await else {
-                if pending.is_empty() {
-                    break;
+            self.spawn_fetch(engine, chunk, source);
+        }
+        Ok(())
+    }
+
+    fn spawn_fetch(&mut self, engine: &DownloadEngine, chunk: ChunkSpec, source: SourceEndpoint) {
+        let covers_whole_file =
+            self.single_chunk && chunk.start == 0 && chunk.end == Some(self.total);
+        let engine = engine.clone();
+        let part = self.part.clone();
+        let checkpoints: Arc<dyn CheckpointSink> = self.tracked.clone();
+        let cancellation = self.workers.clone();
+        self.tasks.spawn(async move {
+            let started_at = chunk.committed;
+            let result = match &source.via {
+                Some(via) => {
+                    engine
+                        .fetch_via(via, part, checkpoints, cancellation, chunk.clone())
+                        .await
                 }
-                // Chunks are left and no source is: every one of them failed or was
-                // isolated during this run.
-                return Err(last_error.unwrap_or_else(no_usable_source));
-            };
-            let fetched = match joined {
-                Ok(fetched) => fetched,
-                Err(error) => {
-                    wind_down(&mut tasks, &workers).await;
-                    return Err(anyhow::Error::new(error).into());
+                None => {
+                    engine
+                        .fetch_chunk(
+                            source.url.clone(),
+                            Arc::new(source.headers.clone()),
+                            part,
+                            checkpoints,
+                            cancellation,
+                            chunk.clone(),
+                            covers_whole_file,
+                        )
+                        .await
                 }
             };
-            pool.release(fetched.position);
-            let Fetched {
-                mut chunk,
-                position,
+            Fetched {
+                chunk,
+                position: source.position,
                 started_at,
                 result,
-            } = fetched;
-            match result {
-                Ok(DownloadOutcome::Complete) => {
-                    let end = chunk.end.unwrap_or(total);
-                    chunk.committed = end;
-                    // Every byte of the chunk is confirmed and none of it is checked yet: the
-                    // window a restart has to close by checking before it builds on the chunk.
-                    rd_core::failpoint!("http.before_piece_check", || {
-                        HttpDownloadError::Failure(
-                            Failure::coded(
-                                FailureKind::Transient {
-                                    retry_after_seconds: None,
-                                },
-                                "download.crash_point",
-                                "crash point: http.before_piece_check",
-                            )
-                            .with_param("point", "http.before_piece_check"),
-                        )
-                    });
-                    let verdict = match pieces.as_deref() {
-                        Some(pieces) => {
-                            first_bad_piece(&request.part_path, pieces, &chunk, total).await?
-                        }
-                        None => None,
-                    };
-                    let outcome = match verdict {
-                        None => {
-                            ledger
-                                .chunk_marked(chunk.id, Some(position), pieces.is_some())
-                                .await?;
-                            ledger
-                                .source_delivered(position, end.saturating_sub(started_at))
-                                .await
-                        }
-                        Some(bad) => {
-                            tracing::warn!(
-                                position,
-                                offset = bad,
-                                "a mirror delivered a piece that does not match its hash"
-                            );
-                            if pool.exclude(position) {
-                                ledger
-                                    .source_isolated(position, rd_core::CODE_PIECE_MISMATCH)
-                                    .await?;
-                            }
-                            ledger.chunk_rewound(chunk.id, bad).await?;
-                            tracked.record(chunk.id, bad);
-                            chunk.committed = bad;
-                            pending.push_back(chunk);
-                            last_error = Some(piece_mismatch(bad));
-                            Ok(())
-                        }
-                    };
-                    if let Err(error) = outcome {
-                        wind_down(&mut tasks, &workers).await;
-                        return Err(HttpDownloadError::Internal(error));
-                    }
-                }
-                Ok(DownloadOutcome::Paused) => {
-                    wind_down(&mut tasks, &workers).await;
-                    return Ok(DownloadOutcome::Paused);
-                }
-                // This machine's disk, not the mirror: another source writes to the same one.
-                Err(HttpDownloadError::Local(error)) => {
-                    wind_down(&mut tasks, &workers).await;
-                    return Err(HttpDownloadError::Local(error));
-                }
-                Err(HttpDownloadError::Internal(error)) => {
-                    wind_down(&mut tasks, &workers).await;
-                    return Err(HttpDownloadError::Internal(error));
-                }
-                Err(error) => {
-                    // The source failed. What it confirmed stays confirmed; the chunk goes to
-                    // the next source from there.
-                    let confirmed = tracked
-                        .confirmed(chunk.id)
-                        .unwrap_or(chunk.committed)
-                        .max(chunk.committed);
-                    let (code, retry_after) = failure_code(&error);
-                    tracing::info!(
-                        position,
-                        code,
-                        confirmed,
-                        "a mirror failed; its chunk moves on to the next source"
-                    );
-                    pool.exclude(position);
-                    let recorded = async {
-                        if confirmed > started_at {
-                            ledger
-                                .source_delivered(position, confirmed - started_at)
-                                .await?;
-                        }
-                        // A source that turned out to point inside the network — a name that
-                        // answered differently at connect time, a redirect to a literal
-                        // address — is not tried again.
-                        if code == rd_core::CODE_INTERNAL_ADDRESS {
-                            ledger.source_isolated(position, code).await
-                        } else {
-                            ledger.source_failed(position, code, retry_after).await
-                        }
-                    }
-                    .await;
-                    if let Err(error) = recorded {
-                        wind_down(&mut tasks, &workers).await;
-                        return Err(HttpDownloadError::Internal(error));
-                    }
-                    chunk.committed = confirmed;
-                    pending.push_back(chunk);
-                    last_error = Some(error);
-                }
+            }
+        });
+    }
+
+    /// Books one finished fetch. `Some` ends the run with that outcome, its fetches already
+    /// wound down.
+    async fn settle(
+        &mut self,
+        fetched: Fetched,
+    ) -> Result<Option<DownloadOutcome>, HttpDownloadError> {
+        let Fetched {
+            chunk,
+            position,
+            started_at,
+            result,
+        } = fetched;
+        match result {
+            Ok(DownloadOutcome::Complete) => {
+                self.settle_complete(chunk, position, started_at).await?;
+            }
+            Ok(DownloadOutcome::Paused) => {
+                self.wind_down().await;
+                return Ok(Some(DownloadOutcome::Paused));
+            }
+            // This machine's disk, not the mirror: another source writes to the same one.
+            Err(HttpDownloadError::Local(error)) => {
+                self.wind_down().await;
+                return Err(HttpDownloadError::Local(error));
+            }
+            Err(HttpDownloadError::Internal(error)) => {
+                self.wind_down().await;
+                return Err(HttpDownloadError::Internal(error));
+            }
+            Err(error) => {
+                self.settle_failure(chunk, position, started_at, error)
+                    .await?;
             }
         }
-        part.sync_data().await.map_err(HttpDownloadError::Local)?;
-        Ok(DownloadOutcome::Complete)
+        Ok(None)
     }
-}
 
-/// The start of the first piece inside `chunk` whose bytes do not match, or `None`.
-///
-/// Only pieces wholly inside the chunk are checked; the scheduler plans chunks on piece
-/// boundaries whenever pieces exist, so that is every piece.
-async fn first_bad_piece(
-    path: &Path,
-    pieces: &PieceHashes,
-    chunk: &ChunkSpec,
-    total: u64,
-) -> Result<Option<u64>, HttpDownloadError> {
-    let end = chunk.end.unwrap_or(total);
-    let length = pieces.length.max(1);
-    let first = usize::try_from(chunk.start.div_ceil(length)).unwrap_or(usize::MAX);
-    for index in first..pieces.hashes.len() {
-        let (start, stop) = pieces.range(index, total);
-        if stop > end || start >= stop {
-            break;
-        }
-        let digest = rd_files::checksum_range(path, pieces.algorithm, start, stop - start)
-            .await
-            .map_err(HttpDownloadError::Local)?;
-        if !digest.eq_ignore_ascii_case(&pieces.hashes[index]) {
-            return Ok(Some(start));
-        }
-    }
-    Ok(None)
-}
-
-/// The stable code and the server's requested wait behind a source's failure.
-fn failure_code(error: &HttpDownloadError) -> (&str, Option<u64>) {
-    match error {
-        HttpDownloadError::RangeIgnored => ("download.range_ignored", None),
-        HttpDownloadError::RemoteChanged => ("download.remote_changed", None),
-        HttpDownloadError::Failure(failure) => {
-            let retry_after = match failure.category {
-                FailureKind::RateLimited {
-                    retry_after_seconds,
-                }
-                | FailureKind::Transient {
-                    retry_after_seconds,
-                } => retry_after_seconds,
-                _ => None,
-            };
-            (
-                failure.code.as_deref().unwrap_or("download.failed"),
-                retry_after,
+    /// A chunk every byte of which arrived: checked against its pieces, then booked to its
+    /// source, or rewound to the refused piece with the source isolated.
+    async fn settle_complete(
+        &mut self,
+        mut chunk: ChunkSpec,
+        position: u32,
+        started_at: u64,
+    ) -> Result<(), HttpDownloadError> {
+        let end = chunk.end.unwrap_or(self.total);
+        chunk.committed = end;
+        // Every byte of the chunk is confirmed and none of it is checked yet: the
+        // window a restart has to close by checking before it builds on the chunk.
+        rd_core::failpoint!("http.before_piece_check", || {
+            HttpDownloadError::Failure(
+                rd_core::Failure::coded(
+                    rd_core::FailureKind::Transient {
+                        retry_after_seconds: None,
+                    },
+                    "download.crash_point",
+                    "crash point: http.before_piece_check",
+                )
+                .with_param("point", "http.before_piece_check"),
             )
+        });
+        let verdict = match self.pieces.as_deref() {
+            Some(pieces) => first_bad_piece(&self.part_path, pieces, &chunk, self.total).await?,
+            None => None,
+        };
+        let outcome = match verdict {
+            None => {
+                self.ledger
+                    .chunk_marked(chunk.id, Some(position), self.pieces.is_some())
+                    .await?;
+                self.ledger
+                    .source_delivered(position, end.saturating_sub(started_at))
+                    .await
+            }
+            Some(bad) => {
+                tracing::warn!(
+                    position,
+                    offset = bad,
+                    "a mirror delivered a piece that does not match its hash"
+                );
+                if self.pool.exclude(position) {
+                    self.ledger
+                        .source_isolated(position, rd_core::CODE_PIECE_MISMATCH)
+                        .await?;
+                }
+                self.ledger.chunk_rewound(chunk.id, bad).await?;
+                self.tracked.record(chunk.id, bad);
+                chunk.committed = bad;
+                self.pending.push_back(chunk);
+                self.last_error = Some(piece_mismatch(bad));
+                Ok(())
+            }
+        };
+        if let Err(error) = outcome {
+            self.wind_down().await;
+            return Err(HttpDownloadError::Internal(error));
         }
-        HttpDownloadError::Internal(_) | HttpDownloadError::Local(_) => ("download.failed", None),
+        Ok(())
     }
-}
 
-fn piece_mismatch(offset: u64) -> HttpDownloadError {
-    Failure::coded(
-        FailureKind::Transient {
-            retry_after_seconds: None,
-        },
-        rd_core::CODE_PIECE_MISMATCH,
-        format!("a mirror delivered a piece at byte {offset} that does not match its hash"),
-    )
-    .with_param("offset", offset)
-    .into()
-}
+    /// A source that failed: what it confirmed stays confirmed, and the chunk goes on.
+    async fn settle_failure(
+        &mut self,
+        mut chunk: ChunkSpec,
+        position: u32,
+        started_at: u64,
+        error: HttpDownloadError,
+    ) -> Result<(), HttpDownloadError> {
+        // The source failed. What it confirmed stays confirmed; the chunk goes to
+        // the next source from there.
+        let confirmed = self
+            .tracked
+            .confirmed(chunk.id)
+            .unwrap_or(chunk.committed)
+            .max(chunk.committed);
+        let (code, retry_after) = failure_code(&error);
+        tracing::info!(
+            position,
+            code,
+            confirmed,
+            "a mirror failed; its chunk moves on to the next source"
+        );
+        self.pool.exclude(position);
+        let ledger = &self.ledger;
+        let recorded = async {
+            if confirmed > started_at {
+                ledger
+                    .source_delivered(position, confirmed - started_at)
+                    .await?;
+            }
+            // A source that turned out to point inside the network — a name that
+            // answered differently at connect time, a redirect to a literal
+            // address — is not tried again.
+            if code == rd_core::CODE_INTERNAL_ADDRESS {
+                ledger.source_isolated(position, code).await
+            } else {
+                ledger.source_failed(position, code, retry_after).await
+            }
+        }
+        .await;
+        if let Err(error) = recorded {
+            self.wind_down().await;
+            return Err(HttpDownloadError::Internal(error));
+        }
+        chunk.committed = confirmed;
+        self.pending.push_back(chunk);
+        self.last_error = Some(error);
+        Ok(())
+    }
 
-fn no_usable_source() -> HttpDownloadError {
-    Failure::coded(
-        FailureKind::Transient {
-            retry_after_seconds: None,
-        },
-        rd_core::CODE_NO_USABLE_SOURCE,
-        "no source of this file can be used right now",
-    )
-    .into()
+    /// Stops every fetch still running, without touching the caller's token.
+    async fn wind_down(&mut self) {
+        wind_down(&mut self.tasks, &self.workers).await;
+    }
 }
 
 #[cfg(test)]

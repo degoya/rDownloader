@@ -77,3 +77,10 @@ pub const API_ERROR: (&str, &str) = ("offcloud.api_error", "Offcloud API error")
 
 /// An HTTP status nothing in the answer explains.
 pub const HTTP_ERROR: (&str, &str) = ("offcloud.http_error", "Offcloud HTTP status");
+
+/// The English text of [`HTTP_ERROR`]. It has never named the status; the `status` parameter
+/// carries it for the translated text.
+#[must_use]
+pub fn http_error(_status: u16) -> String {
+    HTTP_ERROR.1.to_owned()
+}

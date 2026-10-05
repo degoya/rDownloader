@@ -49,13 +49,13 @@ describe('CapturePairingCard', () => {
 
   it('pairs the desktop agent without queue control unless it is ticked', async () => {
     const { container } = renderCard()
-    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: false } })
+    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: false, expires_in_days: null } })
   })
 
   it('asks for queue control when the box is ticked', async () => {
     const { container } = renderCard()
     await fireEvent.click(screen.getByRole('checkbox', { name: system.pairing.queue_control }))
-    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: true } })
+    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: true, expires_in_days: null } })
   })
 
   it('offers the browser extension no queue control', async () => {

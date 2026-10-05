@@ -100,21 +100,22 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
 
 <template>
   <UCard as="section" data-settings-anchor="network.auth_profiles">
-    <div v-if="awaitingApproval.length" class="mb-4 border border-warning bg-warning/5 p-4">
-      <p class="text-sm font-medium text-highlighted">{{ t('settings.auth_profiles.approval_title') }}</p>
-      <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.auth_profiles.approval_description') }}</p>
-      <div v-for="profile in awaitingApproval" :key="profile.id" class="mt-3 flex items-center gap-3">
-        <UIcon name="i-lucide-globe" class="text-warning" />
-        <span class="min-w-0 flex-1 truncate font-mono text-xs">{{ scopeLabel(profile) }}</span>
-        <UButton
-          size="xs"
-          icon="i-lucide-check"
-          :label="t('settings.auth_profiles.approve')"
-          :loading="busyId === profile.id"
-          @click="setEnabled(profile.id, true)"
-        />
-      </div>
-    </div>
+    <UAlert v-if="awaitingApproval.length" class="mb-4" color="warning" variant="subtle" :title="t('settings.auth_profiles.approval_title')">
+      <template #description>
+        <p class="text-xs leading-5 text-muted">{{ t('settings.auth_profiles.approval_description') }}</p>
+        <div v-for="profile in awaitingApproval" :key="profile.id" class="mt-3 flex items-center gap-3">
+          <UIcon name="i-lucide-globe" class="text-warning" />
+          <span class="min-w-0 flex-1 truncate font-mono text-xs text-highlighted">{{ scopeLabel(profile) }}</span>
+          <UButton
+            size="xs"
+            icon="i-lucide-check"
+            :label="t('settings.auth_profiles.approve')"
+            :loading="busyId === profile.id"
+            @click="setEnabled(profile.id, true)"
+          />
+        </div>
+      </template>
+    </UAlert>
 
     <FormListLayout :list-title="t('settings.auth_profiles.title')" :count="profiles.length">
       <template #form>
@@ -179,7 +180,7 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
             :class="editingId === profile.id ? 'outline outline-1 outline-primary' : ''"
             data-profile-row
           >
-            <span class="grid size-8 place-items-center bg-elevated text-primary"><UIcon name="i-lucide-shield-check" /></span>
+            <UAvatar icon="i-lucide-shield-check" color="primary" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-highlighted">{{ profile.name }}</p>
               <p class="truncate font-mono text-[11px] text-muted">{{ scopeLabel(profile) }}</p>

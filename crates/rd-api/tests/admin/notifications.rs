@@ -54,6 +54,41 @@ async fn create_target(router: &Router, body: serde_json::Value) -> serde_json::
     target
 }
 
+/// A second target under a taken name is a `409` with its own code, not `internal.error` from
+/// the unique column, and so is renaming one onto it (RD-1110-16).
+#[tokio::test]
+async fn a_taken_target_name_is_a_conflict() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = common::test_router(directory.path()).await;
+    let target = |name: &str| {
+        serde_json::json!({
+            "name": name,
+            "kind": "webhook",
+            "endpoint": "https://hooks.example.com/rd",
+        })
+    };
+    create_target(&router, target("Taken webhook")).await;
+    let other = create_target(&router, target("Free webhook")).await;
+
+    let (status, refused) = common::post_json(
+        &router,
+        "/api/v1/notifications/targets",
+        target("Taken webhook"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(refused["code"], "notification.name_taken", "{refused}");
+    let id = other["id"].as_str().expect("id");
+    let (status, refused) = common::put_json(
+        &router,
+        &format!("/api/v1/notifications/targets/{id}"),
+        target("Taken webhook"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(refused["code"], "notification.name_taken", "{refused}");
+}
+
 #[tokio::test]
 async fn a_target_secret_is_stored_but_never_returned() {
     let directory = tempfile::tempdir().expect("tempdir");

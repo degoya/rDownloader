@@ -42,6 +42,7 @@ impl IndexerSearchType {
     }
 
     /// The element `t=caps` lists the type under, which is how an indexer says it answers it.
+    #[cfg(test)]
     #[must_use]
     pub const fn caps_name(self) -> &'static str {
         match self {

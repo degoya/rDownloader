@@ -109,14 +109,17 @@ describe('AutomationView', () => {
     expect(screen.queryByText(automation.action.no_targets)).toBeNull()
   })
 
-  it('keeps the form heading above both the empty and open cards', async () => {
+  it('keeps the form heading in one card with the empty prompt and the open form', async () => {
     mount()
     const heading = (await screen.findByRole('heading', { name: automation.create_title })).parentElement as HTMLElement
+    const card = heading.closest('section') as HTMLElement
 
-    expect(heading.nextElementSibling?.className).toContain('border-dashed')
+    // The column's card, not a dashed box beside the heading (RD-1110-17).
+    expect(card.contains(screen.getByText(automation.pick_or_create))).toBe(true)
+    expect(card.querySelector('.border-dashed')).toBeNull()
     await fireEvent.click(screen.getByRole('button', { name: automation.create }))
-    expect(heading.nextElementSibling?.contains(screen.getByTestId('automation-form'))).toBe(true)
-    expect(heading.nextElementSibling?.className).not.toContain('border-dashed')
+    expect(card.contains(screen.getByTestId('automation-form'))).toBe(true)
+    expect(heading.nextElementSibling).toBe(screen.getByTestId('automation-form'))
   })
 
   it('asks for the trigger first and ends the form with one action row', async () => {

@@ -7,7 +7,7 @@
 # without a single one of them ever entering a component.
 #
 # That leaves one honest way not to run them: say so. A checkout without the wasm toolchain —
-# no `wasm32-unknown-unknown` target, no `cargo-component` — uses the profile below, and the
+# no `wasm32-unknown-unknown` target, no `wasm-tools` — uses the profile below, and the
 # summary then counts those tests as *skipped* rather than as *passed*. That is the whole
 # point of the profile existing rather than an environment variable that turns the failure off:
 # a skip somebody chose appears in the number, a skip the loader performed did not.

@@ -9,6 +9,7 @@ pub(crate) enum SessionsCommand {
         label: String,
         token_sha256: String,
         scopes: Vec<String>,
+        expires_at: Option<chrono::DateTime<chrono::Utc>>,
         reply: Reply<rd_core::CaptureToken>,
     },
     UpdateCaptureTokenScopes {

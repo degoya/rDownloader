@@ -78,10 +78,12 @@ function toggleOutput(key: string): void {
           <span class="numeric w-9 text-right text-[11px] text-toned">{{ step.progress_percent }}%</span>
         </div>
         <p v-if="step.output_path" class="truncate font-mono text-[11px] text-muted" :title="step.output_path">→ {{ step.output_path }}</p>
-        <template v-if="step.message && step.kind === 'script'">
-          <UButton size="xs" color="neutral" variant="link" class="px-0" :icon="openOutput.has(stepKey(step)) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" :label="openOutput.has(stepKey(step)) ? t('downloads.postprocess.hide_output') : t('downloads.postprocess.show_output')" @click="toggleOutput(stepKey(step))" />
-          <pre v-if="openOutput.has(stepKey(step))" class="max-h-64 overflow-auto whitespace-pre-wrap text-xs" :class="step.state === 'failed' ? 'text-error' : 'text-muted'">{{ step.message }}</pre>
-        </template>
+        <UCollapsible v-if="step.message && step.kind === 'script'" :open="openOutput.has(stepKey(step))" @update:open="toggleOutput(stepKey(step))">
+          <UButton size="xs" color="neutral" variant="link" class="px-0" :icon="openOutput.has(stepKey(step)) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" :label="openOutput.has(stepKey(step)) ? t('downloads.postprocess.hide_output') : t('downloads.postprocess.show_output')" :aria-expanded="openOutput.has(stepKey(step))" />
+          <template #content>
+            <pre class="max-h-64 overflow-auto whitespace-pre-wrap text-xs" :class="step.state === 'failed' ? 'text-error' : 'text-muted'">{{ step.message }}</pre>
+          </template>
+        </UCollapsible>
         <!-- A failed step's reason is the answer the reader came for: wrapped in full, never cut. -->
         <p v-else-if="step.message || step.code" :class="step.state === 'failed' ? 'whitespace-pre-line break-words text-error' : 'truncate text-muted'" :title="step.state === 'failed' ? undefined : stepMessage(step)">{{ stepMessage(step) }}</p>
       </div>

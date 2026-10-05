@@ -16,6 +16,7 @@
 //! Link checks go through `GET /json/<id>`, the metadata endpoint behind the site's embed
 //! player: no token, no captcha, and `[]` for a file that is gone.
 
+use plugin_common::failure::{HttpError, coded};
 use plugin_common::{
     Account, CaptchaChallenge, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse,
     LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved, WidgetChallenge,
@@ -377,15 +378,15 @@ fn sanitised(message: &str) -> String {
 /// (RA-PLG-01). The direct link's 403-405, which JDownloader reads as "come back in an hour",
 /// is answered before this is asked.
 fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    xfs_common::glue::ensure_http_status_without_account(
-        response,
-        messages::HTTP_ERROR,
-        messages::http_error,
+    HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    }
+    .ensure_without_account(
+        response.status,
+        plugin_common::retry_after(&response.headers),
     )
-}
-
-fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
+    .map_err(Failure::from)
 }
 
 #[cfg(test)]

@@ -42,13 +42,13 @@ const failure = computed(() => {
   <div class="mt-2 border border-muted bg-elevated p-3" data-testid="sign-in-flow">
     <template v-if="open">
       <p class="text-xs leading-5 text-muted">{{ t('network.account.connect_instructions') }}</p>
-      <a
+      <ULink
         v-if="flow.verification_url"
-        :href="safeHttpUrl(flow.verification_url)"
+        :to="safeHttpUrl(flow.verification_url)"
         target="_blank"
         rel="noopener noreferrer"
         class="mt-2 block break-all font-mono text-sm text-highlighted underline"
-      >{{ flow.verification_url }}</a>
+      >{{ flow.verification_url }}</ULink>
       <p v-if="flow.user_code" class="mt-1 font-mono text-lg font-semibold tracking-widest text-primary">
         {{ flow.user_code }}
       </p>

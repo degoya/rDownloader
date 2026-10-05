@@ -15,6 +15,8 @@
 //! `handleErrors_api` arm this implements lives in `api/tests.rs`'s module doc, next to the tests
 //! that assert each one.
 
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
+use plugin_common::label::civil_date;
 use serde::Deserialize;
 use url::Url;
 
@@ -52,11 +54,10 @@ pub(crate) fn file_id(url: &Url) -> Option<&str> {
 /// forwarding a URL that later fails to parse deeper in the pipeline (or not at all, on the guest
 /// side, where `ResolvedDownload.url` is a bare `String`).
 pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
-    Url::parse(raw).map_err(|error| ApiFailure {
-        kind: ErrorKind::Permanent,
-        code: messages::INVALID_URL,
-        message: messages::invalid_url(&error),
-        params: vec![("error", error.to_string())],
+    Url::parse(raw).map_err(|error| {
+        let text = messages::invalid_url(&error);
+        ApiFailure::new(ErrorKind::Permanent, (messages::INVALID_URL, text.as_str()))
+            .with_param("error", error.to_string())
     })
 }
 
@@ -113,61 +114,6 @@ pub(crate) fn premium_until(premium: bool, premium_end_time: Option<i64>) -> Opt
     premium_end_time.filter(|_| premium).map(civil_date)
 }
 
-/// Formats a Unix timestamp (seconds) as a UTC `YYYY-MM-DD` date, using Howard Hinnant's
-/// `civil_from_days` algorithm (pure integer arithmetic — `chrono` is a native-only dependency in
-/// this workspace's plugin convention, and this module must stay usable from the WASM guest too).
-fn civil_date(epoch_seconds: i64) -> String {
-    let days = epoch_seconds.div_euclid(86_400);
-    let (year, month, day) = civil_from_days(days);
-    format!("{year:04}-{month:02}-{day:02}")
-}
-
-/// <http://howardhinnant.github.io/date_algorithms.html#civil_from_days>; `z` is a day count
-/// relative to the Unix epoch (1970-01-01 = day 0).
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097); // [0, 146096]
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
-    let mp = (5 * doy + 2) / 153; // [0, 11]
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
-    (if m <= 2 { y + 1 } else { y }, m, d)
-}
-
-/// Failure classification independent of the native (`rd_core::Failure`) and WASM
-/// (WIT-generated `Failure`) representations; both adapters convert this into their own type.
-#[derive(Debug)]
-pub(crate) struct ApiFailure {
-    pub(crate) kind: ErrorKind,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-    pub(crate) params: Vec<(&'static str, String)>,
-}
-
-/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
-/// on either.
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AuthRequired,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-}
-
-fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
 /// Classifies a non-success `status`/`details` pair from the envelope. Mirrors JD's
 /// `handleErrors_api` in its actual precedence order (see `api/tests.rs`'s module doc for the
 /// full per-branch enumeration this implements, with JD line references and retry-delay
@@ -182,19 +128,19 @@ fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
 fn classify_status(status: i64, message: &str, trust_404: bool) -> ApiFailure {
     let lower = message.to_ascii_lowercase();
     if status == 423 || lower.contains("exceeded traffic") {
-        return coded(ErrorKind::RateLimited(Some(300)), messages::LIMIT_REACHED);
+        return ApiFailure::new(ErrorKind::RateLimited(Some(300)), messages::LIMIT_REACHED);
     }
     if message.contains("Denied by IP") {
-        return coded(ErrorKind::RateLimited(Some(7200)), messages::IP_DENIED);
+        return ApiFailure::new(ErrorKind::RateLimited(Some(7200)), messages::IP_DENIED);
     }
     if message.contains("Please wait") {
-        return coded(ErrorKind::RateLimited(Some(300)), messages::LOGIN_THROTTLED);
+        return ApiFailure::new(ErrorKind::RateLimited(Some(300)), messages::LOGIN_THROTTLED);
     }
     if message.contains("User is not PREMIUM")
         || message.contains("This file can be downloaded by premium only")
         || message.contains("You can download files up to")
     {
-        return coded(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED);
+        return ApiFailure::new(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED);
     }
     if message.contains("Login or password is wrong")
         || message.contains("Error: Error e-mail or password")
@@ -205,26 +151,26 @@ fn classify_status(status: i64, message: &str, trust_404: bool) -> ApiFailure {
         || message.contains("Parameter login or password is missing")
         || (status == 401 && lower.contains("wrong e-mail or password"))
     {
-        return coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS);
+        return ApiFailure::new(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS);
     }
     if status == 401
         || lower.contains("session not exist")
         || lower.contains("session doesn't exist")
     {
-        return coded(ErrorKind::Transient(None), messages::SESSION_INVALID);
+        return ApiFailure::new(ErrorKind::Transient(None), messages::SESSION_INVALID);
     }
     match status {
-        404 if trust_404 => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
-        404 => coded(
+        404 if trust_404 => ApiFailure::new(ErrorKind::Offline, messages::FILE_OFFLINE),
+        404 => ApiFailure::new(
             ErrorKind::Transient(Some(60)),
             messages::DOWNLOAD_404_UNTRUSTED,
         ),
-        500 => coded(ErrorKind::Transient(Some(300)), messages::SERVER_ERROR),
-        503 => coded(ErrorKind::Transient(Some(1800)), messages::SERVER_ERROR),
+        500 => ApiFailure::new(ErrorKind::Transient(Some(300)), messages::SERVER_ERROR),
+        503 => ApiFailure::new(ErrorKind::Transient(Some(1800)), messages::SERVER_ERROR),
         _ if lower.contains("this download session is not for you")
             || lower.contains("session not found") =>
         {
-            coded(ErrorKind::Transient(None), messages::SESSION_INVALID)
+            ApiFailure::new(ErrorKind::Transient(None), messages::SESSION_INVALID)
         }
         // JD: `AccountUnavailableException(msg, 60_000)` — the same temporary-block exception
         // class used for "Denied by IP"/traffic-limit above, so `RateLimited` rather than
@@ -232,21 +178,21 @@ fn classify_status(status: i64, message: &str, trust_404: bool) -> ApiFailure {
         _ if message
             .contains("Error: You requested login to your account from unusual Ip address") =>
         {
-            coded(
+            ApiFailure::new(
                 ErrorKind::RateLimited(Some(60)),
                 messages::IP_CONFIRMATION_REQUIRED,
             )
         }
-        _ => ApiFailure {
+        _ => {
             // JD's own fallback for an unrecognized error is retryable (60s), not permanent.
-            kind: ErrorKind::Transient(Some(60)),
-            code: messages::API_ERROR,
-            message: messages::api_error(status, message),
-            params: vec![
-                ("api_status", status.to_string()),
-                ("message", message.to_owned()),
-            ],
-        },
+            let text = messages::api_error(status, message);
+            ApiFailure::new(
+                ErrorKind::Transient(Some(60)),
+                (messages::API_ERROR, text.as_str()),
+            )
+            .with_param("api_status", status.to_string())
+            .with_param("message", message)
+        }
     }
 }
 
@@ -293,53 +239,55 @@ pub(crate) fn ensure_http_status(
         });
     match status {
         404 if !trust_404 => {
-            return Err(coded(
+            return Err(ApiFailure::new(
                 ErrorKind::Transient(Some(60)),
                 messages::DOWNLOAD_404_UNTRUSTED,
             ));
         }
         416 => {
-            return Err(coded(
+            return Err(ApiFailure::new(
                 ErrorKind::Transient(Some(300)),
                 messages::SERVER_ERROR,
             ));
         }
         423 => {
-            return Err(coded(
+            return Err(ApiFailure::new(
                 ErrorKind::RateLimited(Some(300)),
                 messages::LIMIT_REACHED,
             ));
         }
         500 => {
-            return Err(coded(
+            return Err(ApiFailure::new(
                 ErrorKind::Transient(wait.or(Some(3600))),
                 messages::SERVER_ERROR,
             ));
         }
         503 => {
-            return Err(coded(
+            return Err(ApiFailure::new(
                 ErrorKind::Transient(wait.or(Some(300))),
                 messages::SERVER_ERROR,
             ));
         }
         _ => {}
     }
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
-        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
-        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
-        HttpRefusal::RateLimited(wait) => {
-            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
-        }
-        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
+    HTTP.ensure_http_status(status, retry_after)
 }
+
+/// How Rapidgator's codes name every status class [`ensure_http_status`] leaves to the shared
+/// mapping; a 429 and a 5xx carry only the wait they stated.
+pub(crate) const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::BAD_CREDENTIALS,
+    gone: messages::FILE_OFFLINE,
+    unavailable: messages::FILE_OFFLINE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: None,
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+};
 
 #[cfg(test)]
 #[path = "api/tests.rs"]

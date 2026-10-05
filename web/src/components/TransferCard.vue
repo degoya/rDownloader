@@ -12,6 +12,7 @@ import TorrentSeedingPolicy from '@/components/TorrentSeedingPolicy.vue'
 import TorrentTrackerList from '@/components/TorrentTrackerList.vue'
 import TransferSourceList from '@/components/TransferSourceList.vue'
 import { scopeLabel, useAuthProfileSelector } from '@/composables/useAuthProfiles'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { useStagedResolvers } from '@/composables/useStagedResolvers'
 import { useTorrentsStore } from '@/stores/torrents'
 import { RESETTABLE_STATES } from '@/stores/transfers'
@@ -175,6 +176,7 @@ async function openDetails(): Promise<void> {
  * keeps the version it started with, and a finished one does not start again.
  */
 const toast = useToast()
+const showError = useErrorToast()
 const { stagedFor, trial } = useStagedResolvers()
 const trialResolver = computed(() => active.value || props.download.state === 'completed'
   ? null
@@ -184,7 +186,7 @@ async function tryStaged(): Promise<void> {
   const resolver = trialResolver.value
   if (!resolver) return
   const outcome = await trial(resolver, props.download.id)
-  if (outcome.error) toast.add({ title: outcome.error, color: 'error', icon: 'i-lucide-circle-alert' })
+  if (outcome.error) showError(outcome.error)
   else toast.add({ title: outcome.message ?? '', color: 'success', icon: 'i-lucide-flask-conical' })
 }
 
@@ -192,7 +194,7 @@ const moveModal = useOverlay().create(TorrentMoveModal)
 
 async function recheckTorrent(): Promise<void> {
   const outcome = await torrents.recheck(props.download.id)
-  if (outcome.error) toast.add({ title: outcome.error, color: 'error', icon: 'i-lucide-circle-alert' })
+  if (outcome.error) showError(outcome.error)
   else toast.add({ title: outcome.message ?? '', color: 'success', icon: 'i-lucide-scan-search' })
 }
 
@@ -335,7 +337,8 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
       </div>
       <p class="min-w-0 truncate font-mono" :title="props.download.source">{{ props.download.source }}</p>
       <TransferSourceList v-if="sources" :sources="sources" />
-      <div v-if="isTorrent" class="grid gap-2 border-t border-muted pt-2">
+      <USeparator v-if="isTorrent" class="mb-1" />
+      <div v-if="isTorrent" class="grid gap-2">
         <div class="flex items-center gap-1">
           <UButton
             v-for="tab in (['files', 'trackers', 'peers', 'seeding'] as const)"
@@ -373,7 +376,8 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
             @change="saveTorrentPlan"
           />
           <p v-else class="text-xs text-muted">{{ t('torrent.tree.empty') }}</p>
-          <div v-if="torrentDetail?.web_seeds?.length" class="grid gap-1 border-t border-muted pt-2">
+          <USeparator v-if="torrentDetail?.web_seeds?.length" />
+          <div v-if="torrentDetail?.web_seeds?.length" class="grid gap-1">
             <p class="text-xs text-toned">{{ t('torrent.web_seeds.title') }}</p>
             <p class="text-xs text-muted">{{ t('torrent.web_seeds.unsupported') }}</p>
             <p
@@ -409,7 +413,8 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
       <p v-if="props.download.media" class="flex min-w-0 items-center gap-1.5">
         <UIcon :name="kindIcon" class="size-3.5 shrink-0" />
         <span class="shrink-0">{{ t('downloads.media.variant') }} <span class="font-mono text-toned">{{ props.download.media.variant_id }}</span></span>
-        <a :href="sourcePage ?? undefined" target="_blank" rel="noopener noreferrer" class="min-w-0 truncate font-mono hover:underline" :title="t('downloads.media.open_page')">{{ props.download.media.page_url }}</a>
+        <ULink v-if="sourcePage" :to="sourcePage" target="_blank" rel="noopener noreferrer" class="min-w-0 truncate font-mono hover:underline" :title="t('downloads.media.open_page')">{{ props.download.media.page_url }}</ULink>
+        <span v-else class="min-w-0 truncate font-mono">{{ props.download.media.page_url }}</span>
       </p>
       <p v-if="props.destination" class="flex min-w-0 items-center gap-1 font-mono" :title="props.destination">
         <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" />

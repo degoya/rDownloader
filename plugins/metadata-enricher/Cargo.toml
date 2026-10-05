@@ -12,12 +12,5 @@ wit-bindgen.workspace = true
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:metadata-enricher"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "enricher-plugin"
-
 [lints]
 workspace = true

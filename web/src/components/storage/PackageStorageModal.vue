@@ -150,7 +150,8 @@ onMounted(() => {
           </div>
         </form>
 
-        <section class="space-y-3 border-t border-muted pt-4" data-testid="duplicates">
+        <USeparator />
+        <section class="space-y-3" data-testid="duplicates">
           <UFormField :label="t('downloads.duplicates.file')">
             <USelect v-model="selectedDownload" :items="downloadItems" value-key="value" class="w-full" />
           </UFormField>

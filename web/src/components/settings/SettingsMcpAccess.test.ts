@@ -68,8 +68,20 @@ describe('SettingsMcpAccess', () => {
     mount()
     await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))
     await fireEvent.submit(document.querySelector('form') as HTMLFormElement)
-    await waitFor(() => expect(screen.getByText('rdp_secret')).toBeTruthy())
-    expect(screen.getByText('Bearer rdp_secret')).toBeTruthy()
+    await waitFor(() => expect(screen.getByDisplayValue('rdp_secret')).toBeTruthy())
+    expect(screen.getByDisplayValue('Bearer rdp_secret')).toBeTruthy()
+  })
+
+  /** RD-1110-07: "never" is the default, and the request then carries no expiry. */
+  it('mints a token that never expires unless a duration is chosen', async () => {
+    post.mockClear()
+    mount()
+    await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))
+    expect(screen.getByText(en.token_expiry.label)).toBeTruthy()
+    await fireEvent.submit(document.querySelector('form') as HTMLFormElement)
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const [, options] = post.mock.calls[0] as unknown as [string, { body: { expires_in_days?: number | null } }]
+    expect(options.body.expires_in_days).toBeNull()
   })
 
   it('shows no token at all before one has been minted', async () => {

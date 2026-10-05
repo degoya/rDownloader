@@ -3,8 +3,8 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { hintKey, INSTALL_ENDED, type InstallKind, type UpdateOffer } from '@/api/updates'
+import CopyField from '@/components/CopyField.vue'
 import { useConfirm } from '@/composables/useConfirm'
-import { useCopy } from '@/composables/useCopy'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes, formatLongMoment } from '@/utils/format'
@@ -22,10 +22,7 @@ const props = defineProps<{ offer: UpdateOffer | null, kind: InstallKind }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
 const confirm = useConfirm()
-const copy = useCopy()
 const { status, installFailure, downloadFailure, reconnecting, lost, followed, install, download } = useUpdateStatus()
-/** Said on the button itself for a moment, rather than in a toast that needs the app shell. */
-const copied = ref(false)
 const starting = ref(false)
 
 const kindLabel = computed(() => t(`system.updates.kind.${props.kind}`))
@@ -65,13 +62,6 @@ const fetchedReason = computed(() => {
   if (downloadFailure.value) return translateServerMessage(downloadFailure.value)
   return fetched.value?.reason ? translateServerMessage({ code: fetched.value.reason }) : null
 })
-
-async function copyCommand(): Promise<void> {
-  if (!props.offer?.command) return
-  if (!(await copy(props.offer.command))) return
-  copied.value = true
-  setTimeout(() => { copied.value = false }, 2000)
-}
 
 async function installNow(): Promise<void> {
   const offer = props.offer
@@ -170,18 +160,7 @@ function reload(): void {
           </section>
           <section v-if="offer.action === 'command' && offer.command" data-testid="update-command">
             <p class="text-sm text-toned">{{ t('system.updates.modal.command_hint', { kind: kindLabel }) }}</p>
-            <div class="mt-2 flex items-center gap-2 border border-muted bg-elevated px-3 py-2">
-              <code class="min-w-0 flex-1 break-all font-mono text-sm text-highlighted">{{ offer.command }}</code>
-              <UButton
-                :icon="copied ? 'i-lucide-clipboard-check' : 'i-lucide-copy'"
-                size="xs"
-                :color="copied ? 'success' : 'neutral'"
-                variant="ghost"
-                :aria-label="copied ? t('system.updates.modal.copied') : t('system.updates.modal.copy')"
-                :title="copied ? t('system.updates.modal.copied') : t('system.updates.modal.copy')"
-                @click="copyCommand()"
-              />
-            </div>
+            <CopyField class="mt-2" :value="offer.command" :label="t('system.updates.modal.copy')" icon-only />
             <p v-if="offer.hint" class="mt-2 text-xs text-muted">{{ t(hintKey(offer.hint)) }}</p>
             <ULink
               v-if="offer.download_url && (kind === 'deb' || kind === 'rpm')"

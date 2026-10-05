@@ -437,7 +437,10 @@
     "warning_no_proxies": "Hay una dirección externa pero ningún proxy de confianza. Entonces cada petición parecerá venir del proxy: los límites y la lista de sesiones mostrarán una sola dirección para todos.",
     "warning_no_url": "Hay proxies de confianza pero ninguna dirección externa. Entonces la cookie no puede marcarse como Secure automáticamente.",
     "allowed_hosts": "Nombres de host permitidos",
-    "allowed_hosts_hint": "Un nombre por línea con el que abres el servicio en el navegador, por ejemplo nas.lan. Las direcciones IP, localhost y el host de la URL externa siempre valen; cualquier otro nombre se rechaza para que ninguna página ajena entre mediante DNS rebinding."
+    "allowed_hosts_hint": "Un nombre por línea con el que abres el servicio en el navegador, por ejemplo nas.lan. Las direcciones IP, localhost y el host de la URL externa siempre valen; cualquier otro nombre se rechaza para que ninguna página ajena entre mediante DNS rebinding.",
+    "login_off_title": "El inicio de sesión está desactivado aunque hay un proxy o una dirección externa configurados",
+    "login_off_description": "Sin inicio de sesión, cada petición desde esta máquina sin cabeceras de reenvío cuenta como el administrador. Un túnel o proxy local que no establece X-Forwarded-For convierte a cualquiera detrás de él en administrador. Vuelve a activar el inicio de sesión en General o asegúrate de que tu proxy establece la cabecera.",
+    "login_off_wiki": "Proxy inverso en el manual"
   },
   "mfa": {
     "eyebrow": "Segundo factor",
@@ -644,7 +647,6 @@
       "download_hint": "Sustituye los archivos del programa de esta instalación por la nueva versión; tus ajustes y descargas se quedan donde están.",
       "command_hint": "{kind} gestiona esta instalación. Actualízala con:",
       "copy": "Copiar",
-      "copied": "Comando copiado",
       "close": "Cerrar",
       "install": "Instalar y reiniciar",
       "install_hint": "rDownloader descarga la nueva versión si aún no está descargada, hace una copia de su base de datos, se detiene, sustituye sus archivos de programa y vuelve a arrancar. Tus ajustes y descargas se quedan donde están.",
@@ -749,5 +751,13 @@
     "provider_logout_hint": "Desactivado: cerrar sesión solo termina la sesión aquí; tus otros servicios siguen conectados.",
     "step_up_hint": "Cada cambio aquí vuelve a pedir la contraseña.",
     "save": "Guardar"
+  },
+  "token_expiry": {
+    "label": "Caduca",
+    "hint": "Un token caducado se rechaza como uno revocado y permanece en la lista hasta que lo revoques.",
+    "never": "Nunca",
+    "days": "Tras {count} días",
+    "expires_on": "Caduca el {date}",
+    "expired": "Caducado"
   }
 }

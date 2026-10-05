@@ -35,7 +35,7 @@ const { t } = useI18n()
         <UButton color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('plugins.keys.revoke')" @click="emit('revoke', key.key_id)" />
       </div>
       <DataState :loading="loading" :error="loadError" :empty="!keys.length">
-        <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.keys.empty') }}</p>
+        <UEmpty :description="t('plugins.keys.empty')" />
       </DataState>
     </div>
   </UCard>

@@ -353,7 +353,8 @@
   },
   "messages": {
     "saved": "Paramètres enregistrés.",
-    "reset_done": "Tous les paramètres d'exécution ont été réinitialisés aux valeurs par défaut."
+    "reset_done": "Tous les paramètres d'exécution ont été réinitialisés aux valeurs par défaut.",
+    "number_empty": "Un champ numérique est vide. Saisissez une valeur pour enregistrer."
   },
   "reset": {
     "title": "Restaurer les paramètres d'usine ?",

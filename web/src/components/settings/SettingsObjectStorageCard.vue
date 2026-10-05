@@ -243,9 +243,7 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
             :class="editingId === profile.id ? 'border-l-2 border-l-primary' : ''"
             data-testid="object-storage-row"
           >
-            <span class="grid size-8 place-items-center bg-elevated text-primary">
-              <UIcon name="i-lucide-cylinder" />
-            </span>
+            <UAvatar icon="i-lucide-cylinder" color="primary" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-highlighted">{{ profile.name }}</p>
               <p class="truncate font-mono text-[11px] text-muted">

@@ -57,15 +57,18 @@ the key before `resolve` is ever asked — and the key never goes into a request
 ```bash
 rdownloader plugin new --type resolver --out ./myhoster
 cd myhoster
-cargo component build --release --target wasm32-unknown-unknown
+cargo build --release --target wasm32-unknown-unknown
+wasm-tools component new target/wasm32-unknown-unknown/release/myhoster.wasm -o target/myhoster.wasm
 ```
 
 `plugin new` reads the templates from `sdk/templates`, so run it from a checkout of this
 repository or from a directory that holds a copy of that folder; a release binary on its own
 does not carry them. The directory name becomes the crate name and the manifest's provider
-slug; `--name` sets a different one. The scaffold needs `cargo-component` 0.21.1 — the version
-the bundled plugins are built with — and the `wasm32-unknown-unknown` target, which
-`rustup target add` installs.
+slug; `--name` sets a different one. The scaffold needs the `wasm32-unknown-unknown` target,
+which `rustup target add` installs, and `wasm-tools` 1.261.0 — the version the bundled plugins are
+made with, `cargo install wasm-tools --version 1.261.0 --locked`. `cargo build` makes a core
+module that carries the world `src/guest.rs` generates; `wasm-tools component new` turns it into
+the component, with no WASI adapter, because a plugin imports nothing but the contract.
 
 The scaffold compiles, packages and passes conformance before you change a line of it — so the
 first failure you see is about your code and not about the setup. It brings its own copy of the
@@ -77,7 +80,7 @@ lines when you edit the file.
 
 ```bash
 rdownloader plugin package --manifest manifest.toml \
-  --component target/wasm32-unknown-unknown/release/myhoster.wasm \
+  --component target/myhoster.wasm \
   --locales locales --key plugin-signing.key --output myhoster.rdplug
 rdownloader plugin conformance myhoster.rdplug --json
 ```

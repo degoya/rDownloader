@@ -136,7 +136,7 @@ pub async fn list_targets(
     Ok(Json(state.database.list_notification_targets().await?))
 }
 
-#[utoipa::path(post, path = "/api/v1/notifications/targets", tag = "notifications", request_body = NotificationTargetRequest, responses((status = 201, body = rd_notify::NotificationTarget)))]
+#[utoipa::path(post, path = "/api/v1/notifications/targets", tag = "notifications", request_body = NotificationTargetRequest, responses((status = 201, body = rd_notify::NotificationTarget), (status = 409)))]
 pub async fn create_target(
     State(state): State<AppState>,
     granted: Option<axum::Extension<crate::auth::Granted>>,
@@ -146,7 +146,7 @@ pub async fn create_target(
     Ok((StatusCode::CREATED, Json(target)))
 }
 
-#[utoipa::path(put, path = "/api/v1/notifications/targets/{id}", tag = "notifications", params(("id" = rd_core::NotificationTargetId, Path)), request_body = NotificationTargetRequest, responses((status = 200, body = rd_notify::NotificationTarget), (status = 404)))]
+#[utoipa::path(put, path = "/api/v1/notifications/targets/{id}", tag = "notifications", params(("id" = rd_core::NotificationTargetId, Path)), request_body = NotificationTargetRequest, responses((status = 200, body = rd_notify::NotificationTarget), (status = 404), (status = 409)))]
 pub async fn update_target(
     State(state): State<AppState>,
     granted: Option<axum::Extension<crate::auth::Granted>>,
@@ -406,8 +406,26 @@ pub async fn save_target(
                 clear_secret: request.clear_secret,
             },
         )
-        .await
-        .map_err(|error| not_found(&error, "notification.target_not_found"))?;
+        .await;
+    let saved = match saved {
+        Ok(saved) => saved,
+        Err(error) => {
+            // The save was refused, so the secret just written belongs to no target.
+            if let Some(fresh) = &secret_ref
+                && let Err(cleanup) = state.secrets.remove(fresh).await
+            {
+                tracing::warn!(%cleanup, "orphaned target secret could not be removed");
+            }
+            return Err(crate::error_codes::store_error(
+                &error,
+                "notification.target_not_found",
+                "Not found",
+                rd_db::StoreErrorKind::Duplicate,
+                "notification.name_taken",
+                "A notification target with this name already exists",
+            ));
+        }
+    };
     // A replaced or cleared secret leaves the old vault entry behind; drop it.
     if let Some(stale) = stale
         && (secret_ref.is_some() || request.clear_secret)

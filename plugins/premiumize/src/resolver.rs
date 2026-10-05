@@ -4,6 +4,7 @@
 //! check without unlocking anything — `cache/check` reports, per link, whether Premiumize
 //! already holds the file — so this is the one multihoster here with a real `check`.
 
+use plugin_common::failure::{HttpError, coded};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, LinkCheck, LinkStatus,
     PluginHost, ResolveInput, Resolved,
@@ -15,6 +16,15 @@ use url::form_urlencoded;
 use crate::messages;
 
 const API_KEY_REFERENCE: &str = "premiumize_api_key";
+
+/// This plugin's one HTTP code: a status no document explains is classified by
+/// `plugin_common::http_status`, the one mapping every plugin shares (RD-191-07), and reported
+/// under it with the status as a parameter. A `429` or a `5xx` carries the response's
+/// `Retry-After`.
+const HTTP_ERROR: HttpError = HttpError {
+    code: messages::HTTP_ERROR,
+    text: messages::http_error,
+};
 
 /// Whether this plugin claims `url`. A multihoster claims by account catalogue rather than by
 /// host, so anything fetchable over http(s) is a candidate.
@@ -163,24 +173,22 @@ async fn request<H: PluginHost>(
     path: &str,
     body: Vec<u8>,
 ) -> Result<HttpResponse, Failure> {
-    let response = host
-        .http(
-            HttpRequest {
-                method: method.to_owned(),
-                url: format!("https://www.premiumize.me{path}"),
-                query: Vec::new(),
-                headers: Vec::new(),
-                body,
-            }
-            .with_header(
-                "Authorization",
-                format!("Bearer {{{{secret:{API_KEY_REFERENCE}}}}}"),
-            )
-            .with_header("Content-Type", "application/x-www-form-urlencoded"),
-        )
-        .await?;
-    ensure_http_status(&response)?;
-    Ok(response)
+    let request = HttpRequest {
+        method: method.to_owned(),
+        url: format!("https://www.premiumize.me{path}"),
+        query: Vec::new(),
+        headers: Vec::new(),
+        body,
+    }
+    .with_header(
+        "Authorization",
+        format!("Bearer {{{{secret:{API_KEY_REFERENCE}}}}}"),
+    )
+    .with_header("Content-Type", "application/x-www-form-urlencoded");
+    plugin_common::failure::call(host, request, |status, retry_after, _| {
+        HTTP_ERROR.ensure_http_status(status, retry_after).err()
+    })
+    .await
 }
 
 async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
@@ -215,24 +223,6 @@ fn map_cache_check(urls: &[String], response: &CacheCheckResponse) -> Vec<LinkCh
             size: item.size,
         })
         .collect()
-}
-
-/// Maps a status no document explains through `plugin_common::http_status`, the one mapping
-/// every plugin shares (RD-191-07), reported under this plugin's one HTTP code with the status
-/// as a parameter. A `429` or a `5xx` carries the response's `Retry-After`.
-fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    plugin_common::http_status(
-        response.status,
-        plugin_common::retry_after(&response.headers),
-    )
-    .map_err(|refusal| {
-        Failure::coded(
-            refusal.kind(),
-            messages::HTTP_ERROR,
-            messages::http_error(response.status),
-        )
-        .with_param("status", response.status.to_string())
-    })
 }
 
 fn ensure_success(status: &str, code: Option<&str>, message: Option<&str>) -> Result<(), Failure> {
@@ -324,10 +314,6 @@ fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T
         )
         .with_param("field", field)
     })
-}
-
-fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }
 
 #[derive(Deserialize)]
@@ -688,6 +674,16 @@ mod tests {
         );
     }
 
+    /// The status check `request` makes, on one answer.
+    fn classify_status(response: &HttpResponse) -> Result<(), Failure> {
+        HTTP_ERROR
+            .ensure_http_status(
+                response.status,
+                plugin_common::retry_after(&response.headers),
+            )
+            .map_err(Failure::from)
+    }
+
     fn answer(status: u16, headers: &[(&str, &str)]) -> HttpResponse {
         HttpResponse {
             status,
@@ -705,23 +701,23 @@ mod tests {
     /// plugin's one HTTP code with its status.
     #[test]
     fn a_bare_status_is_classified_by_the_shared_mapping() {
-        assert!(ensure_http_status(&answer(200, &[])).is_ok());
-        let limited = ensure_http_status(&answer(429, &[("Retry-After", "40")])).expect_err("429");
+        assert!(classify_status(&answer(200, &[])).is_ok());
+        let limited = classify_status(&answer(429, &[("Retry-After", "40")])).expect_err("429");
         assert_eq!(limited.kind, FailureKind::RateLimited(Some(40)));
         assert_eq!(limited.code.as_deref(), Some(messages::HTTP_ERROR));
         assert_eq!(
-            ensure_http_status(&answer(410, &[])).expect_err("410").kind,
+            classify_status(&answer(410, &[])).expect_err("410").kind,
             FailureKind::Permanent
         );
         assert_eq!(
-            ensure_http_status(&answer(451, &[])).expect_err("451").kind,
+            classify_status(&answer(451, &[])).expect_err("451").kind,
             FailureKind::Offline
         );
         assert_eq!(
-            ensure_http_status(&answer(403, &[])).expect_err("403").kind,
+            classify_status(&answer(403, &[])).expect_err("403").kind,
             FailureKind::AccountInvalid
         );
-        let odd = ensure_http_status(&answer(418, &[])).expect_err("418");
+        let odd = classify_status(&answer(418, &[])).expect_err("418");
         assert_eq!(odd.kind, FailureKind::Permanent);
         assert_eq!(odd.params, vec![("status".to_owned(), "418".to_owned())]);
     }

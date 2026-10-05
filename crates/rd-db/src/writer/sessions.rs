@@ -78,6 +78,7 @@ impl Writer {
                 label,
                 token_sha256,
                 scopes,
+                expires_at,
                 reply,
             } => {
                 let result = crate::capture_store::create_token(
@@ -86,6 +87,7 @@ impl Writer {
                     label,
                     token_sha256,
                     scopes,
+                    expires_at,
                 )
                 .await;
                 publish_config(reply, result, &self.events);

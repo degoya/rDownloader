@@ -53,7 +53,7 @@ defineExpose({ reset: () => { url.value = '' } })
     beside an open sidebar a window of 1024–1230 px is "lg" while the form is not, so the last
     fields ran off the edge. Between, the address takes a line and the rest go two by two.
   -->
-  <section class="@container border border-muted bg-elevated p-4">
+  <UCard as="section" class="@container">
     <p class="eyebrow mb-3">{{ t('downloads.add.eyebrow') }}</p>
     <form class="grid gap-2 @min-[40rem]:grid-cols-2 @min-[60rem]:grid-cols-[minmax(280px,1fr)_repeat(4,minmax(130px,0.4fr))_auto]" @submit.prevent="submit">
       <UInput v-model="url" type="url" required icon="i-lucide-link" :placeholder="t('downloads.add.url_placeholder')" size="lg" class="@min-[40rem]:col-span-2 @min-[60rem]:col-span-1" />
@@ -63,5 +63,5 @@ defineExpose({ reset: () => { url.value = '' } })
       <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" size="lg" :aria-label="t('downloads.add.priority_aria')" />
       <UButton type="submit" icon="i-lucide-plus" :label="t('downloads.add.submit')" size="lg" :loading="props.busy" />
     </form>
-  </section>
+  </UCard>
 </template>

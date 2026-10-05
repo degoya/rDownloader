@@ -61,9 +61,7 @@ defineExpose({ reload: refresh })
       @install="installService"
     />
     <DataState :loading="loading" :error="loadError" :empty="!available.length">
-      <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">
-        {{ services.length ? t('plugins.bundled.all_installed') : t('plugins.bundled.none') }}
-      </p>
+      <UEmpty :description="services.length ? t('plugins.bundled.all_installed') : t('plugins.bundled.none')" />
     </DataState>
   </UCard>
 </template>

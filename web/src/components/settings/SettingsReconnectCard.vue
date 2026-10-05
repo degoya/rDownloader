@@ -9,17 +9,17 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useToast } from '@nuxt/ui/composables'
-
 import { api } from '@/api/client'
 import type { Settings } from '@/api/types'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { translateServerMessage } from '@/i18n/server'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { formatMoment } from '@/utils/format'
+import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
-const toast = useToast()
+const showError = useErrorToast()
 
 type ReconnectStatus = {
   enabled: boolean
@@ -70,12 +70,7 @@ async function reconnectNow(): Promise<void> {
   const response = await api.POST('/api/v1/reconnect', {})
   triggering.value = false
   if (response.error) {
-    toast.add({
-      title: t('reconnect.failed'),
-      description: translateServerMessage(response.error),
-      color: 'error',
-      icon: 'i-lucide-circle-alert'
-    })
+    showError(t('reconnect.failed'), translateServerMessage(response.error))
     return
   }
   await refresh()
@@ -130,7 +125,8 @@ const dayItems = computed(() =>
   <UCard as="section" data-settings-anchor="network.reconnect">
     <SectionHeader :eyebrow="t('reconnect.eyebrow')" :title="t('reconnect.title')" :description="t('reconnect.description')" />
 
-    <UFormField :label="t('reconnect.enabled_label')" :description="t('reconnect.enabled_description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+    <USeparator class="my-4" />
+    <UFormField :label="t('reconnect.enabled_label')" :description="t('reconnect.enabled_description')" orientation="horizontal">
       <USwitch v-model="settings.reconnect_enabled" />
     </UFormField>
 
@@ -138,15 +134,11 @@ const dayItems = computed(() =>
       <UFormField :label="t('reconnect.script_label')" :description="t('reconnect.script_description')">
         <UInput v-model="settings.reconnect_script" class="mt-2 w-full font-mono" placeholder="reconnect.sh" />
       </UFormField>
-      <UFormField :label="t('reconnect.interval_label')" :description="t('reconnect.interval_description')">
-        <UInput v-model.number="settings.reconnect_min_interval_minutes" type="number" min="1" max="1440" class="mt-2 w-full">
-          <template #trailing><span class="font-mono text-xs text-muted">min</span></template>
-        </UInput>
+      <UFormField hint="min" :label="t('reconnect.interval_label')" :description="t('reconnect.interval_description')">
+        <UInputNumber v-model="settings.reconnect_min_interval_minutes" required :min="1" :max="1440" :format-options="WHOLE" class="mt-2 w-full" />
       </UFormField>
-      <UFormField :label="t('reconnect.timeout_label')" :description="t('reconnect.timeout_description')">
-        <UInput v-model.number="settings.reconnect_timeout_seconds" type="number" min="30" max="900" class="mt-2 w-full">
-          <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-        </UInput>
+      <UFormField hint="s" :label="t('reconnect.timeout_label')" :description="t('reconnect.timeout_description')">
+        <UInputNumber v-model="settings.reconnect_timeout_seconds" required :min="30" :max="900" :format-options="WHOLE" class="mt-2 w-full" />
       </UFormField>
       <UFormField :label="t('reconnect.checks_label')" :description="t('reconnect.checks_description')">
         <UTextarea v-model="addressChecks" :rows="3" autoresize class="mt-2 w-full font-mono text-xs" :placeholder="t('reconnect.checks_placeholder')" />
@@ -179,7 +171,8 @@ const dayItems = computed(() =>
       </div>
     </div>
 
-    <div class="mt-4 border-t border-muted pt-4">
+    <USeparator class="my-4" />
+    <div>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <p class="text-sm text-muted">
           <span v-if="running">{{ t(`reconnect.phase.${status?.phase}`) }}</span>

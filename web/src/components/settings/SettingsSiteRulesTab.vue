@@ -26,6 +26,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import SiteRuleEditor from '@/components/settings/SiteRuleEditor.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { useJsonImport } from '@/composables/useJsonImport'
 import {
   emptyDraft,
@@ -37,6 +38,7 @@ import { downloadJson } from '@/utils/jsonFile'
 
 const { t, te } = useI18n()
 const toast = useToast()
+const showError = useErrorToast()
 const confirm = useConfirm()
 const rules = useSiteRules()
 const copyName = useCopyName()
@@ -148,10 +150,10 @@ async function exportRules(): Promise<void> {
 }
 
 /** The server reads and checks the pack itself; here only that it is JSON at all. */
-const { fileInput, choose: chooseFile, select: selectFile } = useJsonImport<string>({
+const { select: selectFile } = useJsonImport<string>({
   check: (_parsed, text) => text,
   unreadable: () => t('siterules.transfer.import_unreadable'),
-  refuse: message => toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' }),
+  refuse: message => showError(message),
   take: importRules
 })
 
@@ -216,100 +218,102 @@ async function importRules(text: string): Promise<void> {
           :title="ruleCount ? t('siterules.transfer.export') : t('siterules.transfer.export_empty')"
           @click="exportRules"
         />
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-upload"
-          :label="t('siterules.transfer.import')"
-          :title="t('siterules.transfer.import_hint')"
-          @click="chooseFile"
-        />
-        <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
+        <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-upload"
+            :label="t('siterules.transfer.import')"
+            :title="t('siterules.transfer.import_hint')"
+            @click="open()"
+          />
+        </UFileUpload>
       </template>
 
       <template #list>
         <p class="mb-3 text-xs leading-5 text-muted">{{ t('siterules.transfer.import_hint') }}</p>
-        <DataState
-          :loading="rules.loading.value"
-          :error="rules.loadError.value"
-          :empty="!rules.rules.value.length"
-          :rows="4"
-        >
-          <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">
-            {{ t('siterules.list.empty') }}
-          </p>
-        </DataState>
+        <!-- The groups in a card, like the editor beside it and the subscriptions list (RD-1110-17). -->
+        <UCard as="section" :ui="{ body: 'space-y-4' }">
+          <DataState
+            :loading="rules.loading.value"
+            :error="rules.loadError.value"
+            :empty="!rules.rules.value.length"
+            :rows="4"
+          >
+            <UEmpty :description="t('siterules.list.empty')" />
+          </DataState>
 
-        <section v-for="entry in rules.byGroup.value" :key="entry.group.group" class="mb-4">
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <h4 class="text-sm font-semibold text-highlighted">{{ groupLabel(entry.group.group) }}</h4>
-            <div class="flex items-center gap-2">
-              <UBadge color="neutral" variant="outline">{{ entry.group.rules }}</UBadge>
-              <USwitch
-                :model-value="entry.group.enabled"
-                :aria-label="t('siterules.group_switch')"
-                :title="t('siterules.group_switch')"
-                :loading="rules.busyId.value === `group:${entry.group.group}`"
-                @update:model-value="(value: boolean) => rules.setGroupEnabled(entry.group.group, value)"
-              />
-            </div>
-          </div>
-          <div class="divide-y divide-muted border border-muted">
-            <div
-              v-for="rule in entry.rules"
-              :key="rule.id"
-              class="flex flex-wrap items-center gap-3 p-3"
-              :class="editingId === rule.id ? 'outline outline-1 outline-primary' : ''"
-              data-rule-row
-            >
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-highlighted">{{ rule.name }}</p>
-                <p class="truncate font-mono text-[11px] text-muted">{{ rule.hosts.join(', ') || rule.id }}</p>
-                <p v-if="!entry.group.enabled" class="mt-1 text-[11px] text-muted">{{ t('siterules.list.group_off') }}</p>
+          <section v-for="entry in rules.byGroup.value" :key="entry.group.group">
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <h4 class="text-sm font-semibold text-highlighted">{{ groupLabel(entry.group.group) }}</h4>
+              <div class="flex items-center gap-2">
+                <UBadge color="neutral" variant="outline">{{ entry.group.rules }}</UBadge>
+                <USwitch
+                  :model-value="entry.group.enabled"
+                  :aria-label="t('siterules.group_switch')"
+                  :title="t('siterules.group_switch')"
+                  :loading="rules.busyId.value === `group:${entry.group.group}`"
+                  @update:model-value="(value: boolean) => rules.setGroupEnabled(entry.group.group, value)"
+                />
               </div>
-              <UBadge v-if="editingId === rule.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-              <UBadge :color="stateColor(rule)" variant="subtle" :title="stateTitle(rule)">
-                {{ t(`siterules.badge.${stateKey(rule)}`) }}
-              </UBadge>
-              <USwitch
-                :model-value="rule.enabled"
-                :aria-label="t('siterules.rule_switch')"
-                :title="t('siterules.rule_switch')"
-                :loading="rules.busyId.value === rule.id"
-                @update:model-value="(value: boolean) => rules.setRuleEnabled(rule, value)"
-              />
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-copy-plus"
-                :label="t('common.actions.duplicate')"
-                :title="t('common.duplicate_hint')"
-                :loading="rules.busyId.value === `copy:${rule.id}`"
-                @click="duplicate(rule)"
-              />
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                :aria-label="t('common.actions.edit')"
-                :title="t('common.actions.edit')"
-                @click="startEdit(rule)"
-              />
-              <UButton
-                size="xs"
-                color="error"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                :aria-label="t('common.actions.delete')"
-                :title="t('common.actions.delete')"
-                @click="remove(rule)"
-              />
             </div>
-          </div>
-        </section>
+            <div class="divide-y divide-muted border border-muted">
+              <div
+                v-for="rule in entry.rules"
+                :key="rule.id"
+                class="flex flex-wrap items-center gap-3 p-3"
+                :class="editingId === rule.id ? 'outline outline-1 outline-primary' : ''"
+                data-rule-row
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-highlighted">{{ rule.name }}</p>
+                  <p class="truncate font-mono text-[11px] text-muted">{{ rule.hosts.join(', ') || rule.id }}</p>
+                  <p v-if="!entry.group.enabled" class="mt-1 text-[11px] text-muted">{{ t('siterules.list.group_off') }}</p>
+                </div>
+                <UBadge v-if="editingId === rule.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
+                <UBadge :color="stateColor(rule)" variant="subtle" :title="stateTitle(rule)">
+                  {{ t(`siterules.badge.${stateKey(rule)}`) }}
+                </UBadge>
+                <USwitch
+                  :model-value="rule.enabled"
+                  :aria-label="t('siterules.rule_switch')"
+                  :title="t('siterules.rule_switch')"
+                  :loading="rules.busyId.value === rule.id"
+                  @update:model-value="(value: boolean) => rules.setRuleEnabled(rule, value)"
+                />
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-copy-plus"
+                  :label="t('common.actions.duplicate')"
+                  :title="t('common.duplicate_hint')"
+                  :loading="rules.busyId.value === `copy:${rule.id}`"
+                  @click="duplicate(rule)"
+                />
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-pencil"
+                  :aria-label="t('common.actions.edit')"
+                  :title="t('common.actions.edit')"
+                  @click="startEdit(rule)"
+                />
+                <UButton
+                  size="xs"
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  :aria-label="t('common.actions.delete')"
+                  :title="t('common.actions.delete')"
+                  @click="remove(rule)"
+                />
+              </div>
+            </div>
+          </section>
+        </UCard>
       </template>
     </FormListLayout>
   </div>

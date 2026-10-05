@@ -3,7 +3,7 @@
 //!
 //! Every contract test in the workspace reads its component from
 //! `target/wasm32-unknown-unknown/release/`. That directory is per checkout, and
-//! `cargo test` never builds it: `cargo component build` does, separately and by hand. So a
+//! `cargo test` never builds it: `scripts/build-plugins.sh` does, separately and by hand. So a
 //! worktree that changes a plugin and is then merged leaves the main checkout holding the
 //! *previous* component while its sources have already moved on — and the contract tests run
 //! the old guest code against the new expectations.
@@ -21,7 +21,7 @@
 //! This module makes that state name itself. Before a component is handed to a test it is
 //! compared with the sources it was built from; if they differ the test fails with the build
 //! command instead of with an assertion about behaviour. The check hashes a handful of small
-//! files and starts no build — a test that shelled out to `cargo component build` would make
+//! files and starts no build — a test that shelled out to `scripts/build-plugins.sh` would make
 //! every run pay for the one case this guards against.
 //!
 //! The comparison is by content (RD-120-58). `scripts/build-plugins.sh` writes a stamp beside
@@ -32,7 +32,7 @@
 //! Until then the rule compared modification times, and every `git checkout` resets those: in
 //! five of eight branch checks on 2026-09-24 a fresh worktree reported components stale that no
 //! one had changed. A component without a stamp, or whose bytes the stamp does not describe —
-//! a bare `cargo component build`, possibly in another checkout sharing `target/` — is stale:
+//! a bare `cargo build`, possibly in another checkout sharing `target/` — is stale:
 //! a stamp only vouches for a build it saw.
 //!
 //! The source hash is the SHA-256 of a `sha256sum` listing: one `<hex>  <path>\n` line per
@@ -49,7 +49,7 @@
 //! worth nothing either.
 //!
 //! A checkout that cannot build components at all — no `wasm32-unknown-unknown` target, no
-//! `cargo-component` — deselects these tests explicitly with the `no-components` nextest
+//! `wasm-tools` — deselects these tests explicitly with the `no-components` nextest
 //! profile (`.config/nextest.toml`), which counts them as *skipped*. That is the whole
 //! difference: skipping is a decision somebody takes and the summary shows, not something the
 //! loader does behind a green number.
@@ -66,7 +66,8 @@ use std::path::{Path, PathBuf};
 
 use rd_sign::digest::hex_sha256;
 
-/// Where `cargo component build --release --target wasm32-unknown-unknown` leaves its output.
+/// Where `scripts/build-plugins.sh` leaves each component: cargo's own output path for the core
+/// module, which `wasm-tools component new` replaces with the component.
 const ARTIFACT_DIRECTORY: &str = "wasm32-unknown-unknown/release";
 
 /// The WIT contract every component is generated against.
@@ -75,9 +76,9 @@ const CONTRACT_DIRECTORY: &str = "crates/rd-plugin-api/wit";
 /// File names, beyond `*.rs` and `*.wit`, that a component is built from.
 const BUILD_INPUTS: [&str; 2] = ["Cargo.toml", "manifest.toml"];
 
-/// What cargo-component writes into `src/` of a plugin crate at every build (gitignored). It is
-/// generated from the WIT, which is a source already, and a checkout that never built the plugin
-/// does not have it — so it is not a source, or a fresh worktree would disagree with every stamp.
+/// What cargo-component wrote into `src/` of a plugin crate at every build until 1.11
+/// (gitignored). Nothing writes it any more, but a checkout that built plugins before still has
+/// it — so it is not a source, or that checkout would disagree with every fresh worktree.
 const GENERATED_BINDINGS: &str = "bindings.rs";
 
 /// Appended to the artefact's file name for the stamp `scripts/build-plugins.sh` writes.
@@ -110,7 +111,7 @@ fn plugin_directory(root: &Path, package: &str) -> PathBuf {
     root.join("plugins").join(plugin_name(package))
 }
 
-/// The artefact `cargo component build` writes for a package.
+/// The component `scripts/build-plugins.sh` makes for a package.
 fn artifact_path(package: &str) -> PathBuf {
     target_directory()
         .join(ARTIFACT_DIRECTORY)
@@ -219,7 +220,7 @@ fn staleness(
         None => "it carries no source stamp, so nothing says what it was built from".to_owned(),
         Some((_, component)) if component != hex_sha256(bytes) => {
             "its stamp describes other bytes: the component was rebuilt without a stamp, by a \
-             bare `cargo component build`, possibly in another checkout sharing this target"
+             bare `cargo build`, possibly in another checkout sharing this target"
                 .to_owned()
         }
         Some((sources, _)) if sources != current => format!(
@@ -315,9 +316,8 @@ fn sources(root: &Path, package: &str) -> Vec<PathBuf> {
 /// it.
 ///
 /// A line scan rather than a parse: the entries this looks for are one per line in every
-/// manifest in the tree, and the caller discards anything outside `plugins/` anyway — so the
-/// `[package.metadata.component.target]` path to the WIT directory falling in here is
-/// harmless.
+/// manifest in the tree, and the caller discards anything outside `plugins/` anyway — so a
+/// `path` into `crates/` falling in here is harmless.
 fn path_dependencies(directory: &Path) -> Vec<PathBuf> {
     let Ok(text) = std::fs::read_to_string(directory.join("Cargo.toml")) else {
         return Vec::new();

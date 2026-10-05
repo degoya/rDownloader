@@ -10,6 +10,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { SeedingPolicyRequest, SeedingPolicyResponse } from '@/api/types'
+import { RATIO, WHOLE, orNull } from '@/utils/numberInput'
 
 const { t } = useI18n()
 const props = defineProps<{ policy: SeedingPolicyResponse, busy?: boolean }>()
@@ -60,8 +61,9 @@ const effectiveTime = computed(() => {
 function save(): void {
   emit('save', {
     enabled: enabled.value,
-    ratio: ratio.value,
-    time_minutes: unlimited.value ? null : minutes.value,
+    // An emptied field inherits; the number field reports it as `undefined` (RD-1110-10).
+    ratio: orNull(ratio.value),
+    time_minutes: unlimited.value ? null : orNull(minutes.value),
     time_unlimited: unlimited.value ? true : null
   })
 }
@@ -88,7 +90,8 @@ function save(): void {
     </dl>
 
     <!-- One override per row, and "unlimited" before the time it locks (RD-150-11). -->
-    <form class="grid gap-2 border-t border-muted pt-2" @submit.prevent="save">
+    <USeparator />
+    <form class="grid gap-2" @submit.prevent="save">
       <UFormField :label="t('torrent.seeding.override_enabled')" size="xs">
         <USelect
           v-model="enabledChoice"
@@ -102,15 +105,13 @@ function save(): void {
         />
       </UFormField>
       <UFormField :label="t('torrent.seeding.override_ratio')" size="xs">
-        <UInput v-model.number="ratio" type="number" min="0" max="100" step="any" :disabled="props.busy" />
+        <UInputNumber v-model="ratio" :min="0" :max="100" :format-options="RATIO" :step-snapping="false" :disabled="props.busy" />
       </UFormField>
       <UFormField :label="t('torrent.seeding.override_unlimited')" size="xs" orientation="horizontal">
         <USwitch v-model="unlimited" :disabled="props.busy" />
       </UFormField>
-      <UFormField :label="t('torrent.seeding.override_time')" size="xs">
-        <UInput v-model.number="minutes" type="number" min="1" :disabled="props.busy || unlimited">
-          <template #trailing><span class="text-xs text-muted">min</span></template>
-        </UInput>
+      <UFormField hint="min" :label="t('torrent.seeding.override_time')" size="xs">
+        <UInputNumber v-model="minutes" :min="1" :format-options="WHOLE" :disabled="props.busy || unlimited" />
       </UFormField>
       <div class="flex items-center gap-2">
         <UButton type="submit" size="xs" icon="i-lucide-save" :loading="props.busy" :label="t('torrent.seeding.save')" />

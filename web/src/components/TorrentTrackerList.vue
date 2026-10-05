@@ -113,10 +113,9 @@ function counters(tracker: TrackerView): string {
         />
       </li>
     </ul>
-    <div v-if="props.trackers.editable" class="flex items-center gap-2">
+    <UFieldGroup v-if="props.trackers.editable" size="xs" class="w-full">
       <UInput
         v-model="draft"
-        size="xs"
         class="flex-1"
         :placeholder="t('torrent.trackers.add_placeholder')"
         :disabled="props.busy"
@@ -124,13 +123,12 @@ function counters(tracker: TrackerView): string {
       />
       <UButton
         icon="i-lucide-plus"
-        size="xs"
-        color="primary"
-        variant="soft"
+        color="neutral"
+        variant="outline"
         :disabled="!editable || !draft.trim()"
         :label="t('torrent.trackers.add')"
         @click="add"
       />
-    </div>
+    </UFieldGroup>
   </div>
 </template>

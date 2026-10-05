@@ -207,7 +207,10 @@ describe('SettingsUsenetTab form (RD-150-11)', () => {
   })
 })
 
-/** RD-1101-10: the dot beside a server is colour only, so the switched-off state is a word too. */
+/**
+ * RD-1101-10: the dot beside a server is colour only, so the switched-off state is a word too.
+ * The dot is a `UChip` with no text, so there is nothing in it to read out (RD-1110-13).
+ */
 describe('SettingsUsenetTab server state', () => {
   it('names a disabled server in text and keeps the colour dot out of the accessibility tree', async () => {
     SERVERS[2]!.enabled = false
@@ -217,7 +220,9 @@ describe('SettingsUsenetTab server state', () => {
       expect(within(backup).getByText(en.chain.disabled)).toBeTruthy()
       const block = screen.getByText('Block').closest('article') as HTMLElement
       expect(within(block).queryByText(en.chain.disabled)).toBeNull()
-      expect(backup.querySelector('span.size-2')?.getAttribute('aria-hidden')).toBe('true')
+      expect(backup.querySelector('[data-chip]')?.textContent).toBe('')
+      expect(backup.querySelector('[data-chip-dot]')).toBeNull()
+      expect(block.querySelector('[data-chip-dot]')).not.toBeNull()
     } finally {
       SERVERS[2]!.enabled = true
     }

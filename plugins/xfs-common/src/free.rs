@@ -9,7 +9,15 @@
 //! file itself or a page carrying the direct link.
 //!
 //! Like the rest of this crate these are pure functions: each consuming plugin's native and
-//! WebAssembly adapter drives the flow and performs the requests itself.
+//! WebAssembly adapter drives the flow and performs the requests itself. The one exception is
+//! [`FreeWords`]: the form post and the failures every XFS free flow reports, which the four
+//! plugins carried byte for byte and which now take the plugin's codes instead (RD-1110-03,
+//! audit R4).
+
+use plugin_common::failure::{HttpError, diagnosed, free_limit};
+use plugin_common::{
+    CaptchaChallenge, Failure, FailureKind, HttpRequest, HttpResponse, PluginHost, WidgetChallenge,
+};
 
 /// Which captcha a page asks for, plus the site key needed to solve it.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -244,145 +252,95 @@ pub fn is_wrong_captcha(html: &str) -> bool {
     .any(|marker| html.contains(marker))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{
-        WidgetKind, countdown_seconds, free_form, ip_block_seconds, is_wrong_captcha,
-        unit_sum_seconds, widget_marker, with_captcha_token,
-    };
+/// The codes and English texts a plugin reports its free flow's dead ends under; the failures
+/// themselves are built here.
+#[derive(Clone, Copy)]
+pub struct FreeWords {
+    /// The plugin's `http_error` code and text, for a status no page explains.
+    pub http_error: HttpError,
+    /// No free form on the page; the text takes the page's diagnosis.
+    pub no_free_form: (&'static str, fn(&str) -> String),
+    /// The last step yielded no direct link; the text takes the page's diagnosis.
+    pub no_free_link: (&'static str, fn(&str) -> String),
+    /// The IP may not start another free download yet; the text takes the stated wait.
+    pub free_limit_reached: (&'static str, fn(Option<u64>) -> String),
+}
 
-    fn fields() -> Vec<(String, String)> {
-        [
-            ("op", "download1"),
-            ("id", "abc123"),
-            ("method_free", ""),
-            ("method_premium", ""),
-        ]
-        .map(|(name, value)| (name.to_owned(), value.to_owned()))
-        .to_vec()
+impl FreeWords {
+    /// Posts a free form back to the page it came from, as the page's own referer, asking for one
+    /// byte so a file served in answer is recognised without downloading it.
+    ///
+    /// # Errors
+    ///
+    /// The host's failure, or the status classified under the plugin's `http_error`.
+    pub async fn post_form<H: PluginHost>(
+        &self,
+        host: &H,
+        url: &str,
+        fields: &[(String, String)],
+    ) -> Result<HttpResponse, Failure> {
+        let response = host
+            .http(
+                HttpRequest::post(url.to_owned(), crate::page::encode_form(fields))
+                    .with_header("Content-Type", "application/x-www-form-urlencoded")
+                    .with_header("Referer", url.to_owned())
+                    .with_header("Range", "bytes=0-0"),
+            )
+            .await?;
+        crate::glue::ensure_http_status(&response, self.http_error.code, self.http_error.text)?;
+        Ok(response)
     }
 
-    /// The exact inverse of `page::premium_form`: keeping `method_free` is what makes an
-    /// account-less download possible at all.
-    #[test]
-    fn free_form_keeps_the_free_marker_and_drops_the_premium_one() {
-        let free = free_form(&fields(), "Free Download");
-        assert!(free.iter().all(|(name, _)| name != "method_premium"));
-        assert_eq!(
-            free.iter().find(|(name, _)| name == "method_free"),
-            Some(&("method_free".to_owned(), "Free Download".to_owned()))
-        );
-
-        let without = vec![("op".to_owned(), "download1".to_owned())];
-        assert_eq!(free_form(&without, "Free Download").len(), 2);
+    /// Aborts a free flow when the page reports an IP limit ([`ip_block_seconds`]), because no
+    /// amount of waiting or captcha solving helps until it expires.
+    ///
+    /// # Errors
+    ///
+    /// `IpBlocked` under the plugin's `free_limit_reached`, with `wait_seconds` when stated.
+    pub fn free_page_failure(&self, html: &str) -> Result<(), Failure> {
+        let (code, text) = self.free_limit_reached;
+        free_limit(ip_block_seconds(html), code, text)
     }
 
-    #[test]
-    fn a_captcha_token_replaces_any_existing_response_field() {
-        let base = vec![("g-recaptcha-response".to_owned(), "stale".to_owned())];
-        let submitted = with_captcha_token(&base, WidgetKind::RecaptchaV2, "fresh");
-        assert_eq!(
-            submitted,
-            [("g-recaptcha-response".to_owned(), "fresh".to_owned())]
-        );
-        assert_eq!(
-            with_captcha_token(&[], WidgetKind::Turnstile, "t")[0].0,
-            "cf-turnstile-response"
-        );
-        assert_eq!(WidgetKind::HCaptcha.response_field(), "h-captcha-response");
+    /// The page carries no free form this flow knows; `Permanent`, with the page's diagnosis.
+    #[must_use]
+    pub fn no_free_form(&self, html: &str) -> Failure {
+        let (code, text) = self.no_free_form;
+        diagnosed(
+            FailureKind::Permanent,
+            code,
+            text,
+            crate::page::diagnose(html),
+        )
     }
 
-    #[test]
-    fn each_widget_is_recognised_with_its_site_key() {
-        let recaptcha = r#"<div class="g-recaptcha" data-sitekey="6Lc-abc"></div>"#;
-        assert_eq!(
-            widget_marker(recaptcha),
-            Some(super::WidgetMarker {
-                kind: WidgetKind::RecaptchaV2,
-                site_key: "6Lc-abc".to_owned()
-            })
-        );
-
-        let turnstile = r#"<div data-sitekey="0x4AAA" class="cf-turnstile"></div>"#;
-        let marker = widget_marker(turnstile).expect("turnstile");
-        assert_eq!(marker.kind, WidgetKind::Turnstile);
-        assert_eq!(marker.site_key, "0x4AAA");
-
-        let hcaptcha = r#"<div class="h-captcha" data-sitekey='hk-1'></div>"#;
-        assert_eq!(widget_marker(hcaptcha).expect("hcaptcha").site_key, "hk-1");
-
-        assert_eq!(widget_marker("<form></form>"), None);
-        assert_eq!(
-            widget_marker(r#"<div class="g-recaptcha"></div>"#),
-            None,
-            "a marker without a usable site key cannot be solved"
-        );
-    }
-
-    #[test]
-    fn the_countdown_is_read_from_the_usual_markers() {
-        assert_eq!(
-            countdown_seconds(r#"<span id="countdown_str">Wait <span id="xyz">45</span></span>"#),
-            Some(45)
-        );
-        assert_eq!(
-            countdown_seconds(r#"<span class="seconds">30</span>"#),
-            Some(30)
-        );
-        assert_eq!(countdown_seconds("<p>no timer here</p>"), None);
-        // A far-away digit must not be mistaken for the timer.
-        let distant = format!(r#"<span class="seconds"></span>{}17"#, " ".repeat(500));
-        assert_eq!(countdown_seconds(&distant), None);
-    }
-
-    #[test]
-    fn a_stated_wait_is_summed_across_its_units() {
-        assert_eq!(
-            ip_block_seconds("<p>You have to wait 2 hours, 30 minutes, 15 seconds</p>"),
-            Some(2 * 3600 + 30 * 60 + 15)
-        );
-        assert_eq!(
-            ip_block_seconds("You have to wait 45 minutes till next download"),
-            Some(45 * 60)
-        );
-    }
-
-    /// A limit without a duration must still register, so the hoster is held back with the
-    /// scheduler's own default instead of being retried at once.
-    #[test]
-    fn a_limit_without_a_duration_still_reports_a_block() {
-        assert_eq!(
-            ip_block_seconds("<p>You have reached the download-limit</p>"),
-            Some(0)
-        );
-        assert_eq!(
-            ip_block_seconds("<p>you can download only one file at a time</p>"),
-            Some(0)
-        );
-        assert_eq!(ip_block_seconds("<p>Here is your file</p>"), None);
-    }
-
-    /// The unit summing [`ip_block_seconds`] uses, exposed for plugins whose site words the
-    /// surrounding sentence differently (FileJoker's "Please wait ... until the next download").
-    #[test]
-    fn unit_sum_seconds_adds_hours_minutes_and_seconds_and_stops_at_an_unknown_unit() {
-        assert_eq!(
-            unit_sum_seconds(" 1 hour, 2 minutes, 3 seconds until the next download"),
-            Some(3600 + 120 + 3)
-        );
-        assert_eq!(unit_sum_seconds(" 90 seconds"), Some(90));
-        assert_eq!(unit_sum_seconds(" no numbers at all"), None);
-        assert_eq!(
-            unit_sum_seconds(" 5 minutes and 3 files"),
-            Some(300),
-            "a number whose unit is not a duration ends the run"
-        );
-    }
-
-    #[test]
-    fn a_rejected_captcha_is_recognised() {
-        assert!(is_wrong_captcha("<div class=\"err\">Wrong captcha</div>"));
-        assert!(is_wrong_captcha("the verification code is incorrect"));
-        assert!(!is_wrong_captcha("<div>Download ready</div>"));
+    /// The flow's last page carries no direct link; `Permanent`, with the page's diagnosis.
+    #[must_use]
+    pub fn no_free_link(&self, html: &str) -> Failure {
+        let (code, text) = self.no_free_link;
+        diagnosed(
+            FailureKind::Permanent,
+            code,
+            text,
+            crate::page::diagnose(html),
+        )
     }
 }
+
+/// Turns a page's captcha marker into the challenge the host solves.
+#[must_use]
+pub fn challenge_for(marker: &WidgetMarker, page_url: &str) -> CaptchaChallenge {
+    let widget = WidgetChallenge {
+        site_key: marker.site_key.clone(),
+        page_url: page_url.to_owned(),
+        invisible: false,
+    };
+    match marker.kind {
+        WidgetKind::RecaptchaV2 => CaptchaChallenge::RecaptchaV2(widget),
+        WidgetKind::HCaptcha => CaptchaChallenge::HCaptcha(widget),
+        WidgetKind::Turnstile => CaptchaChallenge::Turnstile(widget),
+    }
+}
+
+#[cfg(test)]
+mod tests;

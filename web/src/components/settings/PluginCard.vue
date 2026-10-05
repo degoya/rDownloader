@@ -87,7 +87,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
   <UCard as="article" variant="outline" :ui="{ root: 'flex flex-col divide-y-0', header: 'px-4 pt-4 pb-0 sm:px-4', body: 'flex-1 space-y-3 p-4 sm:p-4', footer: 'border-t border-default px-4 py-3 sm:px-4' }">
     <template #header>
       <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-b border-default pb-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
-        <span class="col-start-1 row-span-2 row-start-1 grid size-9 place-items-center rounded-md bg-primary/10 text-primary" data-plugin-icon><UIcon name="i-lucide-box" /></span>
+        <span class="col-start-1 row-span-2 row-start-1" data-plugin-icon><UAvatar icon="i-lucide-box" color="primary" size="lg" /></span>
         <div class="col-start-2 row-start-1 flex flex-wrap items-center gap-2">
           <h4 class="font-semibold text-highlighted">{{ displayName(plugin) }}</h4>
           <UBadge class="font-mono" :color="plugin.active ? 'primary' : 'neutral'" variant="subtle" :title="plugin.active ? t('plugins.card.active_version_hint') : t('plugins.card.superseded_hint')">v{{ plugin.version }}</UBadge>
@@ -116,8 +116,8 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
           <p class="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-muted sm:flex-nowrap sm:gap-x-1.5" data-plugin-meta>
             <span class="shrink-0">{{ t('plugins.card.author', { author: plugin.author }) }}</span>
             <span v-if="plugin.license" :class="[SEPARATED, 'shrink-0']">{{ plugin.license }}</span>
-            <a v-if="safeHttpUrl(plugin.homepage)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :href="safeHttpUrl(plugin.homepage)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.homepage') }}</a>
-            <a v-if="safeHttpUrl(plugin.support_url)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :href="safeHttpUrl(plugin.support_url)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.support') }}</a>
+            <ULink v-if="safeHttpUrl(plugin.homepage)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :to="safeHttpUrl(plugin.homepage)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.homepage') }}</ULink>
+            <ULink v-if="safeHttpUrl(plugin.support_url)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :to="safeHttpUrl(plugin.support_url)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.support') }}</ULink>
             <span :class="[SEPARATED, 'min-w-0 truncate font-mono text-[11px]']">{{ plugin.id }}</span>
           </p>
         </div>
@@ -150,8 +150,10 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
       <p v-else class="pt-0.5 text-sm text-toned">{{ t('plugins.preview.no_permissions') }}</p>
     </div>
 
-    <div v-if="lifecycle || superseded.length" class="grid gap-x-5 gap-y-1 border-t border-default pt-3 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:border-t-0 sm:pt-0" data-plugin-versions>
-      <div class="sm:border-t sm:border-default sm:pt-3">
+    <div v-if="lifecycle || superseded.length" class="grid gap-x-5 gap-y-1 sm:grid-cols-[6.5rem_minmax(0,1fr)]" data-plugin-versions>
+      <!-- One hairline over the label and the values, on a phone as beside each other. -->
+      <USeparator class="mb-2 sm:col-span-2" :ui="{ border: 'border-default' }" />
+      <div>
         <p class="pt-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.versions.title') }}</p>
         <div v-if="lifecycle" class="mt-1 flex flex-wrap gap-1">
           <UBadge v-if="lifecycle.running_version" color="primary" variant="subtle">
@@ -165,7 +167,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
           </template>
         </div>
       </div>
-      <div class="min-w-0 space-y-2 sm:border-t sm:border-default sm:pt-3">
+      <div class="min-w-0 space-y-2">
         <PluginVersionPanel
           v-if="lifecycle"
           :lifecycle="lifecycle"
@@ -228,9 +230,9 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
       </div>
     </div>
 
-    <div v-if="hasDiagnostics" class="grid gap-x-5 border-t border-default pt-2 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:border-t-0 sm:pt-0">
-      <div class="hidden sm:block sm:border-t sm:border-default" aria-hidden="true" />
-      <UCollapsible class="min-w-0 sm:border-t sm:border-default sm:pt-2" :open="diagnosticsOpen" @update:open="emit('toggleDiagnostics')">
+    <div v-if="hasDiagnostics" class="grid gap-x-5 sm:grid-cols-[6.5rem_minmax(0,1fr)]">
+      <USeparator class="mb-2 sm:col-span-2" :ui="{ border: 'border-default' }" />
+      <UCollapsible class="min-w-0 sm:col-start-2" :open="diagnosticsOpen" @update:open="emit('toggleDiagnostics')">
         <UButton
           size="sm"
           color="neutral"

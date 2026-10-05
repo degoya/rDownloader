@@ -311,11 +311,11 @@ impl ResolverHost for NativeHost {
         };
         if let Err(error) = self.database.update_account(account_id, update).await {
             // The account still points at the old value, so the new one is unreferenced.
-            let _ = self.secrets.remove(&new_secret).await;
+            self.drop_secret(&new_secret).await;
             return Err(super::permanent(error));
         }
         if let Some(old) = old_secret.filter(|old| old != &new_secret) {
-            let _ = self.secrets.remove(&old).await;
+            self.drop_secret(&old).await;
         }
         Ok(())
     }
@@ -396,21 +396,21 @@ impl ResolverHost for NativeHost {
             if refreshed != previous
                 && let Some(orphan) = refreshed
             {
-                let _ = self.secrets.remove(&orphan).await;
+                self.drop_secret(&orphan).await;
             }
             if let Some(orphan) = stored_access {
-                let _ = self.secrets.remove(&orphan).await;
+                self.drop_secret(&orphan).await;
             }
             return Err(super::permanent(error));
         }
         if let Some(old) = previous.filter(|old| Some(old) != refreshed.as_ref()) {
-            let _ = self.secrets.remove(&old).await;
+            self.drop_secret(&old).await;
         }
         // The token this replaced, in the same order and for the same reason: the new value is
         // referenced before the old one is dropped, so an interruption between the two leaves
         // a usable account rather than none.
         if let Some(old) = previous_access.filter(|old| Some(old) != stored_access.as_ref()) {
-            let _ = self.secrets.remove(&old).await;
+            self.drop_secret(&old).await;
         }
         Ok(())
     }
@@ -457,13 +457,13 @@ impl ResolverHost for NativeHost {
         {
             Ok(replaced) => {
                 if let Some(old) = replaced {
-                    let _ = self.secrets.remove(&old).await;
+                    self.drop_secret(&old).await;
                 }
                 Ok(())
             }
             Err(error) => {
                 // Nothing references the value just written, so it is ours to take back.
-                let _ = self.secrets.remove(&stored).await;
+                self.drop_secret(&stored).await;
                 Err(super::permanent(error))
             }
         }

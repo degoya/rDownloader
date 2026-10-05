@@ -70,6 +70,7 @@ impl PluginTypeRegistry {
     /// looks up an exact pinned version of a running job, and neither may reach a version that
     /// is only under test. Resolvers, whose jobs can be pinned to it on purpose, ask
     /// [`Self::instantiate_with_roles`] instead.
+    #[cfg(test)]
     pub fn of_type(&self, plugin_type: &PluginType) -> impl Iterator<Item = &Arc<VerifiedPackage>> {
         self.packages
             .iter()

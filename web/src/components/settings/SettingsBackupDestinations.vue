@@ -23,6 +23,7 @@ import type {
 } from '@/api/types'
 import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
+import { WHOLE } from '@/utils/numberInput'
 import { positiveCount } from '@/utils/positiveCount'
 
 const props = defineProps<{ destinations: BackupDestination[] }>()
@@ -47,8 +48,8 @@ interface DestinationForm {
   profileId: string
   prefix: string
   remote: string
-  keepLast: string | number
-  keepDays: string | number
+  keepLast: number | null
+  keepDays: number | null
 }
 
 const profiles = ref<ObjectStorageProfile[]>([])
@@ -64,7 +65,7 @@ const kindItems = computed(() => KINDS.map(kind => ({ label: t(`system.backup.fu
 const profileItems = computed(() => profiles.value.map(profile => ({ label: profile.name, value: String(profile.id) })))
 
 function blank(): DestinationForm {
-  return { kind: 'local', name: '', enabled: true, path: '', profileId: '', prefix: '', remote: '', keepLast: '', keepDays: '' }
+  return { kind: 'local', name: '', enabled: true, path: '', profileId: '', prefix: '', remote: '', keepLast: null, keepDays: null }
 }
 
 
@@ -97,8 +98,8 @@ function edit(destination: BackupDestination | null): void {
       profileId: destination.profile_id ?? '',
       prefix: destination.prefix ?? '',
       remote: destination.remote ?? '',
-      keepLast: destination.keep_last ? String(destination.keep_last) : '',
-      keepDays: destination.keep_days ? String(destination.keep_days) : ''
+      keepLast: destination.keep_last || null,
+      keepDays: destination.keep_days || null
     })
   }
   editing.value = destination?.id ?? 'new'
@@ -260,7 +261,8 @@ onMounted(async () => {
       </li>
     </ul>
 
-    <form v-if="editing !== null" class="space-y-3 border border-muted bg-elevated p-4" data-testid="backup-destination-form" @submit.prevent="save">
+    <!-- A card inside the backup card: outlined, so it stands off its soft parent (`design.md`, *Visual Language*). -->
+    <UCard v-if="editing !== null" as="form" variant="outline" :ui="{ body: 'space-y-3' }" data-testid="backup-destination-form" @submit.prevent="save">
       <UFormField name="backup-destination-kind" :label="t('system.backup.full.destinations.kind.label')">
         <USelect v-model="form.kind" :items="kindItems" class="w-full" data-testid="backup-destination-kind" />
       </UFormField>
@@ -300,22 +302,24 @@ onMounted(async () => {
       </UFormField>
       <div class="grid gap-3 sm:grid-cols-2">
         <UFormField name="backup-destination-keep-last" :label="t('system.backup.full.destinations.keep_last')" :description="t('system.backup.full.destinations.keep_last_description')">
-          <UInput v-model="form.keepLast" type="number" min="1" class="w-full" data-testid="backup-destination-keep-last" />
+          <UInputNumber v-model="form.keepLast" :min="1" :format-options="WHOLE" class="w-full" data-testid="backup-destination-keep-last" />
         </UFormField>
         <UFormField name="backup-destination-keep-days" :label="t('system.backup.full.destinations.keep_days')" :description="t('system.backup.full.destinations.keep_days_description')">
-          <UInput v-model="form.keepDays" type="number" min="1" class="w-full" />
+          <UInputNumber v-model="form.keepDays" :min="1" :format-options="WHOLE" class="w-full" />
         </UFormField>
       </div>
       <p class="text-xs text-muted">{{ t('system.backup.full.destinations.retention.hint') }}</p>
       <UFormField name="backup-destination-enabled" :label="t('system.backup.full.destinations.enabled')" orientation="horizontal">
         <USwitch v-model="form.enabled" />
       </UFormField>
-      <div v-if="preview" class="border border-muted bg-default p-3 text-xs text-toned" data-testid="backup-destination-preview">
-        <p>{{ t('system.backup.full.destinations.retention.result', { keep: preview.keep, remove: preview.remove.length }) }}</p>
-        <ul v-if="preview.remove.length" class="mt-1 font-mono text-muted">
-          <li v-for="name in preview.remove" :key="name">{{ name }}</li>
-        </ul>
-      </div>
+      <UAlert v-if="preview" color="neutral" variant="outline" :ui="{ description: 'text-xs text-toned' }" data-testid="backup-destination-preview">
+        <template #description>
+          <p>{{ t('system.backup.full.destinations.retention.result', { keep: preview.keep, remove: preview.remove.length }) }}</p>
+          <ul v-if="preview.remove.length" class="mt-1 font-mono text-muted">
+            <li v-for="name in preview.remove" :key="name">{{ name }}</li>
+          </ul>
+        </template>
+      </UAlert>
       <div class="flex flex-wrap gap-2">
         <UButton type="submit" icon="i-lucide-save" :label="t('system.backup.full.destinations.save')" :loading="saving" />
         <UButton
@@ -330,7 +334,7 @@ onMounted(async () => {
         />
         <UButton type="button" color="neutral" variant="ghost" :label="t('system.backup.full.destinations.cancel')" @click="editing = null" />
       </div>
-    </form>
+    </UCard>
 
     <div v-if="verifications.length">
       <h4 class="mb-2 text-xs font-semibold text-highlighted">{{ t('system.backup.full.destinations.verifications') }}</h4>

@@ -32,7 +32,7 @@
 //!   requests count towards the cap. So 429 and `error_code` 5/34 are waits with a floor, and
 //!   `Retry-After` is honoured when it is there.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 use url::form_urlencoded;
 
@@ -173,30 +173,6 @@ pub(crate) fn account_name<'a>(
         .or_else(|| email.map(str::trim).filter(|value| !value.is_empty()))
 }
 
-/// Failure classification independent of the native (`rd_core::Failure`) and WASM
-/// (WIT-generated `Failure`) representations; both adapters convert this into their own type.
-#[derive(Debug)]
-pub(crate) struct ApiFailure {
-    pub(crate) kind: ErrorKind,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-    pub(crate) params: Vec<(&'static str, String)>,
-}
-
-/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
-/// on either.
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AuthRequired,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-    IpBlocked(Option<u64>),
-}
-
 /// How long a hoster-side or provider-side outage is waited out before the link is tried
 /// again. Five minutes, the same figure the other multihoster plugins settled on.
 const BUSY_SECONDS: u64 = 300;
@@ -205,21 +181,6 @@ const BUSY_SECONDS: u64 = 300;
 /// stated in days, so any figure here is a compromise; an hour is short enough that a queue
 /// recovers on its own and long enough not to spend the request budget asking.
 const QUOTA_SECONDS: u64 = 3600;
-
-/// Attaches the provider's documented `error_code` number so the interface can tell which one
-/// triggered a shared bucket. The number is data, unlike the sentence beside it.
-fn coded_with_api_code(
-    kind: ErrorKind,
-    (code, message): (&'static str, &str),
-    api_code: i64,
-) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![("api_code", api_code.to_string())],
-    }
-}
 
 /// Classifies a documented `error_code`.
 ///
@@ -234,32 +195,39 @@ fn coded_with_api_code(
 ///   download that is going perfectly well.
 /// - 5 ("slow down") and 34 ("too many requests") are the same wait, because the API counts
 ///   refused requests towards the very cap that refused them.
+///
+/// The documented number travels as `api_code`, so the interface can tell which one triggered a
+/// shared bucket. The number is data, unlike the sentence beside it.
 fn classify_error(api_code: i64, retry_after: Option<u64>) -> ApiFailure {
     match api_code {
         8 | 9 | 12 | 13 | 14 | 15 => {
-            coded_with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code)
+            ApiFailure::with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code)
         }
-        10 | 11 => coded_with_api_code(ErrorKind::AuthRequired, messages::TWO_FACTOR, api_code),
-        7 | 24 | 35 => coded_with_api_code(ErrorKind::Offline, messages::FILE_OFFLINE, api_code),
+        10 | 11 => {
+            ApiFailure::with_api_code(ErrorKind::AuthRequired, messages::TWO_FACTOR, api_code)
+        }
+        7 | 24 | 35 => {
+            ApiFailure::with_api_code(ErrorKind::Offline, messages::FILE_OFFLINE, api_code)
+        }
         16 | 20 => {
-            coded_with_api_code(ErrorKind::Unsupported, messages::HOST_UNSUPPORTED, api_code)
+            ApiFailure::with_api_code(ErrorKind::Unsupported, messages::HOST_UNSUPPORTED, api_code)
         }
-        6 | 17 | 19 | 21 | 25 => coded_with_api_code(
+        6 | 17 | 19 | 21 | 25 => ApiFailure::with_api_code(
             ErrorKind::Transient(Some(BUSY_SECONDS)),
             messages::SERVER_BUSY,
             api_code,
         ),
-        18 | 23 | 36 => coded_with_api_code(
+        18 | 23 | 36 => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(QUOTA_SECONDS)),
             messages::LIMIT_REACHED,
             api_code,
         ),
-        22 => coded_with_api_code(
+        22 => ApiFailure::with_api_code(
             ErrorKind::IpBlocked(None),
             messages::IP_NOT_ALLOWED,
             api_code,
         ),
-        5 | 34 => coded_with_api_code(
+        5 | 34 => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(retry_after.unwrap_or(60))),
             messages::RATE_LIMITED,
             api_code,
@@ -272,6 +240,25 @@ fn classify_error(api_code: i64, retry_after: Option<u64>) -> ApiFailure {
         },
     }
 }
+
+/// How Real-Debrid's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+///
+/// A `429` without a stated wait waits a minute.
+pub(crate) const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::FILE_OFFLINE,
+    unavailable: messages::FILE_OFFLINE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: Some(60),
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+};
 
 /// The failure an answer describes, or `None` when it describes none.
 ///
@@ -288,47 +275,10 @@ pub(crate) fn failure_from(
     // A sentence with no number is still a refusal — it is just one the document does not
     // name, so it goes to the generic bucket by status rather than being read.
     if envelope.error.is_some() || !(200..=299).contains(&status) {
-        return ensure_http_status(status, retry_after).err();
+        return HTTP.ensure_http_status(status, retry_after).err();
     }
     None
 }
-
-/// Maps an HTTP status no `error_code` explains.
-///
-/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
-/// (RD-191-07); a `429` without a stated wait waits a minute, a `5xx` takes the response's
-/// `Retry-After` when it sent one.
-pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::FILE_OFFLINE),
-        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::FILE_OFFLINE),
-        HttpRefusal::RateLimited(wait) => plain(
-            ErrorKind::RateLimited(Some(wait.unwrap_or(60))),
-            messages::RATE_LIMITED,
-        ),
-        HttpRefusal::ServerError(wait) => plain(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
-}
-
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
-// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
-// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
-pub(crate) use plugin_common::retry_after_seconds;
 
 #[cfg(test)]
 #[path = "api/tests.rs"]

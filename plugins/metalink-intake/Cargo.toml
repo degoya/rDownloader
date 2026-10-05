@@ -11,12 +11,5 @@ wit-bindgen.workspace = true
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:metalink-intake"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "intake-mirrors-plugin"
-
 [lints]
 workspace = true

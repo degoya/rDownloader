@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { SetUsenetQuota, UsenetQuotaAction, UsenetServer, UsenetServerTraffic } from '@/api/types'
 import { GIB, formatBytes, formatDay } from '@/utils/format'
+import { DECIMAL } from '@/utils/numberInput'
 
 const props = defineProps<{ server: UsenetServer, traffic?: UsenetServerTraffic | null | undefined }>()
 const emit = defineEmits<{ saved: [server: UsenetServer] }>()
@@ -102,10 +103,8 @@ const remove = () => send({ limit_bytes: null })
     </p>
     <form v-if="open" class="grid gap-3 border border-muted p-3" @submit.prevent="save">
       <UAlert v-if="error" color="error" variant="subtle" :description="error" />
-      <UFormField :label="t('usenet.quota.limit')" name="quota_limit" :description="t('usenet.quota.limit_hint')" required>
-        <UInput v-model.number="form.limitGiB" type="number" min="0.01" step="any" required class="w-full">
-          <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
-        </UInput>
+      <UFormField hint="GiB" :label="t('usenet.quota.limit')" name="quota_limit" :description="t('usenet.quota.limit_hint')" required>
+        <UInputNumber v-model="form.limitGiB" :min="0.01" :format-options="DECIMAL" :step-snapping="false" required class="w-full" />
       </UFormField>
       <UFormField :label="t('usenet.quota.action')" name="quota_action">
         <USelect v-model="form.action" :items="actionItems" class="w-full" />

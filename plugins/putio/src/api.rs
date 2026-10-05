@@ -19,7 +19,7 @@
 //! - **Rate limit**: Put.io answers 429 and states the window in `X-RateLimit-Reset`, a Unix
 //!   timestamp rather than a duration, so turning it into a wait needs the host's clock.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, HttpError, HttpWords};
 use serde::Deserialize;
 
 pub use plugin_common::FailureKind;
@@ -109,16 +109,6 @@ pub struct AccountResponse {
     pub info: Option<AccountInfo>,
 }
 
-/// A classified refusal: what it is, what the interface calls it, and what may be repeated.
-#[derive(Debug, Eq, PartialEq)]
-pub struct ApiFailure {
-    pub kind: FailureKind,
-    pub code: &'static str,
-    pub message: String,
-    /// The sanitised `error_type`, when Put.io stated one.
-    pub reason: Option<String>,
-}
-
 /// How long a provider-side outage is waited out. Five minutes, the figure the other
 /// API-shaped providers in this tree settled on.
 const BUSY_SECONDS: u64 = 300;
@@ -132,14 +122,22 @@ const RATE_LIMIT_SECONDS: u64 = 60;
 /// otherwise park a job for days.
 const MAX_RATE_LIMIT_SECONDS: u64 = 3600;
 
-fn failure(kind: FailureKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        reason: None,
-    }
-}
+/// How Put.io's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+pub const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::FILE_NOT_FOUND,
+    unavailable: messages::FILE_NOT_FOUND,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: Some(RATE_LIMIT_SECONDS),
+    server_error_wait: Some(BUSY_SECONDS),
+    other: HttpError {
+        code: messages::HTTP_ERROR.0,
+        text: messages::http_error,
+    },
+};
 
 /// The refusal an answer describes, or `None` when it describes none.
 ///
@@ -158,7 +156,12 @@ pub fn failure_from(
         return None;
     }
     let mut refusal = classify(status, reset_in_seconds, envelope);
-    refusal.reason = envelope.kind();
+    // The sanitised `error_type`, when Put.io stated one, and nothing else: this plugin's
+    // `http_error` has never carried the `status` parameter (RD-1110-02 keeps that).
+    refusal.params = envelope
+        .kind()
+        .map(|reason| vec![("reason", reason)])
+        .unwrap_or_default();
     Some(refusal)
 }
 
@@ -180,34 +183,16 @@ fn classify(status: u16, reset_in_seconds: Option<u64>, envelope: &ErrorEnvelope
     // offline and retried, as everywhere else.
     if status == 403 {
         return if token_refused {
-            failure(FailureKind::AccountInvalid, messages::AUTH_INVALID)
+            ApiFailure::new(FailureKind::AccountInvalid, messages::AUTH_INVALID)
         } else {
-            failure(FailureKind::Unsupported, messages::NOT_PERMITTED)
+            ApiFailure::new(FailureKind::Unsupported, messages::NOT_PERMITTED)
         };
     }
-    match plugin_common::http_status(status, reset_in_seconds) {
+    match HTTP.ensure_http_status(status, reset_in_seconds) {
         // An error document with a 2xx: Put.io said no and this build has no bucket for it.
         // The word travels as `reason`; the sentence does not.
-        Ok(()) => failure(FailureKind::Permanent, messages::API_ERROR),
-        Err(HttpRefusal::Unauthorized) => {
-            failure(FailureKind::AccountInvalid, messages::AUTH_INVALID)
-        }
-        Err(HttpRefusal::Gone) => failure(FailureKind::Permanent, messages::FILE_NOT_FOUND),
-        Err(HttpRefusal::Unavailable) => failure(FailureKind::Offline, messages::FILE_NOT_FOUND),
-        Err(HttpRefusal::RateLimited(wait)) => failure(
-            FailureKind::RateLimited(Some(wait.unwrap_or(RATE_LIMIT_SECONDS))),
-            messages::RATE_LIMITED,
-        ),
-        Err(HttpRefusal::ServerError(wait)) => failure(
-            FailureKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
-            messages::SERVER_ERROR,
-        ),
-        Err(HttpRefusal::Other(other)) => ApiFailure {
-            kind: FailureKind::Permanent,
-            code: messages::HTTP_ERROR.0,
-            message: messages::http_error(other),
-            reason: None,
-        },
+        Ok(()) => ApiFailure::new(FailureKind::Permanent, messages::API_ERROR),
+        Err(refusal) => refusal,
     }
 }
 

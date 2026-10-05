@@ -1,16 +1,17 @@
-//! Package-level enqueue used by the LinkGrabber (one package row, many files).
+//! Package-level enqueue used by the LinkGrabber (one package row, many files), and the
+//! single direct URL.
 
 use std::path::PathBuf;
 
 use anyhow::Result;
 use rd_core::{
-    AccountId, CategoryId, DownloadFile, DownloadPackage, DownloadPriority, DownloadState,
-    PackageId, ProxyProfileId,
+    AccountId, CategoryId, DownloadFile, DownloadId, DownloadPackage, DownloadPriority,
+    DownloadState, PackageId, ProxyProfileId,
 };
 use rd_db::{Database, NewDownload, NewPackage, PackageChange};
 use url::Url;
 
-use crate::SchedulerHandle;
+use crate::{PackageOptions, SchedulerHandle};
 
 /// Package attributes for `enqueue_package`.
 #[derive(Clone, Debug)]
@@ -361,5 +362,106 @@ async fn roll_back_partial_package(
             package = %package_id,
             "an empty package row could not be removed"
         );
+    }
+}
+
+impl SchedulerHandle {
+    /// Adds a direct URL with an explicit account and/or job proxy selection.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn enqueue_direct_to_with_network(
+        &self,
+        source: Url,
+        package_name: String,
+        file_name: String,
+        destination: PathBuf,
+        account_id: Option<AccountId>,
+        proxy_profile_id: Option<ProxyProfileId>,
+        options: PackageOptions,
+    ) -> Result<rd_core::DownloadFile> {
+        self.enqueue(
+            source,
+            package_name,
+            file_name,
+            destination,
+            account_id,
+            proxy_profile_id,
+            options,
+        )
+        .await
+    }
+
+    /// Adds a direct URL to the default directory with explicit network identity.
+    pub async fn enqueue_direct_with_network(
+        &self,
+        source: Url,
+        package_name: String,
+        file_name: String,
+        account_id: Option<AccountId>,
+        proxy_profile_id: Option<ProxyProfileId>,
+        options: PackageOptions,
+    ) -> Result<rd_core::DownloadFile> {
+        self.enqueue(
+            source,
+            package_name,
+            file_name,
+            self.config.downloads_directory.clone(),
+            account_id,
+            proxy_profile_id,
+            options,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn enqueue(
+        &self,
+        source: Url,
+        package_name: String,
+        file_name: String,
+        destination: PathBuf,
+        account_id: Option<AccountId>,
+        proxy_profile_id: Option<ProxyProfileId>,
+        options: PackageOptions,
+    ) -> Result<rd_core::DownloadFile> {
+        let package_id = PackageId::new();
+        let destination = rd_files::package_directory(&destination, &package_name);
+        self.database
+            .create_package(NewPackage {
+                id: package_id,
+                name: package_name,
+                destination: destination.to_string_lossy().into_owned(),
+                category_id: options.category_id,
+                priority: options.priority,
+                postprocess_level: None,
+                script: None,
+                // A single link added by hand has nothing an enricher looked at.
+                enrichment: Vec::new(),
+            })
+            .await?;
+        self.database
+            .create_download(NewDownload {
+                id: DownloadId::new(),
+                package_id,
+                source,
+                file_name: rd_files::sanitize_file_name(&file_name),
+                total_bytes: None,
+                expected_checksum: None,
+                account_id,
+                proxy_profile_id,
+                auth_profile: rd_core::AuthProfileSelection::Auto,
+                initial_state: if options.paused {
+                    DownloadState::Paused
+                } else {
+                    DownloadState::Queued
+                },
+                kind: rd_core::DownloadKind::Http,
+                media: None,
+                remote_credential_id: None,
+                mirror_group: None,
+                enrichment: Vec::new(),
+                replay: None,
+                secret_fragment: None,
+            })
+            .await
     }
 }

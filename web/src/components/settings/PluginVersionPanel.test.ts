@@ -130,7 +130,7 @@ describe('PluginVersionPanel', () => {
   })
 
   /** Notes come from a repository, so markup in them must reach the reader as text. */
-  it('lists the release notes the indexes delivered as plain text, and no section without any', () => {
+  it('lists the release notes the indexes delivered as plain text, and no section without any', async () => {
     const { unmount } = mountComponent(PluginVersionPanel, {
       messages: { plugins: pluginsCatalogue },
       props: {
@@ -144,6 +144,12 @@ describe('PluginVersionPanel', () => {
     })
     const section = document.querySelector('[data-release-notes]') as HTMLElement
     expect(section).toBeTruthy()
+    // Closed until asked for: the trigger is a button that says so (RD-1110-11).
+    const trigger = screen.getByRole('button', { name: 'Release notes (2)' })
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    expect(section.textContent).not.toContain('v2.1.0')
+    await fireEvent.click(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
     expect(section.textContent).toContain('v2.1.0')
     expect(section.textContent).toContain('<b>Faster</b> downloads')
     expect(section.querySelector('b')).toBeNull()

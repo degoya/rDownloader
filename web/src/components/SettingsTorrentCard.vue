@@ -7,6 +7,7 @@ import type { NetworkInterface, ProxyProfile, Settings, TorrentEngineCapabilitie
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { MIB, byteModel } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { DECIMAL, PLAIN, RATIO, WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 
@@ -106,21 +107,17 @@ const uploadLimitMiB = byteModel(
       </template>
       <USwitch v-model="settings.torrent_sharing_enabled" data-testid="torrent-sharing" />
     </UFormField>
-    <UFormField data-settings-anchor="torrent.upload_limit" :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
-      <UInput v-model.number="uploadLimitMiB" type="number" min="0" step="any" :disabled="!settings.torrent_sharing_enabled" class="w-full">
-        <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
-      </UInput>
+    <UFormField hint="MiB/s" data-settings-anchor="torrent.upload_limit" :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
+      <UInputNumber v-model="uploadLimitMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :disabled="!settings.torrent_sharing_enabled" class="w-full" />
     </UFormField>
     <UFormField :label="t('settings.torrent.seeding.label')" :description="t('settings.torrent.seeding.description')" orientation="horizontal">
       <USwitch v-model="settings.torrent_seeding_enabled" :disabled="!settings.torrent_sharing_enabled" />
     </UFormField>
     <UFormField data-settings-anchor="torrent.seed_ratio" :label="t('settings.torrent.seed_ratio.label')" :description="t('settings.torrent.seed_ratio.description')">
-      <UInput v-model.number="settings.torrent_seed_ratio" type="number" min="0" max="100" step="any" :disabled="!seeding" class="w-full" />
+      <UInputNumber v-model="settings.torrent_seed_ratio" required :min="0" :max="100" :format-options="RATIO" :step-snapping="false" :disabled="!seeding" class="w-full" />
     </UFormField>
-    <UFormField :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
-      <UInput v-model.number="seedTime" type="number" min="1" :disabled="!seeding" class="w-full">
-        <template #trailing><span class="font-mono text-xs text-muted">min</span></template>
-      </UInput>
+    <UFormField hint="min" :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
+      <UInputNumber v-model="seedTime" :min="1" :format-options="WHOLE" :disabled="!seeding" class="w-full" />
     </UFormField>
     <UFormField
       data-settings-anchor="torrent.bind_interface"
@@ -146,13 +143,13 @@ const uploadLimitMiB = byteModel(
       <USelect v-model="settings.torrent_listen_mode" :items="listenModeItems" value-key="value" class="w-full" />
     </UFormField>
     <UFormField data-settings-anchor="torrent.listen_port" :label="t('settings.torrent.listen_port.label')" :description="t('settings.torrent.listen_port.description')">
-      <UInput v-model.number="listenPort" type="number" min="1" max="65535" icon="i-lucide-ethernet-port" class="w-full" />
+      <UInputNumber v-model="listenPort" :min="1" :max="65535" :format-options="PLAIN" class="w-full" />
     </UFormField>
     <UFormField
       :label="t('settings.torrent.peer_limit.label')"
       :description="t('settings.torrent.peer_limit.description')"
     >
-      <UInput v-model.number="peerLimit" type="number" min="0" class="w-full" />
+      <UInputNumber v-model="peerLimit" :min="0" :format-options="WHOLE" class="w-full" />
     </UFormField>
     <UFormField
       v-if="capabilities?.socks5_peer_proxy"
@@ -174,7 +171,7 @@ const uploadLimitMiB = byteModel(
       :label="t('settings.torrent.announce_port.label')"
       :description="t('settings.torrent.announce_port.description')"
     >
-      <UInput v-model.number="announcePort" type="number" min="0" max="65535" class="w-full" />
+      <UInputNumber v-model="announcePort" :min="0" :max="65535" :format-options="PLAIN" class="w-full" />
     </UFormField>
     <UFormField
       data-settings-anchor="torrent.blocklist"

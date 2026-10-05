@@ -38,7 +38,7 @@ installable Vue web interface, for Windows, macOS, Linux and Docker.
 - **Post-processing** — checksums and SFV, PAR2 repair, extraction, cleanup, scripts and upload destinations.
 - **Automation** — categories, schedules, bandwidth profiles, subscriptions and trigger/condition/action rules.
 - **Notifications** — signed webhooks, e-mail, ntfy, Apprise and notification plugins.
-- **Local-first** — binds to `127.0.0.1` by default, keeps credentials in an encrypted vault and scopes every API token.
+- **Local-first** — binds to `127.0.0.1` by default, keeps credentials in an encrypted vault and scopes every API token, with an optional expiry.
 - **Integrations** — REST API with OpenAPI and Server-Sent Events, a built-in MCP server, SABnzbd- and qBittorrent-compatible adapters for the *arr tools, a remote CLI.
 - **Signed WebAssembly plugins** — sandboxed extensions built against the versioned contract `rdownloader:plugin@0.10.0`, with signed repositories and an SDK.
 - **Restart-safe** — transfers, post-processing and seeding resume after a restart; logs, audit log, statistics and Prometheus metrics stay local.

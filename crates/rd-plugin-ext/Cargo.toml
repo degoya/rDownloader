@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Hooks only tests call (RD-1110-06); switched on by dev-dependencies, never by the service.
+test-support = []
+
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
@@ -19,6 +23,8 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+# Its own integration tests reach the `test-support` hooks this way.
+rd-plugin-ext = { path = ".", features = ["test-support"] }
 base64.workspace = true
 md-5.workspace = true
 serde_json.workspace = true

@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 
 import type { ResolvedRemoteListing } from '@/api/types'
 import en from '@/locales/en/remote.json'
+import { uiStubs } from '@/test/mount'
 
 import RemoteFileTree from './RemoteFileTree.vue'
 
@@ -12,6 +13,7 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { remote:
 /** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
 const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const components = {
+  UAlert: uiStubs.UAlert,
   UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
   UCheckbox: {
     props: ['modelValue', 'indeterminate'],

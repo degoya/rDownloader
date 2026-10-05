@@ -6,6 +6,7 @@
 
 mod free;
 
+pub(crate) use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, Label, LinkCheck, LinkStatus,
     PluginHost, ResolveInput, Resolved,
@@ -40,7 +41,7 @@ impl From<CallError> for Failure {
     fn from(error: CallError) -> Self {
         match error {
             CallError::Host(failure) => failure,
-            CallError::Api(failure) => convert_failure(failure),
+            CallError::Api(failure) => failure.into(),
         }
     }
 }
@@ -92,7 +93,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     request: &ResolveInput,
 ) -> Result<Resolved, Failure> {
     let parsed =
-        Url::parse(&request.url).map_err(|error| convert_failure(api::invalid_url(&error)))?;
+        Url::parse(&request.url).map_err(|error| Failure::from(api::invalid_url(&error)))?;
     let file_id = api::file_id(&parsed)
         .ok_or_else(|| coded(FailureKind::Unsupported, messages::UNSUPPORTED_LINK))?
         .to_owned();
@@ -106,7 +107,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     let raw_url = result
         .url
         .ok_or_else(|| coded(FailureKind::Permanent, messages::NO_DOWNLOAD_URL))?;
-    let url = api::parse_download_url(&raw_url).map_err(convert_failure)?;
+    let url = api::parse_download_url(&raw_url)?;
     Ok(Resolved {
         url: url.to_string(),
         // `/geturl` never returns a filename or size on any path; the caller learns those from a
@@ -252,27 +253,4 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
         return Err(coded(FailureKind::AuthRequired, messages::PASSWORD_MISSING));
     }
     Ok(())
-}
-
-pub(crate) fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::AuthRequired => FailureKind::AuthRequired,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-        api::ErrorKind::NeedsCaptcha => FailureKind::NeedsCaptcha,
-        api::ErrorKind::IpBlocked(seconds) => FailureKind::IpBlocked(seconds),
-        api::ErrorKind::CaptchaFailed => FailureKind::CaptchaFailed,
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
-}
-
-pub(crate) fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

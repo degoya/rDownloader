@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# Hooks only tests call (RD-1110-06); switched on by dev-dependencies, never by the service.
+test-support = []
+
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
@@ -29,6 +33,8 @@ uuid.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
+# Its own integration tests reach the `test-support` hooks this way.
+rd-tools = { path = ".", features = ["test-support"] }
 axum.workspace = true
 # Encoder only for the fixtures: the tests build their own tar.xz rather than committing one.
 lzma-rust2 = { workspace = true, features = ["encoder"] }

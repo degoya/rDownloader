@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
+import { uiStubs } from '@/test/mount'
 
 import SettingsMfaCard from './SettingsMfaCard.vue'
 
@@ -18,7 +19,7 @@ vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true 
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { system } } })
 const components = {
-  UAlert: { props: ['description'], template: '<div>{{ description }}</div>' },
+  UAlert: uiStubs.UAlert,
   UBadge: { template: '<span><slot /></span>' },
   UButton: { props: ['label'], template: '<button>{{ label }}<slot /></button>' },
   UFormField: { props: ['label'], template: '<label>{{ label }}<slot /></label>' },
@@ -26,7 +27,8 @@ const components = {
     props: ['modelValue'],
     emits: ['update:modelValue'],
     template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">'
-  }
+  },
+  USeparator: uiStubs.USeparator
 }
 
 const OTPAUTH = 'otpauth://totp/rDownloader:administrator?secret=JBSWY3DPEHPK3PXP&issuer=rDownloader'
@@ -116,10 +118,24 @@ describe('SettingsMfaCard', () => {
     await start()
 
     await waitFor(() => screen.getByAltText(system.mfa.enrol.qr_alt))
-    expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeTruthy()
+    expect(screen.getByDisplayValue('JBSWY3DPEHPK3PXP')).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.manual)).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.copy_secret)).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.copy_uri)).toBeTruthy()
+  })
+
+  // The one-time secret is a warning notice, its warning the title, the codes inside it (RD-1110-11).
+  it('shows the secret inside a warning notice headed by its once-only warning', async () => {
+    vi.mocked(api.POST).mockResolvedValue(enrolment(OTPAUTH) as never)
+
+    mount()
+    await start()
+
+    // The secret sits in a read-only copy field (RD-1110-13), so it is the field's value.
+    const secret = await waitFor(() => screen.getByDisplayValue('JBSWY3DPEHPK3PXP'))
+    const notice = screen.getByText(system.mfa.enrol.once).parentElement as HTMLElement
+    expect(notice.getAttribute('color')).toBe('warning')
+    expect(notice.contains(secret)).toBe(true)
   })
 
   it('sends the password with the enrolment, and not without one', async () => {

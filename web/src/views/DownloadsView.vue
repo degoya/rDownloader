@@ -388,14 +388,16 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
         </section>
 
         <!-- The queue has files, the filter or the search hides all of them: say so, and offer the way back. -->
-        <section v-else-if="filterActive && transfers.downloads.length" class="grid min-h-48 place-items-center border border-dashed border-muted p-8 text-center" data-testid="downloads-no-match">
-          <div>
-            <UIcon name="i-lucide-search-x" class="mx-auto mb-4 size-8 text-muted" />
-            <h2 class="font-medium text-highlighted">{{ t('downloads.filters.no_match_title') }}</h2>
-            <p class="mt-2 text-sm text-muted">{{ t('downloads.filters.no_match_hint') }}</p>
-            <UButton class="mt-4" icon="i-lucide-filter-x" color="neutral" variant="outline" :label="t('downloads.filters.reset')" @click="resetFilter" />
-          </div>
-        </section>
+        <UEmpty
+          v-else-if="filterActive && transfers.downloads.length"
+          as="section"
+          class="min-h-48"
+          icon="i-lucide-search-x"
+          :title="t('downloads.filters.no_match_title')"
+          :description="t('downloads.filters.no_match_hint')"
+          :actions="[{ icon: 'i-lucide-filter-x', color: 'neutral', variant: 'outline', label: t('downloads.filters.reset'), onClick: resetFilter }]"
+          data-testid="downloads-no-match"
+        />
 
         <!--
           "Nothing here" is only true once the queue fetch has settled. Until then the store's
@@ -403,13 +405,13 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
           error alert above rather than dissolving into an empty queue (RD-104-07).
         -->
         <DataState v-else :loading="transfers.loading" :empty="!transfers.error" :rows="4">
-          <section class="signal-grid grid min-h-72 place-items-center border border-dashed border-muted p-8 text-center">
-            <div>
-              <UIcon name="i-lucide-inbox" class="mx-auto mb-4 size-8 text-muted" />
-              <h2 class="font-medium text-highlighted">{{ t('downloads.empty.title') }}</h2>
-              <p class="mt-2 text-sm text-muted">{{ t('downloads.empty.hint') }}</p>
-            </div>
-          </section>
+          <UEmpty
+            as="section"
+            class="signal-grid min-h-72"
+            icon="i-lucide-inbox"
+            :title="t('downloads.empty.title')"
+            :description="t('downloads.empty.hint')"
+          />
         </DataState>
 
         <QueueSummary

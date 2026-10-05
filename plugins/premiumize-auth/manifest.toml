@@ -3,7 +3,7 @@ plugin_type = "auth"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000010c"
 name = "Premiumize sign-in"
-version = "0.9.9"
+version = "0.9.10"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 

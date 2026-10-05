@@ -113,7 +113,12 @@ scaffolds() {
         git -C "${out}" init --quiet
         git -C "${out}" check-ignore --quiet plugin-signing.key \
             || { echo "::error::a ${world} scaffold does not ignore plugin-signing.key"; exit 1; }
-        (cd "${out}" && cargo component build --release --target wasm32-unknown-unknown)
+        # The two steps the template's README gives (RD-1110-08): the core module, then its
+        # component, written where the README writes it (here the target directory is elsewhere).
+        (cd "${out}" && cargo build --release --target wasm32-unknown-unknown)
+        mkdir -p "${out}/target"
+        wasm-tools component new "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/scaffolded.wasm" \
+            -o "${out}/target/scaffolded.wasm"
         # The scaffold's own unit tests, on the host target: a third party runs these before
         # touching anything, so they have to pass in a fresh scaffold.
         if grep -rq '#\[test\]' "${out}/src"; then
@@ -121,12 +126,11 @@ scaffolds() {
         fi
         "${packager}" plugin package \
             --manifest "${out}/manifest.toml" \
-            --component "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/scaffolded.wasm" \
+            --component "${out}/target/scaffolded.wasm" \
             --locales "${out}/locales" \
             --key "${out}/plugin-signing.key" \
             --output "${out}/scaffolded.rdplug"
-        scripts/check-plugin-imports.sh \
-            "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/release/scaffolded.wasm"
+        scripts/check-plugin-imports.sh "${out}/target/scaffolded.wasm"
         "${packager}" plugin conformance --json \
             --trusted-key "scaffolded-release-v1=$(sed -n 's/^public_key = "\(.*\)"/\1/p' "${out}/manifest.toml")" \
             --no-default-plugin-key \

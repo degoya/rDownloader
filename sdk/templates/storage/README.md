@@ -30,14 +30,20 @@ what you use: the plugin manager shows the grants to the person deciding whether
 
 ```bash
 cargo test
-cargo component build --release --target wasm32-unknown-unknown
+cargo build --release --target wasm32-unknown-unknown
+wasm-tools component new target/wasm32-unknown-unknown/release/{{PLUGIN_SLUG}}.wasm \
+  -o target/{{PLUGIN_SLUG}}.wasm
 rdownloader plugin package --manifest manifest.toml \
-  --component target/wasm32-unknown-unknown/release/{{PLUGIN_SLUG}}.wasm \
+  --component target/{{PLUGIN_SLUG}}.wasm \
   --locales locales --key plugin-signing.key --output {{PLUGIN_SLUG}}.rdplug
 rdownloader plugin conformance {{PLUGIN_SLUG}}.rdplug --json
 ```
 
 `cargo test` runs the unit tests on your own machine, without a WebAssembly toolchain.
+`cargo build` makes a WebAssembly core module that carries the world `src/guest.rs` generates, and
+`wasm-tools component new` turns it into the component — no WASI adapter, the plugin imports
+nothing but the contract. Use the wasm-tools version the SDK's `ci/plugin.yml` installs, the one
+rDownloader's own plugins are made with.
 `plugin-signing.key` is yours alone: keep it out of version control. Signing, the reusable CI
 workflow and publishing in a repository of your own are in the SDK's `README.md` and the [plugin
 reference](https://github.com/degoya/rDownloader/wiki/plugin-reference).

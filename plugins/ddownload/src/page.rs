@@ -186,15 +186,6 @@ pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
     dk2_countdown_seconds(html).or_else(|| xfs_common::free::countdown_seconds(html))
 }
 
-/// Seconds this IP must wait for another free download, or `Some(0)` when the page states a
-/// limit without naming a duration. `DdownloadCom.checkErrors` adds only HTTP 429/500 handling
-/// (already covered by `api::ensure_http_status`) on top of `super.checkErrors`, so the base
-/// class's own phrasings — `xfs_common::free::ip_block_seconds` — apply unchanged.
-#[must_use]
-pub(crate) fn ip_block_seconds(html: &str) -> Option<u64> {
-    xfs_common::free::ip_block_seconds(html)
-}
-
 /// Whether the page says the captcha answer was rejected.
 #[must_use]
 pub(crate) fn is_wrong_captcha(html: &str) -> bool {
@@ -247,8 +238,9 @@ pub(crate) fn direct_link(html: &str, hints: &[&str]) -> Option<String> {
 mod tests {
     use super::{
         diagnose, direct_link, download_form, download1_form, encode_form, free_form,
-        free_wait_seconds, ip_block_seconds, premium_form, widget_marker, with_adblock_cleared,
+        free_wait_seconds, premium_form, widget_marker, with_adblock_cleared,
     };
+    use xfs_common::free::ip_block_seconds;
 
     const PAGE: &str = r#"<html><body>
 <form name="F1" method="POST" action="" style="display:contents;">

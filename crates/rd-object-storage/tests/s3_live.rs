@@ -3,7 +3,7 @@
 //! `Range` on its validators and its answer to a wrong key.
 //!
 //! Ignored by default, and each test fails rather than passes when the service is not named.
-//! CI runs them against MinIO in the `s3-live` job of `.github/workflows/ci.yml`; by hand:
+//! CI runs them against RustFS in the `s3-live` job of `.github/workflows/ci.yml`; by hand:
 //!
 //! ```text
 //! RD_S3_LIVE_ENDPOINT=http://127.0.0.1:9000 RD_S3_LIVE_BUCKET=rd-live \

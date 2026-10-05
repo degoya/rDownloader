@@ -10,38 +10,17 @@
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteEntry,
     RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest, host,
-    http::{self, RequestHeader, RequestQuery},
+    http::{RequestHeader, RequestQuery},
     refuse,
     types::{Failure, FailureKind},
 };
 
 use crate::{
-    api::{self, ApiFailure, ErrorKind, Stage},
+    api::{self, Stage},
     messages, source,
 };
 
 struct Component;
-
-fn from_api(failure: ApiFailure) -> Failure {
-    Failure {
-        category: match failure.kind {
-            ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-            ErrorKind::Permanent => FailureKind::Permanent,
-            ErrorKind::Offline => FailureKind::Offline,
-            ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-            ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-            ErrorKind::Unsupported => FailureKind::Unsupported,
-            ErrorKind::IpBlocked => FailureKind::IpBlocked(None),
-        },
-        message: failure.message,
-        code: Some(failure.code.to_owned()),
-        params: failure
-            .params
-            .into_iter()
-            .map(|(name, value)| (name.to_owned(), value))
-            .collect(),
-    }
-}
 
 /// The reference of the token this account holds (RD-150-09).
 ///
@@ -90,16 +69,19 @@ fn call(
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
     let headers = headers(token_reference(account_id), content_type);
-    let response = http::http_request(method, url, query, &headers, body)?;
-    // Seconds only, never `0`, at most a day: the reader every plugin shares (RD-191-07).
-    let retry_after = plugin_common::retry_after(&response.headers);
     // An `error_code` decides whatever the status says, and a status decides when there is no
     // document to read. Both directions matter: Real-Debrid answers refusals with 2xx.
-    let envelope: api::ErrorEnvelope = serde_json::from_slice(&response.body).unwrap_or_default();
-    if let Some(failure) = api::failure_from(response.status, retry_after, &envelope) {
-        return Err(from_api(failure));
-    }
-    Ok(response.body)
+    plugin_guest_remote_job::call(
+        method,
+        url,
+        query,
+        &headers,
+        body,
+        |status, retry_after, answer| {
+            let envelope: api::ErrorEnvelope = serde_json::from_slice(answer).unwrap_or_default();
+            api::failure_from(status, retry_after, &envelope)
+        },
+    )
 }
 
 fn parse<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, Failure> {

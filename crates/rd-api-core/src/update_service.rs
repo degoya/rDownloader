@@ -161,7 +161,7 @@ impl UpdateService {
     ///
     /// For tests only, which serve signed manifests from memory under a key of their own; the
     /// service never calls it.
-    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn use_source(&self, fetcher: Arc<dyn Fetcher>, sources: Sources, trust: TrustStore) {
         if let Ok(mut source) = self.0.source.write() {
             *source = Source {

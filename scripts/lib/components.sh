@@ -24,7 +24,7 @@ rd_component_gates() {
     # nothing about the fact that no component had been loaded at all. Since RD-108-16 such a
     # test fails. Staleness is by content since RD-120-58: a stamp beside each component records
     # the hash of the sources it was built from and of the component itself, so "stale" means
-    # the content differs, or a bare `cargo component build` rebuilt it without a stamp.
+    # the content differs, or a bare `cargo build` relinked it without a stamp.
     #
     # Both are built here, under this run's lock (RD-1100-13): build-plugins.sh sees RD_LOCK_HELD
     # and takes no lock of its own. Until 1.10 the run stopped with the command to type, and the

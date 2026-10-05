@@ -27,7 +27,7 @@
 //!   polling shares that budget with the resolver unrestricting this very job's links, which
 //!   is why the suggested waits below are generous rather than eager.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 
 use crate::messages;
@@ -269,27 +269,6 @@ pub fn magnet_body(magnet: &str) -> Vec<u8> {
     format!("magnet={}", plugin_common::percent_encode(magnet)).into_bytes()
 }
 
-/// How a refusal is classified, without depending on either failure representation.
-#[derive(Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-    IpBlocked,
-}
-
-/// A classified refusal.
-#[derive(Debug)]
-pub struct ApiFailure {
-    pub kind: ErrorKind,
-    pub code: &'static str,
-    pub message: String,
-    pub params: Vec<(&'static str, String)>,
-}
-
 /// How long a provider-side outage is waited out. Five minutes, the figure the resolver
 /// sibling and the other multihoster plugins settled on.
 const BUSY_SECONDS: u64 = 300;
@@ -297,23 +276,25 @@ const BUSY_SECONDS: u64 = 300;
 /// How long an exhausted quota is waited out.
 const QUOTA_SECONDS: u64 = 3600;
 
-fn coded(kind: ErrorKind, (code, message): (&'static str, &str), api_code: i64) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![("api_code", api_code.to_string())],
-    }
-}
-
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
+/// How Real-Debrid's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+///
+/// A `404`/`410` is the torrent gone for good; a `451` is `Offline` and retried, still worded
+/// `CONTENT_REFUSED` (RA-PLG-04). A `429` without a stated wait waits a minute.
+pub const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::TORRENT_GONE,
+    unavailable: messages::CONTENT_REFUSED,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: Some(60),
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR.0,
+        text: messages::http_error,
+    },
+};
 
 /// Classifies a documented `error_code`.
 ///
@@ -325,22 +306,34 @@ fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
 pub fn classify_error(api_code: i64, retry_after: Option<u64>) -> ApiFailure {
     match api_code {
         // Real-Debrid's eight token and permission codes are contiguous, so say so.
-        8..=15 => coded(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code),
-        7 | 24 | 35 => coded(ErrorKind::Offline, messages::TORRENT_GONE, api_code),
-        16 | 20 => coded(ErrorKind::Unsupported, messages::NOT_PERMITTED, api_code),
-        25 | 26 => coded(ErrorKind::Permanent, messages::CONTENT_REFUSED, api_code),
-        6 | 17 | 19 | 21 => coded(
+        8..=15 => {
+            ApiFailure::with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code)
+        }
+        7 | 24 | 35 => {
+            ApiFailure::with_api_code(ErrorKind::Offline, messages::TORRENT_GONE, api_code)
+        }
+        16 | 20 => {
+            ApiFailure::with_api_code(ErrorKind::Unsupported, messages::NOT_PERMITTED, api_code)
+        }
+        25 | 26 => {
+            ApiFailure::with_api_code(ErrorKind::Permanent, messages::CONTENT_REFUSED, api_code)
+        }
+        6 | 17 | 19 | 21 => ApiFailure::with_api_code(
             ErrorKind::Transient(Some(BUSY_SECONDS)),
             messages::SERVER_BUSY,
             api_code,
         ),
-        18 | 23 | 36 => coded(
+        18 | 23 | 36 => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(QUOTA_SECONDS)),
             messages::LIMIT_REACHED,
             api_code,
         ),
-        22 => coded(ErrorKind::IpBlocked, messages::IP_NOT_ALLOWED, api_code),
-        5 | 34 => coded(
+        22 => ApiFailure::with_api_code(
+            ErrorKind::IpBlocked(None),
+            messages::IP_NOT_ALLOWED,
+            api_code,
+        ),
+        5 | 34 => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(retry_after.unwrap_or(60))),
             messages::RATE_LIMITED,
             api_code,
@@ -368,36 +361,9 @@ pub fn failure_from(
         return Some(classify_error(api_code, retry_after));
     }
     if envelope.error.is_some() || !(200..=299).contains(&status) {
-        return ensure_http_status(status, retry_after).err();
+        return HTTP.ensure_http_status(status, retry_after).err();
     }
     None
-}
-
-/// Maps an HTTP status no `error_code` explains: the mapping every plugin shares (RD-191-07),
-/// in this plugin's words and with its default wait for a rate limit. A `404`/`410` is the
-/// torrent gone for good; a `451` is `Offline` and retried, still worded `CONTENT_REFUSED`
-/// (RA-PLG-04).
-///
-/// # Errors
-///
-/// The classified refusal, for every status that is not a 2xx.
-pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::TORRENT_GONE),
-        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::CONTENT_REFUSED),
-        HttpRefusal::RateLimited(wait) => plain(
-            ErrorKind::RateLimited(Some(wait.unwrap_or(60))),
-            messages::RATE_LIMITED,
-        ),
-        HttpRefusal::ServerError(wait) => plain(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR.0,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
 }
 
 #[cfg(test)]

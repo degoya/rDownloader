@@ -437,7 +437,10 @@
     "warning_no_proxies": "Une adresse externe est définie mais aucun proxy de confiance. Chaque requête semblera alors venir du proxy : les limites et la liste des sessions afficheront une seule adresse pour tout le monde.",
     "warning_no_url": "Des proxys de confiance sont définis mais aucune adresse externe. Le cookie ne peut alors pas être marqué Secure automatiquement.",
     "allowed_hosts": "Noms d'hôte autorisés",
-    "allowed_hosts_hint": "Un nom par ligne sous lequel vous ouvrez le service dans le navigateur, par exemple nas.lan. Les adresses IP, localhost et l'hôte de l'URL externe fonctionnent toujours ; tout autre nom est refusé, afin qu'aucune page étrangère n'entre par DNS rebinding."
+    "allowed_hosts_hint": "Un nom par ligne sous lequel vous ouvrez le service dans le navigateur, par exemple nas.lan. Les adresses IP, localhost et l'hôte de l'URL externe fonctionnent toujours ; tout autre nom est refusé, afin qu'aucune page étrangère n'entre par DNS rebinding.",
+    "login_off_title": "La connexion est désactivée alors qu’un proxy ou une adresse externe est configuré",
+    "login_off_description": "Sans connexion, chaque requête de cette machine sans en-tête de transfert compte comme l’administrateur. Un tunnel ou proxy local qui ne définit pas X-Forwarded-For fait de chacun derrière lui l’administrateur. Réactivez la connexion sous Général, ou assurez-vous que votre proxy définit l’en-tête.",
+    "login_off_wiki": "Proxy inverse dans le manuel"
   },
   "mfa": {
     "eyebrow": "Deuxième facteur",
@@ -644,7 +647,6 @@
       "download_hint": "Remplace les fichiers du programme de cette installation par la nouvelle version ; vos réglages et téléchargements restent où ils sont.",
       "command_hint": "{kind} gère cette installation. Mettez-la à jour avec :",
       "copy": "Copier",
-      "copied": "Commande copiée",
       "close": "Fermer",
       "install": "Installer et redémarrer",
       "install_hint": "rDownloader télécharge la nouvelle version si elle ne l’est pas déjà, sauvegarde sa base de données, s’arrête, remplace ses fichiers de programme et redémarre. Vos réglages et téléchargements restent où ils sont.",
@@ -749,5 +751,13 @@
     "provider_logout_hint": "Désactivé : la déconnexion ne ferme que la session ici, vos autres services restent connectés.",
     "step_up_hint": "Chaque modification ici demande à nouveau le mot de passe.",
     "save": "Enregistrer"
+  },
+  "token_expiry": {
+    "label": "Expire",
+    "hint": "Un jeton expiré est refusé comme un jeton révoqué et reste dans la liste jusqu’à ce que vous le révoquiez.",
+    "never": "Jamais",
+    "days": "Après {count} jours",
+    "expires_on": "Expire le {date}",
+    "expired": "Expiré"
   }
 }

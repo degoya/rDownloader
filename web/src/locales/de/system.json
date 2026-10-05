@@ -437,7 +437,10 @@
     "warning_no_proxies": "Eine externe Adresse ist gesetzt, aber kein vertrauenswürdiger Proxy. Dann sieht jede Anfrage aus, als käme sie vom Proxy: Sperren und Sitzungsliste zeigen für alle dieselbe Adresse.",
     "warning_no_url": "Vertrauenswürdige Proxys sind gesetzt, aber keine externe Adresse. Dann kann das Cookie nicht automatisch als Secure markiert werden.",
     "allowed_hosts": "Erlaubte Hostnamen",
-    "allowed_hosts_hint": "Ein Name pro Zeile, unter dem du den Dienst im Browser öffnest, etwa nas.lan. IP-Adressen, localhost und der Host der externen URL gelten immer; jeder andere Name wird abgewiesen, damit keine fremde Seite per DNS-Rebinding hereinkommt."
+    "allowed_hosts_hint": "Ein Name pro Zeile, unter dem du den Dienst im Browser öffnest, etwa nas.lan. IP-Adressen, localhost und der Host der externen URL gelten immer; jeder andere Name wird abgewiesen, damit keine fremde Seite per DNS-Rebinding hereinkommt.",
+    "login_off_title": "Die Anmeldung ist aus, obwohl ein Proxy oder eine externe Adresse eingetragen ist",
+    "login_off_description": "Ohne Anmeldung gilt jeder Aufruf von dieser Maschine ohne Weiterleitungs-Header als Administrator. Ein lokaler Tunnel oder Proxy, der kein X-Forwarded-For setzt, macht damit jeden dahinter zum Administrator. Schalte die Anmeldung unter Allgemein wieder ein oder sorge dafür, dass dein Proxy den Header setzt.",
+    "login_off_wiki": "Reverse Proxy im Handbuch"
   },
   "mfa": {
     "eyebrow": "Zweiter Faktor",
@@ -644,7 +647,6 @@
       "download_hint": "Ersetze die Programmdateien dieser Installation durch die neue Version; deine Einstellungen und Downloads bleiben, wo sie sind.",
       "command_hint": "Diese Installation verwaltet {kind}. Aktualisiere sie mit:",
       "copy": "Kopieren",
-      "copied": "Befehl kopiert",
       "close": "Schließen",
       "install": "Installieren und neu starten",
       "install_hint": "rDownloader lädt die neue Version, falls sie noch nicht heruntergeladen ist, sichert seine Datenbank, beendet sich, ersetzt seine Programmdateien und startet neu. Deine Einstellungen und Downloads bleiben, wo sie sind.",
@@ -749,5 +751,13 @@
     "provider_logout_hint": "Aus: Abmelden beendet nur die Sitzung hier, deine anderen Dienste bleiben angemeldet.",
     "step_up_hint": "Jede Änderung hier verlangt das Passwort noch einmal.",
     "save": "Speichern"
+  },
+  "token_expiry": {
+    "label": "Läuft ab",
+    "hint": "Ein abgelaufener Token wird wie ein widerrufener abgewiesen und bleibt in der Liste, bis du ihn widerrufst.",
+    "never": "Nie",
+    "days": "Nach {count} Tagen",
+    "expires_on": "Läuft ab am {date}",
+    "expired": "Abgelaufen"
   }
 }

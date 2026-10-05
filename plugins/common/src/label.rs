@@ -186,9 +186,34 @@ impl From<Label> for Vec<LabelPart> {
     }
 }
 
+/// A Unix timestamp (seconds) as the UTC `YYYY-MM-DD` date a [`PREMIUM_UNTIL`] part states.
+///
+/// Howard Hinnant's `civil_from_days`, pure integer arithmetic: `chrono` is a native-only
+/// dependency in the plugin convention, and this has to work in a guest too.
+#[must_use]
+pub fn civil_date(epoch_seconds: i64) -> String {
+    let (year, month, day) = civil_from_days(epoch_seconds.div_euclid(86_400));
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+/// <http://howardhinnant.github.io/date_algorithms.html#civil_from_days>; `z` is a day count
+/// relative to the Unix epoch (1970-01-01 = day 0).
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097); // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{COOKIES, Label, LabelPart, PREMIUM_UNTIL, USER};
+    use super::{COOKIES, Label, LabelPart, PREMIUM_UNTIL, USER, civil_date};
 
     fn codes(label: Label) -> Vec<String> {
         label
@@ -287,5 +312,15 @@ mod tests {
             parts[0].params,
             vec![("tier".to_owned(), "gold".to_owned())]
         );
+    }
+
+    #[test]
+    fn a_civil_date_is_the_utc_day_of_the_timestamp() {
+        assert_eq!(civil_date(0), "1970-01-01");
+        assert_eq!(civil_date(86_399), "1970-01-01");
+        assert_eq!(civil_date(951_868_800), "2000-03-01");
+        assert_eq!(civil_date(1_709_164_800), "2024-02-29"); // leap day
+        assert_eq!(civil_date(1_798_761_600), "2027-01-01");
+        assert_eq!(civil_date(-1), "1969-12-31");
     }
 }

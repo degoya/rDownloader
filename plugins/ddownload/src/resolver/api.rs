@@ -68,6 +68,20 @@ pub(crate) fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure>
     xfs_common::glue::ensure_http_status(response, messages::HTTP_ERROR, messages::http_error)
 }
 
+/// The codes this plugin's free flow reports its dead ends under (`xfs_common::free`,
+/// RD-1110-03). The IP limit is read in the XFS base class's phrasings
+/// (`xfs_common::free::ip_block_seconds`) unchanged: `DdownloadCom.checkErrors` adds only HTTP
+/// 429/500 handling, already covered by [`ensure_http_status`], on top of `super.checkErrors`.
+pub(crate) const FREE: xfs_common::free::FreeWords = xfs_common::free::FreeWords {
+    http_error: plugin_common::HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+    no_free_form: (messages::NO_FREE_FORM, messages::no_free_form),
+    no_free_link: (messages::NO_FREE_LINK, messages::no_free_link),
+    free_limit_reached: (messages::FREE_LIMIT_REACHED, messages::free_limit_reached),
+};
+
 /// The codes this plugin's JSON API failures are reported under.
 const API_MESSAGES: xfs_common::glue::ApiMessages = xfs_common::glue::ApiMessages {
     api_error: messages::API_ERROR,

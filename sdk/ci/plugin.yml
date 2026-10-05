@@ -21,7 +21,7 @@ env:
   # (`scripts/set-version.sh` writes it). Bump it when you build against a newer contract; the
   # version must be one that supports the `api_version` in your manifest, or conformance refuses
   # the package.
-  RDOWNLOADER_VERSION: 1.10.1
+  RDOWNLOADER_VERSION: 1.11.0
 
 jobs:
   plugin:
@@ -40,12 +40,11 @@ jobs:
           toolchain: stable
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      # The same cargo-component the application's own plugins are built with.
-      - run: cargo install cargo-component --version 0.21.1 --locked
-      # Reads the component's import section; see "Reject accidental WASI imports" below.
+      # Makes the component of the core module cargo builds, and reads its import section (see
+      # "Reject accidental WASI imports" below). The version rDownloader's own plugins are made with.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: wasm-tools
+          tool: wasm-tools@1.261.0
 
       - name: Install the rDownloader release binary
         # The binary embeds the built web interface, so it cannot be `cargo install`ed from the
@@ -63,7 +62,12 @@ jobs:
           rdownloader --version
 
       - name: Build the component
-        run: cargo component build --release --target wasm32-unknown-unknown
+        # A core module first; its `wit_bindgen::generate!` embeds the world, and wasm-tools
+        # turns it into the component. No WASI adapter: the plugin imports nothing but the contract.
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          wasm-tools component new "target/wasm32-unknown-unknown/release/${COMPONENT}.wasm" \
+            -o "target/${COMPONENT}.wasm"
 
       - name: Reject accidental WASI imports
         # A plugin that imports anything outside `rdownloader:plugin` is refused at install
@@ -71,7 +75,7 @@ jobs:
         # than by scanning the bytes for "wasi:", because a byte scan cannot tell an import from
         # a string literal and rejects a plugin whose error text merely mentions WASI.
         run: |
-          wasm="target/wasm32-unknown-unknown/release/${COMPONENT}.wasm"
+          wasm="target/${COMPONENT}.wasm"
           offenders=$(wasm-tools component wit "${wasm}" \
             | sed -n 's/^[[:space:]]*import[[:space:]]\{1,\}\([^;]*\);.*$/\1/p' \
             | grep -v '^rdownloader:plugin/' || true)
@@ -92,7 +96,7 @@ jobs:
           public_key=$(sed -n 's/^public_key = "\(.*\)"/\1/p' manifest.toml)
           rdownloader plugin package \
             --manifest manifest.toml \
-            --component "target/wasm32-unknown-unknown/release/${COMPONENT}.wasm" \
+            --component "target/${COMPONENT}.wasm" \
             --locales locales \
             --output "${COMPONENT}-${version}.rdplug"
           rdownloader plugin verify \
@@ -112,7 +116,7 @@ jobs:
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' manifest.toml | head -n 1)
           rdownloader plugin package --development \
             --manifest manifest.toml \
-            --component "target/wasm32-unknown-unknown/release/${COMPONENT}.wasm" \
+            --component "target/${COMPONENT}.wasm" \
             --locales locales \
             --output "${COMPONENT}-${version}.rdplug"
           rdownloader plugin verify --development-mode "${COMPONENT}-${version}.rdplug"

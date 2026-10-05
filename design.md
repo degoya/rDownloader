@@ -372,7 +372,11 @@ The SPA has these primary sections:
 
 A collapsible, resizable sidebar contains navigation and live badges. A persistent transfer rail
 shows global queue state. The captcha dialog and file-drop overlay sit above individual routes
-because both may become active on any page.
+because both may become active on any page. The overlay is a picture of the drop over the whole
+page, not a field to pick a file in — that is `UFileUpload` — so it holds no control and takes no
+pointer events. The first element in the tab order on every page is a skip link to
+`#main-content` (WCAG 2.4.1, `docs/accessibility.md`): a plain `<a href>` styled by `.skip-link`,
+not a `ULink`, because it is an in-page jump the browser performs, focus included, and not a route.
 
 At startup, the application moves through Loading → Setup Wizard or Login → Control Room. After a
 session becomes ready, transfers, the collector, and captchas connect to the event stream; streams
@@ -395,8 +399,16 @@ and other initial data are loaded once.
   its content in the default slot; layout classes for the content go to `:ui="{ body: … }"`,
   placement classes (`mt-6`, `xl:col-span-2`) stay on the root. A card nested in a card names
   `variant="outline"` (the installed plugins' `PluginCard.vue`), so it stands off its soft parent.
-  Not cards, and so not soft: rows and list containers (queue rows, table and log lists, the
-  torrent file, peer and tracker lists), dashed empty states, inner boxes of a card or a modal
+  A card never shrinks below its content: the theme gives its root `overflow-clip` instead of
+  `overflow-hidden`, because a hidden overflow lets a card in the panel body's flex column
+  collapse, clip what it holds and fall out of the scroll height (RD-1110-17, the audit and log
+  filters in 1.10.1); `min-h-fit` does not hold it in Firefox. In a form
+  and list layout either one card holds both columns (the settings cards) or each column is a card
+  of its own (subscriptions, automations, site rules) — never one column a card and the other
+  bare; the heading with its actions and count stands above the list's card, and an empty state
+  goes inside it. The logs' and the audit log's entries sit in such a card too, rows divided by
+  hairlines. Not cards, and so not soft: rows and the lists themselves (queue rows, table and log
+  lists, the torrent file, peer and tracker lists), dashed empty states, inner boxes of a card or a modal
   (previews, code samples, the statistics chart), the row of hairline-divided fact tiles, and the
   sign-in and setup-wizard panels, which float over the signal grid with their own shadow.
 - **Motif:** A subtle 28 px signal grid for loading and introductory surfaces; transfer stripes
@@ -932,10 +944,30 @@ of chips a person toggles (it carries the group semantics a row of buttons lacks
 for a file the person picks or drops (`accept` names the extension, not a MIME type a browser
 leaves empty), `UColorPicker` in a `UPopover` for a colour with a `UInput` for the exact hex value
 beside it (the picker has no keyboard operation), `UTable` for a
-table of figures, and a `UButton` as the trigger of a `UCollapsible` (RD-191-02). No second UI
+table of figures, and a `UButton` as the trigger of a `UCollapsible` (RD-191-02). The small parts
+too (RD-1110-13): `UAvatar` with an `icon` for the tile beside a row's name, `UPageCard` with `to`
+for a card that is a link, `ULink` for a link, `UBadge` for a label on a picture or a chip, a
+`UButton variant="link"` for a name that opens its rename, and a `UFieldGroup` around an input
+and the button that acts on it. No second UI
 library, and no re-implementation of one of its components. Our own components exist only where
 Nuxt UI has no counterpart and the markup would otherwise drift — `FormListLayout`,
-`SectionHeader`, `FormActions` — and they are compositions of Nuxt UI, not replacements for it.
+`SectionHeader`, `FormActions`, `CopyField` — and they are compositions of Nuxt UI, not
+replacements for it.
+
+**A value to copy is a `CopyField`.** A token shown once, a header, a command, an address to
+register at a provider: the value sits in a read-only `UInput` with the copy button joined to it
+in a `UFieldGroup`, never as a `<code>` beside a loose button. The field keeps the value
+selectable where the browser refuses the clipboard; the button says "Copied" for two seconds
+after a copy that worked, a refused one raises `useCopy`'s error toast, and a caller with more to
+say — where the value goes next — adds its own toast on `copied` (RD-1110-13).
+`web/src/nuxtUiFirst.test.ts` holds this as a ratchet (RD-1110-01): it counts each hand-built
+pattern the audit of 2026-10-05 found — framed cards, number fields, dashed empty states, tinted
+notices, chevron toggles, sub-section dividers, file inputs and drop zones, trees, icon tiles,
+status dots, raw links and buttons, native controls — in every template and fails on one more than
+its `MAX`, and on one fewer until `MAX` is lowered in the same commit. A hand-built control that
+stays on purpose enters the test's `ALLOWED` list only with the passage of this document that says
+why, by line range and a quoted phrase; where no passage says so yet, it is written here first, or
+the control is converted.
 
 ### Section Headers
 
@@ -1069,6 +1101,10 @@ recognised as drifting.
   and when it is on, the dialog states in one line what Save will do beyond writing a field. A
   switch that moves data and says nothing is how somebody finds their files somewhere else.
 - **State is named, not implied by colour alone.** A badge carries text; colour reinforces it.
+- **A status dot is a `UChip standalone`, and only ever the colour beside a word.** The row names
+  the state — a "Disabled" badge, the switch, "Expired" under a token — and the dot repeats it:
+  green for on, red for expired, none for off. A dot that would be the only carrier of a state is
+  a `UBadge` with the word instead (RD-1110-13).
 - **A state nothing can be done from says why, and is the only kind that reads as an error.**
   Every other unhappy candidate state means *nothing good is known yet* — the hoster reports the
   file as gone, no account could check it, the check itself failed — and all of them stay
@@ -1285,7 +1321,8 @@ recognised as drifting.
     keeps its bar. The slider counts all the subscription's hits, reads them fifty at a time
     while the page shown or the next one reaches past what it has, and holds a pulsing place for
     a card still on its way. Only the current page is rendered, so a long archive costs a longer
-    array, not more cards. Past ten pages the dots give way to a "Page 3 of 40" counter. Cards are
+    array, not more cards — which is also why it is no `UCarousel`, whose Embla track keeps every
+    slide in the DOM. Past ten pages the dots give way to a "Page 3 of 40" counter. Cards are
     at least 15 rem wide: a narrow window shows fewer per page, never thinner ones.
   - **The slider ends where the hits end (RD-1101-01).** It never wraps, in either direction and
     by no input — arrows, arrow keys, swipe or autoplay: a slider that went on from the first hit
@@ -1585,7 +1622,9 @@ The two-line fallback is why the cells are **named** (`queue-cell-handle`, `-sel
 `grid-template-areas` instead of being auto-placed in source order: auto-placement can only fill
 one track list left to right, so it can shrink a row but never break it. `PackageGroup.vue`,
 `TransferCard.vue` and `CollectorCandidateRow.vue` carry all nine, and a test in each asserts
-it, because a row that quietly loses a cell stops wrapping and starts overlapping again.
+it, because a row that quietly loses a cell stops wrapping and starts overlapping again. The
+chevron in `-expand` is therefore a `UButton` of its own, not the trigger of a `UCollapsible`:
+the collapsible's root would wrap the cell and the panel together and take both out of the grid.
 
 **The data columns' widths are the viewer's; the name's floor is not** (RD-191-11). The download
 list and the LinkGrabber carry a column header — `QueueColumnHeader.vue`, one more `.queue-row`
@@ -1659,6 +1698,17 @@ which is the limit, and enqueue is on the list of actions that need a label — 
 hit was skipped in a line under the row rather than in it, exactly as the link row prints its
 check error, because a sentence in the row is taken from the title.
 
+**The two file trees are not a `UTree`** (RD-1110-12, checked on Reka's `TreeRoot`
+2026-10-05). `RemoteFileTree` and `TorrentFileTree` build their rows themselves — indented by
+depth, a chevron button per folder — because `UTree` cannot carry what a row holds. Its row is
+one `treeitem` whose click selects and opens: a click on a checkbox or the priority select
+inside it selects the row in the tree's own model as well, and on a folder the priority select
+folds it away. That model is a list of selected items, while the server stores exclusions and
+priorities per file; a range is Shift+Arrow from the focused item, not Shift+click or
+Shift+Space from the anchor of `useRangeSelection`; and checkboxes and selects inside a
+`treeitem` are controls nested in a control. The trees stay hand-built, with the range
+selection, tri-state folders and per-file priorities of the rules above.
+
 Reference implementations: `PackageGroup.vue` for expansion and row actions,
 `NotificationRules.vue` and `AutomationView.vue` for confirmed deletion,
 `SettingsRemoteJobsCard.vue` for a deletion that reaches past this machine,
@@ -1667,6 +1717,68 @@ Reference implementations: `PackageGroup.vue` for expansion and row actions,
 under its title, `CollectorCandidateRow.vue` for a leaf row on the shared grid,
 `QueueColumnHeader.vue` for a column header with resizable columns on that grid,
 `RoutingCategories.vue` for a form beside its list with the edited row marked.
+
+### Number Fields
+
+Every number a person types is a `UInputNumber`, never a `UInput type="number"` (RD-1110-10). It
+parses and formats in the interface language — German and French type and read `1,5` — holds
+`min` and `max` itself, and hands its model a number rather than the text.
+
+- **The kind of number sets the format** (`web/src/utils/numberInput.ts`): `WHOLE` for counts,
+  durations and days, where a typed fraction rounds; `PLAIN` for ports, versions and priorities,
+  whole and without a thousands separator; `DECIMAL` for sizes in MiB or GiB, two places; `RATIO`
+  for seed ratios, three. A field with decimals sets `:step-snapping="false"`, or the default step
+  of 1 rounds 1,5 to 2.
+- **The unit is the field's `hint`** (`hint="MiB/s"` on its `UFormField`): the number field has no
+  trailing slot. A field without a `UFormField` puts the unit beside it as an outline `UBadge` in a
+  `UFieldGroup`.
+- **Empty is decided per field.** The field reports an emptied value as `undefined`. An optional
+  field — the DTO's `Option`, read as *inherit*, *unlimited* or *no limit* — sends `null`, through
+  `orNull` or a byte model, never a key the body drops. An obligatory field carries `required`: in
+  a `<form>` the browser holds the submit; the settings document's save button is disabled and
+  says *A number field is empty* while one of its plain-number fields is (`emptyNumberFields`); a
+  form whose fields sit outside a `<form>` checks with `isNumber` before it sends.
+- **No plus and minus, except on a small count.** `vite.config.ts` turns the stepper buttons off
+  for every field: a number is typed, and the arrow keys and the wheel still step. A count of at
+  most 32 steps between `min` and `max` — parallel downloads, connections, chunks — names
+  `increment decrement` and shows them, because there a click or two is quicker than typing and
+  the bound is in reach. On a port, a timeout in seconds or a retention of 500 000 records the
+  buttons offer a step nobody takes and cost the field a third of its width at 390 px.
+
+### Empty States, Notices, Opening and Dividers
+
+The four building blocks the audit of 2026-10-05 found drawn by hand all over the interface are
+Nuxt UI's (RD-1110-11):
+
+- **Empty state.** A `UEmpty`. Its frame is the dashed outline the theme in `web/vite.config.ts`
+  gives every one (`border-dashed border-muted` on Nuxt UI's `naked` variant), and its padding is
+  Nuxt UI's own — one spacing for all of them, where 24 hand-drawn boxes had four. The sentence is
+  its `description`; a view's empty state adds an `icon` and a `title`, and the way out is a
+  button in `actions`. `signal-grid` stays a class on the ones that carried it (the queue, the
+  LinkGrabber, the Usenet servers and indexers); `DataState` frames its loading panel the same way.
+- **Notice.** A box that tells the reader something — a warning to act on, a secret shown once, a
+  state worth knowing — is a `UAlert`, `subtle`, in the colour of its meaning. A heading is its
+  `title`, the rest its `description` or, where it holds controls, its `#description` slot; an
+  action goes into `#actions`. UAlert sets no role, so a box that announced itself keeps its role
+  on the UAlert (`DataState`'s failure: `role="alert"`). A line that says what went wrong with
+  one field or one row stays text beside it; the feedback of a form is a `UAlert` above it
+  (*Forms Share One Shape*).
+- **Opening and closing.** What opens and closes is a `UCollapsible` with a `UButton` as its
+  trigger, never a `<details>`; the button carries `aria-expanded` itself as well (Reka sets it
+  in the browser, a component test's stub does not). A toggle among a row's other cells — the
+  history, audit and log entries, a subscription and its hits, a remote job, the licence lists —
+  puts its `UCollapsible` into the row with `class="contents"`: the trigger keeps its place, and
+  the panel is the row's last line, `basis-full`, with an `order-*` where the row reorders its
+  cells, so it opens directly under the row it belongs to. Besides the queue's grid rows (above),
+  two LinkGrabber groups keep a chevron `UButton` with `aria-expanded`: the NZB import and an
+  indexer's review group, whose header carries the group's own actions and whose open part is a
+  block of its own under it, with a footer, and for the NZB a second trigger on its failure
+  badge; a collapsible would take the header's actions into its trigger or that block into the
+  header.
+- **Dividers.** A line between the sub-sections of a card is a `USeparator` — the theme draws it
+  in `border-muted`, the hairline the hand-drawn `border-t` was — and the spacing the
+  `border-t … pt-N` carried moves to its margins or is left to the parent's `gap` or `space-y`.
+  The lines between a list's rows stay `divide-y`.
 
 ### Frontend Technology
 

@@ -12,12 +12,3 @@ wit-bindgen = "0.62"
 # `rlib` alongside `cdylib` so `cargo test` builds the scaffold for the host target and runs
 # the unit tests in `src/list.rs` without a WebAssembly toolchain.
 crate-type = ["cdylib", "rlib"]
-
-[package.metadata.component]
-package = "{{PLUGIN_SLUG}}:intake-mirrors"
-
-[package.metadata.component.target]
-path = "wit"
-# The intake world plus `mirror-sets`. A parser that states no sources builds against
-# `intake-plugin` instead and is asked nothing more.
-world = "intake-mirrors-plugin"

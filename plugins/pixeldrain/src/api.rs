@@ -36,6 +36,7 @@
 //! provider's own open-source web client, not seen on the wire; see [`User`].
 
 use plugin_common::HttpRefusal;
+pub use plugin_common::failure::{ApiFailure, ErrorKind};
 use serde::Deserialize;
 
 use crate::messages;
@@ -103,52 +104,6 @@ pub struct ErrorEnvelope {
     pub value: Option<String>,
 }
 
-/// How a refusal is classified, without depending on either failure representation.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    RateLimited(Option<u64>),
-    IpBlocked(Option<u64>),
-    AuthRequired,
-    /// The stored credential itself is refused: the account needs a new one.
-    AccountInvalid,
-    Unsupported,
-}
-
-/// A classified refusal.
-#[derive(Clone, Debug)]
-pub struct ApiFailure {
-    pub kind: ErrorKind,
-    pub code: &'static str,
-    pub message: String,
-    pub params: Vec<(&'static str, String)>,
-}
-
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
-fn with_param(
-    kind: ErrorKind,
-    (code, message): (&'static str, &str),
-    name: &'static str,
-    value: String,
-) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![(name, value)],
-    }
-}
-
 /// What is left of the provider's word once everything that is not code-shaped is gone.
 ///
 /// `value` is documented as a machine-readable token, but it arrives over the network and is
@@ -175,59 +130,54 @@ pub fn sanitize_value(value: &str) -> Option<String> {
 pub fn classify_value(value: &str) -> ApiFailure {
     match sanitize_value(value).as_deref() {
         Some("not_found" | "file_not_found" | "list_not_found") => {
-            plain(ErrorKind::Offline, messages::FILE_NOT_FOUND)
+            ApiFailure::new(ErrorKind::Offline, messages::FILE_NOT_FOUND)
         }
         // The file is there and the provider will not serve it. Permanent: no wait and no other
         // address changes a moderation verdict.
         Some("virus_detected_abuse" | "file_blocked" | "abuse") => {
-            plain(ErrorKind::Permanent, messages::FILE_BLOCKED)
+            ApiFailure::new(ErrorKind::Permanent, messages::FILE_BLOCKED)
         }
         // This IP has spent its share. Pixeldrain's own wording, and the state its
         // `robots.txt`-permissive service is entitled to enforce.
-        Some("ip_rate_limit_reached" | "rate_limited" | "too_many_requests") => plain(
+        Some("ip_rate_limit_reached" | "rate_limited" | "too_many_requests") => ApiFailure::new(
             ErrorKind::IpBlocked(Some(QUOTA_SECONDS)),
             messages::IP_RATE_LIMITED,
         ),
         // The account's or the file's transfer volume for the period is gone. A premium
         // subscription on either end is what lifts it, which is what the translation says.
-        Some("transfer_limit_exceeded" | "download_limit_reached") => plain(
+        Some("transfer_limit_exceeded" | "download_limit_reached") => ApiFailure::new(
             ErrorKind::RateLimited(Some(QUOTA_SECONDS)),
             messages::TRANSFER_LIMIT,
         ),
-        Some("max_concurrent_downloads") => plain(
+        Some("max_concurrent_downloads") => ApiFailure::new(
             ErrorKind::RateLimited(Some(CONCURRENCY_SECONDS)),
             messages::TOO_MANY_DOWNLOADS,
         ),
         // A captcha stands in front of this file. This plugin declares no `captcha` capability
         // -- the flow behind it was never measured -- so it says so instead of guessing at it.
         Some("file_rate_limited_captcha_required" | "captcha_required") => {
-            plain(ErrorKind::Unsupported, messages::CAPTCHA_REQUIRED)
+            ApiFailure::new(ErrorKind::Unsupported, messages::CAPTCHA_REQUIRED)
         }
         Some("authentication_required" | "unauthorized" | "permission_denied") => {
-            plain(ErrorKind::AuthRequired, messages::ACCOUNT_REQUIRED)
+            ApiFailure::new(ErrorKind::AuthRequired, messages::ACCOUNT_REQUIRED)
         }
         // A stored key the provider does not accept -- invalid, revoked or expired, in its own
         // words (measured 2026-09-23). The account is wrong, not the file, and every request
         // with that key will answer the same until somebody enters a new one.
         Some("authentication_failed") => {
-            plain(ErrorKind::AccountInvalid, messages::API_KEY_INVALID)
+            ApiFailure::new(ErrorKind::AccountInvalid, messages::API_KEY_INVALID)
         }
-        Some("internal" | "internal_error") => plain(
+        Some("internal" | "internal_error") => ApiFailure::new(
             ErrorKind::Transient(Some(OVERLOAD_SECONDS)),
             messages::SERVER_ERROR,
         ),
         // Code-shaped and unknown to this build. The token travels as a parameter so the
         // person can quote it in a report; the provider's sentence does not.
-        Some(token) => with_param(
-            ErrorKind::Permanent,
-            messages::API_ERROR,
-            "api_code",
-            token.to_owned(),
-        ),
+        Some(token) => ApiFailure::with_api_code(ErrorKind::Permanent, messages::API_ERROR, token),
         // Not code-shaped, so there is nothing to branch on and nothing safe to show. Transient
         // rather than permanent: an unreadable answer is at least as likely to be a passing
         // outage as a verdict about this file.
-        None => plain(
+        None => ApiFailure::new(
             ErrorKind::Transient(Some(OVERLOAD_SECONDS)),
             messages::INVALID_RESPONSE,
         ),
@@ -283,36 +233,32 @@ pub fn failure_from(
 /// (RD-191-07), named in Pixeldrain's terms where Pixeldrain means something narrower: a
 /// refused credential is an account the file *requires* (`AuthRequired`) — this plugin is used
 /// without one — and a `429` is this IP's request budget (`IpBlocked`), not the account's. The
-/// waits fall back to this bucket's own figures when the response named none.
+/// waits fall back to this bucket's own figures when the response named none. Those two kinds
+/// are why this is a mapping of its own rather than a `plugin_common::HttpWords` table, which
+/// keeps each class's kind (RD-1110-03).
 ///
 /// # Errors
 ///
 /// The classified refusal, for every status that is not a 2xx.
 pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
     plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => plain(ErrorKind::AuthRequired, messages::ACCOUNT_REQUIRED),
-        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::FILE_NOT_FOUND),
-        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::FILE_NOT_FOUND),
-        HttpRefusal::RateLimited(wait) => plain(
+        HttpRefusal::Unauthorized => {
+            ApiFailure::new(ErrorKind::AuthRequired, messages::ACCOUNT_REQUIRED)
+        }
+        HttpRefusal::Gone => ApiFailure::new(ErrorKind::Permanent, messages::FILE_NOT_FOUND),
+        HttpRefusal::Unavailable => ApiFailure::new(ErrorKind::Offline, messages::FILE_NOT_FOUND),
+        HttpRefusal::RateLimited(wait) => ApiFailure::new(
             ErrorKind::IpBlocked(Some(wait.unwrap_or(QUOTA_SECONDS))),
             messages::IP_RATE_LIMITED,
         ),
-        HttpRefusal::ServerError(wait) => plain(
+        HttpRefusal::ServerError(wait) => ApiFailure::new(
             ErrorKind::Transient(Some(wait.unwrap_or(OVERLOAD_SECONDS))),
             messages::SERVER_ERROR,
         ),
-        HttpRefusal::Other(other) => with_param(
-            ErrorKind::Permanent,
-            messages::HTTP_ERROR,
-            "status",
-            other.to_string(),
-        ),
+        HttpRefusal::Other(other) => ApiFailure::new(ErrorKind::Permanent, messages::HTTP_ERROR)
+            .with_param("status", other.to_string()),
     })
 }
-
-// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
-// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
-pub use plugin_common::retry_after_seconds;
 
 /// What `availability` says about a file that exists.
 ///
@@ -341,19 +287,19 @@ pub fn availability_is_offline(info: &FileInfo) -> bool {
 #[must_use]
 pub fn quota_failure(limits: &RateLimits) -> Option<ApiFailure> {
     if limits.server_overload {
-        return Some(plain(
+        return Some(ApiFailure::new(
             ErrorKind::Transient(Some(OVERLOAD_SECONDS)),
             messages::SERVER_OVERLOADED,
         ));
     }
     if reached(limits.transfer_limit, limits.transfer_limit_used) {
-        return Some(plain(
+        return Some(ApiFailure::new(
             ErrorKind::RateLimited(Some(QUOTA_SECONDS)),
             messages::TRANSFER_LIMIT,
         ));
     }
     if reached(limits.download_limit, limits.download_limit_used) {
-        return Some(plain(
+        return Some(ApiFailure::new(
             ErrorKind::IpBlocked(Some(QUOTA_SECONDS)),
             messages::IP_RATE_LIMITED,
         ));

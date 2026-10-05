@@ -24,7 +24,7 @@ impl UpdateService {
     ///
     /// For tests only, which have no installed program and must not start a process; the
     /// service never calls it.
-    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn use_installation(&self, kind: InstallKind, directory: PathBuf, launcher: Launcher) {
         if let Ok(mut installation) = self.0.installation.write() {
             *installation = Installation {

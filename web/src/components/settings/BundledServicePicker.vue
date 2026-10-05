@@ -94,9 +94,7 @@ function toggle(service: BundledService, on: boolean | 'indeterminate'): void {
       </div>
     </div>
 
-    <p v-if="!visible.length" class="border border-dashed border-muted p-5 text-center text-sm text-muted">
-      {{ t('plugins.bundled.no_match', { query: query.trim() }) }}
-    </p>
+    <UEmpty v-if="!visible.length" :description="t('plugins.bundled.no_match', { query: query.trim() })" />
 
     <section v-for="group in groups" :key="group.value" class="space-y-2">
       <p class="eyebrow">{{ t(`plugins.bundled.category.${group.value}`) }}</p>

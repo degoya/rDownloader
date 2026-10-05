@@ -12,6 +12,7 @@ import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { GIB, MIB, byteModel, formatBytes } from '@/utils/format'
+import { DECIMAL, WHOLE, orNull } from '@/utils/numberInput'
 
 const profiles = defineModel<BandwidthProfile[]>({ required: true })
 const props = defineProps<{
@@ -113,7 +114,8 @@ function edit(profile: BandwidthProfile): void {
 }
 
 async function submit(): Promise<void> {
-  const saved = await list.submit({ ...form, scopes: [...(form.scopes ?? [])] })
+  // An emptied parallel count inherits; the number field reports it as `undefined` (RD-1110-10).
+  const saved = await list.submit({ ...form, max_active_files: orNull(form.max_active_files), scopes: [...(form.scopes ?? [])] })
   if (saved) emit('changed')
 }
 
@@ -183,27 +185,19 @@ function summary(profile: BandwidthProfile): string {
             <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-gauge" :placeholder="t('bandwidth.profile.name_placeholder')" />
           </UFormField>
           <UFormField :label="t('bandwidth.profile.parallel_label')" :description="t('bandwidth.profile.parallel_description')">
-            <UInput v-model.number="form.max_active_files" type="number" min="1" max="32" class="w-full" icon="i-lucide-files" :placeholder="t('bandwidth.profile.inherit')" />
+            <UInputNumber v-model="form.max_active_files" :min="1" :max="32" :format-options="WHOLE" increment decrement class="w-full" :placeholder="t('bandwidth.profile.inherit')" />
           </UFormField>
-          <UFormField :label="t('bandwidth.profile.download_label')">
-            <UInput v-model.number="downloadMiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-arrow-down-to-line" :placeholder="t('bandwidth.status.unlimited')">
-              <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
-            </UInput>
+          <UFormField hint="MiB/s" :label="t('bandwidth.profile.download_label')">
+            <UInputNumber v-model="downloadMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.status.unlimited')" />
           </UFormField>
-          <UFormField :label="t('bandwidth.profile.upload_label')" :description="t('bandwidth.profile.upload_description')">
-            <UInput v-model.number="uploadMiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-arrow-up-from-line" :placeholder="t('bandwidth.status.unlimited')">
-              <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
-            </UInput>
+          <UFormField hint="MiB/s" :label="t('bandwidth.profile.upload_label')" :description="t('bandwidth.profile.upload_description')">
+            <UInputNumber v-model="uploadMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.status.unlimited')" />
           </UFormField>
-          <UFormField :label="t('bandwidth.profile.daily_label')">
-            <UInput v-model.number="dailyGiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-calendar-days" :placeholder="t('bandwidth.profile.no_budget')">
-              <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
-            </UInput>
+          <UFormField hint="GiB" :label="t('bandwidth.profile.daily_label')">
+            <UInputNumber v-model="dailyGiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
           </UFormField>
-          <UFormField data-settings-anchor="bandwidth.monthly" :label="t('bandwidth.profile.monthly_label')">
-            <UInput v-model.number="monthlyGiB" type="number" min="0" step="any" class="w-full" icon="i-lucide-calendar-range" :placeholder="t('bandwidth.profile.no_budget')">
-              <template #trailing><span class="font-mono text-xs text-muted">GiB</span></template>
-            </UInput>
+          <UFormField hint="GiB" data-settings-anchor="bandwidth.monthly" :label="t('bandwidth.profile.monthly_label')">
+            <UInputNumber v-model="monthlyGiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
           </UFormField>
 
           <div>
@@ -212,9 +206,10 @@ function summary(profile: BandwidthProfile): string {
             <div class="mt-2 flex flex-wrap items-end gap-2">
               <USelect v-model="scopeKind" :items="scopeKinds" value-key="value" class="w-40" :aria-label="t('bandwidth.scope.title')" />
               <UInput v-model="scopeValue" class="w-56" :placeholder="t(`bandwidth.scope.placeholder_${scopeKind}`)" />
-              <UInput v-model.number="scopeMiB" type="number" min="0" step="any" class="w-36" :aria-label="t('bandwidth.scope.limit')">
-                <template #trailing><span class="font-mono text-xs text-muted">MiB/s</span></template>
-              </UInput>
+              <UFieldGroup class="w-36">
+                <UInputNumber v-model="scopeMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :aria-label="t('bandwidth.scope.limit')" />
+                <UBadge color="neutral" variant="outline" label="MiB/s" class="font-mono" />
+              </UFieldGroup>
               <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('bandwidth.scope.add')" @click="addScope" />
             </div>
             <ul v-if="form.scopes?.length" class="mt-3 divide-y divide-muted border border-muted">

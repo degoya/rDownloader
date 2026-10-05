@@ -9,6 +9,18 @@
 # Expects from scripts/build-plugins.sh, which sources it: TARGET_DIR and TARGET, and the
 # working directory at the checkout root.
 
+# The wasm-tools that turns each core module into its component (RD-1110-08): the one CI installs
+# (`tool: wasm-tools@…` in .github/workflows/, held to this by scripts/tests/workflow-shape.sh)
+# and the one build-plugins.sh insists on, because it decides the component's bytes.
+# shellcheck disable=SC2034  # read by build-plugins.sh, which sources this file
+WASM_TOOLS_VERSION="1.261.0"
+
+# The version of the wasm-tools on PATH (`wasm-tools 1.261.0 (…)` -> `1.261.0`), empty without one.
+wasm_tools_version() {
+    command -v wasm-tools > /dev/null || return 0
+    wasm-tools --version | awk 'NR == 1 { print $2 }'
+}
+
 # The component of plugin $1, and the stamp that records what it was built from.
 component_path() { printf '%s\n' "$TARGET_DIR/$TARGET/release/rd_plugin_${1//-/_}.wasm"; }
 stamp_path() { printf '%s.src-sha256\n' "$(component_path "$1")"; }
@@ -40,10 +52,10 @@ source_files() {
             pending+=("$dependency")
         done < <(sed -n 's|.*path = "\.\./\([^/"]*\)".*|\1|p' "$current/Cargo.toml")
     done
-    # `src/bindings.rs` is what cargo-component writes into a plugin crate at every build
-    # (gitignored). It is generated from the WIT, which is in the set already, and a checkout that
-    # never built the plugin does not have it — counting it would make every fresh worktree
-    # disagree with the stamp.
+    # `src/bindings.rs` is what cargo-component wrote into a plugin crate at every build until
+    # 1.11 (gitignored). Nothing writes it any more, but a checkout that built plugins before
+    # still has the files, and counting them would make that checkout disagree with every fresh
+    # worktree.
     find "${directories[@]}" -type f \
         \( -name '*.rs' -o -name '*.wit' -o -name Cargo.toml -o -name manifest.toml \) \
         ! -regex 'plugins/[^/]*/src/bindings\.rs' \
@@ -61,7 +73,8 @@ source_hash() {
 
 # What every component depends on besides its own sources: the registry packages in Cargo.lock,
 # the root Cargo.toml (workspace dependencies, features, the release profile) without the
-# workspace version, .cargo/config.toml and the compiler cargo resolves here (`rustc -vV`). The
+# workspace version, .cargo/config.toml, the compiler cargo resolves here (`rustc -vV`) and the
+# wasm-tools that encodes the component (since 1.11; cargo-component's version was in no hash). The
 # component cache's `deps` key, and the third field of a stamp: until 1.10 a stamp held the
 # sources alone, so after the move to Rust 1.99 the components the shared target/ still had from
 # 1.98.1 passed as current, --list-unbumped compared those, and only signing the release found 39
@@ -74,6 +87,7 @@ deps_hash() {
             sed '/^\[workspace\.package\]/,/^\[/{/^version = /d;}' Cargo.toml
             [[ ! -f .cargo/config.toml ]] || cat .cargo/config.toml
             rustc -vV
+            printf 'wasm-tools %s\n' "$(wasm_tools_version)"
         } | sha256_files - | cut -c1-64)"
     fi
     printf '%s\n' "$deps_hash_value"
@@ -100,7 +114,7 @@ write_stamp() {
 #
 # Stale unless the stamp exists, describes exactly these component bytes, and records exactly
 # the current source hash and dependency hash. A stamp for other bytes means the component was
-# rebuilt without one — by a bare `cargo component build`, possibly in another checkout — and
+# rebuilt without one — by a bare `cargo build`, possibly in another checkout — and
 # vouches for nothing; a stamp without the dependency hash predates it and is stale once.
 stale() {
     local name="$1" component stamp recorded_sources recorded_component recorded_deps

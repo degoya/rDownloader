@@ -173,7 +173,7 @@ impl ManagedToolService {
     /// for the tests that have to drive the install path against a local server, and for
     /// tooling that already verified the document itself. Hidden so it does not read as part
     /// of the supported surface.
-    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn adopt_unverified_manifest(&self, manifest: ToolManifest) {
         self.replace_manifest(manifest);
     }

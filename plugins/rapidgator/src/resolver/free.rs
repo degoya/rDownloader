@@ -5,13 +5,14 @@
 //! the site key is only authoritatively known after the countdown, and a token minted against a
 //! stale key would be rejected.
 
+use plugin_common::failure::{ErrorKind, diagnosed, free_limit};
 use plugin_common::{
     CaptchaChallenge, Failure, FailureKind, Header, HttpRequest, HttpResponse, PluginHost,
-    Resolved, WidgetChallenge,
+    Resolved, WidgetChallenge, is_html,
 };
 use url::Url;
 
-use super::{coded, convert_failure, invalid_url};
+use super::{coded, invalid_url};
 use crate::{messages, page};
 
 /// The main domain JD's `getPluginDomains()` lists first; the `rg.to`/`rapidgator.asia` aliases
@@ -64,13 +65,12 @@ async fn free_transfer<H: PluginHost>(host: &H, file_id: &str) -> Result<HttpRes
     let body = file_page.text().into_owned();
     ip_block_failure(&body)?;
     let Some(markers) = page::timer_markers(&body) else {
-        let diagnosis = page::diagnose(&body);
-        return Err(Failure::coded(
+        return Err(diagnosed(
             FailureKind::Permanent,
             messages::NO_FREE_MARKERS,
-            messages::no_free_markers(&diagnosis),
-        )
-        .with_param("diagnosis", diagnosis));
+            messages::no_free_markers,
+            page::diagnose(&body),
+        ));
     };
     let page_url = Url::parse(&file_page.final_url).map_err(|error| invalid_url(&error))?;
     let site_key = page::recaptcha_site_key(&body)
@@ -273,44 +273,31 @@ async fn send<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
 fn free_status(response: &HttpResponse) -> Result<(), Failure> {
     let status = response.status;
     if matches!(status, 401 | 403) {
-        return Err(Failure::coded(
-            FailureKind::Permanent,
-            messages::HTTP_ERROR,
-            messages::http_error(status),
-        )
-        .with_param("status", status.to_string()));
+        return Err(crate::api::HTTP
+            .other
+            .failure(ErrorKind::Permanent, status)
+            .into());
     }
     crate::api::ensure_http_status(status, true, plugin_common::retry_after(&response.headers))
-        .map_err(convert_failure)
+        .map_err(Failure::from)
 }
 
 /// Aborts a free flow when the page reports a free-download or IP limit.
 fn ip_block_failure(html: &str) -> Result<(), Failure> {
-    let Some(seconds) = page::ip_block_seconds(html) else {
-        return Ok(());
-    };
-    // `Some(0)` means the page stated a limit without naming a duration; leave the delay to the
-    // scheduler's own hold-off rather than inventing one here.
-    let retry_after_seconds = (seconds > 0).then_some(seconds);
-    let mut failure = Failure::coded(
-        FailureKind::IpBlocked(retry_after_seconds),
+    free_limit(
+        page::ip_block_seconds(html),
         messages::FREE_LIMIT_REACHED,
-        messages::free_limit_reached(retry_after_seconds),
-    );
-    if let Some(seconds) = retry_after_seconds {
-        failure = failure.with_param("wait_seconds", seconds.to_string());
-    }
-    Err(failure)
+        messages::free_limit_reached,
+    )
 }
 
 fn no_free_link(html: &str) -> Failure {
-    let diagnosis = page::diagnose(html);
-    Failure::coded(
+    diagnosed(
         FailureKind::Permanent,
         messages::NO_FREE_LINK,
-        messages::no_free_link(&diagnosis),
+        messages::no_free_link,
+        page::diagnose(html),
     )
-    .with_param("diagnosis", diagnosis)
 }
 
 /// Both countdown steps report a transient failure: the session is gone, but the link itself is
@@ -342,12 +329,6 @@ fn base_url(page_url: &Url, path: &str) -> Result<String, Failure> {
         .join(path)
         .map(|url| url.to_string())
         .map_err(|error| invalid_url(&error))
-}
-
-fn is_html(response: &HttpResponse) -> bool {
-    response
-        .header("content-type")
-        .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"))
 }
 
 fn clamp_seconds(seconds: u64) -> u32 {

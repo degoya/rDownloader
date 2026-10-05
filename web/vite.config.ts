@@ -33,8 +33,20 @@ export default defineConfig({
           error: 'coral'
         },
         // A card stands off the page by its ground, not by an outline on the page's own colour
-        // (RD-1101-09); a card nested in another names `variant="outline"` itself.
-        card: { defaultVariants: { variant: 'soft' } }
+        // (RD-1101-09); a card nested in another names `variant="outline"` itself. `overflow-clip`
+        // instead of Nuxt UI's `overflow-hidden`: a hidden overflow makes the root a scroll
+        // container, whose automatic minimum height in a flex column is 0, so in the panel body a
+        // card shrank below its content, clipped it and left it out of the scroll height. A clip
+        // keeps the rounded corners without that; `min-h-fit` was ignored by Firefox (RD-1110-17).
+        card: { slots: { root: 'overflow-clip' }, defaultVariants: { variant: 'soft' } },
+        // A number is typed, not stepped (RD-1110-10, `design.md`): only a small count shows its
+        // plus and minus, by naming `increment` and `decrement` itself.
+        inputNumber: { defaultVariants: { increment: false, decrement: false } },
+        // An empty state is a dashed outline around Nuxt UI's own padding, one spacing for every
+        // one of them (RD-1110-11); a ring cannot be dashed, so the outline is a border.
+        empty: { slots: { root: 'border border-dashed border-muted' }, defaultVariants: { variant: 'naked' } },
+        // A sub-section divider is the same muted hairline the hand-drawn `border-t` was.
+        separator: { variants: { color: { neutral: { border: 'border-muted' } } } }
       },
       icon: { clientBundle: iconClientBundle }
     })

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { PowerStatus, Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -84,7 +85,8 @@ onMounted(async () => {
   <UCard as="section" data-settings-anchor="unattended.power">
     <SectionHeader :eyebrow="t('power.card.eyebrow')" :title="t('power.card.title')" :description="t('power.card.description')" class="mb-4" />
 
-    <UFormField data-settings-anchor="unattended.quiet_hours" :label="t('power.quiet.label')" :description="t('power.quiet.description')" orientation="horizontal" class="border-t border-muted pt-4">
+    <USeparator class="mb-4" />
+    <UFormField data-settings-anchor="unattended.quiet_hours" :label="t('power.quiet.label')" :description="t('power.quiet.description')" orientation="horizontal">
       <USwitch
         :model-value="settings.quiet_hours?.enabled ?? false"
         @update:model-value="settings.quiet_hours = { enabled: Boolean($event), windows: settings.quiet_hours?.windows ?? [] }"
@@ -123,17 +125,16 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="mt-4 grid gap-3 border-t border-muted pt-4">
+    <USeparator class="my-4" />
+    <div class="grid gap-3">
       <UFormField data-settings-anchor="unattended.completion" :label="t('power.completion.label')" :description="t('power.completion.description')">
         <USelect v-model="settings.completion_action" :items="actions" value-key="value" class="w-full" />
       </UFormField>
       <UFormField v-if="settings.completion_action === 'script'" :label="t('power.completion.script_label')" :description="t('power.completion.script_description')">
         <UInput v-model="settings.completion_script" class="w-full font-mono" placeholder="on-idle.sh" icon="i-lucide-scroll-text" />
       </UFormField>
-      <UFormField v-if="destructive" :label="t('power.completion.countdown_label')" :description="t('power.completion.countdown_description')">
-        <UInput v-model.number="settings.completion_countdown_seconds" type="number" min="10" max="3600" class="w-full" icon="i-lucide-timer">
-          <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-        </UInput>
+      <UFormField v-if="destructive" hint="s" :label="t('power.completion.countdown_label')" :description="t('power.completion.countdown_description')">
+        <UInputNumber v-model="settings.completion_countdown_seconds" required :min="10" :max="3600" :format-options="WHOLE" class="w-full" />
       </UFormField>
       <template v-if="destructive">
         <UFormField :label="t('power.completion.approval_label')" :description="t('power.completion.approval_description')" orientation="horizontal">
@@ -143,7 +144,8 @@ onMounted(async () => {
       </template>
     </div>
 
-    <div class="mt-4 grid gap-3 border-t border-muted pt-4">
+    <USeparator class="my-4" />
+    <div class="grid gap-3">
       <UFormField
         :label="t('power.context.battery_label')"
         :description="status && !status.capabilities.battery ? t('power.context.unavailable') : undefined"

@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import type { Account, DownloadPackage, NzbImport } from '@/api/types'
 import { useAccountProviders } from '@/composables/useAccountProviders'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { useNzbImportsStore, type NzbHandOverResult } from '@/stores/nzbImports'
 import { showNzbHandOver, type NzbHandOverPlace } from '@/utils/nzbHandOver'
 
@@ -60,6 +61,7 @@ export function useNzbHandOver(place: NzbHandOverPlace) {
   }
   const { t } = useI18n()
   const toast = useToast()
+  const showError = useErrorToast()
   const nzb = useNzbImportsStore()
   const { providerName } = useAccountProviders()
 
@@ -117,7 +119,7 @@ export function useNzbHandOver(place: NzbHandOverPlace) {
       const name = entries[0]!.name
       const result = results[0]!
       if (!result.ok) {
-        toast.add({ title: t('linkgrabber.nzb.hand_over.failed', { name }), description: result.message, color: 'error', icon: 'i-lucide-circle-alert' })
+        showError(t('linkgrabber.nzb.hand_over.failed', { name }), result.message)
         return
       }
       const key = result.alreadyRunning ? 'linkgrabber.nzb.hand_over.already_running' : 'linkgrabber.nzb.hand_over.started'

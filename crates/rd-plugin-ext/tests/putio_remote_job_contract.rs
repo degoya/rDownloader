@@ -2,7 +2,7 @@
 //! (RD-120-03).
 //!
 //! `plugins/putio-transfers/` runs as a real WebAssembly component -- the one built by
-//! `cargo component build --release --target wasm32-unknown-unknown -p rd-plugin-putio-transfers`
+//! `scripts/build-plugins.sh --components-only putio-transfers`
 //! -- and the mock stands in for `api.put.io`. It answers at the host boundary, so no socket is
 //! opened, no account is needed and no request leaves the machine; and because it sees each
 //! request exactly as the plugin described it, a test can assert that the account's token left

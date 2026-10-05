@@ -25,6 +25,7 @@ on:
     paths:
       - ".github/workflows/package-channels.yml"
       - "packaging/aur/**"
+      - "packaging/systemd/**"
       - "packaging/winget/**"
       - "scripts/package-managers.sh"
   # The same list as above; keep the two in step.
@@ -32,6 +33,7 @@ on:
     paths:
       - ".github/workflows/package-channels.yml"
       - "packaging/aur/**"
+      - "packaging/systemd/**"
       - "packaging/winget/**"
       - "scripts/package-managers.sh"
   workflow_dispatch:

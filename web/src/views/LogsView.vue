@@ -148,43 +148,54 @@ onMounted(() => {
         </p>
       </div>
 
-      <DataState :loading="store.loading" :error="store.error" :empty="store.settled && store.records.length === 0" :rows="6">
-        <p class="text-sm text-muted">{{ t('logs.list.empty') }}</p>
-      </DataState>
-
-      <ul v-if="store.records.length" class="divide-y divide-muted border border-muted bg-default" data-testid="log-list">
-        <li v-for="record in store.records" :key="record.id" class="px-3 py-2">
-          <!-- Below md the message takes a line of its own under the meta line: inline it was
-               left ~60 px on a phone and wrapped letter by letter. The expand button stays at
-               the end of the meta line there. -->
-          <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
-            <span class="numeric shrink-0 text-xs text-muted">{{ formatMoment(record.recorded_at) }}</span>
-            <UBadge :color="levelColor(record.level)" variant="subtle" size="sm">{{ t(`logs.levels.${record.level}`) }}</UBadge>
-            <span class="numeric shrink-0 text-xs text-muted">{{ record.component }}</span>
-            <UBadge v-if="record.code" color="neutral" variant="outline" size="sm" class="numeric">{{ record.code }}</UBadge>
-            <UBadge v-if="record.correlation_id" color="neutral" variant="soft" size="sm" class="numeric" :title="t('logs.filters.correlation')">{{ record.correlation_id }}</UBadge>
-            <span class="order-last min-w-0 basis-full break-words text-sm text-highlighted md:order-none md:min-w-64 md:flex-1 md:basis-0" data-testid="log-message">{{ record.message }}</span>
-            <UButton
-              v-if="hasFields(record)"
-              class="ml-auto md:ml-0"
-              size="xs"
-              variant="ghost"
-              color="neutral"
-              :icon="expanded.has(record.id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-              :aria-expanded="expanded.has(record.id)"
-              :aria-label="expanded.has(record.id) ? t('logs.list.collapse') : t('logs.list.expand')"
-              :title="expanded.has(record.id) ? t('logs.list.collapse') : t('logs.list.expand')"
-              @click="toggle(record.id)"
-            />
-          </div>
-          <dl v-if="expanded.has(record.id)" class="mt-2 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-[auto_1fr]" data-testid="log-fields">
-            <template v-for="(value, name) in record.fields" :key="name">
-              <dt class="numeric text-muted">{{ name }}</dt>
-              <dd class="numeric break-all text-highlighted">{{ value }}</dd>
-            </template>
-          </dl>
-        </li>
-      </ul>
+      <!-- The entries in a card of their own, under their heading, as on the other list pages (RD-1110-17). -->
+      <UCard as="section" :ui="{ body: 'p-0 sm:p-0' }">
+        <DataState class="p-4 sm:p-6" variant="inline" :loading="store.loading" :error="store.error" :empty="store.settled && store.records.length === 0" :rows="6">
+          <p class="text-sm text-muted">{{ t('logs.list.empty') }}</p>
+        </DataState>
+        <ul v-if="store.records.length" class="divide-y divide-muted" data-testid="log-list">
+          <li v-for="record in store.records" :key="record.id" class="px-3 py-2">
+            <!-- Below md the message takes a line of its own under the meta line: inline it was
+                 left ~60 px on a phone and wrapped letter by letter. The expand button stays at
+                 the end of the meta line there. -->
+            <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
+              <span class="numeric shrink-0 text-xs text-muted">{{ formatMoment(record.recorded_at) }}</span>
+              <UBadge :color="levelColor(record.level)" variant="subtle" size="sm">{{ t(`logs.levels.${record.level}`) }}</UBadge>
+              <span class="numeric shrink-0 text-xs text-muted">{{ record.component }}</span>
+              <UBadge v-if="record.code" color="neutral" variant="outline" size="sm" class="numeric">{{ record.code }}</UBadge>
+              <UBadge v-if="record.correlation_id" color="neutral" variant="soft" size="sm" class="numeric" :title="t('logs.filters.correlation')">{{ record.correlation_id }}</UBadge>
+              <span class="order-last min-w-0 basis-full break-words text-sm text-highlighted md:order-none md:min-w-64 md:flex-1 md:basis-0" data-testid="log-message">{{ record.message }}</span>
+              <!-- The fields are the row's last line, after the message even where it moves down (`design.md`, *Opening and closing*). -->
+              <UCollapsible
+                v-if="hasFields(record)"
+                class="contents"
+                :open="expanded.has(record.id)"
+                :ui="{ content: 'order-last basis-full' }"
+                @update:open="toggle(record.id)"
+              >
+                <UButton
+                  class="ml-auto md:ml-0"
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  :icon="expanded.has(record.id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                  :aria-expanded="expanded.has(record.id)"
+                  :aria-label="expanded.has(record.id) ? t('logs.list.collapse') : t('logs.list.expand')"
+                  :title="expanded.has(record.id) ? t('logs.list.collapse') : t('logs.list.expand')"
+                />
+                <template #content>
+                  <dl class="mt-1 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-[auto_1fr]" data-testid="log-fields">
+                    <template v-for="(value, name) in record.fields" :key="name">
+                      <dt class="numeric text-muted">{{ name }}</dt>
+                      <dd class="numeric break-all text-highlighted">{{ value }}</dd>
+                    </template>
+                  </dl>
+                </template>
+              </UCollapsible>
+            </div>
+          </li>
+        </ul>
+      </UCard>
 
       <div v-if="store.fullPage" class="mt-3 flex flex-wrap items-center gap-3">
         <p class="text-xs text-muted">{{ t('logs.list.full_page') }}</p>
@@ -249,21 +260,31 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-if="store.created" class="mt-4 border border-muted bg-elevated p-4 text-sm" data-testid="bundle-created">
-          <p class="text-highlighted">{{ t('logs.bundle.created', { file: store.created.file_name }) }}</p>
-          <p class="numeric mt-1 text-xs text-muted">{{ store.created.path }} · {{ t('logs.bundle.bytes', { bytes: store.created.bytes }) }}</p>
-          <UButton
-            class="mt-3"
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-download"
-            :label="t('logs.bundle.download')"
-            :to="downloadHref(store.created.file_name)"
-            external
-            download
-          />
-        </div>
+        <UAlert
+          v-if="store.created"
+          class="mt-4"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-package-check"
+          orientation="vertical"
+          :title="t('logs.bundle.created', { file: store.created.file_name })"
+          :description="`${store.created.path} · ${t('logs.bundle.bytes', { bytes: store.created.bytes })}`"
+          :ui="{ description: 'numeric text-xs text-muted' }"
+          data-testid="bundle-created"
+        >
+          <template #actions>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-download"
+              :label="t('logs.bundle.download')"
+              :to="downloadHref(store.created.file_name)"
+              external
+              download
+            />
+          </template>
+        </UAlert>
       </UCard>
     </template>
   </UDashboardPanel>

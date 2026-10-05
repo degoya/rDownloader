@@ -353,7 +353,8 @@
   },
   "messages": {
     "saved": "Einstellungen wurden gespeichert.",
-    "reset_done": "Alle Laufzeiteinstellungen wurden auf Standardwerte zurückgesetzt."
+    "reset_done": "Alle Laufzeiteinstellungen wurden auf Standardwerte zurückgesetzt.",
+    "number_empty": "Ein Zahlenfeld ist leer. Trag einen Wert ein, dann kannst du speichern."
   },
   "reset": {
     "title": "Werkseinstellungen wiederherstellen?",

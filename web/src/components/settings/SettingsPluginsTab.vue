@@ -359,7 +359,7 @@ async function revokeKey(keyId: string): Promise<void> {
                 @version-done="versionActionDone"
               />
               <DataState :loading="inventoryState.loading.value" :error="inventoryState.loadError.value" :empty="!visibleGroups.length" class="md:col-span-2">
-                <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.installed.empty') }}</p>
+                <UEmpty :description="t('plugins.installed.empty')" />
               </DataState>
             </div>
           </UCard>

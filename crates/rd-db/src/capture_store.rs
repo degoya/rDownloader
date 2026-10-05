@@ -18,6 +18,7 @@ pub(crate) async fn create_token(
     label: String,
     token_sha256: String,
     scopes: Vec<String>,
+    expires_at: Option<DateTime<Utc>>,
 ) -> Result<(CaptureToken, EventEnvelope)> {
     let token = CaptureToken {
         id,
@@ -26,6 +27,7 @@ pub(crate) async fn create_token(
         created_at: Utc::now(),
         last_used_at: None,
         revoked_at: None,
+        expires_at,
     };
     let event = EventEnvelope::new(
         EventKind::CaptureChanged,
@@ -33,17 +35,20 @@ pub(crate) async fn create_token(
             "capture_token_id": token.id,
             "issued": true,
             "scopes": token.scopes,
+            "expires_at": token.expires_at,
         }),
     );
     let mut transaction = connection.begin().await?;
     sqlx::query(
-        "INSERT INTO capture_tokens (id, label, token_sha256, scopes_json, created_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO capture_tokens (id, label, token_sha256, scopes_json, created_at, expires_at) \
+         VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(token.id.to_string())
     .bind(&token.label)
     .bind(token_sha256)
     .bind(serde_json::to_string(&token.scopes)?)
     .bind(token.created_at)
+    .bind(token.expires_at)
     .execute(&mut *transaction)
     .await?;
     insert_event(&mut transaction, &event).await?;
@@ -65,8 +70,8 @@ pub(crate) async fn update_token_scopes(
 ) -> Result<(CaptureToken, EventEnvelope)> {
     let mut transaction = connection.begin().await?;
     let previous: CaptureToken = sqlx::query_as::<_, CaptureTokenRow>(
-        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at FROM capture_tokens \
-         WHERE id = ? AND revoked_at IS NULL",
+        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at, expires_at \
+         FROM capture_tokens WHERE id = ? AND revoked_at IS NULL",
     )
     .bind(id.to_string())
     .fetch_optional(&mut *transaction)
@@ -110,7 +115,8 @@ pub(crate) async fn token_valid_with_scope(
     ))
 }
 
-/// The scopes a live token holds, or `None` when no live token has that digest.
+/// The scopes a live token holds, or `None` when no live token -- unrevoked and unexpired --
+/// has that digest.
 ///
 /// Distinct from [`token_valid_with_scope`] because the scope policy needs to say *what* a
 /// token is missing, not only that something is. "This token may only read status resources"
@@ -119,10 +125,15 @@ pub(crate) async fn token_scopes(
     pool: &SqlitePool,
     token_sha256: &str,
 ) -> Result<Option<Vec<String>>> {
+    // Live means not revoked and not past an expiry (RD-1110-07). An expired token is refused
+    // exactly like a revoked one -- its digest matches no live token -- so a client sees the
+    // same 401 and code either way.
     let scopes_json = sqlx::query_scalar::<_, String>(
-        "SELECT scopes_json FROM capture_tokens WHERE token_sha256 = ? AND revoked_at IS NULL",
+        "SELECT scopes_json FROM capture_tokens WHERE token_sha256 = ? \
+         AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
     )
     .bind(token_sha256)
+    .bind(Utc::now())
     .fetch_optional(pool)
     .await?;
     let Some(scopes_json) = scopes_json else {
@@ -141,11 +152,13 @@ pub(crate) async fn token_identity(
     pool: &SqlitePool,
     token_sha256: &str,
 ) -> Result<Option<(CaptureTokenId, String, Vec<String>)>> {
+    // The same liveness as [`token_scopes`]: an expired token has no identity either.
     let row = sqlx::query_as::<_, (String, String, String)>(
-        "SELECT id, label, scopes_json FROM capture_tokens \
-         WHERE token_sha256 = ? AND revoked_at IS NULL",
+        "SELECT id, label, scopes_json FROM capture_tokens WHERE token_sha256 = ? \
+         AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
     )
     .bind(token_sha256)
+    .bind(Utc::now())
     .fetch_optional(pool)
     .await?;
     let Some((id, label, scopes_json)) = row else {
@@ -187,8 +200,8 @@ pub(crate) async fn revoke_token(
 /// side without a read-only token also appearing under capture agents.
 pub(crate) async fn list_tokens(pool: &SqlitePool, scopes: &[&str]) -> Result<Vec<CaptureToken>> {
     let tokens: Vec<CaptureToken> = sqlx::query_as::<_, CaptureTokenRow>(
-        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at FROM capture_tokens \
-         WHERE revoked_at IS NULL ORDER BY created_at DESC",
+        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at, expires_at \
+         FROM capture_tokens WHERE revoked_at IS NULL ORDER BY created_at DESC",
     )
     .fetch_all(pool)
     .await?
@@ -214,6 +227,7 @@ struct CaptureTokenRow {
     created_at: DateTime<Utc>,
     last_used_at: Option<DateTime<Utc>>,
     revoked_at: Option<DateTime<Utc>>,
+    expires_at: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<CaptureTokenRow> for CaptureToken {
@@ -227,6 +241,7 @@ impl TryFrom<CaptureTokenRow> for CaptureToken {
             created_at: row.created_at,
             last_used_at: row.last_used_at,
             revoked_at: row.revoked_at,
+            expires_at: row.expires_at,
         })
     }
 }

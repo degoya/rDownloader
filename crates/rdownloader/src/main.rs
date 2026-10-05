@@ -19,7 +19,6 @@ mod serve;
 mod site_rules_cli;
 mod startup;
 mod stop_cli;
-mod tools_cli;
 mod trusted_keys;
 mod updater_cli;
 
@@ -45,7 +44,8 @@ enum Command {
     /// Generates keys, packages, verifies and installs signed resolver packages.
     Plugin(plugin_cli::PluginArgs),
     /// Signs the manifest that drives the managed external tools.
-    Tools(tools_cli::ToolsArgs),
+    #[command(subcommand)]
+    Tools(rd_pack::tools_manifest::ToolsCommand),
     /// Signs and verifies the rule file that recognises release pages.
     #[command(subcommand)]
     SiteRules(rd_pack::site_rules::SiteRulesCommand),
@@ -179,7 +179,7 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Command::Plugin(args) => plugin_cli::run(args).await,
-        Command::Tools(args) => tools_cli::run(args).await,
+        Command::Tools(command) => rd_pack::tools_manifest::run(command).await,
         Command::SiteRules(command) => rd_pack::site_rules::run(command).await,
         Command::Update(command) => rd_pack::update_manifest::run(command).await,
         Command::Autostart(args) => autostart(args),

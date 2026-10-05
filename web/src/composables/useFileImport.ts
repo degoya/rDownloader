@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api, errorMessage } from '@/api/client'
 import type { Category, DownloadPriority, PostprocessLevel } from '@/api/types'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { useFileImportModal, type FileImportEntry } from '@/composables/useNzbImportModal'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore, type NzbBatchResult, type NzbImportResult } from '@/stores/nzbImports'
@@ -24,6 +25,7 @@ import { useNzbImportsStore, type NzbBatchResult, type NzbImportResult } from '@
 export function useFileImport(categories: Ref<Category[]>) {
   const { t } = useI18n()
   const toast = useToast()
+  const showError = useErrorToast()
   const nzb = useNzbImportsStore()
   const collector = useCollectorStore()
   const openFileImport = useFileImportModal()
@@ -139,7 +141,7 @@ export function useFileImport(categories: Ref<Category[]>) {
     } else if (result.status === 'duplicate') {
       toast.add({ title: t('linkgrabber.files.torrent_duplicate'), description: t('linkgrabber.files.torrent_duplicate_description', { name: result.name }), color: 'warning', icon: 'i-lucide-copy-check' })
     } else {
-      toast.add({ title: t('linkgrabber.files.torrent_failed'), ...(result.message ? { description: result.message } : {}), color: 'error', icon: 'i-lucide-circle-alert' })
+      showError(t('linkgrabber.files.torrent_failed'), result.message)
     }
   }
 
@@ -174,7 +176,7 @@ export function useFileImport(categories: Ref<Category[]>) {
 
   function reportSingleDlc(result: ContainerImportResult): void {
     if (result.status === 'error') {
-      toast.add({ title: t('linkgrabber.files.container_failed'), ...(result.message ? { description: result.message } : {}), color: 'error', icon: 'i-lucide-circle-alert' })
+      showError(t('linkgrabber.files.container_failed'), result.message)
       return
     }
     toast.add({
@@ -188,7 +190,7 @@ export function useFileImport(categories: Ref<Category[]>) {
   /** Single-file import: keep the four existing detailed toasts unchanged. */
   function reportSingleImport(result: NzbImportResult): void {
     if (result.status === 'error') {
-      toast.add({ title: t('linkgrabber.nzb.import_failed'), description: result.message, color: 'error', icon: 'i-lucide-circle-alert' })
+      showError(t('linkgrabber.nzb.import_failed'), result.message)
       return
     }
     const name = result.item.name

@@ -194,6 +194,24 @@ pub fn store_error(
     }
 }
 
+/// Maps a uniqueness refusal onto a coded `409`, and anything else onto the generic `500`.
+///
+/// The create half of a name a table keeps unique: the store tags SQLite's constraint error as
+/// [`StoreErrorKind::Duplicate`], and without this the person saving a second "Telegram" target
+/// read `internal.error` (RD-1110-16). A rename goes through [`store_error`] with the same kind.
+#[must_use]
+pub fn store_duplicate(
+    error: &anyhow::Error,
+    code: &'static str,
+    message: &'static str,
+) -> ApiError {
+    if rd_db::store_kind(error) == Some(StoreErrorKind::Duplicate) {
+        ApiError::conflict(code, message)
+    } else {
+        ApiError::from(anyhow::anyhow!(error.to_string()))
+    }
+}
+
 /// Enqueueing a capture that sends credentials before anyone approved it.
 pub const REPLAY_CONSENT_REQUIRED: &str = "replay.consent_required";
 /// The captured request changed after consent was granted.
@@ -302,6 +320,22 @@ mod tests {
             mapped.into_response().status(),
             StatusCode::INTERNAL_SERVER_ERROR
         );
+    }
+
+    /// A name a table keeps unique is a `409` with the endpoint's code; any other store failure
+    /// stays the generic `500` (RD-1110-16).
+    #[test]
+    fn a_taken_name_is_a_conflict_and_nothing_else_is() {
+        use axum::response::IntoResponse as _;
+
+        let taken = anyhow::Error::new(rd_db::StoreError::duplicate("mlqaa xyzzy"));
+        let mapped = super::store_duplicate(&taken, "notification.name_taken", "Name taken");
+        assert_eq!(mapped.code(), "notification.name_taken");
+        assert_eq!(mapped.into_response().status(), StatusCode::CONFLICT);
+
+        let missing = anyhow::Error::new(rd_db::StoreError::not_found("mlqaa xyzzy"));
+        let mapped = super::store_duplicate(&missing, "notification.name_taken", "Name taken");
+        assert_eq!(mapped.code(), super::INTERNAL_ERROR);
     }
 
     #[test]

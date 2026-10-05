@@ -19,6 +19,7 @@ import { useIndexersStore } from '@/stores/indexers'
 import {
   MAX_AGE_DAYS, MAX_QUERY_CHARS, MIN_QUERY_CHARS, NO_INDEXER, maxAgeDays, queryProblem, type IndexerSearchFields
 } from '@/utils/indexerSearch'
+import { WHOLE } from '@/utils/numberInput'
 
 const indexerId = defineModel<string>('indexerId', { required: true })
 const search = defineModel<IndexerSearchFields>('search', { required: true })
@@ -49,7 +50,7 @@ const queryError = computed(() => {
     : null
 })
 
-const ageError = computed(() => String(search.value.maxAge).trim() !== '' && maxAgeDays(search.value.maxAge) === null
+const ageError = computed(() => search.value.maxAge != null && maxAgeDays(search.value.maxAge) === null
   ? translateServerMessage({ code: 'indexer.max_age_invalid', params: { maximum: String(MAX_AGE_DAYS) } })
   : null)
 </script>
@@ -76,7 +77,7 @@ const ageError = computed(() => String(search.value.maxAge).trim() !== '' && max
       <p v-if="queryError" class="mt-1 text-xs text-error" data-testid="subscription-search-query-error">{{ queryError }}</p>
     </UFormField>
     <UFormField :label="t('subscriptions.form.search_max_age')" :description="t('subscriptions.form.search_max_age_description')">
-      <UInput v-model="search.maxAge" class="w-full" type="number" min="1" :max="MAX_AGE_DAYS" :color="ageError ? 'error' : undefined" data-testid="subscription-search-max-age" />
+      <UInputNumber v-model="search.maxAge" class="w-full" :min="1" :max="MAX_AGE_DAYS" :format-options="WHOLE" :color="ageError ? 'error' : undefined" data-testid="subscription-search-max-age" />
       <p v-if="ageError" class="mt-1 text-xs text-error">{{ ageError }}</p>
     </UFormField>
     <UFormField :label="t('subscriptions.form.search_pretime')" :description="t('subscriptions.form.search_pretime_description')">

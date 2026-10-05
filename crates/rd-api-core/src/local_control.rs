@@ -75,7 +75,7 @@ impl LocalControl {
     }
 
     /// A control that accepts `token`, without writing any file. For tests.
-    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
     #[must_use]
     pub fn for_token(token: &str) -> Self {
         Self {
@@ -118,6 +118,8 @@ pub struct ControlFileGuard {
 }
 
 impl Drop for ControlFileGuard {
+    // Blocking on purpose: a `Drop` cannot await, and it runs once, as the service ends
+    // (RD-1110-06).
     fn drop(&mut self) {
         if read_at(&self.path).is_ok_and(|file| file.is_some_and(|file| file.token == self.token))
             && let Err(error) = std::fs::remove_file(&self.path)

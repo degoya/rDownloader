@@ -42,6 +42,24 @@ pub struct BundledSyncReport {
     pub orphaned: Vec<(PluginId, String, String)>,
 }
 
+/// The `*.rdplug` files in `directory`, sorted; `None` when it is no folder. Blocking: async
+/// code calls it through `spawn_blocking`.
+fn bundled_packages(directory: &Path) -> std::io::Result<Option<Vec<PathBuf>>> {
+    if !directory.is_dir() {
+        return Ok(None);
+    }
+    let mut entries: Vec<_> = std::fs::read_dir(directory)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("rdplug"))
+        })
+        .collect();
+    entries.sort();
+    Ok(Some(entries))
+}
+
 /// Scans `directory` for `*.rdplug` files and installs every package whose version is newer
 /// than every installed version of the same plugin id. A plugin with no installed version is
 /// installed only as far as `policy` says. Older versions are never removed (the highest
@@ -55,19 +73,12 @@ pub async fn sync_bundled(
     policy: BundledPolicy,
 ) -> Result<BundledSyncReport> {
     let mut report = BundledSyncReport::default();
-    if !directory.is_dir() {
+    let listed = directory.to_path_buf();
+    let Some(entries) = tokio::task::spawn_blocking(move || bundled_packages(&listed)).await??
+    else {
         installer.set_bundled(Vec::new());
         return Ok(report);
-    }
-    let mut entries: Vec<_> = std::fs::read_dir(directory)?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("rdplug"))
-        })
-        .collect();
-    entries.sort();
+    };
     let installed = installer.list_installed().await?;
     // What each bundled id *is*, so a leftover of a different type under the same id can be
     // recognised after the loop.

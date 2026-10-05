@@ -36,11 +36,18 @@ use crate::{
     },
 };
 
+/// The longest expiry a token can be given, in days: ten years, which is "never" for anybody
+/// who would rather not say so.
+const MAX_EXPIRY_DAYS: u32 = 3650;
+
 /// Validates the label, mints a one-time bearer holding `scopes` and persists only its digest.
+///
+/// `expires_in_days` is the optional expiry (RD-1110-07); `None` never expires.
 pub(crate) async fn pair_with_scopes(
     state: &AppState,
     label: &str,
     scopes: Vec<String>,
+    expires_in_days: Option<u32>,
     label_error_code: &'static str,
 ) -> Result<CapturePairResponse, ApiError> {
     let label = required_text(
@@ -49,19 +56,40 @@ pub(crate) async fn pair_with_scopes(
         label_error_code,
         "Token label must be between 1 and 100 characters",
     )?;
+    let expires_at = expiry(expires_in_days)?;
     let mut random = [0_u8; 32];
     rand::rng().fill_bytes(&mut random);
     let bearer = URL_SAFE_NO_PAD.encode(random);
     let token = state
         .database
-        .create_capture_token(
+        .create_expiring_capture_token(
             rd_core::CaptureTokenId::new(),
             label,
             rd_authn::sha256_hex(&bearer),
             scopes,
+            expires_at,
         )
         .await?;
     Ok(CapturePairResponse { bearer, token })
+}
+
+/// The moment a token asked to expire after `days` stops being accepted, or `None` for one
+/// that never expires. Out of range is refused, not clamped: a token that silently lives
+/// shorter or longer than its caller asked is the surprise this check exists to prevent.
+fn expiry(days: Option<u32>) -> Result<Option<chrono::DateTime<chrono::Utc>>, ApiError> {
+    let Some(days) = days else {
+        return Ok(None);
+    };
+    if !(1..=MAX_EXPIRY_DAYS).contains(&days) {
+        return Err(ApiError::bad_request(
+            "api.token_expiry_range",
+            "A token expires after 1 to 3650 days, or never",
+        )
+        .with_param("max", MAX_EXPIRY_DAYS));
+    }
+    Ok(Some(
+        chrono::Utc::now() + chrono::Duration::days(i64::from(days)),
+    ))
 }
 
 #[utoipa::path(post, path = "/api/v1/api-tokens", tag = "api-tokens", request_body = ApiTokenRequest, responses((status = 201, body = CapturePairResponse)))]
@@ -73,20 +101,26 @@ pub async fn pair_api_token(
 ) -> Result<(StatusCode, Json<CapturePairResponse>), ApiError> {
     let scopes = requested_scopes(&request)?;
     within_grant(granted.as_ref().map(|Extension(granted)| granted), &scopes)?;
-    let response =
-        pair_with_scopes(&state, &request.label, scopes.clone(), "api.label_length").await?;
-    // The scopes, the label and the id. Never `response.bearer`: that value exists in this
-    // process for the length of one response and must not be written anywhere, least of all
-    // into a table somebody keeps for a year.
-    crate::audit::record(
+    let response = pair_with_scopes(
         &state,
-        crate::audit::AuditEvent::success(rd_core::AuditAction::TokenCreated)
-            .by(&audit)
-            .target("token", response.token.id)
-            .named(response.token.label.clone())
-            .detail("scopes", scopes.join(" ")),
+        &request.label,
+        scopes.clone(),
+        request.expires_in_days,
+        "api.label_length",
     )
-    .await;
+    .await?;
+    // The scopes, the label, the id and the expiry. Never `response.bearer`: that value exists
+    // in this process for the length of one response and must not be written anywhere, least
+    // of all into a table somebody keeps for a year.
+    let mut event = crate::audit::AuditEvent::success(rd_core::AuditAction::TokenCreated)
+        .by(&audit)
+        .target("token", response.token.id)
+        .named(response.token.label.clone())
+        .detail("scopes", scopes.join(" "));
+    if let Some(expires_at) = response.token.expires_at {
+        event = event.detail("expires_at", expires_at.to_rfc3339());
+    }
+    crate::audit::record(&state, event).await;
     Ok((StatusCode::CREATED, Json(response)))
 }
 
@@ -334,143 +368,5 @@ pub async fn revoke_api_token(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::requested_scopes;
-    use crate::dto::ApiTokenRequest;
-
-    fn request(scopes: &[&str]) -> ApiTokenRequest {
-        ApiTokenRequest {
-            label: "test".to_owned(),
-            scopes: scopes.iter().map(|scope| (*scope).to_owned()).collect(),
-        }
-    }
-
-    #[test]
-    fn a_named_set_is_granted_exactly() {
-        let scopes =
-            requested_scopes(&request(&["api:queue", "api:intake"])).expect("both are real areas");
-        assert_eq!(
-            scopes,
-            vec!["api:intake".to_owned(), "api:queue".to_owned()]
-        );
-    }
-
-    /// The property the whole model rests on: minting never hands out more than was asked
-    /// for. `api:queue` implies reading at *check* time, which is not the same as storing a
-    /// second scope — storing it would make the token look broader than it is in the list.
-    #[test]
-    fn minting_never_widens_a_request() {
-        for area in [
-            "api:read",
-            "api:intake",
-            "api:queue",
-            "api:config",
-            "api:secrets",
-            "api:admin",
-        ] {
-            let scopes = requested_scopes(&request(&[area])).expect("a real area");
-            assert_eq!(scopes, vec![area.to_owned()], "{area} was widened");
-        }
-    }
-
-    /// The capture surface and the API are isolated in both directions, and a minting call is
-    /// exactly where somebody would try to bridge them.
-    #[test]
-    fn the_capture_scope_cannot_be_minted_as_an_api_token() {
-        // Nor the tray's queue control (RD-1100-06): it is chosen when an agent is paired.
-        for scope in ["capture:*", "capture:queue"] {
-            let error =
-                requested_scopes(&request(&[scope])).expect_err("capture is not an API area");
-            assert_eq!(error.code(), "api.scope_unknown", "{scope}");
-        }
-    }
-
-    /// Dropping it would produce a token weaker than the caller believes, which then fails
-    /// somewhere else entirely, long after the cause.
-    #[test]
-    fn an_unknown_scope_is_refused_rather_than_ignored() {
-        for name in ["api:everything", "", "read", "api:Read"] {
-            assert!(
-                requested_scopes(&request(&[name])).is_err(),
-                "`{name}` was accepted"
-            );
-        }
-    }
-
-    /// Re-scoping an existing token goes through the same resolver as minting a new one, so
-    /// the refusals cannot be softer on the path that *widens* a credential than on the path
-    /// that creates one.
-    #[test]
-    fn re_scoping_resolves_by_exactly_the_same_rules_as_minting() {
-        for named in [
-            vec!["api:queue".to_owned(), "api:intake".to_owned()],
-            vec!["api:*".to_owned()],
-            vec!["api:read".to_owned(), "api:read".to_owned()],
-        ] {
-            assert_eq!(
-                super::resolve_scopes(&named).expect("real areas"),
-                requested_scopes(&ApiTokenRequest {
-                    label: "test".to_owned(),
-                    scopes: named.clone(),
-                })
-                .expect("real areas"),
-                "{named:?}"
-            );
-        }
-        for refused in [vec!["capture:*".to_owned()], vec!["api:nope".to_owned()]] {
-            assert_eq!(
-                super::resolve_scopes(&refused)
-                    .expect_err("not an API area")
-                    .code(),
-                "api.scope_unknown",
-                "{refused:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn duplicates_collapse_rather_than_being_stored_twice() {
-        let scopes = requested_scopes(&request(&["api:read", "api:read", " api:read "]))
-            .expect("a real area");
-        assert_eq!(scopes, vec!["api:read".to_owned()]);
-    }
-
-    /// Naming no area is least privilege, never everything.
-    #[test]
-    fn a_request_naming_no_area_gets_read_access() {
-        assert_eq!(
-            requested_scopes(&request(&[])).expect("read default"),
-            vec![rd_core::API_READ_SCOPE.to_owned()]
-        );
-    }
-
-    /// The preview a person chooses against must come from the table that will refuse them,
-    /// and must order the areas the way the model does.
-    #[test]
-    fn the_capability_preview_is_ordered_and_non_trivial() {
-        let mut previous = 0;
-        for scope in rd_core::Scope::API {
-            let reachable = crate::scope_policy::operations_reachable_by(*scope);
-            assert!(reachable > 0, "{scope:?} reaches nothing at all");
-            if *scope == rd_core::Scope::Metrics {
-                // The island (RD-110-01): one route, and nothing of the ladder.
-                assert_eq!(
-                    reachable, 1,
-                    "api:metrics must reach exactly the exposition"
-                );
-                continue;
-            }
-            if *scope != rd_core::Scope::Secrets {
-                // Everything that acts also reads, so each area reaches strictly more than
-                // reading alone. Secrets is the deliberate exception: it confers nothing.
-                assert!(
-                    reachable > previous || *scope == rd_core::Scope::Read,
-                    "{scope:?} reaches no more than the area before it"
-                );
-            }
-            if *scope == rd_core::Scope::Read {
-                previous = reachable;
-            }
-        }
-    }
-}
+#[path = "api_tokens_tests.rs"]
+mod tests;

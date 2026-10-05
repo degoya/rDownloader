@@ -31,7 +31,7 @@ fn byte_count(value: u64) -> Result<rd_core::ByteCount, ApiError> {
 #[tool_router(router = storage_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Create a storage root: an absolute directory downloads may be written into. The directory is created and probed for writability."
+        description = "Create a storage root: an absolute directory downloads may be written into. The directory is created and probed for writability. Name and directory are each unique: one another root has is refused with storage_root.name_or_path_taken."
     )]
     pub async fn create_storage_root(
         &self,
@@ -57,7 +57,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one storage root. Only the fields you pass are changed; `clear` may reset minimum_free_bytes to the global reserve."
+        description = "Change one storage root. Only the fields you pass are changed; `clear` may reset minimum_free_bytes to the global reserve. A name or directory another root has is refused with storage_root.name_or_path_taken."
     )]
     pub async fn update_storage_root(
         &self,
@@ -132,7 +132,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a watched folder. `import_mode` decides whether its files wait in the LinkGrabber or go straight into the queue."
+        description = "Create a watched folder. `import_mode` decides whether its files wait in the LinkGrabber or go straight into the queue. Name and folder are each unique: one another watched folder has is refused with hotfolder.name_or_path_taken."
     )]
     pub async fn create_hotfolder(
         &self,
@@ -166,7 +166,9 @@ impl RdMcpServer {
         respond(result)
     }
 
-    #[tool(description = "Change one watched folder. Only the fields you pass are changed.")]
+    #[tool(
+        description = "Change one watched folder. Only the fields you pass are changed. A name or folder another watched folder has is refused with hotfolder.name_or_path_taken."
+    )]
     pub async fn update_hotfolder(
         &self,
         Parameters(params): Parameters<UpdateHotfolderParams>,

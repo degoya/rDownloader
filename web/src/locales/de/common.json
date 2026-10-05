@@ -164,7 +164,8 @@
   "copy": {
     "failed_title": "Kopieren fehlgeschlagen",
     "failed_description": "Der Browser hat die Zwischenablage nicht freigegeben. Markiere den Text und kopiere ihn von Hand.",
-    "links_copied": "Kein Link kopiert | {count} Link kopiert | {count} Links kopiert"
+    "links_copied": "Kein Link kopiert | {count} Link kopiert | {count} Links kopiert",
+    "copied": "Kopiert"
   },
   "unsaved": {
     "title": "Ungespeicherte Änderungen verwerfen?",

@@ -32,6 +32,7 @@
 #   scripts/check.sh --full                # everything — wave end on development, release, tag
 #   scripts/check.sh --full --again        # ... even when a --full green covers this content
 #   scripts/check.sh --defer               # postpone a triviality; does NOT record a green
+#   scripts/check.sh --preflight           # what needs no build, minutes, no lock, no green
 #   scripts/check.sh --rust                # skip the web half
 #   scripts/check.sh --web                 # skip the Rust half
 #   scripts/check.sh --windows             # only the Windows lint: cargo xwin clippy, every crate
@@ -60,9 +61,10 @@ source "$ROOT/scripts/lib/jobs.sh"
 # Sourced before the `cd`, because the lock library resolves this script's own path from $0.
 # shellcheck source=lib/lock.sh
 source "$ROOT/scripts/lib/lock.sh"
-# --defer runs no cargo at all, so it does not queue behind somebody else's build. Read from
-# "$@" rather than from the parsed flags because the lock has to be taken before anything else.
-case " $* " in *" --defer "*) RD_NO_LOCK=1 ;; esac
+# --defer and --preflight build nothing (rustfmt writes nothing to target/), so they do not queue
+# behind somebody else's build. Read from "$@" rather than from the parsed flags because the lock
+# has to be taken before anything else.
+case " $* " in *" --defer "*|*" --preflight "*) RD_NO_LOCK=1 ;; esac
 
 # Not twice (RD-160-06; owner, 2026-09-28: "unnötige Doppelprüfung immer vermeiden"): a --full run
 # of content a --full green already covers — the same tree, or one that differs in documentation
@@ -126,7 +128,12 @@ clippy_all=0
 windows=0
 gate=0
 again=0
+preflight=0
 
+if [[ " $* " == *" --preflight "* && "$*" != --preflight ]]; then
+    echo "--preflight runs alone" >&2
+    exit 2
+fi
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --rust) run_web=0; shift ;;
@@ -137,6 +144,7 @@ while [[ $# -gt 0 ]]; do
         --clippy-all) clippy_all=1; shift ;;
         --windows) windows=1; shift ;;
         --gate) gate=1; shift ;;
+        --preflight) preflight=1; shift ;;
         --clippy)
             shift
             while [[ $# -gt 0 && "$1" != --* ]]; do clippy_crates+=("$1"); shift; done
@@ -162,6 +170,7 @@ if [[ "$full" -eq 1 ]]; then RUN_KIND=full; fi
 if [[ "$windows" -eq 1 ]]; then RUN_KIND=windows; fi
 if [[ "$gate" -eq 1 ]]; then RUN_KIND=gate; fi
 if [[ "$defer" -eq 1 ]]; then RUN_KIND=defer; fi
+if [[ "$preflight" -eq 1 ]]; then RUN_KIND=preflight; fi
 CHECK_LOGS="${RD_CHECK_LOGS:-/tmp/claude-$(id -u)/check-$(basename "$ROOT")}"
 # shellcheck source=lib/stages.sh
 source "$ROOT/scripts/lib/stages.sh"
@@ -173,6 +182,13 @@ source "$ROOT/scripts/lib/lint.sh"
 source "$ROOT/scripts/lib/check-tests.sh"
 # shellcheck source=lib/check-web.sh
 source "$ROOT/scripts/lib/check-web.sh"
+# The checks that compile nothing, and the preflight that runs them alone (RD-1110-15).
+# shellcheck source=lib/script-checks.sh
+source "$ROOT/scripts/lib/script-checks.sh"
+# shellcheck source=lib/public.sh
+source "$ROOT/scripts/lib/public.sh"
+# shellcheck source=lib/preflight.sh
+source "$ROOT/scripts/lib/preflight.sh"
 
 # The Windows half of the workspace (RD-140-23). Nothing else here reads `cfg(windows)` code, and
 # v1.3.0 shipped with 42 Windows test failures that only GitHub's runner found. Clippy links
@@ -223,6 +239,17 @@ if [[ "$gate" -eq 1 ]]; then
     rd_stages_report
     rd_stages_exit_if_failed
     [[ -z "$gate_tree" ]] || echo "==> recorded the gate's green for tree ${gate_tree:0:12} in $(rd_full_marker "$ROOT")"
+    echo "==> all requested checks passed"
+    exit 0
+fi
+
+# The preflight (RD-1110-15): every check that compiles nothing, each finding collected, in
+# minutes; a wave agent's before its report, integrate.sh's before the gate. Records no green.
+if [[ "$preflight" -eq 1 ]]; then
+    rd_preflight "$(rd_scope_boundary "$BASE" "$ROOT")"
+    rd_stages_report
+    rd_stages_exit_if_failed
+    echo "==> preflight: no green is recorded; scripts/check.sh is still due"
     echo "==> all requested checks passed"
     exit 0
 fi
@@ -287,34 +314,23 @@ fi
 source "$ROOT/scripts/lib/check-scope.sh"
 rd_check_scope
 
-step "git diff --check"
-attempt git diff --check "$boundary"
+# git diff --check, the job layout, the version copies and the action pins
+# (scripts/lib/preflight.sh): files only, well under a second, whatever the change touched.
+rd_file_checks "$boundary"
 
 # The scripts themselves: bash -n, shellcheck and every test under scripts/tests/ (RD-140-22),
 # whenever something under scripts/ changed — a script included, not only its libraries — and
 # actionlint whenever .github/ did (RD-191-09). Python and bash, seconds, so no reason to wait
 # for the Rust half.
-# shellcheck source=lib/script-checks.sh
-source "$ROOT/scripts/lib/script-checks.sh"
 rd_script_checks
 
-# The job layout (RD-140-19): a finished job left in docs/roadmap/jobs/, or an open one in its
-# archive/, fails here, whatever the change touched — a status line is edited in a documentation
-# commit, and that is exactly the change that must not leave the file where it was. Reads files
-# only, well under a second.
-step "the job layout: finished jobs archived, open ones not"
-attempt scripts/archive-jobs.sh --check
-
-# One version (2026-09-28): Cargo.toml's workspace version is the source, and every copy
-# (web/package.json, the extension manifest, the generated OpenAPI document) must agree. Reads
-# files only.
-step "the version: every copy agrees with Cargo.toml"
-attempt scripts/set-version.sh --check
-
-# Every action a workflow uses is pinned to a commit (1.8): a moved tag runs other code with the
-# workflow's token. Reads files only.
-step "the workflows: every action pinned to a commit"
-attempt scripts/check-actions-pinned.sh
+# gitleaks over what the public export would publish (RD-1110-15): a second, so --full runs it
+# and a secret is found before the export refuses it.
+if [[ "$full" -eq 1 ]]; then
+    rd_secret_scan
+else
+    skip "gitleaks" "branch level; --full and --preflight scan the tree"
+fi
 
 # ---------------------------------------------------------------------------------------------
 # Rust
@@ -363,22 +379,11 @@ if [[ "$run_rust" -eq 1 ]]; then
     # in a second: a row naming a suite that is gone, a suite that no row names, a suite its
     # binary does not declare, a test file outside the binaries.
     step "the rd-api test map against the test suites"
-    map_problems="$(rd_api_test_map_problems "$RD_API_MAP")"
-    if [[ -n "$map_problems" ]]; then
-        printf '!! %s\n' "$map_problems" >&2
-        echo "   Give each rd-api integration suite its row in $RD_API_MAP." >&2
-        exit 1
-    fi
-    echo "    ${#rd_api_all[@]} suites in $(rd_api_test_binaries | wc -l) binaries, every one mapped"
+    rd_api_map_check || exit 1
 
-    # The same for the files outside crates/ that Rust tests read (RD-191-09): a path a Rust
-    # source names without its row would leave a change to it untested at branch level again.
+    # The same for the files outside crates/ that Rust tests read (RD-191-09).
     step "the Rust test inputs map against the sources"
-    if ! python3 scripts/lib/rust-test-inputs.py . "$RD_RUST_INPUTS_MAP" >&2; then
-        echo "!! Give each such path its row in $RD_RUST_INPUTS_MAP." >&2
-        exit 1
-    fi
-    echo "    every file outside crates/ and plugins/ a Rust test reads has its row"
+    rd_rust_inputs_check || exit 1
 
     # Only for a run that tests Rust: a scripts-only change has no use for a component, and since
     # the gates build the stale ones themselves (RD-1100-13) asking would cost minutes.

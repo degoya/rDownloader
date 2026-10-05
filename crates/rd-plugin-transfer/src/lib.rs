@@ -56,7 +56,7 @@ impl TransferBackends {
     }
 
     /// Builds a set from already-compiled backends, for the contract tests.
-    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
     #[must_use]
     pub fn for_test(backends: Vec<Arc<TransferBackend>>, allow_local_targets: bool) -> Self {
         Self {

@@ -232,7 +232,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create an NNTP server entry. Metadata only: a server that needs a login is completed in the web UI, because no tool accepts a password."
+        description = "Create an NNTP server entry. Metadata only: a server that needs a login is completed in the web UI, because no tool accepts a password. Names are unique: a name another server has is refused with usenet.server_name_taken."
     )]
     pub async fn create_usenet_server(
         &self,
@@ -268,7 +268,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one NNTP server. The stored password is kept; only the fields you pass are changed."
+        description = "Change one NNTP server. The stored password is kept; only the fields you pass are changed. A name another server has is refused with usenet.server_name_taken."
     )]
     pub async fn update_usenet_server(
         &self,

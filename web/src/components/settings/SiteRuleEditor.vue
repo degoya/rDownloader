@@ -24,6 +24,7 @@ import {
   type RuleDraft,
   type StepKind
 } from '@/composables/useSiteRules'
+import { PLAIN } from '@/utils/numberInput'
 
 const props = withDefaults(defineProps<{
   editingId: string | null
@@ -138,7 +139,7 @@ function verdictColor(verdict: string): 'success' | 'error' | 'neutral' {
           />
         </UFormField>
         <UFormField :label="t('siterules.editor.version')" :description="t('siterules.editor.version_hint')">
-          <UInput v-model.number="draft.version" type="number" min="1" class="w-full" />
+          <UInputNumber v-model="draft.version" required :min="1" :format-options="PLAIN" class="w-full" />
         </UFormField>
         <UFormField :label="t('siterules.editor.hosts')" :description="t('siterules.editor.hosts_hint')">
           <UTextarea v-model="draft.hosts" :rows="2" class="w-full font-mono text-xs" placeholder="example.org" />

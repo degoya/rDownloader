@@ -11,6 +11,7 @@ use plugin_guest_oauth::{
     http::{self, RequestQuery},
     retry_after,
     types::{Failure, FailureKind},
+    unguessable_value,
 };
 
 use crate::{flow, pkce};
@@ -63,22 +64,6 @@ fn refuse(code: &str, message: String, category: FailureKind) -> Failure {
         code: Some(format!("pcloud_oauth.{code}")),
         params: Vec::new(),
     }
-}
-
-/// A value nobody can recompute: the host's random bytes, base64url-encoded.
-///
-/// An empty answer means the host refused, and a sign-in is failed rather than continued with
-/// a value the plugin made up. Neither the account nor the time of day takes part: a value
-/// computed from those is a value anybody holding them can recompute.
-fn unguessable_value() -> Result<String, Failure> {
-    let random = host::random_bytes(pkce::VERIFIER_BYTES as u32);
-    pkce::verifier(&random).ok_or_else(|| {
-        refuse(
-            "no_entropy",
-            "the host did not supply the randomness this sign-in needs".to_owned(),
-            FailureKind::Permanent,
-        )
-    })
 }
 
 /// Refuses before any request when the account carries no registered application.
@@ -185,7 +170,7 @@ impl Guest for Component {
         _account_id: String,
         _credential_ref: Option<String>,
     ) -> Result<AuthorizationRequest, Failure> {
-        let state = unguessable_value()?;
+        let state = unguessable_value("pcloud_oauth")?;
         let authorization_url = format!(
             "{AUTHORIZE_ENDPOINT}?response_type=code&client_id={}&redirect_uri={}&state={}",
             // Left as the marker: the host substitutes this installation's own application id

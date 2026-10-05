@@ -17,6 +17,7 @@ import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { PLAIN, WHOLE } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsIndexersCard from '@/components/settings/SettingsIndexersCard.vue'
@@ -304,10 +305,10 @@ function proxyName(id: string | null | undefined): string {
             <!-- TLS moves the port between 563 and 119, so it stands before it (RD-150-11). -->
             <USwitch v-model="form.tls" :label="t('usenet.form.tls')" />
             <UFormField :label="t('usenet.form.port')" name="port" required>
-              <UInput v-model.number="form.port" required type="number" min="1" max="65535" class="w-full" />
+              <UInputNumber v-model="form.port" required :min="1" :max="65535" :format-options="PLAIN" class="w-full" />
             </UFormField>
-            <UFormField data-settings-anchor="usenet.connections" :label="t('usenet.form.connections')" name="max_connections" :description="t('usenet.form.connections_hint')">
-              <UInput v-model.number="form.max_connections" type="number" min="1" max="32" class="w-full" />
+            <UFormField data-settings-anchor="usenet.connections" :label="t('usenet.form.connections')" name="max_connections" :description="t('usenet.form.connections_hint')" required>
+              <UInputNumber v-model="form.max_connections" required :min="1" :max="32" :format-options="WHOLE" increment decrement class="w-full" />
             </UFormField>
             <UFormField :label="t('usenet.form.username')" name="username">
               <UInput v-model="form.username" class="w-full" autocomplete="username" />
@@ -361,7 +362,7 @@ function proxyName(id: string | null | undefined): string {
                     :title="t('usenet.chain.move_up')"
                     @click="moveServer(index, -1)"
                   />
-                  <span class="numeric grid size-9 place-items-center bg-elevated text-sm text-primary" :title="t('usenet.chain.priority', { priority: server.priority })">{{ index + 1 }}</span>
+                  <UAvatar :text="String(index + 1)" color="primary" size="lg" class="numeric text-sm" :title="t('usenet.chain.priority', { priority: server.priority })" />
                   <UButton
                     size="xs"
                     color="neutral"
@@ -374,7 +375,7 @@ function proxyName(id: string | null | undefined): string {
                   />
                 </div>
                 <div class="min-w-0 flex-1 basis-40">
-                  <div class="flex items-center gap-2"><span class="size-2" :class="server.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
+                  <div class="flex items-center gap-2"><UChip standalone color="success" :show="server.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
                   <p class="mt-1 truncate font-mono text-xs text-muted">{{ server.host }}:{{ server.port }}</p>
                   <p class="mt-2 text-xs text-muted">{{ t('usenet.summary.connections', { count: server.max_connections }, server.max_connections) }} · {{ proxyName(server.proxy_profile_id) }} · {{ t('usenet.chain.priority', { priority: server.priority }) }}</p>
                 </div>
@@ -401,7 +402,7 @@ function proxyName(id: string | null | undefined): string {
               <div class="transfer-stripe mt-4 h-1" :class="reorderingId === server.id ? 'animate-pulse opacity-80' : 'opacity-40'" />
             </article>
             <DataState :loading="loading" :error="loadError" :empty="!servers.length" :rows="2">
-              <p class="signal-grid border border-dashed border-muted p-10 text-center text-sm text-muted">{{ t('usenet.chain.empty') }}</p>
+              <UEmpty class="signal-grid" :description="t('usenet.chain.empty')" />
             </DataState>
           </div>
         </UCard>

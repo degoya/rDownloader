@@ -5,11 +5,12 @@ import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { CaptureToken } from '@/api/types'
+import CopyField from '@/components/CopyField.vue'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
-import { useCopy } from '@/composables/useCopy'
 import { serviceUrl } from '@/basePath'
 import { formatDay } from '@/utils/format'
+import { expiresInDays, tokenExpired, tokenExpiryItems, tokenExpiryLabel } from '@/utils/tokenExpiry'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -31,12 +32,14 @@ const props = defineProps<{
 const { t } = useI18n()
 const confirm = useConfirm()
 const toast = useToast()
-const copy = useCopy()
 
 const pairLabel = ref(props.extension ? t('system.extension.default_label') : 'Windows 11')
 // Opt-in, and only for the desktop agent: pausing the queue from its tray (RD-1100-06). An agent
 // paired without it can do exactly what it could before.
 const queueControl = ref(false)
+/// Days until the new token expires; `0`, never, is the default (RD-1110-07).
+const expiryDays = ref(0)
+const expiryItems = computed(() => tokenExpiryItems(t))
 const bearer = ref<string | null>(null)
 const bearerTokenId = ref<string | null>(null)
 const pairError = ref<string | null>(null)
@@ -52,7 +55,11 @@ async function pair(): Promise<void> {
   pairing.value = true
   pairError.value = null
   const response = await api.POST('/api/v1/capture/pair', {
-    body: { label: pairLabel.value, queue_control: !props.extension && queueControl.value }
+    body: {
+      label: pairLabel.value,
+      queue_control: !props.extension && queueControl.value,
+      expires_in_days: expiresInDays(expiryDays.value)
+    }
   })
   pairing.value = false
   if (response.data) {
@@ -64,9 +71,7 @@ async function pair(): Promise<void> {
   }
 }
 
-async function copyCommand(): Promise<void> {
-  if (!captureCommand.value) return
-  if (!(await copy(captureCommand.value))) return
+function commandCopied(): void {
   toast.add({
     title: t('system.pairing.copied_title'),
     description: t('system.pairing.copied_description'),
@@ -75,9 +80,7 @@ async function copyCommand(): Promise<void> {
   })
 }
 
-async function copyToken(): Promise<void> {
-  if (!bearer.value) return
-  if (!(await copy(bearer.value))) return
+function tokenCopied(): void {
   toast.add({
     title: t('system.pairing.copied_title'),
     description: t('system.pairing.token_copied_description'),
@@ -135,32 +138,33 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
           :description="t('system.pairing.queue_control_help')"
           data-testid="pairing-queue-control"
         />
+        <UFormField :label="t('system.token_expiry.label')" :description="t('system.token_expiry.hint')">
+          <USelect v-model="expiryDays" :items="expiryItems" icon="i-lucide-calendar-clock" class="w-full" data-testid="pairing-expiry" />
+        </UFormField>
         <FormActions :create-label="t('system.pairing.submit')" create-icon="i-lucide-link" :loading="pairing" />
       </form>
-      <div v-if="bearer" class="mt-3 border border-warning/40 bg-warning/10 p-3">
-        <p class="mb-2 text-xs font-medium text-warning">{{ t('system.pairing.copy_hint') }}</p>
-        <template v-if="!props.extension">
-          <div class="flex items-start gap-2">
-            <code class="min-w-0 flex-1 break-all font-mono text-xs leading-5 text-highlighted">{{ captureCommand }}</code>
-            <UButton icon="i-lucide-copy" :label="t('system.pairing.copy_command')" color="neutral" variant="soft" @click="copyCommand" />
-          </div>
-          <p class="mt-2 font-mono text-[10px] leading-5 text-muted">{{ t('system.pairing.afterwards') }}<br>rdownloader-capture autostart install<br>rdownloader-capture association install</p>
-        </template>
-        <div :class="props.extension ? '' : 'mt-3 border-t border-warning/30 pt-3'">
+      <UAlert v-if="bearer" class="mt-3" color="warning" variant="subtle" :title="t('system.pairing.copy_hint')">
+        <template #description>
+          <template v-if="!props.extension">
+            <CopyField class="mt-1" :value="captureCommand" :label="t('system.pairing.copy_command')" @copied="commandCopied" />
+            <p class="mt-2 font-mono text-[10px] leading-5 text-muted">{{ t('system.pairing.afterwards') }}<br>rdownloader-capture autostart install<br>rdownloader-capture association install</p>
+            <USeparator class="my-3" :ui="{ border: 'border-warning/30' }" />
+          </template>
           <p class="mb-2 text-xs font-medium text-warning">{{ t('system.pairing.extension_hint') }}</p>
-          <div class="flex items-start gap-2">
-            <code class="min-w-0 flex-1 break-all font-mono text-xs leading-5 text-highlighted">{{ bearer }}</code>
-            <UButton icon="i-lucide-copy" :label="t('system.pairing.copy_token')" color="neutral" variant="soft" @click="copyToken" />
-          </div>
+          <CopyField :value="bearer!" :label="t('system.pairing.copy_token')" @copied="tokenCopied" />
           <p class="mt-2 text-[11px] leading-5 text-muted">{{ t('system.pairing.extension_steps', { origin: serverOrigin }) }}</p>
-        </div>
-      </div>
+        </template>
+      </UAlert>
     </template>
     <template #list>
       <div v-if="agents.length" class="divide-y divide-muted border border-muted">
         <div v-for="agent in agents" :key="agent.id" class="flex items-center gap-3 p-3">
-          <span class="size-2 bg-success" />
-          <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-highlighted">{{ agent.label }}</p><p class="font-mono text-[11px] text-muted">{{ agent.scopes.join(', ') }}</p></div>
+          <UChip standalone :color="tokenExpired(agent.expires_at) ? 'error' : 'success'" />
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium text-highlighted">{{ agent.label }}</p>
+            <p class="font-mono text-[11px] text-muted">{{ agent.scopes.join(', ') }}</p>
+            <p v-if="agent.expires_at" class="text-[11px]" :class="tokenExpired(agent.expires_at) ? 'text-error' : 'text-muted'">{{ tokenExpiryLabel(agent.expires_at, t) }}</p>
+          </div>
           <span class="numeric text-[11px] text-muted">{{ formatDay(agent.created_at) }}</span>
           <UButton
             icon="i-lucide-trash-2"
@@ -175,7 +179,7 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
         </div>
       </div>
       <DataState v-else :loading="props.loading" :error="props.loadError" :empty="true" :rows="2">
-        <p class="border border-dashed border-muted p-6 text-center text-sm text-muted">{{ t('system.agents.empty') }}</p>
+        <UEmpty :description="t('system.agents.empty')" />
       </DataState>
     </template>
   </FormListLayout>

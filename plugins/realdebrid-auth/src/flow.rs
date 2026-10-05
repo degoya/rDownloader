@@ -233,25 +233,9 @@ pub fn read_token_answer(status: u16, retry_after: Option<&str>, body: &str) -> 
     }
 }
 
-/// A provider's `error` word, reduced to something that is safe to put in a message.
-///
-/// The point is not tidiness. Whatever a provider sends back travels into a log line and into
-/// the failure the interface shows, and an endpoint that echoed part of a token into its error
-/// document would otherwise publish it. RFC 6749 error codes are lowercase words joined by
-/// underscores, so anything that is not exactly that shape is dropped whole rather than
-/// filtered character by character -- filtering would keep the digits of a leaked token.
-#[must_use]
-pub fn sanitize_error(error: &str) -> String {
-    let trimmed = error.trim();
-    let is_error_code = !trimmed.is_empty()
-        && trimmed.len() <= 40
-        && trimmed.chars().all(|c| c.is_ascii_lowercase() || c == '_');
-    if is_error_code {
-        trimmed.to_owned()
-    } else {
-        "refused".to_owned()
-    }
-}
+/// A provider's `error` word, reduced to something that is safe to put in a message: the one
+/// rule every OAuth plugin applies, in `plugin-common` (RD-1110-04).
+pub use plugin_common::device_flow::sanitize_error;
 
 #[cfg(test)]
 #[path = "flow/tests.rs"]

@@ -5,6 +5,177 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-05
+
+### Added
+
+- **Nuxt UI first is a test (RD-1110-01).** `web/src/nuxtUiFirst.test.ts` counts sixteen
+  hand-built patterns in every template — framed cards, number fields, dashed empty states,
+  tinted notices, chevron toggles, dividers, file inputs, trees, icon tiles, status dots, raw
+  links and buttons, native controls — and holds each to its count: one more fails with file and line, one fewer
+  until its `MAX` is lowered. Exceptions name the `design.md` passage that carries them.
+- **A signing script for the tool manifest (RD-1110-14).** `scripts/sign-tools-manifest.sh`
+  writes the next embedded tool manifest — changes from a JSON file or `--set
+  <name>:<platform> field=value…`, or `--bump` alone; `sequence` + 1, `issued_at` today —, refuses
+  when `scripts/tools-manifest-check.sh` finds a dead download, signs with the tool-manifest key it
+  finds itself and shows the payload's diff. The signing command `tools sign-manifest` moved into
+  `rd-pack`, so the script builds the packager rather than the service; `rdownloader tools
+  sign-manifest` takes the same arguments, and both now refuse a key that is not the embedded root
+  under its name and verify what they signed before writing it.
+- **Docker tools, the S3 live test service and the WiX reason (RD-1110-08, audit D5, D8, D9).** The
+  image's Python tools move to streamlink 8.6.1, gallery-dl 1.32.15 and apprise 2.0.1; apprise 2
+  keeps the CLI rDownloader calls (`--input-format`, `--title`, `--body`, `APPRISE_URLS`, exit 0 on
+  success). CI's `s3-live` job runs against RustFS 1.0.1, pinned by digest, instead of the frozen
+  `bitnamilegacy/minio` build. `docs/development.md` names why WiX stays on 5 in both places.
+
+### Changed
+
+- **Number fields take numbers in your language and say what empty means (RD-1110-10).** All 81
+  number fields are Nuxt UI's `UInputNumber`: German and French type a decimal comma, a value
+  above the field's maximum becomes the maximum, a count takes no fraction. An emptied optional
+  field (a limit, a port, an inherited value) is sent as `null` instead of `""`; an emptied
+  obligatory one holds the save — the settings save button says *A number field is empty*, a
+  form does not submit. Plus and minus buttons only on small counts such as parallel downloads.
+- **Empty states, notices, collapsibles and dividers are Nuxt UI's (RD-1110-11).** The dashed
+  empty-state boxes are `UEmpty` with one spacing (the dashed outline comes from the theme), the
+  tinted warning and info boxes are `UAlert` (a loading area's failure keeps `role="alert"`),
+  the chevron toggles and the release notes' `<details>` are `UCollapsible`s whose panel opens
+  directly under its row (the queue's grid rows and two LinkGrabber group headers excepted), the
+  `border-t … pt-N` dividers are `USeparator`, and the add form, the queue summary and the backup
+  destination form are `UCard`s. The NZB import's chevron now says whether its files are open.
+- **Files are picked and dropped with `UFileUpload` (RD-1110-12).** The seven hidden file inputs
+  and the drop zones of the NZB import and the remote-job form are Nuxt UI's file field; every
+  `accept` names extensions only, so a browser that reports no MIME type for a `.nzb` no longer
+  matters. The remote-file and torrent trees stay hand-built: `UTree`'s row selects and folds on
+  any click inside it and has no anchor range, so the checkboxes, priorities and Shift range of
+  RD-170-13 would not survive (`design.md`).
+- **The small parts come from Nuxt UI (RD-1110-13).** Icon tiles are `UAvatar`s, the cards of
+  the settings overview `UPageCard`s, links `ULink`s, the size, group and chip labels of a
+  subscription card `UBadge`s, the package and link names that open their rename
+  `UButton`s, and the status dots `UChip`s beside a state the row already names in words. A
+  token, header, command or redirect address to copy is one `CopyField` — a read-only field with
+  its copy button, which says "Copied" — and an input with the button that acts on it is a
+  `UFieldGroup` (automation dry run, torrent trackers, managed tools, plugin versions).
+- **The integration finds every cheap problem in one round (RD-1110-15).** A red script test or
+  lint finding no longer ends `scripts/check.sh --full` before the Rust and web stages: each is a
+  stage of its own and lands in the failure list. `scripts/check.sh --preflight` runs everything
+  that compiles nothing — script tests, `bash -n`, shellcheck, actionlint, `cargo fmt --check`,
+  the test maps, pins, version copies, job layout, gitleaks over the export's tree — in about two
+  minutes, without the lock; wave agents run it before their report, and `scripts/integrate.sh`
+  right after the merges, stopping before the gate with every finding. `--full` scans with
+  gitleaks too.
+- **Plugins are built without cargo-component (RD-1110-08, audit D3).** `scripts/build-plugins.sh`
+  links each plugin's core module with `cargo build --target wasm32-unknown-unknown` and makes it a
+  component with `wasm-tools component new` 1.261.0, the version CI and the release install and the
+  script now requires (`WASM_TOOLS_VERSION`); the world comes from the `wit_bindgen::generate!` the
+  plugins already used, so no plugin `Cargo.toml` carries `[package.metadata.component]` any more.
+  The wasm-tools version is part of the stamps' dependency hash and of the component cache key
+  (`components-1.99.0-wt1.261.0-…`). The SDK builds the same way: the templates' READMEs,
+  `rdownloader plugin new`'s hint and `sdk/ci/plugin.yml` give `cargo build` and `wasm-tools
+  component new`, and `scripts/check-sdk-templates.sh` reads each template's world from its
+  `src/guest.rs`.
+- **Every plugin is rebuilt with wasm-tools instead of cargo-component (RD-1110-08).** Its world is
+  unchanged — all 72 compared with `wasm-tools component wit`, packaged and conformance-checked —
+  but its component's bytes are not, so each carries a new version: `metadata-enricher` 0.1.9;
+  `box-crawler`, `box-oauth`, `directory-index-crawler`, `dropbox-crawler`, `dropbox-oauth`,
+  `google-drive-crawler`, `google-drive-oauth`, `hitfile`, `mediafire`, `mediafire-crawler`,
+  `offcloud-cloud`, `onedrive-crawler`, `onedrive-oauth`, `pcloud-crawler`, `pixeldrain-crawler`,
+  `premiumize-crawler`, `putio-oauth`, `seedr-jobs`, `torbox-auth` and `turbobit` 0.1.10; `box`,
+  `dropbox`, `google-drive`, `krakenfiles`, `mega`, `mega-crawler`, `nextcloud-crawler`, `offcloud`,
+  `onedrive`, `pcloud`, `pcloud-oauth`, `peeplink-crawler`, `putio`, `putio-transfers`, `seedr`,
+  `torbox` and `xfs-generic` 0.1.11; `mega-auth` and `pixeldrain` 0.1.12; `realdebrid-auth` and
+  `realdebrid-torrents` 0.2.7; `premiumize-transfers`, `realdebrid` and `torbox-jobs` 0.2.8;
+  `alldebrid`, `debridlink`, `keep2share`, `linksnappy`, `nitroflare` and `rapidgator` 0.7.12;
+  `onefichier` 0.7.13; `premiumize` 0.7.14; `filejoker` 0.7.15; `crawljob-intake` and
+  `sponsorblock-enricher` 0.9.9; `alldebrid-auth`, `debridlink-auth`, `discord-notifier`,
+  `premiumize-auth`, `sha256-postprocess` and `webdav-storage` 0.9.10; `md5-postprocess` and
+  `telegram-notifier` 0.9.11; `rename-postprocess` 0.9.12; `katfile` 0.9.14; `ntfy-notifier` 0.10.4;
+  `metalink-intake` 0.10.6; `ddownload` 0.10.19.
+- **One error glue for the debrid and cloud plugins (RD-1110-02, audit R1).** `plugins/common`
+  holds the classified refusal (`ApiFailure`), the table that names each HTTP status class in a
+  plugin's own codes and waits (`HttpWords`), the conversion into the host's failure and the
+  `call` around a request; `plugin-guest-remote-job` the conversion into the WIT failure and the
+  remote-job `call`. Fourteen plugins keep only what their provider says; error codes, waits and
+  messages are unchanged. `alldebrid`, `debridlink` and `linksnappy` 0.7.12; `premiumize`
+  0.7.14; `offcloud`, `putio`, `putio-transfers`, `seedr` and `torbox` 0.1.11; `offcloud-cloud`
+  and `seedr-jobs` 0.1.10; `realdebrid` and `torbox-jobs` 0.2.8; `realdebrid-torrents` 0.2.7.
+- **The checksum steps, the OAuth sign-ins and the small helpers are written once (RD-1110-04,
+  audit R2, R3, R5).** `md5-postprocess` and `sha256-postprocess` stay two plugins but share one
+  library, `checksum-postprocess-common`, with the hash as the parameter (1180 lines become 825).
+  The OAuth plugins take the unguessable sign-in value and the token-answer reader from
+  `plugin-guest-oauth` and the error-code sanitiser from `plugin-common`; hex, the percent-decoders
+  and the account label's civil date are `plugin-common`'s, the FTP/SFTP address resolution is
+  `rd_http::socket_addresses`, the Usenet backoff `rd_core::exponential_backoff` and the hex
+  SHA-256 of `rd-authn` `rd-sign`'s. Behaviour is unchanged, except that an escape like `%+1`
+  in a Box or Dropbox address is now refused like any other broken escape: `box-crawler`,
+  `box-oauth`, `dropbox-crawler`, `dropbox-oauth`, `google-drive-oauth`, `offcloud-cloud`,
+  `onedrive-oauth`, `putio-oauth` and `seedr-jobs` 0.1.10; `box`, `dropbox`, `pcloud-oauth` and
+  `putio-transfers` 0.1.11; `realdebrid-auth` and `realdebrid-torrents` 0.2.7;
+  `premiumize-transfers` and `torbox-jobs` 0.2.8; `example-oauth` 0.2.9; `keep2share` and
+  `rapidgator` 0.7.12; `sha256-postprocess` 0.9.10; `md5-postprocess` 0.9.11.
+- **The hoster plugins share the error glue, the XFS plugins their free flow (RD-1110-03, audit
+  R1, R4).** `keep2share`, `nitroflare`, `onefichier`, `pixeldrain`, `rapidgator` and
+  `krakenfiles` take the classified refusal, the status table and the request `call` from
+  `plugins/common`, which also reads a `401`/`403` without an account as a plain HTTP error and
+  builds the dead ends and IP limits every website flow reports. `xfs-common` holds the XFS free
+  flow's form post and failures once (`free::FreeWords`) and drops its own error kind;
+  `ddownload`, `katfile`, `filejoker` and `xfs-generic` keep only their codes. Codes, waits and
+  messages are unchanged; every one of these plugins already carries its 1.11 version
+  (RD-1110-08). 640 lines fewer in the plugins, 234 more in the two shared crates.
+- **The largest files and longest functions on the core paths are split (RD-1110-05, audit Q3,
+  Q4).** `rd-db`'s `facade_ext.rs` (2215 lines) becomes eleven facade files by subject and its
+  `lib.rs` (1693) sheds opening, helpers and four more facades; `rd-scheduler`'s `control.rs`
+  (1577) and `lib.rs` (1363), `rd-http`'s `engine.rs` (1269) and `rd-media`'s `runner.rs` go
+  under 500 lines, and `worker::run`, `download_from_sources`, the media `run` and
+  `handle_collector` (247–253 lines each) are named steps of 36–76. Behaviour is unchanged.
+- **Rust hygiene at the rules' edges (RD-1110-06, audit Q5–Q8).** A vault entry a sign-in or
+  token exchange could not take back is logged with its reference (the sweep at the next start
+  removes it); the eight blocking file system calls in async code run through `tokio::fs` or
+  `spawn_blocking`; `rd_authn::oidc_testing` and the other test-only hooks sit behind a
+  `test-support` feature only dev-dependencies switch on, and two `pub` items nothing used are
+  gone.
+- **Shared helpers for the error toast, the passkey options and the script tests (RD-1110-09,
+  audit K10, R6, R7).** `useErrorToast()` replaces twelve hand-written error toasts,
+  `publicKeyOptions()` the two casts of a passkey ceremony's options, and the stream schedule form
+  reads its weekly fields by narrowing the contract's union instead of five `as unknown as`; a
+  duplicated one-off schedule now stays one-off. Six script tests source
+  `scripts/tests/lib/expect.sh`, which gained `ok` and `fail`. New web tests cover the plugin
+  sign-in flows, the signed-in devices, the settings backup and restore, and the subscription
+  form's mapping.
+
+### Fixed
+
+- **A taken name, apprise's error text and phones in the session list (RD-1110-16).** Creating
+  or renaming a notification target, category, storage root, watched folder, NNTP server or
+  bandwidth profile onto a name another one has answers `409` with a stable code
+  (`notification.name_taken`, `category.name_taken`, `storage_root.name_or_path_taken`,
+  `hotfolder.name_or_path_taken`, `usenet.server_name_taken`, `bandwidth.profile_name_taken`)
+  over REST and MCP instead of `internal.error`; a refused target no longer leaves its new secret
+  in the vault. A failed apprise delivery keeps stderr and stdout in its history excerpt —
+  apprise prints most errors on stdout, so the excerpt was empty. Settings → Security names Chrome
+  on Android "Chrome — Android", not "Chrome — Linux".
+- **The audit log and the logs show their filter and closing cards again (RD-1110-17).** Since
+  1.10.1 a card's root carries Nuxt UI's `overflow-hidden`, which let a card in the page's flex
+  column shrink to nothing once the list below it was long: the filter form was cut down to its
+  labels or vanished, the *Append-only* and *Diagnostic bundle* cards were clipped, and the page
+  no longer scrolled down to them. The theme now clips a card's overflow (`overflow-clip`)
+  instead of hiding it, so none shrinks below its content, in Firefox as in Chromium. As on the subscriptions page, the automations' form column and list, the
+  site rules' list and the entries of the logs and the audit log now sit in soft cards, empty
+  states included, under their headings.
+
+### Security
+
+- **Token expiry, a vault entry bound to its reference, a sign-in warning and hardened systemd
+  units (RD-1110-07, audit S13, S14, S17, K5).** API and capture tokens take an optional expiry
+  in days when minted (`expires_in_days`, 1 to 3650; never by default, and never for existing
+  tokens); an expired token is refused like a revoked one and stays listed with its date until
+  revoked. New vault entries are sealed with their reference as associated data (envelope
+  version 2), so a file moved to another reference no longer decrypts; version-1 entries stay
+  readable. *Settings › Security* warns while the login is off and a trusted proxy or an external
+  URL is set. The deb, rpm and AUR packages ship one pair of user units from
+  `packaging/systemd/`, with `NoNewPrivileges`, `RestrictSUIDSGID`, `LockPersonality`,
+  `RestrictRealtime`, `SystemCallArchitectures=native` and `RestrictAddressFamilies`.
+
 ## [1.10.1] - 2026-10-05
 
 ### Security

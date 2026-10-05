@@ -353,7 +353,8 @@
   },
   "messages": {
     "saved": "Settings saved.",
-    "reset_done": "All runtime settings were reset to their defaults."
+    "reset_done": "All runtime settings were reset to their defaults.",
+    "number_empty": "A number field is empty. Enter a value to save."
   },
   "reset": {
     "title": "Restore factory settings?",

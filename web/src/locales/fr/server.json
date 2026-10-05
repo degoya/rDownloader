@@ -1167,7 +1167,14 @@
     "sftp.no_username": "L'accès SFTP enregistré n'indique aucun utilisateur ; saisis un nom d'utilisateur",
     "hotfolder.protected_directory": "Un dossier surveillé ne peut pas être, contenir ou se trouver dans un répertoire depuis lequel le service lance des programmes, des scripts ou des plugins, ou dans lequel il conserve ses données ({directory}).",
     "usenet.declared_size_implausible": "Les articles annoncent un fichier de {declared} octets, bien plus que les {listed} octets indiqués par le NZB ; le fichier n'a pas été assemblé",
-    "usenet.gap_fill_no_space": "Pas assez d'espace libre pour combler les trous des articles manquants ({required} octets nécessaires réserve comprise, {free} libres) ; nouvel essai plus tard"
+    "usenet.gap_fill_no_space": "Pas assez d'espace libre pour combler les trous des articles manquants ({required} octets nécessaires réserve comprise, {free} libres) ; nouvel essai plus tard",
+    "api.token_expiry_range": "Un jeton expire après 1 à {max} jours, ou jamais",
+    "notification.name_taken": "Une cible de notification portant ce nom existe déjà",
+    "usenet.server_name_taken": "Un serveur NNTP portant ce nom existe déjà",
+    "bandwidth.profile_name_taken": "Un profil de bande passante portant ce nom existe déjà",
+    "storage_root.name_or_path_taken": "Une racine de stockage portant ce nom ou ce dossier existe déjà",
+    "category.name_taken": "Une catégorie portant ce nom existe déjà",
+    "hotfolder.name_or_path_taken": "Un dossier surveillé portant ce nom ou ce dossier existe déjà"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

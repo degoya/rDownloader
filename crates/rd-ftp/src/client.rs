@@ -4,7 +4,7 @@
 //! its stream), so they are unified behind one enum here instead of leaking the difference
 //! into the probe and the runner.
 
-use std::{net::SocketAddr, time::Duration};
+use std::time::Duration;
 
 use rd_core::{RemoteAuthMode, RemoteCredential, RemoteProtocol};
 use secrecy::{ExposeSecret, SecretString};
@@ -77,10 +77,11 @@ impl Connection {
         custom_ca_pem: &[Vec<u8>],
         guard: Option<&rd_http::AddressPolicy>,
     ) -> anyhow::Result<FtpResult<Self>> {
-        let addresses = match socket_addresses(credential, guard).await {
-            Ok(addresses) => addresses,
-            Err(error) => return Ok(Err(suppaftp::FtpError::ConnectionError(error))),
-        };
+        let addresses =
+            match rd_http::socket_addresses(guard, &credential.host, credential.port).await {
+                Ok(addresses) => addresses,
+                Err(error) => return Ok(Err(suppaftp::FtpError::ConnectionError(error))),
+            };
         let address = addresses.as_slice();
         let mut connection = match credential.protocol {
             RemoteProtocol::Ftp => match AsyncFtpStream::connect(address).await {
@@ -249,31 +250,6 @@ impl tokio::io::AsyncRead for Holding {
         buffer: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
         std::pin::Pin::new(&mut self.data).poll_read(context, buffer)
-    }
-}
-
-/// The addresses the control connection may go to: under a guard, exactly those the rule
-/// admits (a refusal is an I/O error [`rd_http::refusal_in`] recognises); otherwise every
-/// address the host resolves to, as a plain connect would try them.
-async fn socket_addresses(
-    credential: &RemoteCredential,
-    guard: Option<&rd_http::AddressPolicy>,
-) -> std::io::Result<Vec<SocketAddr>> {
-    match guard {
-        Some(policy) => {
-            rd_http::connect_addresses(
-                policy,
-                &rd_http::SystemLookup,
-                &credential.host,
-                credential.port,
-            )
-            .await
-        }
-        None => Ok(
-            tokio::net::lookup_host(format!("{}:{}", credential.host, credential.port))
-                .await?
-                .collect(),
-        ),
     }
 }
 

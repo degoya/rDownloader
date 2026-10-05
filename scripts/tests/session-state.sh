@@ -22,11 +22,8 @@ REPO="$SCRATCH/repo"
 RUNS="$SCRATCH/runs"
 BIN="$SCRATCH/bin"
 
-failures=0
-passed=0
-ok() { echo "ok   $1"; passed=$((passed + 1)); }
-fail() { echo "FAIL $1"; failures=$((failures + 1)); }
-expect() { if eval "$2"; then ok "$1"; else fail "$1"; fi; }
+# shellcheck source=lib/expect.sh
+source "$ROOT/scripts/tests/lib/expect.sh"
 # shellcheck disable=SC2034  # `status` is read inside the eval of expect()
 run() {
     RD_REPO="$REPO" RD_RUN_ROOT="$RUNS" RD_LOCK_FILE="$SCRATCH/no.lock" RD_GH_REPO=o/r \
@@ -74,28 +71,26 @@ EOF
 chmod +x "$BIN/gh"
 
 run
-expect "a full run succeeds" '[[ $status -eq 0 ]]'
-expect "development is one ahead of origin" 'has "$SCRATCH/out" "origin: 1 ahead, 0 behind"'
-expect "the worktree is ahead and dirty" 'has "$SCRATCH/out" "[feat/x]" && has "$SCRATCH/out" "1 ahead, 0 behind; 1 uncommitted; green: none"'
-expect "the branch green is at HEAD" 'has "$SCRATCH/out" "branch: at HEAD"'
-expect "the full halves are told apart" 'has "$SCRATCH/out" "full:   rust at HEAD, web older (00000000)"'
-expect "a live run shows its pid" 'has "$SCRATCH/out" "running, pid $alive"'
-expect "an ended run shows its exit" 'has "$SCRATCH/out" "ended, exit 0"'
-expect "a run without an exit file is called out" 'has "$SCRATCH/out" "gone without an exit file, pid $gone"'
-expect "an absent lock file is free" 'has "$SCRATCH/out" "free (no lock file)"'
-expect "the newest tag, and the one origin lacks" 'has "$SCRATCH/out" "latest local: v1.1.0" && has "$SCRATCH/out" "not on origin: v1.1.0"'
-expect "open GitHub runs and the newest finished one" 'has "$SCRATCH/out" "in_progress  7  CI on main" && has "$SCRATCH/out" "newest finished: success  6  Release on v1.1.0"'
+expect_true "a full run succeeds" '[[ $status -eq 0 ]]'
+expect_true "development is one ahead of origin" 'has "$SCRATCH/out" "origin: 1 ahead, 0 behind"'
+expect_true "the worktree is ahead and dirty" 'has "$SCRATCH/out" "[feat/x]" && has "$SCRATCH/out" "1 ahead, 0 behind; 1 uncommitted; green: none"'
+expect_true "the branch green is at HEAD" 'has "$SCRATCH/out" "branch: at HEAD"'
+expect_true "the full halves are told apart" 'has "$SCRATCH/out" "full:   rust at HEAD, web older (00000000)"'
+expect_true "a live run shows its pid" 'has "$SCRATCH/out" "running, pid $alive"'
+expect_true "an ended run shows its exit" 'has "$SCRATCH/out" "ended, exit 0"'
+expect_true "a run without an exit file is called out" 'has "$SCRATCH/out" "gone without an exit file, pid $gone"'
+expect_true "an absent lock file is free" 'has "$SCRATCH/out" "free (no lock file)"'
+expect_true "the newest tag, and the one origin lacks" 'has "$SCRATCH/out" "latest local: v1.1.0" && has "$SCRATCH/out" "not on origin: v1.1.0"'
+expect_true "open GitHub runs and the newest finished one" 'has "$SCRATCH/out" "in_progress  7  CI on main" && has "$SCRATCH/out" "newest finished: success  6  Release on v1.1.0"'
 
 GH_FAIL=1 run
-expect "a gh that cannot reach GitHub is a note, not a failure" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "skipped: gh could not reach GitHub"'
+expect_true "a gh that cannot reach GitHub is a note, not a failure" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "skipped: gh could not reach GitHub"'
 
 run --no-network
-expect "--no-network skips both remote parts" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "origin: skipped (--no-network)" && ! has "$SCRATCH/out" "in_progress"'
+expect_true "--no-network skips both remote parts" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "origin: skipped (--no-network)" && ! has "$SCRATCH/out" "in_progress"'
 
 run --brief
-expect "--brief is five lines" '[[ $status -eq 0 ]] && [[ "$(wc -l < "$SCRATCH/out")" -eq 5 ]]'
-expect "--brief carries the counts and the running run" 'has "$SCRATCH/out" "latest tag v1.1.0" && has "$SCRATCH/out" "1 besides the main checkout, 1 ahead of development, 1 with uncommitted changes" && has "$SCRATCH/out" "running: alive"'
+expect_true "--brief is five lines" '[[ $status -eq 0 ]] && [[ "$(wc -l < "$SCRATCH/out")" -eq 5 ]]'
+expect_true "--brief carries the counts and the running run" 'has "$SCRATCH/out" "latest tag v1.1.0" && has "$SCRATCH/out" "1 besides the main checkout, 1 ahead of development, 1 with uncommitted changes" && has "$SCRATCH/out" "running: alive"'
 
-echo
-echo "$passed passed, $failures failed"
-[[ "$failures" -eq 0 ]]
+finish_tests session-state

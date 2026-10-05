@@ -12,10 +12,3 @@ wit-bindgen = "0.62"
 # `rlib` alongside `cdylib` so `cargo test` builds the scaffold for the host target and runs
 # the unit tests in `src/lib.rs` without a WebAssembly toolchain.
 crate-type = ["cdylib", "rlib"]
-
-[package.metadata.component]
-package = "{{PLUGIN_SLUG}}:auth"
-
-[package.metadata.component.target]
-path = "wit"
-world = "auth-plugin"

@@ -5,14 +5,14 @@
 //! HTTP surface, the byte-by-byte comparison twice here -- so one copy could drift from the
 //! others without anyone noticing.
 
-use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
 /// Lowercase hex SHA-256 of `bytes`: the stored form of a bearer, a session token or a
-/// recovery code, and the content hash of an upload.
+/// recovery code, and the content hash of an upload. The digest is `rd_sign`'s, the one the
+/// workspace fingerprints everything with (RD-1110-04).
 #[must_use]
 pub fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
-    hex::encode(Sha256::digest(bytes.as_ref()))
+    rd_sign::hex_sha256(bytes.as_ref())
 }
 
 /// Compares two byte strings in time that depends only on their lengths.

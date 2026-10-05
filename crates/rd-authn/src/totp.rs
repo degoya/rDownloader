@@ -59,6 +59,7 @@ pub fn code_at_step(secret: &[u8], step: u64) -> String {
 }
 
 /// The code for a unix timestamp.
+#[cfg(any(test, feature = "test-support"))]
 #[must_use]
 pub fn code_at(secret: &[u8], unix_seconds: u64) -> String {
     code_at_step(secret, unix_seconds / STEP_SECONDS)

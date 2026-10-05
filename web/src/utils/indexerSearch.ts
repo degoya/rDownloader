@@ -48,7 +48,8 @@ export function maxAgeDays(value: string | number | null | undefined): number | 
 /** The search fields of an indexer subscription's form (RD-180-20). */
 export interface IndexerSearchFields {
   query: string
-  maxAge: string | number
+  /** Days; `null` (or `undefined`, as an emptied number field reports it) is no limit. */
+  maxAge: number | null | undefined
   hidePassworded: boolean
   /** `none` sends no `pred`; a select item cannot carry the empty string. */
   pretime: 'none' | '0' | '1' | '2'

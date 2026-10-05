@@ -236,6 +236,9 @@ pub(crate) async fn due_deliveries(pool: &SqlitePool, now: DateTime<Utc>) -> Res
     .collect()
 }
 
+/// A target's name is unique (`notification_targets.name`); a second one is a refusal, not a fault.
+const TARGET_NAME_TAKEN: &str = "a notification target with this name already exists";
+
 pub(crate) async fn upsert_target(
     connection: &mut SqliteConnection,
     id: Option<NotificationTargetId>,
@@ -270,7 +273,8 @@ pub(crate) async fn upsert_target(
                 .bind(now)
                 .bind(id.to_string())
                 .execute(&mut *tx)
-                .await?;
+                .await
+                .map_err(|error| crate::error::tag_duplicate(error, TARGET_NAME_TAKEN))?;
             anyhow::ensure!(
                 updated.rows_affected() > 0,
                 StoreError::not_found("notification target not found")
@@ -294,7 +298,8 @@ pub(crate) async fn upsert_target(
             .bind(now)
             .bind(now)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(|error| crate::error::tag_duplicate(error, TARGET_NAME_TAKEN))?;
             id
         }
     };

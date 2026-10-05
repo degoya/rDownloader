@@ -8,7 +8,7 @@
 use plugin_common::{CaptchaChallenge, Failure, HttpRequest, ImageChallenge, PluginHost, Resolved};
 use url::Url;
 
-use super::{CallError, api_call_raw, convert_failure};
+use super::{CallError, api_call_raw};
 use crate::api::{
     self,
     free::{FreeUrlResult, WaitStep},
@@ -51,8 +51,7 @@ async fn solve_and_submit<H: PluginHost>(
     )
     .await
     .map_err(free_error)?;
-    let (challenge_id, image_url) =
-        api::free::captcha_request(&challenge).map_err(convert_failure)?;
+    let (challenge_id, image_url) = api::free::captcha_request(&challenge)?;
     let image = fetch_captcha_image(host, &image_url).await?;
     let solution = host.solve_captcha(image).await?;
     free_geturl(
@@ -73,10 +72,8 @@ async fn fetch_captcha_image<H: PluginHost>(
     api::ensure_http_status(
         response.status,
         plugin_common::retry_after(&response.headers),
-    )
-    .map_err(convert_failure)?;
-    let mime = api::free::image_mime(response.header("content-type"), &response.body)
-        .map_err(convert_failure)?;
+    )?;
+    let mime = api::free::image_mime(response.header("content-type"), &response.body)?;
     Ok(CaptchaChallenge::Image(ImageChallenge {
         mime,
         data: response.body,
@@ -101,7 +98,7 @@ async fn wait_out_countdown<H: PluginHost>(
         };
         match api::free::wait_step(seconds, round) {
             WaitStep::Blocked(seconds) => {
-                return Err(convert_failure(api::free::wait_limit_failure(seconds)));
+                return Err(api::free::wait_limit_failure(seconds).into());
             }
             WaitStep::Wait(seconds) => host.wait(seconds).await?,
         }
@@ -112,8 +109,8 @@ async fn wait_out_countdown<H: PluginHost>(
     let raw_url = result
         .url
         .as_deref()
-        .ok_or_else(|| convert_failure(api::free::no_free_link_failure(&result.diagnosis())))?;
-    api::parse_download_url(raw_url).map_err(convert_failure)
+        .ok_or_else(|| Failure::from(api::free::no_free_link_failure(&result.diagnosis())))?;
+    api::parse_download_url(raw_url).map_err(Failure::from)
 }
 
 async fn free_geturl<H: PluginHost>(host: &H, body: Vec<u8>) -> Result<FreeUrlResult, CallError> {
@@ -125,6 +122,6 @@ async fn free_geturl<H: PluginHost>(host: &H, body: Vec<u8>) -> Result<FreeUrlRe
 fn free_error(error: CallError) -> Failure {
     match error {
         CallError::Host(failure) => failure,
-        CallError::Api(failure) => convert_failure(api::free::free_failure(failure)),
+        CallError::Api(failure) => api::free::free_failure(failure).into(),
     }
 }

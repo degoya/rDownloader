@@ -94,8 +94,11 @@ describe('AuditView', () => {
     expect(within(list).queryByText('aaaabbbbccccddddeeeeffff00001111')).toBeNull()
 
     const toggles = within(list).getAllByRole('button', { name: audit.list.expand })
+    expect(toggles[0]?.getAttribute('aria-expanded')).toBe('false')
     await fireEvent.click(toggles[0] as HTMLElement)
 
+    // The trigger of a collapsible says it is open (RD-1110-11).
+    expect(toggles[0]?.getAttribute('aria-expanded')).toBe('true')
     expect(within(list).getByText('aaaabbbbccccddddeeeeffff00001111')).toBeTruthy()
     expect(within(list).getByText('password')).toBeTruthy()
   })

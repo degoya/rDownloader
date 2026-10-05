@@ -8,6 +8,8 @@ license.workspace = true
 [features]
 # Forwards rd-core's deterministic crash points; see crates/rd-core/src/failpoint.rs.
 failpoints = ["rd-core/failpoints"]
+# Hooks only tests call (RD-1110-06); switched on by dev-dependencies, never by the service.
+test-support = []
 
 [dependencies]
 anyhow.workspace = true
@@ -33,6 +35,8 @@ uuid.workspace = true
 workspace = true
 
 [dev-dependencies]
+# Its own integration tests reach the `test-support` hooks this way.
+rd-db = { path = ".", features = ["test-support"] }
 # The key canary in `tests/transform_key.rs` searches for the key in the spelling the
 # vault would have written it in, which is base64.
 base64.workspace = true

@@ -15,13 +15,13 @@
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteEntry,
     RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest, host,
-    http::{self, RequestHeader, RequestQuery},
+    http::{RequestHeader, RequestQuery},
     job_context, refuse,
     types::{Failure, FailureKind},
 };
 
 use crate::{
-    api::{self, ApiFailure, ErrorKind, Stage},
+    api::{self, Stage},
     messages,
     source::{self, Handed, Kind},
     upload,
@@ -31,30 +31,6 @@ struct Component;
 
 /// How many random bytes the multipart boundary is built from.
 const BOUNDARY_BYTES: u32 = 16;
-
-fn from_api(failure: ApiFailure) -> Failure {
-    Failure {
-        category: match failure.kind {
-            ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-            ErrorKind::Permanent => FailureKind::Permanent,
-            ErrorKind::Offline => FailureKind::Offline,
-            ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-            ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-            ErrorKind::Unsupported => FailureKind::Unsupported,
-            // A duplicate is the provider saying the job already exists. Reported as
-            // permanent so the host stops submitting: asking again only creates another one,
-            // and the adoption check is what turns this into a handle.
-            ErrorKind::Duplicate => FailureKind::Permanent,
-        },
-        message: failure.message,
-        code: Some(failure.code.to_owned()),
-        params: failure
-            .params
-            .into_iter()
-            .map(|(name, value)| (name.to_owned(), value))
-            .collect(),
-    }
-}
 
 /// The bearer header, as a template. The key's value never reaches this plugin: the host
 /// substitutes it on the way out, towards `api.torbox.app` and nowhere else.
@@ -90,16 +66,19 @@ fn call(
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
     let url = format!("{}{path}", api::API_BASE);
-    let response = http::http_request(method, &url, query, &headers(content_type), body)?;
-    // Seconds only, never `0`, at most a day: the reader every plugin shares (RD-191-07).
-    let retry_after = plugin_common::retry_after(&response.headers);
     // The `error` word decides whatever the status says, and the status decides when there is
     // no document to read. Both directions matter: TorBox answers refusals with 200.
-    let envelope: api::ErrorEnvelope = serde_json::from_slice(&response.body).unwrap_or_default();
-    if let Some(failure) = api::failure_from(response.status, retry_after, &envelope) {
-        return Err(from_api(failure));
-    }
-    Ok(response.body)
+    plugin_guest_remote_job::call(
+        method,
+        &url,
+        query,
+        &headers(content_type),
+        body,
+        |status, retry_after, answer| {
+            let envelope: api::ErrorEnvelope = serde_json::from_slice(answer).unwrap_or_default();
+            api::failure_from(status, retry_after, &envelope)
+        },
+    )
 }
 
 /// The `data` half of an answer, parsed.

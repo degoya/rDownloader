@@ -8,6 +8,8 @@
 #   run_status some command args     # sets $status and leaves the output in $output
 #   expect_status "a name" 1         # compares the last run_status
 #   expect_output "a name" "needle"  # the last run_status printed this (fixed string)
+#   expect_true "a name" '[[ $x ]]'  # the condition (a shell expression, evaluated) holds
+#   ok "a name" / fail "a name" [detail...]  # a check the test decided itself
 #   finish_tests <label>             # the summary line; exit 1 when anything failed
 
 failures=0
@@ -24,6 +26,19 @@ expect() {
         echo "FAIL $name: expected '${expected}', got '${actual}'"
         failures=$((failures + 1))
     fi
+}
+
+ok() {
+    echo "ok   $1"
+    passed=$((passed + 1))
+}
+
+# The name, then each detail on a line of its own, indented under it.
+fail() {
+    echo "FAIL $1"
+    shift
+    if [[ $# -gt 0 ]]; then printf '     %s\n' "$@"; fi
+    failures=$((failures + 1))
 }
 
 # Runs a command with errexit off, keeping its exit status and its combined output.

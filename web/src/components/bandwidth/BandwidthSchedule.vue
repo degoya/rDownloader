@@ -8,6 +8,7 @@ import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import TimezoneSelect from '@/components/TimezoneSelect.vue'
+import { PLAIN, isNumber } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 
 const props = defineProps<{ profiles: BandwidthProfile[] }>()
@@ -103,9 +104,11 @@ function removeWindow(index: number): void {
 }
 
 async function save(): Promise<void> {
-  pending.value = true
   error.value = null
   message.value = null
+  // The windows sit outside the form, so their emptied priority is held here (RD-1110-10).
+  if (windows.value.some(window => !isNumber(window.priority))) return void (error.value = t('settings.messages.number_empty'))
+  pending.value = true
   const body: BandwidthScheduleRequest = {
     timezone: schedule.value.timezone,
     default_profile_id: schedule.value.default_profile_id ?? null,
@@ -163,7 +166,7 @@ async function save(): Promise<void> {
                 <UInput :model-value="timeOf(window.end_minute)" type="time" class="w-28" @update:model-value="window.end_minute = minutesOf(String($event))" />
               </UFormField>
               <UFormField :label="t('bandwidth.schedule.priority')">
-                <UInput v-model.number="window.priority" type="number" class="w-24" />
+                <UInputNumber v-model="window.priority" required :format-options="PLAIN" class="w-24" />
               </UFormField>
               <USwitch v-model="window.enabled" :aria-label="t('bandwidth.schedule.enabled')" />
               <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('bandwidth.schedule.duplicate_hint')" @click="duplicateWindow(index)" />

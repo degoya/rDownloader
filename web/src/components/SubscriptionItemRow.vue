@@ -110,18 +110,30 @@ const detailsLabel = computed(() =>
 <template>
   <li class="border border-muted">
     <div class="flex flex-wrap items-center gap-2 p-2">
-      <UButton
+      <!--
+        The trigger leads the row; the details are the row's last line, edge to edge under a
+        hairline (`design.md`, *Opening and closing*).
+      -->
+      <UCollapsible
         v-if="expandable"
-        :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        class="shrink-0"
-        :aria-expanded="expanded"
-        :aria-label="detailsLabel"
-        :title="detailsLabel"
-        @click="expanded = !expanded"
-      />
+        v-model:open="expanded"
+        class="contents"
+        :ui="{ content: 'order-last -mx-2 -mb-2 basis-full border-t border-muted px-2 py-2' }"
+      >
+        <UButton
+          :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          class="shrink-0"
+          :aria-expanded="expanded"
+          :aria-label="detailsLabel"
+          :title="detailsLabel"
+        />
+        <template #content>
+          <SubscriptionItemDetails :attributes="attributes" :show-images="props.showImages" />
+        </template>
+      </UCollapsible>
       <!-- Keeps the titles aligned when a neighbour has details and this one has none. -->
       <span v-else class="size-6 shrink-0" />
 
@@ -217,9 +229,5 @@ const detailsLabel = computed(() =>
     </div>
     <!-- Why a hit was skipped is a sentence, and a sentence in the row is taken from the title. -->
     <p v-if="props.item.reason" class="px-2 pb-2 text-xs text-muted">{{ t(`subscriptions.reasons.${props.item.reason}`) }}</p>
-
-    <div v-if="expanded" class="border-t border-muted px-2 py-2">
-      <SubscriptionItemDetails :attributes="attributes" :show-images="props.showImages" />
-    </div>
   </li>
 </template>

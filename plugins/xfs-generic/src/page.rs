@@ -70,13 +70,6 @@ pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
     xfs_common::free::countdown_seconds(html)
 }
 
-/// Seconds this IP must wait for another free download, or `Some(0)` when the page states a
-/// limit without naming a duration.
-#[must_use]
-pub(crate) fn ip_block_seconds(html: &str) -> Option<u64> {
-    xfs_common::free::ip_block_seconds(html)
-}
-
 /// Whether the page says the captcha answer was rejected.
 #[must_use]
 pub(crate) fn is_wrong_captcha(html: &str) -> bool {
@@ -87,19 +80,6 @@ pub(crate) fn is_wrong_captcha(html: &str) -> bool {
 #[must_use]
 pub(crate) fn direct_link(html: &str, hints: &[&str], domains: &[&str]) -> Option<String> {
     xfs_common::page::direct_link_any(html, hints, domains)
-}
-
-/// Form fields encoded for an `application/x-www-form-urlencoded` post.
-#[must_use]
-pub(crate) fn encode_form(fields: &[(String, String)]) -> Vec<u8> {
-    xfs_common::page::encode_form(fields)
-}
-
-/// A short explanation of what a page appears to be, for a failure that would otherwise be
-/// empty.
-#[must_use]
-pub(crate) fn diagnose(html: &str) -> String {
-    xfs_common::page::diagnose(html)
 }
 
 #[cfg(test)]

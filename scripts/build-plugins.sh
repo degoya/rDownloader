@@ -9,7 +9,10 @@
 #
 # Plugins are built deliberately WITHOUT WASI — scripts/check-plugin-imports.sh rejects any
 # import outside `rdownloader:plugin`, here and in CI — so the target is
-# wasm32-unknown-unknown via cargo-component. Signing uses the release key; keep it out of the
+# wasm32-unknown-unknown: `cargo build` links a core module, whose `wit_bindgen::generate!`
+# embeds the world it was written against, and `wasm-tools component new` (the version
+# WASM_TOOLS_VERSION pins, as CI does) turns it into the component (RD-1110-08: cargo-component,
+# unmaintained since 2025, did the same two steps). Signing uses the release key; keep it out of the
 # repository. The packaged version comes from each plugin's own manifest.toml, which is NOT the
 # workspace version: re-packaging must not silently move a plugin to a new version, because
 # installed jobs pin the version they were resolved with.
@@ -33,9 +36,9 @@
 # and the hash of the component itself, and the dependency hash (`deps_hash`: registry packages,
 # root Cargo.toml, compiler). A component is current when all three still match. File
 # times said "stale" after every checkout and rebase — in 5 of 8 branches on 2026-09-24, for
-# plugins nobody had touched. A bare `cargo component build` writes no stamp, so the component
-# it leaves no longer matches the old one and counts as stale: a stamp never vouches for a
-# build it did not see. `crates/rd-plugin-host/src/artifact.rs` applies the same definition.
+# plugins nobody had touched. A bare `cargo build` writes no stamp (and leaves a core module, not
+# a component), so the file it leaves no longer matches the old one and counts as stale: a stamp
+# never vouches for a build it did not see. `crates/rd-plugin-host/src/artifact.rs` applies the same definition.
 #
 # Same version, same content (RD-120-47). An installation only takes a bundled package whose
 # version is *newer* than the one it has, so a plugin that changed and kept its version is never
@@ -237,9 +240,28 @@ fi
 # Everything above this line is a query over existing files. Everything below it compiles.
 rd_take_lock "$@"
 
-command -v cargo-component > /dev/null || {
-    echo "cargo-component is not installed (cargo install cargo-component)" >&2
+# The component bytes depend on the wasm-tools that encodes them, and the signed packages are
+# compared by those bytes (RD-120-47), so a build here uses the version CI uses or none.
+installed_wasm_tools="$(wasm_tools_version)"
+[[ "$installed_wasm_tools" == "$WASM_TOOLS_VERSION" ]] || {
+    echo "wasm-tools $WASM_TOOLS_VERSION is required, found ${installed_wasm_tools:-none}" >&2
+    echo "   cargo install wasm-tools --version $WASM_TOOLS_VERSION --locked" >&2
     exit 1
+}
+
+# Turns the core module cargo linked for plugin $1 into its component, at the same path.
+#
+# Written beside it and renamed over it: cargo's file in release/ is a hard link to the one in
+# deps/, and writing through it would leave a component where cargo keeps its core module. The
+# rename leaves deps/ alone, and the next cargo build links release/ to the core module again,
+# fresh crate or not — which is why every call here follows a cargo build of the same plugin.
+# No adapter and no `--world`: nothing imports WASI, and the world is the one `generate!`
+# embedded.
+make_component() {
+    local module; module="$(component_path "$1")"
+    wasm-tools component new "$module" -o "$module.component" \
+        || { echo "!! rd-plugin-$1: wasm-tools could not make a component of $module" >&2; exit 1; }
+    mv "$module.component" "$module"
 }
 
 # Builds the components of the plugins named as arguments from THIS checkout, and stamps them.
@@ -270,11 +292,11 @@ build_components() {
         packages+=(-p "rd-plugin-$name")
     done
     echo "--> $# component(s) in one cargo call"
-    if ! CARGO_BUILD_JOBS="$JOBS" cargo component build --release --target "$TARGET" -j "$JOBS" "${packages[@]}"; then
+    if ! CARGO_BUILD_JOBS="$JOBS" cargo build --release --target "$TARGET" -j "$JOBS" "${packages[@]}"; then
         echo "!! the combined build failed; building one plugin at a time to name the one that fails" >&2
         for name in "$@"; do
             echo "--> rd-plugin-$name"
-            CARGO_BUILD_JOBS="$JOBS" cargo component build --release --target "$TARGET" -j "$JOBS" -p "rd-plugin-$name" \
+            CARGO_BUILD_JOBS="$JOBS" cargo build --release --target "$TARGET" -j "$JOBS" -p "rd-plugin-$name" \
                 || { echo "!! rd-plugin-$name does not build" >&2; exit 1; }
         done
         echo "!! every plugin built on its own, but not together — nothing was stamped" >&2
@@ -283,6 +305,7 @@ build_components() {
     for name in "$@"; do
         component="$(component_path "$name")"
         [[ -f "$component" ]] || { echo "!! $component was not produced" >&2; exit 1; }
+        make_component "$name"
         # The same guard CI runs, here so a forbidden import is caught before the push rather
         # than after it.
         "$ROOT/scripts/check-plugin-imports.sh" "$component"

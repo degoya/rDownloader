@@ -37,6 +37,7 @@ import CoverPlaceholder from '@/components/CoverPlaceholder.vue'
 import IndexerHitBadges from '@/components/IndexerHitBadges.vue'
 import IndexerSearchTypeFields from '@/components/IndexerSearchTypeFields.vue'
 import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { useIndexerSearchType } from '@/composables/useIndexerSearchType'
 import { translateServerMessage } from '@/i18n/server'
 import { useCollectorStore } from '@/stores/collector'
@@ -48,6 +49,7 @@ import {
   hitDescription, hitFacts, hitKey, maxAgeDays, queryProblem, sortHits, type HitSortKey
 } from '@/utils/indexerSearch'
 import { showItemImages } from '@/utils/itemImages'
+import { WHOLE } from '@/utils/numberInput'
 
 /** `MAX_GRAB_ITEMS` in `crates/rd-api-intake/src/indexer_search.rs`. */
 const MAX_GRAB = 50
@@ -55,6 +57,7 @@ const ALL = '__all__'
 
 const { t } = useI18n()
 const toast = useToast()
+const showError = useErrorToast()
 const indexers = useIndexersStore()
 const nzb = useNzbImportsStore()
 const collector = useCollectorStore()
@@ -62,7 +65,7 @@ const collector = useCollectorStore()
 const query = ref('')
 const indexerChoice = ref(ALL)
 const categories = ref<string[]>([])
-const maxAge = ref<string | number>('')
+const maxAge = ref<number | null | undefined>(null)
 const hidePassworded = ref(false)
 const limit = ref<number>(DEFAULT_LIMIT)
 /** The page size as a number, whatever the select handed back. */
@@ -173,7 +176,7 @@ function validate(): boolean {
   queryError.value = problem
     ? translateServerMessage({ code: problem, params: { minimum: String(MIN_QUERY_CHARS), maximum: String(MAX_QUERY_CHARS) } })
     : null
-  const ageGiven = String(maxAge.value).trim() !== ''
+  const ageGiven = maxAge.value != null
   ageError.value = ageGiven && maxAgeDays(maxAge.value) === null
     ? translateServerMessage({ code: 'indexer.max_age_invalid', params: { maximum: String(MAX_AGE_DAYS) } })
     : null
@@ -240,7 +243,7 @@ async function grab(chosen: readonly IndexerSearchHit[]): Promise<void> {
   const response = await api.POST('/api/v1/indexers/grab', { body: { items } })
   if (!response.data) {
     markRows(chosen, () => 'error')
-    toast.add({ title: responseError(response), color: 'error', icon: 'i-lucide-circle-alert' })
+    showError(responseError(response))
     return
   }
   const { imports, failed } = response.data
@@ -337,12 +340,12 @@ function ageLabel(hit: IndexerSearchHit): string {
       <IndexerSearchTypeFields v-model="typed" :caps-list="capsList" :disabled="!available" :error="typedError" @ask="askCaps" />
       <UInputTags v-model="categories" class="w-48" :disabled="!available" :placeholder="t('linkgrabber.search.categories_placeholder')" :aria-label="t('linkgrabber.search.categories_label')" data-testid="indexer-search-categories" />
       <div class="w-48">
-        <UInput
+        <UInputNumber
           v-model="maxAge"
-          type="number"
-          min="1"
-          :disabled="!available"
+          :min="1"
           :max="MAX_AGE_DAYS"
+          :format-options="WHOLE"
+          :disabled="!available"
           class="w-full"
           :placeholder="t('linkgrabber.search.max_age_label')"
           :aria-label="t('linkgrabber.search.max_age_label')"

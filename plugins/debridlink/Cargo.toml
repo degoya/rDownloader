@@ -20,13 +20,6 @@ rd-plugin-api = { path = "../../crates/rd-plugin-api" }
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:debridlink"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "resolver-plugin"
-
 [dev-dependencies]
 tokio.workspace = true
 

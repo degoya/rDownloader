@@ -6267,6 +6267,12 @@ export interface components {
          *     always gets `capture:*`, and `capture:queue` on request, while an API client picks its areas.
          */
         ApiTokenRequest: {
+            /**
+             * Format: int32
+             * @description Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires; an expired
+             *     token is refused like a revoked one.
+             */
+            expires_in_days?: number | null;
             label: string;
             /**
              * @description The areas this token may reach, as scope strings.
@@ -7614,6 +7620,12 @@ export interface components {
         };
         /** @description Human label for a newly paired native capture agent. */
         CapturePairRequest: {
+            /**
+             * Format: int32
+             * @description Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires, which is
+             *     what every token paired before the choice existed does.
+             */
+            expires_in_days?: number | null;
             label: string;
             /**
              * @description Whether the agent may also pause and resume the whole queue from its tray
@@ -7708,6 +7720,13 @@ export interface components {
         CaptureToken: {
             /** Format: date-time */
             created_at: string;
+            /**
+             * Format: date-time
+             * @description From when on the token is refused like a revoked one (RD-1110-07); `None` never
+             *     expires. An expired token stays listed until somebody revokes it, so it does not
+             *     vanish from the list the moment its client starts failing.
+             */
+            expires_at?: string | null;
             id: components["schemas"]["CaptureTokenId"];
             label: string;
             /**
@@ -18596,6 +18615,13 @@ export interface operations {
                     "application/json": components["schemas"]["BandwidthProfile"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     update_profile: {
@@ -18624,6 +18650,13 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -19649,6 +19682,13 @@ export interface operations {
                     "application/json": components["schemas"]["Category"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     update_category: {
@@ -19677,6 +19717,13 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22934,6 +22981,13 @@ export interface operations {
                     "application/json": components["schemas"]["HotFolderConfig"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     update_hotfolder: {
@@ -22962,6 +23016,13 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23826,6 +23887,13 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationTarget"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     update_target: {
@@ -23854,6 +23922,13 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -27521,6 +27596,13 @@ export interface operations {
                     "application/json": components["schemas"]["StorageRootResponse"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     update_storage_root: {
@@ -27549,6 +27631,13 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -29271,6 +29360,13 @@ export interface operations {
                     "application/json": components["schemas"]["UsenetServer"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     update_usenet_server: {
@@ -29299,6 +29395,13 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

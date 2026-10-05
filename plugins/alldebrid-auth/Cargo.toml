@@ -12,12 +12,5 @@ plugin-guest-auth = { path = "../guest-auth" }
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:alldebrid-auth"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "auth-plugin"
-
 [lints]
 workspace = true

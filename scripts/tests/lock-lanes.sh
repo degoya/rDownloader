@@ -23,10 +23,8 @@ trap 'rm -rf "$SCRATCH"' EXIT
 
 command -v flock > /dev/null || { echo "lock-lanes: flock is not installed"; exit 1; }
 
-failures=0
-passed=0
-ok() { echo "ok   $1"; passed=$((passed + 1)); }
-fail() { echo "FAIL $1"; shift; printf '     %s\n' "$@"; failures=$((failures + 1)); }
+# shellcheck source=lib/expect.sh
+source "$ROOT/scripts/tests/lib/expect.sh"
 
 # --- the stand-in job ------------------------------------------------------------------------
 
@@ -288,9 +286,4 @@ else
         "$(grep '^##RD-STEP' "$PIPE_LOG" 2>&1)"
 fi
 
-echo
-if [[ "$failures" -gt 0 ]]; then
-    echo "lock-lanes: $failures failed, $passed passed"
-    exit 1
-fi
-echo "lock-lanes: $passed passed"
+finish_tests lock-lanes

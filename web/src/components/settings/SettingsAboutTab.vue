@@ -148,13 +148,13 @@ const anyOpen = computed(() => open.rust || open.npm)
             :data-link="link.kind"
           >
             <span class="min-w-48 text-toned">{{ t(LINK_LABELS[link.kind]) }}</span>
-            <a
+            <ULink
               v-if="link.published && link.url"
-              :href="safeHttpUrl(link.url)"
+              :to="safeHttpUrl(link.url)"
               target="_blank"
               rel="noopener noreferrer"
               class="break-all font-mono text-xs text-primary underline-offset-2 hover:underline"
-            >{{ link.url }}</a>
+            >{{ link.url }}</ULink>
             <template v-else>
               <span v-if="link.url" class="break-all font-mono text-xs text-muted">{{ link.url }}</span>
               <UBadge color="neutral" variant="subtle" size="sm" data-unpublished>{{ t('settings.about.links.unpublished') }}</UBadge>
@@ -188,7 +188,7 @@ const anyOpen = computed(() => open.rust || open.npm)
             data-testid="about-tools"
           >
             <template #name-cell="{ row }">
-              <a :href="safeHttpUrl(row.original.homepage)" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ row.original.name }}</a>
+              <ULink :to="safeHttpUrl(row.original.homepage)" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ row.original.name }}</ULink>
             </template>
             <template #license-cell="{ row }"><span class="font-mono text-xs">{{ row.original.license }}</span></template>
             <template #file-cell="{ row }"><span class="font-mono text-xs text-muted">{{ row.original.file }}</span></template>
@@ -209,42 +209,53 @@ const anyOpen = computed(() => open.rust || open.npm)
             data-testid="about-filter"
           />
           <div v-for="{ value: ecosystem, labelKey } in ECOSYSTEMS" :key="ecosystem" class="mt-4" :data-ecosystem="ecosystem">
+            <!--
+              The trigger stays beside the heading; the licence summary and then the table are
+              the row's next lines (`design.md`, *Opening and closing*).
+            -->
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h4 class="text-sm text-highlighted">
                 {{ t(labelKey) }}
                 <span class="numeric text-muted">· {{ packages(ecosystem).length }}</span>
               </h4>
-              <UButton
+              <UCollapsible
                 v-if="packages(ecosystem).length"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                :icon="open[ecosystem] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                :label="open[ecosystem] ? t('settings.about.licenses.hide') : t('settings.about.licenses.show', { count: packages(ecosystem).length })"
-                :aria-expanded="open[ecosystem]"
-                :data-toggle="ecosystem"
-                @click="open[ecosystem] = !open[ecosystem]"
-              />
-            </div>
-            <ul class="mt-2 flex flex-wrap gap-1.5" :aria-label="t('settings.about.licenses.column_license')">
-              <li v-for="entry in summary(ecosystem)" :key="entry.license">
-                <UBadge color="neutral" variant="outline" size="sm" class="font-mono">{{ entry.license }} · {{ entry.count }}</UBadge>
-              </li>
-            </ul>
-            <div v-if="open[ecosystem]" class="mt-3 max-h-96 overflow-auto border border-muted">
-              <p v-if="!visible(ecosystem).length" class="p-3 text-sm text-muted">{{ t('settings.about.licenses.no_match') }}</p>
-              <UTable
-                v-else
-                sticky
-                :data="visible(ecosystem)"
-                :columns="packageColumns"
-                :ui="{ thead: 'eyebrow', th: 'px-3 py-1 font-normal', td: 'px-3 py-1 font-mono text-xs' }"
-                :data-list="ecosystem"
+                v-model:open="open[ecosystem]"
+                class="contents"
+                :ui="{ content: 'order-2 basis-full' }"
               >
-                <template #name-cell="{ row }"><span class="break-all">{{ row.original.name }}</span></template>
-                <template #version-cell="{ row }"><span class="numeric">{{ row.original.version }}</span></template>
-                <template #license-cell="{ row }">{{ row.original.license }}</template>
-              </UTable>
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  :icon="open[ecosystem] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                  :label="open[ecosystem] ? t('settings.about.licenses.hide') : t('settings.about.licenses.show', { count: packages(ecosystem).length })"
+                  :aria-expanded="open[ecosystem]"
+                  :data-toggle="ecosystem"
+                />
+                <template #content>
+                  <div class="mt-1 max-h-96 overflow-auto border border-muted">
+                    <p v-if="!visible(ecosystem).length" class="p-3 text-sm text-muted">{{ t('settings.about.licenses.no_match') }}</p>
+                    <UTable
+                      v-else
+                      sticky
+                      :data="visible(ecosystem)"
+                      :columns="packageColumns"
+                      :ui="{ thead: 'eyebrow', th: 'px-3 py-1 font-normal', td: 'px-3 py-1 font-mono text-xs' }"
+                      :data-list="ecosystem"
+                    >
+                      <template #name-cell="{ row }"><span class="break-all">{{ row.original.name }}</span></template>
+                      <template #version-cell="{ row }"><span class="numeric">{{ row.original.version }}</span></template>
+                      <template #license-cell="{ row }">{{ row.original.license }}</template>
+                    </UTable>
+                  </div>
+                </template>
+              </UCollapsible>
+              <ul class="order-1 flex basis-full flex-wrap gap-1.5" :aria-label="t('settings.about.licenses.column_license')">
+                <li v-for="entry in summary(ecosystem)" :key="entry.license">
+                  <UBadge color="neutral" variant="outline" size="sm" class="font-mono">{{ entry.license }} · {{ entry.count }}</UBadge>
+                </li>
+              </ul>
             </div>
           </div>
         </template>

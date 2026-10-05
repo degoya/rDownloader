@@ -83,7 +83,7 @@
 //!   consequence of using a query parameter for a JSON payload and cannot be worked around from
 //!   this module.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 use serde_json::Value;
 use url::Url;
@@ -277,37 +277,6 @@ pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
     })
 }
 
-/// Failure classification independent of the native (`rd_core::Failure`) and WASM
-/// (WIT-generated `Failure`) representations; both adapters convert this into their own type.
-#[derive(Debug)]
-pub(crate) struct ApiFailure {
-    pub(crate) kind: ErrorKind,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-    pub(crate) params: Vec<(&'static str, String)>,
-}
-
-/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
-/// on either.
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-}
-
-fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
 /// Classifies a non-`OK` `status`/`error` message. Mirrors JD's `handleErrors` in its exact
 /// `if`/`else if` order — see `api/tests.rs`'s module doc for the full per-branch enumeration
 /// with JD line references. `has_link` mirrors whether JD's call carries a non-null
@@ -316,49 +285,49 @@ fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
 pub(crate) fn classify_message(message: &str, has_link: bool) -> ApiFailure {
     let lower = message.to_ascii_lowercase();
     if lower.contains("two-factor verification required") {
-        return coded(
+        return ApiFailure::new(
             ErrorKind::RateLimited(Some(300)),
             messages::TWO_FACTOR_REQUIRED,
         );
     }
     if lower.contains("no server available for this filehost") {
-        return coded(ErrorKind::Transient(Some(300)), messages::HOST_UNAVAILABLE);
+        return ApiFailure::new(ErrorKind::Transient(Some(300)), messages::HOST_UNAVAILABLE);
     }
     if lower.contains("you have reached max download request") {
-        return coded(
+        return ApiFailure::new(
             ErrorKind::RateLimited(Some(300)),
             messages::TOO_MANY_REQUESTS,
         );
     }
     if lower.contains("you have reached max download limit of") {
-        return coded(ErrorKind::RateLimited(Some(60)), messages::LIMIT_REACHED);
+        return ApiFailure::new(ErrorKind::RateLimited(Some(60)), messages::LIMIT_REACHED);
     }
     if lower.contains("invalid file url format") {
-        return coded(ErrorKind::Transient(None), messages::INVALID_LINK_FORMAT);
+        return ApiFailure::new(ErrorKind::Transient(None), messages::INVALID_LINK_FORMAT);
     }
     if lower.contains("file not found") || lower.contains("file deleted on") {
-        return coded(ErrorKind::Offline, messages::FILE_OFFLINE);
+        return ApiFailure::new(ErrorKind::Offline, messages::FILE_OFFLINE);
     }
     if lower.contains("your account has expired") {
-        return coded(ErrorKind::RateLimited(Some(300)), messages::ACCOUNT_EXPIRED);
+        return ApiFailure::new(ErrorKind::RateLimited(Some(300)), messages::ACCOUNT_EXPIRED);
     }
     if lower == "this file requires password" {
-        return coded(ErrorKind::Permanent, messages::PASSWORD_PROTECTED);
+        return ApiFailure::new(ErrorKind::Permanent, messages::PASSWORD_PROTECTED);
     }
     if lower.contains("please upgrade to elite membership") {
-        return coded(
+        return ApiFailure::new(
             ErrorKind::RateLimited(Some(600)),
             messages::PREMIUM_REQUIRED,
         );
     }
     if lower.contains("incorrect username or password") {
-        return coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS);
+        return ApiFailure::new(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS);
     }
     if lower.contains("account has exceeded the daily quota") {
-        return coded(ErrorKind::RateLimited(Some(300)), messages::LIMIT_REACHED);
+        return ApiFailure::new(ErrorKind::RateLimited(Some(300)), messages::LIMIT_REACHED);
     }
     if lower.contains("not supported") {
-        return coded(ErrorKind::Unsupported, messages::HOST_UNSUPPORTED);
+        return ApiFailure::new(ErrorKind::Unsupported, messages::HOST_UNSUPPORTED);
     }
     ApiFailure {
         kind: if has_link {
@@ -408,34 +377,35 @@ pub(crate) fn error_from_envelope(
     error_message(status, error).map(|message| classify_message(&message, has_link))
 }
 
-/// Maps a bare HTTP status whose body did not parse as an [`Envelope`]/[`GenLinksResponse`].
-///
-/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
-/// (RD-191-07); a `429` or a `5xx` carries the response's `Retry-After`. Checked before it:
-/// `425` reuses JD's `handleDownloadErrors` "still caching, retry" semantics defensively for the
-/// JSON API (see the module doc's IMPL-VERIFY note on `SERVER_ERROR`).
+/// How LinkSnappy's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+pub(crate) const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::BAD_CREDENTIALS,
+    gone: messages::FILE_OFFLINE,
+    unavailable: messages::FILE_OFFLINE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: None,
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+};
+
+/// Maps a bare HTTP status whose body did not parse as an [`Envelope`]/[`GenLinksResponse`]: the
+/// shared mapping in [`HTTP`]'s words. Kept as a function of its own for the one status checked
+/// before it: `425` reuses JD's `handleDownloadErrors` "still caching, retry" semantics
+/// defensively for the JSON API (see the module doc's IMPL-VERIFY note on `SERVER_ERROR`).
 pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
     if status == 425 {
-        return Err(coded(
+        return Err(ApiFailure::new(
             ErrorKind::Transient(Some(60)),
             messages::SERVER_ERROR,
         ));
     }
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
-        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
-        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
-        HttpRefusal::RateLimited(wait) => {
-            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
-        }
-        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
+    HTTP.ensure_http_status(status, retry_after)
 }
 
 #[cfg(test)]

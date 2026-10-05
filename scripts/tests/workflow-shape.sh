@@ -10,6 +10,9 @@
 # - The jobs scripts/ci-tree-greens.sh asks for by name — `rust` and the `ONCE` list of the
 #   `gate` job — are jobs of ci.yml itself, not calls: a called workflow's check is named
 #   "<caller> / <job>", and the gate would never find that tree green again.
+# - Every wasm-tools a workflow installs — the repository's and the SDK's — is the version
+#   scripts/build-plugins.sh requires (RD-1110-08): it encodes the components, so another one
+#   changes their bytes. The component cache keys and the documents that name it agree.
 #
 # Pure bash and awk over the YAML as this repository writes it (two-space indents, a block `on:`).
 # check.sh runs it when scripts/ change, and under --full.
@@ -95,5 +98,28 @@ for job in rust $once; do
             END { print (found ? (called ? "called" : "own") : "missing") }
         ' "$ci")"
 done
+
+# One wasm-tools: WASM_TOOLS_VERSION in scripts/lib/plugin-stamp.sh.
+pinned="$(sed -n 's/^WASM_TOOLS_VERSION="\(.*\)"$/\1/p' "$ROOT/scripts/lib/plugin-stamp.sh")"
+expect "scripts/lib/plugin-stamp.sh pins a wasm-tools version" "yes" "$([[ -n "$pinned" ]] && echo yes || echo no)"
+installs=0
+while IFS= read -r line; do
+    installs=$((installs + 1))
+    expect "${line%%:*} installs wasm-tools $pinned" "$pinned" "$(sed -n 's/.*tool: wasm-tools@\{0,1\}//p' <<< "${line#*:}")"
+done < <(grep -H 'tool: wasm-tools' "$WORKFLOWS"/*.yml "$ROOT"/sdk/ci/*.yml | sed "s|^$ROOT/||")
+expect "wasm-tools is installed somewhere to check" "yes" "$([[ "$installs" -gt 0 ]] && echo yes || echo no)"
+while IFS= read -r line; do
+    expect "${line%%:*}: the component cache key names wasm-tools $pinned" "wt$pinned" \
+        "$(grep -o 'components-[0-9.]*-wt[0-9.]*-' <<< "$line" | sed 's/^components-[0-9.]*-//; s/-$//')"
+done < <(grep -H 'key: components-' "$WORKFLOWS"/*.yml | sed "s|^$ROOT/||")
+# And the documents that name the version, so a bump finds every one (the public export has no
+# docs/, hence only the ones present).
+documents=()
+for document in AGENTS.md docs/development.md docs/architecture.md sdk/README.md; do
+    [[ -f "$ROOT/$document" ]] && documents+=("$document")
+done
+while IFS= read -r line; do
+    expect "${line%%:*} names wasm-tools $pinned" "$pinned" "${line##* }"
+done < <(cd "$ROOT" && grep -oHE 'wasm-tools(`| --version)? [0-9]+\.[0-9]+\.[0-9]+' "${documents[@]}")
 
 finish_tests "workflow-shape"

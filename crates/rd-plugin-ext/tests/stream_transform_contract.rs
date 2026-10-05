@@ -1,7 +1,7 @@
 //! The twelfth world, driven as a real WebAssembly component (RD-110-33, ADR 0011).
 //!
 //! `plugins/example-stream-transform/` is built by
-//! `cargo component build --release --target wasm32-unknown-unknown -p rd-plugin-example-stream-transform`
+//! `scripts/build-plugins.sh --components-only example-stream-transform`
 //! and by the `components` job in CI. It describes transforms and fetches nothing, which is
 //! exactly the shape of the contract: the plugin describes, the host computes.
 //!

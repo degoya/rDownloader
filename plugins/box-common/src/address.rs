@@ -96,31 +96,10 @@ pub use plugin_common::percent_encode;
 ///
 /// `+` is decoded to a space: this is read out of a query string, which is where a browser
 /// writes a space that way, and a shared-link password is exactly the kind of value somebody
-/// pastes with a space in it.
+/// pastes with a space in it. An encoded plus, `%2B`, stays a plus.
 #[must_use]
 pub fn percent_decode(value: &str) -> Option<String> {
-    let bytes = value.as_bytes();
-    let mut decoded = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        match bytes[index] {
-            b'%' => {
-                let hex = bytes.get(index + 1..index + 3)?;
-                let text = std::str::from_utf8(hex).ok()?;
-                decoded.push(u8::from_str_radix(text, 16).ok()?);
-                index += 3;
-            }
-            b'+' => {
-                decoded.push(b' ');
-                index += 1;
-            }
-            byte => {
-                decoded.push(byte);
-                index += 1;
-            }
-        }
-    }
-    String::from_utf8(decoded).ok()
+    plugin_common::encode::percent_decode_strict(&value.replace('+', " "))
 }
 
 /// A Box item id as the API issues them: a decimal number and nothing else.

@@ -108,3 +108,22 @@ describe('duplicating a bandwidth profile', () => {
     expect((screen.getByPlaceholderText(bandwidth.profile.name_placeholder) as HTMLInputElement).value).toBe(copy.name)
   })
 })
+
+/** RD-1110-10: an emptied optional number field is sent as `null`, never dropped from the body. */
+describe('the parallel-file field of a profile', () => {
+  it('sends an emptied field as null, so the profile keeps the setting', async () => {
+    post.mockResolvedValueOnce({ data: profile({ id: 'new', name: 'Night' }) })
+    mount([])
+
+    const name = screen.getByPlaceholderText(bandwidth.profile.name_placeholder) as HTMLInputElement
+    await fireEvent.update(name, 'Night')
+    const parallel = screen.getByPlaceholderText(bandwidth.profile.inherit) as HTMLInputElement
+    await fireEvent.update(parallel, '4')
+    // The number field reports an emptied field as `undefined`; JSON would drop that key.
+    await fireEvent.update(parallel, '')
+    await fireEvent.submit(name.closest('form') as HTMLFormElement)
+
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    expect(post.mock.calls.at(-1)?.[1]?.body).toHaveProperty('max_active_files', null)
+  })
+})

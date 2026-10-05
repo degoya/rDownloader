@@ -9,17 +9,17 @@
 //! This mirrors `plugins/filejoker/src/resolver/free.rs` with the site-specific markers removed.
 //! Where that plugin recognises FileJoker's own phrasings for an offline file, a premium-only
 //! file and a size limit, this one does not: it cannot know which clone it is talking to, and
-//! guessing would produce a confident wrong answer. Such a page falls through to
-//! [`no_free_form`] or [`no_free_link`], both of which carry the page's own diagnosis, so the
-//! failure names a cause instead of being empty.
+//! guessing would produce a confident wrong answer. Such a page falls through to `no_free_form`
+//! or `no_free_link` (`xfs_common::free::FreeWords`), both of which carry the page's own
+//! diagnosis, so the failure names a cause instead of being empty.
 
 use plugin_common::{
-    CaptchaChallenge, Failure, FailureKind, HttpRequest, HttpResponse, PluginHost, ResolveInput,
-    Resolved, WidgetChallenge, file_name_from_disposition,
+    Failure, FailureKind, HttpResponse, PluginHost, ResolveInput, Resolved,
+    file_name_from_disposition,
 };
 use url::Url;
 
-use super::api::{coded, ensure_http_status, invalid_url, is_html, range_probe};
+use super::api::{FREE, coded, ensure_http_status, invalid_url, is_html, range_probe};
 use crate::{messages, page};
 
 /// Runs the account-less XFS free flow and turns its result into a transfer.
@@ -33,7 +33,7 @@ pub(super) async fn resolve<H: PluginHost>(
     let transfer = free_transfer(host, &request.url, parsed, code, url_name.as_deref()).await?;
     let disposition = transfer.header("content-disposition").map(str::to_owned);
     if disposition.is_none() && is_html(&transfer) {
-        return Err(no_free_link(&transfer.text()));
+        return Err(FREE.no_free_link(&transfer.text()));
     }
     Ok(Resolved {
         url: transfer.final_url,
@@ -64,24 +64,26 @@ async fn free_transfer<H: PluginHost>(
         return Ok(page_response);
     }
     let body = page_response.text().into_owned();
-    free_page_failure(&body)?;
+    FREE.free_page_failure(&body)?;
     let Some(step_one) = page::download1_form(&body) else {
-        return Err(no_free_form(&body));
+        return Err(FREE.no_free_form(&body));
     };
-    let posted = post_form(host, &page_response.final_url, &page::free_form(&step_one)).await?;
+    let posted = FREE
+        .post_form(host, &page_response.final_url, &page::free_form(&step_one))
+        .await?;
     if !is_html(&posted) {
         return Ok(posted);
     }
     let posted_body = posted.text().into_owned();
-    free_page_failure(&posted_body)?;
+    FREE.free_page_failure(&posted_body)?;
     let final_page = submit_download2(host, &posted, &posted_body).await?;
     if !is_html(&final_page) {
         return Ok(final_page);
     }
     let final_body = final_page.text().into_owned();
-    free_page_failure(&final_body)?;
+    FREE.free_page_failure(&final_body)?;
     let Some(link) = direct_link(&final_body, parsed, code, url_name) else {
-        return Err(no_free_link(&final_body));
+        return Err(FREE.no_free_link(&final_body));
     };
     let parsed_link = Url::parse(&link).map_err(|error| invalid_url(&error))?;
     // The link may sit on a delivery host of the same site rather than on the page's own host;
@@ -119,7 +121,7 @@ async fn submit_download2<H: PluginHost>(
     let Some(step_two) =
         page::download1_form(posted_body).or_else(|| page::download2_form(posted_body))
     else {
-        return Err(no_free_form(posted_body));
+        return Err(FREE.no_free_form(posted_body));
     };
     let mut attempt_body = posted_body.to_owned();
     let mut fields = step_two;
@@ -127,7 +129,7 @@ async fn submit_download2<H: PluginHost>(
         let mut submitted = page::free_form(&fields);
         if let Some(marker) = page::widget_marker(&attempt_body) {
             let solution = host
-                .solve_captcha(challenge_for(&marker, &posted.final_url))
+                .solve_captcha(xfs_common::free::challenge_for(&marker, &posted.final_url))
                 .await?;
             submitted = page::with_captcha_token(&submitted, marker.kind, &solution.token);
         }
@@ -138,12 +140,12 @@ async fn submit_download2<H: PluginHost>(
         {
             host.wait(seconds).await?;
         }
-        let response = post_form(host, &posted.final_url, &submitted).await?;
+        let response = FREE.post_form(host, &posted.final_url, &submitted).await?;
         if !is_html(&response) {
             return Ok(response);
         }
         let body = response.text().into_owned();
-        free_page_failure(&body)?;
+        FREE.free_page_failure(&body)?;
         if !page::is_wrong_captcha(&body) {
             return Ok(response);
         }
@@ -153,85 +155,13 @@ async fn submit_download2<H: PluginHost>(
         // Retry with whatever the rejection page now asks for.
         fields = page::download1_form(&body)
             .or_else(|| page::download2_form(&body))
-            .ok_or_else(|| no_free_form(&body))?;
+            .ok_or_else(|| FREE.no_free_form(&body))?;
         attempt_body = body;
     }
     Err(coded(
         FailureKind::CaptchaFailed,
         messages::CAPTCHA_REJECTED,
     ))
-}
-
-async fn post_form<H: PluginHost>(
-    host: &H,
-    url: &str,
-    fields: &[(String, String)],
-) -> Result<HttpResponse, Failure> {
-    let response = host
-        .http(
-            HttpRequest::post(url.to_owned(), page::encode_form(fields))
-                .with_header("Content-Type", "application/x-www-form-urlencoded")
-                .with_header("Referer", url.to_owned())
-                .with_header("Range", "bytes=0-0"),
-        )
-        .await?;
-    ensure_http_status(&response)?;
-    Ok(response)
-}
-
-/// Aborts a free flow on the one page state that no wait and no captcha can get past: an IP
-/// limit. Reported as `IpBlocked` so the scheduler holds back the site's other free links
-/// instead of spending another wait and captcha on each of them.
-fn free_page_failure(html: &str) -> Result<(), Failure> {
-    let Some(seconds) = page::ip_block_seconds(html) else {
-        return Ok(());
-    };
-    // `Some(0)` means the page stated a limit without a duration; leave the delay to the
-    // scheduler's own hold-off rather than inventing one here.
-    let retry_after_seconds = (seconds > 0).then_some(seconds);
-    let mut failure = Failure::coded(
-        FailureKind::IpBlocked(retry_after_seconds),
-        messages::FREE_LIMIT_REACHED,
-        messages::free_limit_reached(retry_after_seconds),
-    );
-    if let Some(seconds) = retry_after_seconds {
-        failure = failure.with_param("wait_seconds", seconds.to_string());
-    }
-    Err(failure)
-}
-
-fn no_free_link(html: &str) -> Failure {
-    let diagnosis = page::diagnose(html);
-    Failure::coded(
-        FailureKind::Permanent,
-        messages::NO_FREE_LINK,
-        messages::no_free_link(&diagnosis),
-    )
-    .with_param("diagnosis", diagnosis)
-}
-
-fn no_free_form(html: &str) -> Failure {
-    let diagnosis = page::diagnose(html);
-    Failure::coded(
-        FailureKind::Permanent,
-        messages::NO_FREE_FORM,
-        messages::no_free_form(&diagnosis),
-    )
-    .with_param("diagnosis", diagnosis)
-}
-
-/// Turns a page's captcha marker into the challenge the host solves.
-fn challenge_for(marker: &xfs_common::free::WidgetMarker, page_url: &str) -> CaptchaChallenge {
-    let widget = WidgetChallenge {
-        site_key: marker.site_key.clone(),
-        page_url: page_url.to_owned(),
-        invisible: false,
-    };
-    match marker.kind {
-        xfs_common::free::WidgetKind::RecaptchaV2 => CaptchaChallenge::RecaptchaV2(widget),
-        xfs_common::free::WidgetKind::HCaptcha => CaptchaChallenge::HCaptcha(widget),
-        xfs_common::free::WidgetKind::Turnstile => CaptchaChallenge::Turnstile(widget),
-    }
 }
 
 #[cfg(test)]

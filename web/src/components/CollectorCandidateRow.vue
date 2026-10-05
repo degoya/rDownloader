@@ -320,7 +320,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
       <div class="queue-cell-name flex min-w-0 items-center gap-2">
         <img v-if="media?.thumbnail" :src="media.thumbnail" alt="" loading="lazy" class="size-12 shrink-0 bg-elevated object-cover">
         <div class="min-w-0 flex-1">
-          <button type="button" class="block w-full truncate text-left text-sm text-highlighted hover:underline" :title="rowTitle" @click="emit('rename', props.candidate.id)">{{ rowName }}</button>
+          <UButton variant="link" color="neutral" class="flex w-full p-0 text-left text-sm font-normal text-highlighted hover:text-highlighted hover:underline" :label="rowName" :title="rowTitle" @click="emit('rename', props.candidate.id)" />
           <p v-if="mediaMeta" class="truncate text-xs text-muted">{{ mediaMeta }}</p>
         </div>
         <!-- Each of these is one idea with one icon; the word it dropped is its name. -->

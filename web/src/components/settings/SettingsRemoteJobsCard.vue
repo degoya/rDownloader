@@ -216,9 +216,7 @@ onUnmounted(() => releaseEvents?.())
     <div class="mt-4 divide-y divide-muted border border-muted">
       <div v-for="job in jobs" :key="job.id" class="p-3">
         <div class="flex flex-wrap items-center gap-3">
-          <span class="grid size-8 place-items-center bg-elevated text-primary">
-            <UIcon name="i-lucide-cloud-cog" />
-          </span>
+          <UAvatar icon="i-lucide-cloud-cog" color="primary" />
           <div class="min-w-0 flex-1">
             <p class="text-sm font-medium text-highlighted">{{ accountLabel(job) }}</p>
             <p class="truncate font-mono text-[11px] text-muted">{{ job.content_key }}</p>
@@ -226,16 +224,55 @@ onUnmounted(() => releaseEvents?.())
           <UBadge :color="STATE_COLORS[job.state]" variant="subtle">{{ t(`remote_jobs.states.${job.state}`) }}</UBadge>
           <span v-if="percent(job)" class="font-mono text-xs tabular-nums text-muted">{{ percent(job) }}</span>
           <span class="font-mono text-[11px] text-muted">{{ formatMoment(job.updated_at) }}</span>
-          <UButton
+          <!--
+            Bound to the job's own state as well as to the open row: the sweep, or a second tab,
+            can answer the question while this panel is open, and a panel offering entries for a
+            job that is no longer waiting invites an answer the server would refuse. The trigger
+            keeps its place among the row's actions; the panel is the row's last line
+            (`design.md`, *Opening and closing*).
+          -->
+          <UCollapsible
             v-if="job.state === 'awaiting_choice'"
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            :icon="openId === job.id ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-            :aria-expanded="openId === job.id"
-            :label="t('remote_jobs.choice.toggle')"
-            @click="openId = openId === job.id ? null : job.id"
-          />
+            class="contents"
+            :open="openId === job.id"
+            :ui="{ content: 'order-last basis-full' }"
+            @update:open="(open: boolean) => (openId = open ? job.id : null)"
+          >
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :icon="openId === job.id ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+              :aria-expanded="openId === job.id"
+              :label="t('remote_jobs.choice.toggle')"
+            />
+            <template #content>
+              <UAlert color="warning" variant="subtle" :title="t('remote_jobs.choice.title')">
+                <template #description>
+                  <p class="max-w-prose text-xs leading-5 text-muted">{{ t('remote_jobs.choice.description') }}</p>
+                  <div class="mt-2 max-h-64 space-y-1 overflow-y-auto" @click.capture="entryRange.noteModifier" @keydown.capture="entryRange.noteModifier">
+                    <div v-for="entry in job.entries ?? []" :key="entry.id" class="flex items-center gap-2">
+                      <UCheckbox
+                        :model-value="isPicked(job, entry.id)"
+                        :label="entry.path"
+                        @update:model-value="(on: boolean) => togglePicked(entry.id, on)"
+                      />
+                      <span class="font-mono text-[11px] text-muted">{{ entrySize(entry.size) }}</span>
+                      <UBadge v-if="entry.selected" color="neutral" variant="outline" size="sm">{{ t('remote_jobs.choice.preselected') }}</UBadge>
+                    </div>
+                  </div>
+                  <UButton
+                    class="mt-3"
+                    size="xs"
+                    icon="i-lucide-check"
+                    :label="t('remote_jobs.choice.action')"
+                    :loading="busyId === job.id"
+                    @click="sendChoice(job)"
+                  />
+                </template>
+              </UAlert>
+            </template>
+          </UCollapsible>
           <UButton
             v-if="job.state !== 'discarded' && job.remote_id"
             size="xs"
@@ -273,37 +310,6 @@ onUnmounted(() => releaseEvents?.())
           {{ jobMessage(job) }}
         </p>
 
-        <!--
-          Bound to the job's own state as well as to the open row: the sweep, or a second tab,
-          can answer the question while this panel is open, and a panel offering entries for a
-          job that is no longer waiting invites an answer the server would refuse.
-        -->
-        <div
-          v-if="openId === job.id && job.state === 'awaiting_choice'"
-          class="mt-3 border border-warning bg-warning/5 p-3"
-        >
-          <p class="text-sm font-medium text-highlighted">{{ t('remote_jobs.choice.title') }}</p>
-          <p class="mt-1 max-w-prose text-xs leading-5 text-muted">{{ t('remote_jobs.choice.description') }}</p>
-          <div class="mt-2 max-h-64 space-y-1 overflow-y-auto" @click.capture="entryRange.noteModifier" @keydown.capture="entryRange.noteModifier">
-            <div v-for="entry in job.entries ?? []" :key="entry.id" class="flex items-center gap-2">
-              <UCheckbox
-                :model-value="isPicked(job, entry.id)"
-                :label="entry.path"
-                @update:model-value="(on: boolean) => togglePicked(entry.id, on)"
-              />
-              <span class="font-mono text-[11px] text-muted">{{ entrySize(entry.size) }}</span>
-              <UBadge v-if="entry.selected" color="neutral" variant="outline" size="sm">{{ t('remote_jobs.choice.preselected') }}</UBadge>
-            </div>
-          </div>
-          <UButton
-            class="mt-3"
-            size="xs"
-            icon="i-lucide-check"
-            :label="t('remote_jobs.choice.action')"
-            :loading="busyId === job.id"
-            @click="sendChoice(job)"
-          />
-        </div>
       </div>
       <DataState :loading="loading" :error="loadError" :empty="!jobs.length" variant="inline">
         <p class="p-5 text-center text-sm text-muted">{{ t('remote_jobs.empty') }}</p>

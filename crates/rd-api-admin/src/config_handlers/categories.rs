@@ -2,6 +2,10 @@
 
 use super::*;
 
+/// A category's name is unique; a second one is a `409`, created or renamed.
+const CATEGORY_TAKEN: &str = "category.name_taken";
+const CATEGORY_TAKEN_MESSAGE: &str = "A category with this name already exists";
+
 #[utoipa::path(get, path = "/api/v1/categories", tag = "configuration", responses((status = 200, body = [rd_core::Category])))]
 pub async fn list_categories(
     State(state): State<AppState>,
@@ -62,17 +66,21 @@ pub(crate) async fn validated_category(
     })
 }
 
-#[utoipa::path(post, path = "/api/v1/categories", tag = "configuration", request_body = CreateCategoryRequest, responses((status = 201, body = rd_core::Category)))]
+#[utoipa::path(post, path = "/api/v1/categories", tag = "configuration", request_body = CreateCategoryRequest, responses((status = 201, body = rd_core::Category), (status = 409)))]
 pub async fn create_category(
     State(state): State<AppState>,
     Json(request): Json<CreateCategoryRequest>,
 ) -> Result<(StatusCode, Json<rd_core::Category>), ApiError> {
     let input = validated_category(&state, request).await?;
-    let value = state.database.create_category(input).await?;
+    let value = state
+        .database
+        .create_category(input)
+        .await
+        .map_err(|error| store_duplicate(&error, CATEGORY_TAKEN, CATEGORY_TAKEN_MESSAGE))?;
     Ok((StatusCode::CREATED, Json(value)))
 }
 
-#[utoipa::path(put, path = "/api/v1/categories/{id}", tag = "configuration", params(("id" = rd_core::CategoryId, Path)), request_body = CreateCategoryRequest, responses((status = 200, body = rd_core::Category), (status = 404)))]
+#[utoipa::path(put, path = "/api/v1/categories/{id}", tag = "configuration", params(("id" = rd_core::CategoryId, Path)), request_body = CreateCategoryRequest, responses((status = 200, body = rd_core::Category), (status = 404), (status = 409)))]
 pub async fn update_category(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<rd_core::CategoryId>,
@@ -88,9 +96,9 @@ pub async fn update_category(
                 &error,
                 "category.not_found",
                 "Category not found",
-                StoreErrorKind::InUse,
-                "category.in_use",
-                "The category is still used by unfinished packages",
+                StoreErrorKind::Duplicate,
+                CATEGORY_TAKEN,
+                CATEGORY_TAKEN_MESSAGE,
             )
         })?;
     Ok(Json(value))

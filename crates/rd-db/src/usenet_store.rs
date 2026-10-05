@@ -24,6 +24,9 @@ pub struct NewUsenetServer {
 
 pub type UpdateUsenetServer = NewUsenetServer;
 
+/// A server's name is unique (`usenet_servers.name`); a second one is a refusal, not a fault.
+const NAME_TAKEN: &str = "an NNTP server with this name already exists";
+
 /// Internal server metadata including the opaque vault reference.
 pub struct UsenetConnectionConfig {
     pub server: UsenetServer,
@@ -73,7 +76,8 @@ pub(crate) async fn create(
     .bind(now)
     .bind(now)
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, NAME_TAKEN))?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok((value, event))
@@ -121,7 +125,8 @@ pub(crate) async fn update(
     .bind(Utc::now())
     .bind(value.id.to_string())
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, NAME_TAKEN))?;
     anyhow::ensure!(
         result.rows_affected() == 1,
         StoreError::not_found("usenet server not found")

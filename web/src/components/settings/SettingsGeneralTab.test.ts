@@ -13,6 +13,10 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { setting
 const components = {
   UFormField: { props: ['label', 'description'], template: '<label><span>{{ label }}</span><slot /></label>' },
   UInput: { props: ['modelValue'], template: '<input v-bind="$attrs" :value="modelValue" />' },
+  UInputNumber: {
+    props: ['modelValue', 'formatOptions'],
+    template: '<input role="spinbutton" v-bind="$attrs" :value="modelValue" :data-fraction-digits="formatOptions?.maximumFractionDigits" />'
+  },
   UIcon: { props: ['name'], template: '<span :data-icon="name" />' },
   USwitch: { template: '<input type="checkbox" />' },
   UButton: { template: '<button><slot /></button>' }
@@ -126,16 +130,24 @@ describe('SettingsGeneralTab upload limit', () => {
 })
 
 describe('SettingsGeneralTab number fields', () => {
-  it('accepts the fraction a stored byte value converts to, so the page loads valid', async () => {
+  it('keeps the fraction a stored byte value converts to', async () => {
     vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
 
-    // 0.25 GiB: with `step="1"` the field was `:invalid` on load and the save refused it.
+    // 0.25 GiB: with `step="1"` the field was `:invalid` on load and the save refused it; a
+    // whole-number format would now round it to 0 instead (RD-1110-10).
     const { container } = mount(0, String(1024 ** 3 / 4))
 
-    const fields = [...container.querySelectorAll<HTMLInputElement>('input[type="number"]')]
+    const fields = [...container.querySelectorAll<HTMLInputElement>('input[role="spinbutton"]')]
     const minimumFree = fields.find(field => field.value === '0.25')
     expect(minimumFree).toBeTruthy()
-    expect(minimumFree?.validity.valid).toBe(true)
+    expect(minimumFree?.dataset.fractionDigits).toBe('2')
+  })
+
+  it('takes counts as whole numbers', () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
+    mount(0)
+
+    expect((screen.getByTestId('nntp-parallel-files') as HTMLInputElement).dataset.fractionDigits).toBe('0')
   })
 })
 

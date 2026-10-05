@@ -8,6 +8,8 @@ license.workspace = true
 [features]
 # Deterministic crash points for the RD-140-04 restart matrix; see crates/rd-core/recovery-matrix.md.
 failpoints = ["rd-core/failpoints"]
+# Hooks only tests call (RD-1110-06); switched on by dev-dependencies, never by the service.
+test-support = []
 
 [dependencies]
 anyhow.workspace = true
@@ -28,6 +30,8 @@ url.workspace = true
 workspace = true
 
 [dev-dependencies]
+# Its own integration tests reach the `test-support` hooks this way.
+rd-plugin-transfer = { path = ".", features = ["test-support"] }
 rd-limits = { path = "../rd-limits" }
 # The contract tests load the built example backend (`artifact`, RD-191-06 PLUG-15).
 rd-plugin-host = { path = "../rd-plugin-host", features = ["test-support"] }

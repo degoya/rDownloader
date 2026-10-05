@@ -102,13 +102,6 @@ impl ApiError {
         Self::with_status(StatusCode::UNSUPPORTED_MEDIA_TYPE, code, message)
     }
 
-    /// Creates a "temporarily unable to answer" error: the request was fine, a store it needs
-    /// was not.
-    #[must_use]
-    pub fn service_unavailable(code: &'static str, message: impl Into<String>) -> Self {
-        Self::with_status(StatusCode::SERVICE_UNAVAILABLE, code, message)
-    }
-
     /// Creates a rate-limit error.
     #[must_use]
     pub fn too_many_requests(code: &'static str, message: impl Into<String>) -> Self {

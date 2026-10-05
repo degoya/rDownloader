@@ -1,7 +1,7 @@
 //! The Seedr transfer contract, driven end to end against a mock of the provider (RD-120-04).
 //!
 //! `plugins/seedr-jobs/` runs as a real WebAssembly component -- the one built by
-//! `cargo component build --release --target wasm32-unknown-unknown -p rd-plugin-seedr-jobs` --
+//! `scripts/build-plugins.sh --components-only seedr-jobs` --
 //! and the mock stands in for `www.seedr.cc`. It answers at the host boundary, so no socket is
 //! opened, no account is needed and no request leaves the machine; and because it sees each
 //! request exactly as the plugin described it, a test can assert that the account's password

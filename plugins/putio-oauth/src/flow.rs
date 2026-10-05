@@ -120,25 +120,9 @@ fn refusal(body: &str) -> Option<String> {
     Some(sanitize_rfc6749(&word))
 }
 
-/// An RFC 6749 `error` code, reduced to something that is safe to put in a message.
-///
-/// Those codes are lower-case words joined by underscores, so anything that is not exactly
-/// that shape is dropped whole rather than filtered character by character — filtering would
-/// keep the digits of a leaked token.
-#[must_use]
-pub fn sanitize_rfc6749(error: &str) -> String {
-    let trimmed = error.trim();
-    let is_error_code = !trimmed.is_empty()
-        && trimmed.len() <= 40
-        && trimmed
-            .chars()
-            .all(|character| character.is_ascii_lowercase() || character == '_');
-    if is_error_code {
-        trimmed.to_owned()
-    } else {
-        "refused".to_owned()
-    }
-}
+/// An RFC 6749 `error` code, reduced to something that is safe to put in a message: the one
+/// rule every OAuth plugin applies, in `plugin-common` (RD-1110-04).
+pub use plugin_common::device_flow::sanitize_error as sanitize_rfc6749;
 
 #[cfg(test)]
 mod tests {

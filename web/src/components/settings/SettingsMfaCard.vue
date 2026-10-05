@@ -9,6 +9,7 @@ import type { components } from '@/api/schema'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopy } from '@/composables/useCopy'
 import { formatMoment } from '@/utils/format'
+import CopyField from '@/components/CopyField.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 
 type MfaStatus = components['schemas']['MfaStatus']
@@ -165,9 +166,12 @@ async function regenerate(): Promise<void> {
   await load()
 }
 
-async function copy(value: string): Promise<void> {
-  if (!(await copyToClipboard(value))) return
+function copied(): void {
   toast.add({ title: t('system.mfa.copied'), color: 'success', icon: 'i-lucide-copy-check' })
+}
+
+async function copy(value: string): Promise<void> {
+  if (await copyToClipboard(value)) copied()
 }
 
 </script>
@@ -179,45 +183,45 @@ async function copy(value: string): Promise<void> {
     <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
 
     <!-- Enrolment in progress: the one time the secret and the codes are visible. -->
-    <div v-if="pending" class="mt-4 border border-warning/40 bg-warning/10 p-4">
-      <p class="text-sm font-medium text-warning">{{ t('system.mfa.enrol.once') }}</p>
-      <p class="mt-3 text-sm text-toned">{{ t('system.mfa.enrol.scan') }}</p>
-      <img
-        v-if="qrCode"
-        class="mt-3 w-44 max-w-full border border-muted bg-white p-2"
-        :src="qrCode"
-        :alt="t('system.mfa.enrol.qr_alt')"
-        width="176"
-        height="176"
-      >
-      <p class="mt-3 text-sm text-toned">{{ t('system.mfa.enrol.manual') }}</p>
-      <div class="mt-2 flex flex-wrap items-center gap-2">
-        <code class="min-w-0 flex-1 break-all font-mono text-xs leading-5 text-highlighted">{{ pending.secret }}</code>
-        <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-copy" :label="t('system.mfa.enrol.copy_secret')" @click="copy(pending.secret)" />
-        <UButton size="xs" color="neutral" variant="soft" icon="i-lucide-link" :label="t('system.mfa.enrol.copy_uri')" @click="copy(pending.provisioningUri)" />
-      </div>
+    <UAlert v-if="pending" class="mt-4" color="warning" variant="subtle" :title="t('system.mfa.enrol.once')">
+      <template #description>
+        <p class="mt-2 text-sm text-toned">{{ t('system.mfa.enrol.scan') }}</p>
+        <img
+          v-if="qrCode"
+          class="mt-3 w-44 max-w-full border border-muted bg-white p-2"
+          :src="qrCode"
+          :alt="t('system.mfa.enrol.qr_alt')"
+          width="176"
+          height="176"
+        >
+        <p class="mt-3 text-sm text-toned">{{ t('system.mfa.enrol.manual') }}</p>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <CopyField class="min-w-0 flex-1 basis-64" :value="pending.secret" :label="t('system.mfa.enrol.copy_secret')" @copied="copied" />
+          <UButton color="neutral" variant="soft" icon="i-lucide-link" :label="t('system.mfa.enrol.copy_uri')" @click="copy(pending.provisioningUri)" />
+        </div>
 
-      <p class="mt-4 text-sm text-toned">{{ t('system.mfa.enrol.recovery') }}</p>
-      <ul class="mt-2 grid grid-cols-2 gap-1 font-mono text-xs text-highlighted sm:grid-cols-3">
-        <li v-for="entry in pending.recoveryCodes" :key="entry">{{ entry }}</li>
-      </ul>
-      <UButton
-        class="mt-2"
-        size="xs"
-        color="neutral"
-        variant="soft"
-        icon="i-lucide-copy"
-        :label="t('system.mfa.enrol.copy_codes')"
-        @click="copy(pending.recoveryCodes.join('\n'))"
-      />
+        <p class="mt-4 text-sm text-toned">{{ t('system.mfa.enrol.recovery') }}</p>
+        <ul class="mt-2 grid grid-cols-2 gap-1 font-mono text-xs text-highlighted sm:grid-cols-3">
+          <li v-for="entry in pending.recoveryCodes" :key="entry">{{ entry }}</li>
+        </ul>
+        <UButton
+          class="mt-2"
+          size="xs"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-copy"
+          :label="t('system.mfa.enrol.copy_codes')"
+          @click="copy(pending.recoveryCodes.join('\n'))"
+        />
 
-      <form class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="confirmEnrolment">
-        <UFormField class="flex-1" :label="t('system.mfa.enrol.confirm_label')" :error="confirmError ?? undefined">
-          <UInput v-model="confirmCode" inputmode="numeric" maxlength="10" class="w-full" />
-        </UFormField>
-        <UButton type="submit" icon="i-lucide-shield-check" :label="t('system.mfa.enrol.confirm')" :loading="busy" />
-      </form>
-    </div>
+        <form class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="confirmEnrolment">
+          <UFormField class="flex-1" :label="t('system.mfa.enrol.confirm_label')" :error="confirmError ?? undefined">
+            <UInput v-model="confirmCode" inputmode="numeric" maxlength="10" class="w-full" />
+          </UFormField>
+          <UButton type="submit" icon="i-lucide-shield-check" :label="t('system.mfa.enrol.confirm')" :loading="busy" />
+        </form>
+      </template>
+    </UAlert>
 
     <!-- The password every change below asks for again. -->
     <UFormField v-else class="mt-4" :label="t('system.mfa.step_up.label')" :description="t('system.mfa.step_up.hint')">
@@ -256,14 +260,16 @@ async function copy(value: string): Promise<void> {
       />
       <UButton size="sm" color="neutral" variant="soft" icon="i-lucide-refresh-cw" :label="t('system.mfa.regenerate.action')" @click="regenerate" />
 
-      <div v-if="freshCodes" class="border border-warning/40 bg-warning/10 p-3">
-        <p class="text-sm font-medium text-warning">{{ t('system.mfa.enrol.once') }}</p>
-        <ul class="mt-2 grid grid-cols-2 gap-1 font-mono text-xs text-highlighted sm:grid-cols-3">
-          <li v-for="entry in freshCodes" :key="entry">{{ entry }}</li>
-        </ul>
-      </div>
+      <UAlert v-if="freshCodes" color="warning" variant="subtle" :title="t('system.mfa.enrol.once')">
+        <template #description>
+          <ul class="mt-1 grid grid-cols-2 gap-1 font-mono text-xs text-highlighted sm:grid-cols-3">
+            <li v-for="entry in freshCodes" :key="entry">{{ entry }}</li>
+          </ul>
+        </template>
+      </UAlert>
 
-      <form class="flex flex-wrap items-center gap-3 border-t border-muted pt-4" @submit.prevent="disable">
+      <USeparator />
+      <form class="flex flex-wrap items-center gap-3" @submit.prevent="disable">
         <p class="flex-1 text-sm text-toned">{{ t('system.mfa.disable.hint') }}</p>
         <UButton type="submit" color="neutral" variant="soft" icon="i-lucide-shield-off" :label="t('system.mfa.disable.action')" :loading="busy" :disabled="!password" />
       </form>

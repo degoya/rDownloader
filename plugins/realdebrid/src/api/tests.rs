@@ -1,5 +1,7 @@
 //! What `api.rs` decides, checked without a host.
 
+use plugin_common::retry_after_seconds;
+
 use super::*;
 
 fn envelope(body: &str) -> ErrorEnvelope {
@@ -205,24 +207,28 @@ fn a_numberless_refusal_is_classified_by_status() {
 
 #[test]
 fn ensure_http_status_maps_the_statuses_the_envelope_does_not_explain() {
-    assert!(ensure_http_status(204, None).is_ok());
+    assert!(HTTP.ensure_http_status(204, None).is_ok());
     assert!(matches!(
-        ensure_http_status(429, Some(30)).expect_err("429").kind,
+        HTTP.ensure_http_status(429, Some(30))
+            .expect_err("429")
+            .kind,
         ErrorKind::RateLimited(Some(30))
     ));
     assert!(matches!(
-        ensure_http_status(410, None).expect_err("410").kind,
+        HTTP.ensure_http_status(410, None).expect_err("410").kind,
         ErrorKind::Permanent
     ));
     assert!(matches!(
-        ensure_http_status(451, None).expect_err("451").kind,
+        HTTP.ensure_http_status(451, None).expect_err("451").kind,
         ErrorKind::Offline
     ));
     assert!(matches!(
-        ensure_http_status(503, Some(20)).expect_err("503").kind,
+        HTTP.ensure_http_status(503, Some(20))
+            .expect_err("503")
+            .kind,
         ErrorKind::Transient(Some(20))
     ));
-    let odd = ensure_http_status(418, None).expect_err("418");
+    let odd = HTTP.ensure_http_status(418, None).expect_err("418");
     assert_eq!(odd.code, messages::HTTP_ERROR);
     assert!(odd.params.iter().any(|(name, _)| *name == "status"));
 }

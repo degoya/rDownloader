@@ -1,10 +1,11 @@
 //! The parts that touch no host: what an address is, and what a refusal means.
 
+use plugin_common::retry_after_seconds;
 use serde_json::json;
 
 use super::{
-    ErrorEnvelope, ErrorKind, UserInfo, classify_error, ensure_http_status, failure_from,
-    is_safe_id, matches, read_download_address, read_ticket, retry_after_seconds,
+    ErrorEnvelope, ErrorKind, HTTP, UserInfo, classify_error, failure_from, is_safe_id, matches,
+    read_download_address, read_ticket,
 };
 use crate::messages;
 
@@ -135,19 +136,19 @@ fn each_word_and_each_status_lands_where_a_caller_can_act_on_it() {
     let unknown = classify_error("SOMETHING_NEW", None);
     assert_eq!(unknown.code, messages::API_ERROR.0);
     assert!(unknown.message.contains("SOMETHING_NEW"));
-    assert!(ensure_http_status(200, None).is_ok());
+    assert!(HTTP.ensure_http_status(200, None).is_ok());
     // A 404 or 410 is final (owner, 2026-10-04); a legal block is `Offline` and retried, still
     // worded as TorBox refusing the request (RA-PLG-04).
     for gone in [404, 410] {
-        let gone = ensure_http_status(gone, None).expect_err("a refusal");
+        let gone = HTTP.ensure_http_status(gone, None).expect_err("a refusal");
         assert_eq!(gone.kind, ErrorKind::Permanent);
         assert_eq!(gone.code, messages::FILE_GONE.0);
     }
-    let blocked = ensure_http_status(451, None).expect_err("a refusal");
+    let blocked = HTTP.ensure_http_status(451, None).expect_err("a refusal");
     assert_eq!(blocked.kind, ErrorKind::Offline);
     assert_eq!(blocked.code, messages::REQUEST_REFUSED.0);
     assert_eq!(
-        ensure_http_status(503, Some(45))
+        HTTP.ensure_http_status(503, Some(45))
             .expect_err("a refusal")
             .kind,
         ErrorKind::Transient(Some(45))

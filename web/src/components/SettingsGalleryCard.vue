@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -39,7 +40,7 @@ function addDefaultHosts(): void {
       <UInput v-model="settings.gallery_executable" icon="i-lucide-terminal" placeholder="/usr/bin/gallery-dl" class="w-full font-mono" />
     </UFormField>
     <UFormField :label="t('settings.gallery.max_parallel.label')" :description="t('settings.gallery.max_parallel.description')">
-      <UInput v-model.number="settings.gallery_max_parallel" type="number" min="1" max="8" icon="i-lucide-layers" class="w-full" />
+      <UInputNumber v-model="settings.gallery_max_parallel" required :min="1" :max="8" :format-options="WHOLE" increment decrement class="w-full" />
     </UFormField>
     <UFormField :label="t('settings.gallery.hosts.label')" :description="t('settings.gallery.hosts.description')">
       <UInputTags v-model="settings.gallery_hosts" :placeholder="t('settings.gallery.hosts.placeholder')" icon="i-lucide-images" add-on-blur add-on-paste delimiter="," class="w-full font-mono" />

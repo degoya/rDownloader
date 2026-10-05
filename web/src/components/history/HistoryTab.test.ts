@@ -145,8 +145,11 @@ describe('HistoryTab', () => {
     expect(within(list).queryByText('https://files.example/holiday.zip')).toBeNull()
 
     const toggles = within(list).getAllByRole('button', { name: history.list.expand })
+    expect(toggles[0]?.getAttribute('aria-expanded')).toBe('false')
     await fireEvent.click(toggles[0] as HTMLElement)
 
+    // The trigger of a collapsible says it is open (RD-1110-11).
+    expect(toggles[0]?.getAttribute('aria-expanded')).toBe('true')
     expect(within(list).getByText('https://files.example/holiday.zip')).toBeTruthy()
   })
 

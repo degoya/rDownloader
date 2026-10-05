@@ -141,7 +141,7 @@ impl RemoteJobRunners {
 
     /// Runners over already compiled plugins, for a contract test that built the component
     /// itself.
-    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
     #[must_use]
     pub fn from_plugins(plugins: Vec<RemoteJobPlugin>) -> Self {
         Self::from_drivers(

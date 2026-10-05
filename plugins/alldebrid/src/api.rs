@@ -14,7 +14,7 @@
 
 use std::collections::BTreeMap;
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 use url::form_urlencoded;
 
@@ -137,6 +137,23 @@ pub(crate) struct HostEntry {
     pub(crate) domains: Vec<String>,
 }
 
+/// How AllDebrid's codes name an HTTP status the JSON envelope doesn't otherwise explain: the
+/// classes are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07).
+/// A `429` or a `5xx` carries the response's `Retry-After` into the wait.
+pub(crate) const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::LINK_DOWN,
+    unavailable: messages::LINK_DOWN,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: None,
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+};
+
 /// Lower-cases, deduplicates and sorts every hoster domain from both capability groups (mirrors
 /// `premiumize::services::merge_hosters`).
 pub(crate) fn merge_hosters(data: HostsData) -> Vec<String> {
@@ -151,55 +168,6 @@ pub(crate) fn merge_hosters(data: HostsData) -> Vec<String> {
     hosters.sort();
     hosters.dedup();
     hosters
-}
-
-/// Failure classification independent of the native (`rd_core::Failure`) and WASM
-/// (WIT-generated `Failure`) representations; both adapters convert this into their own type.
-#[derive(Debug)]
-pub(crate) struct ApiFailure {
-    pub(crate) kind: ErrorKind,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-    pub(crate) params: Vec<(&'static str, String)>,
-}
-
-/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
-/// on either.
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AuthRequired,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-}
-
-fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
-/// Like [`coded`], but attaches the provider's raw error code as an `api_code` param (same key
-/// the catch-all branch of [`classify_error`] uses) so the UI can show which specific provider
-/// error occurred, even though the stable `code`/`message` stay generic across the whole
-/// permanent-auth-error group.
-fn coded_with_provider_code(
-    kind: ErrorKind,
-    (code, message): (&'static str, &str),
-    provider_code: &str,
-) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![("api_code", provider_code.to_owned())],
-    }
 }
 
 /// Classifies a `{"status":"error","error":{"code":...,"message":...}}` envelope by the
@@ -219,24 +187,28 @@ fn coded_with_provider_code(
 fn classify_error(code: &str, message: &str) -> ApiFailure {
     match code {
         "AUTH_MISSING_APIKEY" | "AUTH_BAD_APIKEY" | "AUTH_USER_BANNED" | "ACCOUNT_INVALID" => {
-            coded_with_provider_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, code)
+            ApiFailure::with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, code)
         }
         "LINK_DOWN" | "LINK_NOT_FOUND" | "LINK_ERROR" => {
-            coded(ErrorKind::Offline, messages::LINK_DOWN)
+            ApiFailure::new(ErrorKind::Offline, messages::LINK_DOWN)
         }
         "LINK_HOST_NOT_SUPPORTED"
         | "LINK_HOST_UNAVAILABLE"
         | "LINK_HOST_FULL"
         | "LINK_HOST_LIMIT_REACHED"
-        | "USER_LINK_INVALID" => coded(ErrorKind::Unsupported, messages::HOST_UNSUPPORTED),
-        "MUST_BE_PREMIUM" | "FREE_TRIAL_LIMIT_REACHED" => {
-            coded(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED)
+        | "USER_LINK_INVALID" => {
+            ApiFailure::new(ErrorKind::Unsupported, messages::HOST_UNSUPPORTED)
         }
-        "LINK_TEMPORARY_UNAVAILABLE" | "MAINTENANCE" | "AUTH_BLOCKED" => coded(
+        "MUST_BE_PREMIUM" | "FREE_TRIAL_LIMIT_REACHED" => {
+            ApiFailure::new(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED)
+        }
+        "LINK_TEMPORARY_UNAVAILABLE" | "MAINTENANCE" | "AUTH_BLOCKED" => ApiFailure::new(
             ErrorKind::Transient(Some(300)),
             messages::TEMPORARILY_UNAVAILABLE,
         ),
-        "LINK_PASS_PROTECTED" => coded(ErrorKind::Permanent, messages::PASSWORD_PROTECTED),
+        "LINK_PASS_PROTECTED" => {
+            ApiFailure::new(ErrorKind::Permanent, messages::PASSWORD_PROTECTED)
+        }
         _ => ApiFailure {
             kind: ErrorKind::Permanent,
             code: messages::API_ERROR,
@@ -257,29 +229,6 @@ pub(crate) fn error_from_status(status: &str, error: Option<&ApiError>) -> Optio
     Some(match error {
         Some(error) => classify_error(&error.code, &error.message),
         None => classify_error("UNKNOWN", "Unknown AllDebrid API error"),
-    })
-}
-
-/// Maps an HTTP status the JSON envelope doesn't otherwise explain.
-///
-/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
-/// (RD-191-07); this only names each in AllDebrid's codes. `retry_after` is the response's
-/// `Retry-After`, which a `429` or a `5xx` now carries into the wait.
-pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::LINK_DOWN),
-        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::LINK_DOWN),
-        HttpRefusal::RateLimited(wait) => {
-            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
-        }
-        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
     })
 }
 
@@ -447,20 +396,22 @@ mod tests {
     /// The shared mapping (RD-191-07): a `429` carries the provider's wait, `451` is offline.
     #[test]
     fn ensure_http_status_uses_the_shared_mapping() {
-        assert!(ensure_http_status(204, None).is_ok());
+        assert!(HTTP.ensure_http_status(204, None).is_ok());
         assert!(matches!(
-            ensure_http_status(429, Some(30)).expect_err("429").kind,
+            HTTP.ensure_http_status(429, Some(30))
+                .expect_err("429")
+                .kind,
             ErrorKind::RateLimited(Some(30))
         ));
         assert!(matches!(
-            ensure_http_status(451, None).expect_err("451").kind,
+            HTTP.ensure_http_status(451, None).expect_err("451").kind,
             ErrorKind::Offline
         ));
         assert!(matches!(
-            ensure_http_status(403, None).expect_err("403").kind,
+            HTTP.ensure_http_status(403, None).expect_err("403").kind,
             ErrorKind::AccountInvalid
         ));
-        let other = ensure_http_status(418, None).expect_err("418");
+        let other = HTTP.ensure_http_status(418, None).expect_err("418");
         assert!(matches!(other.kind, ErrorKind::Permanent));
         assert_eq!(other.code, messages::HTTP_ERROR);
     }

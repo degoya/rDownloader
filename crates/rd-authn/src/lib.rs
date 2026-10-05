@@ -14,7 +14,7 @@ pub mod client_ip;
 pub mod digest;
 pub mod host;
 pub mod oidc;
-#[doc(hidden)]
+#[cfg(any(test, feature = "test-support"))]
 pub mod oidc_testing;
 pub mod oidc_token;
 pub mod origin;

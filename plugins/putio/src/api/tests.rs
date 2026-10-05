@@ -77,7 +77,7 @@ fn the_refusals_are_told_apart_by_what_a_person_has_to_do() {
         failure_from(401, None, &envelope(r#"{"error_type":"INVALID_TOKEN"}"#)).expect("a refusal");
     assert_eq!(expired.kind, FailureKind::AccountInvalid);
     assert_eq!(expired.code, messages::AUTH_INVALID.0);
-    assert_eq!(expired.reason.as_deref(), Some("INVALID_TOKEN"));
+    assert_eq!(expired.param("reason"), Some("INVALID_TOKEN"));
 
     // A 403 is two different things at Put.io, and only the word tells them apart.
     let refused =
@@ -140,7 +140,7 @@ fn an_error_document_decides_whatever_the_status_says() {
     )
     .expect("a refusal");
     assert_eq!(refusal.code, messages::API_ERROR.0);
-    assert_eq!(refusal.reason.as_deref(), Some("DATABASE_ERROR"));
+    assert_eq!(refusal.param("reason"), Some("DATABASE_ERROR"));
     // And Put.io's sentence is nowhere in what travels.
     assert!(!refusal.message.contains("try again"));
 }
@@ -151,5 +151,5 @@ fn an_unremarkable_status_travels_as_its_number() {
     let refusal = failure_from(418, None, &envelope("")).expect("a refusal");
     assert_eq!(refusal.code, messages::HTTP_ERROR.0);
     assert_eq!(refusal.message, "Put.io HTTP status 418");
-    assert_eq!(refusal.reason, None);
+    assert_eq!(refusal.param("reason"), None);
 }

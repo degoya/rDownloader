@@ -10,6 +10,7 @@ import { MIB, byteModel, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsMalwareScan from '@/components/SettingsMalwareScan.vue'
+import { DECIMAL, WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -182,10 +183,8 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.ignore_samples.label')" :description="t('settings.postprocess.ignore_samples.description')" orientation="horizontal">
       <USwitch v-model="settings.ignore_samples" />
     </UFormField>
-    <UFormField :label="t('settings.postprocess.sample_max.label')" :description="t('settings.postprocess.sample_max.description')">
-      <UInput v-model.number="sampleMiB" type="number" min="0" step="any" :disabled="!settings.ignore_samples" class="w-full">
-        <template #trailing><span class="font-mono text-xs text-muted">MiB</span></template>
-      </UInput>
+    <UFormField hint="MiB" :label="t('settings.postprocess.sample_max.label')" :description="t('settings.postprocess.sample_max.description')">
+      <UInputNumber v-model="sampleMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :disabled="!settings.ignore_samples" class="w-full" />
     </UFormField>
     <UFormField data-settings-anchor="postprocess.passwords_file" :label="t('settings.postprocess.passwords_file.label')" :description="t('settings.postprocess.passwords_file.description')">
       <UInput v-model="settings.passwords_file" icon="i-lucide-key-round" placeholder="/config/passwords.txt" class="w-full font-mono" />
@@ -193,14 +192,12 @@ const sampleMiB = byteModel(
     <UFormField data-settings-anchor="postprocess.scripts_directory" :label="t('settings.postprocess.scripts_directory.label')" :description="t('settings.postprocess.scripts_directory.description')">
       <UInput v-model="settings.scripts_directory" icon="i-lucide-folder-code" placeholder="/config/scripts" class="w-full font-mono" />
     </UFormField>
-    <UFormField :label="t('settings.postprocess.script_timeout.label')" :description="t('settings.postprocess.script_timeout.description')">
-      <UInput v-model.number="settings.script_timeout_seconds" type="number" min="10" max="86400" icon="i-lucide-timer" class="w-full">
-        <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-      </UInput>
+    <UFormField hint="s" :label="t('settings.postprocess.script_timeout.label')" :description="t('settings.postprocess.script_timeout.description')">
+      <UInputNumber v-model="settings.script_timeout_seconds" required :min="10" :max="86400" :format-options="WHOLE" class="w-full" />
     </UFormField>
     <div class="grid gap-3 sm:grid-cols-2">
       <UFormField :label="t('settings.postprocess.max_files')">
-        <UInput v-model.number="settings.archive_max_files" type="number" min="1" max="1000000" class="w-full" />
+        <UInputNumber v-model="settings.archive_max_files" required :min="1" :max="1000000" :format-options="WHOLE" class="w-full" />
       </UFormField>
       <UFormField :label="t('settings.postprocess.max_bytes')">
         <UInput v-model="settings.archive_max_uncompressed_bytes" inputmode="numeric" class="w-full font-mono" />

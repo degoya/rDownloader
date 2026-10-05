@@ -105,6 +105,25 @@ beforeEach(() => {
 })
 
 describe('FullRestoreDialog', () => {
+  it('uploads a chosen .rdbackup and previews it by its upload id (RD-1110-12)', async () => {
+    calls.upload.mockResolvedValue({ ok: true, data: 'upload-1' })
+    calls.preview.mockResolvedValue({ ok: true, data: PREVIEW })
+    mountDialog()
+    const upload = screen.getByTestId('full-restore-kind').querySelector('input[value="upload"]') as HTMLInputElement
+    await fireEvent.click(upload)
+
+    const input = screen.getByTestId('full-restore-file') as HTMLInputElement
+    expect(input.accept).toBe('.rdbackup')
+    const archive = new File(['sealed'], RUN.archive_name)
+    Object.defineProperty(input, 'files', { value: [archive], configurable: true })
+    await fireEvent.change(input)
+    await waitFor(() => expect(calls.upload).toHaveBeenCalledWith(archive, expect.any(Function)))
+
+    await fireEvent.update(screen.getByTestId('full-restore-passphrase'), 'correct horse battery')
+    await fireEvent.click(screen.getByTestId('full-restore-preview'))
+    await waitFor(() => expect(calls.preview).toHaveBeenCalledWith({ upload_id: 'upload-1' }, 'correct horse battery'))
+  })
+
   it('asks the server for nothing until an archive and a passphrase are there', async () => {
     mountDialog()
     expect((screen.getByTestId('full-restore-preview') as HTMLButtonElement).disabled).toBe(true)

@@ -21,12 +21,12 @@
 
 pub mod bencode;
 
-use std::fmt::Write;
-
 use plugin_common::percent_encode;
 use sha1::{Digest, Sha1};
 
 pub use bencode::MAX_CONTAINER_BYTES;
+/// Lower-case hex of `bytes`: `plugin-common`'s, the one every plugin writes a digest with.
+pub use plugin_common::encode::to_hex;
 
 /// Most trackers carried over into a reconstructed magnet. A tracker list is attacker-supplied
 /// and an address has to fit in a request; thirty is more than any real torrent lists.
@@ -207,16 +207,6 @@ pub fn sha1_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha1::new();
     hasher.update(bytes);
     to_hex(&hasher.finalize())
-}
-
-/// Lower-case hex of `bytes`.
-#[must_use]
-pub fn to_hex(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::new(), |mut text, byte| {
-        // Writing into a String cannot fail; the result is discarded rather than unwrapped.
-        let _ = write!(text, "{byte:02x}");
-        text
-    })
 }
 
 /// The query of a magnet address, after `magnet:?` in any case and surrounding whitespace.

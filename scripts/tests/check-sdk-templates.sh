@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # scripts/check-sdk-templates.sh against a fixture tree with one world (audit K2, K4): a complete
-# template passes; a template on another wit-bindgen than the workspace, an api_version the core
-# does not accept, a min_app_version that is not the first release of its api_version, a contract
-# version without a row, an SDK workflow pinned to another release than the workspace and a
-# pre-release pin older than min_app_version each fail, named. Last, this checkout's own
-# templates, which have to pass as they are.
+# template passes; a guest generating another world, a template on another wit-bindgen than the
+# workspace, an api_version the core does not accept, a min_app_version that is not the first
+# release of its api_version, a contract version without a row, an SDK workflow pinned to another
+# release than the workspace and a pre-release pin older than min_app_version each fail, named.
+# Last, this checkout's own templates, which have to pass as they are.
 #
 # Pure bash: it runs in well under a second.
 #
@@ -37,8 +37,9 @@ EOF
     printf 'package rdownloader:plugin@0.10.0;\n\nworld demo-plugin {\n}\n' \
         > "$TREE/crates/rd-plugin-api/wit/rdownloader.wit"
     cp "$TREE/crates/rd-plugin-api/wit/rdownloader.wit" "$TEMPLATE/wit/"
-    printf '[dependencies]\nwit-bindgen = "0.62"\n\n[package.metadata.component.target]\nworld = "demo-plugin"\n' \
-        > "$TEMPLATE/Cargo.toml"
+    printf '[dependencies]\nwit-bindgen = "0.62"\n' > "$TEMPLATE/Cargo.toml"
+    printf 'wit_bindgen::generate!({\n    path: "wit",\n    world: "demo-plugin",\n});\n' \
+        > "$TEMPLATE/src/guest.rs"
     printf 'api_version = "0.10.0"\nplugin_type = "demo"\n\n[metadata]\nmin_app_version = "1.9.0"\n' \
         > "$TEMPLATE/manifest.toml"
     echo "# Demo" > "$TEMPLATE/README.md"
@@ -52,6 +53,12 @@ check() { run_status "$SCRIPT" "$TREE"; }
 fixture
 check
 expect_status "a complete template passes" 0
+
+fixture
+sed -i 's/demo-plugin/other-plugin/' "$TEMPLATE/src/guest.rs"
+check
+expect_status "a guest that generates another world: refused" 1
+expect_output "and named" "src/guest.rs does not generate world demo-plugin"
 
 fixture
 sed -i 's/^wit-bindgen = .*/wit-bindgen = "0.61"/' "$TEMPLATE/Cargo.toml"

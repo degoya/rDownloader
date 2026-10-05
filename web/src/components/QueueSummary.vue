@@ -36,7 +36,7 @@ function usage(free: string | null | undefined, total: string | null | undefined
 </script>
 
 <template>
-  <section class="border border-muted bg-elevated p-4">
+  <UCard as="section">
     <div class="mb-3">
       <SectionHeader :eyebrow="t('downloads.summary.eyebrow')" :title="t('downloads.summary.title')" />
     </div>
@@ -64,5 +64,5 @@ function usage(free: string | null | undefined, total: string | null | undefined
         <p v-if="root.total_bytes" class="mt-1 text-xs text-muted">{{ t('downloads.summary.used', { percent: usage(root.free_bytes, root.total_bytes), total: formatBytes(root.total_bytes) }) }}</p>
       </div>
     </div>
-  </section>
+  </UCard>
 </template>

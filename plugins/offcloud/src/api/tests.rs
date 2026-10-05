@@ -1,7 +1,9 @@
+use plugin_common::retry_after_seconds;
+
 use super::{
-    AccountInfo, AccountState, ErrorEnvelope, ErrorKind, SiteEntry, account_name, account_state,
-    classify_error, classify_not_available, ensure_http_status, error_envelope, failure_from,
-    form_body, merge_hosters, retry_after_seconds, sanitize_error,
+    AccountInfo, AccountState, ErrorEnvelope, ErrorKind, HTTP, SiteEntry, account_name,
+    account_state, classify_error, classify_not_available, error_envelope, failure_from, form_body,
+    merge_hosters, sanitize_error,
 };
 use crate::messages;
 
@@ -123,39 +125,51 @@ fn a_status_outranks_prose_and_a_stable_word_outranks_the_status() {
 
 #[test]
 fn a_status_decides_when_no_document_explains_itself() {
-    assert!(ensure_http_status(204, None).is_ok());
+    assert!(HTTP.ensure_http_status(204, None).is_ok());
     assert_eq!(
-        ensure_http_status(401, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(401, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::AccountInvalid
     );
     assert_eq!(
-        ensure_http_status(404, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(404, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::Permanent
     );
     assert_eq!(
-        ensure_http_status(429, Some(120))
+        HTTP.ensure_http_status(429, Some(120))
             .expect_err("refused")
             .kind,
         ErrorKind::RateLimited(Some(120))
     );
     // Without a header the bucket's own figure is used rather than an immediate retry.
     assert_eq!(
-        ensure_http_status(429, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(429, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::RateLimited(Some(3600))
     );
     assert_eq!(
-        ensure_http_status(451, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(451, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::Offline
     );
     assert_eq!(
-        ensure_http_status(503, None).expect_err("refused").kind,
+        HTTP.ensure_http_status(503, None)
+            .expect_err("refused")
+            .kind,
         ErrorKind::Transient(Some(300))
     );
     assert_eq!(
-        ensure_http_status(503, Some(30)).expect_err("refused").kind,
+        HTTP.ensure_http_status(503, Some(30))
+            .expect_err("refused")
+            .kind,
         ErrorKind::Transient(Some(30))
     );
-    let failure = ensure_http_status(418, None).expect_err("refused");
+    let failure = HTTP.ensure_http_status(418, None).expect_err("refused");
     assert_eq!(failure.code, messages::HTTP_ERROR.0);
     assert_eq!(failure.params, vec![("status", "418".to_owned())]);
 }

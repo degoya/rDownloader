@@ -6,14 +6,15 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { CaptureToken } from '@/api/types'
 import type { components } from '@/api/schema'
+import CopyField from '@/components/CopyField.vue'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import { useConfirm } from '@/composables/useConfirm'
-import { useCopy } from '@/composables/useCopy'
 import { useFetchState } from '@/composables/useFetchState'
 import { serviceUrl } from '@/basePath'
 import { formatDay } from '@/utils/format'
+import { expiresInDays, tokenExpired, tokenExpiryItems, tokenExpiryLabel } from '@/utils/tokenExpiry'
 import SectionHeader from '@/components/SectionHeader.vue'
 
 defineProps<{ embedded?: boolean }>()
@@ -30,6 +31,9 @@ const areas = ref<ScopeDescriptor[]>([])
 /// Least privilege by default. A form that opens on "everything" is a form whose default
 /// everybody keeps, which would make the areas decorative.
 const chosen = ref<string[]>(['api:read'])
+/// Days until the new token expires; `0`, never, is the default (RD-1110-07).
+const expiryDays = ref(0)
+const expiryItems = computed(() => tokenExpiryItems(t))
 const bearer = ref<string | null>(null)
 const bearerTokenId = ref<string | null>(null)
 /// Areas of the token currently shown, so the hint describes what was actually minted rather
@@ -47,7 +51,6 @@ const savingId = ref<string | null>(null)
 const editError = ref<string | null>(null)
 const confirm = useConfirm()
 const toast = useToast()
-const copyToClipboard = useCopy()
 
 const mcpEndpoint = serviceUrl('/mcp')
 // Shown for every token: the MCP transport accepts any API area, and which of the sixteen
@@ -125,7 +128,7 @@ async function pair(): Promise<void> {
   pairing.value = true
   pairError.value = null
   const response = await api.POST('/api/v1/api-tokens', {
-    body: { label: pairLabel.value, scopes: chosen.value }
+    body: { label: pairLabel.value, scopes: chosen.value, expires_in_days: expiresInDays(expiryDays.value) }
   })
   pairing.value = false
   if (response.data) {
@@ -171,8 +174,7 @@ async function saveScopes(token: CaptureToken): Promise<void> {
   toast.add({ title: t('system.mcp.edit.done'), color: 'success', icon: 'i-lucide-shield-check' })
 }
 
-async function copy(value: string, description: string): Promise<void> {
-  if (!(await copyToClipboard(value))) return
+function copied(description: string): void {
   toast.add({
     title: t('system.mcp.copied_title'),
     description,
@@ -259,59 +261,38 @@ function scopeLabel(token: CaptureToken): string {
             />
             <p v-if="!chosen.length" class="text-xs text-warning">{{ t('system.mcp.scopes_empty') }}</p>
           </div>
+          <UFormField :label="t('system.token_expiry.label')" :description="t('system.token_expiry.hint')">
+            <USelect v-model="expiryDays" :items="expiryItems" icon="i-lucide-calendar-clock" class="w-full" data-testid="token-expiry" />
+          </UFormField>
           <FormActions :create-label="t('system.mcp.submit')" create-icon="i-lucide-key-round" :loading="pairing" :disabled="!chosen.length" />
         </form>
-        <div v-if="bearer" class="mt-3 border border-warning/40 bg-warning/10 p-3">
-          <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.copy_hint') }}</p>
-          <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.token_hint') }}</p>
-          <p class="mb-2 text-[11px] text-muted">
-            {{ t('system.mcp.minted_areas', { areas: bearerScopes.map(areaName).join(', ') }) }}
-          </p>
-          <div class="flex items-start gap-2">
-            <code class="min-w-0 flex-1 break-all font-mono text-xs leading-5 text-highlighted">{{ bearer }}</code>
-            <UButton
-              icon="i-lucide-copy"
-              :label="t('system.mcp.copy_token')"
-              color="neutral"
-              variant="soft"
-              @click="copy(bearer!, t('system.mcp.token_copied'))"
-            />
-          </div>
-          <div class="mt-3 border-t border-warning/30 pt-3">
+        <UAlert v-if="bearer" class="mt-3" color="warning" variant="subtle" :title="t('system.mcp.copy_hint')">
+          <template #description>
+            <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.token_hint') }}</p>
+            <p class="mb-2 text-[11px] text-muted">
+              {{ t('system.mcp.minted_areas', { areas: bearerScopes.map(areaName).join(', ') }) }}
+            </p>
+            <CopyField :value="bearer!" :label="t('system.mcp.copy_token')" @copied="copied(t('system.mcp.token_copied'))" />
+            <USeparator class="my-3" :ui="{ border: 'border-warning/30' }" />
             <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.header_hint') }}</p>
-            <div class="flex items-start gap-2">
-              <code class="min-w-0 flex-1 break-all font-mono text-xs leading-5 text-highlighted">{{ authorizationHeader }}</code>
-              <UButton
-                icon="i-lucide-copy"
-                :label="t('system.mcp.copy_header')"
-                color="neutral"
-                variant="soft"
-                @click="copy(authorizationHeader, t('system.mcp.header_copied'))"
-              />
-            </div>
+            <CopyField :value="authorizationHeader" :label="t('system.mcp.copy_header')" @copied="copied(t('system.mcp.header_copied'))" />
             <p class="mt-2 text-[11px] text-muted">{{ t('system.mcp.single_source_hint') }}</p>
-          </div>
-          <div class="mt-3 border-t border-warning/30 pt-3">
+            <USeparator class="my-3" :ui="{ border: 'border-warning/30' }" />
             <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.mcp_hint') }}</p>
-            <div class="flex items-start gap-2">
-              <code class="min-w-0 flex-1 break-all font-mono text-xs leading-5 text-highlighted">{{ claudeCommand }}</code>
-              <UButton
-                icon="i-lucide-copy"
-                :label="t('system.mcp.copy_command')"
-                color="neutral"
-                variant="soft"
-                @click="copy(claudeCommand, t('system.mcp.command_copied'))"
-              />
-            </div>
-          </div>
-        </div>
+            <CopyField :value="claudeCommand" :label="t('system.mcp.copy_command')" @copied="copied(t('system.mcp.command_copied'))" />
+          </template>
+        </UAlert>
       </template>
       <template #list>
         <div v-if="tokens.length" class="divide-y divide-muted border border-muted">
           <div v-for="token in tokens" :key="token.id">
             <div class="flex items-center gap-3 p-3">
-              <span class="size-2 bg-success" />
-              <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-highlighted">{{ token.label }}</p><p class="text-[11px] text-muted">{{ scopeLabel(token) }} · <span class="font-mono">{{ token.scopes.join(', ') }}</span></p></div>
+              <UChip standalone :color="tokenExpired(token.expires_at) ? 'error' : 'success'" />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-highlighted">{{ token.label }}</p>
+                <p class="text-[11px] text-muted">{{ scopeLabel(token) }} · <span class="font-mono">{{ token.scopes.join(', ') }}</span></p>
+                <p v-if="token.expires_at" class="text-[11px]" :class="tokenExpired(token.expires_at) ? 'text-error' : 'text-muted'">{{ tokenExpiryLabel(token.expires_at, t) }}</p>
+              </div>
               <span class="numeric text-[11px] text-muted">{{ formatDay(token.created_at) }}</span>
               <UButton
                 icon="i-lucide-pencil"
@@ -377,7 +358,7 @@ function scopeLabel(token: CaptureToken): string {
           </div>
         </div>
         <DataState v-else :loading="loading" :error="loadError" :empty="true" :rows="2">
-          <p class="border border-dashed border-muted p-6 text-center text-sm text-muted">{{ t('system.mcp.empty') }}</p>
+          <UEmpty :description="t('system.mcp.empty')" />
         </DataState>
       </template>
     </FormListLayout>

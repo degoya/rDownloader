@@ -19,33 +19,11 @@
 //! A provider that could not be reached at all never gets here: `http-request` fails, the guest
 //! returns that failure, and the host keeps the stored token and tries again later.
 
-use crate::pkce;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum TokenAnswer {
-    Granted {
-        access_token: String,
-        refresh_token: Option<String>,
-        expires_in_seconds: Option<u64>,
-    },
-    /// Microsoft's own `error` code, e.g. `access_denied` or `invalid_grant`.
-    Refused(String),
-    /// Too many requests, or the person has not confirmed yet; wait this many seconds if
-    /// Microsoft said how long.
-    Busy(Option<u64>),
-    Unreadable(u16),
-}
-
-/// What a device-code answer carries: the code to poll with, the code to show, and where to
-/// send the person.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DeviceCode {
-    pub device_code: String,
-    pub user_code: String,
-    pub verification_url: String,
-    pub expires_in: Option<u64>,
-    pub interval: Option<u64>,
-}
+use plugin_guest_oauth::token::{self, Waiting};
+// Microsoft spells the address `verification_uri`, which the shared reader prefers. Its
+// `verification_uri_complete` -- the address with the code already in it -- is deliberately not
+// read: the person is shown the code and types it, which is what makes a device sign-in legible.
+pub use plugin_guest_oauth::token::{DeviceCode, TokenAnswer, read_device_code};
 
 /// The translation code a refusal is reported under, so the interface can say it in the
 /// language the person reads. `onedrive_oauth` is this plugin's slug; the catalogue in
@@ -70,89 +48,29 @@ pub fn refusal_code(error: &str) -> &'static str {
     }
 }
 
-/// Reads a device-authorization answer, or `None` when it is not one.
-///
-/// RFC 8628 spells the address `verification_uri`, and so does Microsoft; enough providers
-/// write `verification_url` that both are read. An answer missing any of the three required
-/// values is `None` rather than a half-filled prompt: a sign-in without a code is a screen
-/// nobody can act on. Microsoft's `verification_uri_complete` — the address with the code
-/// already in it — is deliberately not preferred: the person is shown the code and types it,
-/// which is what makes a device sign-in legible.
-#[must_use]
-pub fn read_device_code(body: &str) -> Option<DeviceCode> {
-    let device_code = pkce::string_field(body, "device_code")?;
-    let user_code = pkce::string_field(body, "user_code")?;
-    let verification_url = pkce::string_field(body, "verification_uri")
-        .or_else(|| pkce::string_field(body, "verification_url"))?;
-    (!device_code.is_empty() && !user_code.is_empty() && !verification_url.is_empty()).then(|| {
-        DeviceCode {
-            device_code,
-            user_code,
-            verification_url,
-            expires_in: pkce::number_field(body, "expires_in"),
-            interval: pkce::number_field(body, "interval"),
-        }
-    })
-}
+/// What this provider's token answer says "wait" with, besides HTTP 429.
+const WAITING: Waiting = Waiting {
+    errors: &["slow_down", "authorization_pending"],
+    fields: &["retry_after", "interval"],
+};
 
-/// Reads a token or refresh answer.
+/// Reads a token or refresh answer; the reading is `plugin-guest-oauth`'s, the [`WAITING`]
+/// this provider's.
 ///
 /// `retry_after` is the `Retry-After` response header, which is where a provider says how long
 /// to wait; the body is consulted only when the header is missing.
 #[must_use]
 pub fn read_token_answer(status: u16, retry_after: Option<&str>, body: &str) -> TokenAnswer {
-    let error = pkce::string_field(body, "error");
-    // Waiting is not refusal even when it arrives with an `error` field, so it is read first.
-    // `slow_down` is a rate limit spelled in the body; `authorization_pending` is a device
-    // flow saying the person has not finished at the other screen yet. Reading either as a
-    // failure would end a sign-in that was going perfectly well.
-    if status == 429
-        || matches!(
-            error.as_deref(),
-            Some("slow_down" | "authorization_pending")
-        )
-    {
-        let seconds = plugin_common::retry_after_seconds(retry_after)
-            .or_else(|| pkce::number_field(body, "retry_after"))
-            .or_else(|| pkce::number_field(body, "interval"));
-        return TokenAnswer::Busy(seconds);
-    }
-    if let Some(error) = error {
-        return TokenAnswer::Refused(error);
-    }
-    match pkce::string_field(body, "access_token") {
-        Some(access_token) if !access_token.is_empty() => TokenAnswer::Granted {
-            access_token,
-            refresh_token: pkce::string_field(body, "refresh_token").filter(|t| !t.is_empty()),
-            expires_in_seconds: pkce::number_field(body, "expires_in"),
-        },
-        _ => TokenAnswer::Unreadable(status),
-    }
+    token::read_token_answer(&WAITING, status, retry_after, body)
 }
 
-/// Microsoft's `error` code, reduced to something that is safe to put in a message.
-///
-/// The point is not tidiness. Whatever a provider sends back travels into a log line and into
-/// the failure the interface shows, and an endpoint that echoed part of a token into its error
-/// document would otherwise publish it. RFC 6749 error codes are lowercase words joined by
-/// underscores, so anything that is not exactly that shape is dropped whole rather than
-/// filtered character by character — filtering would keep the digits of a leaked token.
+/// A provider's `error` code, reduced to something that is safe to put in a message: the one
+/// rule every OAuth plugin applies, in `plugin-common` (RD-1110-04).
 ///
 /// Microsoft's `error_description` is deliberately never read at all. It is a full sentence
 /// with an `AADSTS` code, a timestamp, a trace id and a correlation id in it, written for a
 /// developer, and there is no shape check that makes a sentence safe.
-#[must_use]
-pub fn sanitize_error(error: &str) -> String {
-    let trimmed = error.trim();
-    let is_error_code = !trimmed.is_empty()
-        && trimmed.len() <= 40
-        && trimmed.chars().all(|c| c.is_ascii_lowercase() || c == '_');
-    if is_error_code {
-        trimmed.to_owned()
-    } else {
-        "refused".to_owned()
-    }
-}
+pub use plugin_common::device_flow::sanitize_error;
 
 #[cfg(test)]
 mod tests {

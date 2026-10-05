@@ -103,7 +103,8 @@ function deviceLabel(session: Session): string {
   const agent = session.user_agent
   if (!agent) return t('system.sessions.unknown_device')
   const browser = ['Firefox', 'Edg', 'Chrome', 'Safari'].find(name => agent.includes(name))
-  const platform = ['Windows', 'Macintosh', 'Linux', 'Android', 'iPhone', 'iPad']
+  // Mobile systems first: Android's user agent names Linux too.
+  const platform = ['Android', 'iPhone', 'iPad', 'Windows', 'Macintosh', 'Linux']
     .find(name => agent.includes(name))
   if (!browser && !platform) return agent.slice(0, 40)
   const readable = browser === 'Edg' ? 'Edge' : browser

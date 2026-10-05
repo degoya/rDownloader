@@ -2,6 +2,10 @@
 
 use super::*;
 
+/// A watched folder's name is unique, and so is its folder; a second one is a `409`.
+const TAKEN: &str = "hotfolder.name_or_path_taken";
+const TAKEN_MESSAGE: &str = "A watched folder with this name or folder already exists";
+
 #[utoipa::path(get, path = "/api/v1/hotfolders", tag = "configuration", responses((status = 200, body = [rd_core::HotFolderConfig])))]
 pub async fn list_hotfolders(
     State(state): State<AppState>,
@@ -78,18 +82,22 @@ pub(super) async fn validated_hotfolder(
     })
 }
 
-#[utoipa::path(post, path = "/api/v1/hotfolders", tag = "configuration", request_body = CreateHotFolderRequest, responses((status = 201, body = rd_core::HotFolderConfig)))]
+#[utoipa::path(post, path = "/api/v1/hotfolders", tag = "configuration", request_body = CreateHotFolderRequest, responses((status = 201, body = rd_core::HotFolderConfig), (status = 409)))]
 pub async fn create_hotfolder(
     State(state): State<AppState>,
     Json(request): Json<CreateHotFolderRequest>,
 ) -> Result<(StatusCode, Json<rd_core::HotFolderConfig>), ApiError> {
     let input = validated_hotfolder(&state, request).await?;
-    let value = state.database.create_hotfolder(input).await?;
+    let value = state
+        .database
+        .create_hotfolder(input)
+        .await
+        .map_err(|error| store_duplicate(&error, TAKEN, TAKEN_MESSAGE))?;
     state.hotfolders.start(value.clone()).await?;
     Ok((StatusCode::CREATED, Json(value)))
 }
 
-#[utoipa::path(put, path = "/api/v1/hotfolders/{id}", tag = "configuration", params(("id" = rd_core::HotFolderId, Path)), request_body = CreateHotFolderRequest, responses((status = 200, body = rd_core::HotFolderConfig), (status = 404)))]
+#[utoipa::path(put, path = "/api/v1/hotfolders/{id}", tag = "configuration", params(("id" = rd_core::HotFolderId, Path)), request_body = CreateHotFolderRequest, responses((status = 200, body = rd_core::HotFolderConfig), (status = 404), (status = 409)))]
 pub async fn update_hotfolder(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<rd_core::HotFolderId>,
@@ -105,9 +113,9 @@ pub async fn update_hotfolder(
                 &error,
                 "hotfolder.not_found",
                 "Hotfolder not found",
-                StoreErrorKind::InUse,
-                "hotfolder.in_use",
-                "The hotfolder is still in use",
+                StoreErrorKind::Duplicate,
+                TAKEN,
+                TAKEN_MESSAGE,
             )
         })?;
     // The watcher holds the old path and enabled flag, so it has to be recreated.

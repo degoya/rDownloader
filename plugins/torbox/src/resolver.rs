@@ -11,6 +11,7 @@
 //! costs one extra request rather than a failed resume. Writing a minted address into the row
 //! instead would be a ticket that is dead the next time anybody looks at it.
 
+use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
     LinkStatus, PluginHost, ResolveInput, Resolved,
@@ -223,15 +224,13 @@ async fn call<H: PluginHost>(
     if let Some((name, value)) = token_query {
         request = request.with_query(name, value);
     }
-    let response = host.http(request).await?;
-    let retry_after = api::retry_after_seconds(response.header("Retry-After"));
     // The failure envelope and the answer share one document, so it is read as both: an
     // `error` word inside a 200 is still a refusal, and an answer with neither is a success.
-    let envelope: api::ErrorEnvelope = serde_json::from_slice(&response.body).unwrap_or_default();
-    if let Some(failure) = api::failure_from(response.status, retry_after, &envelope) {
-        return Err(convert_failure(failure));
-    }
-    Ok(response)
+    plugin_common::failure::call(host, request, |status, retry_after, body| {
+        let envelope: api::ErrorEnvelope = serde_json::from_slice(body).unwrap_or_default();
+        api::failure_from(status, retry_after, &envelope)
+    })
+    .await
 }
 
 /// Fails before any request when the account holds no API key.
@@ -245,22 +244,6 @@ async fn require_key<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Fa
     Ok(())
 }
 
-fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-        api::ErrorKind::Unsupported => FailureKind::Unsupported,
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
-}
-
 /// The `data` half of an answer, parsed.
 fn parse_data<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
     let envelope: serde_json::Value = serde_json::from_slice(&response.body)
@@ -271,8 +254,4 @@ fn parse_data<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T
         .ok_or_else(|| coded(FailureKind::Transient(None), messages::INVALID_RESPONSE))?;
     serde_json::from_value(payload)
         .map_err(|_| coded(FailureKind::Transient(None), messages::INVALID_RESPONSE))
-}
-
-fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

@@ -4,7 +4,8 @@
 # compiles: a failing stage is recorded and the run goes on, the failure list names the stage,
 # its exit status, its log and the failing tests and compiler errors in it (each once), a green
 # stage leaves no trace in it, skips are listed with their reason, and the run then ends
-# non-zero — or, with nothing failed, goes on.
+# non-zero — or, with nothing failed, goes on. The script tests collect the same way
+# (RD-1110-15): a red one is recorded and the next one runs.
 #
 #   scripts/tests/check-stages.sh
 set -euo pipefail
@@ -82,5 +83,29 @@ run true true
 expect_status "a run without a failure goes on" 0
 expect_output "to its closing line" "==> all requested checks passed"
 expect_true "and an earlier run's failure list is gone" '[[ ! -e "$FAILURES" ]]'
+
+# The script tests (RD-1110-15): each through `attempt`, so a red one no longer ends the run.
+TESTS="$SCRATCH/checkout"
+mkdir -p "$TESTS/scripts/tests"
+printf '#!/usr/bin/env bash\necho "a is red"\nexit 3\n' > "$TESTS/scripts/tests/a.sh"
+printf '#!/usr/bin/env bash\necho "b is green"\n' > "$TESTS/scripts/tests/b.sh"
+chmod +x "$TESTS/scripts/tests/"*.sh
+run_status bash -c '
+    set -euo pipefail
+    CHECK_LOGS="$1/logs" RUN_KIND=full
+    source "$2/scripts/lib/stages.sh"
+    source "$2/scripts/lib/script-checks.sh"
+    rd_stages_init
+    cd "$1"
+    rd_script_tests
+    rd_stages_report
+    rd_stages_exit_if_failed
+    echo "==> all requested checks passed"
+' run "$TESTS" "$ROOT"
+expect_status "a red script test fails the run" 1
+expect_output "after the next test ran" "b is green"
+expect_output "and the run went on to its report" "total (all stages)"
+expect "the failure list names the red test, and only it" \
+    "script test: scripts/tests/a.sh — exit 3, log $TESTS/logs/full-01.log" "$(grep ' — exit ' "$TESTS/logs/failures")"
 
 finish_tests check-stages

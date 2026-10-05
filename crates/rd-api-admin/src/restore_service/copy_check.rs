@@ -32,6 +32,8 @@ impl WorkFolder {
 }
 
 impl Drop for WorkFolder {
+    // Blocking on purpose: a `Drop` cannot await, and it runs only when a check ends early
+    // (RD-1110-06).
     fn drop(&mut self) {
         if let Some(folder) = self.0.take()
             && let Err(error) = std::fs::remove_dir_all(&folder)

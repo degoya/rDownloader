@@ -3,7 +3,7 @@
  * the refusal a check reports, the build without an update key, and the channel a package
  * manager cannot follow.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UpdateStatus } from '@/api/updates'
@@ -110,7 +110,7 @@ describe('SettingsUpdateCard', () => {
     await fireEvent.click(screen.getByRole('button', { name: system.updates.show_details }))
     const details = await screen.findByTestId('update-details')
     expect(details.textContent).toContain('Update check (RD-180-01).')
-    expect(screen.getByTestId('update-command').textContent).toContain('brew upgrade rdownloader')
+    expect(within(screen.getByTestId('update-command')).getByDisplayValue('brew upgrade rdownloader')).toBeTruthy()
     expect(screen.getByTestId('update-command').textContent).toContain('Homebrew manages this installation.')
   })
 

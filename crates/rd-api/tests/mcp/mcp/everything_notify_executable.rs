@@ -95,3 +95,45 @@ async fn a_configuration_token_cannot_name_a_destination_s_program_over_mcp() {
     assert_eq!(renamed["name"], "Renamed", "{renamed}");
     assert_eq!(renamed["config"]["executable"], "/bin/sh", "{renamed}");
 }
+
+/// A target name another target has is refused with its own code, not `internal.error`, on
+/// creation and on a rename (RD-1110-16).
+#[tokio::test]
+async fn a_taken_target_name_is_refused_with_its_code_over_mcp() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = installation(directory.path()).await;
+    let session = handshake(&router, CONFIG_BEARER).await;
+    let target = |name: &str| json!({ "name": name, "kind": "apprise", "endpoint": "tgram" });
+    as_config(
+        &router,
+        &session,
+        "create_notification_target",
+        target("Taken pager"),
+    )
+    .await;
+    let other = as_config(
+        &router,
+        &session,
+        "create_notification_target",
+        target("Free pager"),
+    )
+    .await;
+
+    let refused = refusal(
+        &router,
+        &session,
+        "create_notification_target",
+        target("Taken pager"),
+    )
+    .await;
+    assert_eq!(refused["code"], "notification.name_taken", "{refused}");
+    let id = other["id"].as_str().expect("id").to_owned();
+    let refused = refusal(
+        &router,
+        &session,
+        "update_notification_target",
+        json!({ "id": id, "name": "Taken pager" }),
+    )
+    .await;
+    assert_eq!(refused["code"], "notification.name_taken", "{refused}");
+}

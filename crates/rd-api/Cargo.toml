@@ -52,7 +52,12 @@ chrono.workspace = true
 dunce.workspace = true
 hex.workspace = true
 http-body-util = "0.1"
+# The `test-support` hooks the integration tests drive the service through (RD-1110-06).
+rd-api-core = { path = "../rd-api-core", features = ["test-support"] }
+rd-authn = { path = "../rd-authn", features = ["test-support"] }
 rd-backup = { path = "../rd-backup" }
+rd-db = { path = "../rd-db", features = ["test-support"] }
+rd-diagnostics = { path = "../rd-diagnostics", features = ["test-support"] }
 rd-extract = { path = "../rd-extract" }
 rd-files = { path = "../rd-files" }
 rd-gallery = { path = "../rd-gallery" }

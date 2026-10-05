@@ -78,11 +78,10 @@
 //!   call against such an account fails through the normal error path instead (JD itself treats a
 //!   truly exhausted account the same way, via `/geturl`'s or `/accountinfo`'s own error response).
 
+use plugin_common::label::civil_date;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
-
-use crate::messages;
 
 pub(crate) const API_BASE: &str = "https://k2s.cc/api/v2";
 
@@ -134,12 +133,7 @@ pub(crate) fn file_id(url: &Url) -> Option<&str> {
 /// deeper in the pipeline (or not at all, on the guest side, where `ResolvedDownload.url` is a
 /// bare `String`).
 pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
-    Url::parse(raw).map_err(|error| ApiFailure {
-        kind: ErrorKind::Permanent,
-        code: messages::INVALID_URL,
-        message: messages::invalid_url(&error),
-        params: vec![("error", error.to_string())],
-    })
+    Url::parse(raw).map_err(|error| invalid_url(&error))
 }
 
 #[derive(Serialize)]
@@ -286,30 +280,6 @@ pub(crate) fn traffic_left(available_traffic: Option<&Value>) -> Option<u64> {
         ),
         _ => None,
     }
-}
-
-/// Formats a Unix timestamp (seconds) as a UTC `YYYY-MM-DD` date, using Howard Hinnant's
-/// `civil_from_days` algorithm (pure integer arithmetic — `chrono` is a native-only dependency in
-/// this workspace's plugin convention, and this module must stay usable from the WASM guest too).
-fn civil_date(epoch_seconds: i64) -> String {
-    let days = epoch_seconds.div_euclid(86_400);
-    let (year, month, day) = civil_from_days(days);
-    format!("{year:04}-{month:02}-{day:02}")
-}
-
-/// <http://howardhinnant.github.io/date_algorithms.html#civil_from_days>; `z` is a day count
-/// relative to the Unix epoch (1970-01-01 = day 0).
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097); // [0, 146096]
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
-    let mp = (5 * doy + 2) / 153; // [0, 11]
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
-    (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
 mod errors;

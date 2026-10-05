@@ -28,6 +28,18 @@ pub(crate) fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure>
     xfs_common::glue::ensure_http_status(response, messages::HTTP_ERROR, messages::http_error)
 }
 
+/// The codes this plugin's free flow reports its dead ends under (`xfs_common::free`,
+/// RD-1110-03).
+pub(crate) const FREE: xfs_common::free::FreeWords = xfs_common::free::FreeWords {
+    http_error: plugin_common::HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+    no_free_form: (messages::NO_FREE_FORM, messages::no_free_form),
+    no_free_link: (messages::NO_FREE_LINK, messages::no_free_link),
+    free_limit_reached: (messages::FREE_LIMIT_REACHED, messages::free_limit_reached),
+};
+
 pub(crate) fn invalid_url(error: &url::ParseError) -> Failure {
     xfs_common::glue::invalid_url(error, messages::INVALID_URL, messages::invalid_url)
 }

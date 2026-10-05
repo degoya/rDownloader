@@ -216,6 +216,7 @@ describe('the site-rule list', () => {
     await screen.findByText('scnlog.me')
 
     const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    expect(input.accept).toBe('.json')
     // jsdom's `File` has no `text()`; the component reads nothing else of it.
     const picked = { name: 'rdownloader-site-rules.json', text: () => Promise.resolve(file) }
     Object.defineProperty(input, 'files', {

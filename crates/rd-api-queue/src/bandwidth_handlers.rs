@@ -17,6 +17,9 @@ pub use package_limit::*;
 const MAX_WINDOWS: usize = 200;
 /// Highest scope limits per profile.
 const MAX_SCOPES: usize = 100;
+/// Profile names are unique; a second one is a `409`, on creation and on a rename.
+const PROFILE_NAME_TAKEN: &str = "bandwidth.profile_name_taken";
+const PROFILE_NAME_TAKEN_MESSAGE: &str = "A bandwidth profile with this name already exists";
 
 #[derive(Deserialize, ToSchema)]
 pub struct BandwidthProfileRequest {
@@ -124,18 +127,28 @@ pub async fn list_profiles(
     Ok(Json(state.database.list_bandwidth_profiles().await?))
 }
 
-#[utoipa::path(post, path = "/api/v1/bandwidth/profiles", tag = "bandwidth", request_body = BandwidthProfileRequest, responses((status = 201, body = rd_limits::BandwidthProfile)))]
+#[utoipa::path(post, path = "/api/v1/bandwidth/profiles", tag = "bandwidth", request_body = BandwidthProfileRequest, responses((status = 201, body = rd_limits::BandwidthProfile), (status = 409)))]
 pub async fn create_profile(
     State(state): State<AppState>,
     Json(request): Json<BandwidthProfileRequest>,
 ) -> Result<(axum::http::StatusCode, Json<rd_limits::BandwidthProfile>), ApiError> {
     let input = validated_profile(request)?;
-    let profile = state.database.create_bandwidth_profile(input).await?;
+    let profile = state
+        .database
+        .create_bandwidth_profile(input)
+        .await
+        .map_err(|error| {
+            crate::error_codes::store_duplicate(
+                &error,
+                PROFILE_NAME_TAKEN,
+                PROFILE_NAME_TAKEN_MESSAGE,
+            )
+        })?;
     state.scheduler.reload_bandwidth().await?;
     Ok((axum::http::StatusCode::CREATED, Json(profile)))
 }
 
-#[utoipa::path(put, path = "/api/v1/bandwidth/profiles/{id}", tag = "bandwidth", params(("id" = rd_core::BandwidthProfileId, Path)), request_body = BandwidthProfileRequest, responses((status = 200, body = rd_limits::BandwidthProfile), (status = 404)))]
+#[utoipa::path(put, path = "/api/v1/bandwidth/profiles/{id}", tag = "bandwidth", params(("id" = rd_core::BandwidthProfileId, Path)), request_body = BandwidthProfileRequest, responses((status = 200, body = rd_limits::BandwidthProfile), (status = 404), (status = 409)))]
 pub async fn update_profile(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<rd_core::BandwidthProfileId>,
@@ -146,7 +159,16 @@ pub async fn update_profile(
         .database
         .update_bandwidth_profile(id, input)
         .await
-        .map_err(not_found)?;
+        .map_err(|error| {
+            crate::error_codes::store_error(
+                &error,
+                "bandwidth.profile_not_found",
+                "Bandwidth profile not found",
+                rd_db::StoreErrorKind::Duplicate,
+                PROFILE_NAME_TAKEN,
+                PROFILE_NAME_TAKEN_MESSAGE,
+            )
+        })?;
     state.scheduler.reload_bandwidth().await?;
     Ok(Json(profile))
 }

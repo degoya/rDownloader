@@ -3,62 +3,23 @@
 //! same classification, for the same reason — see plugin-common.md). Re-exported wholesale via
 //! `api.rs`'s `pub(crate) use errors::*;`, so every caller keeps addressing these as `api::X`.
 
-use plugin_common::HttpRefusal;
+pub(crate) use plugin_common::failure::{ApiFailure, ErrorKind};
+use plugin_common::failure::{HttpError, HttpWords};
 use serde::Deserialize;
 use serde_json::Value;
 
 use crate::messages;
 
-/// Failure classification independent of the native (`rd_core::Failure`) and WASM
-/// (WIT-generated `Failure`) representations; both adapters convert this into their own type.
-#[derive(Debug)]
-pub(crate) struct ApiFailure {
-    pub(crate) kind: ErrorKind,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-    pub(crate) params: Vec<(&'static str, String)>,
-}
-
-/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
-/// on either.
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AuthRequired,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    NeedsCaptcha,
-    /// This IP may not start another free download yet — only the account-less flow reaches
-    /// this (see [`crate::api::free`]); the scheduler blocks the hoster rather than the link.
-    IpBlocked(Option<u64>),
-    /// A captcha answer was submitted and rejected (errorcode 31).
-    CaptchaFailed,
-}
-
-pub(crate) fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
 /// The response body was not the JSON this API always answers with.
 pub(crate) fn invalid_response() -> ApiFailure {
-    coded(ErrorKind::Transient(None), messages::INVALID_RESPONSE)
+    ApiFailure::new(ErrorKind::Transient(None), messages::INVALID_RESPONSE)
 }
 
 /// A URL this plugin built or the API handed back failed to parse.
 pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> ApiFailure {
-    ApiFailure {
-        kind: ErrorKind::Permanent,
-        code: messages::INVALID_URL,
-        message: messages::invalid_url(error),
-        params: vec![("error", error.to_string())],
-    }
+    let text = messages::invalid_url(error);
+    ApiFailure::new(ErrorKind::Permanent, (messages::INVALID_URL, text.as_str()))
+        .with_param("error", error.to_string())
 }
 
 /// Minimal envelope probe every Keep2Share API endpoint answers with — enough of the shape to
@@ -97,10 +58,16 @@ pub(crate) struct SubError {
 pub(crate) fn error_from_probe(probe: &ErrorProbe) -> Option<ApiFailure> {
     if let Some(Value::String(marker)) = &probe.error_code {
         if marker.eq_ignore_ascii_case("captcha_need_wait") {
-            return Some(coded(ErrorKind::RateLimited(Some(60)), messages::FLOOD));
+            return Some(ApiFailure::new(
+                ErrorKind::RateLimited(Some(60)),
+                messages::FLOOD,
+            ));
         }
         if marker.eq_ignore_ascii_case("captcha_need_wait_daily") {
-            return Some(coded(ErrorKind::RateLimited(Some(1800)), messages::FLOOD));
+            return Some(ApiFailure::new(
+                ErrorKind::RateLimited(Some(1800)),
+                messages::FLOOD,
+            ));
         }
         // Unknown string enum: JD logs it and falls through to the numeric `code` field.
     }
@@ -131,7 +98,7 @@ pub(crate) fn error_from_probe(probe: &ErrorProbe) -> Option<ApiFailure> {
         time_remaining = sub_error.time_remaining.clone();
     }
     if message.eq_ignore_ascii_case("File not available") {
-        return Some(coded(ErrorKind::Offline, messages::FILE_OFFLINE));
+        return Some(ApiFailure::new(ErrorKind::Offline, messages::FILE_OFFLINE));
     }
     Some(classify_errorcode(
         errorcode,
@@ -147,40 +114,42 @@ pub(crate) fn classify_errorcode(
     time_remaining: Option<&str>,
 ) -> ApiFailure {
     match errorcode {
-        1 => coded(
+        1 => ApiFailure::new(
             ErrorKind::RateLimited(Some(3600)),
             messages::DOWNLOAD_LIMIT_REACHED,
         ),
-        2 => coded(
+        2 => ApiFailure::new(
             ErrorKind::RateLimited(Some(3600)),
             messages::TRAFFIC_EXHAUSTED,
         ),
-        3 | 7 | 9 | 11 | 42 => coded(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED),
-        4 => coded(ErrorKind::Permanent, messages::NO_ACCESS),
-        5 => coded(
+        3 | 7 | 9 | 11 | 42 => ApiFailure::new(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED),
+        4 => ApiFailure::new(ErrorKind::Permanent, messages::NO_ACCESS),
+        5 => ApiFailure::new(
             ErrorKind::RateLimited(Some(download_wait_seconds(time_remaining))),
             messages::DOWNLOAD_WAIT,
         ),
-        6 => coded(
+        6 => ApiFailure::new(
             ErrorKind::RateLimited(Some(900)),
             messages::TOO_MANY_PARALLEL,
         ),
-        8 => coded(ErrorKind::Permanent, messages::PRIVATE_FILE),
-        10 | 75 => coded(ErrorKind::Transient(Some(60)), messages::SESSION_INVALID),
-        20 | 23 => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
-        21 | 22 => coded(
+        8 => ApiFailure::new(ErrorKind::Permanent, messages::PRIVATE_FILE),
+        10 | 75 => ApiFailure::new(ErrorKind::Transient(Some(60)), messages::SESSION_INVALID),
+        20 | 23 => ApiFailure::new(ErrorKind::Offline, messages::FILE_OFFLINE),
+        21 | 22 => ApiFailure::new(
             ErrorKind::Transient(None),
             messages::TEMPORARILY_UNAVAILABLE,
         ),
-        30 | 33 => coded(ErrorKind::NeedsCaptcha, messages::LOGIN_CAPTCHA),
+        30 | 33 => ApiFailure::new(ErrorKind::NeedsCaptcha, messages::LOGIN_CAPTCHA),
         // IMPL-VERIFY (`K2SApi.java:1540-1542`): errorcode 31 is `ERROR_CAPTCHA_INVALID` and
         // JD raises `LinkStatus.ERROR_CAPTCHA` for it, i.e. "the answer was wrong", not "a
         // captcha is required" (30/33). Split out of the 30/31/33 bucket so the free flow can
         // report `CaptchaFailed`; the premium flow never submits an answer and cannot reach it.
-        31 => coded(ErrorKind::CaptchaFailed, messages::CAPTCHA_REJECTED),
-        41 | 70 | 72 | 74 | 76 => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
-        71 => coded(ErrorKind::RateLimited(Some(1860)), messages::FLOOD),
-        73 => coded(
+        31 => ApiFailure::new(ErrorKind::CaptchaFailed, messages::CAPTCHA_REJECTED),
+        41 | 70 | 72 | 74 | 76 => {
+            ApiFailure::new(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS)
+        }
+        71 => ApiFailure::new(ErrorKind::RateLimited(Some(1860)), messages::FLOOD),
+        73 => ApiFailure::new(
             ErrorKind::RateLimited(Some(21_600)),
             messages::NETWORK_RESTRICTED,
         ),
@@ -192,15 +161,12 @@ pub(crate) fn classify_errorcode(
         // earlier revision of this file mapped it `Transient{300}`, contradicting both JD and the
         // brief — a future/unmapped code would otherwise retry every 5 minutes forever instead of
         // surfacing as a failure).
-        _ => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::API_ERROR,
-            message: messages::api_error(errorcode, message),
-            params: vec![
-                ("api_status", errorcode.to_string()),
-                ("message", message.to_owned()),
-            ],
-        },
+        _ => {
+            let text = messages::api_error(errorcode, message);
+            ApiFailure::new(ErrorKind::Permanent, (messages::API_ERROR, text.as_str()))
+                .with_param("api_status", errorcode.to_string())
+                .with_param("message", message)
+        }
     }
 }
 
@@ -223,25 +189,28 @@ fn download_wait_seconds(time_remaining: Option<&str>) -> u64 {
 /// happen after any request even if the request itself is done right").
 pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
     if status == 400 {
-        return Err(coded(
+        return Err(ApiFailure::new(
             ErrorKind::Transient(Some(300)),
             messages::SERVER_ERROR,
         ));
     }
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
-        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
-        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
-        HttpRefusal::RateLimited(wait) => coded(ErrorKind::RateLimited(wait), messages::FLOOD),
-        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
+    HTTP.ensure_http_status(status, retry_after)
 }
+
+/// How Keep2Share's codes name each class of the shared mapping.
+const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::BAD_CREDENTIALS,
+    gone: messages::FILE_OFFLINE,
+    unavailable: messages::FILE_OFFLINE,
+    rate_limited: messages::FLOOD,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: None,
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+};
 
 #[cfg(test)]
 #[path = "errors/tests.rs"]

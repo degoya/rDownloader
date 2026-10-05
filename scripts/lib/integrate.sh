@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 #
 # The merge half of scripts/integrate.sh (RD-140-22), kept apart so it can be tested against a
-# scratch repository without anything that compiles.
+# scratch repository without anything that compiles, and the runner of its foreground checks.
 #
 # Sourced, never run. The functions return non-zero and say why; the caller decides to stop.
 
@@ -98,4 +98,27 @@ rd_integrate_duplicates() {
             "$(cd "$tree" && grep -lxF "$line" plugins/*/manifest.toml | tr '\n' ' ')"
     done <<< "$ids"
     [[ -z "$migrations" && -z "$ids" ]]
+}
+
+# Runs check $3... in the foreground with RD_CHECK_LOGS=$1, into $1/$2.log, judged by its closing
+# line, not its exit code alone. Red names every finding from the failure list, says that nothing
+# was generated or built, and fails; green says so.
+rd_integrate_check() {
+    local logs="$1" name="$2" status=0
+    shift 2
+    RD_CHECK_LOGS="$logs" "$@" > "$logs/$name.log" 2>&1 || status=$?
+    echo "REAL EXIT: $status" >> "$logs/$name.log"
+    if [[ "$status" -eq 0 ]] && grep -qx '==> all requested checks passed' "$logs/$name.log"; then
+        echo "    green"
+        return 0
+    fi
+    echo "!! the $name is red (exit $status); nothing was generated or built." >&2
+    if [[ -s "$logs/failures" ]]; then
+        echo "   Every finding, from $logs/failures:" >&2
+        sed 's/^/   /' "$logs/failures" >&2
+    else
+        echo "   No failure list was written; read $logs/$name.log." >&2
+    fi
+    echo "   Hand each back to the branch that owns it, then run the same integrate.sh again." >&2
+    return 1
 }

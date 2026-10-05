@@ -7,9 +7,12 @@
 use super::{
     ErrorKind, FileInfo, RateLimits, availability_failure, availability_is_offline, checksum,
     classify_value, download_url, ensure_http_status, error_envelope, failure_from, file_id,
-    file_name, info_url, is_download_target, quota_failure, retry_after_seconds, sanitize_value,
+    file_name, info_url, is_download_target, quota_failure, sanitize_value,
 };
 use crate::messages;
+// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
+// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
+use plugin_common::retry_after_seconds;
 
 fn info(json: &str) -> FileInfo {
     serde_json::from_str(json).expect("file info")

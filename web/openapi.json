@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.10.1"
+    "version": "1.11.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -3439,6 +3439,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -3482,6 +3485,9 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       },
@@ -4661,6 +4667,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -4704,6 +4713,9 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       },
@@ -8803,6 +8815,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -8846,6 +8861,9 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       },
@@ -9889,6 +9907,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -9932,6 +9953,9 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       },
@@ -14349,6 +14373,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -14392,6 +14419,9 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       },
@@ -16487,6 +16517,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -16530,6 +16563,9 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       },
@@ -17030,6 +17066,15 @@
           "label"
         ],
         "properties": {
+          "expires_in_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires; an expired\ntoken is refused like a revoked one.",
+            "minimum": 0
+          },
           "label": {
             "type": "string"
           },
@@ -20745,6 +20790,15 @@
           "label"
         ],
         "properties": {
+          "expires_in_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires, which is\nwhat every token paired before the choice existed does.",
+            "minimum": 0
+          },
           "label": {
             "type": "string"
           },
@@ -20890,6 +20944,14 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "From when on the token is refused like a revoked one (RD-1110-07); `None` never\nexpires. An expired token stays listed until somebody revokes it, so it does not\nvanish from the list the moment its client starts failing."
           },
           "id": {
             "$ref": "#/components/schemas/CaptureTokenId"

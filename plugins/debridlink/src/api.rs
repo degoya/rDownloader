@@ -55,7 +55,7 @@
 //!   intentionally left in the generic fallback bucket rather than growing the code surface
 //!   further; they still surface with their raw key via `api_code`.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 use url::form_urlencoded;
 
@@ -163,43 +163,10 @@ pub(crate) fn account_name<'a>(pseudo: Option<&'a str>, email: Option<&'a str>) 
         .or_else(|| email.map(str::trim).filter(|value| !value.is_empty()))
 }
 
-/// Failure classification independent of the native (`rd_core::Failure`) and WASM
-/// (WIT-generated `Failure`) representations; both adapters convert this into their own type.
-#[derive(Debug)]
-pub(crate) struct ApiFailure {
-    pub(crate) kind: ErrorKind,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-    pub(crate) params: Vec<(&'static str, String)>,
-}
-
-/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
-/// on either.
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-}
-
-/// Attaches the provider's raw error key as an `api_code` param so the UI can tell which specific
-/// key triggered a shared code/message bucket (e.g. `notDebrid` vs `hostNotValid`, both
+/// The provider's raw error key travels as the `api_code` parameter, so the UI can tell which key
+/// triggered a shared code/message bucket (e.g. `notDebrid` vs `hostNotValid`, both
 /// `debridlink.host_unsupported`).
-fn coded_with_provider_code(
-    kind: ErrorKind,
-    (code, message): (&'static str, &str),
-    provider_code: &str,
-) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![("api_code", provider_code.to_owned())],
-    }
-}
-
+///
 /// Classifies a `{"success":false,"error":"<key>"}` envelope by the provider's error key. Every
 /// branch mirrors JDownloader's `DebridLinkCom#errHandling` (`https://debrid-link.com/api_doc/v2/errors`)
 /// — see `api.rs`'s module-level IMPL-VERIFY note for the two documented deviations from the task
@@ -208,23 +175,23 @@ fn classify_error(code: &str) -> ApiFailure {
     match code {
         // JD's `accountErrorsPermanent`.
         "badToken" => {
-            coded_with_provider_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, code)
+            ApiFailure::with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, code)
         }
         "fileNotFound" => {
-            coded_with_provider_code(ErrorKind::Offline, messages::FILE_OFFLINE, code)
+            ApiFailure::with_api_code(ErrorKind::Offline, messages::FILE_OFFLINE, code)
         }
         // JD's `downloadErrorsHostUnavailable`, split into two brief-named buckets that share the
         // same `Transient{300}` kind (JD's own `mhm.putError(..., 5 * 60 * 1000l, ...)`).
-        "notDebrid" | "hostNotValid" | "notFreeHost" => coded_with_provider_code(
+        "notDebrid" | "hostNotValid" | "notFreeHost" => ApiFailure::with_api_code(
             ErrorKind::Transient(Some(300)),
             messages::HOST_UNSUPPORTED,
             code,
         ),
         "freeServerOverload" | "serverNotAllowed" | "maintenanceHost" | "noServerHost"
         | "disabledServerHost" | "accountLocked" => {
-            coded_with_provider_code(ErrorKind::Transient(Some(300)), messages::SERVER_BUSY, code)
+            ApiFailure::with_api_code(ErrorKind::Transient(Some(300)), messages::SERVER_BUSY, code)
         }
-        "maxLink" | "maxLinkHost" | "maxData" | "maxDataHost" => coded_with_provider_code(
+        "maxLink" | "maxLinkHost" | "maxData" | "maxDataHost" => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(3600)),
             messages::LIMIT_REACHED,
             code,
@@ -232,7 +199,7 @@ fn classify_error(code: &str) -> ApiFailure {
         // Deviation from the brief's `RateLimited{600}`: JD's own message for this key documents
         // a 1-hour reset window (see the module doc's IMPL-VERIFY note).
         "floodDetected" => {
-            coded_with_provider_code(ErrorKind::RateLimited(Some(3600)), messages::FLOOD, code)
+            ApiFailure::with_api_code(ErrorKind::RateLimited(Some(3600)), messages::FLOOD, code)
         }
         _ => ApiFailure {
             kind: ErrorKind::Permanent,
@@ -243,44 +210,29 @@ fn classify_error(code: &str) -> ApiFailure {
     }
 }
 
+/// How Debrid-Link's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+pub(crate) const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::FILE_OFFLINE,
+    unavailable: messages::FILE_OFFLINE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: None,
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+};
+
 /// Checks an envelope's `success`/`error` pair; `None` for a `success: true` envelope.
 pub(crate) fn error_from_status(success: bool, error: Option<&str>) -> Option<ApiFailure> {
     if success {
         return None;
     }
     Some(classify_error(error.unwrap_or("unknown")))
-}
-
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
-/// Maps an HTTP status the JSON envelope doesn't otherwise explain.
-///
-/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
-/// (RD-191-07); this only names each in Debrid-Link's codes. `retry_after` is the response's
-/// `Retry-After`, which a `429` or a `5xx` now carries into the wait.
-pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::FILE_OFFLINE),
-        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::FILE_OFFLINE),
-        HttpRefusal::RateLimited(wait) => {
-            plain(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
-        }
-        HttpRefusal::ServerError(wait) => plain(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
 }
 
 #[cfg(test)]
@@ -448,20 +400,24 @@ mod tests {
     /// The shared mapping (RD-191-07): a `429` carries the provider's wait, `451` is offline.
     #[test]
     fn ensure_http_status_uses_the_shared_mapping() {
-        assert!(ensure_http_status(200, None).is_ok());
+        assert!(HTTP.ensure_http_status(200, None).is_ok());
         assert!(matches!(
-            ensure_http_status(429, Some(45)).expect_err("429").kind,
+            HTTP.ensure_http_status(429, Some(45))
+                .expect_err("429")
+                .kind,
             ErrorKind::RateLimited(Some(45))
         ));
         assert!(matches!(
-            ensure_http_status(451, None).expect_err("451").kind,
+            HTTP.ensure_http_status(451, None).expect_err("451").kind,
             ErrorKind::Offline
         ));
         assert!(matches!(
-            ensure_http_status(503, Some(20)).expect_err("503").kind,
+            HTTP.ensure_http_status(503, Some(20))
+                .expect_err("503")
+                .kind,
             ErrorKind::Transient(Some(20))
         ));
-        let other = ensure_http_status(418, None).expect_err("418");
+        let other = HTTP.ensure_http_status(418, None).expect_err("418");
         assert!(matches!(other.kind, ErrorKind::Permanent));
         assert_eq!(other.code, messages::HTTP_ERROR);
     }

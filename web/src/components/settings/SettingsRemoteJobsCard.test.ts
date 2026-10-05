@@ -120,8 +120,10 @@ describe('SettingsRemoteJobsCard', () => {
     jobs.value = [ASKING]
     mount()
     const toggle = await waitFor(() => screen.getByRole('button', { name: en.choice.toggle }))
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
     await fireEvent.click(toggle)
     await waitFor(() => expect(screen.getByText(en.choice.title)).toBeTruthy())
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
 
     // Both offered entries are shown, and nothing is picked on the reader's behalf.
     await fireEvent.click(screen.getByLabelText('Example/ep02.mkv'))
@@ -353,11 +355,15 @@ describe('SettingsRemoteJobsCard', () => {
     jobs.value = []
     mount()
     await waitFor(() => screen.getByRole('combobox'))
-    const zone = screen.getByTestId('remote-job-drop')
+    const zone = screen.getByTestId('remote-job-form').querySelector('[data-file-drop]') as HTMLElement
     const dropped = [new File(['a'], 'a.torrent'), new File(['b'], 'b.nzb')]
-    await fireEvent.drop(zone, { dataTransfer: { files: dropped, types: ['Files'] } })
+    const items = dropped.map(() => ({ kind: 'file', type: '' }))
+    await fireEvent.dragEnter(zone, { dataTransfer: { items, files: dropped, types: ['Files'] } })
+    await fireEvent.drop(zone, { dataTransfer: { items, files: dropped, types: ['Files'] } })
     await waitFor(() => expect(screen.getByText('b.nzb')).toBeTruthy())
     expect(screen.getByText('a.torrent')).toBeTruthy()
     expect(screen.getAllByText(en.files.states.waiting).length).toBe(2)
+    // The extensions alone: a browser reports a .nzb with no MIME type (RD-1110-12).
+    expect((screen.getByTestId('remote-job-file') as HTMLInputElement).accept).toBe('.torrent,.nzb')
   })
 })

@@ -603,7 +603,7 @@ async fn sign_in<H: PluginHost>(host: &H) -> Result<(), Failure> {
     let form = match page::login_challenge(&page_body) {
         Some(marker) => {
             let solution = host
-                .solve_captcha(free::challenge_for(&marker, &page.final_url))
+                .solve_captcha(xfs_common::free::challenge_for(&marker, &page.final_url))
                 .await?;
             page::with_challenge_token(&form, marker.kind, &solution.token)
         }
@@ -720,7 +720,10 @@ async fn premium_transfer<H: PluginHost>(
     let mut submitted = page::premium_form(&form);
     if let Some(marker) = page::widget_marker(&body) {
         let solution = host
-            .solve_captcha(free::challenge_for(&marker, &page_response.final_url))
+            .solve_captcha(xfs_common::free::challenge_for(
+                &marker,
+                &page_response.final_url,
+            ))
             .await?;
         submitted = page::with_captcha_token(&submitted, marker.kind, &solution.token);
     }

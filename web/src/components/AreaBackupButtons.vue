@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { AreaBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { JsonRefusal, useJsonImport } from '@/composables/useJsonImport'
 import { downloadJson } from '@/utils/jsonFile'
 
@@ -25,12 +26,13 @@ const emit = defineEmits<{ imported: [] }>()
 
 const { t } = useI18n()
 const toast = useToast()
+const showError = useErrorToast()
 const confirm = useConfirm()
 const exporting = ref(false)
 const importing = ref(false)
 
 function fail(message: string): void {
-  toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' })
+  showError(message)
 }
 
 async function exportArea(): Promise<void> {
@@ -48,7 +50,7 @@ async function exportArea(): Promise<void> {
   toast.add({ title: t('common.backup.export_success'), color: 'success', icon: 'i-lucide-file-check-2' })
 }
 
-const { fileInput, choose: chooseFile, select: selectFile } = useJsonImport<AreaBundle>({
+const { select: selectFile } = useJsonImport<AreaBundle>({
   check: parsed => isAreaBundle(parsed) ? parsed : new JsonRefusal(t('common.backup.invalid_file')),
   unreadable: () => t('common.backup.invalid_file'),
   refuse: fail,
@@ -104,8 +106,9 @@ function isAreaBundle(value: unknown): value is AreaBundle {
 
 <template>
   <div class="flex items-center gap-2">
-    <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
     <UButton icon="i-lucide-download" :label="t('common.backup.export')" color="neutral" variant="outline" size="sm" :loading="exporting" @click="exportArea" />
-    <UButton icon="i-lucide-file-up" :label="t('common.backup.import')" color="neutral" variant="outline" size="sm" :loading="importing" @click="chooseFile" />
+    <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">
+      <UButton icon="i-lucide-file-up" :label="t('common.backup.import')" color="neutral" variant="outline" size="sm" :loading="importing" @click="open()" />
+    </UFileUpload>
   </div>
 </template>

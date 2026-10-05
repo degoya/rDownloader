@@ -37,7 +37,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a notification destination. Metadata only: a webhook secret, SMTP password or apprise URL is entered in the web UI, because no tool accepts one. `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); without it the call is refused with auth.scope_insufficient. Leave it out to use the apprise found in the vendor folder or on PATH."
+        description = "Create a notification destination. Metadata only: a webhook secret, SMTP password or apprise URL is entered in the web UI, because no tool accepts one. `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); without it the call is refused with auth.scope_insufficient. Leave it out to use the apprise found in the vendor folder or on PATH. Names are unique: a name another target has is refused with notification.name_taken."
     )]
     pub async fn create_notification_target(
         &self,
@@ -68,7 +68,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one notification destination. The stored secret is kept; only the fields you pass are changed. Setting or changing `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); a path an administrator stored may be passed back unchanged."
+        description = "Change one notification destination. The stored secret is kept; only the fields you pass are changed. Setting or changing `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); a path an administrator stored may be passed back unchanged. A name another target has is refused with notification.name_taken."
     )]
     pub async fn update_notification_target(
         &self,

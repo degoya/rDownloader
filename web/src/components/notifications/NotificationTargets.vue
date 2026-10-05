@@ -13,6 +13,7 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { pluginCodeText } from '@/i18n/plugins'
+import { PLAIN, orNull } from '@/utils/numberInput'
 import { withPluginVersion } from '@/utils/pluginVersion'
 
 const targets = defineModel<NotificationTarget[]>({ required: true })
@@ -336,7 +337,7 @@ async function remove(target: NotificationTarget): Promise<void> {
               <USelect :model-value="String(config.tls ?? 'starttls')" :items="tlsModes" value-key="value" class="w-full" @update:model-value="setConfig('tls', $event)" />
             </UFormField>
             <UFormField :label="t('notifications.smtp.port')" :description="t('notifications.smtp.port_description')">
-              <UInput :model-value="config.port as number | undefined" type="number" min="1" max="65535" class="w-full" @update:model-value="setConfig('port', Number($event) || null)" />
+              <UInputNumber :model-value="config.port as number | null | undefined" :min="1" :max="65535" :format-options="PLAIN" class="w-full" @update:model-value="setConfig('port', orNull($event))" />
             </UFormField>
           </template>
 

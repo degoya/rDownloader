@@ -29,6 +29,7 @@ on:
     paths:
       - .github/workflows/installers.yml
       - packaging/linux/**
+      - packaging/systemd/**
       - packaging/msi/**
       - resources/macos/**
       - scripts/package-deb-rpm.sh

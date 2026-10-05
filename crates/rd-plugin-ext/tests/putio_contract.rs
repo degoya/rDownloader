@@ -3,9 +3,9 @@
 //!
 //! The two siblings of `putio_remote_job_contract.rs`, in one file because they share one
 //! account, one provider row and one mock. Both run as real WebAssembly components -- built by
-//! `cargo component build --release --target wasm32-unknown-unknown -p rd-plugin-putio
-//! -p rd-plugin-putio-oauth` -- and the mock answers at the host boundary, so no socket is
-//! opened, no account is needed and no request leaves the machine.
+//! `scripts/build-plugins.sh --components-only putio putio-oauth` -- and the mock answers at the
+//! host boundary, so no socket is opened, no account is needed and no request leaves the
+//! machine.
 //!
 //! What the resolver half proves is mostly about what it does *not* do:
 //!

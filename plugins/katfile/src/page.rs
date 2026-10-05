@@ -49,13 +49,6 @@ pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
     estimated_wait_seconds(html).or_else(|| xfs_common::free::countdown_seconds(html))
 }
 
-/// Seconds this IP must wait for another free download, or `Some(0)` when the page states a
-/// limit without naming a duration.
-#[must_use]
-pub(crate) fn ip_block_seconds(html: &str) -> Option<u64> {
-    xfs_common::free::ip_block_seconds(html)
-}
-
 /// Whether the page says the captcha answer was rejected.
 #[must_use]
 pub(crate) fn is_wrong_captcha(html: &str) -> bool {

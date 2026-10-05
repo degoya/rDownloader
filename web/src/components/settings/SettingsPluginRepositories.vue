@@ -32,6 +32,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { serverMessageFrom, translateServerMessage, type ServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
+import { WHOLE, isNumber } from '@/utils/numberInput'
 
 /** A repository key the service reported and nobody has approved yet. */
 interface PendingApproval {
@@ -45,7 +46,7 @@ const { t } = useI18n()
 const confirm = useConfirm()
 const repositories = ref<PluginRepository[]>([])
 const refreshHours = ref(24)
-const hoursDraft = ref('24')
+const hoursDraft = ref<number | null>(24)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const message = ref<string | null>(null)
@@ -82,7 +83,7 @@ function adopt(answer: Answer<PluginRepositories>): boolean {
   repositories.value = Array.isArray(answer.data?.repositories) ? answer.data.repositories : []
   if (typeof answer.data?.refresh_hours === 'number') {
     refreshHours.value = answer.data.refresh_hours
-    hoursDraft.value = String(answer.data.refresh_hours)
+    hoursDraft.value = answer.data.refresh_hours
   }
   return true
 }
@@ -100,12 +101,14 @@ async function refresh(): Promise<void> {
 }
 
 async function saveInterval(): Promise<void> {
-  const hours = Number.parseInt(hoursDraft.value, 10)
+  const hours = hoursDraft.value
+  // The field is required, so the form does not submit empty; this keeps the request a number.
+  if (!isNumber(hours)) return
   busy.value = 'interval'
   error.value = null
   message.value = null
-  // Sent as typed: the service owns the range and answers with its own coded sentence.
-  if (adopt(await setRefreshHours(Number.isFinite(hours) ? hours : 0))) {
+  // The field holds the range; the service still owns it and answers with its own coded sentence.
+  if (adopt(await setRefreshHours(hours))) {
     message.value = t('plugins.repositories.interval_saved')
   }
   busy.value = null
@@ -271,15 +274,15 @@ function lastError(repository: PluginRepository): string {
             </div>
           </div>
           <DataState :loading="loading" :error="null" :empty="!repositories.length">
-            <p class="border border-dashed border-muted p-6 text-center text-sm text-muted">{{ t('plugins.repositories.empty') }}</p>
+            <UEmpty :description="t('plugins.repositories.empty')" />
           </DataState>
         </div>
 
         <form class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="saveInterval">
           <UFormField class="sm:w-64" :label="t('plugins.repositories.interval_label')" :description="t('plugins.repositories.interval_hint')">
-            <UInput v-model="hoursDraft" class="w-full" type="number" min="1" max="168" />
+            <UInputNumber v-model="hoursDraft" required class="w-full" :min="1" :max="168" :format-options="WHOLE" />
           </UFormField>
-          <UButton type="submit" variant="outline" icon="i-lucide-save" :label="t('common.actions.save')" :loading="busy === 'interval'" :disabled="busy !== null || hoursDraft === String(refreshHours)" />
+          <UButton type="submit" variant="outline" icon="i-lucide-save" :label="t('common.actions.save')" :loading="busy === 'interval'" :disabled="busy !== null || hoursDraft === refreshHours" />
         </form>
       </template>
     </FormListLayout>

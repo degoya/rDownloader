@@ -15,6 +15,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
+import CopyField from '@/components/CopyField.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopy } from '@/composables/useCopy'
@@ -192,9 +193,12 @@ async function act(request: () => Promise<{ data?: unknown; error?: unknown }>):
   await load()
 }
 
-async function copy(value: string): Promise<void> {
-  if (!(await copyToClipboard(value))) return
+function copied(): void {
   toast.add({ title: t('system.oidc.copied'), color: 'success', icon: 'i-lucide-copy-check' })
+}
+
+async function copy(value: string): Promise<void> {
+  if (await copyToClipboard(value)) copied()
 }
 </script>
 
@@ -208,18 +212,7 @@ async function copy(value: string): Promise<void> {
       <!-- What to register at the provider. Derived from the external URL, never from a request. -->
       <div class="mt-4">
         <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ t('system.oidc.redirect_uri') }}</p>
-        <div v-if="settings.redirect_uri" class="mt-1 flex flex-wrap items-center gap-2">
-          <code class="break-all font-mono text-sm text-highlighted">{{ settings.redirect_uri }}</code>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-copy"
-            :aria-label="t('system.oidc.copy')"
-            :title="t('system.oidc.copy')"
-            @click="copy(settings.redirect_uri)"
-          />
-        </div>
+        <CopyField v-if="settings.redirect_uri" class="mt-1" :value="settings.redirect_uri" :label="t('system.oidc.copy')" icon-only @copied="copied" />
         <UAlert
           v-else
           class="mt-2"

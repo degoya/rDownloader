@@ -186,7 +186,8 @@ async function finish(startTour: boolean): Promise<void> {
           <WizardServicesStep v-else :restart-required="restartRequired" @choose-services="current = 'selection'" />
         </div>
 
-        <footer class="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-muted pt-5">
+        <USeparator class="mt-8 mb-5" />
+        <footer class="flex flex-wrap items-center justify-between gap-3">
           <!-- Not merely disabled on the first step: a "Back" with nowhere to go read as an
                offer (RD-120-48). `ms-auto` keeps the forward actions on the right without it. -->
           <UButton

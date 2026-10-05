@@ -44,8 +44,6 @@ const report = ref<RestoreReport | null>(null)
 const confirmed = ref(false)
 const busy = ref<'upload' | 'preview' | 'test' | 'restore' | null>(null)
 const error = ref<string | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
-
 const kindItems = computed(() => [
   { label: t('system.backup.full_restore.source.history'), value: 'history' },
   { label: t('system.backup.full_restore.source.upload'), value: 'upload' },
@@ -86,12 +84,7 @@ watch(open, (value) => {
   error.value = null
 })
 
-function pickFile(): void {
-  fileInput.value?.click()
-}
-
-async function upload(event: Event): Promise<void> {
-  const file = (event.target as HTMLInputElement).files?.[0]
+async function upload(file: File | null | undefined): Promise<void> {
   if (!file) return
   error.value = null
   uploadId.value = null
@@ -190,15 +183,24 @@ function kindLabel(value: string): string {
             />
           </template>
           <div v-else-if="kind === 'upload'" class="flex flex-wrap items-center gap-3">
-            <input ref="fileInput" hidden type="file" accept=".rdbackup" data-testid="full-restore-file" @change="upload">
-            <UButton
-              icon="i-lucide-upload"
-              color="neutral"
-              variant="outline"
-              :label="t('system.backup.full_restore.source.file_pick')"
-              :loading="busy === 'upload'"
-              @click="pickFile"
-            />
+            <UFileUpload
+              v-slot="{ open }"
+              :model-value="null"
+              accept=".rdbackup"
+              reset
+              :dropzone="false"
+              data-testid="full-restore-file"
+              @update:model-value="upload"
+            >
+              <UButton
+                icon="i-lucide-upload"
+                color="neutral"
+                variant="outline"
+                :label="t('system.backup.full_restore.source.file_pick')"
+                :loading="busy === 'upload'"
+                @click="open()"
+              />
+            </UFileUpload>
             <span v-if="uploadShare !== null" class="text-sm text-muted">
               {{ t('system.backup.full_restore.source.uploading', { percent: uploadShare }) }}
             </span>

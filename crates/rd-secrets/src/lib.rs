@@ -24,7 +24,11 @@ use uuid::Uuid;
 const KEYRING_SERVICE: &str = "rDownloader";
 const KEYRING_USER: &str = "master-key";
 const REFERENCE_PREFIX: &str = "vault://";
-const AAD: &[u8] = b"rDownloader secret v1";
+/// The associated data of a version-1 envelope: one constant for every entry, so a file moved
+/// to another reference's name decrypts there. Still read, never written (RD-1110-07).
+const AAD_V1: &[u8] = b"rDownloader secret v1";
+/// The envelope version every write produces.
+const ENVELOPE_VERSION: u8 = 2;
 
 /// Cloneable encrypted vault. The master key never leaves process memory unencrypted.
 #[derive(Clone)]
@@ -94,6 +98,7 @@ impl SecretStore {
             bail!("refuse to store an empty secret");
         }
         let id = parse_reference(reference)?;
+        let aad = associated_data(ENVELOPE_VERSION, id)?;
         let mut nonce_bytes = [0_u8; 24];
         rand::rng().fill_bytes(&mut nonce_bytes);
         let cipher = XChaCha20Poly1305::new_from_slice(self.key.as_slice())
@@ -103,12 +108,12 @@ impl SecretStore {
                 &XNonce::from(nonce_bytes),
                 Payload {
                     msg: secret.expose_secret().as_bytes(),
-                    aad: AAD,
+                    aad: &aad,
                 },
             )
             .map_err(|_| anyhow::anyhow!("encrypt secret"))?;
         let envelope = Envelope {
-            version: 1,
+            version: ENVELOPE_VERSION,
             nonce: STANDARD.encode(nonce_bytes),
             ciphertext: STANDARD.encode(ciphertext),
         };
@@ -141,9 +146,7 @@ impl SecretStore {
             .context("read encrypted secret")?;
         let envelope: Envelope =
             serde_json::from_slice(&bytes).context("decode secret envelope")?;
-        if envelope.version != 1 {
-            bail!("unsupported secret envelope version");
-        }
+        let aad = associated_data(envelope.version, id)?;
         let nonce = STANDARD
             .decode(envelope.nonce)
             .context("decode secret nonce")?;
@@ -161,7 +164,7 @@ impl SecretStore {
                     .map_err(|_| anyhow::anyhow!("invalid secret nonce"))?,
                 Payload {
                     msg: &ciphertext,
-                    aad: AAD,
+                    aad: &aad,
                 },
             )
             .map_err(|_| anyhow::anyhow!("decrypt secret"))?;
@@ -246,6 +249,21 @@ impl SecretStore {
 
     fn temporary_path(&self, id: Uuid) -> PathBuf {
         self.root.join(format!(".{id}.tmp"))
+    }
+}
+
+/// The associated data an envelope of `version` is sealed with (audit S14).
+///
+/// Version 2 binds the ciphertext to its reference: whoever can write the vault folder could
+/// otherwise rename one entry's file to another's and have the service hand out the first
+/// secret where the second was asked for -- an account password as an archive password, say.
+/// Version 1 stays readable because installations hold such entries; nothing rewrites them,
+/// and the next write under the same reference replaces one with version 2.
+fn associated_data(version: u8, id: Uuid) -> Result<Vec<u8>> {
+    match version {
+        1 => Ok(AAD_V1.to_vec()),
+        2 => Ok(format!("rDownloader secret v2 {REFERENCE_PREFIX}{id}").into_bytes()),
+        _ => bail!("unsupported secret envelope version"),
     }
 }
 
@@ -387,195 +405,4 @@ async fn write_private(path: &std::path::Path, content: &[u8]) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{SecretStore, references_in, write_private};
-
-    #[test]
-    fn references_are_found_in_columns_and_documents() {
-        let column = "vault://0199a000-0000-7000-8000-000000000001";
-        let document = r#"{"secret_ref":"vault://0199a000-0000-7000-8000-000000000002","x":"vault://not-a-uuid"}"#;
-        assert_eq!(references_in(column), vec![column.to_owned()]);
-        assert_eq!(
-            references_in(document),
-            vec!["vault://0199a000-0000-7000-8000-000000000002".to_owned()]
-        );
-        assert!(references_in("no reference here").is_empty());
-    }
-
-    /// RA-DB-07: only the spelling `new_reference` produces is a reference. Every other form
-    /// of the same id would be stored under it and then missed by `references_in`.
-    #[tokio::test]
-    async fn a_reference_in_another_spelling_of_its_id_is_refused() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        let store = SecretStore::open(directory.path().to_owned())
-            .await
-            .expect("store");
-        let canonical = SecretStore::new_reference();
-        let id = canonical.trim_start_matches("vault://");
-        for other in [
-            format!("vault://{}", id.to_uppercase()),
-            format!("vault://{}", id.replace('-', "")),
-            format!("vault://{{{id}}}"),
-            format!("vault://urn:uuid:{id}"),
-        ] {
-            assert!(
-                store
-                    .put_at(&other, secrecy::SecretString::from("value".to_owned()))
-                    .await
-                    .is_err(),
-                "{other} is refused"
-            );
-            assert!(store.get(&other).await.is_err(), "{other} reads nothing");
-        }
-        assert!(store.stored_references().await.expect("list").is_empty());
-        store
-            .put_at(&canonical, secrecy::SecretString::from("value".to_owned()))
-            .await
-            .expect("the canonical form is stored");
-        assert_eq!(references_in(&canonical), vec![canonical.clone()]);
-    }
-
-    /// The listing names what `put` wrote and a stopped write's temporary, never the master key.
-    #[tokio::test]
-    async fn stored_references_list_values_and_temporaries() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        let store = SecretStore::open(directory.path().to_owned())
-            .await
-            .expect("store");
-        let written = store.put_string("value".to_owned()).await.expect("put");
-        let stopped = SecretStore::new_reference();
-        let id = stopped.trim_start_matches("vault://");
-        std::fs::write(directory.path().join(format!(".{id}.tmp")), b"x").expect("temporary");
-        let mut expected = vec![written, stopped];
-        expected.sort();
-        assert_eq!(store.stored_references().await.expect("list"), expected);
-    }
-    use secrecy::ExposeSecret;
-
-    /// `open` keeps its master key beside the vault and nowhere else. Where an OS keyring is
-    /// reachable the old `open` put the key there instead and wrote no file — and it did so for
-    /// every test's vault, in the one entry the real installation uses.
-    #[tokio::test]
-    async fn open_keeps_the_master_key_in_the_file_beside_the_vault() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        let store = SecretStore::open(directory.path().to_owned())
-            .await
-            .expect("store");
-        let key = std::fs::read(directory.path().join("master.key")).expect("master key file");
-        assert_eq!(key.as_slice(), store.key.as_slice());
-    }
-
-    #[tokio::test]
-    async fn encrypted_secret_round_trips_and_is_not_plaintext() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        write_private(&directory.path().join("master.key"), &[7_u8; 32])
-            .await
-            .expect("master key");
-        let store = SecretStore::open(directory.path().to_owned())
-            .await
-            .expect("store");
-        let reference = store
-            .put("very-secret-value".to_owned().into())
-            .await
-            .expect("put");
-        let id = reference.trim_start_matches("vault://");
-        let envelope = std::fs::read_to_string(directory.path().join(format!("{id}.secret")))
-            .expect("envelope");
-        assert!(!envelope.contains("very-secret-value"));
-        assert_eq!(
-            store.get(&reference).await.expect("get").expose_secret(),
-            "very-secret-value"
-        );
-    }
-
-    /// A reference recorded before its value exists (RD-190-04): the value lands under exactly
-    /// that reference, a repeated write replaces it, and a temporary a stopped write left
-    /// behind neither blocks the repeat nor outlives the removal.
-    #[tokio::test]
-    async fn a_reserved_reference_is_written_repeated_and_removed_whole() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        let store = SecretStore::open(directory.path().to_owned())
-            .await
-            .expect("store");
-        let reference = SecretStore::new_reference();
-        assert!(reference.starts_with("vault://"));
-        store
-            .get(&reference)
-            .await
-            .expect_err("nothing is stored under a fresh reference");
-        let id = reference.trim_start_matches("vault://");
-        let temporary = directory.path().join(format!(".{id}.tmp"));
-        std::fs::write(&temporary, b"left by a stopped write").expect("stale temporary");
-        store
-            .put_at(&reference, "first".to_owned().into())
-            .await
-            .expect("put");
-        store
-            .put_at(&reference, "second".to_owned().into())
-            .await
-            .expect("repeat");
-        assert_eq!(
-            store.get(&reference).await.expect("get").expose_secret(),
-            "second"
-        );
-        std::fs::write(&temporary, b"left by a stopped write").expect("stale temporary");
-        store.remove(&reference).await.expect("remove");
-        assert!(!temporary.exists());
-        assert!(!directory.path().join(format!("{id}.secret")).exists());
-        store
-            .remove(&reference)
-            .await
-            .expect("a second removal finds nothing");
-        store
-            .put_at("vault://not-a-uuid", "value".to_owned().into())
-            .await
-            .expect_err("a reference the vault did not mint");
-    }
-
-    /// Key material is bytes, and a byte that is not UTF-8 must survive the round trip
-    /// (RD-110-33). Storing it as text without an encoding is how a key quietly becomes a
-    /// different key.
-    #[tokio::test]
-    async fn key_material_survives_the_round_trip_byte_for_byte() {
-        let directory = tempfile::tempdir().expect("tempdir");
-        write_private(&directory.path().join("master.key"), &[7_u8; 32])
-            .await
-            .expect("master key");
-        let store = SecretStore::open(directory.path().to_owned())
-            .await
-            .expect("store");
-        let key = [
-            0x0c, 0x4c, 0x44, 0xe1, 0x28, 0xea, 0xee, 0x7a, 0x40, 0xbc, 0xbd, 0x4f, 0xfe, 0xc1,
-            0x96, 0x17,
-        ];
-        let reference = store.put_bytes(&key).await.expect("put");
-        assert!(reference.starts_with("vault://"));
-        assert_eq!(store.get_bytes(&reference).await.expect("get"), key);
-        // Nothing of the key is on disk in the clear.
-        let id = reference.trim_start_matches("vault://");
-        let envelope = std::fs::read_to_string(directory.path().join(format!("{id}.secret")))
-            .expect("envelope");
-        let encoded = base64::Engine::encode(&super::STANDARD, key);
-        assert!(!envelope.contains(&encoded), "{envelope}");
-        store.put_bytes(&[]).await.expect_err("empty key material");
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn fallback_master_key_file_is_not_group_or_world_readable() {
-        use std::os::unix::fs::PermissionsExt;
-
-        let directory = tempfile::tempdir().expect("tempdir");
-        let path = directory.path().join("master.key");
-        write_private(&path, &[7_u8; 32]).await.expect("master key");
-        let mode = std::fs::metadata(&path)
-            .expect("metadata")
-            .permissions()
-            .mode();
-        assert_eq!(mode & 0o777, 0o600);
-        // A second write must not silently replace a master key that is already in use.
-        write_private(&path, &[9_u8; 32])
-            .await
-            .expect_err("existing master key overwritten");
-    }
-}
+mod tests;

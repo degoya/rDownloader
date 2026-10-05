@@ -35,6 +35,7 @@
 
 use std::collections::HashMap;
 
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 use url::Url;
 
@@ -78,11 +79,10 @@ pub(crate) fn file_id(url: &Url) -> Option<&str> {
 /// URL that later fails to parse deeper in the pipeline (or not at all, on the guest side, where
 /// `ResolvedDownload.url` is a bare `String`).
 pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
-    Url::parse(raw).map_err(|error| ApiFailure {
-        kind: ErrorKind::Permanent,
-        code: messages::INVALID_URL,
-        message: messages::invalid_url(&error),
-        params: vec![("error", error.to_string())],
+    Url::parse(raw).map_err(|error| {
+        let text = messages::invalid_url(&error);
+        ApiFailure::new(ErrorKind::Permanent, (messages::INVALID_URL, text.as_str()))
+            .with_param("error", error.to_string())
     })
 }
 
@@ -188,38 +188,6 @@ impl FlexibleU64 {
     }
 }
 
-/// Failure classification independent of the native (`rd_core::Failure`) and WASM
-/// (WIT-generated `Failure`) representations; both adapters convert this into their own type.
-#[derive(Debug)]
-pub(crate) struct ApiFailure {
-    pub(crate) kind: ErrorKind,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
-    pub(crate) params: Vec<(&'static str, String)>,
-}
-
-/// The `rd_core::FailureKind`s (the WIT `failure-kind`s) this API can produce, without depending
-/// on either.
-#[derive(Debug)]
-pub(crate) enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AuthRequired,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    NeedsCaptcha,
-}
-
-fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
 /// Classifies a non-success `code`/`message` pair from the envelope (see the module-level
 /// IMPL-VERIFY note). Covers every arm of JD's `checkErrorsAPI` switch (`1`, `4`, `6`, `8`,
 /// `12`); `code` values not in that switch fall into JD's own `default` arm here, further split
@@ -227,24 +195,24 @@ fn coded(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
 /// no dedicated numeric code for it in API mode).
 fn classify_code(code: i64, message: &str) -> ApiFailure {
     match code {
-        1 => coded(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED),
-        4 => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
-        6 => coded(ErrorKind::NeedsCaptcha, messages::CAPTCHA_INVALID),
-        8 => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
-        12 => coded(ErrorKind::NeedsCaptcha, messages::CAPTCHA_REQUIRED),
-        _ if is_traffic_exhausted(message) => coded(
+        1 => ApiFailure::new(ErrorKind::AuthRequired, messages::PREMIUM_REQUIRED),
+        4 => ApiFailure::new(ErrorKind::Offline, messages::FILE_OFFLINE),
+        6 => ApiFailure::new(ErrorKind::NeedsCaptcha, messages::CAPTCHA_INVALID),
+        8 => ApiFailure::new(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
+        12 => ApiFailure::new(ErrorKind::NeedsCaptcha, messages::CAPTCHA_REQUIRED),
+        _ if is_traffic_exhausted(message) => ApiFailure::new(
             ErrorKind::RateLimited(Some(3600)),
             messages::TRAFFIC_EXHAUSTED,
         ),
-        _ => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::API_ERROR,
-            message: messages::api_error(code, message),
-            params: vec![
-                ("api_code", code.to_string()),
-                ("message", message.to_owned()),
-            ],
-        },
+        _ => {
+            let text = messages::api_error(code, message);
+            ApiFailure::with_api_code(
+                ErrorKind::Permanent,
+                (messages::API_ERROR, text.as_str()),
+                code,
+            )
+            .with_param("message", message)
+        }
     }
 }
 
@@ -276,27 +244,22 @@ pub(crate) fn error_from_envelope(code: Option<i64>, message: Option<&str>) -> O
     ))
 }
 
-/// Maps an HTTP status the JSON envelope doesn't otherwise explain, with the mapping every
-/// plugin shares (`plugin_common::http_status`, RD-191-07); a 429 or 5xx carries the
-/// `Retry-After` the answer stated.
-pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    use plugin_common::HttpRefusal;
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => coded(ErrorKind::AccountInvalid, messages::BAD_CREDENTIALS),
-        HttpRefusal::Gone => coded(ErrorKind::Permanent, messages::FILE_OFFLINE),
-        HttpRefusal::Unavailable => coded(ErrorKind::Offline, messages::FILE_OFFLINE),
-        HttpRefusal::RateLimited(wait) => {
-            coded(ErrorKind::RateLimited(wait), messages::RATE_LIMITED)
-        }
-        HttpRefusal::ServerError(wait) => coded(ErrorKind::Transient(wait), messages::SERVER_ERROR),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
-}
+/// How Nitroflare's codes name an HTTP status the JSON envelope doesn't otherwise explain, with
+/// the mapping every plugin shares (`plugin_common::http_status`, RD-191-07); a 429 or 5xx
+/// carries the `Retry-After` the answer stated.
+pub(crate) const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::BAD_CREDENTIALS,
+    gone: messages::FILE_OFFLINE,
+    unavailable: messages::FILE_OFFLINE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: None,
+    server_error_wait: None,
+    other: HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+};
 
 #[cfg(test)]
 mod tests {

@@ -17,7 +17,7 @@ use crate::{
         CreateCategoryRuleRequest, CreateHotFolderRequest, CreateProxyProfileRequest,
         CreateStorageRootRequest, UpdateAccountRequest,
     },
-    error_codes::store_error,
+    error_codes::{store_duplicate, store_error},
     protected_roots::{protected_directories, refuse_protected, refuse_protected_hotfolder},
 };
 

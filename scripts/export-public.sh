@@ -118,24 +118,7 @@ trap 'rm -rf "$STAGE"' EXIT
 echo "==> exporting $REF (${COMMIT:0:12}) to a staging tree"
 git archive --format=tar "$COMMIT" | tar -x -C "$STAGE"
 
-excluded=0
-while IFS= read -r line || [[ -n "$line" ]]; do
-    path="${line%%#*}"
-    path="${path#"${path%%[![:space:]]*}"}"
-    path="${path%"${path##*[![:space:]]}"}"
-    [[ -n "$path" ]] || continue
-    case "$path" in
-        /*|*..*) echo "refusing exclude entry outside the tree: $path" >&2; exit 1 ;;
-    esac
-    path="${path%/}"
-    if [[ -e "$STAGE/$path" || -L "$STAGE/$path" ]]; then
-        rm -rf -- "${STAGE:?}/$path"
-        excluded=$((excluded + 1))
-    else
-        echo "    (not in this tree: $path)"
-    fi
-done < "$EXCLUDE_LIST"
-echo "    left out $excluded path(s) named in scripts/public-exclude.txt"
+rd_public_exclude "$STAGE" "$EXCLUDE_LIST"
 
 # What stays must not point at what went: a README link into docs/ would be a 404 on GitHub.
 rd_public_check_links "$STAGE" "$EXCLUDE_LIST"

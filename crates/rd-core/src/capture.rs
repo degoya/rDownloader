@@ -456,6 +456,11 @@ pub struct CaptureToken {
     /// field nobody reads in real time.
     pub last_used_at: Option<DateTime<Utc>>,
     pub revoked_at: Option<DateTime<Utc>>,
+    /// From when on the token is refused like a revoked one (RD-1110-07); `None` never
+    /// expires. An expired token stays listed until somebody revokes it, so it does not
+    /// vanish from the list the moment its client starts failing.
+    #[serde(default)]
+    pub expires_at: Option<DateTime<Utc>>,
 }
 
 #[cfg(test)]

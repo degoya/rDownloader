@@ -7,6 +7,44 @@ impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
     pub(super) async fn handle_collector(&mut self, command: CollectorCommand) {
         match command {
+            command @ (CollectorCommand::AddMediaCandidates { .. }
+            | CollectorCommand::SetCandidateEnrichment { .. }
+            | CollectorCommand::SetCandidateMediaInventory { .. }
+            | CollectorCommand::SetCandidateMediaSelection { .. }
+            | CollectorCommand::SetCandidateMediaVariant { .. }
+            | CollectorCommand::SetCandidateProvider { .. }
+            | CollectorCommand::SetCandidateAuthProfile { .. }) => {
+                self.collector_candidate_fields(command).await
+            }
+            command @ (CollectorCommand::AddCollectorBatch { .. }
+            | CollectorCommand::DeleteCollectorPackage { .. }
+            | CollectorCommand::RegroupBatches { .. }
+            | CollectorCommand::DeleteCandidate { .. }
+            | CollectorCommand::DeleteCandidates { .. }) => self.collector_intake(command).await,
+            command @ (CollectorCommand::UpdateCollectorPackages { .. }
+            | CollectorCommand::ReorderCollectorPackages { .. }
+            | CollectorCommand::ReorderGrabberEntries { .. }
+            | CollectorCommand::ReorderCandidates { .. }
+            | CollectorCommand::MoveCandidates { .. }) => self.collector_order(command).await,
+            command @ (CollectorCommand::ClaimCandidatesForCheck { .. }
+            | CollectorCommand::RecordCandidateCheck { .. }
+            | CollectorCommand::MarkCandidateUnsupported { .. }
+            | CollectorCommand::SetCandidateFileName { .. }) => self.collector_check(command).await,
+            command @ (CollectorCommand::SetMirrorPreference { .. }
+            | CollectorCommand::SetMirrorPin { .. }
+            | CollectorCommand::DissolveMirrorGroup { .. }) => {
+                self.collector_mirrors(command).await
+            }
+            command @ (CollectorCommand::ClaimPackageForEnqueue { .. }
+            | CollectorCommand::FinishPackageEnqueue { .. }) => {
+                self.collector_enqueue(command).await
+            }
+        }
+    }
+
+    /// The fields of one link candidate: its media, enrichment, provider and sign-in profile.
+    async fn collector_candidate_fields(&mut self, command: CollectorCommand) {
+        match command {
             CollectorCommand::AddMediaCandidates {
                 package_id,
                 entries,
@@ -69,6 +107,13 @@ impl Writer {
                         .await;
                 publish_config(reply, result, &self.events);
             }
+            _ => unreachable!("routed by handle_collector"),
+        }
+    }
+
+    /// Batches coming in, and candidates and packages going away.
+    async fn collector_intake(&mut self, command: CollectorCommand) {
+        match command {
             CollectorCommand::AddCollectorBatch {
                 intake,
                 secret_fragment_refs,
@@ -88,6 +133,31 @@ impl Writer {
                 });
                 send(reply, result);
             }
+            CollectorCommand::DeleteCollectorPackage { id, reply } => {
+                let result = crate::collector_packages::delete(&mut self.connection, id).await;
+                publish_unit_event(reply, result, &self.events);
+            }
+            CollectorCommand::RegroupBatches { batch_ids, reply } => {
+                let result =
+                    crate::collector_packages::regroup(&mut self.connection, &batch_ids).await;
+                publish_unit_event(reply, result, &self.events);
+            }
+            CollectorCommand::DeleteCandidate { id, reply } => {
+                let result =
+                    crate::collector_store::delete_candidate(&mut self.connection, id).await;
+                publish_unit_event(reply, result, &self.events);
+            }
+            CollectorCommand::DeleteCandidates { reply } => {
+                let result = crate::collector_store::delete_candidates(&mut self.connection).await;
+                publish_config(reply, result, &self.events);
+            }
+            _ => unreachable!("routed by handle_collector"),
+        }
+    }
+
+    /// The packages' settings and the order and grouping of packages and candidates.
+    async fn collector_order(&mut self, command: CollectorCommand) {
+        match command {
             CollectorCommand::UpdateCollectorPackages { ids, change, reply } => {
                 let result =
                     crate::collector_packages::update(&mut self.connection, &ids, &change).await;
@@ -129,15 +199,13 @@ impl Writer {
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            CollectorCommand::DeleteCollectorPackage { id, reply } => {
-                let result = crate::collector_packages::delete(&mut self.connection, id).await;
-                publish_unit_event(reply, result, &self.events);
-            }
-            CollectorCommand::RegroupBatches { batch_ids, reply } => {
-                let result =
-                    crate::collector_packages::regroup(&mut self.connection, &batch_ids).await;
-                publish_unit_event(reply, result, &self.events);
-            }
+            _ => unreachable!("routed by handle_collector"),
+        }
+    }
+
+    /// The online check: claiming candidates and recording what it found.
+    async fn collector_check(&mut self, command: CollectorCommand) {
+        match command {
             CollectorCommand::ClaimCandidatesForCheck { ids, reply } => {
                 send(
                     reply,
@@ -163,6 +231,38 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, outcome, &self.events);
             }
+            CollectorCommand::MarkCandidateUnsupported {
+                id,
+                message,
+                cached_by,
+                reply,
+            } => {
+                let outcome = crate::collector_packages::mark_unsupported(
+                    &mut self.connection,
+                    id,
+                    message,
+                    cached_by,
+                )
+                .await;
+                publish_unit_event(reply, outcome, &self.events);
+            }
+            CollectorCommand::SetCandidateFileName {
+                id,
+                file_name,
+                reply,
+            } => {
+                let result =
+                    crate::collector_packages::set_file_name(&mut self.connection, id, &file_name)
+                        .await;
+                publish_config(reply, result, &self.events);
+            }
+            _ => unreachable!("routed by handle_collector"),
+        }
+    }
+
+    /// Mirror groups: the preference, a pinned link and a dissolved group.
+    async fn collector_mirrors(&mut self, command: CollectorCommand) {
+        match command {
             CollectorCommand::SetMirrorPreference { preference, reply } => {
                 let result =
                     crate::collector_mirrors::store_preference(&mut self.connection, &preference)
@@ -190,31 +290,13 @@ impl Writer {
                 }
                 send(reply, result.map(|(outcome, _)| outcome));
             }
-            CollectorCommand::MarkCandidateUnsupported {
-                id,
-                message,
-                cached_by,
-                reply,
-            } => {
-                let outcome = crate::collector_packages::mark_unsupported(
-                    &mut self.connection,
-                    id,
-                    message,
-                    cached_by,
-                )
-                .await;
-                publish_unit_event(reply, outcome, &self.events);
-            }
-            CollectorCommand::SetCandidateFileName {
-                id,
-                file_name,
-                reply,
-            } => {
-                let result =
-                    crate::collector_packages::set_file_name(&mut self.connection, id, &file_name)
-                        .await;
-                publish_config(reply, result, &self.events);
-            }
+            _ => unreachable!("routed by handle_collector"),
+        }
+    }
+
+    /// Handing a package over to the queue.
+    async fn collector_enqueue(&mut self, command: CollectorCommand) {
+        match command {
             CollectorCommand::ClaimPackageForEnqueue { id, only, reply } => {
                 send(
                     reply,
@@ -241,15 +323,7 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            CollectorCommand::DeleteCandidate { id, reply } => {
-                let result =
-                    crate::collector_store::delete_candidate(&mut self.connection, id).await;
-                publish_unit_event(reply, result, &self.events);
-            }
-            CollectorCommand::DeleteCandidates { reply } => {
-                let result = crate::collector_store::delete_candidates(&mut self.connection).await;
-                publish_config(reply, result, &self.events);
-            }
+            _ => unreachable!("routed by handle_collector"),
         }
     }
 }

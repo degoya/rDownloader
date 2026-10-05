@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { PostprocessLevel } from '@/api/types'
 import { INHERIT_LEVEL, postprocessLevelItems } from '@/utils/format'
+import { DECIMAL, orNull } from '@/utils/numberInput'
 
 const props = defineProps<{
   name: string
@@ -33,13 +34,12 @@ const renameFolder = ref(false)
 const level = ref<string>(props.postprocessLevel ?? INHERIT_LEVEL)
 const script = ref<string>(props.script ?? INHERIT_LEVEL)
 const speedLimitOffered = props.speedLimitMiB !== undefined
-const speedLimit = ref<number | string | null>(props.speedLimitMiB ?? null)
+const speedLimit = ref<number | null>(props.speedLimitMiB ?? null)
 
 /** The entered limit in MiB/s; empty, zero or not a number is no limit of its own. */
 function enteredSpeedLimit(): number | null {
-  if (speedLimit.value === null || speedLimit.value === '') return null
-  const value = Number(speedLimit.value)
-  return Number.isFinite(value) && value > 0 ? value : null
+  const value = orNull(speedLimit.value)
+  return value !== null && value > 0 ? value : null
 }
 
 /**
@@ -109,23 +109,23 @@ function submit(): void {
         </UFormField>
         <UFormField
           v-if="speedLimitOffered"
+          hint="MiB/s"
           :label="t('downloads.edit_package.speed_limit')"
           :description="props.speedLimitSupported ? t('downloads.edit_package.speed_limit_hint') : t('downloads.edit_package.speed_limit_unsupported')"
         >
-          <UInput
-            v-model.number="speedLimit"
-            type="number"
-            min="0"
-            step="0.5"
+          <UInputNumber
+            v-model="speedLimit"
+            :min="0"
+            :step="0.5"
+            :step-snapping="false"
+            :format-options="DECIMAL"
             class="w-full"
             data-testid="package-speed-limit"
             :disabled="!props.speedLimitSupported"
             :placeholder="t('downloads.toolbar.speed_limit_placeholder')"
             :aria-label="t('downloads.edit_package.speed_limit_aria')"
-            :ui="{ base: 'pe-12 font-mono', trailing: 'pointer-events-none pe-2' }"
-          >
-            <template #trailing><span class="font-mono text-[10px] text-muted">MiB/s</span></template>
-          </UInput>
+            :ui="{ base: 'font-mono' }"
+          />
         </UFormField>
       </form>
     </template>

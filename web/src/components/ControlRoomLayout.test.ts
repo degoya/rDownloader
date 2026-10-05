@@ -140,6 +140,7 @@ function mountLayout() {
           ULink: passthrough,
           UNavigationMenu,
           USelect: { props: ['modelValue', 'items', 'size', 'icon'], template: '<select v-bind="$attrs" />' },
+          USeparator: { template: '<div role="separator" v-bind="$attrs" />' },
           UTooltip: passthrough
         }
       }
@@ -276,7 +277,7 @@ describe('the collapsed rail', () => {
 
     const footer = screen.getByTestId('sidebar-footer')
     expect(footer.classList).toContain('w-full')
-    expect(footer.classList).toContain('border-t')
+    expect(footer.firstElementChild?.getAttribute('role')).toBe('separator')
     // The selects carry no inset of their own, so they run edge to edge with the separator.
     const selects = screen.getByRole('combobox', { name: i18n.global.t('common.preferences.language') }).parentElement
     expect([...(selects?.classList ?? [])].filter(name => /^p[xlr]-/.test(name))).toEqual([])

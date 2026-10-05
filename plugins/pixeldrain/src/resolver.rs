@@ -26,6 +26,7 @@
 //! manifest declares `transfer_auth = "basic"`; nothing here states it as a download header,
 //! because a plugin never holds the key.
 
+use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, LinkCheck, LinkStatus,
     PluginHost, ResolveInput, Resolved,
@@ -111,7 +112,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     // the file itself has spent. Each carries its own code from `availability`, which is finer
     // than anything the status line says.
     if let Some(failure) = api::availability_failure(&info) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     quota_gate(host, auth).await?;
     let url = api::download_url(&id);
@@ -233,7 +234,7 @@ async fn quota_gate<H: PluginHost>(host: &H, auth: Option<&str>) -> Result<(), F
         return Ok(());
     };
     match api::quota_failure(&limits) {
-        Some(failure) => Err(convert_failure(failure)),
+        Some(failure) => Err(failure.into()),
         None => Ok(()),
     }
 }
@@ -249,38 +250,13 @@ async fn call<H: PluginHost>(
     if let Some(template) = auth {
         request = request.with_header("Authorization", template);
     }
-    let response = host.http(request).await?;
-    let retry_after = api::retry_after_seconds(response.header("Retry-After"));
-    let envelope = api::error_envelope(&response.body);
-    if let Some(failure) = api::failure_from(response.status, retry_after, &envelope) {
-        return Err(convert_failure(failure));
-    }
-    Ok(response)
-}
-
-fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-        api::ErrorKind::IpBlocked(seconds) => FailureKind::IpBlocked(seconds),
-        api::ErrorKind::AuthRequired => FailureKind::AuthRequired,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::Unsupported => FailureKind::Unsupported,
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
+    plugin_common::failure::call(host, request, |status, retry_after, body| {
+        api::failure_from(status, retry_after, &api::error_envelope(body))
+    })
+    .await
 }
 
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
     serde_json::from_slice(&response.body)
         .map_err(|_| coded(FailureKind::Transient(None), messages::INVALID_RESPONSE))
-}
-
-fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

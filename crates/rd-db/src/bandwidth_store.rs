@@ -117,6 +117,9 @@ pub(crate) async fn list_windows(pool: &SqlitePool) -> Result<Vec<ScheduleWindow
     .collect()
 }
 
+/// A profile's name is unique (`bandwidth_profiles.name`); a second one is a refusal, not a fault.
+const PROFILE_NAME_TAKEN: &str = "a bandwidth profile with this name already exists";
+
 pub(crate) async fn create_profile(
     connection: &mut SqliteConnection,
     input: NewBandwidthProfile,
@@ -150,7 +153,8 @@ pub(crate) async fn create_profile(
     .bind(now)
     .bind(now)
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, PROFILE_NAME_TAKEN))?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok((value, event))
@@ -189,7 +193,8 @@ pub(crate) async fn update_profile(
     .bind(now)
     .bind(id.to_string())
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, PROFILE_NAME_TAKEN))?;
     anyhow::ensure!(
         updated.rows_affected() > 0,
         StoreError::not_found("bandwidth profile not found")

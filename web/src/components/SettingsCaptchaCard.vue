@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { CaptchaConfig, SolverKind, TestCaptchaSolver, UpdateCaptchaConfig } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { WHOLE, isNumber } from '@/utils/numberInput'
 
 const emit = defineEmits<{ error: [string] }>()
 const { t } = useI18n()
@@ -84,6 +85,11 @@ async function test(): Promise<void> {
 
 async function save(): Promise<boolean> {
   if (loadRequest && !await loadRequest) return false
+  // An emptied timeout would leave the key out of the PUT; the save waits for a number (RD-1110-10).
+  if (!isNumber(form.manual_timeout_seconds)) {
+    emit('error', t('settings.messages.number_empty'))
+    return false
+  }
   pending.value = true
   const endpoint = form.endpoint.trim()
   const body: UpdateCaptchaConfig = {
@@ -154,21 +160,21 @@ defineExpose({ save, dirty })
       </UFormField>
     </div>
 
-    <div class="mt-4 grid gap-3 border-t border-muted pt-4">
+    <USeparator class="my-4" />
+    <div class="grid gap-3">
       <UFormField :label="t('captcha.settings.manual.label')" :description="t('captcha.settings.manual.description')" orientation="horizontal">
         <USwitch v-model="form.manual_enabled" :disabled="loading" />
       </UFormField>
-      <UFormField data-settings-anchor="captcha.timeout" :label="t('captcha.settings.timeout.label')" :description="t('captcha.settings.timeout.description')">
-        <UInput
-          v-model.number="form.manual_timeout_seconds"
-          type="number"
+      <UFormField hint="s" data-settings-anchor="captcha.timeout" :label="t('captcha.settings.timeout.label')" :description="t('captcha.settings.timeout.description')">
+        <UInputNumber
+          v-model="form.manual_timeout_seconds"
+          required
           :min="MIN_TIMEOUT"
           :max="MAX_TIMEOUT"
+          :format-options="WHOLE"
           :disabled="loading || !form.manual_enabled"
           class="w-full"
-        >
-          <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-        </UInput>
+        />
       </UFormField>
     </div>
 

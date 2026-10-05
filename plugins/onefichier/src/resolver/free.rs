@@ -4,12 +4,14 @@
 //! No captcha and no countdown here — 1fichier gates free downloads by IP slot instead, which is
 //! why every marker this reads maps to a hold-off rather than to something a retry could fix.
 
+use plugin_common::failure::diagnosed;
 use plugin_common::{
-    Failure, FailureKind, Header, HttpRequest, HttpResponse, PluginHost, Resolved,
+    Failure, FailureKind, Header, HttpRequest, HttpResponse, PluginHost, Resolved, is_html,
 };
 use url::Url;
 
 use super::{coded, invalid_url};
+use crate::api::HTTP;
 use crate::{
     messages,
     page::{self, DownloadForm, PageError, StatedFile},
@@ -173,53 +175,29 @@ fn page_failure(html: &str, response: &HttpResponse) -> Result<(), Failure> {
 /// (`plugin_common::http_status`, RD-191-07) and two deliberate differences: a 401/403 is a
 /// plain HTTP error, because [`crate::api`]'s reading of it as a bad API key does not apply to
 /// the account-less flow, and a 429 without a `Retry-After` waits 1fichier's usual five minutes.
+/// Every other class is named in the API's words, [`HTTP`].
 fn free_status_failure(response: &HttpResponse) -> Result<(), Failure> {
-    use plugin_common::HttpRefusal;
-    let status = response.status;
-    plugin_common::http_status(status, plugin_common::retry_after(&response.headers)).map_err(
-        |refusal| match refusal {
-            HttpRefusal::Gone => coded(FailureKind::Permanent, messages::FILE_OFFLINE),
-            HttpRefusal::Unavailable => coded(FailureKind::Offline, messages::FILE_OFFLINE),
-            HttpRefusal::RateLimited(wait) => Failure::coded(
-                FailureKind::RateLimited(wait.or(Some(300))),
-                messages::FLOOD.0,
-                messages::FLOOD.1,
-            ),
-            HttpRefusal::ServerError(wait) => {
-                coded(FailureKind::Transient(wait), messages::SERVER_ERROR)
-            }
-            HttpRefusal::Unauthorized | HttpRefusal::Other(_) => Failure::coded(
-                FailureKind::Permanent,
-                messages::HTTP_ERROR,
-                messages::http_error(status),
-            )
-            .with_param("status", status.to_string()),
-        },
+    HTTP.ensure_without_account(
+        response.status,
+        plugin_common::retry_after(&response.headers),
     )
+    .map_err(Failure::from)
 }
 
 fn no_free_form(html: &str) -> Failure {
-    let diagnosis = page::diagnose(html);
-    Failure::coded(
+    diagnosed(
         FailureKind::Permanent,
         messages::NO_FREE_FORM,
-        messages::no_free_form(&diagnosis),
+        messages::no_free_form,
+        page::diagnose(html),
     )
-    .with_param("diagnosis", diagnosis)
 }
 
 fn no_free_link(html: &str) -> Failure {
-    let diagnosis = page::diagnose(html);
-    Failure::coded(
+    diagnosed(
         FailureKind::Permanent,
         messages::NO_FREE_LINK,
-        messages::no_free_link(&diagnosis),
+        messages::no_free_link,
+        page::diagnose(html),
     )
-    .with_param("diagnosis", diagnosis)
-}
-
-fn is_html(response: &HttpResponse) -> bool {
-    response
-        .header("content-type")
-        .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"))
 }

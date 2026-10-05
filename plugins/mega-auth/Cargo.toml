@@ -20,12 +20,5 @@ serde_json.workspace = true
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:mega-auth"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "auth-plugin"
-
 [lints]
 workspace = true

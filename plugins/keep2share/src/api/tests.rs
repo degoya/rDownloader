@@ -5,6 +5,7 @@
 //! this file itself was split out of `api.rs` for — see plugin-common.md).
 
 use super::*;
+use crate::messages;
 
 fn url(value: &str) -> Url {
     value.parse().expect("URL")

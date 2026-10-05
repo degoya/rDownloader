@@ -164,7 +164,8 @@
   "copy": {
     "failed_title": "La copie a échoué",
     "failed_description": "Le navigateur n'a pas autorisé l'accès au presse-papiers. Sélectionnez le texte et copiez-le manuellement.",
-    "links_copied": "Aucun lien copié | {count} lien copié | {count} liens copiés"
+    "links_copied": "Aucun lien copié | {count} lien copié | {count} liens copiés",
+    "copied": "Copié"
   },
   "unsaved": {
     "title": "Abandonner les modifications non enregistrées ?",

@@ -15,37 +15,17 @@
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteHandle,
     RemoteProgress, RemoteWork, SubmitRequest,
-    http::{self, RequestHeader, RequestQuery},
+    http::{RequestHeader, RequestQuery},
     refuse,
     types::{Failure, FailureKind},
 };
 
 use crate::{
-    api::{self, ApiFailure, ErrorKind, Stage},
+    api::{self, Stage},
     messages, source,
 };
 
 struct Component;
-
-fn from_api(failure: ApiFailure) -> Failure {
-    Failure {
-        category: match failure.kind {
-            ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-            ErrorKind::Permanent => FailureKind::Permanent,
-            ErrorKind::Offline => FailureKind::Offline,
-            ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-            ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-            ErrorKind::Unsupported => FailureKind::Unsupported,
-        },
-        message: failure.message,
-        code: Some(failure.code.to_owned()),
-        params: failure
-            .params
-            .into_iter()
-            .map(|(name, value)| (name.to_owned(), value))
-            .collect(),
-    }
-}
 
 /// The bearer header, as a template. The key's value never reaches this plugin: the host
 /// substitutes it on the way out, towards `offcloud.com` and nowhere else.
@@ -81,16 +61,18 @@ fn call(
     content_type: Option<&str>,
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
-    let response = http::http_request(method, url, query, &headers(content_type), body)?;
-    // Seconds only, never `0`, at most a day: the reader every plugin shares (RD-191-07).
-    let retry_after = plugin_common::retry_after(&response.headers);
     // A refusal decides whatever the status says, and a status decides when there is no
     // document to read. Both directions matter: Offcloud answers refusals with a 200.
-    let envelope = api::error_envelope(&response.body);
-    if let Some(failure) = api::failure_from(response.status, retry_after, &envelope) {
-        return Err(from_api(failure));
-    }
-    Ok(response.body)
+    plugin_guest_remote_job::call(
+        method,
+        url,
+        query,
+        &headers(content_type),
+        body,
+        |status, retry_after, answer| {
+            api::failure_from(status, retry_after, &api::error_envelope(answer))
+        },
+    )
 }
 
 fn parse<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, Failure> {

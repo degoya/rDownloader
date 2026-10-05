@@ -8,7 +8,8 @@
  * the list really is empty. When there is content, nothing renders at all.
  *
  * The loading surface is the 28 px signal grid `design.md` names as the motif for loading
- * surfaces, with pulse bars standing in for the rows that are coming. Deliberately not
+ * surfaces, framed as the empty state it stands in for (`UEmpty`), with pulse bars standing in
+ * for the rows that are coming; a failure in a panel is a `UAlert`. Deliberately not
  * `USkeleton`: the bars are three divs, they need no component stub in a test, and their
  * shape belongs to the list, not to a design-system primitive.
  */
@@ -39,12 +40,27 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div
-    v-if="props.loading"
+  <UEmpty
+    v-if="props.loading && props.variant === 'panel'"
     role="status"
     aria-live="polite"
-    :class="props.variant === 'panel' ? 'signal-grid space-y-2 border border-dashed border-muted p-5' : 'space-y-2'"
+    class="signal-grid"
+    :ui="{ body: 'w-full max-w-none items-stretch gap-2' }"
   >
+    <template #body>
+      <div
+        v-for="row in props.rows"
+        :key="row"
+        aria-hidden="true"
+        class="h-3 animate-pulse bg-elevated"
+        :class="row === props.rows ? 'w-2/3' : 'w-full'"
+      />
+    </template>
+    <template #footer>
+      <p class="text-xs text-muted">{{ props.label ?? t('common.data.loading') }}</p>
+    </template>
+  </UEmpty>
+  <div v-else-if="props.loading" role="status" aria-live="polite" class="space-y-2">
     <div
       v-for="row in props.rows"
       :key="row"
@@ -54,13 +70,9 @@ const { t } = useI18n()
     />
     <p class="pt-1 text-center text-xs text-muted">{{ props.label ?? t('common.data.loading') }}</p>
   </div>
-  <p
-    v-else-if="props.error"
-    role="alert"
-    :class="props.variant === 'panel'
-      ? 'border border-dashed border-error p-5 text-center text-sm text-error'
-      : 'text-xs text-error'"
-  >
+  <!-- UAlert sets no role of its own: the failure keeps the `alert` it always announced with. -->
+  <UAlert v-else-if="props.error && props.variant === 'panel'" role="alert" color="error" variant="subtle" :description="props.error" />
+  <p v-else-if="props.error" role="alert" class="text-xs text-error">
     {{ props.error }}
   </p>
   <!-- A wrapper, not the bare slot: a slot at the root is a fragment, and a fragment inherits no

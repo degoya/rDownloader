@@ -5,7 +5,7 @@
 //! and `GET /{kind}/requestdl` turns a finished job's file into the short-lived address the
 //! bytes come from. Everything else TorBox offers belongs to `plugins/torbox-jobs/`.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 
 use crate::messages;
@@ -208,49 +208,32 @@ impl JobEntry {
     }
 }
 
-/// How a refusal is classified, without depending on either failure representation.
-#[derive(Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-}
-
-/// A classified refusal.
-#[derive(Debug)]
-pub struct ApiFailure {
-    pub kind: ErrorKind,
-    pub code: &'static str,
-    pub message: String,
-    pub params: Vec<(&'static str, String)>,
-}
-
 /// How long a provider-side outage is waited out.
 const BUSY_SECONDS: u64 = 300;
 
 /// How long an exhausted quota is waited out.
 const QUOTA_SECONDS: u64 = 3600;
 
-fn coded(kind: ErrorKind, (code, message): (&'static str, &str), api_code: &str) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![("api_code", api_code.to_owned())],
-    }
-}
-
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
+/// How TorBox's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+///
+/// A `404`/`410` is final, a `451` is `Offline` and retried — still worded as TorBox refusing the
+/// request, which is what a legal block is (RA-PLG-04). A `429` without a stated wait waits a
+/// minute, a `5xx` this bucket's own five minutes.
+pub const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::FILE_GONE,
+    unavailable: messages::REQUEST_REFUSED,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_BUSY,
+    rate_limited_wait: Some(60),
+    server_error_wait: Some(BUSY_SECONDS),
+    other: HttpError {
+        code: messages::HTTP_ERROR.0,
+        text: messages::http_error,
+    },
+};
 
 /// Classifies one of TorBox's documented `error` words.
 ///
@@ -260,20 +243,22 @@ fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
 pub fn classify_error(api_code: &str, retry_after: Option<u64>) -> ApiFailure {
     match api_code {
         "BAD_TOKEN" | "AUTH_ERROR" | "NO_AUTH" | "OAUTH_VERIFICATION_ERROR" => {
-            coded(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code)
+            ApiFailure::with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, api_code)
         }
         "PLAN_RESTRICTED_FEATURE" => {
-            coded(ErrorKind::Unsupported, messages::NOT_PERMITTED, api_code)
+            ApiFailure::with_api_code(ErrorKind::Unsupported, messages::NOT_PERMITTED, api_code)
         }
         "ITEM_NOT_FOUND" | "ENDPOINT_NOT_FOUND" | "LINK_OFFLINE" => {
-            coded(ErrorKind::Offline, messages::FILE_GONE, api_code)
+            ApiFailure::with_api_code(ErrorKind::Offline, messages::FILE_GONE, api_code)
         }
-        "MONTHLY_LIMIT" | "ACTIVE_LIMIT" | "DOWNLOAD_LIMIT" | "COOLDOWN_LIMIT" => coded(
-            ErrorKind::RateLimited(Some(retry_after.unwrap_or(QUOTA_SECONDS))),
-            messages::LIMIT_REACHED,
-            api_code,
-        ),
-        "TOO_MANY_REQUESTS" => coded(
+        "MONTHLY_LIMIT" | "ACTIVE_LIMIT" | "DOWNLOAD_LIMIT" | "COOLDOWN_LIMIT" => {
+            ApiFailure::with_api_code(
+                ErrorKind::RateLimited(Some(retry_after.unwrap_or(QUOTA_SECONDS))),
+                messages::LIMIT_REACHED,
+                api_code,
+            )
+        }
+        "TOO_MANY_REQUESTS" => ApiFailure::with_api_code(
             ErrorKind::RateLimited(Some(retry_after.unwrap_or(60))),
             messages::RATE_LIMITED,
             api_code,
@@ -282,7 +267,7 @@ pub fn classify_error(api_code: &str, retry_after: Option<u64>) -> ApiFailure {
         | "DOWNLOAD_SERVER_ERROR"
         | "NO_SERVERS_AVAILABLE_ERROR"
         | "VENDOR_ERROR"
-        | "VENDOR_DISABLED" => coded(
+        | "VENDOR_DISABLED" => ApiFailure::with_api_code(
             ErrorKind::Transient(Some(BUSY_SECONDS)),
             messages::SERVER_BUSY,
             api_code,
@@ -310,7 +295,7 @@ pub fn failure_from(
         // than "permanent, unknown word", and it is the difference between a wait and a job
         // somebody has to start again by hand. The word still travels as the parameter.
         if classified.code == messages::API_ERROR.0
-            && let Err(by_status) = ensure_http_status(status, retry_after)
+            && let Err(by_status) = HTTP.ensure_http_status(status, retry_after)
         {
             return Some(ApiFailure {
                 params: vec![("api_code", api_code)],
@@ -321,52 +306,18 @@ pub fn failure_from(
     }
     if envelope.success == Some(false) {
         return Some(
-            ensure_http_status(status, retry_after)
+            HTTP.ensure_http_status(status, retry_after)
                 .err()
-                .unwrap_or_else(|| plain(ErrorKind::Permanent, messages::REQUEST_REFUSED)),
+                .unwrap_or_else(|| {
+                    ApiFailure::new(ErrorKind::Permanent, messages::REQUEST_REFUSED)
+                }),
         );
     }
     if !(200..=299).contains(&status) {
-        return ensure_http_status(status, retry_after).err();
+        return HTTP.ensure_http_status(status, retry_after).err();
     }
     None
 }
-
-/// Maps an HTTP status no `error` word explains.
-///
-/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
-/// (RD-191-07): a `404`/`410` is final, a `451` is `Offline` and retried — still worded as
-/// TorBox refusing the request, which is what a legal block is (RA-PLG-04). A `429` without a
-/// stated wait waits a minute, a `5xx` this bucket's own five minutes.
-///
-/// # Errors
-///
-/// The classified refusal, for every status that is not a 2xx.
-pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::FILE_GONE),
-        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::REQUEST_REFUSED),
-        HttpRefusal::RateLimited(wait) => plain(
-            ErrorKind::RateLimited(Some(wait.unwrap_or(60))),
-            messages::RATE_LIMITED,
-        ),
-        HttpRefusal::ServerError(wait) => plain(
-            ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
-            messages::SERVER_BUSY,
-        ),
-        HttpRefusal::Other(other) => ApiFailure {
-            kind: ErrorKind::Permanent,
-            code: messages::HTTP_ERROR.0,
-            message: messages::http_error(other),
-            params: vec![("status", other.to_string())],
-        },
-    })
-}
-
-// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
-// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
-pub use plugin_common::retry_after_seconds;
 
 /// Reads the address a `requestdl` answer carries.
 ///

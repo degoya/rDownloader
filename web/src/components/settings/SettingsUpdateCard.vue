@@ -9,6 +9,7 @@ import UpdateDetailsModal from '@/components/UpdateDetailsModal.vue'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
 import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
+import { WHOLE } from '@/utils/numberInput'
 
 /**
  * Settings > System > Updates (RD-180-01): whether and how often the service checks, which
@@ -154,10 +155,8 @@ async function checkNow(): Promise<void> {
         <USelect v-model="settings.update_channel" :items="channelItems" value-key="value" class="mt-2 w-full" data-testid="update-channel" />
       </UFormField>
       <p v-if="channelForced" class="text-xs text-muted" data-testid="update-channel-forced">{{ t('system.updates.channel_forced_stable') }}</p>
-      <UFormField :label="t('system.updates.interval_label')" :description="t('system.updates.interval_description')">
-        <UInput v-model.number="settings.update_check_interval_hours" type="number" min="1" max="168" icon="i-lucide-timer" class="mt-2 w-full" data-testid="update-interval">
-          <template #trailing><span class="font-mono text-xs text-muted">h</span></template>
-        </UInput>
+      <UFormField hint="h" :label="t('system.updates.interval_label')" :description="t('system.updates.interval_description')">
+        <UInputNumber v-model="settings.update_check_interval_hours" required :min="1" :max="168" :format-options="WHOLE" class="mt-2 w-full" data-testid="update-interval" />
       </UFormField>
     </div>
 

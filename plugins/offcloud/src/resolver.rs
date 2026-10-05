@@ -5,6 +5,7 @@
 //! response shapes, the catalogue merge, the failure classification — so what lives here is
 //! the sequence of requests, once rather than once per build.
 
+use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
     PluginHost, ResolveInput, Resolved,
@@ -128,15 +129,12 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
             format!("Bearer {{{{secret:{}}}}}", api::API_KEY_REFERENCE),
         )
         .with_header("Accept", "application/json");
-    let response = host.http(request).await?;
-    let retry_after = api::retry_after_seconds(response.header("Retry-After"));
     // A refusal decides whatever the status says, and a status decides when there is no
     // document to read. Both directions matter: Offcloud answers refusals with a 200.
-    let envelope = api::error_envelope(&response.body);
-    if let Some(failure) = api::failure_from(response.status, retry_after, &envelope) {
-        return Err(convert_failure(failure));
-    }
-    Ok(response)
+    plugin_common::failure::call(host, request, |status, retry_after, body| {
+        api::failure_from(status, retry_after, &api::error_envelope(body))
+    })
+    .await
 }
 
 /// Fails before any request when the account has no API key: every endpoint requires one.
@@ -150,27 +148,7 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
     Ok(())
 }
 
-fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-        api::ErrorKind::Unsupported => FailureKind::Unsupported,
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
-}
-
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
     serde_json::from_slice(&response.body)
         .map_err(|_| coded(FailureKind::Transient(None), messages::INVALID_RESPONSE))
-}
-
-fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

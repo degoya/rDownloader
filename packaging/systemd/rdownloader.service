@@ -1,0 +1,29 @@
+# rDownloader's service as a systemd user unit: the one source for the deb, rpm and AUR packages
+# (RD-180-05, RD-180-08, RD-1110-07). The binary moves into the user's data folder itself
+# (~/.local/share/rdownloader: data/, downloads/), because the package marks it installed, so the
+# unit needs no working directory. Enable it per user:
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now rdownloader
+[Unit]
+Description=rDownloader Service
+Documentation=https://rdownloader.net
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/rdownloader/rdownloader serve
+Restart=on-failure
+RestartSec=5
+# Hardening that holds for a user unit without a namespace of its own (audit K5). Not
+# MemoryDenyWriteExecute: Wasmtime compiles the plugins to machine code at run time.
+# AF_NETLINK: the address lookup and the interface list read the kernel's routing table.
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=default.target

@@ -13,12 +13,5 @@ putio-common = { path = "../putio-common" }
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:putio-oauth"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "oauth-plugin"
-
 [lints]
 workspace = true

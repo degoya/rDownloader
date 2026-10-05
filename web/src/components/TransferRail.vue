@@ -8,6 +8,7 @@ import SpeedHistoryChart from '@/components/SpeedHistoryChart.vue'
 import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
 import { formatBytes, formatDuration, formatRate } from '@/utils/format'
+import { DECIMAL } from '@/utils/numberInput'
 
 const { t } = useI18n()
 const transfers = useTransfersStore()
@@ -87,23 +88,20 @@ onMounted(async () => {
       </div>
       <div class="hidden shrink-0 items-center gap-1 sm:flex" :title="t('downloads.toolbar.speed_limit_title')">
         <UIcon name="i-lucide-gauge" class="size-3.5 text-muted" />
-        <UInput
-          v-model.number="speedInput"
-          type="number"
-          min="0"
-          step="0.5"
-          size="xs"
-          :placeholder="t('downloads.toolbar.speed_limit_placeholder')"
-          class="w-36"
-          :ui="{
-            base: 'pe-12 font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
-            trailing: 'pointer-events-none pe-2'
-          }"
-          :aria-label="t('downloads.toolbar.speed_limit_aria')"
-          @keyup.enter="applySpeedLimit"
-        >
-          <template #trailing><span class="font-mono text-[10px] text-muted">MiB/s</span></template>
-        </UInput>
+        <UFieldGroup size="xs" class="w-36">
+          <UInputNumber
+            v-model="speedInput"
+            :min="0"
+            :step="0.5"
+            :step-snapping="false"
+            :format-options="DECIMAL"
+            :placeholder="t('downloads.toolbar.speed_limit_placeholder')"
+            :ui="{ base: 'font-mono' }"
+            :aria-label="t('downloads.toolbar.speed_limit_aria')"
+            @keyup.enter="applySpeedLimit"
+          />
+          <UBadge color="neutral" variant="outline" label="MiB/s" class="font-mono" />
+        </UFieldGroup>
         <UButton v-if="!speedLimitApplied" size="xs" color="neutral" variant="outline" :label="t('downloads.toolbar.limit')" :loading="transfers.speedLimitBusy" @click="applySpeedLimit" />
         <UButton v-else size="xs" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('downloads.toolbar.clear_limit_aria')" :title="t('downloads.toolbar.clear_limit_title')" :loading="transfers.speedLimitBusy" @click="transfers.setSpeedLimit(null)" />
       </div>

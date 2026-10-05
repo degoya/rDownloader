@@ -7,8 +7,8 @@ and taken WSL down more than once.
 | Script | Purpose |
 | --- | --- |
 | `dev.sh` | Run the service locally (`--fresh`, `--unsigned`, `PORT=`) |
-| `check.sh` | CI-parity checks: branch level by default, everything with `--full` (`--defer`, `--rust`, `--web`, `--clippy <crates>`, `--clippy-all`); `--full` over content a `--full` green already covers up to documentation records the green and ends before the lock, `--again` runs it anyway (RD-160-06); `--windows` alone is the Windows lint, `cargo xwin clippy` over every crate with all targets and features (RD-140-23), its green kept by tree the same way (RD-160-06); `--gate` alone is `integrate.sh`'s gate, the whole-workspace clippy for Linux and the Windows lint, both `--keep-going`, each half's green kept by tree (RD-1100-13); a failing stage does not end a run — every failure, with its failing tests or compiler errors, is listed at the end and in `$RD_CHECK_LOGS/failures` (default `/tmp/claude-<uid>/check-<checkout>`), and stale or missing components are built by the run itself (RD-1100-13) |
-| `integrate.sh` | Integrate a wave: integration worktree from `--base`, the merge drivers registered (`CHANGELOG.md` union, migration pins sorted union, locale catalogues by key; `lib/merge-drivers/`), each branch merged (a conflict only in generated files takes our side), duplicate migration numbers and plugin ids after every merge, the gate `check.sh --gate` (red stops before any generator, every error in `failures`), the generators once with `web-declarations.sh` and `archive-jobs.sh` among them, unbumped components refused and stale ones built, then `check.sh --windows` and, after its green, `--full` detached with logs, PID, status and failure list under `/tmp/claude-<uid>/<branch>/` (`RD_INTEGRATE_LOGS`), and after both are green `prune-target.sh --if-free` (RD-160-06, RD-1100-13); `--merge-only`, `--no-check`, `--no-gate`, `--no-windows`; a re-run skips what is merged (RD-140-22) — and is the round after a fix: an integration branch gets no branch-level check |
+| `check.sh` | CI-parity checks: branch level by default, everything with `--full` (`--defer`, `--rust`, `--web`, `--clippy <crates>`, `--clippy-all`); `--full` over content a `--full` green already covers up to documentation records the green and ends before the lock, `--again` runs it anyway (RD-160-06); `--windows` alone is the Windows lint, `cargo xwin clippy` over every crate with all targets and features (RD-140-23), its green kept by tree the same way (RD-160-06); `--gate` alone is `integrate.sh`'s gate, the whole-workspace clippy for Linux and the Windows lint, both `--keep-going`, each half's green kept by tree (RD-1100-13); `--preflight` alone runs everything that compiles nothing in about two minutes, without the lock and without a green, each finding collected (RD-1110-15, `lib/preflight.sh`); a failing stage does not end a run — every failure, with its failing tests or compiler errors, is listed at the end and in `$RD_CHECK_LOGS/failures` (default `/tmp/claude-<uid>/check-<checkout>`), and stale or missing components are built by the run itself (RD-1100-13) |
+| `integrate.sh` | Integrate a wave: integration worktree from `--base`, the merge drivers registered (`CHANGELOG.md` union, migration pins sorted union, locale catalogues by key; `lib/merge-drivers/`), each branch merged (a conflict only in generated files takes our side), duplicate migration numbers and plugin ids after every merge, the preflight `check.sh --preflight` (red stops before the gate, every finding in `failures`; the job layout left to `archive-jobs.sh`, RD-1110-15), the gate `check.sh --gate` (red stops before any generator, every error in `failures`), the generators once with `web-declarations.sh` and `archive-jobs.sh` among them, unbumped components refused and stale ones built, then `check.sh --windows` and, after its green, `--full` detached with logs, PID, status and failure list under `/tmp/claude-<uid>/<branch>/` (`RD_INTEGRATE_LOGS`), and after both are green `prune-target.sh --if-free` (RD-160-06, RD-1100-13); `--merge-only`, `--no-check`, `--no-gate`, `--no-windows`; a re-run skips what is merged (RD-140-22) — and is the round after a fix: an integration branch gets no branch-level check |
 | `watch-run.sh` | `<pid> <log>...`: follow a detached run by its stage starts, failures (`!!`, nextest's FAIL lines, compiler errors) and closing lines until the process ends, then judge each log by `==> all requested checks passed` (exit 0 when all are green) (RD-1100-13) |
 | `public-ci.sh` | Run the public GitHub CI on a branch before its merge: export as `ci/<branch>`, `--platforms linux,windows` (all three without it) starts `ci.yml` for exactly those (the push itself carries `[skip ci]`), wait, delete the public branch on green, keep it and fail on red; greens are recorded per runner image and tree in `.git/rd-verified-ci`, and a platform green for the tree up to documentation and version lines is not dispatched again (RD-160-06); shares `lib/public-ci.sh` with the release's `public-ci` step (RD-140-22, RD-140-23) |
 | `ci-log.sh` | Read a failed GitHub run: name the failed jobs, store each log without ANSI codes and timestamps under `/tmp/claude-<uid>/ci/`, print only the `FAIL`, `error[E…]`/`error:`, `panicked`, `failures` and `##[error]` lines with their line numbers; a run id, run or job URL, or `--job <id>` (RD-140-22) |
@@ -17,7 +17,7 @@ and taken WSL down more than once.
 | `ci-gate.sh` | CI only: the `gate` job of `ci.yml` — the `platforms`, `check`, `jobs` and `warm` outputs, everything except on a push to `main`, where `ci-tree-greens.sh` decides (RD-191-09; RD-1101-07 moved it out of the workflow) |
 | `ci-platform-smoke.sh`, `ci-platform-smoke.ps1` | CI only: the `rust` job's platform steps (composite action `platform-smoke`) — `launcher-syntax`, `macos-helper`, `portable`, `homebrew`, `scoop-manifest` in bash, `launcher-args`, `executables`, `portable`, `scoop-zip`, `scoop-install` in PowerShell — and `optimised`, the `docker` job's launcher smoke (RD-1101-07) |
 | `ci-plugins.sh` | CI only: the plugin steps of `ci-components.yml` and `release-plugins.yml` — `list [--examples]` (step outputs), `imports [--annotate]`, `package-dev`, `templates`, `scaffolds`, `conformance`, `package-signed` (RD-1101-07) |
-| `ci-services.sh` | CI only: MinIO for `s3-live` (`minio-start`, `minio-ready`) and clamd for `clamav-live` (`clamd-ready <container>`) (RD-1101-07) |
+| `ci-services.sh` | CI only: the S3 service (RustFS) for `s3-live` (`s3-start`, `s3-ready`) and clamd for `clamav-live` (`clamd-ready <container>`) (RD-1101-07) |
 | `ci-tools.sh` | CI only: the checksum-pinned downloads of the `scripts` job (`linters`: shellcheck and actionlint) and of `supply-chain` (`gitleaks`, which also runs it) (RD-1101-07) |
 | `release-binary.sh` | CI only: release.yml's binary legs — `version-file`, `macos-helper`, `package-unix <target> <artifact>` — and the container jobs' `docker-layout <arch>:<docker arch>...` (RD-1101-07) |
 | `release-packages.sh` | CI only: release.yml's `packages` job — `add-plugins`, `check-layout`, `install-nfpm`, `deb-rpm` (RD-1101-07) |
@@ -71,6 +71,7 @@ and taken WSL down more than once.
 | `check-sdk-templates.sh` | Every world of the WIT has a template in `sdk/templates/<world>` building that world, with a manifest, the current contract copy, a `README.md` and a unit test, and no template lacks a world; every template on the workspace's `wit-bindgen`, an `api_version` the core accepts and the `min_app_version` that first accepts it, the `sdk/ci/` pin at the workspace version (audit K2, K4); CI's `components` job runs it (RD-160-04) |
 | `check-actions-pinned.sh` | Every `uses:` in `.github/workflows/`, `.github/actions/` and the SDK's `sdk/ci/` names a full 40-hex commit (`owner/repo@<sha> # vX.Y.Z`); local `./` actions pass, a `docker://` image only by digest; files as arguments check those instead; `check.sh` runs it every time (1.8) |
 | `compat-check.sh` | The breaking-change gate of the public contracts: `web/openapi.json` and the plugin WIT against the highest `vX.Y.Z` tag not above the workspace version (`--base <ref>` for another); one line per break (`BREAK rest:path-removed:/api/v1/…`), exit 1 unless `compat-breaks.toml` acknowledges it for a later release or, for the WIT, the package version moved a major (before 1.0: a minor) step; the pipeline's `compat` step and CI's supply-chain job run it (RD-170-08); the rules are `lib/compat-check.py` with its REST half `lib/compat_rest.py` and its WIT half `lib/compat_wit.py` (RD-1101-04) |
+| `sign-tools-manifest.sh` | Re-signs the embedded tool manifest: changes from a JSON file, `--set <name>:<platform> field=value…` or `--bump` alone, `sequence` + 1, `issued_at` today; refuses on a dead download (`tools-manifest-check.sh`) or a missing key with the file untouched; finds the tool-manifest key itself (`RDOWNLOADER_TOOLS_KEY`); signs with `rd-pack tools sign-manifest` in `release-test` under the build lock and shows the payload's diff (RD-1110-14) |
 | `tools-manifest-check.sh` | Every download the embedded tool manifest names (or `<manifest.json>`, signed or a bare payload) answers a HEAD request with the size the manifest declares; one URL shared by two entries is asked once; `--list` prints `url<TAB>size` without the network; `.github/workflows/tools-manifest.yml` runs it weekly and on a change of the manifest (RD-1101-13) |
 | `session-state.sh` | Print the repository's state for a new session: worktrees ahead/behind `development` and dirty, the last greens, running chains under `/tmp/claude-<uid>/*/pid`, tags against `origin`, open GitHub runs; `--brief` for a session's first look, `--no-network` skips the remote parts (RD-140-26) |
 | `measure-mega-login-fuel.sh` | Price a MEGA account sign-in in guest fuel (RD-120-11); a measurement, not a gate |
@@ -105,7 +106,7 @@ a per-machine choice in `~/.cargo/config.toml` (`docs/development.md`), because 
 config cannot say "only where it is installed".
 
 **The heavy scripts serialise themselves.** `check.sh`, `build-plugins.sh`, `package-linux.sh`,
-`package-windows.sh`, `release.sh`, `release-pipeline.sh`, `api-contract.sh` and `prune-target.sh` re-run themselves
+`package-windows.sh`, `release.sh`, `release-pipeline.sh`, `api-contract.sh`, `prune-target.sh` and `sign-tools-manifest.sh` (unless `RD_PACK` names a built packager) re-run themselves
 under `flock` on `/tmp/rd-build.lock` through `scripts/lib/lock.sh`, so "check whether another
 build is running" is no longer anybody's job. A chain such as `release.sh` holds exactly one lock;
 the nested calls see `RD_LOCK_HELD=1` and pass straight through. `RD_LOCK_FILE` picks another
@@ -118,7 +119,7 @@ stamp in `check.sh` your own responsibility, because that marker only stamps on 
 and it is the lock that stops two checkouts interleaving. Deliberately lock-free: the pure
 queries `build-plugins.sh --list-stale`, `--list-missing`, `--list-unbumped`,
 `--list-packageable` and `--source-hash`, `set-version.sh`, `worktree.sh check`, `release-pipeline.sh --plan`, `prune-target.sh --dry-run`, and
-`check.sh --defer`, which runs no cargo.
+`check.sh --defer`, which runs no cargo, and `check.sh --preflight`, which builds nothing.
 
 **Lanes (RD-140-06).** A run takes two locks: first the one of the target directory it builds
 in — `/tmp/rd-build.lock` for the main checkout's shared `target/`, so a checkout still on the
@@ -179,13 +180,16 @@ read the workflows) changes, and under `--full`, `check.sh` runs `bash
 -n` and `shellcheck --severity=warning` over every tracked shell script outside the test fixtures,
 the shipped ones in `packaging/`, `docker/` and `resources/` included (settings in `scripts/.shellcheckrc`; without
 `shellcheck` installed it says so and skips it — `uv tool install shellcheck-py` provides one),
-then every `scripts/tests/*.sh`. They need no build and take seconds together: the Cargo.lock
+then every `scripts/tests/*.sh`. Each lint command and each test is a stage of its own through
+`attempt` (RD-1110-15): a red one is recorded in `failures` and the run goes on — until 1.11 the
+first red test ended a `--full` run before the Rust and web stages. They need no build and take
+seconds together: the Cargo.lock
 scope rules, the exports' link guard, the job archive, the scope boundary, and `worktree.sh`,
 `i18n-key.sh`, `migration-pin.sh`, `set-version.sh`, the release pipeline's evidence gate and
 `run_step`, `export-wiki.sh`'s private markers, `integrate.sh`'s merge half, merge drivers, gate
 and run order (with stand-ins for what compiles), `public-ci.sh` with its job-level reporting and
-`ci-log.sh` against scratch repositories and a stub `gh`, `check.sh`'s failure list
-(`check-stages.sh`) and `watch-run.sh` against stand-in runs, the `rd-api` suite selection
+`ci-log.sh` against scratch repositories and a stub `gh`, `check.sh`'s failure list and its
+collecting script tests (`check-stages.sh`), its preflight (`check-preflight.sh`) and `watch-run.sh` against stand-in runs, the `rd-api` suite selection
 (`rd-api-suites.sh`) on a scratch tree, the documentation's release facts
 (`doc-facts.sh`) on a fixture tree, the contract reference and the template check
 (`wit-reference.sh`) on a fixture contract, the breaking-change rules (`compat-check.sh`) on a
@@ -203,6 +207,8 @@ the soak budgets (`soak.sh`) on recorded samples, the update manifest's schema-c
 (`check-actions-pinned.sh`) on fixture workflows, the SDK template versions and pin
 (`check-sdk-templates.sh`) on a fixture tree, the export's gitleaks lookup (`public-gitleaks.sh`),
 the tool manifest's liveness check (`tools-manifest-check.sh`) against a loopback server,
+the tool manifest's signing script (`sign-tools-manifest.sh`) with a throwaway key and a stubbed
+URL check, skipped without a built `rd-pack` and `rdownloader`,
 and the Docker entrypoint's PUID/PGID rule (`docker-entrypoint.sh`) with stub binaries,
 the session summary (`session-state.sh`) on a scratch
 repository, and the scope boundary with the release's pre-bump green. A new test is a new
@@ -210,6 +216,21 @@ repository, and the scope boundary with the release's pre-bump green. A new test
 finds it by itself.
 `cargo fmt`, the capture-tree check, the map check and the component checks always run: they
 are seconds.
+
+**The preflight (RD-1110-15).** `check.sh --preflight` runs, alone, what compiles nothing:
+`git diff --check`, the job layout, the version copies, the action pins, `cargo fmt --check`, the
+`rd-api` test map and the Rust test inputs map, gitleaks over the tree the public export would
+publish (tracked and new files minus `public-exclude.txt`, `.gitleaks.toml` applied; also under
+`--full`), `bash -n`, shellcheck, actionlint and every script test — about two minutes, most of it
+`prune-target.sh`'s and `lock-lanes.sh`'s tests. No lock, no green; every finding is in `failures`
+at once. The stages are `check.sh`'s own functions (`lib/preflight.sh`, `lib/script-checks.sh`),
+so `--full` runs the same. A wave agent runs it before its report — it compiles nothing, so the
+no-compile rule allows it — and `integrate.sh` right after the merges, before the gate, with
+`RD_SKIP_JOB_LAYOUT=1` because `archive-jobs.sh` runs there as a generator. 1.10.1's third
+integration round took six `--full` runs, each finding one new problem an hour in; each of those
+problems is in this list. For an integration branch that is a release candidate the coordinator
+starts `public-ci.sh <branch>` on all three platforms in parallel with the local `--full`, not
+after it.
 
 **Since RD-191-09** `actionlint` runs too, under `--full` and whenever `.github/` or `sdk/ci/` changed, and
 `ci.yml`'s `scripts` job runs shellcheck and actionlint at pinned versions, so the lint no longer
@@ -395,15 +416,19 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   into the run. Since RD-120-58 the question is asked by **content**: every build through this
   script writes `rd_plugin_<name>.wasm.src-sha256` beside the component, the hash of its sources
   (the plugin crate, its shared plugin libraries, the WIT — sorted paths and contents, no file
-  times) and of the component itself. Stale means no stamp, a stamp for other bytes (a bare
-  `cargo component build`, which writes none), or other sources. File times used to name every
+  times) and of the component itself, and the dependency hash (registry packages, root
+  `Cargo.toml`, compiler, wasm-tools). Stale means no stamp, a stamp for other bytes (a bare
+  `cargo build`, which writes none), other sources or other dependencies. File times used to name every
   component after each checkout; a checkout now names nothing. `--components-only [names]`
   builds and stamps without signing — without names, whatever is stale or missing — and touches
   the sources of each component first, so cargo compiles it from this checkout rather than
   calling another checkout's fingerprint fresh. All selected components are built in **one**
-  `cargo component build` with every `-p` under the same `-j` (RD-130-17), so its memory depends
+  `cargo build` with every `-p` under the same `-j` (RD-130-17), so its memory depends
   on `JOBS`, not on how many plugins are named; if that call fails, the plugins are built one
-  at a time up to the first failure, which is named, and the run fails. `--source-hash <name>` prints the hash, and a
+  at a time up to the first failure, which is named, and the run fails. Each core module is then
+  made a component by `wasm-tools component new` (RD-1110-08), the exact version
+  `WASM_TOOLS_VERSION` in `lib/plugin-stamp.sh` pins — the script refuses another, because it
+  decides the component's bytes. `--source-hash <name>` prints the hash, and a
   unit test in `artifact.rs` holds the script and the Rust side to the same value.
   `--cache-key` prints the component cache's key for CI and the release (RD-150-10): `deps=` over
   the registry half of `Cargo.lock`, the root `Cargo.toml` without the workspace version and

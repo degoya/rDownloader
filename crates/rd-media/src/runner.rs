@@ -1,6 +1,6 @@
 //! Queue runner: downloads one media file with `yt-dlp` into the package folder.
 
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -20,177 +20,23 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     SharedMediaSettings,
-    args::{DownloadPlan, FINAL_PATH_MARKER, output_mode},
+    args::{DownloadPlan, output_mode},
     cookies::{CookieError, CookieFile},
     merge,
     probe::map_tool_error,
     progress::parse_progress_line,
-    select::{MediaCapabilities, resolve},
+    select::MediaCapabilities,
     tools::{FfmpegTools, lease_tool},
 };
 
-/// The finished file's path out of one yt-dlp stdout line, or `None` for every other line.
-///
-/// yt-dlp is asked to print the path behind [`FINAL_PATH_MARKER`], so the answer is
-/// recognisable. The rule used to be "any non-empty line that does not start with `[`",
-/// which meant a single unprefixed line from an extractor — a warning, a merge note, a
-/// plugin printing to stdout — overwrote the value, and the runner then reported a
-/// `final_name` that had never been written to the queue and to post-processing.
-fn final_path_line(line: &str) -> Option<&str> {
-    let value = line.trim().strip_prefix(FINAL_PATH_MARKER)?.trim();
-    (!value.is_empty()).then_some(value)
-}
+#[path = "runner_ytdlp.rs"]
+mod ytdlp;
 
-/// Room kept free after the stem for what yt-dlp appends while downloading, e.g.
-/// `.f2120404511882385v.mp4.part` for a per-format fragment of a merged video.
-const YTDLP_SUFFIX_RESERVE: usize = 40;
-
-/// Drops the `video+audio` alternatives from a yt-dlp format expression, keeping only the
-/// last (pre-muxed) alternative so no merge is required.
-///
-/// `bv*[height<=1080]+ba/b[height<=1080]` becomes `b[height<=1080]`; an expression that
-/// offers no such alternative falls back to `b`.
-fn progressive_format(format: &str) -> String {
-    format
-        .split('/')
-        .map(str::trim)
-        .rfind(|alternative| !alternative.is_empty() && !alternative.contains('+'))
-        .unwrap_or("b")
-        .to_owned()
-}
-
-/// Where yt-dlp writes the finished file.
-///
-/// The result is a literal path plus yt-dlp's extension placeholder, and nothing else. Our
-/// own template grammar is expanded here, *before* the value is handed over, so none of
-/// yt-dlp's `%(field)s` syntax is reachable from anything a site or a user supplied — the
-/// `-o` argument stays an opaque literal.
-///
-/// A template that cannot be expanded — an unknown field, traversal from a hostile title,
-/// nothing left after substitution — falls back to the plain file name rather than failing
-/// the download. The template was already validated when it was saved, so reaching this is
-/// a data problem with one particular page, not a configuration error worth stopping for.
-fn output_template(
-    directory: &std::path::Path,
-    stem: &str,
-    template: Option<&str>,
-    values: &rd_files::TemplateValues,
-) -> PathBuf {
-    let plain = || with_ext_placeholder(&directory.join(stem));
-    let Some(template) = template.map(str::trim).filter(|value| !value.is_empty()) else {
-        return plain();
-    };
-    match rd_files::expand(directory, template, values, YTDLP_SUFFIX_RESERVE) {
-        Ok(path) => with_ext_placeholder(&path),
-        Err(error) => {
-            tracing::warn!(%error, "output template could not be expanded; using the file name");
-            plain()
-        }
-    }
-}
-
-/// Appends yt-dlp's extension placeholder to a path that has to stay literal.
-///
-/// Every `%` already in the path is doubled first. `rd_files::sanitize_file_name` replaces
-/// the characters a file system objects to — `<>:"/\|?*` and the control characters — and
-/// leaves `%` alone, because a per cent sign is a perfectly ordinary character in a file
-/// name. It is not an ordinary character to yt-dlp: without this, a page titled
-/// `50%(title)s off` reaches it as a real output template, so the file lands under a name
-/// nobody chose or the job fails outright on an unknown field. `%%` is yt-dlp's escape for a
-/// literal per cent and collapses back to one character on disk, which is also why doubling
-/// does not overrun the length budget `rd_files::sanitize_file_name_within` reserved: the
-/// argument grows, the file that gets written does not.
-///
-/// The escaping belongs here rather than in `rd-files`: the rule is yt-dlp's, not a general
-/// file-name rule, and every other consumer of a sanitised name wants the `%` left alone.
-fn with_ext_placeholder(path: &std::path::Path) -> PathBuf {
-    let mut argument = match path.to_str() {
-        Some(text) => std::ffi::OsString::from(text.replace('%', "%%")),
-        // A path that is not valid UTF-8 cannot be rewritten without losing bytes, so it is
-        // handed over as it stands rather than mangled. Every path this crate builds comes
-        // out of the sanitiser, so this is the theoretical branch.
-        None => path.as_os_str().to_owned(),
-    };
-    argument.push(".%(ext)s");
-    PathBuf::from(argument)
-}
-
-/// The values an output template is expanded against.
-///
-/// Deliberately narrow: exactly the allowlisted fields, taken from what the selection
-/// already carries. Nothing here reaches back into the extractor's raw metadata.
-fn template_values(selection: &MediaSelection, stem: &str) -> rd_files::TemplateValues {
-    let mut values = rd_files::TemplateValues::new();
-    let title = if selection.title.trim().is_empty() {
-        stem.to_owned()
-    } else {
-        selection.title.clone()
-    };
-    values.insert("title".to_owned(), title);
-    values.insert("ext".to_owned(), selection.ext.clone());
-    if let Some(resolved) = selection.resolved.as_deref() {
-        if !resolved.label.is_empty() {
-            values.insert("resolution".to_owned(), resolved.label.clone());
-        }
-        if !resolved.container.is_empty() {
-            values.insert("ext".to_owned(), resolved.container.clone());
-        }
-    }
-    values
-}
-
-/// The `-f` expression for one download.
-///
-/// A [`MediaStrictness::Preferred`] selection rides on the stored expression: it already
-/// lists the pinned ids, the same choice expressed semantically, and a merge-free last
-/// resort, which yt-dlp evaluates left to right. Only a `Required` selection re-probes,
-/// because only there does silently accepting the next alternative amount to handing over
-/// something the user explicitly refused.
-async fn resolve_format(
-    ytdlp: &std::path::Path,
-    settings: &rd_core::MediaSettings,
-    selection: &MediaSelection,
-    criteria: Option<&MediaFormatCriteria>,
-    capabilities: MediaCapabilities,
-) -> Result<String, Failure> {
-    let Some(criteria) =
-        criteria.filter(|criteria| criteria.strictness == rd_core::MediaStrictness::Required)
-    else {
-        return Ok(degrade(&selection.format, selection.kind, capabilities));
-    };
-    let timeout = Duration::from_secs(u64::from(settings.media_check_timeout_seconds.max(5)));
-    let inventory = crate::probe::probe_inventory(ytdlp, &selection.page_url, timeout).await?;
-    let resolution = resolve(&inventory, criteria, capabilities).map_err(|error| {
-        let failure = Failure::coded(FailureKind::Permanent, error.code(), error.to_string());
-        match &error {
-            rd_core::MediaSelectionError::NoMatch { unsatisfiable, .. } => failure.with_param(
-                "criteria",
-                unsatisfiable
-                    .iter()
-                    .map(|criterion| criterion.as_str())
-                    .collect::<Vec<_>>()
-                    .join(","),
-            ),
-            rd_core::MediaSelectionError::NoFormats
-            | rd_core::MediaSelectionError::MergeRequired
-            | rd_core::MediaSelectionError::NoAudio => failure,
-        }
-    })?;
-    Ok(resolution.format_expression)
-}
-
-/// Drops the merge alternatives when the tools cannot merge.
-///
-/// Without ffmpeg a merged format leaves two unusable stream files behind, so ask for a
-/// single pre-muxed one instead. Warnings stay on — they carry exactly the "ffmpeg is not
-/// installed" diagnostics that used to be swallowed.
-fn degrade(format: &str, kind: MediaKind, capabilities: MediaCapabilities) -> String {
-    if kind == MediaKind::Video && !capabilities.can_merge {
-        progressive_format(format)
-    } else {
-        format.to_owned()
-    }
-}
+#[cfg(test)]
+use ytdlp::progressive_format;
+use ytdlp::{
+    YTDLP_SUFFIX_RESERVE, final_path_line, output_template, resolve_format, template_values,
+};
 
 /// Downloads `DownloadKind::Media` files.
 pub struct MediaRunner {
@@ -315,22 +161,7 @@ impl ExternalRunner for MediaRunner {
             )));
         };
         let settings = self.settings.read().await.clone();
-        // Leased, not just located, and leased *before* the version is assessed: a managed
-        // yt-dlp stays on disk for as long as this download runs even if another version is
-        // activated meanwhile (RD-102-02). A yt-dlp this build does not support cannot be
-        // relied on to produce the file that was selected, so media downloads stop and the
-        // rest of the queue is untouched (RD-102-03). Both rules live in `prepare`.
-        let ytdlp_tool = match prepare(
-            "yt-dlp",
-            lease_tool(
-                settings.media_ytdlp_executable.as_deref(),
-                settings.vendor_directory.as_deref(),
-                "yt-dlp",
-            ),
-            rd_tools::Capability::MediaDownload,
-        )
-        .await
-        {
+        let ytdlp_tool = match lease_ytdlp(&settings).await {
             Ok(tool) => tool,
             Err(failure) => return Ok(RunOutcome::Failed(failure)),
         };
@@ -338,76 +169,21 @@ impl ExternalRunner for MediaRunner {
         // not be reduced to its path here.
         let ytdlp = ytdlp_tool.path();
         let ffmpeg = FfmpegTools::resolve(&settings);
-        // MP3 conversion cannot happen without the tools, so fail before downloading. A video
-        // still succeeds: yt-dlp then falls back to a progressive format instead of merging.
-        if selection.kind == MediaKind::Audio
-            && let Some(blocking) = ffmpeg.blocking(rd_tools::Capability::AudioExtraction).await
-        {
-            return Ok(RunOutcome::Failed(rd_tools::compat::incompatible_failure(
-                &blocking,
-                rd_tools::Capability::AudioExtraction,
-            )));
-        }
-        if selection.kind == MediaKind::Audio && !ffmpeg.is_complete() {
-            let missing = if ffmpeg.ffmpeg.is_none() {
-                "ffmpeg"
-            } else {
-                "ffprobe"
-            };
-            return Ok(RunOutcome::Failed(
-                Failure::coded(
-                    FailureKind::Unsupported,
-                    "media.tool_missing",
-                    format!("{missing} is required for MP3 conversion but is not installed"),
-                )
-                .with_param("tool", missing),
-            ));
-        }
-        if selection.kind == MediaKind::Video && !ffmpeg.is_complete() {
-            tracing::warn!(
-                ffmpeg = ffmpeg.ffmpeg.is_some(),
-                ffprobe = ffmpeg.ffprobe.is_some(),
-                "ffmpeg and ffprobe are both required to merge video and audio; \
-                 yt-dlp will fall back to a single pre-muxed stream"
-            );
+        if let Some(failure) = tool_failure(&selection, &ffmpeg).await {
+            return Ok(RunOutcome::Failed(failure));
         }
         let directory = PathBuf::from(&package.destination);
         tokio::fs::create_dir_all(&directory).await?;
-        // yt-dlp writes intermediate files next to the target (`<stem>.f137.mp4.part`), so the
-        // stem has to leave room for the longest suffix it appends, not just for `.%(ext)s`.
-        let stem = rd_files::sanitize_file_name_within(
-            &directory,
-            std::path::Path::new(&file.file_name)
-                .file_stem()
-                .and_then(|value| value.to_str())
-                .unwrap_or("media"),
-            YTDLP_SUFFIX_RESERVE,
-        );
+        let stem = media_stem(&directory, &file.file_name);
         let capabilities = ffmpeg.media_capabilities().await;
         let criteria = selection.effective_criteria();
-        // A per-job template beats the configured default; neither is required.
-        let output_pattern = criteria
-            .as_ref()
-            .and_then(|criteria| criteria.output_template.clone())
-            .or_else(|| settings.media_output_template.clone());
-        let template = output_template(
-            &directory,
-            &stem,
-            output_pattern.as_deref(),
-            &template_values(&selection, &stem),
-        );
+        let template = output_target(&directory, &stem, &selection, criteria.as_ref(), &settings);
         // Bound here, before the spawn, and dropped when `run` returns by any path — the
         // success return, an early `Failed`, and the cancellation branch that kills the
         // child all unwind through this binding, so the file cannot outlive the download.
         let cookies = match self.cookie_file(file, &selection).await {
             Ok(cookies) => cookies,
-            Err(error) => {
-                return Ok(RunOutcome::Failed(Failure::coded(
-                    FailureKind::Permanent,
-                    error.code(),
-                    error.message(),
-                )));
-            }
+            Err(error) => return Ok(RunOutcome::Failed(cookie_failure(error))),
         };
         let format = match resolve_format(
             ytdlp,
@@ -424,18 +200,7 @@ impl ExternalRunner for MediaRunner {
         // A borrow, not a clone: `EMPTY` is a `const`, so it needs a binding to live long
         // enough for the plan to hold a reference to it.
         let empty_tracks = rd_core::TrackSelection::EMPTY;
-        // The policy is reduced to what this container and these tools actually allow
-        // *before* the arguments are built, so the flags and what the UI previewed agree.
-        let embed = criteria
-            .as_ref()
-            .map_or_else(rd_core::MediaEmbedPolicy::default, |criteria| {
-                rd_core::effective_policy(
-                    &criteria.embed,
-                    &selection.ext,
-                    &selection.page_url,
-                    capabilities.can_transcode_audio,
-                )
-            });
+        let embed = embed_policy(criteria.as_ref(), &selection, capabilities);
         let plan = DownloadPlan {
             format: &format,
             output: &template,
@@ -454,7 +219,20 @@ impl ExternalRunner for MediaRunner {
         };
         let mut command = tokio::process::Command::new(ytdlp);
         command.args(plan.build());
-        let mut process = ToolProcess::spawn(&mut command, "yt-dlp", Stdout::Read)?;
+        let process = ToolProcess::spawn(&mut command, "yt-dlp", Stdout::Read)?;
+        self.follow(process, file, &cancellation).await
+    }
+}
+
+impl MediaRunner {
+    /// Reads yt-dlp's output to its end, reporting progress on the way, then judges what it
+    /// left behind.
+    async fn follow(
+        &self,
+        mut process: ToolProcess,
+        file: &DownloadFile,
+        cancellation: &CancellationToken,
+    ) -> Result<RunOutcome> {
         let mut final_path: Option<String> = None;
         let mut throttle = ProgressThrottle::default();
         // A merged video is fetched as two streams that each count 0-100 %. Bytes of the
@@ -500,6 +278,17 @@ impl ExternalRunner for MediaRunner {
                 final_path = Some(path.to_owned());
             }
         }
+        self.finish(process, file, final_path).await
+    }
+
+    /// The verdict on a yt-dlp run that reached its end: its exit, its warnings, and the file
+    /// it reported.
+    async fn finish(
+        &self,
+        mut process: ToolProcess,
+        file: &DownloadFile,
+        final_path: Option<String>,
+    ) -> Result<RunOutcome> {
         let status = process.wait().await?;
         let stderr_text = process.stderr().await;
         if !status.success() {
@@ -550,6 +339,121 @@ impl ExternalRunner for MediaRunner {
     }
 }
 
+/// The yt-dlp this run uses, leased for as long as the returned tool is held.
+async fn lease_ytdlp(settings: &rd_core::MediaSettings) -> Result<rd_tools::PreparedTool, Failure> {
+    // Leased, not just located, and leased *before* the version is assessed: a managed
+    // yt-dlp stays on disk for as long as this download runs even if another version is
+    // activated meanwhile (RD-102-02). A yt-dlp this build does not support cannot be
+    // relied on to produce the file that was selected, so media downloads stop and the
+    // rest of the queue is untouched (RD-102-03). Both rules live in `prepare`.
+    prepare(
+        "yt-dlp",
+        lease_tool(
+            settings.media_ytdlp_executable.as_deref(),
+            settings.vendor_directory.as_deref(),
+            "yt-dlp",
+        ),
+        rd_tools::Capability::MediaDownload,
+    )
+    .await
+}
+
+/// The sanitised stem the downloaded file is written under.
+fn media_stem(directory: &std::path::Path, file_name: &str) -> String {
+    // yt-dlp writes intermediate files next to the target (`<stem>.f137.mp4.part`), so the
+    // stem has to leave room for the longest suffix it appends, not just for `.%(ext)s`.
+    rd_files::sanitize_file_name_within(
+        directory,
+        std::path::Path::new(file_name)
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .unwrap_or("media"),
+        YTDLP_SUFFIX_RESERVE,
+    )
+}
+
+/// A cookie profile that cannot be used, as the download's failure.
+fn cookie_failure(error: CookieError) -> Failure {
+    Failure::coded(FailureKind::Permanent, error.code(), error.message())
+}
+
+/// Why the tools at hand cannot produce this selection, or `None` when they can.
+async fn tool_failure(selection: &MediaSelection, ffmpeg: &FfmpegTools) -> Option<Failure> {
+    // MP3 conversion cannot happen without the tools, so fail before downloading. A video
+    // still succeeds: yt-dlp then falls back to a progressive format instead of merging.
+    if selection.kind == MediaKind::Audio
+        && let Some(blocking) = ffmpeg.blocking(rd_tools::Capability::AudioExtraction).await
+    {
+        return Some(rd_tools::compat::incompatible_failure(
+            &blocking,
+            rd_tools::Capability::AudioExtraction,
+        ));
+    }
+    if selection.kind == MediaKind::Audio && !ffmpeg.is_complete() {
+        let missing = if ffmpeg.ffmpeg.is_none() {
+            "ffmpeg"
+        } else {
+            "ffprobe"
+        };
+        return Some(
+            Failure::coded(
+                FailureKind::Unsupported,
+                "media.tool_missing",
+                format!("{missing} is required for MP3 conversion but is not installed"),
+            )
+            .with_param("tool", missing),
+        );
+    }
+    if selection.kind == MediaKind::Video && !ffmpeg.is_complete() {
+        tracing::warn!(
+            ffmpeg = ffmpeg.ffmpeg.is_some(),
+            ffprobe = ffmpeg.ffprobe.is_some(),
+            "ffmpeg and ffprobe are both required to merge video and audio; \
+             yt-dlp will fall back to a single pre-muxed stream"
+        );
+    }
+    None
+}
+
+/// The `-o` argument: the per-job template or the configured default, expanded in
+/// `directory`.
+fn output_target(
+    directory: &std::path::Path,
+    stem: &str,
+    selection: &MediaSelection,
+    criteria: Option<&MediaFormatCriteria>,
+    settings: &rd_core::MediaSettings,
+) -> PathBuf {
+    // A per-job template beats the configured default; neither is required.
+    let output_pattern = criteria
+        .and_then(|criteria| criteria.output_template.clone())
+        .or_else(|| settings.media_output_template.clone());
+    output_template(
+        directory,
+        stem,
+        output_pattern.as_deref(),
+        &template_values(selection, stem),
+    )
+}
+
+/// The embed policy the download's arguments are built with.
+fn embed_policy(
+    criteria: Option<&MediaFormatCriteria>,
+    selection: &MediaSelection,
+    capabilities: MediaCapabilities,
+) -> rd_core::MediaEmbedPolicy {
+    // The policy is reduced to what this container and these tools actually allow
+    // *before* the arguments are built, so the flags and what the UI previewed agree.
+    criteria.map_or_else(rd_core::MediaEmbedPolicy::default, |criteria| {
+        rd_core::effective_policy(
+            &criteria.embed,
+            &selection.ext,
+            &selection.page_url,
+            capabilities.can_transcode_audio,
+        )
+    })
+}
+
 /// A run its deadline ended: the tool failed, retried like any other yt-dlp failure. Answered
 /// as a stop it read as the person's own pause and was never tried again (re-audit 1.9.1,
 /// RA-TR-03).
@@ -566,132 +470,5 @@ fn timed_out(stderr: &str) -> Failure {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::{final_path_line, output_template, progressive_format, timed_out};
-
-    /// RA-TR-03: a deadline is a failure with a retry, not a stop.
-    #[test]
-    fn a_run_past_its_deadline_is_a_retryable_failure() {
-        let failure = timed_out("");
-        assert_eq!(failure.code.as_deref(), Some("media.ytdlp_failed"));
-        assert!(failure.category.is_retryable());
-        assert!(
-            failure.message.contains("time limit"),
-            "{}",
-            failure.message
-        );
-        assert!(
-            timed_out("WARNING: slow\nERROR: stalled\n")
-                .message
-                .contains("ERROR: stalled")
-        );
-    }
-
-    #[test]
-    fn keeps_only_the_alternative_that_needs_no_merge() {
-        assert_eq!(
-            progressive_format("bv*[height<=1080]+ba/b[height<=1080]"),
-            "b[height<=1080]"
-        );
-        assert_eq!(progressive_format("bv*+ba/b"), "b");
-        // Nothing pre-muxed on offer: fall back to yt-dlp's own "best single file".
-        assert_eq!(progressive_format("bv*+ba"), "b");
-        assert_eq!(progressive_format("b"), "b");
-    }
-
-    #[test]
-    fn without_a_template_the_output_is_the_plain_file_name() {
-        let values = rd_files::TemplateValues::new();
-        assert_eq!(
-            output_template(Path::new("/downloads/pkg"), "clip", None, &values),
-            Path::new("/downloads/pkg/clip.%(ext)s")
-        );
-        // An empty pattern is the same as none, not an empty path.
-        assert_eq!(
-            output_template(Path::new("/downloads/pkg"), "clip", Some("   "), &values),
-            Path::new("/downloads/pkg/clip.%(ext)s")
-        );
-    }
-
-    #[test]
-    fn a_template_produces_a_literal_path_with_only_ytdlps_extension_placeholder() {
-        let mut values = rd_files::TemplateValues::new();
-        values.insert("title".to_owned(), "Trailer".to_owned());
-        values.insert("uploader".to_owned(), "Studio".to_owned());
-        let path = output_template(
-            Path::new("/downloads/pkg"),
-            "clip",
-            Some("{uploader}/{title}"),
-            &values,
-        );
-        assert_eq!(path, Path::new("/downloads/pkg/Studio/Trailer.%(ext)s"));
-        // Nothing but the extension placeholder survives into the argument.
-        let rendered = path.to_string_lossy();
-        assert_eq!(rendered.matches('%').count(), 1);
-    }
-
-    #[test]
-    fn a_per_cent_in_a_name_is_escaped_so_yt_dlp_cannot_read_it_as_a_field() {
-        // `sanitize_file_name` leaves `%` alone, so without the doubling this title reaches
-        // yt-dlp as a real output template and the file lands under a name nobody chose.
-        let values = rd_files::TemplateValues::new();
-        let path = output_template(
-            Path::new("/downloads/pkg"),
-            "50%(title)s off",
-            None,
-            &values,
-        );
-        assert_eq!(path, Path::new("/downloads/pkg/50%%(title)s off.%(ext)s"));
-
-        let mut values = rd_files::TemplateValues::new();
-        values.insert("title".to_owned(), "100% Wolf".to_owned());
-        let path = output_template(
-            Path::new("/downloads/pkg"),
-            "clip",
-            Some("{title}"),
-            &values,
-        );
-        assert_eq!(path, Path::new("/downloads/pkg/100%% Wolf.%(ext)s"));
-        // The only unescaped placeholder left is the extension yt-dlp fills in.
-        assert_eq!(path.to_string_lossy().matches("%(").count(), 1);
-    }
-
-    #[test]
-    fn only_the_marked_line_is_taken_as_the_output_path() {
-        assert_eq!(
-            final_path_line("rdownloader-final-path:/downloads/pkg/clip.mp4"),
-            Some("/downloads/pkg/clip.mp4")
-        );
-        // The lines that used to overwrite the path: anything unprefixed on stdout.
-        assert_eq!(final_path_line("/downloads/pkg/wrong.mp4"), None);
-        assert_eq!(final_path_line("WARNING: generic extractor"), None);
-        assert_eq!(
-            final_path_line("[download] Destination: clip.f137.mp4"),
-            None
-        );
-        assert_eq!(final_path_line(""), None);
-        assert_eq!(final_path_line("   "), None);
-        // A marker with nothing behind it is not an answer either.
-        assert_eq!(final_path_line("rdownloader-final-path:"), None);
-        assert_eq!(final_path_line("rdownloader-final-path:   "), None);
-    }
-
-    #[test]
-    fn a_template_that_cannot_be_expanded_falls_back_instead_of_failing_the_download() {
-        // The template was validated when it was saved; a title of `..` is a problem with
-        // one page, not with the configuration, so the file still lands somewhere sane.
-        let mut values = rd_files::TemplateValues::new();
-        values.insert("title".to_owned(), "..".to_owned());
-        assert_eq!(
-            output_template(
-                Path::new("/downloads/pkg"),
-                "clip",
-                Some("{title}"),
-                &values
-            ),
-            Path::new("/downloads/pkg/clip.%(ext)s")
-        );
-    }
-}
+#[path = "runner_tests.rs"]
+mod tests;

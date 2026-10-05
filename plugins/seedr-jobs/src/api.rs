@@ -24,7 +24,7 @@
 //! measured on 2026-09-22; `docs/roadmap/jobs/120-04-seedr-feasibility.md` records the run
 //! against a real, premium account as open.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use seedr_common::folder::{Listing, Torrent};
 
 use crate::messages;
@@ -211,13 +211,9 @@ pub fn magnet_display_name(magnet: &str) -> Option<String> {
         .filter_map(|pair| pair.split_once('='))
         .find(|(name, _)| *name == "dn")
         .map(|(_, value)| value)?;
-    let decoded = percent_decode(&raw.replace('+', " "));
+    let decoded = plugin_common::encode::percent_decode_lossy(&raw.replace('+', " "));
     let bounded = bounded_name(&decoded);
     (!bounded.is_empty()).then_some(bounded)
-}
-
-fn percent_decode(value: &str) -> String {
-    String::from_utf8_lossy(&plugin_common::encode::percent_decode(value)).into_owned()
 }
 
 /// Where one finished file belongs: its bare name, and the folder path it sat on.
@@ -250,34 +246,22 @@ pub fn place(job_name: &str, relative: &[String]) -> Option<String> {
     (!place.is_empty()).then(|| place.join("/"))
 }
 
-/// How a refusal is classified, without depending on either failure representation.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-}
-
-/// A classified refusal.
-#[derive(Debug)]
-pub struct ApiFailure {
-    pub kind: ErrorKind,
-    pub code: &'static str,
-    pub message: String,
-    pub params: Vec<(&'static str, String)>,
-}
-
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
+/// How Seedr's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+pub const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::TRANSFER_GONE,
+    unavailable: messages::TRANSFER_GONE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: Some(RATE_LIMIT_SECONDS),
+    server_error_wait: Some(BUSY_SECONDS),
+    other: HttpError {
+        code: messages::HTTP_ERROR.0,
+        text: messages::http_error,
+    },
+};
 
 /// The refusal an answer describes, or `None` when it describes none.
 ///
@@ -325,39 +309,23 @@ fn classify(
         .as_deref()
         .is_some_and(|word| word.starts_with("not_enough_space"));
     match status {
-        402 => plain(ErrorKind::Unsupported, messages::PLAN_REQUIRED),
+        402 => ApiFailure::new(ErrorKind::Unsupported, messages::PLAN_REQUIRED),
         status if (200..=299).contains(&status) && plan_refused => {
-            plain(ErrorKind::Unsupported, messages::PLAN_REQUIRED)
+            ApiFailure::new(ErrorKind::Unsupported, messages::PLAN_REQUIRED)
         }
-        status if (200..=299).contains(&status) && out_of_space => plain(
+        status if (200..=299).contains(&status) && out_of_space => ApiFailure::new(
             ErrorKind::Transient(Some(BUSY_SECONDS)),
             messages::OUT_OF_SPACE,
         ),
-        status if (200..=299).contains(&status) => plain(ErrorKind::Permanent, messages::API_ERROR),
+        status if (200..=299).contains(&status) => {
+            ApiFailure::new(ErrorKind::Permanent, messages::API_ERROR)
+        }
         // Everything else is the mapping every plugin shares (RD-191-07), with this provider's
         // words and defaults.
-        _ => match plugin_common::http_status(status, retry_after_seconds) {
-            Ok(()) => plain(ErrorKind::Permanent, messages::API_ERROR),
-            Err(HttpRefusal::Unauthorized) => {
-                plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID)
-            }
-            Err(HttpRefusal::Gone) => plain(ErrorKind::Permanent, messages::TRANSFER_GONE),
-            Err(HttpRefusal::Unavailable) => plain(ErrorKind::Offline, messages::TRANSFER_GONE),
-            Err(HttpRefusal::RateLimited(wait)) => plain(
-                ErrorKind::RateLimited(Some(wait.unwrap_or(RATE_LIMIT_SECONDS))),
-                messages::RATE_LIMITED,
-            ),
-            Err(HttpRefusal::ServerError(wait)) => plain(
-                ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
-                messages::SERVER_ERROR,
-            ),
-            Err(HttpRefusal::Other(other)) => ApiFailure {
-                kind: ErrorKind::Permanent,
-                code: messages::HTTP_ERROR.0,
-                message: messages::http_error(other),
-                params: vec![("status", other.to_string())],
-            },
-        },
+        _ => HTTP
+            .ensure_http_status(status, retry_after_seconds)
+            .err()
+            .unwrap_or_else(|| ApiFailure::new(ErrorKind::Permanent, messages::API_ERROR)),
     }
 }
 

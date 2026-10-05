@@ -27,18 +27,8 @@ source "$ROOT/scripts/lib/verified.sh"
 # shellcheck source=../lib/scope.sh
 source "$ROOT/scripts/lib/scope.sh"
 
-failures=0
-passed=0
-expect() {
-    local name="$1" expected="$2" actual="$3"
-    if [[ "$actual" == "$expected" ]]; then
-        echo "ok   $name"
-        passed=$((passed + 1))
-    else
-        echo "FAIL $name: expected '${expected}', got '${actual}'"
-        failures=$((failures + 1))
-    fi
-}
+# shellcheck source=lib/expect.sh
+source "$ROOT/scripts/tests/lib/expect.sh"
 
 repo="$SCRATCH/repo"
 export CARGO_TARGET_DIR="$SCRATCH/target"
@@ -279,9 +269,4 @@ git commit -qm "docs: the verification note"
 rd_record_ci "$repo" "$candidate" macos-15
 expect "only documentation after the green: the same content" "$candidate" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" macos-15)"
 
-echo
-if [[ "$failures" -gt 0 ]]; then
-    echo "verified-scope: $failures failed, $passed passed"
-    exit 1
-fi
-echo "verified-scope: $passed passed"
+finish_tests verified-scope

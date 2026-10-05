@@ -431,7 +431,7 @@ async function remove(category: Category): Promise<void> {
             />
           </template>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!categories.length">
-            <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">{{ t('routing.category.empty') }}</p>
+            <UEmpty :description="t('routing.category.empty')" />
           </DataState>
         </div>
       </template>

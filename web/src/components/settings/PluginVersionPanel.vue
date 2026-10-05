@@ -42,6 +42,7 @@ const { t } = useI18n()
 const busy = ref(false)
 /** The version picked in the selector, for activating or testing it. */
 const picked = ref<string | undefined>(undefined)
+const notesOpen = ref(false)
 
 const others = computed(() => props.versions
   .filter(version => version !== props.lifecycle.active_version && version !== props.lifecycle.staged_version)
@@ -111,28 +112,38 @@ function setAutomatic(value: boolean): Promise<void> {
         @click="rollBack"
       />
       <!--
-        The picker takes what the two buttons leave; on a phone it has the row to itself and the
-        buttons go under it.
+        The picker and the two buttons that act on what it picked are one group; the picker takes
+        what the buttons leave.
       -->
-      <div v-if="others.length" class="flex min-w-0 flex-1 basis-64 flex-wrap items-center gap-1">
-        <USelect v-model="picked" :items="others" value-key="value" size="sm" class="min-w-0 grow basis-full sm:basis-0" :placeholder="t('plugins.versions.pick')" :aria-label="t('plugins.versions.pick')" />
-        <UButton size="sm" color="neutral" variant="ghost" class="shrink-0" icon="i-lucide-check" :label="t('plugins.versions.activate')" :disabled="busy || !picked" @click="picked && activate(picked)" />
-        <UButton size="sm" color="neutral" variant="ghost" class="shrink-0" icon="i-lucide-flask-conical" :label="t('plugins.versions.stage')" :disabled="busy || !picked" @click="picked && stage(picked)" />
-      </div>
+      <UFieldGroup v-if="others.length" size="sm" class="min-w-0 flex-1 basis-64">
+        <USelect v-model="picked" :items="others" value-key="value" class="min-w-0 grow" :placeholder="t('plugins.versions.pick')" :aria-label="t('plugins.versions.pick')" />
+        <UButton color="neutral" variant="outline" class="shrink-0" icon="i-lucide-check" :label="t('plugins.versions.activate')" :disabled="busy || !picked" @click="picked && activate(picked)" />
+        <UButton color="neutral" variant="outline" class="shrink-0" icon="i-lucide-flask-conical" :label="t('plugins.versions.stage')" :disabled="busy || !picked" @click="picked && stage(picked)" />
+      </UFieldGroup>
     </div>
 
-    <details v-if="releaseNotes?.length" class="group" data-release-notes>
-      <summary class="cursor-pointer select-none text-toned">{{ t('plugins.versions.release_notes', { count: releaseNotes.length }) }}</summary>
-      <ul class="mt-1 space-y-2">
-        <li v-for="note in releaseNotes" :key="note.version">
-          <p class="font-mono text-toned">
-            v{{ note.version }}
-            <span class="font-sans text-muted">· {{ t('plugins.versions.release_notes_from', { repository: note.repository }) }}</span>
-          </p>
-          <p class="whitespace-pre-line break-words text-muted">{{ note.notes }}</p>
-        </li>
-      </ul>
-    </details>
+    <UCollapsible v-if="releaseNotes?.length" v-model:open="notesOpen" data-release-notes>
+      <UButton
+        size="xs"
+        color="neutral"
+        variant="link"
+        class="px-0 text-toned"
+        :icon="notesOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        :label="t('plugins.versions.release_notes', { count: releaseNotes.length })"
+        :aria-expanded="notesOpen"
+      />
+      <template #content>
+        <ul class="mt-1 space-y-2">
+          <li v-for="note in releaseNotes" :key="note.version">
+            <p class="font-mono text-toned">
+              v{{ note.version }}
+              <span class="font-sans text-muted">· {{ t('plugins.versions.release_notes_from', { repository: note.repository }) }}</span>
+            </p>
+            <p class="whitespace-pre-line break-words text-muted">{{ note.notes }}</p>
+          </li>
+        </ul>
+      </template>
+    </UCollapsible>
 
     <USwitch
       :model-value="automaticForAll || automatic"

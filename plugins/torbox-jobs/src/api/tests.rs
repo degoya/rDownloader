@@ -3,8 +3,8 @@
 use serde_json::json;
 
 use super::{
-    ApiFailure, CachedEntry, ErrorEnvelope, ErrorKind, JobEntry, Stage, boundary, cached_entries,
-    check_cached_path, classify_error, control_body, download_address, ensure_http_status,
+    ApiFailure, CachedEntry, ErrorEnvelope, ErrorKind, HTTP, JobEntry, Stage, boundary,
+    cached_entries, check_cached_path, classify_error, control_body, download_address,
     failure_from, is_safe_remote_id, multipart, permille, place, stage_of,
 };
 use crate::{messages, source::Kind};
@@ -86,7 +86,7 @@ fn each_documented_word_lands_in_the_bucket_that_matches_it() {
         ),
         (
             "DUPLICATE_ITEM",
-            ErrorKind::Duplicate,
+            ErrorKind::Permanent,
             messages::JOB_EXISTS.0,
         ),
         ("ITEM_NOT_FOUND", ErrorKind::Offline, messages::JOB_GONE.0),
@@ -129,7 +129,7 @@ fn each_documented_word_lands_in_the_bucket_that_matches_it() {
 
 #[test]
 fn an_http_status_no_word_explains_is_mapped_on_its_own() {
-    assert!(ensure_http_status(204, None).is_ok());
+    assert!(HTTP.ensure_http_status(204, None).is_ok());
     for (status, kind) in [
         (401_u16, ErrorKind::AccountInvalid),
         // A 404 or 410 is the job gone for good (owner, 2026-10-04).
@@ -140,27 +140,33 @@ fn an_http_status_no_word_explains_is_mapped_on_its_own() {
         // A legal block is retried.
         (451, ErrorKind::Offline),
     ] {
-        let refusal = ensure_http_status(status, None).expect_err("a refusal");
+        let refusal = HTTP
+            .ensure_http_status(status, None)
+            .expect_err("a refusal");
         assert_eq!(refusal.kind, kind, "{status}");
     }
     // ... and still says TorBox refused the request, not that the job is gone (RA-PLG-04).
     assert_eq!(
-        ensure_http_status(451, None).expect_err("a refusal").code,
+        HTTP.ensure_http_status(451, None)
+            .expect_err("a refusal")
+            .code,
         messages::REQUEST_REFUSED.0
     );
     assert_eq!(
-        ensure_http_status(404, None).expect_err("a refusal").code,
+        HTTP.ensure_http_status(404, None)
+            .expect_err("a refusal")
+            .code,
         messages::JOB_GONE.0
     );
     // A wait the provider states is kept, on a rate limit and on an outage alike.
     assert_eq!(
-        ensure_http_status(429, Some(90))
+        HTTP.ensure_http_status(429, Some(90))
             .expect_err("a refusal")
             .kind,
         ErrorKind::RateLimited(Some(90))
     );
     assert_eq!(
-        ensure_http_status(503, Some(45))
+        HTTP.ensure_http_status(503, Some(45))
             .expect_err("a refusal")
             .kind,
         ErrorKind::Transient(Some(45))

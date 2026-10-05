@@ -12,6 +12,7 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useRegexEditor } from '@/composables/useRegexEditor'
 import { MAX_RULE_NAME_LENGTH, nextRulePriority } from '@/utils/categoryRuleCopy'
+import { PLAIN } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -201,8 +202,8 @@ async function remove(rule: CategoryRule): Promise<void> {
           <UFormField required :label="t('routing.rule.category_label')" :description="t('routing.rule.category_description')">
             <USelect v-model="form.category_id" required :items="categoryItems" value-key="value" class="w-full" :placeholder="t('routing.rule.category_placeholder')" />
           </UFormField>
-          <UFormField :label="t('routing.rule.priority_label')" :description="t('routing.rule.priority_description')">
-            <UInput v-model.number="form.priority" type="number" min="0" class="w-full" :placeholder="t('routing.rule.priority_placeholder')" />
+          <UFormField required :label="t('routing.rule.priority_label')" :description="t('routing.rule.priority_description')">
+            <UInputNumber v-model="form.priority" required :min="0" :format-options="PLAIN" class="w-full" :placeholder="t('routing.rule.priority_placeholder')" />
           </UFormField>
           <UFormField orientation="horizontal" :label="t('routing.rule.enabled_label')" :description="t('routing.rule.enabled_description')">
             <USwitch v-model="form.enabled" :aria-label="t('routing.rule.enabled_label')" />
@@ -243,7 +244,7 @@ async function remove(rule: CategoryRule): Promise<void> {
       <template #list>
         <div class="divide-y divide-muted border border-muted">
           <div v-for="rule in rules" :key="rule.id" class="flex items-center gap-3 p-3" :class="editingId === rule.id ? 'border-l-2 border-l-primary' : ''">
-            <span class="size-2 shrink-0" :class="rule.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" />
+            <UChip standalone color="success" :show="rule.enabled" class="w-2" />
             <span class="numeric w-8 shrink-0 text-xs text-primary">{{ rule.priority }}</span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm text-highlighted">{{ rule.name }} <span class="text-muted">→ {{ categoryName(rule.category_id) }}</span></p>

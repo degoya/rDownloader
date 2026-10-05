@@ -59,7 +59,7 @@ for kind in deb rpm; do
     printf '%s\n' "$kind" > "$work/install-kind.$kind"
     sed -e "s|@VERSION@|$version|g" -e "s|@ARCH@|$nfpm_arch|g" \
         -e "s|@STAGE@|$work/stage|g" -e "s|@KIND_FILE@|$work/install-kind.$kind|g" \
-        -e "s|@PACKAGING@|$ROOT/packaging/linux|g" \
+        -e "s|@PACKAGING@|$ROOT/packaging/linux|g" -e "s|@SYSTEMD@|$ROOT/packaging/systemd|g" \
         "$ROOT/packaging/linux/nfpm.yaml.in" > "$work/nfpm-$kind.yaml"
     if grep -q '@[A-Z_]*@' "$work/nfpm-$kind.yaml"; then
         echo "packaging/linux/nfpm.yaml.in has a placeholder this script does not fill" >&2

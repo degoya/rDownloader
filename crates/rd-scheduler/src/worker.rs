@@ -1,29 +1,24 @@
-use std::{ops::ControlFlow, sync::Arc};
+use std::ops::ControlFlow;
 
-use anyhow::{Context, Result};
-use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
-use rd_core::{AuthMethod, DownloadFile, DownloadState, Failure};
-use rd_db::{Database, PersistedChunk};
-use rd_http::{
-    AuthMaterial, CheckpointSink, ChunkSpec, ClientContext, ClientKey, DownloadEngine,
-    DownloadOutcome, DownloadRequest, HttpDownloadError, ProxyCredentials, import_into,
-    probe_with_headers,
-};
-use reqwest::cookie::Jar;
-use secrecy::{ExposeSecret, SecretString};
+use anyhow::Result;
+use rd_core::{DownloadFile, DownloadState, Failure};
+use rd_db::PersistedChunk;
+use rd_http::ChunkSpec;
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-    ProfileBoundary, SchedulerHandle, StopReason,
-    failures::{not_a_file, record_error, record_http_error, record_http_error_with_replay},
-    profile_boundary::admitted,
-};
+use crate::{ProfileBoundary, SchedulerHandle, StopReason};
 
+#[path = "worker_client.rs"]
+mod client;
 #[path = "worker_phases.rs"]
 mod phases;
 #[path = "worker_sources.rs"]
 mod sources;
+#[path = "worker_steps.rs"]
+mod steps;
+
+use client::provider_authorization;
+pub(crate) use client::{build_client, build_replay_client, build_test_client};
 
 pub(crate) async fn run(
     scheduler: &SchedulerHandle,
@@ -35,151 +30,84 @@ pub(crate) async fn run(
     else {
         return Ok(());
     };
-    // A file with several sources (RD-150-03) is fetched from them, unless a resolver or a
-    // transform plugin claimed its address: then the address is a hoster's, not a mirror's.
-    // Its own address is one of the set's, so the single path below keeps to the set's
-    // address rule as well. So does a link a document or a page proposed without mirrors:
-    // its one source row is its own address, which the single path fetches — it needs no
-    // ranges — held to the rule the row was written with.
-    let mut address_policy = None;
-    if resolved.is_none() && transform.is_none() && file.kind == rd_core::DownloadKind::Http {
-        let listed = scheduler.database.download_sources(file.id).await?;
-        if !listed.is_empty() {
-            address_policy = Some(sources::address_policy(scheduler, &listed));
-        }
-        if listed.iter().any(|source| source.protocol.serves_chunks())
-            && !sources::only_its_own_address(scheduler, file, &listed).await?
-            && sources::run(scheduler, file, listed, cancellation.clone())
-                .await?
-                .is_break()
-        {
-            return Ok(());
-        }
-    }
+    let unclaimed = resolved.is_none() && transform.is_none();
+    let ControlFlow::Continue(address_policy) =
+        steps::try_sources(scheduler, file, unclaimed, &cancellation).await?
+    else {
+        return Ok(());
+    };
 
-    let mut working_file = file.clone();
     // A plugin-resolved link points at a transfer URL; anything else is a plain direct link
     // that is downloaded exactly as it was added.
     let resolved_by_plugin = resolved.is_some();
-    let (source, headers, resolved_size) = match resolved {
-        Some(resolved) => {
-            if let Some(name) = resolved.file_name {
-                let name = rd_files::sanitize_file_name(&name);
-                scheduler
-                    .database
-                    .set_download_file_name(file.id, name.clone())
-                    .await?;
-                // The package may still be named after the hoster, because intake had nothing
-                // else: this address carries no path segment and no check result (RD-109-45).
-                // It happens here, before the destination directory is created below, so the
-                // folder is named rather than renamed. A failure costs a name, not a download.
-                if let Err(error) = scheduler.adopt_resolved_package_name(file, &name).await {
-                    tracing::warn!(
-                        package_id = %file.package_id,
-                        %error,
-                        "the package kept its hoster name"
-                    );
-                }
-                working_file.file_name = name;
-            }
-            let headers = resolved
-                .headers
-                .into_iter()
-                .map(|header| (header.name, header.value))
-                .collect::<Vec<_>>();
-            (resolved.url, headers, resolved.size)
-        }
-        None => (file.source.clone(), Vec::new(), None),
-    };
+    let steps::Origin {
+        file: working_file,
+        source,
+        headers,
+        resolved_size,
+    } = steps::adopt_resolution(scheduler, file, resolved).await?;
     let file = &working_file;
     let replay = crate::replay::load(scheduler, file).await?;
-    let mut source = source;
-    let mut headers = headers;
-
-    // Only a resume risks continuing a partial file that was fetched from a URL which has
-    // since expired. A fresh start has nothing to protect and pays nothing here.
-    if file.committed_bytes.get() > 0 {
-        match crate::replay::before_resume(scheduler, file, &source, replay.as_ref()).await? {
-            crate::replay::Refreshed::Fresh => {}
-            crate::replay::Refreshed::Replaced {
-                url,
-                headers: resolved,
-            } => {
-                source = url;
-                headers = resolved;
-            }
-            crate::replay::Refreshed::Impossible(reason) => {
-                return record_error(scheduler, file, crate::replay::blocked(reason)).await;
-            }
-        }
-    }
-
-    // An address a stranger's document or page named is judged before the first request
-    // (RD-150-03). The client below holds every name to the same rule when it connects, but a
-    // literal address never reaches its resolver, so this is where `127.0.0.1` is refused.
-    if let Some(policy) = &address_policy
-        && let Err(rd_http::TargetRefusal::Refused(refused)) =
-            rd_http::check_target(policy, &rd_http::SystemLookup, &source).await
-    {
-        tracing::warn!(
-            download_id = %file.id,
-            address = ?refused.address,
-            "the download's address points at an address it may not reach; it is not requested"
-        );
-        return record_error(scheduler, file, internal_address()).await;
-    }
-
-    let network = tokio::select! {
-        () = cancellation.cancelled() => return transition_stopped(scheduler, file).await,
-        result = build_replay_client(scheduler, file, replay.as_ref(), address_policy) => result?,
+    let ControlFlow::Continue((source, connected)) = steps::connect(
+        scheduler,
+        file,
+        source,
+        headers,
+        replay.as_ref(),
+        address_policy,
+        &cancellation,
+    )
+    .await?
+    else {
+        return Ok(());
     };
-    let NetworkClient {
-        client,
-        headers: profile_headers,
-        profile_boundary,
-        provider_credential,
-    } = network;
-    // What goes to every address: the resolver's or the capture's own headers. The profile's
-    // and the account's are decided per address, because each is confined to a scope.
-    let unauthenticated = headers.clone();
-    // The profile was chosen for the link as it was added; `source` may be a resolver's answer
-    // on another host, and gets the profile's headers only inside its scope (RD-120-43).
-    headers.extend(admitted(
-        &profile_headers,
-        profile_boundary.as_ref(),
-        &source,
-    ));
-    // Credential headers go in before the probe so the online check authenticates too.
-    match provider_authorization(scheduler, provider_credential.as_ref(), &source).await? {
-        Ok(Some(header)) => headers.push(header),
-        Ok(None) => {}
-        Err(failure) => return record_error(scheduler, file, failure).await,
-    }
-
-    let probe_result = match tokio::select! {
-        () = cancellation.cancelled() => return transition_stopped(scheduler, file).await,
-        result = probe_with_headers(&client, source.clone(), &headers) => result,
-    } {
-        Ok(result) => result,
-        Err(error) => return record_http_error(scheduler, file, error).await,
+    let ControlFlow::Continue(probed) = steps::probe(
+        scheduler,
+        file,
+        source,
+        connected,
+        resolved_by_plugin,
+        &cancellation,
+    )
+    .await?
+    else {
+        return Ok(());
     };
-    // A resolver that hands back a landing page (expired direct link, hoster limit notice)
-    // must not be written to disk as if it were the file.
-    if resolved_by_plugin && !probe_result.looks_downloadable() {
-        let failure = not_a_file(&client, &source, &headers, &probe_result).await;
-        return record_error(scheduler, file, failure).await;
-    }
+    transfer(
+        scheduler,
+        file,
+        probed,
+        resolved_size,
+        transform,
+        replay.as_ref(),
+        cancellation,
+    )
+    .await
+}
+
+/// The transfer itself once the address has answered: the chunks planned, the destination and
+/// the stream transform prepared, the engine run and its answer recorded.
+async fn transfer(
+    scheduler: &SchedulerHandle,
+    file: &DownloadFile,
+    probed: steps::Probed,
+    resolved_size: Option<rd_core::ByteCount>,
+    transform: Option<(rd_core::ContentTransform, rd_core::TransformKey)>,
+    replay: Option<&crate::replay::ReplayContext>,
+    cancellation: CancellationToken,
+) -> Result<()> {
+    let steps::Probed {
+        source,
+        connected,
+        probe_result,
+    } = probed;
     let ControlFlow::Continue((total_bytes, chunks)) =
         phases::plan_transfer(scheduler, file, &probe_result, resolved_size).await?
     else {
         return Ok(());
     };
-    let ControlFlow::Continue(phases::Destination {
-        root,
-        staging,
-        part_path,
-        final_path,
-    }) = phases::prepare_destination(scheduler, file, total_bytes).await?
+    let ControlFlow::Continue(destination) =
+        phases::prepare_destination(scheduler, file, total_bytes).await?
     else {
         return Ok(());
     };
@@ -193,90 +121,25 @@ pub(crate) async fn run(
     else {
         return Ok(());
     };
-    // Which description the MACs this run produces belong to, so a continuation can tell its
-    // own state from somebody else's.
-    let mac_stream = transform
-        .as_ref()
-        .map(|plan| (file.id, plan.transform.fingerprint().to_owned()));
-
     // The address the chunks are fetched from: the per-host budget and the memory of a
     // host that ignores ranges both belong to it, not to the link the user pasted.
     let transfer_url = probe_result.final_url.clone();
-    // And so does the account's credential (RD-120-38). The probe followed the source's
-    // redirects, and reqwest dropped `Authorization` at every change of host on the way; the
-    // chunks are then fetched from where it ended, directly. Reusing the probe's headers there
-    // would hand the credential to exactly the foreign host the redirect was stripped for. So
-    // it is decided again, against the address the bytes actually come from. The profile's
-    // headers the same way, against the profile's scope (RD-120-43): they had the same hole.
-    let headers = if transfer_url == source {
-        headers
-    } else {
-        let mut rebuilt = unauthenticated;
-        rebuilt.extend(admitted(
-            &profile_headers,
-            profile_boundary.as_ref(),
-            &transfer_url,
-        ));
-        match provider_authorization(scheduler, provider_credential.as_ref(), &transfer_url).await?
-        {
-            Ok(Some(header)) => rebuilt.push(header),
-            Ok(None) => {}
-            Err(failure) => return record_error(scheduler, file, failure).await,
-        }
-        rebuilt
+    let ControlFlow::Continue((client, headers)) =
+        steps::transfer_headers(scheduler, file, connected, &source, &transfer_url).await?
+    else {
+        return Ok(());
     };
-    let engine = DownloadEngine::new(client, scheduler.scoped_limiter(file).await)
-        .with_host_limits(scheduler.host_limits().clone());
-    let outcome = engine
-        .download(
-            DownloadRequest {
-                url: probe_result.final_url,
-                part_path: part_path.clone(),
-                total_bytes,
-                etag: probe_result.etag,
-                last_modified: probe_result.last_modified,
-                use_ranges: probe_result.accepts_ranges,
-                chunks,
-                headers,
-                method: replay.as_ref().map(|r| r.method).unwrap_or_default(),
-                body: replay.as_ref().and_then(|r| r.body.clone()),
-                approved_origins: Arc::new(
-                    replay
-                        .as_ref()
-                        .map(|r| r.approved_origins.clone())
-                        .unwrap_or_default(),
-                ),
-                captured_user_agent: replay.as_ref().and_then(|r| r.captured_user_agent.clone()),
-                // `None` for every ordinary download, which therefore runs exactly the
-                // code it ran before the twelfth world existed (RD-110-33).
-                transform,
-            },
-            Arc::new(DatabaseCheckpoint {
-                database: scheduler.database.clone(),
-                mac_stream,
-            }),
-            cancellation,
-        )
-        .await;
-
-    match outcome {
-        Ok(DownloadOutcome::Complete) => {
-            phases::finish_download(scheduler, file, &root, &staging, &part_path, final_path).await
-        }
-        Ok(DownloadOutcome::Paused) => transition_stopped(scheduler, file).await,
-        Err(error) => {
-            let is_post_replay = replay
-                .as_ref()
-                .is_some_and(crate::replay::ReplayContext::is_post);
-            // Remembered for the retry: this host does not serve the parts it was asked
-            // for, so the next attempt asks for the whole file in one connection instead
-            // of repeating the same refusal four times.
-            if matches!(error, HttpDownloadError::RangeIgnored) && !is_post_replay {
-                scheduler.host_limits().note_ranges_ignored(&transfer_url);
-            }
-            record_http_error_with_replay(scheduler, file, error, is_post_replay).await
-        }
-    }
+    let request = steps::request(
+        probe_result,
+        destination.part_path.clone(),
+        total_bytes,
+        chunks,
+        headers,
+        replay,
+        transform,
+    );
+    let outcome = steps::fetch(scheduler, file, client, request, cancellation).await;
+    steps::settle(scheduler, file, outcome, replay, &transfer_url, destination).await
 }
 
 /// A download's address points where a stranger's document may not reach (RD-150-03).
@@ -359,297 +222,6 @@ pub struct ProviderCredential {
     pub reference: String,
 }
 
-/// Builds (or reuses) the isolated client for an account/proxy/profile combination.
-/// Reached from outside through [`SchedulerHandle::network_client`].
-pub(crate) async fn build_client(
-    scheduler: &SchedulerHandle,
-    account_id: Option<rd_core::AccountId>,
-    proxy_profile_id: Option<rd_core::ProxyProfileId>,
-    auth_profile: rd_core::AuthProfileSelection,
-    scope: &url::Url,
-    address_policy: Option<rd_http::AddressPolicy>,
-) -> Result<NetworkClient> {
-    let defaults = scheduler.network_defaults.read().await.clone();
-    let config = scheduler
-        .database
-        .network_client_config(
-            account_id,
-            proxy_profile_id,
-            defaults.global_proxy_profile_id,
-            auth_profile,
-            scope,
-        )
-        .await?;
-    assemble_client(scheduler, config, defaults, scope, None, address_policy).await
-}
-
-/// The transfer client for a download, confined to the replay's approved origins when it
-/// has a consented template, and to `address_policy` when its addresses came from a source
-/// set (RD-150-03).
-pub(crate) async fn build_replay_client(
-    scheduler: &SchedulerHandle,
-    file: &DownloadFile,
-    replay: Option<&crate::replay::ReplayContext>,
-    address_policy: Option<rd_http::AddressPolicy>,
-) -> Result<NetworkClient> {
-    let defaults = scheduler.network_defaults.read().await.clone();
-    let config = scheduler
-        .database
-        .network_client_config(
-            file.account_id,
-            file.proxy_profile_id,
-            defaults.global_proxy_profile_id,
-            file.auth_profile,
-            &file.source,
-        )
-        .await?;
-    let scope = replay
-        .and_then(crate::replay::ReplayContext::scope)
-        .map(Arc::new);
-    assemble_client(
-        scheduler,
-        config,
-        defaults,
-        &file.source,
-        scope,
-        address_policy,
-    )
-    .await
-}
-
-/// Builds a client for one specific profile without consulting the selection rules, so a
-/// profile can be tested before it is approved or while it is switched off.
-pub(crate) async fn build_test_client(
-    scheduler: &SchedulerHandle,
-    profile: rd_core::AuthProfile,
-    scope: &url::Url,
-) -> Result<NetworkClient> {
-    let defaults = scheduler.network_defaults.read().await.clone();
-    let mut config = scheduler
-        .database
-        .network_client_config(
-            None,
-            None,
-            defaults.global_proxy_profile_id,
-            rd_core::AuthProfileSelection::None,
-            scope,
-        )
-        .await?;
-    config.auth = Some(profile);
-    assemble_client(scheduler, config, defaults, scope, None, None).await
-}
-
-/// Turns a resolved network configuration into a pooled client plus its credential headers.
-async fn assemble_client(
-    scheduler: &SchedulerHandle,
-    config: rd_db::NetworkClientConfig,
-    defaults: rd_http::NetworkDefaults,
-    scope: &url::Url,
-    replay_scope: Option<Arc<rd_http::ReplayScope>>,
-    address_policy: Option<rd_http::AddressPolicy>,
-) -> Result<NetworkClient> {
-    // Read before `config` is taken apart below; the header itself is built later, and only
-    // once the address the transfer actually goes to is known.
-    let provider_credential = provider_transfer_credential(scheduler, &config).await?;
-    let cookie_jar = Arc::new(Jar::default());
-    if let Some(reference) = &config.cookie_ref {
-        let content = scheduler.secrets.get(reference).await?;
-        let cookie_scope = config
-            .account_provider
-            .as_deref()
-            .and_then(rd_plugin_host::provider_cookie_scope)
-            .unwrap_or_else(|| scope.clone());
-        let cookie_scope = rd_http::CookieScope::provider(&cookie_scope)?;
-        import_into(&cookie_jar, content.expose_secret(), &cookie_scope)?;
-    }
-    let mut headers = Vec::new();
-    let mut profile_boundary = None;
-    let mut auth_material = None;
-    if let Some(profile) = &config.auth {
-        let secret = match &profile.secret_ref {
-            Some(reference) => Some(scheduler.secrets.get(reference).await?),
-            None => None,
-        };
-        match profile.method {
-            AuthMethod::Cookies => {
-                if let Some(secret) = &secret {
-                    let cookie_scope = rd_http::CookieScope::new(
-                        &profile.scope.probe_url().unwrap_or_else(|| scope.clone()),
-                        profile.scope.include_subdomains,
-                    )?;
-                    import_into(&cookie_jar, secret.expose_secret(), &cookie_scope)?;
-                }
-            }
-            AuthMethod::Basic | AuthMethod::Bearer => {
-                if let Some(secret) = &secret {
-                    headers.push((
-                        "authorization".to_owned(),
-                        authorization_value(profile, secret)?,
-                    ));
-                    profile_boundary = Some(ProfileBoundary::new(profile.scope.clone(), scope));
-                }
-            }
-        }
-        if let Some(reference) = &profile.certificate_ref {
-            auth_material = Some(AuthMaterial {
-                identity_pem: scheduler.secrets.get(reference).await?,
-            });
-        }
-    }
-    // Only client-wide material may key the pool; a per-request header must not.
-    let client_wide = config
-        .auth
-        .as_ref()
-        .filter(|profile| {
-            profile.certificate_ref.is_some() || profile.method == AuthMethod::Cookies
-        })
-        .map(|profile| (profile.id, profile.revision()));
-    let proxy_profile_id = config.proxy.as_ref().map(|profile| profile.id);
-    let proxy_credentials = match config.proxy.as_ref() {
-        Some(profile) if profile.secret_ref.is_some() => {
-            let reference = profile
-                .secret_ref
-                .as_deref()
-                .context("proxy secret missing")?;
-            let password = scheduler.secrets.get(reference).await?;
-            let username = profile
-                .username
-                .clone()
-                .context("proxy password requires a username")?;
-            Some(ProxyCredentials { username, password })
-        }
-        _ => None,
-    };
-    let client = scheduler
-        .clients
-        .get_or_create(ClientContext {
-            key: ClientKey {
-                proxy_profile_id,
-                account_id: config.account_id,
-                cookie_ref: config.cookie_ref,
-                auth_profile_id: client_wide.map(|(id, _)| id),
-                auth_revision: client_wide.map_or(0, |(_, revision)| revision),
-                replay_scope: replay_scope.as_ref().map(|scope| scope.key()),
-                tls_revision: defaults.tls_revision,
-                address_policy,
-            },
-            proxy: config.proxy,
-            proxy_credentials,
-            cookie_jar,
-            custom_ca_pem: defaults.custom_ca_pem,
-            auth: auth_material,
-            replay_scope,
-        })
-        .await?;
-    Ok(NetworkClient {
-        client,
-        headers,
-        profile_boundary,
-        provider_credential,
-    })
-}
-
-/// Which stored credential a transfer may carry for this account.
-///
-/// Almost always the account's own secret, which for an OAuth provider *is* the access token.
-/// The exception is a provider whose person registered their own application (RD-106-03): there
-/// the account's secret is the **client** secret, every renewal still needs it, and the access
-/// token lives beside the sign-in flow. Handing the first to [`provider_authorization`] would
-/// put the client secret in an `Authorization` header on every transfer — the wrong credential,
-/// sent where the right one belongs.
-///
-/// Real-Debrid is the other provider of that shape and never noticed, because its download
-/// addresses are generated and carry no bearer at all. Box is the first whose bytes come from
-/// the API host itself (RD-120-05), which is where this became reachable.
-///
-/// An account whose sign-in has not produced a token yet gets `None` rather than a fallback:
-/// the transfer then goes out unauthenticated and the provider says so, which is a legible
-/// failure. The fallback would be the client secret, and that is not.
-async fn provider_transfer_credential(
-    scheduler: &SchedulerHandle,
-    config: &rd_db::NetworkClientConfig,
-) -> Result<Option<ProviderCredential>> {
-    let Some(provider) = config.account_provider.clone() else {
-        return Ok(None);
-    };
-    let username = config.account_username.clone();
-    if !rd_plugin_host::provider_token_beside_the_flow(&provider) {
-        return Ok(config
-            .account_secret_ref
-            .clone()
-            .map(|reference| ProviderCredential {
-                provider,
-                username,
-                reference,
-            }));
-    }
-    let Some(account_id) = config.account_id else {
-        return Ok(None);
-    };
-    let stored = scheduler
-        .database
-        .auth_flow(account_id)
-        .await?
-        .and_then(|flow| flow.access_ref);
-    Ok(stored.map(|reference| ProviderCredential {
-        provider,
-        username,
-        reference,
-    }))
-}
-
-/// The `Authorization` header the account's own credential puts on a request to `target`.
-///
-/// Two shapes, one gate (`rd_plugin_host::provider_download_authorization`): an OAuth-signed
-/// provider's access token as `Bearer` (RD-106-04), and `Basic` for a provider whose row
-/// declares `transfer_auth = "basic"` (RD-120-38) — Seedr's file addresses and Pixeldrain's.
-/// Either way only over TLS and only to an exact host the provider's own manifest listed under
-/// `secret_domains`. `target` is the address the request goes to, never the one the download
-/// started from: a resolver answering with somebody else's host, or a source redirecting to
-/// one, must not take the credential there.
-///
-/// The secret is read from the vault only once the gate has said yes. The inner `Err` is an
-/// account that cannot form a Basic pair — a provider that requires a user name and an account
-/// without one — and becomes the download's failure; it names no part of the credential.
-async fn provider_authorization(
-    scheduler: &SchedulerHandle,
-    credential: Option<&ProviderCredential>,
-    target: &url::Url,
-) -> Result<std::result::Result<Option<(String, String)>, Failure>> {
-    let Some(credential) = credential else {
-        return Ok(Ok(None));
-    };
-    // The gate first: a host outside `secret_domains` does not even open the vault.
-    if !rd_plugin_host::provider_download_carries_credential(&credential.provider, target) {
-        return Ok(Ok(None));
-    }
-    let secret = scheduler.secrets.get(&credential.reference).await?;
-    Ok(rd_plugin_host::provider_download_authorization(
-        &credential.provider,
-        target,
-        credential.username.as_deref(),
-        secret.expose_secret(),
-    )
-    .map(|value| value.map(|value| ("authorization".to_owned(), value))))
-}
-
-/// Renders the `Authorization` value for a profile.
-fn authorization_value(profile: &rd_core::AuthProfile, secret: &SecretString) -> Result<String> {
-    match profile.method {
-        AuthMethod::Bearer => Ok(format!("Bearer {}", secret.expose_secret())),
-        AuthMethod::Basic => {
-            let username = profile
-                .username
-                .as_deref()
-                .context("basic auth profile has no username")?;
-            let encoded =
-                BASE64_STANDARD.encode(format!("{username}:{}", secret.expose_secret()).as_bytes());
-            Ok(format!("Basic {encoded}"))
-        }
-        AuthMethod::Cookies => anyhow::bail!("cookie profiles carry no authorization header"),
-    }
-}
-
 fn validators_changed(transfer: &rd_db::TransferMetadata, probe: &rd_http::ProbeResult) -> bool {
     transfer
         .total_bytes
@@ -674,32 +246,5 @@ fn to_persisted(chunk: &ChunkSpec) -> PersistedChunk {
         start: chunk.start,
         end: chunk.end,
         committed: chunk.committed,
-    }
-}
-
-struct DatabaseCheckpoint {
-    database: Database,
-    /// Which download and which transform description the chunk MACs belong to. `None` for
-    /// an ordinary transfer, which produces none.
-    mac_stream: Option<(rd_core::DownloadId, String)>,
-}
-
-#[async_trait]
-impl CheckpointSink for DatabaseCheckpoint {
-    async fn commit(&self, chunk_id: rd_core::ChunkId, committed_offset: u64) -> Result<()> {
-        self.database
-            .checkpoint_chunk(chunk_id, committed_offset)
-            .await
-    }
-
-    async fn commit_chunk_mac(&self, index: u64, mac: [u8; 16]) -> Result<()> {
-        let Some((download_id, fingerprint)) = &self.mac_stream else {
-            // A run with no transform has no MAC to record; a call here would be a bug in
-            // the engine rather than something to write down.
-            return Ok(());
-        };
-        self.database
-            .checkpoint_chunk_mac(*download_id, fingerprint.clone(), index, mac)
-            .await
     }
 }

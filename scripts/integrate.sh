@@ -11,10 +11,14 @@
 #      merge drivers of .gitattributes are registered first (RD-1100-13): CHANGELOG.md merges
 #      as the union of both sides, the migration pins as their sorted union, the locale
 #      catalogues key by key (scripts/lib/merge-drivers/).
-#   3. The gate (RD-1100-13): scripts/check.sh --gate, clippy over the whole workspace for Linux
-#      and for Windows, both with --keep-going, into gate.log. Red stops the run before anything
-#      is generated, with every error of both platforms in failures — the generators compile
-#      too, and the first compile error used to end the run in one of them.
+#   3. The preflight (RD-1110-15): scripts/check.sh --preflight, every check that compiles
+#      nothing — script tests, lints, formatting, the test maps, the secret scan — into
+#      preflight.log, minutes, each finding collected. Red stops the run with all of them in
+#      failures, before the gate's compile. Then the gate (RD-1100-13): scripts/check.sh --gate,
+#      clippy over the whole workspace for Linux and for Windows, both with --keep-going, into
+#      gate.log. Red stops the run before anything is generated, with every error of both
+#      platforms in failures — the generators compile too, and the first compile error used to
+#      end the run in one of them.
 #   4. The generators once, after the last merge (api-contract, mcp-coverage, web-declarations,
 #      licenses when a lock file changed, and archive-jobs, which archives finished jobs and recounts the job
 #      index), committed as one chore(generated) commit.
@@ -34,7 +38,7 @@
 #   scripts/integrate.sh integration/1.4-w4 feat/a --base integration/1.4-w3
 #   scripts/integrate.sh integration/1.4-w4 feat/a --merge-only    # steps 1 and 2
 #   scripts/integrate.sh integration/1.4-w4 feat/a --no-check      # steps 1 to 5
-#   scripts/integrate.sh integration/1.4-w4 feat/a --no-gate       # without step 3
+#   scripts/integrate.sh integration/1.4-w4 feat/a --no-gate       # step 3 without the gate
 #   scripts/integrate.sh integration/1.4-w4 feat/a --no-windows    # no Windows clippy in 6
 #
 # RD_INTEGRATE_LOGS names another log directory (the tests use it).
@@ -129,26 +133,16 @@ echo "    no duplicate migration number, no duplicate plugin id"
 cd "$tree"
 mkdir -p "$logs"
 
-# --- 3. the gate -----------------------------------------------------------------------------
-# Foreground, like the generators after it, which would compile the same code anyway. check.sh
-# takes the lock itself and skips a half its green already covers.
+# --- 3. the preflight and the gate ------------------------------------------------------------
+# Both in the foreground: the preflight takes minutes and compiles nothing, the gate compiles what
+# the generators after it would compile anyway. check.sh takes the lock itself for the gate and
+# skips a half its green already covers. The preflight leaves the job layout to archive-jobs.sh
+# below, which rewrites what --check would refuse.
+echo "==> the preflight: what compiles nothing, every finding at once ($logs/preflight.log)"
+rd_integrate_check "$logs" preflight env RD_SKIP_JOB_LAYOUT=1 scripts/check.sh --preflight || exit 1
 if [[ "$gate" -eq 1 ]]; then
     echo "==> the gate: clippy over the workspace for Linux and Windows, --keep-going ($logs/gate.log)"
-    gate_status=0
-    RD_CHECK_LOGS="$logs" scripts/check.sh --gate > "$logs/gate.log" 2>&1 || gate_status=$?
-    echo "REAL EXIT: $gate_status" >> "$logs/gate.log"
-    if [[ "$gate_status" -ne 0 ]] || ! grep -qx '==> all requested checks passed' "$logs/gate.log"; then
-        echo "!! the gate is red (exit $gate_status); nothing was generated or built." >&2
-        if [[ -s "$logs/failures" ]]; then
-            echo "   Every error of both platforms, from $logs/failures:" >&2
-            sed 's/^/   /' "$logs/failures" >&2
-        else
-            echo "   No failure list was written; read $logs/gate.log." >&2
-        fi
-        echo "   Hand each back to the branch that owns it, then run the same integrate.sh again." >&2
-        exit 1
-    fi
-    echo "    green"
+    rd_integrate_check "$logs" gate scripts/check.sh --gate || exit 1
 else
     echo "==> --no-gate: no lint before the generators"
 fi

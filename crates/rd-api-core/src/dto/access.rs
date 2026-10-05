@@ -108,6 +108,10 @@ pub struct CapturePairRequest {
     /// so an agent paired without it can do no more than one paired before the choice existed.
     #[serde(default)]
     pub queue_control: bool,
+    /// Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires, which is
+    /// what every token paired before the choice existed does.
+    #[serde(default)]
+    pub expires_in_days: Option<u32>,
 }
 
 /// Pairing request for a machine API token.
@@ -124,6 +128,10 @@ pub struct ApiTokenRequest {
     /// for is the one mistake this whole model exists to prevent.
     #[serde(default)]
     pub scopes: Vec<String>,
+    /// Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires; an expired
+    /// token is refused like a revoked one.
+    #[serde(default)]
+    pub expires_in_days: Option<u32>,
 }
 
 /// The new set of areas for a token that already exists.

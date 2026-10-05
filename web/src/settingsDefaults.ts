@@ -1,5 +1,6 @@
 import type { Settings } from '@/api/types'
 import { GIB, MIB } from '@/utils/format'
+import { isNumber } from '@/utils/numberInput'
 
 /**
  * The settings document as the view holds it before the service has answered: every field the
@@ -163,4 +164,16 @@ export function defaultSettings(): Settings {
   history_retention_entries: 10_000,
   history_retention_days: 365
   }
+}
+
+/**
+ * The obligatory number fields the person emptied (RD-1110-10). A field the API types as a plain
+ * number has a number here in `defaultSettings()`; `UInputNumber` reports an emptied field as
+ * `undefined`, which the PUT would drop or the API refuse. The save waits until each one holds a
+ * number again. A nullable field (`ui_port`, the torrent ports) has `null` here and may be empty.
+ */
+export function emptyNumberFields(settings: Settings): string[] {
+  const defaults: Record<string, unknown> = defaultSettings()
+  const current = settings as unknown as Record<string, unknown>
+  return Object.keys(defaults).filter(key => typeof defaults[key] === 'number' && !isNumber(current[key]))
 }

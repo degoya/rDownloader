@@ -169,42 +169,54 @@ onMounted(() => {
             :data-testid="`history-readd-${entry.id}`"
             @click="readd(entry)"
           />
-          <UButton
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            :icon="expanded.has(entry.id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-            :aria-expanded="expanded.has(entry.id)"
-            :aria-label="expanded.has(entry.id) ? t('history.list.collapse') : t('history.list.expand')"
-            @click="toggle(entry.id)"
-          />
+          <!--
+            The trigger keeps its place among the row's actions; the details are the row's last
+            line, after the failure that belongs to the row itself (`design.md`, *Opening and closing*).
+          -->
+          <UCollapsible
+            class="contents"
+            :open="expanded.has(entry.id)"
+            :ui="{ content: 'order-2 basis-full' }"
+            @update:open="toggle(entry.id)"
+          >
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              :icon="expanded.has(entry.id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+              :aria-expanded="expanded.has(entry.id)"
+              :aria-label="expanded.has(entry.id) ? t('history.list.collapse') : t('history.list.expand')"
+            />
+            <template #content>
+              <dl class="mt-1 grid gap-x-4 gap-y-1 pl-1 text-xs">
+                <div v-if="entry.category" class="flex gap-2">
+                  <dt class="shrink-0 font-medium text-muted">{{ t('history.list.category') }}</dt>
+                  <dd class="min-w-0 break-words text-highlighted">{{ entry.category }}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="shrink-0 font-medium text-muted">{{ t('history.list.destination') }}</dt>
+                  <dd class="numeric min-w-0 break-all text-highlighted">{{ entry.destination }}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="shrink-0 font-medium text-muted">{{ t('history.list.added') }}</dt>
+                  <dd class="numeric min-w-0 text-highlighted">{{ formatMoment(entry.created_at) }}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="shrink-0 font-medium text-muted">{{ t('history.list.sources') }}</dt>
+                  <dd class="min-w-0 text-highlighted">
+                    <ul v-if="entry.sources.length">
+                      <li v-for="source in entry.sources" :key="source" class="numeric break-all">{{ source }}</li>
+                    </ul>
+                    <span v-else class="text-muted">{{ t('history.readd.no_sources') }}</span>
+                  </dd>
+                </div>
+              </dl>
+            </template>
+          </UCollapsible>
+          <p v-if="entry.outcome === 'failed' && entry.error_code" class="order-1 basis-full break-words text-xs text-error">
+            {{ failureText(entry) }}
+          </p>
         </div>
-        <p v-if="entry.outcome === 'failed' && entry.error_code" class="mt-1 break-words text-xs text-error">
-          {{ failureText(entry) }}
-        </p>
-        <dl v-if="expanded.has(entry.id)" class="mt-2 grid gap-x-4 gap-y-1 pl-1 text-xs">
-          <div v-if="entry.category" class="flex gap-2">
-            <dt class="shrink-0 font-medium text-muted">{{ t('history.list.category') }}</dt>
-            <dd class="min-w-0 break-words text-highlighted">{{ entry.category }}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="shrink-0 font-medium text-muted">{{ t('history.list.destination') }}</dt>
-            <dd class="numeric min-w-0 break-all text-highlighted">{{ entry.destination }}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="shrink-0 font-medium text-muted">{{ t('history.list.added') }}</dt>
-            <dd class="numeric min-w-0 text-highlighted">{{ formatMoment(entry.created_at) }}</dd>
-          </div>
-          <div class="flex gap-2">
-            <dt class="shrink-0 font-medium text-muted">{{ t('history.list.sources') }}</dt>
-            <dd class="min-w-0 text-highlighted">
-              <ul v-if="entry.sources.length">
-                <li v-for="source in entry.sources" :key="source" class="numeric break-all">{{ source }}</li>
-              </ul>
-              <span v-else class="text-muted">{{ t('history.readd.no_sources') }}</span>
-            </dd>
-          </div>
-        </dl>
       </li>
     </ul>
 

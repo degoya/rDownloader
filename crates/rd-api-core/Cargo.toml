@@ -8,6 +8,8 @@ license.workspace = true
 [features]
 # Deterministic crash points for the RD-140-04 restart matrix; see crates/rd-core/recovery-matrix.md.
 failpoints = ["rd-core/failpoints"]
+# Hooks only tests call (RD-1110-06); switched on by dev-dependencies, never by the service.
+test-support = []
 
 [dependencies]
 anyhow.workspace = true

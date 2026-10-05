@@ -54,9 +54,7 @@ const FILE_STATE_COLORS: Record<FileState, 'neutral' | 'primary' | 'success' | '
 const accountId = ref('')
 const magnet = ref('')
 const files = ref<QueuedFile[]>([])
-const fileInput = ref<HTMLInputElement | null>(null)
 const submitting = ref(false)
-const dragging = ref(false)
 
 /**
  * The provider slugs an installed `remote-job` plugin runs jobs on; `null` until asked.
@@ -110,17 +108,6 @@ function addFiles(list: File[]): void {
   }
   files.value = kept
   if (files.value.length) magnet.value = ''
-}
-
-function pickFiles(event: Event): void {
-  const input = event.target as HTMLInputElement
-  addFiles(Array.from(input.files ?? []))
-  input.value = ''
-}
-
-function drop(event: DragEvent): void {
-  dragging.value = false
-  addFiles(Array.from(event.dataTransfer?.files ?? []))
 }
 
 function removeFile(key: string): void {
@@ -258,16 +245,7 @@ void loadProviders()
     icon="i-lucide-info"
     :description="t('remote_jobs.no_remote_job_accounts')"
   />
-  <div
-    v-else
-    class="border border-dashed p-3"
-    :class="dragging ? 'border-primary bg-primary/5' : 'border-transparent'"
-    data-testid="remote-job-drop"
-    @dragenter.prevent="dragging = true"
-    @dragover.prevent
-    @dragleave.self="dragging = false"
-    @drop.prevent.stop="drop"
-  >
+  <div v-else>
     <form class="grid gap-3" data-testid="remote-job-form" @submit.prevent="submit">
       <UFormField :label="t('remote_jobs.account')">
         <USelect v-model="accountId" :items="accountItems" class="w-full" />
@@ -293,32 +271,40 @@ void loadProviders()
           />
         </div>
       </UFormField>
-      <input
-        ref="fileInput"
-        hidden
-        type="file"
+      <!--
+        `accept` names the extensions alone; `addFiles` lists a wrong type with its reason. A drop
+        here reaches the page's drop claim as well, and `addFiles` lists no file twice.
+      -->
+      <UFileUpload
+        :model-value="[]"
         multiple
-        accept=".torrent,.nzb,application/x-bittorrent,application/x-nzb"
+        accept=".torrent,.nzb"
+        icon="i-lucide-files"
+        :description="t('remote_jobs.files.drop_hint')"
+        :interactive="false"
+        :preview="false"
+        size="sm"
         data-testid="remote-job-file"
-        @change="pickFiles"
+        @update:model-value="(picked: File[] | null | undefined) => addFiles(picked ?? [])"
       >
+        <template #actions="{ open }">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-file-up"
+            :label="t('remote_jobs.submit.file_action')"
+            @click="open()"
+          />
+        </template>
+      </UFileUpload>
       <FormActions
         :create-label="t('remote_jobs.submit.action')"
         create-icon="i-lucide-cloud-upload"
         :disabled="!canSubmit"
         :loading="submitting"
-      >
-        <UButton
-          type="button"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-file-up"
-          :label="t('remote_jobs.submit.file_action')"
-          @click="fileInput?.click()"
-        />
-      </FormActions>
+      />
     </form>
-    <p class="mt-2 text-xs text-muted">{{ t('remote_jobs.files.drop_hint') }}</p>
 
     <ul v-if="files.length" class="mt-2 divide-y divide-muted border border-muted" :aria-label="t('remote_jobs.files.list')">
       <li v-for="row in files" :key="row.key" class="flex flex-wrap items-center gap-2 px-2 py-1.5">

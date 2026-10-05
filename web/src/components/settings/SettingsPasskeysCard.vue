@@ -7,7 +7,7 @@ import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
-import { PasskeyAbort, createCredential, passkeysSupported } from '@/webauthn'
+import { PasskeyAbort, createCredential, passkeysSupported, publicKeyOptions } from '@/webauthn'
 import { formatMoment } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -57,13 +57,9 @@ async function add(): Promise<void> {
     return
   }
   try {
-    // The ceremony options are a W3C structure the browser parses, so the contract types them
-    // as an opaque object; the shape assertion belongs here rather than in the schema.
-    const options = (started.data.options as unknown as { publicKey: Record<string, unknown> })
-      .publicKey
     naming.value = {
       ceremonyId: started.data.ceremony_id,
-      credential: await createCredential(options)
+      credential: await createCredential(publicKeyOptions(started.data.options))
     }
     password.value = ''
     label.value = defaultLabel()

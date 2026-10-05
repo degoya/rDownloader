@@ -5,6 +5,7 @@
 //! this plugin has no session to rely on, so `username`/`password` travel with each request as
 //! `{{username}}`/`{{secret:…}}` markers the host expands.
 
+use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
     PluginHost, ResolveInput, Resolved,
@@ -64,15 +65,14 @@ pub(crate) async fn resolve<H: PluginHost>(
             api::ensure_http_status(
                 response.status,
                 plugin_common::retry_after(&response.headers),
-            )
-            .map_err(convert_failure)?;
+            )?;
             return Err(invalid_response());
         }
     };
     if let Some(failure) =
         api::error_from_envelope(parsed.status.as_deref(), parsed.error.as_ref(), true)
     {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     let Some(entry) = parsed.links.and_then(|links| links.into_iter().next()) else {
         return Err(coded(
@@ -83,13 +83,13 @@ pub(crate) async fn resolve<H: PluginHost>(
     if let Some(failure) =
         api::error_from_envelope(entry.status.as_deref(), entry.error.as_ref(), true)
     {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     let raw_url = entry
         .generated
         .filter(|url| !url.is_empty())
         .ok_or_else(|| coded(FailureKind::Transient(None), messages::NO_DOWNLOAD_URL))?;
-    let url = api::parse_download_url(&raw_url).map_err(convert_failure)?;
+    let url = api::parse_download_url(&raw_url)?;
     Ok(Resolved {
         url: url.to_string(),
         file_name: entry.filename,
@@ -117,15 +117,14 @@ pub(crate) async fn hosters<H: PluginHost>(
                 api::ensure_http_status(
                     response.status,
                     plugin_common::retry_after(&response.headers),
-                )
-                .map_err(convert_failure)?;
+                )?;
                 return Err(invalid_response());
             }
         };
     if let Some(failure) =
         api::error_from_envelope(envelope.status.as_deref(), envelope.error.as_ref(), false)
     {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     Ok(api::merge_hosters(envelope.value.unwrap_or_default()))
 }
@@ -165,8 +164,7 @@ async fn api_call<H: PluginHost, T: DeserializeOwned>(
             api::ensure_http_status(
                 response.status,
                 plugin_common::retry_after(&response.headers),
-            )
-            .map_err(convert_failure)?;
+            )?;
             return Err(invalid_response());
         }
     };
@@ -175,7 +173,7 @@ async fn api_call<H: PluginHost, T: DeserializeOwned>(
         envelope.error.as_ref(),
         has_link,
     ) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     envelope.value.ok_or_else(invalid_response)
 }
@@ -206,26 +204,6 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
     Ok(())
 }
 
-fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-        api::ErrorKind::Unsupported => FailureKind::Unsupported,
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
-}
-
 fn invalid_response() -> Failure {
     coded(FailureKind::Transient(None), messages::INVALID_RESPONSE)
-}
-
-fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

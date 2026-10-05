@@ -262,11 +262,18 @@ async fn unpack_nested(
         },
     };
     for _ in 0..MAX_RECURSIVE_UNPACK_DEPTH {
-        let mut files = Vec::new();
-        collect_files(outer.directory, &mut files)?;
-        files.retain(|path| {
-            !std::fs::metadata(path).is_ok_and(|meta| rules.is_sample(path, meta.len()))
-        });
+        let directory = outer.directory.to_path_buf();
+        let rules = rules.clone();
+        // The walk and the sizes are file system calls, kept off the async workers.
+        let files = tokio::task::spawn_blocking(move || -> Result<Vec<PathBuf>> {
+            let mut files = Vec::new();
+            collect_files(&directory, &mut files)?;
+            files.retain(|path| {
+                !std::fs::metadata(path).is_ok_and(|meta| rules.is_sample(path, meta.len()))
+            });
+            Ok(files)
+        })
+        .await??;
         let new_sets: Vec<rd_postprocess::ArchiveSet> = group_archive_sets(&files)
             .into_iter()
             .filter(|set| !visited.contains(set.first()))

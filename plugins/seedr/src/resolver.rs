@@ -141,23 +141,13 @@ pub(crate) async fn check<H: PluginHost>(
 /// The whole vocabulary of "Seedr said no" lives here, so no caller decides a second time what
 /// a status meant — which is how a rate limit and a rejected password end up under one message.
 async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpResponse, Failure> {
-    let response = host
-        .http(request.with_header("Authorization", address::AUTHORIZATION_TEMPLATE))
-        .await?;
-    let envelope = ErrorEnvelope::of(&response.body);
-    let retry_after = api::retry_after_seconds(response.header("Retry-After"));
-    match api::failure_from(response.status, retry_after, &envelope) {
-        None => Ok(response),
-        Some(refusal) => {
-            let mut failure = Failure::coded(refusal.kind, refusal.code, refusal.message);
-            if let Some(reason) = refusal.reason {
-                // Sanitised in `seedr_common::reason` before it ever gets here, so an answer
-                // that quoted something it should not have keeps nothing.
-                failure = failure.with_param("reason", reason);
-            }
-            Err(failure)
-        }
-    }
+    // The reason a refusal carries is sanitised in `seedr_common::reason` before it ever gets
+    // here, so an answer that quoted something it should not have keeps nothing.
+    let request = request.with_header("Authorization", address::AUTHORIZATION_TEMPLATE);
+    plugin_common::failure::call(host, request, |status, retry_after, body| {
+        api::failure_from(status, retry_after, &ErrorEnvelope::of(body))
+    })
+    .await
 }
 
 /// The account's free storage, as a label part, when Seedr stated both figures.

@@ -49,6 +49,18 @@ impl CleanupRules {
             .any(|word| word == "sample")
     }
 
+    /// The files of `paths` that exist and are no sample. Blocking: it reads every file's
+    /// metadata, so async code calls it through `spawn_blocking`.
+    pub(crate) fn present_without_samples(&self, paths: Vec<PathBuf>) -> Vec<PathBuf> {
+        paths
+            .into_iter()
+            .filter(|path| {
+                std::fs::metadata(path)
+                    .is_ok_and(|meta| meta.is_file() && !self.is_sample(path, meta.len()))
+            })
+            .collect()
+    }
+
     fn matches_extension(&self, path: &Path) -> bool {
         path.extension()
             .and_then(|value| value.to_str())

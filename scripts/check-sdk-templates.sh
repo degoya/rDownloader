@@ -4,7 +4,8 @@
 # (RD-160-04). For each `world <name>-plugin` in crates/rd-plugin-api/wit/rdownloader.wit,
 # sdk/templates/<name>/ has to exist and carry:
 #
-#   - Cargo.toml building that very world (`world = "<name>-plugin"`),
+#   - src/guest.rs generating that very world (`world: "<name>-plugin",` in its
+#     `wit_bindgen::generate!`, which is what the component is made of since RD-1110-08),
 #   - manifest.toml with a `plugin_type`,
 #   - wit/rdownloader.wit, byte for byte the contract,
 #   - README.md, pointing its reader at the handbook,
@@ -83,8 +84,8 @@ for world in "${worlds[@]}"; do
         finding "world ${world}-plugin has no template at sdk/templates/${world}"
         continue
     fi
-    grep -qx "world = \"${world}-plugin\"" "$dir/Cargo.toml" 2> /dev/null \
-        || finding "sdk/templates/${world}/Cargo.toml does not build world ${world}-plugin"
+    grep -qE "^[[:space:]]*world: \"${world}-plugin\",\$" "$dir/src/guest.rs" 2> /dev/null \
+        || finding "sdk/templates/${world}/src/guest.rs does not generate world ${world}-plugin"
     grep -q '^plugin_type = "' "$dir/manifest.toml" 2> /dev/null \
         || finding "sdk/templates/${world}/manifest.toml declares no plugin_type"
     cmp -s "$WIT" "$dir/wit/rdownloader.wit" \

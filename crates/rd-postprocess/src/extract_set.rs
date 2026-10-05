@@ -56,7 +56,7 @@ pub async fn extract_with_passwords(
                     // The long form for the moves as well: an extracted tree that only fits
                     // under `\\?\` cannot be moved into place with a path that does not.
                     merge_tree(&staging, &rd_files::long_path(&request.destination))?;
-                    let _ = std::fs::remove_dir_all(&staging);
+                    let _ = tokio::fs::remove_dir_all(&staging).await;
                 } else {
                     promote(&staging, &rd_files::long_path(&request.destination))?;
                 }

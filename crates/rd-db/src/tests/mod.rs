@@ -24,6 +24,7 @@ mod packages;
 mod recovery_volumes;
 mod remote_jobs;
 mod subscriptions;
+mod token_expiry;
 
 /// Default selection for tests that only care about proxy/account precedence.
 const SELECTION: AuthProfileSelection = AuthProfileSelection::Auto;

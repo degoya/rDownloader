@@ -16,37 +16,17 @@ use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteHandle,
     RemoteProgress, RemoteWork, SubmitRequest, host,
     http::{self, RequestHeader, RequestQuery},
-    refuse,
+    refuse, to_wit_failure,
     types::{Failure, FailureKind},
 };
 
 use crate::{
-    api::{self, ApiFailure, ErrorKind, Stage},
+    api::{self, Stage},
     messages, source,
 };
 use putio_common::{address, reason::ErrorEnvelope};
 
 struct Component;
-
-fn from_api(failure: ApiFailure) -> Failure {
-    Failure {
-        category: match failure.kind {
-            ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-            ErrorKind::Permanent => FailureKind::Permanent,
-            ErrorKind::Offline => FailureKind::Offline,
-            ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-            ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-            ErrorKind::Unsupported => FailureKind::Unsupported,
-        },
-        message: failure.message,
-        code: Some(failure.code.to_owned()),
-        params: failure
-            .params
-            .into_iter()
-            .map(|(name, value)| (name.to_owned(), value))
-            .collect(),
-    }
-}
 
 /// The bearer header, as a template. The token's value never reaches this plugin: the host
 /// substitutes it on the way out, towards `api.put.io` and nowhere else.
@@ -73,7 +53,9 @@ fn headers(content_type: Option<&str>) -> Vec<RequestHeader> {
 /// One request, with every status that is not an answer turned into one refusal.
 ///
 /// The vocabulary stays small on purpose: a caller gets bytes or a failure and never decides a
-/// second time what a status code meant.
+/// second time what a status code meant. Not `plugin_guest_remote_job::call`: a `429` reads
+/// Put.io's own rate-limit header against the host's clock, which the shared reader has no
+/// part in.
 fn call(
     method: &str,
     url: &str,
@@ -98,7 +80,7 @@ fn call(
         stated
     };
     match api::failure_from(response.status, reset, &envelope) {
-        Some(failure) => Err(from_api(failure)),
+        Some(failure) => Err(to_wit_failure(failure)),
         None => Ok(response.body),
     }
 }

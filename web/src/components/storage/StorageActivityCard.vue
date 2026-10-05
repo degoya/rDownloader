@@ -151,7 +151,8 @@ onMounted(() => void load())
       </div>
       <p v-if="!operations.length" class="mt-2 text-xs text-muted">{{ t('settings.storage.activity.history_empty') }}</p>
       <ul v-else class="mt-2 space-y-2 text-xs" data-testid="storage-history">
-        <li v-for="operation in operations" :key="operation.id" class="border-t border-muted pt-2">
+        <li v-for="operation in operations" :key="operation.id">
+          <USeparator class="mb-2" />
           <div class="flex flex-wrap items-center gap-2">
             <UBadge :color="stateColor(operation.state)" variant="subtle" size="sm" :label="t(`settings.storage.activity.states.${operation.state}`)" />
             <span class="font-medium">{{ t(`settings.storage.activity.operation.${operation.kind}`) }}</span>

@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import en from '@/locales/en/captcha.json'
+import { uiStubs } from '@/test/mount'
 
 import SettingsCaptchaCard from './SettingsCaptchaCard.vue'
 
@@ -32,6 +33,7 @@ const components = {
     template:
       '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot name="trailing" />'
   },
+  UInputNumber: uiStubs.UInputNumber,
   USelect: model,
   USwitch: {
     props: ['modelValue'],

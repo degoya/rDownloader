@@ -128,7 +128,8 @@ function hide(event: Event) {
         @error="hide"
       >
 
-      <dl v-if="rest.length" class="flex flex-wrap gap-x-4 gap-y-1 border-t border-muted pt-2">
+      <USeparator v-if="rest.length" />
+      <dl v-if="rest.length" class="flex flex-wrap gap-x-4 gap-y-1">
         <div v-for="entry in rest" :key="entry.name" class="flex items-baseline gap-1.5 font-mono">
           <dt class="text-[11px] text-muted">{{ entry.name }}</dt>
           <dd class="text-[11px] break-all text-highlighted">{{ entry.value }}</dd>

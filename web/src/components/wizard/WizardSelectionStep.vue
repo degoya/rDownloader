@@ -146,7 +146,7 @@ defineExpose({ apply, installing, restartRequired })
       :busy="installing || removing"
     />
     <DataState :loading="loading" :error="loadError" :empty="!services.length">
-      <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">{{ t('plugins.bundled.none') }}</p>
+      <UEmpty :description="t('plugins.bundled.none')" />
     </DataState>
     <p v-if="services.length" class="text-xs leading-5 text-muted">
       {{ t('wizard.selection.hint', pending.length) }}

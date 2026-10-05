@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { MediaStatus, MediaToolStatus, Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -122,12 +123,10 @@ function toolDetail(tool: MediaToolStatus): string {
       <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.media.hosts.add_defaults_hint') }}</p>
     </UFormField>
     <UFormField :label="t('settings.media.max_parallel.label')" :description="t('settings.media.max_parallel.description')">
-      <UInput v-model.number="settings.media_max_parallel" type="number" min="1" max="8" icon="i-lucide-layers" class="w-full" />
+      <UInputNumber v-model="settings.media_max_parallel" required :min="1" :max="8" :format-options="WHOLE" increment decrement class="w-full" />
     </UFormField>
-    <UFormField :label="t('settings.media.check_timeout.label')" :description="t('settings.media.check_timeout.description')">
-      <UInput v-model.number="settings.media_check_timeout_seconds" type="number" min="5" max="600" icon="i-lucide-timer" class="w-full">
-        <template #trailing><span class="font-mono text-xs text-muted">s</span></template>
-      </UInput>
+    <UFormField hint="s" :label="t('settings.media.check_timeout.label')" :description="t('settings.media.check_timeout.description')">
+      <UInputNumber v-model="settings.media_check_timeout_seconds" required :min="5" :max="600" :format-options="WHOLE" class="w-full" />
     </UFormField>
   </UCard>
 </template>

@@ -1,8 +1,8 @@
-//! `rd-pack`: packages, verifies and indexes plugins and verifies the site-rule file, without
-//! building the service (RD-150-20).
+//! `rd-pack`: packages, verifies and indexes plugins, verifies the site-rule file and signs the
+//! update and tool manifests, without building the service (RD-150-20).
 //!
-//! The same commands as `rdownloader plugin …` and `rdownloader site-rules …`, word for word, so
-//! a script swaps the binary and keeps its arguments.
+//! The same commands as `rdownloader plugin …`, `site-rules …`, `update …` and `tools …`, word
+//! for word, so a script swaps the binary and keeps its arguments.
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -30,6 +30,9 @@ enum Command {
     /// Builds and verifies the signed application update manifest.
     #[command(subcommand)]
     Update(rd_pack::update_manifest::UpdateCommand),
+    /// Signs the manifest that drives the managed external tools.
+    #[command(subcommand)]
+    Tools(rd_pack::tools_manifest::ToolsCommand),
 }
 
 #[tokio::main]
@@ -46,5 +49,6 @@ async fn main() -> Result<()> {
         Command::Plugin(command) => rd_pack::plugin::run(command).await,
         Command::SiteRules(command) => rd_pack::site_rules::run(command).await,
         Command::Update(command) => rd_pack::update_manifest::run(command).await,
+        Command::Tools(command) => rd_pack::tools_manifest::run(command).await,
     }
 }

@@ -2,7 +2,7 @@
 //! (RD-120-01).
 //!
 //! `plugins/torbox-jobs/` runs as a real WebAssembly component -- the one built by
-//! `cargo component build --release --target wasm32-unknown-unknown -p rd-plugin-torbox-jobs`
+//! `scripts/build-plugins.sh --components-only torbox-jobs`
 //! -- and the mock stands in for `api.torbox.app`. It answers at the host boundary, so no
 //! socket is opened, no account is needed and no request leaves the machine; and because it
 //! sees each request exactly as the plugin described it, a test can assert that the account's

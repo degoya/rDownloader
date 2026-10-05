@@ -6,18 +6,14 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-wit-bindgen.workspace = true
+checksum-postprocess-common = { path = "../checksum-postprocess-common" }
 md-5.workspace = true
+
+[dev-dependencies]
+plugin-common = { path = "../common" }
 
 [lib]
 crate-type = ["rlib", "cdylib"]
-
-[package.metadata.component]
-package = "rdownloader:md5-postprocess"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "postprocess-plugin"
 
 [lints]
 workspace = true

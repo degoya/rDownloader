@@ -131,7 +131,7 @@ function completedSegments(file: NzbFileStatus): number {
         <UIcon name="i-lucide-grip-vertical" class="size-4" />
       </button>
       <UCheckbox :model-value="props.selected" :aria-label="t('linkgrabber.nzb.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.item.id, value === true)" />
-      <UButton :icon="open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :loading="pending" :aria-label="open ? t('linkgrabber.nzb.hide_files') : t('linkgrabber.nzb.show_files')" @click="toggle" />
+      <UButton :icon="open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :loading="pending" :aria-expanded="open" :aria-label="open ? t('linkgrabber.nzb.hide_files') : t('linkgrabber.nzb.show_files')" @click="toggle" />
       <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">
         <p class="min-w-50 flex-1 truncate text-left text-sm font-semibold text-highlighted" :title="props.item.name">{{ props.item.name }}</p>
         <span class="numeric hidden min-w-0 truncate text-xs text-muted @min-[32rem]:block">

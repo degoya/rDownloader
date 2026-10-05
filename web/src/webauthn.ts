@@ -12,6 +12,20 @@ export function passkeysSupported(): boolean {
   return typeof window !== 'undefined' && Boolean(window.PublicKeyCredential)
 }
 
+/**
+ * The `publicKey` member of the options a ceremony start hands back. The contract types them as
+ * an opaque object — a W3C structure the browser parses — so this is the one place that looks
+ * inside (audit R6). Without the member the server answered something else, and that fails here
+ * as an error, not later as a decoding fault on `undefined`.
+ */
+export function publicKeyOptions(options: Record<string, unknown>): Record<string, unknown> {
+  const publicKey = options.publicKey
+  if (typeof publicKey !== 'object' || publicKey === null || Array.isArray(publicKey)) {
+    throw new Error('the passkey options carry no publicKey member')
+  }
+  return publicKey as Record<string, unknown>
+}
+
 /** A ceremony the person declined, or dismissed, rather than one that failed. */
 export class PasskeyAbort extends Error {}
 

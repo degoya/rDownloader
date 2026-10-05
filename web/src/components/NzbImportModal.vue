@@ -15,7 +15,6 @@ const { t } = useI18n()
 const PRIORITY_ITEMS = computed(() => priorityItems())
 
 const files = ref<File[]>([])
-const fileInput = ref<HTMLInputElement | null>(null)
 const name = ref('')
 const category = ref<string>(NO_SELECTION)
 const priority = ref<DownloadPriority>('normal')
@@ -62,22 +61,6 @@ watch(files, (list) => {
 
 addFiles(props.initialFiles ?? [])
 
-function pick(event: Event): void {
-  const target = event.target
-  if (target instanceof HTMLInputElement) {
-    addFiles(Array.from(target.files ?? []))
-    target.value = ''
-  }
-}
-
-function drop(event: DragEvent): void {
-  event.preventDefault()
-  // The window-level drop zone (useNzbDropZone) also listens on `drop`; without this the same
-  // file list would be handed off a second time and navigate away from the open modal.
-  event.stopPropagation()
-  addFiles(Array.from(event.dataTransfer?.files ?? []))
-}
-
 function submit(): void {
   if (!files.value.length) return
   const entries: FileImportEntry[] = files.value.length === 1
@@ -95,29 +78,37 @@ function submit(): void {
   <UModal :title="t('linkgrabber.nzb.modal.title')" :description="t('linkgrabber.nzb.modal.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end' }">
     <template #body>
       <form id="nzb-import-form" class="space-y-3" @submit.prevent="submit">
-        <div class="grid min-h-40 place-items-center border border-dashed border-muted p-6 text-center" @dragover.prevent @drop="drop">
-          <input ref="fileInput" hidden type="file" multiple accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt,application/x-nzb,application/x-bittorrent,application/x-dlc,application/xml,text/xml,text/plain" @change="pick">
-          <div v-if="!files.length">
-            <UIcon name="i-lucide-file-archive" class="mx-auto mb-3 size-8 text-primary" />
-            <p class="text-sm text-muted">{{ t('linkgrabber.nzb.modal.drop_hint') }}</p>
-            <UButton class="mt-3" color="neutral" variant="outline" icon="i-lucide-folder-open" :label="t('linkgrabber.nzb.modal.choose_file')" @click="fileInput?.click()" />
-          </div>
-          <div v-else class="w-full space-y-2 text-left">
-            <div class="flex items-center justify-between gap-2">
-              <p class="text-sm font-medium text-highlighted">{{ t('linkgrabber.nzb.modal.files_selected', { count: files.length }, files.length) }}</p>
-              <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-folder-open" :label="t('linkgrabber.nzb.modal.choose_file')" @click="fileInput?.click()" />
-            </div>
-            <ul class="max-h-40 space-y-1 overflow-y-auto">
-              <li v-for="(item, index) in files" :key="`${item.name}:${item.size}`" class="flex items-center justify-between gap-2 bg-elevated px-2 py-1">
-                <div class="min-w-0">
-                  <p class="truncate font-mono text-xs text-highlighted">{{ item.name }}</p>
-                  <p v-if="passwordOf(item)" class="text-xs text-warning">{{ t('linkgrabber.nzb.modal.detected_password') }} <span class="font-mono">{{ passwordOf(item) }}</span></p>
-                </div>
-                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('linkgrabber.nzb.modal.remove_file')" @click="removeFile(index)" />
-              </li>
-            </ul>
-            <p class="text-xs text-muted">{{ t('linkgrabber.nzb.modal.drop_hint_multi') }}</p>
-          </div>
+        <!--
+          Dropped and chosen files go through `addFiles`, which keeps what `filterImportFiles`
+          matches; `accept` names the extensions alone. While this modal is open the window drop
+          zone (useNzbDropZone) stands back, so a drop here is taken once.
+        -->
+        <UFileUpload
+          :model-value="[]"
+          multiple
+          accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt"
+          icon="i-lucide-file-archive"
+          :label="files.length ? t('linkgrabber.nzb.modal.drop_hint_multi') : t('linkgrabber.nzb.modal.drop_hint')"
+          :interactive="false"
+          :preview="false"
+          class="min-h-40"
+          @update:model-value="(picked: File[] | null | undefined) => addFiles(picked ?? [])"
+        >
+          <template #actions="{ open }">
+            <UButton color="neutral" variant="outline" icon="i-lucide-folder-open" :label="t('linkgrabber.nzb.modal.choose_file')" @click="open()" />
+          </template>
+        </UFileUpload>
+        <div v-if="files.length" class="space-y-2">
+          <p class="text-sm font-medium text-highlighted">{{ t('linkgrabber.nzb.modal.files_selected', { count: files.length }, files.length) }}</p>
+          <ul class="max-h-40 space-y-1 overflow-y-auto">
+            <li v-for="(item, index) in files" :key="`${item.name}:${item.size}`" class="flex items-center justify-between gap-2 bg-elevated px-2 py-1">
+              <div class="min-w-0">
+                <p class="truncate font-mono text-xs text-highlighted">{{ item.name }}</p>
+                <p v-if="passwordOf(item)" class="text-xs text-warning">{{ t('linkgrabber.nzb.modal.detected_password') }} <span class="font-mono">{{ passwordOf(item) }}</span></p>
+              </div>
+              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('linkgrabber.nzb.modal.remove_file')" @click="removeFile(index)" />
+            </li>
+          </ul>
         </div>
         <UFormField :label="t('linkgrabber.nzb.modal.name')" :description="files.length === 1 ? t('linkgrabber.nzb.modal.name_hint') : t('linkgrabber.nzb.modal.name_single_only')">
           <UInput v-model="name" maxlength="200" class="w-full" :disabled="files.length !== 1" />

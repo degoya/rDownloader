@@ -36,7 +36,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
 import { useSettingsSubTab } from '@/composables/useSettingsSubTab'
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
-import { defaultSettings } from '@/settingsDefaults'
+import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
 import { SETTINGS_SECTIONS, settingsSection } from '@/settingsSections'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
@@ -143,6 +143,8 @@ function sortedKeys(_key: string, value: unknown): unknown {
 }
 
 const savedDocument = ref(documentState())
+/** An obligatory number field the person emptied holds the save until it has a value again. */
+const numberEmpty = computed(() => emptyNumberFields(settings).length > 0)
 const captchaDirty = computed(() => captchaTab.value?.dirty ?? false)
 /**
  * Another page or sub-tab of this view keeps the document, which lives here; only the captcha
@@ -211,7 +213,7 @@ async function handleSettingsImported(): Promise<void> {
 }
 
 async function save(): Promise<void> {
-  if (!loaded.value) return
+  if (!loaded.value || numberEmpty.value) return
   pending.value = true
   message.value = null
   error.value = null
@@ -397,9 +399,10 @@ async function resetSettings(): Promise<void> {
         <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
         <template v-if="showSaveBar">
           <div class="flex flex-wrap items-center justify-end gap-2">
+            <p v-if="numberEmpty" class="text-sm text-error" data-testid="settings-number-empty">{{ t('settings.messages.number_empty') }}</p>
             <!-- System carries the same reset in its own header, on every tab. -->
             <UButton v-if="activeSection !== 'system'" type="button" icon="i-lucide-rotate-ccw" :label="t('settings.reset.button')" color="neutral" variant="outline" :disabled="pending" @click="resetSettings" />
-            <UButton type="button" icon="i-lucide-save" :label="t('settings.save')" :loading="pending" @click="save" />
+            <UButton type="button" icon="i-lucide-save" :label="t('settings.save')" :loading="pending" :disabled="numberEmpty" @click="save" />
           </div>
         </template>
       </div>

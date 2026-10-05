@@ -71,7 +71,7 @@ function revocationName(entry: PluginRevocation): string {
         />
       </div>
       <DataState :loading="loading" :error="loadError" :empty="!revocations.length">
-        <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">{{ t('plugins.withdrawn.empty') }}</p>
+        <UEmpty :description="t('plugins.withdrawn.empty')" />
       </DataState>
     </div>
   </UCard>

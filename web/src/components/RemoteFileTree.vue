@@ -178,15 +178,31 @@ const range = useRangeSelection(
       </div>
     </div>
 
-    <p v-if="!listing.supports_resume" class="border-b border-muted bg-warning/5 px-3 py-2 text-[11px] text-warning">
-      {{ t('remote.listing.no_resume') }}
-    </p>
-    <p v-if="listing.truncated === 'entry_count'" class="border-b border-muted bg-warning/5 px-3 py-2 text-[11px] text-warning">
-      {{ t('remote.listing.truncated_entries', { limit: 5000 }) }}
-    </p>
-    <p v-else-if="listing.truncated === 'depth'" class="border-b border-muted bg-warning/5 px-3 py-2 text-[11px] text-warning">
-      {{ t('remote.listing.truncated_depth', { limit: 16 }) }}
-    </p>
+    <!-- Strips across the listing's frame, so square and flush; the text stays the frame's small size. -->
+    <UAlert
+      v-if="!listing.supports_resume"
+      color="warning"
+      variant="soft"
+      class="rounded-none border-b border-muted px-3 py-2"
+      :ui="{ description: 'text-[11px]' }"
+      :description="t('remote.listing.no_resume')"
+    />
+    <UAlert
+      v-if="listing.truncated === 'entry_count'"
+      color="warning"
+      variant="soft"
+      class="rounded-none border-b border-muted px-3 py-2"
+      :ui="{ description: 'text-[11px]' }"
+      :description="t('remote.listing.truncated_entries', { limit: 5000 })"
+    />
+    <UAlert
+      v-else-if="listing.truncated === 'depth'"
+      color="warning"
+      variant="soft"
+      class="rounded-none border-b border-muted px-3 py-2"
+      :ui="{ description: 'text-[11px]' }"
+      :description="t('remote.listing.truncated_depth', { limit: 16 })"
+    />
 
     <div class="max-h-80 overflow-y-auto" @click.capture="range.noteModifier" @keydown.capture="range.noteModifier">
       <div

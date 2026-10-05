@@ -85,6 +85,26 @@ describe('saving the System page', () => {
     await waitFor(() => expect(screen.getByText(settingsCatalogue.messages.saved)).toBeTruthy())
   })
 
+  it('holds the save while an obligatory number field is empty (RD-1110-10)', async () => {
+    const container = await mountSystem('retention')
+    const records = await waitFor(() => {
+      const input = container.querySelector<HTMLInputElement>('[data-testid="log-retention"] input')
+      expect(input?.value).toBe('50000')
+      return input as HTMLInputElement
+    })
+
+    // The number field hands an emptied field over as `undefined`, which the PUT would drop.
+    await fireEvent.update(records, '')
+    await waitFor(() => expect(screen.getByText(settingsCatalogue.messages.number_empty)).toBeTruthy())
+    expect((saveButton() as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(saveButton() as HTMLElement)
+    expect(api.PUT).not.toHaveBeenCalled()
+
+    await fireEvent.update(records, '1000')
+    await waitFor(() => expect(screen.queryByText(settingsCatalogue.messages.number_empty)).toBeNull())
+    expect((saveButton() as HTMLButtonElement).disabled).toBe(false)
+  })
+
   it('offers the save bar on the updates tab too, and not on the status tab, which edits nothing', async () => {
     await mountSystem('updates')
     await waitFor(() => expect(saveButton()).not.toBeNull())

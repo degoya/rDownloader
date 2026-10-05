@@ -178,7 +178,7 @@ async function onInstalled(text: string): Promise<void> {
         <UButton size="xs" color="primary" variant="outline" icon="i-lucide-scan-search" :label="t('plugins.updates.review')" @click="review(update.offer)" />
       </div>
       <DataState :loading="loading" :error="null" :empty="!offers.updates.length">
-        <p class="border border-dashed border-muted p-6 text-center text-sm text-muted">{{ t('plugins.updates.empty') }}</p>
+        <UEmpty :description="t('plugins.updates.empty')" />
       </DataState>
     </div>
 

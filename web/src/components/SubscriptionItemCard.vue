@@ -129,9 +129,12 @@ const detailsLabel = computed(() =>
         aria-hidden="true"
         data-testid="card-symbol"
       />
-      <span
+      <UBadge
         v-if="size"
-        class="numeric absolute top-2 right-2 flex items-center gap-1 bg-black/70 px-1.5 py-0.5 font-mono text-[11px] text-white"
+        color="neutral"
+        variant="solid"
+        size="sm"
+        class="numeric absolute top-2 right-2 font-mono"
       >
         <UIcon
           v-if="locked"
@@ -139,23 +142,24 @@ const detailsLabel = computed(() =>
           class="size-3"
           :aria-label="t('subscriptions.items.password_protected')"
         />{{ size }}
-      </span>
-      <span
+      </UBadge>
+      <UBadge
         v-if="group"
-        class="absolute bottom-2 left-2 max-w-[80%] truncate bg-black/70 px-1.5 py-0.5 font-mono text-[10px] text-white"
+        color="neutral"
+        variant="solid"
+        size="sm"
+        class="absolute bottom-2 left-2 max-w-[80%] font-mono"
         data-testid="card-group"
-      >{{ group }}</span>
+      ><span class="truncate">{{ group }}</span></UBadge>
     </div>
 
     <div class="flex h-48 shrink-0 flex-col gap-1 p-3" data-testid="card-body">
       <p class="line-clamp-2 h-10 text-sm leading-5 font-semibold break-all text-highlighted" :title="release" data-testid="card-release">{{ release }}</p>
       <p class="h-4 truncate text-xs text-muted">{{ subtitle }}</p>
       <ul class="flex h-5 flex-wrap gap-1 overflow-hidden">
-        <li
-          v-for="chip in chips"
-          :key="chip"
-          class="numeric bg-elevated px-1.5 text-[11px] leading-5 text-highlighted"
-        >{{ chip }}</li>
+        <li v-for="chip in chips" :key="chip">
+          <UBadge color="neutral" variant="soft" size="sm" class="numeric">{{ chip }}</UBadge>
+        </li>
       </ul>
       <p v-if="props.item.password" class="flex items-center gap-1 truncate text-xs text-warning" :title="t('subscriptions.items.password_protected')">
         <UIcon name="i-lucide-key-round" class="size-3.5 shrink-0" />

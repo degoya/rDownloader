@@ -94,6 +94,13 @@ pub struct NewHotFolder {
     pub enabled: bool,
 }
 
+/// A storage root's name and its folder are each unique (`storage_roots`).
+const STORAGE_ROOT_TAKEN: &str = "a storage root with this name or folder already exists";
+/// A category's name is unique (`categories.name`).
+const CATEGORY_NAME_TAKEN: &str = "a category with this name already exists";
+/// A watched folder's name is unique, and so is its folder per executor (`hotfolders`).
+const HOTFOLDER_TAKEN: &str = "a watched folder with this name or folder already exists";
+
 pub(crate) async fn create_storage_root(
     connection: &mut SqliteConnection,
     id: StorageRootId,
@@ -134,7 +141,8 @@ pub(crate) async fn create_storage_root(
     .bind(now)
     .bind(now)
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, STORAGE_ROOT_TAKEN))?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok((value, event))
@@ -208,7 +216,8 @@ pub(crate) async fn create_category(
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
-        .await?;
+        .await
+        .map_err(|error| crate::error::tag_duplicate(error, CATEGORY_NAME_TAKEN))?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok((value, event))
@@ -289,7 +298,8 @@ pub(crate) async fn create_hotfolder(
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
-        .await?;
+        .await
+        .map_err(|error| crate::error::tag_duplicate(error, HOTFOLDER_TAKEN))?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok((value, event))
@@ -659,7 +669,8 @@ pub(crate) async fn update_storage_root(
     .bind(now)
     .bind(id.to_string())
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, STORAGE_ROOT_TAKEN))?;
     if updated.rows_affected() == 0 {
         anyhow::bail!(StoreError::not_found("storage root not found"));
     }
@@ -790,7 +801,8 @@ pub(crate) async fn update_category(
     .bind(now)
     .bind(id.to_string())
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, CATEGORY_NAME_TAKEN))?;
     if updated.rows_affected() == 0 {
         anyhow::bail!(StoreError::not_found("category not found"));
     }
@@ -1007,7 +1019,8 @@ pub(crate) async fn update_hotfolder(
     .bind(Utc::now())
     .bind(id.to_string())
     .execute(&mut *tx)
-    .await?;
+    .await
+    .map_err(|error| crate::error::tag_duplicate(error, HOTFOLDER_TAKEN))?;
     if updated.rows_affected() == 0 {
         anyhow::bail!(StoreError::not_found("hotfolder not found"));
     }

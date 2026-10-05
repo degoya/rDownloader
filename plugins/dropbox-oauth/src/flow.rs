@@ -18,21 +18,8 @@
 //! A provider that could not be reached at all never gets here: `http-request` fails, the guest
 //! returns that failure, and the host keeps the stored token and tries again later.
 
-use crate::pkce;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum TokenAnswer {
-    Granted {
-        access_token: String,
-        refresh_token: Option<String>,
-        expires_in_seconds: Option<u64>,
-    },
-    /// Dropbox's own `error` code, e.g. `access_denied` or `invalid_grant`.
-    Refused(String),
-    /// Too many requests; wait this many seconds if Dropbox said how long.
-    Busy(Option<u64>),
-    Unreadable(u16),
-}
+pub use plugin_guest_oauth::token::TokenAnswer;
+use plugin_guest_oauth::token::{self, Waiting};
 
 /// The translation code a refusal is reported under, so the interface can say it in the
 /// language the person reads. `dropbox_oauth` is this plugin's slug; the catalogue in
@@ -53,56 +40,28 @@ pub fn refusal_code(error: &str) -> &'static str {
     }
 }
 
-/// Reads a token or refresh answer.
+/// What this provider's token answer says "wait" with, besides HTTP 429.
+const WAITING: Waiting = Waiting {
+    errors: &["slow_down"],
+    fields: &["retry_after", "interval"],
+};
+
+/// Reads a token or refresh answer; the reading is `plugin-guest-oauth`'s, the [`WAITING`]
+/// this provider's.
 ///
 /// `retry_after` is the `Retry-After` response header, which is where a provider says how long
 /// to wait; the body is consulted only when the header is missing.
 #[must_use]
 pub fn read_token_answer(status: u16, retry_after: Option<&str>, body: &str) -> TokenAnswer {
-    let error = pkce::string_field(body, "error");
-    // Waiting is not refusal even when it arrives with an `error` field, so it is read first.
-    // Reading a rate limit as a failure would end a sign-in that was going perfectly well.
-    if status == 429 || matches!(error.as_deref(), Some("slow_down")) {
-        let seconds = plugin_common::retry_after_seconds(retry_after)
-            .or_else(|| pkce::number_field(body, "retry_after"))
-            .or_else(|| pkce::number_field(body, "interval"));
-        return TokenAnswer::Busy(seconds);
-    }
-    if let Some(error) = error {
-        return TokenAnswer::Refused(error);
-    }
-    match pkce::string_field(body, "access_token") {
-        Some(access_token) if !access_token.is_empty() => TokenAnswer::Granted {
-            access_token,
-            refresh_token: pkce::string_field(body, "refresh_token").filter(|t| !t.is_empty()),
-            expires_in_seconds: pkce::number_field(body, "expires_in"),
-        },
-        _ => TokenAnswer::Unreadable(status),
-    }
+    token::read_token_answer(&WAITING, status, retry_after, body)
 }
 
-/// Dropbox's `error` code, reduced to something that is safe to put in a message.
-///
-/// The point is not tidiness. Whatever a provider sends back travels into a log line and into
-/// the failure the interface shows, and an endpoint that echoed part of a token into its error
-/// document would otherwise publish it. RFC 6749 error codes are lowercase words joined by
-/// underscores, so anything that is not exactly that shape is dropped whole rather than
-/// filtered character by character — filtering would keep the digits of a leaked token.
+/// A provider's `error` code, reduced to something that is safe to put in a message: the one
+/// rule every OAuth plugin applies, in `plugin-common` (RD-1110-04).
 ///
 /// Dropbox's `error_description` is deliberately never read at all. It is a full English
 /// sentence written for a developer, and there is no shape check that makes a sentence safe.
-#[must_use]
-pub fn sanitize_error(error: &str) -> String {
-    let trimmed = error.trim();
-    let is_error_code = !trimmed.is_empty()
-        && trimmed.len() <= 40
-        && trimmed.chars().all(|c| c.is_ascii_lowercase() || c == '_');
-    if is_error_code {
-        trimmed.to_owned()
-    } else {
-        "refused".to_owned()
-    }
-}
+pub use plugin_common::device_flow::sanitize_error;
 
 #[cfg(test)]
 mod tests {

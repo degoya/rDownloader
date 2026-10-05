@@ -171,6 +171,8 @@ describe('RoutingHotfolders state', () => {
     expect(within(paused).getByText(routing.hotfolder.disabled_badge)).toBeTruthy()
     const active = screen.getByText('Inbox').closest('div.border') as HTMLElement
     expect(within(active).queryByText(routing.hotfolder.disabled_badge)).toBeNull()
-    for (const dot of document.querySelectorAll('span.size-2')) expect(dot.getAttribute('aria-hidden')).toBe('true')
+    expect(paused.querySelector('[data-chip-dot]')).toBeNull()
+    expect(active.querySelector('[data-chip-dot]')).not.toBeNull()
+    for (const dot of document.querySelectorAll('[data-chip]')) expect(dot.textContent).toBe('')
   })
 })

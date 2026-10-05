@@ -111,7 +111,7 @@ async fn apply(journal: &mut Journal) -> Result<()> {
         }
         _ => {
             if let Err(error) = portable::stage(journal) {
-                let _ = std::fs::remove_dir_all(journal.staged_dir());
+                let _ = tokio::fs::remove_dir_all(journal.staged_dir()).await;
                 let code = error
                     .downcast_ref::<InstallError>()
                     .map_or("update.unpack_failed", |error| error.code);

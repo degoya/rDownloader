@@ -239,7 +239,7 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
                     :class="editingId === proxy.id ? 'border-l-2 border-l-primary' : ''"
                     data-testid="proxy-row"
                   >
-                    <span class="grid size-8 place-items-center bg-elevated text-primary"><UIcon name="i-lucide-waypoints" /></span>
+                    <UAvatar icon="i-lucide-waypoints" color="primary" />
                     <div class="min-w-0 flex-1 basis-40">
                       <p class="text-sm font-medium text-highlighted">{{ proxy.name }}</p>
                       <p class="truncate font-mono text-[11px] text-muted">{{ proxy.endpoint }}</p>

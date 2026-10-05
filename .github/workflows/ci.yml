@@ -234,7 +234,7 @@ jobs:
       - name: Platform smoke tests
         uses: ./.github/actions/platform-smoke
       # A prebuilt binary instead of a source build in every run. install-action has no manifest
-      # of its own for sqlx-cli or cargo-component and hands both to cargo-binstall, which takes
+      # of its own for sqlx-cli and hands it to cargo-binstall, which takes
       # the signed build from cargo-quickinstall (default features: a superset of the
       # `sqlite-unbundled` build this replaced, and `prepare --check` needs no more).
       - name: Install SQLx CLI
@@ -290,11 +290,11 @@ jobs:
       contents: read
     uses: ./.github/workflows/ci-components.yml
 
-  # The S3 connector against a real MinIO (RD-150-04): the multipart upload with its checksums,
-  # listing, a download and a resume on MinIO's own ETags, and a wrong secret refused as such —
-  # what the in-process fixture of crates/rd-object-storage/tests/s3.rs can only imitate. The
-  # tests are `#[ignore]` and fail without RD_S3_LIVE_*, so only this job runs them.
-  # MinIO is started as a step, not as a `services:` container (scripts/ci-services.sh says why).
+  # The S3 connector against a real service, RustFS (RD-150-04, RD-1110-08): the multipart upload
+  # with its checksums, listing, a download and a resume on the service's own ETags, and a wrong
+  # secret refused as such — what the in-process fixture of crates/rd-object-storage/tests/s3.rs
+  # can only imitate. The tests are `#[ignore]` and fail without RD_S3_LIVE_*, so only this job
+  # runs them. The service is started as a step (scripts/ci-services.sh says why).
   s3-live:
     needs: gate
     if: contains(fromJSON(needs.gate.outputs.jobs), 's3-live')
@@ -307,30 +307,30 @@ jobs:
       # by every CARGO*/RUST* variable, and with the same ones this job restores `rust-tests`.
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
       CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
-      MINIO_IMAGE: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
+      S3_IMAGE: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
       RD_S3_LIVE_ENDPOINT: http://127.0.0.1:9000
       RD_S3_LIVE_REGION: us-east-1
       RD_S3_LIVE_BUCKET: rd-live
-      RD_S3_LIVE_ACCESS_KEY: minioadmin
-      RD_S3_LIVE_SECRET: minioadmin
+      RD_S3_LIVE_ACCESS_KEY: rd-live
+      RD_S3_LIVE_SECRET: rd-live-throwaway
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Start MinIO
+      - name: Start the S3 service
         shell: bash
-        run: scripts/ci-services.sh minio-start
+        run: scripts/ci-services.sh s3-start
       - uses: ./.github/actions/rust-tests-cache
       - name: Build the live S3 tests
         run: cargo nextest run --locked --no-run -p rd-object-storage --test s3_live
-      - name: Wait for MinIO and create the bucket
+      - name: Wait for the S3 service and create the bucket
         shell: bash
-        run: scripts/ci-services.sh minio-ready
-      - name: Live S3 tests against MinIO
+        run: scripts/ci-services.sh s3-ready
+      - name: Live S3 tests against RustFS
         run: >-
           cargo nextest run --locked -p rd-object-storage --test s3_live
           --run-ignored only --no-tests fail
-      - name: MinIO log after a failure
+      - name: S3 service log after a failure
         if: failure()
-        run: docker logs minio || true
+        run: docker logs s3 || true
 
   # The malware scan against a real clamd (RD-190-14): PING, VERSION and INSTREAM from the client,
   # and an EICAR package stopped by the whole pipeline — what the stand-in clamd of

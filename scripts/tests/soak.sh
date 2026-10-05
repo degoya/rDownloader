@@ -23,11 +23,8 @@ BUDGETS="$ROOT/scripts/soak-budgets.toml"
 SCRATCH="$(mktemp -d)"
 trap 'rm -rf "$SCRATCH"' EXIT
 
-failures=0
-passed=0
-ok() { echo "ok   $1"; passed=$((passed + 1)); }
-fail() { echo "FAIL $1"; failures=$((failures + 1)); }
-expect() { if eval "$2"; then ok "$1"; else fail "$1"; fi; }
+# shellcheck source=lib/expect.sh
+source "$ROOT/scripts/tests/lib/expect.sh"
 # The budgets of `$platform` (linux unless the call sets it), whatever machine runs this.
 # shellcheck disable=SC2034  # `status` is read inside the eval of expect()
 judge() { python3 "$SOAK" evaluate --samples "$1" --budgets "${2:-$BUDGETS}" --shutdown-seconds 2 \
@@ -64,65 +61,65 @@ PY
 for shape in steady leak stall corrupt handles handle-leak; do samples "$shape"; done
 
 judge "$SCRATCH/steady.csv"
-expect "a steady run passes the checked-in budgets" '[[ $status -eq 0 ]] && has "soak passed"'
+expect_true "a steady run passes the checked-in budgets" '[[ $status -eq 0 ]] && has "soak passed"'
 
 lowered rss_mib_peak_max 100
 judge "$SCRATCH/steady.csv" "$SCRATCH/lowered.toml"
-expect "a lowered memory budget fails the same run and names it" \
+expect_true "a lowered memory budget fails the same run and names it" \
     '[[ $status -eq 1 ]] && has "FAIL rss_mib_peak" && has "over budget: rss_mib_peak"'
 
 lowered throughput_mib_s_min 20
 judge "$SCRATCH/steady.csv" "$SCRATCH/lowered.toml"
-expect "a raised throughput floor fails the same run and names it" \
+expect_true "a raised throughput floor fails the same run and names it" \
     '[[ $status -eq 1 ]] && has "over budget: throughput_mib_s"'
 
 lowered shutdown_seconds_max 1
 judge "$SCRATCH/steady.csv" "$SCRATCH/lowered.toml"
-expect "a slow shutdown fails its budget" '[[ $status -eq 1 ]] && has "over budget: shutdown_seconds"'
+expect_true "a slow shutdown fails its budget" '[[ $status -eq 1 ]] && has "over budget: shutdown_seconds"'
 
 judge "$SCRATCH/leak.csv"
-expect "a leak of 1 MiB a minute fails the growth budget, not the peak" \
+expect_true "a leak of 1 MiB a minute fails the growth budget, not the peak" \
     '[[ $status -eq 1 ]] && has "FAIL rss_mib_growth" && has "ok   rss_mib_peak"'
 
 judge "$SCRATCH/stall.csv"
-expect "ten minutes without a completion fail the stall budget" \
+expect_true "ten minutes without a completion fail the stall budget" \
     '[[ $status -eq 1 ]] && has "over budget: stall_seconds"'
 
 judge "$SCRATCH/corrupt.csv"
-expect "one corrupt file fails the run" '[[ $status -eq 1 ]] && has "over budget: corrupt"'
+expect_true "one corrupt file fails the run" '[[ $status -eq 1 ]] && has "over budget: corrupt"'
 
 head -4 "$SCRATCH/steady.csv" > "$SCRATCH/short.csv"
 judge "$SCRATCH/short.csv"
-expect "a run too short for its windows fails as not measured" \
+expect_true "a run too short for its windows fails as not measured" \
     '[[ $status -eq 1 ]] && has "rss_mib_growth = not measured"'
 
 sed 's/^\[budgets\]$/&\nrss_mib_peek_max = 1/' "$BUDGETS" > "$SCRATCH/typo.toml"
 judge "$SCRATCH/steady.csv" "$SCRATCH/typo.toml"
-expect "a budget naming no metric is refused" '[[ $status -eq 2 ]] && has "rss_mib_peek_max"'
+expect_true "a budget naming no metric is refused" '[[ $status -eq 2 ]] && has "rss_mib_peek_max"'
 
 platform=windows judge "$SCRATCH/handles.csv"
-expect "522 handles on Windows pass the Windows peak, and the verdict names it" \
+expect_true "522 handles on Windows pass the Windows peak, and the verdict names it" \
     '[[ $status -eq 0 ]] && has "ok   open_files_peak = 522.00 (budget <= 1024 for windows;" \
         && has "ok   rss_mib_peak = " && has "(budget <= 256;" && has "(windows budgets)"'
 
 judge "$SCRATCH/handles.csv"
-expect "the same samples fail the Linux peak, which has no override" \
+expect_true "the same samples fail the Linux peak, which has no override" \
     '[[ $status -eq 1 ]] && has "FAIL open_files_peak = 522.00 (budget <= 256;" \
         && has "over budget: open_files_peak (linux budgets)"'
 
 platform=windows judge "$SCRATCH/handle-leak.csv"
-expect "a handle leak on Windows still fails the shared growth budget" \
+expect_true "a handle leak on Windows still fails the shared growth budget" \
     '[[ $status -eq 1 ]] && has "FAIL open_files_growth" && has "ok   open_files_peak"'
 
 printf '%s\nopen_files_peek_max = 1\n' "$(cat "$BUDGETS")" > "$SCRATCH/override-typo.toml"
 judge "$SCRATCH/steady.csv" "$SCRATCH/override-typo.toml"
-expect "a typo in the Windows table is refused on Linux too" \
+expect_true "a typo in the Windows table is refused on Linux too" \
     '[[ $status -eq 2 ]] && has "open_files_peek_max"'
 
 printf '%s\n[budgets.windwos]\nopen_files_peak_max = 1\n' "$(cat "$BUDGETS")" \
     > "$SCRATCH/platform-typo.toml"
 platform=windows judge "$SCRATCH/steady.csv" "$SCRATCH/platform-typo.toml"
-expect "an override table naming no platform is refused" \
+expect_true "an override table naming no platform is refused" \
     '[[ $status -eq 2 ]] && has "[budgets.windwos] names no known platform"'
 
 # The fixture: a range matches its own hash, and an outage refuses connections.
@@ -153,6 +150,4 @@ PY
 then ok "the fixture serves ranges, honours If-Range and goes away during an outage"
 else fail "the fixture: $(tail -3 "$SCRATCH/out")"; fi
 
-echo
-echo "soak harness: $passed passed, $failures failed"
-[[ "$failures" -eq 0 ]]
+finish_tests "soak harness"

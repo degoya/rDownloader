@@ -5,7 +5,7 @@ import { api, responseError } from '@/api/client'
 import { currentLocale } from '@/i18n'
 import { loadPluginMessages, setPluginMessagesAvailable } from '@/i18n/plugins'
 import { leaveFor, startUrl } from '@/utils/identityProvider'
-import { PasskeyAbort, getAssertion, passkeysSupported } from '@/webauthn'
+import { PasskeyAbort, getAssertion, passkeysSupported, publicKeyOptions } from '@/webauthn'
 
 export const useSessionStore = defineStore('session', () => {
   const initialized = ref(false)
@@ -131,9 +131,7 @@ export const useSessionStore = defineStore('session', () => {
     }
     let assertion: unknown
     try {
-      const options = (started.data.options as unknown as { publicKey: Record<string, unknown> })
-        .publicKey
-      assertion = await getAssertion(options)
+      assertion = await getAssertion(publicKeyOptions(started.data.options))
     } catch (cause) {
       pending.value = false
       // Cancelling the browser's dialog is a choice, not a failure; saying nothing lets the

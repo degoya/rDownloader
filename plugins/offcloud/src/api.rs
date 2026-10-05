@@ -28,7 +28,7 @@
 //! provider's documentation and from two independent clients of it; `docs/roadmap/jobs/
 //! 120-02-offcloud.md` records the run against a real account as open.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 
 use crate::messages;
@@ -107,26 +107,6 @@ pub struct ErrorEnvelope {
     pub not_available: Option<String>,
 }
 
-/// How a refusal is classified, without depending on either failure representation.
-#[derive(Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-}
-
-/// A classified refusal.
-#[derive(Debug)]
-pub struct ApiFailure {
-    pub kind: ErrorKind,
-    pub code: &'static str,
-    pub message: String,
-    pub params: Vec<(&'static str, String)>,
-}
-
 /// How long a provider-side outage is waited out. Five minutes, the figure the other
 /// multihoster plugins settled on.
 const BUSY_SECONDS: u64 = 300;
@@ -134,28 +114,24 @@ const BUSY_SECONDS: u64 = 300;
 /// How long an exhausted allowance is waited out.
 const QUOTA_SECONDS: u64 = 3600;
 
-fn plain(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
-
-fn with_param(
-    kind: ErrorKind,
-    (code, message): (&'static str, &str),
-    name: &'static str,
-    value: String,
-) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: vec![(name, value)],
-    }
-}
+/// How Offcloud's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+///
+/// The waits fall back to this bucket's own figures when the response named none.
+pub const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::LINK_GONE,
+    unavailable: messages::LINK_GONE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: Some(QUOTA_SECONDS),
+    server_error_wait: Some(BUSY_SECONDS),
+    other: HttpError {
+        code: messages::HTTP_ERROR.0,
+        text: messages::http_error,
+    },
+};
 
 /// What is left of a provider's word once everything that is not code-shaped is gone.
 ///
@@ -181,17 +157,12 @@ pub fn sanitize_error(reason: &str) -> Option<String> {
 #[must_use]
 pub fn classify_error(reason: &str) -> ApiFailure {
     match sanitize_error(reason).as_deref() {
-        Some("noauth") => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        Some(token) => with_param(
-            ErrorKind::Permanent,
-            messages::API_ERROR,
-            "api_code",
-            token.to_owned(),
-        ),
+        Some("noauth") => ApiFailure::new(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        Some(token) => ApiFailure::with_api_code(ErrorKind::Permanent, messages::API_ERROR, token),
         // Prose, and therefore nothing that can be shown or branched on. The category is
         // transient rather than permanent: an unreadable sentence is at least as likely to be
         // a passing outage as a verdict about this link.
-        None => plain(
+        None => ApiFailure::new(
             ErrorKind::Transient(Some(BUSY_SECONDS)),
             messages::API_ERROR,
         ),
@@ -206,12 +177,7 @@ pub fn classify_error(reason: &str) -> ApiFailure {
 #[must_use]
 pub fn classify_not_available(reason: &str) -> ApiFailure {
     let token = sanitize_error(reason).unwrap_or_else(|| "unknown".to_owned());
-    with_param(
-        ErrorKind::Unsupported,
-        messages::ADDON_REQUIRED,
-        "addon",
-        token,
-    )
+    ApiFailure::new(ErrorKind::Unsupported, messages::ADDON_REQUIRED).with_param("addon", token)
 }
 
 /// The refusal an answer carries, or an empty envelope when it carries none.
@@ -264,45 +230,11 @@ pub fn failure_from(
     {
         return Some(classify_error(reason));
     }
-    if let Err(failure) = ensure_http_status(status, retry_after) {
+    if let Err(failure) = HTTP.ensure_http_status(status, retry_after) {
         return Some(failure);
     }
     envelope.error.as_deref().map(classify_error)
 }
-
-/// Maps an HTTP status no document explains.
-///
-/// The classes are `plugin_common::http_status`'s, the one mapping every plugin shares
-/// (RD-191-07); the waits fall back to this bucket's own figures when the response named none.
-///
-/// # Errors
-///
-/// The classified refusal, for every status that is not a 2xx.
-pub fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Result<(), ApiFailure> {
-    plugin_common::http_status(status, retry_after).map_err(|refusal| match refusal {
-        HttpRefusal::Unauthorized => plain(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        HttpRefusal::Gone => plain(ErrorKind::Permanent, messages::LINK_GONE),
-        HttpRefusal::Unavailable => plain(ErrorKind::Offline, messages::LINK_GONE),
-        HttpRefusal::RateLimited(wait) => plain(
-            ErrorKind::RateLimited(Some(wait.unwrap_or(QUOTA_SECONDS))),
-            messages::RATE_LIMITED,
-        ),
-        HttpRefusal::ServerError(wait) => plain(
-            ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
-            messages::SERVER_ERROR,
-        ),
-        HttpRefusal::Other(other) => with_param(
-            ErrorKind::Permanent,
-            messages::HTTP_ERROR,
-            "status",
-            other.to_string(),
-        ),
-    })
-}
-
-// A `Retry-After` stated in seconds is read by the shared reader (RD-191-07): a date, garbage
-// and `0` are `None`, so the bucket's own default applies, and a wait is clamped to one day.
-pub use plugin_common::retry_after_seconds;
 
 /// `application/x-www-form-urlencoded` body, as the published API asks for its parameters.
 ///

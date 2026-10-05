@@ -465,9 +465,7 @@ const navbarMenu = computed(() => [[
         </div>
         <!-- The collector's fetch, not just its result: "no links" waits for it (RD-104-07). -->
         <DataState v-else :loading="collector.loading" :empty="!collector.error" :rows="3">
-          <div class="signal-grid grid min-h-60 place-items-center border border-dashed border-muted p-8 text-center text-sm text-muted">
-            {{ t('linkgrabber.empty') }}
-          </div>
+          <UEmpty class="signal-grid min-h-60" :description="t('linkgrabber.empty')" />
         </DataState>
       </div>
         <IndexerReviewList />

@@ -252,17 +252,27 @@ function rowActions(subscription: Subscription) {
                   :class="editing === subscription.id ? 'border border-primary p-3' : 'py-3'"
                 >
                   <div class="flex flex-wrap items-center gap-2">
-                    <UButton
-                      :icon="expanded === subscription.id ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      class="shrink-0"
-                      :aria-expanded="expanded === subscription.id"
-                      :aria-label="expanded === subscription.id ? t('subscriptions.actions.hide_details') : t('subscriptions.actions.details')"
-                      :title="expanded === subscription.id ? t('subscriptions.actions.hide_details') : t('subscriptions.actions.details')"
-                      @click="toggleDetails(subscription)"
-                    />
+                    <!-- The trigger leads the row; the archive is the row's last line (`design.md`, *Opening and closing*). -->
+                    <UCollapsible
+                      class="contents"
+                      :open="expanded === subscription.id"
+                      :ui="{ content: 'order-last basis-full' }"
+                      @update:open="toggleDetails(subscription)"
+                    >
+                      <UButton
+                        :icon="expanded === subscription.id ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        class="shrink-0"
+                        :aria-expanded="expanded === subscription.id"
+                        :aria-label="expanded === subscription.id ? t('subscriptions.actions.hide_details') : t('subscriptions.actions.details')"
+                        :title="expanded === subscription.id ? t('subscriptions.actions.hide_details') : t('subscriptions.actions.details')"
+                      />
+                      <template #content>
+                        <SubscriptionArchive :subscription="subscription" @notice="value => (notice = value)" />
+                      </template>
+                    </UCollapsible>
                     <!-- The name first, from 200 px up; what does not fit beside it wraps under it. -->
                     <span class="min-w-0 grow shrink basis-[200px] truncate font-medium" :title="subscription.name">{{ subscription.name }}</span>
                     <UBadge v-if="editing === subscription.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
@@ -297,12 +307,6 @@ function rowActions(subscription: Subscription) {
                   <p v-else-if="subscription.last_run_at" class="text-xs text-muted">
                     {{ t('subscriptions.list.last_run', { at: formatMoment(subscription.last_run_at) }) }}
                   </p>
-
-                  <SubscriptionArchive
-                    v-if="expanded === subscription.id"
-                    :subscription="subscription"
-                    @notice="value => (notice = value)"
-                  />
                 </li>
               </ul>
             </UCard>

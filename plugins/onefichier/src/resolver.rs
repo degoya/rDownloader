@@ -6,6 +6,7 @@
 
 mod free;
 
+pub(crate) use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LabelPart,
     LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved,
@@ -47,7 +48,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     let response = call(host, "/user/info.cgi", b"{}".to_vec()).await?;
     let info: api::UserInfoResponse = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(info.status.as_deref(), info.message.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     let offer = info.offer.and_then(api::FlexibleU64::into_u64);
     let premium = offer.is_some_and(|value| value >= 1);
@@ -88,12 +89,12 @@ pub(crate) async fn resolve<H: PluginHost>(
     let token: api::GetTokenResponse = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(token.status.as_deref(), token.message.as_deref())
     {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     let url = token
         .url
         .ok_or_else(|| coded(FailureKind::Permanent, messages::NO_DOWNLOAD_URL))?;
-    let url = api::parse_download_url(&url).map_err(convert_failure)?;
+    let url = api::parse_download_url(&url)?;
     Ok(Resolved {
         url: url.to_string(),
         file_name: metadata.filename,
@@ -172,40 +173,31 @@ async fn file_info_status<H: PluginHost>(
 /// the file deleted and final (`Permanent`, owner 2026-10-04); the API's own "not found" word
 /// keeps its class. Both carry `FILE_OFFLINE`, which is what the check reads.
 async fn file_info<H: PluginHost>(host: &H, link: &str) -> Result<api::FileInfoResponse, Failure> {
-    let response = raw_call(host, "/file/info.cgi", api::link_body(link)).await?;
-    ensure_http_status(&response)?;
+    let response = call(host, "/file/info.cgi", api::link_body(link)).await?;
     let info: api::FileInfoResponse = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(info.status.as_deref(), info.message.as_deref()) {
-        return Err(convert_failure(failure));
+        return Err(failure.into());
     }
     Ok(info)
 }
 
+/// One API request; a status the JSON envelope does not explain is refused in 1fichier's words.
 async fn call<H: PluginHost>(host: &H, path: &str, body: Vec<u8>) -> Result<HttpResponse, Failure> {
-    let response = raw_call(host, path, body).await?;
-    ensure_http_status(&response)?;
-    Ok(response)
-}
-
-async fn raw_call<H: PluginHost>(
-    host: &H,
-    path: &str,
-    body: Vec<u8>,
-) -> Result<HttpResponse, Failure> {
-    host.http(
-        HttpRequest {
-            method: "POST".to_owned(),
-            url: format!("{API_BASE}{path}"),
-            query: Vec::new(),
-            headers: Vec::new(),
-            body,
-        }
-        .with_header(
-            "Authorization",
-            format!("Bearer {{{{secret:{}}}}}", crate::API_KEY_REFERENCE),
-        )
-        .with_header("Content-Type", "application/json"),
+    let request = HttpRequest {
+        method: "POST".to_owned(),
+        url: format!("{API_BASE}{path}"),
+        query: Vec::new(),
+        headers: Vec::new(),
+        body,
+    }
+    .with_header(
+        "Authorization",
+        format!("Bearer {{{{secret:{}}}}}", crate::API_KEY_REFERENCE),
     )
+    .with_header("Content-Type", "application/json");
+    plugin_common::failure::call(host, request, |status, retry_after, _| {
+        api::HTTP.ensure_http_status(status, retry_after).err()
+    })
     .await
 }
 
@@ -217,30 +209,6 @@ async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(),
         return Err(coded(FailureKind::AuthRequired, messages::API_KEY_MISSING));
     }
     Ok(())
-}
-
-fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
-    api::ensure_http_status(
-        response.status,
-        plugin_common::retry_after(&response.headers),
-    )
-    .map_err(convert_failure)
-}
-
-pub(crate) fn convert_failure(failure: api::ApiFailure) -> Failure {
-    let kind = match failure.kind {
-        api::ErrorKind::Transient(seconds) => FailureKind::Transient(seconds),
-        api::ErrorKind::Permanent => FailureKind::Permanent,
-        api::ErrorKind::Offline => FailureKind::Offline,
-        api::ErrorKind::AuthRequired => FailureKind::AuthRequired,
-        api::ErrorKind::AccountInvalid => FailureKind::AccountInvalid,
-        api::ErrorKind::RateLimited(seconds) => FailureKind::RateLimited(seconds),
-    };
-    let mut built = Failure::coded(kind, failure.code, failure.message);
-    for (name, value) in failure.params {
-        built = built.with_param(name, value);
-    }
-    built
 }
 
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
@@ -255,8 +223,4 @@ pub(crate) fn invalid_url(error: &url::ParseError) -> Failure {
         messages::invalid_url(error),
     )
     .with_param("error", error.to_string())
-}
-
-pub(crate) fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
 }

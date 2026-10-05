@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000160"
 name = "pCloud"
-version = "0.1.10"
+version = "0.1.11"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # The addresses a person pastes, plus the canonical per-file addresses the sibling crawler

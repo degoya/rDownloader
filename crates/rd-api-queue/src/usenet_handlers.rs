@@ -13,6 +13,10 @@ use crate::{
     },
 };
 
+/// Server names are unique; a second one is a `409`, on creation and on a rename.
+const SERVER_NAME_TAKEN: &str = "usenet.server_name_taken";
+const SERVER_NAME_TAKEN_MESSAGE: &str = "An NNTP server with this name already exists";
+
 #[utoipa::path(get, path = "/api/v1/usenet/servers", tag = "usenet", responses((status = 200, body = [rd_core::UsenetServer])))]
 pub async fn list_usenet_servers(
     State(state): State<AppState>,
@@ -20,7 +24,7 @@ pub async fn list_usenet_servers(
     Ok(Json(state.database.list_usenet_servers().await?))
 }
 
-#[utoipa::path(put, path = "/api/v1/usenet/servers/{id}", tag = "usenet", params(("id" = rd_core::UsenetServerId, Path)), request_body = UpdateUsenetServerRequest, responses((status = 200, body = rd_core::UsenetServer), (status = 404)))]
+#[utoipa::path(put, path = "/api/v1/usenet/servers/{id}", tag = "usenet", params(("id" = rd_core::UsenetServerId, Path)), request_body = UpdateUsenetServerRequest, responses((status = 200, body = rd_core::UsenetServer), (status = 404), (status = 409)))]
 pub async fn update_usenet_server(
     State(state): State<AppState>,
     Path(id): Path<rd_core::UsenetServerId>,
@@ -78,7 +82,14 @@ pub async fn update_usenet_server(
             if password_ref != old_password_ref {
                 cleanup_secret(&state.secrets, password_ref).await;
             }
-            return Err(error.into());
+            return Err(crate::error_codes::store_error(
+                &error,
+                "usenet.server_not_found",
+                "NNTP server not found",
+                StoreErrorKind::Duplicate,
+                SERVER_NAME_TAKEN,
+                SERVER_NAME_TAKEN_MESSAGE,
+            ));
         }
     };
     if old_password_ref != password_ref {
@@ -224,7 +235,7 @@ fn nzb_already_enqueued() -> ApiError {
     )
 }
 
-#[utoipa::path(post, path = "/api/v1/usenet/servers", tag = "usenet", request_body = CreateUsenetServerRequest, responses((status = 201, body = rd_core::UsenetServer)))]
+#[utoipa::path(post, path = "/api/v1/usenet/servers", tag = "usenet", request_body = CreateUsenetServerRequest, responses((status = 201, body = rd_core::UsenetServer), (status = 409)))]
 pub async fn create_usenet_server(
     State(state): State<AppState>,
     Json(request): Json<CreateUsenetServerRequest>,
@@ -271,7 +282,11 @@ pub async fn create_usenet_server(
             {
                 tracing::warn!(%cleanup_error, "failed to clean up orphaned NNTP secret");
             }
-            Err(error.into())
+            Err(crate::error_codes::store_duplicate(
+                &error,
+                SERVER_NAME_TAKEN,
+                SERVER_NAME_TAKEN_MESSAGE,
+            ))
         }
     }
 }

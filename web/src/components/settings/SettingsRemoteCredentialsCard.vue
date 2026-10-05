@@ -19,6 +19,7 @@ import {
   useRemoteCredentials
 } from '@/composables/useRemoteCredentials'
 import { formatMoment } from '@/utils/format'
+import { WHOLE } from '@/utils/numberInput'
 
 const props = defineProps<{ settings: Settings }>()
 /** The tunables belong to the parent's settings object, saved with the rest of the tab. */
@@ -181,39 +182,44 @@ async function confirmForget(key: SshHostKey): Promise<void> {
 <template>
   <UCard as="section" data-settings-anchor="transfers.remote">
 
-    <div v-if="pendingKey" class="mb-4 border p-4" :class="pendingKey.changed ? 'border-error bg-error/5' : 'border-warning bg-warning/5'">
-      <p class="text-sm font-medium text-highlighted">
-        {{ t(pendingKey.changed ? 'remote.host_keys.changed_title' : 'remote.host_keys.unknown_title') }}
-      </p>
-      <p class="mt-1 max-w-3xl text-xs leading-5 text-muted">
-        {{ t(pendingKey.changed ? 'remote.host_keys.changed_description' : 'remote.host_keys.unknown_description') }}
-      </p>
-      <dl class="mt-3 space-y-1 text-xs">
-        <div class="flex gap-2">
-          <dt class="w-32 shrink-0 text-muted">{{ t('remote.host_keys.endpoint') }}</dt>
-          <dd class="font-mono">{{ pendingKey.host }}:{{ pendingKey.port }} ({{ pendingKey.algorithm }})</dd>
+    <UAlert
+      v-if="pendingKey"
+      class="mb-4"
+      :color="pendingKey.changed ? 'error' : 'warning'"
+      variant="subtle"
+      :title="t(pendingKey.changed ? 'remote.host_keys.changed_title' : 'remote.host_keys.unknown_title')"
+    >
+      <template #description>
+        <p class="max-w-3xl text-xs leading-5 text-muted">
+          {{ t(pendingKey.changed ? 'remote.host_keys.changed_description' : 'remote.host_keys.unknown_description') }}
+        </p>
+        <dl class="mt-3 space-y-1 text-xs text-highlighted">
+          <div class="flex gap-2">
+            <dt class="w-32 shrink-0 text-muted">{{ t('remote.host_keys.endpoint') }}</dt>
+            <dd class="font-mono">{{ pendingKey.host }}:{{ pendingKey.port }} ({{ pendingKey.algorithm }})</dd>
+          </div>
+          <div class="flex gap-2">
+            <dt class="w-32 shrink-0 text-muted">{{ t('remote.host_keys.offered') }}</dt>
+            <dd class="break-all font-mono">{{ pendingKey.fingerprint }}</dd>
+          </div>
+          <div v-if="pendingKey.stored" class="flex gap-2">
+            <dt class="w-32 shrink-0 text-muted">{{ t('remote.host_keys.stored') }}</dt>
+            <dd class="break-all font-mono text-muted">{{ pendingKey.stored }}</dd>
+          </div>
+        </dl>
+        <div class="mt-3 flex gap-2">
+          <UButton
+            size="xs"
+            :color="pendingKey.changed ? 'error' : 'primary'"
+            icon="i-lucide-shield-check"
+            :label="t('remote.host_keys.confirm')"
+            :loading="pending"
+            @click="confirmPendingKey"
+          />
+          <UButton size="xs" color="neutral" variant="ghost" :label="t('remote.host_keys.reject')" @click="pendingKey = null" />
         </div>
-        <div class="flex gap-2">
-          <dt class="w-32 shrink-0 text-muted">{{ t('remote.host_keys.offered') }}</dt>
-          <dd class="break-all font-mono">{{ pendingKey.fingerprint }}</dd>
-        </div>
-        <div v-if="pendingKey.stored" class="flex gap-2">
-          <dt class="w-32 shrink-0 text-muted">{{ t('remote.host_keys.stored') }}</dt>
-          <dd class="break-all font-mono text-muted">{{ pendingKey.stored }}</dd>
-        </div>
-      </dl>
-      <div class="mt-3 flex gap-2">
-        <UButton
-          size="xs"
-          :color="pendingKey.changed ? 'error' : 'primary'"
-          icon="i-lucide-shield-check"
-          :label="t('remote.host_keys.confirm')"
-          :loading="pending"
-          @click="confirmPendingKey"
-        />
-        <UButton size="xs" color="neutral" variant="ghost" :label="t('remote.host_keys.reject')" @click="pendingKey = null" />
-      </div>
-    </div>
+      </template>
+    </UAlert>
 
     <FormListLayout :list-title="t('remote.credentials.title')" :count="credentials.length">
       <template #form>
@@ -292,9 +298,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
             class="flex flex-wrap items-center gap-3 p-3"
             :class="editingId === credential.id ? 'outline outline-1 outline-primary' : ''"
           >
-            <span class="grid size-8 place-items-center bg-elevated text-primary">
-              <UIcon :name="credential.protocol === 'sftp' ? 'i-lucide-shield' : 'i-lucide-folder-symlink'" />
-            </span>
+            <UAvatar :icon="credential.protocol === 'sftp' ? 'i-lucide-shield' : 'i-lucide-folder-symlink'" color="primary" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-highlighted">{{ credential.name }}</p>
               <p class="truncate font-mono text-[11px] text-muted">{{ endpointLabel(credential) }}</p>
@@ -334,14 +338,15 @@ async function confirmForget(key: SshHostKey): Promise<void> {
       </template>
     </FormListLayout>
 
-    <div class="mt-6 border-t border-muted pt-4">
+    <USeparator class="mt-6 mb-4" />
+    <div>
       <p class="text-sm font-medium text-highlighted">{{ t('remote.settings.title') }}</p>
       <div class="mt-3 grid gap-3">
         <UFormField :label="t('remote.settings.max_parallel')" :description="t('remote.settings.max_parallel_hint')">
-          <UInput v-model.number="settings.remote_max_parallel" type="number" min="1" max="8" icon="i-lucide-layers" class="w-full" />
+          <UInputNumber v-model="settings.remote_max_parallel" required :min="1" :max="8" :format-options="WHOLE" increment decrement class="w-full" />
         </UFormField>
         <UFormField :label="t('remote.settings.timeout')" :description="t('remote.settings.timeout_hint')">
-          <UInput v-model.number="settings.remote_timeout_seconds" type="number" min="5" max="600" icon="i-lucide-timer" class="w-full" />
+          <UInputNumber v-model="settings.remote_timeout_seconds" required :min="5" :max="600" :format-options="WHOLE" class="w-full" />
         </UFormField>
         <USwitch
           data-settings-anchor="transfers.ssh_auto_trust"

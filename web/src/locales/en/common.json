@@ -164,7 +164,8 @@
   "copy": {
     "failed_title": "Copying failed",
     "failed_description": "The browser did not allow access to the clipboard. Select the text and copy it by hand.",
-    "links_copied": "No link copied | {count} link copied | {count} links copied"
+    "links_copied": "No link copied | {count} link copied | {count} links copied",
+    "copied": "Copied"
   },
   "unsaved": {
     "title": "Discard unsaved changes?",

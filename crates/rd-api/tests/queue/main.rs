@@ -24,3 +24,4 @@ mod service_switches;
 mod storage_capacity;
 mod storage_clear;
 mod storage_roots;
+mod unique_names;

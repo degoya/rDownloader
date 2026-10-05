@@ -18,7 +18,7 @@ mod wind_down;
 pub use address_guard::{
     AddressPolicy, AddressRefused, AddressScope, GuardedResolver, HostLookup, LookupFuture,
     SystemLookup, TargetRefusal, address_scope, check_target, connect_addresses, is_refusal,
-    literal_address, refusal_in,
+    literal_address, refusal_in, socket_addresses,
 };
 pub use client_pool::{
     AuthMaterial, ClientContext, ClientKey, ClientPool, NetworkDefaults, ProxyCredentials,

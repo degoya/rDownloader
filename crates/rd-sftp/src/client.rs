@@ -1,6 +1,5 @@
 //! Opening an authenticated SFTP session.
 
-use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -91,25 +90,26 @@ pub async fn connect(
         inactivity_timeout: Some(spec.timeout),
         ..client::Config::default()
     });
-    let addresses = match socket_addresses(credential, spec.guard).await {
-        Ok(addresses) => addresses,
-        Err(refused) if rd_http::refusal_in(&refused).is_some() => {
-            return Ok(Err(rd_core::Failure::coded(
-                rd_core::FailureKind::Permanent,
-                rd_core::CODE_INTERNAL_ADDRESS,
-                "The SSH server points at an address a link from elsewhere may not reach",
-            )));
-        }
-        Err(_) => {
-            return Ok(Err(rd_core::Failure::coded(
-                rd_core::FailureKind::Transient {
-                    retry_after_seconds: None,
-                },
-                error::CONNECT_FAILED,
-                "The SSH server's name could not be resolved",
-            )));
-        }
-    };
+    let addresses =
+        match rd_http::socket_addresses(spec.guard, &credential.host, credential.port).await {
+            Ok(addresses) => addresses,
+            Err(refused) if rd_http::refusal_in(&refused).is_some() => {
+                return Ok(Err(rd_core::Failure::coded(
+                    rd_core::FailureKind::Permanent,
+                    rd_core::CODE_INTERNAL_ADDRESS,
+                    "The SSH server points at an address a link from elsewhere may not reach",
+                )));
+            }
+            Err(_) => {
+                return Ok(Err(rd_core::Failure::coded(
+                    rd_core::FailureKind::Transient {
+                        retry_after_seconds: None,
+                    },
+                    error::CONNECT_FAILED,
+                    "The SSH server's name could not be resolved",
+                )));
+            }
+        };
 
     let connected = tokio::time::timeout(
         spec.timeout,
@@ -311,31 +311,6 @@ fn take(observed: &Observed) -> Option<Result<hostkey::OfferedKey, Rejection>> {
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .take()
-}
-
-/// The addresses the SSH connection may go to: under a guard, exactly those the rule admits
-/// (a refusal is an I/O error [`rd_http::refusal_in`] recognises); otherwise every address the
-/// host resolves to, as a plain connect would try them.
-async fn socket_addresses(
-    credential: &RemoteCredential,
-    guard: Option<&rd_http::AddressPolicy>,
-) -> std::io::Result<Vec<SocketAddr>> {
-    match guard {
-        Some(policy) => {
-            rd_http::connect_addresses(
-                policy,
-                &rd_http::SystemLookup,
-                &credential.host,
-                credential.port,
-            )
-            .await
-        }
-        None => Ok(
-            tokio::net::lookup_host(format!("{}:{}", credential.host, credential.port))
-                .await?
-                .collect(),
-        ),
-    }
 }
 
 #[cfg(test)]

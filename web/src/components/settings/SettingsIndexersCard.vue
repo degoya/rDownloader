@@ -262,7 +262,7 @@ async function remove(indexer: Indexer): Promise<void> {
           <article v-for="indexer in indexers" :key="indexer.id" class="min-w-0 border p-4" :class="editingId === indexer.id ? 'border-primary' : 'border-muted'" data-testid="indexer-row">
             <div class="flex flex-wrap items-start gap-4">
               <div class="min-w-0 flex-1 basis-40">
-                <div class="flex items-center gap-2"><span class="size-2" :class="indexer.enabled ? 'bg-success' : 'bg-muted'" aria-hidden="true" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ indexer.name }}</h4></div>
+                <div class="flex items-center gap-2"><UChip standalone color="success" :show="indexer.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ indexer.name }}</h4></div>
                 <p class="mt-1 truncate font-mono text-xs text-muted">{{ indexer.url }}</p>
                 <p class="mt-2 text-xs text-muted">{{ indexer.categories?.length ? indexer.categories.join(', ') : t('usenet.indexers.categories_all') }}</p>
               </div>
@@ -278,7 +278,7 @@ async function remove(indexer: Indexer): Promise<void> {
             </div>
           </article>
           <DataState :loading="loading" :error="loadError" :empty="!indexers.length" :rows="2">
-            <p class="signal-grid border border-dashed border-muted p-10 text-center text-sm text-muted">{{ t('usenet.indexers.empty') }}</p>
+            <UEmpty class="signal-grid" :description="t('usenet.indexers.empty')" />
           </DataState>
         </div>
       </UCard>

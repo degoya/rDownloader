@@ -19,12 +19,33 @@ import SettingsPasskeysCard from '@/components/settings/SettingsPasskeysCard.vue
 import SettingsPasswordCard from '@/components/settings/SettingsPasswordCard.vue'
 import SettingsProxyCard from '@/components/settings/SettingsProxyCard.vue'
 import SettingsSessions from '@/components/settings/SettingsSessions.vue'
+import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 /** Owned by the settings view, which keeps it in the address (RD-180-15). */
 const activeTab = defineModel<string>('subTab', { default: 'signin' })
 const { t } = useI18n()
 const tabItems = computed(() => subTabItems('security', t))
+
+/// The wiki page that explains who counts as "this machine" (RD-1110-07).
+const REVERSE_PROXY_WIKI = 'https://github.com/degoya/rDownloader/wiki/reverse-proxy'
+
+/// Sign-in switched off while a proxy or an external address is configured (audit S17): the
+/// service then trusts a loopback caller without forwarding headers as this machine, and a
+/// local tunnel that sets none turns every stranger behind it into the administrator. Read
+/// from the form, so the warning follows the switch before it is saved.
+const loginOffBehindProxy = computed(() =>
+  settings.value.admin_login_disabled
+  && ((settings.value.trusted_proxies ?? []).length > 0 || Boolean(settings.value.external_url?.trim()))
+)
+const proxyWikiActions = computed(() => [{
+  label: t('system.proxy.login_off_wiki'),
+  icon: 'i-lucide-external-link',
+  to: REVERSE_PROXY_WIKI,
+  target: '_blank',
+  color: 'warning' as const,
+  variant: 'outline' as const
+}])
 </script>
 
 <template>
@@ -37,6 +58,16 @@ const tabItems = computed(() => subTabItems('security', t))
         level="page"
       />
     </header>
+    <UAlert
+      v-if="loginOffBehindProxy"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-shield-alert"
+      :title="t('system.proxy.login_off_title')"
+      :description="t('system.proxy.login_off_description')"
+      :actions="proxyWikiActions"
+      data-testid="login-off-behind-proxy"
+    />
     <UTabs
       v-model="activeTab"
       :items="tabItems"
@@ -64,15 +95,11 @@ const tabItems = computed(() => subTabItems('security', t))
               :description="t('system.session_limits.description')"
             />
             <div class="mt-4 grid gap-4">
-              <UFormField :label="t('system.session_limits.idle_label')" :description="t('system.session_limits.idle_description')">
-                <UInput v-model.number="settings.session_idle_hours" type="number" min="1" max="720" icon="i-lucide-timer" class="w-full">
-                  <template #trailing><span class="font-mono text-xs text-muted">h</span></template>
-                </UInput>
+              <UFormField hint="h" :label="t('system.session_limits.idle_label')" :description="t('system.session_limits.idle_description')">
+                <UInputNumber v-model="settings.session_idle_hours" required :min="1" :max="720" :format-options="WHOLE" class="w-full" />
               </UFormField>
-              <UFormField :label="t('system.session_limits.max_label')" :description="t('system.session_limits.max_description')">
-                <UInput v-model.number="settings.session_max_hours" type="number" min="1" max="2160" icon="i-lucide-hourglass" class="w-full">
-                  <template #trailing><span class="font-mono text-xs text-muted">h</span></template>
-                </UInput>
+              <UFormField hint="h" :label="t('system.session_limits.max_label')" :description="t('system.session_limits.max_description')">
+                <UInputNumber v-model="settings.session_max_hours" required :min="1" :max="2160" :format-options="WHOLE" class="w-full" />
               </UFormField>
             </div>
           </UCard>

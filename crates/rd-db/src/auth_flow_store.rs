@@ -334,6 +334,7 @@ pub(crate) async fn part(
 ///
 /// The lookup *is* the check: a callback carrying a state no open flow claims matches nothing
 /// and is refused, which is what the state is for.
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) async fn by_callback_state(
     pool: &SqlitePool,
     callback_state: &str,

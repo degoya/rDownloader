@@ -16,6 +16,7 @@ use plugin_guest_oauth::{
     http::{self, RequestQuery},
     retry_after,
     types::{Failure, FailureKind},
+    unguessable_value,
 };
 
 use crate::{flow, pkce};
@@ -63,21 +64,6 @@ fn refuse(code: &str, message: String, category: FailureKind) -> Failure {
         code: Some(format!("box_oauth.{code}")),
         params: Vec::new(),
     }
-}
-
-/// A value nobody can recompute: the host's random bytes, base64url-encoded.
-///
-/// An empty answer means the host refused, and a sign-in is failed rather than continued with a
-/// value the plugin made up.
-fn unguessable_value() -> Result<String, Failure> {
-    let random = host::random_bytes(pkce::VERIFIER_BYTES as u32);
-    pkce::verifier(&random).ok_or_else(|| {
-        refuse(
-            "no_entropy",
-            "the host did not supply the randomness this sign-in needs".to_owned(),
-            FailureKind::Permanent,
-        )
-    })
 }
 
 /// The marker that stands for the client secret of the person's own application.
@@ -189,7 +175,7 @@ impl Guest for Component {
         require_registered_application(&account_id)?;
         // From the host's random source and from nothing else. A value computed from the
         // account and the time of day is a value anybody holding them can recompute.
-        let state = unguessable_value()?;
+        let state = unguessable_value("box_oauth")?;
         let authorization_url = format!(
             "{AUTHORIZE_ENDPOINT}?response_type=code&client_id={}&redirect_uri={}&state={}",
             // Left as the marker: the host substitutes this installation's own client id here,

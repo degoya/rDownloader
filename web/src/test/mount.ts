@@ -11,9 +11,10 @@
  * cannot hand a test the catalogues it needs, and a global stub registry would hide which
  * component a test actually depends on. It is a module a test imports.
  */
+import { useFileUpload } from '@nuxt/ui/composables/useFileUpload'
 import { render, type RenderResult } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
-import type { Component } from 'vue'
+import { defineComponent, toRef, type Component, type ComponentPublicInstance, type PropType } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { messageResolver } from '@/i18n/resolver'
@@ -32,11 +33,66 @@ const modelInput = {
 }
 
 /**
+ * The file field with Nuxt UI's own `useFileUpload` behind it (RD-1110-12): the picker is a real
+ * hidden `<input type="file">` carrying the field's attributes, as in the real one, so a test
+ * chooses with a `change` on it; without a default slot the area is the drop zone,
+ * `[data-file-drop]`, and takes a `drop` the way the real one does — `accept` included. The
+ * field is told its files through `update:modelValue`, appended to `modelValue` when `multiple`.
+ */
+export const fileUpload = defineComponent({
+  inheritAttrs: false,
+  props: {
+    modelValue: { type: [Object, Array] as PropType<File | File[] | null>, default: null },
+    accept: { type: String, default: '*' },
+    multiple: Boolean,
+    reset: Boolean,
+    dropzone: { type: Boolean, default: true },
+    interactive: { type: Boolean, default: true },
+    label: { type: String, default: '' },
+    description: { type: String, default: '' },
+    // Styling the real field takes as props; here they would land on the input.
+    icon: { type: String, default: undefined },
+    size: { type: String, default: undefined },
+    layout: { type: String, default: undefined },
+    preview: { type: Boolean, default: true }
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const { open, inputRef, dropzoneRef } = useFileUpload({
+      accept: toRef(props, 'accept'),
+      multiple: toRef(props, 'multiple'),
+      reset: toRef(props, 'reset'),
+      dropzone: props.dropzone,
+      onUpdate: files => emit('update:modelValue', props.multiple
+        ? [...(Array.isArray(props.modelValue) ? props.modelValue : []), ...files]
+        : files[0] ?? null)
+    })
+    // The real field hands the composable its input as a component, whose element is `$el`.
+    const setInput = (element: unknown) => {
+      inputRef.value = element ? { $el: element } as unknown as ComponentPublicInstance : undefined
+    }
+    return { open, dropzoneRef, setInput }
+  },
+  template:
+    '<div><slot :open="open"><div ref="dropzoneRef" data-file-drop :role="interactive ? \'button\' : undefined" @click="interactive && open()">'
+    + '{{ label }} {{ description }}<slot name="actions" :open="open" /></div></slot>'
+    + '<input :ref="setInput" type="file" hidden :accept="accept" :multiple="multiple" v-bind="$attrs" /></div>'
+})
+
+/**
  * The Nuxt UI wrappers component tests need, rendered as the plain elements they stand for.
  * Buttons keep their label and `aria-label` so accessibility checks still see a name.
  */
 export const uiStubs = {
-  UAlert: { props: ['title', 'description'], template: '<div v-bind="$attrs">{{ title }}{{ description }}<slot /></div>' },
+  /** Title and description as lines of their own, and the slots a notice with content fills (RD-1110-11). */
+  UAlert: {
+    props: ['title', 'description'],
+    template:
+      '<div v-bind="$attrs"><div v-if="title">{{ title }}</div><slot name="title" /><div v-if="description">{{ description }}</div>'
+      + '<slot name="description" /><slot /><slot name="actions" /></div>'
+  },
+  /** The fallback text the real one shows where it has no picture; an icon is decoration. */
+  UAvatar: { props: ['icon', 'text'], template: '<span v-bind="$attrs">{{ text }}</span>' },
   UBadge: passthrough,
   UButton: {
     props: ['label', 'disabled', 'loading', 'ariaLabel'],
@@ -47,6 +103,8 @@ export const uiStubs = {
     props: ['as'],
     template: '<component :is="as ?? \'div\'" v-bind="$attrs"><slot name="header" /><slot /><slot name="footer" /></component>'
   },
+  /** The dot alone, as the real one renders it standalone: no text, so nothing to read out. */
+  UChip: { props: ['color', 'show'], template: '<span data-chip :data-color="color"><span v-if="show !== false" data-chip-dot /></span>' },
   UCheckbox: {
     props: ['modelValue', 'label'],
     emits: ['update:modelValue'],
@@ -136,6 +194,15 @@ export const uiStubs = {
       '<div v-bind="$attrs" :data-state="shown ? \'open\' : \'closed\'"><div @click="toggle"><slot :open="shown" /></div>'
       + '<div v-if="shown" data-collapsible-content><slot name="content" /></div></div>'
   },
+  /** Title, description and the action buttons in the real order, each action a button by its label (RD-1110-11). */
+  UEmpty: {
+    props: ['title', 'description', 'icon', 'actions'],
+    template:
+      '<div v-bind="$attrs"><p v-if="title">{{ title }}</p><p v-if="description">{{ description }}</p><slot name="description" />'
+      + '<button v-for="action in actions ?? []" :key="action.label" type="button" @click="action.onClick">{{ action.label }}</button>'
+      + '<slot name="actions" /><slot name="body" /><slot name="footer" /></div>'
+  },
+  USeparator: { template: '<div role="separator" v-bind="$attrs" />' },
   /**
    * Every column's header and cell slot, the way the real table hands them `row.original`, with
    * the table's `ui.base` and each column's `meta.class` where the real one puts them; a column
@@ -177,6 +244,18 @@ export const uiStubs = {
   UIcon: { template: '<span aria-hidden="true" />' },
   UInput: modelInput,
   /**
+   * The number field as Reka's renders it — a text input with the role `spinbutton` — handing
+   * its model a number, and `undefined` for an emptied field as the real one does (RD-1110-10).
+   * It neither clamps nor reads a decimal comma; `utils/numberInput.test.ts` runs the real parser.
+   */
+  UInputNumber: {
+    props: ['modelValue', 'formatOptions', 'stepSnapping', 'increment', 'decrement'],
+    emits: ['update:modelValue'],
+    template:
+      '<input type="text" role="spinbutton" v-bind="$attrs" :value="modelValue ?? \'\'" '
+      + '@input="$emit(\'update:modelValue\', $event.target.value.trim() === \'\' ? undefined : Number($event.target.value))" />'
+  },
+  /**
    * The combo box rendered open, with the search term where the real one keeps it: typing
    * changes the term, not the value, and only choosing an item or creating one writes through.
    * A stub that wrote every keystroke into the model would make the "create" option impossible
@@ -204,7 +283,20 @@ export const uiStubs = {
       + '<button v-if="unknown" type="button" data-create-item @click="$emit(\'create\', term)">{{ term }}</button>'
       + '</div></div>'
   },
+  /** An anchor to where `to` points; the router is the real one's business, not the test's. */
+  ULink: { props: ['to'], template: '<a v-bind="$attrs" :href="to"><slot /></a>' },
   UModal: passthrough,
+  /**
+   * The card with its title and description, and — as the real one does with `to` — an empty
+   * link over it named by the title, which takes the attributes the card was given.
+   */
+  UPageCard: {
+    inheritAttrs: false,
+    props: ['to', 'title', 'description'],
+    template:
+      '<div><slot name="leading" /><div>{{ title }}</div><div>{{ description }}</div><slot />'
+      + '<a v-if="to" v-bind="$attrs" :href="to" :aria-label="title"><span aria-hidden="true" /></a></div>'
+  },
   UPopover: passthrough,
   /** Named by its percentage unless the caller names it, as Reka's `ProgressRoot` does. */
   UProgress: { props: ['modelValue'], template: '<div role="progressbar" :aria-label="`${modelValue ?? 0}%`" v-bind="$attrs" />' },
@@ -252,7 +344,8 @@ export const uiStubs = {
       + ' :hidden="modelValue !== undefined && item.value !== modelValue"><slot :name="item.slot ?? item.value" :item="item" /></div></div>'
   },
   UTextarea: modelInput,
-  UTooltip: passthrough
+  UTooltip: passthrough,
+  UFileUpload: fileUpload
 }
 
 /**

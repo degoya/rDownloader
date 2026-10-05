@@ -247,9 +247,14 @@ pub async fn pair_capture(
     if request.queue_control {
         scopes.push(rd_core::CAPTURE_QUEUE_SCOPE.to_owned());
     }
-    let response =
-        crate::api_tokens::pair_with_scopes(&state, &request.label, scopes, "capture.label_length")
-            .await?;
+    let response = crate::api_tokens::pair_with_scopes(
+        &state,
+        &request.label,
+        scopes,
+        request.expires_in_days,
+        "capture.label_length",
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(response)))
 }
 

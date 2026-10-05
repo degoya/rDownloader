@@ -7,12 +7,14 @@ import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useErrorToast } from '@/composables/useErrorToast'
 
 type ManagedTools = components['schemas']['ManagedToolsResponse']
 type ManagedTool = components['schemas']['ManagedToolInfo']
 
 const { t } = useI18n()
 const toast = useToast()
+const showError = useErrorToast()
 
 const store = ref<ManagedTools | null>(null)
 const error = ref<string | null>(null)
@@ -77,7 +79,7 @@ async function act(
   busy.value = null
   if (!response.data) {
     error.value = responseError(response)
-    toast.add({ title: error.value, color: 'error', icon: 'i-lucide-circle-alert' })
+    showError(error.value)
     return
   }
   adopt(response.data)
@@ -183,24 +185,23 @@ function versionItems(tool: ManagedTool): { label: string; value: string }[] {
           <UBadge v-else color="neutral" variant="outline" size="sm">{{ t('settings.managed_tools.no_release') }}</UBadge>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
-          <USelect
-            v-if="tool.installed_versions.length > 1"
-            v-model="chosen[tool.name]"
-            :items="versionItems(tool)"
-            value-key="value"
-            size="xs"
-            class="w-36 font-mono"
-            :aria-label="t('settings.managed_tools.choose_version', { tool: tool.name })"
-          />
-          <UButton
-            v-if="tool.installed_versions.length > 1"
-            size="xs"
-            variant="ghost"
-            icon="i-lucide-circle-check"
-            :label="t('settings.managed_tools.activate')"
-            :disabled="!enabled || busy !== null || chosen[tool.name] === tool.active_version"
-            @click="activate(tool)"
-          />
+          <UFieldGroup v-if="tool.installed_versions.length > 1" size="xs">
+            <USelect
+              v-model="chosen[tool.name]"
+              :items="versionItems(tool)"
+              value-key="value"
+              class="w-36 font-mono"
+              :aria-label="t('settings.managed_tools.choose_version', { tool: tool.name })"
+            />
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-circle-check"
+              :label="t('settings.managed_tools.activate')"
+              :disabled="!enabled || busy !== null || chosen[tool.name] === tool.active_version"
+              @click="activate(tool)"
+            />
+          </UFieldGroup>
           <UButton
             size="xs"
             variant="ghost"

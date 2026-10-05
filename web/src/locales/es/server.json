@@ -1167,7 +1167,14 @@
     "sftp.no_username": "El acceso SFTP guardado no indica ningún usuario; introduce un nombre de usuario",
     "hotfolder.protected_directory": "Una carpeta vigilada no puede ser, contener ni estar dentro de un directorio desde el que el servicio ejecuta programas, scripts o plugins o en el que guarda sus datos ({directory}).",
     "usenet.declared_size_implausible": "Los artículos anuncian un archivo de {declared} bytes, mucho más que los {listed} bytes que indica el NZB; el archivo no se ensambló",
-    "usenet.gap_fill_no_space": "No hay espacio libre suficiente para rellenar los huecos de los artículos que faltan (se necesitan {required} bytes incluida la reserva, {free} libres); se reintentará más tarde"
+    "usenet.gap_fill_no_space": "No hay espacio libre suficiente para rellenar los huecos de los artículos que faltan (se necesitan {required} bytes incluida la reserva, {free} libres); se reintentará más tarde",
+    "api.token_expiry_range": "Un token caduca tras 1 a {max} días, o nunca",
+    "notification.name_taken": "Ya existe un destino de notificación con este nombre",
+    "usenet.server_name_taken": "Ya existe un servidor NNTP con este nombre",
+    "bandwidth.profile_name_taken": "Ya existe un perfil de ancho de banda con este nombre",
+    "storage_root.name_or_path_taken": "Ya existe una raíz de almacenamiento con este nombre o esta carpeta",
+    "category.name_taken": "Ya existe una categoría con este nombre",
+    "hotfolder.name_or_path_taken": "Ya existe una carpeta vigilada con este nombre o esta carpeta"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

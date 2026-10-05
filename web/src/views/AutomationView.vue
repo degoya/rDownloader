@@ -207,20 +207,22 @@ function runsOf(id: string) {
 
       <FormListLayout :list-title="t('automation.list_title')" :count="store.automations.length">
         <template #form>
-          <SectionHeader
-            class="mb-3"
-            :eyebrow="t('automation.eyebrow')"
-            :title="editing ? t('automation.edit_title') : t('automation.create_title')"
-          />
-          <UAlert
-            v-if="store.error"
-            class="mb-3"
-            color="error"
-            variant="subtle"
-            :description="store.error"
-          />
-          <UCard v-if="open">
-            <form ref="formElement" data-testid="automation-form" @submit.prevent="save">
+          <!-- One card for the column, as on the other form-and-list pages: heading, refusal and
+               either the form or, with nothing open, the way in (RD-1110-17). -->
+          <UCard as="section">
+            <SectionHeader
+              class="mb-4"
+              :eyebrow="t('automation.eyebrow')"
+              :title="editing ? t('automation.edit_title') : t('automation.create_title')"
+            />
+            <UAlert
+              v-if="store.error"
+              class="mb-4"
+              color="error"
+              variant="subtle"
+              :description="store.error"
+            />
+            <form v-if="open" ref="formElement" data-testid="automation-form" @submit.prevent="save">
               <div class="grid gap-4">
                 <!-- The trigger is the automation's kind, so it comes first, before its name. -->
                 <UFormField :label="t('automation.trigger_label')" :description="t('automation.trigger_help')">
@@ -331,7 +333,7 @@ function runsOf(id: string) {
                 {{ t('automation.dry_run.heading') }}
               </h3>
               <p class="mb-2 text-xs text-muted">{{ t('automation.dry_run.help') }}</p>
-              <div class="flex flex-wrap items-end gap-2">
+              <UFieldGroup>
                 <USelectMenu
                   :model-value="dryRunPackage ?? undefined"
                   :items="packages"
@@ -339,17 +341,17 @@ function runsOf(id: string) {
                   label-key="name"
                   :aria-label="t('automation.dry_run.package')"
                   :placeholder="t('automation.dry_run.package')"
-                  class="w-64"
+                  class="w-64 max-w-full"
                   @update:model-value="(id: string | undefined) => (dryRunPackage = id ?? null)"
                 />
                 <UButton
                   icon="i-lucide-flask-conical"
                   color="neutral"
-                  variant="soft"
+                  variant="outline"
                   :label="t('automation.dry_run.run')"
                   @click="runDryRun"
                 />
-              </div>
+              </UFieldGroup>
               <ul v-if="dryRunResult" class="mt-3 space-y-1 text-sm">
                 <li v-for="match in dryRunResult" :key="match.automation_id" class="text-muted">
                   <span class="font-medium text-highlighted">
@@ -371,37 +373,38 @@ function runsOf(id: string) {
                 @cancel="cancel"
               />
             </form>
+            <!-- Nothing open: the column says what the list on the right is for, and offers the way in. -->
+            <template v-else>
+              <p class="text-sm leading-6 text-muted">{{ t('automation.pick_or_create') }}</p>
+              <UButton class="mt-3" icon="i-lucide-plus" :label="t('automation.create')" @click="startCreate" />
+            </template>
           </UCard>
-          <!-- Nothing open: the column says what the list on the right is for, and offers the way in. -->
-          <section v-else class="border border-dashed border-muted p-5">
-            <p class="text-sm leading-6 text-muted">{{ t('automation.pick_or_create') }}</p>
-            <UButton class="mt-3" icon="i-lucide-plus" :label="t('automation.create')" @click="startCreate" />
-          </section>
         </template>
         <template #list-actions>
           <AreaBackupButtons area="automations" @imported="store.refresh()" />
         </template>
         <template #list>
-          <div v-if="store.automations.length" class="divide-y divide-muted border border-muted">
-            <AutomationListItem
-              v-for="automation in store.automations"
-              :key="automation.id"
-              :automation="automation"
-              :editing="editing === automation.id"
-              :duplicating="duplicatingId === automation.id"
-              :runs="runsOf(automation.id)"
-              @toggle="(value: boolean) => store.setEnabled(automation.id, value)"
-              @duplicate="duplicate(automation)"
-              @versions="openVersions(automation)"
-              @edit="startEdit(automation)"
-              @remove="removeAutomation(automation)"
-            />
-          </div>
-          <DataState v-else :loading="store.loading" :empty="!store.error" :rows="2">
-            <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">
-              {{ t('automation.empty') }}
-            </p>
-          </DataState>
+          <!-- The list in a card, its empty state too, as on the subscriptions page (RD-1110-17). -->
+          <UCard v-if="store.automations.length || !store.error" as="section" :ui="{ body: 'p-0 sm:p-0' }">
+            <div v-if="store.automations.length" class="divide-y divide-muted">
+              <AutomationListItem
+                v-for="automation in store.automations"
+                :key="automation.id"
+                :automation="automation"
+                :editing="editing === automation.id"
+                :duplicating="duplicatingId === automation.id"
+                :runs="runsOf(automation.id)"
+                @toggle="(value: boolean) => store.setEnabled(automation.id, value)"
+                @duplicate="duplicate(automation)"
+                @versions="openVersions(automation)"
+                @edit="startEdit(automation)"
+                @remove="removeAutomation(automation)"
+              />
+            </div>
+            <DataState v-else class="p-4 sm:p-6" variant="inline" :loading="store.loading" empty :rows="2">
+              <UEmpty :description="t('automation.empty')" />
+            </DataState>
+          </UCard>
         </template>
       </FormListLayout>
     </template>

@@ -272,7 +272,7 @@ pub(crate) async fn stage(
     };
     if let Err(error) = staged {
         restore_checks::forget_minted(state, &checked.minted).await;
-        if let Err(cleanup) = std::fs::remove_dir_all(&checked.work) {
+        if let Err(cleanup) = tokio::fs::remove_dir_all(&checked.work).await {
             tracing::warn!(%cleanup, "a refused restore's work folder could not be removed");
         }
         return Err(ApiError::conflict(

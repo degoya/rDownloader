@@ -458,7 +458,8 @@ function proxyName(id: string | null | undefined): string {
               <UCollapsible class="mt-2" @update:open="(open: boolean) => open && loadHosters(account.id)">
                 <UButton size="xs" color="neutral" variant="ghost" class="w-full justify-between" icon="i-lucide-list-checks" :label="t('network.hosters.toggle')" trailing-icon="i-lucide-chevron-down" />
                 <template #content>
-                  <div class="border-t border-muted pt-2">
+                  <USeparator class="mb-2" />
+                  <div>
                     <p class="mb-2 text-xs leading-5 text-muted">{{ t('network.hosters.description') }}</p>
                     <UInput v-model="hosterFilter" icon="i-lucide-search" size="sm" :placeholder="t('network.hosters.filter_placeholder')" class="mb-2 w-full" />
                     <p v-if="hostersLoadingId === account.id" class="text-xs text-muted">{{ t('network.hosters.loading') }}</p>
@@ -471,7 +472,7 @@ function proxyName(id: string | null | undefined): string {
               </UCollapsible>
             </div>
             <DataState :loading="loading" :error="loadError" :empty="!accounts.length">
-              <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">{{ t('network.account.empty') }}</p>
+              <UEmpty :description="t('network.account.empty')" />
             </DataState>
           </div>
         </template>

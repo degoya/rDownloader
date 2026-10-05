@@ -11,12 +11,5 @@ plugin-guest-crawler = { path = "../guest-crawler" }
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[package.metadata.component]
-package = "rdownloader:peeplink-crawler"
-
-[package.metadata.component.target]
-path = "../../crates/rd-plugin-api/wit"
-world = "crawler-plugin"
-
 [lints]
 workspace = true

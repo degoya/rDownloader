@@ -92,7 +92,7 @@ describe('SettingsOidcCard', () => {
   it('shows the redirect URI, or says that the external URL is missing', async () => {
     vi.mocked(api.GET).mockResolvedValueOnce(settings() as never)
     mount()
-    await waitFor(() => screen.getByText(REDIRECT))
+    await waitFor(() => screen.getByDisplayValue(REDIRECT))
 
     cleanup()
     vi.mocked(api.GET).mockResolvedValueOnce(settings({ redirect_uri: null }) as never)

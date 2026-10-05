@@ -459,7 +459,7 @@ describe('SubscriptionsView, a git-release subscription', () => {
   it('sends the release choices and the token, and asks for a quarter of an hour at least', async () => {
     const form = await releaseForm()
     expect(screen.getByText(subscriptions.form.git_token)).toBeTruthy()
-    expect((form.querySelector('input[type="number"]') as HTMLInputElement).min).toBe('15')
+    expect((form.querySelector('input[role="spinbutton"]') as HTMLInputElement).min).toBe('15')
     await fireEvent.update(screen.getByTestId('subscription-name'), 'Tool')
     await fireEvent.update(screen.getByTestId('subscription-url'), 'https://github.com/example/tool')
     await fireEvent.update(screen.getByTestId('subscription-git-patterns'), ' *.AppImage, , *linux* ')

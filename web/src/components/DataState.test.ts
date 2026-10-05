@@ -10,14 +10,14 @@ import { render, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
 import { h } from 'vue'
 
-import { createTestI18n } from '@/test/mount'
+import { createTestI18n, uiStubs } from '@/test/mount'
 
 import DataState from './DataState.vue'
 
-function mount(props: Record<string, unknown>) {
+function mount(props: Record<string, unknown>, stubs: Record<string, unknown> = uiStubs) {
   return render(DataState, {
     props,
-    global: { plugins: [createTestI18n()] },
+    global: { plugins: [createTestI18n()], stubs: stubs as never },
     slots: { default: () => h('p', 'No accounts yet') }
   })
 }
@@ -49,7 +49,7 @@ describe('DataState', () => {
     const { container } = render(DataState, {
       props: { loading: false, empty: true },
       attrs: { class: 'p-5' },
-      global: { plugins: [createTestI18n()] },
+      global: { plugins: [createTestI18n()], stubs: uiStubs as never },
       slots: { default: () => h('p', 'No accounts yet') }
     })
 
@@ -60,5 +60,32 @@ describe('DataState', () => {
     const { container } = mount({ loading: false, empty: false })
 
     expect(container.textContent).toBe('')
+  })
+
+  // UAlert and UEmpty set no role of their own; the states keep the ones they announced with (RD-1110-11).
+  it('draws a failure in a panel as an error notice that keeps its alert role', () => {
+    const alert = { props: ['color', 'description'], template: '<div v-bind="$attrs" data-notice :data-color="color">{{ description }}</div>' }
+    mount({ loading: false, error: 'The service did not answer' }, { ...uiStubs, UAlert: alert })
+
+    const shown = screen.getByRole('alert')
+    expect(shown.hasAttribute('data-notice')).toBe(true)
+    expect(shown.getAttribute('data-color')).toBe('error')
+    expect(shown.textContent).toContain('The service did not answer')
+  })
+
+  it('keeps an inline failure a line of text with its alert role', () => {
+    mount({ loading: false, error: 'The service did not answer', variant: 'inline' })
+
+    expect(screen.getByRole('alert').tagName).toBe('P')
+  })
+
+  it('frames the loading panel as an empty state that keeps its status role', () => {
+    const empty = { template: '<div v-bind="$attrs" data-empty><slot name="body" /><slot name="footer" /></div>' }
+    mount({ loading: true }, { ...uiStubs, UEmpty: empty })
+
+    const shown = screen.getByRole('status')
+    expect(shown.hasAttribute('data-empty')).toBe(true)
+    expect(shown.getAttribute('aria-live')).toBe('polite')
+    expect(shown.textContent).toContain('Loading')
   })
 })

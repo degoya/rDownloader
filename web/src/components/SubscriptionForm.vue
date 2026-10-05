@@ -25,6 +25,7 @@ import { translateServerMessage } from '@/i18n/server'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 import { NO_INDEXER, maxAgeDays, queryProblem } from '@/utils/indexerSearch'
+import { WHOLE } from '@/utils/numberInput'
 import { argumentsProblem, splitArguments } from '@/utils/scriptArguments'
 import { emptyForm, fillForm, formBody, NONE, type SubscriptionFormFields } from '@/utils/subscriptionForm'
 import { CARD_RATIOS, DEFAULT_CARD_RATIO } from '@/utils/subscriptionHit'
@@ -139,7 +140,7 @@ const categoryItems = computed(() => [
 /** Whether the search fields hold something the server would refuse; the fields say what. */
 const searchInvalid = computed(() => form.kind === 'indexer' && (
   queryProblem(form.search.query) !== null ||
-  (String(form.search.maxAge).trim() !== '' && maxAgeDays(form.search.maxAge) === null)
+  (form.search.maxAge != null && maxAgeDays(form.search.maxAge) === null)
 ))
 
 /** Taking a defined indexer over lets the address and the key fields stay empty. */
@@ -326,7 +327,7 @@ defineExpose({ edit, reset })
         <USelect v-model="form.categoryId" class="w-full" :items="categoryItems" value-key="value" />
       </UFormField>
       <UFormField :label="t('subscriptions.form.interval')">
-        <UInput v-model.number="form.intervalMinutes" class="w-full" type="number" :min="minimumMinutes" step="5" />
+        <UInputNumber v-model="form.intervalMinutes" required class="w-full" :min="minimumMinutes" :step="5" :format-options="WHOLE" />
       </UFormField>
       <UFormField
         v-if="form.kind === 'site_rule'"

@@ -16,6 +16,7 @@ import { useStreamsStore } from '@/stores/streams'
 import { streamQualityItems } from '@/utils/streamQuality'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
 import { formatMoment } from '@/utils/format'
+import { WHOLE } from '@/utils/numberInput'
 
 const { t } = useI18n()
 // Shared with the nav badge, so every add/remove here keeps the sidebar count in sync.
@@ -246,11 +247,12 @@ const {
                 <UFormField :label="t('streams.recording.split')" :description="t('streams.recording.split_hint')">
                   <div class="flex gap-2">
                     <USelect v-model="form.splitMode" :items="splitItems" value-key="value" class="grow" />
-                    <UInput
+                    <UInputNumber
                       v-if="form.splitMode !== 'none'"
-                      v-model.number="form.splitValue"
-                      type="number"
-                      min="1"
+                      v-model="form.splitValue"
+                      required
+                      :min="1"
+                      :format-options="WHOLE"
                       class="w-28"
                     />
                   </div>
@@ -265,7 +267,7 @@ const {
                   </div>
                 </UFormField>
                 <UFormField :label="t('streams.recording.reconnect')" :description="t('streams.recording.reconnect_hint')">
-                  <UInput v-model.number="form.reconnectDelay" type="number" min="0" max="600" class="w-full" />
+                  <UInputNumber v-model="form.reconnectDelay" required :min="0" :max="600" :format-options="WHOLE" class="w-full" />
                 </UFormField>
                 <UFormField :label="t('streams.form.enabled_label')" :description="t('streams.form.enabled_description')" orientation="horizontal">
                   <USwitch v-model="form.enabled" />
@@ -295,7 +297,7 @@ const {
                     <span v-if="channel.last_error" class="text-warning" :title="channel.last_error">{{ t('streams.probe_error') }}</span>
                   </div>
                 </div>
-                <p v-if="!channels.length && !loading" class="border border-dashed border-muted p-5 text-center text-sm text-muted">{{ t('streams.empty') }}</p>
+                <UEmpty v-if="!channels.length && !loading" :description="t('streams.empty')" />
               </div>
             </template>
           </FormListLayout>
@@ -311,9 +313,7 @@ const {
           -->
           <template v-if="!channels.length">
             <SectionHeader :eyebrow="t('streams.schedules.eyebrow')" :title="t('streams.schedules.title')" :description="t('streams.schedules.hint')" class="mb-4" />
-            <p class="border border-dashed border-muted p-5 text-center text-sm text-muted">
-              {{ t('streams.schedules.needs_channel') }}
-            </p>
+            <UEmpty :description="t('streams.schedules.needs_channel')" />
           </template>
 
           <FormListLayout v-else :list-title="t('streams.schedules.title')" :count="schedules.length">
@@ -340,13 +340,13 @@ const {
                   <TimezoneSelect v-model="schedule.timezone" :aria-label="t('streams.schedules.timezone')" />
                 </UFormField>
                 <UFormField :label="t('streams.schedules.window')">
-                  <UInput v-model.number="schedule.windowMinutes" type="number" min="1" class="w-full" />
+                  <UInputNumber v-model="schedule.windowMinutes" required :min="1" :format-options="WHOLE" class="w-full" />
                 </UFormField>
                 <UFormField :label="t('streams.schedules.lead')" :description="t('streams.schedules.roll_hint')">
-                  <UInput v-model.number="schedule.leadMinutes" type="number" min="0" max="120" class="w-full" />
+                  <UInputNumber v-model="schedule.leadMinutes" required :min="0" :max="120" :format-options="WHOLE" class="w-full" />
                 </UFormField>
                 <UFormField :label="t('streams.schedules.trail')">
-                  <UInput v-model.number="schedule.trailMinutes" type="number" min="0" max="120" class="w-full" />
+                  <UInputNumber v-model="schedule.trailMinutes" required :min="0" :max="120" :format-options="WHOLE" class="w-full" />
                 </UFormField>
                 <UFormField :label="t('streams.schedules.replay')" :description="t('streams.schedules.replay_hint')" orientation="horizontal">
                   <USwitch v-model="schedule.replayFromStart" />
@@ -361,9 +361,7 @@ const {
             </template>
             <template #list>
               <div class="grid gap-2">
-                <p v-if="!schedules.length" class="border border-dashed border-muted p-5 text-center text-sm text-muted">
-                  {{ t('streams.schedules.empty') }}
-                </p>
+                <UEmpty v-if="!schedules.length" :description="t('streams.schedules.empty')" />
                 <div v-for="entry in schedules" :key="entry.id" class="border p-3" :class="schedule.id === entry.id ? 'border-primary' : 'border-muted'" data-testid="schedule-row">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium">{{ entry.name }}</span>

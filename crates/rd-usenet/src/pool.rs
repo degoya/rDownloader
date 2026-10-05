@@ -39,9 +39,11 @@ pub const PIPELINE_DEPTH: usize = 2;
 /// checksum does not match.
 const ARTICLE_ATTEMPTS: usize = 3;
 
-/// The first wait after a transient answer; it doubles per attempt up to [`MAX_BACKOFF`].
-const BACKOFF: Duration = Duration::from_millis(250);
-const MAX_BACKOFF: Duration = Duration::from_secs(2);
+/// The first wait after a transient answer, in milliseconds; it doubles per attempt up to
+/// [`MAX_BACKOFF_MS`].
+const BACKOFF_MS: u64 = 250;
+/// The longest wait between attempts, in milliseconds.
+const MAX_BACKOFF_MS: u64 = 2_000;
 
 /// Passes through the request loop that cost no attempt: the confirmation read a refusal
 /// needs (RD-108-27) and a line that lost its answer to an earlier request. Bounded as well,
@@ -503,10 +505,14 @@ impl ServerPool {
     }
 }
 
-/// The wait before attempt `attempt + 1`, doubling and capped.
+/// The wait before attempt `attempt + 1`, doubling and capped: `rd_core`'s one backoff.
 fn backoff(attempt: usize) -> Duration {
-    let doubled = BACKOFF.saturating_mul(1_u32 << attempt.min(8));
-    doubled.min(MAX_BACKOFF)
+    let attempt = u32::try_from(attempt).unwrap_or(u32::MAX);
+    Duration::from_millis(rd_core::exponential_backoff(
+        attempt,
+        BACKOFF_MS,
+        MAX_BACKOFF_MS,
+    ))
 }
 
 fn endpoint(config: &NntpServerConfig) -> String {

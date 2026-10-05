@@ -32,23 +32,21 @@ jobs:
         uses: ./.github/actions/free-runner-disk
       - uses: ./.github/actions/setup-rust
         with:
-          targets: wasm32-unknown-unknown,wasm32-wasip1
+          targets: wasm32-unknown-unknown
       # Saved from main only, as in `rust`.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      # Prebuilt, through cargo-binstall like sqlx-cli in ci.yml's `rust` job.
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: cargo-component@0.21.1
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: nextest@0.9.146
+      # Makes each core module a component (RD-1110-08) and reads its imports; the version
+      # scripts/build-plugins.sh requires (WASM_TOOLS_VERSION in scripts/lib/plugin-stamp.sh).
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: wasm-tools@1.261.0
       # Components are built only when their content changed (RD-150-10). The key is what goes
-      # into a component: toolchain, cargo-component, the registry half of Cargo.lock and the root
+      # into a component: toolchain, wasm-tools, the registry half of Cargo.lock and the root
       # Cargo.toml (`deps`), and every plugin's source hash (`sources`); a miss on `sources`
       # restores the newest set with the same `deps`, and the build below rebuilds only what its
       # stamps call stale or missing. release.yml reads the same cache, as it is left on `main`.
@@ -61,15 +59,15 @@ jobs:
           path: |
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
-          key: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
-          restore-keys: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
+          key: components-1.99.0-wt1.261.0-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
+          restore-keys: components-1.99.0-wt1.261.0-${{ steps.component-key.outputs.deps }}-
       - name: Collect the bundled plugins
         id: plugins
         shell: bash
         run: scripts/ci-plugins.sh list --examples
       - name: Build plugin components
         shell: bash
-        # Through the script, not a bare `cargo component build`: it stamps each component with
+        # Through the script, not a bare `cargo build`: it makes and stamps each component with
         # the hash of its sources (RD-120-58), and the contract tests below refuse a component
         # without a stamp as stale. It also runs the import check on each one. Without names it
         # builds what is missing or stale — after a cache hit, only what changed.

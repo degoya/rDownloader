@@ -254,8 +254,15 @@ async fn run_apprise(
     if output.status.success() {
         return Ok(Attempt::ok(None));
     }
-    // apprise names a URL it cannot parse in full ("Unparseable URL tgram://…"), token and all.
-    let text = String::from_utf8_lossy(&output.stderr)
+    // apprise prints most of its errors on stdout, so both streams are kept, stderr first;
+    // `Attempt::failed` bounds the excerpt. It names a URL it cannot parse in full
+    // ("Unparseable URL tgram://…"), token and all.
+    let text = [&output.stderr, &output.stdout]
+        .map(|stream| String::from_utf8_lossy(stream).trim().to_owned())
+        .into_iter()
+        .filter(|stream| !stream.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
         .replace(secret.expose_secret(), rd_core::REDACTION_PLACEHOLDER);
     // A wrong token looks the same as a service outage from here, so apprise failures are
     // always retried and give up through the attempt limit instead.
@@ -444,6 +451,36 @@ mod tests {
         assert!(!attempt.ok);
         let excerpt = attempt.excerpt.expect("stderr kept");
         assert!(excerpt.contains("Unparseable URL"), "{excerpt}");
+        assert!(!excerpt.contains("sekrit"), "{excerpt}");
+    }
+
+    /// apprise reports most failures on stdout; the history keeps both streams, stderr first,
+    /// with the target URL redacted (RD-1110-16).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn an_apprise_failure_keeps_both_output_streams() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let folder = tempfile::tempdir().expect("tempdir");
+        let script = folder.path().join("apprise");
+        let body = "#!/bin/sh\necho 'ERROR - tgram://123456:sekrit/999 refused'\n\
+                    echo 'WARNING - first' >&2\nexit 1\n";
+        std::fs::write(&script, body).expect("script");
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let mut command = tokio::process::Command::new(&script);
+        command
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+        let secret = secrecy::SecretString::from("tgram://123456:sekrit/999");
+        let attempt = super::run_apprise(command, &secret, std::time::Duration::from_secs(20))
+            .await
+            .expect("attempt");
+        assert!(!attempt.ok && attempt.retryable, "{attempt:?}");
+        let excerpt = attempt.excerpt.expect("output kept");
+        let stderr = excerpt.find("WARNING - first").expect("stderr kept");
+        let stdout = excerpt.find("refused").expect("stdout kept");
+        assert!(stderr < stdout, "{excerpt}");
         assert!(!excerpt.contains("sekrit"), "{excerpt}");
     }
 

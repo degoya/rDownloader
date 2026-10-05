@@ -68,7 +68,7 @@ export function emptyForm(): SubscriptionFormFields {
     script: '',
     scriptArguments: '',
     indexerId: NO_INDEXER,
-    search: { query: '', maxAge: '', hidePassworded: false, pretime: 'none' },
+    search: { query: '', maxAge: null, hidePassworded: false, pretime: 'none' },
     gitRelease: emptyGitRelease()
   }
 }
@@ -171,7 +171,7 @@ export function fillForm(form: SubscriptionFormFields, subscription: Subscriptio
   const search = subscription.indexer_search
   form.search = {
     query: search?.query ?? '',
-    maxAge: search?.max_age_days ?? '',
+    maxAge: search?.max_age_days ?? null,
     hidePassworded: search?.hide_passworded ?? false,
     pretime: search?.pretime === 0 || search?.pretime === 1 || search?.pretime === 2 ? String(search.pretime) as '0' | '1' | '2' : 'none'
   }

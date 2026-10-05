@@ -34,7 +34,7 @@
 //! keeps is that nobody has to guess, and that nothing at the provider is deleted to express a
 //! choice.
 
-use plugin_common::HttpRefusal;
+use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
 
 use crate::messages;
@@ -254,26 +254,6 @@ pub fn cancel_body(remote_id: &str) -> Vec<u8> {
     format!("transfer_ids={remote_id}").into_bytes()
 }
 
-/// How a refusal is classified, without depending on either failure representation.
-#[derive(Debug, Eq, PartialEq)]
-pub enum ErrorKind {
-    Transient(Option<u64>),
-    Permanent,
-    Offline,
-    AccountInvalid,
-    RateLimited(Option<u64>),
-    Unsupported,
-}
-
-/// A classified refusal.
-#[derive(Debug)]
-pub struct ApiFailure {
-    pub kind: ErrorKind,
-    pub code: &'static str,
-    pub message: String,
-    pub params: Vec<(&'static str, String)>,
-}
-
 /// How long a provider-side outage is waited out.
 const BUSY_SECONDS: u64 = 300;
 
@@ -284,14 +264,22 @@ const RATE_LIMIT_SECONDS: u64 = 60;
 /// timestamp, so a clock that disagrees with Put.io's could otherwise park a job for days.
 const MAX_RATE_LIMIT_SECONDS: u64 = 3600;
 
-fn failure(kind: ErrorKind, (code, message): (&'static str, &str)) -> ApiFailure {
-    ApiFailure {
-        kind,
-        code,
-        message: message.to_owned(),
-        params: Vec::new(),
-    }
-}
+/// How Put.io's codes name an HTTP status no document in the answer explains: the classes
+/// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
+/// or a `5xx` carries the response's `Retry-After` into the wait.
+pub const HTTP: HttpWords = HttpWords {
+    unauthorized: messages::AUTH_INVALID,
+    gone: messages::TRANSFER_GONE,
+    unavailable: messages::TRANSFER_GONE,
+    rate_limited: messages::RATE_LIMITED,
+    server_error: messages::SERVER_ERROR,
+    rate_limited_wait: Some(RATE_LIMIT_SECONDS),
+    server_error_wait: Some(BUSY_SECONDS),
+    other: HttpError {
+        code: messages::HTTP_ERROR.0,
+        text: messages::http_error,
+    },
+};
 
 /// The refusal an answer describes, or `None` when it describes none.
 ///
@@ -308,9 +296,9 @@ pub fn failure_from(
     }
     let word = envelope.kind();
     let mut refusal = classify(status, reset_in_seconds, word.as_deref());
-    if let Some(word) = word {
-        refusal.params.push(("reason", word));
-    }
+    // The word, when Put.io stated one, and nothing else: this plugin's `http_error` has never
+    // carried the `status` parameter (RD-1110-02 keeps that).
+    refusal.params = word.map(|word| vec![("reason", word)]).unwrap_or_default();
     Some(refusal)
 }
 
@@ -322,42 +310,24 @@ pub fn failure_from(
 /// in again", "this will never work" and "make room and try again".
 fn classify(status: u16, reset_in_seconds: Option<u64>, word: Option<&str>) -> ApiFailure {
     if matches!(word, Some("DISK_QUOTA_EXCEEDED" | "ACCOUNT_DISK_FULL")) {
-        return failure(ErrorKind::Permanent, messages::DISK_FULL);
+        return ApiFailure::new(ErrorKind::Permanent, messages::DISK_FULL);
     }
     let token_refused = matches!(
         word,
         Some("INVALID_TOKEN" | "INVALID_GRANT" | "UNAUTHORIZED")
     );
     match status {
-        403 if token_refused => failure(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        403 => failure(ErrorKind::Unsupported, messages::NOT_PERMITTED),
+        403 if token_refused => ApiFailure::new(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
+        403 => ApiFailure::new(ErrorKind::Unsupported, messages::NOT_PERMITTED),
         status if (200..=299).contains(&status) => {
-            failure(ErrorKind::Permanent, messages::API_ERROR)
+            ApiFailure::new(ErrorKind::Permanent, messages::API_ERROR)
         }
         // Everything else is the mapping every plugin shares (RD-191-07); what stays here is
         // this provider's words and its defaults.
-        _ => match plugin_common::http_status(status, reset_in_seconds) {
-            Ok(()) => failure(ErrorKind::Permanent, messages::API_ERROR),
-            Err(HttpRefusal::Unauthorized) => {
-                failure(ErrorKind::AccountInvalid, messages::AUTH_INVALID)
-            }
-            Err(HttpRefusal::Gone) => failure(ErrorKind::Permanent, messages::TRANSFER_GONE),
-            Err(HttpRefusal::Unavailable) => failure(ErrorKind::Offline, messages::TRANSFER_GONE),
-            Err(HttpRefusal::RateLimited(wait)) => failure(
-                ErrorKind::RateLimited(Some(wait.unwrap_or(RATE_LIMIT_SECONDS))),
-                messages::RATE_LIMITED,
-            ),
-            Err(HttpRefusal::ServerError(wait)) => failure(
-                ErrorKind::Transient(Some(wait.unwrap_or(BUSY_SECONDS))),
-                messages::SERVER_ERROR,
-            ),
-            Err(HttpRefusal::Other(other)) => ApiFailure {
-                kind: ErrorKind::Permanent,
-                code: messages::HTTP_ERROR.0,
-                message: messages::http_error(other),
-                params: Vec::new(),
-            },
-        },
+        _ => HTTP
+            .ensure_http_status(status, reset_in_seconds)
+            .err()
+            .unwrap_or_else(|| ApiFailure::new(ErrorKind::Permanent, messages::API_ERROR)),
     }
 }
 

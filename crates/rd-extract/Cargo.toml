@@ -29,6 +29,8 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+# The tests stand up a file vault through rd-db's test hooks (RD-1110-06, Q8).
+rd-db = { path = "../rd-db", features = ["test-support"] }
 chrono.workspace = true
 crc32fast.workspace = true
 tempfile.workspace = true

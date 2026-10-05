@@ -93,7 +93,8 @@ async function submit(): Promise<void> {
       />
     </form>
 
-    <div class="mt-4 space-y-2 border-t border-muted pt-4">
+    <USeparator class="my-4" />
+    <div class="space-y-2">
       <p class="text-xs text-muted">{{ t('system.password.sessions_hint') }}</p>
       <p class="text-xs text-muted">{{ t('system.password.tokens_hint') }}</p>
     </div>

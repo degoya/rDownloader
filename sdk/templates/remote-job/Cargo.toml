@@ -16,10 +16,3 @@ wit-bindgen = "0.62"
 # the unit tests in `src/digest.rs`, `src/source.rs` and `src/reply.rs` without a WebAssembly
 # toolchain.
 crate-type = ["cdylib", "rlib"]
-
-[package.metadata.component]
-package = "{{PLUGIN_SLUG}}:remote-job"
-
-[package.metadata.component.target]
-path = "wit"
-world = "remote-job-plugin"

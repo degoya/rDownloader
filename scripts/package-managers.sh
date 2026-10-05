@@ -121,8 +121,8 @@ values=(
     "TAP=${owner}/homebrew-rdownloader"
     "BUCKET=${owner}/scoop-rdownloader"
     "PKGVER=${version//-/_}"
-    "SHA256_AUR_SERVICE=$(file_sha256 "$ROOT/packaging/aur/rdownloader.service")"
-    "SHA256_AUR_CAPTURE_SERVICE=$(file_sha256 "$ROOT/packaging/aur/rdownloader-capture.service")"
+    "SHA256_AUR_SERVICE=$(file_sha256 "$ROOT/packaging/systemd/rdownloader.service")"
+    "SHA256_AUR_CAPTURE_SERVICE=$(file_sha256 "$ROOT/packaging/systemd/rdownloader-capture.service")"
 )
 # One placeholder per archive the formulas and the manifest install.
 missing=0
@@ -174,6 +174,7 @@ for manifest in degoya.rDownloader.yaml degoya.rDownloader.installer.yaml \
 done
 render "$ROOT/packaging/aur/PKGBUILD.in" "$outdir/aur/PKGBUILD"
 render "$ROOT/packaging/aur/SRCINFO.in" "$outdir/aur/.SRCINFO"
-cp "$ROOT/packaging/aur/rdownloader.service" "$ROOT/packaging/aur/rdownloader-capture.service" \
+# The user units are the deb's and rpm's (packaging/systemd/, RD-1110-07): one source, no AUR copy.
+cp "$ROOT/packaging/systemd/rdownloader.service" "$ROOT/packaging/systemd/rdownloader-capture.service" \
     "$outdir/aur/"
 echo "wrote $outdir/aur/rdownloader.service and rdownloader-capture.service"

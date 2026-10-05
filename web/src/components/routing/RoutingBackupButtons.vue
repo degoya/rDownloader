@@ -6,12 +6,14 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { RoutingBundle } from '@/api/types'
 import { useConfirm } from '@/composables/useConfirm'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { JsonRefusal, useJsonImport } from '@/composables/useJsonImport'
 import { downloadJson } from '@/utils/jsonFile'
 
 const emit = defineEmits<{ imported: [] }>()
 const { t } = useI18n()
 const toast = useToast()
+const showError = useErrorToast()
 const confirm = useConfirm()
 const exporting = ref(false)
 const importing = ref(false)
@@ -36,11 +38,11 @@ async function exportRouting(part: ExportPart): Promise<void> {
 }
 
 function fail(message: string): void {
-  toast.add({ title: message, color: 'error', icon: 'i-lucide-circle-alert' })
+  showError(message)
 }
 
 /** The same import as `AreaBackupButtons`, in the routing bundle's own format (WEB-09). */
-const { fileInput, choose: chooseFile, select: selectFile } = useJsonImport<RoutingBundle>({
+const { select: selectFile } = useJsonImport<RoutingBundle>({
   check: parsed => isRoutingBundle(parsed) ? parsed : new JsonRefusal(t('routing.backup.invalid_file')),
   unreadable: () => t('routing.backup.invalid_file'),
   refuse: fail,
@@ -85,10 +87,11 @@ function isRoutingBundle(value: unknown): value is RoutingBundle {
 
 <template>
   <div class="flex items-center gap-2">
-    <input ref="fileInput" hidden type="file" accept=".json,application/json" @change="selectFile">
     <UDropdownMenu :items="exportItems">
       <UButton icon="i-lucide-download" trailing-icon="i-lucide-chevron-down" :label="t('routing.backup.export')" color="neutral" variant="outline" size="sm" :loading="exporting" />
     </UDropdownMenu>
-    <UButton icon="i-lucide-file-up" :label="t('routing.backup.import')" color="neutral" variant="outline" size="sm" :loading="importing" @click="chooseFile" />
+    <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">
+      <UButton icon="i-lucide-file-up" :label="t('routing.backup.import')" color="neutral" variant="outline" size="sm" :loading="importing" @click="open()" />
+    </UFileUpload>
   </div>
 </template>

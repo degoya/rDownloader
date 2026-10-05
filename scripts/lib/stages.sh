@@ -11,9 +11,10 @@
 # non-zero after its last stage, with the list, and records no green. Until 1.10 the first red
 # test ended a --full run, and every further failure cost another round of 10 to 16 minutes.
 #
-# Not every stage goes through it: the gates that make the rest meaningless (the rd-api test map,
-# components that do not build) and the script checks, which take seconds and come first, still
-# stop the run at once.
+# Not every stage goes through it: only the gates that make the rest meaningless still stop the
+# run at once — the rd-api test map and the Rust test inputs map, and components that do not
+# build. The script checks collect like every other stage since RD-1110-15: each lint command and
+# each script test is a stage of its own.
 #
 # Expects from the caller: CHECK_LOGS (a directory) and RUN_KIND (branch, full, windows, gate),
 # set before rd_stages_init.

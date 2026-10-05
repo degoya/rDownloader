@@ -176,6 +176,19 @@ impl NativeHost {
         self.own = own;
         self
     }
+
+    /// Removes a vault entry no row references any more. A failure is logged, not returned: the
+    /// sweep at the next start removes every entry no cell names (`Database::sweep_vault`,
+    /// RD-1110-06), this one included.
+    pub(super) async fn drop_secret(&self, reference: &str) {
+        if let Err(error) = self.secrets.remove(reference).await {
+            tracing::warn!(
+                %error,
+                reference,
+                "an unreferenced vault entry stays until the sweep at the next start"
+            );
+        }
+    }
 }
 
 /// The two time limits of one exchange.

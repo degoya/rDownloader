@@ -155,48 +155,59 @@ onMounted(() => {
         </p>
       </div>
 
-      <DataState :loading="store.loading" :error="store.error" :empty="store.settled && store.records.length === 0" :rows="6">
-        <p class="text-sm text-muted">{{ t('audit.list.empty') }}</p>
-      </DataState>
-
-      <ul v-if="store.records.length" class="divide-y divide-muted border border-muted bg-default" data-testid="audit-list">
-        <li v-for="record in store.records" :key="record.id" class="px-3 py-2">
-          <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
-            <span class="numeric shrink-0 text-xs text-muted">{{ formatMoment(record.recorded_at) }}</span>
-            <UBadge :color="outcomeColor(record.outcome)" variant="subtle" size="sm">{{ t(`audit.outcomes.${record.outcome}`) }}</UBadge>
-            <span class="min-w-0 flex-1 break-words text-sm text-highlighted">{{ actionLabel(record.action) }}</span>
-            <span class="shrink-0 text-xs text-muted">
-              {{ t(`audit.actors.${record.actor_kind}`) }}<template v-if="record.actor_label"> · {{ record.actor_label }}</template>
-            </span>
-            <span v-if="targetOf(record)" class="numeric shrink-0 text-xs text-muted">{{ targetOf(record) }}</span>
-            <span v-if="record.client_address" class="numeric shrink-0 text-xs text-muted">{{ record.client_address }}</span>
-            <UButton
-              v-if="hasDetails(record) || record.trace_id"
-              size="xs"
-              variant="ghost"
-              color="neutral"
-              :icon="expanded.has(record.id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-              :aria-expanded="expanded.has(record.id)"
-              :aria-label="expanded.has(record.id) ? t('audit.list.collapse') : t('audit.list.expand')"
-              @click="toggle(record.id)"
-            />
-          </div>
-          <dl v-if="expanded.has(record.id)" class="mt-2 grid gap-x-4 gap-y-1 pl-1 text-xs sm:grid-cols-2">
-            <div v-if="record.trace_id" class="flex gap-2">
-              <dt class="shrink-0 font-medium text-muted">{{ t('audit.filters.trace') }}</dt>
-              <dd class="numeric min-w-0 break-all text-highlighted">{{ record.trace_id }}</dd>
+      <!-- The entries in a card of their own, under their heading, as on the other list pages (RD-1110-17). -->
+      <UCard as="section" :ui="{ body: 'p-0 sm:p-0' }">
+        <DataState class="p-4 sm:p-6" variant="inline" :loading="store.loading" :error="store.error" :empty="store.settled && store.records.length === 0" :rows="6">
+          <p class="text-sm text-muted">{{ t('audit.list.empty') }}</p>
+        </DataState>
+        <ul v-if="store.records.length" class="divide-y divide-muted" data-testid="audit-list">
+          <li v-for="record in store.records" :key="record.id" class="px-3 py-2">
+            <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
+              <span class="numeric shrink-0 text-xs text-muted">{{ formatMoment(record.recorded_at) }}</span>
+              <UBadge :color="outcomeColor(record.outcome)" variant="subtle" size="sm">{{ t(`audit.outcomes.${record.outcome}`) }}</UBadge>
+              <span class="min-w-0 flex-1 break-words text-sm text-highlighted">{{ actionLabel(record.action) }}</span>
+              <span class="shrink-0 text-xs text-muted">
+                {{ t(`audit.actors.${record.actor_kind}`) }}<template v-if="record.actor_label"> · {{ record.actor_label }}</template>
+              </span>
+              <span v-if="targetOf(record)" class="numeric shrink-0 text-xs text-muted">{{ targetOf(record) }}</span>
+              <span v-if="record.client_address" class="numeric shrink-0 text-xs text-muted">{{ record.client_address }}</span>
+              <!-- The trigger keeps its place in the row; the details are the row's last line (`design.md`, *Opening and closing*). -->
+              <UCollapsible
+                v-if="hasDetails(record) || record.trace_id"
+                class="contents"
+                :open="expanded.has(record.id)"
+                :ui="{ content: 'basis-full' }"
+                @update:open="toggle(record.id)"
+              >
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  :icon="expanded.has(record.id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                  :aria-expanded="expanded.has(record.id)"
+                  :aria-label="expanded.has(record.id) ? t('audit.list.collapse') : t('audit.list.expand')"
+                />
+                <template #content>
+                  <dl class="mt-1 grid gap-x-4 gap-y-1 pl-1 text-xs sm:grid-cols-2">
+                    <div v-if="record.trace_id" class="flex gap-2">
+                      <dt class="shrink-0 font-medium text-muted">{{ t('audit.filters.trace') }}</dt>
+                      <dd class="numeric min-w-0 break-all text-highlighted">{{ record.trace_id }}</dd>
+                    </div>
+                    <div v-if="record.actor_id" class="flex gap-2">
+                      <dt class="shrink-0 font-medium text-muted">{{ t('audit.list.actor_id') }}</dt>
+                      <dd class="numeric min-w-0 break-all text-highlighted">{{ record.actor_id }}</dd>
+                    </div>
+                    <div v-for="(value, key) in record.details" :key="key" class="flex gap-2">
+                      <dt class="shrink-0 font-medium text-muted">{{ key }}</dt>
+                      <dd class="min-w-0 break-words text-highlighted">{{ value }}</dd>
+                    </div>
+                  </dl>
+                </template>
+              </UCollapsible>
             </div>
-            <div v-if="record.actor_id" class="flex gap-2">
-              <dt class="shrink-0 font-medium text-muted">{{ t('audit.list.actor_id') }}</dt>
-              <dd class="numeric min-w-0 break-all text-highlighted">{{ record.actor_id }}</dd>
-            </div>
-            <div v-for="(value, key) in record.details" :key="key" class="flex gap-2">
-              <dt class="shrink-0 font-medium text-muted">{{ key }}</dt>
-              <dd class="min-w-0 break-words text-highlighted">{{ value }}</dd>
-            </div>
-          </dl>
-        </li>
-      </ul>
+          </li>
+        </ul>
+      </UCard>
 
       <div v-if="store.fullPage" class="mt-3 flex items-center gap-3">
         <p class="text-xs text-muted">{{ t('audit.list.full_page') }}</p>

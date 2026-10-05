@@ -437,7 +437,10 @@
     "warning_no_proxies": "An external URL is set but no trusted proxy is. Every request will then look as though it came from the proxy: rate limiting and the session list show one address for everybody.",
     "warning_no_url": "Trusted proxies are set but no external URL is. The cookie then cannot be marked Secure automatically.",
     "allowed_hosts": "Allowed host names",
-    "allowed_hosts_hint": "One name per line that you open the service by in a browser, such as nas.lan. IP addresses, localhost and the external URL's host always work; any other name is refused, so no foreign page gets in through DNS rebinding."
+    "allowed_hosts_hint": "One name per line that you open the service by in a browser, such as nas.lan. IP addresses, localhost and the external URL's host always work; any other name is refused, so no foreign page gets in through DNS rebinding.",
+    "login_off_title": "Sign-in is off although a proxy or an external address is set",
+    "login_off_description": "Without sign-in, every request from this machine that carries no forwarding header counts as the administrator. A local tunnel or proxy that sets no X-Forwarded-For makes everyone behind it the administrator. Switch sign-in back on under General, or make sure your proxy sets the header.",
+    "login_off_wiki": "Reverse proxy in the handbook"
   },
   "mfa": {
     "eyebrow": "Second factor",
@@ -644,7 +647,6 @@
       "download_hint": "Replace the program files of this installation with the new version; your settings and downloads stay where they are.",
       "command_hint": "{kind} manages this installation. Update it with:",
       "copy": "Copy",
-      "copied": "Command copied",
       "close": "Close",
       "install": "Install and restart",
       "install_hint": "rDownloader downloads the new version unless it is already downloaded, backs up its database, stops, replaces its program files and starts again. Your settings and downloads stay where they are.",
@@ -749,5 +751,13 @@
     "provider_logout_hint": "Off: signing out ends only the session here, your other services stay signed in.",
     "step_up_hint": "Every change here asks for the password again.",
     "save": "Save"
+  },
+  "token_expiry": {
+    "label": "Expires",
+    "hint": "An expired token is refused like a revoked one and stays in the list until you revoke it.",
+    "never": "Never",
+    "days": "After {count} days",
+    "expires_on": "Expires on {date}",
+    "expired": "Expired"
   }
 }

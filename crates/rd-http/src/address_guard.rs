@@ -343,6 +343,23 @@ pub async fn connect_addresses(
     }
 }
 
+/// The addresses a transport that opens its own sockets connects to: under a guard, exactly
+/// those [`connect_addresses`] admits (a refusal is an I/O error [`refusal_in`] recognises);
+/// without one, every address `host` resolves to, as a plain connect would try them. FTP and
+/// SFTP each carried this (RD-1110-04).
+pub async fn socket_addresses(
+    guard: Option<&AddressPolicy>,
+    host: &str,
+    port: u16,
+) -> io::Result<Vec<SocketAddr>> {
+    match guard {
+        Some(policy) => connect_addresses(policy, &SystemLookup, host, port).await,
+        None => Ok(tokio::net::lookup_host(format!("{host}:{port}"))
+            .await?
+            .collect()),
+    }
+}
+
 /// The guard's refusal an I/O error carries, when [`connect_addresses`] refused the target.
 #[must_use]
 pub fn refusal_in(error: &io::Error) -> Option<&AddressRefused> {

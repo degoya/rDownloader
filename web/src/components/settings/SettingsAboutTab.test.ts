@@ -131,8 +131,10 @@ describe('SettingsAboutTab', () => {
     expect(container.querySelector('[data-testid="about-filter"]')).toBeNull()
     const toggle = container.querySelector('[data-toggle="rust"]') as HTMLElement
     expect(toggle.textContent).toContain('Show all 4')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
 
     await fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
     expect(container.querySelectorAll('[data-list="rust"] tbody tr')).toHaveLength(4)
     // The crates that ship nowhere are never listed as if they did.
     expect(container.textContent).not.toContain('tempfile')

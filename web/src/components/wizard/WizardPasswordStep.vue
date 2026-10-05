@@ -22,13 +22,14 @@ async function submit(): Promise<void> {
 
 <template>
   <!-- Setup already ran: the backend rejects a second /auth/setup, so only report the state. -->
-  <div v-if="!session.setupRequired" class="flex items-start gap-3 border border-success/40 bg-success/10 p-4">
-    <UIcon name="i-lucide-shield-check" class="mt-0.5 size-5 shrink-0 text-success" />
-    <div>
-      <p class="text-sm font-medium text-highlighted">{{ t('wizard.password.configured') }}</p>
-      <p class="mt-1 text-sm leading-6 text-muted">{{ t('wizard.password.configured_hint') }}</p>
-    </div>
-  </div>
+  <UAlert
+    v-if="!session.setupRequired"
+    color="success"
+    variant="subtle"
+    icon="i-lucide-shield-check"
+    :title="t('wizard.password.configured')"
+    :description="t('wizard.password.configured_hint')"
+  />
 
   <form v-else class="max-w-md space-y-4" @submit.prevent="submit">
     <UFormField :label="t('auth.password')" :hint="t('wizard.password.rule')" required>

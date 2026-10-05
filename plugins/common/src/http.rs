@@ -59,6 +59,15 @@ pub fn header<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str
         .map(|(_, value)| value.as_str())
 }
 
+/// Whether a response is an HTML page rather than the file itself: how a website flow tells a
+/// hotlink or a direct link from a page it still has to read.
+#[must_use]
+pub fn is_html(response: &crate::HttpResponse) -> bool {
+    response
+        .header("content-type")
+        .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"))
+}
+
 /// What a status that is not a success means, before a plugin names it in its own words.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HttpRefusal {
