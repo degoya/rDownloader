@@ -62,7 +62,7 @@
       "signature": "signature, clé, éditeur, confiance",
       "managed_tools": "télécharger les outils, installer automatiquement, mettre à jour",
       "updates": "mise à jour, nouvelle version, bêta, canal de version",
-      "indexers": "indexeur, newznab, recherche nzb, clé api, style de liste, couverture"
+      "indexers": "indexeur, newznab, torznab, jackett, prowlarr, recherche nzb, recherche torrent, clé api, style de liste, couverture"
     }
   },
   "connection": {
@@ -71,5 +71,6 @@
     "view_failed": "Impossible de charger cette vue",
     "view_failed_hint": "Elle se chargera dès que le service sera de nouveau joignable.",
     "reload": "Recharger"
-  }
+  },
+  "history": "Historique"
 }

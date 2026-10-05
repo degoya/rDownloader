@@ -73,12 +73,14 @@ pub enum Trigger {
     StorageThreshold,
     /// A subscription accepted a new item.
     SubscriptionItem,
+    /// A Usenet download was given up as beyond repair (RD-1100-02).
+    UsenetJobHopeless,
 }
 
 impl Trigger {
     /// Every trigger, for the editor and for the contract test that iterates them.
     #[must_use]
-    pub const fn all() -> [Self; 12] {
+    pub const fn all() -> [Self; 13] {
         [
             Self::IntakeReceived,
             Self::DownloadResolved,
@@ -92,6 +94,7 @@ impl Trigger {
             Self::UploadFinished,
             Self::StorageThreshold,
             Self::SubscriptionItem,
+            Self::UsenetJobHopeless,
         ]
     }
 }

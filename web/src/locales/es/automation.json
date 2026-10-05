@@ -71,7 +71,8 @@
     "script_finished": "Script terminado",
     "upload_finished": "Subida terminada",
     "storage_threshold": "Umbral de almacenamiento",
-    "subscription_item": "Elemento de suscripción"
+    "subscription_item": "Elemento de suscripción",
+    "usenet_job_hopeless": "Descarga de Usenet sin remedio"
   },
   "field": {
     "source": "Origen",

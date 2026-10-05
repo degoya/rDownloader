@@ -84,5 +84,26 @@
       "category": "aus der Kategorie",
       "torrent": "hier gesetzt"
     }
+  },
+  "actions": {
+    "recheck": "Neu prüfen",
+    "move": "Speicherort ändern …"
+  },
+  "move": {
+    "title": "Speicherort ändern",
+    "description": "Die Dateien ziehen mit dem Paketordner an den neuen Ort, und der Torrent seedet danach von dort weiter. Scheitert das Verschieben, bleibt alles am alten Ort.",
+    "root": "Speicherort",
+    "path": "Ordner darin",
+    "path_placeholder": "z. B. Archiv/Serien",
+    "submit": "Verschieben",
+    "no_roots": "Lege zuerst unter Einstellungen › Routing einen Speicherort an.",
+    "running": "Wird nach {path} verschoben …",
+    "taken_back": "Verschieben zurückgenommen: {reason}"
+  },
+  "recheck": {
+    "checking": "Prüfe Daten … {percent} %",
+    "pending": "Prüfung angefordert",
+    "complete": "Geprüft: alle Daten in Ordnung",
+    "incomplete": "Geprüft: {verified} von {total} in Ordnung, der Rest wird neu geladen"
   }
 }

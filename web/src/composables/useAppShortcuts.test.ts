@@ -41,6 +41,7 @@ describe('SHORTCUT_DEFINITIONS', () => {
     const navigation = SHORTCUT_DEFINITIONS.filter(definition => definition.group === 'navigation')
     expect(navigation.map(definition => definition.descriptionKey)).toEqual([
       'common.shortcuts.go_downloads',
+      'common.shortcuts.go_history',
       'common.shortcuts.go_linkgrabber',
       'common.shortcuts.go_streams',
       'common.shortcuts.go_subscriptions',
@@ -51,12 +52,13 @@ describe('SHORTCUT_DEFINITIONS', () => {
       'common.shortcuts.go_audit',
       'common.shortcuts.go_settings'
     ])
-    expect(navigation.map(definition => definition.keys)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
+    // The history came later and takes `h`, so no view lost the digit people learned (RD-1100-04).
+    expect(navigation.map(definition => definition.keys)).toEqual(['1', 'h', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
   })
 
   it('covers every documented key with a navigation or actions group', () => {
     const keys = SHORTCUT_DEFINITIONS.map(definition => definition.keys)
-    expect(keys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', 'k', 'f', 'a', 'e', 'w', 'r', 'x', '?', '/', 'meta_k'])
+    expect(keys).toEqual(['1', 'h', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'b', 'n', 'p', 'k', 'f', 'a', 'e', 'w', 'r', 'x', '?', '/', 'meta_k'])
     for (const definition of SHORTCUT_DEFINITIONS) {
       expect(['navigation', 'actions']).toContain(definition.group)
       expect(definition.labelKeys.length).toBeGreaterThan(0)

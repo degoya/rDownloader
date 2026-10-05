@@ -7,28 +7,41 @@
 #   1. The integration branch and its worktree (scripts/worktree.sh new), from --base.
 #   2. Each branch merged with --no-ff. After every merge: duplicate migration numbers and
 #      plugin ids, which two branches can each get right and still get wrong together. A
-#      conflict only in generated files takes our side; any other conflict stops the run.
-#   3. The generators once, after the last merge (api-contract, mcp-coverage, and licenses when
-#      a lock file changed), committed as one chore(generated) commit.
-#   4. Components: a plugin changed under its old version stops the run (it goes back to its
+#      conflict only in generated files takes our side; any other conflict stops the run. The
+#      merge drivers of .gitattributes are registered first (RD-1100-13): CHANGELOG.md merges
+#      as the union of both sides, the migration pins as their sorted union, the locale
+#      catalogues key by key (scripts/lib/merge-drivers/).
+#   3. The gate (RD-1100-13): scripts/check.sh --gate, clippy over the whole workspace for Linux
+#      and for Windows, both with --keep-going, into gate.log. Red stops the run before anything
+#      is generated, with every error of both platforms in failures — the generators compile
+#      too, and the first compile error used to end the run in one of them.
+#   4. The generators once, after the last merge (api-contract, mcp-coverage, web-declarations,
+#      licenses when a lock file changed, and archive-jobs, which archives finished jobs and recounts the job
+#      index), committed as one chore(generated) commit.
+#   5. Components: a plugin changed under its old version stops the run (it goes back to its
 #      branch); stale or missing ones are built with --components-only.
-#   5. scripts/check.sh --full, then scripts/check.sh --windows, detached — an editor crash does
-#      not kill them — with their logs, a PID file and a status file under
-#      /tmp/claude-<uid>/<integration-branch>/. check.sh --full ends at once when a --full green
-#      already covers the merged content up to documentation (RD-160-06), so a run again after a
-#      documentation fix costs nothing.
-#   6. After both are green, scripts/prune-target.sh --if-free: the old crate variants go while
+#   6. scripts/check.sh --windows, then scripts/check.sh --full — the minute first, the hour only
+#      after it is green — detached, so an editor crash does not kill them, with their logs, a
+#      PID file, a status file and the failure list under /tmp/claude-<uid>/<integration-branch>/.
+#      Each ends at once when its green already covers the merged content up to documentation
+#      (RD-160-06), so a run again after a documentation fix costs nothing; --full lists every
+#      failing test of the run, not the first (scripts/lib/stages.sh).
+#   7. After both are green, scripts/prune-target.sh --if-free: the old crate variants go while
 #      the wave's own are the newest, and only when no build holds the target's lock (RD-160-06).
 #
 # Usage:
 #   scripts/integrate.sh integration/1.4-w4 feat/a fix/b tooling/c
 #   scripts/integrate.sh integration/1.4-w4 feat/a --base integration/1.4-w3
 #   scripts/integrate.sh integration/1.4-w4 feat/a --merge-only    # steps 1 and 2
-#   scripts/integrate.sh integration/1.4-w4 feat/a --no-check      # steps 1 to 4
-#   scripts/integrate.sh integration/1.4-w4 feat/a --no-windows    # no Windows clippy in 5
+#   scripts/integrate.sh integration/1.4-w4 feat/a --no-check      # steps 1 to 5
+#   scripts/integrate.sh integration/1.4-w4 feat/a --no-gate       # without step 3
+#   scripts/integrate.sh integration/1.4-w4 feat/a --no-windows    # no Windows clippy in 6
 #
-# Run it again after resolving a conflict: branches already merged are skipped, and so is
-# everything that has nothing to do. What it does not do: push, merge into development, or run
+# RD_INTEGRATE_LOGS names another log directory (the tests use it).
+#
+# Run it again after resolving a conflict or after a fix on a branch: branches already merged are
+# skipped, and so is everything that has nothing to do. An integration branch gets no
+# branch-level check round of its own — after a fix, this is the round. What it does not do: push, merge into development, or run
 # the public CI — that is scripts/public-ci.sh <integration-branch> --platforms linux,windows,
 # once the check is green, and its green is what lets the wave into development.
 #
@@ -43,12 +56,13 @@ MAIN="$(dirname "$common")"
 
 usage() {
     echo "usage: scripts/integrate.sh <integration-branch> <branch>... [--base <ref>]" >&2
-    echo "       [--merge-only | --no-check] [--no-windows]" >&2
+    echo "       [--merge-only | --no-check] [--no-gate] [--no-windows]" >&2
     exit 2
 }
 
 base="development"
 stop_after="check"
+gate=1
 windows=1
 integration=""
 branches=()
@@ -57,8 +71,9 @@ while [[ $# -gt 0 ]]; do
         --base) base="${2:?--base needs a ref}"; shift 2 ;;
         --merge-only) stop_after="merge"; shift ;;
         --no-check) stop_after="components"; shift ;;
+        --no-gate) gate=0; shift ;;
         --no-windows) windows=0; shift ;;
-        -h|--help) sed -n '2,34p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,50p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) if [[ -z "$integration" ]]; then integration="$1"; else branches+=("$1"); fi; shift ;;
     esac
@@ -70,7 +85,7 @@ for branch in "$base" "${branches[@]}"; do
 done
 
 tree="$MAIN-${integration//\//-}"
-logs="/tmp/claude-$(id -u)/${integration//\//-}"
+logs="${RD_INTEGRATE_LOGS:-/tmp/claude-$(id -u)/${integration//\//-}}"
 
 # --- 1. the integration branch ---------------------------------------------------------------
 echo "==> $integration in $tree"
@@ -96,6 +111,7 @@ else
 fi
 
 # --- 2. the merges ---------------------------------------------------------------------------
+rd_integrate_merge_drivers "$tree" "$ROOT"
 echo "==> merging ${#branches[@]} branch(es)"
 for branch in "${branches[@]}"; do
     rd_integrate_merge "$tree" "$branch" || exit 1
@@ -111,25 +127,57 @@ echo "    no duplicate migration number, no duplicate plugin id"
 [[ "$stop_after" != merge ]] || { echo "==> --merge-only: stopped after the merges"; exit 0; }
 
 cd "$tree"
+mkdir -p "$logs"
 
-# --- 3. the generators, once -----------------------------------------------------------------
+# --- 3. the gate -----------------------------------------------------------------------------
+# Foreground, like the generators after it, which would compile the same code anyway. check.sh
+# takes the lock itself and skips a half its green already covers.
+if [[ "$gate" -eq 1 ]]; then
+    echo "==> the gate: clippy over the workspace for Linux and Windows, --keep-going ($logs/gate.log)"
+    gate_status=0
+    RD_CHECK_LOGS="$logs" scripts/check.sh --gate > "$logs/gate.log" 2>&1 || gate_status=$?
+    echo "REAL EXIT: $gate_status" >> "$logs/gate.log"
+    if [[ "$gate_status" -ne 0 ]] || ! grep -qx '==> all requested checks passed' "$logs/gate.log"; then
+        echo "!! the gate is red (exit $gate_status); nothing was generated or built." >&2
+        if [[ -s "$logs/failures" ]]; then
+            echo "   Every error of both platforms, from $logs/failures:" >&2
+            sed 's/^/   /' "$logs/failures" >&2
+        else
+            echo "   No failure list was written; read $logs/gate.log." >&2
+        fi
+        echo "   Hand each back to the branch that owns it, then run the same integrate.sh again." >&2
+        exit 1
+    fi
+    echo "    green"
+else
+    echo "==> --no-gate: no lint before the generators"
+fi
+
+# --- 4. the generators, once -----------------------------------------------------------------
+# Everything they write is committed in one commit: the generated files, and the job files
+# archive-jobs.sh moved, the links it rewrote and the index it recounted (RD-1100-13; the job
+# index conflicted nine times in the 1.9.1 integration). The tree was clean after the merges, so
+# what is modified now is theirs.
 echo "==> the generators"
 scripts/api-contract.sh
 scripts/mcp-coverage.sh
+scripts/web-declarations.sh
 if ! git diff --quiet "$base" HEAD -- Cargo.lock web/pnpm-lock.yaml; then
     scripts/licenses.sh
 else
     echo "    licences: neither lock file differs from $base"
 fi
-if [[ -n "$(git status --porcelain --untracked-files=no -- "${RD_GENERATED_FILES[@]}")" ]]; then
-    git add -- "${RD_GENERATED_FILES[@]}"
+scripts/archive-jobs.sh
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+    git add -u
+    git diff --cached --stat | sed 's/^/    /'
     git commit --quiet -m "chore(generated): regenerate after merging $(printf '%s ' "${branches[@]}" | sed 's/ $//')"
     echo "    committed $(git rev-parse --short HEAD)"
 else
     echo "    nothing to commit"
 fi
 
-# --- 4. components ---------------------------------------------------------------------------
+# --- 5. components ---------------------------------------------------------------------------
 echo "==> plugin components"
 # Direct cargo calls in this worktree look for components under its own target/ unless
 # CARGO_TARGET_DIR says otherwise; the scripts point there by themselves.
@@ -154,22 +202,26 @@ else
 fi
 [[ "$stop_after" != components ]] || { echo "==> --no-check: stopped before the check"; exit 0; }
 
-# --- 5. the check, detached ------------------------------------------------------------------
-mkdir -p "$logs"
+# --- 6. the check, detached ------------------------------------------------------------------
+# The Windows lint first (RD-1100-13): a minute warm, and red there holds back the hour of --full.
 rm -f "$logs/status"
 {
     echo '#!/usr/bin/env bash'
     echo "cd '$tree'"
-    echo "scripts/check.sh --full > '$logs/check.log' 2>&1; full=\$?"
-    echo "echo \"REAL EXIT: \$full\" >> '$logs/check.log'"
+    echo "export RD_CHECK_LOGS='$logs'"
     if [[ "$windows" -eq 1 ]]; then
         echo "scripts/check.sh --windows > '$logs/windows.log' 2>&1; windows=\$?"
         echo "echo \"REAL EXIT: \$windows\" >> '$logs/windows.log'"
     else
         echo "windows=skipped"
     fi
+    echo "full=skipped"
+    echo "if [[ \$windows == 0 || \$windows == skipped ]]; then"
+    echo "    scripts/check.sh --full > '$logs/check.log' 2>&1; full=\$?"
+    echo "    echo \"REAL EXIT: \$full\" >> '$logs/check.log'"
+    echo "fi"
     echo "prune=skipped"
-    echo "if [[ \$full -eq 0 && ( \$windows == 0 || \$windows == skipped ) ]]; then"
+    echo "if [[ \$full == 0 && ( \$windows == 0 || \$windows == skipped ) ]]; then"
     echo "    scripts/prune-target.sh --if-free > '$logs/prune.log' 2>&1; prune=\$?"
     echo "fi"
     echo "echo \"full=\$full windows=\$windows prune=\$prune\" > '$logs/status'"
@@ -178,11 +230,13 @@ chmod +x "$logs/run.sh"
 setsid nohup "$logs/run.sh" > /dev/null 2>&1 < /dev/null &
 echo "$!" > "$logs/check.pid"
 cat <<INFO
-==> started, detached: scripts/check.sh --full$([[ "$windows" -eq 1 ]] && echo ", then --windows")
-    PID     $(cat "$logs/check.pid") (in $logs/check.pid)
-    logs    $logs/check.log$([[ "$windows" -eq 1 ]] && echo " and windows.log")
-    status  $logs/status — written last, as "full=<exit> windows=<exit> prune=<exit|skipped>"
-            (the prune, into prune.log, only after both are green and when no build holds the lock)
+==> started, detached: $([[ "$windows" -eq 1 ]] && echo "scripts/check.sh --windows, then --full (only after a green)" || echo "scripts/check.sh --full")
+    PID      $(cat "$logs/check.pid") (in $logs/check.pid)
+    logs     $([[ "$windows" -eq 1 ]] && echo "$logs/windows.log and check.log" || echo "$logs/check.log")
+    failures $logs/failures — every failed stage with its failing tests, written as they fail
+    status   $logs/status — written last, as "full=<exit|skipped> windows=<exit|skipped> prune=<exit|skipped>"
+             (the prune, into prune.log, only after both are green and when no build holds the lock)
+    follow   scripts/watch-run.sh $(cat "$logs/check.pid") $logs/check.log — stage starts, failures, the end
 
     Judge each log by its closing line "==> all requested checks passed", not by an exit code
     alone. Then: scripts/public-ci.sh $integration --platforms linux,windows

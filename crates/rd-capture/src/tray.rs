@@ -12,16 +12,17 @@ use tao::{
     event::{Event, StartCause},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
 };
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tray_icon::{
     Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
-    menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem},
+    menu::{IsMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem},
 };
 use url::Url;
 
 use crate::{
     DesktopSinks,
-    activity::Activity,
+    activity::{Activity, QueueMenu, QueueRequest},
     cli::RunArgs,
     config, icon as badge,
     status::{HEALTH_INTERVAL, HealthWatch, ServerStatus, health_probe},
@@ -36,6 +37,10 @@ const ICON_PNG: &[u8] = include_bytes!("../../../extension/icons/icon32.png");
 
 /// How long "Quit" waits for the agent to wind down before exiting anyway.
 const QUIT_GRACE: Duration = Duration::from_secs(3);
+
+/// Where the queue entries go: after the status line, "Open rDownloader" and the separator
+/// below each of them, so before "Quit".
+const QUEUE_POSITION: usize = 4;
 
 /// Everything the event loop is woken up for.
 enum UserEvent {
@@ -108,6 +113,8 @@ impl Tray {
         let agent_cancellation = cancellation.clone();
         let activity_proxy = proxy.clone();
         let notice_proxy = proxy.clone();
+        // The menu names a queue request, the agent makes it: the agent holds the token.
+        let (queue_requests, queue) = mpsc::unbounded_channel();
         runtime.spawn(async move {
             let desktop = DesktopSinks {
                 activity: std::sync::Arc::new(move |activity: Activity| {
@@ -116,6 +123,7 @@ impl Tray {
                 notice: std::sync::Arc::new(move |notice: AgentNotice| {
                     let _ = notice_proxy.send_event(UserEvent::Notice(notice));
                 }),
+                queue,
             };
             let result = crate::run(args, agent_cancellation, Some(desktop)).await;
             let _ = proxy.send_event(UserEvent::AgentExited(result.err()));
@@ -134,6 +142,7 @@ impl Tray {
             service: service.unwrap_or_else(config::default_service),
             tray: None,
             shown: false,
+            queue_requests,
             cancellation,
             quit_deadline: None,
             _runtime: runtime,
@@ -173,6 +182,8 @@ struct Agent {
     tray: Option<TrayHandle>,
     /// Set once the tray has been built or has failed to build; either way it is attempted once.
     shown: bool,
+    /// Where the queue entries' requests go: to the agent's transfer poll (RD-1100-06).
+    queue_requests: mpsc::UnboundedSender<QueueRequest>,
     cancellation: CancellationToken,
     /// Set once the user asked to quit; bounds the wait for the agent.
     quit_deadline: Option<Instant>,
@@ -231,6 +242,9 @@ impl Agent {
         if let Some(enabled) = update.open_enabled {
             tray.open_item.set_enabled(enabled);
         }
+        if let Some(queue) = update.queue {
+            tray.show_queue(queue);
+        }
         if let Some(line) = update.status_line {
             tray.status_item.set_text(line);
         }
@@ -260,6 +274,11 @@ impl Agent {
             tracing::info!("shutting down on tray request");
             self.cancellation.cancel();
             self.quit_deadline = Some(Instant::now() + QUIT_GRACE);
+        } else if let Some(request) = tray.queue_request(id) {
+            tracing::info!(?request, "queue request from the tray");
+            if self.queue_requests.send(request).is_err() {
+                tracing::warn!("the agent has stopped; the tray's queue request was dropped");
+            }
         }
     }
 
@@ -305,6 +324,16 @@ struct TrayHandle {
     /// is `tray_state`'s decision; here they are only written.
     status_item: MenuItem,
     open_item: MenuItem,
+    /// The menu itself, for the queue entries that come and go (RD-1100-06). A handle onto the
+    /// same menu the icon shows: muda's menus are shared, not copied.
+    menu: Menu,
+    /// "Pause all", for 30 minutes, for an hour; "Resume all"; and the separator below them.
+    /// Which of them the menu holds is `tray_state`'s decision, made from the summary.
+    pause_now: MenuItem,
+    pause_half_hour: MenuItem,
+    pause_hour: MenuItem,
+    resume: MenuItem,
+    queue_separator: PredefinedMenuItem,
     // Dropping this removes the icon from the tray. Kept named rather than `_tray` since the
     // icon and tooltip are now changed while it lives.
     tray: TrayIcon,
@@ -322,6 +351,56 @@ impl TrayHandle {
             .set_tooltip(Some(text))
             .context("set the tray tooltip")
     }
+
+    /// Puts the queue entries the state named into the menu, before "Quit"; none at all for an
+    /// agent that may not control the queue.
+    fn show_queue(&self, queue: QueueMenu) {
+        let every: [&dyn IsMenuItem; 5] = [
+            &self.pause_now,
+            &self.pause_half_hour,
+            &self.pause_hour,
+            &self.resume,
+            &self.queue_separator,
+        ];
+        // Whatever is there goes first. Removing an entry the menu does not hold only reports
+        // that it does not, which is no fault here.
+        for item in every {
+            let _ = self.menu.remove(item);
+        }
+        let shown = match queue {
+            QueueMenu::Hidden => return,
+            QueueMenu::Pause => self.menu.insert_items(
+                &[
+                    &self.pause_now,
+                    &self.pause_half_hour,
+                    &self.pause_hour,
+                    &self.queue_separator,
+                ],
+                QUEUE_POSITION,
+            ),
+            QueueMenu::Resume => self
+                .menu
+                .insert_items(&[&self.resume, &self.queue_separator], QUEUE_POSITION),
+        };
+        if let Err(error) = shown {
+            tracing::warn!(%error, "the tray menu could not show its queue entries");
+        }
+    }
+
+    /// The request a queue entry stands for, or `None` for any other entry.
+    fn queue_request(&self, id: &MenuId) -> Option<QueueRequest> {
+        if id == self.pause_now.id() {
+            Some(QueueRequest::Pause { minutes: None })
+        } else if id == self.pause_half_hour.id() {
+            Some(QueueRequest::Pause { minutes: Some(30) })
+        } else if id == self.pause_hour.id() {
+            Some(QueueRequest::Pause { minutes: Some(60) })
+        } else if id == self.resume.id() {
+            Some(QueueRequest::Resume)
+        } else {
+            None
+        }
+    }
 }
 
 impl TrayHandle {
@@ -337,18 +416,27 @@ impl TrayHandle {
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&quit)?;
         let tray = TrayIconBuilder::new()
-            .with_menu(Box::new(menu))
+            .with_menu(Box::new(menu.clone()))
             .with_tooltip(&surface.tooltip)
             .with_icon(icon)
             .build()
             .context("create the tray icon")?;
-        Ok(Self {
+        let handle = Self {
             open: open.id().clone(),
             quit: quit.id().clone(),
             status_item,
             open_item: open,
+            menu,
+            // Untranslated, like the rest of the menu (RD-092-05).
+            pause_now: MenuItem::new("Pause all", true, None),
+            pause_half_hour: MenuItem::new("Pause for 30 minutes", true, None),
+            pause_hour: MenuItem::new("Pause for 1 hour", true, None),
+            resume: MenuItem::new("Resume all", true, None),
+            queue_separator: PredefinedMenuItem::separator(),
             tray,
-        })
+        };
+        handle.show_queue(surface.queue);
+        Ok(handle)
     }
 }
 

@@ -51,6 +51,7 @@ pub(crate) async fn extract_rar_into(
         mut stdout,
         mut stderr,
         arguments,
+        ..
     } = spawn_rar(tool, RarAction::Extract { staging }, first_volume, password)?;
     let run = async {
         let mut stdout_text = String::new();
@@ -132,7 +133,7 @@ pub(crate) async fn extract_rar_into(
 
 /// How much of a RAR tool's stderr, and of `t`'s listing, is kept for the verdict: the last
 /// 64 KiB. The messages `classify_failure` looks for are the tool's last words.
-const OUTPUT_TAIL: usize = 64 * 1024;
+pub(crate) const OUTPUT_TAIL: usize = 64 * 1024;
 
 /// How long the size watcher waits between two measurements of the staging tree: two seconds.
 ///
@@ -141,7 +142,7 @@ const OUTPUT_TAIL: usize = 64 * 1024;
 /// whereas the bomb running to completion or to `tool.timeout` is what fills it. Measuring more
 /// often would not buy much and would cost more than it looks: every walk `stat`s every file
 /// already written, up to `max_files` of them, on the same directories the unpack is writing to.
-const SIZE_POLL_INTERVAL: Duration = Duration::from_secs(2);
+pub(crate) const SIZE_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Resolves once the staging tree has grown past `limit`; otherwise it waits forever.
 ///
@@ -154,7 +155,7 @@ const SIZE_POLL_INTERVAL: Duration = Duration::from_secs(2);
 ///
 /// Sleeping between walks rather than ticking on a schedule keeps a slow walk over a large tree
 /// from degenerating into a continuous one: the gap is always honoured.
-async fn watch_staging_size(staging: &Path, limit: u64, interval: Duration) {
+pub(crate) async fn watch_staging_size(staging: &Path, limit: u64, interval: Duration) {
     loop {
         tokio::time::sleep(interval).await;
         let root = staging.to_owned();
@@ -205,17 +206,20 @@ fn tree_exceeds(root: &Path, limit: u64) -> bool {
 }
 
 /// A started RAR tool, its output taken, and the arguments it was started with for the log.
-struct RarProcess {
-    child: tokio::process::Child,
-    stdout: tokio::process::ChildStdout,
-    stderr: tokio::process::ChildStderr,
-    arguments: RarArguments,
+pub(crate) struct RarProcess {
+    pub(crate) child: tokio::process::Child,
+    pub(crate) stdout: tokio::process::ChildStdout,
+    pub(crate) stderr: tokio::process::ChildStderr,
+    /// Only for [`RarAction::Follow`], which is answered on it; every other action gets none.
+    pub(crate) stdin: Option<tokio::process::ChildStdin>,
+    pub(crate) arguments: RarArguments,
 }
 
 /// Starts the RAR tool for `action` the one way both the unpack and the integrity test do: no
 /// shell, no console window, the tool environment, no stdin, piped output, killed when dropped
-/// (audit 1.9.1, INTAKE-15).
-fn spawn_rar(
+/// (audit 1.9.1, INTAKE-15). Direct unpack's [`RarAction::Follow`] is the one action with a
+/// stdin, because its volume questions are answered there (RD-1100-07).
+pub(crate) fn spawn_rar(
     tool: &ExternalRarTool,
     action: RarAction<'_>,
     first_volume: &Path,
@@ -227,9 +231,14 @@ fn spawn_rar(
         )));
     }
     let mut command = tokio::process::Command::new(&tool.executable);
+    let answered = matches!(action, RarAction::Follow { .. });
     command
         .kill_on_drop(true)
-        .stdin(Stdio::null())
+        .stdin(if answered {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .no_console_window();
@@ -242,10 +251,12 @@ fn spawn_rar(
     let mut child = command.spawn().context("spawn RAR tool")?;
     let stdout = child.stdout.take().context("RAR tool stdout")?;
     let stderr = child.stderr.take().context("RAR tool stderr")?;
+    let stdin = child.stdin.take();
     Ok(RarProcess {
         child,
         stdout,
         stderr,
+        stdin,
         arguments,
     })
 }
@@ -275,7 +286,7 @@ fn log_refused(tool: &ExternalRarTool, arguments: &RarArguments, error: &Extract
 }
 
 /// The same line again with the outcome: the exit code, or why the process was killed.
-fn log_finished(tool: &ExternalRarTool, arguments: &RarArguments, exit: &str) {
+pub(crate) fn log_finished(tool: &ExternalRarTool, arguments: &RarArguments, exit: &str) {
     tracing::info!(
         tool = %tool.executable.display(),
         args = %arguments.redacted(),
@@ -284,7 +295,7 @@ fn log_finished(tool: &ExternalRarTool, arguments: &RarArguments, exit: &str) {
     );
 }
 
-fn exit_text(status: std::process::ExitStatus) -> String {
+pub(crate) fn exit_text(status: std::process::ExitStatus) -> String {
     status
         .code()
         .map_or_else(|| "signal".to_owned(), |code| code.to_string())
@@ -294,7 +305,7 @@ fn exit_text(status: std::process::ExitStatus) -> String {
 ///
 /// Both tools split their reporting: `unrar` writes the diagnosis to stderr and the progress to
 /// stdout, 7-Zip the other way round depending on `-bso`/`-bse`.
-fn merged_output(stdout_text: &str, stderr_buffer: &[u8]) -> String {
+pub(crate) fn merged_output(stdout_text: &str, stderr_buffer: &[u8]) -> String {
     format!(
         "{}\n{}",
         String::from_utf8_lossy(stderr_buffer).to_lowercase(),
@@ -318,6 +329,7 @@ pub async fn test_rar(
         mut stdout,
         mut stderr,
         arguments,
+        ..
     } = spawn_rar(tool, RarAction::Test, first_volume, password)?;
     let run = async {
         // `t` lists every member it tested, so a large set prints a line per file; only the end,

@@ -22,7 +22,8 @@
     "protocol": "Protocolo",
     "host": "Host",
     "account": "Cuenta",
-    "category": "Categoría"
+    "category": "Categoría",
+    "package": "Paquete"
   },
   "status": {
     "eyebrow": "Activo ahora",

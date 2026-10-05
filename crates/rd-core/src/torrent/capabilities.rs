@@ -51,6 +51,9 @@ pub struct TorrentEngineCapabilities {
     /// BEP 19 web seeds as a download source. When `false`, web seeds are still parsed and
     /// shown as diagnostics but never fetched.
     pub web_seeds: bool,
+    /// A download and upload limit of one torrent's own, beside the session-wide rates
+    /// (RD-1100-01). When `false`, a package holding a torrent takes no speed limit of its own.
+    pub per_torrent_limits: bool,
 }
 
 impl TorrentEngineCapabilities {
@@ -79,6 +82,7 @@ impl TorrentEngineCapabilities {
             "natpmp" => self.natpmp,
             "pcp" => self.pcp,
             "web_seeds" => self.web_seeds,
+            "per_torrent_limits" => self.per_torrent_limits,
             _ => false,
         }
     }
@@ -113,6 +117,7 @@ mod tests {
             natpmp: false,
             pcp: false,
             web_seeds: false,
+            per_torrent_limits: false,
         }
     }
 

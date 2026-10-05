@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url'
 
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { i18n } from '@/i18n'
+import { REQUIRED_LOCALES, i18n } from '@/i18n'
 import { loadEveryLocale } from '@/test/locales'
 
 beforeAll(loadEveryLocale)
@@ -177,7 +177,7 @@ describe.skipIf(!backendAvailable)('keys the backend produces', () => {
   // sentence, "Check result missing", for three unrelated situations (RD-109-43). These codes
   // have to resolve in every language from the day they are written, not land on the list
   // above.
-  it.each(['en', 'de', 'fr', 'es'])('%s translates every candidate check code', (locale) => {
+  it.each(REQUIRED_LOCALES)('%s translates every candidate check code', (locale) => {
     i18n.global.locale.value = locale as 'en'
     const codes = new Set<string>()
     for (const file of apiSources.flatMap(rustFiles)) {
@@ -214,7 +214,7 @@ describe('the shape a server catalogue has to keep', () => {
   // `scripts/i18n-key.sh` turns a dotted key into a nested group, which is right for
   // `plugins.json` and wrong for `server.json`: a code is one literal key inside `codes`.
   // Anything else resolves nowhere, in every language at once.
-  it.each(['en', 'de', 'fr', 'es'])('%s keeps every code flat inside `codes`', (locale) => {
+  it.each(REQUIRED_LOCALES)('%s keeps every code flat inside `codes`', (locale) => {
     const catalogue = i18n.global.getLocaleMessage(locale) as unknown as {
       server: Record<string, unknown>
     }

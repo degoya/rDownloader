@@ -313,6 +313,14 @@
       "timeout_description": "Wie lange die Verbindung, ein Datenblock oder das Urteil von clamd dauern darf (5–3600 s).",
       "test": "clamd testen",
       "test_ok": "clamd unter {address} antwortet: {version}"
+    },
+    "fail_hopeless_jobs": {
+      "label": "Aussichtslose Usenet-Downloads abbrechen",
+      "description": "Fehlen mehr PAR2-Blöcke, als die Wiederherstellungs-Volumes des Satzes ersetzen können, wird der Rest nicht mehr geladen und das Paket schlägt fehl. Was schon geladen ist, bleibt liegen. Spart Volumen bei Block-Accounts. Aus: jede Datei wird wie bisher bis zum Ende geladen."
+    },
+    "direct_unpack": {
+      "label": "Während des Downloads entpacken",
+      "description": "Mehrteilige RAR-Archive aus Usenet werden Teil für Teil entpackt, sobald jeder Teil vollständig da ist, statt erst nach dem Download. Muss repariert werden oder fehlt einem Teil etwas, wird der Versuch verworfen und wie gewohnt danach entpackt. Braucht unrar und Platz für das Entpackte neben dem laufenden Download."
     }
   },
   "appearance": {
@@ -966,5 +974,15 @@
     "interval_description": "Stunden zwischen dem Fehlschlag und dem nächsten Versuch (1–24).",
     "rounds_label": "Runden je Download",
     "rounds_description": "So oft kommt ein Download höchstens wieder in die Warteschlange; 0 heißt ohne Grenze (0–100)."
+  },
+  "history": {
+    "eyebrow": "Downloadverlauf",
+    "title": "Aufbewahrung des Downloadverlaufs",
+    "description": "Wie lange fertige und fehlgeschlagene Pakete im Verlauf bleiben, nachdem sie die Liste verlassen haben.",
+    "open": "Verlauf öffnen",
+    "entries_label": "Aufbewahrte Einträge",
+    "entries_description": "Die ältesten Einträge gehen zuerst (100-100000).",
+    "days_label": "Aufbewahrte Tage",
+    "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (1-3650)."
   }
 }

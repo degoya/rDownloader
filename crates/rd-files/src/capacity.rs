@@ -252,7 +252,11 @@ pub(crate) fn evaluate_capacity(
     }
 }
 
-async fn available_space(path: &Path) -> Result<u64> {
+/// Free bytes on the filesystem behind `path`, without any threshold applied.
+///
+/// Public for the one caller that is not a transfer: direct unpack asks whether a package's
+/// filesystem can hold the unpacked set beside the volumes still arriving (RD-1100-07).
+pub async fn available_space(path: &Path) -> Result<u64> {
     let path = path.to_path_buf();
     Ok(tokio::task::spawn_blocking(move || fs4::available_space(&path)).await??)
 }

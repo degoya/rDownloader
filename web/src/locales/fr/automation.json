@@ -71,7 +71,8 @@
     "script_finished": "Script terminé",
     "upload_finished": "Envoi terminé",
     "storage_threshold": "Seuil de stockage",
-    "subscription_item": "Élément d’abonnement"
+    "subscription_item": "Élément d’abonnement",
+    "usenet_job_hopeless": "Téléchargement Usenet irréparable"
   },
   "field": {
     "source": "Source",

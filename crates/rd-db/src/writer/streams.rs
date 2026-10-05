@@ -2,13 +2,13 @@
 //! `stream_schedule_store`.
 
 use super::{Writer, publish_config, publish_unit_event};
-use crate::commands::WriterCommand;
+use crate::commands::StreamsCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_streams(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_streams(&mut self, command: StreamsCommand) {
         match command {
-            WriterCommand::SetDownloadRecordingState { id, state, reply } => {
+            StreamsCommand::SetDownloadRecordingState { id, state, reply } => {
                 let result = crate::stream_schedule_store::set_recording_state(
                     &mut self.connection,
                     id,
@@ -17,21 +17,21 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::CreateStreamSchedule { input, reply } => {
+            StreamsCommand::CreateStreamSchedule { input, reply } => {
                 let result =
                     crate::stream_schedule_store::create(&mut self.connection, *input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::UpdateStreamSchedule { id, input, reply } => {
+            StreamsCommand::UpdateStreamSchedule { id, input, reply } => {
                 let result =
                     crate::stream_schedule_store::update(&mut self.connection, id, *input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteStreamSchedule { id, reply } => {
+            StreamsCommand::DeleteStreamSchedule { id, reply } => {
                 let result = crate::stream_schedule_store::delete(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::PlanStreamRuns {
+            StreamsCommand::PlanStreamRuns {
                 schedule_id,
                 channel_id,
                 occurrences,
@@ -46,7 +46,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::SetStreamRunState {
+            StreamsCommand::SetStreamRunState {
                 id,
                 state,
                 download_id,
@@ -65,24 +65,24 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::ExpireStreamRuns { cutoff, reply } => {
+            StreamsCommand::ExpireStreamRuns { cutoff, reply } => {
                 let result =
                     crate::stream_schedule_store::expire_runs(&mut self.connection, cutoff).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::CreateStreamChannel { input, reply } => {
+            StreamsCommand::CreateStreamChannel { input, reply } => {
                 let result = crate::stream_store::create(&mut self.connection, input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::UpdateStreamChannel { id, input, reply } => {
+            StreamsCommand::UpdateStreamChannel { id, input, reply } => {
                 let result = crate::stream_store::update(&mut self.connection, id, input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteStreamChannel { id, reply } => {
+            StreamsCommand::DeleteStreamChannel { id, reply } => {
                 let result = crate::stream_store::delete(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::TouchStreamChannel {
+            StreamsCommand::TouchStreamChannel {
                 id,
                 live_at,
                 error,
@@ -92,12 +92,6 @@ impl Writer {
                     crate::stream_store::touch(&mut self.connection, id, live_at, error).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
         }
     }
 }

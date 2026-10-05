@@ -13,27 +13,26 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Category, CategoryMapping, IndexerCaps, IndexerCategory, Subscription, SubscriptionRequest } from '@/api/types'
+import type { Category, IndexerCaps, Subscription } from '@/api/types'
 import FormActions from '@/components/FormActions.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SubscriptionGitRelease from '@/components/SubscriptionGitRelease.vue'
+import SubscriptionIndexerCategories from '@/components/SubscriptionIndexerCategories.vue'
 import SubscriptionIndexerSearch from '@/components/SubscriptionIndexerSearch.vue'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useRegexEditor } from '@/composables/useRegexEditor'
 import { translateServerMessage } from '@/i18n/server'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
-import { NO_INDEXER, maxAgeDays, queryProblem, type IndexerSearchFields } from '@/utils/indexerSearch'
-import { emptyGitRelease, gitReleaseFields, gitReleaseOptions, type GitReleaseFields } from '@/utils/gitRelease'
-import { argumentsProblem, joinArguments, splitArguments } from '@/utils/scriptArguments'
-import { CARD_RATIOS, type CardRatio, cardRatio, DEFAULT_CARD_RATIO } from '@/utils/subscriptionHit'
+import { NO_INDEXER, maxAgeDays, queryProblem } from '@/utils/indexerSearch'
+import { argumentsProblem, splitArguments } from '@/utils/scriptArguments'
+import { emptyForm, fillForm, formBody, NONE, type SubscriptionFormFields } from '@/utils/subscriptionForm'
+import { CARD_RATIOS, DEFAULT_CARD_RATIO } from '@/utils/subscriptionHit'
 
 const props = defineProps<{ categories: Category[] }>()
 
 /** The id of the subscription in the form; `null` while it adds a new one. */
 const editing = defineModel<string | null>('editing', { required: true })
-
-const NONE = '__none__'
 
 const { t } = useI18n()
 const store = useSubscriptionsStore()
@@ -53,68 +52,7 @@ const caps = ref<IndexerCaps | null>(null)
 const capsError = ref<string | null>(null)
 const capsBusy = ref(false)
 
-interface Form {
-  name: string
-  url: string
-  kind: SubscriptionRequest['kind']
-  mode: SubscriptionRequest['mode']
-  categoryId: string
-  intervalMinutes: number
-  backlog: 'from_now' | 'review_all'
-  titleContains: string
-  titleExcludes: string
-  apiKey: string
-  categoryMap: CategoryMapping[]
-  sourceCategories: string[]
-  everyRelease: boolean
-  view: 'list' | 'cards'
-  autoplay: boolean
-  cardRatio: CardRatio
-  /** A cron expression; only a script subscription sends one (RD-130-19). */
-  schedule: string
-  /** The script's file name, kept apart from `url` so an address typed first never becomes one. */
-  script: string
-  /** The parameter line, split into the arguments the script receives (RD-150-08). */
-  scriptArguments: string
-  /** A defined indexer to take over when saving (RD-180-20); `NO_INDEXER` for none. */
-  indexerId: string
-  /** `q`, `maxage`, `pw` and `pred` of an indexer subscription (RD-180-20). */
-  search: IndexerSearchFields
-  /** Which release files a git-release subscription downloads (RD-190-13). */
-  gitRelease: GitReleaseFields
-}
-
-/** The address scheme a script subscription's name is stored under, as the server writes it. */
-const SCRIPT_PREFIX = 'script:'
-
-function emptyForm(): Form {
-  return {
-    name: '',
-    url: '',
-    kind: 'media',
-    mode: 'review',
-    categoryId: NONE,
-    intervalMinutes: 60,
-    backlog: 'from_now',
-    titleContains: '',
-    titleExcludes: '',
-    apiKey: '',
-    categoryMap: [],
-    sourceCategories: [],
-    everyRelease: false,
-    view: 'list',
-    autoplay: false,
-    cardRatio: DEFAULT_CARD_RATIO,
-    schedule: '',
-    script: '',
-    scriptArguments: '',
-    indexerId: NO_INDEXER,
-    search: { query: '', maxAge: '', hidePassworded: false, pretime: 'none' },
-    gitRelease: emptyGitRelease()
-  }
-}
-
-const form = reactive<Form>(emptyForm())
+const form = reactive<SubscriptionFormFields>(emptyForm())
 
 /** How the LinkGrabber draws this subscription's hits (RD-120-37). */
 const viewItems = computed(() => [
@@ -207,65 +145,8 @@ const searchInvalid = computed(() => form.kind === 'indexer' && (
 /** Taking a defined indexer over lets the address and the key fields stay empty. */
 const takesOver = computed(() => form.kind === 'indexer' && form.indexerId !== NO_INDEXER)
 
-/** Splits a comma-separated pattern list, dropping the empties. */
-function patterns(value: string): string[] {
-  return value
-    .split(',')
-    .map(entry => entry.trim())
-    .filter(entry => entry.length > 0)
-}
-
-function body(): SubscriptionRequest {
-  return {
-    name: form.name.trim(),
-    url: form.kind === 'script' ? form.script : form.url.trim(),
-    kind: form.kind,
-    enabled: true,
-    mode: form.mode,
-    category_id: form.categoryId === NONE ? null : form.categoryId,
-    priority: 'normal',
-    // Stored in seconds; entered in minutes, because nobody thinks in seconds per day.
-    interval_seconds: Math.round(form.intervalMinutes * 60),
-    filters: {
-      title_contains: patterns(form.titleContains),
-      title_excludes: patterns(form.titleExcludes),
-      languages: [],
-      min_duration_seconds: null,
-      max_duration_seconds: null,
-      published_after: null,
-      min_height: null
-    },
-    backlog: form.backlog === 'review_all' ? { mode: 'review_all' } : { mode: 'from_now' },
-    category_map: form.categoryMap,
-    source_categories: form.sourceCategories,
-    every_release: form.everyRelease,
-    view: form.view,
-    // Meaningless for the list, so it is not kept switched on behind a view that ignores it.
-    autoplay: form.view === 'cards' && form.autoplay,
-    // Kept behind the list, unlike autoplay: it changes nothing there, and switching back to
-    // cards finds the shape somebody chose.
-    card_ratio: form.cardRatio,
-    // The server refuses a schedule on any other kind, so one typed before switching away is
-    // not sent along with it.
-    schedule: form.kind === 'script' ? (form.schedule.trim() || null) : null,
-    // The list, never the line: the server gets exactly what the preview shows.
-    script_arguments: form.kind === 'script' ? (scriptArgumentList.value ?? []) : [],
-    // Only an indexer subscription sends a search; every other kind is refused one.
-    indexer_search: form.kind === 'indexer'
-      ? {
-          query: form.search.query.trim() || null,
-          max_age_days: maxAgeDays(form.search.maxAge),
-          hide_passworded: form.search.hidePassworded,
-          pretime: form.search.pretime === 'none' ? null : Number(form.search.pretime)
-        }
-      : {},
-    indexer_id: takesOver.value ? form.indexerId : null,
-    // Only a git-release subscription takes release options; every other kind is refused them.
-    git_release: form.kind === 'git_release' ? gitReleaseOptions(form.gitRelease) : {},
-    // Omitted rather than cleared when left blank, so an edit that does not retype the key
-    // keeps the stored one.
-    api_key: form.apiKey.trim() || null
-  } as SubscriptionRequest
+function body() {
+  return formBody(form, scriptArgumentList.value, takesOver.value)
 }
 
 function reset(): void {
@@ -294,38 +175,7 @@ async function submit(): Promise<void> {
 function edit(subscription: Subscription): void {
   editing.value = subscription.id
   refusal.value = null
-  form.name = subscription.name
-  // A script is edited by its name; the server stores it as `script:<name>` and takes either.
-  const script = subscription.kind === 'script' && subscription.url.startsWith(SCRIPT_PREFIX)
-  form.script = script ? subscription.url.slice(SCRIPT_PREFIX.length) : ''
-  form.url = script ? '' : subscription.url
-  form.scriptArguments = joinArguments(subscription.script_arguments ?? [])
-  form.kind = subscription.kind
-  form.mode = subscription.mode
-  form.categoryId = subscription.category_id ?? NONE
-  form.intervalMinutes = Math.round(subscription.interval_seconds / 60)
-  form.backlog = subscription.backlog?.mode === 'review_all' ? 'review_all' : 'from_now'
-  form.titleContains = (subscription.filters?.title_contains ?? []).join(', ')
-  form.titleExcludes = (subscription.filters?.title_excludes ?? []).join(', ')
-  // Never prefilled: the key is not readable, and a blank field means "keep it".
-  form.apiKey = ''
-  form.categoryMap = [...(subscription.category_map ?? [])]
-  form.sourceCategories = [...(subscription.source_categories ?? [])]
-  form.everyRelease = subscription.every_release ?? false
-  form.view = subscription.view ?? 'list'
-  form.autoplay = subscription.autoplay ?? false
-  form.cardRatio = cardRatio(subscription.card_ratio)
-  form.schedule = subscription.schedule ?? ''
-  // A take-over is a copy made when saving, so an edit starts without one (RD-180-20).
-  form.indexerId = NO_INDEXER
-  const search = subscription.indexer_search
-  form.search = {
-    query: search?.query ?? '',
-    maxAge: search?.max_age_days ?? '',
-    hidePassworded: search?.hide_passworded ?? false,
-    pretime: search?.pretime === 0 || search?.pretime === 1 || search?.pretime === 2 ? String(search.pretime) as '0' | '1' | '2' : 'none'
-  }
-  form.gitRelease = gitReleaseFields(subscription.git_release)
+  fillForm(form, subscription)
   caps.value = null
   capsError.value = null
   void focusForm()
@@ -366,13 +216,6 @@ const canProbeCaps = computed(() =>
   form.kind === 'indexer' && form.url.trim().length > 0 && (Boolean(editing.value) || form.apiKey.trim().length > 0)
 )
 
-/// The categories offered for mapping: what is being fetched, or everything if nothing is chosen.
-const mappableCategories = computed(() => {
-  const all = caps.value?.categories ?? []
-  if (!form.sourceCategories.length) return all
-  return all.filter(category => form.sourceCategories.includes(category.id))
-})
-
 /**
  * Edits one title pattern as a regular expression.
  *
@@ -387,20 +230,6 @@ async function editTitlePattern(field: 'titleContains' | 'titleExcludes'): Promi
   const result = await editRegex(bare || null)
   if (!result?.pattern) return
   form[field] = [...entries, `/${result.pattern}/`].join(', ')
-}
-
-/** `TV / HD` rather than `HD`: two categories are routinely called the same thing. */
-function categoryLabel(category: IndexerCategory): string {
-  const parent = caps.value?.categories?.find(entry => entry.id === category.parent_id)
-  return parent ? `${parent.name} / ${category.name}` : category.name
-}
-
-function addMapping(): void {
-  form.categoryMap = [...form.categoryMap, { source_category: '', category_id: props.categories[0]?.id ?? '' }]
-}
-
-function removeMapping(index: number): void {
-  form.categoryMap = form.categoryMap.filter((_, position) => position !== index)
 }
 
 defineExpose({ edit, reset })
@@ -575,75 +404,17 @@ defineExpose({ edit, reset })
         />
       </UFormField>
 
-      <div v-if="form.kind === 'indexer'" class="flex flex-col gap-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            size="xs"
-            variant="subtle"
-            :loading="capsBusy"
-            :disabled="!canProbeCaps"
-            data-testid="subscription-test"
-            @click="testIndexer(editing)"
-          >
-            {{ t('subscriptions.actions.test') }}
-          </UButton>
-          <span v-if="caps?.server" class="text-xs text-muted">{{ caps.server }}</span>
-          <UButton size="xs" variant="ghost" @click="addMapping">
-            {{ t('subscriptions.form.add_mapping') }}
-          </UButton>
-        </div>
-        <p v-if="capsError" class="text-xs text-error" data-testid="subscription-test-error">
-          {{ capsError }}
-        </p>
-        <p v-if="caps" class="text-xs text-muted">
-          {{ t('subscriptions.form.caps_summary', { count: caps.categories.length, types: caps.searching.join(', ') }) }}
-        </p>
-        <UFormField
-          v-if="caps?.categories?.length"
-          :label="t('subscriptions.form.source_categories')"
-          :description="t('subscriptions.form.source_categories_description')"
-        >
-          <USelectMenu
-            v-model="form.sourceCategories"
-            multiple
-            size="xs"
-            class="w-full"
-            value-key="value"
-            :items="caps.categories.map(category => ({ value: category.id, label: categoryLabel(category) }))"
-            :placeholder="t('subscriptions.form.source_categories_all')"
-          />
-        </UFormField>
-        <div
-          v-for="(mapping, index) in form.categoryMap"
-          :key="index"
-          class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]"
-        >
-          <USelect
-            v-if="caps?.categories?.length"
-            v-model="mapping.source_category"
-            size="xs"
-            class="w-full min-w-0"
-            :items="mappableCategories.map(category => ({ value: category.id, label: categoryLabel(category) }))"
-            value-key="value"
-          />
-          <UInput
-            v-else
-            v-model="mapping.source_category"
-            size="xs"
-            class="w-full min-w-0"
-            :placeholder="t('subscriptions.form.source_category')"
-          />
-          <span class="text-xs text-muted">→</span>
-          <USelect
-            v-model="mapping.category_id"
-            size="xs"
-            class="w-full min-w-0"
-            :items="props.categories.map(category => ({ value: category.id, label: category.name }))"
-            value-key="value"
-          />
-          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="removeMapping(index)" />
-        </div>
-      </div>
+      <SubscriptionIndexerCategories
+        v-if="form.kind === 'indexer'"
+        v-model:source-categories="form.sourceCategories"
+        v-model:category-map="form.categoryMap"
+        :categories="props.categories"
+        :caps="caps"
+        :caps-error="capsError"
+        :caps-busy="capsBusy"
+        :can-probe="canProbeCaps"
+        @test="testIndexer(editing)"
+      />
 
       <FormActions
         :editing="editing !== null"

@@ -3,7 +3,7 @@
 use rd_core::{Failure, FailureKind};
 use rd_notify::{Attempt, DeliveryState, NotificationEvent};
 
-use super::{budget_exhausted, plugin_failure, settle};
+use super::{budget_exhausted, plugin_failure, settle, usenet_quota_reached};
 
 /// What the host hands back for a failure the plugin reported: the `rd_core::Failure` inside
 /// the error, exactly as `NotifierPlugin::deliver` builds it.
@@ -93,5 +93,36 @@ fn only_a_budget_running_out_becomes_budget_exhausted() {
         serde_json::json!({ "entity": "active", "profile": profile }),
     ] {
         assert!(budget_exhausted(&quiet).is_none(), "{quiet}");
+    }
+}
+
+/// Only the flush that used a quota up notifies; a server edit or a quota change does not
+/// (RD-1100-05).
+#[test]
+fn only_a_used_up_usenet_quota_becomes_usenet_quota_reached() {
+    let id = rd_core::UsenetServerId::new();
+    let (event, category, title, body) = usenet_quota_reached(&serde_json::json!({
+        "resource": "usenet_quota",
+        "id": id,
+        "name": "Block",
+        "quota_reached": true,
+        "limit_bytes": 1000,
+        "action": "pause"
+    }))
+    .expect("a used-up quota notifies");
+    assert_eq!(event, NotificationEvent::UsenetQuotaReached);
+    assert_eq!(category, None);
+    assert_eq!(title, "Usenet quota used up: Block");
+    assert!(
+        body.contains("1000 bytes") && body.contains("paused"),
+        "{body}"
+    );
+
+    for quiet in [
+        serde_json::json!({ "resource": "usenet_server", "id": id }),
+        serde_json::json!({ "resource": "usenet_server", "id": id, "removed": true }),
+        serde_json::json!({ "resource": "usenet_quota", "id": id, "quota_reached": false }),
+    ] {
+        assert!(usenet_quota_reached(&quiet).is_none(), "{quiet}");
     }
 }

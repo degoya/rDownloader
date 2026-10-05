@@ -210,10 +210,12 @@ pub(crate) async fn list_totals(pool: &SqlitePool) -> Result<Vec<TransferTotal>>
 ///
 /// Both tables, because both are what a person means by "the statistics": leaving
 /// `transfer_totals` behind would empty every chart and still show an all-time figure nobody
-/// could account for.
+/// could account for. The traffic per Usenet server counts too (RD-1100-05); the quota figures
+/// on the servers do not, they are the servers' own.
 pub(crate) async fn count_rows(pool: &SqlitePool) -> Result<u64> {
     let count: i64 = sqlx::query_scalar(
-        "SELECT (SELECT COUNT(*) FROM transfer_stats) + (SELECT COUNT(*) FROM transfer_totals)",
+        "SELECT (SELECT COUNT(*) FROM transfer_stats) + (SELECT COUNT(*) FROM transfer_totals) \
+         + (SELECT COUNT(*) FROM usenet_server_traffic)",
     )
     .fetch_one(pool)
     .await
@@ -221,7 +223,7 @@ pub(crate) async fn count_rows(pool: &SqlitePool) -> Result<u64> {
     Ok(u64::try_from(count).unwrap_or(0))
 }
 
-/// Empties both statistics tables in one transaction and reports how many rows went.
+/// Empties the statistics tables in one transaction and reports how many rows went.
 ///
 /// Unbounded where [`prune`] is bounded, for the reason `log_store::clear_log_records` gives:
 /// a person waited for this after a confirmation, and a half-cleared statistic is the mixed
@@ -238,8 +240,13 @@ pub(crate) async fn clear(connection: &mut SqliteConnection) -> Result<u64> {
         .await
         .context("clear transfer totals")?
         .rows_affected();
+    let servers = sqlx::query("DELETE FROM usenet_server_traffic")
+        .execute(&mut *transaction)
+        .await
+        .context("clear usenet server traffic")?
+        .rows_affected();
     transaction.commit().await?;
-    Ok(buckets + totals)
+    Ok(buckets + totals + servers)
 }
 
 /// One bounded pass of the retention sweep.

@@ -76,13 +76,8 @@
     "theme_system": "System",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "language_and_theme": "Language and theme"
-  },
-  "locales": {
-    "en": "English",
-    "de": "Deutsch",
-    "fr": "Français",
-    "es": "Español"
+    "language_and_theme": "Language and theme",
+    "language_in_progress": "{name} (in progress)"
   },
   "footer": {
     "made_with": "Made with",
@@ -128,7 +123,8 @@
     "enqueue_all": "Enqueue all (in the LinkGrabber)",
     "enqueue_paused": "Add all paused (in the LinkGrabber)",
     "clear_linkgrabber": "Delete all links (in the LinkGrabber)",
-    "close_dialog": "Close the dialog"
+    "close_dialog": "Close the dialog",
+    "go_history": "Go to the history"
   },
   "a11y": {
     "skip_to_content": "Skip to content",

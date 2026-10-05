@@ -19,14 +19,15 @@ use super::{
     error::{McpToolResult, parse_id, respond},
     params_config::{
         CreateAccountParams, CreateProxyProfileParams, CreateUsenetServerParams, IdParams,
-        UpdateAccountParams, UpdateProxyProfileParams, UpdateUsenetServerParams, clearing, merged,
+        SetUsenetQuotaParams, UpdateAccountParams, UpdateProxyProfileParams,
+        UpdateUsenetServerParams, clearing, merged,
     },
 };
 use crate::{
     ApiError,
     dto::{
         CreateAccountRequest, CreateProxyProfileRequest, CreateUsenetServerRequest,
-        UpdateAccountRequest, UpdateUsenetServerRequest,
+        SetUsenetQuotaRequest, UpdateAccountRequest, UpdateUsenetServerRequest,
     },
 };
 
@@ -220,7 +221,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the configured NNTP servers with their priority and connection limits. Passwords are never included."
+        description = "List the configured NNTP servers with their priority, connection limits and traffic quota (limit, action, used bytes, whether it is used up). Passwords are never included."
     )]
     pub async fn list_usenet_servers(&self) -> McpToolResult {
         respond(
@@ -333,6 +334,73 @@ impl RdMcpServer {
             Ok(crate::usenet_handlers::delete_usenet_server(
                 State(self.state.clone()),
                 AxumPath(id),
+            )
+            .await?
+            .0)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Set, change or remove the traffic quota of one NNTP server, such as a block account's volume. Once the server has delivered limit_bytes, action applies from the next file: backup (asked only after every other server) or pause (not asked at all); a notification (usenet_quota_reached) goes out. Merges onto the stored quota: only the fields you pass change. reset_on (YYYY-MM-DD) starts the used figure again at zero on that day, once; reset_usage does it now; clear [\"limit_bytes\"] removes the quota."
+    )]
+    pub async fn set_usenet_server_quota(
+        &self,
+        Parameters(params): Parameters<SetUsenetQuotaParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id: rd_core::UsenetServerId = parse_id(&params.id)?;
+            let current = self
+                .state
+                .database
+                .list_usenet_servers()
+                .await?
+                .into_iter()
+                .find(|server| server.id == id)
+                .ok_or_else(crate::error_codes::usenet_server_not_found)?
+                .quota;
+            let cleared = clearing(params.clear.as_ref(), &["limit_bytes", "reset_on"])?;
+            let reset_on = params
+                .reset_on
+                .as_deref()
+                .map(|day| {
+                    chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").map_err(|_| {
+                        ApiError::bad_request(
+                            "usenet.quota_invalid",
+                            "reset_on must be a day written YYYY-MM-DD",
+                        )
+                    })
+                })
+                .transpose()?;
+            let request = SetUsenetQuotaRequest {
+                limit_bytes: merged(
+                    &cleared,
+                    "limit_bytes",
+                    params.limit_bytes,
+                    current.as_ref().map(|quota| quota.limit_bytes),
+                ),
+                action: params.action.map_or_else(
+                    || {
+                        current
+                            .as_ref()
+                            .map(|quota| quota.action)
+                            .unwrap_or_default()
+                    },
+                    Into::into,
+                ),
+                reset_on: merged(
+                    &cleared,
+                    "reset_on",
+                    reset_on,
+                    current.as_ref().and_then(|quota| quota.reset_on),
+                ),
+                reset_usage: params.reset_usage.unwrap_or(false),
+            };
+            Ok(crate::usenet_handlers::set_usenet_server_quota(
+                State(self.state.clone()),
+                AxumPath(id),
+                Json(request),
             )
             .await?
             .0)

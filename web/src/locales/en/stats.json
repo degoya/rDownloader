@@ -56,5 +56,19 @@
     "hourly_description": "Days before hourly figures become daily ones (1 to the retention).",
     "retention_label": "Retention",
     "retention_description": "Days the daily figures are kept (7–3650)."
+  },
+  "servers": {
+    "title": "Traffic per Usenet server",
+    "description": "Article data each server delivered, as the provider meters it: yEnc-encoded, a few per cent above the payload. Days are counted in UTC.",
+    "name": "Server",
+    "today": "Today",
+    "week": "7 days",
+    "month": "30 days",
+    "year": "1 year",
+    "total": "Total",
+    "quota": "Quota",
+    "quota_used": "{used} of {limit}",
+    "used_up_backup": "Used up · backup only",
+    "used_up_pause": "Used up · paused"
   }
 }

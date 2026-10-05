@@ -5,11 +5,13 @@
 pub mod auto_remove_service;
 pub mod bandwidth_handlers;
 pub mod bandwidth_manual_handlers;
+pub mod capture_queue;
 pub mod capture_summary;
 pub mod collision_handlers;
 pub mod download_handlers;
 pub mod download_sources;
 pub mod duplicates;
+pub mod history_handlers;
 pub mod media_dto;
 pub mod media_handlers;
 pub mod metrics;

@@ -188,6 +188,69 @@ async fn a_queued_job_can_be_deleted_by_its_job_id() {
     assert_eq!(queue["queue"]["slots"].as_array().map(Vec::len), Some(0));
 }
 
+/// RD-1100-04: a finished job that left the queue stays in the history a client polls, and
+/// the client's "delete from history" hides it there while the native history keeps it.
+#[tokio::test]
+async fn a_finished_job_removed_from_the_queue_stays_in_the_history_until_deleted_there() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    // Parked: the lifecycle is written by hand, and a live scheduler would race it for the row.
+    let harness = common::harness(
+        directory.path(),
+        common::Options::default().login().parked(),
+    )
+    .await;
+
+    let nzo_id = add_nzb(&harness.router, "Finished.Release").await;
+    let package: rd_core::PackageId = nzo_id
+        .strip_prefix("rd_nzo_")
+        .expect("our job id")
+        .parse()
+        .expect("package id");
+    harness
+        .database
+        .set_package_state(package, rd_core::PackageState::Completed, None, None, None)
+        .await
+        .expect("completed");
+    for file in harness
+        .database
+        .downloads_for_package(package)
+        .await
+        .expect("files")
+    {
+        harness
+            .database
+            .delete_download(file.id)
+            .await
+            .expect("removed");
+    }
+
+    let (_, history) = sab(&harness.router, &with_key("mode=history")).await;
+    let slots = history["history"]["slots"].as_array().expect("slots");
+    assert_eq!(slots.len(), 1, "{history}");
+    assert_eq!(slots[0]["nzo_id"], nzo_id, "{history}");
+    assert_eq!(slots[0]["status"], "Completed", "{history}");
+    assert_eq!(slots[0]["name"], "Finished.Release", "{history}");
+
+    let (_, deleted) = sab(
+        &harness.router,
+        &with_key(&format!("mode=history&name=delete&value={nzo_id}")),
+    )
+    .await;
+    assert_eq!(deleted["status"], true, "{deleted}");
+    let (_, history) = sab(&harness.router, &with_key("mode=history")).await;
+    assert_eq!(
+        history["history"]["slots"].as_array().map(Vec::len),
+        Some(0),
+        "{history}"
+    );
+    let native = harness
+        .database
+        .list_download_history(&rd_db::HistoryQuery::default())
+        .await
+        .expect("native history");
+    assert_eq!(native.total, 1);
+}
+
 #[tokio::test]
 async fn a_foreign_job_id_is_refused_rather_than_matched() {
     let directory = tempfile::tempdir().expect("tempdir");

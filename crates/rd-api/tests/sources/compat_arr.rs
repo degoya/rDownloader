@@ -395,6 +395,7 @@ async fn seed_category(harness: &common::Harness, directory: &std::path::Path, n
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,

@@ -26,6 +26,7 @@ mod tools_credentials;
 mod tools_downloads;
 mod tools_editors;
 mod tools_grabber;
+mod tools_history;
 mod tools_indexers;
 mod tools_insight;
 mod tools_intake;
@@ -109,14 +110,16 @@ create_site_rule, update_site_rule, test_site_rule and delete_site_rule write th
 Everything the LinkGrabber screen does is here too: list_candidates names each link, and \
 the candidate tools rename, move, reorder, enqueue, pick media variants, plan torrents and \
 directory listings, and pin mirrors; list_nzb_imports and the nzb_import tools review and \
-queue an NZB. search_indexers searches the Newznab indexers defined in the web UI \
-(list_indexers) and grab_indexer_results puts chosen hits into the LinkGrabber as NZB imports. \
+queue an NZB. search_indexers searches the Newznab and Torznab indexers defined in the web UI \
+(list_indexers), by term or as a TV or film search with its ids, and grab_indexer_results puts \
+chosen hits into the LinkGrabber, an NZB as an NZB import and a torrent as a package. \
 The queue is ordered with reorder_downloads and reorder_packages, renamed \
 with rename_download, update_package and rename_package_folder, tidied with \
 clear_finished_packages and unpacked with extract_packages. pause_queue pauses the whole \
 queue for a while and resumes it by itself (resume_queue ends it early); \
 switch_bandwidth_profile puts one of list_bandwidth_profiles in front of the schedule \
-until its next change, a time or return_to_bandwidth_schedule. get_torrent_details, the \
+until its next change, a time or return_to_bandwidth_schedule; set_package_speed_limit \
+gives one package a download limit of its own. get_torrent_details, the \
 seeding and tracker tools, list_postprocess_options, list_managed_tools and manage_tool, \
 and get_storage_capacity cover the rest; get_about says which build is running, get_update_status and check_for_updates whether a newer one is out. The histories and catalogues beside the editors are \
 here too: automation runs, versions, vocabulary and dry run, notification deliveries, the \
@@ -175,6 +178,7 @@ impl RdMcpServer {
             + Self::collisions_router()
             + Self::backup_router()
             + Self::pause_router()
+            + Self::history_router()
     }
 }
 

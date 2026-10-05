@@ -65,7 +65,7 @@ pub use control::NzbDropped;
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};
 pub use holds::HoldSource;
 use provider::ProviderSlot;
-pub use queue_pause::QueuePause;
+pub use queue_pause::{QueuePause, pausable};
 pub use rates::estimate_seconds;
 pub use runner::{ExternalRunner, HTTP_REUSE, RunLimits, RunOutcome};
 

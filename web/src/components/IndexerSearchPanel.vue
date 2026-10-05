@@ -12,8 +12,9 @@
  *
  * Chosen hits — the ticked ones, or one row's own button — go to the server, which fetches each
  * NZB with the indexer's key and imports it the way an uploaded `.nzb` is imported, so they
- * arrive in the list below for review like a file. The key itself never reaches this component:
- * a hit's address carries a placeholder for it.
+ * arrive in the list below for review like a file; a Torznab torrent (RD-1100-03) arrives as a
+ * package, like a pasted magnet. The key never reaches this component: a hit's address carries a
+ * placeholder for it. A TV or film search goes only to the indexers that answer it.
  *
  * `f` puts the keyboard in the search field (`indexerSearchFocus.ts`), or, while the field is
  * disabled, on the hint's link — a disabled field cannot take the focus, and the link is the one
@@ -33,8 +34,12 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { IndexerSearchHit, IndexerSearchResponse } from '@/api/types'
 import CoverPlaceholder from '@/components/CoverPlaceholder.vue'
+import IndexerHitBadges from '@/components/IndexerHitBadges.vue'
+import IndexerSearchTypeFields from '@/components/IndexerSearchTypeFields.vue'
 import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
+import { useIndexerSearchType } from '@/composables/useIndexerSearchType'
 import { translateServerMessage } from '@/i18n/server'
+import { useCollectorStore } from '@/stores/collector'
 import { useIndexersStore } from '@/stores/indexers'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { formatBytes } from '@/utils/format'
@@ -52,6 +57,7 @@ const { t } = useI18n()
 const toast = useToast()
 const indexers = useIndexersStore()
 const nzb = useNzbImportsStore()
+const collector = useCollectorStore()
 
 const query = ref('')
 const indexerChoice = ref(ALL)
@@ -94,6 +100,9 @@ const indexerItems = computed(() => [
   ...indexers.enabled.map(indexer => ({ value: indexer.id, label: indexer.name }))
 ])
 const limitItems = LIMITS.map(value => ({ value, label: String(value) }))
+/** The indexers a free search goes to; a typed one asks those of them that answer it. */
+const targetIds = computed(() => indexerChoice.value === ALL ? indexers.enabled.map(indexer => indexer.id) : [indexerChoice.value])
+const { typed, typedError, capsList, askCaps, validateTyped, answeringIndexers, typedPart } = useIndexerSearchType(targetIds)
 
 const hits = computed(() => sortHits(result.value?.hits ?? [], sortKey.value, descending.value))
 const failures = computed(() => (result.value?.indexers ?? []).filter(outcome => outcome.error))
@@ -168,23 +177,26 @@ function validate(): boolean {
   ageError.value = ageGiven && maxAgeDays(maxAge.value) === null
     ? translateServerMessage({ code: 'indexer.max_age_invalid', params: { maximum: String(MAX_AGE_DAYS) } })
     : null
-  return !queryError.value && !ageError.value
+  return validateTyped() && !queryError.value && !ageError.value
 }
 
 async function search(start: number): Promise<void> {
   if (!validate()) return
+  const indexerIds = typed.value.type === 'search' ? (indexerChoice.value === ALL ? [] : [indexerChoice.value]) : await answeringIndexers()
+  searchError.value = indexerIds ? null : t('linkgrabber.search.type_unsupported')
+  if (!indexerIds) return
   searching.value = true
-  searchError.value = null
   const term = query.value.trim()
   const response = await api.POST('/api/v1/indexers/search', {
     body: {
-      indexer_ids: indexerChoice.value === ALL ? [] : [indexerChoice.value],
+      indexer_ids: indexerIds,
       query: term || null,
       categories: categories.value.map(entry => entry.trim()).filter(Boolean),
       max_age_days: maxAgeDays(maxAge.value),
       hide_passworded: hidePassworded.value,
       limit: pageSize.value,
-      offset: start
+      offset: start,
+      ...typedPart()
     }
   })
   searching.value = false
@@ -223,7 +235,7 @@ async function grabSelected(): Promise<void> {
 
 async function grab(chosen: readonly IndexerSearchHit[]): Promise<void> {
   if (!chosen.length) return
-  const items = chosen.map(hit => ({ indexer_id: hit.indexer_id, download: hit.download, title: hit.title }))
+  const items = chosen.map(hit => ({ indexer_id: hit.indexer_id, download: hit.download, title: hit.title, ...(hit.magnet ? { magnet: hit.magnet } : {}) }))
   markRows(chosen, () => 'pending')
   const response = await api.POST('/api/v1/indexers/grab', { body: { items } })
   if (!response.data) {
@@ -232,9 +244,10 @@ async function grab(chosen: readonly IndexerSearchHit[]): Promise<void> {
     return
   }
   const { imports, failed } = response.data
-  if (imports.length) {
-    toast.add({ title: t('linkgrabber.search.grabbed', { count: imports.length }, imports.length), color: 'success', icon: 'i-lucide-file-check' })
-  }
+  const torrents = response.data.torrents ?? []
+  if (imports.length) toast.add({ title: t('linkgrabber.search.grabbed', { count: imports.length }, imports.length), color: 'success', icon: 'i-lucide-file-check' })
+  if (torrents.length) toast.add({ title: t('linkgrabber.search.grabbed_torrents', { count: torrents.length }, torrents.length), color: 'success', icon: 'i-lucide-magnet' })
+  if (torrents.length) void collector.refresh()
   for (const failure of failed) {
     toast.add({ title: t('linkgrabber.search.grab_failed', { title: failure.title }), description: translateServerMessage(failure.error), color: 'warning', icon: 'i-lucide-circle-alert' })
   }
@@ -321,6 +334,7 @@ function ageLabel(hit: IndexerSearchHit): string {
         </p>
       </div>
       <USelect v-model="indexerChoice" :items="indexerItems" value-key="value" class="w-44" :disabled="!available" :aria-label="t('linkgrabber.search.indexer_label')" data-testid="indexer-search-indexer" />
+      <IndexerSearchTypeFields v-model="typed" :caps-list="capsList" :disabled="!available" :error="typedError" @ask="askCaps" />
       <UInputTags v-model="categories" class="w-48" :disabled="!available" :placeholder="t('linkgrabber.search.categories_placeholder')" :aria-label="t('linkgrabber.search.categories_label')" data-testid="indexer-search-categories" />
       <div class="w-48">
         <UInput
@@ -433,7 +447,7 @@ function ageLabel(hit: IndexerSearchHit): string {
             <div class="min-w-0 flex-1">
               <span class="flex min-w-0 items-center gap-2">
                 <span class="min-w-0 truncate font-mono text-xs" :title="row.original.title" data-testid="indexer-search-hit-title">{{ row.original.title }}</span>
-                <UBadge v-if="row.original.passworded" class="shrink-0" color="warning" variant="subtle" size="sm" icon="i-lucide-lock" :label="t('linkgrabber.search.passworded')" />
+                <IndexerHitBadges :hit="row.original" />
               </span>
               <!-- One line, cut at the cell's edge; the tooltip holds all of it. -->
               <div
@@ -456,7 +470,7 @@ function ageLabel(hit: IndexerSearchHit): string {
                the tooltip shows it. The badge never shrinks, so the ellipsis cannot take it. -->
           <span v-else class="flex min-w-0 items-center gap-2">
             <span class="min-w-0 truncate font-mono text-xs" :title="row.original.title" data-testid="indexer-search-hit-title">{{ row.original.title }}</span>
-            <UBadge v-if="row.original.passworded" class="shrink-0" color="warning" variant="subtle" size="sm" icon="i-lucide-lock" :label="t('linkgrabber.search.passworded')" />
+            <IndexerHitBadges :hit="row.original" />
           </span>
         </template>
         <template #size-cell="{ row }"><span class="numeric text-xs">{{ row.original.size_bytes == null ? '—' : formatBytes(String(row.original.size_bytes)) }}</span></template>

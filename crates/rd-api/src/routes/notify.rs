@@ -1,4 +1,5 @@
-//! Notification hub, quiet hours/power and bandwidth routes.
+//! Notification hub, quiet hours/power and bandwidth routes, a package's own speed limit
+//! included (RD-1100-01).
 
 use axum::{
     Router,
@@ -84,6 +85,11 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/bandwidth/capabilities",
             get(bandwidth_handlers::bandwidth_capabilities),
         )
+        .route(
+            "/api/v1/packages/{id}/speed-limit",
+            get(bandwidth_handlers::get_package_speed_limit)
+                .put(bandwidth_handlers::set_package_speed_limit),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -99,6 +105,8 @@ pub(crate) fn routes() -> Router<AppState> {
     bandwidth_manual_handlers::switch_bandwidth_profile,
     bandwidth_manual_handlers::return_to_bandwidth_schedule,
     bandwidth_handlers::bandwidth_capabilities,
+    bandwidth_handlers::get_package_speed_limit,
+    bandwidth_handlers::set_package_speed_limit,
     notify_handlers::list_destinations,
     notify_handlers::list_targets,
     notify_handlers::create_target,

@@ -520,7 +520,7 @@
     "next": "Next page",
     "close": "Close the results",
     "grab": "Add selected ({count})",
-    "grab_hint": "Fetches the NZBs and puts them into the LinkGrabber for review, like an uploaded file",
+    "grab_hint": "Fetches the NZBs and torrents and puts them into the LinkGrabber for review, like an uploaded file",
     "grabbed": "No NZB added | One NZB added to the LinkGrabber | {count} NZBs added to the LinkGrabber",
     "grab_failed": "Not added: {title}",
     "indexer_failed": "{name} returned nothing",
@@ -539,6 +539,24 @@
     "unavailable_link": "Settings › Usenet › Indexers",
     "grab_one": "Add to the LinkGrabber: {title}",
     "grab_one_done": "In the LinkGrabber: {title}",
-    "grab_one_failed": "Not added, try again: {title}"
+    "grab_one_failed": "Not added, try again: {title}",
+    "type_label": "Search type",
+    "types": {
+      "search": "Free search",
+      "tv": "TV series",
+      "movie": "Film"
+    },
+    "ids": {
+      "season": "Season",
+      "ep": "Episode",
+      "tvdbid": "TVDB ID",
+      "tvmazeid": "TVmaze ID",
+      "imdbid": "IMDb ID",
+      "tmdbid": "TMDb ID"
+    },
+    "type_unsupported": "None of the chosen indexers offers this search.",
+    "torrent": "Torrent",
+    "swarm": "{seeders} seeders, {leechers} leechers",
+    "grabbed_torrents": "No torrent added | One torrent added to the LinkGrabber | {count} torrents added to the LinkGrabber"
   }
 }

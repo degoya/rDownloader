@@ -208,6 +208,9 @@ pub(crate) type ActivitySink = std::sync::Arc<dyn Fn(activity::Activity) + Send 
 pub(crate) struct DesktopSinks {
     pub activity: ActivitySink,
     pub notice: NoticeSink,
+    /// What the tray menu asks of the queue (RD-1100-06). The other direction: the tray names
+    /// the request, the agent makes it, because the agent holds the token.
+    pub queue: tokio::sync::mpsc::UnboundedReceiver<activity::QueueRequest>,
 }
 
 async fn run(
@@ -267,7 +270,13 @@ async fn run(
             cancellation.clone(),
             notice.clone(),
             async move {
-                watch_activity(task_client, task_cancellation, desktop.activity).await;
+                watch_activity(
+                    task_client,
+                    task_cancellation,
+                    desktop.activity,
+                    desktop.queue,
+                )
+                .await;
                 Ok(())
             },
         ));
@@ -349,10 +358,16 @@ async fn run(
 /// reads, so the two states move together and the icon never contradicts the status line. The
 /// rate comes with the summary; nothing here measures across a poll interval any more, so an
 /// outage cannot turn into a leap.
+///
+/// The tray's queue requests are made here too (RD-1100-06), and the summary is read again right
+/// after one, so the menu and the status line show its outcome without waiting for the next
+/// tick. A refused request is a log line: the summary that follows says what the agent may do,
+/// and a tray that may not pause stops offering it.
 async fn watch_activity(
     client: CaptureClient,
     cancellation: CancellationToken,
     sink: ActivitySink,
+    mut requests: tokio::sync::mpsc::UnboundedReceiver<activity::QueueRequest>,
 ) {
     loop {
         match client.summary().await {
@@ -365,6 +380,15 @@ async fn watch_activity(
         tokio::select! {
             () = cancellation.cancelled() => return,
             () = tokio::time::sleep(config::STATUS_POLL_INTERVAL) => {}
+            Some(request) = requests.recv() => {
+                let outcome = match request {
+                    activity::QueueRequest::Pause { minutes } => client.pause_queue(minutes).await,
+                    activity::QueueRequest::Resume => client.resume_queue().await,
+                };
+                if let Err(error) = outcome {
+                    tracing::warn!(%error, ?request, "the tray's queue request was not carried out");
+                }
+            }
         }
     }
 }

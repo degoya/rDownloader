@@ -311,6 +311,16 @@ impl Writer {
             crate::stats_store::TransferOutcome::Failed
         };
         record_transfer_outcome(&mut transaction, &current, outcome, event.occurred_at).await?;
+        // A package whose last file just failed without any having finished never reaches
+        // post-processing; its history entry is written here instead (RD-1100-04).
+        if next == DownloadState::Failed {
+            crate::history_store::record_if_settled_failed(
+                &mut transaction,
+                &current.package_id.to_string(),
+                event.occurred_at,
+            )
+            .await?;
+        }
         insert_event(&mut transaction, &event).await?;
         transaction.commit().await?;
         let _ = self.events.send(event);
@@ -410,8 +420,9 @@ impl Writer {
     }
 
     /// Derives `packages.state` from its files: any active file → `downloading`; files
-    /// still pending → `queued`. Post-processing states are owned by the extraction
-    /// service and are left alone until a file becomes active again.
+    /// still pending → `queued`; a Usenet set given up as beyond repair → `failed`.
+    /// Post-processing states are owned by the extraction service and are left alone until a
+    /// file becomes active again.
     pub(crate) async fn refresh_package_state(
         &mut self,
         package_id: rd_core::PackageId,
@@ -424,11 +435,12 @@ impl Writer {
         else {
             return Ok(());
         };
-        let states: Vec<String> =
-            sqlx::query_scalar("SELECT state FROM downloads WHERE package_id = ?")
+        let rows: Vec<(String, Option<String>)> =
+            sqlx::query_as("SELECT state, last_error_json FROM downloads WHERE package_id = ?")
                 .bind(package_id.to_string())
                 .fetch_all(&mut self.connection)
                 .await?;
+        let states: Vec<String> = rows.iter().map(|(state, _)| state.clone()).collect();
         let active = states.iter().any(|state| {
             matches!(
                 state.as_str(),
@@ -446,6 +458,10 @@ impl Writer {
             rd_core::PackageState::Downloading
         } else if all_completed || current == "postprocessing" {
             return Ok(());
+        } else if crate::nzb_hopeless::gave_up(&rows) {
+            // A Usenet set given up as beyond repair (RD-1100-02) ends here, not back in the
+            // queue: nothing of it will run again unless somebody retries a row.
+            rd_core::PackageState::Failed
         } else {
             rd_core::PackageState::Queued
         };
@@ -493,6 +509,26 @@ impl Writer {
         .bind(package_id.to_string())
         .execute(&mut *transaction)
         .await?;
+        // The history entry rides in the transaction that gives the package its outcome
+        // (RD-1100-04), so it survives the package's removal and never describes an outcome
+        // the queue does not know.
+        let outcome = match state {
+            rd_core::PackageState::Completed => Some(rd_core::HistoryOutcome::Completed),
+            rd_core::PackageState::Failed => Some(rd_core::HistoryOutcome::Failed),
+            _ => None,
+        };
+        if let Some(outcome) = outcome {
+            crate::history_store::record(
+                &mut transaction,
+                &package_id.to_string(),
+                outcome,
+                event.occurred_at,
+            )
+            .await?;
+            rd_core::failpoint!("history.before_entry_committed", || {
+                anyhow::anyhow!("crash point: the history entry is written and not committed")
+            });
+        }
         insert_event(&mut transaction, &event).await?;
         transaction.commit().await?;
         let _ = self.events.send(event);

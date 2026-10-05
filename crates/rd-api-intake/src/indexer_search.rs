@@ -12,7 +12,14 @@
 //! LinkGrabber's proposed links keep to.
 //!
 //! **A hit becomes an NZB import through the upload's own path**, `store_nzb_import`: the same
-//! parser, password convention and review list a dropped `.nzb` takes.
+//! parser, password convention and review list a dropped `.nzb` takes. A torrent hit from a
+//! Torznab indexer (Jackett, Prowlarr; RD-1100-03) becomes a LinkGrabber package the way an
+//! uploaded `.torrent` or a pasted magnet does.
+//!
+//! **A typed search** (`t=tvsearch`, `t=movie`; RD-1100-03) carries the ids the person typed;
+//! nothing here looks one up, and nothing asks `t=caps` first -- the interface does that once
+//! and offers only the types an indexer answers, and an indexer asked anyway refuses in its own
+//! outcome.
 
 use std::collections::BTreeMap;
 
@@ -23,6 +30,15 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{AppState, dto::MessageResponse, error::ApiError};
+
+mod bodies;
+mod grab;
+mod typed;
+
+pub use bodies::*;
+pub use grab::*;
+/// The search function a request names (RD-1100-03), for the MCP tool that builds one.
+pub use rd_subscription::IndexerSearchType;
 
 /// What stands in for the API key in an address handed to a client.
 ///
@@ -36,129 +52,6 @@ const MAX_SEARCH_OFFSET: u32 = 100_000;
 pub const MAX_GRAB_ITEMS: usize = 50;
 /// How long one indexer may take to answer a search.
 const SEARCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
-
-/// One search over one indexer or all enabled ones.
-#[derive(Debug, Default, Deserialize, ToSchema)]
-pub struct IndexerSearchRequest {
-    /// The indexers to ask; empty asks every enabled one.
-    #[serde(default)]
-    pub indexer_ids: Vec<IndexerId>,
-    /// Sent as `q`: empty, or at least three characters. `!word` excludes a word, as the
-    /// indexer defines it.
-    #[serde(default)]
-    pub query: Option<String>,
-    /// The indexer's own category ids, sent as `cat`; empty uses each indexer's own default.
-    #[serde(default)]
-    pub categories: Vec<String>,
-    /// Sent as `maxage`: only releases posted within this many days.
-    #[serde(default)]
-    pub max_age_days: Option<u32>,
-    /// Sent as `pw=2`: leave out releases the indexer marks as passworded.
-    #[serde(default)]
-    pub hide_passworded: bool,
-    /// Sent as `pred` (0, 1 or 2 as the indexer defines them).
-    #[serde(default)]
-    pub pretime: Option<u8>,
-    /// Results per indexer on this page, 1-500; 100 when absent.
-    #[serde(default)]
-    pub limit: Option<u32>,
-    /// Where the page starts.
-    #[serde(default)]
-    pub offset: Option<u32>,
-}
-
-/// One hit, as the result list shows it.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct IndexerSearchHit {
-    pub indexer_id: IndexerId,
-    pub indexer_name: String,
-    pub title: String,
-    /// The indexer's own id for the release.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub guid: Option<String>,
-    /// Where the NZB is fetched from, with the API key replaced by `rdownloader-indexer-key`:
-    /// what `POST /api/v1/indexers/grab` takes back. Never the key itself.
-    pub download: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_bytes: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub published_at: Option<DateTime<Utc>>,
-    /// The indexer's category id, e.g. `5040`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub grabs: Option<u64>,
-    /// Whether the indexer marks the release as passworded.
-    pub passworded: bool,
-    /// What a detailed result row shows besides the title (RD-190-16), as far as the indexer
-    /// sent it: `year`, `genre`, `imdbscore`, `language`, `resolution` and `description` (at
-    /// most 300 characters). Empty when it sent none of them.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub metadata: BTreeMap<String, String>,
-    /// The cover, only ever an absolute http or https address that does not carry the API key.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(format = "uri")]
-    pub cover_url: Option<String>,
-}
-
-/// How one indexer answered.
-#[derive(Serialize, ToSchema)]
-pub struct IndexerSearchOutcome {
-    pub indexer_id: IndexerId,
-    pub indexer_name: String,
-    /// Hits it returned on this page.
-    pub returned: u32,
-    /// The total it reports, when it does.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<u64>,
-    /// Whether it filled the page, so a next page may hold more.
-    pub more: bool,
-    /// Why it answered nothing: a stable code with its parameters.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<MessageResponse>,
-}
-
-/// A search's answer: every indexer's hits together, and how each indexer fared.
-#[derive(Serialize, ToSchema)]
-pub struct IndexerSearchResponse {
-    pub hits: Vec<IndexerSearchHit>,
-    /// One entry per indexer asked, in the order they were asked.
-    pub indexers: Vec<IndexerSearchOutcome>,
-}
-
-/// Hits to fetch and put into the LinkGrabber as NZB imports.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct IndexerGrabRequest {
-    /// At most 50.
-    pub items: Vec<IndexerGrabItem>,
-    /// The category the imports go to; the routing rules decide when absent.
-    #[serde(default)]
-    pub category_id: Option<CategoryId>,
-}
-
-/// One hit, as the search returned it.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct IndexerGrabItem {
-    pub indexer_id: IndexerId,
-    /// The hit's `download`, unchanged.
-    pub download: String,
-    /// The hit's title, which names the import.
-    pub title: String,
-}
-
-/// One hit that did not become an import.
-#[derive(Serialize, ToSchema)]
-pub struct IndexerGrabFailure {
-    pub title: String,
-    pub error: MessageResponse,
-}
-
-/// What a grab became.
-#[derive(Serialize, ToSchema)]
-pub struct IndexerGrabResponse {
-    pub imports: Vec<rd_core::NzbImport>,
-    pub failed: Vec<IndexerGrabFailure>,
-}
 
 /// Searches one indexer or every enabled one (RD-180-19).
 ///
@@ -195,6 +88,7 @@ pub async fn search_indexers(
     }
     let offset = request.offset.unwrap_or_default().min(MAX_SEARCH_OFFSET);
     let categories = crate::subscription_handlers::sanitize_source_categories(&request.categories)?;
+    let typed = typed::typed_input(&request)?;
     let indexers = chosen(&state, &request.indexer_ids).await?;
 
     // Every indexer at once: each answers on its own clock, and one that hangs must not hold
@@ -204,19 +98,24 @@ pub async fn search_indexers(
         let state = state.clone();
         let search = search.clone();
         let categories = categories.clone();
+        let typed = typed.clone();
         tasks.spawn(async move {
-            let answer = tokio::time::timeout(
-                SEARCH_TIMEOUT,
-                search_one(&state, &indexer, &search, &categories, limit, offset),
-            )
-            .await
-            .unwrap_or_else(|_| {
-                Err(ApiError::bad_gateway(
-                    "indexer.unreachable",
-                    "The indexer did not answer in time",
-                )
-                .with_param("reason", "timeout"))
-            });
+            let asked = Asked {
+                search: &search,
+                typed: &typed,
+                categories: &categories,
+                limit,
+                offset,
+            };
+            let answer = tokio::time::timeout(SEARCH_TIMEOUT, search_one(&state, &indexer, &asked))
+                .await
+                .unwrap_or_else(|_| {
+                    Err(ApiError::bad_gateway(
+                        "indexer.unreachable",
+                        "The indexer did not answer in time",
+                    )
+                    .with_param("reason", "timeout"))
+                });
             (position, indexer, answer)
         });
     }
@@ -289,29 +188,36 @@ async fn chosen(state: &AppState, ids: &[IndexerId]) -> Result<Vec<Indexer>, Api
     Ok(picked)
 }
 
+/// What one search asks of every indexer it goes to.
+struct Asked<'a> {
+    search: &'a IndexerSearch,
+    typed: &'a rd_subscription::TypedSearch,
+    categories: &'a [String],
+    limit: u32,
+    offset: u32,
+}
+
 /// One request to one indexer, read into hits whose addresses no longer carry the key.
 async fn search_one(
     state: &AppState,
     indexer: &Indexer,
-    search: &IndexerSearch,
-    categories: &[String],
-    limit: u32,
-    offset: u32,
+    asked: &Asked<'_>,
 ) -> Result<(Vec<IndexerSearchHit>, rd_subscription::SearchPage), ApiError> {
     let key = crate::indexer_handlers::api_key(state, indexer).await?;
-    let categories = if categories.is_empty() {
+    let categories = if asked.categories.is_empty() {
         &indexer.categories
     } else {
-        categories
+        asked.categories
     };
     let url = rd_subscription::build_indexer_query(
         &indexer.url,
         &key,
         &rd_subscription::IndexerQuery {
-            limit,
-            offset,
+            limit: asked.limit,
+            offset: asked.offset,
             categories,
-            search,
+            search: asked.search,
+            typed: Some(asked.typed),
         },
     )
     .map_err(|error| ApiError::unprocessable("indexer.url_invalid", error.to_string()))?;
@@ -361,6 +267,17 @@ async fn search_one(
             passworded: hit.passworded,
             metadata: hit.metadata.clone(),
             cover_url: cover_without_key(hit.cover_url.as_ref(), &key),
+            kind: if hit.torrent {
+                IndexerHitKind::Torrent
+            } else {
+                IndexerHitKind::Nzb
+            },
+            seeders: hit.seeders,
+            leechers: hit.leechers,
+            magnet: hit
+                .magnet
+                .as_ref()
+                .map(|magnet| without_key(magnet.as_str(), &key)),
         })
         .collect();
     Ok((hits, page))
@@ -417,171 +334,6 @@ pub(crate) fn without_key(text: &str, key: &str) -> String {
 fn cover_without_key(cover: Option<&url::Url>, key: &str) -> Option<String> {
     let cover = cover?.as_str();
     (without_key(cover, key) == cover).then(|| cover.to_owned())
-}
-
-/// Fetches the chosen hits and puts each into the LinkGrabber as an NZB import (RD-180-19).
-///
-/// Each hit on its own: one that fails is reported with a stable code and the others still
-/// arrive, because a person who picked ten releases wants the nine that worked.
-#[utoipa::path(
-    post,
-    path = "/api/v1/indexers/grab",
-    tag = "indexers",
-    request_body = IndexerGrabRequest,
-    responses(
-        (status = 200, body = IndexerGrabResponse),
-        (status = 400, body = crate::error::ErrorBody),
-        (status = 422, body = crate::error::ErrorBody)
-    )
-)]
-pub async fn grab_indexer_results(
-    State(state): State<AppState>,
-    Json(request): Json<IndexerGrabRequest>,
-) -> Result<Json<IndexerGrabResponse>, ApiError> {
-    if request.items.is_empty() {
-        return Err(ApiError::bad_request(
-            "indexer.grab_empty",
-            "Choose at least one result",
-        ));
-    }
-    if request.items.len() > MAX_GRAB_ITEMS {
-        return Err(ApiError::unprocessable(
-            "indexer.grab_too_many",
-            "Too many results in one request",
-        )
-        .with_param("maximum", MAX_GRAB_ITEMS));
-    }
-    if let Some(category_id) = request.category_id
-        && !state
-            .database
-            .list_categories()
-            .await?
-            .iter()
-            .any(|category| category.id == category_id)
-    {
-        return Err(ApiError::bad_request(
-            "category.not_found",
-            "Category not found",
-        ));
-    }
-    let mut response = IndexerGrabResponse {
-        imports: Vec::new(),
-        failed: Vec::new(),
-    };
-    // One after the other rather than at once: the requests go to the same few servers, which
-    // count them, and a burst is how a download limit is met in the middle of a selection.
-    for item in request.items {
-        match grab_one(&state, &item, request.category_id).await {
-            Ok(import) => response.imports.push(import),
-            Err(error) => {
-                tracing::info!(code = error.code(), "indexer grab failed");
-                response.failed.push(IndexerGrabFailure {
-                    title: item.title,
-                    error: error.into_message(),
-                });
-            }
-        }
-    }
-    Ok(Json(response))
-}
-
-async fn grab_one(
-    state: &AppState,
-    item: &IndexerGrabItem,
-    category_id: Option<CategoryId>,
-) -> Result<rd_core::NzbImport, ApiError> {
-    let indexer = crate::indexer_handlers::stored(state, item.indexer_id).await?;
-    let raw = item.download.trim();
-    let invalid = || {
-        ApiError::bad_request(
-            "indexer.download_invalid",
-            "The result's address is not an http or https URL",
-        )
-    };
-    let named = url::Url::parse(raw).map_err(|_| invalid())?;
-    if !matches!(named.scheme(), "http" | "https") || named.host_str().is_none() {
-        return Err(invalid());
-    }
-    let own_server = named.origin() == indexer.url.origin();
-    let url = if raw.contains(KEY_PLACEHOLDER) {
-        // The key goes to the indexer's own server and nowhere else.
-        if !own_server {
-            return Err(ApiError::forbidden(
-                "indexer.download_foreign",
-                "The result's address is not on the indexer's server",
-            )
-            .with_param("indexer", indexer.name.clone()));
-        }
-        let key = crate::indexer_handlers::api_key(state, &indexer).await?;
-        let encoded: String = url::form_urlencoded::byte_serialize(key.as_bytes()).collect();
-        url::Url::parse(&raw.replace(KEY_PLACEHOLDER, &encoded)).map_err(|_| invalid())?
-    } else {
-        named
-    };
-    let network = if own_server {
-        // The indexer's own server is the person's word, like its search: their own network
-        // included.
-        state.scheduler.direct_client(&url).await
-    } else {
-        // Anything else was proposed by the indexer's answer, and is held to the rule the
-        // LinkGrabber's proposed links keep to: never this machine, not the local network.
-        let policy = state.scheduler.remote_address_policy(false);
-        if let Err(rd_http::TargetRefusal::Refused(_)) =
-            rd_http::check_target(&policy, &rd_http::SystemLookup, &url).await
-        {
-            return Err(ApiError::forbidden(
-                "indexer.download_address_refused",
-                "The result's address points at this machine or into your own network",
-            ));
-        }
-        state.scheduler.guarded_client(&url, policy).await
-    }
-    .map_err(|error| {
-        ApiError::bad_gateway("indexer.unreachable", error.to_string())
-            .with_param("reason", "client")
-    })?;
-    let fetched = rd_http::fetch_document(
-        &network.client,
-        url.clone(),
-        &network.headers,
-        rd_collector::MAX_NZB_BYTES,
-    )
-    .await
-    .map_err(|error| {
-        ApiError::bad_gateway(
-            "indexer.nzb_fetch_failed",
-            format!("{error} ({})", rd_core::redact_url(&url)),
-        )
-        .with_param("indexer", indexer.name.clone())
-    })?;
-    // A refusal arrives inside a `200 OK`, as headers or as an error document; without the
-    // check the person would be told the NZB is broken.
-    if let Some(refusal) = crate::collector_enqueue::indexer_refusal(&fetched) {
-        return Err(ApiError::bad_gateway("indexer.refused", refusal)
-            .with_param("indexer", indexer.name.clone()));
-    }
-    if let Some(refusal) = std::str::from_utf8(&fetched.bytes)
-        .ok()
-        .and_then(rd_subscription::indexer_refusal)
-    {
-        return Err(refusal_error(&refusal, &indexer));
-    }
-    let title = item.title.trim();
-    let file_name = if title.is_empty() {
-        "indexer.nzb".to_owned()
-    } else {
-        format!("{title}.nzb")
-    };
-    crate::nzb_handlers::store_nzb_import(
-        state,
-        &fetched.bytes,
-        &file_name,
-        category_id,
-        // The person searched and chose this release, as they would upload a file.
-        rd_core::IngressSource::Manual,
-        None,
-    )
-    .await
 }
 
 #[cfg(test)]

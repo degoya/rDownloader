@@ -1,0 +1,57 @@
+{
+  "title": "Downloadverlauf",
+  "intro": "Alles, was fertig ist oder endgültig fehlgeschlagen ist – auch nachdem das Paket aus der Liste entfernt oder automatisch aufgeräumt wurde. Adressen stehen hier ohne Passwörter und Token; Archivpasswörter werden nie gespeichert.",
+  "filters": {
+    "search": "Suche",
+    "search_placeholder": "Name oder Adresse",
+    "outcome": "Ergebnis",
+    "any_outcome": "Jedes Ergebnis",
+    "kind": "Art",
+    "any_kind": "Jede Art",
+    "period": "Zeitraum",
+    "any_period": "Gesamter Zeitraum",
+    "apply": "Filtern",
+    "clear": "Filter zurücksetzen"
+  },
+  "periods": {
+    "day": "Letzte 24 Stunden",
+    "week": "Letzte 7 Tage",
+    "month": "Letzte 30 Tage",
+    "year": "Letzte 365 Tage"
+  },
+  "outcomes": {
+    "completed": "Fertig",
+    "failed": "Fehlgeschlagen"
+  },
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Medien (yt-dlp)",
+    "gallery": "Galerie",
+    "record": "Aufnahme",
+    "ftp": "FTP",
+    "sftp": "SFTP",
+    "plugin": "Plugin-Übertragung",
+    "object_storage": "Objektspeicher (S3)"
+  },
+  "list": {
+    "title": "Einträge",
+    "shown": "{shown} von {total}",
+    "empty": "Noch nichts im Verlauf. Sobald ein Paket fertig ist oder endgültig fehlschlägt, steht es hier.",
+    "files": "{count} Datei | {count} Dateien",
+    "expand": "Details anzeigen",
+    "collapse": "Details ausblenden",
+    "category": "Kategorie",
+    "destination": "Ziel",
+    "added": "Hinzugefügt",
+    "sources": "Quellen",
+    "more": "Weitere laden"
+  },
+  "readd": {
+    "button": "Erneut hinzufügen",
+    "done": "„{name}“ liegt wieder im LinkGrabber",
+    "open": "LinkGrabber öffnen",
+    "no_sources": "Keine Quelladresse, die sich erneut hinzufügen ließe (zum Beispiel ein importiertes NZB)."
+  }
+}

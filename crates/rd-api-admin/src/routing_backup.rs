@@ -43,6 +43,8 @@ pub struct BundleRoutingCategory {
     #[serde(default)]
     pub unpack_to_subfolder: Option<bool>,
     #[serde(default)]
+    pub direct_unpack: Option<bool>,
+    #[serde(default)]
     pub malware_scan: Option<bool>,
     #[serde(default)]
     pub sfv_verify: Option<bool>,
@@ -159,6 +161,7 @@ pub async fn export_routing(
                 cleanup_extensions: category.cleanup_extensions.clone(),
                 recursive_unpack: category.recursive_unpack,
                 unpack_to_subfolder: category.unpack_to_subfolder,
+                direct_unpack: category.direct_unpack,
                 malware_scan: category.malware_scan,
                 sfv_verify: category.sfv_verify,
                 safe_postproc: category.safe_postproc,
@@ -258,6 +261,7 @@ pub async fn import_routing(
             cleanup_extensions: entry.cleanup_extensions,
             recursive_unpack: entry.recursive_unpack,
             unpack_to_subfolder: entry.unpack_to_subfolder,
+            direct_unpack: entry.direct_unpack,
             malware_scan: entry.malware_scan,
             sfv_verify: entry.sfv_verify,
             safe_postproc: entry.safe_postproc,

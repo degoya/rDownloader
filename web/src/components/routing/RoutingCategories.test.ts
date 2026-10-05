@@ -73,6 +73,7 @@ function category(id: string, name: string): Category {
     cleanup_extensions: null,
     recursive_unpack: null,
     unpack_to_subfolder: null,
+    direct_unpack: null,
     malware_scan: null,
     sfv_verify: null,
     safe_postproc: null,
@@ -415,5 +416,65 @@ describe('RoutingCategories duplicate', () => {
     expect(screen.getAllByText(/^Films/)).toHaveLength(1)
     expect(patch).not.toHaveBeenCalled()
     expect(put).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * RD-1100-08: the sort templates ride the post-processing route like the plugin steps, after the
+ * category itself is saved — the create and update routes neither take nor return them.
+ */
+describe('RoutingCategories sort templates', () => {
+  const MOVIE = '{movie} ({year})/{movie} ({year})'
+  const stored = { ...category('cat-1', 'Films'), sorting: { series: null, dated: null, movie: MOVIE } } as Category
+
+  beforeEach(() => {
+    serveEditor()
+    post.mockReset()
+    put.mockReset()
+    patch.mockReset()
+    // The preview the open editor asks for.
+    post.mockResolvedValue({ data: { entries: [], fields: {} } })
+    put.mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) => ({
+      data: { ...stored, ...body, sorting: null }
+    }))
+    patch.mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) => ({
+      data: { ...stored, sorting: body.sorting }
+    }))
+  })
+
+  it('keeps the templates of a category that is saved', async () => {
+    mountWith([stored], [ROOT])
+
+    await fireEvent.click(within(rowOf('Films')).getByRole('button', { name: common.actions.edit }))
+    expect((screen.getByTestId('sorting-movie') as HTMLInputElement).value).toBe(MOVIE)
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
+
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect(patch.mock.calls[0]?.[1]).toMatchObject({
+      params: { path: { id: 'cat-1' } },
+      body: { sorting: { series: null, dated: null, movie: MOVIE } }
+    })
+  })
+
+  it('clears them when sorting is switched off', async () => {
+    mountWith([stored], [ROOT])
+
+    await fireEvent.click(within(rowOf('Films')).getByRole('button', { name: common.actions.edit }))
+    await fireEvent.click(screen.getByRole('switch', { name: routing.category.sorting_title }))
+    expect(screen.queryByTestId('sorting-movie')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
+
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect((patch.mock.calls[0]?.[1] as { body: { sorting: unknown } }).body.sorting).toBeNull()
+  })
+
+  it('sends nothing extra for a category that never sorted', async () => {
+    mountWith([category('cat-2', 'Series')], [ROOT])
+
+    await fireEvent.click(within(rowOf('Series')).getByRole('button', { name: common.actions.edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
+
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(patch).not.toHaveBeenCalled()
   })
 })

@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.9.1"
+    "version": "1.10.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -4490,6 +4490,108 @@
         }
       }
     },
+    "/api/v1/capture/queue/pause": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Pauses every waiting and moving file; with `minutes`, until then, holding back new ones.",
+        "operationId": "pause_capture_queue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureQueuePauseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureQueueResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/queue/resume": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Ends a timed pause, which queues the files it stopped again; without one, queues every\npaused file again. A failed or cancelled file stays as it is: the tray resumes what a pause\nstopped, and restarting what failed is the web interface's decision.",
+        "operationId": "resume_capture_queue",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureQueueResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/capture/summary": {
       "get": {
         "tags": [
@@ -7700,6 +7802,78 @@
         }
       }
     },
+    "/api/v1/downloads/{id}/torrent/move": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Moves a seeding or paused torrent's files to another folder.",
+        "description": "Refused up front when the target is not free or its filesystem lacks the space for a copy;\notherwise the move runs in the background. Until it ends the torrent is out of the session;\nafterwards the package names the new folder and a seed seeds from it after one check of its\ndata — or, when the move failed, everything is where it was and `relocation_error` in the\ntorrent's detail says why.",
+        "operationId": "move_torrent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DownloadId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TorrentMoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/downloads/{id}/torrent/peers": {
       "get": {
         "tags": [
@@ -7877,6 +8051,68 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/downloads/{id}/torrent/recheck": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Hashes a torrent's data against its pieces again.",
+        "description": "A seed is checked in place and seeds on; what does not verify is fetched again. A running\ntorrent is stopped, checked as it is added again, and runs on. Any other torrent is checked\nwhen it starts next. The result shows on the torrent (`recheck` in its detail).",
+        "operationId": "recheck_torrent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DownloadId"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -8337,6 +8573,189 @@
         }
       }
     },
+    "/api/v1/history": {
+      "get": {
+        "tags": [
+          "history"
+        ],
+        "summary": "The history, newest first, filtered and paged; `limit`/`offset` cut the page in the\ndatabase and `X-Total-Count` names how many entries the filters match.",
+        "operationId": "list_download_history",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries\n`X-Total-Count`.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Rows to skip first; alone it returns everything after them.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Part of the name or of a source address, case-insensitive.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "description": "`completed` or `failed`.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/HistoryOutcome"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "description": "The download kind (`http`, `usenet`, `torrent`, ...).",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DownloadKind"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Entries that ended at or after this instant (RFC 3339).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Entries that ended at or before this instant (RFC 3339).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "x-total-count": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "description": "How many entries the filters match; sent only when `limit` or `offset` asked for a page"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryEntry"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "request.page_limit or history.filter_invalid"
+          }
+        }
+      }
+    },
+    "/api/v1/history/clear": {
+      "post": {
+        "tags": [
+          "history"
+        ],
+        "summary": "Empties the download history (RD-1100-04).",
+        "description": "Only the history's entries go: the queue, the files and the SABnzbd view of the packages\nstill in the queue are untouched. The button sits at the history itself, like the\nnotification history's.",
+        "operationId": "clear_download_history",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataClearRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataClearResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "data_reset.not_confirmed"
+          }
+        }
+      }
+    },
+    "/api/v1/history/{id}/readd": {
+      "post": {
+        "tags": [
+          "history"
+        ],
+        "summary": "Puts a history entry's sources back into the LinkGrabber as one package under its name.",
+        "description": "The sources are the masked ones the history kept: a link whose token was masked arrives\nwithout it and is checked like any other. An entry with no source of its own — an imported\nNZB — is refused with `history.nothing_to_readd`.",
+        "operationId": "readd_history_entry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The history entry",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorIntakeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "history.not_found"
+          },
+          "409": {
+            "description": "history.nothing_to_readd"
+          }
+        }
+      }
+    },
     "/api/v1/hotfolders": {
       "get": {
         "tags": [
@@ -8548,7 +8967,7 @@
         "tags": [
           "indexers"
         ],
-        "summary": "Fetches the chosen hits and puts each into the LinkGrabber as an NZB import (RD-180-19).",
+        "summary": "Fetches the chosen hits and puts each into the LinkGrabber (RD-180-19): an NZB as an NZB\nimport, a torrent as a LinkGrabber package (RD-1100-03).",
         "description": "Each hit on its own: one that fails is reported with a stable code and the others still\narrive, because a person who picked ten releases wants the nine that worked.",
         "operationId": "grab_indexer_results",
         "requestBody": {
@@ -10744,6 +11163,106 @@
         }
       }
     },
+    "/api/v1/packages/{id}/speed-limit": {
+      "get": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Reads one package's own download limit.",
+        "operationId": "get_package_speed_limit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PackageId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageSpeedLimitResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Sets or removes one package's own download limit; it applies to running transfers at once.",
+        "operationId": "set_package_speed_limit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PackageId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageSpeedLimitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageSpeedLimitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins": {
       "get": {
         "tags": [
@@ -12197,6 +12716,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PostprocessScriptsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/postprocess/sort-preview": {
+      "post": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "What a category's sort templates make of example names (RD-1100-08), before anything is\nsaved: the same recognition and the same expansion the sort runs, against the category's\nfolder as the root, so the paths are relative to it.",
+        "operationId": "preview_category_sorting",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SortPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SortPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -13692,7 +14252,7 @@
         "tags": [
           "stats"
         ],
-        "summary": "Empties the transfer statistics: the buckets behind the charts and the all-time totals.",
+        "summary": "Empties the transfer statistics: the buckets behind the charts, the all-time totals and the\ntraffic per Usenet server; the servers' quota figures stay (RD-1100-05).",
         "operationId": "clear_transfer_stats",
         "requestBody": {
           "content": {
@@ -13717,6 +14277,27 @@
           },
           "400": {
             "description": "data_reset.not_confirmed"
+          }
+        }
+      }
+    },
+    "/api/v1/stats/usenet-servers": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Traffic per Usenet server over the day, week, month, year and all time, with each\nserver's quota.",
+        "operationId": "usenet_server_traffic",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsenetTrafficResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -15984,6 +16565,54 @@
         }
       }
     },
+    "/api/v1/usenet/servers/{id}/quota": {
+      "put": {
+        "tags": [
+          "usenet"
+        ],
+        "summary": "Sets, changes or removes the traffic quota of one server (RD-1100-05).",
+        "description": "Once the server has delivered `limit_bytes` it is asked only after every other server\n(`backup`) or not at all (`pause`), from the next file on, and a notification goes out. A\nlimit the used figure already reaches applies at once.",
+        "operationId": "set_usenet_server_quota",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UsenetServerId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUsenetQuotaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsenetServer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/v1/usenet/servers/{id}/test": {
       "post": {
         "tags": [
@@ -16396,7 +17025,7 @@
       },
       "ApiTokenRequest": {
         "type": "object",
-        "description": "Pairing request for a machine API token.\n\nSeparate from [`CapturePairRequest`] because a capture agent has no scope choice: it\nalways gets `capture:*`, while an API client picks its areas.",
+        "description": "Pairing request for a machine API token.\n\nSeparate from [`CapturePairRequest`] because a capture agent has no choice of API areas: it\nalways gets `capture:*`, and `capture:queue` on request, while an API client picks its areas.",
         "required": [
           "label"
         ],
@@ -16620,7 +17249,8 @@
           "identity_linked",
           "identity_unlinked",
           "password_login_changed",
-          "password_reset_local"
+          "password_reset_local",
+          "history_cleared"
         ]
       },
       "AuditActorKind": {
@@ -18926,6 +19556,12 @@
               "null"
             ]
           },
+          "direct_unpack": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "is_default": {
             "type": "boolean"
           },
@@ -20111,6 +20747,10 @@
         "properties": {
           "label": {
             "type": "string"
+          },
+          "queue_control": {
+            "type": "boolean",
+            "description": "Whether the agent may also pause and resume the whole queue from its tray\n(`capture:queue`, RD-1100-06). Asked for explicitly or not at all: absent means `false`,\nso an agent paired without it can do no more than one paired before the choice existed."
           }
         }
       },
@@ -20130,6 +20770,42 @@
           }
         }
       },
+      "CaptureQueuePauseRequest": {
+        "type": "object",
+        "properties": {
+          "minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "How long, in minutes from now, within thirty days; absent or `null` pauses until resumed.",
+            "minimum": 0
+          }
+        }
+      },
+      "CaptureQueueResponse": {
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "properties": {
+          "files": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Files this request paused or queued again.",
+            "minimum": 0
+          },
+          "paused_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the timed pause ends, while one holds."
+          }
+        }
+      },
       "CaptureSummaryResponse": {
         "type": "object",
         "description": "Figures only, for the desktop tray.\n\nDeliberately not `DownloadSummaryResponse`: that one carries storage entries with their\npaths, and this is served to the capture agent, whose token is scoped for handing links in.\nThe event stream is filtered to intake for the same reason — the full bus would carry\ndownload paths and account names. Counts and byte totals say enough for an icon and a\ntooltip and say nothing about what is being downloaded.",
@@ -20139,7 +20815,9 @@
           "failed",
           "committed_bytes",
           "total_bytes",
-          "bytes_per_second"
+          "bytes_per_second",
+          "paused",
+          "queue_control"
         ],
         "properties": {
           "active": {
@@ -20170,6 +20848,24 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "paused": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Files paused, by a person or by a pause of the whole queue: what the tray's \"resume all\"\nwould queue again (RD-1100-06).",
+            "minimum": 0
+          },
+          "paused_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the timed pause of the whole queue ends, while one holds (RD-190-20); the tray says\n\"paused until\" with it."
+          },
+          "queue_control": {
+            "type": "boolean",
+            "description": "Whether the token asking may pause and resume the queue (`capture:queue`, chosen when the\nagent was paired). The tray offers the two entries only when it may (RD-1100-06)."
           },
           "queued": {
             "type": "integer",
@@ -20411,6 +21107,13 @@
             ],
             "description": "Whether packages in this category discard the PAR2 recovery set after a successful\nunpack; `None` = global default."
           },
+          "direct_unpack": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages in this category unpack a multi-volume RAR set while it downloads;\n`None` = global default (RD-1100-07)."
+          },
           "id": {
             "$ref": "#/components/schemas/CategoryId"
           },
@@ -20490,6 +21193,17 @@
             ],
             "description": "Whether packages in this category verify `.sfv` checksums; `None` = global default."
           },
+          "sorting": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SortTemplates",
+                "description": "Sort and rename templates for series and films (RD-1100-08); `None` = no sorting. Not\ninherited: sorting is a property of the category, there is no global template."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "storage_root_id": {
             "$ref": "#/components/schemas/StorageRootId"
           },
@@ -20558,6 +21272,13 @@
             ],
             "description": "Whether packages of this category discard the PAR2 recovery set after a successful\nunpack (`null` = global default)."
           },
+          "direct_unpack": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category unpack a multi-volume RAR set while it still\ndownloads (`null` = global default, RD-1100-07)."
+          },
           "malware_scan": {
             "type": [
               "boolean",
@@ -20611,6 +21332,17 @@
               "null"
             ],
             "description": "Whether packages of this category verify `.sfv` checksums (`null` = global default)."
+          },
+          "sorting": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SortTemplates",
+                "description": "Sort and rename templates for series, dated episodes and films (RD-1100-08); `null`, or\nevery template blank, means no sorting. Not inherited: there is no global template."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "unpack_to_subfolder": {
             "type": [
@@ -21795,6 +22527,13 @@
               "null"
             ],
             "description": "Whether packages of this category discard the PAR2 recovery set after a successful\nunpack (`null` = global default)."
+          },
+          "direct_unpack": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category unpack a multi-volume RAR set while it still\ndownloads (`null` = global default, RD-1100-07)."
           },
           "is_default": {
             "type": "boolean"
@@ -24157,6 +24896,96 @@
           }
         }
       },
+      "HistoryEntry": {
+        "type": "object",
+        "description": "One package the history remembers.",
+        "required": [
+          "id",
+          "package_id",
+          "name",
+          "kind",
+          "destination",
+          "total_bytes",
+          "file_count",
+          "sources",
+          "outcome",
+          "created_at",
+          "finished_at"
+        ],
+        "properties": {
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The category's name when the package ended, if it had one."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the package was added to the queue."
+          },
+          "destination": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The stable code of the failure, for `failed`."
+          },
+          "error_params": {
+            "$ref": "#/components/schemas/BTreeMap",
+            "description": "The parameters that code is translated with, already redacted."
+          },
+          "file_count": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it reached its outcome."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DownloadKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/HistoryOutcome"
+          },
+          "package_id": {
+            "$ref": "#/components/schemas/PackageId",
+            "description": "The package this entry describes; it may no longer be in the queue."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The addresses the files came from, with every credential masked\n([`history_source`]). Empty for a package whose files had no address of their own (an\nimported NZB); such an entry cannot be added again."
+          },
+          "total_bytes": {
+            "$ref": "#/components/schemas/ByteCount"
+          }
+        }
+      },
+      "HistoryOutcome": {
+        "type": "string",
+        "description": "How a package ended.",
+        "enum": [
+          "completed",
+          "failed"
+        ]
+      },
       "HotFolderConfig": {
         "type": "object",
         "description": "Persisted hotfolder configuration.",
@@ -24559,6 +25388,19 @@
               "null"
             ],
             "description": "Server name, when it gives one."
+          },
+          "supported_params": {
+            "type": "object",
+            "description": "The parameters each search type takes, as its `supportedParams` lists them (`q`,\n`season`, `ep`, `tvdbid`, `imdbid`, ...), lowercased (RD-1100-03). A type that names none\nis absent: the indexer did not say, which is not the same as taking nothing.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
@@ -24618,6 +25460,13 @@
           "indexer_id": {
             "$ref": "#/components/schemas/IndexerId"
           },
+          "magnet": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The hit's `magnet`, unchanged, when it has one (RD-1100-03): taken when `download` is not\nto be had -- Prowlarr answers some downloads with a redirect to the magnet."
+          },
           "title": {
             "type": "string",
             "description": "The hit's title, which names the import."
@@ -24626,7 +25475,7 @@
       },
       "IndexerGrabRequest": {
         "type": "object",
-        "description": "Hits to fetch and put into the LinkGrabber as NZB imports.",
+        "description": "Hits to fetch and put into the LinkGrabber: an NZB as an NZB import, a torrent as a\nLinkGrabber package.",
         "required": [
           "items"
         ],
@@ -24635,7 +25484,7 @@
             "oneOf": [
               {
                 "$ref": "#/components/schemas/CategoryId",
-                "description": "The category the imports go to; the routing rules decide when absent."
+                "description": "The category the imports and torrents go to; the routing rules decide when absent."
               },
               {
                 "type": "null"
@@ -24656,6 +25505,7 @@
         "description": "What a grab became.",
         "required": [
           "imports",
+          "torrents",
           "failed"
         ],
         "properties": {
@@ -24670,8 +25520,23 @@
             "items": {
               "$ref": "#/components/schemas/NzbImport"
             }
+          },
+          "torrents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectorPackage"
+            },
+            "description": "The LinkGrabber packages the torrent hits became, one per hit (RD-1100-03)."
           }
         }
+      },
+      "IndexerHitKind": {
+        "type": "string",
+        "description": "What a hit is: an NZB or a torrent (RD-1100-03).",
+        "enum": [
+          "nzb",
+          "torrent"
+        ]
       },
       "IndexerId": {
         "type": "string",
@@ -24772,7 +25637,8 @@
           "indexer_name",
           "title",
           "download",
-          "passworded"
+          "passworded",
+          "kind"
         ],
         "properties": {
           "category": {
@@ -24815,6 +25681,26 @@
           "indexer_name": {
             "type": "string"
           },
+          "kind": {
+            "$ref": "#/components/schemas/IndexerHitKind",
+            "description": "`nzb` from a Newznab indexer, `torrent` from a Torznab one (Jackett, Prowlarr), read off\nthe hit itself (RD-1100-03)."
+          },
+          "leechers": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "A torrent's leechers, when the indexer says.",
+            "minimum": 0
+          },
+          "magnet": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The magnet the indexer offers for a torrent, with the API key replaced like `download`'s;\nwhat the grab takes when the download itself cannot be fetched."
+          },
           "metadata": {
             "type": "object",
             "description": "What a detailed result row shows besides the title (RD-190-16), as far as the indexer\nsent it: `year`, `genre`, `imdbscore`, `language`, `resolution` and `description` (at\nmost 300 characters). Empty when it sent none of them.",
@@ -24835,6 +25721,15 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "seeders": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "A torrent's seeders, when the indexer says.",
+            "minimum": 0
           },
           "size_bytes": {
             "type": [
@@ -24908,9 +25803,25 @@
             },
             "description": "The indexer's own category ids, sent as `cat`; empty uses each indexer's own default."
           },
+          "episode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "`tv` only: the episode, sent as `ep`; needs a season.",
+            "minimum": 0
+          },
           "hide_passworded": {
             "type": "boolean",
             "description": "Sent as `pw=2`: leave out releases the indexer marks as passworded."
+          },
+          "imdb_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`tv` or `movie`: the IMDb id, `tt0903747` or its digits, sent as `imdbid` without `tt`."
           },
           "indexer_ids": {
             "type": "array",
@@ -24961,6 +25872,46 @@
               "null"
             ],
             "description": "Sent as `q`: empty, or at least three characters. `!word` excludes a word, as the\nindexer defines it."
+          },
+          "search_type": {
+            "$ref": "#/components/schemas/IndexerSearchType",
+            "description": "`search` (the default), `tv` (`t=tvsearch`) or `movie` (`t=movie`) (RD-1100-03). The\nids below belong to one type each; an indexer that does not answer the type refuses it in\nits own outcome, which `POST /api/v1/indexers/{id}/caps` tells in advance."
+          },
+          "season": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "`tv` only: the season, sent as `season`.",
+            "minimum": 0
+          },
+          "tmdb_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`movie` only: the film's TMDb id, sent as `tmdbid`.",
+            "minimum": 0
+          },
+          "tvdb_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`tv` only: the series' TVDB id, sent as `tvdbid`.",
+            "minimum": 0
+          },
+          "tvmaze_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`tv` only: the series' TVmaze id, sent as `tvmazeid`.",
+            "minimum": 0
           }
         }
       },
@@ -24986,6 +25937,15 @@
             "description": "One entry per indexer asked, in the order they were asked."
           }
         }
+      },
+      "IndexerSearchType": {
+        "type": "string",
+        "description": "The search function of one request: Newznab's and Torznab's `t` (RD-1100-03).",
+        "enum": [
+          "search",
+          "tv",
+          "movie"
+        ]
       },
       "IngressSource": {
         "type": "string",
@@ -25259,7 +26219,8 @@
           "protocol",
           "host",
           "account",
-          "category"
+          "category",
+          "package"
         ]
       },
       "LinkCandidate": {
@@ -27509,7 +28470,9 @@
           "plugin_update_available",
           "plugin_update_failed",
           "account_expiring",
-          "account_invalid"
+          "account_invalid",
+          "usenet_job_hopeless",
+          "usenet_quota_reached"
         ]
       },
       "NotificationRule": {
@@ -28619,6 +29582,52 @@
             "items": {
               "$ref": "#/components/schemas/PackageId"
             }
+          }
+        }
+      },
+      "PackageSpeedLimitRequest": {
+        "type": "object",
+        "description": "Sets or removes a package's own download limit.",
+        "properties": {
+          "download_bytes_per_second": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ByteCount",
+                "description": "Bytes per second, greater than zero; `null` removes the package's own limit."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        }
+      },
+      "PackageSpeedLimitResponse": {
+        "type": "object",
+        "description": "A package's own download limit.",
+        "required": [
+          "package_id",
+          "supported"
+        ],
+        "properties": {
+          "download_bytes_per_second": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ByteCount",
+                "description": "The package's own download limit; `null` when it has none and only the global, hand-set\nand profile limits apply."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "package_id": {
+            "$ref": "#/components/schemas/PackageId"
+          },
+          "supported": {
+            "type": "boolean",
+            "description": "Whether a limit can reach this package: `false` while it holds a torrent and the engine\ncannot limit one torrent on its own (`per_torrent_limits` in the torrent capabilities)."
           }
         }
       },
@@ -29790,7 +30799,8 @@
           "malware_scan",
           "plugin_step",
           "script",
-          "upload"
+          "upload",
+          "sort"
         ]
       },
       "PostprocessLevel": {
@@ -29907,7 +30917,8 @@
           "scanning",
           "plugin_step",
           "script",
-          "uploading"
+          "uploading",
+          "sorting"
         ]
       },
       "PostprocessState": {
@@ -32488,7 +33499,7 @@
           },
           "scoped_enforced": {
             "type": "boolean",
-            "description": "Whether the transport can be limited per host, account or category, or only as a\nwhole. External helper processes only take one rate for the whole job."
+            "description": "Whether the transport can be limited per host, account, category or package, or only\nas a whole. External helper processes only take one rate for the whole job."
           }
         }
       },
@@ -33081,6 +34092,37 @@
           }
         }
       },
+      "SetUsenetQuotaRequest": {
+        "type": "object",
+        "description": "Body of `PUT /api/v1/usenet/servers/{id}/quota` (RD-1100-05).",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/UsenetQuotaAction",
+            "description": "What happens once the limit is reached: `backup` (asked only after every other server)\nor `pause` (not asked at all)."
+          },
+          "limit_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The bytes the server may deliver; absent or `null` removes the quota.",
+            "minimum": 0
+          },
+          "reset_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day (UTC) from which the used figure starts again at zero, once. Today or later."
+          },
+          "reset_usage": {
+            "type": "boolean",
+            "description": "Puts the used figure back to zero now."
+          }
+        }
+      },
       "SettingsBundle": {
         "type": "object",
         "required": [
@@ -33369,6 +34411,11 @@
             "description": "Delete the PAR2 recovery set once repair and extraction have both succeeded. Off by\ndefault: it is the only thing that can rescue a damaged package.",
             "default": false
           },
+          "direct_unpack": {
+            "type": "boolean",
+            "description": "Unpack a Usenet package's multi-volume RAR set while the package still downloads, volume\nby volume; a repair or a damaged volume falls back to unpacking afterwards. Off by\ndefault (RD-1100-07).",
+            "default": false
+          },
           "disabled_plugins": {
             "type": "array",
             "items": {
@@ -33410,6 +34457,11 @@
             ],
             "description": "What the outside world calls this service: `https://rd.example.com/downloads`.\n\nCarries the scheme, host and mount point together so they cannot disagree.",
             "default": null
+          },
+          "fail_hopeless_jobs": {
+            "type": "boolean",
+            "description": "Stop a Usenet download once it is known to be beyond repair (RD-1100-02). On by\ndefault, like SABnzbd's `fail_hopeless_jobs`: when more PAR2 blocks are missing than\nthe set's recovery volumes can replace, the rest is not downloaded and the package\nfails with `usenet.job_hopeless`, naming both counts. Off downloads everything as before.",
+            "default": true
           },
           "gallery_executable": {
             "type": [
@@ -33465,6 +34517,20 @@
               }
             ],
             "default": null
+          },
+          "history_retention_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days a download history entry is kept at most (1-3650), whatever the count.",
+            "default": 365,
+            "minimum": 0
+          },
+          "history_retention_entries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Entries the download history keeps at most (100-100000); the oldest go first\n(RD-1100-04).",
+            "default": 10000,
+            "minimum": 0
           },
           "hotfolder_poll_seconds": {
             "type": "integer",
@@ -34630,6 +35696,139 @@
           "none",
           "two_captcha_compatible"
         ]
+      },
+      "SortKind": {
+        "type": "string",
+        "description": "What a release name was recognised as.",
+        "enum": [
+          "series",
+          "dated",
+          "movie"
+        ]
+      },
+      "SortPreviewEntry": {
+        "type": "object",
+        "description": "What the sort would make of one name.",
+        "required": [
+          "name",
+          "fields"
+        ],
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why a recognised name stays: `sort.no_template`, or the code of the template error the\nname ran into."
+          },
+          "fields": {
+            "type": "object",
+            "description": "The values a template gets for this name, by field.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SortKind",
+                "description": "What the name was recognised as; `null` when it was not, and the file stays unchanged."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the file would land, below the category's folder, `/` between folders; `null`\nwhen it stays where it is."
+          }
+        }
+      },
+      "SortPreviewRequest": {
+        "type": "object",
+        "description": "The templates of a category editor, saved or not, and the names to try them on.",
+        "required": [
+          "sorting",
+          "names"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "File, folder or package names, at most 20; each is recognised as the sort would."
+          },
+          "sorting": {
+            "$ref": "#/components/schemas/SortTemplates"
+          }
+        }
+      },
+      "SortPreviewResponse": {
+        "type": "object",
+        "description": "The preview of every name, and the fields each kind's template may use.",
+        "required": [
+          "entries",
+          "fields"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SortPreviewEntry"
+            }
+          },
+          "fields": {
+            "type": "object",
+            "description": "`series`, `dated` and `movie`, each with its fields.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SortTemplates": {
+        "type": "object",
+        "description": "A category's sort templates, one per kind of release. A kind without a template is not\nsorted: its files stay where the package put them.",
+        "properties": {
+          "dated": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For episodes by air date, e.g. `{show}/{year}/{show} - {date} - {title}`."
+          },
+          "movie": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For films, e.g. `{movie} ({year})/{movie} ({year})`."
+          },
+          "series": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For episodes by season and number, e.g.\n`{show}/Season {season:00}/{show} - S{season:00}E{episode:00} - {title}`."
+          }
+        }
       },
       "SourceDuplicate": {
         "type": "object",
@@ -36740,6 +37939,10 @@
           "session_generation"
         ],
         "properties": {
+          "checking": {
+            "type": "boolean",
+            "description": "Whether the engine is hashing the torrent's data right now — on its first start, after\na restart, a recheck or a move (RD-1100-10). `progress_bytes` then counts the bytes\nchecked so far rather than the bytes held."
+          },
           "download_bps": {
             "type": "integer",
             "format": "int64",
@@ -36894,6 +38097,35 @@
             "type": "boolean",
             "description": "Private torrents may not use DHT, PEX or LSD."
           },
+          "recheck": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TorrentRecheck",
+                "description": "The last recheck asked for and, once it ran, what it found; queue rows only\n(RD-1100-10)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relocation": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TorrentRelocation",
+                "description": "The move of the torrent's files that is under way; queue rows only."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relocation_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the last move was taken back."
+          },
           "web_seeds": {
             "type": "array",
             "items": {
@@ -36929,7 +38161,8 @@
           "upnp",
           "natpmp",
           "pcp",
-          "web_seeds"
+          "web_seeds",
+          "per_torrent_limits"
         ],
         "properties": {
           "engine": {
@@ -36975,6 +38208,10 @@
           "per_class_proxy": {
             "type": "boolean",
             "description": "Separate proxies for tracker, metadata and peer traffic."
+          },
+          "per_torrent_limits": {
+            "type": "boolean",
+            "description": "A download and upload limit of one torrent's own, beside the session-wide rates\n(RD-1100-01). When `false`, a package holding a torrent takes no speed limit of its own."
           },
           "piece_stats": {
             "type": "boolean"
@@ -37107,6 +38344,22 @@
           "ready",
           "failed"
         ]
+      },
+      "TorrentMoveRequest": {
+        "type": "object",
+        "description": "Where a torrent's files move: a folder below a storage root, in which the package keeps a\nfolder of its own name — as a package queued into a category's folder does.",
+        "required": [
+          "storage_root_id"
+        ],
+        "properties": {
+          "relative_path": {
+            "type": "string",
+            "description": "Relative to the storage root; empty for the root itself."
+          },
+          "storage_root_id": {
+            "$ref": "#/components/schemas/StorageRootId"
+          }
+        }
       },
       "TorrentNetworkStatus": {
         "type": "object",
@@ -37353,6 +38606,64 @@
             "$ref": "#/components/schemas/TorrentSequentialMode",
             "description": "Streaming-oriented piece ordering; rejected unless the engine supports it.",
             "default": "off"
+          }
+        }
+      },
+      "TorrentRecheck": {
+        "type": "object",
+        "description": "A recheck of a torrent's data against its piece hashes (RD-1100-10).\n\nWritten when the check is asked for and completed by whoever adds the torrent next — the\nseed that is re-added in place, or the runner when the row starts again — once the engine\nhas hashed every piece.",
+        "required": [
+          "requested_at",
+          "verified_bytes",
+          "total_bytes"
+        ],
+        "properties": {
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "`None` while the check has not run yet or is still running."
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes of the selected files; anything short of it is fetched again.",
+            "minimum": 0
+          },
+          "verified_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes of the selected files whose pieces verified.",
+            "minimum": 0
+          }
+        }
+      },
+      "TorrentRelocation": {
+        "type": "object",
+        "description": "The journal of a torrent whose files are being moved to another folder (RD-1100-10).\n\nWritten before the first file moves and cleared once the move is finished or taken back.\nA start that finds it knows a move was interrupted: when the package already names `to`\nthe move is finished, otherwise it is taken back to `from`.",
+        "required": [
+          "from",
+          "to",
+          "started_at"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The package folder the files are moved out of."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "description": "The package folder the files are moved into."
           }
         }
       },
@@ -37831,7 +39142,8 @@
           "script_finished",
           "upload_finished",
           "storage_threshold",
-          "subscription_item"
+          "subscription_item",
+          "usenet_job_hopeless"
         ]
       },
       "TrustSshHostKeyRequest": {
@@ -38597,6 +39909,56 @@
           }
         }
       },
+      "UsenetQuota": {
+        "type": "object",
+        "description": "A traffic quota on one Usenet server, such as a block account's volume (RD-1100-05).",
+        "required": [
+          "limit_bytes",
+          "action",
+          "used_bytes"
+        ],
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/UsenetQuotaAction"
+          },
+          "limit_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The bytes the server may deliver before `action` applies.",
+            "minimum": 0
+          },
+          "reached_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the used figure reached the limit; `None` while it has not."
+          },
+          "reset_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The day (UTC) from which the used figure starts again at zero, once; `None` without one."
+          },
+          "used_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes delivered since the quota was set or last reset, as of the last flush.",
+            "minimum": 0
+          }
+        }
+      },
+      "UsenetQuotaAction": {
+        "type": "string",
+        "description": "What a Usenet server does once its quota is used up (RD-1100-05).",
+        "enum": [
+          "backup",
+          "pause"
+        ]
+      },
       "UsenetServer": {
         "type": "object",
         "description": "Redaction-safe NNTP endpoint configuration.",
@@ -38651,6 +40013,17 @@
               }
             ]
           },
+          "quota": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UsenetQuota",
+                "description": "The traffic quota on this server and how much of it is used; `None` without one\n(RD-1100-05)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "tls": {
             "type": "boolean"
           },
@@ -38665,6 +40038,86 @@
       "UsenetServerId": {
         "type": "string",
         "format": "uuid"
+      },
+      "UsenetServerTrafficEntry": {
+        "type": "object",
+        "description": "The bytes one Usenet server delivered, by range, and its quota (RD-1100-05).\n\nCounted as the article bodies arrive, yEnc-encoded: one to three per cent more than the\npayload, plus the article headers, and the bodies that failed their checksum and were asked\nfor again. Written every few seconds, so the last seconds of a running download show up\nwith the next flush.",
+        "required": [
+          "server_id",
+          "name",
+          "enabled",
+          "today",
+          "week",
+          "month",
+          "year",
+          "total"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "month": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The last 30 days (UTC), today included.",
+            "minimum": 0
+          },
+          "name": {
+            "type": "string"
+          },
+          "quota": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UsenetQuota"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "server_id": {
+            "$ref": "#/components/schemas/UsenetServerId"
+          },
+          "today": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Since midnight UTC.",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Everything recorded since the server was added or the statistics were last cleared.",
+            "minimum": 0
+          },
+          "week": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The last seven days (UTC), today included.",
+            "minimum": 0
+          },
+          "year": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The last 365 days (UTC), today included.",
+            "minimum": 0
+          }
+        }
+      },
+      "UsenetTrafficResponse": {
+        "type": "object",
+        "required": [
+          "servers"
+        ],
+        "properties": {
+          "servers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsenetServerTrafficEntry"
+            },
+            "description": "Every configured server, in priority order."
+          }
+        }
       },
       "Verdict": {
         "type": "string",

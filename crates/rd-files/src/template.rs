@@ -211,14 +211,14 @@ fn substitute(segment: &str, values: &TemplateValues) -> String {
 }
 
 /// Whether a segment addresses a parent or the current directory.
-fn is_traversal(segment: &str) -> bool {
+pub(crate) fn is_traversal(segment: &str) -> bool {
     let trimmed = segment.trim();
     trimmed == ".." || trimmed == "." || trimmed.starts_with("../") || trimmed.starts_with("..\\")
 }
 
 /// Whether a template tries to start at a filesystem root, including a Windows drive or UNC
 /// prefix, which `Path::is_absolute` does not catch when running on Linux.
-fn starts_at_root(template: &str) -> bool {
+pub(crate) fn starts_at_root(template: &str) -> bool {
     let template = template.trim();
     template.starts_with('/')
         || template.starts_with('\\')

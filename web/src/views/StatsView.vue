@@ -11,7 +11,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import { useI18n } from 'vue-i18n'
 
-import type { StatsRange, TransferStatsGroup } from '@/api/types'
+import type { StatsRange, TransferStatsGroup, UsenetServerTraffic } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import TransferStatsChart from '@/components/TransferStatsChart.vue'
@@ -61,6 +61,20 @@ const groupColumns = computed<TableColumn<TransferStatsGroup>[]>(() => [
   { id: 'retries', header: t('stats.groups.retries'), meta: { class: FIGURE_CELL } },
   { id: 'bytes', header: t('stats.groups.bytes'), meta: { class: FIGURE_CELL } }
 ])
+
+/** The traffic per Usenet server (RD-1100-05): fixed ranges, whichever one the page shows. */
+const SERVER_FIGURES = ['today', 'week', 'month', 'year', 'total'] as const
+const serverColumns = computed<TableColumn<UsenetServerTraffic>[]>(() => [
+  { id: 'name', header: t('stats.servers.name') },
+  ...SERVER_FIGURES.map(id => ({ id, header: t(`stats.servers.${id}`), meta: { class: FIGURE_CELL } })),
+  { id: 'quota', header: t('stats.servers.quota'), meta: { class: FIGURE_CELL } }
+])
+
+function quotaLabel(server: UsenetServerTraffic): string {
+  const quota = server.quota
+  if (!quota) return '—'
+  return t('stats.servers.quota_used', { used: formatBytes(String(quota.used_bytes)), limit: formatBytes(String(quota.limit_bytes)) })
+}
 
 const endpoint = computed(() => `${window.location.origin}/api/v1/metrics`)
 </script>
@@ -123,6 +137,29 @@ const endpoint = computed(() => `${window.location.origin}/api/v1/metrics`)
             </UTable>
           </section>
         </div>
+
+        <section v-if="store.servers.length" class="border border-muted bg-default p-5" data-stats="usenet-servers">
+          <SectionHeader :eyebrow="t('stats.eyebrow')" :title="t('stats.servers.title')" :description="t('stats.servers.description')" />
+          <UTable
+            class="mt-3"
+            :data="store.servers"
+            :columns="serverColumns"
+            :ui="{ th: 'px-0 py-2 pr-3 text-xs font-medium text-muted last:pr-0', td: 'px-0 py-2 pr-3 text-sm last:pr-0' }"
+          >
+            <template #name-cell="{ row }"><span class="text-highlighted" :class="row.original.enabled ? '' : 'text-muted'">{{ row.original.name }}</span></template>
+            <template #today-cell="{ row }">{{ formatBytes(String(row.original.today)) }}</template>
+            <template #week-cell="{ row }">{{ formatBytes(String(row.original.week)) }}</template>
+            <template #month-cell="{ row }">{{ formatBytes(String(row.original.month)) }}</template>
+            <template #year-cell="{ row }">{{ formatBytes(String(row.original.year)) }}</template>
+            <template #total-cell="{ row }">{{ formatBytes(String(row.original.total)) }}</template>
+            <template #quota-cell="{ row }">
+              <span>{{ quotaLabel(row.original) }}</span>
+              <UBadge v-if="row.original.quota?.reached_at" class="ml-2" color="warning" variant="subtle" size="sm">
+                {{ row.original.quota.action === 'pause' ? t('stats.servers.used_up_pause') : t('stats.servers.used_up_backup') }}
+              </UBadge>
+            </template>
+          </UTable>
+        </section>
 
         <section class="border border-muted bg-default p-5">
           <SectionHeader :eyebrow="t('stats.metrics.eyebrow')" :title="t('stats.metrics.title')" :description="t('stats.metrics.description')" />

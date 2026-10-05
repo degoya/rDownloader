@@ -235,7 +235,11 @@
     "script_inherit": "Hériter",
     "password_placeholder": "Aucun mot de passe",
     "rename_folder": "Renommer aussi le dossier",
-    "rename_folder_hint": "Déplace les fichiers sur le disque. Un dossier portant déjà ce nom est refusé."
+    "rename_folder_hint": "Déplace les fichiers sur le disque. Un dossier portant déjà ce nom est refusé.",
+    "speed_limit": "Limite de vitesse de ce paquet",
+    "speed_limit_hint": "Vide = pas de limite propre. Les limites globale et du profil s’appliquent toujours ; la plus stricte l’emporte.",
+    "speed_limit_unsupported": "Un paquet contenant un torrent ne prend pas de limite propre : le moteur torrent ne peut pas limiter un torrent seul.",
+    "speed_limit_aria": "Limite de vitesse du paquet en Mio/s"
   },
   "postprocess": {
     "loading": "Chargement du post-traitement …",
@@ -254,7 +258,8 @@
       "plugin_step": "Étape de plugin",
       "script": "Script",
       "upload": "Envoi",
-      "malware_scan": "Analyse antivirus"
+      "malware_scan": "Analyse antivirus",
+      "sort": "Tri"
     },
     "states": {
       "queued": "en attente",
@@ -279,7 +284,8 @@
       "deleting_archives": "Suppression des archives",
       "cleaning": "Nettoyage",
       "script": "Script en cours",
-      "scanning": "Recherche de logiciels malveillants"
+      "scanning": "Recherche de logiciels malveillants",
+      "sorting": "Tri en cours"
     },
     "queue": {
       "title": "Post-traitement",

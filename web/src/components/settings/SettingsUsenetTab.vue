@@ -7,7 +7,8 @@ import type {
   CreateUsenetServer,
   ProxyProfile,
   UpdateUsenetServer,
-  UsenetServer
+  UsenetServer,
+  UsenetServerTraffic
 } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
@@ -19,6 +20,7 @@ import { useFormFocus } from '@/composables/useFormFocus'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsIndexersCard from '@/components/settings/SettingsIndexersCard.vue'
+import UsenetQuotaEditor from '@/components/settings/UsenetQuotaEditor.vue'
 
 /** Gap between generated priorities so manual values keep room in between. */
 const PRIORITY_STEP = 10
@@ -31,6 +33,8 @@ defineProps<{ hideHeader?: boolean }>()
 const { t } = useI18n()
 const servers = ref<UsenetServer[]>([])
 const proxies = ref<ProxyProfile[]>([])
+/** What each server delivered, by id (RD-1100-05); a server without figures shows none. */
+const traffic = ref<Record<string, UsenetServerTraffic>>({})
 /** The server chain's own fetch; the form's own `pending` comes from the list (RD-104-07). */
 const { loading, loadError, load } = useFetchState()
 const testingId = ref<string | null>(null)
@@ -121,12 +125,26 @@ function nextPriority(): number {
 async function refresh(): Promise<string | null> {
   const [serverResponse, proxyResponse] = await Promise.all([
     api.GET('/api/v1/usenet/servers'),
-    api.GET('/api/v1/proxy-profiles')
+    api.GET('/api/v1/proxy-profiles'),
+    refreshTraffic()
   ])
   if (proxyResponse.data) proxies.value = proxyResponse.data
   if (!serverResponse.data) return responseError(serverResponse)
   servers.value = sortByPriority(serverResponse.data)
   return null
+}
+
+/** The usage figures are an addition to the chain; failing to read them leaves the chain alone. */
+async function refreshTraffic(): Promise<void> {
+  const response = await api.GET('/api/v1/stats/usenet-servers')
+  if (response.data) traffic.value = Object.fromEntries(response.data.servers.map(entry => [entry.server_id, entry]))
+}
+
+function quotaSaved(saved: UsenetServer): void {
+  servers.value = servers.value.map(server => (server.id === saved.id ? saved : server))
+  error.value = null
+  message.value = t('usenet.quota.saved')
+  void refreshTraffic()
 }
 
 async function createServer(): Promise<void> {
@@ -378,6 +396,7 @@ function proxyName(id: string | null | undefined): string {
                   <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('usenet.chain.delete')" :title="t('usenet.chain.delete')" :loading="deletingId === server.id" @click="deleteServer(server)" />
                 </div>
               </div>
+              <UsenetQuotaEditor :server="server" :traffic="traffic[server.id]" @saved="quotaSaved" />
               <div class="transfer-stripe mt-4 h-1" :class="reorderingId === server.id ? 'animate-pulse opacity-80' : 'opacity-40'" />
             </article>
             <DataState :loading="loading" :error="loadError" :empty="!servers.length" :rows="2">

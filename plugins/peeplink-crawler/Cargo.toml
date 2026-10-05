@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-wit-bindgen.workspace = true
+plugin-guest-crawler = { path = "../guest-crawler" }
 
 [lib]
 crate-type = ["rlib", "cdylib"]

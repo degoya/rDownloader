@@ -1,4 +1,5 @@
-//! MCP tools for a torrent's panel: detail, file plan, trackers and seeding (RD-120-32).
+//! MCP tools for a torrent's panel: detail, file plan, trackers and seeding (RD-120-32), and the
+//! recheck and move of a torrent's data (RD-1100-10).
 //!
 //! RD-120-29 called the panel "a live technical panel measured in seconds". It is also the only
 //! place a torrent's files, trackers and seeding are decided, so a caller that cannot open it
@@ -162,6 +163,43 @@ impl RdMcpServer {
     }
 
     #[tool(
+        description = "Check a queued torrent's data against its piece hashes again (the download id from list_downloads), e.g. after its files were replaced by hand. A seeding torrent is checked at once and keeps seeding, fetching again what no longer verifies; a running one is stopped, checked and runs on; any other is checked when it starts next. While the check runs, get_torrent_details view=stats shows `checking`; its result is `recheck` in view=summary (verified_bytes against total_bytes)."
+    )]
+    pub async fn recheck_torrent(&self, Parameters(params): Parameters<IdParams>) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let (_, Json(answer)) =
+                crate::torrent_handlers::recheck_torrent(State(self.state.clone()), Path(id))
+                    .await?;
+            Ok(answer)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Move a seeding or paused torrent's files to another folder; it keeps its queue row and seeds on from there after one check of its data. `body` is the REST body of POST /api/v1/downloads/{id}/torrent/move: storage_root_id (from list_configuration section storage_roots) and relative_path below that root; the package keeps a folder of its own name inside it. Refused when the package holds other downloads, the folder is taken, or a copy to another disk would not fit. The move runs in the background: get_torrent_details view=summary shows `relocation` while it runs and `relocation_error` when it failed and everything was left where it was."
+    )]
+    pub async fn move_torrent(
+        &self,
+        Parameters(params): Parameters<IdBodyParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let request = body(serde_json::Value::Object(params.body))?;
+            let (_, Json(answer)) = crate::torrent_handlers::move_torrent(
+                State(self.state.clone()),
+                Path(id),
+                Json(request),
+            )
+            .await?;
+            Ok(answer)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
         description = "Set the seeding policy every torrent of one category inherits (category id from list_configuration section categories). `body` is {enabled, ratio, time_minutes, time_unlimited}; clear=true drops the category's policy so the global one applies."
     )]
     pub async fn set_category_seeding(
@@ -184,7 +222,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Read the torrent engine. view=capabilities: what it supports (sequential download, encryption, DHT, ...); view=network_status: bound interface, kill switch, proxy, blocklist and UPnP state."
+        description = "Read the torrent engine. view=capabilities: what it supports (sequential download, encryption, DHT, a speed limit per torrent, ...); view=network_status: bound interface, kill switch, proxy, blocklist and UPnP state."
     )]
     pub async fn get_torrent_engine(
         &self,

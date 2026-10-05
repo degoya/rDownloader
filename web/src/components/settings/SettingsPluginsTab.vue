@@ -9,6 +9,7 @@ import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { usePluginDiagnostics } from '@/composables/usePluginDiagnostics'
+import { usePluginGroups } from '@/composables/usePluginGroups'
 import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
@@ -16,6 +17,7 @@ import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh
 import SectionHeader from '@/components/SectionHeader.vue'
 import PluginCard from './PluginCard.vue'
 import PluginBundledList from './PluginBundledList.vue'
+import PluginIncompatibleList from './PluginIncompatibleList.vue'
 import PluginInstallPreviewModal from './PluginInstallPreviewModal.vue'
 import PluginTrustedKeys from './PluginTrustedKeys.vue'
 import PluginUpdatesList from './PluginUpdatesList.vue'
@@ -52,69 +54,7 @@ async function versionActionDone(outcome: { message: string | null, error: strin
   await refresh()
 }
 
-/**
- * Twenty-four plugins of eight kinds in one flat grid made finding a particular one a scan.
- * The groups are built from the types actually installed, so an installation without, say, a
- * storage plugin is not offered an empty group.
- *
- * This was a `UTabs` bar until RD-107-17, and it stopped being readable through growth rather
- * than through a bug: a tab bar divides one line among its entries, so the eleventh plugin
- * world — `remote-job` — turned ten of the twelve labels into "Benachrich… 3" and "Ordner-Cr… 6".
- * A wrapping chip row grows downward instead, which a settings page has room for; `design.md`
- * carries the rule and the two alternatives that were weighed and rejected.
- */
-const ALL_TYPES = '__all__'
-const typeTab = ref(ALL_TYPES)
-
-/** One installed plugin: the version that is loaded, and the older ones still on disk. */
-interface PluginGroup {
-  plugin: InstalledPlugin
-  superseded: InstalledPlugin[]
-}
-
-/**
- * The inventory as plugins rather than as version directories (RD-108-10).
- *
- * Installing never removes the older version — a job already under way keeps the one that
- * started it — so a package of 43 plugins could report 44 entries, and the difference was a
- * leftover version carrying a badge nobody counted. The list is keyed by plugin id now: the
- * loaded version is the card, every superseded version hangs underneath it, and the counts
- * say how many plugins are installed, which is what the number beside "installed" is read as.
- */
-const pluginGroups = computed<PluginGroup[]>(() => {
-  const groups = new Map<string, PluginGroup>()
-  for (const plugin of plugins.value) {
-    const group = groups.get(plugin.id)
-    if (!group) groups.set(plugin.id, { plugin, superseded: [] })
-    // `active` is the server's answer to which version loads. It comes first in the list, but
-    // the grouping does not depend on that: whichever entry claims it becomes the card.
-    else if (plugin.active && !group.plugin.active) {
-      group.superseded.push(group.plugin)
-      group.plugin = plugin
-    } else group.superseded.push(plugin)
-  }
-  return [...groups.values()]
-})
-const installedTypes = computed(() =>
-  [...new Set(pluginGroups.value.map(group => group.plugin.plugin_type))].sort((a, b) =>
-    t(`plugins.type.${a}`).localeCompare(t(`plugins.type.${b}`))))
-const typeGroups = computed(() => [
-  { value: ALL_TYPES, label: t('plugins.type.all'), count: pluginGroups.value.length },
-  ...installedTypes.value.map(type => ({
-    value: type,
-    label: t(`plugins.type.${type}`),
-    count: pluginGroups.value.filter(group => group.plugin.plugin_type === type).length
-  }))
-])
-const visibleGroups = computed(() => typeTab.value === ALL_TYPES
-  ? pluginGroups.value
-  : pluginGroups.value.filter(group => group.plugin.plugin_type === typeTab.value))
-/** Plugin id whose superseded versions are unfolded; one at a time, like the diagnostics. */
-const openSuperseded = ref<string | null>(null)
-
-function toggleSuperseded(id: string): void {
-  openSuperseded.value = openSuperseded.value === id ? null : id
-}
+const { typeTab, pluginGroups, typeGroups, visibleGroups, openSuperseded, toggleSuperseded } = usePluginGroups(plugins)
 /** The bundle's available services, re-read when the installed set changes elsewhere. */
 const bundledList = ref<InstanceType<typeof PluginBundledList> | null>(null)
 /** Only for the count in the updates tab's badge; the list reads its offers itself. */
@@ -424,26 +364,7 @@ async function revokeKey(keyId: string): Promise<void> {
             </div>
           </section>
 
-          <section v-if="incompatible.length" class="border border-error/40 bg-default p-5">
-            <div class="mb-4 flex items-center justify-between">
-              <SectionHeader :eyebrow="t('plugins.incompatible.eyebrow')" :title="t('plugins.incompatible.title')" level="sub" />
-              <UBadge color="error" variant="outline">{{ incompatible.length }}</UBadge>
-            </div>
-            <p class="mb-4 max-w-3xl text-sm leading-6 text-muted">{{ t('plugins.incompatible.description') }}</p>
-            <div class="space-y-2">
-              <div v-for="plugin in incompatible" :key="`${plugin.id}:${plugin.version}`" class="flex items-start justify-between gap-4 border border-muted p-3">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2">
-                    <h4 class="font-medium text-highlighted">{{ plugin.name }}</h4>
-                    <UBadge color="neutral" variant="subtle">v{{ plugin.version }}</UBadge>
-                  </div>
-                  <p class="mt-1 text-sm leading-5 text-toned">{{ t(`plugins.incompatible.reason.${plugin.code}`) }}</p>
-                  <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ plugin.id }}</p>
-                </div>
-                <UButton color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('plugins.incompatible.remove')" @click="removeVersion(plugin)" />
-              </div>
-            </div>
-          </section>
+          <PluginIncompatibleList v-if="incompatible.length" :incompatible="incompatible" @remove="removeVersion" />
         </div>
       </template>
 

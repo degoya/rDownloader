@@ -28,6 +28,7 @@ pub(crate) fn may_trigger(event: &EventEnvelope) -> bool {
             | EventKind::PostprocessProgress
             | EventKind::StorageCapacity
             | EventKind::SubscriptionChanged
+            | EventKind::UsenetChanged
     )
 }
 
@@ -47,6 +48,7 @@ pub(crate) async fn classify(
             package_id: None,
         })),
         EventKind::SubscriptionChanged => Ok(subscription(event)),
+        EventKind::UsenetChanged => usenet_job_hopeless(database, event).await,
         _ => Ok(None),
     }
 }
@@ -200,6 +202,33 @@ fn subscription(event: &EventEnvelope) -> Option<EventMatch> {
         context,
         package_id: None,
     })
+}
+
+/// A Usenet set given up as beyond repair (RD-1100-02); every other `usenet.changed` is
+/// configuration or an import arriving, nothing to act on.
+async fn usenet_job_hopeless(
+    database: &rd_db::Database,
+    event: &EventEnvelope,
+) -> anyhow::Result<Option<EventMatch>> {
+    if text(event, "state") != Some("hopeless") {
+        return Ok(None);
+    }
+    let mut context = EventContext::default();
+    context.set(Field::State, "failed");
+    context.set(Field::Kind, "usenet");
+    context.set(Field::FailureCode, rd_db::USENET_JOB_HOPELESS);
+    let package_id: Option<PackageId> = text(event, "package_id").and_then(|id| id.parse().ok());
+    if let Some(id) = package_id
+        && let Some(package) = database.get_package(id).await?
+    {
+        context.set(Field::Name, package.name);
+    }
+    add_category(database, &mut context, package_id).await?;
+    Ok(Some(EventMatch {
+        triggers: vec![Trigger::UsenetJobHopeless],
+        context,
+        package_id,
+    }))
 }
 
 /// The context a dry run is evaluated against, built from a real package.

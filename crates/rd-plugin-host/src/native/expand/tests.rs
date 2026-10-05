@@ -2,6 +2,7 @@
 //! wrong sends the wrong secret to the wrong host.
 
 use rd_plugin_api::RequestAuthority;
+use rd_provider_registry::CredentialMode;
 
 use super::*;
 
@@ -385,7 +386,7 @@ fn a_provider_that_registers_its_own_application_keeps_its_token_beside_the_flow
     // The ordinary arrangement: one slot, the token *is* the account's secret.
     let mut ordinary = oauth_provider(CredentialKind::OAuth, &["www.googleapis.com"]);
     ordinary.secrets[0].filled_by = SecretFilledBy::Person;
-    assert!(!super::token_beside_the_flow(&ordinary));
+    assert!(!super::gates::token_beside_the_flow(&ordinary));
 
     // Box and Real-Debrid: the person's client secret, and the token beside it.
     let mut two_slots = oauth_provider(CredentialKind::OAuth, &["api.box.com"]);
@@ -398,7 +399,7 @@ fn a_provider_that_registers_its_own_application_keeps_its_token_beside_the_flow
             filled_by: SecretFilledBy::Person,
         },
     );
-    assert!(super::token_beside_the_flow(&two_slots));
+    assert!(super::gates::token_beside_the_flow(&two_slots));
     // And the bearer gate is unchanged by the second slot: still only that provider's hosts.
     assert!(bearer_allowed(
         &two_slots,

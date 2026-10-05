@@ -8,7 +8,8 @@ use std::{
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use rd_core::{
-    DownloadFile, DownloadKind, DownloadPackage, DownloadState, Failure, FailureKind, StorageRootId,
+    DownloadFile, DownloadKind, DownloadPackage, DownloadState, Failure, FailureKind, NzbImportId,
+    StorageRootId,
 };
 use rd_db::Database;
 use rd_files::StorageRoot;
@@ -19,10 +20,16 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    NntpPool,
+    NntpPool, UsenetTraffic,
+    hopeless::{Ending, Verdicts},
     parallel::{FileLoad, MAX_PARALLEL_FILES},
     worker::{FileOutcome, download_file_counted, recovered_file_path},
 };
+
+/// How long a download waits before it asks again when every enabled server is paused by its
+/// quota (RD-1100-05). A wait for a limit, not an attempt: a quota is raised or reset by a
+/// person or on its reset day, and the queue should notice within minutes, not hours.
+const QUOTA_RETRY_SECONDS: u64 = 15 * 60;
 
 /// Limits applied per NZB file.
 ///
@@ -59,6 +66,10 @@ pub struct UsenetRunner {
     /// What the running files still have to fetch, which is what automatic mode sizes the
     /// number of files by (RD-130-22).
     load: Arc<FileLoad>,
+    /// The sets given up as beyond repair while files of them run (RD-1100-02).
+    verdicts: Verdicts,
+    /// The bytes each server delivered since the last flush (RD-1100-05).
+    traffic: UsenetTraffic,
 }
 
 /// A pool and what it was built from; it is replaced when either changes.
@@ -78,7 +89,17 @@ impl UsenetRunner {
             network: SharedNetworkDefaults::default(),
             pool: Mutex::new(None),
             load: Arc::new(FileLoad::default()),
+            verdicts: Verdicts::default(),
+            traffic: UsenetTraffic::default(),
         }
+    }
+
+    /// Counts the bytes each server delivers into `traffic`, which the service flushes
+    /// (RD-1100-05). Without it the runner counts into a meter nobody writes.
+    #[must_use]
+    pub fn with_traffic(mut self, traffic: UsenetTraffic) -> Self {
+        self.traffic = traffic;
+        self
     }
 
     /// Connects this runner to the shared network defaults, which is where the operator's
@@ -109,9 +130,25 @@ impl UsenetRunner {
         {
             return Ok(current.pool.clone());
         }
-        let servers =
-            crate::enabled_server_configs(&self.database, &self.secrets, &custom_ca_pem).await?;
-        let pool = NntpPool::with_connection_cap(servers, cap)?;
+        let ordered =
+            crate::servers_by_quota(&self.database, &self.secrets, &custom_ca_pem).await?;
+        if ordered.servers.is_empty() && ordered.paused > 0 {
+            return Err(Failure::coded(
+                FailureKind::RateLimited {
+                    retry_after_seconds: Some(QUOTA_RETRY_SECONDS),
+                },
+                "usenet.quota_reached",
+                "Every enabled Usenet server is paused because its quota is used up",
+            )
+            .with_param("servers", ordered.paused)
+            .into());
+        }
+        let servers = ordered
+            .servers
+            .into_iter()
+            .map(|(id, config)| (config, Some(self.traffic.counter(id))))
+            .collect();
+        let pool = NntpPool::metered(servers, cap)?;
         *cached = Some(CachedPool {
             fingerprint,
             cap,
@@ -213,16 +250,43 @@ impl ExternalRunner for UsenetRunner {
             self.settle(file, &path, &final_name).await?;
             return Ok(RunOutcome::Completed { final_name });
         }
+        // A set given up while this file waited for its turn takes no new attempt, and one
+        // given up while it runs stops it (RD-1100-02).
+        let enrolment = self.verdicts.enrol(import_id);
+        if let Some(failure) = self.verdicts.verdict(import_id) {
+            return Ok(RunOutcome::Failed(failure));
+        }
         let staging = root.resolve(std::path::Path::new(&format!(".rdownloader-{import_id}")))?;
         tokio::fs::create_dir_all(&staging).await?;
         // `0` is "as many as the servers allow" (RD-108-25); anything else caps one file.
         let cap = (limits.max_parallel_requests > 0).then_some(limits.max_parallel_requests);
-        let pool = self.pool(cap).await?;
+        let pool = match self.pool(cap).await {
+            Ok(pool) => pool,
+            // Every server paused by its quota is a wait, not a broken runner.
+            Err(error) => {
+                return match error.downcast::<Failure>() {
+                    Ok(failure) => Ok(RunOutcome::Failed(failure)),
+                    Err(error) => Err(error),
+                };
+            }
+        };
         self.load.set_window(pool.max_parallel_requests());
+        // The attempt stops for the queue's reason or for the set's, whichever comes first.
+        let attempt = enrolment.abort().child_token();
+        let link = {
+            let scheduler = cancellation.clone();
+            let attempt = attempt.clone();
+            tokio::spawn(async move {
+                tokio::select! {
+                    () = scheduler.cancelled() => attempt.cancel(),
+                    () = attempt.cancelled() => {}
+                }
+            })
+        };
         let outcome = download_file_counted(
             &self.database,
             &pool,
-            &cancellation,
+            &attempt,
             nzb_file,
             &staging,
             &destination,
@@ -230,6 +294,7 @@ impl ExternalRunner for UsenetRunner {
             &open,
         )
         .await;
+        link.abort();
         drop(open);
         let (waited, batches, confirmed) = self.load.writer_totals();
         tracing::debug!(
@@ -244,12 +309,25 @@ impl ExternalRunner for UsenetRunner {
             // Coded failures describe the file (not the runner) and belong in the queue.
             Err(error) => {
                 return match error.downcast::<Failure>() {
+                    // A file no server had a single article of is the set's loss too.
+                    Ok(failure) if lost_everything(&failure) => Ok(RunOutcome::Failed(
+                        self.abandon_if_hopeless(file, package, import_id, Ending::Lost)
+                            .await?
+                            .unwrap_or(failure),
+                    )),
                     Ok(failure) => Ok(RunOutcome::Failed(failure)),
                     Err(error) => Err(error),
                 };
             }
         };
         match outcome {
+            // Stopped because its set was given up rather than by the queue.
+            FileOutcome::Cancelled if !cancellation.is_cancelled() => {
+                Ok(match self.verdicts.verdict(import_id) {
+                    Some(failure) => RunOutcome::Failed(failure),
+                    None => RunOutcome::Stopped,
+                })
+            }
             FileOutcome::Cancelled => Ok(RunOutcome::Stopped),
             FileOutcome::Completed { path, missing } => {
                 let final_name = file_name_of(&path)?;
@@ -271,6 +349,14 @@ impl ExternalRunner for UsenetRunner {
                         "segments missing; the verdict waits for the rest of the set"
                     );
                     self.database.defer_par2_verdict(file.id, missing).await?;
+                    // Unless the holes already show the set cannot be repaired (RD-1100-02):
+                    // then the rest of it is not fetched to find that out at the end.
+                    if let Some(failure) = self
+                        .abandon_if_hopeless(file, package, import_id, Ending::Holes)
+                        .await?
+                    {
+                        return Ok(RunOutcome::Failed(failure));
+                    }
                     return Ok(RunOutcome::Detached {
                         state: DownloadState::Verifying,
                     });
@@ -282,6 +368,35 @@ impl ExternalRunner for UsenetRunner {
 }
 
 impl UsenetRunner {
+    /// Gives the set up when `file`, ending as `ending`, leaves it beyond repair (RD-1100-02),
+    /// and answers with the failure the file then ends with.
+    async fn abandon_if_hopeless(
+        &self,
+        file: &DownloadFile,
+        package: &DownloadPackage,
+        import_id: NzbImportId,
+        ending: Ending,
+    ) -> Result<Option<Failure>> {
+        // Given up already by a sibling: one verdict, one write, one notification.
+        if let Some(failure) = self.verdicts.verdict(import_id) {
+            return Ok(Some(failure));
+        }
+        let Some(failure) =
+            crate::hopeless::judge(&self.database, package.id, import_id, file.id, ending).await?
+        else {
+            return Ok(None);
+        };
+        crate::hopeless::give_up(
+            &self.database,
+            &self.verdicts,
+            package.id,
+            import_id,
+            &failure,
+        )
+        .await?;
+        Ok(Some(failure))
+    }
+
     /// The name is known now, so the PAR2 question is asked again (RD-108-23).
     ///
     /// Every decision taken at enqueue time rested on the subject line; an obfuscated post
@@ -305,6 +420,14 @@ impl UsenetRunner {
         }
         Ok(())
     }
+}
+
+/// Whether a coded failure says that no server had a single article of the file.
+fn lost_everything(failure: &Failure) -> bool {
+    matches!(
+        failure.code.as_deref(),
+        Some("usenet.all_segments_missing" | "usenet.recovery_unavailable")
+    )
 }
 
 fn file_name_of(path: &std::path::Path) -> Result<String> {

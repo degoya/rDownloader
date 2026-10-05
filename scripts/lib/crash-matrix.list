@@ -30,5 +30,5 @@ rd-update
 # only those cases of rd-api run (RD-180-12).
 rd-api      --test admin stopped_updates
 # The vault's three points (archive passwords, the sweep at start) sit in rd-db; their binary
-# alone (RD-190-04, RD-191-04).
-rd-db       --test archive_password_crash
+# alone (RD-190-04, RD-191-04), and the download history's point beside it (RD-1100-04).
+rd-db       --test archive_password_crash --test download_history_crash

@@ -235,7 +235,11 @@
     "script_inherit": "Erben",
     "password_placeholder": "Kein Passwort",
     "rename_folder": "Ordner mitbenennen",
-    "rename_folder_hint": "Verschiebt die Dateien auf der Platte. Ein bereits vorhandener Ordner dieses Namens wird abgelehnt."
+    "rename_folder_hint": "Verschiebt die Dateien auf der Platte. Ein bereits vorhandener Ordner dieses Namens wird abgelehnt.",
+    "speed_limit": "Tempolimit für dieses Paket",
+    "speed_limit_hint": "Leer = kein eigenes Limit. Die globale Grenze und die des Profils gelten weiter; die engste gewinnt.",
+    "speed_limit_unsupported": "Ein Paket mit Torrent bekommt kein eigenes Limit: die Torrent-Engine kann einen einzelnen Torrent nicht begrenzen.",
+    "speed_limit_aria": "Tempolimit des Pakets in MiB/s"
   },
   "postprocess": {
     "loading": "Lade Postprocessing …",
@@ -254,7 +258,8 @@
       "plugin_step": "Plugin-Schritt",
       "script": "Skript",
       "upload": "Upload",
-      "malware_scan": "Virenprüfung"
+      "malware_scan": "Virenprüfung",
+      "sort": "Einsortieren"
     },
     "states": {
       "queued": "wartend",
@@ -279,7 +284,8 @@
       "deleting_archives": "Lösche Archive",
       "cleaning": "Räume auf",
       "script": "Skript läuft",
-      "scanning": "Prüfe auf Schadsoftware"
+      "scanning": "Prüfe auf Schadsoftware",
+      "sorting": "Sortiere ein"
     },
     "queue": {
       "title": "Nachbearbeitung",

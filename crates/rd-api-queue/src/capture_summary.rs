@@ -1,6 +1,7 @@
 //! The capture agent's figures: how much is running, queued and failed, and how fast.
 
-use axum::{Json, extract::State};
+use axum::{Extension, Json, extract::State};
+use rd_api_core::auth::Granted;
 
 use crate::{ApiError, AppState};
 
@@ -12,12 +13,19 @@ use crate::{ApiError, AppState};
 #[utoipa::path(get, path = "/api/v1/capture/summary", tag = "capture", responses((status = 200, body = crate::dto::CaptureSummaryResponse)))]
 pub async fn capture_summary(
     State(state): State<AppState>,
+    granted: Option<Extension<Granted>>,
 ) -> Result<Json<crate::dto::CaptureSummaryResponse>, ApiError> {
     let downloads = state.database.list_downloads().await?;
-    Ok(Json(capture_figures(
+    let mut figures = capture_figures(
         &downloads,
         &crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads),
-    )))
+    );
+    figures.paused_until = state.scheduler.queue_pause().await.map(|pause| pause.until);
+    // Read from the grant `require_capture` resolved for this very request, so the tray learns
+    // it may pause from the same lookup that will let it, and loses the entries with the right.
+    figures.queue_control =
+        granted.is_some_and(|Extension(granted)| granted.holds(rd_core::Scope::CaptureQueue));
+    Ok(Json(figures))
 }
 
 /// Everything the capture summary says, once the queue has been read.
@@ -67,11 +75,16 @@ pub(crate) fn capture_figures(
         active: count(|state| matches!(state, DownloadState::Downloading)),
         queued: count(|state| matches!(state, DownloadState::Queued)),
         failed: count(|state| matches!(state, DownloadState::Failed)),
+        paused: count(|state| matches!(state, DownloadState::Paused)),
         committed_bytes: rd_core::ByteCount::new(committed_bytes).unwrap_or_default(),
         total_bytes: rd_core::ByteCount::new(total_bytes).unwrap_or_default(),
         // Counts, like everything else here: they say how much and how fast, never what.
         bytes_per_second: queue.bytes_per_second,
         eta_seconds: queue.eta_seconds,
+        // The two the handler knows and this function does not: the queue's timed pause and
+        // what the asking token holds.
+        paused_until: None,
+        queue_control: false,
     }
 }
 

@@ -76,13 +76,8 @@
     "theme_system": "Système",
     "theme_light": "Clair",
     "theme_dark": "Sombre",
-    "language_and_theme": "Langue et thème"
-  },
-  "locales": {
-    "en": "English",
-    "de": "Deutsch",
-    "fr": "Français",
-    "es": "Español"
+    "language_and_theme": "Langue et thème",
+    "language_in_progress": "{name} (en cours)"
   },
   "footer": {
     "made_with": "Made with",
@@ -128,7 +123,8 @@
     "enqueue_all": "Tout charger (dans le LinkGrabber)",
     "enqueue_paused": "Tout ajouter en pause (dans le LinkGrabber)",
     "clear_linkgrabber": "Supprimer tous les liens (dans le LinkGrabber)",
-    "close_dialog": "Fermer la boîte de dialogue"
+    "close_dialog": "Fermer la boîte de dialogue",
+    "go_history": "Aller à l'historique"
   },
   "a11y": {
     "skip_to_content": "Aller au contenu",

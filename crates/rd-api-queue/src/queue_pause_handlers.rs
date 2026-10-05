@@ -80,7 +80,10 @@ fn response(pause: Option<rd_scheduler::QueuePause>) -> QueuePauseResponse {
 }
 
 /// Exactly one of `minutes` and `until`, ending at least a minute and at most thirty days ahead.
-fn pause_end(request: &QueuePauseRequest, now: DateTime<Utc>) -> Result<DateTime<Utc>, ApiError> {
+pub(crate) fn pause_end(
+    request: &QueuePauseRequest,
+    now: DateTime<Utc>,
+) -> Result<DateTime<Utc>, ApiError> {
     let until = match (request.minutes, request.until) {
         (Some(minutes), None) if (1..=MAX_MINUTES).contains(&minutes) => {
             Some(now + Duration::minutes(i64::from(minutes)))

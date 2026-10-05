@@ -1,4 +1,5 @@
-//! The metrics exposition and the transfer statistics (RD-110-01).
+//! The metrics exposition and the transfer statistics (RD-110-01), with the traffic per Usenet
+//! server (RD-1100-05).
 
 use axum::{
     Router,
@@ -20,6 +21,10 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/stats/transfers/clear",
             post(data_reset_handlers::clear_transfer_stats),
         )
+        .route(
+            "/api/v1/stats/usenet-servers",
+            get(stats_handlers::usenet_server_traffic),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -28,5 +33,6 @@ pub(crate) fn routes() -> Router<AppState> {
     metrics::scrape_metrics,
     stats_handlers::transfer_stats,
     data_reset_handlers::clear_transfer_stats,
+    stats_handlers::usenet_server_traffic,
 ))]
 pub(crate) struct Doc;

@@ -179,6 +179,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/collector/packages/enqueue"),
         ],
     ),
+    // RD-1100-07: direct unpack is one key of this document (`direct_unpack`, named in
+    // update_settings' description) and one field of a category's post-processing
+    // (update_category_postprocess); neither has a route of its own.
     covered(
         "The settings document",
         "Settings",
@@ -323,6 +326,14 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Statistics",
         &[any("/api/v1/stats/transfers")],
     ),
+    covered(
+        "Traffic per Usenet server and its quota",
+        "Statistics, Settings > Usenet",
+        &[
+            any("/api/v1/stats/usenet-servers"),
+            any("/api/v1/usenet/servers/{id}/quota"),
+        ],
+    ),
     covered("The log store", "Logs", &[any("/api/v1/diagnostics/logs")]),
     covered("The audit log", "Audit", &[any("/api/v1/audit/records")]),
     covered(
@@ -445,6 +456,14 @@ pub(crate) static COVERAGE: &[Capability] = &[
         ],
     ),
     covered(
+        "Rechecking a torrent and moving its files",
+        "Downloads > torrent menu",
+        &[
+            any("/api/v1/downloads/{id}/torrent/recheck"),
+            any("/api/v1/downloads/{id}/torrent/move"),
+        ],
+    ),
+    covered(
         "Post-processing inventory and queue",
         "Settings > Post-processing",
         &[
@@ -453,6 +472,11 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/categories/{id}/postprocess"),
             any("/api/v1/nzb/imports/{id}/postprocess"),
         ],
+    ),
+    covered(
+        "Sort and rename templates for series and films",
+        "Settings > Routing > category",
+        &[any("/api/v1/postprocess/sort-preview")],
     ),
     covered(
         "Managed external tools",
@@ -509,6 +533,13 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/storage/operations/clear"),
             any("/api/v1/storage/content-index/clear"),
         ],
+    ),
+    // The download history (RD-1100-04): listed and searched, an entry added again, and the
+    // clear offered like the other clears, with `confirmed` an argument the caller sets.
+    covered(
+        "Download history: search, add again, clear",
+        "History",
+        &[any("/api/v1/history")],
     ),
     // The licence list beneath it is claimed too: reading the page is the capability, and a
     // thousand dependency rows are not an answer an agent needs a tool of its own for.
@@ -716,7 +747,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "the agent, not the web UI",
         &[any("/api/v1/capture/")],
         "Not a user-facing capability but the agent's own contract, priced with its own \
-         capture: scope. No api: token reaches it, so a tool over it could not be called.",
+         capture: scopes. No api: token reaches it, so a tool over it could not be called. The \
+         tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue \
+         already give MCP.",
     ),
     omitted(
         "Controlling one download by its own route",
@@ -871,8 +904,10 @@ pub(crate) static COVERAGE: &[Capability] = &[
     ),
     // RD-180-19: the key is used, never shown -- a hit's address carries a placeholder where
     // it stands -- and a grab ends as an NZB import waiting for review, like `import_nzb`.
+    // RD-1100-03: Torznab indexers and the TV and film searches with their ids go through the
+    // same two tools; a torrent hit ends as a LinkGrabber package, like a pasted magnet.
     covered(
-        "Searching indexers and taking hits into the LinkGrabber",
+        "Searching Newznab and Torznab indexers and taking hits into the LinkGrabber",
         "LinkGrabber > Indexer search",
         &[
             only("/api/v1/indexers", "GET"),
@@ -924,6 +959,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/bandwidth/status"),
             only("/api/v1/bandwidth/profiles", "GET"),
         ],
+    ),
+    // ---- RD-1100-01 ----
+    covered(
+        "A package's own speed limit",
+        "Downloads > package editor",
+        &[any("/api/v1/packages/{id}/speed-limit")],
     ),
 ];
 
@@ -1067,273 +1108,8 @@ fn markdown(documented: &[(String, Method)]) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::collections::BTreeSet;
-
-    use super::{COVERAGE, Decision, Method, OWNER_LINE, capability_for, tools_for};
-
-    /// Every `(path, method)` the OpenAPI document carries.
-    ///
-    /// Read out of the serialised document for the same reason `scope_policy` reads it there:
-    /// the JSON is the contract, and it does not move when utoipa reshapes its types.
-    pub(super) fn documented() -> BTreeSet<(String, Method)> {
-        let document = serde_json::to_value(crate::openapi_document()).expect("serialise");
-        let paths = document
-            .get("paths")
-            .and_then(serde_json::Value::as_object)
-            .expect("the document has paths");
-        let mut operations = BTreeSet::new();
-        for (path, item) in paths {
-            for method in item.as_object().expect("path item").keys() {
-                let Ok(method) = Method::from_bytes(method.to_uppercase().as_bytes()) else {
-                    continue;
-                };
-                operations.insert((path.clone(), method));
-            }
-        }
-        assert!(
-            operations.len() > 200,
-            "only {} operations were found; the document did not serialise as expected",
-            operations.len()
-        );
-        operations
-    }
-
-    /// No gap stays uncommented, and the build is where that is enforced.
-    ///
-    /// This is the whole point of the table. A coverage answer written once decays the moment
-    /// somebody adds a route; a route that falls into no capability fails here instead, so
-    /// adding one without saying whether the toolbox should have it is not possible.
-    #[test]
-    fn every_documented_operation_belongs_to_a_capability() {
-        let orphans: Vec<String> = documented()
-            .into_iter()
-            .filter(|(path, method)| capability_for(path, method).is_none())
-            .map(|(path, method)| format!("{method} {path}"))
-            .collect();
-        assert!(
-            orphans.is_empty(),
-            "these operations belong to no capability, so nothing says whether MCP should \
-             cover them:\n  {}",
-            orphans.join("\n  ")
-        );
-    }
-
-    /// And a capability that claims nothing real is a decision about something that is gone.
-    #[test]
-    fn every_capability_claims_at_least_one_operation() {
-        let documented = documented();
-        let empty: Vec<&str> = COVERAGE
-            .iter()
-            .filter(|capability| {
-                !documented.iter().any(|(path, method)| {
-                    capability_for(path, method)
-                        .is_some_and(|found| std::ptr::eq(found, *capability))
-                })
-            })
-            .map(|capability| capability.name)
-            .collect();
-        assert!(
-            empty.is_empty(),
-            "these capabilities match no operation the API has: {empty:?}"
-        );
-    }
-
-    /// `Covered` means a tool exists, and `Omitted` means none does — checked, not asserted.
-    ///
-    /// Written this way round on purpose: the decision is the thing a person reads, and it is
-    /// held against `TOOL_POLICY`, which is held against `scope_policy`, which is held against
-    /// the document. A tool quietly added to an omitted capability fails here rather than
-    /// leaving the reason standing as a lie.
-    #[test]
-    fn the_decision_and_the_tools_agree() {
-        for capability in COVERAGE {
-            let tools = tools_for(capability);
-            match capability.decision {
-                Decision::Covered => assert!(
-                    !tools.is_empty(),
-                    "{} is marked covered but no tool reaches it",
-                    capability.name
-                ),
-                Decision::Omitted(why) => {
-                    assert!(
-                        tools.is_empty(),
-                        "{} is marked deliberately out but these tools reach it: {tools:?}",
-                        capability.name
-                    );
-                    assert!(
-                        why.len() > 40,
-                        "{} is left out without a reason worth reading",
-                        capability.name
-                    );
-                }
-            }
-        }
-    }
-
-    /// Two capabilities claiming one operation equally would make the winner arbitrary.
-    #[test]
-    fn no_two_capabilities_claim_the_same_route_the_same_way() {
-        let mut seen: Vec<(&str, Option<&str>)> = Vec::new();
-        for capability in COVERAGE {
-            for claim in capability.claims {
-                let key = (claim.prefix, claim.method);
-                assert!(
-                    !seen.contains(&key),
-                    "{} claims {} {:?}, which another capability already claims",
-                    capability.name,
-                    claim.prefix,
-                    claim.method
-                );
-                seen.push(key);
-            }
-        }
-    }
-
-    /// The findings the job reports, pinned so a later change has to face them.
-    #[test]
-    fn the_capabilities_rd_120_29_decided_stay_decided() {
-        let by_name = |name: &str| {
-            COVERAGE
-                .iter()
-                .find(|capability| capability.name == name)
-                .unwrap_or_else(|| panic!("no capability called {name}"))
-        };
-        assert_eq!(by_name("Remote jobs").decision, Decision::Covered);
-        assert_eq!(by_name("Transfer statistics").decision, Decision::Covered);
-        assert_eq!(by_name("The log store").decision, Decision::Covered);
-        assert_eq!(by_name("The audit log").decision, Decision::Covered);
-        assert_eq!(
-            by_name("Clearing logs, audit records and statistics").decision,
-            Decision::Covered
-        );
-        assert_eq!(
-            by_name("Site rules: read and switch").decision,
-            Decision::Covered
-        );
-        assert!(matches!(
-            by_name("Deleting a remote job at the provider").decision,
-            Decision::Omitted(_)
-        ));
-        // Out under RD-120-29, in since RD-120-31 gave the import routes a JSON body.
-        assert_eq!(
-            by_name("Handing in a container file").decision,
-            Decision::Covered
-        );
-    }
-
-    /// RD-120-32's three sorts, pinned: group 1 and 2 in, the owner's nine out on his line.
-    #[test]
-    fn the_capabilities_rd_120_32_decided_stay_decided() {
-        let by_name = |name: &str| {
-            COVERAGE
-                .iter()
-                .find(|capability| capability.name == name)
-                .unwrap_or_else(|| panic!("no capability called {name}"))
-        };
-        for name in [
-            "LinkGrabber: candidate-level handling",
-            "Mirror groups",
-            "Reviewing an NZB before it is queued",
-            "NZB import files and enqueue",
-            "LinkGrabber: package editing and ordering",
-            "Ordering the queue by hand",
-            "Renaming and retargeting queued work",
-            "Clearing finished work in one sweep",
-            "Unpacking on demand",
-            "Torrent detail and seeding",
-            "Post-processing inventory and queue",
-            "Managed external tools",
-            "Storage capacity",
-            "Writing a site rule",
-        ] {
-            assert_eq!(by_name(name).decision, Decision::Covered, "{name}");
-        }
-        let owner: Vec<&str> = COVERAGE
-            .iter()
-            .filter(|capability| capability.decision == Decision::Omitted(OWNER_LINE))
-            .map(|capability| capability.name)
-            .collect();
-        assert_eq!(
-            owner,
-            [
-                "Deleting a remote job at the provider",
-                "Signing in, sessions, second factor and API tokens",
-                "Signing in at a provider",
-                "Trying a stored credential or destination",
-                "Remote logins and trusted host keys",
-                // RD-150-04: a profile takes the access key and secret in.
-                "Object storage profiles",
-                "Solving captchas",
-                "Consent to replay a paid link",
-                // RD-160-01: the passphrase is a secret taken in.
-                "Full backup passphrase",
-                // RD-160-03: every restore step takes the passphrase in.
-                "Restoring a full backup",
-                "Import and export of a whole area",
-                "Plugin trust and installation",
-                // RD-120-55: the parts of three of the thirteen that meet one of the marks.
-                "Probing an indexer's capabilities",
-                // RD-180-19: an indexer takes its API key in.
-                "Defining and testing indexers",
-                "Approving and fetching a diagnostic bundle",
-                "Reconnecting on demand",
-            ],
-            "the owner decided nine capabilities on 2026-09-23, and RD-120-55 applied the same \
-             line to three more and RD-150-04, RD-160-01, RD-160-03 and RD-180-19 to one each, \
-             with one reason for all of them"
-        );
-        // RD-180-19: what uses the key without showing it is in.
-        assert_eq!(
-            by_name("Searching indexers and taking hits into the LinkGrabber").decision,
-            Decision::Covered
-        );
-    }
-
-    /// RD-120-55's verdicts, pinned: the thirteen are in, except the parts that meet a mark.
-    #[test]
-    fn the_capabilities_rd_120_55_decided_stay_decided() {
-        let by_name = |name: &str| {
-            COVERAGE
-                .iter()
-                .find(|capability| capability.name == name)
-                .unwrap_or_else(|| panic!("no capability called {name}"))
-        };
-        for name in [
-            "Which providers can take a remote job",
-            "Power actions",
-            "Plugin execution history",
-            "Plugin message catalogues",
-            "Automation history, vocabulary and dry run",
-            "Notification history and the destination catalogue",
-            "Subscription items, runs and forced polls",
-            "Stream schedules, runs and recording now",
-            "The diagnostic bundle: preview",
-            "Metrics",
-            "Reconnect status",
-            "The hosters one account covers",
-            "Trying a routing regular expression",
-        ] {
-            assert_eq!(by_name(name).decision, Decision::Covered, "{name}");
-        }
-        for name in [
-            "Probing an indexer's capabilities",
-            "Approving and fetching a diagnostic bundle",
-            "Reconnecting on demand",
-        ] {
-            assert_eq!(
-                by_name(name).decision,
-                Decision::Omitted(OWNER_LINE),
-                "{name}"
-            );
-        }
-        // Not a mark but a route no tool can be priced by; the reason says which tool answers.
-        assert!(matches!(
-            by_name("The health probe").decision,
-            Decision::Omitted(why) if why != OWNER_LINE
-        ));
-    }
-}
+#[path = "mcp_coverage_tests.rs"]
+mod tests;
 
 /// The table in `crates/rd-api/mcp-coverage.md` and this module are one thing described twice;
 /// keep them equal.
@@ -1344,62 +1120,5 @@ mod tests {
 /// generated by [`markdown`] and spliced in by `scripts/mcp-coverage.sh`; this fails the build
 /// when the two disagree, naming the script rather than asking anyone to edit the table by hand.
 #[cfg(test)]
-mod doc_tests {
-    use super::{BEGIN, COVERAGE, Decision, END, markdown};
-
-    const DOC_FILE: &str = "crates/rd-api/mcp-coverage.md";
-    const DOC: &str = include_str!("../mcp-coverage.md");
-
-    fn generated() -> String {
-        markdown(&super::tests::documented().into_iter().collect::<Vec<_>>())
-    }
-
-    fn block(text: &str) -> &str {
-        let start = text.find(BEGIN).expect("the page has a BEGIN marker");
-        let end = text.find(END).expect("the page has an END marker") + END.len();
-        &text[start..end]
-    }
-
-    #[test]
-    fn the_doc_carries_the_generated_table() {
-        let generated = generated();
-        let normalised = DOC.replace("\r\n", "\n");
-        assert_eq!(
-            block(&normalised),
-            generated.trim_end(),
-            "{DOC_FILE} is out of date; run scripts/mcp-coverage.sh"
-        );
-    }
-
-    /// Every decision is readable on the page, not only in this source.
-    ///
-    /// The deliverable the owner asked for is the decision per gap, and the place it is read is
-    /// the page. A reason that exists only as a Rust doc comment is not delivered.
-    #[test]
-    fn every_reason_reaches_the_doc() {
-        for capability in COVERAGE {
-            let Decision::Omitted(why) = capability.decision else {
-                continue;
-            };
-            let one_line: String = why.split_whitespace().collect::<Vec<_>>().join(" ");
-            assert!(
-                DOC.contains(&one_line),
-                "the reason for leaving out {} is not in {DOC_FILE}",
-                capability.name
-            );
-        }
-    }
-
-    /// Writes the table into the page. Run through `scripts/mcp-coverage.sh`, never in CI.
-    #[test]
-    #[ignore = "rewrites crates/rd-api/mcp-coverage.md; scripts/mcp-coverage.sh runs it"]
-    fn write_the_doc_table() {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../..")
-            .join(DOC_FILE);
-        let current = std::fs::read_to_string(&path).expect("the page is readable");
-        let updated = current.replace(block(&current), generated().trim_end());
-        std::fs::write(&path, updated).expect("the page is writable");
-        println!("wrote the comparison into {DOC_FILE}");
-    }
-}
+#[path = "mcp_coverage_doc_tests.rs"]
+mod doc_tests;

@@ -33,7 +33,7 @@ pub fn provider_for_media_type(media_type: &str) -> Option<&'static str> {
     None
 }
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -56,6 +56,66 @@ pub struct UsenetServer {
     pub priority: i32,
     pub max_connections: u16,
     pub enabled: bool,
+    /// The traffic quota on this server and how much of it is used; `None` without one
+    /// (RD-1100-05).
+    #[serde(default)]
+    pub quota: Option<UsenetQuota>,
+}
+
+/// What a Usenet server does once its quota is used up (RD-1100-05).
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UsenetQuotaAction {
+    /// Asked only for the articles every server without a used-up quota refused, the way a
+    /// block account is used.
+    #[default]
+    Backup,
+    /// Not asked at all until the quota is reset or raised.
+    Pause,
+}
+
+impl UsenetQuotaAction {
+    /// The value the database stores.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Backup => "backup",
+            Self::Pause => "pause",
+        }
+    }
+
+    /// The stored value read back; anything unknown is the default, the milder of the two.
+    #[must_use]
+    pub fn from_stored(value: &str) -> Self {
+        match value {
+            "pause" => Self::Pause,
+            _ => Self::Backup,
+        }
+    }
+}
+
+/// A traffic quota on one Usenet server, such as a block account's volume (RD-1100-05).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+pub struct UsenetQuota {
+    /// The bytes the server may deliver before `action` applies.
+    pub limit_bytes: u64,
+    pub action: UsenetQuotaAction,
+    /// The day (UTC) from which the used figure starts again at zero, once; `None` without one.
+    #[serde(default)]
+    pub reset_on: Option<NaiveDate>,
+    /// Bytes delivered since the quota was set or last reset, as of the last flush.
+    pub used_bytes: u64,
+    /// When the used figure reached the limit; `None` while it has not.
+    #[serde(default)]
+    pub reached_at: Option<DateTime<Utc>>,
+}
+
+impl UsenetQuota {
+    /// Whether the quota is used up, so `action` applies.
+    #[must_use]
+    pub fn is_reached(&self) -> bool {
+        self.reached_at.is_some()
+    }
 }
 
 /// Persistent lifecycle of an imported NZB.
@@ -116,6 +176,9 @@ pub enum PostprocessKind {
     Script,
     /// rclone upload of the package folder to a configured remote.
     Upload,
+    /// Sorting and renaming series episodes and films by the category's templates
+    /// (RD-1100-08). Last, once everything else succeeded; `source` is `sort`.
+    Sort,
 }
 
 /// Crash-recoverable lifecycle of a postprocessing operation.

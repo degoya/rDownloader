@@ -18,7 +18,9 @@
     "account_expiring": "Compte bientôt expiré",
     "account_invalid": "Le compte ne se connecte plus",
     "backup_verify_failed": "Vérification de la sauvegarde échouée",
-    "plugin_update_failed": "Mise à jour automatique de plugin échouée"
+    "plugin_update_failed": "Mise à jour automatique de plugin échouée",
+    "usenet_job_hopeless": "Téléchargement Usenet irréparable",
+    "usenet_quota_reached": "Quota du serveur Usenet épuisé"
   },
   "severity": {
     "info": "Info et plus",

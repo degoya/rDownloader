@@ -7,10 +7,12 @@ and taken WSL down more than once.
 | Script | Purpose |
 | --- | --- |
 | `dev.sh` | Run the service locally (`--fresh`, `--unsigned`, `PORT=`) |
-| `check.sh` | CI-parity checks: branch level by default, everything with `--full` (`--defer`, `--rust`, `--web`, `--clippy <crates>`, `--clippy-all`); `--full` over content a `--full` green already covers up to documentation records the green and ends before the lock, `--again` runs it anyway (RD-160-06); `--windows` alone is the Windows lint, `cargo xwin clippy` over every crate with all targets and features (RD-140-23), its green kept by tree the same way (RD-160-06) |
-| `integrate.sh` | Integrate a wave: integration worktree from `--base`, each branch merged (a conflict only in generated files takes our side), duplicate migration numbers and plugin ids after every merge, the generators once, unbumped components refused and stale ones built, then `check.sh --full` and `--windows` detached with logs, PID and status under `/tmp/claude-<uid>/<branch>/`, and after both are green `prune-target.sh --if-free` (RD-160-06); `--merge-only`, `--no-check`, `--no-windows`; a re-run skips what is merged (RD-140-22) |
+| `check.sh` | CI-parity checks: branch level by default, everything with `--full` (`--defer`, `--rust`, `--web`, `--clippy <crates>`, `--clippy-all`); `--full` over content a `--full` green already covers up to documentation records the green and ends before the lock, `--again` runs it anyway (RD-160-06); `--windows` alone is the Windows lint, `cargo xwin clippy` over every crate with all targets and features (RD-140-23), its green kept by tree the same way (RD-160-06); `--gate` alone is `integrate.sh`'s gate, the whole-workspace clippy for Linux and the Windows lint, both `--keep-going`, each half's green kept by tree (RD-1100-13); a failing stage does not end a run — every failure, with its failing tests or compiler errors, is listed at the end and in `$RD_CHECK_LOGS/failures` (default `/tmp/claude-<uid>/check-<checkout>`), and stale or missing components are built by the run itself (RD-1100-13) |
+| `integrate.sh` | Integrate a wave: integration worktree from `--base`, the merge drivers registered (`CHANGELOG.md` union, migration pins sorted union, locale catalogues by key; `lib/merge-drivers/`), each branch merged (a conflict only in generated files takes our side), duplicate migration numbers and plugin ids after every merge, the gate `check.sh --gate` (red stops before any generator, every error in `failures`), the generators once with `web-declarations.sh` and `archive-jobs.sh` among them, unbumped components refused and stale ones built, then `check.sh --windows` and, after its green, `--full` detached with logs, PID, status and failure list under `/tmp/claude-<uid>/<branch>/` (`RD_INTEGRATE_LOGS`), and after both are green `prune-target.sh --if-free` (RD-160-06, RD-1100-13); `--merge-only`, `--no-check`, `--no-gate`, `--no-windows`; a re-run skips what is merged (RD-140-22) — and is the round after a fix: an integration branch gets no branch-level check |
+| `watch-run.sh` | `<pid> <log>...`: follow a detached run by its stage starts, failures (`!!`, nextest's FAIL lines, compiler errors) and closing lines until the process ends, then judge each log by `==> all requested checks passed` (exit 0 when all are green) (RD-1100-13) |
 | `public-ci.sh` | Run the public GitHub CI on a branch before its merge: export as `ci/<branch>`, `--platforms linux,windows` (all three without it) starts `ci.yml` for exactly those (the push itself carries `[skip ci]`), wait, delete the public branch on green, keep it and fail on red; greens are recorded per runner image and tree in `.git/rd-verified-ci`, and a platform green for the tree up to documentation and version lines is not dispatched again (RD-160-06); shares `lib/public-ci.sh` with the release's `public-ci` step (RD-140-22, RD-140-23) |
 | `ci-log.sh` | Read a failed GitHub run: name the failed jobs, store each log without ANSI codes and timestamps under `/tmp/claude-<uid>/ci/`, print only the `FAIL`, `error[E…]`/`error:`, `panicked`, `failures` and `##[error]` lines with their line numbers; a run id, run or job URL, or `--job <id>` (RD-140-22) |
+| `ci-rust-tests.sh` | CI only: the `rust` job's nextest groups, each group's executables deleted once it ran and every group run to its end; `--no-run` builds the same for `warm-cache` (RD-120-67, RD-1100-13) |
 | `ci-tree-greens.sh` | `<owner/repo> <tree> <image>... [-- <job>...]`: the runner images no successful `ci.yml` run of that very tree covers, as a JSON list, and after `--` a second list of the named jobs (or their matrix legs) no such run passed — `ci.yml`'s `gate` job asks it on a push to `main`, so a release does not run its already checked tree again; everything when GitHub does not answer (RD-191-09) |
 | `package-linux.sh` | Linux release build → `artifacts/linux` + tarball, with `VERSION.txt` (version, commit, build time; in `release-pipeline.sh` `Release-Build X.Y.Z (Basis <sha>)` instead of `<sha>-dirty`; `profile  release` or `profile  release-test (test package, …)`); verifies the committed site-rule file with the new binary and puts it beside the tarball as `artifacts/rdownloader-site-rules.json` (RD-130-07); `--profile release-test` (or `RD_PACKAGE_PROFILE`) builds a test package in the faster profile, default `release` (RD-150-20); the tarball is flat and holds what release.yml's does (`lib/archive-layout.sh`), `vendor/` stays in the folder (RD-180-05) |
 | `package-windows.sh` | Windows cross-build from WSL → `artifacts/windows` + zip, with `VERSION.txt`; refuses a tree without a `--full` green; `--profile release-test` and the flat archive layout as for Linux |
@@ -40,6 +42,7 @@ and taken WSL down more than once.
 | `export-wiki.sh` | Convert the private user wiki to GitHub-wiki form and commit it as "Handbook for <version>" into the public wiki's clone; pushes only with `--push`. Leaves out a page whose first line is `<!-- private page -->` (and its sidebar entry) and every section between `<!-- private -->` and `<!-- /private -->` lines; refuses a public link to either, a link into a path `public-exclude.txt` names, an unbalanced marker and marker text anywhere else |
 | `update-website.sh` | Set the website's `app/data/release.json` (`~/projects/rdownloader-website`) to a release — version, today's date; tag, asset, image and wiki links derive from it — check its wiki links against the public wiki clone, run its tests and `pnpm run generate`, commit "Release <version>" on its `main`; pushes only with `--push`. Never deploys: the last line names the built `.output/public/`, which the owner uploads by hand |
 | `api-contract.sh` | Regenerate `web/openapi.json` and the TS types (`--check` to verify) |
+| `web-declarations.sh` | Regenerate `web/components.d.ts` and `web/auto-imports.d.ts` with a vite build into a directory of its own, never `web/dist`; among `integrate.sh`'s generators, because a worktree's `--full` builds no frontend |
 | `build-extension.sh` | Test, build and verify Chrome/Firefox → `artifacts/browser-extensions` (`--skip-tests`, `--test-only`) |
 | `firefox-amo.sh` | `lint <dir>`: AMO's validator (`web-ext lint`, pinned) on the Firefox build, in CI (RD-160-07); `submit <dir>`: uploads it to the AMO listing for review (`--channel listed`, the review not waited for), nothing when AMO has that version already; credentials only from `AMO_JWT_ISSUER`/`AMO_JWT_SECRET`, without them or when AMO refuses a warning and exit 0 (RD-170-10) |
 | `chrome-webstore.sh` | `upload <zip>`: the Chrome build as the Web Store item's draft; `publish <zip>`: uploaded and submitted for review — Web Store API v2, nothing when the store has that version already; credentials only from `CWS_CLIENT_ID`/`CWS_CLIENT_SECRET`/`CWS_REFRESH_TOKEN` and `CWS_PUBLISHER_ID`, none of them in a command line, without them or when the store refuses a warning and exit 0 (RD-170-10) |
@@ -48,7 +51,7 @@ and taken WSL down more than once.
 | `package-repo.sh` | `<incoming> <site>`: files a release's `.deb` and `.rpm` packages into the apt and dnf repository tree `<site>` (pool, per-architecture `Packages`, `Release`/`InRelease`/`Release.gpg`; rpms signed with `rpmsign`, `createrepo_c` metadata with `repomd.xml.asc`), keeps the newest `--keep` (2) versions per package and architecture, and renders `rdownloader.sources`, `rdownloader.repo`, the public key and the README from `packaging/repository/`; signs with the only secret key in `$GNUPGHOME` or `--key`; `--base-url` for the address, `--refresh` to sign again; the release workflow pushes the result to `<owner>/rdownloader-packages`, `packages-repo.yml` installs from it (RD-180-10) |
 | `release-build-env.sh` | `--target TRIPLE [--release-tag vX.Y.Z] [--source DIR] [--cargo-home DIR]`: the environment a release binary is built in, as `KEY=VALUE` lines for `$GITHUB_ENV` — `SOURCE_DATE_EPOCH`, `RD_VERSION`, `RD_BUILD_TIME` and `RD_BUILD_COMMIT` from the commit (with `--release-tag` through `rd_build_stamp`: `Release-Build X.Y.Z (Basis <sha>)`, refused when the tag is not `Cargo.toml`'s version), and for a Linux target the checkout, cargo and rustup homes remapped through `CARGO_TARGET_<TRIPLE>_RUSTFLAGS` and `CFLAGS_<triple>`, never `RUSTFLAGS`; release.yml's binary jobs and repro.yml's rebuilds both run it (RD-180-12, `docs/reproducible-builds.md`) |
 | `worktree.sh` | Create, check and finish a feature worktree without the symlink traps; `new --own-target` gives it a check lane of its own (RD-140-06) |
-| `i18n-key.sh` | Add one translation key to all four catalogues at once |
+| `i18n-key.sh` | Add one translation key to every required catalogue at once, languages named (`de=… en=…`) or positional |
 | `migration-pin.sh` | Pin a new migration's checksum in `crates/rd-db/migrations.sha384` (appends only) |
 | `mcp-coverage.sh` | Regenerate the MCP capability comparison in `crates/rd-api/mcp-coverage.md` (`--check` to verify) |
 | `licenses.sh` | Regenerate the dependency licence list of the About page, `crates/rd-api/licenses/third-party.json`, after `Cargo.lock` or `web/pnpm-lock.yaml` changed (`--check` to verify); the Rust part is `cargo tree` per shipped target, so it lists what a package contains; needs `pnpm install` in `web/` and asks the npm registry for the packages of other platforms |
@@ -75,9 +78,13 @@ checkout stamp keeps its job: it makes cargo ask rustc again for this checkout's
 answers an unchanged file from the cache. A `RUSTC_WRAPPER` you set yourself is left alone;
 `RD_NO_SCCACHE=1` switches it off. Nothing installs sccache.
 
-**Build speed on GitHub (RD-150-10).** `ci.yml`'s `rust` job runs sccache over GitHub's cache
-(`mozilla-actions/sccache-action`) beside `Swatinem/rust-cache`, and links with mold on Linux and
-`rust-lld.exe` on Windows. The `components` job and the release's `plugins` job restore the
+**Build speed on GitHub (RD-150-10, RD-1100-13).** `ci.yml`'s `rust` job keeps its dependencies
+in `Swatinem/rust-cache` and links with mold on Linux and `rust-lld.exe` on Windows. No workflow
+runs sccache any more (it hit 0-24 % and held 1.9 GB of the repository's 10 GB), and every Rust
+cache is saved from `main` (or `development`) only and restored everywhere else — a `ci/*`
+branch's own cache served that branch alone; when a release push to `main` skips the tests,
+`warm-cache` builds what `rust` builds without running it and saves (`docs/architecture.md#build`
+has the sizes). The `components` job and the release's `plugins` job restore the
 plugin components from `actions/cache` under the key `scripts/build-plugins.sh --cache-key`
 prints, then build only what their stamps call stale or missing; the release still signs every
 package. In the release, `binaries` compiles without waiting for `plugins`, a small `packages`
@@ -163,8 +170,10 @@ the shipped ones in `packaging/`, `docker/` and `resources/` included (settings 
 then every `scripts/tests/*.sh`. They need no build and take seconds together: the Cargo.lock
 scope rules, the exports' link guard, the job archive, the scope boundary, and `worktree.sh`,
 `i18n-key.sh`, `migration-pin.sh`, `set-version.sh`, the release pipeline's evidence gate and
-`run_step`, `export-wiki.sh`'s private markers, `integrate.sh`'s merge half, `public-ci.sh` and
-`ci-log.sh` against scratch repositories and a stub `gh`, the `rd-api` suite selection
+`run_step`, `export-wiki.sh`'s private markers, `integrate.sh`'s merge half, merge drivers, gate
+and run order (with stand-ins for what compiles), `public-ci.sh` with its job-level reporting and
+`ci-log.sh` against scratch repositories and a stub `gh`, `check.sh`'s failure list
+(`check-stages.sh`) and `watch-run.sh` against stand-in runs, the `rd-api` suite selection
 (`rd-api-suites.sh`) on a scratch tree, the documentation's release facts
 (`doc-facts.sh`) on a fixture tree, the contract reference and the template check
 (`wit-reference.sh`) on a fixture contract, the breaking-change rules (`compat-check.sh`) on a
@@ -326,7 +335,9 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   That single command has taken the machine into swap and required a hard restart. Branch level
   lints the touched crates by itself (`rd-api` only the binaries of its selected suites);
   `--clippy <crates>` names others, and `--clippy-all` runs the full sweep at `JOBS=2` when you
-  really want it and nothing else is running.
+  really want it and nothing else is running. `--gate` runs it with the Windows lint, both
+  `--keep-going`, at the one point of a wave where every crate changed: `integrate.sh` after the
+  merges (RD-1100-13).
 - **The packaging scripts never touch `artifacts/*/vendor`.** Those are downloaded third-party
   helper binaries (`ffmpeg`, `yt-dlp`, `unrar`, …), not build output.
 - **`docker.sh` exists because three things go wrong otherwise.** `dist/plugins` is gitignored,
@@ -382,9 +393,10 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   `.cargo/config.toml`, and `sources=` over every plugin's source hash.
 - **`build-plugins.sh --list-missing` names the components that were never built here,** which
   `--list-stale` does not: a file that is not there has no content to compare. `check.sh` asks
-  this first and refuses to go on, because until RD-108-16 a missing component was the quiet
-  case — every contract test returned early and counted as passed, so a fresh worktree reported
-  a full green suite without loading a single component. They fail now instead; a checkout
+  both first and builds what they name under its own lock before any test (RD-1100-13; until
+  then it stopped with the command to type), because until RD-108-16 a missing component was the
+  quiet case — every contract test returned early and counted as passed, so a fresh worktree
+  reported a full green suite without loading a single component. They fail now instead; a checkout
   without the wasm toolchain leaves them out with `cargo nextest run -P no-components`, which
   counts them as skipped.
 - **Same version, same content (RD-120-47).** An installation only takes a bundled package whose

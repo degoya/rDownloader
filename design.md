@@ -18,7 +18,7 @@ hotfolders provide additional intake channels.
 | Author | Alexander Herling |
 | Repository | `https://github.com/degoya/rDownloader` |
 | License | GNU GPL v3.0 or later |
-| Backend | Rust 2024, minimum version 1.98 |
+| Backend | Rust 2024, minimum version 1.99 |
 | Frontend toolchain | Node 24 and npm 11 |
 | Target platforms | Windows, Linux, macOS, and Docker |
 
@@ -346,7 +346,13 @@ The SPA has these primary sections:
    details behind the chevron pair. The page offers **no destructive control at all** — there is
    no route that could serve one, and a button that suggested otherwise would be a lie in the
    interface; the export sits beside the filters, because the file *is* the filter.
-7. **Settings:** Twenty-five directly addressable pages in six rubrics, the same in the
+7. **History:** Every package that completed or failed for good, kept after it left the queue
+   (RD-1100-04). Right below Downloads in the sidebar, because it answers what the queue no
+   longer can. The audit log's row conventions — filters above, the count of the matches,
+   details behind the chevron pair — with paging by "Load more", a row action that adds the
+   entry's sources back into the LinkGrabber, and the shared clear control with its count and
+   confirmation beside the list title.
+8. **Settings:** Twenty-five directly addressable pages in six rubrics, the same in the
    sidebar and on the entry page at `/settings`: General (General, Interface, Desktop client),
    Downloads (Storage & rules, Hotfolders, Bandwidth, Unattended operation, Post-processing),
    Sources & protocols (Accounts, Captcha & solver, Site rules, Usenet, BitTorrent, Media,
@@ -401,10 +407,13 @@ prevent columns from shifting during live updates.
 - Forms expose loading, success, and error states. Self-saving settings areas remain separate from
   the shared settings document. Areas that *fetch* expose the same three, under the rule below.
 - Full-page refresh is not the normal update path; SSE or local store updates keep views current.
-- Global keyboard shortcuts, numbered in sidebar order: `1` Downloads, `2` LinkGrabber,
+- Global keyboard shortcuts, numbered in sidebar order: `1` Downloads, `H` History, `2` LinkGrabber,
   `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Statistics, `8` Logs,
   `9` Audit log, `0` Settings, plus `B` sidebar, `N` import, `P` global start/pause (ending a timed pause while one holds), and `?` help. A new navigation entry takes the
-  number of its place and renumbers what follows, so the keys keep reading top to bottom.
+  number of its place and renumbers what follows, so the keys keep reading top to bottom. With
+  all ten digits taken, an entry added later takes a free letter of its name instead (`H`
+  History, below Downloads, RD-1100-04): no view loses the digit people learned, and the catalogue
+  still lists the keys in sidebar order.
   A key that belongs to one page (`K` removes the completed packages, only on Downloads,
   RD-180-17) is still bound in the one catalogue — same guards, listed in the `?` help — and
   the page hands its action in while it is mounted; the key runs that action with its
@@ -455,7 +464,12 @@ prevent columns from shifting during live updates.
   (RD-190-16): *compact*, one line, or *detailed*, which puts the `size-12` thumbnail (or the
   placeholder below) before the title and one cut line of the indexer's metadata under it,
   inside the title column — size, age, category and the button stay where they are in either
-  style, and under *all indexers* each row follows its own indexer.
+  style, and under *all indexers* each row follows its own indexer. A torrent hit (Torznab,
+  RD-1100-03) carries an outlined *Torrent* badge and its swarm, seeders up and leechers down,
+  in the same title cell. The search type (free, TV series, film) offers only what the chosen
+  indexers say they answer: their `t=caps` are asked when the type menu first opens, never on
+  mount, a type none of them answers is switched off once the answers are in, and of the chosen
+  type's ids only those one of them takes are shown, in a row of their own under the form.
 - **One search reaches every view and every setting** (RD-170-15): Nuxt UI's `UDashboardSearch`
   — the command palette in a modal — on Ctrl/Cmd+K from anywhere, text fields included, on `/`
   outside them, and on the search button at the top of the sidebar (an icon with a tooltip on
@@ -501,7 +515,11 @@ prevent columns from shifting during live updates.
   card) asks when its page is left. A clean view, and a view just saved, never asks. Forms that
   save each entry themselves carry no save bar and no guard.
 - The UI is fully translated into English, German, French, and Spanish. Plugin messages are merged
-  into the same locale namespace at runtime.
+  into the same locale namespace at runtime. Languages come from `web/src/locales/languages.json`;
+  the picker names each in its own language (*Deutsch*, *Français*), and one still being
+  translated is marked *(in progress)* in the reader's language and shows English for each
+  string it lacks — never a raw key. Only a complete language is chosen from the browser's
+  languages; an unfinished one has to be picked (RD-1100-09).
 - **German says "du", French "vous", Spanish "tú"** — as the website does (owner, 2026-09-27):
   an open-source tool, not a business form. German is lower-case *du*, *dein*, imperatives in the
   du form (*Klicke*, *Prüfe*), never *Sie*/*Ihnen*/*Ihr*; "sie" in the third person stays. Tests
@@ -1688,7 +1706,7 @@ frontend must be built before the Rust binary because `rd-api` embeds its files 
 - New resolver capabilities require a versioned WIT change and an explicit compatibility or
   migration decision.
 - API changes are modeled in Rust/OpenAPI first; generated web types are refreshed afterward.
-- New visible messages require stable codes and translations for all four locales.
+- New visible messages require stable codes and translations for every required locale.
 - New persisted fields require an additive migration and a recovery test.
 - Security-sensitive defaults must remain safe for local operation; remote exposure is a deliberate
   operator decision.

@@ -12,7 +12,14 @@ const NZO_PREFIX: &str = "rd_nzo_";
 /// The SABnzbd job id of a package.
 #[must_use]
 pub(crate) fn nzo_id(package: &DownloadPackage) -> String {
-    format!("{NZO_PREFIX}{}", package.id)
+    nzo_id_of(package.id)
+}
+
+/// The SABnzbd job id of a package by its id alone, for one that left the queue and lives on
+/// in the download history (RD-1100-04).
+#[must_use]
+pub(crate) fn nzo_id_of(id: rd_core::PackageId) -> String {
+    format!("{NZO_PREFIX}{id}")
 }
 
 /// The package id behind a SABnzbd job id, if it is one of ours and well formed.

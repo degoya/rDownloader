@@ -340,3 +340,133 @@ async fn a_used_up_budget_ends_with_its_profile_and_is_announced_once() {
         "budget_exhausted is announced once per profile and day"
     );
 }
+
+/// Queues one download and answers its package id.
+async fn package_of(router: &Router, url: &str) -> String {
+    let (status, created) = common::post_json(
+        router,
+        "/api/v1/downloads",
+        serde_json::json!({ "url": url }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let (_, packages) = common::get_json(router, "/api/v1/packages").await;
+    packages[0]["id"].as_str().expect("package id").to_owned()
+}
+
+#[tokio::test]
+async fn a_package_limit_round_trips_and_outlives_a_change_of_the_global_limits() {
+    // RD-1100-01: a package's own limit, beside the profiles and the hand-set limit.
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    let router = harness.router.clone();
+    let package = package_of(&router, "https://example.invalid/movie.mkv").await;
+    let uri = format!("/api/v1/packages/{package}/speed-limit");
+
+    let (status, empty) = common::get_json(&router, &uri).await;
+    assert_eq!(status, StatusCode::OK, "{empty}");
+    assert!(empty["download_bytes_per_second"].is_null(), "{empty}");
+    assert_eq!(empty["supported"], true);
+
+    let (status, set) = common::put_json(
+        &router,
+        &uri,
+        serde_json::json!({ "download_bytes_per_second": "250000" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{set}");
+    assert_eq!(set["download_bytes_per_second"], "250000", "{set}");
+    assert_eq!(set["package_id"], package.as_str());
+
+    // A new profile in charge of the global limit leaves the package's own one alone.
+    let profile = create_profile(
+        &router,
+        "Night",
+        serde_json::json!({ "download_bytes_per_second": "5000000" }),
+    )
+    .await;
+    let (status, saved) = common::put_json(
+        &router,
+        "/api/v1/bandwidth/schedule",
+        serde_json::json!({ "timezone": "UTC", "default_profile_id": profile, "windows": [] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    let (_, kept) = common::get_json(&router, &uri).await;
+    assert_eq!(kept["download_bytes_per_second"], "250000", "{kept}");
+
+    let (status, refused) = common::put_json(
+        &router,
+        &uri,
+        serde_json::json!({ "download_bytes_per_second": "0" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(refused["code"], "bandwidth.package_limit_invalid");
+
+    let (status, cleared) = common::put_json(
+        &router,
+        &uri,
+        serde_json::json!({ "download_bytes_per_second": null }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{cleared}");
+    assert!(cleared["download_bytes_per_second"].is_null(), "{cleared}");
+    assert_eq!(
+        harness
+            .database
+            .package_speed_limits()
+            .await
+            .expect("limits"),
+        Vec::new()
+    );
+
+    let (status, missing) = common::get_json(
+        &router,
+        "/api/v1/packages/0192f0c4-0000-7000-8000-00000000abcd/speed-limit",
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{missing}");
+    assert_eq!(missing["code"], "package.not_found");
+}
+
+#[tokio::test]
+async fn a_package_holding_a_torrent_refuses_a_limit_the_engine_cannot_apply() {
+    // librqbit cannot limit one torrent on its own, and the capability matrix says so; the
+    // package then takes no limit rather than one that would do nothing.
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    let router = harness.router.clone();
+    let (status, capabilities) = common::get_json(&router, "/api/v1/torrents/capabilities").await;
+    assert_eq!(status, StatusCode::OK, "{capabilities}");
+    assert_eq!(capabilities["per_torrent_limits"], false, "{capabilities}");
+
+    let package = package_of(
+        &router,
+        "magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a",
+    )
+    .await;
+    let uri = format!("/api/v1/packages/{package}/speed-limit");
+    let (status, view) = common::get_json(&router, &uri).await;
+    assert_eq!(status, StatusCode::OK, "{view}");
+    assert_eq!(view["supported"], false, "{view}");
+
+    let (status, refused) = common::put_json(
+        &router,
+        &uri,
+        serde_json::json!({ "download_bytes_per_second": "250000" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(refused["code"], "torrent.capability_unsupported");
+    assert_eq!(refused["params"]["capability"], "per_torrent_limits");
+
+    // Removing a limit is never refused.
+    let (status, cleared) = common::put_json(
+        &router,
+        &uri,
+        serde_json::json!({ "download_bytes_per_second": null }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{cleared}");
+}

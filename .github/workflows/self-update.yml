@@ -34,6 +34,7 @@ on:
       - crates/rd-api/src/lib.rs
       - crates/rd-api/src/event_stream.rs
       - crates/rdownloader/src/main.rs
+      - crates/rdownloader/src/serve.rs
   workflow_dispatch:
 
 permissions: {}

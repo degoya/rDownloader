@@ -269,6 +269,8 @@ fn new_tools() -> Vec<(&'static str, serde_json::Value, &'static str)> {
         ("extract_downloads", json!({ "ids": [NOBODY] }), queue),
         ("extract_packages", json!({ "ids": [NOBODY] }), queue),
         ("get_package_postprocess", json!({ "id": NOBODY }), read),
+        ("get_package_speed_limit", json!({ "id": NOBODY }), read),
+        ("set_package_speed_limit", json!({ "id": NOBODY }), queue),
         (
             "get_torrent_details",
             json!({ "id": NOBODY, "view": "summary" }),
@@ -356,7 +358,11 @@ async fn every_new_tool_costs_what_its_route_costs() {
     let mut names: Vec<&str> = tools.iter().map(|(name, _, _)| *name).collect();
     names.sort_unstable();
     names.dedup();
-    assert_eq!(names.len(), 54, "RD-120-32 added 54 tools");
+    assert_eq!(
+        names.len(),
+        56,
+        "RD-120-32 added 54 tools; two 1.10 branches added one each"
+    );
 
     let full = handshake(&router, API_BEARER).await;
     let listed = envelope(

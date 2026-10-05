@@ -1,10 +1,14 @@
 //! Hierarchical byte-per-second limiters.
 //!
 //! A transfer acquires its bytes from every bucket that applies to it — the global one plus
-//! the protocol, host, account and category buckets of its scope. Because each bucket in
-//! the chain has to release the bytes, the strictest applicable limit wins without anyone
-//! having to compute a minimum, and [`LimiterRegistry::binding_limit`] can still name which
-//! one it was.
+//! the protocol, host, account, category and package buckets of its scope. Because each
+//! bucket in the chain has to release the bytes, the strictest applicable limit wins without
+//! anyone having to compute a minimum, and [`LimiterRegistry::binding_limit`] can still name
+//! which one it was.
+//!
+//! A package's own limit (RD-1100-01) is the narrowest bucket of all. It is not part of a
+//! profile — the package editor sets it — so a profile switch leaves it alone; the scheduler
+//! replaces the whole set from the database on every reload instead.
 //!
 //! Uploads (RD-150-15) have a chain of their own: the hand-set upload limit and the active
 //! profile's, and nothing scoped — a protocol, host or category bucket describes where a
@@ -18,6 +22,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
+use rd_core::PackageId;
 
 use crate::scope::{LimitScope, LimitSource, TransferScope};
 
@@ -111,6 +116,8 @@ struct RegistryState {
     manual: Option<BandwidthLimiter>,
     global: Option<BandwidthLimiter>,
     scoped: HashMap<LimitScope, BandwidthLimiter>,
+    /// The packages' own limits, independent of the schedule like `manual`.
+    packages: HashMap<PackageId, BandwidthLimiter>,
     /// The hand-set upload limit, independent of the schedule like `manual`.
     upload_manual: BandwidthLimiter,
     /// The active profile's upload limit.
@@ -169,6 +176,30 @@ impl LimiterRegistry {
         }
     }
 
+    /// Replaces the packages' own limits (RD-1100-01) — every package that has one.
+    ///
+    /// Updated in place like [`Self::apply`]: a package whose limit changes keeps its bucket, so
+    /// its running transfers continue under the new quota; a package left out loses its limit.
+    pub fn set_package_limits(&self, limits: &[(PackageId, u64)]) {
+        let mut state = self
+            .state
+            .write()
+            .unwrap_or_else(|error| error.into_inner());
+        state
+            .packages
+            .retain(|package, _| limits.iter().any(|(other, _)| other == package));
+        for (package, rate) in limits {
+            match state.packages.get(package) {
+                Some(limiter) => limiter.set_limit(Some(*rate)),
+                None => {
+                    state
+                        .packages
+                        .insert(*package, BandwidthLimiter::new(Some(*rate)));
+                }
+            }
+        }
+    }
+
     /// Replaces the active profile's upload limit — the upload half of the profile switch.
     ///
     /// Updated in place like [`Self::apply`], so an upload already waiting continues under
@@ -213,6 +244,12 @@ impl LimiterRegistry {
             if let Some(limiter) = state.scoped.get(&key) {
                 chain.push((source, limiter.clone()));
             }
+        }
+        if let Some(limiter) = scope
+            .package_id
+            .and_then(|package| state.packages.get(&package))
+        {
+            chain.push((LimitSource::Package, limiter.clone()));
         }
         chain
     }
@@ -425,3 +462,7 @@ mod manual_tests {
 #[cfg(test)]
 #[path = "upload_tests.rs"]
 mod upload_tests;
+
+#[cfg(test)]
+#[path = "package_tests.rs"]
+mod package_tests;

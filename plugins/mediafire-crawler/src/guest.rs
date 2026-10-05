@@ -6,19 +6,14 @@
 //! budget sit underneath as the last resort rather than as the plan.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "crawler-plugin",
-});
-
-use exports::rdownloader::plugin::crawler::{CrawledLink, Guest};
 use mediafire_common::{
     address,
     api::{self, ApiError, Envelope},
 };
-use rdownloader::plugin::{
-    host,
+use plugin_guest_crawler::{
+    CrawledLink, Guest, host,
     http::{self, RequestQuery},
+    refuse,
     types::{Failure, FailureKind},
 };
 use serde_json::Value;
@@ -31,15 +26,6 @@ use crate::{
 };
 
 struct Component;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 /// One API call; the `response` object on success.
 fn call(name: &str, params: &[(&str, &str)]) -> Result<Value, Failure> {
@@ -229,4 +215,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_crawler::crawler_plugin!(Component);

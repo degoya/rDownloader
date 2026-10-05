@@ -199,6 +199,25 @@ async fn an_nzb_is_reviewed_queued_and_its_package_handled() {
         serde_json::json!({ "id": package_id }),
     )
     .await;
+    let limited = ok(
+        &router,
+        &session,
+        "set_package_speed_limit",
+        serde_json::json!({ "id": package_id, "download_bytes_per_second": "250000" }),
+    )
+    .await;
+    assert_eq!(limited["download_bytes_per_second"], "250000", "{limited}");
+    let read_back = ok(
+        &router,
+        &session,
+        "get_package_speed_limit",
+        serde_json::json!({ "id": package_id }),
+    )
+    .await;
+    assert_eq!(
+        read_back["download_bytes_per_second"], "250000",
+        "{read_back}"
+    );
 
     let downloads = ok(
         &router,

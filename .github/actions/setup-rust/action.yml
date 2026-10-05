@@ -1,6 +1,6 @@
 name: Set up Rust
 description: >
-  The workspace's Rust toolchain, 1.98.1, with the components and targets a job asks for, and
+  The workspace's Rust toolchain, 1.99.0, with the components and targets a job asks for, and
   RUSTUP_TOOLCHAIN for every later step of the job (RD-191-09: the version stood in 16 setup
   steps and 12 env blocks). rust-toolchain.toml names `stable`, which outranks the installed
   toolchain; RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its
@@ -27,7 +27,7 @@ runs:
     - id: toolchain
       uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       with:
-        toolchain: 1.98.1
+        toolchain: 1.99.0
         components: ${{ inputs.components }}
         targets: ${{ inputs.targets }}
     - shell: bash

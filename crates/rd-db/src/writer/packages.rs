@@ -1,13 +1,13 @@
 //! The writer half of `package_store`: package rows, their order and their post-processing state.
 
 use super::{Writer, publish_config, publish_unit_event, send};
-use crate::commands::WriterCommand;
+use crate::commands::PackagesCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_packages(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_packages(&mut self, command: PackagesCommand) {
         match command {
-            WriterCommand::CarryEnrichment {
+            PackagesCommand::CarryEnrichment {
                 package_id,
                 package_fields,
                 files,
@@ -22,13 +22,13 @@ impl Writer {
                 .await;
                 send(reply, result);
             }
-            WriterCommand::UpdatePackages { ids, change, reply } => {
+            PackagesCommand::UpdatePackages { ids, change, reply } => {
                 let result =
                     crate::package_store::update_packages(&mut self.connection, &ids, &change)
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::RenamePackageDirectory {
+            PackagesCommand::RenamePackageDirectory {
                 id,
                 name,
                 destination,
@@ -43,19 +43,38 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::ClearPreviousDestination { id, reply } => {
+            PackagesCommand::ClearPreviousDestination { id, reply } => {
                 send(
                     reply,
                     crate::package_store::clear_previous_destination(&mut self.connection, id)
                         .await,
                 );
             }
-            WriterCommand::ReorderPackages { ids, reply } => {
+            PackagesCommand::SwitchPackageDestination {
+                id,
+                from,
+                to,
+                reply,
+            } => {
+                let result = crate::package_relocation_store::switch_package_destination(
+                    &mut self.connection,
+                    id,
+                    &from,
+                    &to,
+                )
+                .await;
+                // Only a switch that happened was recorded, so only that one is announced.
+                if let Ok((true, event)) = &result {
+                    let _ = self.events.send(event.clone());
+                }
+                send(reply, result.map(|(switched, _)| switched));
+            }
+            PackagesCommand::ReorderPackages { ids, reply } => {
                 let result =
                     crate::package_store::reorder_packages(&mut self.connection, &ids).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::ReorderDownloads {
+            PackagesCommand::ReorderDownloads {
                 package_id,
                 ids,
                 reply,
@@ -65,7 +84,7 @@ impl Writer {
                         .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::SetPackageState {
+            PackagesCommand::SetPackageState {
                 id,
                 state,
                 stage,
@@ -79,15 +98,22 @@ impl Writer {
                         .await,
                 );
             }
-            WriterCommand::SetPackageExtraction { id, result, reply } => {
+            PackagesCommand::SetPackageExtraction { id, result, reply } => {
                 send(reply, self.set_package_extraction(id, result).await);
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
+            PackagesCommand::SetPackageSpeedLimit {
+                id,
+                bytes_per_second,
+                reply,
+            } => {
+                let result = crate::package_speed_limit_store::set_package_speed_limit(
+                    &mut self.connection,
+                    id,
+                    bytes_per_second,
+                )
+                .await;
+                send(reply, result);
+            }
         }
     }
 }

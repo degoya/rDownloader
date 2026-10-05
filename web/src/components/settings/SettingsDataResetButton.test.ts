@@ -29,7 +29,7 @@ const components = {
   }
 }
 
-type Target = 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index'
+type Target = 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index' | 'history'
 
 function renderButton(props: { target: Target, count: number | null }) {
   return render(SettingsDataResetButton, { props, global: { plugins: [i18n], components } })
@@ -161,7 +161,8 @@ describe('the request', () => {
     ['notifications', '/api/v1/notifications/deliveries/clear'],
     ['notifications_pending', '/api/v1/notifications/deliveries/discard-pending'],
     ['storage_operations', '/api/v1/storage/operations/clear'],
-    ['content_index', '/api/v1/storage/content-index/clear']
+    ['content_index', '/api/v1/storage/content-index/clear'],
+    ['history', '/api/v1/history/clear']
   ] as const)('%s posts to its own route', async (target, path) => {
     renderButton({ target, count: 2 })
 

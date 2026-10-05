@@ -3,13 +3,13 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
-import { SUPPORTED_LOCALES, setLocale, type AppLocale } from '@/i18n'
+import { languageItems, setLocale, type AppLocale } from '@/i18n'
 
 const props = defineProps<{ collapsed?: boolean }>()
 const { t, locale } = useI18n()
 const { theme } = useTheme()
 
-const localeItems = computed(() => SUPPORTED_LOCALES.map(code => ({ label: t(`common.locales.${code}`), value: code })))
+const localeItems = computed(() => languageItems(t))
 const themeItems = computed(() => (['system', 'light', 'dark'] as ThemeMode[]).map(value => ({
   label: t(`common.preferences.theme_${value}`),
   value,

@@ -93,7 +93,7 @@ async fn a_token_missing_only_the_required_scope_is_refused_everywhere() {
         let Some(required) = required else { continue };
         // The capture surface has its own layer and its own credential class; a token minted
         // here never reaches it, so there is nothing for this matrix to say about it.
-        if required == rd_core::CAPTURE_SCOPE {
+        if is_capture_scope(required) {
             continue;
         }
         let bearer = without.get(required).expect("a bearer for every scope");
@@ -104,6 +104,49 @@ async fn a_token_missing_only_the_required_scope_is_refused_everywhere() {
             StatusCode::FORBIDDEN,
             "{method} {path} requires {required} but answered {status} to a token holding \
              every other scope: {body}"
+        );
+        assert_eq!(body["code"], "auth.scope_insufficient", "{method} {path}");
+        assert_eq!(body["params"]["scope"], required, "{method} {path}");
+        checked += 1;
+    }
+    assert!(checked > 200, "only {checked} routes were checked");
+}
+
+/// Whether a policy row is priced with one of the capture surface's scopes.
+fn is_capture_scope(required: &str) -> bool {
+    Scope::CAPTURE
+        .iter()
+        .any(|scope| scope.as_str() == required)
+}
+
+/// A capture agent paired with queue control reaches no route of the API (RD-1100-06).
+///
+/// `capture:queue` buys the tray's two capture routes and nothing beside them: every API route
+/// -- `/api/v1/queue/pause` and the bulk route included -- answers the token with the refusal a
+/// credential without the route's scope gets.
+#[tokio::test]
+async fn a_capture_token_with_queue_control_reaches_no_api_route() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = bearer_holding(
+        &harness.database,
+        "capture-with-queue-control",
+        &[rd_core::CAPTURE_SCOPE, rd_core::CAPTURE_QUEUE_SCOPE],
+    )
+    .await;
+
+    let mut checked = 0_usize;
+    for (path, method, required) in rd_api::policy_rows() {
+        let Some(required) = required else { continue };
+        if is_capture_scope(required) {
+            continue;
+        }
+        let (status, body) =
+            request_with_bearer(&harness.router, method, &concrete_path(path), &bearer).await;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "{method} {path} answered {status} to a capture token with queue control: {body}"
         );
         assert_eq!(body["code"], "auth.scope_insufficient", "{method} {path}");
         assert_eq!(body["params"]["scope"], required, "{method} {path}");

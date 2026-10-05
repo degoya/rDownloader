@@ -61,7 +61,13 @@ measured with the next run. RD-191-03 added the first `rd-transfer-file` case
 (`transfer_file.before_progress_recorded`, the staging half FTP, SFTP and buckets share); the
 crate has no count recorded yet. RD-191-12 added one `rd-scheduler` case
 (`scheduler.before_auto_retry_requeued`), behind the feature; the count with it is measured with
-the next run.
+the next run. RD-1100-04 added one `rd-db` case in a binary of its own
+(`tests/download_history_crash.rs`, the history entry written with the package's outcome); its
+count is measured with the next run.
+
+the next run. RD-1100-05 added one `rd-usenet` case (`usenet.before_traffic_flushed`, in
+`src/traffic_crash_tests.rs`) behind the feature and four ordinary ones without it; both counts
+are measured with the next run.
 
 Axis A returns an error at the crash point rather than killing the process. That drops the
 whole worker, the open file handle included, which is the state a restart finds — everything
@@ -104,6 +110,7 @@ row for a point that does not exist.
 | `backup.after_retention_removal` | rd-backup | an archive retention removed at its destination before the ledger forgot it is forgotten by the next pass, which finds it gone; the ledger never lists fewer archives than the destination holds, and an archive the plan keeps is never removed |
 | `backup.before_archive_published` | rd-backup | an archive finished in staging but not yet at its destination never appears there under its final name; the next start records the run as interrupted and removes the staging |
 | `backup.before_archive_recorded` | rd-backup | an archive that reached its destination before the ledger recorded it stays there whole and is never removed by retention, which removes only recorded archives; the next start records the run and that destination as interrupted |
+| `history.before_entry_committed` | rd-db | a package outcome stopped after its history entry was written and before the transaction committed leaves neither behind: the package keeps its earlier state and the history has no entry for it; the outcome written again leaves exactly one entry, and every entry committed before survives the restart |
 | `http.after_chunk_mac` | rd-http | a finished chunk MAC that was not recorded is recomputed from the start of its chunk, never assumed |
 | `http.after_chunk_write` | rd-http | bytes written but not recorded are re-fetched, never counted as confirmed |
 | `http.after_db_checkpoint` | rd-http | a recorded checkpoint is resumed from exactly, re-fetching nothing before it |
@@ -114,6 +121,8 @@ row for a point that does not exist.
 | `plugin.before_pointers_followed` | rd-api-admin | an automatic update recorded with its repository before the version pointers followed it stays installed whole and listed once, and the pointers stay as they were, never half moved: the next start runs what they chose before the update, the newest version when they chose none |
 | `plugin.before_version_promoted` | rd-plugin-host | a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again |
 | `plugin_transfer.before_checkpoint_saved` | rd-plugin-transfer | bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte |
+| `postprocess.before_direct_unpack_adopted` | rd-extract | a set unpacked directly while its package downloaded, stopped before the pipeline moved it into the package, has put nothing at the destination; the next start removes its staging directory, unpacks the set the normal way and completes the package with the same files |
+| `postprocess.after_sort_move` | rd-extract | a sort stopped after it placed a file and before it recorded the step is run again by the next start: the files still in the package are placed by the same templates, the ones already placed are neither moved again nor copied beside themselves, and the package leaves post-processing completed |
 | `postprocess.before_scan_recorded` | rd-extract | a package whose malware scan ran before its verdict was recorded is scanned again by the next start and never released on a verdict nobody recorded; a finding fails it then, with the steps after the scan skipped and not run |
 | `postprocess.before_unpack_recorded` | rd-extract | an archive unpacked before its step was recorded is unpacked again by the next start into the same place, replacing what the first run wrote; the package leaves post-processing completed, and no staging directory, not even one a killed extraction left, survives |
 | `pre_update.before_archive_published` | rd-backup | an archive sealed and checked before an update but not yet moved into the pre-update folder never appears there; the next start removes the staging with the unencrypted copy it held, and the next preparation seals a whole one |
@@ -128,6 +137,8 @@ row for a point that does not exist.
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
 | `subscription.after_items_archived` | rd-api-core | release files a poll archived before handing them to the LinkGrabber stay pending in the archive after a restart: the next poll neither hands them over a second time nor loses them, and the review list still offers them |
+| `torrent.after_relocation_commit` | rd-torrent | a torrent move stopped after its package was pointed at the new folder and before the originals were released is finished by the next start: every file is at the new place exactly once, the old folder is left empty, the journal is cleared and a seed seeds again from the new place |
+| `torrent.before_relocation_commit` | rd-torrent | a torrent move stopped after its files were placed in the new folder and before its package was pointed there is taken back by the next start: every file is at the old place exactly once, nothing is left in the new folder, the journal is cleared and a seed seeds again from the old place |
 | `torrent.before_seed_completed` | rd-torrent | a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once |
 | `transfer_file.before_progress_recorded` | rd-transfer-file | bytes an FTP, SFTP or bucket transfer synced to its part file before the row recorded them are continued by the next run from the part file's length, after the remote file was checked against what the first run saw; nothing is fetched twice, and the finished file matches the source byte for byte |
 | `update.after_leftover_set_aside` | rd-update | a portable update stopped after a leftover of the update before (its .previous, staging or .failed folder) was moved into the trash and before the trash was swept has changed nothing live: the next start records it as failed with the old version in place and the database as it was, and the next update sweeps the trash and goes through; a leftover a running program still holds never fails an update |
@@ -136,6 +147,8 @@ row for a point that does not exist.
 | `update.before_health_check` | rd-update | a portable update recorded as switched but never proven is proven by the first start of the new version that answers, and taken back with the database copy from before the update by the next start if that first one never answered; the program is never left as a mix of both versions |
 | `usenet.after_article_write` | rd-usenet | an article on disk without its checkpoint is truncated and fetched again, never counted as confirmed |
 | `usenet.before_checkpoint_batch` | rd-usenet | the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed |
+| `usenet.before_hopeless_abort` | rd-usenet | a set judged beyond repair whose rows were not yet failed is judged again after the next start from the segments every server refused, with the same counts, and the same rows fail; no row fails before that write and none is left waiting after it |
+| `usenet.before_traffic_flushed` | rd-usenet | counts a flush had not yet written when the process stopped are lost, at most one flush interval of traffic, and nothing else: every flush committed before stays, and counting after the next start adds to it without counting anything twice |
 | `vault.after_orphan_removed` | rd-db | a vault sweep stopped after it removed some of the entries no cell of the database names keeps every entry a row or a settings document names; the next start removes the remaining orphans and nothing else |
 
 `archive_password.before_reference_adopted` and `archive_password.after_secret_removed` are the
@@ -158,6 +171,16 @@ rest, one entry at a time. The case stops it after the first removal and asserts
 entry is still there, that the next sweep removes the remaining orphans, and that a third finds
 nothing. It runs with `rd-db/failpoints` in `crates/rd-db/tests/archive_password_crash.rs`, the
 vault's crash binary.
+
+`history.before_entry_committed` is the download history (RD-1100-04, `rd-db/src/history_store.rs`).
+The entry is written in the transaction that gives the package its outcome — the writer's
+`set_package_state` for `completed` and `failed`, and `record_failure` for the last file of a
+package that ends without a single finished one — so the history can never describe an outcome
+the queue does not know, nor miss one it does. The case stops after the entry is written and
+before the commit, asserts that the package kept its earlier state and that the history is
+empty after a restart, writes the outcome again and asserts exactly one entry, then restarts
+once more and finds it still there. It runs with `rd-db/failpoints` in
+`crates/rd-db/tests/download_history_crash.rs`.
 
 `backup.before_archive_published` is the full backup's two-phase step (RD-160-01): the
 encrypted archive is complete in the staging folder below the data directory, and only then is
@@ -274,6 +297,23 @@ that nothing vouches for. Its case asserts that the resume fetches every one of 
 and none of the batch committed before it: the batch widens what a crash costs from one
 article to sixteen, and changes nothing about what the resume trusts.
 
+`usenet.before_hopeless_abort` sits between the verdict that a set is beyond repair
+(RD-1100-02) and the one transaction that fails its waiting rows. The verdict itself persists
+nothing: it is computed from what the database already records - the segments every server
+refused, the rows' states and names. A stop at this point therefore leaves no row half-failed,
+and the next judgement, after the restart, reads the same inputs. Its case asserts exactly
+that: nothing failed before the write, then the same counts and the same failed rows from a
+second judgement as an uninterrupted one would have given.
+
+`usenet.before_traffic_flushed` is the traffic per Usenet server (RD-1100-05). The pool counts
+every article body in memory, per server, and a flusher writes the counts every ten seconds in
+one transaction, and once more after the scheduler stopped. A stop between counting and writing
+loses what was counted since the last flush, by design: writing per article is what the batch
+exists to avoid. Its case (`src/traffic_crash_tests.rs`) asserts the bound: the committed flush
+stays whole, the lost counts are not invented after the restart, and counting afterwards adds to
+what was written. The quota is counted in the same transaction, so a crash can delay its
+notification by one interval and never fire it twice.
+
 `scheduler.after_package_row` is the enqueue path's own two-phase step, and the only one of
 the three where the order cannot be chosen: a download row needs a package to belong to, so
 the package is always written first. A stop in that window leaves a package with nothing in
@@ -347,6 +387,18 @@ that before RD-180-12; now every extraction first removes the staging directorie
 left in its destination (only one job runs at a time, so any that is there is stale), and the case
 plants one to prove it goes. The case runs with `rd-extract/failpoints`.
 
+`postprocess.before_direct_unpack_adopted` is direct unpack (RD-1100-07, `rd_extract::direct_unpack`)
+between a set unpacked while its package was still downloading and the pipeline moving that
+output into the package. Everything the direct unpack writes goes into a staging directory of its
+own in the package folder (`.rd-xd…`), so neither a stop there nor a kill while `unrar` is still
+waiting for the next volume — nor a pause, which abandons the attempt — leaves half a file at the
+destination. Which staging directory belongs to which set is only known in memory, so the start
+that follows cannot trust one it finds: the pipeline removes every one it does not hold a result
+for and unpacks the set the normal way. The case asserts exactly that: the restart leaves no
+staging directory, records one completed unpack step for the set, writes the same bytes as an
+uninterrupted run and completes the package. It also plants the staging directory a kill inside
+the tool would leave, to prove it goes too. The case runs with `rd-extract/failpoints`.
+
 `postprocess.before_scan_recorded` is the malware scan between `clamd` answering and the scan
 step recording the verdict (RD-190-14, `rd_extract::malware_scan`). The scan itself writes nothing
 but its step, so a stop there leaves the step `Running` and the package `Postprocessing`, and the
@@ -354,6 +406,16 @@ start that follows runs the pipeline again. The scan is never taken from an earl
 on every pass, having no side effects — so the case asserts that the restart asks `clamd` again,
 that a finding then fails the package with the steps after the scan recorded as skipped, and that
 the package was at no point `Completed`. The case runs with `rd-extract/failpoints`.
+
+`postprocess.after_sort_move` is the sort between one file reaching its place and the next
+(RD-1100-08, `rd_extract::sort_job`). The sort writes nothing but the files it moves and its step,
+so a stop there leaves some files placed, the rest in the package, the step `Running` and the
+package `Postprocessing`. A placed file is no longer in the package, so the next pass cannot move
+it twice; what it has to get right is the rest. A video's companions move before the video, so the
+video — by whose name the rest is recognised — is the last thing to leave. The case stops after the
+first companion, asserts that the video stayed, and that the restart places the video and the
+other companion beside the first with nothing under a second name, removes the emptied package
+folder and completes the package. The case runs with `rd-extract/failpoints`.
 
 `automation.before_outcome_recorded` is an automation run between an action taking effect and the
 run recording it (RD-180-12, `rd_api_core::automation_service`). The run is claimed as `running`
@@ -379,6 +441,19 @@ time is folded into its total and the torrent left the session, but the queue ro
 without its stop, that the start's `recover` takes the torrent up again, that the seeded time is
 the total the first run closed and not that twice, and that stopping it then completes the row.
 Both sessions in the case are offline. The case runs with `rd-torrent/failpoints`.
+
+`torrent.before_relocation_commit` and `torrent.after_relocation_commit` bracket the one step of a
+torrent move (RD-1100-10, `rd_torrent::relocate`) that decides its outcome: pointing the package
+at the new folder. The move writes a journal (`from`, `to`) into the row's torrent state before
+the first file moves, places every file at the new place verified (`rd_files::place_verified`)
+and releases the originals only after the package names the new folder. A start that finds the
+journal reads the package: still the old folder means the move is taken back — files that were
+renamed go back, copies and temporary copies are removed — and the new folder means it is
+finished — originals still there are released. Either way the journal is cleared and a seed is
+taken up again from where the package says. The two cases, one per point, assert that each file
+exists exactly once and at the right place, that the other folder is gone, and that the restarted
+seed is registered again; RD-1100-10 adds them behind the feature, so the `rd-torrent` count is
+measured with the next run. Both sessions in the cases are offline.
 
 `plugin_transfer.before_checkpoint_saved` is a plugin transfer that stopped with bytes on disk
 before the runner saved the backend's checkpoint (RD-180-12, `rd_plugin_transfer::runner`). The

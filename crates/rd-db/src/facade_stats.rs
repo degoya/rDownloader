@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::MaintenanceCommand,
     stats_store::{
         self, StatsPruneReport, StatsResolution, StatsRetention, TransferBucket, TransferTotal,
     },
@@ -32,10 +32,11 @@ impl Database {
         stats_store::count_rows(&self.readers).await
     }
 
-    /// Empties both statistics tables and reports how many rows went (RD-120-34).
+    /// Empties the statistics tables, the traffic per Usenet server with them, and reports how
+    /// many rows went (RD-120-34, RD-1100-05).
     pub async fn clear_transfer_stats(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::ClearTransferStats {
-            reply,
+        writer::request(&self.writer, |reply| {
+            MaintenanceCommand::ClearTransferStats { reply }
         })
         .await
     }
@@ -45,9 +46,8 @@ impl Database {
         &self,
         retention: StatsRetention,
     ) -> Result<StatsPruneReport> {
-        writer::request(&self.writer, |reply| WriterCommand::PruneTransferStats {
-            retention,
-            reply,
+        writer::request(&self.writer, |reply| {
+            MaintenanceCommand::PruneTransferStats { retention, reply }
         })
         .await
     }

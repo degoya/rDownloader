@@ -7,19 +7,14 @@
 //! last resort rather than as the plan.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "crawler-plugin",
-});
-
-use exports::rdownloader::plugin::crawler::{CrawledLink, Guest};
 use onedrive_common::{
     address::{self, GRAPH, LinkKind},
     reason,
 };
-use rdownloader::plugin::{
-    host,
+use plugin_guest_crawler::{
+    CrawledLink, Guest, host,
     http::{self, RequestHeader, RequestQuery},
+    query, refuse,
     types::{Failure, FailureKind},
 };
 
@@ -40,15 +35,6 @@ const PAGE_SIZE: &str = "200";
 
 struct Component;
 
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
-
 fn headers() -> Vec<RequestHeader> {
     vec![
         RequestHeader {
@@ -60,13 +46,6 @@ fn headers() -> Vec<RequestHeader> {
             value_template: "application/json".to_owned(),
         },
     ]
-}
-
-fn query(name: &str, value: &str) -> RequestQuery {
-    RequestQuery {
-        name: name.to_owned(),
-        value_template: value.to_owned(),
-    }
 }
 
 /// Fetches one API document, turning every status that is not an answer into one refusal.
@@ -244,4 +223,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_crawler::crawler_plugin!(Component);

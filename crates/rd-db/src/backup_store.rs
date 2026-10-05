@@ -228,10 +228,10 @@ pub(crate) async fn replace_all(
         sqlx::query(
             "INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, \
              postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, \
-             malware_scan, sfv_verify, safe_postproc, delete_par2, \
-             upload_enabled, upload_remote, seeding_json, plugin_steps_json, created_at, \
-             updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, \
+             upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, \
+             created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -249,6 +249,7 @@ pub(crate) async fn replace_all(
         )
         .bind(value.recursive_unpack)
         .bind(value.unpack_to_subfolder)
+        .bind(value.direct_unpack)
         .bind(value.malware_scan)
         .bind(value.sfv_verify)
         .bind(value.safe_postproc)
@@ -268,6 +269,7 @@ pub(crate) async fn replace_all(
                 .map(|steps| serde_json::to_string(&steps))
                 .transpose()?,
         )
+        .bind(crate::config_store::sorting_json(value.sorting.as_ref())?)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)

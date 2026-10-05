@@ -71,7 +71,8 @@
     "script_finished": "Script finished",
     "upload_finished": "Upload finished",
     "storage_threshold": "Storage threshold",
-    "subscription_item": "Subscription item"
+    "subscription_item": "Subscription item",
+    "usenet_job_hopeless": "Usenet download beyond repair"
   },
   "field": {
     "source": "Source",

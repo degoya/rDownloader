@@ -27,6 +27,11 @@ pub struct TorrentAggregateStats {
     /// Whether these numbers come from a torrent currently in the session. When `false`,
     /// the values are the last known ones and must not be presented as current.
     pub live: bool,
+    /// Whether the engine is hashing the torrent's data right now — on its first start, after
+    /// a restart, a recheck or a move (RD-1100-10). `progress_bytes` then counts the bytes
+    /// checked so far rather than the bytes held.
+    #[serde(default)]
+    pub checking: bool,
     pub progress_bytes: ByteCount,
     pub total_bytes: ByteCount,
     pub uploaded_bytes: ByteCount,

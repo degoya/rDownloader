@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::LogsCommand,
     log_store,
     log_store::{LogPruneReport, LogQuery, LogRecord, NewLogRecord},
     writer,
@@ -17,7 +17,7 @@ impl Database {
         if records.is_empty() {
             return Ok(0);
         }
-        writer::request(&self.writer, |reply| WriterCommand::AppendLogRecords {
+        writer::request(&self.writer, |reply| LogsCommand::AppendLogRecords {
             records,
             reply,
         })
@@ -32,7 +32,7 @@ impl Database {
         older_than: Option<DateTime<Utc>>,
         batch: u64,
     ) -> Result<LogPruneReport> {
-        writer::request(&self.writer, |reply| WriterCommand::PruneLogRecords {
+        writer::request(&self.writer, |reply| LogsCommand::PruneLogRecords {
             max_records,
             older_than,
             batch,
@@ -46,10 +46,7 @@ impl Database {
     /// Deliberate and unbounded, unlike [`Database::prune_log_records`]; a person asked for
     /// it and is waiting for the answer.
     pub async fn clear_log_records(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::ClearLogRecords {
-            reply,
-        })
-        .await
+        writer::request(&self.writer, |reply| LogsCommand::ClearLogRecords { reply }).await
     }
 
     /// The newest records matching the query, newest first.

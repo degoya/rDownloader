@@ -84,5 +84,26 @@
       "category": "de la categoría",
       "torrent": "definido aquí"
     }
+  },
+  "actions": {
+    "recheck": "Volver a comprobar",
+    "move": "Cambiar ubicación…"
+  },
+  "move": {
+    "title": "Cambiar ubicación",
+    "description": "Los archivos se mueven al nuevo lugar junto con la carpeta del paquete y el torrent sigue compartiendo desde allí. Si el traslado falla, todo se queda donde estaba.",
+    "root": "Ubicación de almacenamiento",
+    "path": "Carpeta dentro",
+    "path_placeholder": "p. ej. Archivo/Series",
+    "submit": "Mover",
+    "no_roots": "Añade primero una ubicación de almacenamiento en Ajustes › Enrutamiento.",
+    "running": "Moviendo a {path}…",
+    "taken_back": "Traslado deshecho: {reason}"
+  },
+  "recheck": {
+    "checking": "Comprobando datos… {percent} %",
+    "pending": "Comprobación solicitada",
+    "complete": "Comprobado: todos los datos están bien",
+    "incomplete": "Comprobado: {verified} de {total} correctos, el resto se vuelve a descargar"
   }
 }

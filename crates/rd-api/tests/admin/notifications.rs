@@ -279,3 +279,72 @@ async fn a_used_up_traffic_budget_reaches_a_rule_that_asks_for_it() {
         rd_notify::NotificationEvent::BudgetExhausted
     );
 }
+
+/// `usenet_job_hopeless` reaches a rule that asks for it (RD-1100-02): the writer announces a
+/// set given up as beyond repair as `usenet.changed` with `state: "hopeless"`, and only that
+/// becomes a delivery - an import arriving notifies nobody.
+#[tokio::test]
+async fn a_usenet_set_given_up_as_beyond_repair_reaches_a_rule_that_asks_for_it() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let router = harness.router.clone();
+    let (endpoint, calls) = spawn_receiver().await;
+    let target = create_target(
+        &router,
+        serde_json::json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),
+    )
+    .await;
+    let (status, rule) = common::post_json(
+        &router,
+        "/api/v1/notifications/rules",
+        serde_json::json!({
+            "name": "hopeless",
+            "target_id": target["id"],
+            "events": ["usenet_job_hopeless"]
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{rule}");
+
+    for payload in [
+        serde_json::json!({ "nzb_import_id": "i", "state": "enqueued", "package_id": "p" }),
+        serde_json::json!({
+            "package_id": "p",
+            "state": "hopeless",
+            "code": "usenet.job_hopeless",
+            "missing_blocks": "9",
+            "available_blocks": "1"
+        }),
+    ] {
+        harness.database.broadcast(rd_core::EventEnvelope::new(
+            rd_core::EventKind::UsenetChanged,
+            payload,
+        ));
+    }
+
+    let received = &calls;
+    let (_, _, body) = common::eventually(
+        std::time::Duration::from_secs(20),
+        "no usenet_job_hopeless delivery arrived",
+        || async move { received.lock().expect("calls").first().cloned() },
+    )
+    .await;
+    let body: serde_json::Value = serde_json::from_str(&body).expect("json body");
+    assert_eq!(body["event"], "usenet_job_hopeless", "{body}");
+    assert!(
+        body["body"]
+            .as_str()
+            .is_some_and(|text| text.contains("9 PAR2 blocks") && text.contains("at most 1")),
+        "{body}"
+    );
+    let deliveries = harness
+        .database
+        .list_notification_deliveries(100)
+        .await
+        .expect("deliveries");
+    assert_eq!(deliveries.len(), 1, "{deliveries:?}");
+    assert_eq!(
+        deliveries[0].event,
+        rd_notify::NotificationEvent::UsenetJobHopeless
+    );
+}

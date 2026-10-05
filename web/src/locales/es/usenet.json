@@ -56,10 +56,10 @@
     "eyebrow": "Indexadores",
     "title_add": "Añadir un indexador",
     "title_edit": "Editar el indexador",
-    "description": "Un indexador Newznab, definido una vez: el LinkGrabber lo consulta y una suscripción de indexador puede adoptarlo. La clave API se guarda en la bóveda y no vuelve a mostrarse.",
+    "description": "Un indexador Newznab o Torznab (Jackett, Prowlarr), definido una vez: el LinkGrabber lo consulta y una suscripción de indexador puede adoptarlo. La clave API se guarda en la bóveda y no vuelve a mostrarse.",
     "name": "Nombre",
     "url": "Dirección de la API",
-    "url_hint": "La dirección base de la API, p. ej. https://api.omgwtfnzbs.org/api; también sirve un NZBHydra o Prowlarr de tu red",
+    "url_hint": "La dirección base de la API, p. ej. https://api.omgwtfnzbs.org/api; también sirve un NZBHydra, Jackett o Prowlarr de tu red; un indexador Torznab entrega torrents",
     "api_key": "Clave API",
     "api_key_keep": "Déjalo vacío para conservar la clave guardada",
     "categories": "Categorías predeterminadas",
@@ -96,5 +96,25 @@
       "detailed": "Detallado",
       "detailed_hint": "Añade una portada pequeña y lo que el indexador envía: año, género, valoración de IMDb, idioma, resolución, una breve descripción."
     }
+  },
+  "quota": {
+    "title": "Cuota",
+    "usage": "Hoy {today} · 30 días {month} · total {total}",
+    "none": "Sin cuota",
+    "used": "{used} de {limit} usados",
+    "reached_backup": "Cuota agotada: a este servidor solo se le pide lo que los demás servidores no tienen.",
+    "reached_pause": "Cuota agotada: este servidor está en pausa.",
+    "resets_on": "Se reinicia el {date}",
+    "edit": "Definir cuota",
+    "limit": "Volumen",
+    "limit_hint": "Los datos que este servidor puede entregar, como el volumen de una cuenta por bloques.",
+    "action": "Al agotarse",
+    "action_backup": "Usar solo como respaldo",
+    "action_pause": "Pausar el servidor",
+    "reset_on": "Reiniciar el (opcional)",
+    "reset_on_hint": "A partir de este día el consumo vuelve a empezar desde cero, una vez.",
+    "reset_usage": "Reiniciar consumo",
+    "remove": "Quitar cuota",
+    "saved": "Cuota guardada"
   }
 }

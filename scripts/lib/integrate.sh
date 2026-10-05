@@ -16,6 +16,21 @@ RD_GENERATED_FILES=(
     web/auto-imports.d.ts
 )
 
+# The merge drivers .gitattributes names (RD-1100-13), registered in the repository's config, which
+# every worktree shares, so the merges resolve the files whose conflicts have one right answer
+# without a person: crates/rd-db/migrations.sha384 as the sorted union of both sides
+# (`rd-pins`), the locale catalogues key by key (`rd-json`). CHANGELOG.md needs no registration:
+# .gitattributes gives it git's built-in `union`. A clone without the config merges those files
+# as text, as before. The drivers are the ones of checkout $2, by absolute path — the checkout
+# integrate.sh runs from — and every run registers them again.
+rd_integrate_merge_drivers() {
+    local tree="$1" drivers="$2/scripts/lib/merge-drivers"
+    git -C "$tree" config merge.rd-pins.name "migration pins: the sorted union of both sides"
+    git -C "$tree" config merge.rd-pins.driver "'$drivers/migration-pins.sh' %O %A %B %P"
+    git -C "$tree" config merge.rd-json.name "JSON catalogues: a three-way merge key by key"
+    git -C "$tree" config merge.rd-json.driver "python3 '$drivers/json-merge.py' %O %A %B %P"
+}
+
 rd_is_generated() {
     local file="$1" generated
     for generated in "${RD_GENERATED_FILES[@]}"; do

@@ -333,7 +333,7 @@ async function copy(value: string): Promise<void> {
             icon="i-lucide-trash-2"
             :label="t('system.oidc.remove.action')"
             :loading="busy"
-            :disabled="!password || !settings.password_login"
+            :disabled="!password || !settings?.password_login"
             @click="remove"
           />
         </div>

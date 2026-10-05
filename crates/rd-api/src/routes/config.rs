@@ -15,6 +15,14 @@ use crate::{
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
+        .merge(configuration_routes())
+        .merge(remote_job_routes())
+        .merge(setup_and_backup_routes())
+}
+
+/// Categories, storage roots, hotfolders, accounts, proxies and the provider sign-in.
+fn configuration_routes() -> Router<AppState> {
+    Router::new()
         .route(
             "/api/v1/accounts/{id}/hosters",
             get(hosters::list_account_hosters),
@@ -95,6 +103,11 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/accounts/{id}/auth",
             get(auth_flow_handlers::get_auth).delete(auth_flow_handlers::cancel_auth),
         )
+}
+
+/// Remote jobs and the provider table.
+fn remote_job_routes() -> Router<AppState> {
+    Router::new()
         // Jobs that run at a provider (RD-108-04). Deleting at the provider and removing the
         // row from this list are separate paths on purpose: the first is a POST that has to
         // carry a confirmation, the second a plain DELETE that sends nothing anywhere.
@@ -130,6 +143,11 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/setup/complete",
             post(setup_handlers::complete_setup),
         )
+}
+
+/// Setup, storage capacity, routing and settings transfer, and backups.
+fn setup_and_backup_routes() -> Router<AppState> {
+    Router::new()
         .route(
             "/api/v1/storage/capacity",
             get(storage_capacity::storage_capacity),

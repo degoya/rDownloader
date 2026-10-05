@@ -8,9 +8,9 @@ license.workspace = true
 [dependencies]
 onedrive-common = { path = "../onedrive-common" }
 plugin-common = { path = "../common" }
+plugin-guest-crawler = { path = "../guest-crawler" }
 serde.workspace = true
 serde_json.workspace = true
-wit-bindgen.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

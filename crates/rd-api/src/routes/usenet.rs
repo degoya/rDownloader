@@ -47,6 +47,10 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/usenet/servers/{id}/test",
             post(usenet_handlers::test_usenet_server),
         )
+        .route(
+            "/api/v1/usenet/servers/{id}/quota",
+            axum::routing::put(usenet_handlers::set_usenet_server_quota),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -57,6 +61,7 @@ pub(crate) fn routes() -> Router<AppState> {
     usenet_handlers::update_usenet_server,
     usenet_handlers::delete_usenet_server,
     usenet_handlers::test_usenet_server,
+    usenet_handlers::set_usenet_server_quota,
     usenet_handlers::list_nzb_files,
     usenet_handlers::list_postprocess_steps,
     usenet_handlers::enqueue_nzb_import,

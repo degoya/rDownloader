@@ -146,11 +146,13 @@ pub enum AuditAction {
     /// current one (`rdownloader auth reset-password`, RD-190-24); the `path` detail says whether
     /// the running service or the database of a stopped one took it. Never the password.
     PasswordResetLocal,
+    /// The download history was emptied (RD-1100-04); the queue and the files were left alone.
+    HistoryCleared,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 50] = [
+    pub const ALL: [Self; 51] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -201,6 +203,7 @@ impl AuditAction {
         Self::IdentityUnlinked,
         Self::PasswordLoginChanged,
         Self::PasswordResetLocal,
+        Self::HistoryCleared,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -257,6 +260,7 @@ impl AuditAction {
             Self::IdentityUnlinked => "identity_unlinked",
             Self::PasswordLoginChanged => "password_login_changed",
             Self::PasswordResetLocal => "password_reset_local",
+            Self::HistoryCleared => "history_cleared",
         }
     }
 
@@ -423,6 +427,7 @@ mod tests {
             "notifications_discarded",
             "storage_history_cleared",
             "content_index_cleared",
+            "history_cleared",
         ] {
             assert!(AuditAction::parse(word).is_some(), "missing {word}");
         }

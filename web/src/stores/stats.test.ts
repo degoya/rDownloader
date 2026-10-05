@@ -11,13 +11,40 @@ vi.mock('@/api/client', () => ({
 }))
 
 let stateEvent: (() => void) | null = null
+let usenetEvent: (() => void) | null = null
 const released = vi.fn()
 vi.mock('@/composables/useEventStream', () => ({
   subscribeEvents: (handlers: Record<string, () => void>) => {
     stateEvent = handlers['download.state'] ?? null
-    return () => { stateEvent = null; released() }
+    usenetEvent = handlers['usenet.changed'] ?? null
+    return () => { stateEvent = null; usenetEvent = null; released() }
   }
 }))
+
+const TRAFFIC = {
+  servers: [{
+    server_id: 's1', name: 'Block', enabled: true, today: 10, week: 20, month: 30, year: 40, total: 50,
+    quota: { limit_bytes: 100, action: 'pause', used_bytes: 50, reset_on: null, reached_at: null }
+  }]
+}
+
+/** Answers the traffic per server beside whatever `transfers` answers for the range. */
+function routed(transfers: (range: string) => unknown) {
+  return async (path: string, options?: unknown) => {
+    if (path === '/api/v1/stats/usenet-servers') return { data: TRAFFIC } as never
+    const range = (options as { params: { query: { range: string } } }).params.query.range
+    return transfers(range) as never
+  }
+}
+
+/** The reads of one path, whatever else the store asked for beside it. */
+function calls(path: string): number {
+  return (vi.mocked(api.GET).mock.calls as unknown as [string][]).filter(([called]) => called === path).length
+}
+
+function transferCalls(): number {
+  return calls('/api/v1/stats/transfers')
+}
 
 const FIGURES = { completed: 0, failed: 0, retries: 0, bytes: 0, seconds: 0 }
 
@@ -40,14 +67,12 @@ describe('stats store', () => {
     vi.mocked(api.GET).mockReset()
     released.mockReset()
     stateEvent = null
+    usenetEvent = null
     vi.useRealTimers()
   })
 
   it('asks for the chosen range and keeps the answer', async () => {
-    vi.mocked(api.GET).mockImplementation(async (_path: string, options?: unknown) => {
-      const range = (options as { params: { query: { range: string } } }).params.query.range
-      return { data: response(range) } as never
-    })
+    vi.mocked(api.GET).mockImplementation(routed(range => ({ data: response(range) })))
     const store = useStatsStore()
     expect(store.loading).toBe(true)
     await store.refresh()
@@ -71,11 +96,10 @@ describe('stats store', () => {
 
   it('drops a late answer for a range the reader has already left', async () => {
     const pending: { resolve?: (value: unknown) => void } = {}
-    vi.mocked(api.GET).mockImplementation(async (_path: string, options?: unknown) => {
-      const range = (options as { params: { query: { range: string } } }).params.query.range
-      if (range === 'day') return new Promise(resolve => { pending.resolve = resolve }) as never
-      return { data: response(range) } as never
-    })
+    vi.mocked(api.GET).mockImplementation(routed(range => {
+      if (range === 'day') return new Promise(resolve => { pending.resolve = resolve })
+      return { data: response(range) }
+    }))
     const store = useStatsStore()
     const day = store.refresh()
     await store.setRange('month')
@@ -87,18 +111,33 @@ describe('stats store', () => {
 
   it('refreshes once for a burst of state events, and releases the stream on stop', async () => {
     vi.useFakeTimers()
-    vi.mocked(api.GET).mockResolvedValue({ data: response('day') } as never)
+    vi.mocked(api.GET).mockImplementation(routed(() => ({ data: response('day') })))
     const store = useStatsStore()
     store.start()
-    expect(api.GET).toHaveBeenCalledTimes(1)
+    expect(transferCalls()).toBe(1)
     stateEvent?.()
     stateEvent?.()
     stateEvent?.()
     await vi.advanceTimersByTimeAsync(2_500)
-    expect(api.GET).toHaveBeenCalledTimes(2)
+    expect(transferCalls()).toBe(2)
     store.stop()
     expect(released).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(120_000)
-    expect(api.GET).toHaveBeenCalledTimes(2)
+    expect(transferCalls()).toBe(2)
+  })
+
+  /** RD-1100-05: the per-server figures come with every read, and a quota event reads them again. */
+  it('reads the traffic per Usenet server beside the range, and again on usenet.changed', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.GET).mockImplementation(routed(() => ({ data: response('day') })))
+    const store = useStatsStore()
+    store.start()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(store.servers.map(server => server.name)).toEqual(['Block'])
+    expect(store.servers[0]?.total).toBe(50)
+    usenetEvent?.()
+    await vi.advanceTimersByTimeAsync(2_500)
+    expect(calls('/api/v1/stats/usenet-servers')).toBe(2)
+    store.stop()
   })
 })

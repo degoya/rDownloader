@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::ConfigCommand,
     site_rule_checks_store::{self, NewSiteRuleCheck, SiteRuleCheck},
     writer,
 };
@@ -17,7 +17,7 @@ impl Database {
 
     /// Writes the results of one self-test run.
     pub async fn record_site_rule_checks(&self, checks: Vec<NewSiteRuleCheck>) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::RecordSiteRuleChecks {
+        writer::request(&self.writer, |reply| ConfigCommand::RecordSiteRuleChecks {
             checks,
             reply,
         })

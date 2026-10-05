@@ -26,7 +26,7 @@ pub use policy::{
 pub use settings::{TORRENT_CONTENT_TYPES, TORRENT_PROVIDER, TorrentListenMode, TorrentSettings};
 pub use state::{
     SeedAccounting, TORRENT_CONTRACT_VERSION, TorrentCandidateState, TorrentCandidateSummary,
-    TorrentJobState, TorrentMetadataState,
+    TorrentJobState, TorrentMetadataState, TorrentRecheck, TorrentRelocation,
 };
 pub use stats::{
     DEFAULT_PEER_PAGE, MAX_PEER_PAGE, PIECE_BUCKETS, TorrentAggregateStats, TorrentPeerEntry,

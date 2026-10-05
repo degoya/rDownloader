@@ -32,6 +32,7 @@ impl TorrentService {
         let seeded_seconds = state.seed.seeded_seconds(chrono::Utc::now());
         let offline = |total: u64| TorrentAggregateStats {
             live: false,
+            checking: false,
             progress_bytes: bytes(0),
             total_bytes: bytes(total),
             uploaded_bytes: bytes(0),
@@ -64,6 +65,10 @@ impl TorrentService {
         let live = stats.live.as_ref();
         Ok(TorrentAggregateStats {
             live: live.is_some(),
+            checking: matches!(
+                stats.state,
+                librqbit::TorrentStatsState::Initializing { .. }
+            ),
             progress_bytes: bytes(stats.progress_bytes),
             total_bytes: bytes(stats.total_bytes),
             uploaded_bytes: bytes(stats.uploaded_bytes),

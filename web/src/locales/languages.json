@@ -1,0 +1,18 @@
+{
+  "en": {
+    "name": "English",
+    "status": "required"
+  },
+  "de": {
+    "name": "Deutsch",
+    "status": "required"
+  },
+  "fr": {
+    "name": "Français",
+    "status": "required"
+  },
+  "es": {
+    "name": "Español",
+    "status": "required"
+  }
+}

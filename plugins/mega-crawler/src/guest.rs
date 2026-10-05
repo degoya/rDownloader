@@ -9,16 +9,12 @@
 //! session's key half. One host call per node, never the master key in here.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "crawler-plugin",
-});
-
-use exports::rdownloader::plugin::crawler::{CrawledLink, Guest};
 use mega_common::{Target, api};
-use rdownloader::plugin::{
+use plugin_guest_crawler::{
+    CrawledLink, Guest,
     http::{self, RequestHeader, RequestQuery},
     key_derivation::{self, SecretHandle, Step},
+    refuse,
     types::{Failure, FailureKind},
 };
 use serde_json::Value;
@@ -26,15 +22,6 @@ use serde_json::Value;
 use crate::{account, messages, walk};
 
 struct Component;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 /// How one of MEGA's negative answers is reported, for a call made with or without the
 /// account's session.
@@ -187,4 +174,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_crawler::crawler_plugin!(Component);

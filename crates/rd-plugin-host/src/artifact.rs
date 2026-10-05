@@ -25,8 +25,9 @@
 //! every run pay for the one case this guards against.
 //!
 //! The comparison is by content (RD-120-58). `scripts/build-plugins.sh` writes a stamp beside
-//! every component it builds, `<artefact>.wasm.src-sha256`, holding two hashes: the source hash
-//! (below) and the SHA-256 of the component itself. A component is current when the stamp
+//! every component it builds, `<artefact>.wasm.src-sha256`, holding the source hash (below), the
+//! SHA-256 of the component itself and a third, the dependency hash (registry packages, compiler),
+//! which only the script compares. Here a component is current when the stamp
 //! exists, names exactly these component bytes and records exactly the current source hash.
 //! Until then the rule compared modification times, and every `git checkout` resets those: in
 //! five of eight branch checks on 2026-09-24 a fresh worktree reported components stale that no

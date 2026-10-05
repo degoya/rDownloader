@@ -50,9 +50,15 @@ describe('NotificationRules', () => {
   it('offers the operational events next to the queue events (RD-190-19)', () => {
     mount()
     const group = screen.getByRole('group', { name: notifications.rule.events_label })
-    for (const event of ['backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available', 'plugin_update_failed', 'account_expiring', 'account_invalid'] as const) {
+    for (const event of ['backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available', 'plugin_update_failed', 'account_expiring', 'account_invalid', 'usenet_quota_reached'] as const) {
       expect(within(group).getByRole('checkbox', { name: notifications.event[event] })).toBeTruthy()
     }
+  })
+
+  it('offers the Usenet set given up as beyond repair (RD-1100-02)', () => {
+    mount()
+    const group = screen.getByRole('group', { name: notifications.rule.events_label })
+    expect(within(group).getByRole('checkbox', { name: notifications.event.usenet_job_hopeless })).toBeTruthy()
   })
 
   it('copies a rule with its target, events, category and severity, and opens the copy', async () => {

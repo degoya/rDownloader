@@ -12,8 +12,8 @@ pub struct RunnerLimitSupport {
     pub kind: DownloadKind,
     /// Whether the download limit reaches this transport at all.
     pub download_enforced: bool,
-    /// Whether the transport can be limited per host, account or category, or only as a
-    /// whole. External helper processes only take one rate for the whole job.
+    /// Whether the transport can be limited per host, account, category or package, or only
+    /// as a whole. External helper processes only take one rate for the whole job.
     pub scoped_enforced: bool,
     /// Short reason shown next to an unenforced entry; `None` when fully enforced.
     pub note: Option<&'static str>,

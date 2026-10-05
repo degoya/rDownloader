@@ -5,7 +5,7 @@
 use anyhow::Result;
 use rd_core::{CandidateId, MirrorPreference};
 
-use crate::{Database, commands::WriterCommand, writer};
+use crate::{Database, commands::CollectorCommand, writer};
 
 impl Database {
     /// The standing mirror preference, or its defaults when none was ever stored (RD-110-19).
@@ -19,9 +19,8 @@ impl Database {
 
     /// Stores the standing mirror preference and re-chooses every group under it.
     pub async fn set_mirror_preference(&self, preference: MirrorPreference) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetMirrorPreference {
-            preference,
-            reply,
+        writer::request(&self.writer, |reply| {
+            CollectorCommand::SetMirrorPreference { preference, reply }
         })
         .await
     }
@@ -31,7 +30,7 @@ impl Database {
     /// `false` means the link belongs to no mirror group, so there was nothing to choose
     /// between.
     pub async fn set_mirror_pin(&self, id: CandidateId, pinned: bool) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::SetMirrorPin {
+        writer::request(&self.writer, |reply| CollectorCommand::SetMirrorPin {
             id,
             pinned,
             reply,
@@ -44,9 +43,8 @@ impl Database {
     /// The refusal is stored as pairs of links, not as an absent group, so it survives the
     /// recompute at intake, after the online check and on a move between packages.
     pub async fn dissolve_mirror_group(&self, id: CandidateId) -> Result<crate::MirrorDissolve> {
-        writer::request(&self.writer, |reply| WriterCommand::DissolveMirrorGroup {
-            id,
-            reply,
+        writer::request(&self.writer, |reply| {
+            CollectorCommand::DissolveMirrorGroup { id, reply }
         })
         .await
     }

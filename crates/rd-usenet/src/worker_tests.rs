@@ -18,7 +18,7 @@ async fn start_scheduler(directory: &std::path::Path, database: &Database) -> Sc
 ///
 /// One at a time is what makes the order of a package's files a fact rather than a race, and
 /// the verdict on a missing segment (RD-108-24) is precisely about which file finishes first.
-async fn start_scheduler_with(
+pub(crate) async fn start_scheduler_with(
     directory: &std::path::Path,
     database: &Database,
     parallel_files: usize,
@@ -43,7 +43,7 @@ async fn start_scheduler_with(
 }
 
 /// Waits until every file of the package reached one of `states`.
-async fn wait_for_files(
+pub(crate) async fn wait_for_files(
     database: &Database,
     package_id: rd_core::PackageId,
     states: &[DownloadState],
@@ -67,7 +67,7 @@ async fn wait_for_files(
     .expect("package reached the expected state")
 }
 
-fn server(name: &str, address: std::net::SocketAddr, priority: i32) -> NewUsenetServer {
+pub(crate) fn server(name: &str, address: std::net::SocketAddr, priority: i32) -> NewUsenetServer {
     NewUsenetServer {
         name: name.to_owned(),
         host: address.ip().to_string(),
@@ -113,6 +113,7 @@ async fn queued_import_is_downloaded_into_its_category_and_extracted() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,
@@ -347,7 +348,7 @@ async fn missing_segment_without_par2_fails_the_file_after_downloading_the_rest(
 }
 
 /// A single-part yEnc article announcing `name` for `payload`.
-fn single_part_article(name: &str, payload: &[u8]) -> Vec<u8> {
+pub(crate) fn single_part_article(name: &str, payload: &[u8]) -> Vec<u8> {
     let mut article = format!(
         "222 body follows\r\n=ybegin line=128 size={} name={name}\r\n",
         payload.len()
@@ -365,7 +366,7 @@ fn single_part_article(name: &str, payload: &[u8]) -> Vec<u8> {
     article
 }
 
-fn storage_root_at(output: &std::path::Path) -> NewStorageRoot {
+pub(crate) fn storage_root_at(output: &std::path::Path) -> NewStorageRoot {
     NewStorageRoot {
         name: "Test".to_owned(),
         path: output.to_string_lossy().into_owned(),
@@ -553,7 +554,9 @@ async fn a_missing_segment_relies_on_par2_that_only_the_second_quoted_group_name
 }
 
 /// NNTP fixture answering scripted BODY requests on any number of connections; `None` yields 430.
-async fn spawn_scripted_fixture(articles: Vec<(String, Option<Vec<u8>>)>) -> std::net::SocketAddr {
+pub(crate) async fn spawn_scripted_fixture(
+    articles: Vec<(String, Option<Vec<u8>>)>,
+) -> std::net::SocketAddr {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("fixture listener");
@@ -637,7 +640,7 @@ async fn spawn_nntp_fixture(valid_crc: bool, payload: Vec<u8>) -> std::net::Sock
     address
 }
 
-fn yenc_encode(payload: &[u8]) -> Vec<u8> {
+pub(crate) fn yenc_encode(payload: &[u8]) -> Vec<u8> {
     let mut encoded = Vec::with_capacity(payload.len());
     for byte in payload {
         let shifted = byte.wrapping_add(42);

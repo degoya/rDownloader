@@ -103,6 +103,13 @@ pub(crate) mod codes {
     pub(crate) const SCRIPT_FAILED: &str = "postprocess.script_failed";
     pub(crate) const PLUGIN_STEP_FAILED: &str = "postprocess.plugin_step_failed";
     pub(crate) const UPLOAD_STALLED: &str = "postprocess.upload_stalled";
+    /// A set unpacked while its package downloaded, moved into place (RD-1100-07).
+    pub(crate) const UNPACK_COMPLETED_DIRECT: &str = "postprocess.unpack_completed_direct";
+    /// The RAR test was not needed: the direct unpack checked every file (RD-1100-07).
+    pub(crate) const RAR_TEST_SKIPPED_DIRECT: &str = "postprocess.rar_test_skipped_direct";
+    pub(crate) const SORT_DONE: &str = "postprocess.sort_done";
+    pub(crate) const SORT_FAILED: &str = "postprocess.sort_failed";
+    pub(crate) const SORT_SKIPPED: &str = "postprocess.sort_skipped";
 }
 
 /// The same as `checkpoint`, with a translatable outcome instead of a bare message.

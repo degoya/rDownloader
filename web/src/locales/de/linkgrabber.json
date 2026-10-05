@@ -520,7 +520,7 @@
     "next": "Nächste Seite",
     "close": "Ergebnisse schließen",
     "grab": "Auswahl übernehmen ({count})",
-    "grab_hint": "Lädt die NZBs und legt sie wie eine hochgeladene Datei zur Prüfung in den LinkGrabber",
+    "grab_hint": "Lädt die NZBs und Torrents und legt sie wie eine hochgeladene Datei zur Prüfung in den LinkGrabber",
     "grabbed": "Keine NZB übernommen | Eine NZB in den LinkGrabber übernommen | {count} NZBs in den LinkGrabber übernommen",
     "grab_failed": "Nicht übernommen: {title}",
     "indexer_failed": "{name} hat nichts geliefert",
@@ -539,6 +539,24 @@
     "unavailable_link": "Einstellungen › Usenet › Indexer",
     "grab_one": "In den LinkGrabber übernehmen: {title}",
     "grab_one_done": "Im LinkGrabber: {title}",
-    "grab_one_failed": "Nicht übernommen, noch einmal versuchen: {title}"
+    "grab_one_failed": "Nicht übernommen, noch einmal versuchen: {title}",
+    "type_label": "Suchart",
+    "types": {
+      "search": "Freie Suche",
+      "tv": "Serie",
+      "movie": "Film"
+    },
+    "ids": {
+      "season": "Staffel",
+      "ep": "Folge",
+      "tvdbid": "TVDB-ID",
+      "tvmazeid": "TVmaze-ID",
+      "imdbid": "IMDb-ID",
+      "tmdbid": "TMDb-ID"
+    },
+    "type_unsupported": "Keiner der gewählten Indexer bietet diese Suche an.",
+    "torrent": "Torrent",
+    "swarm": "{seeders} Seeder, {leechers} Leecher",
+    "grabbed_torrents": "Kein Torrent übernommen | Ein Torrent in den LinkGrabber übernommen | {count} Torrents in den LinkGrabber übernommen"
   }
 }

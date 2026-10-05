@@ -1,0 +1,57 @@
+{
+  "title": "Download history",
+  "intro": "Everything that finished or failed for good — also after the package was removed from the list or cleaned up automatically. Addresses are kept without passwords or tokens; archive passwords are never stored.",
+  "filters": {
+    "search": "Search",
+    "search_placeholder": "Name or address",
+    "outcome": "Outcome",
+    "any_outcome": "Any outcome",
+    "kind": "Type",
+    "any_kind": "Any type",
+    "period": "Period",
+    "any_period": "Any time",
+    "apply": "Apply filters",
+    "clear": "Reset filters"
+  },
+  "periods": {
+    "day": "Last 24 hours",
+    "week": "Last 7 days",
+    "month": "Last 30 days",
+    "year": "Last 365 days"
+  },
+  "outcomes": {
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Media (yt-dlp)",
+    "gallery": "Gallery",
+    "record": "Recording",
+    "ftp": "FTP",
+    "sftp": "SFTP",
+    "plugin": "Plugin transfer",
+    "object_storage": "Object storage (S3)"
+  },
+  "list": {
+    "title": "Entries",
+    "shown": "{shown} of {total}",
+    "empty": "Nothing in the history yet. As soon as a package finishes or fails for good, it is listed here.",
+    "files": "{count} file | {count} files",
+    "expand": "Show details",
+    "collapse": "Hide details",
+    "category": "Category",
+    "destination": "Destination",
+    "added": "Added",
+    "sources": "Sources",
+    "more": "Load more"
+  },
+  "readd": {
+    "button": "Add again",
+    "done": "“{name}” is back in the LinkGrabber",
+    "open": "Open the LinkGrabber",
+    "no_sources": "No source address that could be added again (an imported NZB, for example)."
+  }
+}

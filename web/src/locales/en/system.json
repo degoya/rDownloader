@@ -47,7 +47,9 @@
     "copy_token": "Copy token",
     "extension_steps": "In the extension options set the server URL to {origin} and paste this token, then press “Test connection”. See extension/README.md for installation.",
     "token_copied_description": "The capture token is in your clipboard.",
-    "label": "Connection name"
+    "label": "Connection name",
+    "queue_control": "May pause the queue",
+    "queue_control_help": "Allows “Pause all” and “Resume all” in the agent's tray menu – nothing more. Without it the agent only hands links in."
   },
   "agents": {
     "eyebrow": "Paired connections",
@@ -563,6 +565,14 @@
       "description": "{count} index entries will be removed. Files and downloads stay untouched, but until a file is indexed again it is not recognised as a content duplicate and cannot be the original of a duplicate link. “Check the content index” (also run at every start) re-indexes finished downloads still in the queue whose SHA-256 is known and whose file is still in place. Files of removed or never hashed downloads come back only when downloaded again.",
       "confirm": "Clear the index",
       "done": "{count} index entries removed"
+    },
+    "history": {
+      "button": "Clear history",
+      "stored": "{count} entries",
+      "title": "Clear the download history?",
+      "description": "{count} entries will be removed from the download history for good. The download list, the files, the statistics and the logs stay untouched.",
+      "confirm": "Clear for good",
+      "done": "{count} history entries removed"
     }
   },
   "session_limits": {

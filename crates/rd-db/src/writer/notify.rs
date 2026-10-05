@@ -1,42 +1,42 @@
 //! Reacting to what happened: the writer half of `notify_store` and `automation_store`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
-use crate::commands::WriterCommand;
+use crate::commands::NotifyCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_notify(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_notify(&mut self, command: NotifyCommand) {
         match command {
-            WriterCommand::UpsertNotificationTarget { id, input, reply } => {
+            NotifyCommand::UpsertNotificationTarget { id, input, reply } => {
                 let result =
                     crate::notify_store::upsert_target(&mut self.connection, id, input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteNotificationTarget { id, reply } => {
+            NotifyCommand::DeleteNotificationTarget { id, reply } => {
                 let result = crate::notify_store::delete_target(&mut self.connection, id).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::UpsertNotificationRule { id, input, reply } => {
+            NotifyCommand::UpsertNotificationRule { id, input, reply } => {
                 let result =
                     crate::notify_store::upsert_rule(&mut self.connection, id, input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteNotificationRule { id, reply } => {
+            NotifyCommand::DeleteNotificationRule { id, reply } => {
                 let result = crate::notify_store::delete_rule(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::QueueNotificationDelivery { input, reply } => {
+            NotifyCommand::QueueNotificationDelivery { input, reply } => {
                 // Queuing is silent: the delivery worker broadcasts once it has a result.
                 let result = crate::notify_store::queue_delivery(&mut self.connection, input).await;
                 send(reply, result);
             }
-            WriterCommand::QueueNotificationNotice { deliveries, reply } => {
+            NotifyCommand::QueueNotificationNotice { deliveries, reply } => {
                 // Silent like a single delivery.
                 let result =
                     crate::notice_store::queue_notice(&mut self.connection, deliveries).await;
                 send(reply, result);
             }
-            WriterCommand::RecordNotificationAttempt {
+            NotifyCommand::RecordNotificationAttempt {
                 id,
                 state,
                 attempt,
@@ -57,34 +57,34 @@ impl Writer {
                 .await;
                 send(reply, result);
             }
-            WriterCommand::ClearNotificationDeliveries { reply } => {
+            NotifyCommand::ClearNotificationDeliveries { reply } => {
                 let result = crate::notify_store::clear_deliveries(&mut self.connection).await;
                 send(reply, result);
             }
-            WriterCommand::DiscardPendingNotificationDeliveries { reply } => {
+            NotifyCommand::DiscardPendingNotificationDeliveries { reply } => {
                 let result =
                     crate::notify_store::discard_pending_deliveries(&mut self.connection).await;
                 send(reply, result);
             }
-            WriterCommand::UpsertAutomation { id, input, reply } => {
+            NotifyCommand::UpsertAutomation { id, input, reply } => {
                 let result = crate::automation_store::upsert(&mut self.connection, id, input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::SetAutomationEnabled { id, enabled, reply } => {
+            NotifyCommand::SetAutomationEnabled { id, enabled, reply } => {
                 let result =
                     crate::automation_store::set_enabled(&mut self.connection, id, enabled).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteAutomation { id, reply } => {
+            NotifyCommand::DeleteAutomation { id, reply } => {
                 let result = crate::automation_store::delete(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::QueueAutomationRun { input, reply } => {
+            NotifyCommand::QueueAutomationRun { input, reply } => {
                 // Queuing is silent; the engine reports once a run has an outcome.
                 let result = crate::automation_store::queue_run(&mut self.connection, input).await;
                 send(reply, result);
             }
-            WriterCommand::RecordAutomationAttempt {
+            NotifyCommand::RecordAutomationAttempt {
                 id,
                 state,
                 action_index,
@@ -105,16 +105,10 @@ impl Writer {
                 .await;
                 send(reply, result);
             }
-            WriterCommand::RecoverAutomationRuns { reply } => {
+            NotifyCommand::RecoverAutomationRuns { reply } => {
                 let result = crate::automation_store::recover(&mut self.connection).await;
                 send(reply, result);
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
         }
     }
 }

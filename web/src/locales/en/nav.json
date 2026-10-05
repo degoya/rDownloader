@@ -62,7 +62,7 @@
       "signature": "signature, key, publisher, trust",
       "managed_tools": "download tools, install automatically, update",
       "updates": "update, upgrade, new version, beta, release channel",
-      "indexers": "indexer, newznab, nzb search, api key, list style, cover"
+      "indexers": "indexer, newznab, torznab, jackett, prowlarr, nzb search, torrent search, api key, list style, cover"
     }
   },
   "connection": {
@@ -71,5 +71,6 @@
     "view_failed": "This view could not be loaded",
     "view_failed_hint": "It loads as soon as the service is reachable again.",
     "reload": "Reload"
-  }
+  },
+  "history": "History"
 }

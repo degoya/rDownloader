@@ -202,6 +202,11 @@ async fn the_remaining_triggers_fire_on_their_own_event() {
             EventKind::SubscriptionChanged,
             json!({ "accepted_items": 1, "name": "A feed" }),
         ),
+        (
+            "usenet_job_hopeless",
+            EventKind::UsenetChanged,
+            json!({ "package_id": "p", "state": "hopeless", "missing_blocks": "9", "available_blocks": "1" }),
+        ),
     ];
 
     let mut ids = Vec::new();

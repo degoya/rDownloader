@@ -130,6 +130,10 @@ pub(crate) fn routes() -> Router<AppState> {
             axum::routing::patch(postprocess_handlers::update_category_postprocess),
         )
         .route(
+            "/api/v1/postprocess/sort-preview",
+            post(postprocess_handlers::preview_category_sorting),
+        )
+        .route(
             "/api/v1/downloads/{id}/auth-profile",
             axum::routing::put(download_handlers::set_download_auth_profile),
         )
@@ -175,6 +179,7 @@ pub(crate) fn routes() -> Router<AppState> {
     postprocess_handlers::list_upload_destinations,
     postprocess_handlers::test_malware_scanner,
     postprocess_handlers::update_category_postprocess,
+    postprocess_handlers::preview_category_sorting,
     download_handlers::set_download_auth_profile,
     download_sources::list_download_sources,
 ))]

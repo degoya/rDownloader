@@ -50,9 +50,12 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
+      # Read, never saved (RD-1100-13): a cache saved by a tag's run is readable by that tag only,
+      # so every release stored gigabytes nobody could use against the repository's 10 GB.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: release-plugins
+          save-if: false
       # Prebuilt through cargo-binstall, as in ci.yml's `components` job whose cache this run
       # reads, instead of a source build at every release (RD-191-09).
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
@@ -62,7 +65,7 @@ jobs:
       # one below over all of them.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: wasm-tools
+          tool: wasm-tools@1.261.0
       - name: Collect the bundled plugins
         id: plugins
         shell: bash
@@ -98,8 +101,8 @@ jobs:
           path: |
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
-          key: components-1.98.1-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
-          restore-keys: components-1.98.1-cc0.21.1-${{ steps.component-key.outputs.deps }}-
+          key: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
+          restore-keys: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
       - name: Build plugin components
         shell: bash
         run: scripts/build-plugins.sh --components-only
@@ -239,9 +242,11 @@ jobs:
       # with two uncached rebuilds is what checks that claim. No sccache in a release: it would
       # not change the output either, but a build made once per tag gains little from it, and it
       # would be one more shared state that claim has to cover.
+      # Read, never saved, as above.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: release-${{ matrix.target }}
+          save-if: false
       - run: pnpm --dir web install --frozen-lockfile
       # `run build` stopped type-checking in RD-120-25; named here so it still does.
       - run: pnpm --dir web run typecheck:full

@@ -14,8 +14,8 @@ num-bigint.workspace = true
 # MEGA's base64 and the JSON reader of its answers (RD-191-07): the same ones the resolver and
 # the crawler use, rather than a hand-rolled copy of each.
 mega-common = { path = "../mega-common" }
+plugin-guest-auth = { path = "../guest-auth" }
 serde_json.workspace = true
-wit-bindgen.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

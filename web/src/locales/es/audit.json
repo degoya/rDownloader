@@ -76,7 +76,8 @@
     "identity_linked": "Cuenta del proveedor de identidad vinculada",
     "identity_unlinked": "Cuenta del proveedor de identidad desvinculada",
     "password_login_changed": "Inicio de sesión con contraseña cambiado",
-    "password_reset_local": "Contraseña restablecida en el equipo"
+    "password_reset_local": "Contraseña restablecida en el equipo",
+    "history_cleared": "Historial de descargas vaciado"
   },
   "list": {
     "title": "Registros",

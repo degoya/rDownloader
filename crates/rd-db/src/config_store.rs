@@ -29,6 +29,7 @@ pub struct NewCategory {
     pub cleanup_extensions: Option<Vec<String>>,
     pub recursive_unpack: Option<bool>,
     pub unpack_to_subfolder: Option<bool>,
+    pub direct_unpack: Option<bool>,
     pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
     pub safe_postproc: Option<bool>,
@@ -48,6 +49,7 @@ pub struct CategoryPostprocess {
     pub cleanup_extensions: Option<Vec<String>>,
     pub recursive_unpack: Option<bool>,
     pub unpack_to_subfolder: Option<bool>,
+    pub direct_unpack: Option<bool>,
     pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
     pub safe_postproc: Option<bool>,
@@ -57,6 +59,9 @@ pub struct CategoryPostprocess {
     pub plugin_steps: Option<Vec<String>>,
     pub upload_enabled: Option<bool>,
     pub upload_remote: Option<String>,
+    /// Sort and rename templates (RD-1100-08); `None` = no sorting. Not an override: there is
+    /// no global template to inherit.
+    pub sorting: Option<rd_core::SortTemplates>,
 }
 
 #[derive(Clone, Debug)]
@@ -156,6 +161,7 @@ pub(crate) async fn create_category(
         cleanup_extensions: input.cleanup_extensions,
         recursive_unpack: input.recursive_unpack,
         unpack_to_subfolder: input.unpack_to_subfolder,
+        direct_unpack: input.direct_unpack,
         malware_scan: input.malware_scan,
         sfv_verify: input.sfv_verify,
         safe_postproc: input.safe_postproc,
@@ -165,6 +171,8 @@ pub(crate) async fn create_category(
         // A new category inherits the global seeding policy and plugin steps.
         seeding: None,
         plugin_steps: None,
+        // Set on the post-processing route only, like the plugin steps.
+        sorting: None,
     };
     let event = config_event(EventKind::CategoryChanged, "category", value.id);
     // Clear the old default before inserting the new one: `idx_categories_single_default`
@@ -175,7 +183,7 @@ pub(crate) async fn create_category(
             .execute(&mut *tx)
             .await?;
     }
-    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(value.id.to_string())
         .bind(&value.name)
         .bind(&value.color)
@@ -187,6 +195,7 @@ pub(crate) async fn create_category(
         .bind(cleanup_json(value.cleanup_extensions.as_ref())?)
         .bind(value.recursive_unpack)
         .bind(value.unpack_to_subfolder)
+        .bind(value.direct_unpack)
         .bind(value.malware_scan)
         .bind(value.sfv_verify)
         .bind(value.safe_postproc)
@@ -351,7 +360,7 @@ pub(crate) async fn list_storage_roots(pool: &SqlitePool) -> Result<Vec<StorageR
     .collect()
 }
 
-const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json";
+const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json";
 const RULE_COLUMNS: &str = "id, name, priority, source, domain, protocol, extension, mime_type, name_regex, category_id, enabled";
 const HOTFOLDER_COLUMNS: &str = "id, name, executor_json, path, recursive, category_id, import_mode, processed_path, failed_path, enabled";
 
@@ -455,6 +464,7 @@ struct CategoryRow {
     cleanup_extensions: Option<String>,
     recursive_unpack: Option<bool>,
     unpack_to_subfolder: Option<bool>,
+    direct_unpack: Option<bool>,
     malware_scan: Option<bool>,
     sfv_verify: Option<bool>,
     safe_postproc: Option<bool>,
@@ -463,6 +473,7 @@ struct CategoryRow {
     upload_remote: Option<String>,
     seeding_json: Option<String>,
     plugin_steps_json: Option<String>,
+    sorting_json: Option<String>,
 }
 impl TryFrom<CategoryRow> for Category {
     type Error = anyhow::Error;
@@ -483,6 +494,7 @@ impl TryFrom<CategoryRow> for Category {
                 .and_then(|value| serde_json::from_str(value).ok()),
             recursive_unpack: row.recursive_unpack,
             unpack_to_subfolder: row.unpack_to_subfolder,
+            direct_unpack: row.direct_unpack,
             malware_scan: row.malware_scan,
             sfv_verify: row.sfv_verify,
             safe_postproc: row.safe_postproc,
@@ -496,6 +508,11 @@ impl TryFrom<CategoryRow> for Category {
                 .and_then(|value| serde_json::from_str(value).ok()),
             plugin_steps: row
                 .plugin_steps_json
+                .as_deref()
+                .and_then(|value| serde_json::from_str(value).ok()),
+            // A malformed blob means no sorting rather than a hidden category.
+            sorting: row
+                .sorting_json
                 .as_deref()
                 .and_then(|value| serde_json::from_str(value).ok()),
         })
@@ -705,6 +722,7 @@ pub(crate) async fn update_category(
         cleanup_extensions: input.cleanup_extensions,
         recursive_unpack: input.recursive_unpack,
         unpack_to_subfolder: input.unpack_to_subfolder,
+        direct_unpack: input.direct_unpack,
         malware_scan: input.malware_scan,
         sfv_verify: input.sfv_verify,
         safe_postproc: input.safe_postproc,
@@ -714,6 +732,8 @@ pub(crate) async fn update_category(
         // A new category inherits the global seeding policy and plugin steps.
         seeding: None,
         plugin_steps: None,
+        // Set on the post-processing route only, like the plugin steps.
+        sorting: None,
     };
     if value.is_default {
         sqlx::query("UPDATE categories SET is_default = 0, updated_at = ? WHERE id != ?")
@@ -725,7 +745,7 @@ pub(crate) async fn update_category(
     let updated = sqlx::query(
         "UPDATE categories SET name = ?, color = ?, storage_root_id = ?, relative_path = ?, \
          is_default = ?, postprocess_level = ?, script = ?, cleanup_extensions = ?, \
-         recursive_unpack = ?, unpack_to_subfolder = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
+         recursive_unpack = ?, unpack_to_subfolder = ?, direct_unpack = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&value.name)
     .bind(&value.color)
@@ -737,6 +757,7 @@ pub(crate) async fn update_category(
     .bind(cleanup_json(value.cleanup_extensions.as_ref())?)
     .bind(value.recursive_unpack)
     .bind(value.unpack_to_subfolder)
+    .bind(value.direct_unpack)
     .bind(value.malware_scan)
     .bind(value.sfv_verify)
     .bind(value.safe_postproc)
@@ -1001,6 +1022,16 @@ fn plugin_steps_json(steps: Option<&Vec<String>>) -> Result<Option<String>> {
         .map_err(Into::into)
 }
 
+/// Serialises a category's sort templates; no template at all stays NULL (RD-1100-08).
+pub(crate) fn sorting_json(sorting: Option<&rd_core::SortTemplates>) -> Result<Option<String>> {
+    sorting
+        .cloned()
+        .and_then(rd_core::SortTemplates::normalized)
+        .map(|templates| serde_json::to_string(&templates))
+        .transpose()
+        .map_err(Into::into)
+}
+
 /// Sets a category's post-processing overrides (`None` = inherit the global setting).
 pub(crate) async fn update_category_postprocess(
     connection: &mut SqliteConnection,
@@ -1011,14 +1042,15 @@ pub(crate) async fn update_category_postprocess(
     let mut tx = connection.begin().await?;
     let updated = sqlx::query(
         "UPDATE categories SET postprocess_level = ?, script = ?, cleanup_extensions = ?, \
-         recursive_unpack = ?, unpack_to_subfolder = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, plugin_steps_json = ?, \
-         upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
+         recursive_unpack = ?, unpack_to_subfolder = ?, direct_unpack = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, plugin_steps_json = ?, \
+         upload_enabled = ?, upload_remote = ?, sorting_json = ?, updated_at = ? WHERE id = ?",
     )
     .bind(postprocess.level.map(crate::enum_string).transpose()?)
     .bind(&postprocess.script)
     .bind(cleanup_json(postprocess.cleanup_extensions.as_ref())?)
     .bind(postprocess.recursive_unpack)
     .bind(postprocess.unpack_to_subfolder)
+    .bind(postprocess.direct_unpack)
     .bind(postprocess.malware_scan)
     .bind(postprocess.sfv_verify)
     .bind(postprocess.safe_postproc)
@@ -1026,6 +1058,7 @@ pub(crate) async fn update_category_postprocess(
     .bind(plugin_steps_json(postprocess.plugin_steps.as_ref())?)
     .bind(postprocess.upload_enabled)
     .bind(&postprocess.upload_remote)
+    .bind(sorting_json(postprocess.sorting.as_ref())?)
     .bind(Utc::now())
     .bind(id.to_string())
     .execute(&mut *tx)

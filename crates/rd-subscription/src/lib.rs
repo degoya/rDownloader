@@ -57,7 +57,7 @@ pub use indexer::{
     redact_query,
 };
 pub use media_adapter::{MediaAdapter, parse_upload_date};
-pub use query::{IndexerQuery, build_indexer_query};
+pub use query::{IndexerQuery, IndexerSearchType, TypedSearch, build_indexer_query};
 pub use release::{ReleaseName, parse as parse_release_name};
 pub use rule_adapter::{ClaimedAddresses, MAX_LISTING_LINKS, RuleAdapter};
 pub use schedule::{

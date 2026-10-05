@@ -56,5 +56,19 @@
     "hourly_description": "Tage, bis Stundenwerte zu Tageswerten werden (1 bis Aufbewahrung).",
     "retention_label": "Aufbewahrung",
     "retention_description": "Tage, die Tageswerte gespeichert bleiben (7–3650)."
+  },
+  "servers": {
+    "title": "Traffic je Usenet-Server",
+    "description": "Artikeldaten, die jeder Server geliefert hat, so wie der Anbieter sie misst: yEnc-kodiert, einige Prozent über den Nutzdaten. Tage zählen in UTC.",
+    "name": "Server",
+    "today": "Heute",
+    "week": "7 Tage",
+    "month": "30 Tage",
+    "year": "1 Jahr",
+    "total": "Gesamt",
+    "quota": "Kontingent",
+    "quota_used": "{used} von {limit}",
+    "used_up_backup": "Verbraucht · nur Backup",
+    "used_up_pause": "Verbraucht · pausiert"
   }
 }

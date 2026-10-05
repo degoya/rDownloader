@@ -76,7 +76,8 @@
     "identity_linked": "Identity provider account linked",
     "identity_unlinked": "Identity provider account unlinked",
     "password_login_changed": "Password sign-in switched",
-    "password_reset_local": "Password reset on the host"
+    "password_reset_local": "Password reset on the host",
+    "history_cleared": "Download history cleared"
   },
   "list": {
     "title": "Records",

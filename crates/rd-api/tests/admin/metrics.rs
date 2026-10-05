@@ -413,3 +413,98 @@ async fn transfer_stats_are_readable_and_the_retention_is_bounded() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["stats_hourly_days"], 7);
 }
+
+/// Traffic per Usenet server (RD-1100-05): the figures come back per server with the quota,
+/// the quota is set through its own route and checked, and the list of servers costs what
+/// listing the servers costs, not what reading figures does.
+#[tokio::test]
+async fn usenet_server_traffic_and_quota_round_trip() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let server = harness
+        .database
+        .create_usenet_server(rd_db::NewUsenetServer {
+            name: "Block".to_owned(),
+            host: "news.example.test".to_owned(),
+            port: 563,
+            tls: true,
+            username: None,
+            password_ref: None,
+            proxy_profile_id: None,
+            priority: 1,
+            max_connections: 4,
+            enabled: true,
+        })
+        .await
+        .expect("server")
+        .id;
+    let quota_uri = format!("/api/v1/usenet/servers/{server}/quota");
+    let (status, body) = put_json(
+        &harness.router,
+        &quota_uri,
+        serde_json::json!({ "limit_bytes": 0 }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["code"], "usenet.quota_invalid");
+    let (status, body) = put_json(
+        &harness.router,
+        &quota_uri,
+        serde_json::json!({ "limit_bytes": 1_000, "action": "pause", "reset_on": "1999-01-01" }),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "a reset day in the past: {body}"
+    );
+    let (status, body) = put_json(
+        &harness.router,
+        &quota_uri,
+        serde_json::json!({ "limit_bytes": 1_000, "action": "pause" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["quota"]["limit_bytes"], 1_000);
+    assert_eq!(body["quota"]["used_bytes"], 0);
+    assert!(body["quota"]["reached_at"].is_null(), "{body}");
+    harness
+        .database
+        .record_usenet_traffic(vec![(server, 2_048)])
+        .await
+        .expect("flush");
+
+    let (status, body) = get_json(&harness.router, "/api/v1/stats/usenet-servers").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let entry = &body["servers"][0];
+    assert_eq!(entry["name"], "Block");
+    assert_eq!(entry["today"], 2_048);
+    assert_eq!(entry["total"], 2_048);
+    assert_eq!(entry["quota"]["action"], "pause");
+    assert_eq!(entry["quota"]["used_bytes"], 2_048);
+    assert!(
+        entry["quota"]["reached_at"].is_string(),
+        "the flush past the limit marked it: {body}"
+    );
+
+    let (status, body) = put_json(
+        &harness.router,
+        &format!(
+            "/api/v1/usenet/servers/{}/quota",
+            rd_core::UsenetServerId::new()
+        ),
+        serde_json::json!({ "limit_bytes": 1_000 }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert_eq!(body["code"], "usenet.server_not_found");
+
+    let secured = auth_harness(directory.path()).await;
+    let (status, _) =
+        get_with_bearer(&secured.router, "/api/v1/stats/usenet-servers", READ_BEARER).await;
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "a read-only token lists no servers"
+    );
+}

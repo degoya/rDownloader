@@ -56,10 +56,10 @@
     "eyebrow": "Indexers",
     "title_add": "Add an indexer",
     "title_edit": "Edit the indexer",
-    "description": "A Newznab indexer, defined once: the LinkGrabber searches it, and an indexer subscription can take it over. The API key goes into the vault and is never shown again.",
+    "description": "A Newznab or Torznab indexer (Jackett, Prowlarr), defined once: the LinkGrabber searches it, and an indexer subscription can take it over. The API key goes into the vault and is never shown again.",
     "name": "Name",
     "url": "API address",
-    "url_hint": "The API base address, e.g. https://api.omgwtfnzbs.org/api – an NZBHydra or Prowlarr on your own network works too",
+    "url_hint": "The API base address, e.g. https://api.omgwtfnzbs.org/api – an NZBHydra, Jackett or Prowlarr on your own network works too; a Torznab indexer delivers torrents",
     "api_key": "API key",
     "api_key_keep": "Leave empty to keep the stored key",
     "categories": "Default categories",
@@ -96,5 +96,25 @@
       "detailed": "Detailed",
       "detailed_hint": "Adds a small cover and what the indexer sends along: year, genre, IMDb rating, language, resolution, a short description."
     }
+  },
+  "quota": {
+    "title": "Quota",
+    "usage": "Today {today} · 30 days {month} · total {total}",
+    "none": "No quota",
+    "used": "{used} of {limit} used",
+    "reached_backup": "Quota used up: this server is only asked for what the other servers do not have.",
+    "reached_pause": "Quota used up: this server is paused.",
+    "resets_on": "Resets on {date}",
+    "edit": "Set quota",
+    "limit": "Volume",
+    "limit_hint": "The data this server may deliver, such as a block account's volume.",
+    "action": "When used up",
+    "action_backup": "Use only as backup",
+    "action_pause": "Pause the server",
+    "reset_on": "Reset on (optional)",
+    "reset_on_hint": "From this day the usage starts again at zero, once.",
+    "reset_usage": "Reset usage",
+    "remove": "Remove quota",
+    "saved": "Quota saved"
   }
 }

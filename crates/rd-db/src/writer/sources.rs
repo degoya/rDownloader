@@ -4,13 +4,13 @@
 use chrono::Utc;
 
 use super::{Writer, send};
-use crate::commands::WriterCommand;
+use crate::commands::SourcesCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_sources(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_sources(&mut self, command: SourcesCommand) {
         match command {
-            WriterCommand::RecordSourceOutcome {
+            SourcesCommand::RecordSourceOutcome {
                 download_id,
                 position,
                 outcome,
@@ -28,7 +28,7 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::MarkChunk {
+            SourcesCommand::MarkChunk {
                 chunk_id,
                 source_position,
                 verified,
@@ -45,7 +45,7 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::RewindChunk {
+            SourcesCommand::RewindChunk {
                 chunk_id,
                 committed,
                 reply,
@@ -53,7 +53,7 @@ impl Writer {
                 let result = self.rewind_chunk(chunk_id, committed).await;
                 send(reply, result);
             }
-            WriterCommand::SetCandidateSourceSet {
+            SourcesCommand::SetCandidateSourceSet {
                 candidate_id,
                 set,
                 reply,
@@ -68,7 +68,7 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::SetCandidateRemoteReach {
+            SourcesCommand::SetCandidateRemoteReach {
                 candidate_ids,
                 local_network,
                 reply,
@@ -83,9 +83,6 @@ impl Writer {
                     .await,
                 );
             }
-            // `Writer::run` routes every variant to exactly one handler; see
-            // `handle_plugins` for why a mis-routed command is dropped, not a panic.
-            _ => {}
         }
     }
 

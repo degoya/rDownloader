@@ -239,13 +239,13 @@ pub async fn pair_capture(
     State(state): State<AppState>,
     Json(request): Json<CapturePairRequest>,
 ) -> Result<(StatusCode, Json<CapturePairResponse>), ApiError> {
-    let response = crate::api_tokens::pair_scoped_token(
-        &state,
-        &request.label,
-        rd_core::CAPTURE_SCOPE,
-        "capture.label_length",
-    )
-    .await?;
+    let mut scopes = vec![rd_core::CAPTURE_SCOPE.to_owned()];
+    if request.queue_control {
+        scopes.push(rd_core::CAPTURE_QUEUE_SCOPE.to_owned());
+    }
+    let response =
+        crate::api_tokens::pair_with_scopes(&state, &request.label, scopes, "capture.label_length")
+            .await?;
     Ok((StatusCode::CREATED, Json(response)))
 }
 

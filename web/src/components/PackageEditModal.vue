@@ -14,9 +14,16 @@ const props = defineProps<{
   scripts: string[]
   /** Offers "rename the folder too"; only the download list can move data (RD-106-13). */
   canRenameFolder?: boolean
+  /**
+   * The package's own speed limit in MiB/s, null for none (RD-1100-01). Left out, the field is
+   * not offered: the LinkGrabber's packages have no transfers to limit yet.
+   */
+  speedLimitMiB?: number | null
+  /** False while the package holds a torrent, which the engine cannot limit on its own. */
+  speedLimitSupported?: boolean
 }>()
 const emit = defineEmits<{
-  close: [result: { name: string, password: string | null, clearPassword: boolean, postprocessLevel: PostprocessLevel | null, script: string | null, renameFolder: boolean } | null]
+  close: [result: { name: string, password: string | null, clearPassword: boolean, postprocessLevel: PostprocessLevel | null, script: string | null, renameFolder: boolean, speedLimitMiB?: number | null } | null]
 }>()
 const { t } = useI18n()
 const name = ref(props.name)
@@ -25,6 +32,15 @@ const clearPassword = ref(false)
 const renameFolder = ref(false)
 const level = ref<string>(props.postprocessLevel ?? INHERIT_LEVEL)
 const script = ref<string>(props.script ?? INHERIT_LEVEL)
+const speedLimitOffered = props.speedLimitMiB !== undefined
+const speedLimit = ref<number | string | null>(props.speedLimitMiB ?? null)
+
+/** The entered limit in MiB/s; empty, zero or not a number is no limit of its own. */
+function enteredSpeedLimit(): number | null {
+  if (speedLimit.value === null || speedLimit.value === '') return null
+  const value = Number(speedLimit.value)
+  return Number.isFinite(value) && value > 0 ? value : null
+}
 
 /**
  * The name field, focused with its whole text selected when the dialog opens (RD-130-13), so a
@@ -60,7 +76,8 @@ function submit(): void {
     clearPassword: clearPassword.value,
     postprocessLevel: level.value === INHERIT_LEVEL ? null : level.value as PostprocessLevel,
     script: script.value === INHERIT_LEVEL ? null : script.value,
-    renameFolder: renameFolder.value && trimmed !== props.name
+    renameFolder: renameFolder.value && trimmed !== props.name,
+    ...(speedLimitOffered && props.speedLimitSupported ? { speedLimitMiB: enteredSpeedLimit() } : {})
   })
 }
 </script>
@@ -89,6 +106,26 @@ function submit(): void {
         </UFormField>
         <UFormField :label="t('downloads.edit_package.script')" :description="props.scripts.length ? t('downloads.edit_package.script_hint') : t('downloads.edit_package.script_empty')">
           <USelect v-model="script" :items="scriptItems" value-key="value" class="w-full font-mono" />
+        </UFormField>
+        <UFormField
+          v-if="speedLimitOffered"
+          :label="t('downloads.edit_package.speed_limit')"
+          :description="props.speedLimitSupported ? t('downloads.edit_package.speed_limit_hint') : t('downloads.edit_package.speed_limit_unsupported')"
+        >
+          <UInput
+            v-model.number="speedLimit"
+            type="number"
+            min="0"
+            step="0.5"
+            class="w-full"
+            data-testid="package-speed-limit"
+            :disabled="!props.speedLimitSupported"
+            :placeholder="t('downloads.toolbar.speed_limit_placeholder')"
+            :aria-label="t('downloads.edit_package.speed_limit_aria')"
+            :ui="{ base: 'pe-12 font-mono', trailing: 'pointer-events-none pe-2' }"
+          >
+            <template #trailing><span class="font-mono text-[10px] text-muted">MiB/s</span></template>
+          </UInput>
         </UFormField>
       </form>
     </template>

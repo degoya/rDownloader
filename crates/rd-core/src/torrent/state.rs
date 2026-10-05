@@ -146,6 +146,55 @@ impl SeedAccounting {
     }
 }
 
+/// A recheck of a torrent's data against its piece hashes (RD-1100-10).
+///
+/// Written when the check is asked for and completed by whoever adds the torrent next — the
+/// seed that is re-added in place, or the runner when the row starts again — once the engine
+/// has hashed every piece.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, utoipa::ToSchema)]
+pub struct TorrentRecheck {
+    pub requested_at: chrono::DateTime<chrono::Utc>,
+    /// `None` while the check has not run yet or is still running.
+    pub finished_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Bytes of the selected files whose pieces verified.
+    pub verified_bytes: u64,
+    /// Bytes of the selected files; anything short of it is fetched again.
+    pub total_bytes: u64,
+}
+
+impl TorrentRecheck {
+    /// A check asked for now that has not run yet.
+    #[must_use]
+    pub fn requested(now: chrono::DateTime<chrono::Utc>) -> Self {
+        Self {
+            requested_at: now,
+            finished_at: None,
+            verified_bytes: 0,
+            total_bytes: 0,
+        }
+    }
+
+    /// Whether the check has been asked for and has not reported yet.
+    #[must_use]
+    pub fn is_pending(&self) -> bool {
+        self.finished_at.is_none()
+    }
+}
+
+/// The journal of a torrent whose files are being moved to another folder (RD-1100-10).
+///
+/// Written before the first file moves and cleared once the move is finished or taken back.
+/// A start that finds it knows a move was interrupted: when the package already names `to`
+/// the move is finished, otherwise it is taken back to `from`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, utoipa::ToSchema)]
+pub struct TorrentRelocation {
+    /// The package folder the files are moved out of.
+    pub from: String,
+    /// The package folder the files are moved into.
+    pub to: String,
+    pub started_at: chrono::DateTime<chrono::Utc>,
+}
+
 /// Torrent state stored on a queue row.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -158,6 +207,12 @@ pub struct TorrentJobState {
     pub open_tier: Option<TorrentFilePriority>,
     pub seeding: SeedingPolicyOverride,
     pub seed: SeedAccounting,
+    /// The last recheck asked for, with its result once it ran.
+    pub recheck: Option<TorrentRecheck>,
+    /// The move of the torrent's files that is under way; `None` when none is.
+    pub relocation: Option<TorrentRelocation>,
+    /// Why the last move was taken back; cleared when the next one starts.
+    pub relocation_error: Option<String>,
 }
 
 impl Default for TorrentJobState {
@@ -169,6 +224,9 @@ impl Default for TorrentJobState {
             open_tier: None,
             seeding: SeedingPolicyOverride::default(),
             seed: SeedAccounting::default(),
+            recheck: None,
+            relocation: None,
+            relocation_error: None,
         }
     }
 }
@@ -195,7 +253,10 @@ impl TorrentJobState {
 mod tests {
     use chrono::{TimeZone, Utc};
 
-    use super::{SeedAccounting, TorrentCandidateState, TorrentJobState, TorrentMetadataState};
+    use super::{
+        SeedAccounting, TorrentCandidateState, TorrentJobState, TorrentMetadataState,
+        TorrentRecheck,
+    };
 
     #[test]
     fn a_default_candidate_waits_for_metadata() {
@@ -250,5 +311,16 @@ mod tests {
         assert!(state.metadata.is_none());
         assert!(state.seeding.is_empty());
         assert_eq!(state.seed.accumulated_seconds, 0);
+        assert!(state.recheck.is_none());
+        assert!(state.relocation.is_none());
+    }
+
+    #[test]
+    fn a_requested_recheck_is_pending_until_it_reports() {
+        let now = Utc.timestamp_opt(1_000, 0).single().expect("valid");
+        let mut recheck = TorrentRecheck::requested(now);
+        assert!(recheck.is_pending());
+        recheck.finished_at = Some(now);
+        assert!(!recheck.is_pending());
     }
 }

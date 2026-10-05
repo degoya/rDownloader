@@ -1,29 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api, responseError } from '@/api/client'
-import type {
-  AuthProfile,
-  CandidateAuthProfileMode,
-  LinkCandidate,
-  MediaFormatCriteria,
-  MediaFormatsResponse,
-  MediaVariant,
-  ResolvedRemoteListing,
-  TorrentPlanRequest
-} from '@/api/types'
+import type { LinkCandidate, MediaVariant } from '@/api/types'
+import CollectorCandidateRequest from '@/components/CollectorCandidateRequest.vue'
 import CollectorCandidateSources from '@/components/CollectorCandidateSources.vue'
+import CollectorMirrorBadge from '@/components/CollectorMirrorBadge.vue'
 import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import MediaFormatSelector from '@/components/MediaFormatSelector.vue'
 import RemoteFileTree from '@/components/RemoteFileTree.vue'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
 import { queuedCount } from '@/composables/useQueuedSources'
 import { useAccountProviders } from '@/composables/useAccountProviders'
-import { useConfirm } from '@/composables/useConfirm'
+import { useCandidateDetails } from '@/composables/useCandidateDetails'
 import { translateServerMessage } from '@/i18n/server'
-import { useCollectorStore } from '@/stores/collector'
-import { useTorrentsStore } from '@/stores/torrents'
 import type { MirrorGroup } from '@/utils/mirrorGroups'
 import { displayName, hosterOf } from '@/utils/collectorSort'
 import { formatBytes, formatDuration, formatMoment } from '@/utils/format'
@@ -129,7 +119,14 @@ const candidateError = computed(() => props.candidate.error
 // Unchecked links stay selectable: the user may still start them, and the download now
 // reports a real error instead of silently storing the hoster's landing page.
 const selectable = computed(() => isEnqueueable(props.candidate.state))
-const media = computed(() => props.candidate.media ?? null)
+const {
+  request, media, expanded, expandable, expand,
+  consent, consentBusy, withdrawConsent,
+  torrent, torrentDetail, torrentBusy, torrentError, savePlan,
+  listing, listingDetail, listingBusy, listingError, saveListingPlan,
+  mediaFormats, mediaBusy, mediaError, selectorRef, previewMedia, resolveOutput,
+  authProfiles, applyAuthProfile, applyMedia, sources
+} = useCandidateDetails(() => props.candidate)
 /**
  * Fields an enricher plugin added. Shown with their source and their age, because a value the
  * application did not resolve itself has to be recognisable as somebody else's answer — and a
@@ -173,8 +170,6 @@ const mediaMeta = computed(() => {
   return [title, formatDuration(media.value.duration_seconds), media.value.uploader].filter(Boolean).join(' · ')
 })
 
-/** Captured browser-download request; shown read-only so the user sees it before queueing. */
-const request = computed(() => props.candidate.request ?? null)
 /**
  * The page the link came from: the referrer of a captured browser download, else the page a
  * media link was extracted from. A link nobody saw on a page offers nothing (RD-190-21).
@@ -182,165 +177,6 @@ const request = computed(() => props.candidate.request ?? null)
 const sourcePage = computed(() => sourcePageUrl(request.value?.referrer, media.value?.page_url))
 /** A group row stands for all its mirrors, so it copies all of them; any other row its own. */
 const rowLinks = computed(() => props.mirrorGroup ? props.mirrorGroup.members.map(member => member.url) : [props.candidate.url])
-const expanded = ref(false)
-
-/**
- * An approval that was granted but whose link is still here.
- *
- * The enqueue asks only once: a candidate that already carries a consent is queued without
- * the dialog. An approval left behind by a cancelled or failed enqueue would therefore send
- * the captured credentials on the next attempt in silence, so it is named in the row and can
- * be taken back from the details panel.
- */
-const consent = computed(() => props.candidate.replay_consent ?? null)
-const consentBusy = ref(false)
-const confirm = useConfirm()
-
-async function withdrawConsent(): Promise<void> {
-  const confirmed = await confirm({
-    title: t('linkgrabber.replay.consent.withdraw_title'),
-    description: t('linkgrabber.replay.consent.withdraw_description'),
-    confirmLabel: t('linkgrabber.replay.consent.withdraw'),
-    confirmIcon: 'i-lucide-shield-off',
-    destructive: true
-  })
-  if (!confirmed) return
-  consentBusy.value = true
-  await collector.revokeReplayConsent(props.candidate.id)
-  consentBusy.value = false
-}
-
-/** Torrent summary carried in the list; the file tree itself is fetched on demand. */
-const torrents = useTorrentsStore()
-const torrent = computed(() => props.candidate.torrent ?? null)
-const torrentDetail = computed(() => torrents.detail('candidate', props.candidate.id))
-const torrentBusy = computed(() => torrents.isBusy('candidate', props.candidate.id))
-const torrentError = computed(() => torrents.errorOf('candidate', props.candidate.id))
-/** Remote directory summary carried in the list; the tree itself is fetched on demand. */
-const listing = computed(() => props.candidate.listing ?? null)
-const listingDetail = ref<ResolvedRemoteListing | null>(null)
-const listingBusy = ref(false)
-const listingError = ref<string | null>(null)
-/** Full format inventory of a media link; fetched on demand, never carried in the list. */
-const mediaFormats = ref<MediaFormatsResponse | null>(null)
-const mediaBusy = ref(false)
-const mediaError = ref<string | null>(null)
-const selectorRef = ref<InstanceType<typeof MediaFormatSelector> | null>(null)
-const collector = useCollectorStore()
-/** The mirrors a Metalink parser stated for this link (RD-150-03), reviewed before queueing. */
-const sources = computed(() => props.candidate.sources ?? [])
-const expandable = computed(() =>
-  Boolean(request.value || torrent.value || listing.value || media.value || sources.value.length)
-)
-
-/** Loads the tree the first time the row is opened; magnets resolve their metadata first. */
-async function expand(): Promise<void> {
-  expanded.value = !expanded.value
-  if (!expanded.value) return
-  if (listing.value && !listingDetail.value) await loadListing()
-  if (media.value && !mediaFormats.value) await Promise.all([loadMediaFormats(), loadAuthProfiles()])
-  if (!torrent.value || torrentDetail.value) return
-  if (torrent.value.metadata_state === 'pending') {
-    await torrents.resolveMetadata(props.candidate.id)
-  } else {
-    await torrents.load('candidate', props.candidate.id)
-  }
-}
-
-/** The inventory is fetched per candidate so the list response stays bounded. */
-async function loadMediaFormats(): Promise<void> {
-  mediaBusy.value = true
-  mediaFormats.value = await collector.fetchMediaFormats(props.candidate.id)
-  mediaBusy.value = false
-  // A link probed before the selector existed has no stored inventory; the preset dropdown
-  // in the row keeps working, so this is a missing extra rather than a failure.
-  mediaError.value = mediaFormats.value ? null : t('linkgrabber.media.no_inventory')
-}
-
-/** Live preview while filters are being changed; a refusal is a result, not an error. */
-async function previewMedia(criteria: MediaFormatCriteria): Promise<void> {
-  mediaBusy.value = true
-  const { resolution, code } = await collector.previewMediaSelection(props.candidate.id, criteria)
-  mediaBusy.value = false
-  selectorRef.value?.setResolution(resolution, code)
-}
-
-/** Server-side template preview; the same evaluator the download uses. */
-function resolveOutput(template: string) {
-  return collector.previewMediaOutput(props.candidate.id, template)
-}
-
-/**
- * Cookie profiles are loaded once for the row rather than per keystroke: the list is small,
- * changes rarely, and the picker only needs it while the panel is open.
- */
-const authProfiles = ref<AuthProfile[]>([])
-
-async function loadAuthProfiles(): Promise<void> {
-  const response = await api.GET('/api/v1/auth-profiles')
-  authProfiles.value = response.data ?? []
-}
-
-async function applyAuthProfile(mode: CandidateAuthProfileMode, profileId?: string): Promise<void> {
-  mediaBusy.value = true
-  await collector.setAuthProfile(props.candidate.id, mode, profileId)
-  mediaBusy.value = false
-}
-
-async function applyMedia(criteria: MediaFormatCriteria): Promise<void> {
-  mediaBusy.value = true
-  const stored = await collector.setMediaSelection(props.candidate.id, criteria)
-  mediaBusy.value = false
-  if (stored) await loadMediaFormats()
-}
-
-/** The full tree is fetched per candidate so the list response stays bounded. */
-async function loadListing(): Promise<void> {
-  listingBusy.value = true
-  const response = await api.GET('/api/v1/collector/candidates/{id}/listing', {
-    params: { path: { id: props.candidate.id } }
-  })
-  listingBusy.value = false
-  if (!response.data) {
-    listingError.value = responseError(response)
-    return
-  }
-  listingError.value = null
-  listingDetail.value = response.data
-}
-
-async function saveListingPlan(excluded: string[]): Promise<void> {
-  listingBusy.value = true
-  const response = await api.PUT('/api/v1/collector/candidates/{id}/listing/plan', {
-    params: { path: { id: props.candidate.id } },
-    body: { excluded }
-  })
-  listingBusy.value = false
-  if (!response.data) {
-    listingError.value = responseError(response)
-    return
-  }
-  listingError.value = null
-  listingDetail.value = response.data
-}
-
-function savePlan(plan: TorrentPlanRequest): void {
-  void torrents.savePlan('candidate', props.candidate.id, plan)
-}
-/** Labelled rows of the details panel, empty values dropped. */
-const requestFields = computed(() => {
-  const value = request.value
-  if (!value) return []
-  return [
-    ['effective_url', value.effective_url],
-    ['method', value.method],
-    ['referrer', value.referrer],
-    ['user_agent', value.user_agent],
-    ['content_disposition', value.content_disposition]
-  ].filter((entry): entry is [string, string] => Boolean(entry[1]))
-})
-/** `name: value` lines of the allowlisted headers. */
-const requestHeaders = computed(() => (request.value?.headers ?? []).map(header => `${header.name}: ${header.value}`))
 
 function variantLabel(variant: MediaVariant): string {
   const parts = [variant.label]
@@ -416,38 +252,6 @@ const actions = computed(() => [[
     onSelect: () => emit('remove', props.candidate.id)
   }
 ]])
-/**
- * The mirror group this row stands for, and how sure it is (RD-110-19).
- *
- * The three sources are not equally strong, so the badge does not only change colour — it
- * changes the noun. `5 mirrors` is a statement; `5 possible mirrors` is a proposal, and
- * somebody who does not see the difference in colour still reads the difference in the word.
- */
-const mirrorLabel = computed(() => {
-  const group = props.mirrorGroup
-  if (!group) return ''
-  const count = group.members.length
-  return group.source === 'name'
-    ? t('linkgrabber.mirror.proposed', { count }, count)
-    : t('linkgrabber.mirror.mirrors', { count }, count)
-})
-const mirrorHint = computed(() => {
-  const group = props.mirrorGroup
-  if (!group) return ''
-  const evidence = t(`linkgrabber.mirror.hint_${group.source}`)
-  return group.onlineCount === 0
-    ? `${evidence}\n${t('linkgrabber.mirror.all_offline_hint', { count: group.members.length })}`
-    : `${evidence}\n${t('linkgrabber.mirror.online_of', { online: group.onlineCount, total: group.members.length })}`
-})
-const mirrorColor = computed<'primary' | 'neutral' | 'warning'>(() => {
-  switch (props.mirrorGroup?.source) {
-    case 'declared': return 'primary'
-    case 'name': return 'warning'
-    default: return 'neutral'
-  }
-})
-/** The proposal wears a dashed edge as well as its own word, so it reads as unfinished. */
-const mirrorClass = computed(() => props.mirrorGroup?.source === 'name' ? 'border border-dashed' : '')
 const mirrorToggleLabel = computed(() => props.mirrorOpen
   ? t('linkgrabber.mirror.collapse')
   : t('linkgrabber.mirror.expand'))
@@ -531,16 +335,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         <!-- The group, and how sure it is. The word changes with the evidence, not only the
              colour: a proposal that merely looked different would read as a fact to anybody
              who does not see the difference (RD-110-19). -->
-        <UBadge
-          v-if="props.mirrorGroup"
-          :color="mirrorColor"
-          :variant="props.mirrorGroup.source === 'declared' ? 'subtle' : 'soft'"
-          size="sm"
-          class="shrink-0"
-          :class="mirrorClass"
-          :icon="props.mirrorGroup.source === 'name' ? 'i-lucide-circle-help' : 'i-lucide-layers'"
-          :title="mirrorHint"
-        >{{ mirrorLabel }}</UBadge>
+        <CollectorMirrorBadge v-if="props.mirrorGroup" :group="props.mirrorGroup" />
         <UBadge v-if="props.mirrorGroup && props.mirrorGroup.onlineCount === 0" color="error" variant="soft" size="sm" class="shrink-0" role="img" icon="i-lucide-cloud-off" :title="t('linkgrabber.mirror.all_offline_hint', { count: props.mirrorGroup.members.length })" :aria-label="t('linkgrabber.mirror.all_offline')" />
         <UBadge v-if="props.mirrorGroup?.pinned" color="neutral" variant="outline" size="sm" class="shrink-0" role="img" icon="i-lucide-pin" :title="t('linkgrabber.mirror.pinned_hint')" :aria-label="t('linkgrabber.mirror.pinned')" />
       </div>
@@ -640,31 +435,12 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         @change="saveListingPlan"
       />
     </div>
-    <div v-if="request && expanded" class="grid gap-1 border-t border-muted px-12 py-2 text-xs text-muted">
-      <p v-for="[key, value] in requestFields" :key="key" class="flex min-w-0 items-baseline gap-2">
-        <span class="w-36 shrink-0 text-toned">{{ t(`linkgrabber.candidate.request.${key}`) }}</span>
-        <span class="min-w-0 flex-1 truncate font-mono" :title="value">{{ value }}</span>
-      </p>
-      <p v-if="requestHeaders.length" class="flex min-w-0 items-baseline gap-2">
-        <span class="w-36 shrink-0 text-toned">{{ t('linkgrabber.candidate.request.headers') }}</span>
-        <span class="min-w-0 flex-1 truncate font-mono" :title="requestHeaders.join('\n')">{{ requestHeaders.join(' · ') }}</span>
-      </p>
-      <p v-if="consent" class="flex min-w-0 items-center gap-2">
-        <span class="w-36 shrink-0 text-toned">{{ t('linkgrabber.replay.consent.granted') }}</span>
-        <span class="min-w-0 flex-1 truncate">{{ t('linkgrabber.replay.consent.granted_at', { at: formatMoment(consent.granted_at) }) }}</span>
-        <UButton
-          icon="i-lucide-shield-off"
-          :label="t('linkgrabber.replay.consent.withdraw')"
-          size="xs"
-          color="error"
-          variant="ghost"
-          class="shrink-0"
-          :title="t('linkgrabber.replay.consent.withdraw')"
-          :disabled="consentBusy"
-          :loading="consentBusy"
-          @click="withdrawConsent"
-        />
-      </p>
-    </div>
+    <CollectorCandidateRequest
+      v-if="request && expanded"
+      :request="request"
+      :consent="consent"
+      :consent-busy="consentBusy"
+      @withdraw="withdrawConsent"
+    />
   </div>
 </template>

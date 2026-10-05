@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**93 capabilities, 68 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 413 REST operations, 213 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**98 capabilities, 73 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 425 REST operations, 223 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -42,6 +42,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Choosing the bundled services | Setup wizard, Settings > Plugins | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
 | Remote jobs | Remote jobs | 6 | `choose_remote_job_entries`, `forget_remote_job`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
+| Traffic per Usenet server and its quota | Statistics, Settings > Usenet | 2 | `get_usenet_server_traffic`, `set_usenet_server_quota` |
 | The log store | Logs | 1 | `list_log_records` |
 | The audit log | Audit | 1 | `list_audit_records` |
 | Clearing logs, audit records and statistics | Settings > System | 4 | `clear_audit_records`, `clear_log_records`, `clear_transfer_stats`, `get_data_reset_preview` |
@@ -58,7 +59,9 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Unpacking on demand | Downloads | 4 | `extract_downloads`, `extract_packages` |
 | The mirrors of a download and their health | Downloads > transfer details | 1 | `get_download_sources` |
 | Torrent detail and seeding | Downloads > torrent panel | 18 | `get_torrent_details`, `get_torrent_engine`, `list_network_interfaces`, `set_category_seeding`, `set_torrent_file_plan`, `set_torrent_seeding`, `stop_seeding`, `update_torrent_trackers` |
+| Rechecking a torrent and moving its files | Downloads > torrent menu | 2 | `move_torrent`, `recheck_torrent` |
 | Post-processing inventory and queue | Settings > Post-processing | 8 | `get_nzb_import`, `get_package_postprocess`, `list_postprocess_options`, `list_postprocess_queue`, `test_malware_scanner`, `update_category_postprocess` |
+| Sort and rename templates for series and films | Settings > Routing > category | 1 | `preview_category_sorting` |
 | Managed external tools | Settings > Tools | 6 | `list_managed_tools`, `manage_tool`, `refresh_tool_manifest` |
 | Storage capacity | Settings > Storage | 2 | `get_storage_capacity`, `resume_storage_target` |
 | File collision policies | Settings > General, Settings > Routing, package editor | 4 | `get_package_collision_policy`, `list_collision_policies`, `set_category_collision_policy`, `set_package_collision_policy` |
@@ -66,6 +69,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Source and content duplicates | Downloads > package, LinkGrabber | 3 | `dedupe_download`, `get_download_duplicates`, `lookup_duplicates` |
 | Storage history, reuse and the content index | Settings > Storage | 4 | `check_content_index`, `get_link_support`, `get_storage_reuse`, `list_storage_operations` |
 | Clearing the storage history and the content index | Settings > Storage | 2 | `clear_content_index`, `clear_storage_operations` |
+| Download history: search, add again, clear | History | 3 | `clear_download_history`, `list_download_history`, `readd_history_entry` |
 | About rDownloader | Settings > About | 2 | `get_about` |
 | Application updates | Settings > System | 2 | `check_for_updates`, `get_update_status` |
 | Writing a site rule | Settings > Site rules | 4 | `create_site_rule`, `delete_site_rule`, `test_site_rule`, `update_site_rule` |
@@ -79,7 +83,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Notification history and the destination catalogue | Settings > Notifications | 2 | `list_notification_deliveries`, `list_notification_destinations` |
 | Clearing the notification history and discarding pending notifications | Settings > Notifications | 2 | `clear_notification_deliveries`, `discard_pending_notification_deliveries` |
 | Subscription items, runs and forced polls | Subscriptions | 9 | `clear_subscription_history`, `get_subscription_review_summary`, `list_subscription_items`, `list_subscription_runs`, `poll_subscription`, `review_pending_subscription_items`, `review_subscription_item`, `set_subscription_enabled` |
-| Searching indexers and taking hits into the LinkGrabber | LinkGrabber > Indexer search | 3 | `grab_indexer_results`, `list_indexers`, `search_indexers` |
+| Searching Newznab and Torznab indexers and taking hits into the LinkGrabber | LinkGrabber > Indexer search | 3 | `grab_indexer_results`, `list_indexers`, `search_indexers` |
 | Stream schedules, runs and recording now | Streams | 6 | `create_stream_schedule`, `delete_stream_schedule`, `list_stream_runs`, `list_stream_schedules`, `record_stream_now`, `update_stream_schedule` |
 | The diagnostic bundle: preview | Logs | 1 | `preview_diagnostic_bundle` |
 | Metrics | - | 1 | `get_metrics` |
@@ -88,6 +92,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Trying a routing regular expression | Settings > Routing | 1 | `test_category_regex` |
 | Pausing the whole queue for a while | Downloads, transfer rail | 3 | `get_queue_pause`, `pause_queue`, `resume_queue` |
 | Switching a bandwidth profile by hand, and the bandwidth status | Settings > Bandwidth | 4 | `get_bandwidth_status`, `list_bandwidth_profiles`, `return_to_bandwidth_schedule`, `switch_bandwidth_profile` |
+| A package's own speed limit | Downloads > package editor | 2 | `get_package_speed_limit`, `set_package_speed_limit` |
 
 ### Deliberately out
 
@@ -110,7 +115,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Approving and fetching a diagnostic bundle | Logs | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Reconnecting on demand | Settings > Network | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Choosing a stored browser profile for queued work | Downloads, LinkGrabber | 2 | Each route names one of the stored browser profiles, and listing those is part of signing in at a provider, which the owner decided on 2026-09-23 to keep out. A tool here would take an id no tool can supply -- the gap RD-120-32 exists to close, not one to open. |
-| The desktop capture agent | the agent, not the web UI | 15 | Not a user-facing capability but the agent's own contract, priced with its own capture: scope. No api: token reaches it, so a tool over it could not be called. |
+| The desktop capture agent | the agent, not the web UI | 17 | Not a user-facing capability but the agent's own contract, priced with its own capture: scopes. No api: token reaches it, so a tool over it could not be called. The tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue already give MCP. |
 | Controlling one download by its own route | Downloads | 5 | control_downloads already does all five for one id or many, over the bulk route. A second spelling of the same act is one more thing for a model to choose between and nothing it could not do before. |
 | The live rate series | Downloads chart | 1 | A chart's data series, sampled per second. get_status_summary answers how fast the queue is going in one number, and get_transfer_stats answers it over time. |
 | Editing bandwidth profiles and the weekly schedule | Settings > Bandwidth | 6 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. Reading the status, listing the profiles and switching one on for a while are tools (RD-190-20). |

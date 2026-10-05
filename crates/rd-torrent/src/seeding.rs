@@ -169,6 +169,21 @@ pub(crate) async fn supervise(service: TorrentService) {
                 continue;
             };
             let stats = handle.stats();
+            if !stats.finished {
+                // Its data is being hashed — after a restart, a recheck or a move — or a recheck
+                // found pieces it is fetching again (RD-1100-10). No limit ends a seed with
+                // incomplete data; a manual stop still does.
+                let _ = service
+                    .inner
+                    .database
+                    .set_download_progress(
+                        download_id,
+                        stats.progress_bytes,
+                        Some(stats.total_bytes),
+                    )
+                    .await;
+                continue;
+            }
             // Read per torrent, not once per tick: a category or torrent override can
             // differ from the global settings and from every other seed in the loop.
             let policy = service.effective_policy(download_id).await;

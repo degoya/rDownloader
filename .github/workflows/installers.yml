@@ -193,7 +193,11 @@ jobs:
             useradd --create-home tester
             db=/home/tester/.local/share/rdownloader/data/rdownloader.sqlite3
             serve() {
-              runuser -u tester -- bash -c "cd /home/tester && rdownloader serve > /tmp/serve.log 2>&1 & echo \$! > /tmp/serve.pid"
+              # "cd && rdownloader serve &" backgrounds the whole list: $! is then a subshell, the
+              # kill below ends only that, and the service lives on holding the port, so the start
+              # after the upgrade answered the health check from the old process (1.9.1, 1.10).
+              # With ";" only rdownloader is in the background and $! is its own pid.
+              runuser -u tester -- bash -c "cd /home/tester || exit 1; rdownloader serve > /tmp/serve.log 2>&1 & echo \$! > /tmp/serve.pid"
               curl --fail --silent --show-error --retry 300 --retry-delay 1 --retry-connrefused \
                 http://127.0.0.1:8710/api/v1/health > /dev/null || { cat /tmp/serve.log; exit 1; }
               kill "$(cat /tmp/serve.pid)"

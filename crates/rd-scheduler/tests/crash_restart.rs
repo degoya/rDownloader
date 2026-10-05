@@ -504,30 +504,49 @@ async fn a_crash_before_the_original_is_removed_ends_with_one_verified_copy() {
     );
 }
 
-/// Every registered crash point for this crate has a case here.
+/// Every registered crash point for this crate has a case somewhere in the crate.
 ///
 /// Registering a point and never arming it would list an invariant nobody checks, which reads
 /// as coverage and is not.
 #[test]
 fn every_scheduler_crash_point_is_exercised_by_a_case() {
-    // Four sources: two crash points sit on `pub(crate)` paths that no integration test can
-    // reach, so their cases are unit tests beside the code they interrupt (the mirror fallback,
-    // and the auto-retry sweep, RD-191-12); the timed pause's case lives with the other
-    // timed-pause tests (RD-190-20).
-    let source = concat!(
-        include_str!("crash_restart.rs"),
-        include_str!("../src/mirror_fallback_tests.rs"),
-        include_str!("../src/auto_retry_tests.rs"),
-        include_str!("queue_pause.rs"),
-    );
+    // Every source of the crate: two crash points sit on `pub(crate)` paths that no integration
+    // test can reach, so their cases are unit tests beside the code they interrupt (the mirror
+    // fallback, and the auto-retry sweep, RD-191-12); the timed pause's case lives with the
+    // other timed-pause tests (RD-190-20).
+    let source = crate_sources();
     for point in rd_core::failpoint::CRASH_POINTS
         .iter()
         .filter(|point| point.owner == "rd-scheduler")
     {
         assert!(
             source.contains(&format!("FailpointGuard::once(\"{}\")", point.name)),
-            "{} is registered but no case in this file arms it",
+            "{} is registered but no case in this crate arms it",
             point.name
         );
     }
+}
+
+/// Every `.rs` file under this crate's `src/` and `tests/`, read at run time (RD-1100-13): a case
+/// may live in any test file, and a new one is found without a list naming it.
+fn crate_sources() -> String {
+    let root = std::path::PathBuf::from(
+        std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"),
+    );
+    let mut pending = vec![root.join("src"), root.join("tests")];
+    let mut source = String::new();
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.expect("read a source directory entry").path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                source.push_str(&std::fs::read_to_string(&path).expect("read a source file"));
+            }
+        }
+    }
+    source
 }

@@ -26,12 +26,28 @@ function server(id: string, name: string, priority: number) {
 }
 
 const SERVERS = [server('a', 'Unmetered', 10), server('b', 'Block', 20), server('c', 'Backup', 30)]
+const GIB = 1024 ** 3
+/** What each server delivered (RD-1100-05); the block account's quota is used up. */
+const TRAFFIC = {
+  servers: [
+    { server_id: 'a', name: 'Unmetered', enabled: true, today: GIB, week: GIB, month: 2 * GIB, year: 3 * GIB, total: 4 * GIB, quota: null },
+    { server_id: 'b', name: 'Block', enabled: true, today: 0, week: 0, month: 0, year: GIB, total: GIB, quota: null }
+  ]
+}
+const BLOCK_QUOTA = { limit_bytes: GIB, action: 'pause', used_bytes: GIB, reset_on: null, reached_at: '2026-10-04T10:00:00Z' }
 const put = vi.hoisted(() => vi.fn())
+const quotaPut = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/client', () => ({
   api: {
-    GET: vi.fn(async (path: string) => ({ data: path.includes('usenet/servers') ? SERVERS : [] })),
+    GET: vi.fn(async (path: string) => ({
+      data: path === '/api/v1/stats/usenet-servers' ? TRAFFIC : path.includes('usenet/servers') ? SERVERS : []
+    })),
     PUT: (path: string, init: { params: { path: { id: string } }, body: { priority: number } }) => {
+      if (path.endsWith('/quota')) {
+        quotaPut(init.params.path.id, init.body)
+        return Promise.resolve({ data: { ...SERVERS[1], quota: { ...BLOCK_QUOTA, limit_bytes: 5 * GIB, used_bytes: 0, reached_at: null } } })
+      }
       put(init.params.path.id, init.body.priority)
       return Promise.resolve({ data: SERVERS[0] })
     },
@@ -134,6 +150,44 @@ describe('SettingsUsenetTab duplicate', () => {
     const [path, init] = vi.mocked(api.POST).mock.calls[0] as unknown as [string, { body: Record<string, unknown> }]
     expect(path).toBe('/api/v1/usenet/servers')
     expect(init.body).toMatchObject({ name: 'Block (copy)', host: 'b.invalid', username: 'u', password: 'secret', priority: 40 })
+  })
+})
+
+describe('SettingsUsenetTab traffic and quota (RD-1100-05)', () => {
+  it('shows what each server delivered and a used-up quota', async () => {
+    const block = SERVERS[1] as Record<string, unknown>
+    block.quota = BLOCK_QUOTA
+    try {
+      await mount()
+      const row = await waitFor(() => {
+        const article = screen.getByText('Block').closest('article') as HTMLElement
+        within(article).getByText(/total 1\.0 GiB/)
+        return article
+      })
+      expect(within(row).getByText(en.quota.reached_pause)).toBeTruthy()
+      expect(within(row).getByText('1.0 GiB of 1.0 GiB used')).toBeTruthy()
+      const unmetered = screen.getByText('Unmetered').closest('article') as HTMLElement
+      expect(within(unmetered).getByText(en.quota.none)).toBeTruthy()
+      expect(within(unmetered).getByText('Today 1.0 GiB · 30 days 2.0 GiB · total 4.0 GiB')).toBeTruthy()
+    } finally {
+      delete block.quota
+    }
+  })
+
+  it('saves a quota in bytes with its action and reset day', async () => {
+    quotaPut.mockClear()
+    await mount()
+    const row = screen.getByText('Block').closest('article') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: en.quota.edit }))
+    await fireEvent.update(within(row).getByLabelText(en.quota.limit), '5')
+    await fireEvent.update(within(row).getByLabelText(en.quota.action), 'pause')
+    await fireEvent.update(within(row).getByLabelText(en.quota.reset_on), '2027-01-01')
+    await fireEvent.submit(within(row).getByLabelText(en.quota.limit).closest('form') as HTMLFormElement)
+
+    await waitFor(() => expect(quotaPut).toHaveBeenCalled())
+    expect(quotaPut).toHaveBeenCalledWith('b', { limit_bytes: 5 * GIB, action: 'pause', reset_on: '2027-01-01' })
+    expect(await screen.findByText(en.quota.saved)).toBeTruthy()
+    expect(within(row).getByText('0 B of 5.0 GiB used')).toBeTruthy()
   })
 })
 

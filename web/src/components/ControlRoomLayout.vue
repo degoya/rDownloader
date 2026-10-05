@@ -85,6 +85,8 @@ function setOpenGroups(value: unknown): void {
 }
 const items = computed<NavigationMenuItem[][]>(() => [[
   { label: t('nav.downloads'), icon: 'i-lucide-arrow-down-to-line', to: '/downloads', ...(downloadsBadge.value ? { badge: downloadsBadge.value } : {}) },
+  // What left the queue, right below it (RD-1100-04).
+  { label: t('nav.history'), icon: 'i-lucide-history', to: '/history' },
   { label: t('nav.linkgrabber'), icon: 'i-lucide-magnet', to: '/linkgrabber', ...(grabberCount.value ? { badge: String(grabberCount.value) } : {}) },
   { label: t('nav.streams'), icon: 'i-lucide-radio', to: '/streams', ...(streams.channels.length ? { badge: String(streams.channels.length) } : {}) },
   { label: t('nav.subscriptions'), icon: 'i-lucide-rss', to: '/subscriptions' },

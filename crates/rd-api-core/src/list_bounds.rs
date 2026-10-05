@@ -122,6 +122,17 @@ pub fn paged<T>(window: Option<PageWindow>, rows: Vec<T>) -> (HeaderMap, Json<Ve
     (headers, Json(page))
 }
 
+/// The header of a page the database cut itself (RD-1100-04): the same [`TOTAL_COUNT_HEADER`]
+/// [`paged`] sends, sent under the same rule — only when a window was asked for.
+#[must_use]
+pub fn total_header(window: Option<PageWindow>, total: u64) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    if window.is_some() {
+        headers.insert(TOTAL_COUNT_HEADER, HeaderValue::from(total));
+    }
+    headers
+}
+
 #[cfg(test)]
 mod tests {
     use super::{MAX_BULK, MAX_PAGE_LIMIT, PageWindow, TOTAL_COUNT_HEADER, paged, validate_bulk};

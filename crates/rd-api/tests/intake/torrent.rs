@@ -1397,3 +1397,60 @@ async fn removing_the_link_drops_the_kept_torrent() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert!(!kept.exists());
 }
+
+/// RD-1100-10: a torrent no runner holds is checked against its pieces the next time it starts,
+/// and its detail says a check was asked for.
+#[tokio::test]
+async fn a_recheck_of_a_queued_torrent_waits_for_its_next_start() {
+    let directory = tempfile::tempdir_in(".").expect("tempdir");
+    let router = common::parked_harness(directory.path()).await.router;
+    let id = enqueue(&router).await;
+
+    let (status, body) = send(
+        &router,
+        Request::post(format!("/api/v1/downloads/{id}/torrent/recheck"))
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    assert_eq!(body["code"], "torrent.recheck_scheduled");
+
+    let (status, detail) = send(
+        &router,
+        Request::get(format!("/api/v1/downloads/{id}/torrent"))
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert!(detail["recheck"]["requested_at"].is_string(), "{detail}");
+    assert!(detail["recheck"]["finished_at"].is_null(), "{detail}");
+    assert!(detail["relocation"].is_null(), "{detail}");
+}
+
+/// RD-1100-10: only a seed or a paused torrent moves; a queued one could be started by the
+/// scheduler while its files are on their way.
+#[tokio::test]
+async fn a_queued_torrent_is_not_moved() {
+    let directory = tempfile::tempdir_in(".").expect("tempdir");
+    let router = common::parked_harness(directory.path()).await.router;
+    let id = enqueue(&router).await;
+
+    let (status, body) = send(
+        &router,
+        Request::post(format!("/api/v1/downloads/{id}/torrent/move"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::json!({
+                    "storage_root_id": "0190e2a4-7b3c-7d5e-8f60-123456789abc",
+                    "relative_path": "archive"
+                })
+                .to_string(),
+            ))
+            .expect("request"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["code"], "torrent.move_state");
+}

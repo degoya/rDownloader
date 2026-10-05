@@ -8,6 +8,12 @@ import { fileURLToPath } from 'node:url'
 import { CHROME_MIN_VERSION, FIREFOX_MIN_VERSION, FIREFOX_ONLY_PERMISSIONS, TARGETS, archiveSummary, build, manifestFor } from '../build.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+
+// The one list of languages, shared with the web interface and the plugin catalogues
+// (RD-1100-09): a `required` language ships every key, an `in-progress` one any subset of them —
+// the browser falls back to `default_locale` (English) for each message it lacks.
+const languages = JSON.parse(readFileSync(join(root, '..', 'web', 'src', 'locales', 'languages.json'), 'utf8'))
+const requiredLocales = Object.keys(languages).filter((code) => languages[code].status === 'required')
 const base = JSON.parse(readFileSync(join(root, 'manifest.base.json'), 'utf8'))
 const ICONS = ['icons/icon16.png', 'icons/icon32.png', 'icons/icon48.png', 'icons/icon128.png']
 
@@ -173,11 +179,16 @@ test('every locale ships the same message keys as English, filled and with the s
   const locales = readdirSync(dir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
-  assert.deepEqual(locales.slice().sort(), ['de', 'en', 'es', 'fr'])
+  assert.deepEqual(locales.filter((locale) => !(locale in languages)), [], 'locales the language list does not name')
+  assert.deepEqual(requiredLocales.filter((locale) => !locales.includes(locale)), [], 'required locales missing')
 
   for (const locale of locales) {
     const catalogue = JSON.parse(readFileSync(join(dir, locale, 'messages.json'), 'utf8'))
-    assert.deepEqual(Object.keys(catalogue).sort(), keys, `locale ${locale}`)
+    if (requiredLocales.includes(locale)) {
+      assert.deepEqual(Object.keys(catalogue).sort(), keys, `locale ${locale}`)
+    } else {
+      assert.deepEqual(Object.keys(catalogue).filter((key) => !keys.includes(key)), [], `locale ${locale} has keys English lacks`)
+    }
     for (const [key, entry] of Object.entries(catalogue)) {
       // An empty message renders as an empty label, which reads as a bug in the UI rather than
       // as a missing translation.
@@ -202,7 +213,8 @@ test('a stray file in the locales directory is ignored, not fatal', () => {
     const locales = readdirSync(join(root, '_locales'), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
-    assert.deepEqual(locales.slice().sort(), ['de', 'en', 'es', 'fr'])
+    assert.deepEqual(locales.filter((locale) => !(locale in languages)), [])
+    assert.ok(requiredLocales.every((locale) => locales.includes(locale)))
   } finally {
     rmSync(stray, { force: true })
   }

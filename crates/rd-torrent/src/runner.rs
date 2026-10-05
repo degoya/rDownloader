@@ -72,6 +72,17 @@ impl ExternalRunner for TorrentRunner {
         cancellation: CancellationToken,
         _limits: rd_scheduler::RunLimits,
     ) -> Result<RunOutcome> {
+        // Its files are being carried to another folder right now; added here, the torrent
+        // would start writing into the folder that is being emptied (RD-1100-10).
+        if self.service.is_relocating(file.id).await {
+            return Ok(RunOutcome::Failed(Failure::coded(
+                FailureKind::Transient {
+                    retry_after_seconds: Some(60),
+                },
+                "torrent.relocation_running",
+                "The torrent's files are being moved",
+            )));
+        }
         let (session, generation) = match self.service.session_slot().await {
             Ok(slot) => slot,
             Err(error) => {
@@ -151,6 +162,8 @@ impl ExternalRunner for TorrentRunner {
                 }
             }
         }
+        // Every piece has been hashed now; a recheck asked for reports what it found.
+        self.service.finish_recheck(file.id, &handle).await;
         // The stored plan addresses files by index, which is only meaningful for the exact
         // metadata it was reviewed against. A different info hash means the source changed
         // underneath the row, so it is refused rather than applied to the wrong files.

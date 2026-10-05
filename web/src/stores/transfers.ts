@@ -5,14 +5,14 @@ import { api, responseError, resultMessage } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { Download, DownloadBulkAction, DownloadPackage, DownloadRates } from '@/api/types'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
-import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
+import { serverMessageFrom } from '@/i18n/server'
 import { batchError, combinedMessage, inBatches } from '@/utils/bulkBatches'
-import { MIB } from '@/utils/format'
 import {
   appendTransferRateHistory,
   type TransferRateHistoryPoint
 } from '@/utils/transferRates'
 
+import { useClearList } from './transfersClear'
 import { applyPostprocessProgress, applyTorrentStats, createQueueAnnouncer } from './transfersEvents'
 import { useTransferFigures } from './transfersFigures'
 import { usePackageActions } from './transfersPackages'
@@ -22,14 +22,13 @@ import {
   bulkRefusals,
   payloadError,
   t,
-  type ClearResult,
-  type ClearScope,
-  type ClearSkip,
   type DownloadSelection
 } from './transfersShared'
+import { useSpeedLimit } from './transfersSpeedLimit'
 
-// The store is split over `transfersShared`, `transfersFigures`, `transfersEvents` and
-// `transfersPackages` (RD-140-27); these stay importable from here, where callers look for them.
+// The store is split over `transfersShared`, `transfersFigures`, `transfersEvents`,
+// `transfersPackages` (RD-140-27), `transfersClear` and `transfersSpeedLimit` (WEB-13); these
+// stay importable from here, where callers look for them.
 export { PAUSABLE_STATES, PENDING_STATES, RESETTABLE_STATES, RESUMABLE_STATES } from './transfersShared'
 export type { ClearScope, PackageChange } from './transfersShared'
 
@@ -43,7 +42,6 @@ export const useTransfersStore = defineStore('transfers', () => {
    * would print the empty state for the first frames of its own mount (RD-104-07).
    */
   const settled = ref(false)
-  const clearing = ref(false)
   const controlsBusy = ref(false)
   const error = ref<string | null>(null)
   // A "service could not be reached" alert ends with the outage.
@@ -208,73 +206,6 @@ export const useTransfersStore = defineStore('transfers', () => {
   }
 
   /**
-   * Clears the list on the server, in one request, over whole packages.
-   *
-   * It used to pick single rows here and delete them one at a time, in up to fifteen rounds.
-   * Nothing in that chain asked what else was in the package, so "remove completed" tore the
-   * finished rows out of a package that was still downloading and left the files behind with
-   * nothing that knew they belonged together (RD-107-07). The rule is now one server-side
-   * decision, and what it refused to touch comes back with a reason.
-   *
-   * Through the client like every request (WEB-02): a dropped connection is a coded refusal, and
-   * `clearing` comes down in `finally` — it stood for good after a network error, and every
-   * later clear returned at once.
-   *
-   * `everything` is only sent from its own confirmation, so it carries `confirmed` — the server
-   * refuses that scope without it — and the answer to "delete partial files as well".
-   */
-  async function clear(scope: ClearScope, deletePartial = false): Promise<void> {
-    if (clearing.value) return
-    clearing.value = true
-    notice.value = null
-    error.value = null
-    const body = scope === 'everything' ? { scope, confirmed: true, delete_partial: deletePartial } : { scope }
-    let result: ClearResult | undefined
-    try {
-      const response = await api.POST('/api/v1/packages/clear', { body })
-      if (!response.data) {
-        // The refresh has to come first: on success it clears `error`, so a message set before
-        // it would be wiped and the refusal would read as a completed clear.
-        await refresh()
-        error.value = payloadError(response.error)
-        return
-      }
-      result = response.data
-    } finally {
-      clearing.value = false
-    }
-    const removed = result.removed
-    const skipped = result.skipped
-    await refresh()
-    if (!removed && !skipped.length) {
-      notice.value = t('downloads.notices.nothing_to_clear')
-      return
-    }
-    notice.value = [
-      t('downloads.notices.cleared_packages', { count: removed }, removed),
-      ...skipReasons(skipped)
-    ].join(' ')
-  }
-
-  /**
-   * One sentence per reason, not one per package: a list of thirty names is unreadable, and the
-   * reason is what tells somebody whether to wait or to act.
-   */
-  function skipReasons(skipped: ClearSkip[]): string[] {
-    const byCode = new Map<string, string[]>()
-    for (const entry of skipped) {
-      const names = byCode.get(entry.code)
-      if (names) names.push(entry.name)
-      else byCode.set(entry.code, [entry.name])
-    }
-    return [...byCode].map(([code, names]) => t('downloads.notices.clear_skipped', {
-      count: names.length,
-      reason: translateServerMessage({ code, message: code }),
-      names: names.slice(0, 3).join(', ')
-    }, names.length))
-  }
-
-  /**
    * Applies one action to many files server-side; returns the number of affected files.
    *
    * More files than one request may carry go in batches, and what they did and refused is
@@ -350,49 +281,10 @@ export const useTransfersStore = defineStore('transfers', () => {
     return true
   }
 
-  /** Global speed limit in MiB/s (null = unlimited), mirrored from the settings. */
-  const speedLimitMiB = ref<number | null>(null)
-  const speedLimitBusy = ref(false)
-
-  async function loadSpeedLimit(): Promise<void> {
-    const response = await api.GET('/api/v1/settings')
-    if (!response.data) return
-    speedLimitMiB.value = response.data.speed_limit_bytes_per_second
-      ? Number(response.data.speed_limit_bytes_per_second) / MIB
-      : null
-  }
-
-  async function setSpeedLimit(mib: number | null): Promise<boolean> {
-    speedLimitBusy.value = true
-    const current = await api.GET('/api/v1/settings')
-    if (!current.data) {
-      speedLimitBusy.value = false
-      error.value = responseError(current)
-      return false
-    }
-    const response = await api.PUT('/api/v1/settings', {
-      body: {
-        ...current.data,
-        speed_limit_bytes_per_second: mib && mib > 0 ? String(Math.round(mib * MIB)) : null
-      }
-    })
-    speedLimitBusy.value = false
-    if (!response.data) {
-      error.value = responseError(response)
-      return false
-    }
-    speedLimitMiB.value = response.data.speed_limit_bytes_per_second
-      ? Number(response.data.speed_limit_bytes_per_second) / MIB
-      : null
-    notice.value = speedLimitMiB.value
-      ? t('downloads.notices.speed_limit_set', { value: speedLimitMiB.value })
-      : t('downloads.notices.speed_limit_cleared')
-    error.value = null
-    return true
-  }
-
   const { extractPackages, forceExtractPackage, loadPostprocess, updatePackages, renamePackageFolder, deletePackages, reorderPackages, reorderDownloads } =
     usePackageActions({ error, notice, refresh })
+  const { clear, clearing } = useClearList({ error, notice, refresh })
+  const { loadSpeedLimit, setSpeedLimit, speedLimitBusy, speedLimitMiB, loadPackageSpeedLimit, setPackageSpeedLimit } = useSpeedLimit({ error, notice })
 
   let historyTimer: number | null = null
 
@@ -474,6 +366,8 @@ export const useTransfersStore = defineStore('transfers', () => {
     speedLimitBusy,
     speedHistory,
     loadSpeedLimit,
+    loadPackageSpeedLimit,
+    setPackageSpeedLimit,
     setSpeedLimit,
     renameDownload,
     extractPackages,

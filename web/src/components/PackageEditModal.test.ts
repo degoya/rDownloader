@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, ref } from 'vue'
 
@@ -14,7 +14,7 @@ import PackageEditModal from './PackageEditModal.vue'
  */
 const UInput = defineComponent({
   inheritAttrs: false,
-  props: { modelValue: { type: String, default: '' } },
+  props: { modelValue: { type: [String, Number], default: '' } },
   emits: ['update:modelValue'],
   setup(props, { attrs, emit, expose }) {
     const inputRef = ref<HTMLInputElement | null>(null)
@@ -103,5 +103,56 @@ describe('PackageEditModal — one field per row', () => {
     const order = Array.from(document.querySelectorAll('#package-edit-form label, #package-edit-form [role="switch"]'))
       .map(node => node.getAttribute('aria-label') ?? node.textContent?.trim())
     expect(order.slice(0, 4)).toEqual([edit.name, edit.rename_folder, edit.password, edit.clear_password])
+  })
+})
+
+/**
+ * RD-1100-01: the package's own speed limit, in MiB/s like the global one. Offered only where
+ * the caller read it, and disabled for a package holding a torrent, which takes none.
+ */
+describe('PackageEditModal — the package speed limit', () => {
+  function mountWithLimit(extra: Record<string, unknown>) {
+    return mountComponent(PackageEditModal, {
+      props: { name: 'Pkg', hasPassword: false, password: null, postprocessLevel: null, script: null, scripts: [], ...extra },
+      messages: { common, downloads },
+      stubs: { UInput, UModal }
+    })
+  }
+
+  async function submitted(view: ReturnType<typeof mountWithLimit>): Promise<Record<string, unknown>> {
+    await fireEvent.submit(document.getElementById('package-edit-form') as HTMLFormElement)
+    const [[result]] = view.emitted().close as [[Record<string, unknown>]]
+    return result
+  }
+
+  function limitInput(): HTMLInputElement | null {
+    return document.querySelector('[data-testid="package-speed-limit"]')
+  }
+
+  it('is not offered when the caller left it out, and the result carries none', async () => {
+    const view = mountWithLimit({})
+    expect(limitInput()).toBeNull()
+    expect(await submitted(view)).not.toHaveProperty('speedLimitMiB')
+  })
+
+  it('shows the current limit and hands back the new one', async () => {
+    const view = mountWithLimit({ speedLimitMiB: 1.5, speedLimitSupported: true })
+    const input = limitInput() as HTMLInputElement
+    expect(input.value).toBe('1.5')
+    expect(input.disabled).toBe(false)
+    await fireEvent.update(input, '2')
+    expect(await submitted(view)).toMatchObject({ speedLimitMiB: 2 })
+  })
+
+  it('reads an empty or zero field as no limit of its own', async () => {
+    const view = mountWithLimit({ speedLimitMiB: 3, speedLimitSupported: true })
+    await fireEvent.update(limitInput() as HTMLInputElement, '')
+    expect(await submitted(view)).toMatchObject({ speedLimitMiB: null })
+  })
+
+  it('is disabled for a package holding a torrent, and the result changes nothing', async () => {
+    const view = mountWithLimit({ speedLimitMiB: null, speedLimitSupported: false })
+    expect((limitInput() as HTMLInputElement).disabled).toBe(true)
+    expect(await submitted(view)).not.toHaveProperty('speedLimitMiB')
   })
 })

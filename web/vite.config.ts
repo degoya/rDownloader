@@ -52,9 +52,10 @@ export default defineConfig({
             {
               // One chunk per language rather than one per catalogue file, so switching language
               // is a single request; English stays in the main chunk as the fallback (RD-140-27).
+              // Any directory, so a language added to `languages.json` needs no change here.
               name(id) {
-                const locale = /\/src\/locales\/(de|es|fr)\//.exec(id)?.[1]
-                return locale ? `locale-${locale}` : null
+                const locale = /\/src\/locales\/([a-z]{2})\//.exec(id)?.[1]
+                return locale && locale !== 'en' ? `locale-${locale}` : null
               }
             }
           ]

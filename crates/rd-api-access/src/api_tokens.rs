@@ -36,18 +36,8 @@ use crate::{
     },
 };
 
-/// Validates the label, mints a one-time bearer and persists only its digest.
-pub(crate) async fn pair_scoped_token(
-    state: &AppState,
-    label: &str,
-    scope: &str,
-    label_error_code: &'static str,
-) -> Result<CapturePairResponse, ApiError> {
-    pair_with_scopes(state, label, vec![scope.to_owned()], label_error_code).await
-}
-
-/// The same, for a token holding several areas at once.
-async fn pair_with_scopes(
+/// Validates the label, mints a one-time bearer holding `scopes` and persists only its digest.
+pub(crate) async fn pair_with_scopes(
     state: &AppState,
     label: &str,
     scopes: Vec<String>,
@@ -387,9 +377,12 @@ mod tests {
     /// exactly where somebody would try to bridge them.
     #[test]
     fn the_capture_scope_cannot_be_minted_as_an_api_token() {
-        let error =
-            requested_scopes(&request(&["capture:*"])).expect_err("capture is not an API area");
-        assert_eq!(error.code(), "api.scope_unknown");
+        // Nor the tray's queue control (RD-1100-06): it is chosen when an agent is paired.
+        for scope in ["capture:*", "capture:queue"] {
+            let error =
+                requested_scopes(&request(&[scope])).expect_err("capture is not an API area");
+            assert_eq!(error.code(), "api.scope_unknown", "{scope}");
+        }
     }
 
     /// Dropping it would produce a token weaker than the caller believes, which then fails

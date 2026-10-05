@@ -45,6 +45,16 @@ const WEEK = {
   all_time: { completed: 40, failed: 2, retries: 9, bytes: 42_949_672_960, seconds: 2_400 }
 }
 
+const TRAFFIC = {
+  servers: [
+    { server_id: 's1', name: 'Unmetered', enabled: true, today: 1_073_741_824, week: 2_147_483_648, month: 3_221_225_472, year: 4_294_967_296, total: 5_368_709_120, quota: null },
+    {
+      server_id: 's2', name: 'Block', enabled: true, today: 0, week: 0, month: 1_073_741_824, year: 1_073_741_824, total: 1_073_741_824,
+      quota: { limit_bytes: 1_073_741_824, action: 'backup', used_bytes: 1_073_741_824, reset_on: null, reached_at: '2026-10-04T10:00:00Z' }
+    }
+  ]
+}
+
 const EMPTY_DAY = {
   ...WEEK,
   range: 'day',
@@ -67,7 +77,8 @@ function mount() {
 describe('StatsView', () => {
   beforeEach(() => {
     get.mockReset()
-    get.mockImplementation(async (_path: string, options?: unknown) => {
+    get.mockImplementation(async (path: string, options?: unknown) => {
+      if (path === '/api/v1/stats/usenet-servers') return { data: { servers: [] } }
       const range = (options as { params: { query: { range: string } } }).params.query.range
       return { data: range === 'day' ? EMPTY_DAY : WEEK }
     })
@@ -102,19 +113,41 @@ describe('StatsView', () => {
   // tile used to draw as an empty value (RD-120-48).
   it('names a turnaround under a second instead of leaving the tile blank', async () => {
     const quick = { completed: 6, failed: 1, retries: 0, bytes: 144_703_488, seconds: 0 }
-    get.mockImplementation(async () => ({
-      data: { ...EMPTY_DAY, buckets: [{ start: '2026-09-23T21:00:00Z', ...quick }], totals: quick }
+    get.mockImplementation(async (path: string) => ({
+      data: path === '/api/v1/stats/usenet-servers'
+        ? { servers: [] }
+        : { ...EMPTY_DAY, buckets: [{ start: '2026-09-23T21:00:00Z', ...quick }], totals: quick }
     }))
     mount()
     const turnaround = await screen.findByText(stats.tiles.turnaround)
     expect(turnaround.nextElementSibling?.textContent).toBe(stats.tiles.turnaround_under_second)
   })
 
+  // RD-1100-05: per server, fixed ranges, the quota beside them; absent without servers.
+  it('draws the traffic per Usenet server with its quota', async () => {
+    mount()
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/stats/usenet-servers'))
+    expect(screen.queryByText(stats.servers.title)).toBeNull()
+    get.mockImplementation(async (path: string) => ({ data: path === '/api/v1/stats/usenet-servers' ? TRAFFIC : EMPTY_DAY }))
+    await fireEvent.click(await screen.findByRole('button', { name: stats.ranges.week }))
+    expect(await screen.findByText(stats.servers.title)).toBeTruthy()
+    expect(screen.getByText('Unmetered')).toBeTruthy()
+    expect(screen.getByText('5.0 GiB')).toBeTruthy()
+    expect(screen.getByText('1.0 GiB of 1.0 GiB')).toBeTruthy()
+    expect(screen.getByText(stats.servers.used_up_backup)).toBeTruthy()
+  })
+
   it('renders without an axe violation', async () => {
+    get.mockImplementation(async (path: string, options?: unknown) => {
+      if (path === '/api/v1/stats/usenet-servers') return { data: TRAFFIC }
+      const range = (options as { params: { query: { range: string } } }).params.query.range
+      return { data: range === 'day' ? EMPTY_DAY : WEEK }
+    })
     const { container } = mount()
     await waitFor(() => expect(get).toHaveBeenCalled())
     await fireEvent.click(await screen.findByRole('button', { name: stats.ranges.week }))
     await screen.findByText('rapidgator')
+    await screen.findByText(stats.servers.title)
     expect(await axeViolations(container)).toBe('')
   })
 

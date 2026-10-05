@@ -1,6 +1,6 @@
 //! What a limit applies to.
 
-use rd_core::{AccountId, CategoryId, DownloadKind};
+use rd_core::{AccountId, CategoryId, DownloadKind, PackageId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -39,6 +39,9 @@ pub enum LimitSource {
     Host,
     Account,
     Category,
+    /// The package's own limit (RD-1100-01), set in the package editor rather than by a
+    /// profile, so it survives every profile switch.
+    Package,
 }
 
 /// The scopes one transfer belongs to.
@@ -48,6 +51,8 @@ pub struct TransferScope {
     pub host: Option<String>,
     pub account_id: Option<AccountId>,
     pub category_id: Option<CategoryId>,
+    /// The package the file belongs to, for the package's own limit (RD-1100-01).
+    pub package_id: Option<PackageId>,
 }
 
 impl TransferScope {
@@ -83,7 +88,15 @@ impl TransferScope {
             host: host.map(normalize_host),
             account_id,
             category_id,
+            package_id: None,
         }
+    }
+
+    /// The same scope, subject to its package's own limit as well (RD-1100-01).
+    #[must_use]
+    pub fn in_package(mut self, package_id: PackageId) -> Self {
+        self.package_id = Some(package_id);
+        self
     }
 }
 
@@ -119,6 +132,7 @@ mod tests {
             host: Some("example.com".to_owned()),
             account_id: Some(rd_core::AccountId::new()),
             category_id: Some(rd_core::CategoryId::new()),
+            package_id: Some(rd_core::PackageId::new()),
         };
         let sources: Vec<_> = scope.keys().into_iter().map(|(source, _)| source).collect();
         assert_eq!(

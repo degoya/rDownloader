@@ -83,6 +83,7 @@ pub fn build_page_query(
             offset,
             categories,
             search: &rd_core::IndexerSearch::default(),
+            typed: None,
         },
     )
 }
@@ -150,6 +151,9 @@ impl SourceAdapter for IndexerAdapter {
                     offset,
                     categories: &subscription.source_categories,
                     search: &subscription.indexer_search,
+                    // A subscription asks the address it was given; the typed searches belong
+                    // to the LinkGrabber's search (RD-1100-03).
+                    typed: None,
                 },
             )?;
 

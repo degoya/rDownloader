@@ -272,6 +272,35 @@ impl CaptureClient {
         Ok(response.json().await?)
     }
 
+    /// Pauses the whole queue for the tray (RD-1100-06): for `minutes`, or until resumed.
+    ///
+    /// Refused with `auth.scope_insufficient` unless the agent was paired with queue control;
+    /// the summary says which, so the tray only offers what the service will do.
+    pub async fn pause_queue(&self, minutes: Option<u32>) -> Result<()> {
+        let response = self
+            .http
+            .post(self.service.join("api/v1/capture/queue/pause")?)
+            .bearer_auth(&self.token)
+            .json(&serde_json::json!({ "minutes": minutes }))
+            .send()
+            .await?;
+        ensure_success(response, "queue pause").await?;
+        Ok(())
+    }
+
+    /// Resumes what a pause stopped: ends a timed pause, or queues the paused files again.
+    pub async fn resume_queue(&self) -> Result<()> {
+        let response = self
+            .http
+            .post(self.service.join("api/v1/capture/queue/resume")?)
+            .bearer_auth(&self.token)
+            .json(&serde_json::json!({}))
+            .send()
+            .await?;
+        ensure_success(response, "queue resume").await?;
+        Ok(())
+    }
+
     /// Opens the capture-scoped event stream the agent's watchers listen on.
     ///
     /// The response is returned unread: it stays open for as long as the agent runs. The

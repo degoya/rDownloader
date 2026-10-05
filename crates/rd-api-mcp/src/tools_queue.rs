@@ -1,5 +1,5 @@
 //! MCP tools for handling queued work: order, names, targets, tidying and unpacking
-//! (RD-120-32).
+//! (RD-120-32), and a package's own speed limit (RD-1100-01).
 //!
 //! RD-120-29 left these out as positions in a list the caller cannot see, as renames a model
 //! would only echo, and as repairs a person makes while watching. `list_downloads` and
@@ -21,11 +21,13 @@ use super::{
     params_delivery::DefinitionParams,
     params_handling::{
         ClearPackagesParams, ClearScopeParam, ExtractPackagesParams, IdBodyParams, IdsParams,
-        RenameParams, ReorderMembersParams, ReorderPackagesParams, body, public,
+        PackageSpeedLimitParams, RenameParams, ReorderMembersParams, ReorderPackagesParams, body,
+        public,
     },
 };
 use crate::{
-    ApiError, download_handlers as downloads, error_codes::parse_id, package_handlers as packages,
+    ApiError, bandwidth_handlers, download_handlers as downloads, error_codes::parse_id,
+    package_handlers as packages,
 };
 
 #[tool_router(router = queue_router, vis = "pub(crate)")]
@@ -229,6 +231,48 @@ impl RdMcpServer {
             let Json(steps) =
                 packages::list_package_postprocess(State(self.state.clone()), Path(id)).await?;
             Ok(steps)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Read one download package's own speed limit (id from list_packages): download_bytes_per_second, null when it has none, and `supported`, false while the package holds a torrent the engine cannot limit on its own. The global, hand-set and profile limits apply on top; the strictest binds (get_bandwidth_status)."
+    )]
+    pub async fn get_package_speed_limit(
+        &self,
+        Parameters(params): Parameters<IdParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let Json(limit) =
+                bandwidth_handlers::get_package_speed_limit(State(self.state.clone()), Path(id))
+                    .await?;
+            Ok(limit)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Set one download package's own download speed limit (id from list_packages), in bytes per second as a decimal string; without download_bytes_per_second the package's own limit is removed. It applies to the package's running transfers at once and survives a restart and every profile switch; the global, hand-set and profile limits still apply, and the strictest binds. Refused with torrent.capability_unsupported for a package holding a torrent: the engine cannot limit one torrent on its own."
+    )]
+    pub async fn set_package_speed_limit(
+        &self,
+        Parameters(params): Parameters<PackageSpeedLimitParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let request = body(serde_json::json!({
+                "download_bytes_per_second": params.download_bytes_per_second,
+            }))?;
+            let Json(limit) = bandwidth_handlers::set_package_speed_limit(
+                State(self.state.clone()),
+                Path(id),
+                Json(request),
+            )
+            .await?;
+            Ok(limit)
         }
         .await;
         respond(result)

@@ -1,0 +1,57 @@
+{
+  "title": "Historique des téléchargements",
+  "intro": "Tout ce qui s’est terminé ou a échoué définitivement, même après que le paquet a été retiré de la liste ou nettoyé automatiquement. Les adresses sont conservées sans mots de passe ni jetons ; les mots de passe d’archive ne sont jamais enregistrés.",
+  "filters": {
+    "search": "Rechercher",
+    "search_placeholder": "Nom ou adresse",
+    "outcome": "Résultat",
+    "any_outcome": "Tout résultat",
+    "kind": "Type",
+    "any_kind": "Tout type",
+    "period": "Période",
+    "any_period": "Toute période",
+    "apply": "Appliquer les filtres",
+    "clear": "Réinitialiser les filtres"
+  },
+  "periods": {
+    "day": "Dernières 24 heures",
+    "week": "7 derniers jours",
+    "month": "30 derniers jours",
+    "year": "365 derniers jours"
+  },
+  "outcomes": {
+    "completed": "Terminé",
+    "failed": "Échoué"
+  },
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Médias (yt-dlp)",
+    "gallery": "Galerie",
+    "record": "Enregistrement",
+    "ftp": "FTP",
+    "sftp": "SFTP",
+    "plugin": "Transfert par plugin",
+    "object_storage": "Stockage objet (S3)"
+  },
+  "list": {
+    "title": "Entrées",
+    "shown": "{shown} sur {total}",
+    "empty": "Rien dans l’historique pour l’instant. Dès qu’un paquet se termine ou échoue définitivement, il apparaît ici.",
+    "files": "{count} fichier | {count} fichiers",
+    "expand": "Afficher les détails",
+    "collapse": "Masquer les détails",
+    "category": "Catégorie",
+    "destination": "Destination",
+    "added": "Ajouté",
+    "sources": "Sources",
+    "more": "Charger plus"
+  },
+  "readd": {
+    "button": "Ajouter à nouveau",
+    "done": "« {name} » est de nouveau dans le LinkGrabber",
+    "open": "Ouvrir le LinkGrabber",
+    "no_sources": "Aucune adresse source qui puisse être ajoutée à nouveau (un NZB importé, par exemple)."
+  }
+}

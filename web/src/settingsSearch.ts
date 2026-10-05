@@ -131,6 +131,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('postprocess.passwords_file', 'postprocess', 'settings.postprocess.passwords_file.label', { descriptionKey: 'settings.postprocess.passwords_file.description', keywordsKey: `${K}.archive_password` }),
   field('postprocess.rar_executable', 'postprocess', 'settings.postprocess.rar_executable.label', { descriptionKey: 'settings.postprocess.rar_executable.description', terms: ['unrar', 'RAR', '7-Zip', '7z'] }),
   field('postprocess.unpack_to_subfolder', 'postprocess', 'settings.postprocess.unpack_to_subfolder.label', { descriptionKey: 'settings.postprocess.unpack_to_subfolder.description' }),
+  field('postprocess.direct_unpack', 'postprocess', 'settings.postprocess.direct_unpack.label', { descriptionKey: 'settings.postprocess.direct_unpack.description' }),
   field('postprocess.delete_par2', 'postprocess', 'settings.postprocess.delete_par2.label', { descriptionKey: 'settings.postprocess.delete_par2.description', terms: ['PAR2'] }),
   field('postprocess.cleanup_extensions', 'postprocess', 'settings.postprocess.cleanup_extensions.label', { descriptionKey: 'settings.postprocess.cleanup_extensions.description' }),
   field('postprocess.scripts_directory', 'postprocess', 'settings.postprocess.scripts_directory.label', { descriptionKey: 'settings.postprocess.scripts_directory.description' }),
@@ -220,6 +221,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('system.logs', 'system', 'settings.logs.title', { tab: 'retention', descriptionKey: 'settings.logs.description' }),
   card('system.audit', 'system', 'settings.audit.title', { tab: 'retention', descriptionKey: 'settings.audit.description', terms: ['OTLP', 'OpenTelemetry'] }),
   card('system.stats_retention', 'system', 'stats.retention.title', { tab: 'retention', descriptionKey: 'stats.retention.description' }),
+  card('system.history', 'system', 'settings.history.title', { tab: 'retention', descriptionKey: 'settings.history.description' }),
   // About
   card('about.build', 'about', 'settings.about.build.title'),
   card('about.licenses', 'about', 'settings.about.licenses.title')

@@ -5,7 +5,7 @@ use std::{
     collections::HashSet,
     sync::{
         Arc, LazyLock,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     time::Duration,
 };
@@ -114,12 +114,24 @@ impl NntpPool {
     /// Like [`Self::new`], with `cap` bounding the connections to any one server below its
     /// own limit; `None` leaves every server at its limit (RD-108-25).
     pub fn with_connection_cap(configs: Vec<NntpServerConfig>, cap: Option<usize>) -> Result<Self> {
+        Self::metered(
+            configs.into_iter().map(|config| (config, None)).collect(),
+            cap,
+        )
+    }
+
+    /// Like [`Self::with_connection_cap`], each server with the counter its article bodies
+    /// are added to (RD-1100-05); `None` counts nothing for that server.
+    pub fn metered(
+        configs: Vec<(NntpServerConfig, Option<Arc<AtomicU64>>)>,
+        cap: Option<usize>,
+    ) -> Result<Self> {
         if configs.is_empty() {
             bail!("no enabled NNTP server is configured");
         }
         let mut max_parallel = 0_usize;
         let mut servers = Vec::with_capacity(configs.len());
-        for config in configs {
+        for (config, traffic) in configs {
             if config.max_connections == 0 {
                 bail!("NNTP server connection limit is zero");
             }
@@ -129,7 +141,7 @@ impl NntpPool {
             max_parallel = max_parallel
                 .checked_add(connections)
                 .context("NNTP connection limit overflow")?;
-            servers.push(ServerPool::new(config, connections));
+            servers.push(ServerPool::new(config, connections, traffic));
         }
         Ok(Self {
             servers: Arc::new(servers),
@@ -226,10 +238,12 @@ struct ServerPool {
     /// Signalled whenever a line is added, retired or finishes a request, or a connect ends,
     /// for a caller that found every line full while another one was still connecting.
     changed: Notify,
+    /// Where the bytes of every body this server sends are added (RD-1100-05).
+    traffic: Option<Arc<AtomicU64>>,
 }
 
 impl ServerPool {
-    fn new(config: NntpServerConfig, connections: usize) -> Self {
+    fn new(config: NntpServerConfig, connections: usize, traffic: Option<Arc<AtomicU64>>) -> Self {
         let depth = if out_of_step().contains(&endpoint(&config)) {
             1
         } else {
@@ -243,6 +257,7 @@ impl ServerPool {
             lines: Mutex::new(Vec::new()),
             connecting: AtomicUsize::new(0),
             changed: Notify::new(),
+            traffic,
         }
     }
 
@@ -285,6 +300,13 @@ impl ServerPool {
             };
             let fault = match slot.line.exchange(message_id).await {
                 Outcome::Body { data, named } => {
+                    // Counted whether or not it decodes: the server delivered it either way.
+                    if let Some(traffic) = &self.traffic {
+                        traffic.fetch_add(
+                            u64::try_from(data.len()).unwrap_or(u64::MAX),
+                            Ordering::Relaxed,
+                        );
+                    }
                     self.note_naming(&named, message_id);
                     match decode_yenc(&data) {
                         Ok(article) => return Ok(article),

@@ -1,22 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage, responseError } from '@/api/client'
-import type {
-  Account,
-  AccountTest,
-  CreateAccount,
-  CredentialMode,
-  Provider,
-  ProxyProfile,
-  UpdateAccount
-} from '@/api/types'
+import type { Account, CreateAccount, Provider, ProxyProfile, UpdateAccount } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import AccountBrowserSession from '@/components/settings/AccountBrowserSession.vue'
 import AccountSignInFlow from '@/components/settings/AccountSignInFlow.vue'
+import { signsInWithCode, useAccountForm } from '@/composables/useAccountForm'
+import { useAccountHosters } from '@/composables/useAccountHosters'
+import { useAccountTests } from '@/composables/useAccountTests'
 import { isOpenFlow, useAuthFlows } from '@/composables/useAuthFlows'
 import { useBrowserSessions } from '@/composables/useBrowserSessions'
 import { useConfirm } from '@/composables/useConfirm'
@@ -24,10 +19,6 @@ import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { providerText as pluginProviderText } from '@/i18n/plugins'
-import { translateAccountLabel } from '@/i18n/server'
-import { formatBytes } from '@/utils/format'
-import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
-import { withPluginVersion } from '@/utils/pluginVersion'
 import SectionHeader from '@/components/SectionHeader.vue'
 
 /** The setup wizard embeds this tab under its own step heading. */
@@ -48,45 +39,11 @@ const pending = ref(false)
 const { loading, loadError, load } = useFetchState()
 const error = ref<string | null>(null)
 const message = ref<string | null>(null)
-const editingAccountId = ref<string | null>(null)
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
-const clearSecret = ref(false)
-const clearCookies = ref(false)
-const hostersByAccount = ref<Record<string, string[]>>({})
-const hosterFilter = ref('')
-const hostersLoadingId = ref<string | null>(null)
-/** Last successful test per account id, so the outcome survives the transient alert. */
-const testResults = ref<Record<string, AccountTest>>({})
-
-function clearTestResult(accountId: string): void {
-  const { [accountId]: _removed, ...rest } = testResults.value
-  testResults.value = rest
-}
-
-/** Remaining traffic when the provider reports it, otherwise the translated label parts. */
-function testBadge(accountId: string): string {
-  const result = testResults.value[accountId]
-  if (!result) return ''
-  return result.traffic_left
-    ? t('network.messages.traffic_left', { amount: formatBytes(result.traffic_left) })
-    : translateAccountLabel(result.label)
-}
-
-function visibleHosters(accountId: string): string[] {
-  const hosters = hostersByAccount.value[accountId] ?? []
-  const needle = hosterFilter.value.trim().toLowerCase()
-  return needle ? hosters.filter(host => host.includes(needle)) : hosters
-}
-
-async function loadHosters(accountId: string): Promise<void> {
-  if (hostersByAccount.value[accountId]) return
-  hostersLoadingId.value = accountId
-  const response = await api.GET('/api/v1/accounts/{id}/hosters', { params: { path: { id: accountId } } })
-  hostersLoadingId.value = null
-  if (response.data) hostersByAccount.value = { ...hostersByAccount.value, [accountId]: response.data.hosters }
-}
-const testingAccountId = ref<string | null>(null)
+const { hostersByAccount, hosterFilter, hostersLoadingId, visibleHosters, loadHosters } = useAccountHosters()
+const { testResults, testingAccountId, clearTestResult, testBadge, checkAfterSaving, testAccount } =
+  useAccountTests(error, message)
 /**
  * Sessions asked of the browser extension (RD-120-45). One that arrives changes the account —
  * the cookie badge appears — and is checked at once, the way a saved account is.
@@ -106,145 +63,30 @@ const togglingAccountId = ref<string | null>(null)
 const deletingAccountId = ref<string | null>(null)
 const confirm = useConfirm()
 
-const accountForm = reactive<CreateAccount>({
-  // Filled with the first installed provider once the list is loaded; there is no default
-  // provider of its own, since which ones exist depends on the installed plugins.
-  provider: '',
-  label: '',
-  username: null,
-  credential_mode: null,
-  secret: null,
-  cookies: null,
-  proxy_profile_id: null,
-  enabled: true
-})
-
-const proxyItems = computed(() => [
-  { label: t('network.proxy.direct'), value: NO_SELECTION },
-  ...proxies.value.map(proxy => ({ label: `${proxy.name} · ${proxy.kind}`, value: proxy.id }))
-])
-const accountProxySelection = computed({
-  get: () => optionalSelection(accountForm.proxy_profile_id),
-  set: (value: string) => { accountForm.proxy_profile_id = selectionValue(value) }
-})
-// A provider with `credentials: 'none'` resolves the free flow and stores nothing, so it has no
-// place in a list whose only purpose is entering a credential (RD-098-01).
-const accountProviders = computed(() => providers.value.filter(provider => provider.credentials !== 'none'))
-const providerItems = computed(() =>
-  accountProviders.value.map(provider => ({
-    label: withPluginVersion(
-      pluginProviderText(provider.slug, 'name') ?? provider.display_name,
-      provider.plugin_version
-    ),
-    value: provider.slug
-  }))
-)
-// A new account starts at the first provider the installed plugins offer, and never keeps one
-// that is not (or no longer) in the list.
-watch(providerItems, (items) => {
-  if (editingAccountId.value) return
-  if (!items.some(item => item.value === accountForm.provider)) accountForm.provider = items[0]?.value ?? ''
-}, { immediate: true })
-const selectedProvider = computed<Provider | undefined>(() => providers.value.find(provider => provider.slug === accountForm.provider))
-
-/**
- * The credential modes the selected provider offers, empty when it offers no choice.
- *
- * Only such a provider shows the sign-in method picker; for everyone else there is exactly one
- * way to hold an account and asking would be noise.
- */
-const credentialModes = computed<CredentialMode[]>(() => selectedProvider.value?.credential_modes ?? [])
-/**
- * Each mode named the provider's way when its plugin ships a name, e.g. Real-Debrid's "API token"
- * where the core only knows the generic "API key".
- */
-const credentialModeItems = computed(() =>
-  credentialModes.value.map(mode => ({
-    label:
-      pluginProviderText(accountForm.provider, `mode_label_${mode}`)
-      ?? t(`network.account.credential_mode_${mode}`),
-    value: mode
-  }))
-)
-
-/**
- * Whether a credential mode signs the account in with a code rather than holding something
- * typed (RD-150-09, Real-Debrid's "Connect with a code").
- *
- * Takes a plain string on purpose: the mode arrives from the generated API types, and a literal
- * compared against a union that predates it would read as a mistake to the type checker.
- */
-function signsInWithCode(mode: string | null | undefined): boolean {
-  return mode === 'oauth'
-}
+const {
+  accountForm,
+  editingAccountId,
+  clearSecret,
+  clearCookies,
+  proxyItems,
+  accountProxySelection,
+  providerItems,
+  credentialModeItems,
+  showSecretInput,
+  usernameRequired,
+  showCookiesInput,
+  credentialNoun,
+  secretPlaceholder,
+  cookiesPlaceholder,
+  credentialHint,
+  fillFrom,
+  resetAccountForm
+} = useAccountForm(providers, proxies)
 
 /** The mode an account is held in, filling in the provider's default like the backend does. */
 function accountMode(account: Account): string | null {
   const provider = providers.value.find(candidate => candidate.slug === account.provider)
   return account.credential_mode ?? provider?.credential_modes?.[0] ?? null
-}
-
-/**
- * Keeps the form's mode valid for whatever provider is selected.
- *
- * Switching to a provider that offers no choice clears it — the backend rejects a mode the
- * provider does not offer — and switching to one that does picks its first, which is the same
- * default the backend applies to an account that stores none.
- *
- * Watched on the offered modes rather than on `accountForm.provider`, and immediately (RD-109-35).
- * The provider never changes when the tab is first opened — it starts at its default — so a
- * watcher on it never ran at all, and the form opened with neither radio selected while the
- * secret field beneath was labelled for both modes at once. The catalogue arrives after mount,
- * so `{ immediate: true }` alone would only have run against an empty list; the modes themselves
- * change both when the fetch lands and when somebody picks another provider, which is exactly
- * the two moments the default has to be (re)established.
- */
-watch(
-  credentialModes,
-  (modes) => {
-    if (!modes.length) return void (accountForm.credential_mode = null)
-    if (!accountForm.credential_mode || !modes.includes(accountForm.credential_mode)) {
-      accountForm.credential_mode = modes[0] ?? null
-    }
-  },
-  { immediate: true }
-)
-
-/**
- * Credential label or hint for a provider.
- *
- * Each provider's own wording ships inside its plugin package, so a third-party hoster gets
- * proper labels without a core release; anything it does not supply falls back to the
- * generic core text. A provider offering a choice of modes ships one label and hint per mode,
- * because the same field holds a password in one and an API key in the other.
- */
-function credentialText(prefix: 'secret' | 'hint', slug: string): string {
-  const key = prefix === 'secret' ? 'secret_label' : 'secret_hint'
-  const mode = accountForm.credential_mode
-  const shipped = (mode ? pluginProviderText(slug, `${key}_${mode}`) : null) ?? pluginProviderText(slug, key)
-  if (shipped) return shipped
-  if (prefix === 'secret') return genericCredentialNoun()
-  if (selectedProvider.value?.credentials === 'oauth') return t('network.account.hint_oauth_client')
-  return t('network.account.hint_generic')
-}
-
-/**
- * What to call the secret when the provider's plugin ships no wording of its own.
- *
- * The registry already records what a provider stores, so a provider that takes an account
- * password is not asked for an "API key". Anything unrecognised keeps the both-ways wording.
- */
-function genericCredentialNoun(): string {
-  const kind = selectedProvider.value?.credentials
-  // With a choice of modes the mode decides, not the provider kind.
-  if (accountForm.credential_mode === 'login') return t('network.account.secret_generic_password')
-  if (accountForm.credential_mode === 'api_key') return t('network.account.secret_generic_api_key')
-  if (kind === 'api_key') return t('network.account.secret_generic_api_key')
-  if (kind === 'username_password') return t('network.account.secret_generic_password')
-  // An OAuth account holds no password of ours: the field takes the secret of the person's
-  // own registered client, and everything after that is fetched by the flow.
-  if (kind === 'oauth') return t('network.account.secret_generic_oauth_client')
-  return t('network.account.secret_generic')
 }
 
 /** Sign-in flows by account; one that finishes changes the account, so the list is re-read. */
@@ -280,35 +122,6 @@ async function connectAccount(account: Account): Promise<void> {
   if (failure) error.value = failure
 }
 
-/** Nothing is typed for a cookie-only provider, nor for an account that signs in with a code. */
-const showSecretInput = computed(
-  () => selectedProvider.value?.credentials !== 'cookies' && !signsInWithCode(accountForm.credential_mode)
-)
-/** Signing in makes the account's own credentials the session, so a username is required. */
-const usernameRequired = computed(
-  () => selectedProvider.value?.username_required === true || accountForm.credential_mode === 'login'
-)
-/**
- * Whether to ask for a pasted cookie session at all.
- *
- * In `login` mode there is nothing to paste — that is the entire point of the mode — so the
- * field would only invite the very copy-and-paste it removes. A sign-in with a code is the same
- * promise, made by the provider rather than by rDownloader.
- */
-const showCookiesInput = computed(
-  () => accountForm.credential_mode !== 'login' && !signsInWithCode(accountForm.credential_mode)
-)
-/** The provider's own word for its secret, used as the field label and in the edit hint. */
-const credentialNoun = computed(() => credentialText('secret', accountForm.provider))
-
-const secretPlaceholder = computed(() => {
-  if (editingAccountId.value) {
-    return t('network.account.secret_keep', { credential: credentialNoun.value })
-  }
-  return credentialNoun.value
-})
-const cookiesPlaceholder = computed(() => editingAccountId.value ? t('network.account.cookies_keep') : t('network.account.cookies_placeholder'))
-const credentialHint = computed(() => credentialText('hint', accountForm.provider))
 onMounted(() => {
   void refreshProviders().finally(() => { providersLoading.value = false })
   void load(refresh).then(() => {
@@ -417,34 +230,9 @@ async function createAccount(): Promise<void> {
 function editAccount(account: Account): void {
   error.value = null
   message.value = null
-  editingAccountId.value = account.id
   clearTestResult(account.id)
-  accountForm.provider = account.provider
-  accountForm.label = account.label
-  accountForm.username = account.username ?? null
-  // An account written before its provider offered a choice stores none; the first offered
-  // mode is what the backend falls back to for it, so the form shows the same.
-  accountForm.credential_mode = account.credential_mode ?? credentialModes.value[0] ?? null
-  accountForm.secret = null
-  accountForm.cookies = null
-  accountForm.proxy_profile_id = account.proxy_profile_id ?? null
-  accountForm.enabled = account.enabled
-  clearSecret.value = false
-  clearCookies.value = false
+  fillFrom(account)
   void focusForm()
-}
-
-function resetAccountForm(): void {
-  editingAccountId.value = null
-  accountForm.label = ''
-  accountForm.username = null
-  accountForm.credential_mode = credentialModes.value[0] ?? null
-  accountForm.secret = null
-  accountForm.cookies = null
-  accountForm.proxy_profile_id = null
-  accountForm.enabled = true
-  clearSecret.value = false
-  clearCookies.value = false
 }
 
 /// Switches one account on or off from the list.
@@ -481,40 +269,6 @@ async function setAccountEnabled(account: Account, enabled: boolean): Promise<vo
   message.value = t('network.messages.updated')
 }
 
-/// Checks an account right after it was saved, without making the dialog wait for the answer.
-///
-/// Deliberately not awaited. A check reaches all the way into the provider's resolver, and that
-/// can take a while — DDownload's sign-in queues a captcha for somebody to answer, which parks
-/// it for as long as the queue allows. Blocking the form on that would be worse than the silence
-/// it replaces; the row already has a spinner and a badge for the result.
-///
-/// A disabled account is skipped: the endpoint refuses one with `account.disabled`, and somebody
-/// who deliberately created it switched off does not need that reported back at them.
-function checkAfterSaving(account: Account): void {
-  if (!account.enabled) return
-  void testAccount(account, { quiet: true })
-}
-
-async function testAccount(account: Account, options: { quiet?: boolean } = {}): Promise<void> {
-  testingAccountId.value = account.id
-  if (!options.quiet) {
-    error.value = null
-    message.value = null
-  }
-  const response = await api.POST('/api/v1/accounts/{id}/test', {
-    params: { path: { id: account.id } }
-  })
-  testingAccountId.value = null
-  if (!response.data) {
-    // Reported even when the check ran on its own: a saved account that does not work is the
-    // one thing worth interrupting for, and it is why the check happens at save time at all.
-    error.value = responseError(response)
-    return
-  }
-  testResults.value = { ...testResults.value, [account.id]: response.data }
-  if (!options.quiet) message.value = accountTestMessage(account, response.data)
-}
-
 async function deleteAccount(account: Account): Promise<void> {
   const confirmed = await confirm({
     title: t('network.delete.title'),
@@ -539,16 +293,6 @@ async function deleteAccount(account: Account): Promise<void> {
   clearTestResult(account.id)
   if (editingAccountId.value === account.id) resetAccountForm()
   message.value = resultMessage(response.data)
-}
-
-function accountTestMessage(account: Account, result: AccountTest): string {
-  const label = translateAccountLabel(result.label)
-  const parts = [
-    ...(label ? [label] : []),
-    result.premium ? t('network.messages.premium_active') : t('network.messages.premium_inactive')
-  ]
-  if (result.traffic_left) parts.push(t('network.messages.traffic_left', { amount: formatBytes(result.traffic_left) }))
-  return `${account.label}: ${parts.join(' · ')}`
 }
 
 function proxyName(id: string | null | undefined): string {

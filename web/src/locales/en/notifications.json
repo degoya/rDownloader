@@ -18,7 +18,9 @@
     "account_expiring": "Account expiring",
     "account_invalid": "Account no longer signs in",
     "backup_verify_failed": "Backup verification failed",
-    "plugin_update_failed": "Automatic plugin update failed"
+    "plugin_update_failed": "Automatic plugin update failed",
+    "usenet_job_hopeless": "Usenet download beyond repair",
+    "usenet_quota_reached": "Usenet server quota used up"
   },
   "severity": {
     "info": "Info and above",

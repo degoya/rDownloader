@@ -38,10 +38,12 @@ export function defaultSettings(): Settings {
     ignore_samples: true,
     recursive_unpack: false,
     unpack_to_subfolder: false,
+    direct_unpack: false,
     sfv_verify: true,
     safe_postproc: true,
     delete_par2: false,
     enable_all_par: false,
+    fail_hopeless_jobs: true,
     plugin_steps: [],
     metadata_enrichment_enabled: false,
     sample_max_bytes: String(300 * MIB),
@@ -157,6 +159,8 @@ export function defaultSettings(): Settings {
   otlp_enabled: false,
   otlp_endpoint: '',
   otlp_timeout_seconds: 5,
-  hotfolder_poll_seconds: 30
+  hotfolder_poll_seconds: 30,
+  history_retention_entries: 10_000,
+  history_retention_days: 365
   }
 }

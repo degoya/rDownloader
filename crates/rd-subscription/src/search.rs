@@ -4,6 +4,11 @@
 //! attribute gate; what differs is that nothing is filtered or archived here. Every hit goes back
 //! to the interface as it came, and the person picks which ones become NZB imports.
 //!
+//! A Torznab indexer (Jackett, Prowlarr) answers the same document with `<torznab:attr>` instead
+//! of `<newznab:attr>` (RD-1100-03). Which of the two a hit is, is read off the hit itself -- the
+//! media type of its enclosure, a magnet address, the swarm counts -- rather than stored with the
+//! indexer: the evidence comes with every answer, and a Prowlarr can stand in front of both kinds.
+//!
 //! An indexer answers a refusal inside a `200 OK` as `<error code=… description=…/>`, so
 //! [`indexer_refusal`] is asked before a body is parsed as results, and its code is what the
 //! interface translates: `100` is a credential problem, `201` a query the indexer will not run.
@@ -60,7 +65,19 @@ pub struct SearchHit {
     pub metadata: BTreeMap<String, String>,
     /// The cover, only ever an absolute `http`/`https` address: it ends up in an `<img src>`.
     pub cover_url: Option<Url>,
+    /// Whether the hit is a torrent rather than an NZB (RD-1100-03).
+    pub torrent: bool,
+    /// Peers sharing the whole torrent, when the indexer says.
+    pub seeders: Option<u64>,
+    /// Peers still downloading it: Torznab's `leechers`, else `peers` less the seeders.
+    pub leechers: Option<u64>,
+    /// The magnet the indexer offers besides the download, or the download itself when it is
+    /// one. Never touched by the attribute gate: a tracker address inside it is part of the link.
+    pub magnet: Option<Url>,
 }
+
+/// The media type a Torznab enclosure declares.
+const TORRENT_MEDIA_TYPE: &str = "application/x-bittorrent";
 
 /// One page of a search.
 #[derive(Clone, Debug, Default)]
@@ -84,6 +101,27 @@ pub fn parse_search(body: &str, base: &Url) -> anyhow::Result<SearchPage> {
             // The same gate a subscription's hits pass: a key inside an attribute is dropped,
             // and a real password is split off from the flag and not kept here.
             let kept = crate::retain_attributes(&item.attributes, item.size_bytes);
+            let count = |name: &str| -> Option<u64> {
+                kept.attributes
+                    .get(name)
+                    .and_then(|value| value.parse().ok())
+            };
+            let seeders = count("seeders");
+            let leechers = count("leechers").or_else(|| {
+                count("peers").map(|peers| peers.saturating_sub(seeders.unwrap_or_default()))
+            });
+            let magnet = if download.scheme() == "magnet" {
+                Some(download.clone())
+            } else {
+                item.attributes
+                    .get("magneturl")
+                    .and_then(|value| Url::parse(value.trim()).ok())
+                    .filter(|url| url.scheme() == "magnet")
+            };
+            let torrent = item.enclosure_type.as_deref() == Some(TORRENT_MEDIA_TYPE)
+                || magnet.is_some()
+                || seeders.is_some()
+                || download.path().to_ascii_lowercase().ends_with(".torrent");
             Some(SearchHit {
                 title: item.title,
                 guid: item.id,
@@ -101,6 +139,10 @@ pub fn parse_search(body: &str, base: &Url) -> anyhow::Result<SearchPage> {
                 passworded: kept.attributes.contains_key("password"),
                 metadata: metadata_of(&kept.attributes),
                 cover_url: cover_of(&kept.attributes),
+                torrent,
+                seeders,
+                leechers,
+                magnet,
             })
         })
         .collect();
@@ -298,6 +340,75 @@ mod tests {
         let second = &page.hits[1];
         assert_eq!(second.cover_url, None, "a relative cover is dropped");
         assert!(second.metadata.is_empty());
+    }
+
+    /// RD-1100-03: what Jackett and Prowlarr answer, read into torrent hits with their swarm.
+    const TORZNAB: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+      <channel>
+        <item>
+          <title>Some.Show.S01E01.1080p.WEB</title>
+          <guid>https://tracker.test/details/1</guid>
+          <link>http://jackett.test/dl/tracker/?jackett_apikey=KEY&amp;path=abc&amp;file=a</link>
+          <enclosure url="http://jackett.test/dl/tracker/?jackett_apikey=KEY&amp;path=abc&amp;file=a"
+                     length="1500" type="application/x-bittorrent"/>
+          <torznab:attr name="category" value="5040"/>
+          <torznab:attr name="seeders" value="42"/>
+          <torznab:attr name="peers" value="50"/>
+          <torznab:attr name="magneturl" value="magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&amp;dn=Some.Show"/>
+        </item>
+        <item>
+          <title>Only.A.Magnet</title>
+          <enclosure url="magnet:?xt=urn:btih:89abcdef0123456789abcdef0123456789abcdef" type="application/x-bittorrent"/>
+          <torznab:attr name="seeders" value="3"/>
+          <torznab:attr name="leechers" value="9"/>
+          <torznab:attr name="peers" value="12"/>
+        </item>
+      </channel>
+    </rss>"#;
+
+    #[test]
+    fn a_torznab_answer_becomes_torrent_hits_with_seeders_and_leechers() {
+        let page = parse_search(TORZNAB, &base()).expect("page");
+        assert_eq!(page.hits.len(), 2);
+        let first = &page.hits[0];
+        assert!(first.torrent);
+        assert_eq!(first.seeders, Some(42));
+        // Torznab's `peers` counts the seeders too.
+        assert_eq!(first.leechers, Some(8));
+        assert_eq!(first.size_bytes, Some(1500));
+        assert_eq!(first.category.as_deref(), Some("5040"));
+        assert_eq!(
+            first.magnet.as_ref().map(Url::scheme),
+            Some("magnet"),
+            "{first:?}"
+        );
+        assert!(
+            first
+                .download
+                .as_str()
+                .starts_with("http://jackett.test/dl/")
+        );
+        let second = &page.hits[1];
+        assert!(second.torrent);
+        assert_eq!(
+            second.leechers,
+            Some(9),
+            "an explicit count wins over peers"
+        );
+        assert_eq!(second.magnet.as_ref(), Some(&second.download));
+    }
+
+    #[test]
+    fn a_newznab_hit_is_no_torrent() {
+        let page = parse_search(ANSWER, &base()).expect("page");
+        for hit in &page.hits {
+            assert!(!hit.torrent, "{hit:?}");
+            assert_eq!(
+                (hit.seeders, hit.leechers, hit.magnet.as_ref()),
+                (None, None, None)
+            );
+        }
     }
 
     #[test]

@@ -7,8 +7,8 @@ license.workspace = true
 
 [dependencies]
 mega-common = { path = "../mega-common" }
+plugin-guest-crawler = { path = "../guest-crawler" }
 serde_json.workspace = true
-wit-bindgen.workspace = true
 
 # The tests wrap invented keys under an invented master key, which is the one thing this
 # plugin never does itself (RD-120-30). Never in the component.

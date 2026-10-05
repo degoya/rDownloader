@@ -42,6 +42,9 @@ pub(crate) struct UnpackContext<'a> {
     pub delete_volumes: bool,
     pub trigger: ExtractionTrigger,
     pub target: UnpackTarget,
+    /// Sets unpacked while the package downloaded, to be moved into place rather than unpacked
+    /// again; empty when they are not to be used (RD-1100-07).
+    pub direct: &'a [crate::direct_unpack::Staged],
 }
 
 /// Where a set is unpacked to (RD-170-16).
@@ -174,7 +177,7 @@ pub(crate) async fn run(
             .await?;
             continue;
         }
-        remove_stale_staging(&destination).await;
+        remove_stale_staging(&destination, context.direct).await;
         crate::steps::stage(
             inner,
             context.owner,
@@ -220,18 +223,36 @@ pub(crate) async fn run(
             rd_core::PostprocessStage::Extracting,
             progress_rx,
         ));
-        let result = extract_with_passwords(
-            ExtractRequest {
-                set,
-                destination,
-                limits: context.limits,
-                rar_tool: context.rar_tool.clone(),
-                merge: true,
-                progress: Some(progress_tx),
-            },
-            context.candidates,
-        )
-        .await;
+        let adopted = match context.direct.iter().find(|staged| staged.is_for(set)) {
+            Some(staged) => crate::direct_unpack::adopt(staged, &destination).await?,
+            None => None,
+        };
+        let completed_code = if adopted.is_some() {
+            codes::UNPACK_COMPLETED_DIRECT
+        } else {
+            codes::UNPACK_COMPLETED
+        };
+        let result = match adopted {
+            Some(report) => {
+                // Nothing to report progress on; the drain ends with its last sender.
+                drop(progress_tx);
+                Ok((report, None))
+            }
+            None => {
+                extract_with_passwords(
+                    ExtractRequest {
+                        set,
+                        destination,
+                        limits: context.limits,
+                        rar_tool: context.rar_tool.clone(),
+                        merge: true,
+                        progress: Some(progress_tx),
+                    },
+                    context.candidates,
+                )
+                .await
+            }
+        };
         let _ = drain.await;
         for id in &volume_ids {
             let _ = inner
@@ -254,7 +275,7 @@ pub(crate) async fn run(
                     PostprocessState::Completed,
                     Some(destination_text),
                     Outcome::new(
-                        codes::UNPACK_COMPLETED,
+                        completed_code,
                         &[
                             ("count", report.files.to_string()),
                             ("bytes", report.uncompressed_bytes.to_string()),
@@ -290,16 +311,20 @@ pub(crate) async fn run(
 /// A job unpacks one set at a time and removes its own staging directory once the merge is done,
 /// so a `.rd-x` directory that is there before an extraction starts belongs to a run that was
 /// killed half way. Its partial output is not package content, and left alone it would stay in
-/// the folder for good.
-async fn remove_stale_staging(destination: &Path) {
+/// the folder for good. The one exception is a set unpacked while the package downloaded and not
+/// adopted yet (`direct`, RD-1100-07): its staging directory is the finished set.
+async fn remove_stale_staging(destination: &Path, direct: &[crate::direct_unpack::Staged]) {
     let Ok(mut entries) = tokio::fs::read_dir(rd_files::long_path(destination)).await else {
         return;
     };
     while let Ok(Some(entry)) = entries.next_entry().await {
-        let staging = entry
-            .file_name()
+        let name = entry.file_name();
+        let staging = name
             .to_string_lossy()
-            .starts_with(rd_postprocess::STAGING_PREFIX);
+            .starts_with(rd_postprocess::STAGING_PREFIX)
+            && !direct
+                .iter()
+                .any(|staged| staged.staging.file_name() == Some(name.as_os_str()));
         if staging
             && entry.file_type().await.is_ok_and(|kind| kind.is_dir())
             && let Err(error) = tokio::fs::remove_dir_all(entry.path()).await

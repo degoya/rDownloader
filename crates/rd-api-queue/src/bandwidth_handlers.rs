@@ -1,5 +1,5 @@
 //! Bandwidth profiles, the weekly schedule, the live status and the capability matrix
-//! (RD-050-12).
+//! (RD-050-12), and a package's own speed limit (RD-1100-01).
 
 use axum::{Json, extract::Path as AxumPath, extract::State};
 use rd_api_core::input_checks::{TextLimit, required_text};
@@ -8,6 +8,10 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{AppState, error::ApiError};
+
+mod package_limit;
+
+pub use package_limit::*;
 
 /// Highest weekly windows accepted, so one request cannot blow up the schedule evaluation.
 const MAX_WINDOWS: usize = 200;

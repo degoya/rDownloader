@@ -1481,6 +1481,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capture/queue/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pauses every waiting and moving file; with `minutes`, until then, holding back new ones. */
+        post: operations["pause_capture_queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/queue/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ends a timed pause, which queues the files it stopped again; without one, queues every
+         *     paused file again. A failed or cancelled file stays as it is: the tray resumes what a pause
+         *     stopped, and restarting what failed is the web interface's decision.
+         */
+        post: operations["resume_capture_queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capture/summary": {
         parameters: {
             query?: never;
@@ -2637,6 +2675,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/downloads/{id}/torrent/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves a seeding or paused torrent's files to another folder.
+         * @description Refused up front when the target is not free or its filesystem lacks the space for a copy;
+         *     otherwise the move runs in the background. Until it ends the torrent is out of the session;
+         *     afterwards the package names the new folder and a seed seeds from it after one check of its
+         *     data — or, when the move failed, everything is where it was and `relocation_error` in the
+         *     torrent's detail says why.
+         */
+        post: operations["move_torrent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/downloads/{id}/torrent/peers": {
         parameters: {
             query?: never;
@@ -2682,6 +2744,28 @@ export interface paths {
         /** Replaces the selection of a queued torrent and pushes it to the running torrent. */
         put: operations["put_download_torrent_plan"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/downloads/{id}/torrent/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hashes a torrent's data against its pieces again.
+         * @description A seed is checked in place and seeds on; what does not verify is fetched again. A running
+         *     torrent is stopped, checked as it is added again, and runs on. Any other torrent is checked
+         *     when it starts next. The result shows on the torrent (`recheck` in its detail).
+         */
+        post: operations["recheck_torrent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2809,6 +2893,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The history, newest first, filtered and paged; `limit`/`offset` cut the page in the
+         *     database and `X-Total-Count` names how many entries the filters match.
+         */
+        get: operations["list_download_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Empties the download history (RD-1100-04).
+         * @description Only the history's entries go: the queue, the files and the SABnzbd view of the packages
+         *     still in the queue are untouched. The button sits at the history itself, like the
+         *     notification history's.
+         */
+        post: operations["clear_download_history"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/{id}/readd": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Puts a history entry's sources back into the LinkGrabber as one package under its name.
+         * @description The sources are the masked ones the history kept: a link whose token was masked arrives
+         *     without it and is checked like any other. An entry with no source of its own — an imported
+         *     NZB — is refused with `history.nothing_to_readd`.
+         */
+        post: operations["readd_history_entry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/hotfolders": {
         parameters: {
             query?: never;
@@ -2867,7 +3015,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Fetches the chosen hits and puts each into the LinkGrabber as an NZB import (RD-180-19).
+         * Fetches the chosen hits and puts each into the LinkGrabber (RD-180-19): an NZB as an NZB
+         *     import, a torrent as a LinkGrabber package (RD-1100-03).
          * @description Each hit on its own: one that fails is reported with a stable code and the others still
          *     arrive, because a person who picked ten releases wants the nine that worked.
          */
@@ -3677,6 +3826,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/packages/{id}/speed-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one package's own download limit. */
+        get: operations["get_package_speed_limit"];
+        /** Sets or removes one package's own download limit; it applies to running transfers at once. */
+        put: operations["set_package_speed_limit"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins": {
         parameters: {
             query?: never;
@@ -4271,6 +4438,27 @@ export interface paths {
         get: operations["list_postprocess_scripts"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postprocess/sort-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What a category's sort templates make of example names (RD-1100-08), before anything is
+         *     saved: the same recognition and the same expansion the sort runs, against the category's
+         *     folder as the root, so the paths are relative to it.
+         */
+        post: operations["preview_category_sorting"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4928,8 +5116,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Empties the transfer statistics: the buckets behind the charts and the all-time totals. */
+        /**
+         * Empties the transfer statistics: the buckets behind the charts, the all-time totals and the
+         *     traffic per Usenet server; the servers' quota figures stay (RD-1100-05).
+         */
         post: operations["clear_transfer_stats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats/usenet-servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Traffic per Usenet server over the day, week, month, year and all time, with each
+         *     server's quota.
+         */
+        get: operations["usenet_server_traffic"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5880,6 +6091,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/usenet/servers/{id}/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets, changes or removes the traffic quota of one server (RD-1100-05).
+         * @description Once the server has delivered `limit_bytes` it is asked only after every other server
+         *     (`backup`) or not at all (`pause`), from the next file on, and a notification goes out. A
+         *     limit the used figure already reaches applies at once.
+         */
+        put: operations["set_usenet_server_quota"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/usenet/servers/{id}/test": {
         parameters: {
             query?: never;
@@ -6030,8 +6263,8 @@ export interface components {
         /**
          * @description Pairing request for a machine API token.
          *
-         *     Separate from [`CapturePairRequest`] because a capture agent has no scope choice: it
-         *     always gets `capture:*`, while an API client picks its areas.
+         *     Separate from [`CapturePairRequest`] because a capture agent has no choice of API areas: it
+         *     always gets `capture:*`, and `capture:queue` on request, while an API client picks its areas.
          */
         ApiTokenRequest: {
             label: string;
@@ -6117,7 +6350,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -6906,6 +7139,7 @@ export interface components {
             cleanup_extensions?: string[] | null;
             color: string;
             delete_par2?: boolean | null;
+            direct_unpack?: boolean | null;
             is_default: boolean;
             malware_scan?: boolean | null;
             name: string;
@@ -7381,11 +7615,36 @@ export interface components {
         /** @description Human label for a newly paired native capture agent. */
         CapturePairRequest: {
             label: string;
+            /**
+             * @description Whether the agent may also pause and resume the whole queue from its tray
+             *     (`capture:queue`, RD-1100-06). Asked for explicitly or not at all: absent means `false`,
+             *     so an agent paired without it can do no more than one paired before the choice existed.
+             */
+            queue_control?: boolean;
         };
         /** @description One-time bearer plus its revocable metadata. */
         CapturePairResponse: {
             bearer: string;
             token: components["schemas"]["CaptureToken"];
+        };
+        CaptureQueuePauseRequest: {
+            /**
+             * Format: int32
+             * @description How long, in minutes from now, within thirty days; absent or `null` pauses until resumed.
+             */
+            minutes?: number | null;
+        };
+        CaptureQueueResponse: {
+            /**
+             * Format: int32
+             * @description Files this request paused or queued again.
+             */
+            files: number;
+            /**
+             * Format: date-time
+             * @description When the timed pause ends, while one holds.
+             */
+            paused_until?: string | null;
         };
         /**
          * @description Figures only, for the desktop tray.
@@ -7424,6 +7683,23 @@ export interface components {
             eta_seconds?: number | null;
             /** Format: int32 */
             failed: number;
+            /**
+             * Format: int32
+             * @description Files paused, by a person or by a pause of the whole queue: what the tray's "resume all"
+             *     would queue again (RD-1100-06).
+             */
+            paused: number;
+            /**
+             * Format: date-time
+             * @description When the timed pause of the whole queue ends, while one holds (RD-190-20); the tray says
+             *     "paused until" with it.
+             */
+            paused_until?: string | null;
+            /**
+             * @description Whether the token asking may pause and resume the queue (`capture:queue`, chosen when the
+             *     agent was paired). The tray offers the two entries only when it may (RD-1100-06).
+             */
+            queue_control: boolean;
             /** Format: int32 */
             queued: number;
             total_bytes: components["schemas"]["ByteCount"];
@@ -7529,6 +7805,11 @@ export interface components {
              *     unpack; `None` = global default.
              */
             delete_par2?: boolean | null;
+            /**
+             * @description Whether packages in this category unpack a multi-volume RAR set while it downloads;
+             *     `None` = global default (RD-1100-07).
+             */
+            direct_unpack?: boolean | null;
             id: components["schemas"]["CategoryId"];
             is_default: boolean;
             /**
@@ -7557,6 +7838,7 @@ export interface components {
             seeding?: components["schemas"]["SeedingPolicyOverride"] | null;
             /** @description Whether packages in this category verify `.sfv` checksums; `None` = global default. */
             sfv_verify?: boolean | null;
+            sorting?: components["schemas"]["SortTemplates"] | null;
             storage_root_id: components["schemas"]["StorageRootId"];
             /**
              * @description Whether packages in this category unpack every archive set into a folder of its own;
@@ -7591,6 +7873,11 @@ export interface components {
              */
             delete_par2?: boolean | null;
             /**
+             * @description Whether packages of this category unpack a multi-volume RAR set while it still
+             *     downloads (`null` = global default, RD-1100-07).
+             */
+            direct_unpack?: boolean | null;
+            /**
              * @description Whether packages of this category are scanned by ClamAV before they count as finished
              *     (`null` = global default, RD-190-14).
              */
@@ -7612,6 +7899,7 @@ export interface components {
             script?: string | null;
             /** @description Whether packages of this category verify `.sfv` checksums (`null` = global default). */
             sfv_verify?: boolean | null;
+            sorting?: components["schemas"]["SortTemplates"] | null;
             /**
              * @description Whether packages of this category unpack every archive set into a folder of its own,
              *     named after the archive (`null` = global default, RD-170-16).
@@ -8007,6 +8295,11 @@ export interface components {
              *     unpack (`null` = global default).
              */
             delete_par2?: boolean | null;
+            /**
+             * @description Whether packages of this category unpack a multi-volume RAR set while it still
+             *     downloads (`null` = global default, RD-1100-07).
+             */
+            direct_unpack?: boolean | null;
             is_default: boolean;
             /**
              * @description Whether packages of this category are scanned by ClamAV before they count as finished
@@ -8873,6 +9166,47 @@ export interface components {
             after?: components["schemas"]["GrabberEntryRef"] | null;
             entries: components["schemas"]["GrabberEntryRef"][];
         };
+        /** @description One package the history remembers. */
+        HistoryEntry: {
+            /** @description The category's name when the package ended, if it had one. */
+            category?: string | null;
+            /**
+             * Format: date-time
+             * @description When the package was added to the queue.
+             */
+            created_at: string;
+            destination: string;
+            /** @description The stable code of the failure, for `failed`. */
+            error_code?: string | null;
+            /** @description The parameters that code is translated with, already redacted. */
+            error_params?: components["schemas"]["BTreeMap"];
+            /** Format: int32 */
+            file_count: number;
+            /**
+             * Format: date-time
+             * @description When it reached its outcome.
+             */
+            finished_at: string;
+            /** Format: int64 */
+            id: number;
+            kind: components["schemas"]["DownloadKind"];
+            name: string;
+            outcome: components["schemas"]["HistoryOutcome"];
+            /** @description The package this entry describes; it may no longer be in the queue. */
+            package_id: components["schemas"]["PackageId"];
+            /**
+             * @description The addresses the files came from, with every credential masked
+             *     ([`history_source`]). Empty for a package whose files had no address of their own (an
+             *     imported NZB); such an entry cannot be added again.
+             */
+            sources: string[];
+            total_bytes: components["schemas"]["ByteCount"];
+        };
+        /**
+         * @description How a package ended.
+         * @enum {string}
+         */
+        HistoryOutcome: "completed" | "failed";
         /** @description Persisted hotfolder configuration. */
         HotFolderConfig: {
             category_id?: components["schemas"]["CategoryId"] | null;
@@ -9002,6 +9336,14 @@ export interface components {
             searching: string[];
             /** @description Server name, when it gives one. */
             server?: string | null;
+            /**
+             * @description The parameters each search type takes, as its `supportedParams` lists them (`q`,
+             *     `season`, `ep`, `tvdbid`, `imdbid`, ...), lowercased (RD-1100-03). A type that names none
+             *     is absent: the indexer did not say, which is not the same as taking nothing.
+             */
+            supported_params?: {
+                [key: string]: string[];
+            };
         };
         /** @description One category an indexer files releases under. */
         IndexerCategory: {
@@ -9024,10 +9366,18 @@ export interface components {
             /** @description The hit's `download`, unchanged. */
             download: string;
             indexer_id: components["schemas"]["IndexerId"];
+            /**
+             * @description The hit's `magnet`, unchanged, when it has one (RD-1100-03): taken when `download` is not
+             *     to be had -- Prowlarr answers some downloads with a redirect to the magnet.
+             */
+            magnet?: string | null;
             /** @description The hit's title, which names the import. */
             title: string;
         };
-        /** @description Hits to fetch and put into the LinkGrabber as NZB imports. */
+        /**
+         * @description Hits to fetch and put into the LinkGrabber: an NZB as an NZB import, a torrent as a
+         *     LinkGrabber package.
+         */
         IndexerGrabRequest: {
             category_id?: components["schemas"]["CategoryId"] | null;
             /** @description At most 50. */
@@ -9037,7 +9387,14 @@ export interface components {
         IndexerGrabResponse: {
             failed: components["schemas"]["IndexerGrabFailure"][];
             imports: components["schemas"]["NzbImport"][];
+            /** @description The LinkGrabber packages the torrent hits became, one per hit (RD-1100-03). */
+            torrents: components["schemas"]["CollectorPackage"][];
         };
+        /**
+         * @description What a hit is: an NZB or a torrent (RD-1100-03).
+         * @enum {string}
+         */
+        IndexerHitKind: "nzb" | "torrent";
         /** Format: uuid */
         IndexerId: string;
         /**
@@ -9127,6 +9484,21 @@ export interface components {
             indexer_id: components["schemas"]["IndexerId"];
             indexer_name: string;
             /**
+             * @description `nzb` from a Newznab indexer, `torrent` from a Torznab one (Jackett, Prowlarr), read off
+             *     the hit itself (RD-1100-03).
+             */
+            kind: components["schemas"]["IndexerHitKind"];
+            /**
+             * Format: int64
+             * @description A torrent's leechers, when the indexer says.
+             */
+            leechers?: number | null;
+            /**
+             * @description The magnet the indexer offers for a torrent, with the API key replaced like `download`'s;
+             *     what the grab takes when the download itself cannot be fetched.
+             */
+            magnet?: string | null;
+            /**
              * @description What a detailed result row shows besides the title (RD-190-16), as far as the indexer
              *     sent it: `year`, `genre`, `imdbscore`, `language`, `resolution` and `description` (at
              *     most 300 characters). Empty when it sent none of them.
@@ -9138,6 +9510,11 @@ export interface components {
             passworded: boolean;
             /** Format: date-time */
             published_at?: string | null;
+            /**
+             * Format: int64
+             * @description A torrent's seeders, when the indexer says.
+             */
+            seeders?: number | null;
             /** Format: int64 */
             size_bytes?: number | null;
             title: string;
@@ -9164,8 +9541,15 @@ export interface components {
         IndexerSearchRequest: {
             /** @description The indexer's own category ids, sent as `cat`; empty uses each indexer's own default. */
             categories?: string[];
+            /**
+             * Format: int32
+             * @description `tv` only: the episode, sent as `ep`; needs a season.
+             */
+            episode?: number | null;
             /** @description Sent as `pw=2`: leave out releases the indexer marks as passworded. */
             hide_passworded?: boolean;
+            /** @description `tv` or `movie`: the IMDb id, `tt0903747` or its digits, sent as `imdbid` without `tt`. */
+            imdb_id?: string | null;
             /** @description The indexers to ask; empty asks every enabled one. */
             indexer_ids?: components["schemas"]["IndexerId"][];
             /**
@@ -9193,6 +9577,32 @@ export interface components {
              *     indexer defines it.
              */
             query?: string | null;
+            /**
+             * @description `search` (the default), `tv` (`t=tvsearch`) or `movie` (`t=movie`) (RD-1100-03). The
+             *     ids below belong to one type each; an indexer that does not answer the type refuses it in
+             *     its own outcome, which `POST /api/v1/indexers/{id}/caps` tells in advance.
+             */
+            search_type?: components["schemas"]["IndexerSearchType"];
+            /**
+             * Format: int32
+             * @description `tv` only: the season, sent as `season`.
+             */
+            season?: number | null;
+            /**
+             * Format: int64
+             * @description `movie` only: the film's TMDb id, sent as `tmdbid`.
+             */
+            tmdb_id?: number | null;
+            /**
+             * Format: int64
+             * @description `tv` only: the series' TVDB id, sent as `tvdbid`.
+             */
+            tvdb_id?: number | null;
+            /**
+             * Format: int64
+             * @description `tv` only: the series' TVmaze id, sent as `tvmazeid`.
+             */
+            tvmaze_id?: number | null;
         };
         /** @description A search's answer: every indexer's hits together, and how each indexer fared. */
         IndexerSearchResponse: {
@@ -9200,6 +9610,11 @@ export interface components {
             /** @description One entry per indexer asked, in the order they were asked. */
             indexers: components["schemas"]["IndexerSearchOutcome"][];
         };
+        /**
+         * @description The search function of one request: Newznab's and Torznab's `t` (RD-1100-03).
+         * @enum {string}
+         */
+        IndexerSearchType: "search" | "tv" | "movie";
         /**
          * @description Origin of a batch submitted to the LinkGrabber.
          * @enum {string}
@@ -9310,7 +9725,7 @@ export interface components {
          * @description Where a binding limit came from. Ordered from broadest to narrowest.
          * @enum {string}
          */
-        LimitSource: "manual" | "global" | "protocol" | "host" | "account" | "category";
+        LimitSource: "manual" | "global" | "protocol" | "host" | "account" | "category" | "package";
         /** @description An analyzed link awaiting review or enqueue. */
         LinkCandidate: {
             /**
@@ -10305,7 +10720,7 @@ export interface components {
          * @description What happened. Deliberately a closed set: a rule filters on it, so it has to be stable.
          * @enum {string}
          */
-        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "account_expiring" | "account_invalid";
+        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached";
         /** @description Which events of which packages reach which target. */
         NotificationRule: {
             category_id?: components["schemas"]["CategoryId"] | null;
@@ -10691,6 +11106,21 @@ export interface components {
         /** @description Complete queue order; packages are positioned in the given sequence. */
         PackageReorderRequest: {
             ids: components["schemas"]["PackageId"][];
+        };
+        /** @description Sets or removes a package's own download limit. */
+        PackageSpeedLimitRequest: {
+            /** @default null */
+            download_bytes_per_second: components["schemas"]["ByteCount"] | null;
+        };
+        /** @description A package's own download limit. */
+        PackageSpeedLimitResponse: {
+            download_bytes_per_second?: components["schemas"]["ByteCount"] | null;
+            package_id: components["schemas"]["PackageId"];
+            /**
+             * @description Whether a limit can reach this package: `false` while it holds a torrent and the engine
+             *     cannot limit one torrent on its own (`per_torrent_limits` in the torrent capabilities).
+             */
+            supported: boolean;
         };
         /**
          * @description Lifecycle of a download package as a whole.
@@ -11125,7 +11555,7 @@ export interface components {
          * @description Persistent kind of one postprocessing operation.
          * @enum {string}
          */
-        PostprocessKind: "par2" | "sfv" | "rar_test" | "extract_zip" | "extract_seven_zip" | "extract_rar" | "delete_archives" | "delete_par2" | "cleanup" | "remux" | "malware_scan" | "plugin_step" | "script" | "upload";
+        PostprocessKind: "par2" | "sfv" | "rar_test" | "extract_zip" | "extract_seven_zip" | "extract_rar" | "delete_archives" | "delete_par2" | "cleanup" | "remux" | "malware_scan" | "plugin_step" | "script" | "upload" | "sort";
         /**
          * @description Cumulative post-processing level (`Repair` ⊂ `Unpack` ⊂ `Delete`), like SABnzbd's
          *     `+R` / `+RU` / `+RUD` job options.
@@ -11161,7 +11591,7 @@ export interface components {
          * @description Pipeline stage a package is currently in while post-processing.
          * @enum {string}
          */
-        PostprocessStage: "repairing" | "verifying" | "extracting" | "deleting_archives" | "deleting_par2" | "cleaning" | "remuxing" | "scanning" | "plugin_step" | "script" | "uploading";
+        PostprocessStage: "repairing" | "verifying" | "extracting" | "deleting_archives" | "deleting_par2" | "cleaning" | "remuxing" | "scanning" | "plugin_step" | "script" | "uploading" | "sorting";
         /**
          * @description Crash-recoverable lifecycle of a postprocessing operation.
          * @enum {string}
@@ -12155,8 +12585,8 @@ export interface components {
             /** @description Short reason shown next to an unenforced entry; `None` when fully enforced. */
             note?: string | null;
             /**
-             * @description Whether the transport can be limited per host, account or category, or only as a
-             *     whole. External helper processes only take one rate for the whole job.
+             * @description Whether the transport can be limited per host, account, category or package, or only
+             *     as a whole. External helper processes only take one rate for the whole job.
              */
             scoped_enforced: boolean;
         };
@@ -12405,6 +12835,26 @@ export interface components {
         SetDownloadAuthProfileRequest: {
             auth_profile: components["schemas"]["AuthProfileSelection"];
         };
+        /** @description Body of `PUT /api/v1/usenet/servers/{id}/quota` (RD-1100-05). */
+        SetUsenetQuotaRequest: {
+            /**
+             * @description What happens once the limit is reached: `backup` (asked only after every other server)
+             *     or `pause` (not asked at all).
+             */
+            action?: components["schemas"]["UsenetQuotaAction"];
+            /**
+             * Format: int64
+             * @description The bytes the server may deliver; absent or `null` removes the quota.
+             */
+            limit_bytes?: number | null;
+            /**
+             * Format: date
+             * @description The day (UTC) from which the used figure starts again at zero, once. Today or later.
+             */
+            reset_on?: string | null;
+            /** @description Puts the used figure back to zero now. */
+            reset_usage?: boolean;
+        };
         SettingsBundle: {
             accounts?: components["schemas"]["BundleAccount"][];
             app_version: string;
@@ -12573,6 +13023,13 @@ export interface components {
              */
             delete_par2: boolean;
             /**
+             * @description Unpack a Usenet package's multi-volume RAR set while the package still downloads, volume
+             *     by volume; a repair or a damaged volume falls back to unpacking afterwards. Off by
+             *     default (RD-1100-07).
+             * @default false
+             */
+            direct_unpack: boolean;
+            /**
              * @description Plugin ids the user switched off. They stay installed and listed — otherwise they could
              *     not be switched back on — but are not loaded, compiled or executed.
              * @default []
@@ -12611,6 +13068,14 @@ export interface components {
              */
             external_url: string | null;
             /**
+             * @description Stop a Usenet download once it is known to be beyond repair (RD-1100-02). On by
+             *     default, like SABnzbd's `fail_hopeless_jobs`: when more PAR2 blocks are missing than
+             *     the set's recovery volumes can replace, the rest is not downloaded and the package
+             *     fails with `usenet.job_hopeless`, naming both counts. Off downloads everything as before.
+             * @default true
+             */
+            fail_hopeless_jobs: boolean;
+            /**
              * @description Absolute path of gallery-dl; empty = look up in the vendor folders and on PATH.
              * @default null
              */
@@ -12645,6 +13110,19 @@ export interface components {
             generate_sha256: boolean;
             /** @default null */
             global_proxy_profile_id: components["schemas"]["ProxyProfileId"] | null;
+            /**
+             * Format: int32
+             * @description Days a download history entry is kept at most (1-3650), whatever the count.
+             * @default 365
+             */
+            history_retention_days: number;
+            /**
+             * Format: int32
+             * @description Entries the download history keeps at most (100-100000); the oldest go first
+             *     (RD-1100-04).
+             * @default 10000
+             */
+            history_retention_entries: number;
             /**
              * Format: int32
              * @description Seconds between two reconciliation scans of every watched folder (RD-110-31); 5 to
@@ -13486,6 +13964,59 @@ export interface components {
          * @enum {string}
          */
         SolverKind: "none" | "two_captcha_compatible";
+        /**
+         * @description What a release name was recognised as.
+         * @enum {string}
+         */
+        SortKind: "series" | "dated" | "movie";
+        /** @description What the sort would make of one name. */
+        SortPreviewEntry: {
+            /**
+             * @description Why a recognised name stays: `sort.no_template`, or the code of the template error the
+             *     name ran into.
+             */
+            code?: string | null;
+            /** @description The values a template gets for this name, by field. */
+            fields: {
+                [key: string]: string;
+            };
+            kind?: components["schemas"]["SortKind"] | null;
+            name: string;
+            /**
+             * @description Where the file would land, below the category's folder, `/` between folders; `null`
+             *     when it stays where it is.
+             */
+            path?: string | null;
+        };
+        /** @description The templates of a category editor, saved or not, and the names to try them on. */
+        SortPreviewRequest: {
+            /** @description File, folder or package names, at most 20; each is recognised as the sort would. */
+            names: string[];
+            sorting: components["schemas"]["SortTemplates"];
+        };
+        /** @description The preview of every name, and the fields each kind's template may use. */
+        SortPreviewResponse: {
+            entries: components["schemas"]["SortPreviewEntry"][];
+            /** @description `series`, `dated` and `movie`, each with its fields. */
+            fields: {
+                [key: string]: string[];
+            };
+        };
+        /**
+         * @description A category's sort templates, one per kind of release. A kind without a template is not
+         *     sorted: its files stay where the package put them.
+         */
+        SortTemplates: {
+            /** @description For episodes by air date, e.g. `{show}/{year}/{show} - {date} - {title}`. */
+            dated?: string | null;
+            /** @description For films, e.g. `{movie} ({year})/{movie} ({year})`. */
+            movie?: string | null;
+            /**
+             * @description For episodes by season and number, e.g.
+             *     `{show}/Season {season:00}/{show} - S{season:00}E{episode:00} - {title}`.
+             */
+            series?: string | null;
+        };
         /** @description The same source, somewhere else. */
         SourceDuplicate: {
             /** @description LinkGrabber candidate id, for a link that is not queued yet. */
@@ -14434,6 +14965,12 @@ export interface components {
         ToolSource: "explicit" | "managed" | "vendor" | "path";
         /** @description Aggregate counters of one torrent. Cheap enough to broadcast. */
         TorrentAggregateStats: {
+            /**
+             * @description Whether the engine is hashing the torrent's data right now — on its first start, after
+             *     a restart, a recheck or a move (RD-1100-10). `progress_bytes` then counts the bytes
+             *     checked so far rather than the bytes held.
+             */
+            checking?: boolean;
             /** Format: int64 */
             download_bps: number;
             /**
@@ -14501,6 +15038,10 @@ export interface components {
             plan?: components["schemas"]["ResolvedTorrentPlan"] | null;
             /** @description Private torrents may not use DHT, PEX or LSD. */
             private: boolean;
+            recheck?: components["schemas"]["TorrentRecheck"] | null;
+            relocation?: components["schemas"]["TorrentRelocation"] | null;
+            /** @description Why the last move was taken back. */
+            relocation_error?: string | null;
             /**
              * @description BEP 19 web seeds advertised by the torrent, redacted.
              *
@@ -14533,6 +15074,11 @@ export interface components {
             peer_stats: boolean;
             /** @description Separate proxies for tracker, metadata and peer traffic. */
             per_class_proxy: boolean;
+            /**
+             * @description A download and upload limit of one torrent's own, beside the session-wide rates
+             *     (RD-1100-01). When `false`, a package holding a torrent takes no speed limit of its own.
+             */
+            per_torrent_limits: boolean;
             piece_stats: boolean;
             /**
              * @description Whether priorities are emulated on top of plain include/exclude rather than being
@@ -14593,6 +15139,15 @@ export interface components {
          * @enum {string}
          */
         TorrentMetadataState: "pending" | "ready" | "failed";
+        /**
+         * @description Where a torrent's files move: a folder below a storage root, in which the package keeps a
+         *     folder of its own name — as a package queued into a category's folder does.
+         */
+        TorrentMoveRequest: {
+            /** @description Relative to the storage root; empty for the root itself. */
+            relative_path?: string;
+            storage_root_id: components["schemas"]["StorageRootId"];
+        };
         /** @description What the torrent network layer is currently doing. */
         TorrentNetworkStatus: {
             /**
@@ -14712,6 +15267,47 @@ export interface components {
              * @default off
              */
             sequential: components["schemas"]["TorrentSequentialMode"];
+        };
+        /**
+         * @description A recheck of a torrent's data against its piece hashes (RD-1100-10).
+         *
+         *     Written when the check is asked for and completed by whoever adds the torrent next — the
+         *     seed that is re-added in place, or the runner when the row starts again — once the engine
+         *     has hashed every piece.
+         */
+        TorrentRecheck: {
+            /**
+             * Format: date-time
+             * @description `None` while the check has not run yet or is still running.
+             */
+            finished_at?: string | null;
+            /** Format: date-time */
+            requested_at: string;
+            /**
+             * Format: int64
+             * @description Bytes of the selected files; anything short of it is fetched again.
+             */
+            total_bytes: number;
+            /**
+             * Format: int64
+             * @description Bytes of the selected files whose pieces verified.
+             */
+            verified_bytes: number;
+        };
+        /**
+         * @description The journal of a torrent whose files are being moved to another folder (RD-1100-10).
+         *
+         *     Written before the first file moves and cleared once the move is finished or taken back.
+         *     A start that finds it knows a move was interrupted: when the package already names `to`
+         *     the move is finished, otherwise it is taken back to `from`.
+         */
+        TorrentRelocation: {
+            /** @description The package folder the files are moved out of. */
+            from: string;
+            /** Format: date-time */
+            started_at: string;
+            /** @description The package folder the files are moved into. */
+            to: string;
         };
         /**
          * @description Streaming-oriented piece ordering. Only [`TorrentSequentialMode::Off`] is supported by
@@ -14890,7 +15486,7 @@ export interface components {
          *     none of it is something to hang an action off.
          * @enum {string}
          */
-        Trigger: "intake_received" | "download_resolved" | "download_started" | "download_completed" | "download_failed" | "package_completed" | "package_failed" | "extraction_finished" | "script_finished" | "upload_finished" | "storage_threshold" | "subscription_item";
+        Trigger: "intake_received" | "download_resolved" | "download_started" | "download_completed" | "download_failed" | "package_completed" | "package_failed" | "extraction_finished" | "script_finished" | "upload_finished" | "storage_threshold" | "subscription_item" | "usenet_job_hopeless";
         /**
          * @description Confirms one SSH host key as trusted.
          *
@@ -15144,6 +15740,35 @@ export interface components {
             plugin_id: string;
             version: string;
         };
+        /** @description A traffic quota on one Usenet server, such as a block account's volume (RD-1100-05). */
+        UsenetQuota: {
+            action: components["schemas"]["UsenetQuotaAction"];
+            /**
+             * Format: int64
+             * @description The bytes the server may deliver before `action` applies.
+             */
+            limit_bytes: number;
+            /**
+             * Format: date-time
+             * @description When the used figure reached the limit; `None` while it has not.
+             */
+            reached_at?: string | null;
+            /**
+             * Format: date
+             * @description The day (UTC) from which the used figure starts again at zero, once; `None` without one.
+             */
+            reset_on?: string | null;
+            /**
+             * Format: int64
+             * @description Bytes delivered since the quota was set or last reset, as of the last flush.
+             */
+            used_bytes: number;
+        };
+        /**
+         * @description What a Usenet server does once its quota is used up (RD-1100-05).
+         * @enum {string}
+         */
+        UsenetQuotaAction: "backup" | "pause";
         /** @description Redaction-safe NNTP endpoint configuration. */
         UsenetServer: {
             enabled: boolean;
@@ -15158,11 +15783,55 @@ export interface components {
             /** Format: int32 */
             priority: number;
             proxy_profile_id?: components["schemas"]["ProxyProfileId"] | null;
+            quota?: components["schemas"]["UsenetQuota"] | null;
             tls: boolean;
             username?: string | null;
         };
         /** Format: uuid */
         UsenetServerId: string;
+        /**
+         * @description The bytes one Usenet server delivered, by range, and its quota (RD-1100-05).
+         *
+         *     Counted as the article bodies arrive, yEnc-encoded: one to three per cent more than the
+         *     payload, plus the article headers, and the bodies that failed their checksum and were asked
+         *     for again. Written every few seconds, so the last seconds of a running download show up
+         *     with the next flush.
+         */
+        UsenetServerTrafficEntry: {
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description The last 30 days (UTC), today included.
+             */
+            month: number;
+            name: string;
+            quota?: components["schemas"]["UsenetQuota"] | null;
+            server_id: components["schemas"]["UsenetServerId"];
+            /**
+             * Format: int64
+             * @description Since midnight UTC.
+             */
+            today: number;
+            /**
+             * Format: int64
+             * @description Everything recorded since the server was added or the statistics were last cleared.
+             */
+            total: number;
+            /**
+             * Format: int64
+             * @description The last seven days (UTC), today included.
+             */
+            week: number;
+            /**
+             * Format: int64
+             * @description The last 365 days (UTC), today included.
+             */
+            year: number;
+        };
+        UsenetTrafficResponse: {
+            /** @description Every configured server, in priority order. */
+            servers: components["schemas"]["UsenetServerTrafficEntry"][];
+        };
         /**
          * @description What a rule says about the version that was found.
          * @enum {string}
@@ -18829,6 +19498,95 @@ export interface operations {
             };
         };
     };
+    pause_capture_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureQueuePauseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureQueueResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    resume_capture_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureQueueResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     capture_summary: {
         parameters: {
             query?: never;
@@ -21436,6 +22194,59 @@ export interface operations {
             };
         };
     };
+    move_torrent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["DownloadId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TorrentMoveRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     torrent_peers: {
         parameters: {
             query?: {
@@ -21556,6 +22367,55 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    recheck_torrent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["DownloadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -21914,6 +22774,121 @@ export interface operations {
                 content: {
                     "application/json": Record<string, never>;
                 };
+            };
+        };
+    };
+    list_download_history: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
+                 *     `X-Total-Count`.
+                 */
+                limit?: number;
+                /** @description Rows to skip first; alone it returns everything after them. */
+                offset?: number;
+                /** @description Part of the name or of a source address, case-insensitive. */
+                q?: string;
+                /** @description `completed` or `failed`. */
+                outcome?: components["schemas"]["HistoryOutcome"];
+                /** @description The download kind (`http`, `usenet`, `torrent`, ...). */
+                kind?: components["schemas"]["DownloadKind"];
+                /** @description Entries that ended at or after this instant (RFC 3339). */
+                from?: string;
+                /** @description Entries that ended at or before this instant (RFC 3339). */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    /** @description How many entries the filters match; sent only when `limit` or `offset` asked for a page */
+                    "x-total-count"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryEntry"][];
+                };
+            };
+            /** @description request.page_limit or history.filter_invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clear_download_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataClearRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataClearResponse"];
+                };
+            };
+            /** @description data_reset.not_confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    readd_history_entry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The history entry */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorIntakeResponse"];
+                };
+            };
+            /** @description history.not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description history.nothing_to_readd */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -23938,6 +24913,81 @@ export interface operations {
             };
         };
     };
+    get_package_speed_limit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageSpeedLimitResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_package_speed_limit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackageSpeedLimitRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageSpeedLimitResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_plugins: {
         parameters: {
             query?: never;
@@ -25075,6 +26125,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PostprocessScriptsResponse"];
+                };
+            };
+        };
+    };
+    preview_category_sorting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SortPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SortPreviewResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -26373,6 +27456,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    usenet_server_traffic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsenetTrafficResponse"];
+                };
             };
         };
     };
@@ -28222,6 +29325,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_usenet_server_quota: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["UsenetServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetUsenetQuotaRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsenetServer"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Not Found */
             404: {

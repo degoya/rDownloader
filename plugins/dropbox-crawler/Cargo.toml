@@ -8,8 +8,8 @@ license.workspace = true
 [dependencies]
 dropbox-common = { path = "../dropbox-common" }
 plugin-common = { path = "../common" }
+plugin-guest-crawler = { path = "../guest-crawler" }
 serde_json.workspace = true
-wit-bindgen.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

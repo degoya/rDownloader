@@ -58,9 +58,11 @@ These are the conventions a contribution most often runs into:
   `crates/rdownloader/tests/no_german.rs` fails on an umlaut or sharp s in a `.rs` file.
 - **No `.unwrap()` outside tests.** Clippy warns on `unwrap_used` and the checks run with
   `-D warnings`; `unsafe_code`, `dbg!` and `todo!` are denied outright.
-- **Every UI string exists in all four languages** (`web/src/locales/{de,en,es,fr}/`). Add a key
-  with `scripts/i18n-key.sh <catalogue> <key> <de> <en> <es> <fr>`, which writes all four at
-  once; changing a key means changing all four.
+- **Every UI string exists in every required language** — German, English, French and Spanish,
+  the languages `web/src/locales/languages.json` marks `required`. Add a key with
+  `scripts/i18n-key.sh <catalogue> <key> de=… en=… es=… fr=…`, which writes them all at once;
+  changing a key means changing it in each. *Translating rDownloader* below covers a new
+  language.
 - **Errors carry stable codes, not free text.** A REST error returns a `code` that the web
   interface translates; user-facing text never lives in Rust as prose.
 - **Generated files are regenerated, never edited by hand.** After a REST or DTO change, run
@@ -71,6 +73,72 @@ These are the conventions a contribution most often runs into:
   the documentation the change affects.
 - **No secrets or personal data** in code, tests, fixtures or screenshots — no real account
   names, tokens, cookies or download links you are not entitled to share.
+
+## Translating rDownloader
+
+A new language needs no code: one entry in the language list and the catalogues. You can start
+with a handful of strings — every one a language does not have yet shows in English, never as a
+raw key — and the language picker marks it *(in progress)* until it is complete. The wiki page
+[Translating rDownloader](https://github.com/degoya/rDownloader/wiki/translating) walks through
+the same steps with examples.
+
+**The catalogues.** Each holds the text of one part, one file or folder per language:
+
+| Part | Where | Format |
+| --- | --- | --- |
+| Web interface | `web/src/locales/<code>/*.json` | Nested JSON, one file per area; `{name}` placeholders |
+| Browser extension | `extension/_locales/<code>/messages.json` | WebExtension `messages.json`; `$1` / `$NAME$` placeholders |
+| Plugin catalogues | `plugins/<plugin>/locales/<code>.json` | `name`, `description`, `account` labels and failure `codes` |
+| Website | rdownloader.net, a separate repository | Open an issue; the maintainer adds it |
+
+`<code>` is the language's two-letter ISO 639-1 code in lower case (`it`, `nl`, `pl`).
+
+**Adding a language.**
+
+1. Add it to `web/src/locales/languages.json` under its code, with its own name for itself and
+   `"status": "in-progress"`, for example `"it": { "name": "Italiano", "status": "in-progress" }`.
+   The order there is the order of the picker.
+2. Create `web/src/locales/<code>/` and translate as much as you like: copy files from `en/` and
+   translate them, or keep only the keys you have done. Keep the English key names and nesting;
+   a key English does not have fails the tests.
+3. Optionally do the same for the extension (`extension/_locales/<code>/messages.json`) and for
+   plugins (`plugins/<plugin>/locales/<code>.json`). Both may be partial or missing; the browser
+   and the interface fall back to English per message. The extension follows the browser's
+   language, not the one chosen in rDownloader.
+4. When every catalogue of the language is complete, set `"status": "required"`. From then on
+   the tests hold it to every key English has, like the four languages that ship today.
+
+To add one key to several languages at once, name them: `scripts/i18n-key.sh common
+actions.retry de=Wiederholen en=Retry es=Reintentar fr=Réessayer it=Riprova`. Every required
+language must be named; an in-progress one may be.
+
+**Placeholders and plurals.** A placeholder stays exactly as English has it — `{count}`,
+`{name}` in the web interface and plugins, `$1` or `$NAME$` in the extension — the tests compare
+them. A plural is one string with ` | ` between the forms, in English's order: two forms are
+"one | more" (`{count} file | {count} files`), three are "none | one | more". The interface
+chooses between them the way English does, so a language with more forms (Polish, Russian, …)
+needs a plural rule in code; please say so in an issue rather than squeezing the forms.
+
+**Terms.** German says *du*, French *vous*, Spanish *tú*; a new language picks the informal or
+formal address its open-source tools use and keeps it everywhere. Technical terms stay English
+where the language's IT usage keeps them (*Stream*, *Plugin*, *Token*, *Proxy*, *Hoster*,
+*Webhook*, …); product, protocol and format names (Newznab, yt-dlp, PAR2, WebDAV, S3, NZB, …)
+are never translated. One concept gets one word throughout. [`design.md`](design.md) lists the
+choices made for the existing languages.
+
+**Checking.** From the repository root:
+
+```sh
+pnpm --dir web install
+pnpm --dir web test src/i18n           # web catalogues: keys, placeholders, the language list
+pnpm --dir web run typecheck:full
+scripts/build-extension.sh --test-only # extension catalogues
+cargo nextest run -p rd-plugin-host --test bundled_locales  # plugin catalogues
+```
+
+**Submitting.** One pull request per language is easiest to review; say which parts you
+translated and whether a native speaker read it. The maintainer raises the version of every
+plugin whose catalogue changed when applying it.
 
 ## Code of Conduct
 

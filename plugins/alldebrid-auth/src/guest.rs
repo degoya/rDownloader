@@ -5,14 +5,8 @@
 //! `flow-state`, because a guest is instantiated fresh for every call and remembers nothing.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "auth-plugin",
-});
-
-use exports::rdownloader::plugin::auth::{AuthState, Guest, UserPrompt};
-use rdownloader::plugin::{
-    credentials,
+use plugin_guest_auth::{
+    AuthState, Guest, UserPrompt, credentials,
     http::{self, RequestQuery},
     types::{Failure, FailureKind},
 };
@@ -125,4 +119,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_auth::auth_plugin!(Component);

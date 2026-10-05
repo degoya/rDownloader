@@ -28,6 +28,7 @@ mod facade_collector;
 mod facade_collector_mirrors;
 mod facade_ext;
 mod facade_full_backup;
+mod facade_history;
 mod facade_indexers;
 mod facade_logs;
 mod facade_object_storage;
@@ -38,7 +39,9 @@ mod facade_site_rules;
 mod facade_sources;
 mod facade_stats;
 mod facade_storage;
+mod facade_usenet_traffic;
 mod full_backup_store;
+mod history_store;
 mod indexer_store;
 mod log_store;
 mod managed_tools_store;
@@ -47,9 +50,12 @@ mod models;
 mod network_store;
 mod notice_store;
 mod notify_store;
+mod nzb_hopeless;
 mod nzb_queue;
 mod nzb_store;
 mod object_storage_store;
+mod package_relocation_store;
+mod package_speed_limit_store;
 mod package_store;
 mod plugin_execution_store;
 mod plugin_keys_store;
@@ -75,6 +81,7 @@ mod stream_store;
 mod subscription_store;
 mod torrent_store;
 mod usenet_store;
+mod usenet_traffic_store;
 mod vault_sweep;
 mod writer;
 mod writer_jobs;
@@ -130,7 +137,10 @@ pub use collision_store::{
     NewCollisionPrompt, SCOPE_CATEGORY as COLLISION_SCOPE_CATEGORY,
     SCOPE_PACKAGE as COLLISION_SCOPE_PACKAGE,
 };
-use commands::WriterCommand;
+use commands::{
+    AuthCommand, ConfigCommand, DownloadsCommand, MaintenanceCommand, NetworkCommand,
+    PluginsCommand, WriterCommand,
+};
 pub use config_store::{
     CategoryPostprocess, NewCategory, NewCategoryRule, NewHotFolder, NewStorageRoot,
 };
@@ -143,6 +153,11 @@ pub use full_backup_store::{
     BackupDestinationRecord, BackupKeyRecord, BackupRun, BackupRunOutcome, NewBackupDestination,
     NewBackupRun,
 };
+pub use history_store::{
+    DOWNLOAD_FAILED_CODE as HISTORY_DOWNLOAD_FAILED_CODE, HistoryPage, HistoryQuery,
+    POSTPROCESS_FAILED_CODE as HISTORY_POSTPROCESS_FAILED_CODE,
+    UNPACK_FAILED_CODE as HISTORY_UNPACK_FAILED_CODE,
+};
 pub use indexer_store::NewIndexer;
 pub use log_store::{LogPruneReport, LogQuery, LogRecord, NewLogRecord};
 pub use managed_tools_store::{ManagedToolRecord, NewManagedTool, ToolManifestState};
@@ -150,6 +165,7 @@ pub use models::{NewDownload, NewPackage, PersistedChunk, TransferMetadata};
 pub use models::{NewReplayTemplate, NewSecretFragment};
 pub use network_store::{NetworkClientConfig, NewAccount, NewProxyProfile, UpdateAccount};
 pub use notify_store::{NewDelivery, NewNotificationRule, NewNotificationTarget};
+pub use nzb_hopeless::{USENET_AWAITING_PAR2, USENET_JOB_HOPELESS};
 pub use nzb_store::{FailedNzbImport, NewNzbFile, NewNzbImport, NewNzbSegment, NzbImportChange};
 pub use object_storage_store::{NewObjectStorageProfile, ObjectUpload, ObjectUploadPart};
 pub use package_store::{CategoryAssignment, PackageChange};
@@ -184,7 +200,10 @@ pub use storage_ops_store::{
 pub use stream_schedule_store::{NewStreamSchedule, PlannedOccurrence};
 pub use stream_store::NewStreamChannel;
 pub use subscription_store::{NewSubscription, NewSubscriptionItem, PollResult};
-pub use usenet_store::{NewUsenetServer, UpdateUsenetServer, UsenetConnectionConfig};
+pub use usenet_store::{
+    NewUsenetServer, UpdateUsenetServer, UsenetConnectionConfig, UsenetQuotaInput,
+};
+pub use usenet_traffic_store::{UsenetQuotaReached, UsenetServerTraffic};
 use writer::Writer;
 
 /// SQLite database facade with one serialized writer and a small reader pool.
@@ -326,7 +345,7 @@ impl Database {
     /// jobs and recording schedules (DB-01), a subscription its archive, runs and priming
     /// (RA-DB-04); the sign-ins of accounts it no longer names leave the vault with them.
     pub async fn replace_config(&self, replacement: ConfigReplacement) -> Result<()> {
-        let released = writer::request(&self.writer, |reply| WriterCommand::ReplaceConfig {
+        let released = writer::request(&self.writer, |reply| MaintenanceCommand::ReplaceConfig {
             replacement,
             reply,
         })
@@ -361,7 +380,7 @@ impl Database {
 
     /// Creates an empty package.
     pub async fn create_package(&self, package: NewPackage) -> Result<DownloadPackage> {
-        writer::request(&self.writer, |reply| WriterCommand::CreatePackage {
+        writer::request(&self.writer, |reply| DownloadsCommand::CreatePackage {
             package,
             reply,
         })
@@ -370,7 +389,7 @@ impl Database {
 
     /// Adds a file to a package and creates its initial chunk.
     pub async fn create_download(&self, download: NewDownload) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::CreateDownload {
             download,
             sources: None,
             reply,
@@ -384,7 +403,7 @@ impl Database {
         id: DownloadId,
         next: rd_core::DownloadState,
     ) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::TransitionDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::TransitionDownload {
             id,
             next,
             reply,
@@ -399,7 +418,7 @@ impl Database {
         id: DownloadId,
         created_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::JoinQueue {
+        writer::request(&self.writer, |reply| DownloadsCommand::JoinQueue {
             id,
             created_at,
             reply,
@@ -414,7 +433,7 @@ impl Database {
     /// changed mid-flight. The vocabulary of reasons belongs to the caller; this layer only
     /// stores the string and hands it back through [`Self::downloads_blocked_by`].
     pub async fn block_download(&self, id: DownloadId, reason: &str) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::BlockDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::BlockDownload {
             id,
             reason: reason.to_owned(),
             reply,
@@ -443,7 +462,7 @@ impl Database {
         let body_reference = replay_store::template_body_ref(&self.readers, id)
             .await
             .unwrap_or(None);
-        writer::request(&self.writer, |reply| WriterCommand::DeleteDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::DeleteDownload {
             id,
             reply,
         })
@@ -484,7 +503,7 @@ impl Database {
     /// exactly like a package that downloaded nothing. A package that still has files is not
     /// touched, so a rollback may call this unconditionally.
     pub async fn delete_empty_package(&self, id: rd_core::PackageId) -> Result<bool> {
-        let removed = writer::request(&self.writer, |reply| WriterCommand::DeleteEmptyPackage {
+        let removed = writer::request(&self.writer, |reply| DownloadsCommand::DeleteEmptyPackage {
             id,
             reply,
         })
@@ -503,11 +522,13 @@ impl Database {
         committed_bytes: u64,
         total_bytes: Option<u64>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetDownloadProgress {
-            id,
-            committed_bytes,
-            total_bytes,
-            reply,
+        writer::request(&self.writer, |reply| {
+            DownloadsCommand::SetDownloadProgress {
+                id,
+                committed_bytes,
+                total_bytes,
+                reply,
+            }
         })
         .await
     }
@@ -519,7 +540,7 @@ impl Database {
         policy: Option<rd_core::SeedingPolicyOverride>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCategorySeedingPolicy { id, policy, reply }
+            ConfigCommand::SetCategorySeedingPolicy { id, policy, reply }
         })
         .await
     }
@@ -531,7 +552,7 @@ impl Database {
         state: rd_core::TorrentCandidateState,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateTorrentState {
+            DownloadsCommand::SetCandidateTorrentState {
                 id,
                 state: Box::new(state),
                 reply,
@@ -547,7 +568,7 @@ impl Database {
         state: rd_core::TorrentJobState,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetDownloadTorrentState {
+            DownloadsCommand::SetDownloadTorrentState {
                 id,
                 state: Box::new(state),
                 reply,
@@ -587,7 +608,7 @@ impl Database {
         chunk_id: rd_core::ChunkId,
         committed_offset: u64,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointChunk {
+        writer::request(&self.writer, |reply| DownloadsCommand::CheckpointChunk {
             chunk_id,
             committed_offset,
             reply,
@@ -603,7 +624,7 @@ impl Database {
         index: u64,
         mac: [u8; 16],
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointChunkMac {
+        writer::request(&self.writer, |reply| DownloadsCommand::CheckpointChunkMac {
             download_id,
             fingerprint,
             index,
@@ -633,7 +654,7 @@ impl Database {
         last_modified: Option<String>,
         chunks: Vec<PersistedChunk>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::PrepareTransfer {
+        writer::request(&self.writer, |reply| DownloadsCommand::PrepareTransfer {
             id,
             total_bytes,
             etag,
@@ -656,7 +677,7 @@ impl Database {
         failure: rd_core::Failure,
         retry_at: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::RecordFailure {
+        writer::request(&self.writer, |reply| DownloadsCommand::RecordFailure {
             id,
             failure,
             retry_at,
@@ -672,7 +693,7 @@ impl Database {
         final_name: String,
         checksum: Option<rd_core::ExpectedChecksum>,
     ) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::CompleteDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::CompleteDownload {
             id,
             final_name,
             checksum,
@@ -683,7 +704,7 @@ impl Database {
 
     /// Persists a collision-resolved filename before file IO starts.
     pub async fn set_download_file_name(&self, id: DownloadId, file_name: String) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetFileName {
+        writer::request(&self.writer, |reply| DownloadsCommand::SetFileName {
             id,
             file_name,
             reply,
@@ -693,7 +714,7 @@ impl Database {
 
     /// Renames a file that is not active or finished; returns the updated row.
     pub async fn rename_download(&self, id: DownloadId, file_name: String) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::RenameDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::RenameDownload {
             id,
             file_name,
             reply,
@@ -734,7 +755,7 @@ impl Database {
         consent: Option<rd_core::ReplayConsent>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateReplayConsent {
+            DownloadsCommand::SetCandidateReplayConsent {
                 id,
                 consent: Box::new(consent),
                 reply,
@@ -747,7 +768,7 @@ impl Database {
     ///
     /// Separate from [`Self::claim_resolver_refresh`] on purpose; see `replay_store`.
     pub async fn claim_replay_refresh(&self, id: DownloadId) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::ClaimReplayRefresh {
+        writer::request(&self.writer, |reply| DownloadsCommand::ClaimReplayRefresh {
             id,
             reply,
         })
@@ -759,7 +780,7 @@ impl Database {
     /// Unlike `reset_transfer` this is the whole job: the retry budget, the recorded error, the
     /// Usenet segment checkpoints and the package's post-processing steps go with it.
     pub async fn reset_download(&self, id: DownloadId) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::ResetDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::ResetDownload {
             id,
             reply,
         })
@@ -768,7 +789,7 @@ impl Database {
 
     /// Discards a download's partial state so a refreshed URL starts from zero.
     pub async fn reset_transfer(&self, id: DownloadId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ResetTransfer {
+        writer::request(&self.writer, |reply| DownloadsCommand::ResetTransfer {
             id,
             reply,
         })
@@ -777,9 +798,8 @@ impl Database {
 
     /// Atomically reserves the single resolver refresh allowed after HTTP 401/403.
     pub async fn claim_resolver_refresh(&self, id: DownloadId) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::ClaimResolverRefresh {
-            id,
-            reply,
+        writer::request(&self.writer, |reply| {
+            DownloadsCommand::ClaimResolverRefresh { id, reply }
         })
         .await
     }
@@ -809,7 +829,7 @@ impl Database {
         id: DownloadId,
         pin: rd_core::ResolverPin,
     ) -> Result<rd_core::ResolverPin> {
-        writer::request(&self.writer, |reply| WriterCommand::ClaimResolverPin {
+        writer::request(&self.writer, |reply| DownloadsCommand::ClaimResolverPin {
             id,
             pin,
             reply,
@@ -839,9 +859,11 @@ impl Database {
     /// Diagnostics are optional by definition: a caller that cannot write one carries on with
     /// the download rather than failing it.
     pub async fn record_plugin_execution(&self, entry: NewPluginExecution) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::RecordPluginExecution {
-            entry: Box::new(entry),
-            reply,
+        writer::request(&self.writer, |reply| {
+            PluginsCommand::RecordPluginExecution {
+                entry: Box::new(entry),
+                reply,
+            }
         })
         .await
     }
@@ -859,7 +881,7 @@ impl Database {
         plugin_version: String,
         checkpoint: Option<Vec<u8>>,
     ) -> Result<PluginTransfer> {
-        writer::request(&self.writer, |reply| WriterCommand::SavePluginTransfer {
+        writer::request(&self.writer, |reply| PluginsCommand::SavePluginTransfer {
             id,
             plugin_id,
             plugin_version,
@@ -871,7 +893,7 @@ impl Database {
 
     /// Forgets a transfer's resume state once it finished or was discarded.
     pub async fn clear_plugin_transfer(&self, id: DownloadId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ClearPluginTransfer {
+        writer::request(&self.writer, |reply| PluginsCommand::ClearPluginTransfer {
             id,
             reply,
         })
@@ -947,10 +969,8 @@ impl Database {
         id: DownloadId,
         pin: rd_core::ResolverPin,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::PinDownloadResolver {
-            id,
-            pin,
-            reply,
+        writer::request(&self.writer, |reply| {
+            DownloadsCommand::PinDownloadResolver { id, pin, reply }
         })
         .await
     }
@@ -965,7 +985,7 @@ impl Database {
         available: Vec<(String, String)>,
     ) -> Result<u64> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ClearUnsatisfiableResolverPins { available, reply }
+            DownloadsCommand::ClearUnsatisfiableResolverPins { available, reply }
         })
         .await
     }
@@ -1029,15 +1049,18 @@ impl Database {
 
     /// Resets interrupted active states to queued during startup recovery.
     pub async fn recover_interrupted(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::RecoverInterrupted {
-            reply,
+        writer::request(&self.writer, |reply| {
+            MaintenanceCommand::RecoverInterrupted { reply }
         })
         .await
     }
 
     /// Checkpoints the WAL after all writer commands already sent have completed.
     pub async fn checkpoint_wal(&self) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointWal { reply }).await
+        writer::request(&self.writer, |reply| MaintenanceCommand::CheckpointWal {
+            reply,
+        })
+        .await
     }
 
     /// Closes the read pool and the writer's connection, so the database files are free while
@@ -1054,7 +1077,7 @@ impl Database {
 
     /// Creates account metadata referring to separately stored secrets.
     pub async fn create_account(&self, input: NewAccount) -> Result<rd_core::Account> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateAccount {
+        writer::request(&self.writer, |reply| NetworkCommand::CreateAccount {
             input,
             reply,
         })
@@ -1067,7 +1090,7 @@ impl Database {
         id: rd_core::AccountId,
         input: UpdateAccount,
     ) -> Result<rd_core::Account> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateAccount {
+        writer::request(&self.writer, |reply| NetworkCommand::UpdateAccount {
             id,
             input,
             reply,
@@ -1081,7 +1104,7 @@ impl Database {
         id: rd_core::AccountId,
     ) -> Result<(Option<String>, Option<String>)> {
         let (references, sign_in) = writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteAccount { id, reply }
+            NetworkCommand::DeleteAccount { id, reply }
         })
         .await?;
         // The sign-in's rows went with the account (cascade); its tokens go with them (DB-02).
@@ -1102,12 +1125,11 @@ impl Database {
         &self,
         input: crate::auth_flow_store::UpsertAuthFlow,
     ) -> Result<rd_core::AuthFlow> {
-        let (flow, released) =
-            writer::request(&self.writer, |reply| WriterCommand::UpsertAuthFlow {
-                input: Box::new(input),
-                reply,
-            })
-            .await?;
+        let (flow, released) = writer::request(&self.writer, |reply| AuthCommand::UpsertAuthFlow {
+            input: Box::new(input),
+            reply,
+        })
+        .await?;
         // A restarted sign-in writes no references; the previous one's tokens leave the vault
         // once nothing points at them (DB-02).
         self.forget_secrets(released).await;
@@ -1128,15 +1150,14 @@ impl Database {
         refresh_ref: Option<String>,
         access_ref: Option<String>,
     ) -> Result<()> {
-        let dropped_key =
-            writer::request(&self.writer, |reply| WriterCommand::SetAuthFlowRenewal {
-                account_id,
-                token_expires_at,
-                refresh_ref,
-                access_ref,
-                reply,
-            })
-            .await?;
+        let dropped_key = writer::request(&self.writer, |reply| AuthCommand::SetAuthFlowRenewal {
+            account_id,
+            token_expires_at,
+            refresh_ref,
+            access_ref,
+            reply,
+        })
+        .await?;
         self.forget_secrets(dropped_key.into_iter().collect()).await;
         Ok(())
     }
@@ -1152,7 +1173,7 @@ impl Database {
         access_ref: String,
         key_ref: Option<String>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetAuthFlowSession {
+        writer::request(&self.writer, |reply| AuthCommand::SetAuthFlowSession {
             account_id,
             access_ref,
             key_ref,
@@ -1171,7 +1192,7 @@ impl Database {
         name: String,
         secret_ref: String,
     ) -> Result<Option<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::SetAuthFlowPart {
+        writer::request(&self.writer, |reply| AuthCommand::SetAuthFlowPart {
             account_id,
             name,
             secret_ref,
@@ -1192,7 +1213,7 @@ impl Database {
     /// Removes the authentication flow of one account, and from the vault the tokens and
     /// parts it held (DB-02).
     pub async fn delete_auth_flow(&self, account_id: rd_core::AccountId) -> Result<()> {
-        let released = writer::request(&self.writer, |reply| WriterCommand::DeleteAuthFlow {
+        let released = writer::request(&self.writer, |reply| AuthCommand::DeleteAuthFlow {
             account_id,
             reply,
         })
@@ -1222,7 +1243,7 @@ impl Database {
         &self,
         callback_state: String,
     ) -> Result<Option<rd_core::AuthFlow>> {
-        writer::request(&self.writer, |reply| WriterCommand::TakeAuthFlowCallback {
+        writer::request(&self.writer, |reply| AuthCommand::TakeAuthFlowCallback {
             callback_state,
             reply,
         })
@@ -1252,7 +1273,7 @@ impl Database {
         account_id: rd_core::AccountId,
         next_poll_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeferAuthFlowRenewal {
+        writer::request(&self.writer, |reply| AuthCommand::DeferAuthFlowRenewal {
             account_id,
             next_poll_at,
             reply,
@@ -1270,7 +1291,7 @@ impl Database {
         &self,
         input: crate::remote_job_store::ClaimRemoteJob,
     ) -> Result<rd_core::RemoteJob> {
-        writer::request(&self.writer, |reply| WriterCommand::ClaimRemoteJob {
+        writer::request(&self.writer, |reply| PluginsCommand::ClaimRemoteJob {
             input: Box::new(input),
             reply,
         })
@@ -1283,7 +1304,7 @@ impl Database {
         id: rd_core::RemoteJobId,
         input: crate::remote_job_store::AdvanceRemoteJob,
     ) -> Result<rd_core::RemoteJob> {
-        writer::request(&self.writer, |reply| WriterCommand::AdvanceRemoteJob {
+        writer::request(&self.writer, |reply| PluginsCommand::AdvanceRemoteJob {
             id,
             input: Box::new(input),
             reply,
@@ -1324,7 +1345,7 @@ impl Database {
     /// is `RemoteJobService::discard`, reached only from an explicit confirmed request, and
     /// nothing on this path calls it.
     pub async fn delete_remote_job(&self, id: rd_core::RemoteJobId) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteRemoteJob {
+        writer::request(&self.writer, |reply| PluginsCommand::DeleteRemoteJob {
             id,
             reply,
         })
@@ -1372,7 +1393,7 @@ impl Database {
 
     /// Records a verified, installed tool version.
     pub async fn record_managed_tool(&self, input: NewManagedTool) -> Result<ManagedToolRecord> {
-        writer::request(&self.writer, |reply| WriterCommand::RecordManagedTool {
+        writer::request(&self.writer, |reply| PluginsCommand::RecordManagedTool {
             input,
             reply,
         })
@@ -1381,7 +1402,7 @@ impl Database {
 
     /// Forgets one installed tool version; returns whether a row was removed.
     pub async fn forget_managed_tool(&self, name: String, version: String) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::ForgetManagedTool {
+        writer::request(&self.writer, |reply| PluginsCommand::ForgetManagedTool {
             name,
             version,
             reply,
@@ -1391,7 +1412,7 @@ impl Database {
 
     /// Raises the accepted tool-manifest sequence after a manifest verified.
     pub async fn accept_tool_manifest(&self, sequence: i64, issued_at: String) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::AcceptToolManifest {
+        writer::request(&self.writer, |reply| PluginsCommand::AcceptToolManifest {
             sequence,
             issued_at,
             reply,
@@ -1406,7 +1427,7 @@ impl Database {
 
     /// Records a confirmed plugin signing key so installed packages still verify on restart.
     pub async fn trust_plugin_key(&self, input: NewPluginTrustedKey) -> Result<PluginTrustedKey> {
-        writer::request(&self.writer, |reply| WriterCommand::TrustPluginKey {
+        writer::request(&self.writer, |reply| PluginsCommand::TrustPluginKey {
             input,
             reply,
         })
@@ -1415,7 +1436,7 @@ impl Database {
 
     /// Revokes a plugin signing key; returns whether one was removed.
     pub async fn revoke_plugin_key(&self, key_id: String) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::RevokePluginKey {
+        writer::request(&self.writer, |reply| PluginsCommand::RevokePluginKey {
             key_id,
             reply,
         })
@@ -1435,7 +1456,7 @@ impl Database {
         &self,
         input: NewPluginDigestRevocation,
     ) -> Result<PluginDigestRevocation> {
-        writer::request(&self.writer, |reply| WriterCommand::RevokePluginDigest {
+        writer::request(&self.writer, |reply| PluginsCommand::RevokePluginDigest {
             input,
             reply,
         })
@@ -1444,7 +1465,7 @@ impl Database {
 
     /// Takes a withdrawal back; returns whether one was removed.
     pub async fn unrevoke_plugin_digest(&self, digest: String) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::UnrevokePluginDigest {
+        writer::request(&self.writer, |reply| PluginsCommand::UnrevokePluginDigest {
             digest,
             reply,
         })
@@ -1470,7 +1491,7 @@ impl Database {
         input: NewPluginVersionChoice,
     ) -> Result<PluginVersionChoice> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SavePluginVersionChoice { input, reply }
+            PluginsCommand::SavePluginVersionChoice { input, reply }
         })
         .await
     }
@@ -1480,7 +1501,7 @@ impl Database {
         &self,
         input: NewProxyProfile,
     ) -> Result<rd_core::ProxyProfile> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateProxyProfile {
+        writer::request(&self.writer, |reply| NetworkCommand::CreateProxyProfile {
             input,
             reply,
         })
@@ -1493,7 +1514,7 @@ impl Database {
         id: rd_core::ProxyProfileId,
         input: NewProxyProfile,
     ) -> Result<rd_core::ProxyProfile> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateProxyProfile {
+        writer::request(&self.writer, |reply| NetworkCommand::UpdateProxyProfile {
             id,
             input,
             reply,
@@ -1508,7 +1529,7 @@ impl Database {
         &self,
         id: rd_core::ProxyProfileId,
     ) -> Result<Option<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteProxyProfile {
+        writer::request(&self.writer, |reply| NetworkCommand::DeleteProxyProfile {
             id,
             reply,
         })
@@ -1553,7 +1574,7 @@ impl Database {
         &self,
         input: NewUsenetServer,
     ) -> Result<rd_core::UsenetServer> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateUsenetServer {
+        writer::request(&self.writer, |reply| NetworkCommand::CreateUsenetServer {
             input,
             reply,
         })
@@ -1566,7 +1587,7 @@ impl Database {
         id: rd_core::UsenetServerId,
         input: UpdateUsenetServer,
     ) -> Result<rd_core::UsenetServer> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateUsenetServer {
+        writer::request(&self.writer, |reply| NetworkCommand::UpdateUsenetServer {
             id,
             input,
             reply,
@@ -1579,7 +1600,7 @@ impl Database {
         &self,
         id: rd_core::UsenetServerId,
     ) -> Result<Option<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteUsenetServer {
+        writer::request(&self.writer, |reply| NetworkCommand::DeleteUsenetServer {
             id,
             reply,
         })
@@ -1601,7 +1622,7 @@ impl Database {
 
     /// Persists a JSON setting.
     pub async fn set_setting(&self, key: String, value: serde_json::Value) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetSetting {
+        writer::request(&self.writer, |reply| MaintenanceCommand::SetSetting {
             key,
             value,
             reply,
@@ -1618,10 +1639,8 @@ impl Database {
         key: String,
         value: serde_json::Value,
     ) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::InsertSettingIfAbsent {
-            key,
-            value,
-            reply,
+        writer::request(&self.writer, |reply| {
+            MaintenanceCommand::InsertSettingIfAbsent { key, value, reply }
         })
         .await
     }

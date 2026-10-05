@@ -13,7 +13,7 @@
 #   RD_PUBLIC_REPO        the GitHub repository (degoya/rDownloader)
 #   RD_PUBLIC_CI_TIMEOUT  seconds to wait for a run to appear at all (900)
 #   RD_PUBLIC_CI_CEILING  seconds after which a run that is still going is given up (21600)
-#   RD_PUBLIC_CI_POLL     seconds between two looks (60)
+#   RD_PUBLIC_CI_POLL     seconds between two looks (60); each look asks for the runs and their jobs
 #
 # No fixed deadline for a run that is going (RD-150-10): the 1.4.2 chain stopped after 5400 s
 # with every job green and `docker` still running. Every job in ci.yml carries its own
@@ -107,13 +107,52 @@ rd_public_ci_dispatch() {
     gh workflow run ci.yml --repo "$PUBLIC_REPO" --ref "$1" -f platforms="$2"
 }
 
+# The jobs of run $1 that changed since the last look, one line each, and every job that failed
+# the moment it is seen failed (RD-1100-13): a Windows job that is red 50 minutes before the run
+# ends is worth those 50 minutes. Keeps what it saw in the caller's associative array
+# RD_PUBLIC_CI_JOBS ("<run>/<job>" → "<status> <conclusion>"). A job still queued says nothing.
+rd_public_ci_jobs() {
+    local run="$1" jobs status conclusion url name key
+    jobs="$(gh run view "$run" --repo "$PUBLIC_REPO" --json jobs \
+        --jq '.jobs[] | "\(.status) \(if (.conclusion // "") == "" then "-" else .conclusion end) \(.url) \(.name)"' \
+        2> /dev/null < /dev/null)" || return 0
+    while read -r status conclusion url name; do
+        [[ -n "$status" ]] || continue
+        key="$run/$name"
+        [[ "${RD_PUBLIC_CI_JOBS[$key]:-}" != "$status $conclusion" ]] || continue
+        RD_PUBLIC_CI_JOBS[$key]="$status $conclusion"
+        case "$status $conclusion" in
+            "completed success"|"completed skipped"|"completed neutral")
+                echo "  $(date +%H:%M:%S) $name: $conclusion" ;;
+            completed\ *)
+                echo "  $(date +%H:%M:%S) $name: $conclusion — failed, while the run goes on"
+                echo "!! $name: $conclusion — scripts/ci-log.sh $url" >&2 ;;
+            in_progress\ *) echo "  $(date +%H:%M:%S) $name: started" ;;
+        esac
+    done <<< "$jobs"
+}
+
+# Runs as gh lists them ("<id> <status> <conclusion|-> <url> <name>") as the lines this file
+# prints and the release pipeline reads: "<status> <conclusion> <name> <url>".
+rd_public_ci_runs_text() {
+    awk '{ status = $2; conclusion = ($3 == "-" ? "" : $3); url = $4
+           $1 = $2 = $3 = $4 = ""; sub(/^ +/, "")
+           print status " " conclusion " " $0 " " url }'
+}
+
 # Waits for every run on branch $1 at commit $2 — only those of event $3 when given — to
 # finish, and prints them. Returns 0 when all of them succeeded (or were skipped), 1 when one
 # did not, when no run appeared within RD_PUBLIC_CI_TIMEOUT, or when one was still going at
-# RD_PUBLIC_CI_CEILING.
+# RD_PUBLIC_CI_CEILING. While it waits it prints only what changed: a job that started, finished
+# or failed (rd_public_ci_jobs), a run that appeared or finished.
 rd_public_ci_wait() {
-    local branch="$1" sha="$2" event="${3:-}" runs failed deadline ceiling
+    local branch="$1" sha="$2" event="${3:-}" runs="" failed deadline ceiling id status conclusion url name
+    local waiting_said=0
     local -a filter=()
+    local -A runs_seen=()
+    # Read by rd_public_ci_jobs, which bash's dynamic scope lets see this local.
+    # shellcheck disable=SC2034
+    local -A RD_PUBLIC_CI_JOBS=()
     [[ -z "$event" ]] || filter=(--event "$event")
     echo "waiting for the CI of $PUBLIC_REPO on $branch at ${sha:0:12} (for as long as it runs)"
     deadline=$(( SECONDS + PUBLIC_CI_TIMEOUT ))
@@ -121,9 +160,18 @@ rd_public_ci_wait() {
     while :; do
         # A failed query is a network hiccup until the deadline says otherwise.
         runs="$(gh run list --repo "$PUBLIC_REPO" --branch "$branch" --commit "$sha" "${filter[@]}" \
-            --json status,conclusion,name,url \
-            --jq '.[] | "\(.status) \(.conclusion) \(.name) \(.url)"' 2> /dev/null)" || runs=""
-        if [[ -n "$runs" ]] && ! grep -qv '^completed ' <<< "$runs"; then
+            --json databaseId,status,conclusion,name,url \
+            --jq '.[] | "\(.databaseId) \(.status) \(if (.conclusion // "") == "" then "-" else .conclusion end) \(.url) \(.name)"' \
+            2> /dev/null)" || runs=""
+        while read -r id status conclusion url name; do
+            [[ -n "$id" ]] || continue
+            if [[ "${runs_seen[$id]:-}" != "$status $conclusion" ]]; then
+                runs_seen[$id]="$status $conclusion"
+                echo "  $(date +%H:%M:%S) run $name ($url): $status$([[ "$conclusion" == - ]] || echo " $conclusion")"
+            fi
+            rd_public_ci_jobs "$id"
+        done <<< "$runs"
+        if [[ -n "$runs" ]] && ! awk '$2 != "completed" { found = 1 } END { exit !found }' <<< "$runs"; then
             break
         fi
         if [[ -z "$runs" ]] && (( SECONDS >= deadline )); then
@@ -132,17 +180,17 @@ rd_public_ci_wait() {
         fi
         if (( SECONDS >= ceiling )); then
             echo "the public CI did not finish within ${PUBLIC_CI_CEILING}s; $branch is kept" >&2
-            [[ -z "$runs" ]] || echo "$runs" >&2
+            [[ -z "$runs" ]] || rd_public_ci_runs_text <<< "$runs" >&2
             return 1
         fi
-        if [[ -z "$runs" ]]; then
+        if [[ -z "$runs" && "$waiting_said" -eq 0 ]]; then
             echo "  $(date +%H:%M:%S) no run for ${sha:0:12} yet"
-        else
-            echo "  $(date +%H:%M:%S) $(wc -l <<< "$runs") run(s), $(grep -vc '^completed ' <<< "$runs") not finished"
+            waiting_said=1
         fi
         sleep "$PUBLIC_CI_POLL"
     done
 
+    runs="$(rd_public_ci_runs_text <<< "$runs")"
     echo "$runs"
     failed="$(grep -vE '^completed (success|skipped|neutral) ' <<< "$runs" || true)"
     if [[ -n "$failed" ]]; then

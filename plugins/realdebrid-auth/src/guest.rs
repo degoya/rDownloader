@@ -1,17 +1,10 @@
 //! The component: Real-Debrid's open-source device flow, and the renewal that outlives it.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "oauth-plugin",
-});
-
-use exports::rdownloader::plugin::oauth::{
-    AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome,
-};
-use rdownloader::plugin::{
-    credentials, host,
+use plugin_guest_oauth::{
+    AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, host,
     http::{self, RequestHeader, RequestQuery},
+    retry_after,
     types::{Failure, FailureKind},
 };
 
@@ -73,13 +66,6 @@ fn secret_template(reference: &str) -> String {
     format!("{{{{secret:{reference}}}}}")
 }
 
-fn accept_json() -> Vec<RequestHeader> {
-    vec![RequestHeader {
-        name: "Accept".to_owned(),
-        value_template: "application/json".to_owned(),
-    }]
-}
-
 /// What the token request sends besides its body: the body's type, which is also what makes the
 /// host look for the markers in it and encode what it fills in for a form.
 fn form_headers() -> Vec<RequestHeader> {
@@ -89,11 +75,6 @@ fn form_headers() -> Vec<RequestHeader> {
         value_template: "application/x-www-form-urlencoded".to_owned(),
     });
     headers
-}
-
-/// The `Retry-After` a provider sent, if it sent one.
-fn retry_after(headers: &[(String, String)]) -> Option<String> {
-    plugin_common::http::header(headers, "retry-after").map(str::to_owned)
 }
 
 /// One exchange at the token endpoint: the device grant, with whatever `code` stands for this
@@ -356,4 +337,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_oauth::oauth_plugin!(Component);

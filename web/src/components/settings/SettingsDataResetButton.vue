@@ -2,10 +2,10 @@
 /**
  * The "clear this store" control that sits in a retention section (RD-120-34), at the
  * notification history (RD-130-08), where a second one discards the notifications not yet
- * sent (RD-170-11), and at the storage card, where it empties the storage history and the
- * content index (RD-180-13).
+ * sent (RD-170-11), at the storage card, where it empties the storage history and the
+ * content index (RD-180-13), and at the download history (RD-1100-04).
  *
- * One component used seven times rather than seven buttons, because they differ only in which
+ * One component used eight times rather than eight buttons, because they differ only in which
  * store they name: the same question, the same confirmation, the same report of what went.
  * The discard and the two storage clears differ in their words as well -- "Discard pending",
  * "Clear history", "Clear index" beside other buttons say more than "Clear" -- so they bring
@@ -32,7 +32,7 @@ import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps<{
   /** Which store this button empties. */
-  target: 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index'
+  target: 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index' | 'history'
   /** How many records it holds right now, or `null` while the count is still loading. */
   count: number | null
 }>()
@@ -50,14 +50,14 @@ const discard = computed(() => props.target === 'notifications_pending')
 const icon = computed(() => (discard.value ? 'i-lucide-bell-off' : 'i-lucide-trash-2'))
 
 /** The targets that name themselves; the others say the shared "Clear". */
-const OWN_WORDS: ReadonlySet<string> = new Set(['notifications_pending', 'storage_operations', 'content_index'])
+const OWN_WORDS: ReadonlySet<string> = new Set(['notifications_pending', 'storage_operations', 'content_index', 'history'])
 
 /** A word in the target's own terms where it has them, and in the shared ones otherwise. */
 function word(key: 'button' | 'stored' | 'confirm' | 'done'): string {
   return OWN_WORDS.has(props.target) ? `system.data_reset.${props.target}.${key}` : `system.data_reset.${key}`
 }
 
-/** The seven routes, spelled out so `openapi-fetch` keeps its per-path body types. */
+/** The eight routes, spelled out so `openapi-fetch` keeps its per-path body types. */
 async function send(): Promise<{ removed: number } | null> {
   const body = { confirmed: true }
   const response =
@@ -73,7 +73,9 @@ async function send(): Promise<{ removed: number } | null> {
               ? await api.POST('/api/v1/notifications/deliveries/discard-pending', { body })
               : props.target === 'storage_operations'
                 ? await api.POST('/api/v1/storage/operations/clear', { body })
-                : await api.POST('/api/v1/storage/content-index/clear', { body })
+                : props.target === 'history'
+                  ? await api.POST('/api/v1/history/clear', { body })
+                  : await api.POST('/api/v1/storage/content-index/clear', { body })
   if (response.data) return response.data
   error.value = responseError(response)
   return null

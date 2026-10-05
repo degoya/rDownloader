@@ -62,7 +62,7 @@
       "signature": "Signatur, Schlüssel, Herausgeber, Vertrauen",
       "managed_tools": "Werkzeuge herunterladen, automatisch installieren, aktualisieren",
       "updates": "Update, Aktualisierung, neue Version, Beta, Versionskanal",
-      "indexers": "Indexer, Newznab, NZB-Suche, API-Schlüssel, Listenstil, Cover"
+      "indexers": "Indexer, Newznab, Torznab, Jackett, Prowlarr, NZB-Suche, Torrent-Suche, API-Schlüssel, Listenstil, Cover"
     }
   },
   "connection": {
@@ -71,5 +71,6 @@
     "view_failed": "Diese Ansicht konnte nicht geladen werden",
     "view_failed_hint": "Die Ansicht wird geladen, sobald der Dienst wieder erreichbar ist.",
     "reload": "Neu laden"
-  }
+  },
+  "history": "Verlauf"
 }

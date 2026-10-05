@@ -41,6 +41,7 @@ export const PALETTE_FUSE = { fuseOptions: { keys: ['keywords'] } }
 /** The main views in sidebar order, with the digit that opens each (`shortcutDefinitions.ts`). */
 export const MAIN_VIEWS = [
   { path: '/downloads', labelKey: 'nav.downloads', icon: 'i-lucide-arrow-down-to-line', key: '1' },
+  { path: '/history', labelKey: 'nav.history', icon: 'i-lucide-history', key: 'h' },
   { path: '/linkgrabber', labelKey: 'nav.linkgrabber', icon: 'i-lucide-magnet', key: '2' },
   { path: '/streams', labelKey: 'nav.streams', icon: 'i-lucide-radio', key: '3' },
   { path: '/subscriptions', labelKey: 'nav.subscriptions', icon: 'i-lucide-rss', key: '4' },

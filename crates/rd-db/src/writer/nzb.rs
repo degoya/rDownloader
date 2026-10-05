@@ -2,13 +2,13 @@
 //! `nzb_queue` and `postprocess_store`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
-use crate::commands::WriterCommand;
+use crate::commands::NzbCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_nzb(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_nzb(&mut self, command: NzbCommand) {
         match command {
-            WriterCommand::SettleNzbRecovery {
+            NzbCommand::SettleNzbRecovery {
                 id,
                 file_name,
                 content_is_par2,
@@ -30,12 +30,12 @@ impl Writer {
                 });
                 send(reply, result);
             }
-            WriterCommand::DeferPar2Verdict { id, missing, reply } => {
+            NzbCommand::DeferPar2Verdict { id, missing, reply } => {
                 let result =
                     crate::nzb_queue::defer_par2_verdict(&mut self.connection, id, missing).await;
                 send(reply, result);
             }
-            WriterCommand::AddNzbImport { import, reply } => {
+            NzbCommand::AddNzbImport { import, reply } => {
                 let result = crate::nzb_store::add_import(&mut self.connection, import).await;
                 if let Ok((_, events)) = &result {
                     for event in events {
@@ -44,7 +44,7 @@ impl Writer {
                 }
                 send(reply, result.map(|(import, _)| import));
             }
-            WriterCommand::RecordNzbImportFailure { failure, reply } => {
+            NzbCommand::RecordNzbImportFailure { failure, reply } => {
                 let result =
                     crate::nzb_store::record_import_failure(&mut self.connection, failure).await;
                 if let Ok((_, Some(event))) = &result {
@@ -52,12 +52,12 @@ impl Writer {
                 }
                 send(reply, result.map(|(import, _)| import));
             }
-            WriterCommand::UpdateNzbImport { id, change, reply } => {
+            NzbCommand::UpdateNzbImport { id, change, reply } => {
                 let result =
                     crate::nzb_store::update_import(&mut self.connection, id, change).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::MarkNzbImportRemoteJob {
+            NzbCommand::MarkNzbImportRemoteJob {
                 id,
                 remote_job_id,
                 expected,
@@ -72,11 +72,11 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteNzbImport { id, reply } => {
+            NzbCommand::DeleteNzbImport { id, reply } => {
                 let result = crate::nzb_store::delete_import(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::ForgetNzbImportHistory { package_id, reply } => {
+            NzbCommand::ForgetNzbImportHistory { package_id, reply } => {
                 let result =
                     crate::nzb_store::forget_import_for_package(&mut self.connection, package_id)
                         .await;
@@ -85,7 +85,7 @@ impl Writer {
                 }
                 send(reply, result.map(|_| ()));
             }
-            WriterCommand::SetNzbSegmentState {
+            NzbCommand::SetNzbSegmentState {
                 id,
                 state,
                 crc32,
@@ -96,7 +96,7 @@ impl Writer {
                         .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::EnqueueNzbImport {
+            NzbCommand::EnqueueNzbImport {
                 id,
                 destination,
                 priority,
@@ -119,7 +119,7 @@ impl Writer {
                 });
                 send(reply, result);
             }
-            WriterCommand::CheckpointNzb { checkpoint, reply } => {
+            NzbCommand::CheckpointNzb { checkpoint, reply } => {
                 let progress_file = match &checkpoint {
                     crate::postprocess_store::NzbCheckpoint::AssemblySegments {
                         file_id, ..
@@ -141,12 +141,27 @@ impl Writer {
                 }
                 publish_unit_event(reply, result, &self.events);
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
+            NzbCommand::FailHopelessPackage {
+                package_id,
+                failure,
+                reply,
+            } => {
+                let result = async {
+                    let events = crate::nzb_hopeless::fail_hopeless(
+                        &mut self.connection,
+                        package_id,
+                        failure,
+                    )
+                    .await?;
+                    for event in events {
+                        let _ = self.events.send(event);
+                    }
+                    // The rows just failed may have been the last the package waited for.
+                    self.settle_package_after_download(package_id).await
+                }
+                .await;
+                send(reply, result);
+            }
         }
     }
 }

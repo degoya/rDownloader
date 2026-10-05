@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::PluginRepositoriesCommand,
     plugin_repositories_store::{
         self, NewPluginRepository, PluginRepository, PluginRepositoryInstall, PluginWithdrawnKey,
         RepositoryCheck,
@@ -38,9 +38,8 @@ impl Database {
         &self,
         input: NewPluginRepository,
     ) -> Result<PluginRepository> {
-        writer::request(&self.writer, |reply| WriterCommand::AddPluginRepository {
-            input,
-            reply,
+        writer::request(&self.writer, |reply| {
+            PluginRepositoriesCommand::AddPluginRepository { input, reply }
         })
         .await
     }
@@ -53,7 +52,7 @@ impl Database {
         name: Option<String>,
     ) -> Result<bool> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpdatePluginRepository {
+            PluginRepositoriesCommand::UpdatePluginRepository {
                 id,
                 enabled,
                 name,
@@ -66,7 +65,7 @@ impl Database {
     /// Removes a third-party repository; returns whether one was removed.
     pub async fn delete_plugin_repository(&self, id: String) -> Result<bool> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeletePluginRepository { id, reply }
+            PluginRepositoriesCommand::DeletePluginRepository { id, reply }
         })
         .await
     }
@@ -78,7 +77,7 @@ impl Database {
         check: RepositoryCheck,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::RecordPluginRepositoryCheck { id, check, reply }
+            PluginRepositoriesCommand::RecordPluginRepositoryCheck { id, check, reply }
         })
         .await
     }
@@ -86,9 +85,8 @@ impl Database {
     /// Records a withdrawn plugin signing key and drops a trusted key it names; returns whether
     /// the key was not withdrawn before.
     pub async fn withdraw_plugin_key(&self, input: PluginWithdrawnKey) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::WithdrawPluginKey {
-            input,
-            reply,
+        writer::request(&self.writer, |reply| {
+            PluginRepositoriesCommand::WithdrawPluginKey { input, reply }
         })
         .await
     }
@@ -99,7 +97,7 @@ impl Database {
         input: PluginRepositoryInstall,
     ) -> Result<PluginRepositoryInstall> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::RecordPluginRepositoryInstall { input, reply }
+            PluginRepositoriesCommand::RecordPluginRepositoryInstall { input, reply }
         })
         .await
     }

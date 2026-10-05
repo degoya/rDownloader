@@ -1,13 +1,13 @@
 //! The LinkGrabber: the writer half of `collector_store`, `collector_packages` and `collector_media`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
-use crate::commands::WriterCommand;
+use crate::commands::CollectorCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_collector(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_collector(&mut self, command: CollectorCommand) {
         match command {
-            WriterCommand::AddMediaCandidates {
+            CollectorCommand::AddMediaCandidates {
                 package_id,
                 entries,
                 reply,
@@ -20,24 +20,24 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::SetCandidateEnrichment { id, fields, reply } => {
+            CollectorCommand::SetCandidateEnrichment { id, fields, reply } => {
                 let result =
                     crate::collector_store::set_enrichment(&mut self.connection, id, &fields).await;
                 send(reply, result);
             }
-            WriterCommand::SetCandidateMediaInventory { id, state, reply } => {
+            CollectorCommand::SetCandidateMediaInventory { id, state, reply } => {
                 let result =
                     crate::collector_media::set_media_inventory(&mut self.connection, id, *state)
                         .await;
                 send(reply, result);
             }
-            WriterCommand::SetCandidateMediaSelection { id, update, reply } => {
+            CollectorCommand::SetCandidateMediaSelection { id, update, reply } => {
                 let result =
                     crate::collector_media::set_media_selection(&mut self.connection, id, *update)
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::SetCandidateMediaVariant {
+            CollectorCommand::SetCandidateMediaVariant {
                 id,
                 variant_id,
                 reply,
@@ -50,7 +50,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::SetCandidateProvider {
+            CollectorCommand::SetCandidateProvider {
                 id,
                 provider,
                 reply,
@@ -59,7 +59,7 @@ impl Writer {
                     crate::collector_media::set_provider(&mut self.connection, id, &provider).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::SetCandidateAuthProfile {
+            CollectorCommand::SetCandidateAuthProfile {
                 id,
                 selection,
                 reply,
@@ -69,7 +69,7 @@ impl Writer {
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::AddCollectorBatch {
+            CollectorCommand::AddCollectorBatch {
                 intake,
                 secret_fragment_refs,
                 reply,
@@ -88,16 +88,16 @@ impl Writer {
                 });
                 send(reply, result);
             }
-            WriterCommand::UpdateCollectorPackages { ids, change, reply } => {
+            CollectorCommand::UpdateCollectorPackages { ids, change, reply } => {
                 let result =
                     crate::collector_packages::update(&mut self.connection, &ids, &change).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::ReorderCollectorPackages { ids, reply } => {
+            CollectorCommand::ReorderCollectorPackages { ids, reply } => {
                 let result = crate::collector_packages::reorder(&mut self.connection, &ids).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::ReorderGrabberEntries {
+            CollectorCommand::ReorderGrabberEntries {
                 entries,
                 after,
                 reply,
@@ -110,7 +110,7 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::ReorderCandidates {
+            CollectorCommand::ReorderCandidates {
                 package_id,
                 ids,
                 reply,
@@ -123,28 +123,28 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::MoveCandidates { ids, target, reply } => {
+            CollectorCommand::MoveCandidates { ids, target, reply } => {
                 let result =
                     crate::collector_packages::move_candidates(&mut self.connection, &ids, target)
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteCollectorPackage { id, reply } => {
+            CollectorCommand::DeleteCollectorPackage { id, reply } => {
                 let result = crate::collector_packages::delete(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::RegroupBatches { batch_ids, reply } => {
+            CollectorCommand::RegroupBatches { batch_ids, reply } => {
                 let result =
                     crate::collector_packages::regroup(&mut self.connection, &batch_ids).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::ClaimCandidatesForCheck { ids, reply } => {
+            CollectorCommand::ClaimCandidatesForCheck { ids, reply } => {
                 send(
                     reply,
                     crate::collector_packages::claim_for_check(&mut self.connection, &ids).await,
                 );
             }
-            WriterCommand::RecordCandidateCheck {
+            CollectorCommand::RecordCandidateCheck {
                 id,
                 result,
                 error,
@@ -163,13 +163,13 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, outcome, &self.events);
             }
-            WriterCommand::SetMirrorPreference { preference, reply } => {
+            CollectorCommand::SetMirrorPreference { preference, reply } => {
                 let result =
                     crate::collector_mirrors::store_preference(&mut self.connection, &preference)
                         .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::SetMirrorPin { id, pinned, reply } => {
+            CollectorCommand::SetMirrorPin { id, pinned, reply } => {
                 let result =
                     crate::collector_mirrors::store_pin(&mut self.connection, id, pinned).await;
                 // Publishes only when something changed: a link that is in no mirror group is
@@ -180,7 +180,7 @@ impl Writer {
                 }
                 send(reply, result.map(|event| event.is_some()));
             }
-            WriterCommand::DissolveMirrorGroup { id, reply } => {
+            CollectorCommand::DissolveMirrorGroup { id, reply } => {
                 let result =
                     crate::collector_mirrors::store_dissolve(&mut self.connection, id).await;
                 // Only a dissolve that happened is worth an event; a refusal would make every
@@ -190,7 +190,7 @@ impl Writer {
                 }
                 send(reply, result.map(|(outcome, _)| outcome));
             }
-            WriterCommand::MarkCandidateUnsupported {
+            CollectorCommand::MarkCandidateUnsupported {
                 id,
                 message,
                 cached_by,
@@ -205,7 +205,7 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, outcome, &self.events);
             }
-            WriterCommand::SetCandidateFileName {
+            CollectorCommand::SetCandidateFileName {
                 id,
                 file_name,
                 reply,
@@ -215,7 +215,7 @@ impl Writer {
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::ClaimPackageForEnqueue { id, only, reply } => {
+            CollectorCommand::ClaimPackageForEnqueue { id, only, reply } => {
                 send(
                     reply,
                     crate::collector_packages::claim_package_for_enqueue(
@@ -226,7 +226,7 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::FinishPackageEnqueue {
+            CollectorCommand::FinishPackageEnqueue {
                 id,
                 success,
                 restore,
@@ -241,21 +241,15 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::DeleteCandidate { id, reply } => {
+            CollectorCommand::DeleteCandidate { id, reply } => {
                 let result =
                     crate::collector_store::delete_candidate(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::DeleteCandidates { reply } => {
+            CollectorCommand::DeleteCandidates { reply } => {
                 let result = crate::collector_store::delete_candidates(&mut self.connection).await;
                 publish_config(reply, result, &self.events);
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
         }
     }
 }

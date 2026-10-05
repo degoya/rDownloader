@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 #
-# Adds one translation key to all four locale catalogues at once.
+# Adds one translation key to every locale catalogue at once.
 #
-# Every visible string has to exist in de, en, es and fr. Doing that by hand means editing four
-# JSON files and keeping their key order and formatting identical; forgetting one is caught by
-# the locale test, but only after the fact.
+# Every visible string has to exist in each *required* language of web/src/locales/languages.json
+# (de, en, es and fr). Doing that by hand means editing one JSON file per language and keeping
+# their key order and formatting identical; forgetting one is caught by the locale test, but only
+# after the fact.
 #
 # Usage:
+#   scripts/i18n-key.sh <catalogue> <dotted.key> <lang>=<text>...
 #   scripts/i18n-key.sh <catalogue> <dotted.key> <de> <en> <es> <fr>
 #
 # Example:
+#   scripts/i18n-key.sh plugins actions.enable de=Aktivieren en=Enable es=Activar fr=Activer
 #   scripts/i18n-key.sh plugins actions.enable Aktivieren Enable Activar Activer
+#
+# Named languages come in any order (RD-1100-09). Every required language must be named; a
+# language the list marks `in-progress` may be named or left out -- it falls back to English for
+# a key it does not have. A code the list does not know is refused. The positional form is the
+# four required languages in the order de, en, es, fr, as before; it is chosen when the first
+# translation does not start with `<two letters>=`.
 #
 # A dot separates groups. To put a dot *inside* one key, escape it -- and quote the argument so
 # the shell leaves the backslash alone:
@@ -28,24 +37,58 @@
 #
 # Environment:
 #   RD_LOCALES_DIR  where the catalogues live (default web/src/locales). Only the tests set it.
+#   RD_LANGUAGES    the language list (default web/src/locales/languages.json). Only the tests
+#                   set it.
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-[[ $# -eq 6 ]] || {
-    echo "usage: scripts/i18n-key.sh <catalogue> <dotted.key> <de> <en> <es> <fr>" >&2
+usage="usage: scripts/i18n-key.sh <catalogue> <dotted.key> <lang>=<text>... | <de> <en> <es> <fr>"
+[[ $# -ge 3 ]] || {
+    echo "$usage" >&2
     exit 2
 }
 
-python3 - "$@" <<'PY'
+python3 - "$usage" "$@" <<'PY'
 import collections, json, pathlib, sys
 
 import os, re
 
-catalogue, key, *values = sys.argv[1:]
-languages = ['de', 'en', 'es', 'fr']
+usage, catalogue, key, *arguments = sys.argv[1:]
+
+listing = json.loads(
+    pathlib.Path(os.environ.get('RD_LANGUAGES', 'web/src/locales/languages.json')).read_text()
+)
+required = [code for code, entry in listing.items() if entry['status'] == 'required']
+
+
+def refuse_usage(message):
+    print(f'{message}\n{usage}', file=sys.stderr)
+    raise SystemExit(2)
+
+
+if re.match(r'^[a-z]{2}=', arguments[0]):
+    named = collections.OrderedDict()
+    for argument in arguments:
+        code, separator, text = argument.partition('=')
+        if not separator or not re.fullmatch(r'[a-z]{2}', code):
+            refuse_usage(f'{argument!r} is not <lang>=<text>; name every language or none')
+        if code not in listing:
+            refuse_usage(f'{code} is not in the language list (web/src/locales/languages.json)')
+        if code in named:
+            refuse_usage(f'{code} is named twice')
+        named[code] = text
+    missing = [code for code in required if code not in named]
+    if missing:
+        refuse_usage(f'every required language needs a translation; missing: {", ".join(missing)}')
+    # Written in the list's order, so the output reads the same whichever order was typed.
+    pairs = [(code, named[code]) for code in listing if code in named]
+else:
+    if len(arguments) != 4 or sorted(required) != ['de', 'en', 'es', 'fr']:
+        refuse_usage('the positional form takes exactly de, en, es and fr; name the languages')
+    pairs = list(zip(['de', 'en', 'es', 'fr'], arguments))
 
 
 def split_key(text):
@@ -73,11 +116,15 @@ def split_key(text):
 segments = split_key(key)
 locales = pathlib.Path(os.environ.get('RD_LOCALES_DIR', 'web/src/locales'))
 
-for language, value in zip(languages, values):
+for language, value in pairs:
     path = locales / language / f'{catalogue}.json'
-    if not path.exists():
+    if path.exists():
+        data = json.loads(path.read_text(), object_pairs_hook=collections.OrderedDict)
+    elif language not in required and path.parent.is_dir():
+        # An unfinished language starts a catalogue with its first translated key in it.
+        data = collections.OrderedDict()
+    else:
         raise SystemExit(f'no catalogue at {path}')
-    data = json.loads(path.read_text(), object_pairs_hook=collections.OrderedDict)
 
     node = data
     walked = []
@@ -105,7 +152,7 @@ for language, value in zip(languages, values):
                     f'group nothing resolves.\n'
                     f'         Escape the dots to write one key instead, quoted so the shell '
                     f'keeps the backslash:\n'
-                    f"           scripts/i18n-key.sh {catalogue} '{suggestion}' <de> <en> <es> <fr>"
+                    f"           scripts/i18n-key.sh {catalogue} '{suggestion}' <lang>=<text>..."
                 )
             child = collections.OrderedDict()
             node[segment] = child
@@ -123,4 +170,4 @@ for language, value in zip(languages, values):
     print(f'  {language}: {".".join(segments)} = {value}')
 PY
 
-echo "==> added to all four catalogues"
+echo "==> added to every named catalogue"

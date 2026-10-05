@@ -10,6 +10,10 @@ use crate::{
 
 /// Scope granting access to the capture intake endpoints only.
 pub const CAPTURE_SCOPE: &str = "capture:*";
+/// Scope granting a paired capture agent the whole queue's pause and resume, and nothing else
+/// (RD-1100-06). Chosen when the agent is paired, never implied: a capture token without it can
+/// do exactly what it could before.
+pub const CAPTURE_QUEUE_SCOPE: &str = "capture:queue";
 /// Scope granting full API access (MCP and future machine clients).
 pub const API_SCOPE: &str = "api:*";
 /// Scope granting read-only access to queue and status resources.
@@ -62,6 +66,10 @@ pub enum Scope {
     Metrics,
     /// Browser-capture intake. Isolated from every API scope in both directions.
     Capture,
+    /// Pausing and resuming the whole queue from the capture agent's tray (RD-1100-06). Off the
+    /// ladder like [`Capture`](Self::Capture): it confers nothing, and nothing confers it, not
+    /// even `api:*` or `capture:*`.
+    CaptureQueue,
 }
 
 impl Scope {
@@ -83,6 +91,10 @@ impl Scope {
         Self::Metrics,
     ];
 
+    /// The capture surface's scopes: the intake every agent holds, and the queue control one is
+    /// paired with on request. Neither is on [`API`](Self::API)'s ladder.
+    pub const CAPTURE: &'static [Self] = &[Self::Capture, Self::CaptureQueue];
+
     /// The scope string persisted in a token and shown to the user.
     #[must_use]
     pub fn as_str(self) -> &'static str {
@@ -95,6 +107,7 @@ impl Scope {
             Self::Admin => API_ADMIN_SCOPE,
             Self::Metrics => API_METRICS_SCOPE,
             Self::Capture => CAPTURE_SCOPE,
+            Self::CaptureQueue => CAPTURE_QUEUE_SCOPE,
         }
     }
 
@@ -106,7 +119,7 @@ impl Scope {
     pub fn parse(value: &str) -> Option<Self> {
         Self::API
             .iter()
-            .chain(std::iter::once(&Self::Capture))
+            .chain(Self::CAPTURE)
             .copied()
             .find(|scope| scope.as_str() == value)
     }
@@ -131,7 +144,7 @@ impl Scope {
     pub fn implies(self) -> &'static [Self] {
         match self {
             Self::Intake | Self::Queue | Self::Config | Self::Admin => &[Self::Read],
-            Self::Read | Self::Secrets | Self::Metrics | Self::Capture => &[],
+            Self::Read | Self::Secrets | Self::Metrics | Self::Capture | Self::CaptureQueue => &[],
         }
     }
 
@@ -449,9 +462,10 @@ pub struct CaptureToken {
 mod tests {
     use super::{
         API_ADMIN_SCOPE, API_CONFIG_SCOPE, API_INTAKE_SCOPE, API_METRICS_SCOPE, API_QUEUE_SCOPE,
-        API_READ_SCOPE, API_SCOPE, API_SECRETS_SCOPE, CAPTURE_SCOPE, CAPTURED_HEADER_ALLOWLIST,
-        CapturedRequest, Scope, granted_scopes, is_allowed_captured_header, is_credential_header,
-        scope_satisfies, scopes_grant, scopes_satisfy,
+        API_READ_SCOPE, API_SCOPE, API_SECRETS_SCOPE, CAPTURE_QUEUE_SCOPE, CAPTURE_SCOPE,
+        CAPTURED_HEADER_ALLOWLIST, CapturedRequest, Scope, granted_scopes,
+        is_allowed_captured_header, is_credential_header, scope_satisfies, scopes_grant,
+        scopes_satisfy,
     };
 
     /// Nothing confers the two scopes that matter most, not even administration.
@@ -460,7 +474,7 @@ mod tests {
     /// a token minted to reorder a queue would be able to read every stored password.
     #[test]
     fn no_scope_implies_secrets_or_administration() {
-        for scope in Scope::API.iter().chain(std::iter::once(&Scope::Capture)) {
+        for scope in Scope::API.iter().chain(Scope::CAPTURE) {
             for forbidden in [Scope::Secrets, Scope::Admin] {
                 if *scope == forbidden {
                     continue;
@@ -538,10 +552,30 @@ mod tests {
         assert!(granted_scopes([CAPTURE_SCOPE]) == vec![Scope::Capture]);
     }
 
+    /// The tray's queue control is an island of its own (RD-1100-06): a token paired with it
+    /// gains the two capture queue routes and nothing else, and no other scope -- not `api:*`,
+    /// not `api:queue`, not `capture:*` -- reaches it.
+    #[test]
+    fn the_capture_queue_scope_is_isolated_in_both_directions() {
+        assert_eq!(
+            granted_scopes([CAPTURE_SCOPE, CAPTURE_QUEUE_SCOPE]),
+            vec![Scope::Capture, Scope::CaptureQueue]
+        );
+        assert!(Scope::CaptureQueue.implies().is_empty());
+        for other in Scope::API.iter().chain(std::iter::once(&Scope::Capture)) {
+            assert!(!other.satisfies(Scope::CaptureQueue), "{}", other.as_str());
+            assert!(!Scope::CaptureQueue.satisfies(*other), "{}", other.as_str());
+        }
+        assert!(!granted_scopes([API_SCOPE]).contains(&Scope::CaptureQueue));
+        assert!(!scope_satisfies(API_SCOPE, CAPTURE_QUEUE_SCOPE));
+        assert!(!scope_satisfies(CAPTURE_SCOPE, CAPTURE_QUEUE_SCOPE));
+        assert!(!scope_satisfies(CAPTURE_QUEUE_SCOPE, API_QUEUE_SCOPE));
+    }
+
     /// Round-tripping is what makes the persisted strings and the enum one vocabulary.
     #[test]
     fn every_scope_parses_back_from_its_string() {
-        for scope in Scope::API.iter().chain(std::iter::once(&Scope::Capture)) {
+        for scope in Scope::API.iter().chain(Scope::CAPTURE) {
             assert_eq!(Scope::parse(scope.as_str()), Some(*scope));
         }
         assert_eq!(Scope::parse("api:*"), None, "api:* is not a single scope");
@@ -560,6 +594,7 @@ mod tests {
             API_ADMIN_SCOPE,
             API_METRICS_SCOPE,
             CAPTURE_SCOPE,
+            CAPTURE_QUEUE_SCOPE,
             API_SCOPE,
         ];
         for (index, left) in strings.iter().enumerate() {

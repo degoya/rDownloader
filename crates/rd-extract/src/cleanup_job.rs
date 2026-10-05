@@ -187,7 +187,7 @@ pub(crate) async fn run(
 /// sample — walking up from each removed file's folder, never the package folder itself.
 /// `remove_dir` refuses a folder that still holds anything, so a folder with other content, or
 /// one the cleanup did not empty, stays. Returns how many folders went.
-async fn remove_emptied_folders(root: &Path, removed: &[PathBuf]) -> usize {
+pub(crate) async fn remove_emptied_folders(root: &Path, removed: &[PathBuf]) -> usize {
     let mut folders: Vec<&Path> = removed.iter().filter_map(|path| path.parent()).collect();
     folders.sort();
     folders.dedup();

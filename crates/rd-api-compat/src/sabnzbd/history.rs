@@ -1,4 +1,9 @@
 //! The `history` mode: packages that reached an end state, and removing one.
+//!
+//! Since RD-1100-04 the list also carries the packages that left the queue, from the download
+//! history, so an automation client still finds an import it missed after the package was
+//! cleaned up. Deleting an item hides its history entry from this adapter; the native history
+//! keeps it.
 
 use std::collections::HashMap;
 
@@ -32,7 +37,10 @@ async fn list(state: &AppState) -> Response {
     for file in &downloads {
         *committed.entry(file.package_id).or_default() += file.committed_bytes.get();
     }
-    let slots: Vec<serde_json::Value> = packages
+    let Ok(removed) = state.database.list_compat_history().await else {
+        return error("history unavailable");
+    };
+    let mut slots: Vec<serde_json::Value> = packages
         .iter()
         .filter(|package| map::is_history(package))
         .enumerate()
@@ -45,6 +53,15 @@ async fn list(state: &AppState) -> Response {
             )
         })
         .collect();
+    // The packages that left the queue, newest first after the ones still in it.
+    let present: std::collections::HashSet<rd_core::PackageId> =
+        packages.iter().map(|package| package.id).collect();
+    for entry in removed
+        .iter()
+        .filter(|entry| !present.contains(&entry.package_id))
+    {
+        slots.push(entry_slot(slots.len(), entry));
+    }
     let total: u64 = slots.iter().filter_map(|slot| slot["bytes"].as_u64()).sum();
     json(serde_json::json!({
         "history": {
@@ -99,6 +116,51 @@ fn slot(index: usize, package: &DownloadPackage, category: &str, bytes: u64) -> 
     })
 }
 
+/// A history slot for a package that is no longer in the queue, from its history entry.
+fn entry_slot(index: usize, entry: &rd_core::HistoryEntry) -> serde_json::Value {
+    let failed = entry.outcome == rd_core::HistoryOutcome::Failed;
+    let bytes = entry.total_bytes.get();
+    // The stable code: the adapter has no catalogue to translate it with, and a client shows
+    // it as it is.
+    let fail_message = if failed {
+        entry.error_code.clone().unwrap_or_default()
+    } else {
+        String::new()
+    };
+    serde_json::json!({
+        "id": index,
+        "nzo_id": map::nzo_id_of(entry.package_id),
+        "name": entry.name,
+        "nzb_name": format!("{}.nzb", entry.name),
+        "category": entry.category.as_deref().unwrap_or("*"),
+        "pp": "D",
+        "script": "None",
+        "status": if failed { "Failed" } else { "Completed" },
+        "fail_message": fail_message,
+        "storage": entry.destination,
+        "path": entry.destination,
+        "bytes": bytes,
+        "size": map::human_size(bytes),
+        "downloaded": bytes,
+        "completeness": if failed { 0 } else { 100 },
+        "download_time": 0,
+        "postproc_time": 0,
+        "completed": entry.finished_at.timestamp(),
+        "stage_log": [],
+        "url": "",
+        "url_info": "",
+        "report": "",
+        "md5sum": "",
+        "password": "",
+        "action_line": "",
+        "script_line": "",
+        "series": "",
+        "meta": serde_json::Value::Null,
+        "loaded": false,
+        "retry": 0,
+    })
+}
+
 /// Why a package failed, in the one free-text field SABnzbd offers for it.
 ///
 /// Left empty for anything that succeeded: a client shows this string to a user, and a
@@ -117,7 +179,22 @@ async fn delete(state: &AppState, query: &SabQuery) -> Response {
     let Some(value) = query.value.as_deref() else {
         return error("nzo_id not found");
     };
-    let ids: Vec<rd_core::PackageId> = if value.eq_ignore_ascii_case("all") {
+    let all = value.eq_ignore_ascii_case("all");
+    let named: Vec<rd_core::PackageId> = if all {
+        Vec::new()
+    } else {
+        value.split(',').filter_map(map::package_id).collect()
+    };
+    // Gone from this client's history, kept in the native one (RD-1100-04).
+    if state
+        .database
+        .hide_history_from_compat((!all).then(|| named.clone()))
+        .await
+        .is_err()
+    {
+        return error("history unavailable");
+    }
+    let ids: Vec<rd_core::PackageId> = if all {
         match state.database.list_packages().await {
             Ok(packages) => packages
                 .iter()
@@ -127,7 +204,14 @@ async fn delete(state: &AppState, query: &SabQuery) -> Response {
             Err(_) => return error("history unavailable"),
         }
     } else {
-        value.split(',').filter_map(map::package_id).collect()
+        // Only the ones still in the queue: a removed package has nothing left to remove.
+        match state.database.list_packages().await {
+            Ok(packages) => named
+                .into_iter()
+                .filter(|id| packages.iter().any(|package| package.id == *id))
+                .collect(),
+            Err(_) => return error("history unavailable"),
+        }
     };
     if ids.is_empty() {
         return ok();

@@ -296,7 +296,7 @@ async fn import(
 }
 
 /// A bencoded dictionary with an `info` key: what every `.torrent` is.
-fn looks_like_torrent(bytes: &[u8]) -> bool {
+pub(crate) fn looks_like_torrent(bytes: &[u8]) -> bool {
     bytes.first() == Some(&b'd') && contains(bytes, b"4:info")
 }
 

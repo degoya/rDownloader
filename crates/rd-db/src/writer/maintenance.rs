@@ -4,13 +4,13 @@
 //! retention sweep.
 
 use super::{Writer, purge_old_events, send};
-use crate::commands::WriterCommand;
+use crate::commands::MaintenanceCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_maintenance(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_maintenance(&mut self, command: MaintenanceCommand) {
         match command {
-            WriterCommand::ReplaceConfig { replacement, reply } => {
+            MaintenanceCommand::ReplaceConfig { replacement, reply } => {
                 let result =
                     crate::backup_store::replace_all(&mut self.connection, replacement).await;
                 if let Ok(outcome) = &result {
@@ -20,32 +20,32 @@ impl Writer {
                 }
                 send(reply, result.map(|outcome| outcome.released_secrets));
             }
-            WriterCommand::SetSetting { key, value, reply } => {
+            MaintenanceCommand::SetSetting { key, value, reply } => {
                 send(reply, self.set_setting(&key, &value).await);
             }
-            WriterCommand::InsertSettingIfAbsent { key, value, reply } => {
+            MaintenanceCommand::InsertSettingIfAbsent { key, value, reply } => {
                 send(reply, self.insert_setting_if_absent(&key, &value).await);
             }
-            WriterCommand::CheckpointWal { reply } => {
+            MaintenanceCommand::CheckpointWal { reply } => {
                 send(reply, self.checkpoint_wal().await);
             }
-            WriterCommand::RecoverInterrupted { reply } => {
+            MaintenanceCommand::RecoverInterrupted { reply } => {
                 send(reply, self.recover_interrupted().await);
             }
-            WriterCommand::PurgeOldEvents { reply } => {
+            MaintenanceCommand::PurgeOldEvents { reply } => {
                 send(reply, purge_old_events(&mut self.connection).await);
             }
-            WriterCommand::PruneTransferStats { retention, reply } => {
+            MaintenanceCommand::PruneTransferStats { retention, reply } => {
                 let now = chrono::Utc::now();
                 send(
                     reply,
                     crate::stats_store::prune(&mut self.connection, retention, now).await,
                 );
             }
-            WriterCommand::ClearTransferStats { reply } => {
+            MaintenanceCommand::ClearTransferStats { reply } => {
                 send(reply, crate::stats_store::clear(&mut self.connection).await);
             }
-            WriterCommand::Vacuum { reply } => {
+            MaintenanceCommand::Vacuum { reply } => {
                 let result = sqlx::query("VACUUM")
                     .execute(&mut self.connection)
                     .await
@@ -53,15 +53,9 @@ impl Writer {
                     .map_err(anyhow::Error::from);
                 send(reply, result);
             }
-            WriterCommand::VacuumInto { path, reply } => {
+            MaintenanceCommand::VacuumInto { path, reply } => {
                 send(reply, self.vacuum_into(&path).await);
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
         }
     }
 }

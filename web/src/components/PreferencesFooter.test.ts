@@ -18,7 +18,7 @@ vi.mock('@/api/client', () => ({
 
 import PreferencesFooter from './PreferencesFooter.vue'
 import { useTheme } from '@/composables/useTheme'
-import { i18n, SUPPORTED_LOCALES } from '@/i18n'
+import { i18n, languageItems, REQUIRED_LOCALES } from '@/i18n'
 import { loadEveryLocale } from '@/test/locales'
 
 beforeAll(loadEveryLocale)
@@ -81,15 +81,15 @@ describe('collapsed', () => {
     expect(await violations(container)).toBe('')
   })
 
-  it('names the gear in all four languages', () => {
+  it('names the gear in every required language', () => {
     const names = new Set<string>()
-    for (const locale of SUPPORTED_LOCALES) {
+    for (const locale of REQUIRED_LOCALES) {
       i18n.global.locale.value = locale
       const name = i18n.global.t('common.preferences.language_and_theme')
       expect(name).not.toBe('common.preferences.language_and_theme')
       names.add(name)
     }
-    expect(names.size).toBe(SUPPORTED_LOCALES.length)
+    expect(names.size).toBe(REQUIRED_LOCALES.length)
   })
 
   it('keeps every language and every theme selectable behind the gear', async () => {
@@ -98,7 +98,8 @@ describe('collapsed', () => {
     const groups = screen.getAllByTestId('menu-group')
     expect(groups).toHaveLength(2)
     const labels = (group: HTMLElement) => Array.from(group.querySelectorAll('button')).map(button => button.textContent?.trim())
-    expect(labels(groups[0]!)).toEqual(SUPPORTED_LOCALES.map(code => i18n.global.t(`common.locales.${code}`)))
+    // Each language under its own name, from the language list rather than a catalogue.
+    expect(labels(groups[0]!)).toEqual(languageItems(i18n.global.t).map(item => item.label))
     expect(labels(groups[1]!)).toEqual(['System', 'Light', 'Dark'])
 
     // The current choice is the checked one: English and the system theme to begin with.

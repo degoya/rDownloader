@@ -228,6 +228,15 @@ expect "a Windows green covers no half of --full" "" "$(rd_full_covering "$wired
 echo "change" > "$wired/code.rs"
 expect "a code change is not covered by the Windows green" "" "$(rd_full_covering "$wired" windows "$(rd_worktree_tree "$wired")")"
 rm -f "$wired/code.rs"
+# The gate (RD-1100-13): its two halves, `clippy` and `windows`, kept the same way.
+rd_record_full "$SCRATCH/elsewhere" clippy "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
+set +e
+wired_output="$(env -u RD_LOCK_HELD RD_LOCK_FILE="$SCRATCH/lock" RD_LOCK_WAIT=0 "$wired/scripts/check.sh" --gate 2>&1)"
+covered=$?
+set -e
+expect "check.sh --gate over a tree both its greens cover: passes" "0" "$covered"
+expect_line "saying it is not run again" "(clippy windows); it is not run again" "$wired_output"
+expect "and records no verified revision, which only --full's two halves do" "" "$(rd_verified_revision "$wired")"
 
 # --- GitHub greens per platform, up to documentation and version lines (RD-160-06) --------------
 rm -f "$(rd_ci_record_file "$repo")"

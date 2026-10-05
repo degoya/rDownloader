@@ -359,6 +359,19 @@ pub(crate) struct MalwareScannerTestParams {
     pub address: Option<String>,
 }
 
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct SortPreviewParams {
+    /// Template for episodes by season and number, e.g.
+    /// `{show}/Season {season:00}/{show} - S{season:00}E{episode:00} - {title}`.
+    pub series: Option<String>,
+    /// Template for episodes by air date, e.g. `{show}/{year}/{show} - {date} - {title}`.
+    pub dated: Option<String>,
+    /// Template for films, e.g. `{movie} ({year})/{movie} ({year})`.
+    pub movie: Option<String>,
+    /// File, folder or package names to try the templates on, at most 20.
+    pub names: Vec<String>,
+}
+
 #[derive(Clone, Copy, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ManagedToolsView {
@@ -445,4 +458,15 @@ pub(crate) struct NzbViewParams {
 pub(crate) struct ReorderPackagesParams {
     /// Download package ids (from list_packages) in their new order.
     pub ids: Vec<String>,
+}
+
+/// A package's own speed limit (RD-1100-01).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct PackageSpeedLimitParams {
+    /// Download package id (from list_packages).
+    pub id: String,
+    /// Bytes per second as a decimal string, greater than zero; absent or null removes the
+    /// package's own limit.
+    #[serde(default)]
+    pub download_bytes_per_second: Option<String>,
 }

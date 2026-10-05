@@ -4,11 +4,14 @@ mod assembly_resume;
 mod checkpoints;
 mod config;
 mod error;
+mod health;
+mod hopeless;
 mod nntp;
 mod parallel;
 mod pool;
 mod runner;
 mod segments;
+mod traffic;
 mod worker;
 mod yenc;
 
@@ -16,6 +19,10 @@ mod yenc;
 mod assembly_resume_tests;
 #[cfg(all(test, feature = "failpoints"))]
 mod crash_restart_tests;
+#[cfg(test)]
+mod health_tests;
+#[cfg(test)]
+mod hopeless_tests;
 #[cfg(test)]
 mod out_of_order_tests;
 #[cfg(test)]
@@ -30,17 +37,23 @@ mod resume_after_crash_tests;
 mod test_support;
 #[cfg(test)]
 mod throughput_bench;
+#[cfg(all(test, feature = "failpoints"))]
+mod traffic_crash_tests;
+#[cfg(test)]
+mod traffic_tests;
 #[cfg(test)]
 mod transient_tests;
 #[cfg(test)]
 mod worker_tests;
 
 pub use config::{
-    connection_fingerprint, enabled_server_configs, server_config, server_config_with_ca,
+    OrderedServers, connection_fingerprint, enabled_server_configs, order_by_quota, server_config,
+    server_config_with_ca, servers_by_quota,
 };
 pub use error::{NntpStatusError, nntp_status};
 pub use nntp::{NntpClient, NntpServerConfig, Socks5Proxy};
 pub use pool::{FetchError, NntpPool, PooledArticle};
 pub use runner::{UsenetRunner, UsenetRunnerConfig};
 pub use segments::{ArticleSource, AssembledFile, SegmentRequest, download_file};
+pub use traffic::{FLUSH_INTERVAL, TrafficFlusher, UsenetTraffic};
 pub use yenc::{DecodedArticle, YencMetadata, decode_yenc};

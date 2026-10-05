@@ -232,6 +232,23 @@ fn core_codes() -> BTreeMap<String, String> {
         .collect()
 }
 
+/// The languages `web/src/locales/languages.json` marks `required` (RD-1100-09): a bundled
+/// plugin's catalogue in one of them carries every code English does. Any other listed language
+/// is `in-progress` and may carry a subset; the interface shows English for the rest.
+fn required_languages() -> BTreeSet<String> {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../web/src/locales/languages.json");
+    let text = std::fs::read_to_string(path).expect("languages.json");
+    let value: serde_json::Value = serde_json::from_str(&text).expect("languages.json is JSON");
+    value
+        .as_object()
+        .expect("language object")
+        .iter()
+        .filter(|(_, entry)| entry["status"] == "required")
+        .map(|(code, _)| code.clone())
+        .collect()
+}
+
 #[test]
 fn shipped_locales_cover_exactly_the_codes_the_resolver_emits() {
     let core = core_codes();
@@ -282,7 +299,12 @@ fn shipped_locales_cover_exactly_the_codes_the_resolver_emits() {
 }
 
 #[test]
-fn every_language_covers_the_same_codes_as_english() {
+fn every_required_language_covers_the_same_codes_as_english() {
+    let required = required_languages();
+    assert!(
+        required.contains("en") && required.len() >= 4,
+        "{required:?}"
+    );
     for directory in plugin_directories() {
         let manifest = manifest_of(&directory);
         let english = rd_plugin_host::parse_locale(
@@ -306,6 +328,19 @@ fn every_language_covers_the_same_codes_as_english() {
             .unwrap_or_else(|error| {
                 panic!("{} {language}.json invalid: {error}", directory.display())
             });
+            let extra: Vec<&String> = locale
+                .codes
+                .keys()
+                .filter(|code| !english.codes.contains_key(*code))
+                .collect();
+            assert!(
+                extra.is_empty(),
+                "{} {language}.json translates codes English lacks: {extra:?}",
+                directory.display()
+            );
+            if !required.contains(language) {
+                continue;
+            }
             let missing: Vec<&String> = english
                 .codes
                 .keys()

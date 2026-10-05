@@ -6,10 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+plugin-guest-crawler = { path = "../guest-crawler" }
 serde.workspace = true
 serde_json.workspace = true
 url.workspace = true
-wit-bindgen.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

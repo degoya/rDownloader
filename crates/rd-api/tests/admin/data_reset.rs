@@ -27,7 +27,7 @@ use serde_json::json;
 const CONFIRMED: fn() -> serde_json::Value = || json!({ "confirmed": true });
 
 /// Every clear this file knows, so a check that holds for all of them names all of them.
-const CLEARS: [&str; 7] = [
+const CLEARS: [&str; 8] = [
     "/api/v1/diagnostics/logs/clear",
     "/api/v1/audit/records/clear",
     "/api/v1/stats/transfers/clear",
@@ -35,6 +35,7 @@ const CLEARS: [&str; 7] = [
     "/api/v1/notifications/deliveries/discard-pending",
     "/api/v1/storage/operations/clear",
     "/api/v1/storage/content-index/clear",
+    "/api/v1/history/clear",
 ];
 
 async fn seed(database: &rd_db::Database) {

@@ -2,18 +2,18 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2154  # `changed` and `full` are check.sh's, which sources this file
 #
-# The three plugin component gates of scripts/check.sh, kept here so check.sh stays readable.
-# They run before anything expensive: each is a stat, a hash or an archive read, and each stops
-# a run that would otherwise fail forty minutes later on a component that is not what the
-# sources say.
+# The plugin component gates of scripts/check.sh, kept here so check.sh stays readable. They run
+# before anything expensive: a component that is missing or not what the sources say is built
+# (RD-1100-13), and a plugin that changed under a signed version stops the run — either would
+# otherwise fail it forty minutes later.
 #
 # Expects from the caller: `step`, `touches`, `full`, `changed` and `TARGET_DIR`, as check.sh
 # defines them, `rd_plugin_linked_crates` from lib/scope.sh, and the working directory at the
 # checkout root.
 
 rd_component_gates() {
-    local absent stale unbumped unbumped_scope linked_touched directory name version member package
-    local unbumped_names=()
+    local build unbumped unbumped_scope linked_touched directory name version member package
+    local unbumped_names=() names=()
     # Before anything expensive: target/ is per checkout and `cargo test` never builds
     # components, so a merge leaves the previous component next to the current sources and the
     # plugin contract tests fail on behaviour that was fixed long ago. They now say so
@@ -22,39 +22,27 @@ rd_component_gates() {
     # Two states, not one. A component that is *missing* used to be the quiet one: the loader
     # returned early, every contract test passed, and the number at the end of the run said
     # nothing about the fact that no component had been loaded at all. Since RD-108-16 such a
-    # test fails — and this check is why it fails here, in a second, rather than after the
-    # build.
-    step "plugin components exist"
-    absent="$(scripts/build-plugins.sh --list-missing)"
-    if [[ -n "$absent" ]]; then
-        echo "!! these components have never been built in this checkout:" >&2
-        echo "     $(tr '\n' ' ' <<< "$absent")" >&2
-        echo >&2
-        echo "   Build and stamp them (self-locking; never wrap it in flock):" >&2
-        echo "     scripts/build-plugins.sh --components-only" >&2
-        echo "   The contract tests need them and fail without them." >&2
-        echo "   Without a wasm toolchain here, leave those tests out on purpose:" >&2
-        echo "     cargo nextest run -P no-components --workspace" >&2
-        exit 1
+    # test fails. Staleness is by content since RD-120-58: a stamp beside each component records
+    # the hash of the sources it was built from and of the component itself, so "stale" means
+    # the content differs, or a bare `cargo component build` rebuilt it without a stamp.
+    #
+    # Both are built here, under this run's lock (RD-1100-13): build-plugins.sh sees RD_LOCK_HELD
+    # and takes no lock of its own. Until 1.10 the run stopped with the command to type, and the
+    # integration of a wave that changed a plugin paid a second start for it.
+    step "plugin components: built, and from these sources"
+    build="$( (scripts/build-plugins.sh --list-missing; scripts/build-plugins.sh --list-stale) | sort -u)"
+    if [[ -n "$build" ]]; then
+        mapfile -t names <<< "$build"
+        echo "    building ${#names[@]} missing or stale: ${names[*]}"
+        if ! scripts/build-plugins.sh --components-only "${names[@]}"; then
+            echo "!! these components did not build: ${names[*]}" >&2
+            echo "   The contract tests need them and fail without them. Without a wasm toolchain" >&2
+            echo "   here, leave those tests out on purpose:" >&2
+            echo "     cargo nextest run -P no-components --workspace" >&2
+            exit 1
+        fi
     fi
-    echo "    every bundled component is built"
-
-    # By content since RD-120-58: a stamp beside each component records the hash of the
-    # sources it was built from and of the component itself. File times said "stale" after
-    # every checkout; this says it only when the content differs, or when a component was
-    # rebuilt by a bare `cargo component build` that wrote no stamp.
-    step "plugin components against their sources"
-    stale="$(scripts/build-plugins.sh --list-stale)"
-    if [[ -n "$stale" ]]; then
-        echo "!! these components were not built from the sources in this checkout:" >&2
-        echo "     $(tr '\n' ' ' <<< "$stale")" >&2
-        echo >&2
-        echo "   Rebuild and stamp every stale or missing one (self-locking; never wrap it in flock):" >&2
-        echo "     scripts/build-plugins.sh --components-only" >&2
-        echo "   The contract tests would fail on them later in this run." >&2
-        exit 1
-    fi
-    echo "    every built component carries the stamp of these sources"
+    echo "    every bundled component is built and carries the stamp of these sources"
 
     # Same version, same content (RD-120-47): a plugin that changed and kept its version is
     # never taken by an installation, which only takes a newer bundled one. build-plugins.sh

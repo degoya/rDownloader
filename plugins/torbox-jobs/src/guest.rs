@@ -12,19 +12,11 @@
 //! `job-state`, so that `poll` and `discard` know it without deriving anything.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "remote-job-plugin",
-});
-
-use exports::rdownloader::plugin::remote_job::{
+use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteEntry,
-    RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest,
-};
-use rdownloader::plugin::{
-    host,
+    RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest, host,
     http::{self, RequestHeader, RequestQuery},
-    job_context,
+    job_context, refuse,
     types::{Failure, FailureKind},
 };
 
@@ -39,15 +31,6 @@ struct Component;
 
 /// How many random bytes the multipart boundary is built from.
 const BOUNDARY_BYTES: u32 = 16;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 fn from_api(failure: ApiFailure) -> Failure {
     Failure {
@@ -511,4 +494,4 @@ fn ready_of(kind: Kind, id: &str, entry: &api::JobEntry) -> Result<RemoteProgres
 #[allow(dead_code)]
 type NoSelection = RemoteEntry;
 
-export!(Component);
+plugin_guest_remote_job::remote_job_plugin!(Component);

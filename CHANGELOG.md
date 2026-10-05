@@ -5,6 +5,178 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-05
+
+### Added
+
+- **A speed limit per package (RD-1100-01).** The package editor in Downloads takes a download
+  limit of the package's own, in MiB/s; it is the narrowest bucket of the limiter chain, so the
+  global, hand-set and profile limits still apply and the strictest wins, while every other
+  package keeps its speed. The limit applies to running transfers at once, survives a restart and
+  every profile switch (migration 0121) and is reachable as
+  `GET|PUT /api/v1/packages/{id}/speed-limit` and the MCP tools `get_package_speed_limit` and
+  `set_package_speed_limit`; the bandwidth status names `package` as the binding source. A limit
+  per torrent is not offered: librqbit 9 takes a torrent's own rates only when it is added, so
+  `GET /api/v1/torrents/capabilities` reports `per_torrent_limits: false` and a package holding a
+  torrent refuses a limit with `torrent.capability_unsupported`.
+- **Hopeless Usenet downloads are given up early (RD-1100-02).** Like SABnzbd's
+  `fail_hopeless_jobs`, and on by default under Settings → Post-processing → "Abort hopeless
+  Usenet downloads" (`fail_hopeless_jobs`): once more PAR2 blocks are missing than the set's recovery volumes —
+  downloaded, queued or postponed — can replace, the rest of the set is not downloaded, its
+  running files stop, and the package fails with `usenet.job_hopeless` naming `missing_blocks`
+  and `available_blocks`. Only articles every server refused count, every bound errs towards
+  carrying on, and a set that does not say enough (obfuscated names, no volume) is left to the
+  PAR2 step. What was downloaded stays. New notification event and automation trigger
+  `usenet_job_hopeless`; crash point `usenet.before_hopeless_abort`.
+- **Torznab indexers and TV and film searches in the LinkGrabber (RD-1100-03).** A Jackett or
+  Prowlarr Torznab address under Settings → Usenet → Indexers is searched like a Newznab one; a
+  torrent hit shows its seeders and leechers and arrives in the LinkGrabber as a package — its
+  `.torrent`, fetched with the key from the indexer's own server, or its magnet. A search type
+  adds TV series (`t=tvsearch` with season, episode, TVDB, TVmaze or IMDb id) and film
+  (`t=movie` with IMDb or TMDb id); the indexers' `t=caps` decide which types and ids are offered,
+  and a typed search goes only to the indexers that answer it. MCP: `search_indexers` takes the
+  type and the ids, `grab_indexer_results` the magnet.
+- **A persistent, searchable download history (RD-1100-04).** Every package that completes or
+  fails for good gets an entry — name, kind, category, destination, size, source addresses,
+  outcome with its error code, and the times — written in the same transaction as its outcome,
+  and kept after the package is removed or cleaned up. The new *History* view (sidebar, key `h`)
+  searches it by name or address, filters by outcome, kind and time range, pages in the database,
+  adds an entry's sources back into the LinkGrabber and clears it with a confirmation; *Settings →
+  System → Retention* sets how many entries and days are kept (10000 and 365 by default). Sources
+  are stored masked and no password is kept. The SABnzbd adapter's history now also lists removed
+  packages; deleting one there hides it from the adapter only. REST `GET /api/v1/history`,
+  `POST /api/v1/history/{id}/readd`, `POST /api/v1/history/clear`; MCP `list_download_history`,
+  `readd_history_entry`, `clear_download_history`; migration `0122`.
+- **Traffic per Usenet server, with an optional quota (RD-1100-05).** The Statistics page and each
+  server in Settings → Usenet show what the server delivered today, over 7, 30 and 365 days and in
+  total, as SABnzbd does. The pool counts every article body in memory and writes the counts every
+  ten seconds in one transaction (migration 0123, crash point `usenet.before_traffic_flushed`).
+  A quota per server — a block account's volume, optionally with a reset day — sends a
+  `usenet_quota_reached` notification once and then makes the server a backup or pauses it from
+  the next file on; with every server paused, Usenet downloads wait (`usenet.quota_reached`).
+  REST `GET /api/v1/stats/usenet-servers` and `PUT /api/v1/usenet/servers/{id}/quota`, MCP tools
+  `get_usenet_server_traffic` and `set_usenet_server_quota`.
+- **Pause and resume from the tray (RD-1100-06).** The capture agent's tray menu on Windows and
+  macOS offers “Pause all”, “Pause for 30 minutes” and “Pause for 1 hour”, or “Resume all” while a
+  timed pause holds, and its status line says “paused until 18:30”. It is a right chosen when the
+  agent is paired (**May pause the queue**, scope `capture:queue`): an agent paired without it
+  shows no entry and is refused with `403 auth.scope_insufficient`, and the right reaches the two
+  new routes `POST /api/v1/capture/queue/pause` and `…/resume` and no other queue route. The
+  capture summary carries `paused`, `paused_until` and `queue_control`.
+- **Unpacking while downloading (RD-1100-07).** A new post-processing switch, "Unpack while
+  downloading" (`direct_unpack`, off by default, per category with inherit / on / off, migration
+  0124), unpacks a Usenet package's multi-volume RAR set with `unrar -vp` volume by volume as each
+  volume completes, so a large package is done shortly after its last byte. The output waits in a
+  staging directory until the pipeline has verified the package; it is moved into place only when
+  PAR2 repaired nothing, and a volume with missing articles, a pause, a restart or a repair
+  discards it and the set is unpacked afterwards as before. Settable over MCP (`update_settings`,
+  `update_category_postprocess`); new crash point `postprocess.before_direct_unpack_adopted`.
+- **Sort and rename templates for series and films (RD-1100-08).** A category can file finished
+  episodes and films itself, like SABnzbd's *Sorting*: one template each for series
+  (`{show}/Season {season:00}/{show} - S{season:00}E{episode:00} - {title}`), dated episodes and
+  films (`{movie} ({year})/{movie} ({year})`), recognised from the name alone — `S01E02`, `1x02`,
+  multi-episode files, air dates, title and year. The sort is the last post-processing step of a
+  package that succeeded; files land below the category's folder and never outside it, subtitles
+  and the NFO follow their video, a taken name follows the collision policy, and what is not
+  recognised stays where it is. The category editor previews example names before saving
+  (`POST /api/v1/postprocess/sort-preview`); MCP sets the templates through
+  `update_category_postprocess` and previews them with `preview_category_sorting`; migration
+  `0125`.
+- **A new interface language needs no code (RD-1100-09).** `web/src/locales/languages.json` is the
+  one list of languages; the web interface, its picker, the extension and plugin catalogue tests
+  and `scripts/i18n-key.sh` read it. A language marked `in-progress` may be partial: each missing
+  string shows in English, never as a raw key, and the picker marks it *(in progress)*; the four
+  shipped languages stay required and complete. `scripts/i18n-key.sh` takes named languages
+  (`de=… en=… es=… fr=…`), the positional form still works. `CONTRIBUTING.md` and the wiki page
+  *Translating rDownloader* explain the catalogues, placeholders, plurals, terms, checks and how
+  to submit. No fifth language ships yet: none has been translated.
+- **Recheck a torrent and change where it lives (RD-1100-10).** The torrent menu has *Recheck*:
+  the data is hashed against the pieces again — a seed at once and in place, a running torrent
+  after a short stop, any other one when it starts next — the panel shows the check's progress
+  and what it found, and pieces that no longer verify are fetched again; no ratio or time limit
+  ends a seed while its data is incomplete. *Change location* moves a seeding or paused torrent's
+  files with its package folder to a folder below a storage root, also onto another disk (with a
+  free-space check), and the seed carries on from there after one check of its data. The move is
+  journalled: a failure leaves everything where it was, and a stop in the middle is finished or
+  taken back by the next start (crash points `torrent.before_relocation_commit` and
+  `torrent.after_relocation_commit`). REST `POST /api/v1/downloads/{id}/torrent/recheck` and
+  `/torrent/move`, MCP `recheck_torrent` and `move_torrent`.
+
+### Changed
+
+- **Rust 1.99 and current dependencies (RD-1100-11).** The toolchain moves from 1.98.1 to 1.99.0
+  everywhere — `rust-toolchain.toml`, CI, the release, the Docker build — and the one deprecation
+  it reports (`Atomic::fetch_update`, now `try_update`) is fixed. `cargo update` takes 73
+  compatible updates, among them the bundled SQLite 3.46 → 3.51 (`libsqlite3-sys` 0.37);
+  `russh-sftp` 3.0.1 and `tray-icon` 0.26 (with `muda` 0.21, which needs no `libxdo` any more)
+  build without a code change; nine GTK3 advisory exceptions no longer match and leave
+  `deny.toml`. The web interface takes Nuxt UI 4.11.3, Vite 8.3.2, Vitest 5.0.3, vue-tsc 3.3.12,
+  vue-i18n 11.4.13 and driver.js 1.9 on pnpm 12.9.1; nextest 0.9.146 and wasm-tools 1.261.0 are
+  pinned in CI and in the setup instructions.
+- **Plugins without a change of their own are rebuilt with Rust 1.99.0 and the 1.10 dependencies.**
+  Their components come out different, so each carries a new version: `alldebrid` 0.7.11; `box`
+  0.1.10; `crawljob-intake` 0.9.8; `ddownload` 0.10.18; `debridlink` 0.7.11; `discord-notifier`
+  0.9.9; `dropbox` 0.1.10; `filejoker` 0.7.14; `google-drive` 0.1.10; `hitfile` 0.1.9; `katfile`
+  0.9.13; `keep2share` 0.7.11; `krakenfiles` 0.1.10; `linksnappy` 0.7.11; `md5-postprocess` 0.9.10;
+  `mediafire` 0.1.9; `mega` 0.1.10; `metadata-enricher` 0.1.8; `metalink-intake` 0.10.5;
+  `nitroflare` 0.7.11; `ntfy-notifier` 0.10.3; `offcloud` 0.1.10; `onedrive` 0.1.10; `onefichier`
+  0.7.12; `pcloud` 0.1.10; `pixeldrain` 0.1.11; `premiumize` 0.7.13; `putio` 0.1.10; `rapidgator`
+  0.7.11; `realdebrid` 0.2.7; `rename-postprocess` 0.9.11; `seedr` 0.1.10; `sha256-postprocess`
+  0.9.9; `sponsorblock-enricher` 0.9.8; `telegram-notifier` 0.9.10; `torbox` 0.1.10; `turbobit`
+  0.1.9; `webdav-storage` 0.9.9; `xfs-generic` 0.1.10.
+- **`rd-db` is easier to extend (RD-1100-12).** The serialized writer's commands are one enum per
+  area (`src/commands/<area>.rs`, next to `src/writer/<area>.rs`); `Writer::run` routes by area
+  and every handler matches its own enum exhaustively, so a command is named in three places
+  instead of four and no catch-all arm can swallow one. The unit tests in `src/tests.rs` are 18
+  modules by topic under `src/tests/`. Nothing changes in behaviour, SQL or the `Database` API.
+- **Post-processing and the service start read as named steps (RD-1100-12, INTAKE-08).** No
+  behaviour change: `rd-extract`'s `run_package` is split into phases (`package_phases.rs`) with
+  one resolver for the package-else-category-else-global settings (`package_settings.rs`), the
+  completion listener moves to `completion.rs` and the large test files are split by subject; the
+  binary's plugin boot is `plugin_boot.rs` and `serve` with its stop deadline is `serve.rs`.
+- **The plugin host's large modules are split below 500 lines (RD-1100-12, PLUG-21).** In
+  `rd-plugin-host`: `manifest.rs` (sections, validation, per-section checks), `component.rs`
+  (host imports, WIT conversions), `native/host.rs` (the `ResolverHost` impl, request
+  preparation), `native/expand.rs` (request gates), `native/mod.rs` (resolver dispatch),
+  `installed.rs` (disk walk), `lib.rs` (`PluginVerifier`, `PluginInstaller`), `runtime.rs`
+  (import policy), `repository.rs` (types, add/remove) and `extension/remote_job.rs` (types,
+  conversions); in `rd-plugin-ext`: `remote_job.rs` (outcomes, driver, calls, cache) and
+  `crawler.rs` (crawled links); in `rd-provider-registry`: `lib.rs` (the provider row types).
+  Seven inline test modules moved to files of their own. Code moved verbatim, the public paths
+  are re-exported, and nothing behaves differently.
+- **The HTTP surface's crates are cut into smaller modules (RD-1100-12, audit API-17).** The
+  files over 500 lines of `rd-api` and its seven area crates are split into submodules by topic
+  (DTOs, LinkGrabber intake and crawl, link check, auth, sign-in flows, subscriptions, settings,
+  backups, plugins and others), long tests into files of their own, and the functions over 150
+  lines into named steps. Routes, operation ids, schemas, error codes and behaviour are unchanged.
+- **The guest glue of four plugin worlds lives once (RD-1100-12).** The crawler, OAuth,
+  remote-job and auth plugins no longer generate their WIT bindings each: the new libraries
+  `plugin-guest-crawler`, `plugin-guest-oauth`, `plugin-guest-remote-job` and `plugin-guest-auth`
+  do it once, as `plugin-guest` does for the resolvers, and hold the request and refusal helpers
+  those plugins copied. The components export the same worlds under the same names and behave
+  as before; raised for it: `box-crawler`, `box-oauth`, `directory-index-crawler`,
+  `dropbox-crawler`, `dropbox-oauth`, `google-drive-crawler`, `google-drive-oauth`,
+  `mediafire-crawler`, `offcloud-cloud`, `onedrive-crawler`, `onedrive-oauth`, `pcloud-crawler`,
+  `pixeldrain-crawler`, `premiumize-crawler`, `putio-oauth`, `seedr-jobs` and `torbox-auth` 0.1.9;
+  `mega-crawler`, `nextcloud-crawler`, `pcloud-oauth`, `peeplink-crawler` and `putio-transfers`
+  0.1.10; `mega-auth` 0.1.11; `realdebrid-auth` and `realdebrid-torrents` 0.2.6;
+  `premiumize-transfers` and `torbox-jobs` 0.2.7; `example-oauth` 0.2.8; `alldebrid-auth`,
+  `debridlink-auth` and `premiumize-auth` 0.9.9.
+- **No web or extension source file is longer than 500 lines (RD-1100-12, WEB-13).** The
+  downloads view, the account and plugin settings, the LinkGrabber row, the subscription form, the
+  category editor, the streams and automation views and the transfers store hand their logic to
+  composables and small child components; the extension's captcha flow keeps its session state
+  and badge in `captcha-state.js` and its message names in `captcha-messages.js`. Nothing behaves
+  or looks different.
+- **A wave goes green in fewer rounds (RD-1100-13).** `scripts/check.sh` runs every stage after a
+  failure and lists all of them with the failing tests in `failures`, builds stale plugin
+  components itself and names a skipped lint; `scripts/integrate.sh` lints Linux and Windows with
+  `--keep-going` before the generators (`check.sh --gate`), runs `--windows` before `--full`,
+  merges `CHANGELOG.md`, the migration pins and the locale catalogues by driver and recounts the
+  job index; `scripts/public-ci.sh` names a failed job when it fails; `scripts/watch-run.sh`
+  follows a long run. CI drops sccache and saves its Rust caches from `main` only, kept warm by
+  `warm-cache`; the dev profile builds Cranelift and Wasmtime optimised for the contract tests.
+
 ## [1.9.1] - 2026-10-04
 
 ### Added

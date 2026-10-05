@@ -33,9 +33,13 @@ const MAX_RULE_NAME = 100
 const EVENTS: NotificationEvent[] = [
   'package_completed', 'package_failed', 'storage_blocked',
   'budget_exhausted', 'captcha_waiting', 'power_pending',
+  // A Usenet set given up as beyond repair (RD-1100-02), in its package's category.
+  'usenet_job_hopeless',
   // Operational events (RD-190-19): from background checks and runs, never in a category.
   'backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available',
-  'plugin_update_failed', 'account_expiring', 'account_invalid'
+  'plugin_update_failed', 'account_expiring', 'account_invalid',
+  // A Usenet server used up its quota (RD-1100-05).
+  'usenet_quota_reached'
 ]
 
 function emptyForm(): NotificationRuleRequest {

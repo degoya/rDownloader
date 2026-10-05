@@ -56,5 +56,19 @@
     "hourly_description": "Días hasta que las cifras por hora pasan a diarias (1 hasta la retención).",
     "retention_label": "Retención",
     "retention_description": "Días que se conservan las cifras diarias (7–3650)."
+  },
+  "servers": {
+    "title": "Tráfico por servidor Usenet",
+    "description": "Datos de artículos que entregó cada servidor, tal como los mide el proveedor: codificados en yEnc, unos pocos por ciento por encima de la carga útil. Los días se cuentan en UTC.",
+    "name": "Servidor",
+    "today": "Hoy",
+    "week": "7 días",
+    "month": "30 días",
+    "year": "1 año",
+    "total": "Total",
+    "quota": "Cuota",
+    "quota_used": "{used} de {limit}",
+    "used_up_backup": "Agotada · solo respaldo",
+    "used_up_pause": "Agotada · en pausa"
   }
 }

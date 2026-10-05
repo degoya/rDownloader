@@ -7,11 +7,11 @@ license.workspace = true
 
 [dependencies]
 plugin-common = { path = "../common" }
+plugin-guest-remote-job = { path = "../guest-remote-job" }
 premiumize-common = { path = "../premiumize-common" }
 serde.workspace = true
 serde_json.workspace = true
 torrent-common = { path = "../torrent-common" }
-wit-bindgen.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

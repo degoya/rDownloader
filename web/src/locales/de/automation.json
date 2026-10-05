@@ -71,7 +71,8 @@
     "script_finished": "Skript fertig",
     "upload_finished": "Upload fertig",
     "storage_threshold": "Speicherschwelle",
-    "subscription_item": "Abo-Eintrag"
+    "subscription_item": "Abo-Eintrag",
+    "usenet_job_hopeless": "Usenet-Download aussichtslos"
   },
   "field": {
     "source": "Quelle",

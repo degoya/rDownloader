@@ -19,25 +19,18 @@
 //! this would need instead.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "remote-job-plugin",
-});
-
-use exports::rdownloader::plugin::remote_job::{
+use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteHandle,
     RemoteProgress, RemoteWork, SubmitRequest,
+    http::{self, RequestHeader, RequestQuery},
+    job_context, refuse,
+    types::{Failure, FailureKind},
 };
 use premiumize_common::{
     cache::{self, CacheCheckResponse, Holding},
     container,
     listing::{self, Entry},
     status::{self, Kind},
-};
-use rdownloader::plugin::{
-    http::{self, RequestHeader, RequestQuery},
-    job_context,
-    types::{Failure, FailureKind},
 };
 
 use crate::{api, messages, source};
@@ -53,15 +46,6 @@ const MAX_DEPTH: usize = 4;
 const MAX_ARTIFACTS: usize = 500;
 
 struct Component;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 /// One of [`api::refusal`]'s answers, in the world's own vocabulary.
 fn from_refusal(refusal: api::Refusal) -> Failure {
@@ -519,4 +503,4 @@ fn walk(transfer_name: &str, folder_id: &str) -> Result<Vec<RemoteArtifact>, Fai
     Ok(artifacts)
 }
 
-export!(Component);
+plugin_guest_remote_job::remote_job_plugin!(Component);

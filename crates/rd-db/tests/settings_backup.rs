@@ -34,6 +34,7 @@ fn replacement(label: &str) -> ConfigReplacement {
             recursive_unpack: Some(true),
             // Non-default (the global setting is off) so the round trip proves it survives.
             unpack_to_subfolder: Some(true),
+            direct_unpack: Some(true),
             malware_scan: Some(true),
             // Non-default (the global setting is on) so the round trip proves it survives.
             sfv_verify: Some(false),
@@ -50,6 +51,14 @@ fn replacement(label: &str) -> ConfigReplacement {
             // Round-tripped for the same reason: a category's plugin steps are configuration
             // somebody chose, and an export that dropped them would restore a quieter setup.
             plugin_steps: Some(vec!["019d0000-0000-7000-8000-000000000106".to_owned()]),
+            // Round-tripped too: a library layout somebody wrote is configuration (RD-1100-08).
+            sorting: Some(rd_core::SortTemplates {
+                series: Some(
+                    "{show}/Season {season:00}/{show} - S{season:00}E{episode:00}".to_owned(),
+                ),
+                dated: None,
+                movie: Some("{movie} ({year})/{movie} ({year})".to_owned()),
+            }),
         }],
         category_rules: vec![CategoryRule {
             id: CategoryRuleId::new(),
@@ -237,6 +246,14 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
     assert_eq!(seeding.enabled, Some(false));
     assert_eq!(seeding.ratio(), Some(2.5));
     assert_eq!(seeding.time, Some(rd_core::SeedTimeLimit::Unlimited));
+    let sorting = restored[0]
+        .sorting
+        .clone()
+        .expect("sort templates restored");
+    assert_eq!(
+        sorting.movie.as_deref(),
+        Some("{movie} ({year})/{movie} ({year})")
+    );
     assert_eq!(
         database.list_category_rules().await.expect("rules")[0].id,
         ids.2

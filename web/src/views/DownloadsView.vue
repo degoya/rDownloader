@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
-import type { Account, Category, Download, DownloadPriority, DownloadSummary, ProxyProfile } from '@/api/types'
+import type { Account, Category, DownloadPriority, DownloadSummary, ProxyProfile } from '@/api/types'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import DirectAddForm from '@/components/DirectAddForm.vue'
 import PackageGroup from '@/components/PackageGroup.vue'
@@ -20,36 +20,24 @@ import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
-import { useClearEverythingConfirm } from '@/composables/useClearEverythingConfirm'
-import { useConfirm } from '@/composables/useConfirm'
-import { copyText } from '@/composables/useCopy'
-import { useCopyLinks } from '@/composables/useCopyLinks'
+import { useDownloadsActions } from '@/composables/useDownloadsActions'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { useOpenSections } from '@/composables/useOpenSections'
-import { DEFAULT_THRESHOLD, type VirtualRow } from '@/composables/useVirtualRows'
-import { packageEditChange, usePackageEdit } from '@/composables/usePackageEdit'
-import { usePackageStorage } from '@/composables/usePackageStorage'
+import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useQueueColumns } from '@/composables/useQueueColumns'
 import { filterQueue, QUEUE_FILTERS, useQueueFilter } from '@/composables/useQueueFilter'
+import { useQueueReorder } from '@/composables/useQueueReorder'
+import { useQueueRows } from '@/composables/useQueueRows'
 import { packageRowKey, useQueueSelection, type QueueGroup } from '@/composables/useQueueSelection'
-import { useRename } from '@/composables/useRename'
-import { useResetConfirm } from '@/composables/useResetConfirm'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { usePublishedSelection } from '@/stores/selection'
-import { PAUSABLE_STATES, PENDING_STATES, RESETTABLE_STATES, RESUMABLE_STATES, useTransfersStore, type PackageChange } from '@/stores/transfers'
+import { RESETTABLE_STATES, useTransfersStore } from '@/stores/transfers'
 import { hasExtractable } from '@/utils/format'
 
 const { t } = useI18n()
 const transfers = useTransfersStore()
 const postprocess = usePostprocessStore()
-const confirm = useConfirm()
-const rename = useRename()
-const confirmReset = useResetConfirm()
-const confirmClearEverything = useClearEverythingConfirm()
-const editPackage = usePackageEdit()
-const openPackageStorage = usePackageStorage()
-const copyLinks = useCopyLinks()
 // The NZB behind a package to a remote-job provider, in any state of the package (RD-191-13).
 const nzbHandOver = useNzbHandOver('downloads')
 provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
@@ -58,14 +46,10 @@ provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 const { filter, search, needle, active: filterActive, reset: resetFilter } = useQueueFilter()
 const searchField = ref<HTMLElement | null>(null)
 const adding = ref(false)
-const bulkBusy = ref(false)
-const draggingId = ref<string | null>(null)
-const draggingFileId = ref<string | null>(null)
 const categories = ref<Category[]>([])
 const accounts = ref<Account[]>([])
 const proxies = ref<ProxyProfile[]>([])
 const summary = ref<DownloadSummary | null>(null)
-const packageControlBusy = ref<Record<string, 'pause' | 'resume' | undefined>>({})
 let summaryTimer: ReturnType<typeof setInterval> | null = null
 let postprocessTimer: ReturnType<typeof setInterval> | null = null
 const addForm = ref<{ reset: () => void } | null>(null)
@@ -79,56 +63,15 @@ const clearItems = computed(() => [[
 ], [
   { label: t('downloads.header.clear_everything'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => clearEverything() }
 ]])
-const ACTIVE = ['resolving', 'downloading', 'verifying', 'repairing', 'extracting']
 
 const visible = computed(() => filterQueue(transfers.downloads, transfers.packages, filter.value, needle.value))
-// Bucketed in one pass rather than filtering the whole list once per package: that was
-// O(packages x downloads) and re-ran on every store refresh, several times a second under load.
-const groups = computed<QueueGroup[]>(() => {
-  const byPackage = new Map<string, typeof visible.value>()
-  for (const item of visible.value) {
-    if (!item.package_id) continue
-    const bucket = byPackage.get(item.package_id)
-    if (bucket) bucket.push(item)
-    else byPackage.set(item.package_id, [item])
-  }
-  return transfers.packages
-    .map(pkg => ({ package: pkg, downloads: byPackage.get(pkg.id) ?? [] }))
-    .filter(group => group.downloads.length > 0)
-})
-
-/**
- * The queue as one stream of rows (RD-106-12).
- *
- * A package header, then its files while it is open. Collapsing is a filter on this stream
- * rather than a `v-if` inside a package, because a virtualized list can only window a flat
- * sequence — and the key of a row has to stay the same when the row moves, so that the focus
- * and the selection survive the window sliding past it.
- */
-interface QueueRowBase extends VirtualRow { group: QueueGroup }
-interface QueuePackageRow extends QueueRowBase { kind: 'package' }
-interface QueueFileRow extends QueueRowBase { kind: 'file', download: Download }
-type QueueRow = QueuePackageRow | QueueFileRow
-
-/** Starting estimates only; the list measures what the rows really are once they are drawn. */
-const PACKAGE_ROW_SIZE = 52
-const FILE_ROW_SIZE = 40
 
 const openPackages = useOpenSections({ storageKey: 'rdownloader-open-packages', defaultOpen: false })
 /** The "Show metadata" switch: the enricher chips under the package names, per browser (RD-150-19). */
 const showMetadata = useShowMetadata('downloads')
 
-const rows = computed<QueueRow[]>(() => {
-  const result: QueueRow[] = []
-  for (const group of groups.value) {
-    result.push({ key: `package:${group.package.id}`, size: PACKAGE_ROW_SIZE, class: 'pt-2', kind: 'package', group })
-    if (!openPackages.isOpen(group.package.id)) continue
-    for (const download of group.downloads) {
-      result.push({ key: `file:${download.id}`, size: FILE_ROW_SIZE, kind: 'file', group, download })
-    }
-  }
-  return result
-})
+/** Packages, the flat row stream of the virtualized list, and every file of a package (RD-106-12). */
+const { groups, rows, packageDownloads } = useQueueRows(visible, openPackages.isOpen)
 /**
  * The order a range selection follows: what is on screen, not what is in the store. A package
  * row is a stop of its own, so a range can run from package to package (RD-170-13).
@@ -145,6 +88,15 @@ const queueList = ref<{
   focusRow: (key: string) => Promise<boolean>
   revealRow: (key: string) => Promise<boolean>
 } | null>(null)
+
+const { draggingId, draggingFileId, onDrop, onFileDrop, onFileMove, onPackageMove } =
+  useQueueReorder({ groups, filterActive, list: queueList })
+const {
+  bulkBusy, packageControlBusy, copyLinks, copyPackageLinks, copyPath, deletePackage, bulkDeletePackages, changePackages,
+  bulkAction, canControlPackage, controlPackage, bulkRemove, resetDownloads, bulkExtract, bulkRename, packageStorage,
+  renamePackage, extractPackages, forceExtractPackage, renameFile, clearDownloads, clearEverything, removeDownload
+} = useDownloadsActions({ selection, groups, packageDownloads })
+
 /** Border frame of a file row: the package's frame carried down its children. */
 function fileFrame(group: QueueGroup): string {
   return `border-x border-b ${selection.packageState(group) !== 'none' ? 'border-primary' : 'border-muted'}`
@@ -172,92 +124,12 @@ const packageStateFingerprint = computed(() => transfers.packages.map(pkg => `${
 const canExtractSelection = computed(() => hasExtractable(selection.selectedDownloads.value))
 const resettableSelection = computed(() => selection.selectedDownloads.value.filter(download => RESETTABLE_STATES.includes(download.state)))
 
-/** Every file's address of the package, whatever the filter hides: the package is what was asked for. */
-function copyPackageLinks(id: string): void {
-  void copyLinks(transfers.downloads.filter(download => download.package_id === id).map(download => download.source))
-}
-
 /**
  * `f` puts the keyboard in the name search, as it does in the LinkGrabber's indexer search: one
  * key for "the search of this page", handed in while the list is mounted (RD-190-21).
  */
 function focusSearch(): void {
   searchField.value?.querySelector('input')?.focus()
-}
-
-async function copyPath(path: string): Promise<void> {
-  // No toast on failure: the notice names the path, which can be copied from there by hand.
-  transfers.notice = await copyText(path)
-    ? t('downloads.notices.path_copied', { path })
-    : t('downloads.notices.destination', { path })
-}
-
-/**
- * States that make a package removal destructive: cancelling these loses what they had already
- * written. The server refuses such a package unless the request says `force`, so the dialog has
- * to name the cost before the flag is sent (RD-107-07).
- */
-const BUSY_STATES = [...ACTIVE, 'queued', 'retry_wait', 'paused', 'seeding']
-
-/**
- * Every download by its package, the filter notwithstanding: a package action acts on all its
- * files. Built once per refresh — each package row asked twice per render, and scanned the whole
- * queue each time (WEB-08).
- */
-const downloadsByPackage = computed(() => {
-  const byPackage = new Map<string, typeof transfers.downloads>()
-  for (const download of transfers.downloads) {
-    if (!download.package_id) continue
-    const bucket = byPackage.get(download.package_id)
-    if (bucket) bucket.push(download)
-    else byPackage.set(download.package_id, [download])
-  }
-  return byPackage
-})
-
-function packageDownloads(id: string): typeof transfers.downloads {
-  return downloadsByPackage.value.get(id) ?? []
-}
-
-function busyPackageCount(ids: string[]): number {
-  return ids.filter(id => packageDownloads(id).some(item => BUSY_STATES.includes(item.state))).length
-}
-
-async function deletePackage(id: string): Promise<void> {
-  const pkg = transfers.packages.find(item => item.id === id)
-  if (!pkg) return
-  const busy = busyPackageCount([id]) > 0
-  const confirmed = await confirm({
-    title: t('downloads.confirm.delete_package_title'),
-    description: t(busy ? 'downloads.confirm.delete_package_active' : 'downloads.confirm.delete_package_description', { name: pkg.name }),
-    confirmLabel: t('downloads.confirm.delete_package_title'),
-    confirmIcon: 'i-lucide-trash-2',
-    destructive: true
-  })
-  if (!confirmed) return
-  bulkBusy.value = true
-  await transfers.deletePackages([id], busy)
-  bulkBusy.value = false
-}
-
-async function bulkDeletePackages(): Promise<void> {
-  const ids = selection.fullySelectedPackageIds.value
-  if (!ids.length) return
-  const busy = busyPackageCount(ids)
-  const confirmed = await confirm({
-    title: t('downloads.confirm.delete_packages_title'),
-    description: busy
-      ? t('downloads.confirm.delete_packages_active', { count: ids.length, busy })
-      : t('downloads.confirm.delete_packages_description', { count: ids.length }, ids.length),
-    confirmLabel: t('downloads.confirm.delete_packages_title'),
-    confirmIcon: 'i-lucide-trash-2',
-    destructive: true
-  })
-  if (!confirmed) return
-  bulkBusy.value = true
-  await transfers.deletePackages(ids, busy > 0)
-  selection.clear()
-  bulkBusy.value = false
 }
 
 onMounted(() => {
@@ -311,230 +183,6 @@ function accountLabel(id: string | null | undefined): string | null {
   return account ? `${account.label} (${account.provider})` : null
 }
 
-async function changePackages(ids: string[], change: PackageChange): Promise<void> {
-  if (!ids.length) return
-  bulkBusy.value = true
-  await transfers.updatePackages(ids, change)
-  bulkBusy.value = false
-}
-
-async function bulkAction(action: 'pause' | 'resume' | 'cancel'): Promise<void> {
-  bulkBusy.value = true
-  await transfers.bulk(selection.selectedIds.value, action)
-  bulkBusy.value = false
-}
-
-function canControlPackage(id: string, action: 'pause' | 'resume'): boolean {
-  const states = action === 'pause' ? PAUSABLE_STATES : RESUMABLE_STATES
-  return packageDownloads(id).some(download => states.includes(download.state))
-}
-
-async function controlPackage(id: string, action: 'pause' | 'resume'): Promise<void> {
-  if (packageControlBusy.value[id]) return
-  const states = action === 'pause' ? PAUSABLE_STATES : RESUMABLE_STATES
-  const ids = packageDownloads(id)
-    .filter(download => states.includes(download.state))
-    .map(download => download.id)
-  if (!ids.length) return
-
-  packageControlBusy.value = { ...packageControlBusy.value, [id]: action }
-  try {
-    await transfers.bulk(ids, action)
-  } finally {
-    const remaining = { ...packageControlBusy.value }
-    delete remaining[id]
-    packageControlBusy.value = remaining
-  }
-}
-
-async function bulkRemove(): Promise<void> {
-  const count = selection.selectedIds.value.length
-  const confirmed = await confirm({
-    title: t('downloads.confirm.remove_files_title'),
-    description: t('downloads.confirm.remove_files_description', { count }, count),
-    confirmLabel: t('common.actions.remove'),
-    confirmIcon: 'i-lucide-trash-2',
-    destructive: true
-  })
-  if (!confirmed) return
-  bulkBusy.value = true
-  await transfers.bulk(selection.selectedIds.value, 'remove')
-  selection.clear()
-  bulkBusy.value = false
-}
-
-/**
- * Resets the given files after confirming what that costs.
- *
- * Only files that are not moving are offered; an active one would have to be paused first, and
- * silently skipping it reads as the action having worked.
- */
-async function resetDownloads(ids: string[]): Promise<void> {
-  const wanted = new Set(ids)
-  const targets = transfers.downloads.filter(download => wanted.has(download.id) && RESETTABLE_STATES.includes(download.state))
-  if (!targets.length) {
-    transfers.notice = t('downloads.notices.nothing_to_reset')
-    return
-  }
-  const result = await confirmReset(
-    targets.map(download => download.file_name),
-    targets.some(download => download.state === 'completed' || download.state === 'seeding')
-  )
-  if (!result.confirmed) return
-  bulkBusy.value = true
-  await transfers.reset(targets.map(download => download.id), result.deleteFiles)
-  selection.clear()
-  bulkBusy.value = false
-}
-
-async function bulkExtract(): Promise<void> {
-  bulkBusy.value = true
-  await transfers.extractDownloads(selection.selectedIds.value)
-  bulkBusy.value = false
-}
-
-async function bulkRename(): Promise<void> {
-  const [id] = selection.selectedIds.value
-  if (id) await renameFile(id)
-}
-
-/**
- * The package's collision policy and its files' duplicates (RD-150-01). Every file of the
- * package is offered, whatever the view's filter hides.
- */
-async function packageStorage(id: string): Promise<void> {
-  const group = groups.value.find(entry => entry.package.id === id)
-  if (!group) return
-  await openPackageStorage({
-    packageId: id,
-    packageName: group.package.name,
-    downloads: transfers.downloads
-      .filter(item => item.package_id === id)
-      .map(item => ({ id: item.id, file_name: item.file_name, state: item.state }))
-  })
-}
-
-async function renamePackage(id: string): Promise<void> {
-  const pkg = transfers.packages.find(item => item.id === id)
-  if (!pkg) return
-  const result = await editPackage({ name: pkg.name, hasPassword: pkg.has_password ?? false, password: pkg.password ?? null, postprocessLevel: pkg.postprocess_level ?? null, script: pkg.script ?? null, canRenameFolder: true })
-  if (!result) return
-  const change = packageEditChange(pkg, result)
-  // Renaming the folder carries the name with it, so the label must not be sent twice: the
-  // second request would find the package already renamed and report no change at all.
-  if (result.renameFolder) delete change.name
-  if (Object.keys(change).length) await transfers.updatePackages([id], change)
-  if (result.renameFolder) await transfers.renamePackageFolder(id, result.name)
-}
-
-async function extractPackages(ids: string[]): Promise<void> {
-  bulkBusy.value = true
-  await transfers.extractPackages(ids)
-  bulkBusy.value = false
-}
-
-/** Runs the pipeline for a package whose verification failed, this once (RD-104-04). */
-async function forceExtractPackage(id: string): Promise<void> {
-  bulkBusy.value = true
-  await transfers.forceExtractPackage(id)
-  bulkBusy.value = false
-}
-
-async function renameFile(id: string): Promise<void> {
-  const download = transfers.downloads.find(item => item.id === id)
-  if (!download) return
-  const name = await rename({ title: t('downloads.rename_file.title'), label: t('downloads.rename_file.label'), value: download.file_name, description: t('downloads.rename_file.description') })
-  if (name) await transfers.renameDownload(id, name)
-}
-
-async function onDrop(targetId: string): Promise<void> {
-  // A file dropped on a package header: moving files between packages is not a gesture this
-  // list offers, so the drag ends here rather than doing something the user did not ask for.
-  if (draggingFileId.value) {
-    draggingFileId.value = null
-    return
-  }
-  const sourceId = draggingId.value
-  draggingId.value = null
-  if (!sourceId || sourceId === targetId) return
-  const source = transfers.packages.find(item => item.id === sourceId)
-  const target = transfers.packages.find(item => item.id === targetId)
-  if (!source || !target) return
-  if (source.priority !== target.priority) {
-    transfers.notice = t('downloads.notices.reorder_same_priority')
-    return
-  }
-  const order = transfers.packages.map(item => item.id).filter(id => id !== sourceId)
-  order.splice(order.indexOf(targetId), 0, sourceId)
-  await transfers.reorderPackages(order)
-}
-
-/**
- * Writes the file order of one package after a drag or a keyboard move.
- *
- * A filtered list shows only part of the package, and the endpoint takes the complete id list,
- * so the filter case says why instead of dropping the gesture silently.
- */
-async function persistFileOrder(packageId: string, order: string[]): Promise<boolean> {
-  if (filterActive.value) {
-    transfers.notice = t('downloads.notices.reorder_filter_active')
-    return false
-  }
-  transfers.notice = null
-  await transfers.reorderDownloads(packageId, order)
-  return true
-}
-
-/** File dropped on another file: both have to sit in the same package. */
-async function onFileDrop(targetId: string): Promise<void> {
-  const sourceId = draggingFileId.value
-  draggingFileId.value = null
-  if (!sourceId || sourceId === targetId) return
-  const source = transfers.downloads.find(item => item.id === sourceId)
-  const target = transfers.downloads.find(item => item.id === targetId)
-  if (!source || !target || !target.package_id || source.package_id !== target.package_id) return
-  const group = groups.value.find(entry => entry.package.id === target.package_id)
-  if (!group) return
-  const order = group.downloads.map(item => item.id).filter(id => id !== sourceId)
-  order.splice(order.indexOf(targetId), 0, sourceId)
-  await persistFileOrder(target.package_id, order)
-}
-
-/** Keyboard counterpart of the file drag: one step up or down inside the package. */
-async function onFileMove(id: string, delta: -1 | 1): Promise<void> {
-  const download = transfers.downloads.find(item => item.id === id)
-  if (!download?.package_id) return
-  const group = groups.value.find(entry => entry.package.id === download.package_id)
-  if (!group) return
-  const order = group.downloads.map(item => item.id)
-  const from = order.indexOf(id)
-  const to = from + delta
-  if (from < 0 || to < 0 || to >= order.length) return
-  order.splice(to, 0, ...order.splice(from, 1))
-  // The row has moved, and with a windowed list its new place may be outside what is rendered.
-  // Focus is put back on the same handle so a second press continues the move (RD-106-12).
-  if (await persistFileOrder(download.package_id, order)) await queueList.value?.focusRow(`file:${id}`)
-}
-
-/** Keyboard counterpart of the package drag; the priority tier bounds it just as the drag does. */
-async function onPackageMove(id: string, delta: -1 | 1): Promise<void> {
-  const order = transfers.packages.map(item => item.id)
-  const from = order.indexOf(id)
-  const to = from + delta
-  if (from < 0 || to < 0 || to >= order.length) return
-  const source = transfers.packages[from]
-  const neighbour = transfers.packages[to]
-  if (!source || !neighbour) return
-  if (source.priority !== neighbour.priority) {
-    transfers.notice = t('downloads.notices.reorder_same_priority')
-    return
-  }
-  transfers.notice = null
-  order.splice(to, 0, ...order.splice(from, 1))
-  await transfers.reorderPackages(order)
-  await queueList.value?.focusRow(`package:${id}`)
-}
-
 async function addDownload(payload: { url: string, categoryId?: string, accountId?: string, proxyProfileId?: string, priority: DownloadPriority }): Promise<void> {
   adding.value = true
   const ok = await transfers.add(payload.url, undefined, undefined, {
@@ -545,29 +193,6 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
   })
   if (ok) addForm.value?.reset()
   adding.value = false
-}
-
-async function clearDownloads(scope: 'completed' | 'failed' | 'all'): Promise<void> {
-  // `k` opens the question for the completed packages, and `k` again answers it (RD-180-17).
-  const confirmKey = scope === 'completed' ? 'k' : undefined
-  const confirmed = await confirm({ title: t('downloads.confirm.clear_title'), description: t(`downloads.confirm.clear_${scope}`), confirmLabel: t('downloads.confirm.clear_label'), confirmIcon: 'i-lucide-trash-2', destructive: true, confirmKey })
-  if (confirmed) await transfers.clear(scope)
-}
-
-/** The states the server's "still working" refusal reads, so the count matches what stops. */
-const WORKING_STATES: readonly string[] = [...PENDING_STATES, 'seeding']
-
-async function clearEverything(): Promise<void> {
-  const working = new Set(transfers.downloads.filter(download => WORKING_STATES.includes(download.state)).map(download => download.package_id))
-  const answer = await confirmClearEverything(transfers.packages.length, working.size)
-  if (answer.confirmed) await transfers.clear('everything', answer.deletePartial)
-}
-
-async function removeDownload(id: string): Promise<void> {
-  const download = transfers.downloads.find(item => item.id === id)
-  const description = t(download?.state === 'completed' ? 'downloads.confirm.remove_download_completed' : 'downloads.confirm.remove_download_partial')
-  const confirmed = await confirm({ title: t('downloads.confirm.remove_download_title'), description, confirmLabel: t('downloads.confirm.remove_download_title'), confirmIcon: 'i-lucide-trash-2', destructive: true })
-  if (confirmed) await transfers.remove(id)
 }
 </script>
 

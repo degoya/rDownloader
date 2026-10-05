@@ -7,9 +7,9 @@ use axum::{
 use utoipa::OpenApi;
 
 use crate::{
-    AppState, about, about_page, candidate_handlers, capture_summary, collector_handlers,
-    data_reset_handlers, handlers, login_handlers, nzb_handlers, package_handlers,
-    settings_handlers, tools_handlers, update_handlers,
+    AppState, about, about_page, candidate_handlers, capture_queue, capture_summary,
+    collector_handlers, data_reset_handlers, handlers, login_handlers, nzb_handlers,
+    package_handlers, settings_handlers, tools_handlers, update_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -116,6 +116,8 @@ pub(crate) fn routes() -> Router<AppState> {
     login_handlers::login,
     login_handlers::pair_capture,
     capture_summary::capture_summary,
+    capture_queue::pause_capture_queue,
+    capture_queue::resume_capture_queue,
     login_handlers::list_capture_agents,
     login_handlers::revoke_capture_agent,
     package_handlers::list_packages,

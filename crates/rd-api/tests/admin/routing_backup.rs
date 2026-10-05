@@ -30,6 +30,7 @@ async fn seed_routing(harness: &Harness, directory: &std::path::Path) -> rd_core
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,

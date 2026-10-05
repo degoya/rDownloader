@@ -64,6 +64,7 @@ jobs:
       platforms: ${{ steps.platforms.outputs.platforms }}
       check: ${{ steps.platforms.outputs.check }}
       jobs: ${{ steps.platforms.outputs.jobs }}
+      warm: ${{ steps.platforms.outputs.warm }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: The runner images still to check
@@ -77,21 +78,29 @@ jobs:
           set -euo pipefail
           platforms="${REQUESTED}"
           jobs="${ONCE}"
+          warm='[]'
           if [[ "${GITHUB_EVENT_NAME}" == push && "${GITHUB_REF}" == refs/heads/main ]]; then
             mapfile -t images < <(jq -r '.[]' <<< "${REQUESTED}")
             mapfile -t once < <(jq -r '.[]' <<< "${ONCE}")
             mapfile -t answer < <(scripts/ci-tree-greens.sh "${GITHUB_REPOSITORY}" "$(git rev-parse 'HEAD^{tree}')" "${images[@]}" -- "${once[@]}")
             platforms="${answer[0]:-${REQUESTED}}"
             jobs="${answer[1]:-${ONCE}}"
+            # The Linux and Windows images left out above build for main's cache instead
+            # (`warm-cache`); macOS is checked at a release candidate only and keeps none.
+            warm="$(jq -c --argjson run "${platforms}" \
+              '[.[] | select(startswith("macos") | not) | select(. as $image | $run | index($image) | not)]' \
+              <<< "${REQUESTED}")"
           fi
           check=true
           if [[ "${platforms}" == "[]" ]]; then check=false; fi
           echo "platforms: ${platforms}"
           echo "jobs: ${jobs}"
+          echo "warm: ${warm}"
           {
             echo "platforms=${platforms}"
             echo "check=${check}"
             echo "jobs=${jobs}"
+            echo "warm=${warm}"
           } >> "${GITHUB_OUTPUT}"
 
   web:
@@ -156,12 +165,8 @@ jobs:
       # the slowest part of the slowest job. Test and smoke builds only — release.yml links the
       # shipped executables with link.exe as before.
       CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
-      # sccache over GitHub's cache (RD-150-10), set up below: Swatinem/rust-cache keeps the
-      # dependencies, sccache the workspace crates a change did not touch, which rust-cache
-      # throws away. A cache that cannot be reached compiles locally instead of failing the job.
-      RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
+      # No sccache over GitHub's cache any more (RD-1100-13): it hit 0-24 % of its compiles and
+      # held 1.9 GB of the repository's 10 GB. Swatinem/rust-cache alone, saved from main.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # A debug test build of this workspace does not fit on a hosted runner as it comes: every
@@ -185,19 +190,23 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt, clippy
-      # Before anything that calls cargo, rust-cache included: cargo asks `rustc -vV` through
-      # RUSTC_WRAPPER, which has to exist by then.
-      - &sccache
-        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
-      # One key for this job and `crash-matrix`: their dependencies build alike (the failpoints
-      # features are the workspace's own), so the matrix restores what this job saved.
+      # One key for this job, `crash-matrix`, `warm-cache`, `s3-live` and `clamav-live`: their
+      # dependencies build alike (the failpoints features are the workspace's own), so they
+      # restore what this job saved.
+      #
+      # Saved from main (and development) only (RD-1100-13). A cache belongs to the ref that saved
+      # it, and a ref reads its own and the default branch's: what a ci/* branch saved served that
+      # branch alone, which is deleted on green, and filled the repository's 10 GB (10.39 GB on
+      # 2026-10-04) until GitHub evicted main's. Every ci/* run restores main's instead; the
+      # partial match on the same toolchain and environment still serves when Cargo.lock moved.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           shared-key: rust-tests
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
       - &nextest
         uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: nextest
+          tool: nextest@0.9.146
       - run: cargo fmt --all --check
       # The capture agent stays headless on Linux. The manifest gate in
       # crates/rd-capture/src/platform_gate/ sees only what that crate declares; this holds the
@@ -214,17 +223,9 @@ jobs:
       # `components` job below. On top of it the profile writes JUnit, retries a failure once
       # and lists slow and flaky tests at the end (RD-140-21, .config/nextest.toml).
       #
-      #
-      # In groups, each group's test executables deleted once it passed (RD-120-67). The first
-      # run on GitHub (2026-09-25) filled the disk under one `--workspace` run: the step log
-      # stops at "linking with cc failed: exit status 1", and the runner died with "No space
-      # left on device" writing its own diagnostics. That run keeps every test executable of
-      # the workspace at once, and each rd-api integration binary is ~550 MB (measured locally
-      # with this repository's `debug = "line-tables-only"`, which the test profile inherits:
-      # 120 MB of code, 250 MB of symbol names, 3 MB of debug info). There were 55 of them —
-      # ~30 GB; since RD-150-10 the suites are modules of six binaries, one per subject, which
-      # fit in one group. The heavy crates run each alone; two build jobs and mold keep the
-      # links' memory down. The split follows scripts/check.sh, which does it for memory on a workstation.
+      # In groups, each group's executables deleted once it ran, every group to its end
+      # (RD-120-67): scripts/ci-rust-tests.sh, which `warm-cache` runs with --no-run. Two build
+      # jobs and mold keep the links' memory down.
       # macOS is linted (clippy above), not tested: its minutes cost ten times Linux's, and the
       # owner's decision (2026-09-25) is that the macOS half is held by clippy in CI. release.yml
       # still builds the macOS binaries.
@@ -233,50 +234,7 @@ jobs:
         shell: bash
         env:
           CARGO_BUILD_JOBS: 2
-        run: |
-          set -euo pipefail
-          stamp="${RUNNER_TEMP}/rd-tests.stamp"
-          # Each group overwrites target/nextest/ci/junit.xml, so every report is copied out.
-          reports="${RUNNER_TEMP}/junit"
-          mkdir -p "${reports}"
-          group=0
-          # Every group runs to its end, failing or not, and the step fails at the end: one
-          # 45-minute run has to show every failure, not the first (RD-120-67 took three runs).
-          failed=0
-          # One nextest selection, then the executables it linked go: nothing later needs them.
-          # No extension (or `.exe`) in target/debug/deps is a test or binary executable;
-          # libraries, proc macros and metadata all carry one and stay.
-          run_group() {
-            echo "::group::nextest $*"
-            touch "${stamp}"
-            group=$((group + 1))
-            cargo nextest run -P ci --no-fail-fast "$@" || failed=1
-            if [[ -f target/nextest/ci/junit.xml ]]; then
-              mv target/nextest/ci/junit.xml "${reports}/group-${group}.xml"
-            fi
-            find target/debug/deps -maxdepth 1 -type f -newer "${stamp}" \
-              \( ! -name '*.*' -o -name '*.exe' \) -print \
-              | while IFS= read -r executable; do
-                  # With it everything named after it: `.pdb` on Windows, the `.o` that
-                  # macOS keeps for its debug info, `.dwo`, `.d`.
-                  stem="${executable%.exe}"
-                  rm -f "${executable}" "${stem}".*
-                done
-            df -h . | tail -n 1
-            echo "::endgroup::"
-          }
-          run_group --workspace --exclude rd-api --exclude rd-plugin-ext --exclude rdownloader
-          run_group -p rd-plugin-ext
-          run_group -p rdownloader
-          run_group -p rd-api --lib
-          # The rd-api integration binaries, one per crates/rd-api/tests/<subject>/main.rs, in one
-          # group: six of them keep ~3.5 GB of executables at once.
-          args=()
-          for main in crates/rd-api/tests/*/main.rs; do
-            args+=(--test "$(basename "$(dirname "${main}")")")
-          done
-          run_group -p rd-api "${args[@]}"
-          exit "${failed}"
+        run: scripts/ci-rust-tests.sh
       # The JUnit reports of every group, failing or not: the slow and flaky tests of a green
       # run are in there too.
       - name: Upload test reports
@@ -604,7 +562,6 @@ jobs:
       - *install-mold
       - *web-dist
       - uses: ./.github/actions/setup-rust
-      - *sccache
       # `rust` saves the cache both jobs restore; two writers of one key would race.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
@@ -632,6 +589,54 @@ jobs:
           exit "${failed}"
       - *disk-after-failure
 
+  # Keeps main's Rust cache current when the gate leaves platforms out (RD-1100-13). The caches
+  # are saved from main only and every ci/* run restores main's; a release pushes to main a tree
+  # that is green already, `rust` then does not run there, and nothing would renew the cache after
+  # a toolchain or Cargo.lock change — the next wave's run would start cold (Linux 45 min against
+  # 31 with main's cache, 2026-10-04). This builds what `rust` builds, clippy and every test
+  # executable through scripts/ci-rust-tests.sh, runs nothing, and saves. Linux and Windows only:
+  # macOS is checked at a release candidate and keeps no cache.
+  #
+  # Expected sizes, against the repository's 10 GB (to be measured after the first runs): the
+  # `rust-tests` cache ~2.5 GB on Linux (2,503 MB restored on 2026-10-04) and about as much again
+  # on Windows, `components` and the two `docker` legs ~1 GB each, the component and Docker layer
+  # caches a few hundred MB — about 8 GB, all of it main's, where sccache and every ci/* branch's
+  # own copies made 10.39 GB before.
+  warm-cache:
+    needs: gate
+    if: needs.gate.outputs.warm != '[]' && needs.gate.outputs.warm != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.gate.outputs.warm) }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    env: *rust-env
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *free-runner-disk
+      - *install-mold
+      # rust-embed wants web/dist to exist; nothing here serves it, so no `web` job for it.
+      - name: Placeholder web interface
+        shell: bash
+        run: mkdir -p web/dist && printf '<!doctype html><title>rDownloader</title>\n' > web/dist/index.html
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: rust-tests
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
+      - *nextest
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Test executables, built and not run
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 2
+        run: scripts/ci-rust-tests.sh --no-run
+
   components:
     runs-on: ubuntu-24.04
     permissions:
@@ -649,17 +654,20 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown,wasm32-wasip1
+      # Saved from main only, as in `rust`.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
       # Prebuilt, through cargo-binstall like sqlx-cli above.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: cargo-component@0.21.1
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: nextest
+          tool: nextest@0.9.146
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: wasm-tools
+          tool: wasm-tools@1.261.0
       # Components are built only when their content changed (RD-150-10). The key is what goes
       # into a component: toolchain, cargo-component, the registry half of Cargo.lock and the root
       # Cargo.toml (`deps`), and every plugin's source hash (`sources`); a miss on `sources`
@@ -674,8 +682,8 @@ jobs:
           path: |
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
             target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
-          key: components-1.98.1-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
-          restore-keys: components-1.98.1-cc0.21.1-${{ steps.component-key.outputs.deps }}-
+          key: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
+          restore-keys: components-1.99.0-cc0.21.1-${{ steps.component-key.outputs.deps }}-
       - name: Collect the bundled plugins
         id: plugins
         shell: bash
@@ -837,10 +845,10 @@ jobs:
       contents: read
     timeout-minutes: 45
     env:
+      # `rust`'s two linker variables, the Windows one included: Swatinem/rust-cache keys a cache
+      # by every CARGO*/RUST* variable, and with the same ones this job restores `rust-tests`.
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
-      RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
       MINIO_IMAGE: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
       RD_S3_LIVE_ENDPOINT: http://127.0.0.1:9000
       RD_S3_LIVE_REGION: us-east-1
@@ -860,11 +868,14 @@ jobs:
       - name: Install mold
         run: sudo apt-get update -q && sudo apt-get install -y -q mold
       - uses: ./.github/actions/setup-rust
-      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      # `rust`'s cache, read only (RD-1100-13): a job of its own key saved one more cache per ref.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: rust-tests
+          save-if: false
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: nextest
+          tool: nextest@0.9.146
       - name: Build the live S3 tests
         run: cargo nextest run --locked --no-run -p rd-object-storage --test s3_live
       # The build gave MinIO its time; this waits for the rest, then makes the bucket with a
@@ -915,21 +926,22 @@ jobs:
         ports:
           - 3310:3310
     env:
+      # As in `s3-live`: `rust`'s linker variables, for its cache's key.
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
-      RUSTC_WRAPPER: sccache
-      SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
       RD_CLAMD_LIVE_ADDRESS: 127.0.0.1:3310
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install mold
         run: sudo apt-get update -q && sudo apt-get install -y -q mold
       - uses: ./.github/actions/setup-rust
-      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: rust-tests
+          save-if: false
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: nextest
+          tool: nextest@0.9.146
       - name: Build the live clamd tests
         run: cargo nextest run --locked --no-run -p rd-extract --test clamd_live
       - name: Wait for clamd
@@ -991,7 +1003,10 @@ jobs:
           name: web-dist
           path: web/dist
       - uses: ./.github/actions/setup-rust
+      # Saved from main only, as in `rust`; one cache per architecture.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
       - name: Build the optimised binary
         run: cargo build --locked --profile release-test -p rdownloader
       - name: Smoke-test the portable Linux launchers
@@ -1015,7 +1030,7 @@ jobs:
           cp target/release-test/rdownloader dist/docker/linux-${{ matrix.arch }}/rdownloader
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       # One cache scope per architecture: with a shared one each leg's `mode=max` export would
-      # replace the other's.
+      # replace the other's. Written from main only, like the Rust caches (RD-1100-13).
       - name: Build loadable smoke-test image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -1026,7 +1041,7 @@ jobs:
           load: true
           tags: rdownloader:smoke
           cache-from: type=gha,scope=docker-${{ matrix.arch }}
-          cache-to: type=gha,scope=docker-${{ matrix.arch }},mode=max
+          cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,scope=docker-{0},mode=max', matrix.arch) || '' }}
       - name: Smoke-test health endpoint and persistent mounts
         run: scripts/docker-smoke.sh rdownloader:smoke
 

@@ -14,7 +14,7 @@ use sqlx::{Connection, Row, SqlitePool};
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::DownloadsCommand,
     writer::{self, Writer, insert_event},
 };
 
@@ -92,7 +92,7 @@ impl Database {
         id: DownloadId,
         at: Option<DateTime<Utc>>,
     ) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::ScheduleAutoRetry {
+        writer::request(&self.writer, |reply| DownloadsCommand::ScheduleAutoRetry {
             id,
             at,
             reply,
@@ -104,7 +104,7 @@ impl Database {
     /// attempts and limit waits start from zero, the round is counted. `None` when the row is
     /// gone or no longer `failed` — a person resumed or removed it meanwhile.
     pub async fn auto_retry_download(&self, id: DownloadId) -> Result<Option<DownloadFile>> {
-        writer::request(&self.writer, |reply| WriterCommand::RequeueFailed {
+        writer::request(&self.writer, |reply| DownloadsCommand::RequeueFailed {
             id,
             auto_retry: true,
             reply,
@@ -116,7 +116,7 @@ impl Database {
     /// a round of the automatic retry, without counting a round. `None` when the row is gone
     /// or no longer `failed`.
     pub async fn retry_failed_download(&self, id: DownloadId) -> Result<Option<DownloadFile>> {
-        writer::request(&self.writer, |reply| WriterCommand::RequeueFailed {
+        writer::request(&self.writer, |reply| DownloadsCommand::RequeueFailed {
             id,
             auto_retry: false,
             reply,

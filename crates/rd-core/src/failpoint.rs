@@ -88,6 +88,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "an archive that reached its destination before the ledger recorded it stays there whole and is never removed by retention, which removes only recorded archives; the next start records the run and that destination as interrupted",
     },
     CrashPoint {
+        name: "history.before_entry_committed",
+        owner: "rd-db",
+        invariant: "a package outcome stopped after its history entry was written and before the transaction committed leaves neither behind: the package keeps its earlier state and the history has no entry for it; the outcome written again leaves exactly one entry, and every entry committed before survives the restart",
+    },
+    CrashPoint {
         name: "http.after_chunk_mac",
         owner: "rd-http",
         invariant: "a finished chunk MAC that was not recorded is recomputed from the start of its chunk, never assumed",
@@ -136,6 +141,16 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "plugin_transfer.before_checkpoint_saved",
         owner: "rd-plugin-transfer",
         invariant: "bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte",
+    },
+    CrashPoint {
+        name: "postprocess.after_sort_move",
+        owner: "rd-extract",
+        invariant: "a sort stopped after it placed a file and before it recorded the step is run again by the next start: the files still in the package are placed by the same templates, the ones already placed are neither moved again nor copied beside themselves, and the package leaves post-processing completed",
+    },
+    CrashPoint {
+        name: "postprocess.before_direct_unpack_adopted",
+        owner: "rd-extract",
+        invariant: "a set unpacked directly while its package downloaded, stopped before the pipeline moved it into the package, has put nothing at the destination; the next start removes its staging directory, unpacks the set the normal way and completes the package with the same files",
     },
     CrashPoint {
         name: "postprocess.before_scan_recorded",
@@ -208,6 +223,16 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "release files a poll archived before handing them to the LinkGrabber stay pending in the archive after a restart: the next poll neither hands them over a second time nor loses them, and the review list still offers them",
     },
     CrashPoint {
+        name: "torrent.after_relocation_commit",
+        owner: "rd-torrent",
+        invariant: "a torrent move stopped after its package was pointed at the new folder and before the originals were released is finished by the next start: every file is at the new place exactly once, the old folder is left empty, the journal is cleared and a seed seeds again from the new place",
+    },
+    CrashPoint {
+        name: "torrent.before_relocation_commit",
+        owner: "rd-torrent",
+        invariant: "a torrent move stopped after its files were placed in the new folder and before its package was pointed there is taken back by the next start: every file is at the old place exactly once, nothing is left in the new folder, the journal is cleared and a seed seeds again from the old place",
+    },
+    CrashPoint {
         name: "torrent.before_seed_completed",
         owner: "rd-torrent",
         invariant: "a seed stopped after its seed time was closed and before its row completed is still seeding after the restart, is taken up again and completes when it is stopped; the seeded time is counted once",
@@ -246,6 +271,16 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         name: "usenet.before_checkpoint_batch",
         owner: "rd-usenet",
         invariant: "the articles of a checkpoint batch that did not commit are on disk but fetched again, never counted as confirmed; every batch committed before stays confirmed",
+    },
+    CrashPoint {
+        name: "usenet.before_hopeless_abort",
+        owner: "rd-usenet",
+        invariant: "a set judged beyond repair whose rows were not yet failed is judged again after the next start from the segments every server refused, with the same counts, and the same rows fail; no row fails before that write and none is left waiting after it",
+    },
+    CrashPoint {
+        name: "usenet.before_traffic_flushed",
+        owner: "rd-usenet",
+        invariant: "counts a flush had not yet written when the process stopped are lost, at most one flush interval of traffic, and nothing else: every flush committed before stays, and counting after the next start adds to it without counting anything twice",
     },
     CrashPoint {
         name: "vault.after_orphan_removed",

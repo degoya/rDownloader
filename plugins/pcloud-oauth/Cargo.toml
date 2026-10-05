@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 pcloud-common = { path = "../pcloud-common" }
 plugin-common = { path = "../common" }
-wit-bindgen.workspace = true
+plugin-guest-oauth = { path = "../guest-oauth" }
 
 [lib]
 crate-type = ["rlib", "cdylib"]

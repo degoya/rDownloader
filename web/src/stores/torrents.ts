@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { api, responseError } from '@/api/client'
+import { api, responseError, resultMessage } from '@/api/client'
 import type {
   TorrentAggregateStats,
   TorrentDetail,
   TorrentEngineCapabilities,
+  TorrentMoveRequest,
   TorrentPeerPage,
   TorrentPieceAvailability,
   TorrentPlanRequest,
@@ -17,6 +18,16 @@ import { i18n } from '@/i18n'
 
 /** Where a torrent's file tree is being reviewed. */
 type TorrentScope = 'candidate' | 'download'
+
+/** How often, and for how long at most, a running move is followed (RD-1100-10). */
+const MOVE_POLL_MS = 2000
+const MOVE_POLL_ROUNDS = 900
+
+/** The answer of an action: the server's message, or why it was refused. */
+export interface TorrentActionResult {
+  message: string | null
+  error: string | null
+}
 
 const t = (key: string, named: Record<string, unknown> = {}): string => i18n.global.t(key, named)
 
@@ -250,6 +261,43 @@ export const useTorrentsStore = defineStore('torrents', () => {
     if (response.data) seeding.value[id] = response.data
   }
 
+  /**
+   * Asks for the torrent's data to be hashed again (RD-1100-10). A seed is checked at once,
+   * anything else when it starts next; the detail, when open, shows the request at once.
+   */
+  async function recheck(id: string): Promise<TorrentActionResult> {
+    const response = await api.POST('/api/v1/downloads/{id}/torrent/recheck', {
+      params: { path: { id } }
+    })
+    if (!response.data) return { message: null, error: responseError(response) }
+    if (details.value[cacheKey('download', id)]) await load('download', id)
+    return { message: resultMessage(response.data), error: null }
+  }
+
+  /**
+   * Starts moving the torrent's files to another folder (RD-1100-10). The move runs on the
+   * server; the detail is followed until it has ended, so the panel says how it went.
+   */
+  async function move(id: string, body: TorrentMoveRequest): Promise<TorrentActionResult> {
+    const response = await api.POST('/api/v1/downloads/{id}/torrent/move', {
+      params: { path: { id } },
+      body
+    })
+    if (!response.data) return { message: null, error: responseError(response) }
+    void followMove(id)
+    return { message: resultMessage(response.data), error: null }
+  }
+
+  /** Reloads the detail until it no longer shows a move under way, within a bound. */
+  async function followMove(id: string): Promise<void> {
+    const key = cacheKey('download', id)
+    for (let round = 0; round < MOVE_POLL_ROUNDS; round += 1) {
+      await new Promise(resolve => setTimeout(resolve, MOVE_POLL_MS))
+      await load('download', id)
+      if (!details.value[key]?.relocation) return
+    }
+  }
+
   /** Drops a cached detail, e.g. after the candidate was removed. */
   function forget(scope: TorrentScope, id: string): void {
     const key = cacheKey(scope, id)
@@ -287,6 +335,8 @@ export const useTorrentsStore = defineStore('torrents', () => {
     loadSeeding,
     saveSeeding,
     clearSeeding,
+    recheck,
+    move,
     forget
   }
 })

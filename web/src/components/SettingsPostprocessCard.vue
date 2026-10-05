@@ -135,6 +135,9 @@ const sampleMiB = byteModel(
     <UFormField data-settings-anchor="postprocess.unpack_to_subfolder" :label="t('settings.postprocess.unpack_to_subfolder.label')" :description="t('settings.postprocess.unpack_to_subfolder.description')" orientation="horizontal">
       <USwitch v-model="settings.unpack_to_subfolder" data-testid="unpack-to-subfolder" />
     </UFormField>
+    <UFormField data-settings-anchor="postprocess.direct_unpack" :label="t('settings.postprocess.direct_unpack.label')" :description="t('settings.postprocess.direct_unpack.description')" orientation="horizontal">
+      <USwitch v-model="settings.direct_unpack" data-testid="direct-unpack" />
+    </UFormField>
     <UFormField :label="t('settings.postprocess.sfv_verify.label')" :description="t('settings.postprocess.sfv_verify.description')" orientation="horizontal">
       <USwitch v-model="settings.sfv_verify" />
     </UFormField>
@@ -146,6 +149,9 @@ const sampleMiB = byteModel(
     </UFormField>
     <UFormField :label="t('settings.postprocess.enable_all_par.label')" :description="t('settings.postprocess.enable_all_par.description')" orientation="horizontal">
       <USwitch v-model="settings.enable_all_par" />
+    </UFormField>
+    <UFormField :label="t('settings.postprocess.fail_hopeless_jobs.label')" :description="t('settings.postprocess.fail_hopeless_jobs.description')" orientation="horizontal">
+      <USwitch v-model="settings.fail_hopeless_jobs" />
     </UFormField>
     <UFormField :label="t('settings.postprocess.enrichment.label')" :description="t('settings.postprocess.enrichment.description')" orientation="horizontal">
       <USwitch

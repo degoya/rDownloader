@@ -63,6 +63,10 @@ const LINUX_LINKED: &[(&str, &str)] = &[
         "sandboxed JavaScript for container decryption",
     ),
     ("cbc", "block cipher mode"),
+    (
+        "chrono",
+        "dates: the end of a queue pause, read from the summary and shown in local time",
+    ),
     ("clap", "command line"),
     ("directories", "per-user paths"),
     ("hex", "encoding"),

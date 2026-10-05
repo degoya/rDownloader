@@ -1,0 +1,57 @@
+{
+  "title": "Historial de descargas",
+  "intro": "Todo lo que terminó o falló definitivamente, también después de quitar el paquete de la lista o de que se limpiara automáticamente. Las direcciones se guardan sin contraseñas ni tokens; las contraseñas de archivo nunca se guardan.",
+  "filters": {
+    "search": "Buscar",
+    "search_placeholder": "Nombre o dirección",
+    "outcome": "Resultado",
+    "any_outcome": "Cualquier resultado",
+    "kind": "Tipo",
+    "any_kind": "Cualquier tipo",
+    "period": "Período",
+    "any_period": "Cualquier momento",
+    "apply": "Aplicar filtros",
+    "clear": "Restablecer filtros"
+  },
+  "periods": {
+    "day": "Últimas 24 horas",
+    "week": "Últimos 7 días",
+    "month": "Últimos 30 días",
+    "year": "Últimos 365 días"
+  },
+  "outcomes": {
+    "completed": "Completado",
+    "failed": "Fallido"
+  },
+  "kinds": {
+    "http": "HTTP",
+    "usenet": "Usenet",
+    "torrent": "Torrent",
+    "media": "Multimedia (yt-dlp)",
+    "gallery": "Galería",
+    "record": "Grabación",
+    "ftp": "FTP",
+    "sftp": "SFTP",
+    "plugin": "Transferencia por plugin",
+    "object_storage": "Almacenamiento de objetos (S3)"
+  },
+  "list": {
+    "title": "Entradas",
+    "shown": "{shown} de {total}",
+    "empty": "Todavía no hay nada en el historial. En cuanto un paquete termine o falle definitivamente, aparecerá aquí.",
+    "files": "{count} archivo | {count} archivos",
+    "expand": "Mostrar detalles",
+    "collapse": "Ocultar detalles",
+    "category": "Categoría",
+    "destination": "Destino",
+    "added": "Añadido",
+    "sources": "Fuentes",
+    "more": "Cargar más"
+  },
+  "readd": {
+    "button": "Volver a añadir",
+    "done": "«{name}» vuelve a estar en el LinkGrabber",
+    "open": "Abrir el LinkGrabber",
+    "no_sources": "No hay ninguna dirección de origen que se pueda volver a añadir (por ejemplo, un NZB importado)."
+  }
+}

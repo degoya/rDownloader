@@ -84,5 +84,26 @@
       "category": "from the category",
       "torrent": "set here"
     }
+  },
+  "actions": {
+    "recheck": "Recheck",
+    "move": "Change location…"
+  },
+  "move": {
+    "title": "Change location",
+    "description": "The files move to the new place together with the package folder, and the torrent seeds on from there. If the move fails, everything stays where it was.",
+    "root": "Storage root",
+    "path": "Folder inside it",
+    "path_placeholder": "e.g. Archive/Series",
+    "submit": "Move",
+    "no_roots": "Add a storage root under Settings › Routing first.",
+    "running": "Moving to {path}…",
+    "taken_back": "Move taken back: {reason}"
+  },
+  "recheck": {
+    "checking": "Checking data… {percent} %",
+    "pending": "Check requested",
+    "complete": "Checked: all data is intact",
+    "incomplete": "Checked: {verified} of {total} intact, the rest is fetched again"
   }
 }

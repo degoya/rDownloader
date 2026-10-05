@@ -12,7 +12,7 @@ use crate::{
         self, BackupArchive, BackupRunDestinationEnd, BackupVerification,
         BackupVerificationOutcome, NewBackupArchive,
     },
-    commands::WriterCommand,
+    commands::{BackupLedgerCommand, FullBackupCommand, MaintenanceCommand},
     full_backup_store::{
         self, BackupConfig, BackupConfigUpdate, BackupDestinationRecord, BackupKeyRecord,
         BackupRun, BackupRunOutcome, NewBackupDestination, NewBackupRun,
@@ -26,7 +26,7 @@ impl Database {
     /// The copy is taken in the writer's order: it holds every mutation sent before this call
     /// and none sent after it. Writes wait while it is taken; see `crate::snapshot`.
     pub async fn snapshot_into(&self, path: &Path) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::VacuumInto {
+        writer::request(&self.writer, |reply| MaintenanceCommand::VacuumInto {
             path: path.to_path_buf(),
             reply,
         })
@@ -40,7 +40,7 @@ impl Database {
 
     /// Saves the schedule and replaces the destination.
     pub async fn save_backup_config(&self, update: BackupConfigUpdate) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SaveBackupConfig {
+        writer::request(&self.writer, |reply| FullBackupCommand::SaveBackupConfig {
             update: Box::new(update),
             reply,
         })
@@ -49,7 +49,7 @@ impl Database {
 
     /// Replaces the key reference; returns the one it replaced.
     pub async fn set_backup_key(&self, key: BackupKeyRecord) -> Result<Option<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::SetBackupKey {
+        writer::request(&self.writer, |reply| FullBackupCommand::SetBackupKey {
             key,
             reply,
         })
@@ -58,7 +58,7 @@ impl Database {
 
     /// Sets when the schedule is next due.
     pub async fn arm_backup(&self, next_run_at: Option<DateTime<Utc>>) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ArmBackup {
+        writer::request(&self.writer, |reply| FullBackupCommand::ArmBackup {
             next_run_at,
             reply,
         })
@@ -67,7 +67,7 @@ impl Database {
 
     /// Records the start of a run; `false` when another one is still running.
     pub async fn begin_backup_run(&self, run: NewBackupRun) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::BeginBackupRun {
+        writer::request(&self.writer, |reply| FullBackupCommand::BeginBackupRun {
             run,
             reply,
         })
@@ -76,7 +76,7 @@ impl Database {
 
     /// Records how a run ended.
     pub async fn finish_backup_run(&self, id: String, outcome: BackupRunOutcome) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::FinishBackupRun {
+        writer::request(&self.writer, |reply| FullBackupCommand::FinishBackupRun {
             id,
             outcome: Box::new(outcome),
             reply,
@@ -86,8 +86,8 @@ impl Database {
 
     /// Marks every run still `running` as interrupted; for the start of the process only.
     pub async fn interrupt_backup_runs(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::InterruptBackupRuns {
-            reply,
+        writer::request(&self.writer, |reply| {
+            FullBackupCommand::InterruptBackupRuns { reply }
         })
         .await
     }
@@ -118,7 +118,7 @@ impl Database {
         destination: NewBackupDestination,
     ) -> Result<String> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::CreateBackupDestination {
+            BackupLedgerCommand::CreateBackupDestination {
                 destination: Box::new(destination),
                 reply,
             }
@@ -133,7 +133,7 @@ impl Database {
         destination: NewBackupDestination,
     ) -> Result<bool> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpdateBackupDestination {
+            BackupLedgerCommand::UpdateBackupDestination {
                 id,
                 destination: Box::new(destination),
                 reply,
@@ -145,16 +145,18 @@ impl Database {
     /// Removes a destination and forgets its archives; the archives stay where they are.
     pub async fn delete_backup_destination(&self, id: String) -> Result<bool> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteBackupDestination { id, reply }
+            BackupLedgerCommand::DeleteBackupDestination { id, reply }
         })
         .await
     }
 
     /// Records an archive placed at a destination; returns its ledger id.
     pub async fn record_backup_archive(&self, archive: NewBackupArchive) -> Result<String> {
-        writer::request(&self.writer, |reply| WriterCommand::RecordBackupArchive {
-            archive: Box::new(archive),
-            reply,
+        writer::request(&self.writer, |reply| {
+            BackupLedgerCommand::RecordBackupArchive {
+                archive: Box::new(archive),
+                reply,
+            }
         })
         .await
     }
@@ -174,9 +176,8 @@ impl Database {
 
     /// Forgets archives retention removed.
     pub async fn forget_backup_archives(&self, ids: Vec<String>) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::ForgetBackupArchives {
-            ids,
-            reply,
+        writer::request(&self.writer, |reply| {
+            BackupLedgerCommand::ForgetBackupArchives { ids, reply }
         })
         .await
     }
@@ -188,7 +189,7 @@ impl Database {
         destinations: Vec<(String, String, String)>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::BeginBackupRunDestinations {
+            BackupLedgerCommand::BeginBackupRunDestinations {
                 run_id,
                 destinations,
                 reply,
@@ -200,7 +201,7 @@ impl Database {
     /// Records how one destination of a run fared.
     pub async fn finish_backup_run_destination(&self, end: BackupRunDestinationEnd) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::FinishBackupRunDestination {
+            BackupLedgerCommand::FinishBackupRunDestination {
                 end: Box::new(end),
                 reply,
             }
@@ -211,7 +212,7 @@ impl Database {
     /// Records the start of a verification.
     pub async fn begin_backup_verification(&self, verification: BackupVerification) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::BeginBackupVerification {
+            BackupLedgerCommand::BeginBackupVerification {
                 verification: Box::new(verification),
                 reply,
             }
@@ -226,7 +227,7 @@ impl Database {
         outcome: BackupVerificationOutcome,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::FinishBackupVerification { id, outcome, reply }
+            BackupLedgerCommand::FinishBackupVerification { id, outcome, reply }
         })
         .await
     }
@@ -238,7 +239,7 @@ impl Database {
 
     /// Sets when the scheduled verification is next due.
     pub async fn arm_backup_verify(&self, next_run_at: Option<DateTime<Utc>>) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ArmBackupVerify {
+        writer::request(&self.writer, |reply| BackupLedgerCommand::ArmBackupVerify {
             next_run_at,
             reply,
         })

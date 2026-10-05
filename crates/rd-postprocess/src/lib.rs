@@ -1,6 +1,7 @@
 //! Isolated PAR2 verification and safe, password-aware archive extraction.
 
 mod archive;
+mod direct;
 mod error;
 mod extract_set;
 mod multipart;
@@ -18,6 +19,8 @@ mod zip_format;
 #[cfg(test)]
 mod boundary_tests;
 #[cfg(test)]
+mod direct_tests;
+#[cfg(test)]
 mod rar_args_tests;
 #[cfg(test)]
 mod seven_zip_args_tests;
@@ -25,6 +28,10 @@ mod seven_zip_args_tests;
 mod tests;
 
 pub use archive::{ArchiveLimits, ExtractionReport, STAGING_PREFIX};
+pub use direct::{
+    DIRECT_STAGING_PREFIX, DirectRequest, DirectStaging, VolumeAsk, adopt_direct,
+    extract_rar_direct,
+};
 pub use error::ExtractionError;
 pub use extract_set::{ExtractRequest, extract_with_passwords};
 pub use multipart::{ArchiveSet, MultiVolumeReader, group_archive_sets};

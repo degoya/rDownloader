@@ -235,7 +235,7 @@ export const uiStubs = {
     props: ['modelValue', 'ariaLabel', 'label', 'disabled'],
     emits: ['update:modelValue'],
     template:
-      '<button role="switch" v-bind="$attrs" :aria-label="ariaLabel ?? label" :aria-checked="modelValue" :disabled="disabled" @click="$emit(\'update:modelValue\', !modelValue)" />'
+      '<button type="button" role="switch" v-bind="$attrs" :aria-label="ariaLabel ?? label" :aria-checked="modelValue" :disabled="disabled" @click="$emit(\'update:modelValue\', !modelValue)" />'
   },
   /**
    * A tab per item and every item's slot rendered, the inactive ones `hidden` — what the real one

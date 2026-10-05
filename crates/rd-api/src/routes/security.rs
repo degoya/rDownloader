@@ -17,6 +17,13 @@ use crate::{
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
+        .merge(account_security_routes())
+        .merge(credential_routes())
+}
+
+/// Request replay, API tokens, second factors, the identity provider, passwords and sessions.
+fn account_security_routes() -> Router<AppState> {
+    Router::new()
         .route(
             "/api/v1/collector/candidates/{id}/replay-preview",
             get(replay_handlers::replay_preview),
@@ -106,6 +113,11 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/sessions/{id}",
             delete(session_handlers::revoke_session),
         )
+}
+
+/// Authentication profiles, remote credentials, object storage profiles and remote listings.
+fn credential_routes() -> Router<AppState> {
+    Router::new()
         .route(
             "/api/v1/auth-profiles",
             get(auth_profile_handlers::list_auth_profiles)

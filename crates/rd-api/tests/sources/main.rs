@@ -17,3 +17,4 @@ mod indexer_search;
 mod indexers;
 mod stream_schedules;
 mod subscriptions;
+mod torznab_search;

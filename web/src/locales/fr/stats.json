@@ -56,5 +56,19 @@
     "hourly_description": "Jours avant que les chiffres horaires deviennent journaliers (1 jusqu’à la conservation).",
     "retention_label": "Conservation",
     "retention_description": "Jours de conservation des chiffres journaliers (7–3650)."
+  },
+  "servers": {
+    "title": "Trafic par serveur Usenet",
+    "description": "Données d'articles livrées par chaque serveur, telles que le fournisseur les mesure : encodées en yEnc, quelques pour cent au-dessus de la charge utile. Les jours sont comptés en UTC.",
+    "name": "Serveur",
+    "today": "Aujourd'hui",
+    "week": "7 jours",
+    "month": "30 jours",
+    "year": "1 an",
+    "total": "Total",
+    "quota": "Quota",
+    "quota_used": "{used} sur {limit}",
+    "used_up_backup": "Épuisé · secours uniquement",
+    "used_up_pause": "Épuisé · en pause"
   }
 }

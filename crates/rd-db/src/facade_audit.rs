@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use crate::{
     Database,
     audit_store::{self, AuditPruneReport, AuditQuery, AuditRecord, NewAuditRecord},
-    commands::WriterCommand,
+    commands::AuditCommand,
     writer,
 };
 
@@ -24,7 +24,7 @@ impl Database {
         if records.is_empty() {
             return Ok(0);
         }
-        writer::request(&self.writer, |reply| WriterCommand::AppendAuditRecords {
+        writer::request(&self.writer, |reply| AuditCommand::AppendAuditRecords {
             records,
             reply,
         })
@@ -44,7 +44,7 @@ impl Database {
         older_than: Option<DateTime<Utc>>,
         batch: u64,
     ) -> Result<AuditPruneReport> {
-        writer::request(&self.writer, |reply| WriterCommand::PruneAuditRecords {
+        writer::request(&self.writer, |reply| AuditCommand::PruneAuditRecords {
             max_records,
             older_than,
             batch,
@@ -60,7 +60,7 @@ impl Database {
     /// before the delete ran. Delete and entry commit together, so the log is never empty
     /// with nothing in it saying why.
     pub async fn clear_audit_records(&self, record: NewAuditRecord) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::ClearAuditRecords {
+        writer::request(&self.writer, |reply| AuditCommand::ClearAuditRecords {
             record: Box::new(record),
             reply,
         })

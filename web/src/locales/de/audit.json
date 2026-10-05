@@ -76,7 +76,8 @@
     "identity_linked": "Konto beim Identitätsanbieter verknüpft",
     "identity_unlinked": "Verknüpfung zum Identitätsanbieter gelöst",
     "password_login_changed": "Passwort-Anmeldung umgeschaltet",
-    "password_reset_local": "Passwort auf dem Host zurückgesetzt"
+    "password_reset_local": "Passwort auf dem Host zurückgesetzt",
+    "history_cleared": "Downloadverlauf geleert"
   },
   "list": {
     "title": "Einträge",

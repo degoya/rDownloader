@@ -12,18 +12,11 @@
 //! choose from.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "remote-job-plugin",
-});
-
-use exports::rdownloader::plugin::remote_job::{
+use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteHandle,
-    RemoteProgress, RemoteWork, SubmitRequest,
-};
-use rdownloader::plugin::{
-    host,
+    RemoteProgress, RemoteWork, SubmitRequest, host,
     http::{self, RequestHeader, RequestQuery},
+    refuse,
     types::{Failure, FailureKind},
 };
 
@@ -34,15 +27,6 @@ use crate::{
 use putio_common::{address, reason::ErrorEnvelope};
 
 struct Component;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 fn from_api(failure: ApiFailure) -> Failure {
     Failure {
@@ -443,4 +427,4 @@ fn spend(requests: &mut usize) -> Result<(), Failure> {
     Ok(())
 }
 
-export!(Component);
+plugin_guest_remote_job::remote_job_plugin!(Component);

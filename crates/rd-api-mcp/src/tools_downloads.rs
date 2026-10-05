@@ -84,7 +84,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List downloads with optional state/package/name filters, paginated. name_contains matches the file name or the package name, like the web UI's search. Poll this or get_status_summary to observe progress."
+        description = "List downloads with optional state/package/name filters, paginated. name_contains matches the file name or the package name, like the web UI's search. Poll this or get_status_summary to observe progress. A failed row's error says why; get_download has its stable code and params."
     )]
     pub async fn list_downloads(
         &self,
@@ -133,7 +133,9 @@ impl RdMcpServer {
         respond(result)
     }
 
-    #[tool(description = "Full detail of one download file, including source URL and checksums.")]
+    #[tool(
+        description = "Full detail of one download file, including source URL and checksums. last_error carries a failure's stable code and params - e.g. usenet.job_hopeless with missing_blocks and available_blocks for a Usenet download given up as beyond repair (switched by fail_hopeless_jobs in the settings)."
+    )]
     pub async fn get_download(
         &self,
         Parameters(params): Parameters<GetDownloadParams>,

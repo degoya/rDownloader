@@ -1,13 +1,16 @@
 import { createI18n } from 'vue-i18n'
 
 import { DATETIME_FORMATS, NUMBER_FORMATS } from './formats'
+import { REQUIRED_LOCALES, SUPPORTED_LOCALES } from './languages'
 import { messageResolver } from './resolver'
 import { loadPluginMessages } from './plugins'
 
+export { LANGUAGES, REQUIRED_LOCALES, SUPPORTED_LOCALES, isInProgress, languageItems } from './languages'
+
 type LocaleMessages = Record<string, never> | { [key: string]: string | LocaleMessages }
 
-export const SUPPORTED_LOCALES = ['en', 'de', 'fr', 'es'] as const
-export type AppLocale = typeof SUPPORTED_LOCALES[number]
+/** A code from `web/src/locales/languages.json`; the list is data, so the type is a string. */
+export type AppLocale = string
 
 const STORAGE_KEY = 'rd.locale'
 
@@ -17,8 +20,10 @@ type MessageTree = Record<string, unknown>
  * Every `src/locales/<locale>/<domain>.json` file becomes the `<domain>` namespace.
  *
  * Only English — the fallback every other language leans on — is bundled into the main chunk;
- * the other three are separate chunks fetched the first time they are needed (RD-140-27). All
- * four in the main chunk were 1.3 MB of JSON nobody but one language's reader ever used.
+ * every other language is a separate chunk fetched the first time it is needed (RD-140-27). All
+ * four in the main chunk were 1.3 MB of JSON nobody but one language's reader ever used. A key a
+ * language does not have yet resolves through `fallbackLocale`, so an unfinished language shows
+ * English for it, never the raw key (RD-1100-09).
  */
 const englishFiles = import.meta.glob<{ default: MessageTree }>('../locales/en/*.json', { eager: true })
 const lazyFiles = import.meta.glob<{ default: MessageTree }>(['../locales/*/*.json', '!../locales/en/*.json'])
@@ -57,10 +62,15 @@ export async function loadLocaleMessages(locale: AppLocale): Promise<void> {
 }
 
 function isSupported(value: string): value is AppLocale {
-  return (SUPPORTED_LOCALES as readonly string[]).includes(value)
+  return SUPPORTED_LOCALES.includes(value)
 }
 
-/** Stored choice, else the first browser language we ship, else English. */
+/**
+ * Stored choice, else the first browser language we ship complete, else English.
+ *
+ * An unfinished language is offered in the picker but never chosen for the reader: a page half
+ * in English is a choice to make, not one to be handed.
+ */
 export function detectLocale(): AppLocale {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -71,13 +81,13 @@ export function detectLocale(): AppLocale {
   const candidates = typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language]
   for (const candidate of candidates) {
     const primary = candidate.toLowerCase().split('-')[0] ?? ''
-    if (isSupported(primary)) return primary
+    if (REQUIRED_LOCALES.includes(primary)) return primary
   }
   return 'en'
 }
 
 function perLocale<T>(value: T): Record<AppLocale, T> {
-  return { en: value, de: value, fr: value, es: value }
+  return Object.fromEntries(SUPPORTED_LOCALES.map(locale => [locale, value]))
 }
 
 export const i18n = createI18n<false>({
@@ -120,6 +130,7 @@ function applyLocale(locale: AppLocale): void {
  * session that merge is skipped rather than refused — the endpoint requires one.
  */
 export async function setLocale(locale: AppLocale): Promise<void> {
+  if (!isSupported(locale)) return
   requestedLocale = locale
   if (!loadedLocales.has(locale)) {
     try {

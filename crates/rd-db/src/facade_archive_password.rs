@@ -14,7 +14,7 @@ use rd_secrets::{ExposeSecret, SecretStore, SecretString};
 use crate::{
     Database,
     archive_password::{self, PasswordTable},
-    commands::WriterCommand,
+    commands::{ArchivePasswordsCommand, MaintenanceCommand},
     writer,
 };
 
@@ -155,7 +155,7 @@ impl Database {
                 .map(|(reference, _)| reference.clone())
                 .collect();
             writer::request(&self.writer, |reply| {
-                WriterCommand::ReserveArchivePasswords {
+                ArchivePasswordsCommand::ReserveArchivePasswords {
                     references: reserved.clone(),
                     reply,
                 }
@@ -164,7 +164,7 @@ impl Database {
             for (reference, password) in writes {
                 if let Err(error) = vault.put_at(&reference, SecretString::from(password)).await {
                     let released = writer::request(&self.writer, |reply| {
-                        WriterCommand::ReleaseArchivePasswords {
+                        ArchivePasswordsCommand::ReleaseArchivePasswords {
                             references: reserved,
                             reply,
                         }
@@ -180,10 +180,12 @@ impl Database {
         rd_core::failpoint!("archive_password.before_reference_adopted", || {
             anyhow::anyhow!("crash point: the vault holds the passwords and no row points at them")
         });
-        writer::request(&self.writer, |reply| WriterCommand::AdoptArchivePasswords {
-            table,
-            entries: adopted,
-            reply,
+        writer::request(&self.writer, |reply| {
+            ArchivePasswordsCommand::AdoptArchivePasswords {
+                table,
+                entries: adopted,
+                reply,
+            }
         })
         .await?;
         // What the rows pointed at before is released by now.
@@ -301,7 +303,7 @@ impl Database {
             // The takeover's own pages are zeroed (`secure_delete`); older free pages may still
             // hold a password a deleted row had, and only a rewrite drops them.
             if let Err(error) =
-                writer::request(&self.writer, |reply| WriterCommand::Vacuum { reply }).await
+                writer::request(&self.writer, |reply| MaintenanceCommand::Vacuum { reply }).await
             {
                 tracing::warn!(%error, "the database could not be rewritten after the archive password takeover");
             }
@@ -340,7 +342,7 @@ impl Database {
         });
         let count = removed.len();
         writer::request(&self.writer, |reply| {
-            WriterCommand::ForgetArchivePasswords {
+            ArchivePasswordsCommand::ForgetArchivePasswords {
                 references: removed,
                 reply,
             }

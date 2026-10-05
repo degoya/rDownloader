@@ -16,20 +16,15 @@
 //! for the rest — see `plugins/pcloud/src/resolver.rs` for why that correction exists at all.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "crawler-plugin",
-});
-
-use exports::rdownloader::plugin::crawler::{CrawledLink, Guest};
 use pcloud_common::{
     address::{self, Region},
     api as pcloud_api,
     metadata::{self, Metadata},
 };
-use rdownloader::plugin::{
-    host,
+use plugin_guest_crawler::{
+    CrawledLink, Guest, host,
     http::{self, RequestHeader, RequestQuery},
+    refuse,
     types::{Failure, FailureKind},
 };
 
@@ -50,15 +45,6 @@ const ROOT_NAME: &str = "pCloud";
 const MAX_TREE_DEPTH: u32 = 16;
 
 struct Component;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 /// A refusal carrying pCloud's own decimal number and nothing it wrote.
 fn refuse_with_result(
@@ -385,4 +371,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_crawler::crawler_plugin!(Component);

@@ -5,7 +5,7 @@ use rd_core::{Indexer, IndexerId};
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::IndexersCommand,
     indexer_store::{self, NewIndexer},
     writer,
 };
@@ -21,7 +21,7 @@ impl Database {
     }
 
     pub async fn create_indexer(&self, input: NewIndexer) -> Result<Indexer> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateIndexer {
+        writer::request(&self.writer, |reply| IndexersCommand::CreateIndexer {
             input: Box::new(input),
             reply,
         })
@@ -34,7 +34,7 @@ impl Database {
         id: IndexerId,
         input: NewIndexer,
     ) -> Result<(Indexer, Option<String>)> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateIndexer {
+        writer::request(&self.writer, |reply| IndexersCommand::UpdateIndexer {
             id,
             input: Box::new(input),
             reply,
@@ -44,7 +44,7 @@ impl Database {
 
     /// Deletes an indexer; returns its key reference for the vault.
     pub async fn delete_indexer(&self, id: IndexerId) -> Result<Option<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteIndexer {
+        writer::request(&self.writer, |reply| IndexersCommand::DeleteIndexer {
             id,
             reply,
         })

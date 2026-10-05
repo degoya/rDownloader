@@ -7,7 +7,7 @@ api_version = "0.10.0"
 # never loaded (RD-098-03).
 id = "019d0000-0000-7000-8000-00000000010e"
 name = "SponsorBlock"
-version = "0.9.7"
+version = "0.9.8"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 

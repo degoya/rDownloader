@@ -25,6 +25,11 @@ pub struct PostprocessSettings {
     /// the archive (`Film.part1.rar` → `Film/`), instead of straight into the package folder.
     /// Off by default (RD-170-16).
     pub unpack_to_subfolder: bool,
+    /// Unpack a Usenet package's multi-volume RAR set while the package is still downloading,
+    /// volume by volume as each one arrives intact (SABnzbd's direct unpack). Off by default; a
+    /// repair or a damaged volume discards the attempt and the set is unpacked afterwards as
+    /// usual (RD-1100-07).
+    pub direct_unpack: bool,
     /// Verify the CRC32 checksums of any `.sfv` index found in the package before unpacking.
     pub sfv_verify: bool,
     /// Whether a failed verification blocks everything after it.
@@ -47,6 +52,13 @@ pub struct PostprocessSettings {
     /// missing blocks fetches as many of them as the gap needs (RD-107-04). On restores the
     /// older behaviour, where every volume is fetched whether or not anything was damaged.
     pub enable_all_par: bool,
+    /// Stop a Usenet download as soon as it is known to be beyond repair (RD-1100-02).
+    ///
+    /// SABnzbd's `fail_hopeless_jobs`, on here as there: once more PAR2 blocks are missing
+    /// than the set's recovery volumes - fetched, waiting or postponed - can replace, the
+    /// rest of the set is not downloaded and the package fails with
+    /// `usenet.job_hopeless`. Off downloads every file to the end as before.
+    pub fail_hopeless_jobs: bool,
     /// Post-processing plugin steps enabled by default, by plugin id and in the order they
     /// run. Empty until somebody enables one: an installed step does nothing until it is
     /// switched on, so installing a plugin never changes what an existing package does.
@@ -126,10 +138,12 @@ impl Default for PostprocessSettings {
             ignore_samples: true,
             recursive_unpack: false,
             unpack_to_subfolder: false,
+            direct_unpack: false,
             sfv_verify: true,
             safe_postproc: true,
             delete_par2: false,
             enable_all_par: false,
+            fail_hopeless_jobs: true,
             plugin_steps: Vec::new(),
             sample_max_bytes: ByteCount::new(300 * 1024 * 1024).expect("sample limit fits"),
             scripts_directory: None,
@@ -304,6 +318,16 @@ mod tests {
     }
 
     #[test]
+    fn archives_are_unpacked_after_the_download_unless_direct_unpack_is_asked_for() {
+        // RD-1100-07: opt-in; a blob that never mentions it unpacks once the package is complete.
+        let legacy: PostprocessSettings = serde_json::from_str("{}").expect("empty blob");
+        assert!(!legacy.direct_unpack);
+        let direct: PostprocessSettings =
+            serde_json::from_str(r#"{"direct_unpack":true}"#).expect("explicit opt-in");
+        assert!(direct.direct_unpack);
+    }
+
+    #[test]
     fn the_malware_scan_is_off_until_somebody_switches_it_on() {
         // RD-190-14: it needs a clamd somebody runs, so a blob that never mentions it scans
         // nothing, and the address falls back to clamd's own default.
@@ -331,6 +355,17 @@ mod tests {
         let eager: PostprocessSettings =
             serde_json::from_str(r#"{"enable_all_par":true}"#).expect("explicit opt-in");
         assert!(eager.enable_all_par);
+    }
+
+    #[test]
+    fn hopeless_usenet_jobs_are_given_up_unless_that_is_switched_off() {
+        // On by default, as in SABnzbd: a set that cannot be repaired should not spend a
+        // block account's volume on the rest of its files.
+        let missing: PostprocessSettings = serde_json::from_str("{}").expect("empty blob");
+        assert!(missing.fail_hopeless_jobs);
+        let off: PostprocessSettings =
+            serde_json::from_str(r#"{"fail_hopeless_jobs":false}"#).expect("explicit opt-out");
+        assert!(!off.fail_hopeless_jobs);
     }
 
     #[test]

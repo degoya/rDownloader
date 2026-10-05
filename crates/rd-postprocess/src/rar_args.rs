@@ -31,6 +31,9 @@ use crate::{ExtractionError, RarToolKind};
 pub(crate) enum RarAction<'a> {
     /// Unpack the whole set into this (existing) directory.
     Extract { staging: &'a Path },
+    /// Unpack into this (existing) directory, pausing before every volume after the first until
+    /// the caller answers on stdin (`-vp`, direct unpack, RD-1100-07). `unrar` only.
+    Follow { staging: &'a Path },
     /// Read every volume and check the stored checksums, writing nothing.
     Test,
 }
@@ -54,14 +57,21 @@ pub(crate) fn rar_arguments(
 ) -> RarArguments {
     let mut args: Vec<OsString> = Vec::with_capacity(8);
     let command = match action {
-        RarAction::Extract { .. } => "x",
+        RarAction::Extract { .. } | RarAction::Follow { .. } => "x",
         RarAction::Test => "t",
     };
     args.push(command.into());
     let switches: &[&str] = match (kind, action) {
         (RarToolKind::Unrar, RarAction::Extract { .. }) => &["-o-", "-y", "-idc"],
         (RarToolKind::Unrar, RarAction::Test) => &["-y", "-idc"],
-        (RarToolKind::SevenZip, RarAction::Extract { .. }) => &["-y", "-bsp1", "-bso0"],
+        // No `-y`: the volume question has to reach the caller, which answers it once that
+        // volume is on disk. `-o-` already settles the only other question an unpack asks, and
+        // `-idp` keeps the percentage out of the text the question is read from.
+        (RarToolKind::Unrar, RarAction::Follow { .. }) => &["-vp", "-o-", "-idc", "-idp"],
+        // 7-Zip cannot pause between volumes; `direct` refuses it before anything starts.
+        (RarToolKind::SevenZip, RarAction::Extract { .. } | RarAction::Follow { .. }) => {
+            &["-y", "-bsp1", "-bso0"]
+        }
         (RarToolKind::SevenZip, RarAction::Test) => &["-y", "-bso0"],
     };
     args.extend(switches.iter().map(OsString::from));
@@ -72,7 +82,7 @@ pub(crate) fn rar_arguments(
         (RarToolKind::Unrar, None) => "-p-".into(),
         (RarToolKind::SevenZip, None) => "-p".into(),
     });
-    if let RarAction::Extract { staging } = action {
+    if let RarAction::Extract { staging } | RarAction::Follow { staging } = action {
         // `-op` for unrar, `-o` for 7-Zip: the destination is a switch, so it needs no trailing
         // separator to be read as a directory, and it stays in front of `--`.
         let prefix = match kind {
@@ -84,7 +94,9 @@ pub(crate) fn rar_arguments(
     args.push("--".into());
     args.push(match action {
         // The long form for the archive as well: its path can be as long as the destination's.
-        RarAction::Extract { .. } => rd_files::long_path(first_volume).into_os_string(),
+        RarAction::Extract { .. } | RarAction::Follow { .. } => {
+            rd_files::long_path(first_volume).into_os_string()
+        }
         RarAction::Test => first_volume.as_os_str().to_owned(),
     });
     RarArguments { args, password_at }

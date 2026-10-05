@@ -1,4 +1,4 @@
-//! Torrent file selection, trackers, peers and seeding routes.
+//! Torrent file selection, trackers, peers, seeding, recheck and move routes.
 
 use axum::{
     Router,
@@ -86,6 +86,14 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/downloads/{id}/seeding/stop",
             post(torrent_handlers::stop_seeding),
         )
+        .route(
+            "/api/v1/downloads/{id}/torrent/recheck",
+            post(torrent_handlers::recheck_torrent),
+        )
+        .route(
+            "/api/v1/downloads/{id}/torrent/move",
+            post(torrent_handlers::move_torrent),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -102,6 +110,8 @@ pub(crate) fn routes() -> Router<AppState> {
     torrent_control::put_category_seeding,
     torrent_control::delete_category_seeding,
     torrent_handlers::import_torrent,
+    torrent_handlers::move_torrent,
+    torrent_handlers::recheck_torrent,
     torrent_handlers::stop_seeding,
     torrent_handlers::torrent_capabilities,
     torrent_handlers::torrent_interfaces,

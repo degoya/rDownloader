@@ -17,6 +17,7 @@ mod event;
 pub mod failpoint;
 mod gallery;
 mod git_release;
+mod history;
 mod hotfolder;
 mod ids;
 mod indexer;
@@ -32,6 +33,7 @@ mod remote_job;
 mod request_template;
 mod session;
 mod settings;
+mod sorting;
 mod source_identity;
 mod source_set;
 mod storage;
@@ -63,10 +65,10 @@ pub use bandwidth::{BandwidthSettings, DEFAULT_BANDWIDTH_TIMEZONE};
 pub use capture::{
     API_ADMIN_SCOPE, API_CONFIG_SCOPE, API_INTAKE_SCOPE, API_METRICS_SCOPE, API_QUEUE_SCOPE,
     API_READ_SCOPE, API_SCOPE, API_SECRETS_SCOPE, CAPTURE_AGENT_PRODUCT, CAPTURE_CONTRACT_VERSION,
-    CAPTURE_SCOPE, CAPTURED_HEADER_ALLOWLIST, CaptureToken, CapturedHeader, CapturedRequest,
-    MAX_CAPTURE_LINKS, MAX_CAPTURED_HEADER_NAME, MAX_CAPTURED_HEADERS, MAX_CAPTURED_VALUE, Scope,
-    granted_scopes, is_allowed_captured_header, is_credential_header, scope_satisfies,
-    scopes_grant, scopes_satisfy,
+    CAPTURE_QUEUE_SCOPE, CAPTURE_SCOPE, CAPTURED_HEADER_ALLOWLIST, CaptureToken, CapturedHeader,
+    CapturedRequest, MAX_CAPTURE_LINKS, MAX_CAPTURED_HEADER_NAME, MAX_CAPTURED_HEADERS,
+    MAX_CAPTURED_VALUE, Scope, granted_scopes, is_allowed_captured_header, is_credential_header,
+    scope_satisfies, scopes_grant, scopes_satisfy,
 };
 pub use collector::{
     CandidateMessage, CandidateMirror, Category, CategoryRule, CollectorBatch, CollectorPackage,
@@ -98,6 +100,11 @@ pub use gallery::{GALLERY_PROVIDER, GallerySettings};
 pub use git_release::{
     GitArchitecture, GitForge, GitPlatform, GitReleaseOptions, MAX_ASSET_PATTERN_CHARS,
     MAX_ASSET_PATTERNS,
+};
+pub use history::{
+    DEFAULT_HISTORY_RETENTION_DAYS, DEFAULT_HISTORY_RETENTION_ENTRIES, HISTORY_MAX_SOURCES,
+    HISTORY_RETENTION_DAYS_RANGE, HISTORY_RETENTION_ENTRIES_RANGE, HistoryEntry, HistoryOutcome,
+    HistoryRetentionSettings, history_source,
 };
 pub use hotfolder::{
     DEFAULT_HOTFOLDER_POLL_SECONDS, HOTFOLDER_POLL_SECONDS_RANGE, HotFolderSettings,
@@ -181,6 +188,7 @@ pub use settings::{
     DEFAULT_CLAMD_ADDRESS, DEFAULT_MALWARE_SCAN_MAX_BYTES, DEFAULT_MALWARE_SCAN_TIMEOUT_SECONDS,
     PostprocessSettings, ServiceSwitches,
 };
+pub use sorting::{SortKind, SortTemplates};
 pub use source_identity::{
     SourceIdentity, SourceIdentityKind, host_key, magnet_info_hash,
     normalized_url as normalized_source_url,
@@ -229,9 +237,9 @@ pub use torrent::{
     TorrentCandidateSummary, TorrentEngineCapabilities, TorrentFileDecision, TorrentFileEntry,
     TorrentFilePlan, TorrentFilePriority, TorrentJobState, TorrentListenMode, TorrentMetadataInfo,
     TorrentMetadataState, TorrentPeerEntry, TorrentPeerPage, TorrentPieceAvailability,
-    TorrentSequentialMode, TorrentSettings, TorrentTracker, TrackerOrigin, TrackerScrape,
-    glob_match, mask_peer_address, redact_tracker_url, resolve_plan, resolve_seeding_policy,
-    tracker_id,
+    TorrentRecheck, TorrentRelocation, TorrentSequentialMode, TorrentSettings, TorrentTracker,
+    TrackerOrigin, TrackerScrape, glob_match, mask_peer_address, redact_tracker_url, resolve_plan,
+    resolve_seeding_policy, tracker_id,
 };
 pub use trace::{
     DEFAULT_OTLP_TIMEOUT_SECONDS, OTLP_TIMEOUT_SECONDS_RANGE, OtelSettings, TRACE_FIELD,
@@ -246,7 +254,7 @@ pub use transform::{
 pub use usenet::{
     NZB_CONTENT_TYPES, NZB_PROVIDER, NzbFileStatus, NzbHandOver, NzbImport, NzbImportState,
     NzbSegmentState, NzbSegmentStatus, PostprocessKind, PostprocessState, PostprocessStep,
-    UsenetServer, provider_for_media_type,
+    UsenetQuota, UsenetQuotaAction, UsenetServer, provider_for_media_type,
 };
 
 /// Maximum representable byte count in persistent storage.

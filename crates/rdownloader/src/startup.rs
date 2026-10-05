@@ -11,11 +11,7 @@ use rd_backup::restore::cutover::{self, Cutover};
 use rd_db::Database;
 use rd_scheduler::{SchedulerConfig, SchedulerHandle};
 
-use crate::{
-    CommonPaths, ServeArgs, StoredSettings, Telemetry, doctor_site_rules, ensure_paths,
-    load_plugin_version_choices, load_trusted_plugin_keys, load_withdrawn_plugin_digests,
-    load_withdrawn_plugin_keys, site_rules_cli, sync_bundled_plugins,
-};
+use crate::{CommonPaths, Telemetry, doctor_site_rules, ensure_paths, site_rules_cli};
 
 /// The data directory with the database and the vault that live in it.
 pub(crate) struct Store {
@@ -177,48 +173,6 @@ pub(crate) fn finish_restore(paths: &CommonPaths, restore: &Cutover) {
     }
 }
 
-/// The plugin installer, with its trust, withdrawals, switches, version choices, the bundled
-/// packages and the providers of what is installed.
-pub(crate) async fn open_plugins(
-    args: &ServeArgs,
-    database: &Database,
-    stored: &StoredSettings,
-) -> Result<rd_plugin_host::PluginInstaller> {
-    let plugin_verifier = rd_pack::plugin::build_plugin_verifier(
-        args.plugin_development_mode,
-        &args.trusted_plugin_keys,
-        !args.no_default_plugin_key,
-    )?;
-    // Keys the user confirmed on first use must be trusted before anything is verified.
-    load_trusted_plugin_keys(database, &plugin_verifier).await;
-    load_withdrawn_plugin_digests(database, &plugin_verifier).await;
-    load_withdrawn_plugin_keys(database, &plugin_verifier).await;
-    let plugins = rd_plugin_host::PluginInstaller::new(args.plugin_root.clone(), plugin_verifier);
-    // Applied before anything loads plugins: a switched-off plugin must not be compiled or
-    // executed, while still being listed by the API so it can be switched back on.
-    plugins.set_disabled(stored.disabled_plugins.iter().cloned());
-    // Likewise the version choices (RD-140-02): which installed version runs and which one is
-    // under test are decided before the first package is loaded, and stay as they were read
-    // here until the next start.
-    load_plugin_version_choices(database, &plugins).await;
-    sync_bundled_plugins(
-        database,
-        &plugins,
-        args.bundled_plugins.clone(),
-        args.install_all_bundled_plugins,
-    )
-    .await;
-    // What is on disk now is what this start loads; a version installed from here on runs from
-    // the next start, and the plugin manager says so (RD-160-09).
-    if let Err(error) = plugins.record_started_versions().await {
-        tracing::warn!(%error, "could not record the plugin versions this start loads");
-    }
-    // Installed manifests contribute their provider rows before the scheduler builds
-    // resolvers, so account creation and the HTTP sandbox know about them from the start.
-    plugins.refresh_providers().await;
-    Ok(plugins)
-}
-
 /// The runners the queue starts with and the services that stand behind them.
 pub(crate) struct NativeRunners {
     pub(crate) runners: Vec<std::sync::Arc<dyn rd_scheduler::ExternalRunner>>,
@@ -231,6 +185,8 @@ pub(crate) struct NativeRunners {
     pub(crate) remote: rd_api::RemoteServices,
     pub(crate) plugin_transfer_schemes: Vec<String>,
     pub(crate) plugin_registry: rd_plugin_host::PluginTypeRegistry,
+    /// What the Usenet runner counts per server; `serve` flushes it (RD-1100-05).
+    pub(crate) usenet_traffic: rd_usenet::UsenetTraffic,
 }
 
 /// Builds every runner the scheduler is started with, and loads the plugin registry the
@@ -244,6 +200,7 @@ pub(crate) async fn native_runners(
     plugins: &rd_plugin_host::PluginInstaller,
     allow_local_targets: bool,
 ) -> Result<NativeRunners> {
+    let usenet_traffic = rd_usenet::UsenetTraffic::default();
     let usenet_runner: std::sync::Arc<dyn rd_scheduler::ExternalRunner> = std::sync::Arc::new(
         rd_usenet::UsenetRunner::new(
             database.clone(),
@@ -252,7 +209,8 @@ pub(crate) async fn native_runners(
         )
         // Without this the operator's custom CA reaches HTTP and FTPS but not their news
         // server, which is the inconsistency `rd_http::tls_client_config` exists to stop.
-        .with_network_defaults(config.network_defaults.clone()),
+        .with_network_defaults(config.network_defaults.clone())
+        .with_traffic(usenet_traffic.clone()),
     );
     let media_settings = rd_media::shared_settings(database).await?;
     let (media_runner, media_probe) =
@@ -334,6 +292,7 @@ pub(crate) async fn native_runners(
         remote,
         plugin_transfer_schemes,
         plugin_registry,
+        usenet_traffic,
     })
 }
 

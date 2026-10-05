@@ -1,5 +1,6 @@
 //! The transfer statistics REST surface (RD-110-01): `GET /api/v1/stats/transfers`, and the
-//! retention settings the sweep reads.
+//! retention settings the sweep reads; `GET /api/v1/stats/usenet-servers`, the traffic per
+//! Usenet server (RD-1100-05).
 
 use axum::{
     Json,
@@ -152,6 +153,67 @@ pub async fn transfer_stats(
         },
     );
     Ok(Json(summarise(params.range, since, &rows, all_time)))
+}
+
+/// The bytes one Usenet server delivered, by range, and its quota (RD-1100-05).
+///
+/// Counted as the article bodies arrive, yEnc-encoded: one to three per cent more than the
+/// payload, plus the article headers, and the bodies that failed their checksum and were asked
+/// for again. Written every few seconds, so the last seconds of a running download show up
+/// with the next flush.
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct UsenetServerTrafficEntry {
+    pub server_id: rd_core::UsenetServerId,
+    pub name: String,
+    pub enabled: bool,
+    /// Since midnight UTC.
+    pub today: u64,
+    /// The last seven days (UTC), today included.
+    pub week: u64,
+    /// The last 30 days (UTC), today included.
+    pub month: u64,
+    /// The last 365 days (UTC), today included.
+    pub year: u64,
+    /// Everything recorded since the server was added or the statistics were last cleared.
+    pub total: u64,
+    pub quota: Option<rd_core::UsenetQuota>,
+}
+
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct UsenetTrafficResponse {
+    /// Every configured server, in priority order.
+    pub servers: Vec<UsenetServerTrafficEntry>,
+}
+
+/// Traffic per Usenet server over the day, week, month, year and all time, with each
+/// server's quota.
+#[utoipa::path(
+    get,
+    path = "/api/v1/stats/usenet-servers",
+    tag = "system",
+    responses((status = 200, body = UsenetTrafficResponse))
+)]
+pub async fn usenet_server_traffic(
+    State(state): State<AppState>,
+) -> Result<Json<UsenetTrafficResponse>, ApiError> {
+    let servers = state
+        .database
+        .list_usenet_server_traffic(Utc::now().date_naive())
+        .await?
+        .into_iter()
+        .map(|row| UsenetServerTrafficEntry {
+            server_id: row.server_id,
+            name: row.name,
+            enabled: row.enabled,
+            today: row.today,
+            week: row.week,
+            month: row.month,
+            year: row.year,
+            total: row.total,
+            quota: row.quota,
+        })
+        .collect();
+    Ok(Json(UsenetTrafficResponse { servers }))
 }
 
 /// Folds the rows into the response shape; pure, so it is tested without a database.

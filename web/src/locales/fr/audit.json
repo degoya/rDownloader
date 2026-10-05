@@ -76,7 +76,8 @@
     "identity_linked": "Compte du fournisseur d’identité lié",
     "identity_unlinked": "Compte du fournisseur d’identité délié",
     "password_login_changed": "Connexion par mot de passe basculée",
-    "password_reset_local": "Mot de passe réinitialisé sur la machine"
+    "password_reset_local": "Mot de passe réinitialisé sur la machine",
+    "history_cleared": "Historique des téléchargements vidé"
   },
   "list": {
     "title": "Entrées",

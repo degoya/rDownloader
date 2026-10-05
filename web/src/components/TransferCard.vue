@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { useToast } from '@nuxt/ui/composables'
-import { computed, ref } from 'vue'
+import { useOverlay, useToast } from '@nuxt/ui/composables'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { Download, DownloadSourcesResponse, TorrentPlanRequest } from '@/api/types'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
+import TorrentMoveModal from '@/components/TorrentMoveModal.vue'
 import TorrentPeerList from '@/components/TorrentPeerList.vue'
 import TorrentSeedingPolicy from '@/components/TorrentSeedingPolicy.vue'
 import TorrentTrackerList from '@/components/TorrentTrackerList.vue'
@@ -15,7 +16,7 @@ import { useStagedResolvers } from '@/composables/useStagedResolvers'
 import { useTorrentsStore } from '@/stores/torrents'
 import { RESETTABLE_STATES } from '@/stores/transfers'
 import { translateServerMessage } from '@/i18n/server'
-import { formatByteProgress, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
+import { formatByteProgress, formatBytes, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
 const props = defineProps<{ download: Download, bytesPerSecond?: number, etaSeconds?: number | null, destination?: string, accountLabel?: string | null, selected?: boolean }>()
@@ -97,6 +98,35 @@ const torrentPeers = computed(() => torrents.peersOf(props.download.id))
 const torrentPieces = computed(() => torrents.piecesOf(props.download.id))
 const torrentSeeding = computed(() => torrents.seedingOf(props.download.id))
 
+/**
+ * Recheck and change location (RD-1100-10). Both are refused while a move runs; a move is offered
+ * for a seed and a paused torrent, the two whose files no runner is writing.
+ */
+const relocating = computed(() => Boolean(torrentDetail.value?.relocation))
+const recheckable = computed(() => isTorrent.value && !relocating.value
+  && ['queued', 'paused', 'retry_wait', 'failed', 'blocked', 'cancelled', 'resolving', 'downloading', 'seeding'].includes(props.download.state))
+const movable = computed(() => isTorrent.value && !relocating.value && ['seeding', 'paused'].includes(props.download.state))
+const checkingPercent = computed(() => {
+  const sample = torrentStats.value
+  if (!sample?.checking) return null
+  const total = Number(sample.total_bytes)
+  return total > 0 ? Math.min(100, Math.round((Number(sample.progress_bytes) / total) * 100)) : 0
+})
+const recheckLabel = computed(() => {
+  const recheck = torrentDetail.value?.recheck
+  if (!recheck) return ''
+  if (!recheck.finished_at) return t('torrent.recheck.pending')
+  if (recheck.verified_bytes >= recheck.total_bytes) return t('torrent.recheck.complete')
+  return t('torrent.recheck.incomplete', {
+    verified: formatBytes(String(recheck.verified_bytes)),
+    total: formatBytes(String(recheck.total_bytes))
+  })
+})
+// The check's result is written once it has run, so the detail is read again when it ends.
+watch(() => torrentStats.value?.checking, (now, before) => {
+  if (before && !now && torrentDetail.value) void torrents.load('download', props.download.id)
+})
+
 /** Peers and pieces are pulled, and only while the tab is actually open. */
 async function openTab(tab: 'files' | 'trackers' | 'peers' | 'seeding'): Promise<void> {
   torrentTab.value = tab
@@ -158,6 +188,19 @@ async function tryStaged(): Promise<void> {
   else toast.add({ title: outcome.message ?? '', color: 'success', icon: 'i-lucide-flask-conical' })
 }
 
+const moveModal = useOverlay().create(TorrentMoveModal)
+
+async function recheckTorrent(): Promise<void> {
+  const outcome = await torrents.recheck(props.download.id)
+  if (outcome.error) toast.add({ title: outcome.error, color: 'error', icon: 'i-lucide-circle-alert' })
+  else toast.add({ title: outcome.message ?? '', color: 'success', icon: 'i-lucide-scan-search' })
+}
+
+async function moveTorrent(): Promise<void> {
+  const message = await moveModal.open({ downloadId: props.download.id }).result
+  if (typeof message === 'string' && message) toast.add({ title: message, color: 'success', icon: 'i-lucide-folder-input' })
+}
+
 function saveTorrentPlan(plan: TorrentPlanRequest): void {
   void torrents.savePlan('download', props.download.id, plan)
 }
@@ -186,6 +229,12 @@ const actions = computed(() => [[
     : []),
   ...(props.download.state === 'seeding'
     ? [{ label: t('downloads.transfer.stop_seeding'), icon: 'i-lucide-square', onSelect: () => emit('stopSeeding', props.download.id) }]
+    : []),
+  ...(recheckable.value
+    ? [{ label: t('torrent.actions.recheck'), icon: 'i-lucide-scan-search', onSelect: () => void recheckTorrent() }]
+    : []),
+  ...(movable.value
+    ? [{ label: t('torrent.actions.move'), icon: 'i-lucide-folder-input', onSelect: () => void moveTorrent() }]
     : []),
   ...(renamable.value
     ? [{ label: t('common.actions.rename'), icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.download.id) }]
@@ -303,7 +352,17 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
           <span>{{ t('torrent.stats.uploaded') }} <span class="numeric text-toned">{{ formatByteProgress(torrentStats.uploaded_bytes, null) }}</span></span>
           <span>{{ t('torrent.stats.peers') }} <span class="numeric text-toned">{{ torrentStats.peer_count }}</span></span>
           <span v-if="!torrentStats.live" class="text-warning">{{ t('torrent.stats.offline') }}</span>
+          <span v-if="checkingPercent !== null" class="numeric text-info">{{ t('torrent.recheck.checking', { percent: checkingPercent }) }}</span>
         </p>
+        <p v-if="recheckLabel" class="flex items-center gap-1 text-xs text-muted">
+          <UIcon name="i-lucide-scan-search" class="size-3.5 shrink-0" />
+          <span>{{ recheckLabel }}</span>
+        </p>
+        <p v-if="torrentDetail?.relocation" class="flex min-w-0 items-center gap-1 text-xs text-info">
+          <UIcon name="i-lucide-folder-input" class="size-3.5 shrink-0" />
+          <span class="min-w-0 truncate font-mono" :title="torrentDetail.relocation.to">{{ t('torrent.move.running', { path: torrentDetail.relocation.to }) }}</span>
+        </p>
+        <p v-else-if="torrentDetail?.relocation_error" class="text-xs text-error">{{ t('torrent.move.taken_back', { reason: torrentDetail.relocation_error }) }}</p>
         <p v-if="torrentError" class="text-xs text-error">{{ torrentError }}</p>
         <template v-if="torrentTab === 'files'">
           <TorrentFileTree

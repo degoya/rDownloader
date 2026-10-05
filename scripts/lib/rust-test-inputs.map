@@ -19,9 +19,10 @@
 # file check.sh already scopes another way.
 
 # Catalogues: rd-diagnostics compiles in en/logs.json and its tests read every language's;
-# rd-plugin-host's bundled_locales test reads the core's server codes.
+# rd-plugin-host's bundled_locales test reads the core's server codes and the language list.
 ^web/src/locales/[^/]+/logs\.json$          rd-diagnostics
 ^web/src/locales/en/server\.json$           rd-plugin-host
+^web/src/locales/languages\.json$           rd-plugin-host
 # The About page's licence list against the npm lockfile and the vendor texts (RD-130-12).
 ^web/pnpm-lock\.yaml$                       rd-api
 ^resources/vendor-licenses/                 rd-api-admin

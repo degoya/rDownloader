@@ -115,7 +115,10 @@ jobs:
           name: e2e-web-dist
           path: web/dist
       - uses: ./.github/actions/setup-rust
+      # Saved from main only, as in ci.yml (RD-1100-13): a branch's own cache served that branch.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
       # `release-test`: the release profile without its single codegen unit and LTO, so the run
       # tests release code in a fraction of the release build's time.
       - name: Build the service and the capture agent

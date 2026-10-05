@@ -24,7 +24,6 @@ use anyhow::Context;
 use chrono::Utc;
 use rd_db::{Database, OFFICIAL_REPOSITORY_ID, PluginRepository, RepositoryCheck};
 use rd_sign::{Role, TrustStore};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     PluginInstaller,
@@ -35,12 +34,21 @@ use crate::{
 mod apply;
 #[path = "repository_fetch.rs"]
 mod fetch;
+#[path = "repository_manage.rs"]
+mod manage;
 #[path = "repository_offers.rs"]
 mod offers;
+#[path = "repository_types.rs"]
+mod types;
 
 pub use apply::{WithdrawalScope, withdrawal_scope};
 pub use fetch::{FETCH_TIMEOUT_SECONDS, Fetcher, HttpFetcher};
 pub use offers::{Offer, PackageCompatibility, Update, compatibility};
+pub(crate) use types::LoadedIndex;
+use types::manual_updates;
+pub use types::{
+    ManualUpdates, RepositoryError, RepositoryProbe, UpdatePolicy, UpdatePolicySource,
+};
 
 /// Where the official index is published: the newest release's asset, so the address never
 /// changes and the newest index is always the one found there (`docs/plugins.md`).
@@ -55,122 +63,6 @@ pub const REFRESH_HOURS_RANGE: std::ops::RangeInclusive<u32> = 1..=168;
 pub const STARTUP_DELAY: Duration = Duration::from_secs(120);
 /// The settings key the interval is stored under.
 pub const SETTINGS_KEY: &str = "plugin_repositories";
-
-/// Whether a plugin's newer version installs itself. Stored per plugin by the version manager
-/// (RD-140-02); this module only asks.
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum UpdatePolicy {
-    /// Shown and installed on a click. The default for every plugin (owner, 2026-09-26).
-    #[default]
-    Manual,
-    /// Installed by the refresh that finds it; still active only after a restart.
-    Automatic,
-}
-
-/// Where the update policy of a plugin comes from. The version manager implements this over its
-/// own store and hands it over with [`PluginRepositoryService::set_update_policy`].
-#[async_trait::async_trait]
-pub trait UpdatePolicySource: Send + Sync {
-    async fn policy(&self, plugin_id: &str) -> UpdatePolicy;
-}
-
-/// Every plugin manual: the policy until something else is set.
-pub struct ManualUpdates;
-
-#[async_trait::async_trait]
-impl UpdatePolicySource for ManualUpdates {
-    async fn policy(&self, _plugin_id: &str) -> UpdatePolicy {
-        UpdatePolicy::Manual
-    }
-}
-
-fn manual_updates() -> Arc<dyn UpdatePolicySource> {
-    Arc::new(ManualUpdates)
-}
-
-/// Why a repository operation failed. [`code`](Self::code) is what the interface translates.
-#[derive(Debug, thiserror::Error)]
-pub enum RepositoryError {
-    #[error("the plugin repository does not exist")]
-    NotFound,
-    #[error("the plugin repository is switched off")]
-    Disabled,
-    #[error("no enabled plugin repository offers {id} {version}")]
-    NotOffered { id: String, version: String },
-    #[error("the repository address is not a plain https:// URL")]
-    InvalidUrl,
-    #[error("the repository key is not a Base64 Ed25519 public key")]
-    InvalidKey,
-    #[error("the pasted key does not sign this repository's index")]
-    KeyDoesNotSign,
-    #[error("this repository is already added")]
-    AlreadyAdded,
-    #[error("this build carries no key for the official plugin repository")]
-    OfficialKeyMissing,
-    #[error(transparent)]
-    Index(#[from] IndexError),
-    #[error("the download failed: {0}")]
-    Download(String),
-    #[error("the downloaded package is not the one the index describes")]
-    DigestMismatch,
-    /// The bytes are the ones the index named, but the entry says something else about them:
-    /// another publisher, other permissions, another plugin — or no signature at all.
-    #[error("the downloaded package does not match its index entry: {0}")]
-    NotAsDescribed(String),
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
-}
-
-impl RepositoryError {
-    /// The stable code.
-    #[must_use]
-    pub fn code(&self) -> &'static str {
-        match self {
-            Self::NotFound => "plugin_repository.not_found",
-            Self::Disabled => "plugin_repository.disabled",
-            Self::NotOffered { .. } => "plugin_repository.not_offered",
-            Self::InvalidUrl => "plugin_repository.url_invalid",
-            Self::InvalidKey => "plugin_repository.key_invalid",
-            Self::KeyDoesNotSign => "plugin_repository.key_does_not_sign",
-            Self::AlreadyAdded => "plugin_repository.already_added",
-            Self::OfficialKeyMissing => "plugin_repository.official_key_missing",
-            Self::Index(error) => error.code(),
-            Self::Download(_) => "plugin_repository.download_failed",
-            Self::DigestMismatch => "plugin_repository.digest_mismatch",
-            Self::NotAsDescribed(_) => "plugin_repository.package_mismatch",
-            Self::Other(_) => "plugin_repository.failed",
-        }
-    }
-}
-
-/// One verified index held in memory, with the address its relative package URLs resolve
-/// against.
-#[derive(Clone, Debug)]
-pub(crate) struct LoadedIndex {
-    pub url: url::Url,
-    pub index: PluginIndex,
-}
-
-/// What a probe of a third-party repository found: enough to ask the person to approve its key.
-#[derive(Clone, Debug)]
-pub struct RepositoryProbe {
-    pub url: url::Url,
-    pub key_id: String,
-    /// The pasted key, re-encoded in the one canonical Base64 spelling.
-    pub public_key: String,
-    pub fingerprint: String,
-    pub(crate) bytes: Vec<u8>,
-    pub(crate) index: PluginIndex,
-}
-
-impl RepositoryProbe {
-    /// How many packages the index offers, for the approval dialog.
-    #[must_use]
-    pub fn package_count(&self) -> usize {
-        self.index.packages.len()
-    }
-}
 
 struct Inner {
     database: Database,
@@ -380,86 +272,6 @@ impl PluginRepositoryService {
         Ok(())
     }
 
-    /// Fetches a third-party index and checks that `public_key` signs it.
-    pub async fn probe(
-        &self,
-        url: &str,
-        public_key: &str,
-    ) -> Result<RepositoryProbe, RepositoryError> {
-        let url = parse_https(url)?;
-        let key = rd_sign::decode_public_key(public_key.trim())
-            .map_err(|_| RepositoryError::InvalidKey)?;
-        let bytes = self.fetch(&url, index::MAX_INDEX_BYTES as u64).await?;
-        // The envelope names its key only by id, never the key itself; each id it names is
-        // tried with the pasted key, so the approval binds the id the index actually uses.
-        for key_id in signature_key_ids(&bytes) {
-            let trust = TrustStore::new();
-            trust.trust(key_id.clone(), key)?;
-            match index::verify_with(&bytes, &trust, None, Utc::now()) {
-                Ok(index) => {
-                    return Ok(RepositoryProbe {
-                        url,
-                        key_id,
-                        public_key: base64_key(&key),
-                        fingerprint: rd_sign::key_fingerprint(&key),
-                        bytes,
-                        index,
-                    });
-                }
-                Err(IndexError::BadSignature(_) | IndexError::Untrusted(_)) => {}
-                Err(error) => return Err(error.into()),
-            }
-        }
-        Err(RepositoryError::KeyDoesNotSign)
-    }
-
-    /// Records a probed repository whose key the person approved, and adopts its index.
-    pub async fn add(
-        &self,
-        name: String,
-        probe: RepositoryProbe,
-    ) -> Result<PluginRepository, RepositoryError> {
-        let existing = self.0.database.list_plugin_repositories().await?;
-        if existing
-            .iter()
-            .any(|repository| repository.url.as_deref() == Some(probe.url.as_str()))
-        {
-            return Err(RepositoryError::AlreadyAdded);
-        }
-        let repository = self
-            .0
-            .database
-            .add_plugin_repository(rd_db::NewPluginRepository {
-                id: uuid::Uuid::now_v7().to_string(),
-                name,
-                url: probe.url.to_string(),
-                key_id: probe.key_id,
-                public_key: probe.public_key,
-                fingerprint: probe.fingerprint,
-            })
-            .await?;
-        self.accept(&repository, &probe.url, probe.bytes, probe.index)
-            .await?;
-        Ok(repository)
-    }
-
-    /// Removes a third-party repository, its cache and its offers. What was installed from it
-    /// stays installed.
-    pub async fn remove(&self, id: &str) -> Result<bool, RepositoryError> {
-        let removed = self
-            .0
-            .database
-            .delete_plugin_repository(id.to_owned())
-            .await?;
-        if removed {
-            let _ = tokio::fs::remove_file(self.cache_path(id)).await;
-            if let Ok(mut indexes) = self.0.indexes.write() {
-                indexes.remove(id);
-            }
-        }
-        Ok(removed)
-    }
-
     /// The refresh interval in hours, from the settings or the default.
     pub async fn refresh_hours(&self) -> u32 {
         self.0
@@ -617,37 +429,6 @@ pub fn parse_https(value: &str) -> Result<url::Url, RepositoryError> {
         return Err(RepositoryError::InvalidUrl);
     }
     Ok(url)
-}
-
-/// The key ids an index's envelope names, read without trusting anything else in it.
-fn signature_key_ids(bytes: &[u8]) -> Vec<String> {
-    #[derive(Deserialize)]
-    struct Envelope {
-        #[serde(default)]
-        signatures: Vec<Signature>,
-    }
-    #[derive(Deserialize)]
-    struct Signature {
-        key_id: String,
-    }
-    serde_json::from_slice::<Envelope>(bytes)
-        .map(|envelope| {
-            let mut ids: Vec<String> = envelope
-                .signatures
-                .into_iter()
-                .map(|signature| signature.key_id)
-                .filter(|id| !id.is_empty() && id.len() <= 128)
-                .collect();
-            ids.dedup();
-            ids.truncate(8);
-            ids
-        })
-        .unwrap_or_default()
-}
-
-fn base64_key(key: &rd_sign::VerifyingKey) -> String {
-    use base64::Engine as _;
-    base64::engine::general_purpose::STANDARD.encode(key.as_bytes())
 }
 
 /// Whether `id` is the built-in repository.

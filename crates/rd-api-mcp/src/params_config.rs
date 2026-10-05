@@ -189,6 +189,8 @@ pub(crate) struct CreateCategoryParams {
     pub recursive_unpack: Option<bool>,
     /// Whether every archive set is unpacked into a folder of its own, named after it.
     pub unpack_to_subfolder: Option<bool>,
+    /// Whether a Usenet package's multi-volume RAR set is unpacked while it still downloads.
+    pub direct_unpack: Option<bool>,
     /// Whether packages are scanned by ClamAV before they count as finished.
     pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
@@ -214,6 +216,8 @@ pub(crate) struct UpdateCategoryParams {
     pub recursive_unpack: Option<bool>,
     /// Whether every archive set is unpacked into a folder of its own, named after it.
     pub unpack_to_subfolder: Option<bool>,
+    /// Whether a Usenet package's multi-volume RAR set is unpacked while it still downloads.
+    pub direct_unpack: Option<bool>,
     /// Whether packages are scanned by ClamAV before they count as finished.
     pub malware_scan: Option<bool>,
     pub sfv_verify: Option<bool>,
@@ -223,8 +227,8 @@ pub(crate) struct UpdateCategoryParams {
     pub upload_enabled: Option<bool>,
     pub upload_remote: Option<String>,
     /// Fields to reset to the global default: postprocess_level, script, cleanup_extensions,
-    /// recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc,
-    /// delete_par2, upload_enabled, upload_remote.
+    /// recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify,
+    /// safe_postproc, delete_par2, upload_enabled, upload_remote.
     pub clear: Option<Vec<String>>,
 }
 
@@ -394,5 +398,39 @@ pub(crate) struct UpdateUsenetServerParams {
     pub proxy_profile_id: Option<String>,
     pub enabled: Option<bool>,
     /// Fields to drop: username, proxy_profile_id.
+    pub clear: Option<Vec<String>>,
+}
+
+/// What a used-up quota does to its server (RD-1100-05).
+#[derive(Clone, Copy, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum UsenetQuotaActionParam {
+    /// Asked only after every other server, like a block account.
+    Backup,
+    /// Not asked at all until the quota is reset or raised.
+    Pause,
+}
+
+impl From<UsenetQuotaActionParam> for rd_core::UsenetQuotaAction {
+    fn from(value: UsenetQuotaActionParam) -> Self {
+        match value {
+            UsenetQuotaActionParam::Backup => Self::Backup,
+            UsenetQuotaActionParam::Pause => Self::Pause,
+        }
+    }
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct SetUsenetQuotaParams {
+    pub id: String,
+    /// The bytes the server may deliver before `action` applies.
+    pub limit_bytes: Option<u64>,
+    pub action: Option<UsenetQuotaActionParam>,
+    /// The day (YYYY-MM-DD, UTC, today or later) from which the used figure starts again at
+    /// zero, once.
+    pub reset_on: Option<String>,
+    /// Puts the used figure back to zero now.
+    pub reset_usage: Option<bool>,
+    /// Fields to drop: limit_bytes (removes the quota), reset_on.
     pub clear: Option<Vec<String>>,
 }

@@ -8,14 +8,13 @@
  * one nobody will edit twice.
  */
 import { useOverlay } from '@nuxt/ui/composables'
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type {
   Automation,
   AutomationAction,
-  AutomationRequest,
   AutomationCondition,
   AutomationDryRun,
   Category,
@@ -26,41 +25,19 @@ import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import AutomationListItem from '@/components/automation/AutomationListItem.vue'
 import AutomationVersionsModal from '@/components/automation/AutomationVersionsModal.vue'
 import ConditionTree from '@/components/automation/ConditionTree.vue'
+import { type AutomationTrigger, useAutomationDraft } from '@/composables/useAutomationDraft'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useAutomationsStore } from '@/stores/automations'
 import { usePostprocessStore } from '@/stores/postprocess'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
-import { formatMoment } from '@/utils/format'
 
 /** Fields that hold a number; the operator list narrows on these. */
 const NUMERIC_FIELDS = ['size_bytes']
-
-/**
- * An action while it is being edited. It differs from the wire type in one way: the id an
- * action points at may still be unset, because the referenced category or notification target
- * may not exist yet. The server takes a UUID and nothing else, so an unset id must never be
- * sent as an empty string — `actionComplete` gates saving instead.
- */
-/** The trigger names the server accepts, taken from the request contract rather than restated. */
-type AutomationTrigger = AutomationRequest['trigger']
-
-type DraftAction = { kind: string } & Partial<{
-  name: string
-  category_id: string
-  target_id: string
-}>
-
-/** Whether an action names everything the server needs to accept it. */
-function actionComplete(action: DraftAction): boolean {
-  if (action.kind === 'script') return Boolean(action.name?.trim())
-  if (action.kind === 'set_category') return Boolean(action.category_id)
-  if (action.kind === 'webhook') return Boolean(action.target_id)
-  return true
-}
 
 const { t } = useI18n()
 const store = useAutomationsStore()
@@ -81,47 +58,10 @@ const MAX_AUTOMATION_NAME = 100
 const dryRunResult = ref<AutomationDryRun[] | null>(null)
 const dryRunPackage = ref<string | null>(null)
 
-const draft = reactive({
-  name: '',
-  enabled: false,
-  trigger: 'download_completed' as AutomationTrigger,
-  condition: { type: 'always' } as AutomationCondition,
-  actions: [] as DraftAction[]
-})
+const { draft, triggerOptions, actionKindOptions, canAddAction, scriptItems, canSave, addAction, changeActionKind } =
+  useAutomationDraft(categories, targets)
 
 const open = computed(() => creating.value || editing.value !== null)
-const triggerOptions = computed(() =>
-  (store.vocabulary?.triggers ?? []).map(trigger => ({
-    value: trigger,
-    label: t(`automation.trigger.${trigger}`)
-  }))
-)
-const actionKindOptions = computed(() =>
-  (store.vocabulary?.action_kinds ?? []).map(kind => ({
-    value: kind,
-    label: t(`automation.action.${kind}`)
-  }))
-)
-const canAddAction = computed(
-  () => draft.actions.length < (store.vocabulary?.max_actions ?? 10)
-)
-
-/** Script names to choose from, keeping one already saved that is no longer in the folder. */
-const scriptItems = computed(() => {
-  const saved = draft.actions
-    .filter(action => action.kind === 'script')
-    .map(action => action.name)
-    .filter((name): name is string => typeof name === 'string' && name.length > 0)
-    .filter(name => !postprocess.scripts.includes(name))
-  return [...new Set([...saved, ...postprocess.scripts])].map(name => ({ label: name, value: name }))
-})
-
-const canSave = computed(
-  () =>
-    Boolean(draft.name.trim())
-    && draft.actions.length > 0
-    && draft.actions.every(actionComplete)
-)
 
 onMounted(async () => {
   await Promise.all([
@@ -182,23 +122,6 @@ function cancel(): void {
   creating.value = false
   editing.value = null
   dryRunResult.value = null
-}
-
-function addAction(): void {
-  if (!canAddAction.value) return
-  draft.actions.push({ kind: 'pause_package' })
-}
-
-function changeActionKind(index: number, kind: string): void {
-  const action: DraftAction = { kind }
-  // Seeded with the first script there is, for the same reason the ids are: a form that
-  // opens on an unusable value invites a save that cannot work.
-  if (kind === 'script') action.name = postprocess.scripts[0] ?? ''
-  // Seeded with the first available id when there is one. When there is none the field stays
-  // absent rather than empty, so the save button reports it instead of the JSON parser.
-  if (kind === 'set_category' && categories.value[0]) action.category_id = categories.value[0].id
-  if (kind === 'webhook' && targets.value[0]) action.target_id = targets.value[0].id
-  draft.actions[index] = action
 }
 
 async function save(): Promise<void> {
@@ -458,74 +381,19 @@ function runsOf(id: string) {
         </template>
         <template #list>
           <div v-if="store.automations.length" class="divide-y divide-muted border border-muted">
-            <article v-for="automation in store.automations" :key="automation.id" class="p-4" :class="editing === automation.id ? 'border-l-2 border-l-primary' : ''">
-              <div class="flex flex-wrap items-center gap-3">
-                <span class="size-2" :class="automation.enabled ? 'bg-success' : 'bg-muted'" />
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-medium text-highlighted">{{ automation.name }}</p>
-                  <p class="text-xs text-muted">
-                    {{ t(`automation.trigger.${automation.definition?.trigger ?? 'download_completed'}`) }}
-                    · {{ t('automation.version', { version: automation.version }) }}
-                    · {{ t('automation.action_count', { count: automation.definition?.actions?.length ?? 0 }) }}
-                  </p>
-                </div>
-                <UBadge v-if="editing === automation.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-                <USwitch
-                  :model-value="automation.enabled"
-                  :aria-label="t('automation.enabled')"
-                  @update:model-value="(value: boolean) => store.setEnabled(automation.id, value)"
-                />
-                <UButton
-                  icon="i-lucide-copy-plus"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :label="t('common.actions.duplicate')"
-                  :title="t('automation.duplicate_hint')"
-                  :loading="duplicatingId === automation.id"
-                  @click="duplicate(automation)"
-                />
-                <UButton
-                  icon="i-lucide-history"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :aria-label="t('automation.history.open')"
-                  :title="t('automation.history.open')"
-                  @click="openVersions(automation)"
-                />
-                <UButton
-                  icon="i-lucide-pencil"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :aria-label="t('common.actions.edit')"
-                  :title="t('common.actions.edit')"
-                  @click="startEdit(automation)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  size="xs"
-                  color="error"
-                  variant="ghost"
-                  :aria-label="t('automation.remove.confirm')"
-                  :title="t('automation.remove.confirm')"
-                  @click="removeAutomation(automation)"
-                />
-              </div>
-              <ul v-if="runsOf(automation.id).length" class="mt-3 space-y-1">
-                <li
-                  v-for="run in runsOf(automation.id).slice(0, 5)"
-                  :key="run.id"
-                  class="flex flex-wrap items-center gap-2 text-xs text-muted"
-                >
-                  <span class="font-medium">{{ t(`automation.run_state.${run.state}`) }}</span>
-                  <span class="numeric">{{ formatMoment(run.started_at) }}</span>
-                  <span v-if="run.message" class="truncate">{{ run.message }}</span>
-                </li>
-              </ul>
-              <p v-else class="mt-3 text-xs text-muted">{{ t('automation.no_runs') }}</p>
-            </article>
+            <AutomationListItem
+              v-for="automation in store.automations"
+              :key="automation.id"
+              :automation="automation"
+              :editing="editing === automation.id"
+              :duplicating="duplicatingId === automation.id"
+              :runs="runsOf(automation.id)"
+              @toggle="(value: boolean) => store.setEnabled(automation.id, value)"
+              @duplicate="duplicate(automation)"
+              @versions="openVersions(automation)"
+              @edit="startEdit(automation)"
+              @remove="removeAutomation(automation)"
+            />
           </div>
           <DataState v-else :loading="store.loading" :empty="!store.error" :rows="2">
             <p class="border border-dashed border-muted p-8 text-center text-sm text-muted">

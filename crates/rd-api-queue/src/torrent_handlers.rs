@@ -1,4 +1,5 @@
-//! Torrent endpoints: `.torrent` intake and seeding control.
+//! Torrent endpoints: `.torrent` intake, seeding control, and the recheck and move of a
+//! torrent's data.
 
 use axum::{
     Json,
@@ -11,6 +12,10 @@ use crate::{
     dto::{CollectorIntakeResponse, MessageResponse},
     torrent_intake::{add_torrent_to_collector, ensure_torrent_service_enabled},
 };
+
+mod actions;
+
+pub use actions::*;
 
 #[utoipa::path(post, path = "/api/v1/torrents/import", tag = "collector", request_body(content((Vec<u8> = "multipart/form-data"), (crate::container_upload::ContainerUpload = "application/json"))), responses((status = 201, body = CollectorIntakeResponse), (status = 400, description = "The torrent is invalid or over 16 MiB, the service is off, a field is invalid, or the JSON content is not base64"), (status = 413, description = "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit")))]
 pub async fn import_torrent(

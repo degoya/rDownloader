@@ -1,6 +1,7 @@
 //! BitTorrent engine embedded via librqbit: one shared session (DHT, trackers, PEX,
-//! seeding), an [`ExternalRunner`] driving one queue row per torrent, and the seeding
-//! service that completes rows once the ratio or time limit is reached.
+//! seeding), an [`ExternalRunner`] driving one queue row per torrent, the seeding
+//! service that completes rows once the ratio or time limit is reached, and the two manual
+//! actions on a torrent's data: a recheck and a move to another folder (RD-1100-10).
 //!
 //! Known gap: librqbit has no web-seed (BEP 19) support.
 
@@ -13,7 +14,9 @@ mod plan;
 mod prefetch;
 mod priority;
 mod proxy;
+mod recheck;
 mod registry;
+mod relocate;
 mod runner;
 mod seeding;
 mod session;
@@ -82,6 +85,10 @@ pub(crate) struct ServiceInner {
     pub kill_switch_engaged: std::sync::atomic::AtomicBool,
     /// Why the last session rebuild failed; the previous session keeps running.
     pub rebuild_error: RwLock<Option<String>>,
+    /// Rows whose files a move is carrying to another folder right now (RD-1100-10). Kept here
+    /// rather than read from the journal: the journal is for the next start, and a torrent state
+    /// written over it by another control must not decide whether a move runs.
+    pub relocating: tokio::sync::Mutex<std::collections::HashSet<rd_core::DownloadId>>,
     /// Vault handle used to resolve the proxy password; absent in tests.
     pub secrets: Option<rd_secrets::SecretStore>,
     /// Active bandwidth profile, so a scheduled limit reaches the engine too; absent in
@@ -118,6 +125,7 @@ impl TorrentService {
                 seeding_nudge: tokio::sync::Notify::new(),
                 kill_switch_engaged: std::sync::atomic::AtomicBool::new(false),
                 rebuild_error: RwLock::new(None),
+                relocating: tokio::sync::Mutex::new(std::collections::HashSet::new()),
                 secrets: None,
                 bandwidth: None,
                 shutdown: CancellationToken::new(),
@@ -267,7 +275,13 @@ impl TorrentService {
     }
 
     /// Re-adds seeding torrents after a restart so they keep uploading.
+    ///
+    /// A move a stop interrupted is settled first, so every seed below is added from the folder
+    /// its package names (RD-1100-10).
     pub async fn recover(&self) -> Result<()> {
+        if let Err(error) = self.resolve_relocations().await {
+            tracing::warn!(%error, "interrupted torrent moves could not be settled");
+        }
         let downloads = self.inner.database.list_downloads().await?;
         let packages = self.inner.database.list_packages().await?;
         for file in downloads.into_iter().filter(|file| {

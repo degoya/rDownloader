@@ -42,6 +42,9 @@ pub(crate) struct Par2Outcome {
     pub answered: bool,
     /// The indexes that are short of recovery blocks, with how short they are.
     pub shortfalls: Vec<BlockShortfall>,
+    /// An index found damaged or missing files, repaired or not: what a tool read of those
+    /// files before the repair is not to be trusted (RD-1100-07, direct unpack).
+    pub repaired: bool,
 }
 
 /// Verifies and repairs every main index of a package.
@@ -55,13 +58,16 @@ pub(crate) async fn run(
     let mut ok = true;
     let mut answered = false;
     let mut shortfalls = Vec::new();
+    let mut repaired = false;
     for index in files.iter().filter(|path| is_main_par2(path)) {
         let source = path_string(index)?;
-        if find_step(steps, PostprocessKind::Par2, &source)
-            .is_some_and(|step| step.state == PostprocessState::Completed)
+        if let Some(step) = find_step(steps, PostprocessKind::Par2, &source)
+            .filter(|step| step.state == PostprocessState::Completed)
         {
-            // A previous run already verified this index; that verdict still stands.
+            // A previous run already verified this index; that verdict still stands, and so
+            // does what it had to repair.
             answered = true;
+            repaired = repaired || step_repaired(step);
             continue;
         }
         crate::steps::stage(
@@ -87,6 +93,10 @@ pub(crate) async fn run(
         match verify_set(&candidates, directory).await {
             Ok(report) => {
                 answered = true;
+                repaired = repaired
+                    || report.repaired
+                    || report.damaged_files > 0
+                    || report.missing_files > 0;
                 checkpoint_coded(
                     inner,
                     owner,
@@ -160,7 +170,17 @@ pub(crate) async fn run(
         ok,
         answered,
         shortfalls,
+        repaired,
     })
+}
+
+/// Whether a completed PAR2 step found anything to repair, read back from the parameters its
+/// outcome was recorded with. A step without them says nothing, which counts as a repair.
+fn step_repaired(step: &PostprocessStep) -> bool {
+    let value = |name: &str| step.params.get(name).map(String::as_str);
+    value("repaired") != Some("false")
+        || value("damaged").is_none_or(|count| count != "0")
+        || value("missing").is_none_or(|count| count != "0")
 }
 
 /// Failure text for a step row, naming how many members of the set were tried.

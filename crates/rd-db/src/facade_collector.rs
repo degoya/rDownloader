@@ -11,7 +11,7 @@ use crate::{
     archive_password::PasswordTable,
     collector_packages::{self, CollectorPackageChange, MoveTarget},
     collector_store::NewCollectorBatch,
-    commands::WriterCommand,
+    commands::{CollectorCommand, PackagesCommand},
     writer,
 };
 
@@ -34,7 +34,7 @@ impl Database {
     ) -> Result<(CollectorBatch, Vec<CollectorPackage>, Vec<LinkCandidate>)> {
         let secret_fragment_refs = self.vault_fragments(&intake.urls).await;
         let (batch, mut packages, candidates, passwords) =
-            writer::request(&self.writer, |reply| WriterCommand::AddCollectorBatch {
+            writer::request(&self.writer, |reply| CollectorCommand::AddCollectorBatch {
                 intake,
                 secret_fragment_refs,
                 reply,
@@ -138,7 +138,7 @@ impl Database {
         let password = change.password.take();
         let ids_for_password = password.as_ref().map(|_| ids.clone());
         let mut updated = writer::request(&self.writer, |reply| {
-            WriterCommand::UpdateCollectorPackages { ids, change, reply }
+            CollectorCommand::UpdateCollectorPackages { ids, change, reply }
         })
         .await?;
         if let (Some(password), Some(ids)) = (password, ids_for_password) {
@@ -159,7 +159,7 @@ impl Database {
 
     pub async fn reorder_collector_packages(&self, ids: Vec<CollectorPackageId>) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ReorderCollectorPackages { ids, reply }
+            CollectorCommand::ReorderCollectorPackages { ids, reply }
         })
         .await
     }
@@ -174,10 +174,12 @@ impl Database {
         entries: Vec<GrabberEntryRef>,
         after: Option<GrabberEntryRef>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ReorderGrabberEntries {
-            entries,
-            after,
-            reply,
+        writer::request(&self.writer, |reply| {
+            CollectorCommand::ReorderGrabberEntries {
+                entries,
+                after,
+                reply,
+            }
         })
         .await
     }
@@ -187,7 +189,7 @@ impl Database {
         package_id: CollectorPackageId,
         ids: Vec<CandidateId>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ReorderCandidates {
+        writer::request(&self.writer, |reply| CollectorCommand::ReorderCandidates {
             package_id,
             ids,
             reply,
@@ -200,7 +202,7 @@ impl Database {
         ids: Vec<CandidateId>,
         target: MoveTarget,
     ) -> Result<CollectorPackage> {
-        let mut package = writer::request(&self.writer, |reply| WriterCommand::MoveCandidates {
+        let mut package = writer::request(&self.writer, |reply| CollectorCommand::MoveCandidates {
             ids,
             target,
             reply,
@@ -220,7 +222,7 @@ impl Database {
             .await
             .unwrap_or_default();
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteCollectorPackage { id, reply }
+            CollectorCommand::DeleteCollectorPackage { id, reply }
         })
         .await?;
         self.forget_secrets(orphaned).await;
@@ -231,7 +233,7 @@ impl Database {
 
     /// Re-derives automatically named packages after an online check learned file names.
     pub async fn regroup_collector_batches(&self, batch_ids: Vec<BatchId>) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::RegroupBatches {
+        writer::request(&self.writer, |reply| CollectorCommand::RegroupBatches {
             batch_ids,
             reply,
         })
@@ -245,7 +247,7 @@ impl Database {
         ids: Vec<CandidateId>,
     ) -> Result<Vec<LinkCandidate>> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ClaimCandidatesForCheck { ids, reply }
+            CollectorCommand::ClaimCandidatesForCheck { ids, reply }
         })
         .await
     }
@@ -258,13 +260,15 @@ impl Database {
         was_duplicate: bool,
         cached_by: Option<String>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::RecordCandidateCheck {
-            id,
-            result,
-            error,
-            was_duplicate,
-            cached_by,
-            reply,
+        writer::request(&self.writer, |reply| {
+            CollectorCommand::RecordCandidateCheck {
+                id,
+                result,
+                error,
+                was_duplicate,
+                cached_by,
+                reply,
+            }
         })
         .await
     }
@@ -280,7 +284,7 @@ impl Database {
         cached_by: Option<String>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::MarkCandidateUnsupported {
+            CollectorCommand::MarkCandidateUnsupported {
                 id,
                 message,
                 cached_by,
@@ -296,7 +300,7 @@ impl Database {
         package_id: CollectorPackageId,
         entries: Vec<rd_core::MediaCandidate>,
     ) -> Result<Vec<LinkCandidate>> {
-        writer::request(&self.writer, |reply| WriterCommand::AddMediaCandidates {
+        writer::request(&self.writer, |reply| CollectorCommand::AddMediaCandidates {
             package_id,
             entries,
             reply,
@@ -311,7 +315,7 @@ impl Database {
         variant_id: String,
     ) -> Result<LinkCandidate> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateMediaVariant {
+            CollectorCommand::SetCandidateMediaVariant {
                 id,
                 variant_id,
                 reply,
@@ -327,7 +331,7 @@ impl Database {
         provider: String,
     ) -> Result<rd_core::LinkCandidate> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetCandidateProvider {
+            crate::commands::CollectorCommand::SetCandidateProvider {
                 id,
                 provider,
                 reply,
@@ -343,7 +347,7 @@ impl Database {
         selection: rd_core::AuthProfileSelection,
     ) -> Result<rd_core::LinkCandidate> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetCandidateAuthProfile {
+            crate::commands::CollectorCommand::SetCandidateAuthProfile {
                 id,
                 selection,
                 reply,
@@ -359,7 +363,7 @@ impl Database {
         fields: Vec<rd_core::EnrichmentField>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateEnrichment { id, fields, reply }
+            CollectorCommand::SetCandidateEnrichment { id, fields, reply }
         })
         .await
     }
@@ -386,7 +390,7 @@ impl Database {
         package_fields: Vec<rd_core::EnrichmentField>,
         files: Vec<(rd_core::DownloadId, Vec<rd_core::EnrichmentField>)>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CarryEnrichment {
+        writer::request(&self.writer, |reply| PackagesCommand::CarryEnrichment {
             package_id,
             package_fields,
             files,
@@ -402,7 +406,7 @@ impl Database {
         state: rd_core::MediaCandidateState,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateMediaInventory {
+            CollectorCommand::SetCandidateMediaInventory {
                 id,
                 state: Box::new(state),
                 reply,
@@ -418,7 +422,7 @@ impl Database {
         update: rd_core::MediaSelectionUpdate,
     ) -> Result<LinkCandidate> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateMediaSelection {
+            CollectorCommand::SetCandidateMediaSelection {
                 id,
                 update: Box::new(update),
                 reply,
@@ -441,10 +445,12 @@ impl Database {
         id: CandidateId,
         file_name: String,
     ) -> Result<LinkCandidate> {
-        writer::request(&self.writer, |reply| WriterCommand::SetCandidateFileName {
-            id,
-            file_name,
-            reply,
+        writer::request(&self.writer, |reply| {
+            CollectorCommand::SetCandidateFileName {
+                id,
+                file_name,
+                reply,
+            }
         })
         .await
     }
@@ -457,7 +463,7 @@ impl Database {
         only: Option<Vec<CandidateId>>,
     ) -> Result<Vec<(LinkCandidate, LinkCandidateState)>> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ClaimPackageForEnqueue { id, only, reply }
+            CollectorCommand::ClaimPackageForEnqueue { id, only, reply }
         })
         .await
     }
@@ -468,11 +474,13 @@ impl Database {
         success: bool,
         restore: Vec<(CandidateId, LinkCandidateState)>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::FinishPackageEnqueue {
-            id,
-            success,
-            restore,
-            reply,
+        writer::request(&self.writer, |reply| {
+            CollectorCommand::FinishPackageEnqueue {
+                id,
+                success,
+                restore,
+                reply,
+            }
         })
         .await?;
         self.sweep_archive_passwords().await;

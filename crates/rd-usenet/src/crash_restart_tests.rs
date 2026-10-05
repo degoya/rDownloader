@@ -339,21 +339,45 @@ async fn a_batch_of_checkpoints_lost_in_a_crash_is_fetched_again_and_the_one_bef
     );
 }
 
-/// Every registered crash point for this crate has a case here.
+/// Every registered crash point for this crate has a case somewhere in the crate.
 ///
 /// Registering a point and never covering it is the failure this catches: the registry would
 /// list an invariant nobody checks, which reads as coverage and is not.
 #[test]
 fn every_usenet_crash_point_is_exercised_by_a_case() {
-    let source = include_str!("crash_restart_tests.rs");
+    let source = crate_sources();
     for point in rd_core::failpoint::CRASH_POINTS
         .iter()
         .filter(|point| point.owner == "rd-usenet")
     {
         assert!(
             source.contains(&format!("FailpointGuard::after(\"{}\"", point.name)),
-            "{} is registered but no case in this file arms it",
+            "{} is registered but no case in this crate arms it",
             point.name
         );
     }
+}
+
+/// Every `.rs` file under this crate's `src/` and `tests/`, read at run time (RD-1100-13): a case
+/// may live in any test file, and a new one is found without a list naming it.
+fn crate_sources() -> String {
+    let root = std::path::PathBuf::from(
+        std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"),
+    );
+    let mut pending = vec![root.join("src"), root.join("tests")];
+    let mut source = String::new();
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.expect("read a source directory entry").path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                source.push_str(&std::fs::read_to_string(&path).expect("read a source file"));
+            }
+        }
+    }
+    source
 }

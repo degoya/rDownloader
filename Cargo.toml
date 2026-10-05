@@ -80,6 +80,10 @@ members = [
   "plugins/google-drive-crawler",
   "plugins/google-drive-oauth",
   "plugins/guest",
+  "plugins/guest-auth",
+  "plugins/guest-crawler",
+  "plugins/guest-oauth",
+  "plugins/guest-remote-job",
   "plugins/hitfile",
   "plugins/katfile",
   "plugins/keep2share",
@@ -145,10 +149,10 @@ members = [
 ]
 
 [workspace.package]
-version = "1.9.1"
+version = "1.10.0"
 authors = ["Alexander Herling"]
 edition = "2024"
-rust-version = "1.98"
+rust-version = "1.99"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/degoya/rDownloader"
 
@@ -238,7 +242,7 @@ rustls = "0.23"
 rustls-platform-verifier = "0.7"
 rust-par2 = "0.1.3"
 russh = "0.63"
-russh-sftp = "2.4"
+russh-sftp = "3"
 secrecy = { version = "0.10", features = ["serde"] }
 subtle = "2.6"
 zeroize = "1.9"
@@ -265,7 +269,7 @@ toml = "1"
 tower-http = { version = "0.7", features = ["cors", "limit", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tray-icon = "0.25"
+tray-icon = "0.26"
 unicode-normalization = "0.1"
 url = { version = "2", features = ["serde"] }
 utoipa = { version = "6", features = ["axum_extras", "chrono", "uuid"] }
@@ -314,3 +318,40 @@ lto = false
 [profile.dev]
 debug = "line-tables-only"          # Backtraces bleiben, DWARF schrumpft massiv
 split-debuginfo = "unpacked"        # dedupliziert Debug-Info statt sie zu kopieren
+
+# The WebAssembly compiler optimised in test builds too (RD-1100-13). Every contract test compiles
+# real plugin components with Cranelift, and unoptimised that is most of their time: 1203 s for
+# 933 tests on GitHub, and compiling the 72 bundled plugins took about seven minutes in a debug
+# build against 34 s in a release one (crates/rd-plugin-host/src/compile_cache.rs). Only the crates that run at run time — not the build-time generators
+# (`*-meta`, `cranelift-isle`, `cranelift-srcgen`) or the proc macros, which would only compile
+# slower. A profile override takes one package name each, no pattern.
+[profile.dev.package.cranelift-assembler-x64]
+opt-level = 3
+[profile.dev.package.cranelift-bforest]
+opt-level = 3
+[profile.dev.package.cranelift-bitset]
+opt-level = 3
+[profile.dev.package.cranelift-codegen]
+opt-level = 3
+[profile.dev.package.cranelift-codegen-shared]
+opt-level = 3
+[profile.dev.package.cranelift-control]
+opt-level = 3
+[profile.dev.package.cranelift-entity]
+opt-level = 3
+[profile.dev.package.cranelift-frontend]
+opt-level = 3
+[profile.dev.package.cranelift-native]
+opt-level = 3
+[profile.dev.package.regalloc2]
+opt-level = 3
+[profile.dev.package.wasmparser]
+opt-level = 3
+[profile.dev.package.wasmtime]
+opt-level = 3
+[profile.dev.package.wasmtime-environ]
+opt-level = 3
+[profile.dev.package.wasmtime-internal-core]
+opt-level = 3
+[profile.dev.package.wasmtime-internal-cranelift]
+opt-level = 3

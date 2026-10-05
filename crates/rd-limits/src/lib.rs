@@ -1,5 +1,6 @@
 //! Scheduled bandwidth profiles, scoped limits and traffic budgets (RD-050-12), the upload
-//! limit every upload keeps (RD-150-15), and a profile switched on by hand (RD-190-20).
+//! limit every upload keeps (RD-150-15), a profile switched on by hand (RD-190-20), and a
+//! package's own limit (RD-1100-01).
 //!
 //! The crate holds the policy only: which limit applies to what, which profile is active
 //! when, and how much a period has used. Persisting it and applying it to the transports is

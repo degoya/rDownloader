@@ -7,9 +7,9 @@ license.workspace = true
 
 [dependencies]
 plugin-common = { path = "../common" }
+plugin-guest-remote-job = { path = "../guest-remote-job" }
 seedr-common = { path = "../seedr-common" }
 serde_json.workspace = true
-wit-bindgen.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

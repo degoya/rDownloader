@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 plugin-common = { path = "../common" }
-wit-bindgen.workspace = true
+plugin-guest-crawler = { path = "../guest-crawler" }
 
 [lib]
 crate-type = ["rlib", "cdylib"]

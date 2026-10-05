@@ -84,5 +84,26 @@
       "category": "de la catégorie",
       "torrent": "défini ici"
     }
+  },
+  "actions": {
+    "recheck": "Revérifier",
+    "move": "Changer l'emplacement…"
+  },
+  "move": {
+    "title": "Changer l'emplacement",
+    "description": "Les fichiers rejoignent le nouvel emplacement avec le dossier du paquet, et le torrent continue d'être partagé depuis là. Si le déplacement échoue, tout reste où c'était.",
+    "root": "Racine de stockage",
+    "path": "Dossier à l'intérieur",
+    "path_placeholder": "p. ex. Archives/Séries",
+    "submit": "Déplacer",
+    "no_roots": "Ajoute d'abord une racine de stockage dans Paramètres › Routage.",
+    "running": "Déplacement vers {path}…",
+    "taken_back": "Déplacement annulé : {reason}"
+  },
+  "recheck": {
+    "checking": "Vérification des données… {percent} %",
+    "pending": "Vérification demandée",
+    "complete": "Vérifié : toutes les données sont intactes",
+    "incomplete": "Vérifié : {verified} sur {total} intacts, le reste est retéléchargé"
   }
 }

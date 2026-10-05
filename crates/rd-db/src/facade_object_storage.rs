@@ -6,7 +6,7 @@ use rd_core::{ObjectStorageProfile, ObjectStorageProfileId};
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::ObjectStorageCommand,
     object_storage_store::{self, NewObjectStorageProfile, ObjectUpload, ObjectUploadPart},
     writer,
 };
@@ -29,7 +29,7 @@ impl Database {
         input: NewObjectStorageProfile,
     ) -> Result<ObjectStorageProfile> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::CreateObjectStorageProfile {
+            ObjectStorageCommand::CreateObjectStorageProfile {
                 input: Box::new(input),
                 reply,
             }
@@ -44,7 +44,7 @@ impl Database {
         input: NewObjectStorageProfile,
     ) -> Result<(ObjectStorageProfile, Vec<String>)> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpdateObjectStorageProfile {
+            ObjectStorageCommand::UpdateObjectStorageProfile {
                 id,
                 input: Box::new(input),
                 reply,
@@ -59,7 +59,7 @@ impl Database {
         id: ObjectStorageProfileId,
     ) -> Result<Vec<String>> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteObjectStorageProfile { id, reply }
+            ObjectStorageCommand::DeleteObjectStorageProfile { id, reply }
         })
         .await
     }
@@ -84,9 +84,11 @@ impl Database {
     }
 
     pub async fn begin_object_upload(&self, upload: ObjectUpload) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::BeginObjectUpload {
-            upload: Box::new(upload),
-            reply,
+        writer::request(&self.writer, |reply| {
+            ObjectStorageCommand::BeginObjectUpload {
+                upload: Box::new(upload),
+                reply,
+            }
         })
         .await
     }
@@ -97,15 +99,14 @@ impl Database {
         part: ObjectUploadPart,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::RecordObjectUploadPart { id, part, reply }
+            ObjectStorageCommand::RecordObjectUploadPart { id, part, reply }
         })
         .await
     }
 
     pub async fn complete_object_upload(&self, id: String) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CompleteObjectUpload {
-            id,
-            reply,
+        writer::request(&self.writer, |reply| {
+            ObjectStorageCommand::CompleteObjectUpload { id, reply }
         })
         .await
     }
@@ -116,10 +117,8 @@ impl Database {
         id: Option<String>,
         owner: Option<String>,
     ) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::ForgetObjectUploads {
-            id,
-            owner,
-            reply,
+        writer::request(&self.writer, |reply| {
+            ObjectStorageCommand::ForgetObjectUploads { id, owner, reply }
         })
         .await
     }

@@ -13,12 +13,20 @@ mod part_file;
 mod persistence;
 mod private_dir;
 mod protected;
+mod sort_name;
+mod sort_plan;
+mod sort_template;
 mod storage;
 mod template;
 mod verified_move;
 
+#[cfg(test)]
+mod sort_tests;
+
 pub use archive_names::{ArchiveKind, ArchiveVolume, parse_archive_volume, strip_password_marker};
-pub use capacity::{CapacityService, CapacityShortfall, CapacityVerdict, RootLimit, StorageTarget};
+pub use capacity::{
+    CapacityService, CapacityShortfall, CapacityVerdict, RootLimit, StorageTarget, available_space,
+};
 pub use checksum::{ComputedChecksum, checksum_range, compute_checksum, has_par2_magic};
 pub use child_process::{
     CREATE_NO_WINDOW, NoConsoleWindow, RCLONE_VARIABLES, TOOL_VARIABLES, kept_variables, read_tail,
@@ -41,12 +49,21 @@ pub use private_dir::{
     sid_from_whoami, unix_exposure, windows_exposure,
 };
 pub use protected::{ProtectedDirectory, protected_collision};
+pub use sort_name::{
+    SORT_COMPANION_EXTENSIONS, SORT_VIDEO_EXTENSIONS, SortMatch, recognize_release, sort_extension,
+    sort_values,
+};
+pub use sort_plan::{SortMove, SortPlan, plan_sort};
+pub use sort_template::{
+    SORT_COMPANION_RESERVE, SortTarget, SortTemplateError, expand_sort_template, sort_fields,
+    validate_sort_template,
+};
 pub use storage::{StorageRoot, StorageRootProblem, ensure_usable};
 pub use template::{
     MAX_TEMPLATE_DEPTH, MAX_TEMPLATE_LENGTH, TEMPLATE_FIELDS, TemplateError, TemplateValues,
     expand, validate,
 };
 pub use verified_move::{
-    PlacedCopy, VerifiedMoveError, copy_verified, place_verified, release_source,
-    verified_move_file,
+    PlacedCopy, VerifiedMoveError, copy_verified, move_temporary_of, place_verified,
+    release_source, verified_move_file,
 };

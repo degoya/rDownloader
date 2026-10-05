@@ -9,6 +9,12 @@
 //! service keeps the rate now (RD-104-02) and both read the same figure. Nothing else about
 //! this changes: the summary still carries counts and byte totals only, which is all a capture
 //! token may see — no names, no paths.
+//!
+//! The queue's pause comes with the same figures (RD-1100-06): when a timed pause ends, how many
+//! files are paused, and whether this agent was paired with the right to pause and resume. Which
+//! menu entries that makes is [`QueueMenu`], decided here for the same reason as the line.
+
+use chrono::{DateTime, TimeZone, Utc};
 
 /// The figures `GET /api/v1/capture/summary` answers with.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
@@ -33,6 +39,43 @@ pub(crate) struct Summary {
     /// sends `null` whenever it has nothing honest to say.
     #[serde(default)]
     pub eta_seconds: Option<u64>,
+    /// Files paused, by a person or by a pause of the whole queue.
+    #[serde(default)]
+    pub paused: u32,
+    /// When the timed pause of the whole queue ends, while one holds.
+    #[serde(default)]
+    pub paused_until: Option<DateTime<Utc>>,
+    /// Whether this agent may pause and resume the queue: it was paired with `capture:queue`.
+    /// `default` because a service without the field offers no such thing.
+    #[serde(default)]
+    pub queue_control: bool,
+}
+
+/// The queue entries the tray menu offers (RD-1100-06).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum QueueMenu {
+    /// None: the agent was not paired with queue control, or the service has not said yet. A
+    /// refused entry is worse than none -- the person clicks and nothing happens.
+    #[default]
+    Hidden,
+    /// "Pause all", for 30 minutes or an hour.
+    Pause,
+    /// "Resume all": a timed pause holds, or everything left is paused.
+    Resume,
+}
+
+/// What the tray asks of the queue. The agent makes the request, because it holds the token
+/// and the tray never reads the keyring (`main::run`).
+///
+/// Only the tray names one, and the tray is compiled on Windows and macOS only -- so on Linux the
+/// variants are never built, which is the platform split rather than an oversight.
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum QueueRequest {
+    /// Pause everything; for `minutes`, or until resumed when `None`.
+    Pause { minutes: Option<u32> },
+    /// Resume what a pause stopped.
+    Resume,
 }
 
 /// Byte counts cross the API as strings, because they do not fit a JSON number safely.
@@ -63,11 +106,13 @@ mod byte_string {
     }
 }
 
-/// What the tray shows: whether anything is running, and the line under the icon.
+/// What the tray shows: whether anything is running, the line under the icon, and which queue
+/// entries the menu offers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Activity {
     pub running: bool,
     pub detail: String,
+    pub queue: QueueMenu,
 }
 
 /// Renders the tray's transfer line: `3 active · 47% · 12.4 MB/s`.
@@ -76,18 +121,35 @@ pub(crate) struct Activity {
 /// the menu is English for the same reason.
 pub(crate) fn describe(summary: Summary) -> Activity {
     let running = summary.active > 0;
-    if !running && summary.queued == 0 && summary.failed == 0 {
+    let queue = queue_menu(&summary);
+    if !running
+        && summary.queued == 0
+        && summary.failed == 0
+        && summary.paused == 0
+        && summary.paused_until.is_none()
+    {
         return Activity {
             running: false,
             detail: "no transfers".to_owned(),
+            queue,
         };
     }
     let mut parts = Vec::new();
+    // First, because it is the reason for everything after it.
+    if let Some(until) = summary.paused_until {
+        parts.push(format!(
+            "paused until {}",
+            pause_end(until, &chrono::Local::now())
+        ));
+    }
     if summary.active > 0 {
         parts.push(format!("{} active", summary.active));
     }
     if summary.queued > 0 {
         parts.push(format!("{} queued", summary.queued));
+    }
+    if summary.paused > 0 {
+        parts.push(format!("{} paused", summary.paused));
     }
     if summary.failed > 0 {
         parts.push(format!("{} failed", summary.failed));
@@ -106,6 +168,37 @@ pub(crate) fn describe(summary: Summary) -> Activity {
     Activity {
         running,
         detail: parts.join(" · "),
+        queue,
+    }
+}
+
+/// Which queue entries the menu offers for these figures.
+///
+/// "Resume all" while a timed pause holds, and while everything that is left is paused; "pause"
+/// otherwise, including on an empty queue, where a timed pause still keeps new links waiting.
+fn queue_menu(summary: &Summary) -> QueueMenu {
+    if !summary.queue_control {
+        QueueMenu::Hidden
+    } else if summary.paused_until.is_some()
+        || (summary.active == 0 && summary.queued == 0 && summary.paused > 0)
+    {
+        QueueMenu::Resume
+    } else {
+        QueueMenu::Pause
+    }
+}
+
+/// The end of a pause as the clock on the wall says it: `18:30` today, `Oct 5 18:30` on another
+/// day. `now` carries the zone, so a test can name one.
+fn pause_end<Tz: TimeZone>(until: DateTime<Utc>, now: &DateTime<Tz>) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let local = until.with_timezone(&now.timezone());
+    if local.date_naive() == now.date_naive() {
+        local.format("%H:%M").to_string()
+    } else {
+        local.format("%b %-d %H:%M").to_string()
     }
 }
 
@@ -199,265 +292,5 @@ pub(crate) fn tooltip(line: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        Activity, Summary, TOOLTIP_LIMIT, describe, format_duration, format_rate, status_line,
-        tooltip,
-    };
-
-    fn summary(active: u32, queued: u32, failed: u32, committed: u64, total: u64) -> Summary {
-        Summary {
-            active,
-            queued,
-            failed,
-            committed_bytes: committed,
-            total_bytes: total,
-            bytes_per_second: 0,
-            eta_seconds: None,
-        }
-    }
-
-    fn moving(mut summary: Summary, bytes_per_second: u64) -> Summary {
-        summary.bytes_per_second = bytes_per_second;
-        summary
-    }
-
-    fn ending_in(mut summary: Summary, eta_seconds: u64) -> Summary {
-        summary.eta_seconds = Some(eta_seconds);
-        summary
-    }
-
-    #[test]
-    fn nothing_running_says_so_and_leaves_the_icon_idle() {
-        let activity = describe(summary(0, 0, 0, 0, 0));
-        assert_eq!(
-            activity,
-            Activity {
-                running: false,
-                detail: "no transfers".to_owned()
-            }
-        );
-    }
-
-    #[test]
-    fn a_running_transfer_names_the_count_the_progress_and_the_rate() {
-        let activity = describe(moving(summary(3, 2, 0, 470, 1_000), 13_000_000));
-        assert!(activity.running);
-        assert_eq!(activity.detail, "3 active · 2 queued · 47% · 12.4 MB/s");
-    }
-
-    /// The point of RD-108-01: the figure the web interface shows stands in the tray too, and
-    /// it stands beside the rate rather than anywhere else in the line.
-    #[test]
-    fn a_running_transfer_names_the_remaining_time_after_the_rate() {
-        let activity = describe(ending_in(
-            moving(summary(3, 2, 0, 470, 1_000), 13_000_000),
-            4_350,
-        ));
-        assert_eq!(
-            activity.detail,
-            "3 active · 2 queued · 47% · 12.4 MB/s · 1h 12m left"
-        );
-    }
-
-    /// A queue that is waiting is not motion, so no rate is shown beside it.
-    #[test]
-    fn a_waiting_queue_shows_neither_rate_nor_remaining_time() {
-        let activity = describe(ending_in(moving(summary(0, 5, 0, 0, 0), 9_999_999), 600));
-        assert!(!activity.running);
-        assert_eq!(activity.detail, "5 queued");
-    }
-
-    /// A rate of zero is the service saying "nothing is moving", not a number to print.
-    #[test]
-    fn a_still_queue_shows_no_rate_and_no_remaining_time() {
-        let activity = describe(ending_in(summary(1, 0, 0, 500, 1_000), 42));
-        assert_eq!(activity.detail, "1 active · 50%");
-    }
-
-    /// The service says `null` for an unknown size, a rate of zero or a paused transfer. The
-    /// tray then shows nothing there - no infinity sign, no "calculating" (R·-104-02).
-    #[test]
-    fn an_absent_estimate_leaves_the_segment_out_rather_than_filling_it() {
-        let activity = describe(moving(summary(1, 0, 0, 500, 1_000), 1_048_576));
-        assert_eq!(activity.detail, "1 active · 50% · 1.0 MB/s");
-    }
-
-    #[test]
-    fn failures_are_named_even_with_nothing_running() {
-        let activity = describe(summary(0, 0, 2, 0, 0));
-        assert!(!activity.running);
-        assert_eq!(activity.detail, "2 failed");
-    }
-
-    #[test]
-    fn progress_is_left_out_when_no_size_is_known() {
-        let activity = describe(summary(1, 0, 0, 500, 0));
-        assert_eq!(activity.detail, "1 active");
-    }
-
-    #[test]
-    fn rates_are_rendered_with_one_decimal_above_bytes() {
-        assert_eq!(format_rate(0), "0 B/s");
-        assert_eq!(format_rate(512), "512 B/s");
-        assert_eq!(format_rate(1_536), "1.5 KB/s");
-        assert_eq!(format_rate(13_000_000), "12.4 MB/s");
-    }
-
-    #[test]
-    fn byte_counts_parse_whether_they_arrive_as_strings_or_numbers() {
-        let from_strings: Summary = serde_json::from_str(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":"25","total_bytes":"100","bytes_per_second":40}"#,
-        )
-        .expect("parse");
-        assert_eq!(from_strings.committed_bytes, 25);
-        assert_eq!(from_strings.bytes_per_second, 40);
-        let from_numbers: Summary = serde_json::from_str(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":25,"total_bytes":100,"bytes_per_second":40}"#,
-        )
-        .expect("parse");
-        assert_eq!(from_numbers, from_strings);
-    }
-
-    /// An older service does not send the field; the tray then shows counts and progress
-    /// without inventing a rate.
-    #[test]
-    fn a_missing_rate_is_no_rate_rather_than_a_parse_failure() {
-        let parsed: Summary = serde_json::from_str(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":"25","total_bytes":"100"}"#,
-        )
-        .expect("parse");
-        assert_eq!(parsed.bytes_per_second, 0);
-        assert_eq!(describe(parsed).detail, "1 active · 25%");
-    }
-
-    #[test]
-    fn remaining_times_are_two_units_at_most_with_days_on_top() {
-        assert_eq!(format_duration(0), "0s");
-        assert_eq!(format_duration(45), "45s");
-        assert_eq!(format_duration(60), "1m");
-        assert_eq!(format_duration(90), "1m 30s");
-        assert_eq!(format_duration(3_600), "1h");
-        assert_eq!(format_duration(4_350), "1h 12m");
-        assert_eq!(format_duration(86_400), "1d");
-        assert_eq!(format_duration(180_000), "2d 2h");
-    }
-
-    /// The seconds behind an hour are noise in a menu line, so two units is the whole rule:
-    /// nothing below the second unit is ever printed.
-    #[test]
-    fn remaining_times_never_print_a_third_unit() {
-        assert_eq!(format_duration(90_061), "1d 1h");
-        assert_eq!(format_duration(3_661), "1h 1m");
-    }
-
-    /// A service older than RD-108-01 sends no such field. The agent renders the line without
-    /// a remaining time instead of discarding the answer and going blank.
-    #[test]
-    fn a_service_without_the_field_still_parses_and_renders() {
-        let parsed: Summary = serde_json::from_str(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":"25","total_bytes":"100","bytes_per_second":1048576}"#,
-        )
-        .expect("parse");
-        assert_eq!(parsed.eta_seconds, None);
-        assert_eq!(describe(parsed).detail, "1 active · 25% · 1.0 MB/s");
-    }
-
-    /// A current service says `null` where it has nothing honest to say, which has to read the
-    /// same way as the field being absent altogether.
-    #[test]
-    fn an_explicit_null_estimate_reads_as_no_estimate() {
-        let parsed: Summary = serde_json::from_str(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":"25","total_bytes":"100","bytes_per_second":1048576,"eta_seconds":null}"#,
-        )
-        .expect("parse");
-        assert_eq!(parsed.eta_seconds, None);
-        let counted: Summary = serde_json::from_str(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":"25","total_bytes":"100","bytes_per_second":1048576,"eta_seconds":90}"#,
-        )
-        .expect("parse");
-        assert_eq!(counted.eta_seconds, Some(90));
-        assert_eq!(
-            describe(counted).detail,
-            "1 active · 25% · 1.0 MB/s · 1m 30s left"
-        );
-    }
-
-    #[test]
-    fn the_status_line_drops_the_separator_when_there_is_nothing_to_report() {
-        assert_eq!(status_line("server running", ""), "server running");
-        assert_eq!(
-            status_line("server running", "1 active"),
-            "server running — 1 active"
-        );
-    }
-
-    /// A realistic line is handed to Windows whole; nothing is cut that fits.
-    #[test]
-    fn an_ordinary_line_reaches_the_tooltip_untouched() {
-        let line = status_line(
-            "rDownloader Capture v1.0.8 — 127.0.0.1:8710 — server running",
-            "3 active · 2 queued · 47% · 12.4 MB/s · 1h 12m left",
-        );
-        assert!(line.chars().count() <= TOOLTIP_LIMIT, "{line}");
-        assert_eq!(tooltip(&line), line);
-    }
-
-    /// The Windows tooltip is a 128-WCHAR buffer, NUL included, and the line just grew a fifth
-    /// segment. Hostname, counts, rate and remaining time are each unbounded, so the longest
-    /// line the agent can build runs far past that and the cut has to hold it.
-    #[test]
-    fn the_longest_line_the_agent_can_build_still_fits_the_windows_tooltip() {
-        let detail = describe(Summary {
-            active: u32::MAX,
-            queued: u32::MAX,
-            failed: u32::MAX,
-            committed_bytes: u64::MAX,
-            total_bytes: u64::MAX,
-            bytes_per_second: u64::MAX,
-            eta_seconds: Some(u64::MAX),
-        })
-        .detail;
-        let host = "a".repeat(253);
-        let line = status_line(
-            &format!("rDownloader Capture v10.10.10 — {host}:65535 — server not reachable"),
-            &detail,
-        );
-        assert!(
-            line.chars().count() > TOOLTIP_LIMIT,
-            "the worst case is what the cut exists for, and it measures {}",
-            line.chars().count()
-        );
-        let tip = tooltip(&line);
-        assert_eq!(tip.chars().count(), TOOLTIP_LIMIT);
-        assert!(tip.ends_with('…'), "a cut line says that it was cut: {tip}");
-    }
-
-    /// A broken contract must not look like a quiet system (RD-109-10).
-    #[test]
-    fn a_byte_count_that_is_not_a_number_is_reported_rather_than_zero() {
-        for broken in ["1.2e9", "1,200,000", "", "lots"] {
-            let document = format!(
-                r#"{{"active":1,"queued":0,"failed":0,"committed_bytes":"{broken}","total_bytes":"10"}}"#
-            );
-            let error = serde_json::from_str::<Summary>(&document)
-                .expect_err("a byte count that is not a number has to fail");
-            assert!(
-                error.to_string().contains("is not a number"),
-                "{broken:?}: {error}"
-            );
-        }
-
-        // The two forms the contract really promises still work.
-        let text = serde_json::from_str::<Summary>(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":"4096","total_bytes":"8192"}"#,
-        )
-        .expect("a decimal string is a byte count");
-        assert_eq!(text.committed_bytes, 4096);
-        let number = serde_json::from_str::<Summary>(
-            r#"{"active":1,"queued":0,"failed":0,"committed_bytes":4096,"total_bytes":8192}"#,
-        )
-        .expect("a JSON number is a byte count too");
-        assert_eq!(number.total_bytes, 8192);
-    }
-}
+#[path = "activity_tests.rs"]
+mod tests;

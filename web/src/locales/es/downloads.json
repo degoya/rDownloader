@@ -235,7 +235,11 @@
     "script_inherit": "Heredar",
     "password_placeholder": "Sin contraseña",
     "rename_folder": "Renombrar también la carpeta",
-    "rename_folder_hint": "Mueve los archivos en el disco. Se rechaza una carpeta con ese nombre que ya exista."
+    "rename_folder_hint": "Mueve los archivos en el disco. Se rechaza una carpeta con ese nombre que ya exista.",
+    "speed_limit": "Límite de velocidad de este paquete",
+    "speed_limit_hint": "Vacío = sin límite propio. Los límites global y del perfil siguen aplicándose; gana el más estricto.",
+    "speed_limit_unsupported": "Un paquete con un torrent no admite un límite propio: el motor de torrents no puede limitar un torrent por separado.",
+    "speed_limit_aria": "Límite de velocidad del paquete en MiB/s"
   },
   "postprocess": {
     "loading": "Cargando posprocesamiento …",
@@ -254,7 +258,8 @@
       "plugin_step": "Paso de plugin",
       "script": "Script",
       "upload": "Subida",
-      "malware_scan": "Análisis de malware"
+      "malware_scan": "Análisis de malware",
+      "sort": "Ordenar"
     },
     "states": {
       "queued": "en espera",
@@ -279,7 +284,8 @@
       "deleting_archives": "Eliminando archivos comprimidos",
       "cleaning": "Limpiando",
       "script": "Ejecutando script",
-      "scanning": "Buscando malware"
+      "scanning": "Buscando malware",
+      "sorting": "Ordenando"
     },
     "queue": {
       "title": "Posprocesamiento",

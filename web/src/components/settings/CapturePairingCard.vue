@@ -34,6 +34,9 @@ const toast = useToast()
 const copy = useCopy()
 
 const pairLabel = ref(props.extension ? t('system.extension.default_label') : 'Windows 11')
+// Opt-in, and only for the desktop agent: pausing the queue from its tray (RD-1100-06). An agent
+// paired without it can do exactly what it could before.
+const queueControl = ref(false)
 const bearer = ref<string | null>(null)
 const bearerTokenId = ref<string | null>(null)
 const pairError = ref<string | null>(null)
@@ -48,7 +51,9 @@ const captureCommand = computed(() => bearer.value
 async function pair(): Promise<void> {
   pairing.value = true
   pairError.value = null
-  const response = await api.POST('/api/v1/capture/pair', { body: { label: pairLabel.value } })
+  const response = await api.POST('/api/v1/capture/pair', {
+    body: { label: pairLabel.value, queue_control: !props.extension && queueControl.value }
+  })
   pairing.value = false
   if (response.data) {
     bearer.value = response.data.bearer
@@ -123,6 +128,13 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
         <UFormField :label="t('system.pairing.label')" required>
           <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor" class="w-full" />
         </UFormField>
+        <UCheckbox
+          v-if="!props.extension"
+          v-model="queueControl"
+          :label="t('system.pairing.queue_control')"
+          :description="t('system.pairing.queue_control_help')"
+          data-testid="pairing-queue-control"
+        />
         <FormActions :create-label="t('system.pairing.submit')" create-icon="i-lucide-link" :loading="pairing" />
       </form>
       <div v-if="bearer" class="mt-3 border border-warning/40 bg-warning/10 p-3">

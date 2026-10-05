@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { SUPPORTED_LOCALES, i18n } from '@/i18n'
+import { REQUIRED_LOCALES, SUPPORTED_LOCALES, i18n, isInProgress } from '@/i18n'
 import { translateServerMessage } from '@/i18n/server'
 import { loadEveryLocale } from '@/test/locales'
 
@@ -60,7 +60,7 @@ describe('server failure codes', () => {
 
   // A refused host name has to say which name and where it is allowed, in the setting's own
   // label, and from which address — a reader behind a tunnel has no other way forward (RD-190-17).
-  it.each(['en', 'de', 'es', 'fr'])('%s names the refused host and where to allow it', (locale) => {
+  it.each(REQUIRED_LOCALES)('%s names the refused host and where to allow it', (locale) => {
     i18n.global.locale.value = locale as 'en'
     const text = translateServerMessage({
       code: 'request.host_not_allowed',
@@ -79,7 +79,7 @@ describe('server failure codes', () => {
   // A code whose text names a number has to carry both forms. `translateServerMessage` passes a
   // numeric `count` to vue-i18n as the plural choice, so a single-form message would read
   // "1 unfinished downloads" to the one person most likely to see it (RD-108-10).
-  it.each(['en', 'de', 'es', 'fr'])('%s pluralises the blocked plugin version', (locale) => {
+  it.each(REQUIRED_LOCALES)('%s pluralises the blocked plugin version', (locale) => {
     i18n.global.locale.value = locale as 'en'
     const one = translateServerMessage({
       code: 'plugin.version_in_use',
@@ -105,17 +105,26 @@ describe('server failure codes', () => {
 describe('locale catalogues', () => {
   const english = flatten(i18n.global.getLocaleMessage('en'))
 
-  it('has messages for every supported locale', () => {
-    for (const locale of SUPPORTED_LOCALES) {
+  it('has messages for every required locale', () => {
+    for (const locale of REQUIRED_LOCALES) {
       expect(Object.keys(flatten(i18n.global.getLocaleMessage(locale))).length).toBeGreaterThan(0)
     }
   })
 
-  it.each(SUPPORTED_LOCALES.filter(locale => locale !== 'en'))('%s has exactly the English key set', (locale) => {
+  it.each(REQUIRED_LOCALES.filter(locale => locale !== 'en'))('%s has exactly the English key set', (locale) => {
     const flat = flatten(i18n.global.getLocaleMessage(locale))
     const missing = Object.keys(english).filter(key => !(key in flat))
     const extra = Object.keys(flat).filter(key => !(key in english))
     expect({ missing, extra }).toEqual({ missing: [], extra: [] })
+  })
+
+  // An unfinished language may lack keys — each falls back to English — but a key English does
+  // not have is a stale or misspelt one, read by nothing (RD-1100-09).
+  it('lets an in-progress language miss keys but never carry one English lacks', () => {
+    for (const locale of SUPPORTED_LOCALES.filter(isInProgress)) {
+      const extra = Object.keys(flatten(i18n.global.getLocaleMessage(locale))).filter(key => !(key in english))
+      expect({ locale, extra }).toEqual({ locale, extra: [] })
+    }
   })
 
   it.each(SUPPORTED_LOCALES)('%s has no empty values and matching placeholders', (locale) => {

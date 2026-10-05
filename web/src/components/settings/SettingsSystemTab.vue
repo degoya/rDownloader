@@ -254,6 +254,31 @@ const systems = computed(() => [
             <SettingsDataResetButton class="mt-4" target="audit" :count="dataCounts.audit" @cleared="loadDataCounts()" />
           </section>
 
+          <section data-settings-anchor="system.history" class="mt-6 border border-muted bg-default p-5" data-testid="history-retention">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <SectionHeader
+                :eyebrow="t('settings.history.eyebrow')"
+                :title="t('settings.history.title')"
+                :description="t('settings.history.description')"
+              />
+              <UButton
+                icon="i-lucide-history"
+                color="neutral"
+                variant="subtle"
+                :label="t('settings.history.open')"
+                to="/history"
+              />
+            </div>
+            <div class="mt-4 grid gap-4">
+              <UFormField :label="t('settings.history.entries_label')" :description="t('settings.history.entries_description')">
+                <UInput v-model.number="settings.history_retention_entries" type="number" min="100" max="100000" step="1" icon="i-lucide-database" class="mt-2 w-full" />
+              </UFormField>
+              <UFormField :label="t('settings.history.days_label')" :description="t('settings.history.days_description')">
+                <UInput v-model.number="settings.history_retention_days" type="number" min="1" max="3650" icon="i-lucide-calendar-days" class="mt-2 w-full" />
+              </UFormField>
+            </div>
+          </section>
+
           <section data-settings-anchor="system.stats_retention" class="mt-6 border border-muted bg-default p-5" data-testid="stats-retention">
             <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
             <div class="mt-4 grid gap-4">

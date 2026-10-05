@@ -11,6 +11,7 @@ function hit(title: string, extra: Partial<IndexerSearchHit> = {}): IndexerSearc
     title,
     download: `https://indexer.test/getnzb/${title}?apikey=rdownloader-indexer-key`,
     passworded: false,
+    kind: 'nzb',
     ...extra
   }
 }

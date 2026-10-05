@@ -10,7 +10,10 @@ use utoipa::ToSchema;
 
 use crate::{
     ApiError, AppState,
-    dto::{CategoryPostprocessRequest, PostprocessQueueEntry, PostprocessScriptsResponse},
+    dto::{
+        CategoryPostprocessRequest, MAX_SORT_PREVIEW_NAMES, PostprocessQueueEntry,
+        PostprocessScriptsResponse, SortPreviewEntry, SortPreviewRequest, SortPreviewResponse,
+    },
 };
 
 /// Level/script change parsed from a request (`Some(None)` = inherit again).
@@ -276,6 +279,7 @@ pub async fn update_category_postprocess(
         .map(normalize_cleanup_extensions)
         .transpose()?;
     let upload_remote = crate::dto::normalize_upload_remote(request.upload_remote)?;
+    let sorting = validate_sorting(request.sorting)?;
     let category = state
         .database
         .update_category_postprocess(
@@ -286,6 +290,7 @@ pub async fn update_category_postprocess(
                 cleanup_extensions,
                 recursive_unpack: request.recursive_unpack,
                 unpack_to_subfolder: request.unpack_to_subfolder,
+                direct_unpack: request.direct_unpack,
                 malware_scan: request.malware_scan,
                 sfv_verify: request.sfv_verify,
                 safe_postproc: request.safe_postproc,
@@ -293,6 +298,7 @@ pub async fn update_category_postprocess(
                 plugin_steps: request.plugin_steps,
                 upload_enabled: request.upload_enabled,
                 upload_remote,
+                sorting,
             },
         )
         .await
@@ -300,6 +306,127 @@ pub async fn update_category_postprocess(
             crate::error_codes::store_not_found(&error, "category.not_found", "Category not found")
         })?;
     Ok(Json(category))
+}
+
+/// A category's sort templates, blank ones dropped and each checked for its kind
+/// (RD-1100-08). `None` when none is left.
+///
+/// # Errors
+///
+/// The template error's own code — `sort.template_unknown_field` and its siblings — with the
+/// template's `kind` and, where there is one, the `field` and `format` it names.
+pub fn validate_sorting(
+    sorting: Option<rd_core::SortTemplates>,
+) -> Result<Option<rd_core::SortTemplates>, ApiError> {
+    let Some(sorting) = sorting.and_then(rd_core::SortTemplates::normalized) else {
+        return Ok(None);
+    };
+    for kind in rd_core::SortKind::ALL {
+        if let Some(template) = sorting.for_kind(kind) {
+            rd_files::validate_sort_template(kind, template)
+                .map_err(|error| sort_template_error(kind, &error))?;
+        }
+    }
+    Ok(Some(sorting))
+}
+
+fn sort_template_error(kind: rd_core::SortKind, error: &rd_files::SortTemplateError) -> ApiError {
+    let mut api =
+        ApiError::bad_request(error.code(), format!("{} template: {error}", kind.as_str()))
+            .with_param("kind", kind.as_str());
+    match error {
+        rd_files::SortTemplateError::UnknownField { field } => {
+            api = api.with_param("field", field);
+        }
+        rd_files::SortTemplateError::UnknownFormat { field, format } => {
+            api = api.with_param("field", field).with_param("format", format);
+        }
+        _ => {}
+    }
+    api
+}
+
+/// What a category's sort templates make of example names (RD-1100-08), before anything is
+/// saved: the same recognition and the same expansion the sort runs, against the category's
+/// folder as the root, so the paths are relative to it.
+#[utoipa::path(
+    post,
+    path = "/api/v1/postprocess/sort-preview",
+    tag = "configuration",
+    request_body = SortPreviewRequest,
+    responses(
+        (status = 200, body = SortPreviewResponse),
+        (status = 400, body = crate::error::ErrorBody)
+    )
+)]
+pub async fn preview_category_sorting(
+    Json(request): Json<SortPreviewRequest>,
+) -> Result<Json<SortPreviewResponse>, ApiError> {
+    let sorting = validate_sorting(Some(request.sorting))?.unwrap_or_default();
+    let root = std::path::Path::new("");
+    let entries = request
+        .names
+        .into_iter()
+        .take(MAX_SORT_PREVIEW_NAMES)
+        .map(|name| preview_name(root, &sorting, name))
+        .collect();
+    let fields = rd_core::SortKind::ALL
+        .into_iter()
+        .map(|kind| {
+            (
+                kind.as_str().to_owned(),
+                rd_files::sort_fields(kind)
+                    .iter()
+                    .map(|field| (*field).to_owned())
+                    .collect(),
+            )
+        })
+        .collect();
+    Ok(Json(SortPreviewResponse { entries, fields }))
+}
+
+fn preview_name(
+    root: &std::path::Path,
+    sorting: &rd_core::SortTemplates,
+    name: String,
+) -> SortPreviewEntry {
+    let Some(found) = rd_files::recognize_release(&name) else {
+        return SortPreviewEntry {
+            name,
+            kind: None,
+            fields: std::collections::BTreeMap::new(),
+            path: None,
+            code: None,
+        };
+    };
+    let fields = rd_files::sort_values(&found)
+        .into_iter()
+        .map(|(field, value)| (field.to_owned(), value))
+        .collect();
+    let (path, code) = match sorting.for_kind(found.kind) {
+        None => (None, Some("sort.no_template".to_owned())),
+        Some(template) => match rd_files::expand_sort_template(root, template, &found) {
+            Ok(target) => {
+                // A package name has no extension; a file keeps its own.
+                let file = match name.rsplit_once('.') {
+                    Some((_, extension)) if rd_files::sort_extension(&name).is_some() => {
+                        format!("{}.{extension}", target.stem)
+                    }
+                    _ => target.stem,
+                };
+                let path = target.directory.join(rd_files::sanitize_file_name(&file));
+                (Some(path.to_string_lossy().replace('\\', "/")), None)
+            }
+            Err(error) => (None, Some(error.code().to_owned())),
+        },
+    };
+    SortPreviewEntry {
+        name,
+        kind: Some(found.kind),
+        fields,
+        path,
+        code,
+    }
 }
 
 #[cfg(test)]
@@ -319,5 +446,76 @@ mod tests {
             validate_script_name(Some("  ".to_owned())).expect("empty"),
             None
         );
+    }
+
+    fn templates() -> rd_core::SortTemplates {
+        rd_core::SortTemplates {
+            series: Some(
+                "{show}/Season {season:00}/{show} - S{season:00}E{episode:00} - {title}".to_owned(),
+            ),
+            dated: None,
+            movie: Some("{movie} ({year})/{movie} ({year})".to_owned()),
+        }
+    }
+
+    #[tokio::test]
+    async fn the_preview_shows_where_each_name_would_land() {
+        let axum::Json(answer) =
+            super::preview_category_sorting(axum::Json(crate::dto::SortPreviewRequest {
+                sorting: templates(),
+                names: vec![
+                    "Lost.S01E01-E02.Pilot.720p.BluRay.x264-SiNNERS.mkv".to_owned(),
+                    "Inception.2010.1080p.BluRay.x264-SPARKS".to_owned(),
+                    "The.Daily.Show.2024.03.15.Guest.720p.WEB.h264-EDITH.mkv".to_owned(),
+                    "holiday.mp4".to_owned(),
+                ],
+            }))
+            .await
+            .expect("preview");
+        let paths: Vec<Option<&str>> = answer
+            .entries
+            .iter()
+            .map(|entry| entry.path.as_deref())
+            .collect();
+        assert_eq!(
+            paths,
+            vec![
+                Some("Lost/Season 01/Lost - S01E01-E02 - Pilot.mkv"),
+                Some("Inception (2010)/Inception (2010)"),
+                None,
+                None,
+            ]
+        );
+        assert_eq!(answer.entries[2].code.as_deref(), Some("sort.no_template"));
+        assert_eq!(answer.entries[3].kind, None);
+        assert_eq!(
+            answer.entries[0].fields.get("episode").map(String::as_str),
+            Some("1-2")
+        );
+        assert!(answer.fields["movie"].contains(&"movie".to_owned()));
+    }
+
+    #[tokio::test]
+    async fn the_preview_refuses_a_template_that_leaves_the_folder() {
+        let mut sorting = templates();
+        sorting.series = Some("../{show}/{title}".to_owned());
+        let refused = super::preview_category_sorting(axum::Json(crate::dto::SortPreviewRequest {
+            sorting,
+            names: vec!["Lost.S01E01.Pilot.mkv".to_owned()],
+        }))
+        .await
+        .err()
+        .expect("refused");
+        assert_eq!(refused.code(), "sort.template_outside");
+    }
+
+    #[test]
+    fn blank_sort_templates_are_no_sorting() {
+        let blank = rd_core::SortTemplates {
+            series: Some(" ".to_owned()),
+            dated: None,
+            movie: None,
+        };
+        assert_eq!(super::validate_sorting(Some(blank)).expect("valid"), None);
     }
 }

@@ -14,6 +14,11 @@ export interface PackageEditResult {
   script: string | null
   /** Rename the folder on disk as well, not only the label (RD-106-13). */
   renameFolder: boolean
+  /**
+   * The package's own speed limit in MiB/s, null for none (RD-1100-01); absent when the editor
+   * did not offer it or the package cannot take one.
+   */
+  speedLimitMiB?: number | null
 }
 
 interface PackageEditOptions {
@@ -25,6 +30,10 @@ interface PackageEditOptions {
   script: string | null
   /** Offers "rename the folder too"; only the download list can move data. */
   canRenameFolder?: boolean
+  /** Offers the package's own speed limit (MiB/s, null for none); left out, it is not offered. */
+  speedLimitMiB?: number | null
+  /** False while the package holds a torrent, which the engine cannot limit on its own. */
+  speedLimitSupported?: boolean
 }
 
 /** Editable package shape shared by the downloader and the LinkGrabber. */

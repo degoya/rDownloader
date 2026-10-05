@@ -223,7 +223,8 @@ impl SchedulerHandle {
         self.config.bandwidth.clone()
     }
 
-    /// Reloads profiles, schedule and counters, then applies the active profile.
+    /// Reloads profiles, schedule, counters and the packages' own limits, then applies the
+    /// active profile.
     ///
     /// Called on start, on every supervision cycle and right after a profile or schedule
     /// edit, so a change takes effect without a restart.
@@ -255,6 +256,12 @@ impl SchedulerHandle {
         };
         let manual = self.load_manual_profile(&profiles).await?;
         let service = self.bandwidth();
+        // The packages' own limits are not part of any profile (RD-1100-01): the whole set is
+        // read back on every reload, so a limit set, changed or removed — or a package that is
+        // gone — reaches the registry without a restart.
+        service
+            .limits
+            .set_package_limits(&self.database.package_speed_limits().await?);
         {
             let mut state = service.state.write().await;
             state.schedule = schedule;
@@ -418,8 +425,8 @@ impl SchedulerHandle {
 }
 
 impl SchedulerHandle {
-    /// The scope chain a file's transfer is limited by: its transport, host, account and
-    /// the category its package is routed into.
+    /// The scope chain a file's transfer is limited by: its transport, host, account, the
+    /// category its package is routed into, and the package's own limit.
     pub(crate) async fn transfer_scope(&self, file: &rd_core::DownloadFile) -> TransferScope {
         let category_id = self
             .database
@@ -434,6 +441,7 @@ impl SchedulerHandle {
             file.account_id,
             category_id,
         )
+        .in_package(file.package_id)
     }
 
     /// A limiter bound to one file's scope, handed to the transport that runs it.

@@ -6,14 +6,8 @@
 //! a restart finish afterwards with no `flow-state` at all.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "auth-plugin",
-});
-
-use exports::rdownloader::plugin::auth::{AuthState, Guest};
-use rdownloader::plugin::{
-    host,
+use plugin_guest_auth::{
+    AuthState, Guest, host,
     http::{self, RequestHeader},
     types::{Failure, FailureKind},
 };
@@ -97,4 +91,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_auth::auth_plugin!(Component);

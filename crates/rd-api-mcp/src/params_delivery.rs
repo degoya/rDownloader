@@ -79,6 +79,10 @@ pub(crate) enum NotificationEventParam {
     AccountExpiring,
     /// An account no longer signs in: a check refused it or a token renewal failed.
     AccountInvalid,
+    /// A Usenet download was given up as beyond repair (usenet.job_hopeless).
+    UsenetJobHopeless,
+    /// A Usenet server used up its traffic quota; once per crossing of the limit.
+    UsenetQuotaReached,
 }
 
 impl From<NotificationEventParam> for rd_notify::NotificationEvent {
@@ -97,6 +101,8 @@ impl From<NotificationEventParam> for rd_notify::NotificationEvent {
             NotificationEventParam::PluginUpdateFailed => Self::PluginUpdateFailed,
             NotificationEventParam::AccountExpiring => Self::AccountExpiring,
             NotificationEventParam::AccountInvalid => Self::AccountInvalid,
+            NotificationEventParam::UsenetJobHopeless => Self::UsenetJobHopeless,
+            NotificationEventParam::UsenetQuotaReached => Self::UsenetQuotaReached,
         }
     }
 }

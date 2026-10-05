@@ -6,7 +6,7 @@ import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useNotifications } from '@/composables/useNotifications'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
-import { SUPPORTED_LOCALES, setLocale, type AppLocale } from '@/i18n'
+import { languageItems, setLocale, type AppLocale } from '@/i18n'
 import { BYTE_UNIT_STEPS } from '@/utils/byteDisplay'
 
 const settings = defineModel<Settings>({ required: true })
@@ -34,7 +34,7 @@ const { theme } = useTheme()
 const notifications = useNotifications()
 const notificationsDenied = ref(false)
 
-const localeItems = computed(() => SUPPORTED_LOCALES.map(code => ({ label: t(`common.locales.${code}`), value: code })))
+const localeItems = computed(() => languageItems(t))
 const themeItems = computed(() => (['system', 'light', 'dark'] as ThemeMode[]).map(value => ({
   label: t(`common.preferences.theme_${value}`),
   value

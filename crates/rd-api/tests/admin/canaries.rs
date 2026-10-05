@@ -229,6 +229,7 @@ const PLACES: &[Read] = &[
     Read::Get("/api/v1/diagnostics/logs?limit=500"),
     Read::Get("/api/v1/routing/export"),
     Read::Get("/api/v1/system/about"),
+    Read::Get("/api/v1/stats/usenet-servers"),
     Read::Post("/api/v1/settings/export", r#"{"include_secrets": false}"#),
     Read::Post(
         "/api/v1/settings/export",
@@ -239,6 +240,7 @@ const PLACES: &[Read] = &[
     Read::Tool("list_configuration", r#"{"section": "providers"}"#),
     Read::Tool("list_configuration", r#"{"section": "plugins"}"#),
     Read::Tool("list_usenet_servers", "{}"),
+    Read::Tool("get_usenet_server_traffic", "{}"),
     Read::Tool("list_notification_targets", "{}"),
     Read::Tool("list_notification_deliveries", "{}"),
     Read::Tool("get_settings", "{}"),

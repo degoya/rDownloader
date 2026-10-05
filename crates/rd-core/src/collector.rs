@@ -520,6 +520,10 @@ pub struct Category {
     /// `None` = global default (RD-170-16).
     #[serde(default)]
     pub unpack_to_subfolder: Option<bool>,
+    /// Whether packages in this category unpack a multi-volume RAR set while it downloads;
+    /// `None` = global default (RD-1100-07).
+    #[serde(default)]
+    pub direct_unpack: Option<bool>,
     /// Whether packages in this category are scanned by ClamAV before they count as finished;
     /// `None` = global default (RD-190-14).
     #[serde(default)]
@@ -550,6 +554,10 @@ pub struct Category {
     /// how a category switches a globally enabled step off.
     #[serde(default)]
     pub plugin_steps: Option<Vec<String>>,
+    /// Sort and rename templates for series and films (RD-1100-08); `None` = no sorting. Not
+    /// inherited: sorting is a property of the category, there is no global template.
+    #[serde(default)]
+    pub sorting: Option<crate::SortTemplates>,
 }
 
 /// Allowlisted filesystem root available to categories.

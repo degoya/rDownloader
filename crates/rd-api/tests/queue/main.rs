@@ -1,4 +1,4 @@
-//! rd-api integration tests: the queue and its limits: order, removal, categories, storage, bandwidth, power and reconnects.
+//! rd-api integration tests: the queue and its limits: order, removal, categories, storage, bandwidth, power and reconnects, and the download history.
 //!
 //! One test binary per subject, each suite a module of it (RD-150-10). Every binary links the
 //! whole service, and one binary per file meant 57 links of ~550 MB each. A new suite is a
@@ -11,9 +11,11 @@ mod common;
 mod auto_remove;
 mod bandwidth;
 mod bandwidth_manual;
+mod capture_queue;
 mod category_move_and_reset;
 mod clear_list;
 mod collisions;
+mod history;
 mod power;
 mod queue_pause;
 mod reconnect;

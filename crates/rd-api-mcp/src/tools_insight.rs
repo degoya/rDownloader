@@ -50,6 +50,17 @@ impl RdMcpServer {
     }
 
     #[tool(
+        description = "Traffic per Usenet server: the bytes each configured server delivered today (UTC), over the last 7, 30 and 365 days and in total, counted as the yEnc-encoded article bodies arrive (one to three per cent above the payload), with each server's quota (limit, action, used bytes, whether it is used up). Written every few seconds."
+    )]
+    pub async fn get_usenet_server_traffic(&self) -> McpToolResult {
+        respond(
+            crate::stats_handlers::usenet_server_traffic(State(self.state.clone()))
+                .await
+                .map(|response| response.0),
+        )
+    }
+
+    #[tool(
         description = "Read the service log. Every argument is a filter and all are optional: level (this one and more severe), component prefix, exact stable code, correlation_id, a case-insensitive search in the message, since/until as RFC 3339, and limit (1-500). `full_page` true means there are older records; page back with before_id."
     )]
     pub async fn list_log_records(
@@ -157,7 +168,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the transfer statistics: the per-bucket history behind the charts and the all-time totals. Irreversible, and `confirmed` must be true. The queue itself is untouched, as are the service log and the audit log."
+        description = "Empty the transfer statistics: the per-bucket history behind the charts, the all-time totals and the traffic per Usenet server (a server's quota figure stays). Irreversible, and `confirmed` must be true. The queue itself is untouched, as are the service log and the audit log."
     )]
     pub async fn clear_transfer_stats(
         &self,

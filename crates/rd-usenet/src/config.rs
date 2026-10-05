@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use rd_core::{ProxyKind, UsenetServerId};
+use rd_core::{ProxyKind, UsenetQuotaAction, UsenetServer, UsenetServerId};
 use rd_db::Database;
 use rd_secrets::SecretStore;
 
@@ -72,12 +72,70 @@ pub async fn enabled_server_configs(
     Ok(configs)
 }
 
+/// The enabled servers in the order the pool asks them, each with its id (RD-1100-05).
+pub struct OrderedServers {
+    pub servers: Vec<(UsenetServerId, NntpServerConfig)>,
+    /// Enabled servers left out because their quota is used up and its action is `pause`.
+    pub paused: usize,
+}
+
+/// [`enabled_server_configs`] with the quotas applied; see [`order_by_quota`].
+pub async fn servers_by_quota(
+    database: &Database,
+    secrets: &SecretStore,
+    custom_ca_pem: &[Vec<u8>],
+) -> Result<OrderedServers> {
+    let (ordered, paused) = order_by_quota(database.list_usenet_servers().await?);
+    let mut servers = Vec::with_capacity(ordered.len());
+    for server in ordered {
+        if let Some(config) =
+            server_config_with_ca(database, secrets, server.id, custom_ca_pem).await?
+        {
+            servers.push((server.id, config));
+        }
+    }
+    Ok(OrderedServers { servers, paused })
+}
+
+/// The enabled servers of `servers` (already in priority order) in the order the pool asks
+/// them, and how many were left out.
+///
+/// The persisted priority, except for a server whose quota is used up: with the `backup`
+/// action it moves behind every server whose quota is not, keeping its order among the others
+/// that moved, so it is asked only for what they all refused - how a block account is meant
+/// to be used. With `pause` it is not asked at all.
+#[must_use]
+pub fn order_by_quota(servers: Vec<UsenetServer>) -> (Vec<UsenetServer>, usize) {
+    let mut ahead = Vec::new();
+    let mut behind = Vec::new();
+    let mut paused = 0;
+    for server in servers.into_iter().filter(|server| server.enabled) {
+        match used_up(&server) {
+            None => ahead.push(server),
+            Some(UsenetQuotaAction::Backup) => behind.push(server),
+            Some(UsenetQuotaAction::Pause) => paused += 1,
+        }
+    }
+    ahead.extend(behind);
+    (ahead, paused)
+}
+
+/// The action of a quota that is used up, `None` while there is none or it is not.
+fn used_up(server: &UsenetServer) -> Option<UsenetQuotaAction> {
+    server
+        .quota
+        .as_ref()
+        .filter(|quota| quota.is_reached())
+        .map(|quota| quota.action)
+}
+
 /// What the enabled connection settings are, as one value that changes whenever they do.
 ///
 /// A pool that outlives a single file (RD-108-26) has to be given up when the settings behind
 /// it change. The password is represented by its reference, never its value: `SecretStore::put`
 /// mints a fresh reference per stored secret, so a changed password changes the fingerprint
-/// without the secret ever leaving the store.
+/// without the secret ever leaving the store. A quota that is reached or reset changes it too
+/// (RD-1100-05): the next file gets a pool in the order [`order_by_quota`] gives.
 pub async fn connection_fingerprint(database: &Database) -> Result<String> {
     let mut parts = Vec::new();
     for server in database.list_usenet_servers().await? {
@@ -87,8 +145,9 @@ pub async fn connection_fingerprint(database: &Database) -> Result<String> {
         let Some(stored) = database.usenet_connection_config(server.id).await? else {
             continue;
         };
+        let quota = used_up(&stored.server).map_or("", UsenetQuotaAction::as_str);
         parts.push(format!(
-            "{}|{}|{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{quota}",
             stored.server.host,
             stored.server.port,
             stored.server.tls,

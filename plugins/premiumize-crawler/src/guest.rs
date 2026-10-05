@@ -7,15 +7,10 @@
 //! the last resort rather than as the plan.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "crawler-plugin",
-});
-
-use exports::rdownloader::plugin::crawler::{CrawledLink, Guest};
-use rdownloader::plugin::{
-    host,
+use plugin_guest_crawler::{
+    CrawledLink, Guest, host,
     http::{self, RequestHeader, RequestQuery},
+    refuse,
     types::{Failure, FailureKind},
 };
 
@@ -33,15 +28,6 @@ const API: &str = "https://www.premiumize.me/api";
 const API_KEY_REFERENCE: &str = "premiumize_api_key";
 
 struct Component;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 fn headers() -> Vec<RequestHeader> {
     vec![
@@ -198,4 +184,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_crawler::crawler_plugin!(Component);

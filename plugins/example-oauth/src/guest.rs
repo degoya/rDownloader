@@ -1,20 +1,14 @@
 //! The component: authorization code with PKCE, and the renewal that outlives it.
 //!
 //! What the `oauth` SDK template scaffolds, differing only in where it points: the endpoints are
-//! on `oauth.example.invalid`, which resolves nowhere, and the contract tests answer for it.
+//! on `oauth.example.invalid`, which resolves nowhere, and the contract tests answer for it. The
+//! bindings and the request helpers come from `plugin-guest-oauth`, which a standalone template
+//! does not have and generates for itself.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "oauth-plugin",
-});
-
-use exports::rdownloader::plugin::oauth::{
-    AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome,
-};
-use rdownloader::plugin::{
-    credentials, host,
-    http::{self, RequestHeader, RequestQuery},
+use plugin_guest_oauth::{
+    AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, form,
+    host, http, retry_after,
     types::{Failure, FailureKind},
 };
 
@@ -70,28 +64,6 @@ fn unguessable_value() -> Result<String, Failure> {
             FailureKind::Permanent,
         )
     })
-}
-
-fn form(pairs: &[(&str, &str)]) -> Vec<RequestQuery> {
-    pairs
-        .iter()
-        .map(|(name, value)| RequestQuery {
-            name: (*name).to_owned(),
-            value_template: (*value).to_owned(),
-        })
-        .collect()
-}
-
-fn accept_json() -> Vec<RequestHeader> {
-    vec![RequestHeader {
-        name: "Accept".to_owned(),
-        value_template: "application/json".to_owned(),
-    }]
-}
-
-/// The `Retry-After` a provider sent, if it sent one.
-fn retry_after(headers: &[(String, String)]) -> Option<String> {
-    plugin_common::http::header(headers, "retry-after").map(str::to_owned)
 }
 
 /// Turns a token endpoint's answer into the outcome the host acts on.
@@ -334,4 +306,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_oauth::oauth_plugin!(Component);

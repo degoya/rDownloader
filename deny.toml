@@ -25,23 +25,15 @@ ignore = [
   # key operations again; this service never signs or decrypts with RSA for a sign-in.
   { id = "RUSTSEC-2023-0071", reason = "rsa via russh and openidconnect; Marvin targets private-key operations, which SSH host key verification and ID-token verification do not perform. No safe upgrade is available." },
 
-  # The archived GTK3 bindings below, and proc-macro-error underneath them, are graph
-  # artifacts rather than real dependencies: nothing here ever compiles them. rd-capture
+  # proc-macro-error below, under the archived GTK3 bindings, is a graph artifact rather than a
+  # real dependency: nothing here ever compiles it. (The nine GTK3 advisories themselves no
+  # longer match since tray-icon 0.26 / muda 0.21 and were dropped with RD-1100-11.) rd-capture
   # gates tao/tray-icon to `cfg(any(windows, target_os = "macos"))` because Linux stays
   # headless, and GTK is in turn a Linux-only dependency of those two — a combination no
   # single target produces. They only surface because `graph.targets` lists three targets
   # and cargo-deny filters the graph edge by edge instead of path by path. Confirm with
   # `cargo deny --target x86_64-unknown-linux-gnu check advisories`, which reports none of
-  # them. Drop these once tao and tray-icon move off GTK3.
-  { id = "RUSTSEC-2024-0411", reason = "gdkwayland-sys; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0412", reason = "gdk; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0413", reason = "atk; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0414", reason = "gdkx11-sys; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0415", reason = "gtk; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0416", reason = "atk-sys; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0418", reason = "gdk-sys; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0419", reason = "gtk3-macros; unreachable GTK3 stack, see above." },
-  { id = "RUSTSEC-2024-0420", reason = "gtk-sys; unreachable GTK3 stack, see above." },
+  # it. Drop it once tao and tray-icon move off GTK3.
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via glib-macros and gtk3-macros; unreachable GTK3 stack, see above." },
 ]
 

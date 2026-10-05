@@ -313,6 +313,14 @@
       "timeout_description": "How long the connection, one chunk or clamd’s verdict may take (5–3600 s).",
       "test": "Test clamd",
       "test_ok": "clamd at {address} answers: {version}"
+    },
+    "fail_hopeless_jobs": {
+      "label": "Abort hopeless Usenet downloads",
+      "description": "When more PAR2 blocks are missing than the set's recovery volumes can replace, the rest is not downloaded and the package fails. What has been downloaded stays. Saves volume on block accounts. Off: every file is downloaded to the end, as before."
+    },
+    "direct_unpack": {
+      "label": "Unpack while downloading",
+      "description": "Multi-part RAR archives from Usenet are unpacked part by part as each part arrives complete, instead of after the download. If a repair is needed or a part is missing something, the attempt is dropped and the archive is unpacked afterwards as usual. Needs unrar and room for the unpacked files beside the running download."
     }
   },
   "appearance": {
@@ -966,5 +974,15 @@
     "interval_description": "Hours between the failure and the next attempt (1–24).",
     "rounds_label": "Rounds per download",
     "rounds_description": "How often a download goes back into the queue at most; 0 means no limit (0–100)."
+  },
+  "history": {
+    "eyebrow": "Download history",
+    "title": "Download history retention",
+    "description": "How long finished and failed packages stay in the history after they left the list.",
+    "open": "Open the history",
+    "entries_label": "Entries kept",
+    "entries_description": "The oldest entries go first (100-100000).",
+    "days_label": "Days kept",
+    "days_description": "Entries older than this are removed whatever the count (1-3650)."
   }
 }

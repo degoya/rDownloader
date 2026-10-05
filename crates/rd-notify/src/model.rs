@@ -67,6 +67,11 @@ pub enum NotificationEvent {
     /// An account no longer signs in: a check refused it, or a token renewal failed for good
     /// (RD-190-19). At most once per account and day.
     AccountInvalid,
+    /// A Usenet download was given up as beyond repair: more PAR2 blocks are missing than its
+    /// recovery volumes can replace (RD-1100-02).
+    UsenetJobHopeless,
+    /// A Usenet server used up its traffic quota (RD-1100-05). Once per crossing of the limit.
+    UsenetQuotaReached,
 }
 
 impl NotificationEvent {
@@ -80,12 +85,14 @@ impl NotificationEvent {
             | Self::BackupFailed
             | Self::BackupVerifyFailed
             | Self::PluginUpdateFailed
-            | Self::AccountInvalid => Severity::Error,
+            | Self::AccountInvalid
+            | Self::UsenetJobHopeless => Severity::Error,
             Self::StorageBlocked
             | Self::BudgetExhausted
             | Self::CaptchaWaiting
             | Self::PowerPending
-            | Self::AccountExpiring => Severity::Warning,
+            | Self::AccountExpiring
+            | Self::UsenetQuotaReached => Severity::Warning,
         }
     }
 
@@ -106,6 +113,8 @@ impl NotificationEvent {
             Self::PluginUpdateFailed,
             Self::AccountExpiring,
             Self::AccountInvalid,
+            Self::UsenetJobHopeless,
+            Self::UsenetQuotaReached,
         ]
     }
 }
@@ -280,6 +289,16 @@ mod tests {
                 NotificationEvent::AccountInvalid,
                 Severity::Error,
                 "account_invalid",
+            ),
+            (
+                NotificationEvent::UsenetJobHopeless,
+                Severity::Error,
+                "usenet_job_hopeless",
+            ),
+            (
+                NotificationEvent::UsenetQuotaReached,
+                Severity::Warning,
+                "usenet_quota_reached",
             ),
         ];
         for (event, severity, name) in cases {

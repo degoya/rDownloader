@@ -332,18 +332,42 @@ async fn a_stop_before_the_progress_is_recorded_resumes_at_the_part_file() {
     assert!(!fixture.part_path.exists());
 }
 
-/// Every crash point this crate owns has a case above that arms it.
+/// Every crash point this crate owns has a case in the crate that arms it.
 #[test]
 fn every_transfer_file_crash_point_is_exercised_by_a_case() {
-    let source = include_str!("tests.rs");
+    let source = crate_sources();
     for point in rd_core::failpoint::CRASH_POINTS
         .iter()
         .filter(|point| point.owner == "rd-transfer-file")
     {
         assert!(
             source.contains(&format!("FailpointGuard::once(\"{}\")", point.name)),
-            "{} is registered but no case in this file arms it",
+            "{} is registered but no case in this crate arms it",
             point.name
         );
     }
+}
+
+/// Every `.rs` file under this crate's `src/` and `tests/`, read at run time (RD-1100-13): a case
+/// may live in any test file, and a new one is found without a list naming it.
+fn crate_sources() -> String {
+    let root = std::path::PathBuf::from(
+        std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"),
+    );
+    let mut pending = vec![root.join("src"), root.join("tests")];
+    let mut source = String::new();
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.expect("read a source directory entry").path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                source.push_str(&std::fs::read_to_string(&path).expect("read a source file"));
+            }
+        }
+    }
+    source
 }

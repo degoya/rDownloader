@@ -8,7 +8,7 @@ use rd_db::StoreErrorKind;
 use crate::{
     ApiError, AppState,
     dto::{
-        CreateUsenetServerRequest, MessageResponse, NzbImportEnqueueRequest,
+        CreateUsenetServerRequest, MessageResponse, NzbImportEnqueueRequest, SetUsenetQuotaRequest,
         UpdateUsenetServerRequest,
     },
 };
@@ -105,6 +105,43 @@ pub async fn delete_usenet_server(
         "usenet.server_deleted",
         "NNTP server deleted",
     )))
+}
+
+/// Sets, changes or removes the traffic quota of one server (RD-1100-05).
+///
+/// Once the server has delivered `limit_bytes` it is asked only after every other server
+/// (`backup`) or not at all (`pause`), from the next file on, and a notification goes out. A
+/// limit the used figure already reaches applies at once.
+#[utoipa::path(put, path = "/api/v1/usenet/servers/{id}/quota", tag = "usenet", params(("id" = rd_core::UsenetServerId, Path)), request_body = SetUsenetQuotaRequest, responses((status = 200, body = rd_core::UsenetServer), (status = 400), (status = 404)))]
+pub async fn set_usenet_server_quota(
+    State(state): State<AppState>,
+    Path(id): Path<rd_core::UsenetServerId>,
+    Json(request): Json<SetUsenetQuotaRequest>,
+) -> Result<Json<rd_core::UsenetServer>, ApiError> {
+    let today = chrono::Utc::now().date_naive();
+    if request.limit_bytes == Some(0) || request.reset_on.is_some_and(|day| day < today) {
+        return Err(ApiError::bad_request(
+            "usenet.quota_invalid",
+            "A quota needs a limit above zero and a reset day that is today or later",
+        ));
+    }
+    let server = state
+        .database
+        .set_usenet_quota(
+            id,
+            rd_db::UsenetQuotaInput {
+                limit_bytes: request.limit_bytes,
+                action: request.action,
+                reset_on: request.reset_on,
+                reset_usage: request.reset_usage,
+            },
+        )
+        .await
+        .map_err(|error| match rd_db::store_kind(&error) {
+            Some(StoreErrorKind::NotFound) => crate::error_codes::usenet_server_not_found(),
+            _ => error.into(),
+        })?;
+    Ok(Json(server))
 }
 
 #[utoipa::path(get, path = "/api/v1/nzb/imports/{id}/files", tag = "usenet", params(("id" = rd_core::NzbImportId, Path)), responses((status = 200, body = [rd_core::NzbFileStatus])))]

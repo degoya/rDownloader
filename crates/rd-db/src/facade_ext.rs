@@ -4,9 +4,14 @@ use anyhow::Result;
 
 use crate::{
     Database, NewCategory, NewCategoryRule, NewHotFolder, NewNzbImport, NewStorageRoot,
-    archive_password::PasswordTable, automation_store, bandwidth_store, capture_store,
-    collector_store, commands::WriterCommand, config_store, mfa_store, notify_store, nzb_store,
-    session_store, writer,
+    archive_password::PasswordTable,
+    automation_store, bandwidth_store, capture_store, collector_store,
+    commands::{
+        AuthCommand, BandwidthCommand, CollectorCommand, ConfigCommand, MaintenanceCommand,
+        NetworkCommand, NotifyCommand, NzbCommand, PackagesCommand, SessionsCommand,
+        StreamsCommand,
+    },
+    config_store, mfa_store, notify_store, nzb_store, session_store, writer,
 };
 
 impl Database {
@@ -39,7 +44,7 @@ impl Database {
     ) -> Result<Vec<rd_core::DownloadPackage>> {
         let password = change.password.take();
         let ids_for_password = password.as_ref().map(|_| ids.clone());
-        let mut updated = writer::request(&self.writer, |reply| WriterCommand::UpdatePackages {
+        let mut updated = writer::request(&self.writer, |reply| PackagesCommand::UpdatePackages {
             ids,
             change,
             reply,
@@ -73,7 +78,7 @@ impl Database {
         destination: String,
     ) -> Result<Option<rd_core::DownloadPackage>> {
         let mut renamed = writer::request(&self.writer, |reply| {
-            WriterCommand::RenamePackageDirectory {
+            PackagesCommand::RenamePackageDirectory {
                 id,
                 name,
                 destination,
@@ -100,14 +105,36 @@ impl Database {
     /// Marks the outstanding sweep of a package's former directory as done.
     pub async fn clear_package_previous_destination(&self, id: rd_core::PackageId) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ClearPreviousDestination { id, reply }
+            PackagesCommand::ClearPreviousDestination { id, reply }
+        })
+        .await
+    }
+
+    /// Points a package at the folder a torrent move carried its files to (RD-1100-10), with
+    /// every absolute path stored for it, but only while it still names `from`.
+    ///
+    /// `false` when it no longer does; nothing is changed then. No `previous_destination` is
+    /// recorded: the move has its own journal, and the scheduler's sweep stays out of it.
+    pub async fn switch_package_destination(
+        &self,
+        id: rd_core::PackageId,
+        from: String,
+        to: String,
+    ) -> Result<bool> {
+        writer::request(&self.writer, |reply| {
+            PackagesCommand::SwitchPackageDestination {
+                id,
+                from,
+                to,
+                reply,
+            }
         })
         .await
     }
 
     /// Stores a manual queue order (positions 1..n in the given order).
     pub async fn reorder_packages(&self, ids: Vec<rd_core::PackageId>) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ReorderPackages {
+        writer::request(&self.writer, |reply| PackagesCommand::ReorderPackages {
             ids,
             reply,
         })
@@ -123,7 +150,7 @@ impl Database {
         package_id: rd_core::PackageId,
         ids: Vec<rd_core::DownloadId>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ReorderDownloads {
+        writer::request(&self.writer, |reply| PackagesCommand::ReorderDownloads {
             package_id,
             ids,
             reply,
@@ -140,7 +167,7 @@ impl Database {
         let orphaned = crate::collector_store::candidate_vault_refs(&self.readers, id)
             .await
             .unwrap_or_default();
-        writer::request(&self.writer, |reply| WriterCommand::DeleteCandidate {
+        writer::request(&self.writer, |reply| CollectorCommand::DeleteCandidate {
             id,
             reply,
         })
@@ -159,7 +186,7 @@ impl Database {
         let orphaned = crate::collector_store::deletable_vault_refs(&self.readers)
             .await
             .unwrap_or_default();
-        let removed = writer::request(&self.writer, |reply| WriterCommand::DeleteCandidates {
+        let removed = writer::request(&self.writer, |reply| CollectorCommand::DeleteCandidates {
             reply,
         })
         .await?;
@@ -280,7 +307,7 @@ impl Database {
         reference: Option<String>,
     ) -> Result<()> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetTransformKeyRef {
+            crate::commands::DownloadsCommand::SetTransformKeyRef {
                 id,
                 reference,
                 reply,
@@ -296,7 +323,7 @@ impl Database {
     pub async fn add_nzb_import(&self, mut import: NewNzbImport) -> Result<rd_core::NzbImport> {
         import.password = import.password.filter(|value| !value.is_empty());
         let password = import.password.clone();
-        let mut added = writer::request(&self.writer, |reply| WriterCommand::AddNzbImport {
+        let mut added = writer::request(&self.writer, |reply| NzbCommand::AddNzbImport {
             import,
             reply,
         })
@@ -328,8 +355,9 @@ impl Database {
         &self,
         failure: crate::FailedNzbImport,
     ) -> Result<rd_core::NzbImport> {
-        writer::request(&self.writer, |reply| {
-            WriterCommand::RecordNzbImportFailure { failure, reply }
+        writer::request(&self.writer, |reply| NzbCommand::RecordNzbImportFailure {
+            failure,
+            reply,
         })
         .await
     }
@@ -340,7 +368,7 @@ impl Database {
         id: rd_core::NzbImportId,
         change: crate::NzbImportChange,
     ) -> Result<rd_core::NzbImport> {
-        let mut updated = writer::request(&self.writer, |reply| WriterCommand::UpdateNzbImport {
+        let mut updated = writer::request(&self.writer, |reply| NzbCommand::UpdateNzbImport {
             id,
             change,
             reply,
@@ -367,7 +395,7 @@ impl Database {
         let password = self
             .archive_password(PasswordTable::NzbImports, id.to_string())
             .await?;
-        let package_id = writer::request(&self.writer, |reply| WriterCommand::EnqueueNzbImport {
+        let package_id = writer::request(&self.writer, |reply| NzbCommand::EnqueueNzbImport {
             id,
             destination,
             priority,
@@ -424,15 +452,14 @@ impl Database {
         remote_job_id: rd_core::RemoteJobId,
         expected: rd_core::NzbImportState,
     ) -> Result<rd_core::NzbImport> {
-        let mut updated = writer::request(&self.writer, |reply| {
-            WriterCommand::MarkNzbImportRemoteJob {
+        let mut updated =
+            writer::request(&self.writer, |reply| NzbCommand::MarkNzbImportRemoteJob {
                 id,
                 remote_job_id,
                 expected,
                 reply,
-            }
-        })
-        .await?;
+            })
+            .await?;
         self.reveal_archive_passwords(std::slice::from_mut(&mut updated))
             .await;
         Ok(updated)
@@ -448,8 +475,9 @@ impl Database {
 
     /// Drops a completed package's NZB import history (keeps the package itself).
     pub async fn forget_nzb_import_history(&self, package_id: rd_core::PackageId) -> Result<()> {
-        writer::request(&self.writer, |reply| {
-            WriterCommand::ForgetNzbImportHistory { package_id, reply }
+        writer::request(&self.writer, |reply| NzbCommand::ForgetNzbImportHistory {
+            package_id,
+            reply,
         })
         .await?;
         self.sweep_archive_passwords().await;
@@ -459,7 +487,7 @@ impl Database {
     /// Removes an inactive NZB import and its cascading segment metadata, and its archive
     /// password from the vault.
     pub async fn delete_nzb_import(&self, id: rd_core::NzbImportId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteNzbImport {
+        writer::request(&self.writer, |reply| NzbCommand::DeleteNzbImport {
             id,
             reply,
         })
@@ -475,7 +503,7 @@ impl Database {
         state: rd_core::NzbSegmentState,
         crc32: Option<u32>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetNzbSegmentState {
+        writer::request(&self.writer, |reply| NzbCommand::SetNzbSegmentState {
             id,
             state,
             crc32,
@@ -490,7 +518,7 @@ impl Database {
         id: rd_core::NzbFileId,
         output_path: String,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
+        writer::request(&self.writer, |reply| NzbCommand::CheckpointNzb {
             checkpoint: crate::postprocess_store::NzbCheckpoint::FileOutput { id, output_path },
             reply,
         })
@@ -507,7 +535,7 @@ impl Database {
         file_name: String,
         content_is_par2: bool,
     ) -> Result<usize> {
-        writer::request(&self.writer, |reply| WriterCommand::SettleNzbRecovery {
+        writer::request(&self.writer, |reply| NzbCommand::SettleNzbRecovery {
             id,
             file_name,
             content_is_par2,
@@ -523,7 +551,7 @@ impl Database {
     /// until they have been assembled - so the row waits in `Verifying`, carrying the reason
     /// it waits, and the answer is given when nothing of the package is on its way any more.
     pub async fn defer_par2_verdict(&self, id: rd_core::DownloadId, missing: usize) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeferPar2Verdict {
+        writer::request(&self.writer, |reply| NzbCommand::DeferPar2Verdict {
             id,
             missing,
             reply,
@@ -542,7 +570,7 @@ impl Database {
         declared_size: u64,
         segments: Vec<crate::AssembledSegment>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
+        writer::request(&self.writer, |reply| NzbCommand::CheckpointNzb {
             checkpoint: crate::postprocess_store::NzbCheckpoint::AssemblySegments {
                 file_id,
                 name,
@@ -595,7 +623,7 @@ impl Database {
         code: Option<String>,
         params: rd_core::MessageParams,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
+        writer::request(&self.writer, |reply| NzbCommand::CheckpointNzb {
             checkpoint: crate::postprocess_store::NzbCheckpoint::Postprocess {
                 owner_id,
                 kind,
@@ -627,7 +655,7 @@ impl Database {
         message: Option<String>,
         checkpoint: Option<Vec<u8>>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
+        writer::request(&self.writer, |reply| NzbCommand::CheckpointNzb {
             checkpoint: crate::postprocess_store::NzbCheckpoint::Postprocess {
                 owner_id,
                 kind,
@@ -650,7 +678,7 @@ impl Database {
         owner_id: String,
         steps: Vec<(rd_core::PostprocessKind, String, i64)>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
+        writer::request(&self.writer, |reply| NzbCommand::CheckpointNzb {
             checkpoint: crate::postprocess_store::NzbCheckpoint::EnqueueSteps { owner_id, steps },
             reply,
         })
@@ -667,7 +695,7 @@ impl Database {
         percent: Option<u8>,
         current: Option<String>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::CheckpointNzb {
+        writer::request(&self.writer, |reply| NzbCommand::CheckpointNzb {
             checkpoint: crate::postprocess_store::NzbCheckpoint::Progress {
                 owner_id,
                 kind,
@@ -690,7 +718,7 @@ impl Database {
         percent: Option<u8>,
         current: Option<String>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetPackageState {
+        writer::request(&self.writer, |reply| PackagesCommand::SetPackageState {
             id,
             state,
             stage,
@@ -707,10 +735,8 @@ impl Database {
         id: rd_core::PackageId,
         result: Option<rd_core::ExtractionResult>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetPackageExtraction {
-            id,
-            result,
-            reply,
+        writer::request(&self.writer, |reply| {
+            PackagesCommand::SetPackageExtraction { id, result, reply }
         })
         .await
     }
@@ -722,7 +748,7 @@ impl Database {
         postprocess: crate::CategoryPostprocess,
     ) -> Result<rd_core::Category> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpdateCategoryPostprocess {
+            ConfigCommand::UpdateCategoryPostprocess {
                 id,
                 postprocess,
                 reply,
@@ -753,7 +779,7 @@ impl Database {
         token_sha256: String,
         scopes: Vec<String>,
     ) -> Result<rd_core::CaptureToken> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateCaptureToken {
+        writer::request(&self.writer, |reply| SessionsCommand::CreateCaptureToken {
             id,
             label,
             token_sha256,
@@ -774,7 +800,7 @@ impl Database {
         scopes: Vec<String>,
     ) -> Result<rd_core::CaptureToken> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpdateCaptureTokenScopes { id, scopes, reply }
+            SessionsCommand::UpdateCaptureTokenScopes { id, scopes, reply }
         })
         .await
     }
@@ -812,7 +838,7 @@ impl Database {
         client_ip: Option<String>,
         lifetime_hours: i64,
     ) -> Result<rd_core::Session> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateSession {
+        writer::request(&self.writer, |reply| SessionsCommand::CreateSession {
             id,
             token_sha256,
             user_agent,
@@ -835,7 +861,7 @@ impl Database {
 
     /// Advances a session's last-used time. Reports whether it was still live.
     pub async fn touch_session(&self, token_sha256: String) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::TouchSession {
+        writer::request(&self.writer, |reply| SessionsCommand::TouchSession {
             token_sha256,
             reply,
         })
@@ -862,7 +888,7 @@ impl Database {
 
     /// Ends one session.
     pub async fn revoke_session(&self, id: rd_core::SessionId) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::RevokeSession {
+        writer::request(&self.writer, |reply| SessionsCommand::RevokeSession {
             id,
             reply,
         })
@@ -871,7 +897,7 @@ impl Database {
 
     /// Ends every session but the caller's own.
     pub async fn revoke_other_sessions(&self, keep_digest: String) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::RevokeOtherSessions {
+        writer::request(&self.writer, |reply| SessionsCommand::RevokeOtherSessions {
             keep_digest,
             reply,
         })
@@ -883,7 +909,7 @@ impl Database {
     /// What a password change needs: a change that leaves the sessions opened with the old
     /// password alive protects nothing (RD-120-22).
     pub async fn revoke_all_sessions(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::RevokeAllSessions {
+        writer::request(&self.writer, |reply| SessionsCommand::RevokeAllSessions {
             reply,
         })
         .await
@@ -891,9 +917,8 @@ impl Database {
 
     /// Deletes session rows that ended under `limits` long ago.
     pub async fn purge_expired_sessions(&self, limits: rd_core::SessionLimits) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::PurgeExpiredSessions {
-            limits,
-            reply,
+        writer::request(&self.writer, |reply| {
+            SessionsCommand::PurgeExpiredSessions { limits, reply }
         })
         .await
     }
@@ -907,7 +932,7 @@ impl Database {
     pub async fn purge_old_events(&self) -> Result<u64> {
         let mut removed = 0;
         loop {
-            let batch = writer::request(&self.writer, |reply| WriterCommand::PurgeOldEvents {
+            let batch = writer::request(&self.writer, |reply| MaintenanceCommand::PurgeOldEvents {
                 reply,
             })
             .await?;
@@ -921,7 +946,7 @@ impl Database {
 
     /// Notes that a machine token was used, at most once a minute.
     pub async fn touch_capture_token(&self, token_sha256: String) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::TouchCaptureToken {
+        writer::request(&self.writer, |reply| SessionsCommand::TouchCaptureToken {
             token_sha256,
             reply,
         })
@@ -936,7 +961,7 @@ impl Database {
         label: String,
         material_ref: String,
     ) -> Result<rd_core::MfaCredential> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateMfaCredential {
+        writer::request(&self.writer, |reply| SessionsCommand::CreateMfaCredential {
             id,
             kind,
             label,
@@ -966,9 +991,8 @@ impl Database {
 
     /// Marks a factor as proven to work.
     pub async fn confirm_mfa_credential(&self, id: rd_core::MfaCredentialId) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::ConfirmMfaCredential {
-            id,
-            reply,
+        writer::request(&self.writer, |reply| {
+            SessionsCommand::ConfirmMfaCredential { id, reply }
         })
         .await
     }
@@ -980,7 +1004,7 @@ impl Database {
     /// about ninety seconds. `false` means this step — or a later one — was already accepted,
     /// and the caller must treat the code as wrong.
     pub async fn accept_totp_step(&self, id: rd_core::MfaCredentialId, step: i64) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::AcceptTotpStep {
+        writer::request(&self.writer, |reply| SessionsCommand::AcceptTotpStep {
             id,
             step,
             reply,
@@ -990,7 +1014,7 @@ impl Database {
 
     /// Notes that a factor answered a challenge.
     pub async fn touch_mfa_credential(&self, id: rd_core::MfaCredentialId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::TouchMfaCredential {
+        writer::request(&self.writer, |reply| SessionsCommand::TouchMfaCredential {
             id,
             reply,
         })
@@ -1007,7 +1031,7 @@ impl Database {
         id: rd_core::MfaCredentialId,
         material_ref: String,
     ) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::RepointMfaMaterial {
+        writer::request(&self.writer, |reply| SessionsCommand::RepointMfaMaterial {
             id,
             material_ref,
             reply,
@@ -1020,7 +1044,7 @@ impl Database {
         &self,
         id: rd_core::MfaCredentialId,
     ) -> Result<Option<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteMfaCredential {
+        writer::request(&self.writer, |reply| SessionsCommand::DeleteMfaCredential {
             id,
             reply,
         })
@@ -1029,9 +1053,8 @@ impl Database {
 
     /// Issues a fresh set of recovery codes, invalidating whatever was there.
     pub async fn replace_recovery_codes(&self, digests: Vec<String>) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ReplaceRecoveryCodes {
-            digests,
-            reply,
+        writer::request(&self.writer, |reply| {
+            SessionsCommand::ReplaceRecoveryCodes { digests, reply }
         })
         .await
     }
@@ -1043,7 +1066,7 @@ impl Database {
 
     /// Spends one recovery code. Reports whether it was still unspent.
     pub async fn spend_recovery_code(&self, digest: String) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::SpendRecoveryCode {
+        writer::request(&self.writer, |reply| SessionsCommand::SpendRecoveryCode {
             digest,
             reply,
         })
@@ -1053,7 +1076,7 @@ impl Database {
     /// Removes every factor of one kind plus every recovery code, returning the vault
     /// references so the caller can delete the material behind them.
     pub async fn clear_mfa(&self, kind: rd_core::MfaKind) -> Result<Vec<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::ClearMfa {
+        writer::request(&self.writer, |reply| SessionsCommand::ClearMfa {
             kind,
             reply,
         })
@@ -1062,7 +1085,7 @@ impl Database {
 
     /// Revokes one capture connection without deleting its audit metadata.
     pub async fn revoke_capture_token(&self, id: rd_core::CaptureTokenId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::RevokeCaptureToken {
+        writer::request(&self.writer, |reply| SessionsCommand::RevokeCaptureToken {
             id,
             reply,
         })
@@ -1076,7 +1099,7 @@ impl Database {
         id: rd_core::StorageRootId,
         input: NewStorageRoot,
     ) -> Result<rd_core::StorageRootConfig> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateStorageRoot {
+        writer::request(&self.writer, |reply| ConfigCommand::CreateStorageRoot {
             id,
             input,
             reply,
@@ -1096,7 +1119,7 @@ impl Database {
 
     /// Adds a category mapped to one storage root and relative destination.
     pub async fn create_category(&self, input: NewCategory) -> Result<rd_core::Category> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateCategory {
+        writer::request(&self.writer, |reply| ConfigCommand::CreateCategory {
             input,
             reply,
         })
@@ -1113,7 +1136,7 @@ impl Database {
         &self,
         input: NewCategoryRule,
     ) -> Result<rd_core::CategoryRule> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateCategoryRule {
+        writer::request(&self.writer, |reply| ConfigCommand::CreateCategoryRule {
             input,
             reply,
         })
@@ -1127,7 +1150,7 @@ impl Database {
 
     /// Persists one daemon or capture-agent hotfolder.
     pub async fn create_hotfolder(&self, input: NewHotFolder) -> Result<rd_core::HotFolderConfig> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateHotFolder {
+        writer::request(&self.writer, |reply| ConfigCommand::CreateHotFolder {
             input,
             reply,
         })
@@ -1167,12 +1190,10 @@ impl Database {
         id: rd_core::DownloadId,
         selection: rd_core::AuthProfileSelection,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| {
-            WriterCommand::SetDownloadAuthProfile {
-                id,
-                selection,
-                reply,
-            }
+        writer::request(&self.writer, |reply| AuthCommand::SetDownloadAuthProfile {
+            id,
+            selection,
+            reply,
         })
         .await
     }
@@ -1181,7 +1202,7 @@ impl Database {
         &self,
         input: crate::auth_profile_store::NewAuthProfile,
     ) -> Result<rd_core::AuthProfile> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateAuthProfile {
+        writer::request(&self.writer, |reply| AuthCommand::CreateAuthProfile {
             input,
             reply,
         })
@@ -1195,7 +1216,7 @@ impl Database {
         id: rd_core::AuthProfileId,
         input: crate::auth_profile_store::UpdateAuthProfile,
     ) -> Result<(rd_core::AuthProfile, Vec<String>)> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateAuthProfile {
+        writer::request(&self.writer, |reply| AuthCommand::UpdateAuthProfile {
             id,
             input,
             reply,
@@ -1209,7 +1230,7 @@ impl Database {
         id: rd_core::AuthProfileId,
         enabled: bool,
     ) -> Result<rd_core::AuthProfile> {
-        writer::request(&self.writer, |reply| WriterCommand::SetAuthProfileEnabled {
+        writer::request(&self.writer, |reply| AuthCommand::SetAuthProfileEnabled {
             id,
             enabled,
             reply,
@@ -1219,7 +1240,7 @@ impl Database {
 
     /// Deletes a profile and returns the secret references it orphaned.
     pub async fn delete_auth_profile(&self, id: rd_core::AuthProfileId) -> Result<Vec<String>> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteAuthProfile {
+        writer::request(&self.writer, |reply| AuthCommand::DeleteAuthProfile {
             id,
             reply,
         })
@@ -1251,7 +1272,7 @@ impl Database {
         input: crate::remote_store::NewRemoteCredential,
     ) -> Result<rd_core::RemoteCredential> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::CreateRemoteCredential {
+            NetworkCommand::CreateRemoteCredential {
                 input: Box::new(input),
                 reply,
             }
@@ -1267,7 +1288,7 @@ impl Database {
         input: crate::remote_store::UpdateRemoteCredential,
     ) -> Result<(rd_core::RemoteCredential, Vec<String>)> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpdateRemoteCredential {
+            NetworkCommand::UpdateRemoteCredential {
                 id,
                 input: Box::new(input),
                 reply,
@@ -1282,7 +1303,7 @@ impl Database {
         id: rd_core::RemoteCredentialId,
     ) -> Result<Vec<String>> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteRemoteCredential { id, reply }
+            NetworkCommand::DeleteRemoteCredential { id, reply }
         })
         .await
     }
@@ -1306,7 +1327,7 @@ impl Database {
     /// Records a server key as trusted. Overwrites an existing entry, so the caller must
     /// have made a *changed* key an explicit decision before getting here.
     pub async fn trust_ssh_host_key(&self, key: rd_core::SshHostKey) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::TrustSshHostKey {
+        writer::request(&self.writer, |reply| NetworkCommand::TrustSshHostKey {
             key: Box::new(key),
             reply,
         })
@@ -1319,7 +1340,7 @@ impl Database {
         port: u16,
         algorithm: String,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ForgetSshHostKey {
+        writer::request(&self.writer, |reply| NetworkCommand::ForgetSshHostKey {
             host,
             port,
             algorithm,
@@ -1344,7 +1365,7 @@ impl Database {
         listing: rd_core::RemoteListing,
         credential_id: Option<rd_core::RemoteCredentialId>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetCandidateListing {
+        writer::request(&self.writer, |reply| NetworkCommand::SetCandidateListing {
             id,
             listing: Box::new(listing),
             credential_id,
@@ -1360,7 +1381,7 @@ impl Database {
         plan: rd_core::RemoteListingPlan,
     ) -> Result<rd_core::ResolvedRemoteListing> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateListingPlan { id, plan, reply }
+            NetworkCommand::SetCandidateListingPlan { id, plan, reply }
         })
         .await
     }
@@ -1369,7 +1390,7 @@ impl Database {
         &self,
         input: crate::stream_store::NewStreamChannel,
     ) -> Result<rd_core::StreamChannel> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateStreamChannel {
+        writer::request(&self.writer, |reply| StreamsCommand::CreateStreamChannel {
             input,
             reply,
         })
@@ -1381,7 +1402,7 @@ impl Database {
         id: rd_core::StreamChannelId,
         input: crate::stream_store::NewStreamChannel,
     ) -> Result<rd_core::StreamChannel> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateStreamChannel {
+        writer::request(&self.writer, |reply| StreamsCommand::UpdateStreamChannel {
             id,
             input,
             reply,
@@ -1390,7 +1411,7 @@ impl Database {
     }
 
     pub async fn delete_stream_channel(&self, id: rd_core::StreamChannelId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteStreamChannel {
+        writer::request(&self.writer, |reply| StreamsCommand::DeleteStreamChannel {
             id,
             reply,
         })
@@ -1404,7 +1425,7 @@ impl Database {
         live_at: Option<chrono::DateTime<chrono::Utc>>,
         error: Option<String>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::TouchStreamChannel {
+        writer::request(&self.writer, |reply| StreamsCommand::TouchStreamChannel {
             id,
             live_at,
             error,
@@ -1419,7 +1440,7 @@ impl Database {
         id: rd_core::StorageRootId,
         input: NewStorageRoot,
     ) -> Result<rd_core::StorageRootConfig> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateStorageRoot {
+        writer::request(&self.writer, |reply| ConfigCommand::UpdateStorageRoot {
             id,
             input,
             reply,
@@ -1429,7 +1450,7 @@ impl Database {
 
     /// Removes a storage root; fails while categories still point at it.
     pub async fn delete_storage_root(&self, id: rd_core::StorageRootId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteStorageRoot {
+        writer::request(&self.writer, |reply| ConfigCommand::DeleteStorageRoot {
             id,
             reply,
         })
@@ -1442,7 +1463,7 @@ impl Database {
         id: rd_core::CategoryId,
         input: NewCategory,
     ) -> Result<rd_core::Category> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateCategory {
+        writer::request(&self.writer, |reply| ConfigCommand::UpdateCategory {
             id,
             input,
             reply,
@@ -1452,7 +1473,7 @@ impl Database {
 
     /// Removes a category and its rules; fails while unfinished packages use it.
     pub async fn delete_category(&self, id: rd_core::CategoryId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteCategory {
+        writer::request(&self.writer, |reply| ConfigCommand::DeleteCategory {
             id,
             reply,
         })
@@ -1465,7 +1486,7 @@ impl Database {
         id: rd_core::CategoryRuleId,
         input: NewCategoryRule,
     ) -> Result<rd_core::CategoryRule> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateCategoryRule {
+        writer::request(&self.writer, |reply| ConfigCommand::UpdateCategoryRule {
             id,
             input,
             reply,
@@ -1475,7 +1496,7 @@ impl Database {
 
     /// Removes one category rule.
     pub async fn delete_category_rule(&self, id: rd_core::CategoryRuleId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteCategoryRule {
+        writer::request(&self.writer, |reply| ConfigCommand::DeleteCategoryRule {
             id,
             reply,
         })
@@ -1488,7 +1509,7 @@ impl Database {
         id: rd_core::HotFolderId,
         input: NewHotFolder,
     ) -> Result<rd_core::HotFolderConfig> {
-        writer::request(&self.writer, |reply| WriterCommand::UpdateHotFolder {
+        writer::request(&self.writer, |reply| ConfigCommand::UpdateHotFolder {
             id,
             input,
             reply,
@@ -1498,7 +1519,7 @@ impl Database {
 
     /// Removes one hotfolder; the caller stops its watcher.
     pub async fn delete_hotfolder(&self, id: rd_core::HotFolderId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteHotFolder {
+        writer::request(&self.writer, |reply| ConfigCommand::DeleteHotFolder {
             id,
             reply,
         })
@@ -1521,7 +1542,7 @@ impl Database {
         input: bandwidth_store::NewBandwidthProfile,
     ) -> Result<rd_limits::BandwidthProfile> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::CreateBandwidthProfile { input, reply }
+            BandwidthCommand::CreateBandwidthProfile { input, reply }
         })
         .await
     }
@@ -1532,14 +1553,14 @@ impl Database {
         input: bandwidth_store::NewBandwidthProfile,
     ) -> Result<rd_limits::BandwidthProfile> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpdateBandwidthProfile { id, input, reply }
+            BandwidthCommand::UpdateBandwidthProfile { id, input, reply }
         })
         .await
     }
 
     pub async fn delete_bandwidth_profile(&self, id: rd_core::BandwidthProfileId) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteBandwidthProfile { id, reply }
+            BandwidthCommand::DeleteBandwidthProfile { id, reply }
         })
         .await
     }
@@ -1550,7 +1571,7 @@ impl Database {
         windows: Vec<bandwidth_store::NewScheduleWindow>,
     ) -> Result<Vec<rd_limits::ScheduleWindow>> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ReplaceBandwidthWindows { windows, reply }
+            BandwidthCommand::ReplaceBandwidthWindows { windows, reply }
         })
         .await
     }
@@ -1564,10 +1585,12 @@ impl Database {
         profile_id: rd_core::BandwidthProfileId,
         state: rd_limits::BudgetState,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::StoreBandwidthBudget {
-            profile_id,
-            state,
-            reply,
+        writer::request(&self.writer, |reply| {
+            BandwidthCommand::StoreBandwidthBudget {
+                profile_id,
+                state,
+                reply,
+            }
         })
         .await
     }
@@ -1621,7 +1644,7 @@ impl Database {
         id: Option<rd_core::AutomationId>,
         input: automation_store::NewAutomation,
     ) -> Result<rd_automation::Automation> {
-        writer::request(&self.writer, |reply| WriterCommand::UpsertAutomation {
+        writer::request(&self.writer, |reply| NotifyCommand::UpsertAutomation {
             id,
             input,
             reply,
@@ -1634,7 +1657,7 @@ impl Database {
         id: rd_core::AutomationId,
         enabled: bool,
     ) -> Result<rd_automation::Automation> {
-        writer::request(&self.writer, |reply| WriterCommand::SetAutomationEnabled {
+        writer::request(&self.writer, |reply| NotifyCommand::SetAutomationEnabled {
             id,
             enabled,
             reply,
@@ -1643,7 +1666,7 @@ impl Database {
     }
 
     pub async fn delete_automation(&self, id: rd_core::AutomationId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::DeleteAutomation {
+        writer::request(&self.writer, |reply| NotifyCommand::DeleteAutomation {
             id,
             reply,
         })
@@ -1652,7 +1675,7 @@ impl Database {
 
     /// Queues a run; `false` means this event already produced one for this version.
     pub async fn queue_automation_run(&self, input: automation_store::NewRun) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::QueueAutomationRun {
+        writer::request(&self.writer, |reply| NotifyCommand::QueueAutomationRun {
             input,
             reply,
         })
@@ -1669,7 +1692,7 @@ impl Database {
         message: Option<String>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::RecordAutomationAttempt {
+            NotifyCommand::RecordAutomationAttempt {
                 id,
                 state,
                 action_index,
@@ -1684,7 +1707,7 @@ impl Database {
 
     /// Re-queues runs that were mid-flight when the service stopped.
     pub async fn recover_automation_runs(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::RecoverAutomationRuns {
+        writer::request(&self.writer, |reply| NotifyCommand::RecoverAutomationRuns {
             reply,
         })
         .await
@@ -1734,7 +1757,7 @@ impl Database {
         input: notify_store::NewNotificationTarget,
     ) -> Result<rd_notify::NotificationTarget> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpsertNotificationTarget { id, input, reply }
+            NotifyCommand::UpsertNotificationTarget { id, input, reply }
         })
         .await
     }
@@ -1745,7 +1768,7 @@ impl Database {
         id: rd_core::NotificationTargetId,
     ) -> Result<Option<String>> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteNotificationTarget { id, reply }
+            NotifyCommand::DeleteNotificationTarget { id, reply }
         })
         .await
     }
@@ -1756,14 +1779,14 @@ impl Database {
         input: notify_store::NewNotificationRule,
     ) -> Result<rd_notify::NotificationRule> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::UpsertNotificationRule { id, input, reply }
+            NotifyCommand::UpsertNotificationRule { id, input, reply }
         })
         .await
     }
 
     pub async fn delete_notification_rule(&self, id: rd_core::NotificationRuleId) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DeleteNotificationRule { id, reply }
+            NotifyCommand::DeleteNotificationRule { id, reply }
         })
         .await
     }
@@ -1774,7 +1797,7 @@ impl Database {
         input: notify_store::NewDelivery,
     ) -> Result<bool> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::QueueNotificationDelivery { input, reply }
+            NotifyCommand::QueueNotificationDelivery { input, reply }
         })
         .await
     }
@@ -1787,7 +1810,7 @@ impl Database {
         deliveries: Vec<notify_store::NewDelivery>,
     ) -> Result<u64> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::QueueNotificationNotice { deliveries, reply }
+            NotifyCommand::QueueNotificationNotice { deliveries, reply }
         })
         .await
     }
@@ -1802,7 +1825,7 @@ impl Database {
         response_excerpt: Option<String>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::RecordNotificationAttempt {
+            NotifyCommand::RecordNotificationAttempt {
                 id,
                 state,
                 attempt,
@@ -1819,7 +1842,7 @@ impl Database {
     /// or retrying stay: the worker owes them an attempt (RD-130-08).
     pub async fn clear_notification_deliveries(&self) -> Result<u64> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ClearNotificationDeliveries { reply }
+            NotifyCommand::ClearNotificationDeliveries { reply }
         })
         .await
     }
@@ -1828,7 +1851,7 @@ impl Database {
     /// reports how many went (RD-170-11). The finished history stays.
     pub async fn discard_pending_notification_deliveries(&self) -> Result<u64> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::DiscardPendingNotificationDeliveries { reply }
+            NotifyCommand::DiscardPendingNotificationDeliveries { reply }
         })
         .await
     }
@@ -1903,7 +1926,7 @@ impl Database {
         input: crate::subscription_store::NewSubscription,
     ) -> Result<rd_core::Subscription> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::CreateSubscription {
+            crate::commands::SubscriptionsCommand::CreateSubscription {
                 input: Box::new(input),
                 reply,
             }
@@ -1919,7 +1942,7 @@ impl Database {
         input: crate::subscription_store::NewSubscription,
     ) -> Result<(rd_core::Subscription, Option<String>)> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::UpdateSubscription {
+            crate::commands::SubscriptionsCommand::UpdateSubscription {
                 id,
                 input: Box::new(input),
                 reply,
@@ -1934,7 +1957,7 @@ impl Database {
         enabled: bool,
     ) -> Result<rd_core::Subscription> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetSubscriptionEnabled { id, enabled, reply }
+            crate::commands::SubscriptionsCommand::SetSubscriptionEnabled { id, enabled, reply }
         })
         .await
     }
@@ -1942,7 +1965,7 @@ impl Database {
     /// Deletes a subscription and its archive, returning its secret reference if it had one.
     pub async fn delete_subscription(&self, id: rd_core::SubscriptionId) -> Result<Option<String>> {
         let secret_ref = crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::DeleteSubscription { id, reply }
+            crate::commands::SubscriptionsCommand::DeleteSubscription { id, reply }
         })
         .await?;
         // The archive's passwords went with its rows (RD-190-04).
@@ -1957,7 +1980,7 @@ impl Database {
         items: Vec<crate::subscription_store::NewSubscriptionItem>,
     ) -> Result<Vec<rd_core::SubscriptionItem>> {
         let (created, passwords) = crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::RecordSubscriptionItems {
+            crate::commands::SubscriptionsCommand::RecordSubscriptionItems {
                 subscription_id,
                 items,
                 reply,
@@ -1988,7 +2011,7 @@ impl Database {
         state: rd_core::SubscriptionItemState,
     ) -> Result<()> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetSubscriptionItemState { id, state, reply }
+            crate::commands::SubscriptionsCommand::SetSubscriptionItemState { id, state, reply }
         })
         .await
     }
@@ -1999,7 +2022,11 @@ impl Database {
         state: rd_core::SubscriptionItemState,
     ) -> Result<u64> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetPendingSubscriptionItemsState { ids, state, reply }
+            crate::commands::SubscriptionsCommand::SetPendingSubscriptionItemsState {
+                ids,
+                state,
+                reply,
+            }
         })
         .await
     }
@@ -2009,7 +2036,7 @@ impl Database {
         id: rd_core::SubscriptionId,
     ) -> Result<rd_core::SubscriptionHistoryClearResponse> {
         let cleared = crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::ClearSubscriptionHistory { id, reply }
+            crate::commands::SubscriptionsCommand::ClearSubscriptionHistory { id, reply }
         })
         .await?;
         self.sweep_archive_passwords().await;
@@ -2025,7 +2052,7 @@ impl Database {
         next_run_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<bool> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::ArmSubscription {
+            crate::commands::SubscriptionsCommand::ArmSubscription {
                 id,
                 next_run_at,
                 reply,
@@ -2041,7 +2068,7 @@ impl Database {
         result: crate::subscription_store::PollResult,
     ) -> Result<()> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::FinishSubscriptionRun {
+            crate::commands::SubscriptionsCommand::FinishSubscriptionRun {
                 subscription_id,
                 started_at,
                 result: Box::new(result),
@@ -2057,7 +2084,7 @@ impl Database {
         state: rd_core::RecordingState,
     ) -> Result<()> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetDownloadRecordingState {
+            crate::commands::StreamsCommand::SetDownloadRecordingState {
                 id,
                 state: Box::new(state),
                 reply,
@@ -2094,7 +2121,7 @@ impl Database {
         input: crate::stream_schedule_store::NewStreamSchedule,
     ) -> Result<rd_core::StreamSchedule> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::CreateStreamSchedule {
+            crate::commands::StreamsCommand::CreateStreamSchedule {
                 input: Box::new(input),
                 reply,
             }
@@ -2108,7 +2135,7 @@ impl Database {
         input: crate::stream_schedule_store::NewStreamSchedule,
     ) -> Result<rd_core::StreamSchedule> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::UpdateStreamSchedule {
+            crate::commands::StreamsCommand::UpdateStreamSchedule {
                 id,
                 input: Box::new(input),
                 reply,
@@ -2119,7 +2146,7 @@ impl Database {
 
     pub async fn delete_stream_schedule(&self, id: rd_core::StreamScheduleId) -> Result<()> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::DeleteStreamSchedule { id, reply }
+            crate::commands::StreamsCommand::DeleteStreamSchedule { id, reply }
         })
         .await
     }
@@ -2132,7 +2159,7 @@ impl Database {
         occurrences: Vec<crate::stream_schedule_store::PlannedOccurrence>,
     ) -> Result<u32> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::PlanStreamRuns {
+            crate::commands::StreamsCommand::PlanStreamRuns {
                 schedule_id,
                 channel_id,
                 occurrences,
@@ -2151,7 +2178,7 @@ impl Database {
         error: Option<String>,
     ) -> Result<()> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::SetStreamRunState {
+            crate::commands::StreamsCommand::SetStreamRunState {
                 id,
                 state,
                 download_id,
@@ -2166,7 +2193,7 @@ impl Database {
     /// Marks open runs whose window closed before `cutoff` as missed.
     pub async fn expire_stream_runs(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<u32> {
         crate::writer::request(&self.writer, |reply| {
-            crate::commands::WriterCommand::ExpireStreamRuns { cutoff, reply }
+            crate::commands::StreamsCommand::ExpireStreamRuns { cutoff, reply }
         })
         .await
     }

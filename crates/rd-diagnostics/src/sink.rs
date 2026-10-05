@@ -1,5 +1,6 @@
 //! Drains the capture channel into the database and keeps the store within retention, together
-//! with the persisted events and the expired sessions (DB-09).
+//! with the persisted events and the expired sessions (DB-09) and the download history
+//! (RD-1100-04).
 //!
 //! Records are written in batches — one writer command per batch — so a chatty minute costs
 //! the serialized writer a handful of transactions rather than a thousand. The sweep reads the
@@ -12,7 +13,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use chrono::{Duration as ChronoDuration, Utc};
-use rd_core::{AuditRetentionSettings, LogRetentionSettings};
+use rd_core::{AuditRetentionSettings, HistoryRetentionSettings, LogRetentionSettings};
 use rd_db::{Database, NewLogRecord};
 use tokio::task::JoinHandle;
 
@@ -91,7 +92,8 @@ async fn flush(database: &Database, buffer: &mut Vec<NewLogRecord>) -> u64 {
     }
 }
 
-/// One retention sweep against the settings as they are now, for both stores.
+/// One retention sweep against the settings as they are now, for the log, the audit log and the
+/// download history.
 ///
 /// The audit log is swept here rather than in a task of its own: it shares the settings read
 /// and the writer, it needs the same "bounded batches with a yield between them" rule, and a
@@ -118,6 +120,30 @@ async fn sweep(database: &Database) {
     if let Err(error) = prune_audit(database, &audit).await {
         tracing::warn!(%error, "audit retention sweep failed");
     }
+    let history: HistoryRetentionSettings = match database.service_settings_or_default().await {
+        Ok(settings) => settings,
+        Err(error) => {
+            tracing::warn!(%error, "could not read download history retention settings");
+            return;
+        }
+    };
+    if let Err(error) = prune_download_history(database, &history).await {
+        tracing::warn!(%error, "download history retention sweep failed");
+    }
+}
+
+/// Applies the download history's retention (RD-1100-04). Returns the entries removed.
+///
+/// One writer command: the history holds at most the retention's cap of small rows, so there
+/// is no backlog to work off in steps.
+pub async fn prune_download_history(
+    database: &Database,
+    settings: &HistoryRetentionSettings,
+) -> Result<u64> {
+    let older_than = Utc::now() - ChronoDuration::days(i64::from(settings.history_retention_days));
+    database
+        .prune_download_history(u64::from(settings.history_retention_entries), older_than)
+        .await
 }
 
 /// The two tables nothing else keeps small while the service runs (DB-09): persisted events

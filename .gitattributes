@@ -25,3 +25,11 @@
 *.rdplug binary
 *.torrent binary
 *.dlc binary
+
+# Merge drivers (RD-1100-13). CHANGELOG.md: both sides' lines, which is what two branches adding
+# entries under [Unreleased] mean — git's built-in union, nothing to register. The other two are
+# scripts/lib/merge-drivers/, registered by scripts/integrate.sh; without that registration git
+# merges them as text.
+CHANGELOG.md merge=union
+crates/rd-db/migrations.sha384 merge=rd-pins
+web/src/locales/**/*.json merge=rd-json

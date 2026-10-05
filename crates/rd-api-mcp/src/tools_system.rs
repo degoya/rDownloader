@@ -25,7 +25,8 @@ use super::{
     error::{McpToolResult, parse_id, respond},
     params_handling::{
         IdBodyParams, MalwareScannerTestParams, ManageAction, ManageToolParams, ManagedToolsParams,
-        ManagedToolsView, PostprocessOptions, PostprocessOptionsParams, StorageTargetParams, body,
+        ManagedToolsView, PostprocessOptions, PostprocessOptionsParams, SortPreviewParams,
+        StorageTargetParams, body,
     },
 };
 use crate::{
@@ -96,7 +97,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change only the post-processing of one category (id from list_configuration section categories). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote. Names come from list_postprocess_options."
+        description = "Change only the post-processing of one category (id from list_configuration section categories, which also shows the current values). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote, sorting. Every field is replaced, so pass the current values of the ones you keep. `sorting` is {series, dated, movie}: the sort and rename templates for finished series episodes, dated episodes and films (null = no sorting); try them first with preview_category_sorting. Names come from list_postprocess_options."
     )]
     pub async fn update_category_postprocess(
         &self,
@@ -115,6 +116,27 @@ impl RdMcpServer {
         }
         .await;
         respond(result)
+    }
+
+    #[tool(
+        description = "Preview sort and rename templates on example names before saving them with update_category_postprocess (body.sorting). For each name: what it was recognised as (series: S01E02 / 1x02, multi-episode S01E01E02; dated: 2024.03.15; movie: title and year), the template fields, and the path below the category's folder; a name not recognised, or of a kind without a template, stays where it is. Syntax: {field} or {field:format}, formats 00/000 (pad a number), lower, upper, dots; `/` separates folders, the last part is the file name without extension. Fields: series show, season, episode, title, year, resolution, source; dated show, date, year, month, day, title, resolution, source; movie movie, year, resolution, source. Nothing is saved or moved."
+    )]
+    pub async fn preview_category_sorting(
+        &self,
+        Parameters(params): Parameters<SortPreviewParams>,
+    ) -> McpToolResult {
+        respond(
+            postprocess::preview_category_sorting(Json(crate::dto::SortPreviewRequest {
+                sorting: rd_core::SortTemplates {
+                    series: params.series,
+                    dated: params.dated,
+                    movie: params.movie,
+                },
+                names: params.names,
+            }))
+            .await
+            .map(|Json(answer)| answer),
+        )
     }
 
     #[tool(

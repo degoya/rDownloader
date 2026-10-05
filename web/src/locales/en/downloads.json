@@ -235,7 +235,11 @@
     "script_inherit": "Inherit",
     "password_placeholder": "No password",
     "rename_folder": "Rename the folder too",
-    "rename_folder_hint": "Moves the files on disk. A folder of that name that already exists is refused."
+    "rename_folder_hint": "Moves the files on disk. A folder of that name that already exists is refused.",
+    "speed_limit": "Speed limit for this package",
+    "speed_limit_hint": "Empty = no limit of its own. The global and the profile limits still apply; the strictest wins.",
+    "speed_limit_unsupported": "A package holding a torrent takes no limit of its own: the torrent engine cannot limit a single torrent.",
+    "speed_limit_aria": "Package speed limit in MiB/s"
   },
   "postprocess": {
     "loading": "Loading post-processing …",
@@ -254,7 +258,8 @@
       "plugin_step": "Plugin step",
       "script": "Script",
       "upload": "Upload",
-      "malware_scan": "Malware scan"
+      "malware_scan": "Malware scan",
+      "sort": "Sort"
     },
     "states": {
       "queued": "waiting",
@@ -279,7 +284,8 @@
       "deleting_archives": "Deleting archives",
       "cleaning": "Cleaning up",
       "script": "Running script",
-      "scanning": "Scanning for malware"
+      "scanning": "Scanning for malware",
+      "sorting": "Sorting"
     },
     "queue": {
       "title": "Post-processing",

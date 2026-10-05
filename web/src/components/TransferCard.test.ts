@@ -16,7 +16,10 @@ import { mountComponent } from '@/test/mount'
 
 import TransferCard from './TransferCard.vue'
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => ({
+  useToast: () => ({ add: vi.fn() }),
+  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(null) }) }) })
+}))
 vi.mock('@/api/client', () => ({
   api: { GET: vi.fn(async () => ({ data: [] })) },
   responseError: () => 'failed'
@@ -241,5 +244,32 @@ describe('TransferCard next attempt', () => {
     failed.unmount()
     const queued = card('queued', inAnHour)
     expect(queued.queryByTestId('next-attempt')).toBeNull()
+  })
+})
+
+/** Recheck and change location (RD-1100-10): torrents only, and a move only where no runner writes. */
+describe('TransferCard torrent data actions', () => {
+  const labels = (download: Record<string, unknown>): string[] =>
+    itemsFor({ kind: 'torrent', source: 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567', ...download })
+      .items.map(item => item.label)
+
+  it('offers a recheck and a move to a seed and to a paused torrent', () => {
+    for (const state of ['seeding', 'paused'] as const) {
+      expect(labels({ state })).toContain(torrent.actions.recheck)
+      expect(labels({ state })).toContain(torrent.actions.move)
+    }
+  })
+
+  it('rechecks a running torrent but does not move it', () => {
+    expect(labels({ state: 'downloading' })).toContain(torrent.actions.recheck)
+    expect(labels({ state: 'downloading' })).not.toContain(torrent.actions.move)
+  })
+
+  it('offers neither for a finished torrent or a download that is no torrent', () => {
+    expect(labels({ state: 'completed' })).not.toContain(torrent.actions.recheck)
+    expect(labels({ state: 'completed' })).not.toContain(torrent.actions.move)
+    const plain = itemsFor({ state: 'paused' }).items.map(item => item.label)
+    expect(plain).not.toContain(torrent.actions.recheck)
+    expect(plain).not.toContain(torrent.actions.move)
   })
 })

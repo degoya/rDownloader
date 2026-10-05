@@ -452,3 +452,100 @@ describe('IndexerSearchPanel list styles', () => {
     expect(document.querySelector('img')).toBeNull()
   })
 })
+
+/**
+ * RD-1100-03: a Torznab hit shows itself as a torrent with its swarm and goes to the grab with its
+ * magnet; a TV or film search asks the indexers' caps first, goes only to those that answer it,
+ * with the ids they take, and goes nowhere when none does.
+ */
+describe('IndexerSearchPanel torrents and typed searches', () => {
+  const TORRENT_HIT = {
+    indexer_id: 'idx-1', indexer_name: 'Omg', title: 'Some.Show.S01E02', kind: 'torrent', passworded: false,
+    download: 'http://jackett.test/dl?jackett_apikey=rdownloader-indexer-key&file=a',
+    magnet: 'magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567', seeders: 42, leechers: 8
+  }
+  const CAPS = { categories: [], searching: ['search', 'tv-search'], supported_params: { 'tv-search': ['q', 'season', 'ep'] } }
+  const OUTCOME = { indexer_id: 'idx-1', indexer_name: 'Omg', returned: 1, more: false }
+
+  beforeEach(() => answerIndexers([ENABLED, DISABLED]))
+
+  it('marks a torrent hit with its swarm and grabs it with its magnet into the LinkGrabber', async () => {
+    post.mockImplementation((path: string) => Promise.resolve(path === '/api/v1/indexers/search'
+      ? { data: { hits: [TORRENT_HIT], indexers: [OUTCOME] } }
+      : { data: { imports: [], torrents: [{ id: 'pkg-1', name: 'Some.Show.S01E02' }], failed: [] } }))
+    mount()
+    await ready()
+    await fireEvent.click(await screen.findByTestId('indexer-search-submit'))
+    await screen.findByText('Some.Show.S01E02')
+
+    expect(screen.getByTestId('indexer-search-hit-torrent')).toBeTruthy()
+    const swarm = screen.getByTestId('indexer-search-hit-swarm')
+    expect(swarm.textContent).toContain('42')
+    expect(swarm.textContent).toContain('8')
+    await fireEvent.click(screen.getByTestId('indexer-search-grab-one'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/indexers/grab', {
+      body: { items: [{ indexer_id: 'idx-1', download: TORRENT_HIT.download, title: 'Some.Show.S01E02', magnet: TORRENT_HIT.magnet }] }
+    }))
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/collector/packages'))
+    expect(toasts).toHaveBeenCalledWith(expect.objectContaining({ color: 'success', icon: 'i-lucide-magnet' }))
+  })
+
+  it('sends a TV search with its ids only to the indexers whose caps answer it', async () => {
+    post.mockImplementation((path: string) => Promise.resolve(path === '/api/v1/indexers/{id}/caps'
+      ? { data: CAPS }
+      : { data: { hits: [], indexers: [OUTCOME] } }))
+    mount()
+    await ready()
+    expect(screen.queryByTestId('indexer-search-ids')).toBeNull()
+    await fireEvent.update(screen.getByTestId('indexer-search-type'), 'tv')
+    // Until the caps are in, every id of the type is offered.
+    expect(screen.getByTestId('indexer-search-id-tvdbid')).toBeTruthy()
+    await fireEvent.update(screen.getByTestId('indexer-search-id-season'), '1')
+    await fireEvent.update(screen.getByTestId('indexer-search-id-ep'), '2')
+    await fireEvent.click(screen.getByTestId('indexer-search-submit'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/indexers/search', expect.anything()))
+
+    expect(post).toHaveBeenCalledWith('/api/v1/indexers/{id}/caps', { params: { path: { id: 'idx-1' } } })
+    expect(post).toHaveBeenLastCalledWith('/api/v1/indexers/search', {
+      body: {
+        indexer_ids: ['idx-1'],
+        query: null,
+        categories: [],
+        max_age_days: null,
+        hide_passworded: false,
+        limit: 100,
+        offset: 0,
+        search_type: 'tv',
+        season: 1,
+        episode: 2
+      }
+    })
+    // Now that the indexer has said what it takes, only those ids are left.
+    expect(screen.queryByTestId('indexer-search-id-tvdbid')).toBeNull()
+  })
+
+  it('refuses an id that is none before anything is sent', async () => {
+    mount()
+    await ready()
+    await fireEvent.update(screen.getByTestId('indexer-search-type'), 'movie')
+    await fireEvent.update(screen.getByTestId('indexer-search-id-imdbid'), 'nm0000206')
+    await fireEvent.click(screen.getByTestId('indexer-search-submit'))
+    await settle()
+
+    expect(screen.getByTestId('indexer-search-ids-error')).toBeTruthy()
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('sends nothing when no chosen indexer answers the type', async () => {
+    post.mockImplementation((path: string) => Promise.resolve(path === '/api/v1/indexers/{id}/caps'
+      ? { data: { categories: [], searching: ['search'] } }
+      : { data: { hits: [], indexers: [] } }))
+    mount()
+    await ready()
+    await fireEvent.update(screen.getByTestId('indexer-search-type'), 'movie')
+    await fireEvent.click(screen.getByTestId('indexer-search-submit'))
+    await waitFor(() => expect(screen.getByText(linkgrabber.search.type_unsupported, { selector: 'div' })).toBeTruthy())
+
+    expect(post).not.toHaveBeenCalledWith('/api/v1/indexers/search', expect.anything())
+  })
+})

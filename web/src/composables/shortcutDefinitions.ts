@@ -182,9 +182,14 @@ function importFiles(): void {
  *
  * The sidebar toggle is `b`, not a digit: it was `0` while the digits stopped at `7`, and `0`
  * now belongs to Settings as the last item in the list.
+ *
+ * The download history (RD-1100-04) came as an eleventh entry, right below Downloads, and takes
+ * `h`: every view keeps the digit people already learned, and the list still reads in sidebar
+ * order.
  */
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: '1', labelKeys: ['1'], descriptionKey: 'common.shortcuts.go_downloads', group: 'navigation', handler: guarded(goTo('/downloads')) },
+  { keys: 'h', labelKeys: ['h'], descriptionKey: 'common.shortcuts.go_history', group: 'navigation', handler: guarded(goTo('/history')) },
   { keys: '2', labelKeys: ['2'], descriptionKey: 'common.shortcuts.go_linkgrabber', group: 'navigation', handler: guarded(goTo('/linkgrabber')) },
   { keys: '3', labelKeys: ['3'], descriptionKey: 'common.shortcuts.go_streams', group: 'navigation', handler: guarded(goTo('/streams')) },
   { keys: '4', labelKeys: ['4'], descriptionKey: 'common.shortcuts.go_subscriptions', group: 'navigation', handler: guarded(goTo('/subscriptions')) },

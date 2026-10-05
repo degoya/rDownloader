@@ -94,6 +94,8 @@ pub enum PostprocessStage {
     PluginStep,
     Script,
     Uploading,
+    /// Series and films are moved and renamed by the category's templates (RD-1100-08).
+    Sorting,
 }
 
 impl fmt::Display for PostprocessStage {

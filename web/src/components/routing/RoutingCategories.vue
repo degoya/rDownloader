@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage, responseError } from '@/api/client'
 import { listCollisionPolicies, setCategoryCollisionPolicy, type CollisionPolicy } from '@/api/storage'
-import type { Category, CreateCategory, PostprocessLevel, StorageRoot } from '@/api/types'
+import type { Category, CreateCategory, SortTemplates, StorageRoot } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import RoutingCategoryRow from '@/components/routing/RoutingCategoryRow.vue'
+import RoutingCategorySorting from '@/components/routing/RoutingCategorySorting.vue'
+import {
+  categoryPostprocessBody, sortingBody, sortingForm, useCategoryForm, type SortingForm
+} from '@/composables/useCategoryForm'
+import { useCategoryGroups } from '@/composables/useCategoryGroups'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { usePostprocessStore } from '@/stores/postprocess'
-import { INHERIT_LEVEL, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
 import { categoryCopyBody, seedingRequest } from '@/utils/categoryCopy'
-import { groupByRoot } from '@/utils/categoryGroups'
 import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 import { translateServerMessage } from '@/i18n/server'
@@ -59,6 +62,14 @@ const pluginStepIds = ref<string[]>([])
  */
 const collisionPolicy = ref<CollisionPolicy | null>(null)
 const collisionPolicies = ref<Record<string, CollisionPolicy>>({})
+/**
+ * The sort templates (RD-1100-08). They ride the post-processing endpoint like the plugin steps,
+ * after the category is saved; `sortingStored` is what the category had when it was opened, so a
+ * category whose sorting is switched off is sent the `null` that clears it.
+ */
+const sortingOn = ref(false)
+const sorting = ref<SortingForm>(sortingForm(null))
+const sortingStored = ref<SortTemplates | null>(null)
 
 async function loadCollisionPolicies(): Promise<void> {
   const answer = await listCollisionPolicies()
@@ -66,106 +77,14 @@ async function loadCollisionPolicies(): Promise<void> {
 }
 /** What the service takes as a category colour; the hex field holds to it (RA-WEB-02). */
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
-const form = reactive<CreateCategory>({
-  name: '',
-  color: '#38BDF8',
-  storage_root_id: '',
-  relative_path: '',
-  is_default: false,
-  postprocess_level: null,
-  script: null,
-  cleanup_extensions: null,
-  recursive_unpack: null,
-  unpack_to_subfolder: null,
-  malware_scan: null,
-  sfv_verify: null,
-  safe_postproc: null,
-  delete_par2: null,
-  upload_enabled: null,
-  upload_remote: null
-})
+const {
+  form, levelItems, scriptItems, level, script, uploadItems, upload, uploadRemote,
+  recursiveItems, recursiveUnpack, subfolderItems, unpackToSubfolder, directUnpackItems, directUnpack,
+  malwareScanItems, malwareScan,
+  sfvItems, sfvVerify, safePostprocItems, safePostproc, deletePar2Items, deletePar2, clear, fill
+} = useCategoryForm()
 
 const rootItems = computed(() => props.roots.map(root => ({ label: `${root.name} · ${root.path}`, value: root.id })))
-const levelItems = computed(() => postprocessLevelItems())
-const scriptItems = computed(() => [
-  { label: t('routing.category.script_inherit'), value: INHERIT_LEVEL },
-  ...postprocess.scripts.map(script => ({ label: script, value: script }))
-])
-const level = computed({
-  get: () => form.postprocess_level ?? INHERIT_LEVEL,
-  set: (value: string) => { form.postprocess_level = value === INHERIT_LEVEL ? null : value as PostprocessLevel }
-})
-const script = computed({
-  get: () => form.script ?? INHERIT_LEVEL,
-  set: (value: string) => { form.script = value === INHERIT_LEVEL ? null : value }
-})
-const uploadItems = computed(() => [
-  { label: t('routing.category.upload_inherit'), value: INHERIT_LEVEL },
-  { label: t('routing.category.upload_on'), value: 'on' },
-  { label: t('routing.category.upload_off'), value: 'off' }
-])
-const upload = computed({
-  get: () => form.upload_enabled == null ? INHERIT_LEVEL : (form.upload_enabled ? 'on' : 'off'),
-  set: (value: string) => { form.upload_enabled = value === INHERIT_LEVEL ? null : value === 'on' }
-})
-const uploadRemote = computed({
-  get: () => form.upload_remote ?? '',
-  set: (value: string) => { form.upload_remote = value.trim() ? value : null }
-})
-const recursiveItems = computed(() => [
-  { label: t('routing.category.recursive_inherit'), value: INHERIT_LEVEL },
-  { label: t('routing.category.recursive_on'), value: 'on' },
-  { label: t('routing.category.recursive_off'), value: 'off' }
-])
-const recursiveUnpack = computed({
-  get: () => form.recursive_unpack == null ? INHERIT_LEVEL : (form.recursive_unpack ? 'on' : 'off'),
-  set: (value: string) => { form.recursive_unpack = value === INHERIT_LEVEL ? null : value === 'on' }
-})
-const subfolderItems = computed(() => [
-  { label: t('routing.category.subfolder_inherit'), value: INHERIT_LEVEL },
-  { label: t('routing.category.subfolder_on'), value: 'on' },
-  { label: t('routing.category.subfolder_off'), value: 'off' }
-])
-const unpackToSubfolder = computed({
-  get: () => form.unpack_to_subfolder == null ? INHERIT_LEVEL : (form.unpack_to_subfolder ? 'on' : 'off'),
-  set: (value: string) => { form.unpack_to_subfolder = value === INHERIT_LEVEL ? null : value === 'on' }
-})
-const malwareScanItems = computed(() => [
-  { label: t('routing.category.malware_scan_inherit'), value: INHERIT_LEVEL },
-  { label: t('routing.category.malware_scan_on'), value: 'on' },
-  { label: t('routing.category.malware_scan_off'), value: 'off' }
-])
-const malwareScan = computed({
-  get: () => form.malware_scan == null ? INHERIT_LEVEL : (form.malware_scan ? 'on' : 'off'),
-  set: (value: string) => { form.malware_scan = value === INHERIT_LEVEL ? null : value === 'on' }
-})
-const sfvItems = computed(() => [
-  { label: t('routing.category.sfv_inherit'), value: INHERIT_LEVEL },
-  { label: t('routing.category.sfv_on'), value: 'on' },
-  { label: t('routing.category.sfv_off'), value: 'off' }
-])
-const sfvVerify = computed({
-  get: () => form.sfv_verify == null ? INHERIT_LEVEL : (form.sfv_verify ? 'on' : 'off'),
-  set: (value: string) => { form.sfv_verify = value === INHERIT_LEVEL ? null : value === 'on' }
-})
-const safePostprocItems = computed(() => [
-  { label: t('routing.category.safe_postproc_inherit'), value: INHERIT_LEVEL },
-  { label: t('routing.category.safe_postproc_on'), value: 'on' },
-  { label: t('routing.category.safe_postproc_off'), value: 'off' }
-])
-const safePostproc = computed({
-  get: () => form.safe_postproc == null ? INHERIT_LEVEL : (form.safe_postproc ? 'on' : 'off'),
-  set: (value: string) => { form.safe_postproc = value === INHERIT_LEVEL ? null : value === 'on' }
-})
-const deletePar2Items = computed(() => [
-  { label: t('routing.category.delete_par2_inherit'), value: INHERIT_LEVEL },
-  { label: t('routing.category.delete_par2_on'), value: 'on' },
-  { label: t('routing.category.delete_par2_off'), value: 'off' }
-])
-const deletePar2 = computed({
-  get: () => form.delete_par2 == null ? INHERIT_LEVEL : (form.delete_par2 ? 'on' : 'off'),
-  set: (value: string) => { form.delete_par2 = value === INHERIT_LEVEL ? null : value === 'on' }
-})
 
 onMounted(() => {
   void loadCollisionPolicies()
@@ -209,41 +128,7 @@ function location(category: Category): string {
   return `${rootName(category.storage_root_id)} / ${category.relative_path || '.'}`
 }
 
-/**
- * The list grouped by storage root, one accordion section per root that holds a category, in the
- * order of the roots (RD-150-13). A root without categories has no section — a control that
- * opens onto nothing is not rendered (`design.md`) — and while every category lies on one root
- * the list stays flat, because a single section would be a click that shows what was there.
- */
-const groups = computed(() => groupByRoot(categories.value, props.roots))
-const grouped = computed(() => groups.value.length > 1)
-const sections = computed(() => groups.value.map(group => ({
-  value: group.rootId,
-  label: group.root?.name ?? t('routing.category.root_unknown'),
-  path: group.root?.path ?? '',
-  count: group.categories.length,
-  hasDefault: group.categories.some(category => category.is_default),
-  categories: group.categories
-})))
-/**
- * Every section starts open: the list reads as before, only with headings, and a reader closes
- * what is in the way. Decided without the running interface at hand (RD-150-13 leaves "all, or
- * only the default root with many categories" to a look at it); the section of the category
- * being edited, created or copied is opened whatever the reader had closed.
- */
-const openRoots = ref<string[]>([])
-const seenRoots = new Set<string>()
-watch(() => groups.value.map(group => group.rootId), (ids) => {
-  const fresh = ids.filter(id => !seenRoots.has(id))
-  fresh.forEach(id => seenRoots.add(id))
-  if (fresh.length) openRoots.value = [...openRoots.value, ...fresh]
-}, { immediate: true })
-
-function openRootOf(category: Category): void {
-  if (!openRoots.value.includes(category.storage_root_id)) {
-    openRoots.value = [...openRoots.value, category.storage_root_id]
-  }
-}
+const { grouped, sections, openRoots, openRootOf } = useCategoryGroups(categories, () => props.roots)
 
 /** The backend keeps a single default; mirror that locally instead of refetching. */
 function applyDefault(list: Category[], saved: Category): Category[] {
@@ -261,24 +146,13 @@ const list = useEditableList<Category, CreateCategory>({
   update: (id, body) => api.PUT('/api/v1/categories/{id}', { params: { path: { id } }, body }),
   destroy: id => api.DELETE('/api/v1/categories/{id}', { params: { path: { id } } }),
   reset: () => {
-    form.name = ''
-    form.color = '#38BDF8'
-    form.storage_root_id = props.roots[0]?.id ?? ''
-    form.relative_path = ''
-    form.is_default = false
-    form.postprocess_level = null
-    form.script = null
-    form.recursive_unpack = null
-    form.unpack_to_subfolder = null
-    form.malware_scan = null
-    form.sfv_verify = null
-    form.safe_postproc = null
-    form.delete_par2 = null
-    form.upload_enabled = null
-    form.upload_remote = null
+    clear(props.roots[0]?.id ?? '')
     cleanupOverride.value = false
     cleanupExtensions.value = []
     collisionPolicy.value = null
+    sortingOn.value = false
+    sorting.value = sortingForm(null)
+    sortingStored.value = null
   },
   confirmDelete: category => ({
     title: t('routing.category.delete_title'),
@@ -290,24 +164,23 @@ const list = useEditableList<Category, CreateCategory>({
 })
 const { editingId, pending, error } = list
 
-async function savePluginSteps(category: Category): Promise<Category | null> {
-  if (!postprocess.pluginSteps.length) return null
+/**
+ * Sends the plugin-step override and the sort templates, and only when there is something to
+ * send: the endpoint replaces every post-processing field it carries, so the rest of them are
+ * passed back unchanged rather than reset. The plugin steps follow an update only, as before;
+ * the templates follow a create too, which has only just produced the id they need.
+ */
+async function savePostprocessExtras(
+  category: Category,
+  updating: boolean,
+  templates: SortTemplates | null,
+  stored: SortTemplates | null
+): Promise<Category | null> {
+  const steps = updating && postprocess.pluginSteps.length > 0
+  if (!steps && templates === null && stored === null) return null
   const response = await api.PATCH('/api/v1/categories/{id}/postprocess', {
     params: { path: { id: category.id } },
-    body: {
-      postprocess_level: category.postprocess_level ?? null,
-      script: category.script ?? null,
-      cleanup_extensions: category.cleanup_extensions ?? null,
-      recursive_unpack: category.recursive_unpack ?? null,
-      unpack_to_subfolder: category.unpack_to_subfolder ?? null,
-      malware_scan: category.malware_scan ?? null,
-      sfv_verify: category.sfv_verify ?? null,
-      safe_postproc: category.safe_postproc ?? null,
-      delete_par2: category.delete_par2 ?? null,
-      plugin_steps: pluginStepsOverride.value ? [...pluginStepIds.value] : null,
-      upload_enabled: category.upload_enabled ?? null,
-      upload_remote: category.upload_remote ?? null
-    }
+    body: categoryPostprocessBody(category, updating && pluginStepsOverride.value ? [...pluginStepIds.value] : null, templates)
   })
   if (!response.data) {
     error.value = responseError(response)
@@ -325,14 +198,17 @@ function toggleCategoryStep(pluginId: string, enabled: boolean): void {
 async function submit(): Promise<void> {
   message.value = null
   const updating = editingId.value !== null
+  // Read before the save: a successful one empties the form.
+  const templates = sortingOn.value ? sortingBody(sorting.value) : null
+  const stored = sortingStored.value
   const saved = await list.submit({
     ...form,
     cleanup_extensions: cleanupOverride.value ? [...cleanupExtensions.value] : null
   })
   if (!saved) return
-  // The plugin steps ride a second endpoint, which needs an id the create call has only just
-  // produced — so they follow an update and are left to the next save on a create, as before.
-  const withSteps = updating ? await savePluginSteps(saved) : null
+  // The plugin steps and the sort templates ride a second endpoint, which needs an id the create
+  // call has only just produced.
+  const withSteps = await savePostprocessExtras(saved, updating, templates, stored)
   const current = withSteps ?? saved
   if ((collisionPolicies.value[current.id] ?? null) !== collisionPolicy.value) {
     const answer = await setCategoryCollisionPolicy(current.id, collisionPolicy.value)
@@ -350,25 +226,14 @@ async function submit(): Promise<void> {
 function edit(category: Category): void {
   message.value = null
   list.edit(category)
-  form.name = category.name
-  form.color = category.color
-  form.storage_root_id = category.storage_root_id
-  form.relative_path = category.relative_path
-  form.is_default = category.is_default
-  form.postprocess_level = category.postprocess_level ?? null
-  form.script = category.script ?? null
-  form.recursive_unpack = category.recursive_unpack ?? null
-  form.unpack_to_subfolder = category.unpack_to_subfolder ?? null
-  form.malware_scan = category.malware_scan ?? null
-  form.sfv_verify = category.sfv_verify ?? null
-  form.safe_postproc = category.safe_postproc ?? null
-  form.delete_par2 = category.delete_par2 ?? null
-  form.upload_enabled = category.upload_enabled ?? null
-  form.upload_remote = category.upload_remote ?? null
+  fill(category)
   cleanupOverride.value = Boolean(category.cleanup_extensions)
   cleanupExtensions.value = [...(category.cleanup_extensions ?? [])]
   pluginStepsOverride.value = Boolean(category.plugin_steps)
   pluginStepIds.value = [...(category.plugin_steps ?? [])]
+  sortingOn.value = Boolean(category.sorting)
+  sorting.value = sortingForm(category.sorting)
+  sortingStored.value = category.sorting ?? null
   openRootOf(category)
   collisionPolicy.value = collisionPolicies.value[category.id] ?? null
   void focusForm()
@@ -377,8 +242,8 @@ function edit(category: Category): void {
 /**
  * Copies a category and opens the copy in the form (RD-150-12).
  *
- * The copy takes every setting — root, path, post-processing, upload, cleanup, the plugin steps
- * and the seeding override — through the routes that set them: the create route, then the
+ * The copy takes every setting — root, path, post-processing, upload, cleanup, the plugin steps,
+ * the sort templates and the seeding override — through the routes that set them: the create route, then the
  * post-processing and seeding routes, which the create route does not cover. What hangs on a
  * relation stays with the original: the default mark, and the rules that point at it.
  */
@@ -394,23 +259,10 @@ async function duplicate(category: Category): Promise<void> {
     return
   }
   let copy: Category = created.data
-  if (category.plugin_steps) {
+  if (category.plugin_steps || category.sorting) {
     const steps = await api.PATCH('/api/v1/categories/{id}/postprocess', {
       params: { path: { id: copy.id } },
-      body: {
-        postprocess_level: copy.postprocess_level ?? null,
-        script: copy.script ?? null,
-        cleanup_extensions: copy.cleanup_extensions ?? null,
-        recursive_unpack: copy.recursive_unpack ?? null,
-        unpack_to_subfolder: copy.unpack_to_subfolder ?? null,
-        malware_scan: copy.malware_scan ?? null,
-        sfv_verify: copy.sfv_verify ?? null,
-        safe_postproc: copy.safe_postproc ?? null,
-        delete_par2: copy.delete_par2 ?? null,
-        plugin_steps: [...category.plugin_steps],
-        upload_enabled: copy.upload_enabled ?? null,
-        upload_remote: copy.upload_remote ?? null
-      }
+      body: categoryPostprocessBody(copy, category.plugin_steps ? [...category.plugin_steps] : null, category.sorting ?? null)
     })
     if (steps.data) copy = steps.data
     else error.value = responseError(steps)
@@ -520,6 +372,9 @@ async function remove(category: Category): Promise<void> {
           <UFormField :label="t('routing.category.subfolder_label')" :description="t('routing.category.subfolder_description')">
             <USelect v-model="unpackToSubfolder" :items="subfolderItems" value-key="value" icon="i-lucide-folder-tree" class="w-full" />
           </UFormField>
+          <UFormField :label="t('routing.category.direct_unpack_label')" :description="t('routing.category.direct_unpack_description')">
+            <USelect v-model="directUnpack" :items="directUnpackItems" value-key="value" icon="i-lucide-package-open" class="w-full" data-testid="category-direct-unpack" />
+          </UFormField>
           <UFormField :label="t('routing.category.malware_scan_label')" :description="t('routing.category.malware_scan_description')">
             <USelect v-model="malwareScan" :items="malwareScanItems" value-key="value" icon="i-lucide-shield-check" class="w-full" data-testid="category-malware-scan" />
           </UFormField>
@@ -549,6 +404,14 @@ async function remove(category: Category): Promise<void> {
             <UInputTags v-model="cleanupExtensions" icon="i-lucide-broom" add-on-blur add-on-paste delimiter="," class="w-full font-mono" :placeholder="t('routing.category.cleanup_placeholder')" />
           </UFormField>
           <p v-else class="text-xs leading-5 text-muted">{{ t('routing.category.cleanup_inherit_hint') }}</p>
+          <UFormField
+            orientation="horizontal"
+            :label="t('routing.category.sorting_title')"
+            :description="t('routing.category.sorting_description')"
+          >
+            <USwitch v-model="sortingOn" :aria-label="t('routing.category.sorting_title')" data-testid="category-sorting-switch" />
+          </UFormField>
+          <RoutingCategorySorting v-if="sortingOn" v-model="sorting" />
           <template v-if="postprocess.pluginSteps.length">
             <UFormField
               orientation="horizontal"

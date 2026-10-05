@@ -1,3 +1,4 @@
+use super::checks::{host_covered, validate_domain_pattern};
 use super::*;
 
 /// A manifest for one of the six extension types.

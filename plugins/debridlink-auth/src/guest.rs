@@ -5,15 +5,9 @@
 //! and hands it to `poll`. That is what makes a sign-in survive a service restart.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "auth-plugin",
-});
-
-use exports::rdownloader::plugin::auth::{AuthState, Guest, UserPrompt};
-use rdownloader::plugin::{
-    credentials,
-    http::{self, RequestHeader, RequestQuery},
+use plugin_guest_auth::{
+    AuthState, Guest, UserPrompt, credentials, form,
+    http::{self, RequestHeader},
     types::{Failure, FailureKind},
 };
 
@@ -26,16 +20,6 @@ const TOKEN_ENDPOINT: &str = "https://debrid-link.com/api/oauth/token";
 
 /// The scopes rDownloader needs, and no more: resolving links and reading the account.
 const SCOPE: &str = "get.post.downloader get.account";
-
-fn form(pairs: &[(&str, &str)]) -> Vec<RequestQuery> {
-    pairs
-        .iter()
-        .map(|(name, value)| RequestQuery {
-            name: (*name).to_owned(),
-            value_template: (*value).to_owned(),
-        })
-        .collect()
-}
 
 /// A failure carrying a stable translation code and nothing a provider wrote.
 ///
@@ -136,4 +120,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_auth::auth_plugin!(Component);

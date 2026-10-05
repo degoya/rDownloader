@@ -71,11 +71,12 @@ use rd_api_intake::{
 };
 use rd_api_mcp as mcp;
 use rd_api_queue::{
-    auto_remove_service, bandwidth_handlers, bandwidth_manual_handlers, capture_summary,
-    collision_handlers, download_handlers, download_sources, duplicates, media_dto, media_handlers,
-    metrics, nzb_remote_job_handlers, package_clear, package_handlers, power_handlers,
-    queue_pause_handlers, reconnect_handlers, remote_job_handlers, replay_dto, replay_handlers,
-    storage_handlers, torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
+    auto_remove_service, bandwidth_handlers, bandwidth_manual_handlers, capture_queue,
+    capture_summary, collision_handlers, download_handlers, download_sources, duplicates,
+    media_dto, media_handlers, metrics, nzb_remote_job_handlers, package_clear, package_handlers,
+    power_handlers, queue_pause_handlers, reconnect_handlers, remote_job_handlers, replay_dto,
+    replay_handlers, storage_handlers, torrent_control, torrent_handlers, torrent_trackers,
+    usenet_handlers,
 };
 
 pub use rd_api_core::container_upload::PUBLIC_BODY_LIMIT_BYTES;
@@ -197,6 +198,18 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/capture/summary",
             get(capture_summary::capture_summary),
+        )
+        // The tray's "pause all" and "resume all" (RD-1100-06): inside `require_capture`, and
+        // only for a token paired with queue control on top of that.
+        .route(
+            "/api/v1/capture/queue/pause",
+            post(capture_queue::pause_capture_queue)
+                .route_layer(middleware::from_fn(auth::require_capture_queue)),
+        )
+        .route(
+            "/api/v1/capture/queue/resume",
+            post(capture_queue::resume_capture_queue)
+                .route_layer(middleware::from_fn(auth::require_capture_queue)),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

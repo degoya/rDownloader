@@ -56,10 +56,10 @@
     "eyebrow": "Indexeurs",
     "title_add": "Ajouter un indexeur",
     "title_edit": "Modifier l’indexeur",
-    "description": "Un indexeur Newznab, défini une fois : le LinkGrabber le consulte et un abonnement d’indexeur peut le reprendre. La clé API va dans le coffre et n’est plus jamais affichée.",
+    "description": "Un indexeur Newznab ou Torznab (Jackett, Prowlarr), défini une fois : le LinkGrabber le consulte et un abonnement d’indexeur peut le reprendre. La clé API va dans le coffre et n’est plus jamais affichée.",
     "name": "Nom",
     "url": "Adresse de l’API",
-    "url_hint": "L’adresse de base de l’API, p. ex. https://api.omgwtfnzbs.org/api – un NZBHydra ou un Prowlarr de votre réseau convient aussi",
+    "url_hint": "L’adresse de base de l’API, p. ex. https://api.omgwtfnzbs.org/api – un NZBHydra, un Jackett ou un Prowlarr de votre réseau convient aussi ; un indexeur Torznab livre des torrents",
     "api_key": "Clé API",
     "api_key_keep": "Laissez vide pour garder la clé enregistrée",
     "categories": "Catégories par défaut",
@@ -96,5 +96,25 @@
       "detailed": "Détaillé",
       "detailed_hint": "Ajoute une petite couverture et ce que l’indexeur fournit : année, genre, note IMDb, langue, résolution, une courte description."
     }
+  },
+  "quota": {
+    "title": "Quota",
+    "usage": "Aujourd'hui {today} · 30 jours {month} · total {total}",
+    "none": "Aucun quota",
+    "used": "{used} sur {limit} utilisés",
+    "reached_backup": "Quota épuisé : ce serveur n'est sollicité que pour ce que les autres serveurs n'ont pas.",
+    "reached_pause": "Quota épuisé : ce serveur est en pause.",
+    "resets_on": "Réinitialisé le {date}",
+    "edit": "Définir le quota",
+    "limit": "Volume",
+    "limit_hint": "Les données que ce serveur peut livrer, par exemple le volume d'un compte bloc.",
+    "action": "Une fois épuisé",
+    "action_backup": "Utiliser uniquement en secours",
+    "action_pause": "Mettre le serveur en pause",
+    "reset_on": "Réinitialiser le (facultatif)",
+    "reset_on_hint": "À partir de ce jour, la consommation repart de zéro, une fois.",
+    "reset_usage": "Réinitialiser la consommation",
+    "remove": "Supprimer le quota",
+    "saved": "Quota enregistré"
   }
 }

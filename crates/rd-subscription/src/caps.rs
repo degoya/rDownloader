@@ -12,6 +12,8 @@
 //! Parsing only, and XXE-safe by the same rule as the feed parser: a DOCTYPE with an
 //! internal subset is refused rather than trusted to `quick_xml`.
 
+use std::collections::BTreeMap;
+
 use anyhow::{Result, bail};
 use quick_xml::{Reader, events::Event};
 use serde::{Deserialize, Serialize};
@@ -60,6 +62,11 @@ pub struct IndexerCaps {
     pub limit_max: Option<u32>,
     /// Search types the indexer answers, e.g. `search`, `tv-search`, `movie-search`.
     pub searching: Vec<String>,
+    /// The parameters each search type takes, as its `supportedParams` lists them (`q`,
+    /// `season`, `ep`, `tvdbid`, `imdbid`, ...), lowercased (RD-1100-03). A type that names none
+    /// is absent: the indexer did not say, which is not the same as taking nothing.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub supported_params: BTreeMap<String, Vec<String>>,
     pub categories: Vec<IndexerCategory>,
 }
 
@@ -174,6 +181,15 @@ fn apply(
                 .unwrap_or(true);
             if available {
                 caps.searching.push(name.to_owned());
+                let params: Vec<String> = attribute("supportedparams")
+                    .unwrap_or_default()
+                    .split(',')
+                    .map(|param| param.trim().to_ascii_lowercase())
+                    .filter(|param| !param.is_empty())
+                    .collect();
+                if !params.is_empty() {
+                    caps.supported_params.insert(name.to_owned(), params);
+                }
             }
         }
         _ => {}
@@ -253,6 +269,34 @@ mod tests {
         // `available="no"` means it will refuse the query, so offering it would be a lie.
         assert!(!caps.supports("movie-search"));
         assert!(!caps.supports("book-search"));
+    }
+
+    /// RD-1100-03: the search mask offers only the ids an indexer takes.
+    #[test]
+    fn the_parameters_of_each_offered_search_type_are_read() {
+        let caps = parse_caps(CAPS).expect("caps");
+        assert_eq!(
+            caps.supported_params.get("tv-search").map(Vec::as_slice),
+            Some(["q".to_owned(), "season".to_owned(), "ep".to_owned()].as_slice())
+        );
+        assert_eq!(
+            caps.supported_params.get("search").map(Vec::as_slice),
+            Some(["q".to_owned()].as_slice())
+        );
+        // An unavailable type's parameters are of no use to anybody.
+        assert!(!caps.supported_params.contains_key("movie-search"));
+        // Jackett writes the attribute in this spelling, with spaces after the commas.
+        let jackett = parse_caps(
+            r#"<caps><searching><movie-search available="yes" supportedParams="q, imdbid,TMDBId"/></searching></caps>"#,
+        )
+        .expect("caps");
+        assert_eq!(
+            jackett
+                .supported_params
+                .get("movie-search")
+                .map(Vec::as_slice),
+            Some(["q".to_owned(), "imdbid".to_owned(), "tmdbid".to_owned()].as_slice())
+        );
     }
 
     #[test]

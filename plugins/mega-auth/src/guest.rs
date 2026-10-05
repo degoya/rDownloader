@@ -5,14 +5,8 @@
 //! asking the provider a question it cannot answer.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "auth-plugin",
-});
-
-use exports::rdownloader::plugin::auth::{AuthState, Guest};
-use rdownloader::plugin::{
-    credentials, http,
+use plugin_guest_auth::{
+    AuthState, Guest, credentials, http,
     key_derivation::{self, Pbkdf2, SecretHandle, Span, Step},
     types::{Failure, FailureKind},
 };
@@ -192,4 +186,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_auth::auth_plugin!(Component);

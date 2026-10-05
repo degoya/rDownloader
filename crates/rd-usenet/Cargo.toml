@@ -35,6 +35,7 @@ tracing.workspace = true
 workspace = true
 
 [dev-dependencies]
+chrono.workspace = true
 rd-extract = { path = "../rd-extract" }
 rd-limits = { path = "../rd-limits" }
 serde_json.workspace = true

@@ -1,13 +1,13 @@
 //! The writer half of `plugin_repositories_store` (RD-140-01).
 
 use super::{Writer, publish_config, publish_unit_event, send};
-use crate::commands::WriterCommand;
+use crate::commands::PluginRepositoriesCommand;
 
 impl Writer {
     /// Applies the plugin repository commands.
-    pub(super) async fn handle_plugin_repositories(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_plugin_repositories(&mut self, command: PluginRepositoriesCommand) {
         match command {
-            WriterCommand::AddPluginRepository { input, reply } => {
+            PluginRepositoriesCommand::AddPluginRepository { input, reply } => {
                 let result = crate::plugin_repositories_store::insert_plugin_repository(
                     &mut self.connection,
                     input,
@@ -15,7 +15,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::UpdatePluginRepository {
+            PluginRepositoriesCommand::UpdatePluginRepository {
                 id,
                 enabled,
                 name,
@@ -30,7 +30,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeletePluginRepository { id, reply } => {
+            PluginRepositoriesCommand::DeletePluginRepository { id, reply } => {
                 let result = crate::plugin_repositories_store::delete_plugin_repository(
                     &mut self.connection,
                     &id,
@@ -38,7 +38,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::RecordPluginRepositoryCheck { id, check, reply } => {
+            PluginRepositoriesCommand::RecordPluginRepositoryCheck { id, check, reply } => {
                 let result = crate::plugin_repositories_store::record_plugin_repository_check(
                     &mut self.connection,
                     &id,
@@ -47,7 +47,7 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::WithdrawPluginKey { input, reply } => {
+            PluginRepositoriesCommand::WithdrawPluginKey { input, reply } => {
                 let result = crate::plugin_repositories_store::withdraw_plugin_key(
                     &mut self.connection,
                     input,
@@ -61,7 +61,7 @@ impl Writer {
                     Err(error) => send(reply, Err(error)),
                 }
             }
-            WriterCommand::RecordPluginRepositoryInstall { input, reply } => {
+            PluginRepositoriesCommand::RecordPluginRepositoryInstall { input, reply } => {
                 let result = crate::plugin_repositories_store::record_plugin_repository_install(
                     &mut self.connection,
                     input,
@@ -69,8 +69,6 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            // Routed here by `Writer::run` only for the variants above; see `handle_plugins`.
-            _ => {}
         }
     }
 }

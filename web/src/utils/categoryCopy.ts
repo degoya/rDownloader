@@ -18,6 +18,7 @@ export function categoryCopyBody(category: Category, name: string): CreateCatego
     cleanup_extensions: category.cleanup_extensions ? [...category.cleanup_extensions] : null,
     recursive_unpack: category.recursive_unpack ?? null,
     unpack_to_subfolder: category.unpack_to_subfolder ?? null,
+    direct_unpack: category.direct_unpack ?? null,
     malware_scan: category.malware_scan ?? null,
     sfv_verify: category.sfv_verify ?? null,
     safe_postproc: category.safe_postproc ?? null,

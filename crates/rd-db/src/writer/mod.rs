@@ -21,6 +21,7 @@ mod config;
 mod download_rows;
 mod downloads;
 mod full_backup;
+mod history;
 mod indexers;
 mod logs;
 mod maintenance;
@@ -63,8 +64,9 @@ impl Writer {
 
     pub(crate) async fn run(mut self) {
         while let Some(command) = self.commands.recv().await {
-            // Exhaustive over `WriterCommand`: a new variant does not compile until it is
-            // routed, which is what keeps a command from being accepted and silently dropped.
+            // Exhaustive over `WriterCommand`, and every handler over the enum of its area: a new
+            // command does not compile until it is applied, which is what keeps one from being
+            // accepted and silently dropped.
             match command {
                 WriterCommand::Close { reply } => {
                     let closed = sqlx::Connection::close(self.connection)
@@ -73,293 +75,35 @@ impl Writer {
                     let _ = reply.send(closed);
                     return;
                 }
-                command @ (WriterCommand::CreatePackage { .. }
-                | WriterCommand::CreateDownload { .. }
-                | WriterCommand::TransitionDownload { .. }
-                | WriterCommand::JoinQueue { .. }
-                | WriterCommand::BlockDownload { .. }
-                | WriterCommand::DeleteDownload { .. }
-                | WriterCommand::DeleteEmptyPackage { .. }
-                | WriterCommand::CheckpointChunk { .. }
-                | WriterCommand::CheckpointChunkMac { .. }
-                | WriterCommand::SetDownloadProgress { .. }
-                | WriterCommand::SetCandidateTorrentState { .. }
-                | WriterCommand::SetDownloadTorrentState { .. }
-                | WriterCommand::PrepareTransfer { .. }
-                | WriterCommand::RecordFailure { .. }
-                | WriterCommand::ScheduleAutoRetry { .. }
-                | WriterCommand::RequeueFailed { .. }
-                | WriterCommand::CompleteDownload { .. }
-                | WriterCommand::RenameDownload { .. }
-                | WriterCommand::SetFileName { .. }
-                | WriterCommand::SetTransformKeyRef { .. }
-                | WriterCommand::ClaimResolverRefresh { .. }
-                | WriterCommand::ClaimReplayRefresh { .. }
-                | WriterCommand::ResetDownload { .. }
-                | WriterCommand::ResetTransfer { .. }
-                | WriterCommand::SetCandidateReplayConsent { .. }
-                | WriterCommand::ClaimResolverPin { .. }
-                | WriterCommand::ClearUnsatisfiableResolverPins { .. }
-                | WriterCommand::PinDownloadResolver { .. }) => {
-                    self.handle_downloads(command).await
-                }
-                command @ (WriterCommand::RecordSourceOutcome { .. }
-                | WriterCommand::MarkChunk { .. }
-                | WriterCommand::RewindChunk { .. }
-                | WriterCommand::SetCandidateSourceSet { .. }
-                | WriterCommand::SetCandidateRemoteReach { .. }) => {
-                    self.handle_sources(command).await
-                }
-                command @ (WriterCommand::CarryEnrichment { .. }
-                | WriterCommand::UpdatePackages { .. }
-                | WriterCommand::RenamePackageDirectory { .. }
-                | WriterCommand::ClearPreviousDestination { .. }
-                | WriterCommand::ReorderPackages { .. }
-                | WriterCommand::ReorderDownloads { .. }
-                | WriterCommand::SetPackageState { .. }
-                | WriterCommand::SetPackageExtraction { .. }) => {
-                    self.handle_packages(command).await
-                }
-                command @ (WriterCommand::AddMediaCandidates { .. }
-                | WriterCommand::SetCandidateEnrichment { .. }
-                | WriterCommand::SetCandidateMediaInventory { .. }
-                | WriterCommand::SetCandidateMediaSelection { .. }
-                | WriterCommand::SetCandidateMediaVariant { .. }
-                | WriterCommand::SetCandidateProvider { .. }
-                | WriterCommand::SetCandidateAuthProfile { .. }
-                | WriterCommand::AddCollectorBatch { .. }
-                | WriterCommand::UpdateCollectorPackages { .. }
-                | WriterCommand::ReorderCollectorPackages { .. }
-                | WriterCommand::ReorderGrabberEntries { .. }
-                | WriterCommand::ReorderCandidates { .. }
-                | WriterCommand::MoveCandidates { .. }
-                | WriterCommand::DeleteCollectorPackage { .. }
-                | WriterCommand::RegroupBatches { .. }
-                | WriterCommand::SetMirrorPreference { .. }
-                | WriterCommand::SetMirrorPin { .. }
-                | WriterCommand::DissolveMirrorGroup { .. }
-                | WriterCommand::ClaimCandidatesForCheck { .. }
-                | WriterCommand::RecordCandidateCheck { .. }
-                | WriterCommand::MarkCandidateUnsupported { .. }
-                | WriterCommand::SetCandidateFileName { .. }
-                | WriterCommand::ClaimPackageForEnqueue { .. }
-                | WriterCommand::FinishPackageEnqueue { .. }
-                | WriterCommand::DeleteCandidate { .. }
-                | WriterCommand::DeleteCandidates { .. }) => self.handle_collector(command).await,
-                command @ (WriterCommand::SettleNzbRecovery { .. }
-                | WriterCommand::DeferPar2Verdict { .. }
-                | WriterCommand::AddNzbImport { .. }
-                | WriterCommand::RecordNzbImportFailure { .. }
-                | WriterCommand::UpdateNzbImport { .. }
-                | WriterCommand::DeleteNzbImport { .. }
-                | WriterCommand::MarkNzbImportRemoteJob { .. }
-                | WriterCommand::ForgetNzbImportHistory { .. }
-                | WriterCommand::SetNzbSegmentState { .. }
-                | WriterCommand::EnqueueNzbImport { .. }
-                | WriterCommand::CheckpointNzb { .. }) => self.handle_nzb(command).await,
-                command @ (WriterCommand::SetCategorySeedingPolicy { .. }
-                | WriterCommand::CreateStorageRoot { .. }
-                | WriterCommand::UpdateStorageRoot { .. }
-                | WriterCommand::DeleteStorageRoot { .. }
-                | WriterCommand::CreateCategory { .. }
-                | WriterCommand::UpdateCategory { .. }
-                | WriterCommand::DeleteCategory { .. }
-                | WriterCommand::UpdateCategoryPostprocess { .. }
-                | WriterCommand::CreateCategoryRule { .. }
-                | WriterCommand::UpdateCategoryRule { .. }
-                | WriterCommand::DeleteCategoryRule { .. }
-                | WriterCommand::CreateHotFolder { .. }
-                | WriterCommand::UpdateHotFolder { .. }
-                | WriterCommand::DeleteHotFolder { .. }
-                | WriterCommand::UpsertSiteRule { .. }
-                | WriterCommand::DeleteSiteRule { .. }
-                | WriterCommand::SetSiteRuleSwitch { .. }
-                | WriterCommand::RecordSiteRuleChecks { .. }) => self.handle_config(command).await,
-                command @ (WriterCommand::CreateAccount { .. }
-                | WriterCommand::UpdateAccount { .. }
-                | WriterCommand::DeleteAccount { .. }
-                | WriterCommand::CreateProxyProfile { .. }
-                | WriterCommand::UpdateProxyProfile { .. }
-                | WriterCommand::DeleteProxyProfile { .. }
-                | WriterCommand::CreateUsenetServer { .. }
-                | WriterCommand::UpdateUsenetServer { .. }
-                | WriterCommand::DeleteUsenetServer { .. }
-                | WriterCommand::CreateRemoteCredential { .. }
-                | WriterCommand::UpdateRemoteCredential { .. }
-                | WriterCommand::DeleteRemoteCredential { .. }
-                | WriterCommand::TrustSshHostKey { .. }
-                | WriterCommand::ForgetSshHostKey { .. }
-                | WriterCommand::SetCandidateListing { .. }
-                | WriterCommand::SetCandidateListingPlan { .. }) => {
-                    self.handle_network(command).await
-                }
-                command @ (WriterCommand::UpsertAuthFlow { .. }
-                | WriterCommand::SetAuthFlowRenewal { .. }
-                | WriterCommand::SetAuthFlowSession { .. }
-                | WriterCommand::SetAuthFlowPart { .. }
-                | WriterCommand::DeferAuthFlowRenewal { .. }
-                | WriterCommand::DeleteAuthFlow { .. }
-                | WriterCommand::TakeAuthFlowCallback { .. }
-                | WriterCommand::SetDownloadAuthProfile { .. }
-                | WriterCommand::CreateAuthProfile { .. }
-                | WriterCommand::UpdateAuthProfile { .. }
-                | WriterCommand::SetAuthProfileEnabled { .. }
-                | WriterCommand::DeleteAuthProfile { .. }) => self.handle_auth(command).await,
-                command @ (WriterCommand::CreateSession { .. }
-                | WriterCommand::TouchSession { .. }
-                | WriterCommand::RevokeSession { .. }
-                | WriterCommand::RevokeOtherSessions { .. }
-                | WriterCommand::RevokeAllSessions { .. }
-                | WriterCommand::PurgeExpiredSessions { .. }
-                | WriterCommand::TouchCaptureToken { .. }
-                | WriterCommand::CreateCaptureToken { .. }
-                | WriterCommand::UpdateCaptureTokenScopes { .. }
-                | WriterCommand::RevokeCaptureToken { .. }
-                | WriterCommand::CreateMfaCredential { .. }
-                | WriterCommand::ConfirmMfaCredential { .. }
-                | WriterCommand::RepointMfaMaterial { .. }
-                | WriterCommand::TouchMfaCredential { .. }
-                | WriterCommand::AcceptTotpStep { .. }
-                | WriterCommand::DeleteMfaCredential { .. }
-                | WriterCommand::ReplaceRecoveryCodes { .. }
-                | WriterCommand::SpendRecoveryCode { .. }
-                | WriterCommand::ClearMfa { .. }) => self.handle_sessions(command).await,
-                command @ (WriterCommand::SavePluginTransfer { .. }
-                | WriterCommand::ClearPluginTransfer { .. }
-                | WriterCommand::RecordPluginExecution { .. }
-                | WriterCommand::TrustPluginKey { .. }
-                | WriterCommand::RevokePluginKey { .. }
-                | WriterCommand::RevokePluginDigest { .. }
-                | WriterCommand::UnrevokePluginDigest { .. }
-                | WriterCommand::SavePluginVersionChoice { .. }
-                | WriterCommand::ClaimRemoteJob { .. }
-                | WriterCommand::AdvanceRemoteJob { .. }
-                | WriterCommand::DeleteRemoteJob { .. }
-                | WriterCommand::RecordManagedTool { .. }
-                | WriterCommand::ForgetManagedTool { .. }
-                | WriterCommand::AcceptToolManifest { .. }) => self.handle_plugins(command).await,
-                command @ (WriterCommand::AddPluginRepository { .. }
-                | WriterCommand::UpdatePluginRepository { .. }
-                | WriterCommand::DeletePluginRepository { .. }
-                | WriterCommand::RecordPluginRepositoryCheck { .. }
-                | WriterCommand::WithdrawPluginKey { .. }
-                | WriterCommand::RecordPluginRepositoryInstall { .. }) => {
+                WriterCommand::Downloads(command) => self.handle_downloads(command).await,
+                WriterCommand::Sources(command) => self.handle_sources(command).await,
+                WriterCommand::Packages(command) => self.handle_packages(command).await,
+                WriterCommand::Collector(command) => self.handle_collector(command).await,
+                WriterCommand::Nzb(command) => self.handle_nzb(command).await,
+                WriterCommand::Config(command) => self.handle_config(command).await,
+                WriterCommand::Network(command) => self.handle_network(command).await,
+                WriterCommand::Auth(command) => self.handle_auth(command).await,
+                WriterCommand::Sessions(command) => self.handle_sessions(command).await,
+                WriterCommand::Plugins(command) => self.handle_plugins(command).await,
+                WriterCommand::PluginRepositories(command) => {
                     self.handle_plugin_repositories(command).await
                 }
-                command @ (WriterCommand::CreateObjectStorageProfile { .. }
-                | WriterCommand::UpdateObjectStorageProfile { .. }
-                | WriterCommand::DeleteObjectStorageProfile { .. }
-                | WriterCommand::BeginObjectUpload { .. }
-                | WriterCommand::RecordObjectUploadPart { .. }
-                | WriterCommand::CompleteObjectUpload { .. }
-                | WriterCommand::ForgetObjectUploads { .. }) => {
-                    self.handle_object_storage(command).await
-                }
-                command @ (WriterCommand::CreateIndexer { .. }
-                | WriterCommand::UpdateIndexer { .. }
-                | WriterCommand::DeleteIndexer { .. }) => self.handle_indexers(command).await,
-                command @ (WriterCommand::SetDownloadRecordingState { .. }
-                | WriterCommand::CreateStreamSchedule { .. }
-                | WriterCommand::UpdateStreamSchedule { .. }
-                | WriterCommand::DeleteStreamSchedule { .. }
-                | WriterCommand::PlanStreamRuns { .. }
-                | WriterCommand::SetStreamRunState { .. }
-                | WriterCommand::ExpireStreamRuns { .. }
-                | WriterCommand::CreateStreamChannel { .. }
-                | WriterCommand::UpdateStreamChannel { .. }
-                | WriterCommand::DeleteStreamChannel { .. }
-                | WriterCommand::TouchStreamChannel { .. }) => self.handle_streams(command).await,
-                command @ (WriterCommand::CreateSubscription { .. }
-                | WriterCommand::UpdateSubscription { .. }
-                | WriterCommand::SetSubscriptionEnabled { .. }
-                | WriterCommand::DeleteSubscription { .. }
-                | WriterCommand::RecordSubscriptionItems { .. }
-                | WriterCommand::SetSubscriptionItemState { .. }
-                | WriterCommand::SetPendingSubscriptionItemsState { .. }
-                | WriterCommand::ClearSubscriptionHistory { .. }
-                | WriterCommand::ArmSubscription { .. }
-                | WriterCommand::FinishSubscriptionRun { .. }) => {
-                    self.handle_subscriptions(command).await
-                }
-                command @ (WriterCommand::UpsertNotificationTarget { .. }
-                | WriterCommand::DeleteNotificationTarget { .. }
-                | WriterCommand::UpsertNotificationRule { .. }
-                | WriterCommand::DeleteNotificationRule { .. }
-                | WriterCommand::QueueNotificationDelivery { .. }
-                | WriterCommand::QueueNotificationNotice { .. }
-                | WriterCommand::RecordNotificationAttempt { .. }
-                | WriterCommand::ClearNotificationDeliveries { .. }
-                | WriterCommand::DiscardPendingNotificationDeliveries { .. }
-                | WriterCommand::UpsertAutomation { .. }
-                | WriterCommand::SetAutomationEnabled { .. }
-                | WriterCommand::DeleteAutomation { .. }
-                | WriterCommand::QueueAutomationRun { .. }
-                | WriterCommand::RecordAutomationAttempt { .. }
-                | WriterCommand::RecoverAutomationRuns { .. }) => self.handle_notify(command).await,
-                command @ (WriterCommand::CreateBandwidthProfile { .. }
-                | WriterCommand::UpdateBandwidthProfile { .. }
-                | WriterCommand::DeleteBandwidthProfile { .. }
-                | WriterCommand::ReplaceBandwidthWindows { .. }
-                | WriterCommand::StoreBandwidthBudget { .. }) => {
-                    self.handle_bandwidth(command).await
-                }
-                command @ (WriterCommand::ReplaceConfig { .. }
-                | WriterCommand::SetSetting { .. }
-                | WriterCommand::InsertSettingIfAbsent { .. }
-                | WriterCommand::CheckpointWal { .. }
-                | WriterCommand::RecoverInterrupted { .. }
-                | WriterCommand::PurgeOldEvents { .. }
-                | WriterCommand::PruneTransferStats { .. }
-                | WriterCommand::ClearTransferStats { .. }
-                | WriterCommand::Vacuum { .. }
-                | WriterCommand::VacuumInto { .. }) => self.handle_maintenance(command).await,
-                command @ (WriterCommand::ReserveArchivePasswords { .. }
-                | WriterCommand::ReleaseArchivePasswords { .. }
-                | WriterCommand::AdoptArchivePasswords { .. }
-                | WriterCommand::ForgetArchivePasswords { .. }) => {
+                WriterCommand::ObjectStorage(command) => self.handle_object_storage(command).await,
+                WriterCommand::Indexers(command) => self.handle_indexers(command).await,
+                WriterCommand::Streams(command) => self.handle_streams(command).await,
+                WriterCommand::Subscriptions(command) => self.handle_subscriptions(command).await,
+                WriterCommand::Notify(command) => self.handle_notify(command).await,
+                WriterCommand::Bandwidth(command) => self.handle_bandwidth(command).await,
+                WriterCommand::Maintenance(command) => self.handle_maintenance(command).await,
+                WriterCommand::ArchivePasswords(command) => {
                     self.handle_archive_passwords(command).await
                 }
-                command @ (WriterCommand::SaveBackupConfig { .. }
-                | WriterCommand::SetBackupKey { .. }
-                | WriterCommand::ArmBackup { .. }
-                | WriterCommand::BeginBackupRun { .. }
-                | WriterCommand::FinishBackupRun { .. }
-                | WriterCommand::InterruptBackupRuns { .. }) => {
-                    self.handle_full_backup(command).await
-                }
-                command @ (WriterCommand::CreateBackupDestination { .. }
-                | WriterCommand::UpdateBackupDestination { .. }
-                | WriterCommand::DeleteBackupDestination { .. }
-                | WriterCommand::RecordBackupArchive { .. }
-                | WriterCommand::ForgetBackupArchives { .. }
-                | WriterCommand::BeginBackupRunDestinations { .. }
-                | WriterCommand::FinishBackupRunDestination { .. }
-                | WriterCommand::BeginBackupVerification { .. }
-                | WriterCommand::FinishBackupVerification { .. }
-                | WriterCommand::ArmBackupVerify { .. }) => {
-                    self.handle_backup_ledger(command).await
-                }
-                command @ (WriterCommand::AppendLogRecords { .. }
-                | WriterCommand::PruneLogRecords { .. }
-                | WriterCommand::ClearLogRecords { .. }) => self.handle_logs(command).await,
-                command @ (WriterCommand::AppendAuditRecords { .. }
-                | WriterCommand::PruneAuditRecords { .. }
-                | WriterCommand::ClearAuditRecords { .. }) => self.handle_audit(command).await,
-                command @ (WriterCommand::SetCollisionPolicy { .. }
-                | WriterCommand::OpenCollisionPrompt { .. }
-                | WriterCommand::DecideCollisionPrompt { .. }
-                | WriterCommand::ClearCollisionPrompt { .. }
-                | WriterCommand::IndexContent { .. }
-                | WriterCommand::MoveIndexedContent { .. }
-                | WriterCommand::MarkIndexedContent { .. }
-                | WriterCommand::ForgetIndexedPath { .. }
-                | WriterCommand::ClearContentIndex { .. }
-                | WriterCommand::StartStorageOperation { .. }
-                | WriterCommand::FinishStorageOperation { .. }
-                | WriterCommand::InterruptStorageOperations { .. }
-                | WriterCommand::ClearStorageOperations { .. }) => {
-                    self.handle_storage(command).await
-                }
+                WriterCommand::FullBackup(command) => self.handle_full_backup(command).await,
+                WriterCommand::BackupLedger(command) => self.handle_backup_ledger(command).await,
+                WriterCommand::Logs(command) => self.handle_logs(command).await,
+                WriterCommand::Audit(command) => self.handle_audit(command).await,
+                WriterCommand::Storage(command) => self.handle_storage(command).await,
+                WriterCommand::History(command) => self.handle_history(command).await,
             }
         }
     }
@@ -394,13 +138,13 @@ async fn purge_old_events(connection: &mut sqlx::SqliteConnection) -> Result<u64
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn request<T>(
+pub(crate) async fn request<T, C: Into<WriterCommand>>(
     writer: &mpsc::Sender<WriterCommand>,
-    make: impl FnOnce(Reply<T>) -> WriterCommand,
+    make: impl FnOnce(Reply<T>) -> C,
 ) -> Result<T> {
     let (reply_tx, reply_rx) = oneshot::channel();
     writer
-        .send(make(reply_tx))
+        .send(make(reply_tx).into())
         .await
         .context("database writer stopped")?;
     reply_rx.await.context("database writer dropped response")?

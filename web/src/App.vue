@@ -30,7 +30,9 @@ const queuePause = useQueuePauseStore()
 const { t, locale } = useI18n()
 // The one place the browser tab is written; every view leaves it alone (RD-106-07).
 useDocumentTitle()
-const uiLocale = computed(() => ({ en: uiLocales.en, de: uiLocales.de, fr: uiLocales.fr, es: uiLocales.es })[locale.value as 'en' | 'de' | 'fr' | 'es'] ?? uiLocales.en)
+// Nuxt UI names its locales by the same two letters, so a language added to `languages.json`
+// gets its component strings without a change here; one Nuxt UI lacks stays English.
+const uiLocale = computed(() => (uiLocales as Record<string, typeof uiLocales.en>)[locale.value] ?? uiLocales.en)
 
 onMounted(() => void session.initialize())
 // Any request refused for want of a session sends the whole interface back to the sign-in,

@@ -313,6 +313,14 @@
       "timeout_description": "Durée maximale de la connexion, d’un bloc ou du verdict de clamd (5–3600 s).",
       "test": "Tester clamd",
       "test_ok": "clamd à {address} répond : {version}"
+    },
+    "fail_hopeless_jobs": {
+      "label": "Abandonner les téléchargements Usenet sans espoir",
+      "description": "S'il manque plus de blocs PAR2 que les volumes de récupération de l'ensemble ne peuvent en remplacer, le reste n'est plus téléchargé et le paquet échoue. Ce qui est déjà téléchargé est conservé. Économise du volume sur les comptes à blocs. Désactivé : chaque fichier est téléchargé jusqu'au bout, comme avant."
+    },
+    "direct_unpack": {
+      "label": "Extraire pendant le téléchargement",
+      "description": "Les archives RAR multiparties d'Usenet sont extraites partie par partie dès que chaque partie est complète, au lieu d'après le téléchargement. Si une réparation est nécessaire ou s'il manque quelque chose à une partie, la tentative est abandonnée et l'archive est extraite ensuite comme d'habitude. Nécessite unrar et de la place pour les fichiers extraits à côté du téléchargement en cours."
     }
   },
   "appearance": {
@@ -966,5 +974,15 @@
     "interval_description": "Heures entre l’échec et la tentative suivante (1–24).",
     "rounds_label": "Tours par téléchargement",
     "rounds_description": "Nombre maximal de retours d’un téléchargement dans la file ; 0 signifie sans limite (0–100)."
+  },
+  "history": {
+    "eyebrow": "Historique des téléchargements",
+    "title": "Conservation de l’historique des téléchargements",
+    "description": "Combien de temps les paquets terminés et échoués restent dans l’historique après avoir quitté la liste.",
+    "open": "Ouvrir l’historique",
+    "entries_label": "Entrées conservées",
+    "entries_description": "Les entrées les plus anciennes partent en premier (100-100000).",
+    "days_label": "Jours conservés",
+    "days_description": "Les entrées plus anciennes sont supprimées quel que soit leur nombre (1-3650)."
   }
 }

@@ -7,8 +7,8 @@ license.workspace = true
 
 [dependencies]
 plugin-common = { path = "../common" }
+plugin-guest-crawler = { path = "../guest-crawler" }
 premiumize-common = { path = "../premiumize-common" }
-wit-bindgen.workspace = true
 
 [lib]
 crate-type = ["rlib", "cdylib"]

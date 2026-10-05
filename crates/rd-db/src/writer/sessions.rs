@@ -2,13 +2,13 @@
 //! `mfa_store`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
-use crate::commands::WriterCommand;
+use crate::commands::SessionsCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_sessions(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_sessions(&mut self, command: SessionsCommand) {
         match command {
-            WriterCommand::CreateSession {
+            SessionsCommand::CreateSession {
                 id,
                 token_sha256,
                 user_agent,
@@ -29,7 +29,7 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::TouchSession {
+            SessionsCommand::TouchSession {
                 token_sha256,
                 reply,
             } => {
@@ -38,32 +38,32 @@ impl Writer {
                     crate::session_store::touch_session(&mut self.connection, &token_sha256).await,
                 );
             }
-            WriterCommand::RevokeSession { id, reply } => {
+            SessionsCommand::RevokeSession { id, reply } => {
                 send(
                     reply,
                     crate::session_store::revoke_session(&mut self.connection, id).await,
                 );
             }
-            WriterCommand::RevokeOtherSessions { keep_digest, reply } => {
+            SessionsCommand::RevokeOtherSessions { keep_digest, reply } => {
                 send(
                     reply,
                     crate::session_store::revoke_other_sessions(&mut self.connection, &keep_digest)
                         .await,
                 );
             }
-            WriterCommand::RevokeAllSessions { reply } => {
+            SessionsCommand::RevokeAllSessions { reply } => {
                 send(
                     reply,
                     crate::session_store::revoke_all(&mut self.connection).await,
                 );
             }
-            WriterCommand::PurgeExpiredSessions { limits, reply } => {
+            SessionsCommand::PurgeExpiredSessions { limits, reply } => {
                 send(
                     reply,
                     crate::session_store::purge_expired(&mut self.connection, limits).await,
                 );
             }
-            WriterCommand::TouchCaptureToken {
+            SessionsCommand::TouchCaptureToken {
                 token_sha256,
                 reply,
             } => {
@@ -73,7 +73,7 @@ impl Writer {
                         .await,
                 );
             }
-            WriterCommand::CreateCaptureToken {
+            SessionsCommand::CreateCaptureToken {
                 id,
                 label,
                 token_sha256,
@@ -90,17 +90,17 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::UpdateCaptureTokenScopes { id, scopes, reply } => {
+            SessionsCommand::UpdateCaptureTokenScopes { id, scopes, reply } => {
                 let result =
                     crate::capture_store::update_token_scopes(&mut self.connection, id, scopes)
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::RevokeCaptureToken { id, reply } => {
+            SessionsCommand::RevokeCaptureToken { id, reply } => {
                 let result = crate::capture_store::revoke_token(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
-            WriterCommand::CreateMfaCredential {
+            SessionsCommand::CreateMfaCredential {
                 id,
                 kind,
                 label,
@@ -119,13 +119,13 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::ConfirmMfaCredential { id, reply } => {
+            SessionsCommand::ConfirmMfaCredential { id, reply } => {
                 send(
                     reply,
                     crate::mfa_store::confirm_credential(&mut self.connection, id).await,
                 );
             }
-            WriterCommand::RepointMfaMaterial {
+            SessionsCommand::RepointMfaMaterial {
                 id,
                 material_ref,
                 reply,
@@ -136,48 +136,42 @@ impl Writer {
                         .await,
                 );
             }
-            WriterCommand::TouchMfaCredential { id, reply } => {
+            SessionsCommand::TouchMfaCredential { id, reply } => {
                 send(
                     reply,
                     crate::mfa_store::touch_credential(&mut self.connection, id).await,
                 );
             }
-            WriterCommand::AcceptTotpStep { id, step, reply } => {
+            SessionsCommand::AcceptTotpStep { id, step, reply } => {
                 send(
                     reply,
                     crate::mfa_store::accept_totp_step(&mut self.connection, id, step).await,
                 );
             }
-            WriterCommand::DeleteMfaCredential { id, reply } => {
+            SessionsCommand::DeleteMfaCredential { id, reply } => {
                 send(
                     reply,
                     crate::mfa_store::delete_credential(&mut self.connection, id).await,
                 );
             }
-            WriterCommand::ReplaceRecoveryCodes { digests, reply } => {
+            SessionsCommand::ReplaceRecoveryCodes { digests, reply } => {
                 send(
                     reply,
                     crate::mfa_store::replace_recovery_codes(&mut self.connection, digests).await,
                 );
             }
-            WriterCommand::SpendRecoveryCode { digest, reply } => {
+            SessionsCommand::SpendRecoveryCode { digest, reply } => {
                 send(
                     reply,
                     crate::mfa_store::spend_recovery_code(&mut self.connection, &digest).await,
                 );
             }
-            WriterCommand::ClearMfa { kind, reply } => {
+            SessionsCommand::ClearMfa { kind, reply } => {
                 send(
                     reply,
                     crate::mfa_store::clear_all(&mut self.connection, kind).await,
                 );
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
         }
     }
 }

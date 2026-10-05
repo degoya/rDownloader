@@ -4,13 +4,13 @@
 //! `managed_tools_store`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
-use crate::commands::WriterCommand;
+use crate::commands::PluginsCommand;
 
 impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
-    pub(super) async fn handle_plugins(&mut self, command: WriterCommand) {
+    pub(super) async fn handle_plugins(&mut self, command: PluginsCommand) {
         match command {
-            WriterCommand::SavePluginTransfer {
+            PluginsCommand::SavePluginTransfer {
                 id,
                 plugin_id,
                 plugin_version,
@@ -29,14 +29,14 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::ClearPluginTransfer { id, reply } => {
+            PluginsCommand::ClearPluginTransfer { id, reply } => {
                 send(
                     reply,
                     crate::plugin_transfer_store::clear_plugin_transfer(&mut self.connection, id)
                         .await,
                 );
             }
-            WriterCommand::RecordPluginExecution { entry, reply } => {
+            PluginsCommand::RecordPluginExecution { entry, reply } => {
                 send(
                     reply,
                     crate::plugin_execution_store::record_plugin_execution(
@@ -46,7 +46,7 @@ impl Writer {
                     .await,
                 );
             }
-            WriterCommand::TrustPluginKey { input, reply } => {
+            PluginsCommand::TrustPluginKey { input, reply } => {
                 let result = crate::plugin_keys_store::insert_plugin_trusted_key(
                     &mut self.connection,
                     input,
@@ -54,7 +54,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::RevokePluginKey { key_id, reply } => {
+            PluginsCommand::RevokePluginKey { key_id, reply } => {
                 let result = crate::plugin_keys_store::delete_plugin_trusted_key(
                     &mut self.connection,
                     &key_id,
@@ -62,7 +62,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::RevokePluginDigest { input, reply } => {
+            PluginsCommand::RevokePluginDigest { input, reply } => {
                 let result = crate::plugin_revocations_store::insert_plugin_digest_revocation(
                     &mut self.connection,
                     input,
@@ -70,7 +70,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::UnrevokePluginDigest { digest, reply } => {
+            PluginsCommand::UnrevokePluginDigest { digest, reply } => {
                 let result = crate::plugin_revocations_store::delete_plugin_digest_revocation(
                     &mut self.connection,
                     &digest,
@@ -78,7 +78,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::SavePluginVersionChoice { input, reply } => {
+            PluginsCommand::SavePluginVersionChoice { input, reply } => {
                 let result = crate::plugin_versions_store::save_plugin_version_choice(
                     &mut self.connection,
                     input,
@@ -86,26 +86,26 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::ClaimRemoteJob { input, reply } => {
+            PluginsCommand::ClaimRemoteJob { input, reply } => {
                 let result = crate::remote_job_store::claim(&mut self.connection, *input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::AdvanceRemoteJob { id, input, reply } => {
+            PluginsCommand::AdvanceRemoteJob { id, input, reply } => {
                 let result =
                     crate::remote_job_store::advance(&mut self.connection, id, *input).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::DeleteRemoteJob { id, reply } => {
+            PluginsCommand::DeleteRemoteJob { id, reply } => {
                 let result = crate::remote_job_store::remove(&mut self.connection, id).await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::RecordManagedTool { input, reply } => {
+            PluginsCommand::RecordManagedTool { input, reply } => {
                 let result =
                     crate::managed_tools_store::record_managed_tool(&mut self.connection, input)
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::ForgetManagedTool {
+            PluginsCommand::ForgetManagedTool {
                 name,
                 version,
                 reply,
@@ -118,7 +118,7 @@ impl Writer {
                 .await;
                 publish_config(reply, result, &self.events);
             }
-            WriterCommand::AcceptToolManifest {
+            PluginsCommand::AcceptToolManifest {
                 sequence,
                 issued_at,
                 reply,
@@ -131,12 +131,6 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            // `Writer::run` routes every variant to exactly one handler, and its match is
-            // exhaustive over `WriterCommand`, so nothing reaches this arm. It drops the
-            // command instead of panicking: a mis-routed command must not take down the one
-            // task every mutation in the process runs on, and the caller already treats a
-            // dropped reply as a failed request.
-            _ => {}
         }
     }
 }

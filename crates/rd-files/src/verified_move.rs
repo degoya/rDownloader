@@ -137,7 +137,11 @@ pub async fn verified_move_file(from: &Path, to: &Path) -> Result<PlacedCopy, Ve
 }
 
 /// The temporary name a copy is written under, beside its target.
-fn temporary_of(to: &Path) -> PathBuf {
+///
+/// Public for a caller that takes a stopped move back and must leave nothing behind
+/// (RD-1100-10): a stop during the copy leaves this name, and only this name, beside the target.
+#[must_use]
+pub fn move_temporary_of(to: &Path) -> PathBuf {
     let name = to
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
@@ -151,7 +155,7 @@ fn temporary_of(to: &Path) -> PathBuf {
 /// hands one archive to several destinations (RD-160-02). The rename replaces what is at `to`,
 /// so the caller makes sure the name is free.
 pub async fn copy_verified(from: &Path, to: &Path) -> Result<PlacedCopy, VerifiedMoveError> {
-    let temporary = temporary_of(to);
+    let temporary = move_temporary_of(to);
     let io = |source: std::io::Error| VerifiedMoveError::Io {
         from: from.to_path_buf(),
         to: temporary.clone(),
@@ -210,8 +214,8 @@ async fn sha256(path: &Path) -> Result<String, VerifiedMoveError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        PlacedCopy, VerifiedMoveError, copy_verified, place_verified, release_source, temporary_of,
-        verified_move_file,
+        PlacedCopy, VerifiedMoveError, copy_verified, move_temporary_of, place_verified,
+        release_source, verified_move_file,
     };
 
     #[tokio::test]
@@ -244,7 +248,10 @@ mod tests {
         );
         assert!(from.exists() && to.exists());
         assert!(placed.digest.is_some());
-        assert!(!temporary_of(&to).exists(), "the temporary name is gone");
+        assert!(
+            !move_temporary_of(&to).exists(),
+            "the temporary name is gone"
+        );
 
         release_source(&from, &placed).await.expect("release");
         assert!(!from.exists());
@@ -275,7 +282,7 @@ mod tests {
         let from = directory.path().join("a.bin");
         let to = directory.path().join("b.bin");
         tokio::fs::write(&from, b"payload").await.expect("write");
-        tokio::fs::write(temporary_of(&to), b"pay")
+        tokio::fs::write(move_temporary_of(&to), b"pay")
             .await
             .expect("stale");
 
@@ -283,7 +290,7 @@ mod tests {
 
         assert_eq!(placed.size_bytes, 7);
         assert_eq!(tokio::fs::read(&to).await.expect("read"), b"payload");
-        assert!(!temporary_of(&to).exists());
+        assert!(!move_temporary_of(&to).exists());
     }
 
     #[tokio::test]
@@ -313,7 +320,7 @@ mod tests {
             .expect_err("nothing to copy");
 
         assert!(!to.exists());
-        assert!(!temporary_of(&to).exists());
+        assert!(!move_temporary_of(&to).exists());
     }
 
     #[tokio::test]

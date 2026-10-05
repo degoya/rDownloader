@@ -13,15 +13,10 @@
 //! give up.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "crawler-plugin",
-});
-
-use exports::rdownloader::plugin::crawler::{CrawledLink, Guest};
-use rdownloader::plugin::{
-    host,
+use plugin_guest_crawler::{
+    CrawledLink, Guest, host,
     http::{self, RequestHeader},
+    refuse,
     types::{Failure, FailureKind},
 };
 
@@ -32,15 +27,6 @@ use crate::{
 };
 
 struct Component;
-
-fn refuse((code, message): (&str, &str), category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.to_owned(),
-        code: Some(code.to_owned()),
-        params: Vec::new(),
-    }
-}
 
 /// Says "this address is not mine after all", the one refusal the selection walks past.
 ///
@@ -294,4 +280,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_crawler::crawler_plugin!(Component);

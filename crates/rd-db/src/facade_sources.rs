@@ -7,7 +7,10 @@ use rd_core::{
 };
 
 use crate::{
-    ChunkMark, Database, commands::WriterCommand, download_sources_store, models::NewDownload,
+    ChunkMark, Database,
+    commands::{DownloadsCommand, SourcesCommand},
+    download_sources_store,
+    models::NewDownload,
     writer,
 };
 
@@ -21,7 +24,7 @@ impl Database {
         download: NewDownload,
         sources: SourceSet,
     ) -> Result<DownloadFile> {
-        writer::request(&self.writer, |reply| WriterCommand::CreateDownload {
+        writer::request(&self.writer, |reply| DownloadsCommand::CreateDownload {
             download,
             sources: Some(Box::new(sources)),
             reply,
@@ -46,7 +49,7 @@ impl Database {
         position: u32,
         outcome: SourceOutcome,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::RecordSourceOutcome {
+        writer::request(&self.writer, |reply| SourcesCommand::RecordSourceOutcome {
             download_id,
             position,
             outcome,
@@ -67,7 +70,7 @@ impl Database {
         source_position: Option<u32>,
         verified: bool,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::MarkChunk {
+        writer::request(&self.writer, |reply| SourcesCommand::MarkChunk {
             chunk_id,
             source_position,
             verified,
@@ -78,7 +81,7 @@ impl Database {
 
     /// Moves a chunk's confirmed offset back over bytes a piece hash refused.
     pub async fn rewind_chunk(&self, chunk_id: ChunkId, committed: u64) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::RewindChunk {
+        writer::request(&self.writer, |reply| SourcesCommand::RewindChunk {
             chunk_id,
             committed,
             reply,
@@ -92,10 +95,12 @@ impl Database {
         candidate_id: CandidateId,
         set: SourceSet,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetCandidateSourceSet {
-            candidate_id,
-            set: Box::new(set),
-            reply,
+        writer::request(&self.writer, |reply| {
+            SourcesCommand::SetCandidateSourceSet {
+                candidate_id,
+                set: Box::new(set),
+                reply,
+            }
         })
         .await
     }
@@ -108,7 +113,7 @@ impl Database {
         local_network: bool,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::SetCandidateRemoteReach {
+            SourcesCommand::SetCandidateRemoteReach {
                 candidate_ids,
                 local_network,
                 reply,

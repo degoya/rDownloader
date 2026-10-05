@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     Database,
-    commands::WriterCommand,
+    commands::ConfigCommand,
     site_rule_switches_store::{self, SiteRuleSwitch},
     writer,
 };
@@ -17,7 +17,7 @@ impl Database {
 
     /// Switches one shipped rule (`scope` = `rule`) or one group (`scope` = `group`).
     pub async fn set_site_rule_switch(&self, scope: &str, key: &str, enabled: bool) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetSiteRuleSwitch {
+        writer::request(&self.writer, |reply| ConfigCommand::SetSiteRuleSwitch {
             scope: scope.to_owned(),
             key: key.to_owned(),
             enabled,

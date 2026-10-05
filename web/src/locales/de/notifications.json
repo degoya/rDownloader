@@ -18,7 +18,9 @@
     "account_expiring": "Konto läuft bald ab",
     "account_invalid": "Konto meldet sich nicht mehr an",
     "backup_verify_failed": "Backup-Prüfung fehlgeschlagen",
-    "plugin_update_failed": "Automatisches Plugin-Update fehlgeschlagen"
+    "plugin_update_failed": "Automatisches Plugin-Update fehlgeschlagen",
+    "usenet_job_hopeless": "Usenet-Download aussichtslos",
+    "usenet_quota_reached": "Usenet-Kontingent verbraucht"
   },
   "severity": {
     "info": "Info und höher",

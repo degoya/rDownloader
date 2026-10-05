@@ -48,6 +48,11 @@ pub const CAPABILITIES: TorrentEngineCapabilities = TorrentEngineCapabilities {
     natpmp: false,
     pcp: false,
     web_seeds: false,
+    // librqbit 9 takes a torrent's own rates only when it is added: a running torrent cannot
+    // be given new ones, and a torrent restored from the persisted session comes back without
+    // them. Honouring a limit set or changed later would mean deleting and re-adding the
+    // torrent, which re-checks every piece, so the option is refused instead (RD-1100-01).
+    per_torrent_limits: false,
 };
 
 /// The session-level settings, separated from the rest so a change can be classified as
@@ -403,6 +408,7 @@ mod tests {
             "natpmp",
             "pcp",
             "web_seeds",
+            "per_torrent_limits",
         ] {
             assert!(
                 !capabilities.supports(missing),

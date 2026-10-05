@@ -10,7 +10,7 @@ use crate::{
         self, CollisionPolicyLevels, CollisionPolicyRow, CollisionPrompt, ContentIndexEntry,
         NewCollisionPrompt,
     },
-    commands::WriterCommand,
+    commands::StorageCommand,
     storage_ops_store::{self, NewStorageOperation, StorageOperation, StorageOperationOutcome},
     writer,
 };
@@ -35,7 +35,7 @@ impl Database {
         category_id: rd_core::CategoryId,
         policy: Option<CollisionPolicy>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetCollisionPolicy {
+        writer::request(&self.writer, |reply| StorageCommand::SetCollisionPolicy {
             scope_kind: collision_store::SCOPE_CATEGORY,
             scope_id: category_id.to_string(),
             policy,
@@ -50,7 +50,7 @@ impl Database {
         package_id: PackageId,
         policy: Option<CollisionPolicy>,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::SetCollisionPolicy {
+        writer::request(&self.writer, |reply| StorageCommand::SetCollisionPolicy {
             scope_kind: collision_store::SCOPE_PACKAGE,
             scope_id: package_id.to_string(),
             policy,
@@ -72,7 +72,7 @@ impl Database {
 
     /// Opens the prompt of a download whose file collided under `ask`.
     pub async fn open_collision_prompt(&self, prompt: NewCollisionPrompt) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::OpenCollisionPrompt {
+        writer::request(&self.writer, |reply| StorageCommand::OpenCollisionPrompt {
             prompt,
             reply,
         })
@@ -85,17 +85,19 @@ impl Database {
         download_id: DownloadId,
         decision: CollisionDecision,
     ) -> Result<bool> {
-        writer::request(&self.writer, |reply| WriterCommand::DecideCollisionPrompt {
-            download_id,
-            decision,
-            reply,
+        writer::request(&self.writer, |reply| {
+            StorageCommand::DecideCollisionPrompt {
+                download_id,
+                decision,
+                reply,
+            }
         })
         .await
     }
 
     /// Removes the prompt once its answer has been carried out.
     pub async fn clear_collision_prompt(&self, download_id: DownloadId) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::ClearCollisionPrompt {
+        writer::request(&self.writer, |reply| StorageCommand::ClearCollisionPrompt {
             download_id,
             reply,
         })
@@ -131,7 +133,7 @@ impl Database {
         size_bytes: u64,
         path: String,
     ) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::IndexContent {
+        writer::request(&self.writer, |reply| StorageCommand::IndexContent {
             download_id,
             algorithm,
             digest,
@@ -144,7 +146,7 @@ impl Database {
 
     /// Follows a moved file with its index entry.
     pub async fn move_indexed_content(&self, download_id: DownloadId, path: String) -> Result<()> {
-        writer::request(&self.writer, |reply| WriterCommand::MoveIndexedContent {
+        writer::request(&self.writer, |reply| StorageCommand::MoveIndexedContent {
             download_id,
             path,
             reply,
@@ -157,7 +159,7 @@ impl Database {
         if changes.is_empty() {
             return Ok(());
         }
-        writer::request(&self.writer, |reply| WriterCommand::MarkIndexedContent {
+        writer::request(&self.writer, |reply| StorageCommand::MarkIndexedContent {
             changes,
             reply,
         })
@@ -167,7 +169,7 @@ impl Database {
     /// Forgets the other downloads' entries for `path` after `except`'s file replaced it;
     /// answers how many there were.
     pub async fn forget_indexed_path(&self, path: String, except: DownloadId) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::ForgetIndexedPath {
+        writer::request(&self.writer, |reply| StorageCommand::ForgetIndexedPath {
             path,
             except,
             reply,
@@ -183,7 +185,7 @@ impl Database {
     /// Empties the content index; answers how many entries went (RD-180-13). Files and
     /// downloads stay; the next check backfills what it can find through the rows.
     pub async fn clear_content_index(&self) -> Result<u64> {
-        writer::request(&self.writer, |reply| WriterCommand::ClearContentIndex {
+        writer::request(&self.writer, |reply| StorageCommand::ClearContentIndex {
             reply,
         })
         .await
@@ -198,7 +200,7 @@ impl Database {
     /// (RD-180-13).
     pub async fn clear_storage_operations(&self) -> Result<u64> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::ClearStorageOperations { reply }
+            StorageCommand::ClearStorageOperations { reply }
         })
         .await
     }
@@ -209,9 +211,8 @@ impl Database {
     }
 
     pub async fn start_storage_operation(&self, operation: NewStorageOperation) -> Result<i64> {
-        writer::request(&self.writer, |reply| WriterCommand::StartStorageOperation {
-            operation,
-            reply,
+        writer::request(&self.writer, |reply| {
+            StorageCommand::StartStorageOperation { operation, reply }
         })
         .await
     }
@@ -222,7 +223,7 @@ impl Database {
         outcome: StorageOperationOutcome,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::FinishStorageOperation { id, outcome, reply }
+            StorageCommand::FinishStorageOperation { id, outcome, reply }
         })
         .await
     }
@@ -230,7 +231,7 @@ impl Database {
     /// Settles the operations a stopped process left running; answers how many there were.
     pub async fn interrupt_storage_operations(&self) -> Result<u64> {
         writer::request(&self.writer, |reply| {
-            WriterCommand::InterruptStorageOperations { reply }
+            StorageCommand::InterruptStorageOperations { reply }
         })
         .await
     }

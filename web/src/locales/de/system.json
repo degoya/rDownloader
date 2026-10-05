@@ -47,7 +47,9 @@
     "copy_token": "Token kopieren",
     "extension_steps": "Trage in den Erweiterungsoptionen {origin} als Server-URL ein, füge dieses Token ein und drücke „Verbindung testen“. Installation siehe extension/README.md.",
     "token_copied_description": "Das Capture-Token liegt in der Zwischenablage.",
-    "label": "Name der Verbindung"
+    "label": "Name der Verbindung",
+    "queue_control": "Darf die Warteschlange pausieren",
+    "queue_control_help": "Erlaubt „Pause all“ und „Resume all“ im Tray-Menü des Agenten – sonst nichts. Ohne diese Wahl übergibt der Agent nur Links."
   },
   "agents": {
     "eyebrow": "Gekoppelte Verbindungen",
@@ -563,6 +565,14 @@
       "description": "{count} Indexeinträge werden entfernt. Dateien und Downloads bleiben unberührt, aber bis eine Datei wieder im Index steht, wird sie nicht als inhaltliches Duplikat erkannt und kann nicht Original eines Duplikat-Links sein. „Inhaltsindex prüfen“ (läuft auch bei jedem Start) nimmt fertige Downloads wieder auf, die noch in der Warteschlange stehen, deren SHA-256 bekannt ist und deren Datei noch an ihrem Platz liegt. Dateien entfernter oder nie gehashter Downloads kommen erst mit einem neuen Download zurück.",
       "confirm": "Index leeren",
       "done": "{count} Indexeinträge entfernt"
+    },
+    "history": {
+      "button": "Verlauf leeren",
+      "stored": "{count} Einträge",
+      "title": "Downloadverlauf leeren?",
+      "description": "{count} Einträge werden endgültig aus dem Downloadverlauf entfernt. Die Downloadliste, die Dateien, die Statistik und die Protokolle bleiben unberührt.",
+      "confirm": "Endgültig leeren",
+      "done": "{count} Verlaufseinträge entfernt"
     }
   },
   "session_limits": {

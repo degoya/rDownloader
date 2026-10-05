@@ -970,6 +970,7 @@ fn id_free_reads() -> Vec<(&'static str, serde_json::Value)> {
         ("list_remote_jobs", serde_json::json!({})),
         ("list_site_rules", serde_json::json!({})),
         ("get_transfer_stats", serde_json::json!({})),
+        ("get_usenet_server_traffic", serde_json::json!({})),
         ("list_log_records", serde_json::json!({ "limit": 500 })),
         ("list_audit_records", serde_json::json!({ "limit": 500 })),
         // RD-120-32's reads that need no id. The ones that do are searched in `everything`.
@@ -1680,4 +1681,76 @@ async fn the_nzb_review_list_pages_over_mcp() {
     )
     .await;
     assert_eq!(refusal["code"], "request.page_limit", "{refusal}");
+}
+
+/// RD-1100-05: the quota is set through a tool that merges onto the stored one, and the traffic
+/// per server is read through the statistics tool, quota included.
+#[tokio::test]
+async fn usenet_quota_and_traffic_are_reachable_as_tools() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (router, database, _secrets) = test_parts(directory.path()).await;
+    let server = database
+        .create_usenet_server(rd_db::NewUsenetServer {
+            name: "Block".to_owned(),
+            host: "news.invalid".to_owned(),
+            port: 563,
+            tls: true,
+            username: None,
+            password_ref: None,
+            proxy_profile_id: None,
+            priority: 1,
+            max_connections: 1,
+            enabled: true,
+        })
+        .await
+        .expect("usenet server")
+        .id;
+    let session = handshake(&router, API_BEARER).await;
+
+    let set = tool_result(
+        &router,
+        &session,
+        1,
+        "set_usenet_server_quota",
+        serde_json::json!({ "id": server.to_string(), "limit_bytes": 1000, "action": "pause" }),
+    )
+    .await;
+    assert_eq!(set["quota"]["limit_bytes"], 1000, "{set}");
+    database
+        .record_usenet_traffic(vec![(server, 300)])
+        .await
+        .expect("flush");
+    // Only the field passed changes; the limit and the action stay.
+    let reset = tool_result(
+        &router,
+        &session,
+        2,
+        "set_usenet_server_quota",
+        serde_json::json!({ "id": server.to_string(), "reset_usage": true }),
+    )
+    .await;
+    assert_eq!(reset["quota"]["limit_bytes"], 1000, "{reset}");
+    assert_eq!(reset["quota"]["action"], "pause", "{reset}");
+    assert_eq!(reset["quota"]["used_bytes"], 0, "{reset}");
+
+    let traffic = tool_result(
+        &router,
+        &session,
+        3,
+        "get_usenet_server_traffic",
+        serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(traffic["servers"][0]["total"], 300, "{traffic}");
+    assert_eq!(traffic["servers"][0]["quota"]["limit_bytes"], 1000);
+
+    let removed = tool_result(
+        &router,
+        &session,
+        4,
+        "set_usenet_server_quota",
+        serde_json::json!({ "id": server.to_string(), "clear": ["limit_bytes"] }),
+    )
+    .await;
+    assert!(removed["quota"].is_null(), "{removed}");
 }

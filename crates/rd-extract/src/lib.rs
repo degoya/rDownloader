@@ -3,10 +3,14 @@
 
 pub mod clamd;
 mod cleanup_job;
+mod completion;
 #[cfg(test)]
 mod completion_tests;
 #[cfg(all(test, feature = "failpoints"))]
 mod crash_tests;
+mod direct_unpack;
+#[cfg(all(test, unix))]
+mod direct_unpack_tests;
 #[cfg(test)]
 mod fake_clamd;
 mod malware_scan;
@@ -16,8 +20,12 @@ mod malware_scan_tests;
 mod nested_upload_tests;
 mod object_upload;
 mod package_job;
+mod package_phases;
+mod package_settings;
 mod par2_job;
 mod par2_refill;
+#[cfg(test)]
+mod par2_refill_tests;
 mod pipeline;
 mod plugin_step;
 #[cfg(test)]
@@ -35,6 +43,11 @@ mod script_env_tests;
 mod script_job;
 mod settings;
 mod sfv_job;
+#[cfg(all(test, feature = "failpoints"))]
+mod sort_crash_tests;
+mod sort_job;
+#[cfg(test)]
+mod sort_job_tests;
 mod steps;
 mod storage_upload;
 #[cfg(test)]
@@ -42,9 +55,13 @@ mod tests;
 mod unpack_job;
 #[cfg(test)]
 mod unpack_subfolder_tests;
+#[cfg(test)]
+mod unpack_tests;
 mod upload_step;
 #[cfg(test)]
 mod upload_step_tests;
+#[cfg(test)]
+mod verify_tests;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -54,7 +71,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use rd_core::{DownloadState, EventKind, PackageId, PostprocessHold, PostprocessState};
+use rd_core::{PackageId, PostprocessHold, PostprocessState};
 use rd_db::Database;
 use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
@@ -161,6 +178,8 @@ struct Inner {
     storage: Option<Arc<dyn storage_upload::StorageUploader>>,
     /// Object storage uploads (RD-150-04), injected so this crate does not link a cloud SDK.
     objects: Option<Arc<dyn object_upload::ObjectUploader>>,
+    /// Sets being unpacked while their package still downloads (RD-1100-07).
+    direct: direct_unpack::DirectUnpacks,
 }
 
 impl Inner {
@@ -247,6 +266,7 @@ impl ExtractionService {
                 plugin_steps,
                 storage,
                 objects,
+                direct: direct_unpack::DirectUnpacks::default(),
             }),
         };
         tokio::spawn(service.clone().run_jobs(receiver));
@@ -435,119 +455,6 @@ impl ExtractionService {
                     .await;
             }
         }
-    }
-
-    async fn listen_for_completions(self) {
-        let mut events = self.inner.database.subscribe();
-        loop {
-            let event = tokio::select! {
-                () = self.inner.shutdown.cancelled() => return,
-                event = events.recv() => match event {
-                    Ok(event) => event,
-                    // The missed events may have been the last completion of a package, and
-                    // nothing else would ever ask for its post-processing: `recover()` only
-                    // runs at start-up. So the packages are looked at once instead
-                    // (audit 1.9.1, INTAKE-04).
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
-                        tracing::warn!(missed, "event bus lagged; checking every unsettled package");
-                        if let Err(error) = self.sweep_settled_packages().await {
-                            tracing::warn!(%error, "post-processing sweep after a lag failed");
-                        }
-                        continue;
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
-                },
-            };
-            if event.kind != EventKind::DownloadState
-                || !matches!(
-                    event.payload.get("state").and_then(|value| value.as_str()),
-                    // Seeding torrents have a complete payload, so postprocessing starts
-                    // while they keep uploading. A mirror standing down is the last thing
-                    // that can settle a package, so it has to wake the check too — without
-                    // it the pipeline waits for an event that will never come.
-                    Some("completed" | "seeding" | "failed" | "blocked" | "cancelled" | "skipped")
-                )
-            {
-                continue;
-            }
-            let Some(download_id) = event
-                .payload
-                .get("download_id")
-                .and_then(|value| value.as_str())
-                .and_then(|value| value.parse::<rd_core::DownloadId>().ok())
-            else {
-                continue;
-            };
-            if let Err(error) = self.on_download_finished(download_id).await {
-                tracing::debug!(%error, "post-processing trigger check failed");
-            }
-        }
-    }
-
-    /// Requests the pipeline once every file of the package reached a terminal state
-    /// and at least one file completed.
-    async fn on_download_finished(&self, download_id: rd_core::DownloadId) -> Result<()> {
-        let Some(download) = self.inner.database.get_download(download_id).await? else {
-            return Ok(());
-        };
-        let Some(package) = self.inner.database.get_package(download.package_id).await? else {
-            return Ok(());
-        };
-        self.request_if_settled(&package).await
-    }
-
-    /// Runs [`Self::request_if_settled`] for every package that has not reached
-    /// post-processing yet — what a lagged event bus may have hidden.
-    ///
-    /// One package that cannot be looked at does not end the sweep: the ones after it may be
-    /// exactly what the lag hid (audit 1.9.1, RA-IN-05).
-    async fn sweep_settled_packages(&self) -> Result<()> {
-        for package in self.inner.database.list_packages().await? {
-            if let Err(error) = self.request_if_settled(&package).await {
-                tracing::warn!(package_id = %package.id, %error, "post-processing sweep skipped a package");
-            }
-        }
-        Ok(())
-    }
-
-    /// Requests the pipeline for `package` once every file reached a terminal state and at
-    /// least one completed, unless post-processing already started or ended.
-    async fn request_if_settled(&self, package: &rd_core::DownloadPackage) -> Result<()> {
-        if matches!(
-            package.state,
-            rd_core::PackageState::Postprocessing
-                | rd_core::PackageState::Completed
-                | rd_core::PackageState::Failed
-        ) {
-            return Ok(());
-        }
-        let siblings = self
-            .inner
-            .database
-            .downloads_for_package(package.id)
-            .await?;
-        let all_terminal = siblings.iter().all(|item| {
-            matches!(
-                item.state,
-                DownloadState::Completed
-                    | DownloadState::Seeding
-                    | DownloadState::Failed
-                    | DownloadState::Blocked
-                    | DownloadState::Cancelled
-                    // A mirror that was never needed is as settled as one that failed.
-                    | DownloadState::Skipped
-            )
-        });
-        let any_completed = siblings.iter().any(|item| {
-            matches!(
-                item.state,
-                DownloadState::Completed | DownloadState::Seeding
-            )
-        });
-        if !all_terminal || !any_completed {
-            return Ok(());
-        }
-        self.request(package.id, ExtractionTrigger::Auto).await
     }
 }
 

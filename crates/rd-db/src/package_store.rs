@@ -227,7 +227,7 @@ pub(crate) async fn rename_package_directory(
 /// The statements use numbered placeholders (`?1`) rather than plain `?`, because the same five
 /// values appear up to six times each. Spelled positionally, the bind list would be twenty-odd
 /// calls whose correctness nobody could check by reading them.
-async fn rewrite_stored_paths(
+pub(crate) async fn rewrite_stored_paths(
     transaction: &mut SqliteConnection,
     owner_id: &str,
     import_id: Option<&str>,

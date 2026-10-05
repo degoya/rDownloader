@@ -1,6 +1,6 @@
 //! Emptying the log store, the audit log and the transfer statistics (RD-120-34), the
-//! notification history (RD-130-08), the notifications not yet sent (RD-170-11), and the
-//! storage history and the content index (RD-180-13).
+//! notification history (RD-130-08), the notifications not yet sent (RD-170-11), the
+//! storage history and the content index (RD-180-13), and the download history (RD-1100-04).
 //!
 //! Separate actions and deliberately none that does them all. Somebody testing wants to start
 //! a run from an empty log while keeping the statistics that say how the last week went, and a
@@ -183,7 +183,8 @@ pub async fn clear_audit_records(
     Ok(Json(DataClearResponse { removed }))
 }
 
-/// Empties the transfer statistics: the buckets behind the charts and the all-time totals.
+/// Empties the transfer statistics: the buckets behind the charts, the all-time totals and the
+/// traffic per Usenet server; the servers' quota figures stay (RD-1100-05).
 #[utoipa::path(
     post,
     path = "/api/v1/stats/transfers/clear",
@@ -350,6 +351,39 @@ pub async fn clear_content_index(
         crate::audit::AuditEvent::success(rd_core::AuditAction::ContentIndexCleared)
             .by(&audit)
             .target("storage", "content_index")
+            .detail(rd_db::CLEARED_DETAIL_KEY, removed),
+    )
+    .await;
+    Ok(Json(DataClearResponse { removed }))
+}
+
+/// Empties the download history (RD-1100-04).
+///
+/// Only the history's entries go: the queue, the files and the SABnzbd view of the packages
+/// still in the queue are untouched. The button sits at the history itself, like the
+/// notification history's.
+#[utoipa::path(
+    post,
+    path = "/api/v1/history/clear",
+    tag = "history",
+    request_body = DataClearRequest,
+    responses(
+        (status = 200, body = DataClearResponse),
+        (status = 400, description = "data_reset.not_confirmed"),
+    )
+)]
+pub async fn clear_download_history(
+    State(state): State<AppState>,
+    audit: AuditContext,
+    Json(request): Json<DataClearRequest>,
+) -> Result<Json<DataClearResponse>, ApiError> {
+    confirm(&request, "history")?;
+    let removed = state.database.clear_download_history().await?;
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::HistoryCleared)
+            .by(&audit)
+            .target("history", "download_history")
             .detail(rd_db::CLEARED_DETAIL_KEY, removed),
     )
     .await;

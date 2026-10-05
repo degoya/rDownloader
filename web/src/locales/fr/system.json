@@ -47,7 +47,9 @@
     "copy_token": "Copier le jeton",
     "extension_steps": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez ce jeton puis cliquez sur « Tester la connexion ». Installation : voir extension/README.md.",
     "token_copied_description": "Le jeton de capture est dans le presse-papiers.",
-    "label": "Nom de la connexion"
+    "label": "Nom de la connexion",
+    "queue_control": "Peut mettre la file en pause",
+    "queue_control_help": "Autorise « Pause all » et « Resume all » dans le menu de la zone de notification de l'agent, rien de plus. Sans ce choix, l'agent ne transmet que des liens."
   },
   "agents": {
     "eyebrow": "Connexions appairées",
@@ -563,6 +565,14 @@
       "description": "{count} entrées d’index seront supprimées. Les fichiers et les téléchargements restent intacts, mais tant qu’un fichier n’est pas réindexé, il n’est pas reconnu comme doublon de contenu et ne peut pas être l’original d’un lien de doublon. « Vérifier l’index de contenu » (exécuté aussi à chaque démarrage) réindexe les téléchargements terminés encore dans la file dont le SHA-256 est connu et dont le fichier est toujours en place. Les fichiers de téléchargements supprimés ou jamais hachés ne reviennent qu’en les téléchargeant à nouveau.",
       "confirm": "Vider l’index",
       "done": "{count} entrées d’index supprimées"
+    },
+    "history": {
+      "button": "Vider l’historique",
+      "stored": "{count} entrées",
+      "title": "Vider l’historique des téléchargements ?",
+      "description": "{count} entrées seront supprimées définitivement de l’historique des téléchargements. La liste des téléchargements, les fichiers, les statistiques et les journaux restent intacts.",
+      "confirm": "Vider définitivement",
+      "done": "{count} entrées d’historique supprimées"
     }
   },
   "session_limits": {

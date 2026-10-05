@@ -313,6 +313,14 @@
       "timeout_description": "Cuánto pueden tardar la conexión, un bloque o el veredicto de clamd (5–3600 s).",
       "test": "Probar clamd",
       "test_ok": "clamd en {address} responde: {version}"
+    },
+    "fail_hopeless_jobs": {
+      "label": "Cancelar descargas de Usenet sin remedio",
+      "description": "Si faltan más bloques PAR2 de los que los volúmenes de recuperación del conjunto pueden reemplazar, el resto ya no se descarga y el paquete falla. Lo ya descargado se conserva. Ahorra volumen en cuentas por bloques. Desactivado: cada archivo se descarga hasta el final, como antes."
+    },
+    "direct_unpack": {
+      "label": "Extraer durante la descarga",
+      "description": "Los archivos RAR multiparte de Usenet se extraen parte por parte a medida que cada parte llega completa, en lugar de tras la descarga. Si hace falta una reparación o a una parte le falta algo, el intento se descarta y se extrae después como de costumbre. Requiere unrar y espacio para lo extraído junto a la descarga en curso."
     }
   },
   "appearance": {
@@ -966,5 +974,15 @@
     "interval_description": "Horas entre el fallo y el siguiente intento (1–24).",
     "rounds_label": "Rondas por descarga",
     "rounds_description": "Cuántas veces como máximo vuelve una descarga a la cola; 0 significa sin límite (0–100)."
+  },
+  "history": {
+    "eyebrow": "Historial de descargas",
+    "title": "Conservación del historial de descargas",
+    "description": "Cuánto tiempo permanecen en el historial los paquetes terminados y fallidos después de salir de la lista.",
+    "open": "Abrir el historial",
+    "entries_label": "Entradas conservadas",
+    "entries_description": "Las entradas más antiguas se eliminan primero (100-100000).",
+    "days_label": "Días conservados",
+    "days_description": "Las entradas más antiguas se eliminan sea cual sea su número (1-3650)."
   }
 }

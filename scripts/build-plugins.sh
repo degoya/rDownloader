@@ -30,7 +30,8 @@
 #
 # Staleness by content, not by file time (RD-120-58). Every component this script builds gets a
 # stamp beside it, `rd_plugin_<name>.wasm.src-sha256`: the hash of the sources it was built from
-# and the hash of the component itself. A component is current when both still match. File
+# and the hash of the component itself, and the dependency hash (`deps_hash`: registry packages,
+# root Cargo.toml, compiler). A component is current when all three still match. File
 # times said "stale" after every checkout and rebase — in 5 of 8 branches on 2026-09-24, for
 # plugins nobody had touched. A bare `cargo component build` writes no stamp, so the component
 # it leaves no longer matches the old one and counts as stale: a stamp never vouches for a
@@ -199,11 +200,34 @@ source_hash() {
     sha256_files "${files[@]}" | sha256_files - | cut -c1-64
 }
 
-# Writes the stamp for plugin $1, whose component was just built from this checkout.
+# What every component depends on besides its own sources: the registry packages in Cargo.lock,
+# the root Cargo.toml (workspace dependencies, features, the release profile) without the
+# workspace version, .cargo/config.toml and the compiler cargo resolves here (`rustc -vV`). The
+# component cache's `deps` key, and the third field of a stamp: until 1.10 a stamp held the
+# sources alone, so after the move to Rust 1.99 the components the shared target/ still had from
+# 1.98.1 passed as current, --list-unbumped compared those, and only signing the release found 39
+# plugins whose components had changed under a signed version. Computed once per run.
+deps_hash_value=""
+deps_hash() {
+    if [[ -z "$deps_hash_value" ]]; then
+        deps_hash_value="$({
+            awk 'BEGIN { RS = "" } /\nsource = / { print; print "" }' Cargo.lock
+            sed '/^\[workspace\.package\]/,/^\[/{/^version = /d;}' Cargo.toml
+            [[ ! -f .cargo/config.toml ]] || cat .cargo/config.toml
+            rustc -vV
+        } | sha256_files - | cut -c1-64)"
+    fi
+    printf '%s\n' "$deps_hash_value"
+}
+
+# Writes the stamp for plugin $1, whose component was just built from this checkout: the source
+# hash, the component's own hash and the dependency hash. crates/rd-plugin-host/src/artifact.rs
+# reads the first two.
 write_stamp() {
     local component; component="$(component_path "$1")"
     local stamp; stamp="$(stamp_path "$1")"
-    printf '%s %s\n' "$(source_hash "$1")" "$(sha256_files "$component" | cut -c1-64)" > "$stamp.tmp"
+    printf '%s %s %s\n' "$(source_hash "$1")" "$(sha256_files "$component" | cut -c1-64)" \
+        "$(deps_hash)" > "$stamp.tmp"
     mv "$stamp.tmp" "$stamp"
 }
 
@@ -216,18 +240,20 @@ write_stamp() {
 # second, cheaper place, so `scripts/check.sh` can answer it before a run that would fail.
 #
 # Stale unless the stamp exists, describes exactly these component bytes, and records exactly
-# the current source hash. A stamp for other bytes means the component was rebuilt without one —
-# by a bare `cargo component build`, possibly in another checkout — and vouches for nothing.
+# the current source hash and dependency hash. A stamp for other bytes means the component was
+# rebuilt without one — by a bare `cargo component build`, possibly in another checkout — and
+# vouches for nothing; a stamp without the dependency hash predates it and is stale once.
 stale() {
-    local name="$1" component stamp recorded_sources recorded_component
+    local name="$1" component stamp recorded_sources recorded_component recorded_deps
     component="$(component_path "$name")"
     stamp="$(stamp_path "$name")"
     # A component that is not there is `missing`'s question, asked separately below;
     # conflating the two is what left the quiet case uncovered until RD-108-16.
     [[ -f "$component" ]] || return 1
     [[ -f "$stamp" ]] || return 0
-    read -r recorded_sources recorded_component < "$stamp" || return 0
+    read -r recorded_sources recorded_component recorded_deps < "$stamp" || return 0
     [[ "$recorded_component" == "$(sha256_files "$component" | cut -c1-64)" ]] || return 0
+    [[ "$recorded_deps" == "$(deps_hash)" ]] || return 0
     [[ "$recorded_sources" != "$(source_hash "$name")" ]]
 }
 
@@ -250,12 +276,7 @@ fi
 # The workflow restores by `deps` alone when `sources` misses, and this script's staleness check
 # then rebuilds exactly the plugins whose stamps no longer match.
 if [[ "$cache_key_only" -eq 1 ]]; then
-    {
-        awk 'BEGIN { RS = "" } /\nsource = / { print; print "" }' Cargo.lock
-        sed '/^\[workspace\.package\]/,/^\[/{/^version = /d;}' Cargo.toml
-        [[ ! -f .cargo/config.toml ]] || cat .cargo/config.toml
-        rustc -vV
-    } | sha256_files - | cut -c1-64 | sed 's/^/deps=/'
+    printf 'deps=%s\n' "$(deps_hash)"
     for manifest in plugins/*/manifest.toml; do
         name="$(basename "$(dirname "$manifest")")"
         printf '%s %s\n' "$name" "$(source_hash "$name")"

@@ -56,10 +56,10 @@
     "eyebrow": "Indexer",
     "title_add": "Indexer hinzufügen",
     "title_edit": "Indexer bearbeiten",
-    "description": "Ein Newznab-Indexer, einmal angelegt: der LinkGrabber durchsucht ihn, und ein Indexer-Abo kann ihn übernehmen. Der API-Schlüssel landet im Tresor und wird nie wieder angezeigt.",
+    "description": "Ein Newznab- oder Torznab-Indexer (Jackett, Prowlarr), einmal angelegt: der LinkGrabber durchsucht ihn, und ein Indexer-Abo kann ihn übernehmen. Der API-Schlüssel landet im Tresor und wird nie wieder angezeigt.",
     "name": "Name",
     "url": "API-Adresse",
-    "url_hint": "Die Basisadresse der API, z. B. https://api.omgwtfnzbs.org/api – auch ein NZBHydra oder Prowlarr in deinem Netz",
+    "url_hint": "Die Basisadresse der API, z. B. https://api.omgwtfnzbs.org/api – auch ein NZBHydra, Jackett oder Prowlarr in deinem Netz; ein Torznab-Indexer liefert Torrents",
     "api_key": "API-Schlüssel",
     "api_key_keep": "Leer lassen, um den gespeicherten Schlüssel zu behalten",
     "categories": "Standard-Kategorien",
@@ -96,5 +96,25 @@
       "detailed": "Ausführlich",
       "detailed_hint": "Zusätzlich ein kleines Cover und die Angaben, die der Indexer mitliefert: Jahr, Genre, IMDb-Bewertung, Sprache, Auflösung, Kurzbeschreibung."
     }
+  },
+  "quota": {
+    "title": "Kontingent",
+    "usage": "Heute {today} · 30 Tage {month} · gesamt {total}",
+    "none": "Kein Kontingent",
+    "used": "{used} von {limit} verbraucht",
+    "reached_backup": "Kontingent verbraucht: Dieser Server wird nur noch gefragt, wenn die anderen einen Artikel nicht haben.",
+    "reached_pause": "Kontingent verbraucht: Dieser Server ist pausiert.",
+    "resets_on": "Wird am {date} zurückgesetzt",
+    "edit": "Kontingent festlegen",
+    "limit": "Volumen",
+    "limit_hint": "Die Datenmenge, die dieser Server liefern darf, etwa das Volumen eines Block-Accounts.",
+    "action": "Wenn verbraucht",
+    "action_backup": "Nur noch als Backup nutzen",
+    "action_pause": "Server pausieren",
+    "reset_on": "Zurücksetzen am (optional)",
+    "reset_on_hint": "Ab diesem Tag zählt der Verbrauch einmalig wieder ab null.",
+    "reset_usage": "Verbrauch zurücksetzen",
+    "remove": "Kontingent entfernen",
+    "saved": "Kontingent gespeichert"
   }
 }

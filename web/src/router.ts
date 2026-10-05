@@ -11,6 +11,7 @@ export const router = createRouter({
   routes: [
     { path: '/', redirect: '/downloads' },
     { path: '/downloads', name: 'downloads', component: () => import('./views/DownloadsView.vue') },
+    { path: '/history', name: 'history', component: () => import('./views/HistoryView.vue') },
     { path: '/linkgrabber', name: 'linkgrabber', component: () => import('./views/LinkGrabberView.vue') },
     { path: '/streams', name: 'streams', component: () => import('./views/StreamsView.vue') },
     { path: '/subscriptions', name: 'subscriptions', component: () => import('./views/SubscriptionsView.vue') },
