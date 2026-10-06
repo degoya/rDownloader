@@ -13,7 +13,7 @@ use url::Url;
 /// the single most expensive failure in the agent -- the task simply stops, forever, with no log
 /// line and no restart, while the tray keeps reporting "healthy" (RD-109-06).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Purpose {
+pub(crate) enum Purpose {
     /// The short JSON and multipart calls. A total deadline belongs on these.
     Request,
     /// The capture event stream. Bounded by the gap between two pieces of data rather than by
@@ -32,7 +32,7 @@ pub enum Purpose {
 
 /// The deadlines a client carries, kept as data so the policy itself can be asserted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Deadlines {
+pub(crate) struct Deadlines {
     /// How long establishing the connection may take. Every client of this crate has one.
     pub connect: Duration,
     /// How long the whole request may take. `None` only where a request is meant to be long.
@@ -43,7 +43,7 @@ pub struct Deadlines {
 
 /// The one policy, per purpose.
 #[must_use]
-pub fn deadlines(purpose: Purpose) -> Deadlines {
+pub(crate) fn deadlines(purpose: Purpose) -> Deadlines {
     match purpose {
         Purpose::Request => Deadlines {
             connect: Duration::from_secs(5),
@@ -70,7 +70,7 @@ pub fn deadlines(purpose: Purpose) -> Deadlines {
 /// reported to the caller rather than replaced by a client without a policy: a client that
 /// cannot be built is a fault worth a line in the log, and silently substituting one that hangs
 /// forever is the opposite of the property the expression was written for.
-pub fn build(purpose: Purpose) -> Result<Client> {
+pub(crate) fn build(purpose: Purpose) -> Result<Client> {
     build_with(deadlines(purpose))
 }
 
@@ -79,7 +79,7 @@ pub fn build(purpose: Purpose) -> Result<Client> {
 /// view, with a hint when the agent is older (RD-190-07) -- the case where the agent did not
 /// pick up its replaced program file by itself (`relaunch`).
 #[must_use]
-pub fn user_agent() -> String {
+pub(crate) fn user_agent() -> String {
     format!(
         "{}/{}",
         rd_core::CAPTURE_AGENT_PRODUCT,
@@ -114,7 +114,7 @@ fn build_with(deadlines: Deadlines) -> Result<Client> {
 /// It travels inside `anyhow::Error`, so a caller that does not care is unaffected and one that
 /// does recovers it with `downcast_ref`.
 #[derive(Debug, Clone)]
-pub struct ServiceRefusal {
+pub(crate) struct ServiceRefusal {
     operation: String,
     status: StatusCode,
     code: Option<String>,
@@ -129,7 +129,7 @@ pub struct ServiceRefusal {
 /// refusal -- and the hint about the connection, the only thing that would have helped, was
 /// gone (RD-109-10).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Detail {
+pub(crate) enum Detail {
     /// Read, and it said something.
     Text(String),
     /// Read, and it was empty.
@@ -143,7 +143,7 @@ impl ServiceRefusal {
     ///
     /// The code is read from the untruncated body; only the human-readable detail is capped,
     /// so a long body cannot cut the code out of the very document that carries it.
-    pub fn new(operation: &str, status: StatusCode, body: &str) -> Self {
+    pub(crate) fn new(operation: &str, status: StatusCode, body: &str) -> Self {
         let code = serde_json::from_str::<serde_json::Value>(body)
             .ok()
             .and_then(|body| {
@@ -165,7 +165,7 @@ impl ServiceRefusal {
     }
 
     /// The service answered, but the answer did not arrive whole.
-    pub fn unreadable(operation: &str, status: StatusCode, cause: &str) -> Self {
+    pub(crate) fn unreadable(operation: &str, status: StatusCode, cause: &str) -> Self {
         Self {
             operation: operation.to_owned(),
             status,
@@ -175,17 +175,17 @@ impl ServiceRefusal {
     }
 
     /// The stable `code` the service sent, when the body carried one.
-    pub fn code(&self) -> Option<&str> {
+    pub(crate) fn code(&self) -> Option<&str> {
         self.code.as_deref()
     }
 
     /// The HTTP status the service answered with.
-    pub fn status(&self) -> StatusCode {
+    pub(crate) fn status(&self) -> StatusCode {
         self.status
     }
 
     /// What became of the body.
-    pub fn detail(&self) -> &Detail {
+    pub(crate) fn detail(&self) -> &Detail {
         &self.detail
     }
 }
@@ -210,7 +210,7 @@ impl fmt::Display for ServiceRefusal {
 impl std::error::Error for ServiceRefusal {}
 
 #[derive(Clone)]
-pub struct CaptureClient {
+pub(crate) struct CaptureClient {
     service: Url,
     token: String,
     /// The short calls, with a total deadline.
@@ -221,7 +221,7 @@ pub struct CaptureClient {
 }
 
 impl CaptureClient {
-    pub fn new(service: Url, token: String) -> Result<Self> {
+    pub(crate) fn new(service: Url, token: String) -> Result<Self> {
         Ok(Self {
             service,
             token,
@@ -230,7 +230,7 @@ impl CaptureClient {
         })
     }
 
-    pub async fn submit_links(
+    pub(crate) async fn submit_links(
         &self,
         urls: Vec<Url>,
         source: &str,
@@ -265,7 +265,7 @@ impl CaptureClient {
     /// Counts, byte totals and the queue's rate — the capture token is a narrow credential, and
     /// the service answers this one accordingly. Nothing here names a file, a folder or an
     /// account.
-    pub async fn summary(&self) -> anyhow::Result<crate::activity::Summary> {
+    pub(crate) async fn summary(&self) -> anyhow::Result<crate::activity::Summary> {
         let url = self.service.join("api/v1/capture/summary")?;
         let response = self.http.get(url).bearer_auth(&self.token).send().await?;
         let response = ensure_success(response, "transfer summary").await?;
@@ -276,7 +276,7 @@ impl CaptureClient {
     ///
     /// Refused with `auth.scope_insufficient` unless the agent was paired with queue control;
     /// the summary says which, so the tray only offers what the service will do.
-    pub async fn pause_queue(&self, minutes: Option<u32>) -> Result<()> {
+    pub(crate) async fn pause_queue(&self, minutes: Option<u32>) -> Result<()> {
         let response = self
             .http
             .post(self.service.join("api/v1/capture/queue/pause")?)
@@ -289,7 +289,7 @@ impl CaptureClient {
     }
 
     /// Resumes what a pause stopped: ends a timed pause, or queues the paused files again.
-    pub async fn resume_queue(&self) -> Result<()> {
+    pub(crate) async fn resume_queue(&self) -> Result<()> {
         let response = self
             .http
             .post(self.service.join("api/v1/capture/queue/resume")?)
@@ -310,7 +310,10 @@ impl CaptureClient {
     /// `last_event_id` is the id of the last frame the previous connection delivered. Sent as
     /// `Last-Event-ID`, it asks the service for everything after it (RD-110-23); on the first
     /// connection there is nothing to ask for and no header goes out.
-    pub async fn capture_events(&self, last_event_id: Option<&str>) -> Result<reqwest::Response> {
+    pub(crate) async fn capture_events(
+        &self,
+        last_event_id: Option<&str>,
+    ) -> Result<reqwest::Response> {
         let endpoint = self.service.join("api/v1/capture/events")?;
         let mut request = self
             .stream
@@ -324,7 +327,7 @@ impl CaptureClient {
         ensure_success(response, "event stream").await
     }
 
-    pub async fn upload_nzb_bytes(&self, name: String, content: Vec<u8>) -> Result<()> {
+    pub(crate) async fn upload_nzb_bytes(&self, name: String, content: Vec<u8>) -> Result<()> {
         let form = multipart::Form::new().part(
             "file",
             multipart::Part::bytes(content)

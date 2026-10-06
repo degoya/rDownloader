@@ -26,7 +26,7 @@ static TAG: LazyLock<Regex> =
 
 /// Every anchor of a document as `(href, text)`, in the order the page carries them.
 #[must_use]
-pub fn anchors(body: &str) -> Vec<(String, String)> {
+pub(crate) fn anchors(body: &str) -> Vec<(String, String)> {
     ANCHOR
         .captures_iter(body)
         .filter_map(|captures| {

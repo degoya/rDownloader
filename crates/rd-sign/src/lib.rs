@@ -15,6 +15,8 @@
 //! `rd-plugin-host` re-exports what it used to own, so the packaging CLI and the shipped
 //! `.rdplug` files are unaffected.
 
+#![warn(unreachable_pub)]
+
 pub mod digest;
 pub mod envelope;
 pub mod replay;

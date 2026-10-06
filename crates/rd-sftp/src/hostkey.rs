@@ -25,7 +25,7 @@ pub const HOST_KEY_UNSUPPORTED: &str = "sftp.host_key_unsupported";
 
 /// What the handler observed during key exchange.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OfferedKey {
+pub(crate) struct OfferedKey {
     /// Algorithm name as SSH spells it (`ssh-ed25519`, `rsa-sha2-512`, …).
     pub algorithm: String,
     /// `SHA256:<base64>` exactly as OpenSSH prints it, so it can be compared by eye with
@@ -35,7 +35,7 @@ pub struct OfferedKey {
 
 /// Why a host key was rejected.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Rejection {
+pub(crate) enum Rejection {
     Unknown(OfferedKey),
     Changed {
         offered: OfferedKey,
@@ -52,7 +52,7 @@ impl Rejection {
     /// the value a person has to compare against the server's — so it travels as a
     /// parameter rather than being redacted.
     #[must_use]
-    pub fn into_failure(self, host: &str, port: u16) -> Failure {
+    pub(crate) fn into_failure(self, host: &str, port: u16) -> Failure {
         match self {
             Self::Unknown(key) => Failure::coded(
                 FailureKind::AuthRequired,
@@ -87,14 +87,14 @@ impl Rejection {
 }
 
 /// Shared slot the handler writes its observation into.
-pub type Observed = Arc<Mutex<Option<Result<OfferedKey, Rejection>>>>;
+pub(crate) type Observed = Arc<Mutex<Option<Result<OfferedKey, Rejection>>>>;
 
 /// Reads the algorithm and OpenSSH-style fingerprint off an offered key.
 ///
 /// A certificate is refused rather than reduced to its signing key: pinning the CA is a
 /// different trust model, and silently pinning the leaf would accept every future
 /// certificate the same CA issues.
-pub fn describe(offered: &PublicKeyOrCertificate) -> Result<OfferedKey, Rejection> {
+pub(crate) fn describe(offered: &PublicKeyOrCertificate) -> Result<OfferedKey, Rejection> {
     match offered {
         PublicKeyOrCertificate::PublicKey { key, .. } => Ok(OfferedKey {
             algorithm: key.algorithm().as_str().to_owned(),
@@ -109,7 +109,7 @@ pub fn describe(offered: &PublicKeyOrCertificate) -> Result<OfferedKey, Rejectio
 /// `auto_trust` is the escape hatch for unattended setups and is off by default; it only
 /// ever covers a *first* sighting. A key that changed is never accepted automatically,
 /// because a rebuilt server and an interception look identical from here.
-pub fn decide(
+pub(crate) fn decide(
     verdict: &HostKeyVerdict,
     offered: OfferedKey,
     auto_trust: bool,

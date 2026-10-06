@@ -18,7 +18,7 @@ const THIRD_PARTY: &str = include_str!("../licenses/third-party.json");
 /// The dependency licences, as `scripts/licenses.sh` writes them.
 #[derive(Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ThirdPartyLicenses {
+pub(crate) struct ThirdPartyLicenses {
     /// Every crate a shipped artefact contains: what the binaries link on Linux, Windows and
     /// macOS, and what the plugin components link.
     pub rust: Vec<ThirdPartyPackage>,
@@ -32,7 +32,7 @@ pub struct ThirdPartyLicenses {
 
 #[derive(Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ThirdPartyPackage {
+pub(crate) struct ThirdPartyPackage {
     pub name: String,
     pub version: String,
     /// SPDX expression as the package declares it, or as `licenses/overrides.json` records it
@@ -43,7 +43,7 @@ pub struct ThirdPartyPackage {
 /// A separate route from the page's head: the list runs to about a thousand entries, and the
 /// MCP tool that reads the head has no use for it.
 #[utoipa::path(get, path = "/api/v1/system/about/licenses", tag = "system", responses((status = 200, body = ThirdPartyLicenses)))]
-pub async fn system_about_licenses() -> Response {
+pub(crate) async fn system_about_licenses() -> Response {
     ([(header::CONTENT_TYPE, "application/json")], THIRD_PARTY).into_response()
 }
 

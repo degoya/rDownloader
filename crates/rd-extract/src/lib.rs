@@ -1,6 +1,8 @@
 //! Package post-processing service: PAR2 repair, archive extraction, cleanup, the ClamAV scan
 //! and user scripts for finished downloads (SABnzbd-style levels per package/category).
 
+#![warn(unreachable_pub)]
+
 pub mod clamd;
 mod cleanup_job;
 mod completion;

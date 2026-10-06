@@ -1,5 +1,7 @@
 //! Cross-platform desktop capture bridge for CNL, clipboard and NZB files.
 
+#![warn(unreachable_pub)]
+
 mod activity;
 mod cli;
 mod client;

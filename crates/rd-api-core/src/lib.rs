@@ -6,6 +6,8 @@
 //! build on this crate and not on each other, so rustc compiles them side by side, and
 //! `rd-api-compat`, `rd-api-mcp` and `rd-api` assemble them.
 
+#![warn(unreachable_pub)]
+
 mod app_state;
 pub mod audit;
 pub mod auth;

@@ -190,9 +190,9 @@ async fn encrypted_seven_zip_and_split_volumes_extract() {
 }
 
 mod tempfile {
-    pub use ::tempfile::tempdir;
+    pub(super) use ::tempfile::tempdir;
 
-    pub fn dir_in_tempdir() -> ::tempfile::TempDir {
+    pub(super) fn dir_in_tempdir() -> ::tempfile::TempDir {
         tempdir().expect("temporary directory")
     }
 }

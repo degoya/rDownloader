@@ -6,6 +6,8 @@
 //! `rd-api-mcp` — so rustc compiles the areas side by side and a change rebuilds its area and
 //! what assembles it, not the whole surface.
 
+#![warn(unreachable_pub)]
+
 mod about;
 mod event_stream;
 mod handlers;

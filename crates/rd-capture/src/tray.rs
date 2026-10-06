@@ -58,7 +58,7 @@ enum UserEvent {
 }
 
 /// A prepared, not yet running event loop.
-pub struct Tray {
+pub(crate) struct Tray {
     event_loop: EventLoop<UserEvent>,
     icon: Icon,
     /// The same mark with a badge, shown while something is transferring.
@@ -69,7 +69,7 @@ pub struct Tray {
 ///
 /// Everything that can fail before the agent starts happens here, so `main` can
 /// still fall back to the headless path.
-pub fn prepare() -> Result<Tray> {
+pub(crate) fn prepare() -> Result<Tray> {
     let image = decode_image()?;
     let icon = to_icon(image.clone())?;
     // `set_activation_policy` needs a mutable loop; on Windows nothing does.
@@ -92,7 +92,7 @@ pub fn prepare() -> Result<Tray> {
 impl Tray {
     /// Runs the agent under the tray event loop. Never returns: the process
     /// ends through [`Agent::finish`].
-    pub fn run(self, args: RunArgs) -> Result<()> {
+    pub(crate) fn run(self, args: RunArgs) -> Result<()> {
         let Self {
             event_loop,
             icon,

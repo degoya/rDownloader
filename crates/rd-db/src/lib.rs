@@ -1,5 +1,7 @@
 //! SQLite persistence and serialized writer operations.
 
+#![warn(unreachable_pub)]
+
 mod archive_password;
 mod auth_flow_store;
 mod auth_profile_store;
@@ -162,7 +164,9 @@ pub use full_backup_store::{
     BackupDestinationRecord, BackupKeyRecord, BackupRun, BackupRunOutcome, NewBackupDestination,
     NewBackupRun,
 };
-pub(crate) use helpers::{enum_string, escape_like, parse_enum, parse_id, parse_time, timestamp};
+pub(crate) use helpers::{
+    enum_string, escape_like, page_binds, parse_enum, parse_id, parse_time, timestamp,
+};
 pub use history_store::{
     DOWNLOAD_FAILED_CODE as HISTORY_DOWNLOAD_FAILED_CODE, HistoryPage, HistoryQuery,
     POSTPROCESS_FAILED_CODE as HISTORY_POSTPROCESS_FAILED_CODE,

@@ -4,6 +4,8 @@
 //! executing actions is the service's job, exactly as in `rd-notify`, so the rules stay
 //! testable without a database and without a network.
 
+#![warn(unreachable_pub)]
+
 mod condition;
 mod model;
 

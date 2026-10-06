@@ -46,7 +46,7 @@ pub enum TransferOutcome {
 }
 
 /// Progress reported by the guest, throttled and persisted by the runner.
-pub type ProgressSink = Arc<dyn Fn(u64, Option<u64>) + Send + Sync>;
+pub(crate) type ProgressSink = Arc<dyn Fn(u64, Option<u64>) + Send + Sync>;
 
 /// The state a transfer invocation runs against.
 pub struct TransferState {

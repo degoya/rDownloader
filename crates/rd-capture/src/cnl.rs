@@ -81,17 +81,17 @@ const NO_LINK_DETAIL: &str = "CNL payload contains no link the collector accepts
 /// decryption. Everything else goes to the log.
 pub(crate) mod code {
     /// The payload could not be read: bad base64, bad padding, not UTF-8, malformed multipart.
-    pub const INVALID_PAYLOAD: &str = "cnl_invalid_payload";
+    pub(crate) const INVALID_PAYLOAD: &str = "cnl_invalid_payload";
     /// No usable decryption key was supplied.
-    pub const INVALID_KEY: &str = "cnl_invalid_key";
+    pub(crate) const INVALID_KEY: &str = "cnl_invalid_key";
     /// The request carried nothing that could be handed to the LinkGrabber.
-    pub const NO_LINKS: &str = "cnl_no_links";
+    pub(crate) const NO_LINKS: &str = "cnl_no_links";
     /// The payload exceeds what this endpoint accepts.
-    pub const TOO_LARGE: &str = "cnl_payload_too_large";
+    pub(crate) const TOO_LARGE: &str = "cnl_payload_too_large";
     /// The service refused the hand-over, or could not be reached.
-    pub const SERVICE_UNAVAILABLE: &str = "cnl_service_unavailable";
+    pub(crate) const SERVICE_UNAVAILABLE: &str = "cnl_service_unavailable";
     /// A browser tried to reach one of rDownloader's own routes.
-    pub const FOREIGN_ORIGIN: &str = "cnl_foreign_origin";
+    pub(crate) const FOREIGN_ORIGIN: &str = "cnl_foreign_origin";
 }
 
 #[derive(Clone)]
@@ -99,7 +99,7 @@ struct CnlState {
     client: CaptureClient,
 }
 
-pub async fn serve(
+pub(crate) async fn serve(
     address: SocketAddr,
     listener: tokio::net::TcpListener,
     client: CaptureClient,

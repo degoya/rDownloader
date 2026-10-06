@@ -318,7 +318,7 @@ fn matched_facets(facets: &[(MirrorFacet, String)], mirror: &CandidateMirror, ur
 /// what is compared here. An address that does not parse has no hoster rather than a made-up
 /// one, which is the "nothing is guessed" rule again.
 #[must_use]
-pub fn hoster_of(url: &str) -> String {
+pub(crate) fn hoster_of(url: &str) -> String {
     url::Url::parse(url)
         .ok()
         .and_then(|parsed| parsed.host_str().map(rd_core::host_key))

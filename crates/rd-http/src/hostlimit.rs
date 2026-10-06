@@ -119,12 +119,41 @@ impl HostLimits {
             }
             Arc::clone(
                 slots
-                    .entry(host)
+                    .entry(host.clone())
                     .or_insert_with(|| Arc::new(Semaphore::new(limit))),
             )
         };
+        if let Ok(permit) = Arc::clone(&semaphore).try_acquire_owned() {
+            return Some(permit);
+        }
+        // Said in the log (RD-1130-02): a request held back here moved no byte and said
+        // nothing, so a file that waited for its host looked like a stalled one.
+        tracing::debug!(%host, "a request waits for a connection to its host");
         // Entries are never closed, only dropped, so the error arm is unreachable.
-        semaphore.acquire_owned().await.ok()
+        let permit = semaphore.acquire_owned().await.ok();
+        tracing::debug!(%host, "a request got its connection to the host");
+        permit
+    }
+
+    /// Connections `url`'s host could open right now without waiting.
+    ///
+    /// `None` when nothing is bounded: the limit is off or the URL has no host. A host nobody
+    /// has asked for yet has the whole limit free. Only read, never taken, so the limit itself
+    /// stays what it is; the dispatcher asks before it starts a file, so a file whose host is
+    /// busy does not take a place among the files running at once (RD-1130-02).
+    #[must_use]
+    pub fn free(&self, url: &Url) -> Option<usize> {
+        let limit = self.limit();
+        if limit == 0 {
+            return None;
+        }
+        let host = host_key(url)?;
+        let slots = self.inner.slots.lock().ok()?;
+        Some(
+            slots
+                .get(&host)
+                .map_or(limit, |semaphore| semaphore.available_permits()),
+        )
     }
 
     /// Records that this host answered a ranged request with something else.
@@ -232,6 +261,29 @@ mod tests {
         limits.set_limit(0);
         assert_eq!(limits.limit(), 0);
         assert!(limits.acquire(&target).await.is_none());
+    }
+
+    /// RD-1130-02: what the dispatcher reads before it starts a file.
+    #[tokio::test]
+    async fn free_counts_the_held_connections_of_one_host_and_nothing_when_off() {
+        let limits = HostLimits::new(2);
+        let target = url("https://cdn.example.test/file");
+        assert_eq!(
+            limits.free(&target),
+            Some(2),
+            "an unknown host has the whole limit"
+        );
+        let held = limits.acquire(&target).await;
+        assert!(held.is_some());
+        assert_eq!(
+            limits.free(&url("https://www.cdn.example.test/other")),
+            Some(1)
+        );
+        assert_eq!(limits.free(&url("https://two.example.test/file")), Some(2));
+        drop(held);
+        assert_eq!(limits.free(&target), Some(2));
+        limits.set_limit(0);
+        assert_eq!(limits.free(&target), None, "no limit, nothing to wait for");
     }
 
     #[test]

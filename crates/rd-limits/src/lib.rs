@@ -6,6 +6,8 @@
 //! when, and how much a period has used. Persisting it and applying it to the transports is
 //! the scheduler's job.
 
+#![warn(unreachable_pub)]
+
 mod budget;
 mod capabilities;
 mod limiter;

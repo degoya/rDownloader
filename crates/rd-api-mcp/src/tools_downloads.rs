@@ -84,7 +84,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List downloads with optional state/package/name filters, paginated. name_contains matches the file name or the package name, like the web UI's search. Poll this or get_status_summary to observe progress. A failed row's error says why; get_download has its stable code and params."
+        description = "List downloads with optional state/package/name filters, paginated. name_contains matches the file name or the package name, like the web UI's search. Poll this or get_status_summary to observe progress. A failed row's error says why; get_download has its stable code and params. A queued row with waiting_for_host is held back because that host has no free connection (per-host connection limit, max_connections_per_host); it takes no parallel-download place meanwhile, and a file of another host starts instead."
     )]
     pub async fn list_downloads(
         &self,
@@ -122,12 +122,17 @@ impl RdMcpServer {
                         || file.file_name.to_lowercase().contains(&needle)
                 });
             }
-            Ok(paginate(
-                rows,
-                params.limit,
-                params.offset,
-                DownloadItem::from,
-            ))
+            let host_waits = self.state.scheduler.host_waits().await;
+            Ok(paginate(rows, params.limit, params.offset, |file| {
+                // The last dispatch pass's word, for a row that is still queued.
+                let waiting_for_host = (file.state == rd_core::DownloadState::Queued)
+                    .then(|| host_waits.get(&file.id).cloned())
+                    .flatten();
+                DownloadItem {
+                    waiting_for_host,
+                    ..DownloadItem::from(file)
+                }
+            }))
         }
         .await;
         respond(result)

@@ -33,7 +33,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 /// `SystemRoot` (Python's random source and Winsock need it), `ComSpec` and `PATHEXT` (a batch
 /// file and the program lookup), the profile and application-data folders. None of them is a
 /// credential.
-pub const KEPT: &[&str] = &[
+pub(crate) const KEPT: &[&str] = &[
     "PATH",
     "HOME",
     "TMPDIR",
@@ -52,7 +52,7 @@ pub const KEPT: &[&str] = &[
 ];
 
 /// Variables passed through by prefix: the locale categories (`LC_ALL`, `LC_CTYPE`, ...).
-pub const KEPT_PREFIXES: &[&str] = &["LC_"];
+pub(crate) const KEPT_PREFIXES: &[&str] = &["LC_"];
 
 /// What rclone reads besides [`KEPT`]: its own `RCLONE_*` settings - the configuration file,
 /// the configuration password, any flag - the configuration directory it derives from

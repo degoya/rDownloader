@@ -32,7 +32,7 @@ pub(crate) struct TorrentEntry {
 impl TorrentEntry {
     /// The engine-side handle of this torrent.
     #[must_use]
-    pub fn handle(&self) -> librqbit::api::TorrentIdOrHash {
+    pub(crate) fn handle(&self) -> librqbit::api::TorrentIdOrHash {
         librqbit::api::TorrentIdOrHash::Id(self.torrent_id)
     }
 }
@@ -45,7 +45,7 @@ pub(crate) struct Registry {
 
 impl Registry {
     /// Adds or replaces the entry for one queue row.
-    pub fn register(
+    pub(crate) fn register(
         &mut self,
         download_id: DownloadId,
         torrent_id: usize,
@@ -66,33 +66,33 @@ impl Registry {
     }
 
     /// Moves an existing entry into another phase; no-op when it is not registered.
-    pub fn set_phase(&mut self, download_id: DownloadId, phase: TorrentPhase) {
+    pub(crate) fn set_phase(&mut self, download_id: DownloadId, phase: TorrentPhase) {
         if let Some(entry) = self.entries.get_mut(&download_id) {
             entry.phase = phase;
         }
     }
 
     /// Records that a reannounce just ran.
-    pub fn mark_reannounce(&mut self, download_id: DownloadId, at: std::time::Instant) {
+    pub(crate) fn mark_reannounce(&mut self, download_id: DownloadId, at: std::time::Instant) {
         if let Some(entry) = self.entries.get_mut(&download_id) {
             entry.last_reannounce = Some(at);
         }
     }
 
     /// Drops the entry for one queue row, returning it.
-    pub fn forget(&mut self, download_id: DownloadId) -> Option<TorrentEntry> {
+    pub(crate) fn forget(&mut self, download_id: DownloadId) -> Option<TorrentEntry> {
         self.entries.remove(&download_id)
     }
 
     /// The entry of one queue row.
     #[must_use]
-    pub fn get(&self, download_id: DownloadId) -> Option<&TorrentEntry> {
+    pub(crate) fn get(&self, download_id: DownloadId) -> Option<&TorrentEntry> {
         self.entries.get(&download_id)
     }
 
     /// Every registered row, cloned so the lock is not held while the engine is queried.
     #[must_use]
-    pub fn snapshot(&self) -> Vec<(DownloadId, TorrentEntry)> {
+    pub(crate) fn snapshot(&self) -> Vec<(DownloadId, TorrentEntry)> {
         self.entries
             .iter()
             .map(|(id, entry)| (*id, entry.clone()))
@@ -101,7 +101,7 @@ impl Registry {
 
     /// Every row in the given phase.
     #[must_use]
-    pub fn in_phase(&self, phase: TorrentPhase) -> Vec<(DownloadId, TorrentEntry)> {
+    pub(crate) fn in_phase(&self, phase: TorrentPhase) -> Vec<(DownloadId, TorrentEntry)> {
         self.entries
             .iter()
             .filter(|(_, entry)| entry.phase == phase)
@@ -113,7 +113,7 @@ impl Registry {
     ///
     /// Called after a session rebuild: those torrent ids belong to a session that no longer
     /// exists, so keeping them would hand out handles the engine cannot resolve.
-    pub fn retire_before(&mut self, generation: u64) -> Vec<(DownloadId, TorrentEntry)> {
+    pub(crate) fn retire_before(&mut self, generation: u64) -> Vec<(DownloadId, TorrentEntry)> {
         let stale: Vec<DownloadId> = self
             .entries
             .iter()

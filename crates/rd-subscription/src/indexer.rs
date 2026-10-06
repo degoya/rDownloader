@@ -29,7 +29,7 @@ use crate::{
 /// Most results asked for in one query. Indexers cap this themselves, usually at 100.
 pub const DEFAULT_LIMIT: u32 = 100;
 /// Most result pages one poll asks an indexer for.
-pub const MAX_PAGES: u32 = 5;
+pub(crate) const MAX_PAGES: u32 = 5;
 
 /// Resolves a vault reference into the secret it stands for.
 ///
@@ -68,7 +68,7 @@ pub fn build_query(
 ///
 /// The subscription's spelling of [`crate::build_indexer_query`], kept so the address a
 /// subscription without search parameters polls is exactly the one it always polled.
-pub fn build_page_query(
+pub(crate) fn build_page_query(
     base: &Url,
     api_key: &str,
     limit: u32,

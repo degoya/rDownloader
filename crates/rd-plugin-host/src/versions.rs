@@ -63,7 +63,7 @@ pub fn default_version<'a>(loaded: &[&'a str], choice: Option<&VersionChoice>) -
 
 /// The role of `version`, given the plugin's default version and choice.
 #[must_use]
-pub fn version_role(
+pub(crate) fn version_role(
     version: &str,
     default: Option<&str>,
     choice: Option<&VersionChoice>,
@@ -79,7 +79,7 @@ pub fn version_role(
 
 /// The role of every `(plugin id, version)` pair, computed per id.
 #[must_use]
-pub fn roles_by_id(
+pub(crate) fn roles_by_id(
     pairs: &[(String, String)],
     choices: &VersionChoices,
 ) -> HashMap<(String, String), VersionRole> {

@@ -8,7 +8,7 @@ use rd_core::{
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
-use crate::{collector_store::insert_event, error::StoreError, parse_id};
+use crate::{collector_store::insert_event, error::StoreError, page_binds, parse_id};
 
 #[path = "collector_packages_check.rs"]
 mod check;
@@ -46,17 +46,52 @@ const PACKAGE_COLUMNS: &str = "SELECT id, batch_id, name, auto_named, category_i
      password_ref IS NOT NULL AS has_password, created_at, postprocess_level, script \
      FROM collector_packages";
 
+/// The packages the LinkGrabber shows: those with at least one link not yet enqueued.
+const OPEN_PACKAGES: &str = "WHERE EXISTS (SELECT 1 FROM link_candidates c \
+     WHERE c.package_id = collector_packages.id AND c.state != 'enqueued')";
+
+/// The list order; the id comes last so equal rows still have one order and a page cut from it
+/// in SQL is the same slice every time (RD-191-05).
+const LIST_ORDER: &str = "ORDER BY position ASC, created_at ASC, id ASC";
+
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<CollectorPackage>> {
     sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
-        "{PACKAGE_COLUMNS} WHERE EXISTS (SELECT 1 FROM link_candidates c \
-         WHERE c.package_id = collector_packages.id AND c.state != 'enqueued') \
-         ORDER BY position ASC, created_at ASC"
+        "{PACKAGE_COLUMNS} {OPEN_PACKAGES} {LIST_ORDER}"
     )))
     .fetch_all(pool)
     .await?
     .into_iter()
     .map(TryInto::try_into)
     .collect()
+}
+
+/// One page of [`list`] and the length of the whole list, read in one transaction so both
+/// describe the same moment (RD-191-05).
+pub(crate) async fn page(
+    pool: &SqlitePool,
+    offset: u64,
+    limit: Option<u64>,
+) -> Result<(Vec<CollectorPackage>, u64)> {
+    let (limit, offset) = page_binds(offset, limit);
+    let mut transaction = pool.begin().await?;
+    let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT COUNT(*) FROM collector_packages {OPEN_PACKAGES}"
+    )))
+    .fetch_one(&mut *transaction)
+    .await?;
+    let rows = sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} {OPEN_PACKAGES} {LIST_ORDER} LIMIT ? OFFSET ?"
+    )))
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+    let packages = rows
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<_>>>()?;
+    Ok((packages, u64::try_from(total).unwrap_or_default()))
 }
 
 pub(crate) async fn get(

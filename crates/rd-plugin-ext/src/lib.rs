@@ -6,6 +6,8 @@
 //! translation between a plugin's answer and the domain model — and, more importantly, the
 //! rule that a plugin proposes while the core decides.
 
+#![warn(unreachable_pub)]
+
 mod auth;
 mod crawler;
 mod enricher;

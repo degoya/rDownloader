@@ -13,7 +13,7 @@ name: CI warm cache
 # ~1 GB each, the component and Docker layer caches a few hundred MB. Only jobs whose cache a
 # later run reads save one; E2E, Recovery, Self-update and Installers saved 5.3 GB more until 1.12
 # and now read `rust-tests` (E2E on Linux `docker`'s) and save none. The table is in
-# docs/roadmap/jobs/1120-07-pipeline-github-workflows.md.
+# docs/roadmap/jobs/archive/1120-07-pipeline-github-workflows.md.
 #
 # Called by ci.yml's `warm-cache` job once per image the gate left out (RD-1101-07 split it off;
 # the job is unchanged).

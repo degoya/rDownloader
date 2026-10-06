@@ -14,7 +14,7 @@ mod state;
 use anyhow::Result;
 use wasmtime::component::{HasSelf, Linker};
 
-pub use connection::HostConnection;
+pub(crate) use connection::HostConnection;
 pub use exports::rdownloader::plugin::transfer::{Job as TransferJob, RemoteFile};
 pub use state::{TransferOutcome, TransferState, TransferTarget};
 

@@ -118,7 +118,7 @@ fn root(url: &Url) -> anyhow::Result<Url> {
 
 /// One release, in the vocabulary both forges share.
 #[derive(Clone, Debug)]
-pub struct Release {
+pub(crate) struct Release {
     /// GitHub's numeric id; GitLab's tag, which is all that names a GitLab release.
     pub id: String,
     pub tag: String,
@@ -133,7 +133,7 @@ pub struct Release {
 
 /// One file of a release.
 #[derive(Clone, Debug)]
-pub struct Asset {
+pub(crate) struct Asset {
     /// The forge's id of the file, or the archive format of a source archive.
     pub id: String,
     pub name: String,
@@ -213,7 +213,7 @@ struct GitlabLink {
 /// A file whose address does not parse is left out rather than failing the list; a list that
 /// is not one fails the poll, because an empty answer would look like a repository without
 /// releases.
-pub fn parse_releases(
+pub(crate) fn parse_releases(
     forge: GitForge,
     body: &str,
     repository: &str,

@@ -19,7 +19,7 @@ use crate::routes;
 struct Base;
 
 /// The complete document served at `/api/v1/openapi.json`.
-pub fn document() -> utoipa::openapi::OpenApi {
+pub(crate) fn document() -> utoipa::openapi::OpenApi {
     let mut doc = Base::openapi();
     doc.merge(schemas::Schemas::openapi());
     doc.merge(routes::automations::Doc::openapi());

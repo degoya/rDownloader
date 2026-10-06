@@ -6,6 +6,8 @@
 //! custom CA and bandwidth limit. What is WebDAV-specific is only the `PROPFIND` that turns
 //! a link into a reviewable listing, which is what this crate provides.
 
+#![warn(unreachable_pub)]
+
 mod propfind;
 
 use anyhow::Result;

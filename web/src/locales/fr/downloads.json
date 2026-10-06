@@ -184,7 +184,8 @@
       },
       "unsupported_hint": "Les sources dont ce service ne sait pas récupérer le protocole sont affichées mais pas utilisées."
     },
-    "next_attempt": "Prochaine tentative à {time}"
+    "next_attempt": "Prochaine tentative à {time}",
+    "waiting_for_host": "En attente d'une connexion à {host}"
   },
   "summary": {
     "eyebrow": "État de la file",

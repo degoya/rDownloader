@@ -96,6 +96,7 @@ jobs:
       FROM: ${{ needs.gate.outputs.from }}
       TAP: ${{ github.repository_owner }}/rdownloader
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The Ubuntu image carries Homebrew without putting it on PATH; the arm64 one lacks it.
       - name: Put Homebrew on PATH
         if: runner.os == 'Linux'
@@ -125,6 +126,8 @@ jobs:
           done
           test -S "${runtime}/bus"
           { echo "XDG_RUNTIME_DIR=${runtime}"; echo "DBUS_SESSION_BUS_ADDRESS=unix:path=${runtime}/bus"; } >> "${GITHUB_ENV}"
+      # macos-15-intel's image prints "Failed to import … hashicorp/homebrew-tap/Formula/vagrant.rb"
+      # at `brew tap`: an error annotation of the image's own tap, not a failure (RD-1130-05).
       - name: Install from the tap, upgrade, keep the data
         shell: bash
         run: |
@@ -143,8 +146,11 @@ jobs:
           fi
           serve() {
             brew services start rdownloader
-            curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
-              http://127.0.0.1:8710/api/v1/health
+            if ! curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
+              http://127.0.0.1:8710/api/v1/health; then
+              scripts/ci-brew-service-diagnostics.sh
+              exit 1
+            fi
             echo
             test -f "${db}"
             brew services stop rdownloader
@@ -190,7 +196,9 @@ jobs:
           brew install "${TAP}/rdownloader-capture"
           brew test "${TAP}/rdownloader-capture"
           trap - EXIT
-          brew uninstall rdownloader-capture rdownloader
+          # --force: every keg, the upgrade's old one too, which HOMEBREW_NO_INSTALL_CLEANUP keeps;
+          # without it brew loads the formula for the keg left and refuses the untrusted tap.
+          brew uninstall --force rdownloader-capture rdownloader
           # Homebrew's var/ is the user's, not the keg's.
           test -f "${db}"
           brew untap "${TAP}"

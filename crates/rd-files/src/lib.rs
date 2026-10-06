@@ -1,5 +1,7 @@
 //! Safe path, file-name, capacity and checksum handling.
 
+#![warn(unreachable_pub)]
+
 mod archive_names;
 mod capacity;
 mod capped_read;

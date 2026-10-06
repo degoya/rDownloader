@@ -18,7 +18,7 @@ use tokio_rustls::{TlsConnector, client::TlsStream};
 use super::state::{MAX_CONNECTIONS, SOCKET_TIMEOUT};
 
 /// One connection the host owns on the guest's behalf.
-pub struct HostConnection {
+pub(crate) struct HostConnection {
     stream: Stream,
     /// Kept so `start-tls` can upgrade in place without a second dial.
     tls: Arc<rustls::ClientConfig>,

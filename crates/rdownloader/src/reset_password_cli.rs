@@ -25,7 +25,7 @@ use crate::remote::{CommandError, Failure};
 const ACCOUNT: &str = "admin";
 
 #[derive(Args)]
-pub struct ResetPasswordArgs {
+pub(crate) struct ResetPasswordArgs {
     /// The account whose password is reset; an installation has one, `admin`.
     #[arg(long, default_value = ACCOUNT)]
     user: String,
@@ -56,7 +56,7 @@ pub(crate) struct Outcome {
     pub removed_material: Vec<String>,
 }
 
-pub async fn run(args: ResetPasswordArgs) -> Result<()> {
+pub(crate) async fn run(args: ResetPasswordArgs) -> Result<()> {
     if args.user != ACCOUNT {
         return Err(CommandError::new(
             Failure::Usage,

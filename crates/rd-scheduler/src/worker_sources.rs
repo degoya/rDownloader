@@ -248,6 +248,7 @@ async fn transfer(
     };
     let engine = DownloadEngine::new(network.client, scheduler.scoped_limiter(file).await)
         .with_host_limits(scheduler.host_limits().clone());
+    scheduler.host_handed_over(file.id).await;
     let outcome = engine
         .download_from_sources(
             MultiSourceRequest {

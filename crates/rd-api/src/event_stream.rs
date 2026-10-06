@@ -46,7 +46,7 @@ use crate::{AppState, auth::Granted};
 /// costs nothing and a long one no longer climbs to a minute between attempts; the agent keeps
 /// the value undoubled (`Reconnect::requested`). A constant rather than a load measurement:
 /// the mechanism is here, pacing by load would be its own finding with its own measurement.
-pub const RECONNECT_AFTER: Duration = Duration::from_secs(5);
+pub(crate) const RECONNECT_AFTER: Duration = Duration::from_secs(5);
 
 /// The event name a subscriber sees when the bus dropped messages before it read them.
 ///
@@ -73,7 +73,7 @@ const LAST_EVENT_ID: &str = "last-event-id";
 /// The extension is missing only if this handler is ever mounted outside the session layer.
 /// That would be a routing mistake, and the safe reading of it is an empty scope set -- a
 /// silent stream rather than a stream of everything.
-pub async fn events(
+pub(crate) async fn events(
     State(state): State<AppState>,
     granted: Option<Extension<Granted>>,
     crate::client::ThisMachine(from_this_machine): crate::client::ThisMachine,
@@ -110,7 +110,7 @@ pub async fn events(
 /// While it is open the agent counts as running, with the version it named in its
 /// `User-Agent` (`rd_api_core::capture_agents`, RD-190-07): the stream holds the connection,
 /// and the entry ends with it.
-pub async fn capture_events(
+pub(crate) async fn capture_events(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {

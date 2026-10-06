@@ -2,6 +2,8 @@
 //! capture uploads, captchas, site rules, subscriptions, livestream channels and schedules, and
 //! the area bundle that carries them.
 
+#![warn(unreachable_pub)]
+
 pub mod area_backup;
 pub mod candidate_handlers;
 pub mod captcha_handlers;

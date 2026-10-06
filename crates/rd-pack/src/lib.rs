@@ -8,6 +8,8 @@
 //! roots and nothing above them, so the scripts and the workflows get the same commands without
 //! building the service. The commands live here once, so the two binaries cannot drift.
 
+#![warn(unreachable_pub)]
+
 pub mod plugin;
 pub mod plugin_index;
 pub mod site_rules;

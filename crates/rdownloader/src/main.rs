@@ -1,5 +1,7 @@
 //! rDownloader service and diagnostic command line.
 
+#![warn(unreachable_pub)]
+
 use std::{net::SocketAddr, path::PathBuf};
 
 use anyhow::{Context, Result};

@@ -184,7 +184,8 @@
       },
       "unsupported_hint": "Quellen, deren Protokoll dieser Dienst nicht abrufen kann, werden angezeigt, aber nicht genutzt."
     },
-    "next_attempt": "Nächster Versuch um {time}"
+    "next_attempt": "Nächster Versuch um {time}",
+    "waiting_for_host": "Wartet auf eine Verbindung zu {host}"
   },
   "summary": {
     "eyebrow": "Warteschlangen-Status",

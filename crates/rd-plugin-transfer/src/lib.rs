@@ -6,6 +6,8 @@
 //! code the plugin cannot reach — so a backend that lies about being finished produces a
 //! failed job, not a truncated file presented as complete.
 
+#![warn(unreachable_pub)]
+
 mod runner;
 
 use std::sync::Arc;

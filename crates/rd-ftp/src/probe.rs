@@ -21,7 +21,7 @@ pub enum Probed {
 ///
 /// A single file and a directory are both returned as a [`RemoteListing`]; the difference
 /// is `single_file`, which the review UI uses to skip the tree for a one-file link.
-pub async fn probe(connection: &mut Connection, target: &RemoteTarget) -> Result<Probed> {
+pub(crate) async fn probe(connection: &mut Connection, target: &RemoteTarget) -> Result<Probed> {
     let supports_resume = match connection.features().await {
         Ok(features) => crate::client::advertises_rest(&features),
         // A server without FEAT is old but usable; it just cannot promise REST up front.
@@ -74,7 +74,7 @@ pub async fn probe(connection: &mut Connection, target: &RemoteTarget) -> Result
 
 /// The credential that should be used for `target`, or a coded failure explaining that
 /// none is configured.
-pub fn require_credential(
+pub(crate) fn require_credential(
     credential: Option<RemoteCredential>,
     target: &RemoteTarget,
 ) -> Result<RemoteCredential, Failure> {

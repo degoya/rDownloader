@@ -6,6 +6,8 @@
 //! that directory can read the master key. Closing that gap needs a Win32 ACL call, which
 //! means a dependency this crate does not have and an `unsafe` block the workspace denies.
 
+#![warn(unreachable_pub)]
+
 use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result, bail};

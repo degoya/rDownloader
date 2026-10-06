@@ -29,11 +29,11 @@ use std::sync::{
 /// window of 64 requests (32 connections, pipelined twice, the most a server allows) with
 /// files of just eight articles each; a release whose files are smaller than that is so
 /// small that the boundaries cost less than the seeks would.
-pub const MAX_PARALLEL_FILES: usize = rd_scheduler::MAX_EXTERNAL_PARALLEL_FILES;
+pub(crate) const MAX_PARALLEL_FILES: usize = rd_scheduler::MAX_EXTERNAL_PARALLEL_FILES;
 
 /// The fewest files automatic mode lets run: the tail of one file overlaps the head of the
 /// next (RD-108-26), whatever the sizes.
-pub const MIN_AUTO_FILES: usize = 2;
+pub(crate) const MIN_AUTO_FILES: usize = 2;
 
 /// Files automatic mode allows at once, given what the running ones still have to fetch.
 ///
@@ -44,7 +44,7 @@ pub const MIN_AUTO_FILES: usize = 2;
 /// for why two), never fewer than [`MIN_AUTO_FILES`] and never more than
 /// [`MAX_PARALLEL_FILES`].
 #[must_use]
-pub fn auto_parallel_files(running: usize, open_articles: usize, window: usize) -> usize {
+pub(crate) fn auto_parallel_files(running: usize, open_articles: usize, window: usize) -> usize {
     if running < MIN_AUTO_FILES {
         return MIN_AUTO_FILES;
     }

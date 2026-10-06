@@ -9,7 +9,7 @@ const KEYRING_SERVICE: &str = "rDownloader Capture";
 const KEYRING_USER: &str = "capture-token";
 
 /// Service URL assumed when nothing has been paired yet.
-pub const DEFAULT_SERVICE: &str = "http://127.0.0.1:8710";
+pub(crate) const DEFAULT_SERVICE: &str = "http://127.0.0.1:8710";
 
 /// How often the agent asks the service how it is doing.
 ///
@@ -18,9 +18,9 @@ pub const DEFAULT_SERVICE: &str = "http://127.0.0.1:8710";
 /// summary needs the capture token, and the tray deliberately never reads the keyring itself.
 /// The cadence, though, is shared: the icon and the line under it are read together, and two
 /// constants in two files that "must match" is a promise nothing enforces (RD-109-09).
-pub const STATUS_POLL_INTERVAL: Duration = Duration::from_secs(5);
+pub(crate) const STATUS_POLL_INTERVAL: Duration = Duration::from_secs(5);
 
-pub struct Connection {
+pub(crate) struct Connection {
     pub service: Url,
     pub token: String,
 }
@@ -30,7 +30,7 @@ struct PublicConfig {
     service: Url,
 }
 
-pub fn save(service: &Url, token: &str, allow_insecure: bool) -> Result<()> {
+pub(crate) fn save(service: &Url, token: &str, allow_insecure: bool) -> Result<()> {
     if token.trim().len() < 32 {
         bail!("capture token is unexpectedly short");
     }
@@ -57,7 +57,7 @@ pub fn save(service: &Url, token: &str, allow_insecure: bool) -> Result<()> {
 ///
 /// `allow_insecure` is the named way out, for a network somebody vouches for. It is not silent:
 /// it writes a warning at pairing time and the agent writes one again on every start.
-pub fn ensure_transport_is_safe(service: &Url, allow_insecure: bool) -> Result<()> {
+pub(crate) fn ensure_transport_is_safe(service: &Url, allow_insecure: bool) -> Result<()> {
     if service.scheme() == "https" || is_loopback(service) {
         return Ok(());
     }
@@ -130,7 +130,7 @@ fn discard_fallback_token(directory: &std::path::Path) -> Result<()> {
 /// started": on a fresh install the agent cannot run, because pairing happens in the web
 /// interface after the server is up, and reporting that as a crash sends people looking for a
 /// fault that is not there.
-pub const EXIT_NOT_PAIRED: u8 = 10;
+pub(crate) const EXIT_NOT_PAIRED: u8 = 10;
 
 /// Exit code for "the Click'n'Load port is already taken".
 ///
@@ -138,11 +138,11 @@ pub const EXIT_NOT_PAIRED: u8 = 10;
 /// a capture agent binds 9666, so a busy port means a Click'n'Load listener is already there —
 /// a second agent from autostart, or JDownloader. Reporting that as a failed start sends people
 /// to the logs for a crash that never happened.
-pub const EXIT_PORT_BUSY: u8 = 11;
+pub(crate) const EXIT_PORT_BUSY: u8 = 11;
 
 /// Whether a capture token is available at all, without reading one out of the keyring twice.
 #[must_use]
-pub fn is_paired(token: Option<&str>) -> bool {
+pub(crate) fn is_paired(token: Option<&str>) -> bool {
     let fallback = config_directory()
         .ok()
         .and_then(|directory| std::fs::read_to_string(directory.join("capture.token")).ok());
@@ -161,7 +161,7 @@ fn decide_paired(explicit: Option<&str>, keyring: Option<&str>, fallback: Option
     present(explicit) || present(keyring) || present(fallback)
 }
 
-pub fn load(service: Option<Url>, token: Option<String>) -> Result<Connection> {
+pub(crate) fn load(service: Option<Url>, token: Option<String>) -> Result<Connection> {
     load_from(&config_directory()?, service, token)
 }
 
@@ -200,7 +200,7 @@ fn load_from(
 
 /// Parses [`DEFAULT_SERVICE`]; the literal is a compile-time constant, so this
 /// cannot fail.
-pub fn default_service() -> Url {
+pub(crate) fn default_service() -> Url {
     Url::parse(DEFAULT_SERVICE).expect("static service URL")
 }
 
@@ -213,7 +213,7 @@ pub fn default_service() -> Url {
 // Compiled on every host so `stored_service_in` below is tested here; only the tray calls it,
 // and the tray does not exist on Linux.
 #[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
-pub fn stored_service(explicit: Option<Url>) -> Option<Url> {
+pub(crate) fn stored_service(explicit: Option<Url>) -> Option<Url> {
     let directory = config_directory().ok()?;
     stored_service_in(&directory, explicit)
 }

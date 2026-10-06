@@ -1,5 +1,7 @@
 //! Persistent queue scheduler.
 
+#![warn(unreachable_pub)]
+
 mod active;
 mod auto_retry;
 #[cfg(test)]
@@ -19,6 +21,7 @@ mod enqueue;
 mod failures;
 mod finish;
 mod holds;
+mod host_wait;
 mod hostblock;
 #[cfg(test)]
 mod mirror_fallback_tests;

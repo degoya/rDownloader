@@ -152,13 +152,13 @@ fn backlog_decision(item: &CandidateItem, backlog: BacklogPolicy, now: DateTime<
 /// falling back to text: somebody who wrote slashes meant an expression.
 #[cfg(test)]
 #[must_use]
-pub fn title_matches(pattern: &str, title_lowercase: &str) -> bool {
+pub(crate) fn title_matches(pattern: &str, title_lowercase: &str) -> bool {
     TitlePattern::new(pattern).matches(title_lowercase)
 }
 
 /// The expression inside `/…/`, if the pattern is written that way.
 #[must_use]
-pub fn as_expression(pattern: &str) -> Option<&str> {
+pub(crate) fn as_expression(pattern: &str) -> Option<&str> {
     let trimmed = pattern.trim();
     let inner = trimmed.strip_prefix('/')?.strip_suffix('/')?;
     (!inner.is_empty()).then_some(inner)

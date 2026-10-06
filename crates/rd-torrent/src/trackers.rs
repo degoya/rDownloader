@@ -44,7 +44,7 @@ pub fn is_stale(
 /// Only an announce URL whose last path segment is exactly `announce` has a scrape
 /// endpoint; anything else returns `None` rather than a guessed URL that would 404.
 #[must_use]
-pub fn scrape_url(announce: &str) -> Option<String> {
+pub(crate) fn scrape_url(announce: &str) -> Option<String> {
     let mut url = url::Url::parse(announce).ok()?;
     let segments: Vec<String> = url
         .path_segments()?

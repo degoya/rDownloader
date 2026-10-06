@@ -7,6 +7,8 @@
 //! guard and the sync before the rename — lives in `rd-transfer-file` and is shared with
 //! `rd-sftp`.
 
+#![warn(unreachable_pub)]
+
 mod client;
 mod error;
 mod listing;

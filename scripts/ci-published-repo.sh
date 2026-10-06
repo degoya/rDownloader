@@ -23,7 +23,6 @@ from="${from#v}"
 fs="${RD_PUBLISHED_REPO_FS:-}"
 home="${fs}/home/tester/.local/share/rdownloader"
 db="${home}/data/rdownloader.sqlite3"
-run="$(mktemp -d)"
 
 case "$manager" in
     apt)
@@ -46,7 +45,10 @@ case "$manager" in
         # runuser is util-linux's, which the container image lacks.
         dnf install -y -q util-linux
         curl -fsSL "${base}/rdownloader.repo" -o "${fs}/etc/yum.repos.d/rdownloader.repo"
-        offered() { dnf repoquery --refresh --quiet --queryformat '%{version}\n' rdownloader; }
+        # -y: the first look imports the repository's key from the .repo file's gpgkey= for
+        # repo_gpgcheck; without it dnf asks, CI answers no and the metadata fails its signature
+        # check ("Signing key not found", RD-1130-05). A user answers the question once.
+        offered() { dnf -y repoquery --refresh --quiet --queryformat '%{version}\n' rdownloader; }
         install_version() { dnf install -y "rdownloader${1:+-$1}"; }
         upgrade() { dnf upgrade -y rdownloader; }
         remove() { dnf remove -y rdownloader; }
@@ -72,11 +74,19 @@ done
 [[ -n "${current}" ]] || { echo "::error::the repository at ${base} offers no rdownloader"; exit 1; }
 
 useradd --create-home tester
+# The service's log and pid file, made by the tester: one root made with mktemp -d is 0700 and
+# refuses the redirections below (RD-1130-05).
+run="$(runuser -u tester -- mktemp -d)"
+trap 'rm -rf "${run}"' EXIT
 # As the user, in the background, until it answers; then stopped. `;` and not `&&` before the
 # `&`, so that $! is the service itself (installers.yml says why).
 serve() {
     runuser -u tester -- bash -c "cd ~ || exit 1; rdownloader serve > '${run}/serve.log' 2>&1 & echo \$! > '${run}/serve.pid'"
-    curl --fail --silent --show-error --retry 300 --retry-delay 1 --retry-connrefused \
+    # --max-time per try: a service that accepts and never answers held curl until the job's
+    # timeout, 20 minutes without its log (RD-1130-05, run 37528846470); --retry-max-time caps
+    # the whole wait at five minutes.
+    curl --fail --silent --show-error --max-time 10 --retry 300 --retry-delay 1 --retry-max-time 300 \
+        --retry-connrefused --retry-all-errors \
         http://127.0.0.1:8710/api/v1/health > /dev/null || { cat "${run}/serve.log"; exit 1; }
     kill "$(cat "${run}/serve.pid")"
     while kill -0 "$(cat "${run}/serve.pid")" 2> /dev/null; do sleep 1; done

@@ -400,6 +400,9 @@ pub(super) async fn fetch(
         .map(|plan| (file.id, plan.transform.fingerprint().to_owned()));
     let engine = DownloadEngine::new(client, scheduler.scoped_limiter(file).await)
         .with_host_limits(scheduler.host_limits().clone());
+    // From here the chunks ask the limiter themselves; the dispatcher stops counting the
+    // connections this file promised (RD-1130-02).
+    scheduler.host_handed_over(file.id).await;
     engine
         .download(
             request,

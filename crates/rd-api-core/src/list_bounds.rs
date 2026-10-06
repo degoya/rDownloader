@@ -5,10 +5,7 @@
 //! places, so one route could drift from the others without anyone noticing; the web client's
 //! `BULK_LIMIT` batches against this one number.
 
-use axum::{
-    Json,
-    http::{HeaderMap, HeaderName, HeaderValue},
-};
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
 
 use crate::{ApiError, dto::PageQuery, error_codes::bulk_range};
 
@@ -74,6 +71,18 @@ pub struct PageWindow {
     pub limit: usize,
 }
 
+impl PageWindow {
+    /// The window as the database's page reads take it: rows to skip, then at most this many
+    /// (`None`: the rest of the list).
+    #[must_use]
+    pub fn rows(self) -> (u64, Option<u64>) {
+        (
+            u64::try_from(self.offset).unwrap_or(u64::MAX),
+            u64::try_from(self.limit).ok(),
+        )
+    }
+}
+
 impl PageQuery {
     /// The window this query asks for, or `None` when it asks for none (the whole list).
     ///
@@ -99,31 +108,10 @@ impl PageQuery {
     }
 }
 
-/// Cuts the window out of an already ordered list.
-///
-/// Without a window the list and the answer stay exactly what they were before paging
-/// existed: no header, every row. With one, the rows keep the list's own order and
-/// [`TOTAL_COUNT_HEADER`] names how many there are in all; an offset past the end is an
+/// The header of a page the database cut itself (RD-1100-04, RD-1120-17, RD-191-05): without a
+/// window the answer stays what it was before paging existed — no header, every row; with one,
+/// [`TOTAL_COUNT_HEADER`] names how many rows the whole list holds. An offset past the end is an
 /// empty page, not an error.
-///
-/// The rows are still read whole from the database and sliced here: the answer is bounded,
-/// the load is not. Paging in SQL is a follow-up for `rd-db`.
-pub fn paged<T>(window: Option<PageWindow>, rows: Vec<T>) -> (HeaderMap, Json<Vec<T>>) {
-    let Some(window) = window else {
-        return (HeaderMap::new(), Json(rows));
-    };
-    let mut headers = HeaderMap::new();
-    headers.insert(TOTAL_COUNT_HEADER, HeaderValue::from(rows.len()));
-    let page = rows
-        .into_iter()
-        .skip(window.offset)
-        .take(window.limit)
-        .collect();
-    (headers, Json(page))
-}
-
-/// The header of a page the database cut itself (RD-1100-04): the same [`TOTAL_COUNT_HEADER`]
-/// [`paged`] sends, sent under the same rule — only when a window was asked for.
 #[must_use]
 pub fn total_header(window: Option<PageWindow>, total: u64) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -135,7 +123,9 @@ pub fn total_header(window: Option<PageWindow>, total: u64) -> HeaderMap {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_BULK, MAX_PAGE_LIMIT, PageWindow, TOTAL_COUNT_HEADER, paged, validate_bulk};
+    use super::{
+        MAX_BULK, MAX_PAGE_LIMIT, PageWindow, TOTAL_COUNT_HEADER, total_header, validate_bulk,
+    };
     use crate::dto::PageQuery;
 
     fn query(limit: Option<u32>, offset: Option<u32>) -> PageQuery {
@@ -146,18 +136,15 @@ mod tests {
     fn no_parameters_leave_the_list_and_the_headers_alone() {
         let window = query(None, None).window().expect("no window");
         assert_eq!(window, None);
-        let (headers, rows) = paged(window, vec![1, 2, 3]);
-        assert!(headers.is_empty());
-        assert_eq!(rows.0, vec![1, 2, 3]);
+        assert!(total_header(window, 3).is_empty());
     }
 
     #[test]
-    fn a_window_keeps_the_order_and_names_the_total() {
+    fn a_window_names_the_total() {
         let window = query(Some(2), Some(1)).window().expect("window");
-        let (headers, rows) = paged(window, vec![1, 2, 3, 4]);
-        assert_eq!(rows.0, vec![2, 3]);
+        assert_eq!(window.map(PageWindow::rows), Some((1, Some(2))));
         assert_eq!(
-            headers
+            total_header(window, 4)
                 .get(TOTAL_COUNT_HEADER)
                 .and_then(|value| value.to_str().ok()),
             Some("4")
@@ -165,17 +152,15 @@ mod tests {
     }
 
     #[test]
-    fn an_offset_alone_returns_the_rest_and_past_the_end_nothing() {
-        let rest = paged(
-            query(None, Some(2)).window().expect("window"),
-            vec![1, 2, 3],
-        );
-        assert_eq!(rest.1.0, vec![3]);
-        let beyond = paged(
-            query(Some(5), Some(9)).window().expect("window"),
-            vec![1, 2],
-        );
-        assert!(beyond.1.0.is_empty());
+    fn an_offset_alone_asks_for_the_rest() {
+        let (offset, limit) = query(None, Some(2))
+            .window()
+            .expect("window")
+            .expect("a window")
+            .rows();
+        assert_eq!(offset, 2);
+        // Every row after the offset: no limit the database would cut short.
+        assert!(limit.is_none_or(|limit| limit >= u64::from(u32::MAX)));
     }
 
     #[test]

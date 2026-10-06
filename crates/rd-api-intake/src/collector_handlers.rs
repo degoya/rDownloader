@@ -18,7 +18,7 @@ use crate::{
         MessageResponse, PageQuery,
     },
 };
-use rd_api_core::list_bounds::{paged, validate_bulk};
+use rd_api_core::list_bounds::{total_header, validate_bulk};
 
 mod crawl;
 mod intake;
@@ -51,11 +51,18 @@ pub async fn list_collector_packages(
     State(state): State<AppState>,
     rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
 ) -> Result<(HeaderMap, Json<Vec<CollectorPackage>>), ApiError> {
-    let window = page.window()?;
-    Ok(paged(
-        window,
-        state.database.list_collector_packages().await?,
-    ))
+    let Some(window) = page.window()? else {
+        return Ok((
+            HeaderMap::new(),
+            Json(state.database.list_collector_packages().await?),
+        ));
+    };
+    let (offset, limit) = window.rows();
+    let (packages, total) = state
+        .database
+        .collector_packages_page(offset, limit)
+        .await?;
+    Ok((total_header(Some(window), total), Json(packages)))
 }
 
 #[utoipa::path(patch, path = "/api/v1/collector/packages/{id}", tag = "collector", params(("id" = rd_core::CollectorPackageId, Path)), request_body = CollectorPackageUpdateRequest, responses((status = 200, body = rd_core::CollectorPackage), (status = 404)))]

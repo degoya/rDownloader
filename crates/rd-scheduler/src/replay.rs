@@ -35,12 +35,12 @@ pub(crate) struct ReplayContext {
 
 impl ReplayContext {
     /// Whether this is a POST, whose transfer semantics differ from a plain GET.
-    pub fn is_post(&self) -> bool {
+    pub(crate) fn is_post(&self) -> bool {
         self.method == ReplayMethod::Post
     }
 
     /// The redirect containment a pooled client must be built with.
-    pub fn scope(&self) -> Option<ReplayScope> {
+    pub(crate) fn scope(&self) -> Option<ReplayScope> {
         ReplayScope::new(self.approved_origins.clone())
     }
 }

@@ -11,7 +11,10 @@ use rd_core::{DownloadState, PackageId};
 use tokio::sync::OwnedSemaphorePermit;
 use tokio_util::sync::CancellationToken;
 
-use crate::{ExternalRunner, SchedulerHandle, mirrors, provider::ProviderSlot, runner::KindSlot};
+use crate::{
+    ExternalRunner, SchedulerHandle, host_wait::HostClaim, mirrors, provider::ProviderSlot,
+    runner::KindSlot,
+};
 
 /// What a file starts with: its runner and the slot of its kind, or, for the built-in worker,
 /// its provider's permit. Both are held until the attempt ends.
@@ -27,6 +30,9 @@ pub(super) enum Claim {
     Refused,
     /// The service is shutting down: the pass ends.
     ShuttingDown,
+    /// Its host has no free connection: the file stays queued, waiting for this host, and
+    /// leaves its place to a file of another host (RD-1130-02).
+    HostBusy(String),
 }
 
 impl SchedulerHandle {
@@ -147,13 +153,15 @@ impl SchedulerHandle {
         }))
     }
 
-    /// Enters `file` into the active set under its lock, if the global cap admits it.
+    /// Enters `file` into the active set under its lock, if its host has a connection left
+    /// and the global cap admits it.
     pub(super) async fn claim_slot(
         &self,
         file: &rd_core::DownloadFile,
         exempt: bool,
         pooled: bool,
         active_limit: usize,
+        host: Option<HostClaim>,
         cancellation: &CancellationToken,
     ) -> Claim {
         let mut active = self.active.lock().await;
@@ -166,6 +174,13 @@ impl SchedulerHandle {
         if active.untouchable(&file.id) {
             return Claim::Refused;
         }
+        // Asked under the same lock as the files it counts, so two passes cannot both
+        // promise the last connection.
+        if let Some(claim) = &host
+            && !active.host.has_room(claim, std::time::Instant::now())
+        {
+            return Claim::HostBusy(claim.host.clone());
+        }
         // Exempt kinds (recordings) start regardless of the global cap, and so does
         // another file of a pooled kind that is running already, so keep scanning
         // instead of breaking when the cap is reached.
@@ -177,6 +192,9 @@ impl SchedulerHandle {
             active.exempt.insert(file.id);
         } else if pooled {
             active.pooled.insert(file.id, file.kind);
+        }
+        if let Some(claim) = host {
+            active.host.start(file.id, claim);
         }
         Claim::Claimed
     }

@@ -44,7 +44,7 @@ const STOP_WAIT: Duration = Duration::from_secs(120);
 const HEALTH_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Args)]
-pub struct ApplyArgs {
+pub(crate) struct ApplyArgs {
     /// The journal the service wrote: `<data>/update/journal.json`.
     #[arg(long)]
     journal: PathBuf,
@@ -53,7 +53,7 @@ pub struct ApplyArgs {
 /// A step's failure: its stable code and what happened.
 type Failure = (&'static str, String);
 
-pub async fn run(args: ApplyArgs) -> Result<()> {
+pub(crate) async fn run(args: ApplyArgs) -> Result<()> {
     let data = args
         .journal
         .parent()
@@ -413,7 +413,7 @@ async fn answers_as(client: &reqwest::Client, address: &str, version: &str) -> b
 ///
 /// When the journal is unreadable or a roll-back fails: the program folder may then hold two
 /// versions, and nothing may start on it.
-pub fn recover(database: &Path) -> Result<bool> {
+pub(crate) fn recover(database: &Path) -> Result<bool> {
     let data = crate::auth_cli::data_directory_of(database);
     let executable = std::env::current_exe().context("locate rDownloader executable")?;
     match recover_at_start(&data, &executable, env!("CARGO_PKG_VERSION"))? {
@@ -432,7 +432,7 @@ pub fn recover(database: &Path) -> Result<bool> {
 
 /// Once the service answers: an update whose updater is gone is proven by that
 /// (`rd_update::install::recover::confirm_started`). Polls only when one waits for its proof.
-pub fn confirm_when_answering(database: &Path, listen: std::net::SocketAddr) {
+pub(crate) fn confirm_when_answering(database: &Path, listen: std::net::SocketAddr) {
     let data = crate::auth_cli::data_directory_of(database);
     let waiting = Journal::read(&data)
         .ok()

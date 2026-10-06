@@ -1,5 +1,7 @@
 //! LinkGrabber, NZB and DLC intake, categories and routing rules.
 
+#![warn(unreachable_pub)]
+
 mod categories;
 mod container;
 mod dlc;

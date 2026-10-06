@@ -19,7 +19,7 @@ use crate::remote::{CommandError, Failure};
 const POLL: Duration = Duration::from_millis(200);
 
 #[derive(Args)]
-pub struct StopArgs {
+pub(crate) struct StopArgs {
     /// The SQLite database file of the service to stop; its folder holds the control file.
     #[arg(
         long,
@@ -32,7 +32,7 @@ pub struct StopArgs {
     wait: u64,
 }
 
-pub async fn run(args: StopArgs) -> Result<()> {
+pub(crate) async fn run(args: StopArgs) -> Result<()> {
     let data_directory = args
         .database
         .parent()

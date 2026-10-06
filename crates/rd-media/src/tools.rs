@@ -38,7 +38,7 @@ pub fn locate_tool(explicit: Option<&str>, vendor: Option<&str>, name: &str) -> 
 /// (RD-102-02). The lease is `None` for an explicit, vendor or `PATH` binary, which the store
 /// does not own and therefore never removes.
 #[must_use]
-pub fn lease_tool(
+pub(crate) fn lease_tool(
     explicit: Option<&str>,
     vendor: Option<&str>,
     name: &str,

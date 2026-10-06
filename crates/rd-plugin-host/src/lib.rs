@@ -1,5 +1,7 @@
 //! Signed resolver package validation and atomic installation.
 
+#![warn(unreachable_pub)]
+
 mod account_label;
 #[cfg(any(test, feature = "test-support"))]
 pub mod artifact;

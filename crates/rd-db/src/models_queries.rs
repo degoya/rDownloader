@@ -7,17 +7,48 @@ use sqlx::{FromRow, SqliteConnection, SqlitePool};
 use super::{
     DownloadRow, PACKAGE_COLUMNS, PACKAGE_ORDER, PackageRow, PersistedChunk, TransferMetadata,
 };
-use crate::{error::StoreError, parse_id};
+use crate::{error::StoreError, page_binds, parse_id};
+
+/// The id after the queue order, so packages equal in everything else still have one order and a
+/// page cut from it in SQL is the same slice every time (RD-191-05).
+const PACKAGE_ID_LAST: &str = "packages.id ASC";
 
 pub(crate) async fn list_packages(pool: &SqlitePool) -> Result<Vec<DownloadPackage>> {
     sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
-        "{PACKAGE_COLUMNS} {PACKAGE_ORDER}"
+        "{PACKAGE_COLUMNS} {PACKAGE_ORDER}, {PACKAGE_ID_LAST}"
     )))
     .fetch_all(pool)
     .await?
     .into_iter()
     .map(TryInto::try_into)
     .collect()
+}
+
+/// One page of [`list_packages`] and the length of the whole list, read in one transaction
+/// like [`downloads_page`] (RD-191-05).
+pub(crate) async fn packages_page(
+    pool: &SqlitePool,
+    offset: u64,
+    limit: Option<u64>,
+) -> Result<(Vec<DownloadPackage>, u64)> {
+    let (limit, offset) = page_binds(offset, limit);
+    let mut transaction = pool.begin().await?;
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM packages")
+        .fetch_one(&mut *transaction)
+        .await?;
+    let rows = sqlx::query_as::<_, PackageRow>(sqlx::AssertSqlSafe(format!(
+        "{PACKAGE_COLUMNS} {PACKAGE_ORDER}, {PACKAGE_ID_LAST} LIMIT ? OFFSET ?"
+    )))
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+    let packages = rows
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<_>>>()?;
+    Ok((packages, u64::try_from(total).unwrap_or_default()))
 }
 
 /// One package by id, read the way [`list_packages`] reads every one.
@@ -56,13 +87,14 @@ pub(crate) async fn list_downloads(pool: &SqlitePool) -> Result<Vec<DownloadFile
 ///
 /// `LIMIT`/`OFFSET` rather than a key set: the REST route's `offset` already means "rows to
 /// skip", the order runs over five columns of two tables, and a key-set cursor would be a new
-/// parameter the clients do not send. `limit: None` is SQLite's `LIMIT -1`, every row after the
-/// offset.
+/// parameter the clients do not send. `limit: None` is every row after the offset
+/// ([`page_binds`]).
 pub(crate) async fn downloads_page(
     pool: &SqlitePool,
     offset: u64,
     limit: Option<u64>,
 ) -> Result<(Vec<DownloadFile>, u64)> {
+    let (limit, offset) = page_binds(offset, limit);
     let mut transaction = pool.begin().await?;
     let total: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM downloads JOIN packages ON packages.id = downloads.package_id",
@@ -72,8 +104,8 @@ pub(crate) async fn downloads_page(
     let rows = sqlx::query_as::<_, DownloadRow>(sqlx::AssertSqlSafe(format!(
         "{DOWNLOAD_COLUMNS} {PACKAGE_ORDER}, {DOWNLOAD_ORDER} LIMIT ? OFFSET ?"
     )))
-    .bind(limit.map_or(-1, |limit| i64::try_from(limit).unwrap_or(i64::MAX)))
-    .bind(i64::try_from(offset).unwrap_or(i64::MAX))
+    .bind(limit)
+    .bind(offset)
     .fetch_all(&mut *transaction)
     .await?;
     transaction.commit().await?;

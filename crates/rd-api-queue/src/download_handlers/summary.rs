@@ -198,10 +198,24 @@ pub async fn download_rates(
             })
         })
         .collect();
+    let host_waits = state.scheduler.host_waits().await;
+    // Only rows that are still queued: the wait is the last dispatch pass's word, and a row
+    // paused or started since waits for nothing.
+    let waiting_for_host = downloads
+        .iter()
+        .filter(|download| download.state == rd_core::DownloadState::Queued)
+        .filter_map(|download| {
+            host_waits.get(&download.id).map(|host| DownloadHostWait {
+                id: download.id,
+                host: host.clone(),
+            })
+        })
+        .collect();
     Ok(Json(DownloadRatesResponse {
         bytes_per_second: queue.bytes_per_second,
         transferring_remaining_bytes: queue.remaining_bytes.map(byte_count),
         eta_seconds: queue.eta_seconds,
         downloads: entries,
+        waiting_for_host,
     }))
 }

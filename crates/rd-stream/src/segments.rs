@@ -83,7 +83,7 @@ pub struct SegmentTool<'a> {
 /// `on_progress` is called with the running total across the whole recording, so the queue
 /// row shows a number that only ever grows — a segment boundary must not make the progress
 /// jump backwards.
-pub async fn record<F>(
+pub(crate) async fn record<F>(
     tool: &SegmentTool<'_>,
     output: &Path,
     policy: RecordingPolicy,
@@ -164,7 +164,7 @@ where
 }
 
 /// Appends a finished segment to the recording's history.
-pub fn push_segment(
+pub(crate) fn push_segment(
     state: &mut RecordingState,
     index: u32,
     file_name: String,

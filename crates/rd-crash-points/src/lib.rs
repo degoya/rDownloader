@@ -6,6 +6,8 @@
 //! rebuilt every one of its 46 dependants. Here it rebuilds this crate and the test targets
 //! that check their points are armed by a case.
 
+#![warn(unreachable_pub)]
+
 /// One registered crash point: where it stops, and what a restart then has to prove.
 ///
 /// The registry exists so the recovery matrix is reviewable. A failpoint buried in a runner is

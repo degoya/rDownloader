@@ -13,7 +13,7 @@ use crate::client::Connection;
 
 /// Walks `root` recursively and returns everything below it, through the walk FTP shares with
 /// SFTP (`rd_transfer_file::walk`): bounded on entry count and depth, breadth first.
-pub async fn walk(connection: &mut Connection, root: &str) -> anyhow::Result<RemoteListing> {
+pub(crate) async fn walk(connection: &mut Connection, root: &str) -> anyhow::Result<RemoteListing> {
     let (entries, truncated) =
         rd_transfer_file::walk(&mut FtpLister(connection), root, "ftp").await?;
     Ok(RemoteListing {

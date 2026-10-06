@@ -99,7 +99,7 @@ pub fn interfaces() -> Vec<NetworkInterface> {
 
 /// Whether an interface of that name currently exists with an address.
 #[must_use]
-pub fn is_present(name: &str) -> bool {
+pub(crate) fn is_present(name: &str) -> bool {
     interfaces()
         .iter()
         .any(|interface| interface.name == name && interface.up)

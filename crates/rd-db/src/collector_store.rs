@@ -7,7 +7,7 @@ use rd_core::{
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 use url::Url;
 
-use crate::error::StoreError;
+use crate::{error::StoreError, page_binds};
 
 mod intake;
 mod rows;
@@ -103,10 +103,59 @@ pub(crate) async fn source_attributes(
         .unwrap_or_default())
 }
 
+/// Every batch, newest first; the id comes last so batches of the same instant still have one
+/// order and a page cut from it in SQL is the same slice every time (RD-191-05).
+const BATCH_LIST: &str = "SELECT id, source, source_label, created_at FROM collector_batches ORDER BY created_at DESC, id ASC";
+
 pub(crate) async fn list_batches(pool: &SqlitePool) -> Result<Vec<CollectorBatch>> {
-    sqlx::query_as::<_, BatchRow>(
-        "SELECT id, source, source_label, created_at FROM collector_batches ORDER BY created_at DESC",
-    )
+    sqlx::query_as::<_, BatchRow>(BATCH_LIST)
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect()
+}
+
+/// One page of [`list_batches`] and how many batches there are, in one read transaction
+/// (RD-191-05).
+pub(crate) async fn batches_page(
+    pool: &SqlitePool,
+    offset: u64,
+    limit: Option<u64>,
+) -> Result<(Vec<CollectorBatch>, u64)> {
+    let (limit, offset) = page_binds(offset, limit);
+    let mut transaction = pool.begin().await?;
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM collector_batches")
+        .fetch_one(&mut *transaction)
+        .await?;
+    let rows = sqlx::query_as::<_, BatchRow>(sqlx::AssertSqlSafe(format!(
+        "{BATCH_LIST} LIMIT ? OFFSET ?"
+    )))
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+    let batches = rows
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<_>>>()?;
+    Ok((batches, u64::try_from(total).unwrap_or_default()))
+}
+
+/// The links the LinkGrabber still shows: everything not handed to the queue yet.
+const OPEN_CANDIDATES: &str = "WHERE state != 'enqueued'";
+
+/// Package order, then the link's place in it; the id comes last for one fixed order
+/// (RD-191-05).
+const CANDIDATE_ORDER: &str = "ORDER BY \
+     COALESCE((SELECT p.position FROM collector_packages p WHERE p.id = link_candidates.package_id), 0) ASC, \
+     position ASC, created_at ASC, id ASC";
+
+pub(crate) async fn list_candidates(pool: &SqlitePool) -> Result<Vec<LinkCandidate>> {
+    sqlx::query_as::<_, CandidateRow>(sqlx::AssertSqlSafe(format!(
+        "{CANDIDATE_SELECT} {OPEN_CANDIDATES} {CANDIDATE_ORDER}"
+    )))
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -114,17 +163,33 @@ pub(crate) async fn list_batches(pool: &SqlitePool) -> Result<Vec<CollectorBatch
     .collect()
 }
 
-pub(crate) async fn list_candidates(pool: &SqlitePool) -> Result<Vec<LinkCandidate>> {
-    sqlx::query_as::<_, CandidateRow>(sqlx::AssertSqlSafe(format!(
-        "{CANDIDATE_SELECT} WHERE state != 'enqueued' ORDER BY \
-         COALESCE((SELECT p.position FROM collector_packages p WHERE p.id = link_candidates.package_id), 0) ASC, \
-         position ASC, created_at ASC"
+/// One page of [`list_candidates`] and how many links that list holds, in one read transaction
+/// (RD-191-05).
+pub(crate) async fn candidates_page(
+    pool: &SqlitePool,
+    offset: u64,
+    limit: Option<u64>,
+) -> Result<(Vec<LinkCandidate>, u64)> {
+    let (limit, offset) = page_binds(offset, limit);
+    let mut transaction = pool.begin().await?;
+    let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT COUNT(*) FROM link_candidates {OPEN_CANDIDATES}"
     )))
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(TryInto::try_into)
-    .collect()
+    .fetch_one(&mut *transaction)
+    .await?;
+    let rows = sqlx::query_as::<_, CandidateRow>(sqlx::AssertSqlSafe(format!(
+        "{CANDIDATE_SELECT} {OPEN_CANDIDATES} {CANDIDATE_ORDER} LIMIT ? OFFSET ?"
+    )))
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+    let candidates = rows
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<_>>>()?;
+    Ok((candidates, u64::try_from(total).unwrap_or_default()))
 }
 
 /// The `vault://` reference one candidate holds, if any (RD-110-38).

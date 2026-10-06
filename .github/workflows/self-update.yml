@@ -14,7 +14,7 @@ name: Self-update
 # `admin::updates` suite, with a test key served from memory: no build here carries a trust root
 # other than the release key, on purpose. The MSI's way (msiexec, the kept installer) needs a
 # published previous MSI and is part of the live check beta.1 → beta.2
-# (docs/roadmap/jobs/180-02-atomare-updates-und-rollback.md).
+# (docs/roadmap/jobs/archive/180-02-atomare-updates-und-rollback.md).
 #
 #   gh workflow run self-update.yml --ref <branch>
 #

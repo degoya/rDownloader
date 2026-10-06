@@ -28,6 +28,8 @@
 //! * **A system tool is never touched.** The store owns `<data>/tools/**` and nothing else,
 //!   and an explicitly configured path still wins over every managed version.
 
+#![warn(unreachable_pub)]
+
 pub mod activation;
 pub mod compat;
 pub mod download;

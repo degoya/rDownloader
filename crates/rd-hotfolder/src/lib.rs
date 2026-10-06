@@ -1,5 +1,7 @@
 //! Reconciled daemon and capture-agent hotfolder watchers.
 
+#![warn(unreachable_pub)]
+
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

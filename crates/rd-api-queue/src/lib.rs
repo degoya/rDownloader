@@ -2,6 +2,8 @@
 //! remote jobs, bandwidth, collisions and duplicates, storage, power and reconnect, the capture
 //! summary and the Prometheus metrics.
 
+#![warn(unreachable_pub)]
+
 pub mod auto_remove_service;
 pub mod bandwidth_handlers;
 pub mod bandwidth_manual_handlers;

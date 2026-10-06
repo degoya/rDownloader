@@ -20,6 +20,8 @@
 //! version is known to start, and the service keeps its own state (the floors, the last result)
 //! in its settings.
 
+#![warn(unreachable_pub)]
+
 pub mod check;
 pub mod download;
 pub mod fetch;

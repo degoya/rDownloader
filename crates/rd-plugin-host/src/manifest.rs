@@ -23,10 +23,12 @@ mod sections;
 mod validate;
 
 pub use sections::{
-    Capabilities, CredentialKindManifest, CredentialModeManifest, ExtensionManifest,
-    NetHttpCapability, NetStreamCapability, OAuthFlowManifest, PluginMetadata,
-    ProviderKindManifest, ProviderManifest, REMOTE_JOB_CONTAINERS, SecretFilledByManifest,
-    SecretSlotManifest, SettingManifest, TransferAuthManifest, TransferManifest,
+    Capabilities, CredentialKindManifest, NetHttpCapability, OAuthFlowManifest, PluginMetadata,
+    ProviderKindManifest, ProviderManifest, SecretFilledByManifest, SettingManifest,
+};
+pub(crate) use sections::{
+    CredentialModeManifest, ExtensionManifest, NetStreamCapability, REMOTE_JOB_CONTAINERS,
+    SecretSlotManifest, TransferAuthManifest, TransferManifest,
 };
 pub(crate) use validate::validate_manifest;
 

@@ -83,7 +83,8 @@ pub struct DownloadRateEntry {
     pub eta_seconds: Option<u64>,
 }
 
-/// Live transfer rates: the queue as a whole, and every entry that is moving.
+/// Live transfer rates: the queue as a whole, every entry that is moving, and every queued
+/// entry that waits for a connection to its host.
 ///
 /// Entries at rest are left out — their rate is zero and their remaining time is nothing, and
 /// saying so for every finished download in a long list is pure payload.
@@ -96,6 +97,17 @@ pub struct DownloadRatesResponse {
     /// Seconds until the queue is through, or `None` when no honest figure exists.
     pub eta_seconds: Option<u64>,
     pub downloads: Vec<DownloadRateEntry>,
+    /// Queued entries held back because their host has no free connection (RD-1130-02).
+    /// They take no place among the files running at once meanwhile.
+    pub waiting_for_host: Vec<DownloadHostWait>,
+}
+
+/// A queued entry waiting for a connection to its host.
+#[derive(Serialize, ToSchema)]
+pub struct DownloadHostWait {
+    pub id: rd_core::DownloadId,
+    /// The host as the per-host connection limit counts it: lower case, no `www.`, no port.
+    pub host: String,
 }
 
 /// Figures only, for the desktop tray.

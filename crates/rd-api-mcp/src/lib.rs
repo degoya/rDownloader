@@ -6,6 +6,8 @@
 //! called with its extractors constructed by hand — so validation, behaviour and
 //! error codes stay identical and no rule is written twice.
 
+#![warn(unreachable_pub)]
+
 mod error;
 mod mask;
 mod params;

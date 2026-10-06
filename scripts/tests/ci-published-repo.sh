@@ -5,8 +5,11 @@
 # fetched from the base URL and a `trusted=` in it is refused; the newest version must be the
 # expected one, waited for while Pages publishes it; with an earlier release it is installed first, started, given a marker, upgraded
 # and started again with the marker kept; one the repository no longer keeps falls back to the
-# newest with a warning; the removal must leave the database (RD-1120-07). The dnf half differs
-# only in the package manager's commands.
+# newest with a warning; the removal must leave the database (RD-1120-07). The stub `runuser`
+# lets the tester write only below its home and into folders it made itself, as a real one does
+# with root's 0700 `mktemp -d` (RD-1130-05). The dnf half differs in the package manager's
+# commands; the stub `dnf` fails a look at the signed metadata without `-y`, as dnf does when CI
+# answers its key import question with no (RD-1130-05).
 #
 #   scripts/tests/ci-published-repo.sh
 set -euo pipefail
@@ -58,6 +61,22 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 EOF
+# dnf: installs as the apt-get stub does; repoquery lists $FAKE/versions, but only with -y.
+cat > "$SCRATCH/bin/dnf" <<'EOF'
+#!/usr/bin/env bash
+echo "dnf $*" >> "$FAKE/calls"
+newest="$(sort -V "$FAKE/versions" | tail -n 1)"
+case "$*" in
+    *util-linux*) ;;
+    *repoquery*)
+        [[ " $* " == *" -y "* ]] \
+            || { echo "Error: repomd.xml GPG signature verification error: Signing key not found" >&2; exit 1; }
+        sort -u "$FAKE/versions" ;;
+    *"rdownloader-"*) args="$*"; echo "${args##*rdownloader-}" > "$FAKE/installed" ;;
+    install*rdownloader | upgrade*rdownloader) echo "$newest" > "$FAKE/installed" ;;
+    remove*) rm -f "$FAKE/installed" ;;
+esac
+EOF
 cat > "$SCRATCH/bin/useradd" <<'EOF'
 #!/usr/bin/env bash
 mkdir -p "$RD_PUBLISHED_REPO_FS/home/tester"
@@ -65,7 +84,19 @@ EOF
 cat > "$SCRATCH/bin/runuser" <<'EOF'
 #!/usr/bin/env bash
 shift 3
-HOME="$RD_PUBLISHED_REPO_FS/home/tester" exec "$@"
+export HOME="$RD_PUBLISHED_REPO_FS/home/tester"
+if [[ "$1" == mktemp ]]; then
+    "$@" | tee -a "$FAKE/tester-dirs"
+    exit "${PIPESTATUS[0]}"
+fi
+if [[ "$1" == bash && "$2" == -c ]]; then
+    while read -r target; do
+        folder="$(dirname "$target")"
+        [[ "$folder" == "$HOME"* ]] || grep -qxF -- "$folder" "$FAKE/tester-dirs" 2> /dev/null \
+            || { echo "bash: line 1: $target: Permission denied" >&2; exit 1; }
+    done < <(grep -o "> '[^']*'" <<< "$3" | sed "s/^> '//; s/'\$//")
+fi
+exec "$@"
 EOF
 cat > "$SCRATCH/bin/rdownloader" <<'EOF'
 #!/usr/bin/env bash
@@ -82,8 +113,8 @@ chmod +x "$SCRATCH/bin/"*
 export PATH="$SCRATCH/bin:$PATH"
 BASE=https://example.invalid/packages
 published() {
-    rm -rf "$RD_PUBLISHED_REPO_FS" "$FAKE/calls" "$FAKE/installed" "$FAKE/looks"
-    mkdir -p "$RD_PUBLISHED_REPO_FS/etc/apt/sources.list.d"
+    rm -rf "$RD_PUBLISHED_REPO_FS" "$FAKE/calls" "$FAKE/installed" "$FAKE/looks" "$FAKE/tester-dirs"
+    mkdir -p "$RD_PUBLISHED_REPO_FS/etc/apt/sources.list.d" "$RD_PUBLISHED_REPO_FS/etc/yum.repos.d"
     run_status "$ROOT/scripts/ci-published-repo.sh" "$@"
 }
 printf '%s\n' 1.10.1 1.11.0 > "$FAKE/versions"
@@ -97,6 +128,16 @@ expect "the older one installed and started, upgraded, the newest started" \
     "apt-get install -y --allow-downgrades rdownloader=1.10.1|serve 1.10.1|apt-get install -y --only-upgrade rdownloader|serve 1.11.0|apt-get purge -y rdownloader" \
     "$(grep -E '^(serve|apt-get install -y --|apt-get purge)' "$FAKE/calls" | paste -sd'|' -)"
 expect_true "the database is still there after the removal" '[[ -s "$RD_PUBLISHED_REPO_FS/home/tester/.local/share/rdownloader/data/rdownloader.sqlite3" ]]'
+expect_true "the service's log went to a folder the tester made, removed at the end" \
+    'run_dir="$(cat "$FAKE/tester-dirs")" && [[ -n "$run_dir" && ! -e "$run_dir" ]]'
+
+published dnf "$BASE" 1.11.0 v1.10.1
+expect_status "an upgrade from the release before through dnf" 0
+expect_output "says so" "rdownloader 1.11.0 from $BASE (upgraded from 1.10.1), data kept"
+expect_true "the metadata looked at with -y, so dnf imports the repository's key" 'grep -q "^dnf -y repoquery --refresh" "$FAKE/calls"'
+expect "the older one installed and started, upgraded, the newest started" \
+    "dnf install -y rdownloader-1.10.1|serve 1.10.1|dnf upgrade -y rdownloader|serve 1.11.0|dnf remove -y rdownloader" \
+    "$(grep -E '^(serve|dnf (install|upgrade|remove) -y rdownloader)' "$FAKE/calls" | paste -sd'|' -)"
 
 published apt "$BASE" 1.11.0
 expect_status "a fresh install" 0

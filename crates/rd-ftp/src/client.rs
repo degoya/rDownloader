@@ -19,7 +19,7 @@ const ANONYMOUS_USER: &str = "anonymous";
 const ANONYMOUS_PASSWORD: &str = "anonymous@example.invalid";
 
 /// An established, logged-in control connection.
-pub enum Connection {
+pub(crate) enum Connection {
     Plain(Box<AsyncFtpStream>),
     Secure(Box<AsyncRustlsFtpStream>),
 }
@@ -48,7 +48,7 @@ impl Connection {
     /// socket is opened, and the control connection goes to exactly those addresses. The data
     /// connections follow it: the address a `PASV` reply names is ignored for the control
     /// connection's own peer, so a server cannot point a transfer at another machine.
-    pub async fn open(
+    pub(crate) async fn open(
         credential: &RemoteCredential,
         password: Option<&SecretString>,
         custom_ca_pem: &[Vec<u8>],
@@ -162,47 +162,47 @@ impl Connection {
         dispatch!(self, stream => stream.transfer_type(file_type).await)
     }
 
-    pub async fn features(&mut self) -> FtpResult<Features> {
+    pub(crate) async fn features(&mut self) -> FtpResult<Features> {
         dispatch!(self, stream => stream.feat().await)
     }
 
-    pub async fn size(&mut self, path: &str) -> FtpResult<usize> {
+    pub(crate) async fn size(&mut self, path: &str) -> FtpResult<usize> {
         dispatch!(self, stream => stream.size(path).await)
     }
 
-    pub async fn modified_at(&mut self, path: &str) -> FtpResult<chrono::NaiveDateTime> {
+    pub(crate) async fn modified_at(&mut self, path: &str) -> FtpResult<chrono::NaiveDateTime> {
         dispatch!(self, stream => stream.mdtm(path).await)
     }
 
-    pub async fn cwd(&mut self, path: &str) -> FtpResult<()> {
+    pub(crate) async fn cwd(&mut self, path: &str) -> FtpResult<()> {
         dispatch!(self, stream => stream.cwd(path).await)
     }
 
-    pub async fn pwd(&mut self) -> FtpResult<String> {
+    pub(crate) async fn pwd(&mut self) -> FtpResult<String> {
         dispatch!(self, stream => stream.pwd().await)
     }
 
-    pub async fn mlsd(&mut self, path: Option<&str>) -> FtpResult<Vec<String>> {
+    pub(crate) async fn mlsd(&mut self, path: Option<&str>) -> FtpResult<Vec<String>> {
         dispatch!(self, stream => stream.mlsd(path).await)
     }
 
-    pub async fn list(&mut self, path: Option<&str>) -> FtpResult<Vec<String>> {
+    pub(crate) async fn list(&mut self, path: Option<&str>) -> FtpResult<Vec<String>> {
         dispatch!(self, stream => stream.list(path).await)
     }
 
     /// Sends `REST <offset>`, which the next `RETR` continues from.
-    pub async fn resume_from(&mut self, offset: usize) -> FtpResult<()> {
+    pub(crate) async fn resume_from(&mut self, offset: usize) -> FtpResult<()> {
         dispatch!(self, stream => stream.resume_transfer(offset).await)
     }
 
-    pub async fn quit(&mut self) -> FtpResult<()> {
+    pub(crate) async fn quit(&mut self) -> FtpResult<()> {
         dispatch!(self, stream => stream.quit().await)
     }
 
     /// Opens `path` for reading from the offset a preceding [`Self::resume_from`] set, for a
     /// chunk of a multi-source download (RD-150-03). The reader owns this connection and
     /// closes both when it is dropped, whether or not the file was read to its end.
-    pub async fn into_reader(mut self, path: &str) -> FtpResult<rd_http::RangeReader> {
+    pub(crate) async fn into_reader(mut self, path: &str) -> FtpResult<rd_http::RangeReader> {
         let data: rd_http::RangeReader = match &mut self {
             Self::Plain(stream) => Box::new(stream.retr_as_stream(path).await?),
             Self::Secure(stream) => Box::new(stream.retr_as_stream(path).await?),
@@ -215,7 +215,7 @@ impl Connection {
 
     /// Streams `path` from the offset a preceding [`Self::resume_from`] established.
     #[allow(clippy::too_many_arguments)]
-    pub async fn retrieve(
+    pub(crate) async fn retrieve(
         &mut self,
         path: &str,
         staging: &rd_transfer_file::Staging<'_>,
@@ -256,7 +256,7 @@ impl tokio::io::AsyncRead for Holding {
 /// Whether the server advertised `REST STREAM`, i.e. whether an interrupted transfer can
 /// be continued rather than restarted.
 #[must_use]
-pub fn advertises_rest(features: &Features) -> bool {
+pub(crate) fn advertises_rest(features: &Features) -> bool {
     features.iter().any(|(name, argument)| {
         name.eq_ignore_ascii_case("REST")
             && argument

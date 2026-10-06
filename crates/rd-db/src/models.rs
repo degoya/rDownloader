@@ -15,7 +15,7 @@ mod queries;
 pub(crate) use queries::{
     committed_bytes_total, downloads_blocked_by, downloads_for_package, downloads_page,
     failed_downloads, get_download, get_download_from_connection, get_package, list_downloads,
-    list_packages, load_transfer, startable_downloads, transform_checkpoint,
+    list_packages, load_transfer, packages_page, startable_downloads, transform_checkpoint,
 };
 
 /// Fields required to create a package.

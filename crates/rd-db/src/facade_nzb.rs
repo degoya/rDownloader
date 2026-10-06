@@ -122,6 +122,18 @@ impl Database {
         Ok(imports)
     }
 
+    /// One page of [`Self::list_nzb_imports`], cut by SQLite, and how many imports there are
+    /// (RD-191-05); only the page's passwords are read from the vault.
+    pub async fn nzb_imports_page(
+        &self,
+        offset: u64,
+        limit: Option<u64>,
+    ) -> Result<(Vec<rd_core::NzbImport>, u64)> {
+        let (mut imports, total) = nzb_store::imports_page(&self.readers, offset, limit).await?;
+        self.reveal_archive_passwords(&mut imports).await;
+        Ok((imports, total))
+    }
+
     /// One NZB import with its archive password, or `None`.
     pub async fn get_nzb_import(
         &self,

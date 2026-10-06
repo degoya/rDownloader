@@ -1,5 +1,7 @@
 //! NZB segment transport, yEnc decoding and server fallback.
 
+#![warn(unreachable_pub)]
+
 mod assembly_resume;
 mod bounds;
 mod checkpoints;

@@ -16,7 +16,7 @@ use rd_plugin_host::VerifyError;
 use crate::trusted_keys::RELEASE_KEY_ID;
 
 #[derive(Args)]
-pub struct PluginArgs {
+pub(crate) struct PluginArgs {
     #[command(subcommand)]
     command: PluginCommand,
 }
@@ -34,7 +34,7 @@ enum PluginCommand {
 }
 
 #[derive(Args)]
-pub struct KeysArgs {
+pub(crate) struct KeysArgs {
     #[command(subcommand)]
     command: KeysCommand,
     /// Database holding the confirmed keys; by default the service's (`data/rdownloader.sqlite3`,
@@ -146,7 +146,7 @@ fn current_exe() -> Result<PathBuf> {
     std::env::current_exe().context("locate rDownloader executable")
 }
 
-pub async fn run(args: PluginArgs) -> Result<()> {
+pub(crate) async fn run(args: PluginArgs) -> Result<()> {
     match args.command {
         PluginCommand::Keygen(args) => keygen(&args).await,
         PluginCommand::Publish(command) => rd_pack::plugin::run(command).await,

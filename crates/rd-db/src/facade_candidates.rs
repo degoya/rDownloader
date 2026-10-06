@@ -17,9 +17,42 @@ impl Database {
         collector_store::list_batches(&self.readers).await
     }
 
+    /// One page of [`Self::list_collector_batches`], cut by SQLite, and how many batches there
+    /// are (RD-191-05): `offset` rows skipped, then at most `limit` (`None`: the rest).
+    pub async fn collector_batches_page(
+        &self,
+        offset: u64,
+        limit: Option<u64>,
+    ) -> Result<(Vec<rd_core::CollectorBatch>, u64)> {
+        collector_store::batches_page(&self.readers, offset, limit).await
+    }
+
     /// Lists LinkGrabber candidates newest first.
     pub async fn list_candidates(&self) -> Result<Vec<rd_core::LinkCandidate>> {
         collector_store::list_candidates(&self.readers).await
+    }
+
+    /// One page of [`Self::list_candidates`], cut by SQLite, and how many links that list holds
+    /// (RD-191-05).
+    pub async fn candidates_page(
+        &self,
+        offset: u64,
+        limit: Option<u64>,
+    ) -> Result<(Vec<rd_core::LinkCandidate>, u64)> {
+        collector_store::candidates_page(&self.readers, offset, limit).await
+    }
+
+    /// One page of [`Self::list_collector_packages`], cut by SQLite, and how many packages that
+    /// list holds (RD-191-05); only the page's passwords are read from the vault.
+    pub async fn collector_packages_page(
+        &self,
+        offset: u64,
+        limit: Option<u64>,
+    ) -> Result<(Vec<rd_core::CollectorPackage>, u64)> {
+        let (mut packages, total) =
+            crate::collector_packages::page(&self.readers, offset, limit).await?;
+        self.reveal_archive_passwords(&mut packages).await;
+        Ok((packages, total))
     }
 
     /// Loads a LinkGrabber candidate.

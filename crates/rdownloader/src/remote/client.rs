@@ -9,14 +9,14 @@ use anyhow::{Context, Result};
 use serde::de::DeserializeOwned;
 
 /// Default address, matching the service's own default listen address.
-pub const DEFAULT_SERVER: &str = "http://127.0.0.1:8710";
+pub(crate) const DEFAULT_SERVER: &str = "http://127.0.0.1:8710";
 
 /// Why a command failed, mapped to a distinct process exit code.
 ///
 /// A script that gets `1` for everything cannot tell "wrong token" from "host is down" from
 /// "that id does not exist", and those call for three different reactions.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Failure {
+pub(crate) enum Failure {
     /// The arguments could not be used at all (2).
     Usage = 2,
     /// The server could not be reached (3).
@@ -32,13 +32,13 @@ pub enum Failure {
 impl Failure {
     /// The exit code this failure ends the process with.
     #[must_use]
-    pub const fn code(self) -> i32 {
+    pub(crate) const fn code(self) -> i32 {
         self as i32
     }
 
     /// Classifies an HTTP status.
     #[must_use]
-    pub const fn of_status(status: u16) -> Self {
+    pub(crate) const fn of_status(status: u16) -> Self {
         match status {
             401 | 403 => Self::Unauthorized,
             404 => Self::NotFound,
@@ -50,7 +50,7 @@ impl Failure {
 
 /// An error carrying the exit code the CLI should end with.
 #[derive(Debug)]
-pub struct CommandError {
+pub(crate) struct CommandError {
     pub failure: Failure,
     pub message: String,
 }
@@ -65,7 +65,7 @@ impl std::error::Error for CommandError {}
 
 impl CommandError {
     #[must_use]
-    pub fn new(failure: Failure, message: impl Into<String>) -> Self {
+    pub(crate) fn new(failure: Failure, message: impl Into<String>) -> Self {
         Self {
             failure,
             message: message.into(),
@@ -74,7 +74,7 @@ impl CommandError {
 }
 
 /// A connection to one rDownloader server.
-pub struct Client {
+pub(crate) struct Client {
     http: reqwest::Client,
     base: String,
     token: Option<String>,
@@ -82,7 +82,7 @@ pub struct Client {
 
 impl Client {
     /// Builds a client for `server`, authenticating with `token` when one is given.
-    pub fn new(server: &str, token: Option<String>, timeout_seconds: u64) -> Result<Self> {
+    pub(crate) fn new(server: &str, token: Option<String>, timeout_seconds: u64) -> Result<Self> {
         let http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(timeout_seconds))
             .build()
@@ -92,7 +92,7 @@ impl Client {
 
     /// A client for the service on this machine: [`local_http`]'s, so the local control token
     /// never travels through a proxy the environment names.
-    pub fn local(server: &str, token: Option<String>, timeout_seconds: u64) -> Result<Self> {
+    pub(crate) fn local(server: &str, token: Option<String>, timeout_seconds: u64) -> Result<Self> {
         let http = local_http(std::time::Duration::from_secs(timeout_seconds))?;
         Self::with(http, server, token)
     }
@@ -109,11 +109,11 @@ impl Client {
         Ok(Self { http, base, token })
     }
 
-    pub async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+    pub(crate) async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
         self.send::<T, ()>(reqwest::Method::GET, path, None).await
     }
 
-    pub async fn post<T: DeserializeOwned, B: serde::Serialize>(
+    pub(crate) async fn post<T: DeserializeOwned, B: serde::Serialize>(
         &self,
         path: &str,
         body: &B,
@@ -121,7 +121,7 @@ impl Client {
         self.send(reqwest::Method::POST, path, Some(body)).await
     }
 
-    pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+    pub(crate) async fn delete<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
         self.send::<T, ()>(reqwest::Method::DELETE, path, None)
             .await
     }
@@ -169,7 +169,7 @@ impl Client {
 /// proxy matcher exempts nothing but `NO_PROXY`, not even loopback, so a corporate proxy
 /// received the Bearer token of the local control file and every update failed with
 /// `update.service_did_not_stop`.
-pub fn local_http(timeout: std::time::Duration) -> Result<reqwest::Client> {
+pub(crate) fn local_http(timeout: std::time::Duration) -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .timeout(timeout)
         .no_proxy()

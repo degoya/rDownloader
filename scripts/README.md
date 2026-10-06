@@ -17,7 +17,8 @@ and taken WSL down more than once.
 | `ci-gate.sh` | CI only: the `gate` job of `ci.yml` — the `platforms`, `check`, `jobs` and `warm` outputs, everything except on a push to `main`, where `ci-tree-greens.sh` decides for the images and the `ONCE` jobs and `components` (`CALLED`) always runs; a dispatch's `jobs` input keeps only the once-per-run jobs it names, `[]` none (RD-191-09, RD-1120-07; RD-1101-07 moved it out of the workflow) |
 | `ci-platform-smoke.sh`, `ci-platform-smoke.ps1` | CI only: the `rust` job's platform steps (composite action `platform-smoke`) — `launcher-syntax`, `macos-helper`, `portable`, `homebrew`, `scoop-manifest` in bash, `launcher-args`, `executables`, `portable`, `scoop-zip`, `scoop-install` in PowerShell — and `optimised`, the `docker` job's launcher smoke (RD-1101-07) |
 | `ci-channels-gate.sh` | CI only: the `gate` job of `channels.yml` — a dispatch's `expect_version`/`upgrade_from` checked, a green Release run of a plain tag checked against its version and upgraded from the plain release before it (RD-180-06, RD-1120-07) |
-| `ci-published-repo.sh` | CI only, as root in a fresh container: `apt\|dnf <base-url> [<expect>] [<from>]` installs from the published apt or dnf repository as its README says, waits for the expected version, upgrades from `<from>` when kept, starts the service as a user before and after, and removes it with the database kept — `channels.yml`'s `repository` job (RD-180-10, RD-1120-07) |
+| `ci-published-repo.sh` | CI only, as root in a fresh container: `apt\|dnf <base-url> [<expect>] [<from>]` installs from the published apt or dnf repository as its README says, waits for the expected version, upgrades from `<from>` when kept, starts the service as a user before and after, and removes it with the database kept — `channels.yml`'s `repository` job (RD-180-10, RD-1120-07); the service's log goes to a folder the user made, the dnf metadata is read with `-y` so the repository's key is imported (RD-1130-05) |
+| `ci-brew-service-diagnostics.sh` | CI only: what `brew services`, launchd or systemd, the process table, port 8710, the kegs, the code signature and the system log know about the `rdownloader` service, then the binary started in the foreground from its working folder for 20 s — `channels.yml`'s `homebrew` job runs it when the service does not answer; prints only, never fails (RD-1130-05) |
 | `ci-plugins.sh` | CI only: the plugin steps of `ci-components.yml` and `release-plugins.yml` — `list [--examples]` (step outputs), `imports [--annotate]`, `package-dev`, `templates`, `scaffolds`, `conformance`, `package-signed` (RD-1101-07) |
 | `ci-services.sh` | CI only: the S3 service (RustFS) for `s3-live` (`s3-start`, `s3-ready`) and clamd for `clamav-live` (`clamd-ready <container>`) (RD-1101-07) |
 | `ci-tools.sh` | CI only: the checksum-pinned downloads of the `scripts` job (`linters`: shellcheck and actionlint) and of `supply-chain` (`gitleaks`, which also runs it) (RD-1101-07) |
@@ -41,7 +42,7 @@ and taken WSL down more than once.
 | `docker.sh` | Build and run the container image (`build`, `run --port N`, `stop`) |
 | `docker-smoke.sh` | Start an image on fresh volumes and check `--version`, `/api/v1/health` and `yt-dlp`, `streamlink`, `gallery-dl` and `apprise` as the service user; CI and the release run it before any push (RD-140-25, RD-1120-07) |
 | `docker-tools.sh` | The container image's Python tools, hash-pinned (RD-191-09): without arguments, check that `docker/requirements.txt` is the compile of `docker/requirements.in`; `--lock` compiles it with uv for every platform, `--bump` moves every tool to its newest release first |
-| `set-version.sh` | Read, set or `--check` the release version: `Cargo.toml` is the source, `web/package.json`, `extension/manifest.base.json`, `web/openapi.json` (`info.version`), the SDK workflows' `RDOWNLOADER_VERSION` (`sdk/ci/*.yml`, audit K2) and the lock are its copies |
+| `set-version.sh` | Read, set or `--check` the release version: `Cargo.toml` is the source, `web/package.json`, `extension/manifest.base.json`, `web/openapi.json` (`info.version`), the SDK workflows' `RDOWNLOADER_VERSION` (`sdk/ci/*.yml`, audit K2) and the lock are its copies; a copy whose content does not change is not rewritten (RD-1130-01) |
 | `tag-release.sh` | Annotated `vX.Y.Z` tag for the current commit; refuses a tree without a `--full` green; never pushes |
 | `release.sh` | The manual variant of the chain, kept beside `release-pipeline.sh` (RD-191-09): version, checks, packages — no commit, no tag; a release is cut with the pipeline |
 | `release-pipeline.sh` | The same chain run to the tag, with an evidence log that gates it; ends with the checkout back on `development` (RD-160-06); the evidence machinery is `lib/release-evidence.sh`, the steps `lib/release-steps-build.sh` (preflight … smoke) and `lib/release-steps-publish.sh` (doc-facts … publish-public) (RD-1101-04) |
@@ -557,7 +558,10 @@ tag, `evidence-gate` reads that log back and refuses unless every earlier step h
 
 With two lanes (`RD_LANES`, default 2) `build-linux` and `build-windows` run at once, Windows in
 `target/lanes/windows` under a lane of its own, both with `--skip-web` on the `web/dist` the
-`web` step built. Each writes a part log (`<evidence log>.<step>.part`, named at the start for
+`web` step built. Before either starts, also on a `--resume`, the chain rebuilds a `web/dist` that
+`web-dist-stale.sh` calls stale (`rd_release_web_dist`, RD-1130-01): a version bump or the switch
+to `main` and back rewrites `web/package.json` after the web step, which a `--resume` skips as
+green. Each writes a part log (`<evidence log>.<step>.part`, named at the start for
 `tail -f`); when both have ended the evidence log gets each in turn with the same header and
 marker a serial step gets, so the gate cannot tell the difference. `RD_LANES=1` runs them one
 after the other as before. The first parallel release cross-builds Windows from scratch in the

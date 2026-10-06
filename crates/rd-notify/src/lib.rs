@@ -4,6 +4,8 @@
 //! The crate owns the contract and the transports. Persisting deliveries and running the
 //! worker is the service's job, so the policy stays testable without a database.
 
+#![warn(unreachable_pub)]
+
 mod delivery;
 mod executable;
 mod model;

@@ -13,7 +13,7 @@ pub(crate) use output::Format;
 
 /// Connection options shared by every remote command.
 #[derive(Clone, Args)]
-pub struct ConnectionArgs {
+pub(crate) struct ConnectionArgs {
     /// Server to talk to. Defaults to the local service.
     #[arg(long, env = "RDOWNLOADER_SERVER", default_value = DEFAULT_SERVER, global = true)]
     server: String,
@@ -38,7 +38,7 @@ impl ConnectionArgs {
 }
 
 #[derive(Args)]
-pub struct QueueArgs {
+pub(crate) struct QueueArgs {
     #[command(subcommand)]
     command: QueueCommand,
     #[command(flatten)]
@@ -78,7 +78,7 @@ enum QueueCommand {
 }
 
 #[derive(Args)]
-pub struct LinksArgs {
+pub(crate) struct LinksArgs {
     #[command(subcommand)]
     command: LinksCommand,
     #[command(flatten)]
@@ -138,7 +138,7 @@ fn confirm(yes: bool, count: usize, noun: &str) -> Result<()> {
 }
 
 /// Runs a `queue` subcommand.
-pub async fn queue(args: QueueArgs) -> Result<()> {
+pub(crate) async fn queue(args: QueueArgs) -> Result<()> {
     let (client, format) = args.connection.connect()?;
     match args.command {
         QueueCommand::List => queue_cmd::list(&client, format).await,
@@ -154,7 +154,7 @@ pub async fn queue(args: QueueArgs) -> Result<()> {
 }
 
 /// Runs a `links` subcommand.
-pub async fn links(args: LinksArgs) -> Result<()> {
+pub(crate) async fn links(args: LinksArgs) -> Result<()> {
     let (client, format) = args.connection.connect()?;
     match args.command {
         LinksCommand::List => links_cmd::list(&client, format).await,
@@ -184,7 +184,7 @@ pub async fn links(args: LinksArgs) -> Result<()> {
 /// Printing and exiting here rather than returning the error to `main`: anyhow's default
 /// exit code is 1 for everything, and the whole point of [`Failure`] is that a caller can
 /// tell an unreachable host from a rejected token without parsing the message.
-pub fn finish(result: Result<()>) -> Result<()> {
+pub(crate) fn finish(result: Result<()>) -> Result<()> {
     let Err(error) = result else { return Ok(()) };
     let failure = error
         .downcast_ref::<CommandError>()

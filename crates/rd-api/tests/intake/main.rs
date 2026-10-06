@@ -12,6 +12,7 @@ mod captcha;
 mod capture_boundary;
 mod capture_file;
 mod capture_intake;
+mod collector_pages;
 mod container_json;
 mod containers;
 mod dlc;

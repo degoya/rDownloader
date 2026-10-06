@@ -25,13 +25,13 @@ pub enum HoldSource {
 
 /// The holds currently in force.
 #[derive(Debug, Default)]
-pub struct Holds {
+pub(crate) struct Holds {
     reasons: Mutex<BTreeMap<HoldSource, &'static str>>,
 }
 
 impl Holds {
     /// Sets or clears one source's hold, leaving the others alone.
-    pub async fn set(&self, source: HoldSource, reason: Option<&'static str>) {
+    pub(crate) async fn set(&self, source: HoldSource, reason: Option<&'static str>) {
         let mut reasons = self.reasons.lock().await;
         match reason {
             Some(reason) => reasons.insert(source, reason),
@@ -43,7 +43,7 @@ impl Holds {
     ///
     /// Ordered by source rather than by when it was set, so the same combination always reads
     /// the same way.
-    pub async fn reason(&self) -> Option<&'static str> {
+    pub(crate) async fn reason(&self) -> Option<&'static str> {
         self.reasons.lock().await.values().next().copied()
     }
 }

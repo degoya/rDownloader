@@ -2,6 +2,8 @@
 //! stream to disk until it ends or is stopped, plus the liveness probe the channel monitor
 //! uses. Recordings are exempt from the global active-file cap.
 
+#![warn(unreachable_pub)]
+
 mod probe;
 mod runner;
 mod schedule;

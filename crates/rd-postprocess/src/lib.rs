@@ -1,5 +1,7 @@
 //! Isolated PAR2 verification and safe, password-aware archive extraction.
 
+#![warn(unreachable_pub)]
+
 mod archive;
 mod direct;
 mod error;

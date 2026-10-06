@@ -17,7 +17,7 @@ use rd_siterules::{Catalogue, Executor, RuleReport, SystemClock, Verdict, selfte
 const NO_REASON: &str = "-";
 
 #[derive(Args)]
-pub struct SiteRulesCheckArgs {
+pub(crate) struct SiteRulesCheckArgs {
     /// Checks only this rule, by id; repeatable. Without it every rule is checked.
     #[arg(long = "rule")]
     pub rules: Vec<String>,
@@ -28,7 +28,7 @@ pub struct SiteRulesCheckArgs {
 /// Sequential on purpose: a handful of boards asked one after another is polite, and a run
 /// that opened twenty connections at once would look to every one of them exactly like what
 /// they guard against.
-pub async fn check_rules(
+pub(crate) async fn check_rules(
     network: &rd_plugin_host::RuleNetwork,
     catalogue: &Catalogue,
     wanted: &[String],
@@ -49,7 +49,7 @@ pub async fn check_rules(
 
 /// The table the command prints: one line per rule, widths from the content.
 #[must_use]
-pub fn render(reports: &[RuleReport]) -> String {
+pub(crate) fn render(reports: &[RuleReport]) -> String {
     if reports.is_empty() {
         return "no rules to check\n".to_owned();
     }
@@ -111,14 +111,14 @@ fn summary(reports: &[RuleReport]) -> String {
 /// What the process exits with: anything but `ok` is a finding, so a release preparation
 /// that runs this can stop on it.
 #[must_use]
-pub fn exit_code(reports: &[RuleReport]) -> i32 {
+pub(crate) fn exit_code(reports: &[RuleReport]) -> i32 {
     i32::from(reports.iter().any(|report| !report.verdict.is_ok()))
 }
 
 /// The rows one run writes: every rule it checked, with the refusal's own code beside the
 /// four-way verdict so the reason survives the sort.
 #[must_use]
-pub fn rows(reports: &[RuleReport]) -> Vec<rd_db::NewSiteRuleCheck> {
+pub(crate) fn rows(reports: &[RuleReport]) -> Vec<rd_db::NewSiteRuleCheck> {
     reports
         .iter()
         .map(|report| rd_db::NewSiteRuleCheck {
@@ -136,7 +136,7 @@ pub fn rows(reports: &[RuleReport]) -> Vec<rd_db::NewSiteRuleCheck> {
 /// Read at start by `serve` and handed to the crawler selection, which skips them. A word
 /// this build does not know is ignored rather than guessed at, so a row written by a later
 /// version costs nothing.
-pub async fn dead_rules(database: &rd_db::Database) -> std::collections::BTreeSet<String> {
+pub(crate) async fn dead_rules(database: &rd_db::Database) -> std::collections::BTreeSet<String> {
     match database.list_site_rule_checks().await {
         Ok(checks) => checks
             .into_iter()
@@ -151,7 +151,7 @@ pub async fn dead_rules(database: &rd_db::Database) -> std::collections::BTreeSe
 }
 
 /// Runs the command: checks the rules, stores what it found, prints the table.
-pub async fn run(
+pub(crate) async fn run(
     database: &rd_db::Database,
     network: &rd_plugin_host::RuleNetwork,
     args: &SiteRulesCheckArgs,

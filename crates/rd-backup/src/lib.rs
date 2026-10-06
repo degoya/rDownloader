@@ -19,6 +19,8 @@
 //! test restore, path remap, cutover — is [`restore`] (RD-160-03). The verified database copy and
 //! archive the updater asks for before it switches versions are [`pre_update`] (RD-180-03).
 
+#![warn(unreachable_pub)]
+
 pub mod archive;
 mod create;
 pub mod crypto;

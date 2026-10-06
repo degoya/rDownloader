@@ -228,8 +228,22 @@ async fn the_nzb_review_list_pages_in_its_own_order() {
     let (window, total) = imports_page(&harness, "/api/v1/nzb/imports?limit=1&offset=1").await;
     assert_eq!(window, whole[1..2]);
     assert_eq!(total.as_deref(), Some("3"));
-    let (beyond, _) = imports_page(&harness, "/api/v1/nzb/imports?offset=3").await;
+    // Cut in SQL since RD-191-05: walked to the end the pages are the list, each counts all of
+    // it, and a page past the end is empty but still counted.
+    let mut walked = Vec::new();
+    for offset in [0, 2] {
+        let (rows, total) = imports_page(
+            &harness,
+            &format!("/api/v1/nzb/imports?limit=2&offset={offset}"),
+        )
+        .await;
+        assert_eq!(total.as_deref(), Some("3"), "offset {offset}");
+        walked.extend(rows);
+    }
+    assert_eq!(walked, whole, "the pages are the list, in its order");
+    let (beyond, total) = imports_page(&harness, "/api/v1/nzb/imports?offset=3").await;
     assert!(beyond.is_empty());
+    assert_eq!(total.as_deref(), Some("3"));
 
     let (status, refused) = common::get_json(&harness.router, "/api/v1/nzb/imports?limit=0").await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");

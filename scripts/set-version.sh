@@ -96,6 +96,13 @@ import json, pathlib, re, sys
 
 version = sys.argv[1]
 
+# A file whose content does not change is not written (RD-1130-01): a bump to the version the tree
+# already carries, as a re-started release chain does, moved every mtime, and
+# scripts/web-dist-stale.sh then took web/package.json for a source newer than web/dist.
+def write(path, text):
+    if path.read_text() != text:
+        path.write_text(text)
+
 cargo = pathlib.Path('Cargo.toml')
 text = cargo.read_text()
 # Replace only inside [workspace.package], and only the first `version` key in it.
@@ -107,18 +114,18 @@ updated, count = re.subn(
 )
 if count != 1:
     raise SystemExit('could not rewrite the workspace version in Cargo.toml')
-cargo.write_text(updated)
+write(cargo, updated)
 
 package = pathlib.Path('web/package.json')
 data = json.loads(package.read_text())
 data['version'] = version
 # json.dumps drops the trailing newline npm writes; keep the file as npm would leave it.
-package.write_text(json.dumps(data, indent=2) + '\n')
+write(package, json.dumps(data, indent=2) + '\n')
 
 manifest = pathlib.Path('extension/manifest.base.json')
 base = json.loads(manifest.read_text())
 base['version'] = re.sub(r'[-+].*$', '', version)
-manifest.write_text(json.dumps(base, indent=2) + '\n')
+write(manifest, json.dumps(base, indent=2) + '\n')
 
 # The generated contract: only info.version, in place, so the rest stays byte for byte.
 contract = pathlib.Path('web/openapi.json')
@@ -133,7 +140,7 @@ updated, count = re.subn(
 )
 if count != 1 or json.loads(updated)['info']['version'] != version:
     raise SystemExit('could not rewrite info.version in web/openapi.json')
-contract.write_text(updated)
+write(contract, updated)
 
 # The SDK workflows' release pin: one `RDOWNLOADER_VERSION:` under `env:` each.
 for workflow in (pathlib.Path('sdk/ci/plugin.yml'), pathlib.Path('sdk/ci/repository.yml')):
@@ -145,7 +152,7 @@ for workflow in (pathlib.Path('sdk/ci/plugin.yml'), pathlib.Path('sdk/ci/reposit
     )
     if count != 1:
         raise SystemExit(f'could not rewrite RDOWNLOADER_VERSION in {workflow}')
-    workflow.write_text(updated)
+    write(workflow, updated)
 PY
 
 # Workspace members carry `version.workspace = true`, so only the lock needs rewriting.

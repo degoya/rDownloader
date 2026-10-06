@@ -39,7 +39,7 @@ pub const MAX_RELEASE_LIST_BYTES: usize = 4 * 1024 * 1024;
 /// Largest checksum list read.
 pub const MAX_CHECKSUM_BYTES: usize = 256 * 1024;
 /// Most checksum lists one poll fetches, newest releases first.
-pub const MAX_CHECKSUM_DOCUMENTS: usize = 4;
+pub(crate) const MAX_CHECKSUM_DOCUMENTS: usize = 4;
 /// The REST API version GitHub is asked to answer in.
 const GITHUB_API_VERSION: &str = "2022-11-28";
 /// Shortest pause after a refusal: a header that says "now" must not cause a retry loop.

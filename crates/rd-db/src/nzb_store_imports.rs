@@ -6,20 +6,51 @@ use rd_core::{ByteCount, EventEnvelope, EventKind, NzbImport, NzbImportId, NzbIm
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::NzbImportChange;
-use crate::{enum_string, error::StoreError, parse_id, writer::insert_event};
+use crate::{enum_string, error::StoreError, page_binds, parse_id, writer::insert_event};
 
 pub(crate) async fn list_imports(pool: &SqlitePool) -> Result<Vec<NzbImport>> {
     // The LinkGrabber's manual order is one sequence over both tables, so this list has to come
     // out of the database in it; sorting by creation time in the client is what made an import
     // un-draggable in the first place.
     sqlx::query_as::<_, NzbImportRow>(sqlx::AssertSqlSafe(format!(
-        "{IMPORT_SELECT} ORDER BY position ASC, created_at ASC"
+        "{IMPORT_SELECT} {IMPORT_ORDER}"
     )))
     .fetch_all(pool)
     .await?
     .into_iter()
     .map(TryInto::try_into)
     .collect()
+}
+
+/// The review list's order; the id comes last so equal rows still have one order and a page cut
+/// from it in SQL is the same slice every time (RD-191-05).
+const IMPORT_ORDER: &str = "ORDER BY position ASC, created_at ASC, id ASC";
+
+/// One page of [`list_imports`] and how many imports there are, in one read transaction
+/// (RD-191-05).
+pub(crate) async fn imports_page(
+    pool: &SqlitePool,
+    offset: u64,
+    limit: Option<u64>,
+) -> Result<(Vec<NzbImport>, u64)> {
+    let (limit, offset) = page_binds(offset, limit);
+    let mut transaction = pool.begin().await?;
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM nzb_imports")
+        .fetch_one(&mut *transaction)
+        .await?;
+    let rows = sqlx::query_as::<_, NzbImportRow>(sqlx::AssertSqlSafe(format!(
+        "{IMPORT_SELECT} {IMPORT_ORDER} LIMIT ? OFFSET ?"
+    )))
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+    let imports = rows
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<_>>>()?;
+    Ok((imports, u64::try_from(total).unwrap_or_default()))
 }
 
 pub(crate) async fn update_import(

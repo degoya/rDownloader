@@ -18,7 +18,7 @@ name: Installers
 #
 # Not here, because a runner cannot show it: the MSI's dialogs, a Start menu click, the capture
 # agent under a graphical session, a link opened in a browser on a Mac (the live checklist in
-# docs/roadmap/jobs/180-05-linux-arm64-und-installer.md).
+# docs/roadmap/jobs/archive/180-05-linux-arm64-und-installer.md).
 #
 #   gh workflow run installers.yml --ref <branch>
 #

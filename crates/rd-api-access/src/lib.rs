@@ -2,6 +2,8 @@
 //! second factors, signing in through an identity provider, API and capture tokens, the audit log,
 //! provider sign-in flows, auth profiles and the browser sessions the extension hands over.
 
+#![warn(unreachable_pub)]
+
 pub mod api_tokens;
 pub mod audit_dto;
 pub mod audit_handlers;

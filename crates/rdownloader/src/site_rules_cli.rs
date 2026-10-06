@@ -10,6 +10,6 @@
 /// lives in `rd_api::site_rules_service`, because the settings
 /// page has to produce the same answer after every write and two copies of that rule would
 /// drift. This stays as the name `serve` and `doctor` already call.
-pub async fn load_catalogue(database: &rd_db::Database) -> rd_siterules::Catalogue {
+pub(crate) async fn load_catalogue(database: &rd_db::Database) -> rd_siterules::Catalogue {
     rd_api::site_rule_catalogue(database).await
 }

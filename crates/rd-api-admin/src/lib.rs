@@ -5,6 +5,8 @@
 //! profiles, diagnostics, statistics and the head of the About page; stopping the service and
 //! the backup before an update (RD-180-02, RD-180-03).
 
+#![warn(unreachable_pub)]
+
 pub mod about_page;
 pub mod automation_handlers;
 pub mod backup_delivery;

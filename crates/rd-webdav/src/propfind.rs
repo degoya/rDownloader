@@ -57,7 +57,7 @@ struct Response {
 /// `base` is the collection that was asked for; every `href` must resolve underneath it.
 /// A server that answers with a href elsewhere is either broken or trying to make the
 /// client write outside the folder it agreed to, and neither is worth guessing about.
-pub fn parse(body: &str, base: &Url) -> Result<RemoteListing, ParseError> {
+pub(crate) fn parse(body: &str, base: &Url) -> Result<RemoteListing, ParseError> {
     let responses = read_responses(body)?;
     let base_path = normalize_path(base.path());
     let mut entries = Vec::new();

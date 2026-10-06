@@ -18,7 +18,7 @@ use crate::hostkey::{self, Observed, Rejection};
 ///
 /// It only records what it saw; the decision text is produced by the caller, because a
 /// `false` here becomes an opaque protocol error that cannot explain itself.
-pub struct HostKeyHandler {
+pub(crate) struct HostKeyHandler {
     verdict: Arc<dyn Fn(&hostkey::OfferedKey) -> HostKeyVerdict + Send + Sync>,
     auto_trust: bool,
     observed: Observed,
@@ -48,14 +48,14 @@ impl client::Handler for HostKeyHandler {
 }
 
 /// An authenticated SSH connection with its SFTP subsystem open.
-pub struct Connection {
+pub(crate) struct Connection {
     /// Held so the SSH transport outlives the SFTP session running on it.
     _session: Handle<HostKeyHandler>,
     pub sftp: SftpSession,
 }
 
 /// Everything needed to reach one server.
-pub struct ConnectSpec<'a> {
+pub(crate) struct ConnectSpec<'a> {
     pub credential: &'a RemoteCredential,
     pub password: Option<&'a SecretString>,
     pub private_key: Option<&'a SecretString>,
@@ -71,7 +71,7 @@ pub struct ConnectSpec<'a> {
 ///
 /// Returns the observed host key alongside the connection so the caller can record a
 /// first sighting that `auto_trust` allowed through.
-pub async fn connect(
+pub(crate) async fn connect(
     spec: ConnectSpec<'_>,
     verdict: Arc<dyn Fn(&hostkey::OfferedKey) -> HostKeyVerdict + Send + Sync>,
 ) -> Result<Result<(Connection, hostkey::OfferedKey), Failure>> {

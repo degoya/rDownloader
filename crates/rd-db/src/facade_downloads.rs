@@ -419,6 +419,18 @@ impl Database {
         Ok(packages)
     }
 
+    /// One page of [`Self::list_packages_with_passwords`], cut by SQLite, and how many packages
+    /// the whole list holds (RD-191-05); only the page's passwords are read from the vault.
+    pub async fn packages_page(
+        &self,
+        offset: u64,
+        limit: Option<u64>,
+    ) -> Result<(Vec<DownloadPackage>, u64)> {
+        let (mut packages, total) = models::packages_page(&self.readers, offset, limit).await?;
+        self.reveal_archive_passwords(&mut packages).await;
+        Ok((packages, total))
+    }
+
     /// Returns files in queue order: package priority and position, then the file's position.
     pub async fn list_downloads(&self) -> Result<Vec<DownloadFile>> {
         models::list_downloads(&self.readers).await

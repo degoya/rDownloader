@@ -11,39 +11,39 @@ use rd_autostart::shell::run;
 use rd_autostart::shell::{reg_add, reg_delete_key_if_present};
 
 #[derive(Clone, Copy)]
-pub enum Kind {
+pub(crate) enum Kind {
     Association,
     /// The `rdownloader://` URL scheme handler (RD-090-09).
     Scheme,
 }
 
 #[cfg(windows)]
-pub fn install(kind: Kind, executable: &Path) -> Result<()> {
+pub(crate) fn install(kind: Kind, executable: &Path) -> Result<()> {
     windows_install(kind, executable)
 }
 
 #[cfg(target_os = "linux")]
-pub fn install(kind: Kind, executable: &Path) -> Result<()> {
+pub(crate) fn install(kind: Kind, executable: &Path) -> Result<()> {
     linux_install(kind, executable)
 }
 
 #[cfg(target_os = "macos")]
-pub fn install(kind: Kind, executable: &Path) -> Result<()> {
+pub(crate) fn install(kind: Kind, executable: &Path) -> Result<()> {
     macos_install(kind, executable)
 }
 
 #[cfg(windows)]
-pub fn remove(kind: Kind) -> Result<()> {
+pub(crate) fn remove(kind: Kind) -> Result<()> {
     windows_remove(kind)
 }
 
 #[cfg(target_os = "linux")]
-pub fn remove(kind: Kind) -> Result<()> {
+pub(crate) fn remove(kind: Kind) -> Result<()> {
     linux_remove(kind)
 }
 
 #[cfg(target_os = "macos")]
-pub fn remove(kind: Kind) -> Result<()> {
+pub(crate) fn remove(kind: Kind) -> Result<()> {
     macos_remove(kind)
 }
 
@@ -52,7 +52,7 @@ pub fn remove(kind: Kind) -> Result<()> {
 /// Without a registered one, a toast from an unpackaged executable is attributed to whatever
 /// host process raised it — PowerShell, in practice. `notify.rs` sets the same identifier.
 /// Defined unconditionally so `windows_registry_entries` stays testable on every host.
-pub const WINDOWS_APP_ID: &str = "rDownloader.Capture";
+pub(crate) const WINDOWS_APP_ID: &str = "rDownloader.Capture";
 
 #[cfg(windows)]
 fn windows_install(kind: Kind, executable: &Path) -> Result<()> {

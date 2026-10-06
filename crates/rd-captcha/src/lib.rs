@@ -15,6 +15,8 @@
 //! CutCaptcha is answered by a solver service alone: no browser reads its token, so without a
 //! service it is refused at once rather than queued (RD-110-15).
 
+#![warn(unreachable_pub)]
+
 mod failures;
 mod manual;
 mod presence;

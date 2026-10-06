@@ -2,6 +2,8 @@
 //! external `yt-dlp` (+ `ffmpeg` for MP3/merging). Runs as an [`ExternalRunner`] of the
 //! shared queue; metadata probes feed the LinkGrabber with selectable variants.
 
+#![warn(unreachable_pub)]
+
 mod args;
 mod cookies;
 mod format_inventory;

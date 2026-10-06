@@ -127,12 +127,14 @@ impl PluginRepositoryService {
             }
             // A trusted key of that id *and* fingerprint stops being trusted in memory too; one
             // with the same id and another key is somebody else's and stays.
-            if verifier
+            let trusted = verifier
                 .trusted_keys
                 .key(&key.key_id)
-                .ok()
-                .flatten()
-                .is_some_and(|trusted| key_fingerprint(&trusted) == key.fingerprint)
+                .unwrap_or_else(|error| {
+                    tracing::warn!(repository = %repository.id, key_id = %key.key_id, fingerprint = %key.fingerprint, %error, "could not read the trusted plugin signing keys; a withdrawn key may stay trusted in this process until the next start");
+                    None
+                });
+            if trusted.is_some_and(|trusted| key_fingerprint(&trusted) == key.fingerprint)
                 && let Err(error) = verifier.revoke_key(&key.key_id)
             {
                 tracing::warn!(repository = %repository.id, key_id = %key.key_id, fingerprint = %key.fingerprint, %error, "a withdrawn plugin signing key stays trusted in this process until the next start");

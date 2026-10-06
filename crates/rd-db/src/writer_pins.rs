@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// The code a download carries once the version it was pinned to has been withdrawn.
-pub const PINNED_VERSION_WITHDRAWN: &str = "plugin.pinned_version_withdrawn";
+pub(crate) const PINNED_VERSION_WITHDRAWN: &str = "plugin.pinned_version_withdrawn";
 
 /// States a download would leave on its own at the next start. A download pinned to a
 /// withdrawn version is held in `blocked` instead, so it runs again only when a person says so.

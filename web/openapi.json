@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.12.0"
+    "version": "1.13.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -23714,6 +23714,23 @@
           }
         }
       },
+      "DownloadHostWait": {
+        "type": "object",
+        "description": "A queued entry waiting for a connection to its host.",
+        "required": [
+          "id",
+          "host"
+        ],
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": "The host as the per-host connection limit counts it: lower case, no `www.`, no port."
+          },
+          "id": {
+            "$ref": "#/components/schemas/DownloadId"
+          }
+        }
+      },
       "DownloadId": {
         "type": "string",
         "format": "uuid"
@@ -23893,10 +23910,11 @@
       },
       "DownloadRatesResponse": {
         "type": "object",
-        "description": "Live transfer rates: the queue as a whole, and every entry that is moving.\n\nEntries at rest are left out — their rate is zero and their remaining time is nothing, and\nsaying so for every finished download in a long list is pure payload.",
+        "description": "Live transfer rates: the queue as a whole, every entry that is moving, and every queued\nentry that waits for a connection to its host.\n\nEntries at rest are left out — their rate is zero and their remaining time is nothing, and\nsaying so for every finished download in a long list is pure payload.",
         "required": [
           "bytes_per_second",
-          "downloads"
+          "downloads",
+          "waiting_for_host"
         ],
         "properties": {
           "bytes_per_second": {
@@ -23929,6 +23947,13 @@
                 "type": "null"
               }
             ]
+          },
+          "waiting_for_host": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DownloadHostWait"
+            },
+            "description": "Queued entries held back because their host has no free connection (RD-1130-02).\nThey take no place among the files running at once meanwhile."
           }
         }
       },

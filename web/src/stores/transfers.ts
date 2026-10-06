@@ -50,6 +50,8 @@ export const useTransfersStore = defineStore('transfers', () => {
   const downloadRates = ref<Record<string, number>>({})
   /** Seconds left per file, as the server measured them. Absent means "nothing to say". */
   const downloadEtas = ref<Record<string, number>>({})
+  /** Queued files the service holds back for a connection to their host, with that host (RD-1130-02). */
+  const downloadHostWaits = ref<Record<string, string>>({})
   const globalRate = ref(0)
   /** Seconds until the queue is through at the current rate; `null` when no honest figure exists. */
   const queueEta = ref<number | null>(null)
@@ -81,8 +83,11 @@ export const useTransfersStore = defineStore('transfers', () => {
       rates[entry.id] = entry.bytes_per_second
       if (entry.eta_seconds !== null && entry.eta_seconds !== undefined) etas[entry.id] = entry.eta_seconds
     }
+    const hostWaits: Record<string, string> = {}
+    for (const wait of payload.waiting_for_host ?? []) hostWaits[wait.id] = wait.host
     downloadRates.value = rates
     downloadEtas.value = etas
+    downloadHostWaits.value = hostWaits
     globalRate.value = payload.bytes_per_second ?? 0
     queueEta.value = payload.eta_seconds ?? null
   }
@@ -387,6 +392,7 @@ export const useTransfersStore = defineStore('transfers', () => {
     disconnectEvents,
     downloadRates,
     downloadEtas,
+    downloadHostWaits,
     downloads,
     error,
     notice,

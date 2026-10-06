@@ -61,6 +61,7 @@ use crate::{
     dto::DownloadSummaryResponse,
     dto::DownloadRatesResponse,
     dto::DownloadRateEntry,
+    dto::DownloadHostWait,
     bandwidth_handlers::BandwidthProfileRequest,
     bandwidth_handlers::ScheduleRequest,
     bandwidth_handlers::ScheduleWindowRequest,

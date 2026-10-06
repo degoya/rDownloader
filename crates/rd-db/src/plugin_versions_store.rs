@@ -15,7 +15,7 @@ use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use crate::writer::insert_event;
 
 /// How updates for one plugin arrive.
-pub const UPDATE_POLICIES: [&str; 2] = ["manual", "automatic"];
+pub(crate) const UPDATE_POLICIES: [&str; 2] = ["manual", "automatic"];
 
 /// One plugin's version choice.
 #[derive(Clone, Debug, Deserialize, FromRow, PartialEq, Eq, Serialize)]

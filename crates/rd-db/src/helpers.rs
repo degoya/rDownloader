@@ -43,3 +43,13 @@ pub(crate) fn parse_time(value: &str) -> Result<chrono::DateTime<chrono::Utc>> {
 pub(crate) fn parse_enum<T: serde::de::DeserializeOwned>(value: &str) -> Result<T> {
     serde_json::from_str(&format!("\"{value}\"")).context("parse stored enum")
 }
+
+/// The `LIMIT ? OFFSET ?` binds of one page of a list (RD-1120-17, RD-191-05): `offset` rows
+/// skipped, then at most `limit`; `limit: None` is SQLite's `LIMIT -1`, every row after the
+/// offset.
+pub(crate) fn page_binds(offset: u64, limit: Option<u64>) -> (i64, i64) {
+    (
+        limit.map_or(-1, |limit| i64::try_from(limit).unwrap_or(i64::MAX)),
+        i64::try_from(offset).unwrap_or(i64::MAX),
+    )
+}

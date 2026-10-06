@@ -81,7 +81,7 @@ pub(crate) struct SessionConfig {
 
 impl SessionConfig {
     /// Derives the session config from the stored settings.
-    pub fn from_settings(settings: &TorrentSettings) -> Self {
+    pub(crate) fn from_settings(settings: &TorrentSettings) -> Self {
         Self {
             listen_port: settings.torrent_listen_port,
             upload_bps: bps(settings.torrent_upload_limit_bytes_per_second),
@@ -109,7 +109,7 @@ impl SessionConfig {
     ///
     /// Rate limits are live-settable on the engine's `Limits`; everything else is baked
     /// into the session at construction time.
-    pub fn needs_rebuild(&self, next: &Self) -> bool {
+    pub(crate) fn needs_rebuild(&self, next: &Self) -> bool {
         self.listen_port != next.listen_port
             || self.bind_interface != next.bind_interface
             || self.blocklist_url != next.blocklist_url

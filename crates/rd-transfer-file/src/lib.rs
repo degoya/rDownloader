@@ -17,6 +17,8 @@
 //! Nor does it belong to either runner: `rd-sftp` depending on `rd-ftp` would compile, but it
 //! says the wrong thing about what these two crates are to each other.
 
+#![warn(unreachable_pub)]
+
 mod remote;
 
 use std::path::Path;

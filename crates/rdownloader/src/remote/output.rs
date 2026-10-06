@@ -5,7 +5,7 @@ use serde::Serialize;
 
 /// How a command reports its result.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Format {
+pub(crate) enum Format {
     /// Aligned columns, trimmed to what fits on a line.
     Text,
     /// The server's own JSON, unchanged.
@@ -14,13 +14,13 @@ pub enum Format {
 
 impl Format {
     #[must_use]
-    pub const fn from_flag(json: bool) -> Self {
+    pub(crate) const fn from_flag(json: bool) -> Self {
         if json { Self::Json } else { Self::Text }
     }
 }
 
 /// Prints a value as JSON, or hands it to `render` for the text form.
-pub fn emit<T: Serialize>(format: Format, value: &T, render: impl FnOnce(&T)) -> Result<()> {
+pub(super) fn emit<T: Serialize>(format: Format, value: &T, render: impl FnOnce(&T)) -> Result<()> {
     match format {
         Format::Json => {
             println!("{}", serde_json::to_string_pretty(value)?);
@@ -34,7 +34,7 @@ pub fn emit<T: Serialize>(format: Format, value: &T, render: impl FnOnce(&T)) ->
 ///
 /// Written here rather than pulled in as a dependency: the CLI has four tables, all of them
 /// short, and column alignment is not worth a crate that has to be kept up to date.
-pub fn table(headers: &[&str], rows: &[Vec<String>]) {
+pub(super) fn table(headers: &[&str], rows: &[Vec<String>]) {
     if rows.is_empty() {
         println!("(nothing to show)");
         return;
@@ -75,7 +75,7 @@ pub fn table(headers: &[&str], rows: &[Vec<String>]) {
 
 /// Shortens a string to `width` characters, marking what was cut.
 #[must_use]
-pub fn shorten(value: &str, width: usize) -> String {
+pub(super) fn shorten(value: &str, width: usize) -> String {
     if value.chars().count() <= width {
         return value.to_owned();
     }
@@ -85,7 +85,7 @@ pub fn shorten(value: &str, width: usize) -> String {
 
 /// Bytes in a form a person reads at a glance.
 #[must_use]
-pub fn bytes(value: u64) -> String {
+pub(super) fn bytes(value: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let mut size = value as f64;
     let mut unit = 0;

@@ -9,6 +9,8 @@
 //!
 //! `rd-api` keeps the axum middleware and handlers; this crate keeps the decisions they make.
 
+#![warn(unreachable_pub)]
+
 pub mod cidr;
 pub mod client_ip;
 pub mod digest;

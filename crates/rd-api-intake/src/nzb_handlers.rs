@@ -5,7 +5,7 @@ use axum::{
     extract::{Multipart, Path, State},
     http::{HeaderMap, StatusCode},
 };
-use rd_api_core::list_bounds::paged;
+use rd_api_core::list_bounds::total_header;
 use rd_db::StoreErrorKind;
 
 use crate::{
@@ -20,8 +20,15 @@ pub async fn list_nzb_imports(
     State(state): State<AppState>,
     rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
 ) -> Result<(HeaderMap, Json<Vec<rd_core::NzbImport>>), ApiError> {
-    let window = page.window()?;
-    Ok(paged(window, state.database.list_nzb_imports().await?))
+    let Some(window) = page.window()? else {
+        return Ok((
+            HeaderMap::new(),
+            Json(state.database.list_nzb_imports().await?),
+        ));
+    };
+    let (offset, limit) = window.rows();
+    let (imports, total) = state.database.nzb_imports_page(offset, limit).await?;
+    Ok((total_header(Some(window), total), Json(imports)))
 }
 
 #[utoipa::path(patch, path = "/api/v1/nzb/imports/{id}", tag = "collector", params(("id" = rd_core::NzbImportId, Path)), request_body = NzbImportUpdateRequest, responses((status = 200, body = rd_core::NzbImport), (status = 400), (status = 404), (status = 409)))]

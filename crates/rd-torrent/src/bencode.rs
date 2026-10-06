@@ -16,7 +16,7 @@ pub(crate) enum Value<'a> {
 
 impl<'a> Value<'a> {
     /// The value behind a dictionary key.
-    pub fn get(&self, key: &[u8]) -> Option<&Value<'a>> {
+    pub(crate) fn get(&self, key: &[u8]) -> Option<&Value<'a>> {
         match self {
             Self::Dict(entries) => entries
                 .iter()
@@ -27,7 +27,7 @@ impl<'a> Value<'a> {
     }
 
     /// The value as an integer, when it is one.
-    pub fn integer(&self) -> Option<i64> {
+    pub(crate) fn integer(&self) -> Option<i64> {
         match self {
             Self::Integer(value) => Some(*value),
             _ => None,
@@ -35,7 +35,7 @@ impl<'a> Value<'a> {
     }
 
     /// The value as a byte string, when it is one.
-    pub fn bytes(&self) -> Option<&'a [u8]> {
+    pub(crate) fn bytes(&self) -> Option<&'a [u8]> {
         match self {
             Self::Bytes(value) => Some(value),
             _ => None,
@@ -43,7 +43,7 @@ impl<'a> Value<'a> {
     }
 
     /// The entries of a dictionary, when it is one.
-    pub fn entries(&self) -> Option<&[(&'a [u8], Value<'a>)]> {
+    pub(crate) fn entries(&self) -> Option<&[(&'a [u8], Value<'a>)]> {
         match self {
             Self::Dict(entries) => Some(entries),
             _ => None,
@@ -51,7 +51,7 @@ impl<'a> Value<'a> {
     }
 
     /// The items of a list, when it is one.
-    pub fn items(&self) -> Option<&[Value<'a>]> {
+    pub(crate) fn items(&self) -> Option<&[Value<'a>]> {
         match self {
             Self::List(items) => Some(items),
             _ => None,

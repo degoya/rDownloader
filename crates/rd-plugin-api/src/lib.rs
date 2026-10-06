@@ -1,5 +1,7 @@
 //! Native resolver trait and WebAssembly component contract types.
 
+#![warn(unreachable_pub)]
+
 use std::time::Duration;
 
 use async_trait::async_trait;

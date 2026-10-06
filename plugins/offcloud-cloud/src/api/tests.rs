@@ -325,6 +325,12 @@ fn a_status_decides_when_no_document_explains_itself() {
             .kind,
         ErrorKind::Transient(Some(300))
     );
+    // A status nothing else explains names its number in the English text too, as the
+    // catalogues do through `status` (RD-1130-03).
+    let failure = HTTP.ensure_http_status(418, None).expect_err("refused");
+    assert_eq!(failure.code, messages::HTTP_ERROR.0);
+    assert_eq!(failure.message, "Offcloud HTTP status 418");
+    assert_eq!(failure.params, vec![("status", "418".to_owned())]);
 }
 
 /// A takedown is gone, and an outage that names its length is waited out that long — the

@@ -95,7 +95,7 @@ pub fn is_approved(origins: &[String], target: &Url) -> bool {
 /// Without this a refused hop would surface as a bare `HTTP 302`, and the user would have
 /// no way to tell a containment refusal from an ordinary redirect loop.
 #[must_use]
-pub fn not_allowed(target: &Url) -> HttpDownloadError {
+pub(crate) fn not_allowed(target: &Url) -> HttpDownloadError {
     HttpDownloadError::Failure(
         rd_core::Failure::coded(
             rd_core::FailureKind::Permanent,

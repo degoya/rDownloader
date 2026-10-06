@@ -6,6 +6,8 @@
 //! of them fit. They translate at the edge and reuse the same handlers, validation and error
 //! codes underneath.
 
+#![warn(unreachable_pub)]
+
 pub(crate) mod qbittorrent;
 pub(crate) mod sabnzbd;
 

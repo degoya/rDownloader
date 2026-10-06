@@ -184,7 +184,8 @@
       },
       "unsupported_hint": "Sources whose protocol this service cannot fetch are shown but not used."
     },
-    "next_attempt": "Next attempt at {time}"
+    "next_attempt": "Next attempt at {time}",
+    "waiting_for_host": "Waiting for a connection to {host}"
   },
   "summary": {
     "eyebrow": "Queue status",

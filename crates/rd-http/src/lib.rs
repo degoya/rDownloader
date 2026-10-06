@@ -1,5 +1,7 @@
 //! Resumable HTTP download engine.
 
+#![warn(unreachable_pub)]
+
 mod address_guard;
 mod client_pool;
 mod cookies;

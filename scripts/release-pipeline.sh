@@ -118,6 +118,8 @@ LOG="$ROOT/artifacts/release-evidence-$VERSION.log"
 # (target/lanes/windows). The other steps stay in order: web must finish before either package
 # embeds it, sign-plugins before either package copies the plugins, and test and clippy share the
 # one debug target the packages do not use. Each keeps its own evidence record (run_steps_parallel).
+# Right before them, also on a --resume, rd_release_web_dist rebuilds a web/dist that
+# scripts/web-dist-stale.sh calls stale (RD-1130-01).
 # ---------------------------------------------------------------------------------------------
 STEP_IDS=(
     preflight compat version-bump test clippy web sign-plugins build-linux build-windows
@@ -255,6 +257,12 @@ for id in "${STEP_IDS[@]}"; do
         echo
         echo "==> [merge-main] a pre-release is not merged into $MAIN_BRANCH; the tag goes on $RELEASE_BRANCH."
         continue
+    fi
+    # Before either package embeds web/dist, also on a --resume (rd_release_web_dist, RD-1130-01).
+    if [[ "$id" == build-linux ]] && ! rd_release_web_dist 2>&1 | tee -a "$LOG"; then
+        echo "!! web/dist could not be made current for the packages — the pipeline stops here." >&2
+        echo "   fix it, then: scripts/release-pipeline.sh $VERSION --resume" >&2
+        exit 1
     fi
     if [[ "$LANES" -gt 1 && " ${PARALLEL_STEPS[*]} " == *" $id "* ]]; then
         [[ "$id" == "${PARALLEL_STEPS[0]}" ]] && run_steps_parallel "${PARALLEL_STEPS[@]}"

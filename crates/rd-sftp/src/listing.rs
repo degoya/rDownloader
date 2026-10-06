@@ -12,7 +12,7 @@ use russh_sftp::protocol::FileAttributes;
 
 /// Walks `root` recursively and returns everything below it, through the walk SFTP shares with
 /// FTP (`rd_transfer_file::walk`): bounded on entry count and depth, breadth first.
-pub async fn walk(sftp: &SftpSession, root: &str) -> anyhow::Result<RemoteListing> {
+pub(crate) async fn walk(sftp: &SftpSession, root: &str) -> anyhow::Result<RemoteListing> {
     let (entries, truncated) = rd_transfer_file::walk(&mut SftpLister(sftp), root, "sftp").await?;
     Ok(RemoteListing {
         root: root.to_owned(),
@@ -61,10 +61,10 @@ impl DirectoryLister for SftpLister<'_> {
     }
 }
 
-pub fn size_of(metadata: &FileAttributes) -> Option<ByteCount> {
+pub(crate) fn size_of(metadata: &FileAttributes) -> Option<ByteCount> {
     metadata.size.and_then(|size| ByteCount::new(size).ok())
 }
 
-pub fn modified_at(metadata: &FileAttributes) -> Option<DateTime<Utc>> {
+pub(crate) fn modified_at(metadata: &FileAttributes) -> Option<DateTime<Utc>> {
     metadata.modified().ok().map(DateTime::<Utc>::from)
 }

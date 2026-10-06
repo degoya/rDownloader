@@ -4,6 +4,8 @@
 //! The same commands as `rdownloader plugin …`, `site-rules …`, `update …` and `tools …`, word
 //! for word, so a script swaps the binary and keeps its arguments.
 
+#![warn(unreachable_pub)]
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;

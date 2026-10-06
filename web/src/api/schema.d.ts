@@ -8720,6 +8720,12 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /** @description A queued entry waiting for a connection to its host. */
+        DownloadHostWait: {
+            /** @description The host as the per-host connection limit counts it: lower case, no `www.`, no port. */
+            host: string;
+            id: components["schemas"]["DownloadId"];
+        };
         /** Format: uuid */
         DownloadId: string;
         /**
@@ -8797,7 +8803,8 @@ export interface components {
             id: components["schemas"]["DownloadId"];
         };
         /**
-         * @description Live transfer rates: the queue as a whole, and every entry that is moving.
+         * @description Live transfer rates: the queue as a whole, every entry that is moving, and every queued
+         *     entry that waits for a connection to its host.
          *
          *     Entries at rest are left out — their rate is zero and their remaining time is nothing, and
          *     saying so for every finished download in a long list is pure payload.
@@ -8812,6 +8819,11 @@ export interface components {
              */
             eta_seconds?: number | null;
             transferring_remaining_bytes?: components["schemas"]["ByteCount"] | null;
+            /**
+             * @description Queued entries held back because their host has no free connection (RD-1130-02).
+             *     They take no place among the files running at once meanwhile.
+             */
+            waiting_for_host: components["schemas"]["DownloadHostWait"][];
         };
         /** @description New file name for a queued, paused or failed download. */
         DownloadRenameRequest: {

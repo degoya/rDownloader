@@ -14,6 +14,8 @@
 //! [`ObjectFolder`] is the same machinery as a plain file store for the full backup's
 //! destinations (RD-160-02): put, list, get and delete of single files in one folder.
 
+#![warn(unreachable_pub)]
+
 mod connect;
 pub mod error;
 mod folder;

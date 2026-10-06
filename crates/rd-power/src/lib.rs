@@ -4,6 +4,8 @@
 //! The platform-specific parts sit behind [`PowerAdapter`] so the completion state machine
 //! can be tested against a fake instead of suspending the machine running the tests.
 
+#![warn(unreachable_pub)]
+
 mod adapter;
 #[cfg(target_os = "linux")]
 mod linux;

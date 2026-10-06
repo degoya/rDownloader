@@ -1,5 +1,6 @@
 //! The download list as the database serves it (RD-1120-17): a page cut in SQL, many rows
-//! removed in one writer transaction, and a new row announced on the event stream.
+//! removed in one writer transaction, and a new row announced on the event stream; the package
+//! list's page cut in SQL too (RD-191-05).
 
 use crate::common;
 
@@ -97,6 +98,54 @@ async fn pages_cut_in_the_database_add_up_to_the_unpaged_list() {
         "an offset alone is the rest of the list"
     );
     assert_eq!(total.as_deref(), Some("7"));
+}
+
+/// The package list pages in SQL the same way (RD-191-05): walked to the end the pages are the
+/// unpaged list in its queue order, each counts all of it, and past the end a page is empty.
+#[tokio::test]
+async fn package_pages_cut_in_the_database_add_up_to_the_unpaged_list() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = parked_harness(directory.path()).await;
+    // One package per download; priorities out of creation order, as above.
+    for (index, priority) in ["normal", "high", "low", "high", "normal"]
+        .into_iter()
+        .enumerate()
+    {
+        create(
+            &harness,
+            &format!("https://files.example.com/package-paging/{index}.bin"),
+            priority,
+        )
+        .await;
+    }
+    let (whole, total) = page(&harness, "/api/v1/packages").await;
+    let whole = ids(&whole);
+    assert_eq!(whole.len(), 5);
+    assert_eq!(total, None, "the unpaged list carries no count");
+
+    let mut walked = Vec::new();
+    for offset in [0, 2, 4] {
+        let (rows, total) = page(
+            &harness,
+            &format!("/api/v1/packages?limit=2&offset={offset}"),
+        )
+        .await;
+        assert_eq!(total.as_deref(), Some("5"), "offset {offset}");
+        walked.extend(ids(&rows));
+    }
+    assert_eq!(walked, whole, "the pages are the list, in its order");
+    let (last, _) = page(&harness, "/api/v1/packages?limit=2&offset=4").await;
+    assert_eq!(ids(&last), whole[4..], "the last page is short");
+    let (beyond, total) = page(&harness, "/api/v1/packages?limit=2&offset=5").await;
+    assert!(ids(&beyond).is_empty());
+    assert_eq!(total.as_deref(), Some("5"));
+    let (rest, total) = page(&harness, "/api/v1/packages?offset=3").await;
+    assert_eq!(
+        ids(&rest),
+        whole[3..],
+        "an offset alone is the rest of the list"
+    );
+    assert_eq!(total.as_deref(), Some("5"));
 }
 
 fn paused_row(package_id: rd_core::PackageId, index: usize) -> rd_db::NewDownload {

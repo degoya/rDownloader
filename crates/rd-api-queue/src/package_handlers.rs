@@ -19,7 +19,7 @@ use crate::{
     },
     package_clear::{blocking_code, busy_error},
 };
-use rd_api_core::list_bounds::{paged, validate_bulk};
+use rd_api_core::list_bounds::{total_header, validate_bulk};
 
 mod removal;
 
@@ -440,9 +440,13 @@ pub async fn list_packages(
     State(state): State<AppState>,
     rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
 ) -> Result<(HeaderMap, Json<Vec<rd_core::DownloadPackage>>), ApiError> {
-    let window = page.window()?;
-    Ok(paged(
-        window,
-        state.database.list_packages_with_passwords().await?,
-    ))
+    let Some(window) = page.window()? else {
+        return Ok((
+            HeaderMap::new(),
+            Json(state.database.list_packages_with_passwords().await?),
+        ));
+    };
+    let (offset, limit) = window.rows();
+    let (packages, total) = state.database.packages_page(offset, limit).await?;
+    Ok((total_header(Some(window), total), Json(packages)))
 }

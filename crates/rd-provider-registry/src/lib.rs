@@ -11,6 +11,8 @@
 //! enum is stored in `accounts.credential_mode` and travels over REST, and duplicating it one
 //! layer up would mean two places to keep in step about which credential a password reaches.
 
+#![warn(unreachable_pub)]
+
 mod host_pattern;
 mod spec;
 

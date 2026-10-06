@@ -23,7 +23,7 @@ use rd_transfer_file::{Staging, TransferEnd};
 /// The offset must already have been established with `REST`; this function does not send it,
 /// because a server that silently ignores `REST` would otherwise have its restart written
 /// on top of the existing partial file.
-pub async fn retrieve<T>(
+pub(crate) async fn retrieve<T>(
     stream: &mut ImplAsyncFtpStream<T>,
     path: &str,
     staging: &Staging<'_>,

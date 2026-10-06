@@ -39,7 +39,7 @@ const METADATA: &[(&str, &[&str])] = &[
 ];
 
 /// Longest description a hit carries, in characters; the row shows one line of it.
-pub const MAX_DESCRIPTION_CHARS: usize = 300;
+pub(crate) const MAX_DESCRIPTION_CHARS: usize = 300;
 
 /// One hit of a search.
 ///

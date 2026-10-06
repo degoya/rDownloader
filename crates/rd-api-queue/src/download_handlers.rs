@@ -11,8 +11,8 @@ use crate::{
     ApiError, AppState,
     dto::{
         CreateDownloadRequest, DownloadBulkAction, DownloadBulkRequest, DownloadBulkResponse,
-        DownloadExtractRequest, DownloadRateEntry, DownloadRatesResponse, DownloadRenameRequest,
-        DownloadSummaryResponse, MessageResponse, PageQuery, StorageSpace,
+        DownloadExtractRequest, DownloadHostWait, DownloadRateEntry, DownloadRatesResponse,
+        DownloadRenameRequest, DownloadSummaryResponse, MessageResponse, PageQuery, StorageSpace,
     },
     error_codes::parse_id,
 };
@@ -38,13 +38,8 @@ pub async fn list_downloads(
             Json(state.database.list_downloads().await?),
         ));
     };
-    let (downloads, total) = state
-        .database
-        .downloads_page(
-            u64::try_from(window.offset).unwrap_or(u64::MAX),
-            u64::try_from(window.limit).ok(),
-        )
-        .await?;
+    let (offset, limit) = window.rows();
+    let (downloads, total) = state.database.downloads_page(offset, limit).await?;
     Ok((total_header(Some(window), total), Json(downloads)))
 }
 

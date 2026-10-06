@@ -29,7 +29,7 @@ use line::{Line, Named, Outcome};
 /// every request in flight is a whole article held at the receiver - and servers cap the
 /// pipeline depth they accept. Not a setting on purpose: a number nobody can reason about
 /// from the interface is a number nobody should be asked for.
-pub const PIPELINE_DEPTH: usize = 2;
+pub(crate) const PIPELINE_DEPTH: usize = 2;
 
 /// Attempts one server gets for one article before the pool gives up on it.
 ///

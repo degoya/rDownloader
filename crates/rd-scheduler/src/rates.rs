@@ -25,14 +25,14 @@ use rd_core::DownloadId;
 ///
 /// Taken from the browser implementation this replaces. Lower means steadier and slower to
 /// react; an estimate that jumps with every read is not an estimate.
-pub const SMOOTHING_WEIGHT: f64 = 0.65;
+pub(crate) const SMOOTHING_WEIGHT: f64 = 0.65;
 
 /// How long an unchanged byte count keeps its last rate before it reads as zero.
 ///
 /// Checkpoints are written less often than the sampler runs, so an unchanged counter usually
 /// means "nothing was written yet", not "nothing moved". Holding the last figure briefly keeps
 /// the display from alternating between a rate and zero.
-pub const STALE_AFTER: Duration = Duration::from_secs(5);
+pub(crate) const STALE_AFTER: Duration = Duration::from_secs(5);
 
 /// One download's byte counter as the sampler last saw it.
 #[derive(Clone, Copy, Debug)]
@@ -48,7 +48,7 @@ struct Sample {
 
 /// What the sampler is handed per pass, for one download.
 #[derive(Clone, Copy, Debug)]
-pub struct RateObservation {
+pub(crate) struct RateObservation {
     pub id: DownloadId,
     pub committed_bytes: u64,
     /// Whether the state is one that actually moves bytes over the wire right now.
@@ -57,7 +57,7 @@ pub struct RateObservation {
 
 /// Smoothed per-download rates, rebuilt from every sampling pass.
 #[derive(Debug, Default)]
-pub struct RateSampler {
+pub(crate) struct RateSampler {
     samples: Mutex<HashMap<DownloadId, Sample>>,
 }
 
@@ -65,7 +65,7 @@ impl RateSampler {
     /// Folds one pass of byte counters into the running averages.
     ///
     /// Downloads absent from `observations` are forgotten, so the map never outgrows the queue.
-    pub fn observe(&self, now: Instant, observations: &[RateObservation]) {
+    pub(crate) fn observe(&self, now: Instant, observations: &[RateObservation]) {
         let Ok(mut samples) = self.samples.lock() else {
             return;
         };
@@ -81,7 +81,7 @@ impl RateSampler {
     /// Entries that are not moving report zero rather than being left out, so a caller can tell
     /// "known to be still" apart from "never seen".
     #[must_use]
-    pub fn rates(&self) -> HashMap<DownloadId, u64> {
+    pub(crate) fn rates(&self) -> HashMap<DownloadId, u64> {
         let Ok(samples) = self.samples.lock() else {
             return HashMap::new();
         };

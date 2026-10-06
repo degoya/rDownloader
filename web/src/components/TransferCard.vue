@@ -21,7 +21,7 @@ import { translateServerMessage } from '@/i18n/server'
 import { formatByteProgress, formatBytes, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
-const props = defineProps<{ download: Download, bytesPerSecond?: number, etaSeconds?: number | null, destination?: string, accountLabel?: string | null, selected?: boolean }>()
+const props = defineProps<{ download: Download, bytesPerSecond?: number, etaSeconds?: number | null, destination?: string, accountLabel?: string | null, selected?: boolean, waitingForHost?: string | null }>()
 const emit = defineEmits<{
   pause: [id: string]
   resume: [id: string]
@@ -78,6 +78,11 @@ const lastError = computed(() => props.download.last_error ? translateServerMess
  * limit, and the round of the automatic retry a failed file waits for.
  */
 const nextAttempt = computed(() => ['retry_wait', 'failed'].includes(props.download.state) ? formatPauseEnd(props.download.next_retry_at) : '')
+/**
+ * The host a queued file waits for (RD-1130-02): its connections are taken, so the file stays
+ * queued and leaves its place to a file of another host.
+ */
+const hostWait = computed(() => props.download.state === 'queued' ? props.waitingForHost ?? null : null)
 const pausable = computed(() => ['downloading', 'resolving', 'queued', 'retry_wait'].includes(props.download.state))
 const resumable = computed(() => ['paused', 'failed', 'blocked', 'cancelled', 'skipped'].includes(props.download.state))
 const cancelled = computed(() => props.download.state === 'cancelled')
@@ -326,6 +331,10 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
     <p v-if="nextAttempt" class="flex items-center gap-1 px-11 pb-1.5 text-xs text-muted" data-testid="next-attempt">
       <UIcon name="i-lucide-clock" class="size-3.5 shrink-0" />
       <span class="numeric">{{ t('downloads.transfer.next_attempt', { time: nextAttempt }) }}</span>
+    </p>
+    <p v-if="hostWait" class="flex items-center gap-1 px-11 pb-1.5 text-xs text-muted" data-testid="host-wait">
+      <UIcon name="i-lucide-hourglass" class="size-3.5 shrink-0" />
+      <span class="min-w-0 truncate" :title="hostWait">{{ t('downloads.transfer.waiting_for_host', { host: hostWait }) }}</span>
     </p>
     <div v-if="expanded" class="grid gap-1 border-t border-muted px-11 py-2 text-xs text-muted">
       <div class="flex items-center gap-2 md:hidden">

@@ -141,4 +141,17 @@ describe('transfers store: rates and remaining time from the server', () => {
     expect(store.packageEtas['pkg-1']).toBeNull()
     expect(store.queueEta).toBeNull()
   })
+
+  /** RD-1130-02: the queued files held back for their host, and the next read's answer replaces them. */
+  it('takes the files waiting for their host and drops them once none waits', async () => {
+    const rates = { bytes_per_second: 0, transferring_remaining_bytes: null, eta_seconds: null, downloads: [] }
+    serve([file('b', 'queued', '0', null)], { ...rates, waiting_for_host: [{ id: 'b', host: 'cdn.example.test' }] })
+    const store = useTransfersStore()
+    await store.refresh()
+    expect(store.downloadHostWaits).toEqual({ b: 'cdn.example.test' })
+
+    serve([file('b', 'queued', '0', null)], { ...rates, waiting_for_host: [] })
+    await store.refresh()
+    expect(store.downloadHostWaits).toEqual({})
+  })
 })

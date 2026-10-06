@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
 };
-use rd_api_core::list_bounds::paged;
+use rd_api_core::list_bounds::total_header;
 use rd_core::CandidateId;
 use rd_db::StoreErrorKind;
 
@@ -20,11 +20,15 @@ pub async fn list_batches(
     State(state): State<AppState>,
     rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
 ) -> Result<(HeaderMap, Json<Vec<rd_core::CollectorBatch>>), ApiError> {
-    let window = page.window()?;
-    Ok(paged(
-        window,
-        state.database.list_collector_batches().await?,
-    ))
+    let Some(window) = page.window()? else {
+        return Ok((
+            HeaderMap::new(),
+            Json(state.database.list_collector_batches().await?),
+        ));
+    };
+    let (offset, limit) = window.rows();
+    let (batches, total) = state.database.collector_batches_page(offset, limit).await?;
+    Ok((total_header(Some(window), total), Json(batches)))
 }
 
 /// Every link not yet enqueued, in package and link order; `limit`/`offset` cut a page out of
@@ -34,8 +38,15 @@ pub async fn list_candidates(
     State(state): State<AppState>,
     rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
 ) -> Result<(HeaderMap, Json<Vec<rd_core::LinkCandidate>>), ApiError> {
-    let window = page.window()?;
-    Ok(paged(window, state.database.list_candidates().await?))
+    let Some(window) = page.window()? else {
+        return Ok((
+            HeaderMap::new(),
+            Json(state.database.list_candidates().await?),
+        ));
+    };
+    let (offset, limit) = window.rows();
+    let (candidates, total) = state.database.candidates_page(offset, limit).await?;
+    Ok((total_header(Some(window), total), Json(candidates)))
 }
 
 #[utoipa::path(delete, path = "/api/v1/collector/candidates/{id}", tag = "collector", params(("id" = rd_core::CandidateId, Path)), responses((status = 200, body = MessageResponse), (status = 404), (status = 409)))]

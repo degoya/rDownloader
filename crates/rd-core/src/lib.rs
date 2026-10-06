@@ -1,5 +1,7 @@
 //! Shared domain contracts for rDownloader.
 
+#![warn(unreachable_pub)]
+
 mod address;
 mod audit;
 mod auth_flow;

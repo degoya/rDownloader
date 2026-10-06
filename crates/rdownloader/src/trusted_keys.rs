@@ -12,4 +12,4 @@
 //! entry there disables the default trust entry.
 
 /// Key id referenced by bundled plugin manifests (`key_id`).
-pub const RELEASE_KEY_ID: &str = rd_sign::PLUGIN_RELEASE_KEY_ID;
+pub(crate) const RELEASE_KEY_ID: &str = rd_sign::PLUGIN_RELEASE_KEY_ID;

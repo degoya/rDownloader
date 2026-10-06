@@ -93,9 +93,13 @@ impl DownloadState {
             // — it logged a warning and left the row `Queued`, so a disabled kind kept being
             // picked up by the next pass.
             (Queued, Resolving | Paused | Blocked | Cancelled)
+                // `Paused` from `Resolving` is a pause that reaches the worker before the source
+                // answered. Without it the worker's stop was refused, the refusal was recorded
+                // as a failed attempt, and the file went to `RetryWait` and started again
+                // (RD-1130-04).
                 | (
                     Resolving,
-                    Downloading | RetryWait | Blocked | Failed | Cancelled
+                    Downloading | Paused | RetryWait | Blocked | Failed | Cancelled
                 )
                 | (
                     Downloading,
@@ -416,6 +420,12 @@ mod tests {
         assert!(!DownloadState::Completed.can_transition_to(DownloadState::Downloading));
         assert!(DownloadState::Downloading.can_transition_to(DownloadState::Paused));
         assert!(DownloadState::Cancelled.can_transition_to(DownloadState::Queued));
+    }
+
+    /// A file paused while its source has not answered yet stops as paused (RD-1130-04).
+    #[test]
+    fn a_resolving_download_can_be_paused() {
+        assert!(DownloadState::Resolving.can_transition_to(DownloadState::Paused));
     }
 
     /// Switching off a download kind has to reach the entries that never started.

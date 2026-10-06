@@ -110,6 +110,21 @@ impl SchedulerHandle {
     }
 
     pub(crate) async fn schedule_runnable(&self) -> Result<()> {
+        // Rebuilt by every pass, so a file that was paused, removed or started meanwhile stops
+        // being listed as waiting for its host, and a held queue lists none.
+        let mut host_waits = HashMap::new();
+        let result = self.dispatch_pass(&mut host_waits).await;
+        self.active
+            .lock()
+            .await
+            .host
+            .settle(host_waits, std::time::Instant::now());
+        result
+    }
+
+    /// One pass over the startable files; `host_waits` collects the ones held back because
+    /// their host has no free connection (RD-1130-02).
+    async fn dispatch_pass(&self, host_waits: &mut HashMap<DownloadId, String>) -> Result<()> {
         if self.dispatch_held().await {
             return Ok(());
         }
@@ -142,6 +157,7 @@ impl SchedulerHandle {
             {
                 continue;
             }
+            let host = self.host_claim(&file);
             let Some(Slots {
                 external,
                 provider_permit,
@@ -157,11 +173,15 @@ impl SchedulerHandle {
                 .is_some_and(|(runner, _)| runner.shares_one_global_slot());
             let cancellation = CancellationToken::new();
             match self
-                .claim_slot(&file, exempt, pooled, active_limit, &cancellation)
+                .claim_slot(&file, exempt, pooled, active_limit, host, &cancellation)
                 .await
             {
                 Claim::ShuttingDown => return Ok(()),
                 Claim::Refused => continue,
+                Claim::HostBusy(host) => {
+                    host_waits.insert(file.id, host);
+                    continue;
+                }
                 Claim::Claimed => {}
             }
             let scheduler = self.clone();
@@ -314,6 +334,7 @@ impl SchedulerHandle {
             active.reasons.remove(&file.id);
             active.exempt.remove(&file.id);
             active.pooled.remove(&file.id);
+            active.host.finished(&file.id);
         }
         // A category change that had to leave this file behind can carry on now that it is no
         // longer running; the last file of the package sweeps the former directory. Cheap and

@@ -1,6 +1,8 @@
 //! Gallery provider: image galleries fetched through external `gallery-dl`. One queue row
 //! covers a whole gallery URL; the files land in a subfolder of the package destination.
 
+#![warn(unreachable_pub)]
+
 mod runner;
 
 use std::sync::Arc;

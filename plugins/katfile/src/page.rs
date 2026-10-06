@@ -1,7 +1,7 @@
 //! Thin wrapper binding `xfs-common`'s generalized XFS page helpers to KatFile's own
 //! parameterization, plus two KatFile-specific parsers (`premium_only_reason`,
 //! `estimated_wait_seconds`) not generalized into `xfs-common` since they mirror JD overrides
-//! specific to `KatfileCom` — see `native/api.rs`'s module doc. No KatFile-specific deviation was
+//! specific to `KatfileCom` — see the crate's module doc. No KatFile-specific deviation was
 //! found for the `op` marker or the premium button label (JD's `KatfileCom` does not override
 //! `findFormDownload2Premium`'s field values, only wraps it with a captcha check), so the forms
 //! are the script's own (`xfs_common::standard`, re-exported here); only the direct-link domain
@@ -21,7 +21,7 @@ pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
 }
 
 /// The raw `<form>...</form>` substring carrying `op=download2`, for scoping a captcha-marker
-/// scan to the form itself rather than the whole page (see `native/api.rs`'s module doc).
+/// scan to the form itself rather than the whole page (see the crate's module doc).
 #[must_use]
 pub(crate) fn form_html(html: &str) -> Option<&str> {
     xfs_common::page::form_html(html, xfs_common::standard::OP_DOWNLOAD2)
@@ -54,7 +54,7 @@ pub(crate) fn direct_link(html: &str, hints: &[&str]) -> Option<String> {
 }
 
 /// Whether `html` (the `download2` form's own HTML, scoped via [`form_html`] — see
-/// `native/api.rs`'s module doc) shows a captcha challenge this plugin cannot solve.
+/// the crate's module doc) shows a captcha challenge this plugin cannot solve.
 #[must_use]
 pub(crate) fn has_captcha_challenge(html: &str) -> bool {
     xfs_common::page::has_captcha_challenge(html)
@@ -62,7 +62,7 @@ pub(crate) fn has_captcha_challenge(html: &str) -> bool {
 
 /// KatFile's `getPremiumOnlyErrorMessage` additions (JD `KatfileCom.java:309-317`, on top of the
 /// XFS base class's own generic phrase list, which this plugin does not otherwise model — see
-/// `native/api.rs`'s module doc): a distinct "This file is available for Premium" phrasing, and a
+/// the crate's module doc): a distinct "This file is available for Premium" phrasing, and a
 /// `/?op=registration&redirect=` URL marker. Returns the reason text for the failure message;
 /// `None` if neither marker is found.
 #[must_use]
@@ -79,7 +79,7 @@ pub(crate) fn premium_only_reason(html: &str, final_url: &str) -> Option<&'stati
 /// KatFile's `regexWaittime` override (JD `KatfileCom.java:320-328`): `var estimated_time =
 /// (\d+)` counts TENTHS of a second, not seconds — JD's own comment: "Small hack: These aren't
 /// seconds but tenths of a second". `None` if the marker is absent, unparseable, or rounds to
-/// zero seconds. See `native/api.rs`'s module doc.
+/// zero seconds. See the crate's module doc.
 #[must_use]
 pub(crate) fn estimated_wait_seconds(html: &str) -> Option<u64> {
     const MARKER: &str = "var estimated_time";

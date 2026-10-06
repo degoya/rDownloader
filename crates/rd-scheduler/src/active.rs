@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use rd_core::{DownloadId, DownloadKind};
 use tokio_util::sync::CancellationToken;
 
-use crate::StopReason;
+use crate::{StopReason, host_wait::HostAdmission};
 
 #[derive(Default)]
 pub(crate) struct ActiveState {
@@ -20,6 +20,9 @@ pub(crate) struct ActiveState {
     /// could be taken out by a resume or another call's `release_stop_guard` in the middle of
     /// the work (re-audit 1.9.1, RA-TR-02).
     pub(crate) held: HashMap<DownloadId, usize>,
+    /// HTTP files still on their way to their host's connections, and queued ones waiting for
+    /// a free connection (RD-1130-02).
+    pub(crate) host: HostAdmission,
 }
 
 impl ActiveState {

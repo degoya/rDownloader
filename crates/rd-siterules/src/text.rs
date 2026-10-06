@@ -5,15 +5,15 @@
 //! check whether another pattern's neighbour is a host name.
 
 /// Longest identifier (`id`) a rule may carry.
-pub const MAX_ID_LENGTH: usize = 64;
+pub(crate) const MAX_ID_LENGTH: usize = 64;
 /// Longest group name a rule may carry.
-pub const MAX_GROUP_LENGTH: usize = 32;
+pub(crate) const MAX_GROUP_LENGTH: usize = 32;
 /// Longest variable name a step may write.
-pub const MAX_VARIABLE_LENGTH: usize = 32;
+pub(crate) const MAX_VARIABLE_LENGTH: usize = 32;
 
 /// Lowercase kebab-case: `[a-z0-9]` then `[a-z0-9-]*`, no trailing hyphen, at most `max`.
 #[must_use]
-pub fn is_slug(text: &str, max: usize) -> bool {
+pub(crate) fn is_slug(text: &str, max: usize) -> bool {
     let bytes = text.as_bytes();
     !bytes.is_empty()
         && bytes.len() <= max
@@ -26,7 +26,7 @@ pub fn is_slug(text: &str, max: usize) -> bool {
 
 /// A variable name: `[a-z][a-z0-9_]*`, at most [`MAX_VARIABLE_LENGTH`].
 #[must_use]
-pub fn is_variable(text: &str) -> bool {
+pub(crate) fn is_variable(text: &str) -> bool {
     let bytes = text.as_bytes();
     !bytes.is_empty()
         && bytes.len() <= MAX_VARIABLE_LENGTH
@@ -41,13 +41,13 @@ pub fn is_variable(text: &str) -> bool {
 /// Internationalised names are written in their punycode form, which is what the address bar
 /// and `url::Url` hand over anyway.
 #[must_use]
-pub fn is_host(text: &str) -> bool {
+pub(crate) fn is_host(text: &str) -> bool {
     text.len() <= 253 && text.matches('.').count() >= 1 && text.split('.').all(is_label)
 }
 
 /// A host pattern as `match.hosts` carries it: a concrete host, or `*.` before one.
 #[must_use]
-pub fn is_host_pattern(text: &str) -> bool {
+pub(crate) fn is_host_pattern(text: &str) -> bool {
     match text.strip_prefix("*.") {
         Some(rest) => is_host(rest),
         None => is_host(text),
@@ -57,7 +57,7 @@ pub fn is_host_pattern(text: &str) -> bool {
 /// Whether `host` falls under `pattern`: equal for a concrete pattern; for `*.example.org`
 /// the apex itself and every name below it.
 #[must_use]
-pub fn host_matches(pattern: &str, host: &str) -> bool {
+pub(crate) fn host_matches(pattern: &str, host: &str) -> bool {
     rd_core::host_pattern_matches(pattern, host, rd_core::WildcardApex::Included)
 }
 
@@ -75,7 +75,7 @@ fn is_label(label: &str) -> bool {
 /// The variable names a template references through `${name}`, or `None` when a placeholder
 /// is unterminated or names something that is not a variable.
 #[must_use]
-pub fn template_variables(template: &str) -> Option<Vec<&str>> {
+pub(crate) fn template_variables(template: &str) -> Option<Vec<&str>> {
     let mut names = Vec::new();
     let mut rest = template;
     while let Some(start) = rest.find("${") {

@@ -5,6 +5,8 @@
 //!
 //! Known gap: librqbit has no web-seed (BEP 19) support.
 
+#![warn(unreachable_pub)]
+
 mod bencode;
 mod error;
 mod forget;

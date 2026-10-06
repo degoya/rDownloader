@@ -9,7 +9,7 @@ use anyhow::{Result, bail, ensure};
 use url::Url;
 
 /// The scheme this handler is registered for.
-pub const SCHEME: &str = "rdownloader";
+pub(crate) const SCHEME: &str = "rdownloader";
 
 /// Longest address accepted, so a page cannot hand over a megabyte of query string.
 const MAX_URL_CHARS: usize = 8192;
@@ -33,7 +33,7 @@ const ALLOWED_FILE_EXTENSIONS: &[&str] = &["nzb"];
 
 /// What an `rdownloader://` address asks for.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Action {
+pub(crate) enum Action {
     /// Hand links to the LinkGrabber.
     Links(Vec<String>),
     /// Import a local `.nzb` file.
@@ -46,7 +46,7 @@ pub enum Action {
 /// - `rdownloader://add?url=<link>` (repeatable, or `urls=` with newline-separated links)
 /// - `rdownloader://add?url=magnet:?xt=…`
 /// - `rdownloader://open?path=<absolute local path to a .nzb>`
-pub fn parse(input: &str) -> Result<Action> {
+pub(crate) fn parse(input: &str) -> Result<Action> {
     ensure!(
         input.chars().count() <= MAX_URL_CHARS,
         "address is too long"

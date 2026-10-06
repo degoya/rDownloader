@@ -15,7 +15,7 @@ pub const MAX_LOCALE_BYTES: u64 = 256 * 1024;
 /// Upper bound on locale files in one archive.
 pub const MAX_LOCALE_FILES: usize = 16;
 /// Every localised plugin must at least ship English, the global fallback.
-pub const REQUIRED_LOCALE: &str = "en";
+pub(crate) const REQUIRED_LOCALE: &str = "en";
 
 /// One `locales/<lang>.json` document.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

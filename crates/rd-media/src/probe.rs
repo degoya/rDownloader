@@ -22,7 +22,7 @@ use crate::{
 };
 
 /// Maximum playlist entries expanded into separate candidates.
-pub const MAX_PLAYLIST_ENTRIES: usize = 200;
+pub(crate) const MAX_PLAYLIST_ENTRIES: usize = 200;
 
 /// Source of media metadata (mockable in tests).
 #[async_trait]

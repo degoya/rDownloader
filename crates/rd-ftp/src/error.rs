@@ -34,7 +34,7 @@ pub const NO_CREDENTIAL: &str = "ftp.no_credential";
 /// `5xx` are permanent, and the two login-specific codes become `AuthRequired` so the queue
 /// stops retrying a password the server keeps rejecting.
 #[must_use]
-pub fn classify(error: &FtpError) -> Failure {
+pub(crate) fn classify(error: &FtpError) -> Failure {
     match error {
         // The address guard refused the server before a socket was opened (RD-150-03): not a
         // network failure to retry, and the same code a refused mirror carries everywhere.
@@ -124,7 +124,7 @@ fn from_status(status: Status) -> Failure {
 
 /// The failure raised when a resumed transfer no longer matches what was downloaded.
 #[must_use]
-pub fn file_changed() -> Failure {
+pub(crate) fn file_changed() -> Failure {
     Failure::coded(
         FailureKind::Permanent,
         FILE_CHANGED,
@@ -134,7 +134,7 @@ pub fn file_changed() -> Failure {
 
 /// The failure raised when the server cannot continue an interrupted transfer.
 #[must_use]
-pub fn resume_unsupported() -> Failure {
+pub(crate) fn resume_unsupported() -> Failure {
     Failure::coded(
         FailureKind::Permanent,
         RESUME_UNSUPPORTED,
@@ -144,7 +144,7 @@ pub fn resume_unsupported() -> Failure {
 
 /// The failure raised when no stored login covers the server.
 #[must_use]
-pub fn no_credential(host: &str) -> Failure {
+pub(crate) fn no_credential(host: &str) -> Failure {
     Failure::coded(
         FailureKind::AuthRequired,
         NO_CREDENTIAL,

@@ -274,6 +274,9 @@ pub(crate) struct DownloadItem {
     pub retry_count: u32,
     pub error: Option<String>,
     pub updated_at: DateTime<Utc>,
+    /// A queued file held back because this host has no free connection (RD-1130-02).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub waiting_for_host: Option<String>,
 }
 
 impl From<rd_core::DownloadFile> for DownloadItem {
@@ -296,6 +299,7 @@ impl From<rd_core::DownloadFile> for DownloadItem {
             retry_count: file.retry_count,
             error: file.last_error.map(|failure| failure.message),
             updated_at: file.updated_at,
+            waiting_for_host: None,
         }
     }
 }

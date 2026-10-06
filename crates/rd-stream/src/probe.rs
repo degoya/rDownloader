@@ -92,7 +92,7 @@ async fn probe_output(streamlink: &Path, url: &str) -> Result<String> {
 }
 
 /// The raw `streamlink --json` output, for the sidecar capture (RD-080-09).
-pub async fn probe_json(streamlink: &Path, url: &str) -> Result<String> {
+pub(crate) async fn probe_json(streamlink: &Path, url: &str) -> Result<String> {
     probe_output(streamlink, url).await
 }
 

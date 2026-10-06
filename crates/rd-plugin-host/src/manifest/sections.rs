@@ -163,7 +163,7 @@ pub struct ExtensionManifest {
 }
 
 /// What `[extension] containers` may name.
-pub const REMOTE_JOB_CONTAINERS: &[&str] = &["torrent", "nzb", "dlc", "rsdf"];
+pub(crate) const REMOTE_JOB_CONTAINERS: &[&str] = &["torrent", "nzb", "dlc", "rsdf"];
 
 /// One setting a notification destination offers (`[[extension.settings]]`, RD-170-09).
 ///

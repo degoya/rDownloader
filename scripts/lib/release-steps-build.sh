@@ -153,16 +153,34 @@ step_sign_plugins() {
     [[ "$signed" -eq "$expected" ]] || { echo "signing is short of a plugin" >&2; return 1; }
 }
 
-# --skip-web reuses the web/dist the web step just built and type-checked (check.sh --web --full);
-# web-dist-stale.sh still refuses one that is behind. Needed since RD-140-06 rather than merely
-# faster: building web/dist here while the Windows package embeds it would race.
+# The web/dist both packages embed, current by scripts/web-dist-stale.sh before either package step
+# starts (RD-1130-01). The web step's build is not enough: on a --resume a green web step does not
+# run again, a covered `check.sh --web --full` builds nothing, and a version bump or a checkout
+# between main and development rewrites web/package.json after the build. The 1.12.0 chain
+# stopped there twice. Rebuilt here, once and before the two packages start side by side; the web
+# step's typecheck and vitest are not repeated, they judged the sources and not the bundle.
+# Nothing to do when both package steps are already green in a resumed run.
+rd_release_web_dist() {
+    if [[ "$RESUME" -eq 1 ]] && step_is_green build-linux && step_is_green build-windows; then
+        return 0
+    fi
+    scripts/web-dist-stale.sh && return 0
+    echo "==> rebuilding web/dist before the packages embed it; the web step's checks stand"
+    pnpm --dir web run build || return
+    scripts/web-dist-stale.sh
+}
+
+# --skip-web reuses the web/dist the web step built and type-checked (check.sh --web --full), made
+# current by rd_release_web_dist; web-dist-stale.sh still refuses one that is behind. Needed since
+# RD-140-06 rather than merely faster: building web/dist here while the Windows package embeds it
+# would race.
 #
 # `--profile release` is spelled out in both package steps (RD-150-20): a RD_PACKAGE_PROFILE
 # left in the environment for a test package must never build the release.
 step_build_linux() { JOBS="$JOBS" scripts/package-linux.sh --skip-web --profile release; }
 
 # cargo xwin, straight from WSL. Not the Docker cross-build: it is slower, and the artifact stage
-# drops the COPY'd asset directories. --skip-web reuses the web/dist the web step just built.
+# drops the COPY'd asset directories. --skip-web reuses the web/dist rd_release_web_dist left.
 #
 # With a second lane it runs beside build-linux: it gives up the chain's lock (RD_LOCK_HELD) so
 # package-windows.sh takes a lane of its own, and builds in WINDOWS_LANE instead of the shared

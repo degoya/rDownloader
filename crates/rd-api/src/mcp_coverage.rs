@@ -770,7 +770,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Downloads chart",
         &[any("/api/v1/downloads/rates")],
         "A chart's data series, sampled per second. get_status_summary answers how fast the \
-         queue is going in one number, and get_transfer_stats answers it over time.",
+         queue is going in one number, and get_transfer_stats answers it over time; the \
+         queued files waiting for their host are list_downloads' waiting_for_host.",
     ),
     omitted(
         "Editing bandwidth profiles and the weekly schedule",

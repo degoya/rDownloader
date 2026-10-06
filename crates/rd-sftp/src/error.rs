@@ -29,7 +29,7 @@ pub const NO_USERNAME: &str = "sftp.no_username";
 /// The error's own text is not carried into the queue: it can contain the remote path and
 /// the user name, and the queue message is translated by the client anyway.
 #[must_use]
-pub fn classify_transport(error: &russh::Error) -> Failure {
+pub(crate) fn classify_transport(error: &russh::Error) -> Failure {
     match error {
         russh::Error::IO(io) => Failure::coded(
             FailureKind::Transient {
@@ -56,7 +56,7 @@ pub fn classify_transport(error: &russh::Error) -> Failure {
 
 /// Turns an SFTP status reply into a coded queue failure.
 #[must_use]
-pub fn classify_sftp(error: &russh_sftp::client::error::Error) -> Failure {
+pub(crate) fn classify_sftp(error: &russh_sftp::client::error::Error) -> Failure {
     use russh_sftp::client::error::Error;
     match error {
         Error::Status(status) => from_status(status.status_code),
@@ -106,7 +106,7 @@ fn from_status(status: StatusCode) -> Failure {
 
 /// The failure raised when a resumed transfer no longer matches what was downloaded.
 #[must_use]
-pub fn file_changed() -> Failure {
+pub(crate) fn file_changed() -> Failure {
     Failure::coded(
         FailureKind::Permanent,
         FILE_CHANGED,
@@ -116,7 +116,7 @@ pub fn file_changed() -> Failure {
 
 /// The failure raised when a stored private key cannot be used.
 #[must_use]
-pub fn key_invalid() -> Failure {
+pub(crate) fn key_invalid() -> Failure {
     Failure::coded(
         FailureKind::AuthRequired,
         KEY_INVALID,
@@ -126,7 +126,7 @@ pub fn key_invalid() -> Failure {
 
 /// The failure raised when the SSH agent cannot supply an identity.
 #[must_use]
-pub fn agent_unavailable() -> Failure {
+pub(crate) fn agent_unavailable() -> Failure {
     Failure::coded(
         FailureKind::AuthRequired,
         AGENT_UNAVAILABLE,
@@ -136,7 +136,7 @@ pub fn agent_unavailable() -> Failure {
 
 /// The failure raised when no stored login covers the server.
 #[must_use]
-pub fn no_credential(host: &str) -> Failure {
+pub(crate) fn no_credential(host: &str) -> Failure {
     Failure::coded(
         FailureKind::AuthRequired,
         NO_CREDENTIAL,
@@ -147,7 +147,7 @@ pub fn no_credential(host: &str) -> Failure {
 
 /// The failure raised when a stored login names no user.
 #[must_use]
-pub fn no_username() -> Failure {
+pub(crate) fn no_username() -> Failure {
     Failure::coded(
         FailureKind::AuthRequired,
         NO_USERNAME,

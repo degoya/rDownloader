@@ -20,6 +20,8 @@
 //! bundle carries are collected in `rd-api`, which already links every crate they need; this
 //! crate only knows their shape ([`checks`]).
 
+#![warn(unreachable_pub)]
+
 pub mod bundle;
 pub mod capture;
 pub mod checks;

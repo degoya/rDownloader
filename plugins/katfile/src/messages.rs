@@ -2,7 +2,7 @@
 //!
 //! Each `(code, message)` pair exists exactly once so both targets report identical text. Mirrors
 //! `plugins/ddownload/src/messages.rs`'s taxonomy (`katfile.*` in place of `ddownload.*`), plus
-//! [`CAPTCHA_REQUIRED`] — ddownload has no equivalent, see `native/api.rs`'s module doc.
+//! [`CAPTCHA_REQUIRED`] — ddownload has no equivalent, see the crate's module doc.
 
 /// `file/info` reported a status other than 200 for the file.
 pub(crate) const FILE_UNAVAILABLE: (&str, &str) =
@@ -82,7 +82,7 @@ pub(crate) const INVALID_URL: &str = "katfile.invalid_url";
 /// The premium `download2` form (or its containing file page) carries a captcha challenge
 /// (reCaptchaV2/hCaptcha/Cloudflare Turnstile) that this plugin has no way to solve. Mirrors JD's
 /// `KatfileCom.findFormDownload2Premium` -> `XFileSharingProBasic.handleCaptcha` — see
-/// `native/api.rs`'s module doc for the full citation; ddownload's JD plugin has no equivalent
+/// the crate's module doc for the citation; ddownload's JD plugin has no equivalent
 /// override, so this code has no counterpart in `plugins/ddownload`.
 pub(crate) const CAPTCHA_REQUIRED: (&str, &str) = (
     "katfile.captcha_required",
@@ -92,12 +92,12 @@ pub(crate) const CAPTCHA_REQUIRED: (&str, &str) = (
 /// The file page (or the response after posting the premium form) reports the file is
 /// premium-only. Mirrors JD's `KatfileCom.getPremiumOnlyErrorMessage` override
 /// (`">\s*This file is available for Premium"` / a `/?op=registration&redirect=` URL); carries
-/// the matched `reason` text. See `native/api.rs`'s module doc.
+/// the matched `reason` text. See the crate's module doc.
 pub(crate) const PREMIUM_ONLY: &str = "katfile.premium_only";
 
 /// The file page reports a pre-download wait before the file becomes downloadable. Mirrors JD's
 /// `KatfileCom.regexWaittime` override (`var estimated_time = (\d+)`, in tenths of a second);
-/// carries the `wait_seconds` parameter. See `native/api.rs`'s module doc.
+/// carries the `wait_seconds` parameter. See the crate's module doc.
 pub(crate) const DOWNLOAD_WAIT: &str = "katfile.download_wait";
 
 /// The free flow found no `download1`/`download2` form to work with; carries a `diagnosis`.

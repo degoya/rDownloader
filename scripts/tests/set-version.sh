@@ -107,6 +107,18 @@ expect_true "the dependency's version is untouched" 'grep -qF "serde = { version
 expect_true "package.json keeps its trailing newline" '[[ "$(tail -c1 "$TREE/web/package.json" | od -An -c | tr -d " ")" == "\n" ]]'
 expect "the lock is updated through cargo" "update --workspace --offline" "$(tail -1 "$SCRATCH/cargo.calls")"
 
+# The same version again, as a re-started release chain bumps it (RD-1130-01): no copy is
+# rewritten, so no mtime moves and web/dist stays current for scripts/web-dist-stale.sh.
+copies=(Cargo.toml web/package.json extension/manifest.base.json web/openapi.json sdk/ci/plugin.yml sdk/ci/repository.yml)
+for copy in "${copies[@]}"; do touch -d '2001-01-01 00:00' "$TREE/$copy"; done
+set_version 1.4.0
+expect_status "the version the tree already carries is set again" 0
+moved=""
+for copy in "${copies[@]}"; do
+    [[ "$(stat -c %Y "$TREE/$copy")" == "$(date -d '2001-01-01 00:00' +%s)" ]] || moved+="$copy "
+done
+expect "and no copy is rewritten" "" "$moved"
+
 set_version 1.5.0-beta.1
 expect_status "a pre-release version is set" 0
 expect "Cargo.toml carries the suffix" "1.5.0-beta.1" "$("$TREE/scripts/set-version.sh")"

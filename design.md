@@ -234,7 +234,10 @@ accidentally be addressed with the wrong ID type.
 
 Files use `queued`, `resolving`, `downloading`, `paused`, `retry_wait`, `verifying`, `repairing`,
 `extracting`, `seeding`, `blocked`, `failed`, `cancelled`, and `completed`. The domain type validates
-allowed transitions; direct transitions such as `completed → downloading` are forbidden.
+allowed transitions; direct transitions such as `completed → downloading` are forbidden. A queued
+HTTP file the dispatcher holds back because its host has no free connection stays `queued`; the
+host it waits for is runtime state, not a state of its own (`waiting_for_host` in the rates read
+and in MCP's `list_downloads`, RD-1130-02).
 
 Packages summarize file state as `queued`, `downloading`, `postprocessing`, `completed`, or
 `failed`. LinkGrabber candidates use `resolving`, `checking`, `online`, `offline`, `unsupported`,
@@ -1683,6 +1686,14 @@ underneath, or from a glyph. Concretely (RD-109-30):
   file — so one file stood as `722 MiB` in the panel and `699 MiB` one line down, with nothing on
   screen accounting for the gap. Two unlabelled figures for the same thing are worse than one
   figure twice.
+
+**Why a queued file does not start is a line under the row, not a state of its own**
+(RD-1130-02). A file whose host has no free connection — two files of one hoster fill its six —
+stays `Queued`, leaves its place among the parallel downloads to a file of another host, and
+says so in a muted line under the row: `i-lucide-hourglass` and *Waiting for a connection to
+<host>*, the shape of the next-attempt line of a file waiting to retry. The line goes when the
+file starts or stops being queued. It used to start all the same and stand as *Downloading* with
+0 B, a state the row could not keep.
 
 **The wrap width is measured, and this is the measurement.** The row sits in `UDashboardPanel`'s
 body (`p-4 sm:p-6`) beside a sidebar that is a slideover below `lg` and 15% of the window from

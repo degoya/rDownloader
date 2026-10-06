@@ -248,6 +248,36 @@ describe('TransferCard next attempt', () => {
   })
 })
 
+/** RD-1130-02: a queued file held back for its host says which host it waits for. */
+describe('TransferCard host wait', () => {
+  function card(state: DownloadState, waitingForHost: string | null) {
+    return mountComponent(TransferCard, {
+      messages: { downloads, torrent, common },
+      props: {
+        download: {
+          id: 'd1', kind: 'http', state, file_name: 'release.rar',
+          source: 'https://cdn.example.invalid/release.rar',
+          committed_bytes: '0', total_bytes: '100'
+        } as unknown as Download,
+        waitingForHost
+      }
+    })
+  }
+
+  it('names the host a queued file waits for', () => {
+    const view = card('queued', 'cdn.example.invalid')
+    expect(view.getByTestId('host-wait').textContent).toContain('Waiting for a connection to cdn.example.invalid')
+  })
+
+  it('says nothing without a wait, or once the file runs', () => {
+    const queued = card('queued', null)
+    expect(queued.queryByTestId('host-wait')).toBeNull()
+    queued.unmount()
+    const running = card('downloading', 'cdn.example.invalid')
+    expect(running.queryByTestId('host-wait')).toBeNull()
+  })
+})
+
 /** Recheck and change location (RD-1100-10): torrents only, and a move only where no runner writes. */
 describe('TransferCard torrent data actions', () => {
   const labels = (download: Record<string, unknown>): string[] =>

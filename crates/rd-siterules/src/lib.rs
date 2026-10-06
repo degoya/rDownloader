@@ -18,6 +18,8 @@
 //! are testable without a network and the HTTP client stays where the application already
 //! has one.
 
+#![warn(unreachable_pub)]
+
 pub mod catalogue;
 pub mod exec;
 pub mod format;

@@ -83,7 +83,7 @@ fn merge(left: Intake, right: Intake) -> Intake {
 ///
 /// Never fails the agent: a service that is down, too old to offer the stream, or a desktop
 /// without a notification daemon costs notifications, not Click'n'Load or the clipboard.
-pub async fn watch_intake(client: CaptureClient, cancellation: CancellationToken) {
+pub(crate) async fn watch_intake(client: CaptureClient, cancellation: CancellationToken) {
     let (sender, receiver) = mpsc::channel(INTAKE_QUEUE);
     // One task, two futures. The reader drops its sender when it ends, which is what closes
     // the announcer down with it.

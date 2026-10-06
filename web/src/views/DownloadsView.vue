@@ -364,6 +364,7 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
                 :download="row.download"
                 :bytes-per-second="transfers.downloadRates[row.download.id] ?? 0"
                 :eta-seconds="transfers.downloadEtas[row.download.id] ?? null"
+                :waiting-for-host="transfers.downloadHostWaits[row.download.id] ?? null"
                 :destination="row.group.package.destination"
                 :account-label="accountLabel(row.download.account_id)"
                 :selected="selection.selectedFiles.value.has(row.download.id)"

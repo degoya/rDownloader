@@ -5,6 +5,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-06
+
+### Fixed
+
+- **The release chain no longer stops at a stale `web/dist` (RD-1130-01).** Right before the
+  package steps, also on a `--resume`, `scripts/release-pipeline.sh` rebuilds a `web/dist` that
+  `scripts/web-dist-stale.sh` calls stale; the 1.12.0 chain refused both packages twice because
+  the switch to `main` and back, and a bump to the version the tree already carried, rewrote
+  `web/package.json` after the web step. `scripts/set-version.sh` no longer rewrites a copy whose
+  content does not change. A changed source or version line still makes `web/dist` stale (new
+  script test `release-web-dist.sh`).
+- **A file waiting for a connection to its host no longer takes a parallel-download place
+  (RD-1130-02).** Two files of one hoster fill its six connections; the third used to start all
+  the same and stand as *Downloading* with 0 B while a file of another host stayed queued. The
+  dispatch pass now asks the per-host limit first (`HostLimits::free`, which only reads it — six
+  per host, `0` off, unchanged) and counts the connections of files it has started but whose
+  chunks have not asked yet; a file whose host is full stays queued, the next file of another
+  host starts, and the row says *Waiting for a connection to <host>* (four languages). The rates
+  read carries `waiting_for_host`, MCP's `list_downloads` a `waiting_for_host` per row; the log
+  has a debug line when a file or a request starts and stops waiting. New `rd-scheduler` test
+  `host_slot_wait`.
+- **A pause while a file resolves holds (RD-1130-04).** A file paused before its source answered
+  went to *Retry* a moment later and started again, with a failed attempt counted: the state
+  machine had no edge from `Resolving` to `Paused`, so the worker's stop was refused and the
+  refusal recorded as an error. The edge exists now; the file stays paused, no attempt is
+  counted, and a stop by the service itself still writes nothing (new `rd-scheduler` test
+  `pause_while_resolving`).
+- **A failed read of the trusted plugin keys is logged (RD-1130-03).** When a repository
+  withdraws a signing key and the trusted keys cannot be read, the service logs a warning with key
+  id, fingerprint and error instead of treating the key as untrusted in silence. The status of
+  *HTTP status* errors for Put.io, Put.io transfers, Seedr, Offcloud and Offcloud Cloud was
+  already fixed in 1.12.0 (RD-1120-05); Offcloud Cloud's test now checks it too.
+- **KatFile's notes point at what exists (RD-1130-03).** Its manifest and sources referred to a
+  deleted `native/api.rs`; the record against JD's `KatfileCom` is back in the crate's module
+  doc, the domain list points at `resolver/api.rs`: `katfile` 0.9.16.
+### Changed
+
+- **Narrower visibility in every crate (RD-1120-12, CR-9).** Each crate root carries
+  `#![warn(unreachable_pub)]`; 222 `pub` items no other crate could reach became `pub(crate)`, the
+  desktop agent's tray and Windows integration included. The plugins keep their workspace lints:
+  a source change there would raise every plugin's signed version without a change in behaviour.
+- **The package, LinkGrabber and NZB lists read only their page (RD-191-05, RA-API-03).**
+  `GET /api/v1/packages`, `/api/v1/collector/packages`, `/api/v1/collector/candidates`,
+  `/api/v1/collector/batches` and `/api/v1/nzb/imports` with `limit`/`offset` let SQLite cut the
+  page (`LIMIT`/`OFFSET`) and count the list in the same read transaction, as the download list
+  does since RD-1120-17, instead of loading the whole table and slicing it; archive passwords
+  come from the vault for the page's rows only. Order, answer and `X-Total-Count` are unchanged;
+  each order ends on the row id, so rows equal in everything else keep one order across pages.
+- **Package channels after a release (RD-1130-05).** `channels.yml`'s repository job starts the
+  service as its user with the log in a folder that user made (apt), and reads the dnf metadata
+  with `-y`, so dnf imports the repository's key instead of failing its signature; the Homebrew
+  job uninstalls with `--force`, every keg the upgrade left, and when the service does not
+  answer prints what launchd or systemd, the process table, the code signature and the system
+  log know, and the binary's own foreground start (`scripts/ci-brew-service-diagnostics.sh`).
+
 ## [1.12.0] - 2026-10-06
 
 ### Added

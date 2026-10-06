@@ -11,6 +11,8 @@
 //! of a poller is all about clocks, duplicates and partial failure, and none of those are
 //! worth reproducing by waiting for a real feed.
 
+#![warn(unreachable_pub)]
+
 mod adapter;
 mod attributes;
 mod caps;

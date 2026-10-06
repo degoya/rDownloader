@@ -1,6 +1,8 @@
 //! Per-user autostart registration for the rDownloader binaries, and where an installed build
 //! keeps its data.
 
+#![warn(unreachable_pub)]
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};

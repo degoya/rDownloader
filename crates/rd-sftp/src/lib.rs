@@ -7,6 +7,8 @@
 //! can forward a channel, but doing it properly needs a second host-key trust decision per
 //! hop, and half of that is worse than none.
 
+#![warn(unreachable_pub)]
+
 mod client;
 mod error;
 mod hostkey;

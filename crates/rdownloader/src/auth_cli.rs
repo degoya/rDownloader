@@ -23,7 +23,7 @@ use crate::remote::{Client, CommandError, Failure};
 use crate::reset_password_cli::{self, ResetPasswordArgs};
 
 #[derive(Args)]
-pub struct AuthArgs {
+pub(crate) struct AuthArgs {
     #[command(subcommand)]
     command: AuthCommand,
 }
@@ -66,7 +66,7 @@ pub(crate) enum Reached {
     Database,
 }
 
-pub async fn run(args: AuthArgs) -> Result<()> {
+pub(crate) async fn run(args: AuthArgs) -> Result<()> {
     let args = match args.command {
         AuthCommand::PasswordLogin(args) => args,
         AuthCommand::ResetPassword(args) => return reset_password_cli::run(args).await,

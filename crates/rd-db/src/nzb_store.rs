@@ -15,8 +15,8 @@ mod imports;
 
 pub(crate) use files::{list_files, set_segment_state};
 pub(crate) use imports::{
-    delete_import, forget_import_for_package, get_import, list_imports, mark_remote_job,
-    update_import,
+    delete_import, forget_import_for_package, get_import, imports_page, list_imports,
+    mark_remote_job, update_import,
 };
 use imports::{get_by_hash_connection, get_by_id_connection};
 
