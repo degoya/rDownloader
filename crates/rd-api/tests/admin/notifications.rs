@@ -89,6 +89,53 @@ async fn a_taken_target_name_is_a_conflict() {
     assert_eq!(refused["code"], "notification.name_taken", "{refused}");
 }
 
+/// A save refused for its name takes back the secret it had just written: the vault holds the
+/// same entries after the `409` as before it, on creation and on a rename (RD-1120-04, S2).
+#[tokio::test]
+async fn a_refused_target_leaves_no_secret_in_the_vault() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let target = |name: &str| {
+        serde_json::json!({
+            "name": name,
+            "kind": "webhook",
+            "endpoint": "https://hooks.example.com/rd",
+            "secret": SECRET,
+        })
+    };
+    create_target(&harness.router, target("Vault-kept webhook")).await;
+    let other = create_target(&harness.router, target("Vault-renamed webhook")).await;
+    let before = harness.secrets.stored_references().await.expect("vault");
+    assert_eq!(before.len(), 2, "{before:?}");
+
+    let (status, refused) = common::post_json(
+        &harness.router,
+        "/api/v1/notifications/targets",
+        target("Vault-kept webhook"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(
+        harness.secrets.stored_references().await.expect("vault"),
+        before,
+        "a refused creation left its secret behind"
+    );
+
+    let id = other["id"].as_str().expect("id");
+    let (status, refused) = common::put_json(
+        &harness.router,
+        &format!("/api/v1/notifications/targets/{id}"),
+        target("Vault-kept webhook"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(
+        harness.secrets.stored_references().await.expect("vault"),
+        before,
+        "a refused rename left its new secret behind"
+    );
+}
+
 #[tokio::test]
 async fn a_target_secret_is_stored_but_never_returned() {
     let directory = tempfile::tempdir().expect("tempdir");

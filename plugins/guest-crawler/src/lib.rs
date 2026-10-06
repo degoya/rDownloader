@@ -2,10 +2,11 @@
 //!
 //! A crawler's guest is its own logic — which addresses it claims, how it walks a folder — so
 //! there is no shared adapter to write as there is for the resolvers in `plugin_guest`. What was
-//! the same in every one of them is the glue underneath: the generated bindings and the two
-//! small constructors every crawler wrote out again. They live here, so a crawler's `guest.rs`
-//! imports them, implements [`Guest`] and ends in [`crawler_plugin!`]. The component that comes
-//! out exports the same world under the same names; the host cannot tell the difference.
+//! the same in every one of them is the glue underneath: the generated bindings, the two small
+//! constructors every crawler wrote out again and the bearer headers of the cloud APIs. They
+//! live here, so a crawler's `guest.rs` imports them, implements [`Guest`] and ends in
+//! [`crawler_plugin!`]. The component that comes out exports the same world under the same
+//! names; the host cannot tell the difference.
 
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
@@ -21,7 +22,7 @@ wit_bindgen::generate!({
 pub use exports::rdownloader::plugin::crawler::{CrawledLink, Guest};
 pub use rdownloader::plugin::{captcha, cookies, host, http, key_derivation, types};
 
-use http::RequestQuery;
+use http::{RequestHeader, RequestQuery};
 use types::{Failure, FailureKind};
 
 /// A failure carrying a stable translation code and its English fallback, and nothing else.
@@ -42,6 +43,45 @@ pub fn query(name: &str, value: &str) -> RequestQuery {
         name: name.to_owned(),
         value_template: value.to_owned(),
     }
+}
+
+/// The `Authorization` header of a provider that keeps its access token or API key in the vault
+/// under `reference`. The value never reaches the plugin: the host substitutes it into the
+/// `{{secret:…}}` marker on the way out, and only towards the hosts the provider declared for
+/// that reference.
+#[must_use]
+pub fn bearer(reference: &str) -> RequestHeader {
+    RequestHeader {
+        name: "Authorization".to_owned(),
+        value_template: format!("Bearer {{{{secret:{reference}}}}}"),
+    }
+}
+
+/// The headers of a JSON listing reached with [`bearer`]: that header and
+/// `Accept: application/json`. The names are literals, as the host's header guard reads them
+/// (`rd-plugin-host` `bundled_headers_tests`).
+#[must_use]
+pub fn bearer_accept_json(reference: &str) -> Vec<RequestHeader> {
+    vec![
+        bearer(reference),
+        RequestHeader {
+            name: "Accept".to_owned(),
+            value_template: "application/json".to_owned(),
+        },
+    ]
+}
+
+/// The headers of a JSON call reached with [`bearer`] that posts a document: that header and
+/// `Content-Type: application/json`.
+#[must_use]
+pub fn bearer_post_json(reference: &str) -> Vec<RequestHeader> {
+    vec![
+        bearer(reference),
+        RequestHeader {
+            name: "Content-Type".to_owned(),
+            value_template: "application/json".to_owned(),
+        },
+    ]
 }
 
 /// Exports a crawler plugin: `$component` implements [`Guest`].

@@ -221,7 +221,6 @@ void loadProviders()
   <UAlert
     v-if="providersFailed"
     color="warning"
-    variant="subtle"
     icon="i-lucide-circle-alert"
     :description="t('remote_jobs.accounts_unavailable')"
   />
@@ -241,7 +240,6 @@ void loadProviders()
   <UAlert
     v-else-if="noUsableAccount"
     color="neutral"
-    variant="subtle"
     icon="i-lucide-info"
     :description="t('remote_jobs.no_remote_job_accounts')"
   />
@@ -310,7 +308,7 @@ void loadProviders()
       <li v-for="row in files" :key="row.key" class="flex flex-wrap items-center gap-2 px-2 py-1.5">
         <UIcon name="i-lucide-file" class="shrink-0 text-muted" />
         <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ row.file.name }}</span>
-        <span class="font-mono text-[11px] tabular-nums text-muted">{{ formatBytes(String(row.file.size)) }}</span>
+        <span class="font-mono text-2xs tabular-nums text-muted">{{ formatBytes(String(row.file.size)) }}</span>
         <UBadge :color="FILE_STATE_COLORS[row.state]" variant="subtle" size="sm">{{ t(`remote_jobs.files.states.${row.state}`) }}</UBadge>
         <UButton
           size="xs"

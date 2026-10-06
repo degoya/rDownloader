@@ -103,41 +103,10 @@ pub fn claim(url: &str) -> Option<Share> {
 /// An allowlist rather than a denylist: a file name comes from somebody else's server, and
 /// guessing which characters a given server tolerates is how a request ends up somewhere
 /// nobody meant.
-#[must_use]
-pub fn encode_segment(segment: &str) -> String {
-    let mut out = String::with_capacity(segment.len());
-    for byte in segment.as_bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(*byte as char);
-            }
-            other => out.push_str(&format!("%{other:02X}")),
-        }
-    }
-    out
-}
+pub use plugin_common::encode::percent_encode as encode_segment;
 
 /// Percent-decodes text, leaving anything malformed as it was.
-#[must_use]
-pub fn decode(value: &str) -> String {
-    let bytes = value.as_bytes();
-    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' && index + 2 < bytes.len() {
-            let high = (bytes[index + 1] as char).to_digit(16);
-            let low = (bytes[index + 2] as char).to_digit(16);
-            if let (Some(high), Some(low)) = (high, low) {
-                out.push((high * 16 + low) as u8);
-                index += 3;
-                continue;
-            }
-        }
-        out.push(bytes[index]);
-        index += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
+pub use plugin_common::encode::percent_decode_lossy as decode;
 
 /// Puts the login the files of a protected share need in front of an address (RD-108-07).
 ///

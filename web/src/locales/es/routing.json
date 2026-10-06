@@ -2,8 +2,7 @@
   "tabs": {
     "roots": "Raíces de almacenamiento",
     "categories": "Categorías",
-    "rules": "Reglas",
-    "collector": "Recolector"
+    "rules": "Reglas"
   },
   "header": {
     "eyebrow": "Control de destinos",
@@ -61,7 +60,7 @@
     "form_edit": "Editar categoría",
     "description": "Una categoría combina una raíz de almacenamiento con una carpeta relativa y los valores de posprocesamiento de sus paquetes.",
     "name_label": "Nombre",
-    "name_description": "Se usa en el LinkGrabber, en la lista de descargas y en las reglas de abajo.",
+    "name_description": "Se usa en el LinkGrabber, en la lista de descargas y en las reglas de la pestaña «Reglas».",
     "name_placeholder": "Películas",
     "root_label": "Raíz de almacenamiento",
     "root_description": "La raíz permitida en la que escribe esta categoría.",

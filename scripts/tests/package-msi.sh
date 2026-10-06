@@ -4,8 +4,9 @@
 # Windows, so this holds what the script generates. The MSI version drops a pre-release suffix,
 # every bundled plugin becomes a file of the plugins component, the licence page is RTF with its
 # special characters escaped, the marker says `msi`, and the generated and the checked-in WiX
-# sources are well-formed XML. An unverified package, a stage without plugins and a version MSI
-# cannot hold are refused.
+# sources are well-formed XML. Each of the four languages picks its culture and .wxl, and every
+# .wxl defines exactly the strings the WiX source asks for (RD-1120-20). An unverified package, a
+# stage without plugins, a version MSI cannot hold and an unknown language are refused.
 #
 #   scripts/tests/package-msi.sh
 set -euo pipefail
@@ -29,7 +30,8 @@ echo package > "$stage/plugins/usenet-nzb-2.1.0.rdplug"
 
 run_status "$SCRIPT" --sources-only "$stage" "$SCRATCH/out"
 expect_status "generating the sources" 0
-expect_output "naming both versions" "rdownloader 1.8.0-beta.1, MSI 1.8.0, 2 plugins"
+expect_output "naming both versions" "rdownloader 1.8.0-beta.1, MSI 1.8.0 en-US, 2 plugins"
+expect "English without a language" "en-US" "$(grep -A1 '^-culture$' "$SCRATCH/out/wix-arguments.txt" | sed -n '2p')"
 expect "the MSI version drops the pre-release" "Version=1.8.0" \
     "$(grep '^Version=' "$SCRATCH/out/wix-arguments.txt")"
 expect "the marker says msi" "msi" "$(cat "$SCRATCH/out/install-kind")"
@@ -40,6 +42,30 @@ for name in http-1.0.0.rdplug usenet-nzb-2.1.0.rdplug; do
 done
 expect "the licence escapes RTF's special characters" \
     'GNU GENERAL PUBLIC LICENSE \{braces\} and C:\\path\par' "$(sed -n '2p' "$SCRATCH/out/license.rtf")"
+for language in de:de-DE es:es-ES fr:fr-FR; do
+    run_status "$SCRIPT" --sources-only "$stage" "$SCRATCH/out-${language%%:*}" "${language%%:*}"
+    expect_status "generating the ${language%%:*} sources" 0
+    expect "${language%%:*} builds the ${language#*:} culture" "${language#*:}" \
+        "$(grep -A1 '^-culture$' "$SCRATCH/out-${language%%:*}/wix-arguments.txt" | sed -n '2p')"
+    expect "${language%%:*} takes its own strings" "${language#*:}.wxl" \
+        "$(basename "$(grep -A1 '^-loc$' "$SCRATCH/out-${language%%:*}/wix-arguments.txt" | sed -n '2p')")"
+done
+run_status "$SCRIPT" --sources-only "$stage" "$SCRATCH/out-it" it
+expect_status "a language the interface does not have" 2
+# Every string the source names, in every language, and nothing else.
+run_status python3 - "$ROOT/packaging/msi" <<'PY'
+import pathlib, re, sys, xml.etree.ElementTree as tree
+folder = pathlib.Path(sys.argv[1])
+wanted = set(re.findall(r"!\(loc\.([A-Za-z]+)\)", (folder / "rdownloader.wxs").read_text()))
+cultures = sorted(path.stem for path in folder.glob("*.wxl"))
+assert cultures == ["de-DE", "en-US", "es-ES", "fr-FR"], cultures
+for culture in cultures:
+    root = tree.parse(folder / f"{culture}.wxl").getroot()
+    assert root.get("Culture") == culture, culture
+    ids = {string.get("Id") for string in root if string.get("Value")}
+    assert ids == wanted, (culture, sorted(ids ^ wanted))
+PY
+expect_status "every .wxl defines the strings rdownloader.wxs names" 0
 for source in "$fragment" "$ROOT/packaging/msi/rdownloader.wxs"; do
     run_status python3 -c 'import sys, xml.etree.ElementTree as tree; tree.parse(sys.argv[1])' "$source"
     expect_status "$(basename "$source") is well-formed XML" 0

@@ -100,6 +100,12 @@ const stubs = {
   UDashboardPanel: { template: '<div><slot name="header" /><slot name="body" /></div>' },
   UDashboardSidebarCollapse: true,
   UEmpty: uiStubs.UEmpty,
+  // Without these four every row logged "Failed to resolve component" with the whole row list
+  // in its trace: 750 000 of the web stage's 817 000 log lines (RD-1120-08).
+  UFormField: uiStubs.UFormField,
+  ULink: uiStubs.ULink,
+  UModal: uiStubs.UModal,
+  USeparator: uiStubs.USeparator,
   UDashboardToolbar: { template: '<div><slot name="left" /><slot name="right" /></div>' },
   UDropdownMenu: passthrough,
   UIcon: { template: '<span aria-hidden="true" />' },

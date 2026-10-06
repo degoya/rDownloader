@@ -7,7 +7,7 @@
   "last_live": "Zuletzt live: {time}",
   "never_live": "Noch nie live gesehen",
   "probe_error": "Letzte Prüfung fehlgeschlagen",
-  "empty": "Noch keine Kanäle. Oben einen Kanal hinzufügen und aktivieren, um automatisch aufzuzeichnen.",
+  "empty": "Noch keine Kanäle. Füge mit dem Formular einen Kanal hinzu und schalte ihn ein, damit er automatisch aufzeichnet.",
   "delete": {
     "title": "Kanal löschen",
     "description": "\"{name}\" löschen? Bereits erstellte Aufnahmen bleiben erhalten."
@@ -53,15 +53,6 @@
     "empty": "Noch keine Zeitpläne.",
     "needs_channel": "Lege zuerst oben einen Kanal an — ein Zeitplan braucht einen, um aufzunehmen.",
     "replay_used": "von Anfang an aufgenommen",
-    "weekday": {
-      "1": "Mo",
-      "2": "Di",
-      "3": "Mi",
-      "4": "Do",
-      "5": "Fr",
-      "6": "Sa",
-      "7": "So"
-    },
     "states": {
       "planned": "Geplant",
       "waiting": "Beobachtet",

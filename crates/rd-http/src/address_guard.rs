@@ -36,17 +36,7 @@ use url::{Host, Url};
 
 // The classification itself is `rd_core::address_scope`, shared with `rd-siterules` so the two
 // guards cannot drift apart again (security audit 2026-09-30, R1).
-pub use rd_core::{AddressScope, address_scope};
-
-/// The literal address a URL's host *is*, when it is one rather than a name.
-#[must_use]
-pub fn literal_address(url: &Url) -> Option<IpAddr> {
-    match url.host()? {
-        Host::Ipv4(address) => Some(IpAddr::V4(address)),
-        Host::Ipv6(address) => Some(IpAddr::V6(address)),
-        Host::Domain(_) => None,
-    }
-}
+pub use rd_core::{AddressScope, address_scope, literal_address};
 
 /// Which addresses a request made on a stranger's word may reach.
 ///

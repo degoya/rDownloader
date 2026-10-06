@@ -284,7 +284,10 @@ export const useTransfersStore = defineStore('transfers', () => {
   const { extractPackages, forceExtractPackage, loadPostprocess, updatePackages, renamePackageFolder, deletePackages, reorderPackages, reorderDownloads } =
     usePackageActions({ error, notice, refresh })
   const { clear, clearing } = useClearList({ error, notice, refresh })
-  const { loadSpeedLimit, setSpeedLimit, speedLimitBusy, speedLimitMiB, loadPackageSpeedLimit, setPackageSpeedLimit } = useSpeedLimit({ error, notice })
+  const {
+    applyRailSettings, loadRailSettings, setSpeedLimit, speedLimitBusy, speedLimitMiB,
+    maxActiveFiles, maxActiveFilesBusy, setMaxActiveFiles, loadPackageSpeedLimit, setPackageSpeedLimit
+  } = useSpeedLimit({ error, notice })
 
   let historyTimer: number | null = null
 
@@ -365,7 +368,11 @@ export const useTransfersStore = defineStore('transfers', () => {
     speedLimitMiB,
     speedLimitBusy,
     speedHistory,
-    loadSpeedLimit,
+    applyRailSettings,
+    loadRailSettings,
+    maxActiveFiles,
+    maxActiveFilesBusy,
+    setMaxActiveFiles,
     loadPackageSpeedLimit,
     setPackageSpeedLimit,
     setSpeedLimit,

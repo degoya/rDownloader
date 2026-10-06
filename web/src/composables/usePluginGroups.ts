@@ -17,7 +17,7 @@ import type { InstalledPlugin } from '@/api/types'
 const ALL_TYPES = '__all__'
 
 /** One installed plugin: the version that is loaded, and the older ones still on disk. */
-export interface PluginGroup {
+interface PluginGroup {
   plugin: InstalledPlugin
   superseded: InstalledPlugin[]
 }

@@ -15,6 +15,7 @@ import { useAppShortcuts } from '@/composables/useAppShortcuts'
 import { useAppTour } from '@/composables/useAppTour'
 import { serviceConnection } from '@/composables/serviceConnection'
 import { useConnectionNotices } from '@/composables/useConnectionNotices'
+import { useVersionNotice } from '@/composables/useVersionNotice'
 import { useFileImportDropZone } from '@/composables/useNzbDropZone'
 import { sidebarCollapsed } from '@/composables/sidebarCollapse'
 import { SETTINGS_SECTION_GROUPS } from '@/settingsSections'
@@ -45,6 +46,8 @@ const { dropActive } = useFileImportDropZone()
 useAppShortcuts()
 // The toast when the service is lost, and the reload of a view that could not be fetched.
 useConnectionNotices()
+// The toast when the service runs another version than this page (RD-1120-16).
+useVersionNotice()
 const connected = computed(() => serviceConnection.value === 'connected')
 const connectionLabel = computed(() => t(connected.value ? 'nav.connected' : 'nav.connection.lost'))
 // The listen port is configurable, so the address has to come from the connection the user

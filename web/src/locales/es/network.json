@@ -25,7 +25,6 @@
     "secret_generic_password": "Contraseña de la cuenta",
     "hint_generic": "Introduce las credenciales que requiere este proveedor.",
     "cookies_warning": "Las cookies dan acceso a tu sesión. Importa solo las cookies del proveedor correspondiente y nunca compartas su contenido.",
-    "test": "Probar",
     "edit": "Editar cuenta",
     "delete": "Eliminar cuenta",
     "empty": "Aún no hay ninguna cuenta de proveedor.",

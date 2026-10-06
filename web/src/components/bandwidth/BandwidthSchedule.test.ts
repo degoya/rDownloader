@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { BandwidthProfile, BandwidthSchedule } from '@/api/types'
 import bandwidth from '@/locales/en/bandwidth.json'
 import common from '@/locales/en/common.json'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 const put = vi.hoisted(() => vi.fn())
@@ -42,9 +43,16 @@ function windows(): HTMLElement[] {
 }
 
 describe('BandwidthSchedule', () => {
+  // RD-1120-14 (RD-150-11): a window with its day chips.
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    expect(within(windows()[0]!).getByRole('group', { name: common.week_window.days_label })).toBeTruthy()
+    expect(await axeViolations(container)).toBe('')
+  })
+
   it('offers the days as a named group of checkboxes that say which are on', async () => {
     mount()
-    const group = within(windows()[0]!).getByRole('group', { name: bandwidth.schedule.days_label })
+    const group = within(windows()[0]!).getByRole('group', { name: common.week_window.days_label })
     const days = within(group).getAllByRole('checkbox') as HTMLInputElement[]
     expect(days.map(day => day.checked)).toEqual([true, false, true, false, false, false, false])
 

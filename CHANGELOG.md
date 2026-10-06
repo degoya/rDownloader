@@ -5,6 +5,255 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-06
+
+### Added
+
+- **Parallel downloads in the status bar (RD-1120-22).** Beside "N running", a small number field
+  (1–32) sets how many downloads run at once, saved through the same settings write as the speed
+  limit beside it; a refusal is a toast with the service's message. The scheduler takes a changed
+  value on its next pass, without a restart (new `rd-scheduler` test `runtime_active_limit`); a
+  lowered value starts nothing new until the running downloads are below it. The bar follows what
+  the settings page loads and saves; the MCP settings tool names `max_active_files`.
+- **A menu entry in the Linux packages, the Windows installer in four languages (RD-1120-20).**
+  The deb and the rpm install `rdownloader.desktop` with the rDownloader icon: it starts the user
+  service and opens the interface in the browser. The MSI is built in English, German, Spanish
+  and French — WiX's dialogs and the installer's own texts — and the release carries
+  `rdownloader-windows-x86_64-de.msi`, `-es.msi` and `-fr.msi` beside the English one, which
+  stays the update's. `rdownloader plugin keys` and `plugin install` on an installed build find
+  the installation's database and plugin folder without `--database`/`--root`. README and
+  `SECURITY.md` link the support matrix.
+
+### Changed
+
+- **Settings by topic: five groups leave General (RD-1120-21).** The switch that turns signing in
+  off on this computer sits on *Security › Sign-in* beside the password, the UI port in the card
+  of the renamed tab *Reachability & reverse proxy*; the storage capacity (minimum free, headroom,
+  collision rule, automatic resume) is a card on *Storage & rules › Storage roots*, whose own
+  minimum overrides it; the NNTP limits sit under the Usenet servers they are measured against;
+  the speed and upload limits are a card on *Bandwidth*, now three tabs (Status & limits,
+  Profiles, Schedule). General is *Queue & retries*. The old search anchors lead to the new
+  places, and a tab that saves its own lists stays usable while only the moved card waits for the
+  settings document. Same settings, same route, same MCP tools.
+- **Settings that belong together point at each other; program paths in one place (RD-1120-23,
+  part A).** Times and dates are Nuxt UI's `UInputTime`/`UInputDate` instead of the browser's
+  fields (quiet hours, reconnect and bandwidth windows, stream schedules, the timed pause, the
+  site-login expiry, the site-rule date, the Usenet quota reset), stored as before;
+  `nuxtUiFirst.test.ts` refuses a new raw one. The paths to yt-dlp, ffmpeg, gallery-dl,
+  streamlink, the RAR tool and rclone are one card, *Tools › Custom paths*; their old places link
+  there. A switched-off service's page opens with a notice that leads to its switch, and
+  "See also" links join the torrent and global upload limits, the proxy pickers and proxy
+  profiles, browser and service notifications, quiet hours with notification rules, the
+  bandwidth schedule and the budgets, backup destinations with S3 and rclone, and the NZB
+  hand-over with the accounts — by search anchor, so a moved card takes its links along.
+- **Settings pages where you look for them (RD-1120-23, part B).** The LinkGrabber has a page of
+  its own (blocklist, DLC, mirror detection; the name "Collector" is gone), Downloads follows the
+  way a download takes (Hotfolders, LinkGrabber, Storage & rules, Post-processing, Bandwidth,
+  Unattended), *Services* heads Sources & protocols, and *Desktop client* and *API & MCP* are one
+  page *Clients & API* whose *Browser* tab pairs the browser extension. *Usenet* has the tabs
+  Servers and Indexers, *Accounts* the tabs Accounts and Site logins (from Network), the import
+  history sits on *System › Logs & retention*, and *Interface* keeps "This browser only" over
+  language, theme and notifications, with sizes, the tab title, cover images and the NZB hand-over
+  in a card *Display*. The global upload limit links back to the torrent one; titles say what is
+  on the page ("Simultaneous downloads", "Compute SHA-256", "System & maintenance", "Plugins"),
+  and System no longer shares Network's icon. `/settings/desktop`, `/settings/mcp`, the old tabs
+  and every moved search anchor lead to the new place. Same settings, same REST and MCP.
+- **The diagnostic bundle has a tab of its own (RD-1120-01).** The *Logs* page has two tabs,
+  *Log* and *Diagnostic bundle*; the bundle is at `/logs?tab=bundle` instead of under the end of
+  the list, an unknown `tab` shows the log, back and forward walk the tabs, and the refresh button
+  is shown with the log only.
+- **A remote job names its torrent or NZB (RD-1120-02).** The remote-jobs list titles each job
+  with its `.torrent`/`.nzb` file name, a magnet's `dn` or an address's last path segment (written
+  into `source_name` on creation), else the content key; the kind stands beside it as a word, and a
+  job with a package links to it in the LinkGrabber or, once it has left, to the download list. The
+  `list_remote_jobs` MCP description names the source fields.
+- **Choice rows say which value holds, empty states and handles are Nuxt UI's (RD-1120-14, audit
+  V3, WEB-1 … WEB-13).** The torrent views, media presets, SponsorBlock and subtitle modes,
+  statistics ranges and both plugin filters are one `URadioGroup` row each, so a screen reader
+  hears the checked value instead of a colour; fifteen list empty states are `UEmpty`; the five
+  drag handles are one `DragHandle`; the post-processing queue is a card and the authentication
+  profile a labelled field. `UAlert` subtle, the modal footer and the tab spacing are theme
+  defaults, one `text-2xs` token replaces `text-[11px]`/`text-[10px]` (10 px text grows to 11), the
+  LinkGrabber's empty state has an icon and title, and post-processing times follow the interface
+  language. `nuxtUiFirst.test.ts` counts colour-only button rows and paragraph empty states;
+  axe now checks the five chip forms, and a reconnect window's two time fields have names.
+- **What the web UI built several times stands once, and more forms ask before a leave drops
+  them (RD-1120-15, audit WEB-15 … WEB-27, 191-01 N3).** The quiet hours, reconnect windows and
+  bandwidth schedule edit their windows in one `WeekWindowRow` with the weekdays from
+  `common.weekdays` (the reconnect windows take the shared layout, with From/To labels); the
+  queue summary, statistics and system facts share `StatTiles`; the row being edited, a form's
+  error and confirmation notices (now always with their icon), five fetch states, `trimmed`,
+  `isRecord` and `fileName` have one helper each, and fifteen unused exports are gone. A typed
+  subscription, an open automation draft and the proxy form now ask before a leave drops them,
+  as the settings document does. Twenty-nine component tests mount through `mountComponent`.
+- **The download list pages in the database, a bulk removal is one write, a new download shows at
+  once, and the dry run judges the editor's form (RD-1120-17).** `GET /api/v1/downloads` with
+  `limit`/`offset` reads only the page and its count instead of the whole table. Removing many
+  downloads — the bulk action, and MCP, SABnzbd and qBittorrent through it — is one database
+  transaction instead of one per file, with each refusal per id as before. A download added over
+  `POST /api/v1/downloads`, link or magnet, or handed over from the LinkGrabber is announced — one
+  event per enqueue, however many files — so an open list shows it without a reload. `POST
+  /api/v1/automations/dry-run` takes an optional `draft`, judged saved or not, on or off: the editor
+  sends its form, and MCP's `dry_run_automations` takes one too.
+- **Put.io, Put.io transfers, Seedr, Offcloud and Offcloud Cloud name the HTTP status of a refusal
+  (RD-1120-05).** The `status` parameter of their *HTTP status* error was dropped or never filled,
+  so the text ended without the number; Offcloud Cloud names it in its English fallback as well:
+  `offcloud`, `putio`, `putio-transfers` and `seedr` 0.1.12; `offcloud-cloud` 0.1.11.
+- **The plugins' fourth round of copies is written once, and every plugin is raised once for it
+  (RD-1120-10, audit PL-1 … PL-24).** The OAuth sign-ins share one `redirect::Provider` in
+  `plugin-guest-oauth`, the XFS plugins one free flow (`xfs_common::free::FreeFlow`) and the
+  KatFile/ddownload API site, the native tests one `ScriptedHost` behind `rd-plugin-api`'s
+  `test-support`; Offcloud, TorBox and Real-Debrid get a `*-common` crate for their two plugins, the
+  remote jobs their glue in `plugin-guest-remote-job`, the notifiers, enrichers and
+  `rename-postprocess` a guest crate per world, and `plugin-common` the crawler walk, the address
+  readers, the `LinkCheck` constructors, `invalid_url`, `require_account`/`require_secret` and the
+  HTML helpers; `plugin-flexible` is the one lenient JSON number. About 3000 lines fewer in
+  `plugins/`, no file over 500 lines. Codes and messages are unchanged; on purpose changed are: a
+  `429` or `5xx` without `Retry-After` now waits 60 s or 300 s in every debrid and hoster plugin
+  that waited not at all before (AllDebrid, Debrid-Link, LinkSnappy, Keep2Share, Nitroflare,
+  Rapidgator, Real-Debrid's `5xx`, 1fichier's `5xx`; Offcloud keeps 3600 s for its allowance); an
+  answer without `Content-Type` that starts with `<` counts as an HTML page in every hoster flow;
+  `pixeldrain-crawler` and `mediafire-common` read addresses without the `url` crate and refuse what
+  it used to repair (user info, dot segments, backslashes, non-ASCII hosts); every manifest says
+  `min_app_version = "1.9.0"`, the first release that loads `api_version` 0.10.0; and the components
+  no longer carry the build machine's paths (`--remap-path-prefix` for `wasm32` in
+  `scripts/build-plugins.sh`), so two checkouts build the same bytes. `example-stream-transform`
+  0.1.8; `metadata-enricher` 0.1.10; `box-crawler`, `box-oauth`, `directory-index-crawler`,
+  `dropbox-crawler`, `dropbox-oauth`, `google-drive-crawler`, `google-drive-oauth`, `hitfile`,
+  `mediafire`, `mediafire-crawler`, `offcloud-cloud`, `onedrive-crawler`, `onedrive-oauth`,
+  `pcloud-crawler`, `pixeldrain-crawler`, `premiumize-crawler`, `putio-oauth`, `seedr-jobs`,
+  `torbox-auth` and `turbobit` 0.1.11; `box`, `dropbox`, `google-drive`, `krakenfiles`, `mega`,
+  `mega-crawler`, `nextcloud-crawler`, `offcloud`, `onedrive`, `pcloud`, `pcloud-oauth`,
+  `peeplink-crawler`, `putio`, `putio-transfers`, `seedr`, `torbox` and `xfs-generic` 0.1.12;
+  `mega-auth` and `pixeldrain` 0.1.13; `realdebrid-auth` and `realdebrid-torrents` 0.2.8;
+  `premiumize-transfers`, `realdebrid` and `torbox-jobs` 0.2.9; `example-oauth` 0.2.10;
+  `example-transfer` 0.7.8; `alldebrid`, `debridlink`, `keep2share`, `linksnappy`, `nitroflare` and
+  `rapidgator` 0.7.13; `onefichier` 0.7.14; `premiumize` 0.7.15; `filejoker` 0.7.16;
+  `crawljob-intake` and `sponsorblock-enricher` 0.9.10; `alldebrid-auth`, `debridlink-auth`,
+  `discord-notifier`, `premiumize-auth`, `sha256-postprocess` and `webdav-storage` 0.9.11;
+  `md5-postprocess` and `telegram-notifier` 0.9.12; `rename-postprocess` 0.9.13; `katfile` 0.9.15;
+  `ntfy-notifier` 0.10.5; `metalink-intake` 0.10.7; `ddownload` 0.10.20.
+- **Plugin crates are `rlib` only (RD-1120-11, audit PL-25).** A native build no longer links a
+  shared object per plugin that nothing loads (72 of them, 551 MiB in `target/debug/deps`);
+  `scripts/build-plugins.sh` builds the shared plugin libraries in one `cargo build` and then each
+  component with `cargo rustc --crate-type cdylib`, and prints how long it took. The SDK templates
+  keep `cdylib` for authors who build with plain `cargo build`.
+- **Rust crates without their copies (RD-1120-12, audit CR-1 … CR-10).** The download state sets
+  are methods of `DownloadState`; the extension adapters share `PluginSet`/`ClaimedPlugins` in
+  `rd-plugin-ext`; the HTTP surface's optional fields go through `input_checks::optional_text`;
+  audit and log retention are one bounded prune in `rd-db`; a dozen small duplicates (server
+  paths, `literal_address`, the `User-Agent`, the Windows version resource, the JSON-or-upload
+  body) live once. Five unused dependencies and five dead `pub` items are gone, and the crash
+  point table moved into `rd-crash-points`, a crate only tests use, so a new point rebuilds no
+  production crate. No behaviour changes.
+- **The remaining large files and long functions are split (RD-1120-13, audit CR-11–CR-13).**
+  The 25 files over 500 lines only because of their inline tests keep those tests in a
+  `*_tests.rs`; 25 production files over 500 lines — twelve of them in `rd-db`, the largest
+  `subscription_store.rs`, `config_store.rs` and `collector_packages.rs` at 1100–1132 — are split
+  by subject below 500, and the 19 logic functions of 150–239 lines are named steps. Behaviour,
+  interfaces and messages are unchanged.
+- **Faster test runs, no test dropped (RD-1120-08).** The dev profile optimises `argon2`,
+  `blake2`, `sha2`, `pbkdf2`, `hmac` and the bundled SQLite; `rd-db`'s migration fixtures build
+  without a synced journal and the baselines run one test each; `rd-plugin-ext` (34 → 1),
+  `rd-db` (31 → 1, the crash binaries apart) and `rdownloader`'s lints (6 → 1) link one test
+  binary each; the crash matrix's shared run selects only the tests behind `failpoints`, the
+  components job only what `no-components` leaves out; the rd-api test map maps 32 more sources;
+  the captcha solver's poll timing is injectable and four fixed sleeps went; Vitest runs in the
+  VM pool, and three tests got their missing stubs and an existing MCP scope.
+- **One rule for what a check reads, a preflight in the release, a CI waiter that keeps what it
+  saw (RD-1120-06).** Documentation — `docs/`, every `*.md` and now `.github/readme/` — is one
+  predicate (`scripts/lib/inert-paths.sh`) for branch runs, `--defer`, the `--full` record and
+  GitHub's, so a README picture no longer costs a `--full` and three GitHub platforms. A recorded
+  green also covers a tree that differs only in what its half does not read: the generators' web
+  files rerun no `--windows`, a `--full` runs only the uncovered halves and skips the script tests
+  a preflight green covers, and `--preflight` and `--clippy-all` record their greens. The release
+  chain's first step runs `check.sh --preflight`, and after a version bump reuses the clippy and
+  web greens of the tree before it. `public-ci.sh`'s waiter asks for a run by its id once seen and
+  no longer reads an empty answer as "no run appeared"; `integrate.sh --public-ci` starts it beside
+  `--full`. `check.sh`, the package scripts and `e2e.sh --build` refuse a worktree whose own
+  `web/dist` rust-embed would not serve. `rust-toolchain.toml` installs no WASI targets, and the
+  plugin stamp no longer excludes cargo-component's old `bindings.rs`.
+- **GitHub workflows inside the cache budget, Windows tests in one group, release workflows
+  before the tag (RD-1120-07).** Only jobs whose cache a later run reads save one: Recovery,
+  Self-update and Installers read `rust-tests` and E2E on Linux `docker`'s instead of keeping
+  5.3 GB of their own, and the dead `release-*` restores are gone. One action, `rust-tests-cache`, sets
+  the linkers and the cache for every job that reads it. The Windows Rust tests run as one
+  `--workspace` group instead of five serial ones; ci.yml's `jobs` input lets a macOS-only
+  dispatch skip the once-per-run jobs, `components` included; the release builds the web
+  interface once for its five binary legs. The release pipeline's `public-ci` step dispatches
+  E2E, Recovery, Self-update and Installers for the candidate beside ci.yml, and a red one holds
+  the tag. The comments that reasoned with paid minutes are corrected: the repository is public.
+  After every release `channels.yml` upgrades Homebrew, Scoop and now the published apt and dnf
+  repositories from the release before, with the data kept; the Edge Add-ons upload waits through
+  the store's HTTP 202 instead of giving up; the Docker smoke test starts yt-dlp, streamlink and
+  gallery-dl besides apprise; the soak run asks again when a just-finished download cannot be
+  removed yet instead of ending after an hour.
+
+### Fixed
+
+- **A media title with an emoji no longer fails the download on Windows.** yt-dlp wrote its
+  progress and final-path lines in the console code page, and the strict UTF-8 reader failed the
+  whole job with "stream did not contain valid UTF-8" (a Facebook reel whose title had "‼️").
+  yt-dlp, gallery-dl and streamlink are now asked for UTF-8 (`PYTHONIOENCODING`, `PYTHONUTF8`,
+  yt-dlp's `--encoding utf-8`), and a line that still is not UTF-8 is read with the byte replaced
+  instead of ending the run.
+
+- **An update or a restart no longer pauses the running downloads.** The service's own stop
+  cancelled every running file without a reason and wrote it `paused`, which the next start leaves
+  alone — after an update every download that had been running waited for a manual resume. Such a
+  file now keeps its running state and is queued again from its checkpoint at the next start, as
+  after a crash; a pause the user asked for stays a pause (new `rd-scheduler` test
+  `shutdown_keeps_downloads_queued`). Found by the self-update run of the release candidate, once
+  its download really ran into the update.
+- **A page left open across an update no longer keeps the old interface (RD-1120-16).** The web
+  interface knows the version it was built as and compares it with `/api/v1/health` on start and
+  whenever the event stream reconnects; while they differ a toast *New version available — reload*
+  offers the reload, never forcing one. `index.html` and the SPA fallback are served with
+  `Cache-Control: no-cache`, `assets/*` with `public, max-age=31536000, immutable`, and the service
+  worker keeps one shell cache per version, dropping the previous one when it takes over.
+- **A download can be removed right after it completed, and a plugin transfer is bound to its
+  backend version from the start (RD-1120-18).** Removing, resetting or discarding a file whose
+  row already says completed, failed or paused while its worker was still finishing up answered
+  409 `package.files_remove_failed`, `force=true` or not — the nightly soak of 2026-10-06 ended on
+  it; it now waits up to 30 s for the worker to let go, and a running worker is still refused at
+  once. A plugin transfer pins its backend version before the first byte (crash point
+  `plugin_transfer.after_pin_saved`), so a newer build installed meanwhile can no longer continue
+  an older one's file; staging bytes without a pin are discarded, and a pin without bytes or
+  checkpoint whose version is gone begins anew instead of failing. The self-update smoke updates
+  with a download running and checks that it resumes with the source's SHA-256; the soak runs
+  without post-processing, so the runner's 7-Zip below the 25.00 floor no longer logs a refusal
+  per package (the floor is unchanged); `rd-http`'s `tr15_measure` measures TR-15's copy and
+  blocking task per frame, and `rd-postprocess` hands a real 7-Zip (25.00 or later) passwords with
+  a `"` or a trailing `\` through the service's argument path.
+- **25 error codes speak your language, and the test sees codes an enum chooses (RD-1120-05).**
+  The managed-tool, automation, stream-schedule and media-cookie refusals arrived as the service's
+  English text; they now have German, English, Spanish and French texts, and
+  `sourceKeys.test.ts` reads the match arms of every `code()` method so the next such code fails
+  there. Four codes nothing raises are gone, and 28 button keys that only repeated a
+  `common.actions` label use it instead — the German account test button says *Testen*.
+- **Empty states name no direction one layout breaks (RD-1120-03).** The channels' empty state on
+  *Streams* says "with the form" instead of "above" (the form stands beside the list on a wide
+  screen), the installed plugins point at the *Add* tab and a category's name at the *Rules* tab
+  instead of "above"/"below", in all four languages; German addresses the reader with "du".
+
+### Security
+
+- **The torrent kill switch retries what the engine refused (RD-1120-04, audit S1–S3).** While the
+  bound interface is gone, every check pauses each torrent that still carries traffic and logs one
+  that refuses, instead of pausing once and dropping the answer; its release resumes exactly the
+  torrents it paused and retries a refused resume, and a failed session rebuild no longer resumes a
+  torrent the user had stopped. A plugin withdrawal that the running process cannot apply in memory
+  is a warning in the log rather than silent. New tests hold that a notification target or Usenet
+  server refused with 409 leaves no secret behind in the vault, and that an event stream ends when
+  its token runs out.
+- **Three gaps around the sign-in through an identity provider are closed (RD-1120-19).** A
+  password change made with an API token no longer hands that token a browser session (it had
+  bypassed the authenticator app and a switched-off password form); a provider link whose session
+  was signed out, revoked or ended by a password change before the provider answered binds
+  nothing; and while the password form is off, the group condition cannot change either. The
+  security review of ADR 0021 found nothing else; new tests cover API-02, -06, -10, -13 and -14 of
+  the 1.9.1 audit.
+
 ## [1.11.0] - 2026-10-05
 
 ### Added

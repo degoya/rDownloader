@@ -6,7 +6,8 @@ that keeps dropping out, sampled all along and judged against `scripts/soak-budg
     soak.py evaluate --samples samples.csv [--budgets FILE] [--shutdown-seconds S] [--platform P]
     soak.py serve-fixture [--port N] [--rate-mib R] [--outage-every S --outage-for S]
 
-`run` starts the service with a throwaway data directory, signs in, keeps `queue_depth` downloads
+`run` starts the service with a throwaway data directory, signs in, switches post-processing off
+(the fixture's `.bin` files hold nothing to unpack), keeps `queue_depth` downloads
 queued, verifies every completed file against the bytes the fixture served, removes it again, and
 samples the process every `sample_seconds`: resident memory, open files, threads, database size
 with WAL, completed bytes. It writes `samples.csv`, `summary.json` and `server.log` to `--out` and
@@ -50,6 +51,10 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BUDGETS = ROOT / "scripts" / "soak-budgets.toml"
 MIB = 1024 * 1024
 TERMINAL_BAD = {"failed", "cancelled", "blocked"}
+# How long a package whose download the list calls finished may still be refused for removal as
+# active (RD-1120-07): the nightly run of 2026-10-06 (37430754724) stopped after 64 minutes on one
+# such refusal, a 409 `package.files_remove_failed`, while the next look would have removed it.
+REMOVE_GRACE_S = 120
 
 
 class RunError(Exception):
@@ -246,9 +251,17 @@ def drive(api, service, fixture, downloads, database, sizes, duration, sample_ev
         time.sleep(0.5)
     api.expect(200, "POST", "/api/v1/auth/setup", {"password": api.password})
     api.login()
+    # The fixture serves `.bin` files, nothing to unpack: the soak measures the queue, not the
+    # post-processing. At the default level every package still planned its cleanup and asked
+    # the archive tool for its version, and the runner image's 7-Zip 23.01, below the 25.00
+    # floor, put a refusal per package in the log (RD-1120-18). The floor stays as it is.
+    settings = api.expect(200, "GET", "/api/v1/settings")
+    settings["default_level"] = "none"
+    api.expect(200, "PUT", "/api/v1/settings", settings)
     process = Process(service.pid)
 
     ours: dict[str, tuple[int, int]] = {}  # download id -> (seed, size)
+    unremoved: dict[str, tuple[dict, float]] = {}  # download id -> (listing entry, first refusal)
     counts = {"completed": 0, "failed": 0, "corrupt": 0, "bytes": 0, "next": 0}
     started = time.monotonic()
     next_sample = started
@@ -256,6 +269,7 @@ def drive(api, service, fixture, downloads, database, sizes, duration, sample_ev
     while (now := time.monotonic()) - started < duration:
         if service.poll() is not None:
             raise RunError(f"the service exited during the run with {service.returncode}")
+        retry_removals(api, unremoved, downloads, now)
         listing = api.expect(200, "GET", "/api/v1/downloads")
         for file in listing:
             if file["id"] not in ours:
@@ -264,12 +278,14 @@ def drive(api, service, fixture, downloads, database, sizes, duration, sample_ev
             if state == "completed":
                 seed, size = ours.pop(file["id"])
                 verify(file, seed, size, downloads, counts, failures)
-                remove(api, file, downloads)
             elif state in TERMINAL_BAD:
                 ours.pop(file["id"])
                 counts["failed"] += 1
                 failures.append(f"{file['file_name']} ended {state}: {file.get('last_error')}")
-                remove(api, file, downloads)
+            else:
+                continue
+            if not remove(api, file, downloads):
+                unremoved[file["id"]] = (file, now)
         while len(ours) < queue_depth:
             counts["next"] += 1
             seed, size = counts["next"], choose.choice(sizes)
@@ -310,8 +326,13 @@ def verify(file, seed, size, downloads, counts, failures) -> None:
     counts["bytes"] += size
 
 
-def remove(api, file, downloads) -> None:
+def remove(api, file, downloads) -> bool:
+    """Removes the package of a finished download and its file; False while the service still
+    holds the download as active (409 `package.files_remove_failed`), to be asked again."""
     status, answer = api.call("DELETE", f"/api/v1/packages/{file['package_id']}?force=true")
+    held = isinstance(answer, dict) and answer.get("code") == "package.files_remove_failed"
+    if status == 409 and held:
+        return False
     if status != 200:
         raise RunError(f"removing package {file['package_id']} -> {status}: {answer}")
     for path in downloads.rglob(file["file_name"]):
@@ -319,6 +340,18 @@ def remove(api, file, downloads) -> None:
         path.unlink(missing_ok=True)
         if folder != downloads and not any(folder.iterdir()):
             folder.rmdir()
+    return True
+
+
+def retry_removals(api, unremoved, downloads, now) -> None:
+    """Asks again for every removal the service refused; a refusal older than REMOVE_GRACE_S is
+    no race any more and ends the run."""
+    for file_id, (file, since) in list(unremoved.items()):
+        if remove(api, file, downloads):
+            del unremoved[file_id]
+        elif now - since > REMOVE_GRACE_S:
+            raise RunError(f"removing package {file['package_id']}: {file['file_name']} still held"
+                           f" as active {REMOVE_GRACE_S} s after the list called it finished")
 
 
 def stop_service(service: subprocess.Popen) -> float | None:

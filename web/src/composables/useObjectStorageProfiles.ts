@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
+import { trimmed } from '@/utils/values'
 import type {
   CreateObjectStorageProfile,
   ObjectStorageAddressing,
@@ -96,11 +97,6 @@ export function formFor(profile: ObjectStorageProfile): ObjectStorageForm {
     checksums: profile.checksums,
     enabled: profile.enabled
   }
-}
-
-function trimmed(value: string): string | null {
-  const text = value.trim()
-  return text.length > 0 ? text : null
 }
 
 /**

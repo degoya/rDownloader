@@ -16,7 +16,7 @@
 //! Link checks go through `GET /json/<id>`, the metadata endpoint behind the site's embed
 //! player: no token, no captcha, and `[]` for a file that is gone.
 
-use plugin_common::failure::{HttpError, coded};
+use plugin_common::failure::{HttpError, coded, invalid_url};
 use plugin_common::{
     Account, CaptchaChallenge, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse,
     LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved, WidgetChallenge,
@@ -50,10 +50,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     _host: &H,
     _account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    Ok(crate::HOSTERS
-        .iter()
-        .map(|host| (*host).to_owned())
-        .collect())
+    Ok(plugin_common::own_hosters(crate::HOSTERS))
 }
 
 /// This provider takes no account, so there is never one to check.
@@ -98,12 +95,7 @@ pub(crate) async fn check<H: PluginHost>(
     let mut results = Vec::with_capacity(request.urls.len());
     for url in &request.urls {
         let Some(id) = Url::parse(url).ok().as_ref().and_then(page::file_id) else {
-            results.push(LinkCheck {
-                url: url.clone(),
-                status: LinkStatus::Unknown,
-                file_name: None,
-                size: None,
-            });
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         let response = host.http(HttpRequest::get(page::json_url(&id))).await?;
@@ -250,14 +242,8 @@ async fn transfer<H: PluginHost>(
     link: &str,
     page_name: Option<String>,
 ) -> Result<Resolved, Failure> {
-    let url = Url::parse(link).map_err(|error| {
-        Failure::coded(
-            FailureKind::Permanent,
-            messages::INVALID_URL,
-            messages::invalid_url(&error),
-        )
-        .with_param("error", error.to_string())
-    })?;
+    let url = Url::parse(link)
+        .map_err(|error| Failure::from(invalid_url(messages::INVALID_URL, &error)))?;
     let link_host = url.host_str().unwrap_or_default().to_ascii_lowercase();
     if !download_host_allowed(&link_host) {
         return Err(Failure::coded(

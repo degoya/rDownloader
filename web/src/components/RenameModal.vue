@@ -26,7 +26,7 @@ function submit(): void {
 </script>
 
 <template>
-  <UModal :title="title" :description="description" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end' }">
+  <UModal :title="title" :description="description" :close="{ onClick: () => emit('close', null) }">
     <template #body>
       <form id="rename-form" @submit.prevent="submit">
         <UFormField :label="label">

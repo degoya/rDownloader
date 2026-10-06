@@ -4,26 +4,17 @@
 //! same arrangement the post-processing steps use, so its upload step stays testable without
 //! a runtime and the commit-before-delete rule stays in one place: here.
 
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use rd_extract::{StorageUpload, StorageUploader, UploadProgress, UploadReport};
-use rd_plugin_api::ResolverHost;
-use rd_plugin_host::{
-    PluginInstaller, PluginManifest, PluginType, PluginTypeRegistry,
-    extension::{SourceState, StoragePlugin, Upload, UploadOutcome},
-};
+use rd_plugin_host::extension::{SourceState, StoragePlugin, Upload, UploadOutcome};
+
+use crate::PluginSet;
 
 /// The installed upload destinations, newest version of each.
-pub struct StorageDestinations {
-    plugins: HashMap<String, Destination>,
-}
-
-struct Destination {
-    manifest: PluginManifest,
-    plugin: StoragePlugin,
-}
+pub type StorageDestinations = PluginSet<StoragePlugin>;
 
 /// What a destination looks like to whoever is choosing one.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -34,82 +25,28 @@ pub struct UploadDestinationInfo {
 }
 
 impl StorageDestinations {
-    /// Loads every installed upload destination, skipping any that fails to build.
-    pub async fn load(
-        installer: &PluginInstaller,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Result<Self> {
-        Ok(Self::from_registry(
-            &PluginTypeRegistry::load(installer).await?,
-            host,
-        ))
-    }
-
-    /// The same, from a registry the adapters share.
-    ///
-    /// Loading a registry re-verifies and compiles every installed package, so the one `load`
-    /// builds for itself is only worth it for a caller that loads a single adapter. Everything
-    /// started together passes one registry through all of them.
-    #[must_use]
-    pub fn from_registry(
-        registry: &PluginTypeRegistry,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Self {
-        let loaded = registry.instantiate(&PluginType::Storage, |package| {
-            StoragePlugin::new(package.manifest.clone(), &package.component, host.clone()).map(
-                |plugin| Destination {
-                    manifest: package.manifest.clone(),
-                    plugin,
-                },
-            )
-        });
-        let mut plugins = HashMap::new();
-        for destination in loaded {
-            plugins
-                .entry(destination.manifest.id.to_string())
-                .or_insert(destination);
-        }
-        Self { plugins }
-    }
-
-    /// An empty set, for a service running without plugins.
-    #[must_use]
-    pub fn none() -> Self {
-        Self {
-            plugins: HashMap::new(),
-        }
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.plugins.is_empty()
-    }
-
     /// Every installed destination, sorted by name.
     #[must_use]
     pub fn list(&self) -> Vec<UploadDestinationInfo> {
-        let mut destinations: Vec<UploadDestinationInfo> = self
-            .plugins
-            .values()
+        self.by_name()
+            .into_iter()
             .map(|destination| UploadDestinationInfo {
                 plugin_id: destination.manifest.id.to_string(),
                 name: destination.manifest.name.clone(),
                 version: destination.manifest.version.clone(),
             })
-            .collect();
-        destinations.sort_by(|left, right| left.name.cmp(&right.name));
-        destinations
+            .collect()
     }
 }
 
 #[async_trait]
 impl StorageUploader for StorageDestinations {
     fn installed(&self, plugin_id: &str) -> bool {
-        self.plugins.contains_key(plugin_id)
+        self.contains(plugin_id)
     }
 
     async fn upload(&self, plugin_id: &str, upload: StorageUpload<'_>) -> Result<UploadReport> {
-        let Some(destination) = self.plugins.get(plugin_id) else {
+        let Some(destination) = self.get(plugin_id) else {
             anyhow::bail!("no installed upload destination with id {plugin_id}");
         };
         let mut uploaded = Vec::new();

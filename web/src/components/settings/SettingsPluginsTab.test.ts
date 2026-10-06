@@ -147,8 +147,9 @@ function chipRow(): HTMLElement {
   return screen.getByRole('group', { name: pluginsCatalogue.installed.filter_label })
 }
 
+/** Each chip is a radio (RD-1120-14); the chip as seen is the label around it. */
 function chips(): HTMLElement[] {
-  return within(chipRow()).getAllByRole('button')
+  return within(chipRow()).getAllByRole('radio').map(radio => radio.closest('label') as HTMLElement)
 }
 
 /** A chip's visible text is its full group name followed by that group's count. */
@@ -160,6 +161,15 @@ function chipNamed(label: string): HTMLElement {
   const found = chips().find(chip => (chip.textContent ?? '').replace(/\d+$/, '') === label)
   if (!found) throw new Error(`no chip labelled ${label} among ${chipTexts().join(', ')}`)
   return found
+}
+
+/** Whether the chip's radio is the checked one — the state a screen reader announces. */
+function chosen(label: string): boolean {
+  return (chipNamed(label).querySelector('input') as HTMLInputElement).checked
+}
+
+async function choose(label: string): Promise<void> {
+  await fireEvent.click(chipNamed(label).querySelector('input') as HTMLInputElement)
 }
 
 /** Picks a sub-tab the way a user does, by its label (RD-180-15). */
@@ -240,23 +250,24 @@ describe('SettingsPluginsTab group filter', () => {
     // ellipsis the tab bar produced once twelve entries had to share one line.
     expect(chipTexts()).toEqual(ELEVEN_TYPES_AS_CHIPS)
     expect(chipTexts().some(text => text.includes('…'))).toBe(false)
-    // The row wraps instead of dividing one line, which is what keeps the labels whole.
-    expect(chipRow().className).toContain('flex-wrap')
+    // The row wraps instead of dividing one line, which is what keeps the labels whole: Nuxt UI's
+    // card radio group puts `flex-wrap` on its fieldset.
+    expect(chipRow().getAttribute('variant')).toBe('card')
   })
 
-  it('filters the cards to the chosen group and says which chip is pressed', async () => {
+  it('filters the cards to the chosen group and says which chip is chosen', async () => {
     serveInventory(inventoryFor(INSTALLED_TYPES))
 
     mount()
 
     await waitFor(() => expect(cardTitles().length).toBe(12))
-    expect(chipNamed('All').getAttribute('aria-pressed')).toBe('true')
+    expect(chosen('All')).toBe(true)
 
-    await fireEvent.click(chipNamed('Resolver'))
+    await choose('Resolver')
 
     await waitFor(() => expect(cardTitles()).toEqual(['resolver plugin 9', 'resolver plugin 2']))
-    expect(chipNamed('Resolver').getAttribute('aria-pressed')).toBe('true')
-    expect(chipNamed('All').getAttribute('aria-pressed')).toBe('false')
+    expect(chosen('Resolver')).toBe(true)
+    expect(chosen('All')).toBe(false)
   })
 
   it('keeps the selection when the inventory is fetched again and a count moves', async () => {
@@ -266,7 +277,7 @@ describe('SettingsPluginsTab group filter', () => {
     mount()
 
     await waitFor(() => expect(cardTitles().length).toBe(12))
-    await fireEvent.click(chipNamed('Resolver'))
+    await choose('Resolver')
     await waitFor(() => expect(cardTitles().length).toBe(2))
 
     // Removing a plugin replaces both lists with freshly fetched arrays, so every computed above
@@ -280,7 +291,7 @@ describe('SettingsPluginsTab group filter', () => {
     await fireEvent.click(remove as HTMLElement)
 
     await waitFor(() => expect(cardTitles()).toEqual(['resolver plugin 9']))
-    expect(chipNamed('Resolver').getAttribute('aria-pressed')).toBe('true')
+    expect(chosen('Resolver')).toBe(true)
     expect(chipNamed('Resolver').textContent).toBe('Resolver1')
   })
 
@@ -313,9 +324,9 @@ describe('SettingsPluginsTab group filter', () => {
       'Transfer backend1'
     ])
     expect(chipTexts().some(text => text.includes('…'))).toBe(false)
-    expect(chipRow().className).toContain('flex-wrap')
+    expect(chipRow().getAttribute('variant')).toBe('card')
 
-    await fireEvent.click(chipNamed('Telemetry reporting'))
+    await choose('Telemetry reporting')
     await waitFor(() => expect(cardTitles()).toEqual(['telemetry plugin 12']))
   })
 })

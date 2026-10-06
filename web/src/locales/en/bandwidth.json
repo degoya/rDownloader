@@ -7,15 +7,6 @@
     "gallery": "Galleries",
     "record": "Recordings"
   },
-  "days": {
-    "0": "Mon",
-    "1": "Tue",
-    "2": "Wed",
-    "3": "Thu",
-    "4": "Fri",
-    "5": "Sat",
-    "6": "Sun"
-  },
   "source": {
     "manual": "Manual limit",
     "global": "Profile",
@@ -93,8 +84,6 @@
     "default_description": "Profile applied when no window matches.",
     "no_default": "No limits",
     "window_profile": "Profile",
-    "from": "From",
-    "to": "To",
     "priority": "Priority",
     "enabled": "Active",
     "add_window": "Add window",
@@ -102,7 +91,6 @@
     "empty": "No window yet — the default profile applies around the clock.",
     "needs_profile": "Create a profile first.",
     "windows_title": "Time windows",
-    "days_label": "Days",
     "duplicate_hint": "Adds a copy of the window right below it; it is stored with the schedule"
   },
   "manual": {

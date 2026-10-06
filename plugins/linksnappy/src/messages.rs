@@ -176,7 +176,3 @@ pub(crate) fn api_error(message: &str) -> String {
 pub(crate) fn http_error(status: u16) -> String {
     format!("LinkSnappy HTTP status {status}")
 }
-
-pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> String {
-    format!("Invalid provider URL: {error}")
-}

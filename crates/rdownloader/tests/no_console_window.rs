@@ -35,6 +35,8 @@ const OFF_WINDOWS: &[&str] = &[
 
 /// Whole files compiled only off Windows, gated where their module is declared.
 const OFF_WINDOWS_FILES: &[&str] = &[
+    "crates/rd-autostart/src/platform_linux.rs",
+    "crates/rd-autostart/src/platform_macos.rs",
     "crates/rd-power/src/linux.rs",
     "crates/rd-power/src/macos.rs",
 ];

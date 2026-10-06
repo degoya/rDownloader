@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { SUPPORTED_LOCALES, i18n } from '@/i18n'
-import { SETTINGS_SEARCH_ENTRIES, SETTINGS_SEARCH_PAGES, settingsSearchLocation } from '@/settingsSearch'
+import { MOVED_SETTINGS_ANCHORS, SETTINGS_SEARCH_ENTRIES, SETTINGS_SEARCH_PAGES, settingsSearchEntry, settingsSearchLocation } from '@/settingsSearch'
 import { SETTINGS_SECTIONS, SETTINGS_SUB_TABS, settingsSubTab, settingsSubTabs } from '@/settingsSections'
 import { loadEveryLocale } from '@/test/locales'
 
@@ -109,13 +109,40 @@ describe('the settings search registry (RD-170-15)', () => {
 
   it('leads to the page and, on a page with sub-tabs, to the tab', () => {
     expect(settingsSearchLocation({ section: 'backup' })).toEqual({ path: '/settings/backup' })
-    expect(settingsSearchLocation({ section: 'routing', tab: 'collector' }))
-      .toEqual({ path: '/settings/routing', query: { tab: 'collector' } })
-    expect(settingsSubTab('routing', 'collector')).toBe('collector')
+    expect(settingsSearchLocation({ section: 'routing', tab: 'rules' }))
+      .toEqual({ path: '/settings/routing', query: { tab: 'rules' } })
+    expect(settingsSubTab('routing', 'rules')).toBe('rules')
     expect(settingsSubTab('routing', 'nonsense')).toBeNull()
-    expect(settingsSubTab('routing', ['collector'])).toBeNull()
+    expect(settingsSubTab('routing', ['rules'])).toBeNull()
     // A tab of another page is not a tab of this one.
-    expect(settingsSubTab('plugins', 'collector')).toBeNull()
+    expect(settingsSubTab('plugins', 'rules')).toBeNull()
+  })
+
+  // RD-1120-21: five groups left General; an old anchor still leads to its field.
+  it('leads every moved anchor to its field at the new place, and keeps the old id off the templates', () => {
+    const anchors = anchorsInSources()
+    for (const [old, current] of Object.entries(MOVED_SETTINGS_ANCHORS)) {
+      expect(settingsSearchEntry(old)?.id, old).toBe(current)
+      expect(anchors, old).not.toContain(old)
+      expect(anchors.filter(anchor => anchor === current), current).toHaveLength(1)
+      expect(SETTINGS_SEARCH_ENTRIES.some(entry => entry.id === old), old).toBe(false)
+    }
+    expect(settingsSearchEntry('general.retries')?.id).toBe('general.retries')
+    expect(settingsSearchEntry('general.nonsense')).toBeNull()
+  })
+
+  it('opens the fields that left General on their new page and tab', () => {
+    const location = (id: string) => {
+      const entry = settingsSearchEntry(id)
+      return entry ? settingsSearchLocation(entry) : null
+    }
+    expect(location('general.admin_login')).toEqual({ path: '/settings/security', query: { tab: 'signin' } })
+    expect(location('general.ui_port')).toEqual({ path: '/settings/security', query: { tab: 'proxy' } })
+    expect(location('general.minimum_free')).toEqual({ path: '/settings/routing', query: { tab: 'roots' } })
+    expect(location('general.collision')).toEqual({ path: '/settings/routing', query: { tab: 'roots' } })
+    expect(location('general.speed_limit')).toEqual({ path: '/settings/bandwidth', query: { tab: 'status' } })
+    expect(location('usenet.nntp_connections')).toEqual({ path: '/settings/usenet', query: { tab: 'servers' } })
+    expect(location('bandwidth.upload_limit')).toEqual({ path: '/settings/bandwidth', query: { tab: 'status' } })
   })
 
   it('opens the cards that moved into a sub-tab on that tab', () => {
@@ -129,5 +156,24 @@ describe('the settings search registry (RD-170-15)', () => {
     expect(location('security.allowed_hosts')).toEqual({ path: '/settings/security', query: { tab: 'proxy' } })
     expect(location('network.reconnect')).toEqual({ path: '/settings/network', query: { tab: 'reconnect' } })
     expect(location('system.audit')).toEqual({ path: '/settings/system', query: { tab: 'retention' } })
+  })
+
+  // RD-1120-23: the cards that changed page, by their old anchor.
+  it('opens the cards that moved by topic on their new page and tab', () => {
+    const location = (id: string) => {
+      const entry = settingsSearchEntry(id)
+      return entry ? settingsSearchLocation(entry) : null
+    }
+    expect(location('routing.collector')).toEqual({ path: '/settings/linkgrabber' })
+    expect(location('routing.dlc')).toEqual({ path: '/settings/linkgrabber' })
+    expect(location('general.mirrors')).toEqual({ path: '/settings/linkgrabber' })
+    expect(location('routing.indexer_images')).toEqual({ path: '/settings/interface' })
+    expect(location('routing.nzb_hand_over')).toEqual({ path: '/settings/interface' })
+    expect(location('network.auth_profiles')).toEqual({ path: '/settings/accounts', query: { tab: 'logins' } })
+    expect(location('desktop.pairing')).toEqual({ path: '/settings/clients', query: { tab: 'desktop' } })
+    expect(location('mcp.access')).toEqual({ path: '/settings/clients', query: { tab: 'api' } })
+    expect(location('clients.browser')).toEqual({ path: '/settings/clients', query: { tab: 'browser' } })
+    expect(location('system.import_history')).toEqual({ path: '/settings/system', query: { tab: 'retention' } })
+    expect(location('usenet.indexers')).toEqual({ path: '/settings/usenet', query: { tab: 'indexers' } })
   })
 })

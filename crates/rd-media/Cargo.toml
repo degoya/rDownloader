@@ -16,7 +16,6 @@ rd-files = { path = "../rd-files" }
 # The one cookie scope rule, `CookieScope::admit` (RD-120-52). Already in the graph through
 # rd-scheduler, so this adds no crate and no cycle.
 rd-http = { path = "../rd-http" }
-rd-limits = { path = "../rd-limits" }
 rd-scheduler = { path = "../rd-scheduler" }
 rd-tools = { path = "../rd-tools" }
 rd-secrets = { path = "../rd-secrets" }
@@ -33,3 +32,4 @@ url.workspace = true
 workspace = true
 
 [dev-dependencies]
+rd-limits = { path = "../rd-limits" }

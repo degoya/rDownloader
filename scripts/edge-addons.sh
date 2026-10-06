@@ -57,16 +57,22 @@ operation_id() {
 
 # Waits for operation $2 under URL $1, in this shell so that a refusal can end the script; leaves
 # its last answer in $work/operation.json and its final status (Succeeded, Failed) in $state,
-# empty when it was still going after the wait.
+# empty when it was still going after the wait. HTTP 202 is an operation the store has accepted
+# and not finished, with no body to read: the v1.11.0 release took it for a refusal (run
+# 37381495818, "the operation query answered HTTP 202") and stopped a second after the upload.
 wait_for() {
     local url="$1/$2" tries=0 status
     while :; do
         status="$(api GET "$url" "$work/operation.json")"
-        [[ "$status" == "200" ]] \
-            || skip "the operation query answered HTTP ${status}: $(store_error "$work/operation.json")"
-        state="$(json_field "$work/operation.json" status)"
-        # The store's "unexpected failure" answer carries a message and no status.
-        [[ "$state" == "InProgress" ]] || { state="${state:-Failed}"; return 0; }
+        case "$status" in
+            200)
+                state="$(json_field "$work/operation.json" status)"
+                # The store's "unexpected failure" answer carries a message and no status.
+                [[ "$state" == "InProgress" ]] || { state="${state:-Failed}"; return 0; }
+                ;;
+            202) ;;
+            *) skip "the operation query answered HTTP ${status}: $(store_error "$work/operation.json")" ;;
+        esac
         tries=$((tries + 1))
         if [[ "$tries" -ge "$EDGE_POLL_TRIES" ]]; then
             state=""

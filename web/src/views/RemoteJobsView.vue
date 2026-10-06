@@ -16,6 +16,7 @@ import type { Account } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsRemoteJobsCard from '@/components/settings/SettingsRemoteJobsCard.vue'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 const { t } = useI18n()
 const accounts = ref<Account[]>([])
@@ -53,8 +54,7 @@ onMounted(async () => {
             level="page"
           />
         </header>
-        <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
-        <UAlert v-if="message" color="success" variant="subtle" icon="i-lucide-circle-check" :description="message" />
+        <FormFeedback :error="error" :message="message" />
         <SettingsRemoteJobsCard
           :accounts="accounts"
           :accounts-loading="accountsLoading"

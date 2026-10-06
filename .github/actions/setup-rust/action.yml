@@ -2,8 +2,8 @@ name: Set up Rust
 description: >
   The workspace's Rust toolchain, 1.99.0, with the components and targets a job asks for, and
   RUSTUP_TOOLCHAIN for every later step of the job (RD-191-09: the version stood in 16 setup
-  steps and 12 env blocks). rust-toolchain.toml names `stable`, which outranks the installed
-  toolchain; RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its
+  steps and 12 env blocks). rust-toolchain.toml pins 1.99.0 as well, and a toolchain file outranks
+  the installed default; RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its
   own day (1.99's deprecation of fetch_update, 2026-10-01). The version moves here, in
   docs/development.md and in the component cache keys of ci-components.yml and
   release-plugins.yml together.

@@ -13,7 +13,6 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { api } from '@/api/client'
 import { i18n } from '@/i18n'
 import commonCatalogue from '@/locales/en/common.json'
-import routingCatalogue from '@/locales/en/routing.json'
 import settingsCatalogue from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { loadEveryLocale } from '@/test/locales'
@@ -129,16 +128,42 @@ describe('saving before the settings document has loaded', () => {
 
   it('locks only the sub-tab bound to the document, and leaves the way back to the others', async () => {
     vi.mocked(api.GET).mockImplementation((async () => failed) as never)
-    await mountSection('routing?tab=collector')
+    await mountSection('security?tab=sessions')
 
     await waitFor(() => expect(button(commonCatalogue.actions.retry)).not.toBeNull())
     const state = screen.getByTestId('settings-document-state')
     expect(document.querySelector('[data-tour="settings-tabs"]')).toBeNull()
     expect(button(settingsCatalogue.save)).toBeNull()
 
-    await fireEvent.click(within(state).getByRole('tab', { name: routingCatalogue.tabs.categories }))
+    await fireEvent.click(within(state).getByRole('tab', { name: settingsCatalogue.subtabs.security.signin }))
     await waitFor(() => expect(document.querySelector('[data-tour="settings-tabs"]')).not.toBeNull())
     expect(screen.queryByTestId('settings-document-state')).toBeNull()
+  })
+
+  /**
+   * RD-1120-21: the tabs that took a card of the document from General save their other cards
+   * themselves, so they stay usable; only the moved card waits, with its own retry.
+   */
+  it.each(['usenet', 'routing', 'security', 'bandwidth'])('keeps %s usable and lets only the moved card wait', async (section) => {
+    vi.mocked(api.GET).mockImplementation((async () => failed) as never)
+    await mountSection(section)
+
+    await waitFor(() => expect(screen.getByTestId('settings-document-card-state')).toBeTruthy())
+    expect(document.querySelector('[data-tour="settings-tabs"]')).not.toBeNull()
+    expect(screen.queryByTestId('settings-document-state')).toBeNull()
+    expect(button(settingsCatalogue.save)).toBeNull()
+    expect(within(screen.getByTestId('settings-document-card-state')).getByRole('button', { name: commonCatalogue.actions.retry })).toBeTruthy()
+  })
+
+  it('shows the moved card and the save bar once the document has loaded', async () => {
+    vi.mocked(api.GET).mockImplementation((async (path: string) => path === '/api/v1/settings'
+      ? { data: structuredClone(stored) }
+      : failed) as never)
+    await mountSection('usenet')
+
+    await waitFor(() => expect(button(settingsCatalogue.save)).not.toBeNull())
+    expect(screen.queryByTestId('settings-document-card-state')).toBeNull()
+    expect(document.querySelector('[data-settings-anchor="usenet.nntp_connections"]')).not.toBeNull()
   })
 
   it('still locks a sub-tab that shows the document without editing it', async () => {

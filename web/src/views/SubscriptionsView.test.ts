@@ -876,7 +876,7 @@ describe('SubscriptionsView row', () => {
   it('moves edit, duplicate and delete under the dots with their labels intact', async () => {
     mount()
     const labels = menuItems(await rowOf('My Indexer'))
-    for (const label of ['Edit', subscriptions.actions.duplicate, 'Delete']) {
+    for (const label of ['Edit', common.actions.duplicate, 'Delete']) {
       expect(labels).toContain(label)
     }
   })
@@ -886,7 +886,7 @@ describe('SubscriptionsView row', () => {
     post.mockResolvedValue({ data: { id: 'copy' } })
     mount()
     const row = await rowOf('My Indexer')
-    await fireEvent.click(within(row).getByText(subscriptions.actions.duplicate))
+    await fireEvent.click(within(row).getByText(common.actions.duplicate))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/subscriptions', expect.anything()))
     const body = post.mock.calls.find(call => call[0] === '/api/v1/subscriptions')?.[1]?.body
     expect(body.name).toBe(`My Indexer (${common.copy_suffix})`)
@@ -920,7 +920,7 @@ describe('SubscriptionsView row', () => {
       Promise.resolve({ data: path === '/api/v1/subscriptions' ? [configured, second] : [] }))
     mount()
     const row = await rowOf('My Indexer')
-    await fireEvent.click(within(row).getByText(subscriptions.actions.duplicate))
+    await fireEvent.click(within(row).getByText(common.actions.duplicate))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/subscriptions', expect.anything()))
     const body = post.mock.calls.find(call => call[0] === '/api/v1/subscriptions')?.[1]?.body
     for (const [key, value] of Object.entries(configured)) {
@@ -939,7 +939,7 @@ describe('SubscriptionsView row', () => {
       Promise.resolve({ data: path === '/api/v1/subscriptions' ? (created ? [first, second, copy] : [first, second]) : [] }))
     mount()
     const row = await rowOf('My Indexer')
-    await fireEvent.click(within(row).getByText(subscriptions.actions.duplicate))
+    await fireEvent.click(within(row).getByText(common.actions.duplicate))
 
     await waitFor(() => expect(screen.getByDisplayValue(copy.name)).toBeTruthy())
     expect(screen.getByRole('heading', { name: subscriptions.form.edit })).toBeTruthy()

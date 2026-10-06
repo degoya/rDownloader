@@ -26,6 +26,7 @@ import { subscribeEvents } from '@/composables/useEventStream'
 import { useFetchState } from '@/composables/useFetchState'
 import { useRangeSelection } from '@/composables/useRangeSelection'
 import { translateServerMessage } from '@/i18n/server'
+import { useCollectorStore } from '@/stores/collector'
 import { formatBytes, formatMoment } from '@/utils/format'
 
 const props = defineProps<{ accounts: Account[], accountsLoading?: boolean }>()
@@ -33,6 +34,7 @@ const emit = defineEmits<{ message: [string], error: [string] }>()
 
 const { t } = useI18n()
 const confirm = useConfirm()
+const collector = useCollectorStore()
 const { loading, loadError, load } = useFetchState()
 
 const jobs = ref<RemoteJob[]>([])
@@ -56,6 +58,45 @@ function accountLabel(job: RemoteJob): string {
   return props.accounts.find(account => account.id === job.account_id)?.label
     ?? t('remote_jobs.account_unknown')
 }
+
+/**
+ * What the row is called (RD-1120-02): the name it was handed in under -- a file's name, a
+ * magnet's `dn`, an address's last path segment -- and only without one the content key.
+ */
+function jobTitle(job: RemoteJob): string {
+  return job.source_name || job.content_key
+}
+
+type JobKind = 'torrent' | 'nzb' | 'magnet' | 'link' | 'container'
+
+/** The kind as a word. A container is told apart by its name; one that came without a name stays a file. */
+function jobKind(job: RemoteJob): JobKind {
+  if (job.source_kind === 'magnet') return 'magnet'
+  if (job.source_kind === 'address') return 'link'
+  const name = job.source_name?.toLowerCase() ?? ''
+  if (name.endsWith('.torrent')) return 'torrent'
+  if (name.endsWith('.nzb')) return 'nzb'
+  return 'container'
+}
+
+/**
+ * Where the job's package is. While it waits in the LinkGrabber the link opens it there; once it
+ * has left -- enqueued, its id is the queue's own from then on -- the link goes to the download list.
+ */
+function packageLink(job: RemoteJob): { to: string, label: string } | null {
+  if (!job.package_id) return null
+  const found = collector.packages.find(item => item.id === job.package_id)
+  if (found) {
+    return {
+      to: `/linkgrabber?package=${encodeURIComponent(found.id)}`,
+      label: t('remote_jobs.package.linkgrabber', { name: found.name })
+    }
+  }
+  // Until the LinkGrabber has been read once, "not there" is not known yet.
+  return collector.loading ? null : { to: '/downloads', label: t('remote_jobs.package.downloads') }
+}
+
+const packageLinks = computed(() => new Map(jobs.value.map(job => [job.id, packageLink(job)])))
 
 /** The provider's own word for what happened, or nothing. An absent code prints no placeholder. */
 function jobMessage(job: RemoteJob): string | null {
@@ -218,12 +259,15 @@ onUnmounted(() => releaseEvents?.())
         <div class="flex flex-wrap items-center gap-3">
           <UAvatar icon="i-lucide-cloud-cog" color="primary" />
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-highlighted">{{ accountLabel(job) }}</p>
-            <p class="truncate font-mono text-[11px] text-muted">{{ job.content_key }}</p>
+            <p class="truncate text-sm font-medium text-highlighted" :class="job.source_name ? '' : 'font-mono'" :title="jobTitle(job)">{{ jobTitle(job) }}</p>
+            <p class="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <UBadge color="neutral" variant="outline" size="sm">{{ t(`remote_jobs.kind.${jobKind(job)}`) }}</UBadge>
+              <span>{{ accountLabel(job) }}</span>
+            </p>
           </div>
           <UBadge :color="STATE_COLORS[job.state]" variant="subtle">{{ t(`remote_jobs.states.${job.state}`) }}</UBadge>
           <span v-if="percent(job)" class="font-mono text-xs tabular-nums text-muted">{{ percent(job) }}</span>
-          <span class="font-mono text-[11px] text-muted">{{ formatMoment(job.updated_at) }}</span>
+          <span class="font-mono text-2xs text-muted">{{ formatMoment(job.updated_at) }}</span>
           <!--
             Bound to the job's own state as well as to the open row: the sweep, or a second tab,
             can answer the question while this panel is open, and a panel offering entries for a
@@ -247,7 +291,7 @@ onUnmounted(() => releaseEvents?.())
               :label="t('remote_jobs.choice.toggle')"
             />
             <template #content>
-              <UAlert color="warning" variant="subtle" :title="t('remote_jobs.choice.title')">
+              <UAlert color="warning" :title="t('remote_jobs.choice.title')">
                 <template #description>
                   <p class="max-w-prose text-xs leading-5 text-muted">{{ t('remote_jobs.choice.description') }}</p>
                   <div class="mt-2 max-h-64 space-y-1 overflow-y-auto" @click.capture="entryRange.noteModifier" @keydown.capture="entryRange.noteModifier">
@@ -257,7 +301,7 @@ onUnmounted(() => releaseEvents?.())
                         :label="entry.path"
                         @update:model-value="(on: boolean) => togglePicked(entry.id, on)"
                       />
-                      <span class="font-mono text-[11px] text-muted">{{ entrySize(entry.size) }}</span>
+                      <span class="font-mono text-2xs text-muted">{{ entrySize(entry.size) }}</span>
                       <UBadge v-if="entry.selected" color="neutral" variant="outline" size="sm">{{ t('remote_jobs.choice.preselected') }}</UBadge>
                     </div>
                   </div>
@@ -296,23 +340,36 @@ onUnmounted(() => releaseEvents?.())
           />
         </div>
 
-        <dl class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-muted">
+        <dl class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-2xs text-muted">
           <div v-if="job.remote_id" class="flex gap-2">
             <dt>{{ t('remote_jobs.remote_id') }}</dt>
             <dd class="font-mono text-highlighted">{{ job.remote_id }}</dd>
+          </div>
+          <div v-if="job.source_name" class="flex min-w-0 gap-2">
+            <dt>{{ t('remote_jobs.content_key') }}</dt>
+            <dd class="select-all break-all font-mono">{{ job.content_key }}</dd>
           </div>
           <div class="flex gap-2">
             <dt>{{ t('remote_jobs.started') }}</dt>
             <dd class="font-mono">{{ formatMoment(job.created_at) }}</dd>
           </div>
         </dl>
+        <ULink
+          v-if="packageLinks.get(job.id)"
+          :to="packageLinks.get(job.id)?.to"
+          class="mt-1 inline-flex items-center gap-1 text-xs text-primary"
+          data-testid="remote-job-package"
+        >
+          <UIcon name="i-lucide-package" class="size-3.5" />
+          {{ packageLinks.get(job.id)?.label }}
+        </ULink>
         <p v-if="jobMessage(job)" class="mt-1 text-xs leading-5" :class="job.state === 'failed' ? 'text-error' : 'text-muted'">
           {{ jobMessage(job) }}
         </p>
 
       </div>
       <DataState :loading="loading" :error="loadError" :empty="!jobs.length" variant="inline">
-        <p class="p-5 text-center text-sm text-muted">{{ t('remote_jobs.empty') }}</p>
+        <UEmpty :description="t('remote_jobs.empty')" />
       </DataState>
     </div>
   </UCard>

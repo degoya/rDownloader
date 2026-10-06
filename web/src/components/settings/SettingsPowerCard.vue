@@ -5,15 +5,14 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { PowerStatus, Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import WeekWindowRow from '@/components/WeekWindowRow.vue'
 import { WHOLE } from '@/utils/numberInput'
+import { EVERY_DAY, type WeekWindow } from '@/utils/weekWindows'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
 const status = ref<PowerStatus | null>(null)
-
-/** Monday-first, matching the backend's bitmask. */
-const DAYS = [0, 1, 2, 3, 4, 5, 6]
-const dayItems = computed(() => DAYS.map(day => ({ value: day, label: t(`bandwidth.days.${day}`) })))
 
 const actions = computed(() =>
   (['none', 'script', 'standby', 'shutdown'] as const).map(value => ({
@@ -30,49 +29,23 @@ const destructive = computed(() =>
 )
 
 /** The window list is edited in place; the settings document is saved by the tab. */
+function setWindows(windows: WeekWindow[], enabled = settings.value.quiet_hours?.enabled ?? false): void {
+  settings.value.quiet_hours = { enabled, windows }
+}
+
 function addWindow(): void {
-  settings.value.quiet_hours = {
-    enabled: settings.value.quiet_hours?.enabled ?? true,
-    windows: [
-      ...(settings.value.quiet_hours?.windows ?? []),
-      { days: 0b0111_1111, start_minute: 23 * 60, end_minute: 7 * 60 }
-    ]
-  }
+  setWindows(
+    [...(settings.value.quiet_hours?.windows ?? []), { days: EVERY_DAY, start_minute: 23 * 60, end_minute: 7 * 60 }],
+    settings.value.quiet_hours?.enabled ?? true
+  )
 }
 
 function removeWindow(index: number): void {
-  settings.value.quiet_hours = {
-    enabled: settings.value.quiet_hours?.enabled ?? false,
-    windows: (settings.value.quiet_hours?.windows ?? []).filter((_, position) => position !== index)
-  }
+  setWindows((settings.value.quiet_hours?.windows ?? []).filter((_, position) => position !== index))
 }
 
-/** The window's bitmask as the list of days a checkbox group holds. */
-function daysOf(mask: number): number[] {
-  return DAYS.filter(day => (mask & (1 << day)) !== 0)
-}
-
-function setDays(index: number, days: number[]): void {
-  const windows = [...(settings.value.quiet_hours?.windows ?? [])]
-  const window = windows[index]
-  if (!window) return
-  windows[index] = { ...window, days: days.reduce((mask, day) => mask | (1 << day), 0) }
-  settings.value.quiet_hours = { enabled: settings.value.quiet_hours?.enabled ?? false, windows }
-}
-
-function timeOf(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  return `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
-}
-
-function setTime(index: number, key: 'start_minute' | 'end_minute', value: string): void {
-  const [hours, minutes] = value.split(':').map(Number)
-  const total = Math.min(Math.max((hours ?? 0) * 60 + (minutes ?? 0), 0), 1440)
-  const windows = [...(settings.value.quiet_hours?.windows ?? [])]
-  const window = windows[index]
-  if (!window) return
-  windows[index] = { ...window, [key]: total }
-  settings.value.quiet_hours = { enabled: settings.value.quiet_hours?.enabled ?? false, windows }
+function setWindow(index: number, window: WeekWindow): void {
+  setWindows((settings.value.quiet_hours?.windows ?? []).map((entry, position) => (position === index ? window : entry)))
 }
 
 onMounted(async () => {
@@ -92,28 +65,16 @@ onMounted(async () => {
         @update:model-value="settings.quiet_hours = { enabled: Boolean($event), windows: settings.quiet_hours?.windows ?? [] }"
       />
     </UFormField>
+    <SettingsCrossLink class="mt-2" anchor="bandwidth.schedule" />
 
     <div v-if="settings.quiet_hours?.enabled" class="mt-3 space-y-3">
-      <div v-for="(window, index) in settings.quiet_hours.windows" :key="index" class="border border-muted p-3">
-        <div class="flex flex-wrap items-end gap-2">
-          <UFormField :label="t('power.quiet.from')">
-            <UInput :model-value="timeOf(window.start_minute)" type="time" class="w-28" @update:model-value="setTime(index, 'start_minute', String($event))" />
-          </UFormField>
-          <UFormField :label="t('power.quiet.to')">
-            <UInput :model-value="timeOf(window.end_minute)" type="time" class="w-28" @update:model-value="setTime(index, 'end_minute', String($event))" />
-          </UFormField>
-          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="removeWindow(index)" />
-        </div>
-        <UCheckboxGroup
-          class="mt-2"
-          :model-value="daysOf(window.days)"
-          :items="dayItems"
-          :legend="t('bandwidth.schedule.days_label')"
-          orientation="horizontal"
-          size="sm"
-          @update:model-value="(days: number[]) => setDays(index, days)"
-        />
-      </div>
+      <WeekWindowRow
+        v-for="(window, index) in settings.quiet_hours.windows"
+        :key="index"
+        :model-value="window"
+        @update:model-value="setWindow(index, $event)"
+        @remove="removeWindow(index)"
+      />
       <UButton type="button" color="neutral" variant="outline" size="xs" icon="i-lucide-plus" :label="t('power.quiet.add')" @click="addWindow" />
       <div class="grid gap-3">
         <UFormField :label="t('power.quiet.defer_postprocess')" orientation="horizontal">
@@ -122,6 +83,7 @@ onMounted(async () => {
         <UFormField :label="t('power.quiet.defer_notifications')" orientation="horizontal">
           <USwitch v-model="settings.quiet_hours_defer_notifications" />
         </UFormField>
+        <SettingsCrossLink class="-mt-2" anchor="notifications.rules" />
       </div>
     </div>
 
@@ -160,6 +122,7 @@ onMounted(async () => {
       >
         <USwitch v-model="settings.pause_on_metered" :disabled="status?.capabilities.metered === false" />
       </UFormField>
+      <SettingsCrossLink class="-mt-2" anchor="bandwidth.monthly" />
       <UFormField
         data-settings-anchor="unattended.prevent_standby"
         :label="t('power.context.prevent_standby_label')"

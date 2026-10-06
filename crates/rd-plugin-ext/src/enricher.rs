@@ -5,15 +5,11 @@
 //! resolved itself is dropped and counted, so a plugin cannot rewrite a file name, a size or
 //! a provider by returning a field that happens to be called one of those.
 
-use std::{collections::HashSet, sync::Arc};
-
-use anyhow::Result;
 use chrono::Utc;
 use rd_core::EnrichmentField;
-use rd_plugin_api::ResolverHost;
-use rd_plugin_host::{
-    PluginInstaller, PluginManifest, PluginType, PluginTypeRegistry, extension::MetadataEnricher,
-};
+use rd_plugin_host::{PluginManifest, extension::MetadataEnricher};
+
+use crate::PluginSet;
 
 /// Field names the core owns. An enricher offering one of these is offering to replace
 /// something the application already knows, which is not what this plugin type is for.
@@ -40,71 +36,10 @@ const MAX_FIELDS: usize = 32;
 /// Longest value kept, so one field cannot fill the candidate list.
 const MAX_VALUE: usize = 512;
 
-/// The installed metadata enrichers.
-pub struct MetadataEnrichers {
-    plugins: Vec<Enricher>,
-}
-
-struct Enricher {
-    manifest: PluginManifest,
-    /// Domain patterns from `[extension] claims`; empty means every link.
-    claims: Vec<String>,
-    plugin: MetadataEnricher,
-}
+/// The installed metadata enrichers, newest version of each.
+pub type MetadataEnrichers = PluginSet<MetadataEnricher>;
 
 impl MetadataEnrichers {
-    /// Loads every installed enricher, skipping any that fails to build.
-    pub async fn load(
-        installer: &PluginInstaller,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Result<Self> {
-        Ok(Self::from_registry(
-            &PluginTypeRegistry::load(installer).await?,
-            host,
-        ))
-    }
-
-    /// The same, from a registry the adapters share.
-    ///
-    /// Loading a registry re-verifies and compiles every installed package, so the one `load`
-    /// builds for itself is only worth it for a caller that loads a single adapter. Everything
-    /// started together passes one registry through all of them.
-    #[must_use]
-    pub fn from_registry(
-        registry: &PluginTypeRegistry,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Self {
-        let mut plugins = registry.instantiate(&PluginType::Enricher, |package| {
-            MetadataEnricher::new(package.manifest.clone(), &package.component, host.clone()).map(
-                |plugin| Enricher {
-                    claims: package
-                        .manifest
-                        .extension
-                        .as_ref()
-                        .map(|extension| extension.claims.clone())
-                        .unwrap_or_default(),
-                    manifest: package.manifest.clone(),
-                    plugin,
-                },
-            )
-        });
-        keep_newest_version(&mut plugins);
-        Self { plugins }
-    }
-
-    /// An empty set, for a service running without plugins.
-    #[must_use]
-    pub fn none() -> Self {
-        Self {
-            plugins: Vec::new(),
-        }
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.plugins.is_empty()
-    }
-
     /// Asks every enricher that claims this link for additional fields.
     ///
     /// Failures are logged and dropped: an enricher that errors must not turn a link the
@@ -116,8 +51,8 @@ impl MetadataEnrichers {
         known: Option<&str>,
     ) -> Vec<EnrichmentField> {
         let mut collected = Vec::new();
-        for enricher in &self.plugins {
-            if !claims(&enricher.claims, url) {
+        for enricher in self.iter() {
+            if !claims(claimed_domains(&enricher.manifest), url) {
                 continue;
             }
             let plugin_id = enricher.manifest.id.to_string();
@@ -158,15 +93,13 @@ impl MetadataEnrichers {
     }
 }
 
-/// Drops every installed version of an enricher but the newest.
-///
-/// `load_verified` hands out one package per installed *version*, newest first, so a machine
-/// that still has 1.2.3 next to 1.2.4 of one enricher asked both: the same link came back with
-/// every field twice, each carrying the same `plugin_id`. The first entry for an id wins, which
-/// is the highest SemVer, and the copies behind it are left unused on disk.
-fn keep_newest_version(plugins: &mut Vec<Enricher>) {
-    let mut seen = HashSet::new();
-    plugins.retain(|enricher| seen.insert(enricher.manifest.id.to_string()));
+/// Domain patterns from `[extension] claims`; empty means every link.
+fn claimed_domains(manifest: &PluginManifest) -> &[String] {
+    manifest
+        .extension
+        .as_ref()
+        .map(|extension| extension.claims.as_slice())
+        .unwrap_or_default()
 }
 
 /// Whether a field a plugin offered may be added.

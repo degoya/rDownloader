@@ -82,19 +82,6 @@ pub fn number_field(body: &str, name: &str) -> Option<u64> {
     rest[..end].parse().ok()
 }
 
-/// The boolean value of a JSON field.
-#[must_use]
-pub fn bool_field(body: &str, name: &str) -> Option<bool> {
-    let rest = value_after(body, name)?;
-    if rest.starts_with("true") {
-        Some(true)
-    } else if rest.starts_with("false") {
-        Some(false)
-    } else {
-        None
-    }
-}
-
 /// The text just after `"name":`, with the separating whitespace skipped.
 ///
 /// The first occurrence of the name *as a key* wins: a `"name"` that is not followed by a
@@ -114,7 +101,7 @@ fn value_after<'a>(body: &'a str, name: &str) -> Option<&'a str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{bool_field, number_field, string_field};
+    use super::{number_field, string_field};
 
     #[test]
     fn json_fields_are_read_without_a_parser() {
@@ -195,12 +182,5 @@ mod tests {
     fn a_name_inside_a_value_is_not_the_key() {
         let body = r#"{"note":"token","token":"t1"}"#;
         assert_eq!(string_field(body, "token").as_deref(), Some("t1"));
-    }
-
-    #[test]
-    fn booleans_are_read() {
-        assert_eq!(bool_field(r#"{"ok": true}"#, "ok"), Some(true));
-        assert_eq!(bool_field(r#"{"ok":false}"#, "ok"), Some(false));
-        assert_eq!(bool_field(r#"{"ok":"true"}"#, "ok"), None);
     }
 }

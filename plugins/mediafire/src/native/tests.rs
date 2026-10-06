@@ -2,16 +2,12 @@
 //! promises, and the account-less contract. The resolve and check flows are in the sibling
 //! files, on the same `MockHost`.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure};
+use rd_core::AccountId;
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
-    ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver,
-    ResolverHost,
+    ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
 };
 use url::Url;
 
@@ -44,70 +40,6 @@ pub(crate) const PAGE_URL: &str = "https://www.mediafire.com/file/ipnyzofjcwri35
 pub(crate) const API_URL: &str = "https://www.mediafire.com/api/1.5/file/get_info.php";
 pub(crate) const DIRECT_URL: &str =
     "https://download2269.mediafire.com/redacted-token/ipnyzofjcwri357/test-10mb.bin";
-
-pub(crate) struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    pub(crate) requests: Mutex<Vec<HostHttpRequest>>,
-    pub(crate) captchas: Mutex<Vec<rd_plugin_api::CaptchaChallenge>>,
-    /// Token every captcha is answered with; `None` mimics a host with no solver.
-    captcha_token: Option<String>,
-}
-
-impl MockHost {
-    pub(crate) fn with_responses(responses: Vec<HostHttpResponse>) -> Arc<Self> {
-        Self::solving(responses, None)
-    }
-
-    pub(crate) fn solving(responses: Vec<HostHttpResponse>, token: Option<&str>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: token.map(str::to_owned),
-        })
-    }
-
-    pub(crate) fn requests(&self) -> Vec<HostHttpRequest> {
-        self.requests.lock().expect("mock lock").clone()
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(rd_core::FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, _reference: &str) -> bool {
-        false
-    }
-
-    async fn solve_captcha(
-        &self,
-        _client: &ClientIdentity,
-        challenge: rd_plugin_api::CaptchaChallenge,
-        _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, Failure> {
-        self.captchas.lock().expect("mock lock").push(challenge);
-        match &self.captcha_token {
-            Some(token) => Ok(rd_plugin_api::CaptchaAnswer::Token(token.clone())),
-            None => Err(Failure::coded(
-                rd_core::FailureKind::NeedsCaptcha,
-                "captcha.no_solver",
-                "No captcha solver is configured",
-            )),
-        }
-    }
-}
 
 pub(crate) fn json(status: u16, body: &[u8]) -> HostHttpResponse {
     HostHttpResponse {
@@ -159,7 +91,7 @@ pub(crate) fn resolve_request(url: &str) -> ResolveRequest {
 /// the `mfi.re` short host.
 #[test]
 fn every_measured_file_form_is_claimed() {
-    let resolver = resolver(&MockHost::with_responses(Vec::new()));
+    let resolver = resolver(&MockHost::answering(Vec::new()));
     for url in [
         "https://www.mediafire.com/file/ipnyzofjcwri357/test-10mb.bin/file",
         "https://www.mediafire.com/file/ipnyzofjcwri357/test-10mb.bin",
@@ -181,7 +113,7 @@ fn every_measured_file_form_is_claimed() {
 /// Folders, key lists and everything else are somebody else's.
 #[test]
 fn folders_lists_and_foreign_addresses_are_not_claimed() {
-    let resolver = resolver(&MockHost::with_responses(Vec::new()));
+    let resolver = resolver(&MockHost::answering(Vec::new()));
     for url in [
         "https://www.mediafire.com/folder/rww7bhhi0yc1l",
         "https://www.mediafire.com/folder/rww7bhhi0yc1l/shared",
@@ -254,7 +186,7 @@ fn the_manifest_grants_what_the_code_reaches_and_declares_no_secret() {
 
 #[tokio::test]
 async fn there_is_no_account_to_check_and_no_request_is_made() {
-    let host = MockHost::with_responses(Vec::new());
+    let host = MockHost::answering(Vec::new());
     let failure = resolver(&host)
         .check_account(AccountId::new())
         .await
@@ -266,7 +198,7 @@ async fn there_is_no_account_to_check_and_no_request_is_made() {
 
 #[tokio::test]
 async fn hosters_are_the_two_domains() {
-    let host = MockHost::with_responses(Vec::new());
+    let host = MockHost::answering(Vec::new());
     assert_eq!(
         resolver(&host)
             .hosters(AccountId::new())
@@ -284,3 +216,6 @@ mod captcha_tests;
 
 #[path = "check_tests.rs"]
 mod check_tests;
+
+#[path = "status_tests.rs"]
+mod status_tests;

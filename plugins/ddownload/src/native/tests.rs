@@ -1,107 +1,76 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure};
+use rd_core::AccountId;
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
-    ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver,
-    ResolverHost,
+    ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
 };
-
-use url::Url;
 
 use super::DdownloadResolver;
 
-struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    requests: Mutex<Vec<HostHttpRequest>>,
-    /// Whether the API key slot answers. The real host admits exactly one slot per account,
-    /// so a mock that answered every reference alike would let a test pass a combination the
-    /// host can never produce.
-    has_secret: bool,
-    /// Whether the password slot answers, i.e. whether the account is in `login` mode.
-    has_password: bool,
-    has_cookies: bool,
-    /// Free-flow observations: the countdowns waited out and the challenges handed over, in the
-    /// order the resolver produced them.
-    waits: Mutex<Vec<u32>>,
-    captchas: Mutex<Vec<rd_plugin_api::CaptchaChallenge>>,
-    /// Token every captcha is answered with; `None` mimics a host with no solver.
-    captcha_token: Option<String>,
+/// DDownload's constructors on the shared scripted host. Two credential slots answer
+/// independently — the API key and, for an account in `login` mode, the password — because the
+/// real host admits exactly one slot per account, and a mock that answered every reference
+/// alike would let a test pass a combination the host can never produce. The account-less free
+/// flow is `MockHost::free`.
+trait SessionHost {
+    fn one_in_session(response: HostHttpResponse, has_secret: bool) -> Arc<MockHost>;
+    fn in_session(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<MockHost>;
+    fn full(responses: Vec<HostHttpResponse>, has_secret: bool, has_cookies: bool)
+    -> Arc<MockHost>;
+    fn signing_in(responses: Vec<HostHttpResponse>) -> Arc<MockHost>;
+    fn signed_in_session(responses: Vec<HostHttpResponse>) -> Arc<MockHost>;
+    fn signing_in_with_solver(
+        responses: Vec<HostHttpResponse>,
+        captcha_token: &str,
+    ) -> Arc<MockHost>;
+    fn cookie_session_with_solver(
+        responses: Vec<HostHttpResponse>,
+        captcha_token: &str,
+    ) -> Arc<MockHost>;
 }
 
-impl MockHost {
-    fn new(response: HostHttpResponse, has_secret: bool) -> Arc<Self> {
-        Self::with_responses(vec![response], has_secret)
+impl SessionHost for MockHost {
+    fn one_in_session(response: HostHttpResponse, has_secret: bool) -> Arc<MockHost> {
+        Self::in_session(vec![response], has_secret)
     }
 
-    fn with_responses(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<Self> {
+    fn in_session(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<MockHost> {
         Self::full(responses, has_secret, true)
     }
 
     /// Full constructor for a test that needs a queued response *and* no cookies
-    /// (`with_responses` always sets `has_cookies: true`).
-    fn full(responses: Vec<HostHttpResponse>, has_secret: bool, has_cookies: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret,
-            has_password: false,
-            has_cookies,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: None,
-        })
+    /// (`in_session` always has them).
+    fn full(
+        responses: Vec<HostHttpResponse>,
+        has_secret: bool,
+        has_cookies: bool,
+    ) -> Arc<MockHost> {
+        account(responses, has_secret, false, has_cookies, None)
     }
 
     /// Host for an account in `login` credential mode: the password slot answers, the API key
     /// slot does not, and there are no imported cookies — exactly what the real host reports
     /// for such an account.
-    fn signing_in(responses: Vec<HostHttpResponse>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret: false,
-            has_password: true,
-            has_cookies: false,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: None,
-        })
+    fn signing_in(responses: Vec<HostHttpResponse>) -> Arc<MockHost> {
+        account(responses, false, true, false, None)
     }
 
     /// Host for a `login`-mode account whose session is already established: the password slot
     /// answers and the host's cookie jar holds the session an earlier sign-in produced. That is
     /// the state the real host is in for every call after the first one, and the state the
     /// account check used to fail in (RD-109-34).
-    fn signed_in_session(responses: Vec<HostHttpResponse>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret: false,
-            has_password: true,
-            has_cookies: true,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: None,
-        })
+    fn signed_in_session(responses: Vec<HostHttpResponse>) -> Arc<MockHost> {
+        account(responses, false, true, true, None)
     }
 
     /// A `login`-mode account with a cold jar on an instance that can answer the login form's
     /// captcha widget - what the real login page has carried since 2026-09-17.
-    fn signing_in_with_solver(responses: Vec<HostHttpResponse>, captcha_token: &str) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret: false,
-            has_password: true,
-            has_cookies: false,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: Some(captcha_token.to_owned()),
-        })
+    fn signing_in_with_solver(
+        responses: Vec<HostHttpResponse>,
+        captcha_token: &str,
+    ) -> Arc<MockHost> {
+        account(responses, false, true, false, Some(captcha_token))
     }
 
     /// Host for a cookie-only premium account whose instance has a solver: every captcha is
@@ -109,33 +78,34 @@ impl MockHost {
     fn cookie_session_with_solver(
         responses: Vec<HostHttpResponse>,
         captcha_token: &str,
-    ) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret: false,
-            has_password: false,
-            has_cookies: true,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: Some(captcha_token.to_owned()),
-        })
+    ) -> Arc<MockHost> {
+        account(responses, false, false, true, Some(captcha_token))
     }
+}
 
-    /// Host for the account-less free flow: no credentials at all, and every captcha answered
-    /// with `captcha_token` (`None` mimics an instance with no solver configured).
-    fn free(responses: Vec<HostHttpResponse>, captcha_token: Option<&str>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret: false,
-            has_password: false,
-            has_cookies: false,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: captcha_token.map(str::to_owned),
+/// `has_secret`: whether the API key slot answers; `has_password`: whether the password slot
+/// does, i.e. whether the account is in `login` mode; `captcha_token`: what every captcha is
+/// answered with, `None` mimicking a host with no solver.
+fn account(
+    responses: Vec<HostHttpResponse>,
+    has_secret: bool,
+    has_password: bool,
+    has_cookies: bool,
+    captcha_token: Option<&str>,
+) -> Arc<MockHost> {
+    let cookies: &[(&str, &str)] = if has_cookies {
+        &[("xfss", "session")]
+    } else {
+        &[]
+    };
+    MockHost::scripted(responses)
+        .secret_rule(move |reference| match reference {
+            "ddownload_password" => has_password,
+            _ => has_secret,
         })
-    }
+        .cookies(cookies)
+        .captcha_token(captcha_token)
+        .shared()
 }
 
 fn html(body: &str) -> HostHttpResponse {
@@ -214,61 +184,6 @@ fn file_page_without_the_form() -> String {
 
 const TURNSTILE_SITE_KEY: &str = "0x4AAAAAABm53D0OJNkESa1O";
 
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(rd_core::FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn cookies_get(&self, _account_id: AccountId, _url: &Url) -> Vec<(String, String)> {
-        if self.has_cookies {
-            vec![("xfss".to_owned(), "session".to_owned())]
-        } else {
-            Vec::new()
-        }
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, reference: &str) -> bool {
-        match reference {
-            "ddownload_password" => self.has_password,
-            _ => self.has_secret,
-        }
-    }
-
-    /// Records the countdown instead of sleeping, so the flow's timing is asserted without
-    /// slowing the suite down.
-    async fn wait(&self, _client: &ClientIdentity, seconds: u32) -> Result<(), Failure> {
-        self.waits.lock().expect("mock lock").push(seconds);
-        Ok(())
-    }
-
-    async fn solve_captcha(
-        &self,
-        _client: &ClientIdentity,
-        challenge: rd_plugin_api::CaptchaChallenge,
-        _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, Failure> {
-        self.captchas.lock().expect("mock lock").push(challenge);
-        match &self.captcha_token {
-            Some(token) => Ok(rd_plugin_api::CaptchaAnswer::Token(token.clone())),
-            None => Err(Failure::coded(
-                rd_core::FailureKind::NeedsCaptcha,
-                "captcha.no_solver",
-                "No captcha solver is configured",
-            )),
-        }
-    }
-}
-
 #[tokio::test]
 async fn api_error_without_result_reports_provider_message() {
     let response = HostHttpResponse {
@@ -279,7 +194,7 @@ async fn api_error_without_result_reports_provider_message() {
         headers: Vec::new(),
         body: br#"{"status":400,"server_time":"2026-08-30 13:43:41","msg":"Invalid key"}"#.to_vec(),
     };
-    let resolver = DdownloadResolver::new(MockHost::new(response, true));
+    let resolver = DdownloadResolver::new(MockHost::one_in_session(response, true));
     let failure = resolver
         .check_account(AccountId::new())
         .await
@@ -306,7 +221,7 @@ async fn remaining_traffic_is_reported_in_bytes() {
     };
     // The second answer is the session probe `check_account` now makes with the cookie jar:
     // the key answers for the account, and the download runs on the session (RD-120-13).
-    let resolver = DdownloadResolver::new(MockHost::with_responses(
+    let resolver = DdownloadResolver::new(MockHost::in_session(
         vec![
             response,
             html(r#"<title>DDownload</title><a href="/?op=logout">Logout</a>"#),
@@ -335,7 +250,7 @@ async fn cookie_probe_returns_final_transfer_url() {
         }],
         body: vec![0],
     };
-    let resolver = DdownloadResolver::new(MockHost::new(response, false));
+    let resolver = DdownloadResolver::new(MockHost::one_in_session(response, false));
     let account = AccountId::new();
     let resolved = resolver
         .resolve(ResolveRequest {
@@ -367,7 +282,7 @@ fn resolve_request() -> ResolveRequest {
 
 #[tokio::test]
 async fn download_form_is_posted_and_redirect_target_is_used() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![
             html(FORM_PAGE),
             file("https://fs7.ddownload.com/d/r4nd/release.rar"),
@@ -394,7 +309,7 @@ async fn download_form_is_posted_and_redirect_target_is_used() {
 
 #[tokio::test]
 async fn direct_link_page_after_post_is_followed() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![
             html(FORM_PAGE),
             html(
@@ -415,7 +330,7 @@ async fn direct_link_page_after_post_is_followed() {
 
 #[tokio::test]
 async fn guest_page_after_post_reports_missing_premium_session() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![html(FORM_PAGE), html("<html>please wait 60 seconds</html>")],
         false,
     );

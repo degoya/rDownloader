@@ -20,13 +20,20 @@
 //! answers `unknown`, which the contract has a word for precisely because "I did not ask" is a
 //! different thing from "it is gone".
 
+use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LabelPart,
-    LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved,
+    LinkCheck, PluginHost, ResolveInput, Resolved,
 };
 use seedr_common::{address, reason::ErrorEnvelope};
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: address::PASSWORD_REFERENCE,
+    missing: messages::PASSWORD_MISSING,
+};
 
 /// Most links one `check` call answers. It makes no request, but the answer still crosses the
 /// boundary, and an unbounded list would cross it unbounded.
@@ -62,10 +69,10 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_password(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(host, HttpRequest::get(address::user_url())).await?;
     let record = api::UserRecord::of(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
     Ok(Account {
         // The request carried the credential and Seedr answered it: that is what valid means
         // here, and there is nothing else in the document to read it from.
@@ -95,9 +102,9 @@ pub(crate) async fn resolve<H: PluginHost>(
     _host: &H,
     input: &ResolveInput,
 ) -> Result<Resolved, Failure> {
-    account(input.account_id.as_deref())?;
+    require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
     let file_id = address::claim(&input.url)
-        .ok_or_else(|| refuse(messages::NOT_A_SEEDR_LINK, FailureKind::Unsupported))?;
+        .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_SEEDR_LINK))?;
     Ok(Resolved {
         // Re-built from the identifier rather than passed through, so an address that reached
         // here with a query string or a stray path segment leaves as the canonical one.
@@ -127,12 +134,12 @@ pub(crate) async fn check<H: PluginHost>(
     _host: &H,
     input: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    account(input.account_id.as_deref())?;
+    require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
     Ok(input
         .urls
         .iter()
         .take(MAX_CHECKS)
-        .map(|url| unknown(url))
+        .map(|url| LinkCheck::unknown(url))
         .collect())
 }
 
@@ -157,43 +164,6 @@ fn space_free(bytes: Option<u64>) -> Option<LabelPart> {
         LabelPart::coded(messages::SPACE_FREE, format!("{bytes} bytes free"))
             .with_param("bytes", bytes.to_string()),
     )
-}
-
-/// The account holds a Seedr password, or this fails before a request goes out.
-///
-/// Asked rather than assumed: without it the host refuses the expansion and the account is told
-/// its secret is missing, which is true but says nothing about *which* account or what to do.
-async fn require_password<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if host
-        .secret_available(account_id, address::PASSWORD_REFERENCE)
-        .await
-    {
-        Ok(())
-    } else {
-        Err(refuse(
-            messages::PASSWORD_MISSING,
-            FailureKind::AuthRequired,
-        ))
-    }
-}
-
-fn account(account_id: Option<&str>) -> Result<&str, Failure> {
-    account_id
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| refuse(messages::ACCOUNT_MISSING, FailureKind::AuthRequired))
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
-}
-
-fn refuse((code, message): (&str, &str), kind: FailureKind) -> Failure {
-    Failure::coded(kind, code, message)
 }
 
 #[cfg(test)]

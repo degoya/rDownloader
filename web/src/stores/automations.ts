@@ -7,12 +7,21 @@ import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useLatestFetch } from '@/composables/useLatestFetch'
 import type {
   Automation,
+  AutomationCondition,
   AutomationDryRun,
   AutomationRequest,
   AutomationRun,
   AutomationVersion,
   AutomationVocabulary
 } from '@/api/types'
+
+/** The editor's form as a dry run judges it (`DryRunDraft` on the server, RD-1120-17). */
+export interface AutomationDraftProbe {
+  /** The saved automation the form edits; absent for one not saved yet. */
+  automation_id?: string | undefined
+  trigger: string
+  condition: AutomationCondition
+}
 
 /**
  * Automations, their run history and the vocabulary the editor builds its forms from.
@@ -141,10 +150,18 @@ export const useAutomationsStore = defineStore('automations', () => {
     }, automation.id)
   }
 
-  /** Evaluates a trigger and a sample package. Never has an effect. */
-  async function dryRun(trigger: string, packageId: string | null): Promise<AutomationDryRun[]> {
+  /**
+   * Evaluates a trigger and a sample package. Never has an effect. With a `draft` only that
+   * automation is judged — the editor's form, saved or not, on or off (RD-1120-17); without one,
+   * every enabled automation.
+   */
+  async function dryRun(
+    trigger: string,
+    packageId: string | null,
+    draft?: AutomationDraftProbe
+  ): Promise<AutomationDryRun[]> {
     const response = await api.POST('/api/v1/automations/dry-run', {
-      body: { trigger, package_id: packageId ?? undefined } as never
+      body: { trigger, package_id: packageId ?? undefined, draft } as never
     })
     if (!response.data) {
       error.value = responseError(response)

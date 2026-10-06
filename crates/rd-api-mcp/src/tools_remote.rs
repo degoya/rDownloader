@@ -30,7 +30,7 @@ use crate::remote_job_handlers::{RemoteJobChoiceRequest, SubmitRemoteJobRequest}
 #[tool_router(router = remote_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List every job running at a provider, newest first: which account it belongs to, its state (submitted, awaiting_choice, running, finished, failed, discarded), and the entries a job in awaiting_choice is asking about. No credential is included."
+        description = "List every job running at a provider, newest first: which account it belongs to, its source (`source_kind` magnet, container or address; `source_name` the .torrent/.nzb file name, a magnet's dn or an address's last path segment, absent when there is none; `content_key` the info hash or digest), the LinkGrabber package its finished files went to (`package_id`), its state (submitting, preparing, awaiting_choice, working, ready, failed, discarded), and the entries a job in awaiting_choice is asking about. No credential is included."
     )]
     pub async fn list_remote_jobs(&self) -> McpToolResult {
         respond(
@@ -41,7 +41,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Hand a magnet address, a plain http(s) address or a .torrent/.nzb file (base64, at most 16 MiB) to one account's provider to fetch on its own side. Give exactly one of magnet, address and container. Answers with the job row; `already_running` true means this account already had a job for this content and nothing was sent."
+        description = "Hand a magnet address, a plain http(s) address or a .torrent/.nzb file (base64, at most 16 MiB) to one account's provider to fetch on its own side. Give exactly one of magnet, address and container. Answers with the job row, named by `file_name`, else a magnet's dn or an address's last path segment; `already_running` true means this account already had a job for this content and nothing was sent."
     )]
     pub async fn submit_remote_job(
         &self,

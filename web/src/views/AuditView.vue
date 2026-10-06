@@ -116,7 +116,7 @@ onMounted(() => {
             <UInput v-model="store.filters.traceId" class="w-full" data-testid="audit-trace" />
           </UFormField>
           <div class="flex flex-wrap gap-2 md:col-span-6">
-            <UButton type="submit" icon="i-lucide-filter" :label="t('audit.filters.apply')" :loading="store.fetching" />
+            <UButton type="submit" icon="i-lucide-filter" :label="t('common.actions.apply')" :loading="store.fetching" />
             <UButton
               type="button"
               color="neutral"
@@ -158,7 +158,7 @@ onMounted(() => {
       <!-- The entries in a card of their own, under their heading, as on the other list pages (RD-1110-17). -->
       <UCard as="section" :ui="{ body: 'p-0 sm:p-0' }">
         <DataState class="p-4 sm:p-6" variant="inline" :loading="store.loading" :error="store.error" :empty="store.settled && store.records.length === 0" :rows="6">
-          <p class="text-sm text-muted">{{ t('audit.list.empty') }}</p>
+          <UEmpty :description="t('audit.list.empty')" />
         </DataState>
         <ul v-if="store.records.length" class="divide-y divide-muted" data-testid="audit-list">
           <li v-for="record in store.records" :key="record.id" class="px-3 py-2">

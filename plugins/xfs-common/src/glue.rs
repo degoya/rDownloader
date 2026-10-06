@@ -94,16 +94,6 @@ impl ApiMessages {
     }
 }
 
-/// A provider address that does not parse, under the plugin's `invalid_url` code.
-#[must_use]
-pub fn invalid_url(
-    error: &url::ParseError,
-    code: &str,
-    text: fn(&dyn std::fmt::Display) -> String,
-) -> Failure {
-    Failure::coded(FailureKind::Permanent, code, text(error)).with_param("error", error.to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use plugin_common::{FailureKind, HttpResponse};

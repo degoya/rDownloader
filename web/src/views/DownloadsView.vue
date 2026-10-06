@@ -265,13 +265,12 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
         <UAlert
           v-if="transfers.error"
           color="error"
-          variant="subtle"
           icon="i-lucide-circle-alert"
           :description="transfers.error"
           close
           @update:open="transfers.error = null"
         />
-        <UAlert v-if="transfers.notice" color="info" variant="subtle" icon="i-lucide-info" :description="transfers.notice" />
+        <UAlert v-if="transfers.notice" color="info" icon="i-lucide-info" :description="transfers.notice" />
 
         <PostprocessQueue v-if="postprocess.queue.length" :entries="postprocess.queue" />
 

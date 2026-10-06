@@ -9,7 +9,7 @@ use rd_plugin_api::{CaptchaChallenge, Resolver, ResolverHost};
 
 use super::super::DdownloadResolver;
 use super::{
-    FILE_PAGE_2026_09_17, FORM_PAGE, MockHost, TURNSTILE_SITE_KEY, file,
+    FILE_PAGE_2026_09_17, FORM_PAGE, MockHost, SessionHost, TURNSTILE_SITE_KEY, file,
     file_page_without_the_form, html, resolve_request,
 };
 
@@ -94,7 +94,7 @@ async fn a_form_without_a_widget_is_posted_without_a_token() {
 /// not a login wall, and the message must not send the user after their cookies.
 #[tokio::test]
 async fn a_premium_answer_with_only_the_navigation_link_is_not_called_a_login_wall() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![html(FORM_PAGE), html(&file_page_without_the_form())],
         false,
     );
@@ -127,7 +127,7 @@ async fn a_premium_answer_with_only_the_navigation_link_is_not_called_a_login_wa
 /// until a download had spent a captcha on it.
 #[tokio::test]
 async fn a_cookie_session_is_believed_only_when_the_site_shows_it_signed_in() {
-    let signed_in = MockHost::with_responses(
+    let signed_in = MockHost::in_session(
         vec![html(
             r#"<a href="/?op=logout">Logout</a><div class="rm-login-link"><a href="/login">Login</a></div>"#,
         )],
@@ -149,7 +149,7 @@ async fn a_cookie_session_is_believed_only_when_the_site_shows_it_signed_in() {
 /// login links and no sign-out link - is a lapsed session, and is reported as one.
 #[tokio::test]
 async fn a_lapsed_cookie_session_is_reported_before_any_download_spends_a_captcha() {
-    let host = MockHost::with_responses(vec![html(&file_page_without_the_form())], false);
+    let host = MockHost::in_session(vec![html(&file_page_without_the_form())], false);
     let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .check_account(AccountId::new())
@@ -180,7 +180,7 @@ async fn an_unreadable_page_is_retried_and_does_not_condemn_the_account() {
         "<title>Just a moment...</title><div id=\"cf-wrapper\"></div>",
         "<title>Maintenance</title><p>We are back shortly.</p>",
     ] {
-        let host = MockHost::with_responses(vec![html(unreadable)], false);
+        let host = MockHost::in_session(vec![html(unreadable)], false);
         let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
         let failure = resolver
             .check_account(AccountId::new())

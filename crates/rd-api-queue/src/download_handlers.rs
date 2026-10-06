@@ -16,22 +16,36 @@ use crate::{
     },
     error_codes::parse_id,
 };
-use rd_api_core::list_bounds::{paged, validate_bulk};
+use rd_api_core::list_bounds::{total_header, validate_bulk};
 
+mod bulk_removal;
 mod create;
 mod summary;
 
 pub use create::*;
 pub use summary::*;
 
-/// Every download in creation order; `limit`/`offset` cut a page out of that order (API-15).
+/// Every download in queue order; `limit`/`offset` cut a page out of that order (API-15), and
+/// the database cuts it: only the page is read, not the table (RD-1120-17).
 #[utoipa::path(get, path = "/api/v1/downloads", tag = "downloads", params(PageQuery), responses((status = 200, body = [rd_core::DownloadFile], headers(("x-total-count" = u64, description = "How many rows the whole list holds; sent only when `limit` or `offset` asked for a page"))), (status = 400)))]
 pub async fn list_downloads(
     State(state): State<AppState>,
     rd_api_core::list_bounds::Page(page): rd_api_core::list_bounds::Page,
 ) -> Result<(HeaderMap, Json<Vec<rd_core::DownloadFile>>), ApiError> {
-    let window = page.window()?;
-    Ok(paged(window, state.database.list_downloads().await?))
+    let Some(window) = page.window()? else {
+        return Ok((
+            HeaderMap::new(),
+            Json(state.database.list_downloads().await?),
+        ));
+    };
+    let (downloads, total) = state
+        .database
+        .downloads_page(
+            u64::try_from(window.offset).unwrap_or(u64::MAX),
+            u64::try_from(window.limit).ok(),
+        )
+        .await?;
+    Ok((total_header(Some(window), total), Json(downloads)))
 }
 
 #[utoipa::path(patch, path = "/api/v1/downloads/{id}", tag = "downloads", params(("id" = String, Path)), request_body = DownloadRenameRequest, responses((status = 200, body = rd_core::DownloadFile), (status = 404), (status = 409)))]
@@ -82,15 +96,18 @@ pub async fn apply_download_action(
     let mut affected = 0_u32;
     let mut errors = Vec::new();
     let mut refusals = Vec::new();
-    for id in ids {
-        let result = match action {
-            DownloadBulkAction::Pause => state.scheduler.pause(id).await,
-            DownloadBulkAction::Resume => state.scheduler.resume(id).await,
-            DownloadBulkAction::Cancel => state.scheduler.cancel(id).await,
-            DownloadBulkAction::Remove => remove_with_cancel(state, id, false).await,
-            DownloadBulkAction::Reset => reset_download_file(state, id, false).await,
-            DownloadBulkAction::ResetDeleteFiles => reset_download_file(state, id, true).await,
-        };
+    // The removal goes through the writer once for the whole batch (RD-1120-17); every other
+    // action is still one call per id.
+    let results = if matches!(action, DownloadBulkAction::Remove) {
+        bulk_removal::remove_many_with_cancel(state, &ids).await
+    } else {
+        let mut results = Vec::with_capacity(ids.len());
+        for &id in &ids {
+            results.push(apply_to_one(state, action, id).await);
+        }
+        results
+    };
+    for (id, result) in ids.into_iter().zip(results) {
         match result {
             Ok(()) => affected += 1,
             Err(error) => {
@@ -104,6 +121,22 @@ pub async fn apply_download_action(
         errors,
         refusals,
     })
+}
+
+/// One id of a batch, by the path its single endpoint takes.
+async fn apply_to_one(
+    state: &AppState,
+    action: DownloadBulkAction,
+    id: DownloadId,
+) -> anyhow::Result<()> {
+    match action {
+        DownloadBulkAction::Pause => state.scheduler.pause(id).await,
+        DownloadBulkAction::Resume => state.scheduler.resume(id).await,
+        DownloadBulkAction::Cancel => state.scheduler.cancel(id).await,
+        DownloadBulkAction::Remove => remove_with_cancel(state, id, false).await,
+        DownloadBulkAction::Reset => reset_download_file(state, id, false).await,
+        DownloadBulkAction::ResetDeleteFiles => reset_download_file(state, id, true).await,
+    }
 }
 
 /// The coded refusal of one file in a batch, the same code its single endpoint answers with.
@@ -192,6 +225,10 @@ async fn remove_download_discarding(
     Ok(())
 }
 
+/// How often, and how far apart, a removal is tried again while a cancelled worker lets go.
+const CANCEL_WAIT_ROUNDS: usize = 25;
+const CANCEL_WAIT_STEP: std::time::Duration = std::time::Duration::from_millis(200);
+
 /// Cancels an active file first and waits briefly for its token to clear before removal.
 ///
 /// `discard_partial` as in [`remove_download_discarding`].
@@ -200,19 +237,9 @@ pub(crate) async fn remove_with_cancel(
     id: DownloadId,
     discard_partial: bool,
 ) -> anyhow::Result<()> {
-    if let Some(current) = state.database.get_download(id).await?
-        && matches!(
-            current.state,
-            rd_core::DownloadState::Resolving
-                | rd_core::DownloadState::Downloading
-                | rd_core::DownloadState::Verifying
-                | rd_core::DownloadState::Repairing
-                | rd_core::DownloadState::Extracting
-        )
-    {
-        state.scheduler.cancel(id).await?;
-        for _ in 0..25 {
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    if cancel_if_running(state, id).await? {
+        for _ in 0..CANCEL_WAIT_ROUNDS {
+            tokio::time::sleep(CANCEL_WAIT_STEP).await;
             if remove_download_discarding(state, id, discard_partial)
                 .await
                 .is_ok()
@@ -222,6 +249,28 @@ pub(crate) async fn remove_with_cancel(
         }
     }
     remove_download_discarding(state, id, discard_partial).await
+}
+
+/// Cancels the file when something works on it; answers whether it did.
+async fn cancel_if_running(state: &AppState, id: DownloadId) -> anyhow::Result<bool> {
+    let running = state
+        .database
+        .get_download(id)
+        .await?
+        .is_some_and(|current| {
+            matches!(
+                current.state,
+                rd_core::DownloadState::Resolving
+                    | rd_core::DownloadState::Downloading
+                    | rd_core::DownloadState::Verifying
+                    | rd_core::DownloadState::Repairing
+                    | rd_core::DownloadState::Extracting
+            )
+        });
+    if running {
+        state.scheduler.cancel(id).await?;
+    }
+    Ok(running)
 }
 
 #[utoipa::path(post, path = "/api/v1/downloads/extract", tag = "downloads", request_body = DownloadExtractRequest, responses((status = 202, body = MessageResponse), (status = 409)))]

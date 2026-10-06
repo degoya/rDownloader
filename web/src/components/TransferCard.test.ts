@@ -6,6 +6,7 @@
  * cause, and one that is withheld leaves a stuck transfer with no way out of the interface.
  * The menu itself is a Nuxt UI dropdown, so the labels are read off the items it is given.
  */
+import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Download, DownloadState } from '@/api/types'
@@ -271,5 +272,48 @@ describe('TransferCard torrent data actions', () => {
     const plain = itemsFor({ state: 'paused' }).items.map(item => item.label)
     expect(plain).not.toContain(torrent.actions.recheck)
     expect(plain).not.toContain(torrent.actions.move)
+  })
+})
+
+/** RD-1120-14: the torrent detail views are a radio group, the handle one component, the profile a field. */
+describe('TransferCard controls', () => {
+  function renderCard(kind: 'http' | 'torrent') {
+    return mountComponent(TransferCard, {
+      messages: { downloads, torrent, common },
+      props: {
+        download: {
+          id: 'd1', kind, state: 'paused', file_name: 'release.rar',
+          source: 'https://example.invalid/release.rar',
+          committed_bytes: '0', total_bytes: '100'
+        } as unknown as Download
+      },
+      // The views' own lists are not under test here; the mocked API hands them no real data.
+      stubs: { UDropdownMenu: { template: '<div><slot /></div>' }, TorrentFileTree: true, TorrentTrackerList: true, TorrentPeerList: true, TorrentSeedingPolicy: true }
+    })
+  }
+
+  it('offers the torrent views as radios, the open one checked', async () => {
+    renderCard('torrent')
+    await fireEvent.click(screen.getByRole('button', { name: downloads.transfer.show_details }))
+    const views = await screen.findByRole('group', { name: torrent.tabs.label })
+    expect((within(views).getByRole('radio', { name: torrent.tabs.files }) as HTMLInputElement).checked).toBe(true)
+    await fireEvent.click(within(views).getByRole('radio', { name: torrent.tabs.trackers }))
+    expect((within(views).getByRole('radio', { name: torrent.tabs.trackers }) as HTMLInputElement).checked).toBe(true)
+    expect((within(views).getByRole('radio', { name: torrent.tabs.files }) as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('moves the row from its drag handle with the arrow keys', async () => {
+    const { emitted } = renderCard('http')
+    const handle = document.querySelector('[data-row-handle]') as HTMLElement
+    expect(handle.getAttribute('draggable')).toBe('true')
+    expect(handle.getAttribute('aria-label')).toContain(downloads.transfer.drag_title)
+    await fireEvent.keyDown(handle, { key: 'ArrowUp' })
+    expect(emitted().move).toEqual([['d1', -1]])
+  })
+
+  it('names the authentication profile select by its field label', async () => {
+    renderCard('http')
+    await fireEvent.click(screen.getByRole('button', { name: downloads.transfer.show_details }))
+    expect(await screen.findByLabelText(downloads.transfer.auth_profile)).toBeTruthy()
   })
 })

@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { CollisionPolicy } from '@/api/storage'
 import type { Category } from '@/api/types'
+import { editingRowClass } from '@/utils/editingRow'
 
 const props = defineProps<{
   category: Category
@@ -32,7 +33,7 @@ function cleanupSummary(category: Category): string {
 </script>
 
 <template>
-  <div class="border p-3" :class="props.editing ? 'border-primary' : 'border-muted'" data-category-row>
+  <div class="p-3" :class="editingRowClass(props.editing)" data-category-row>
     <div class="flex items-center gap-2">
       <span class="size-2" :style="{ backgroundColor: props.category.color }" />
       <p class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted">{{ props.category.name }}</p>
@@ -51,7 +52,7 @@ function cleanupSummary(category: Category): string {
       <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="emit('edit')" />
       <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="props.deleting" @click="emit('remove')" />
     </div>
-    <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ props.location }}</p>
+    <p class="mt-1 truncate font-mono text-2xs text-muted">{{ props.location }}</p>
     <div class="mt-2 flex flex-wrap items-center gap-1">
       <UBadge size="sm" color="neutral" variant="subtle">{{ t('routing.category.level_badge', { level: props.category.postprocess_level ?? t('routing.category.inherit_short') }) }}</UBadge>
       <UBadge size="sm" color="neutral" variant="subtle" class="font-mono">{{ t('routing.category.script_badge', { script: props.category.script ?? t('routing.category.inherit_short') }) }}</UBadge>

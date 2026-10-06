@@ -4,8 +4,7 @@
 //! `wit-bindgen`'s generated types are used here, only `serde`/`serde_json`/`url`, which are
 //! available on every target.
 //!
-//! IMPL-VERIFY (against JD's `NitroFlareCom.java`, the living reference — see
-//! task-7-report.md for the full list):
+//! IMPL-VERIFY (against JD's `NitroFlareCom.java`, the living reference; this is the full list):
 //! - The file-id pattern is `/(?:view|watch)/([A-Z0-9]+)` — **uppercase** letters and digits
 //!   only, and either `/view/` or `/watch/` (the brief only mentioned `/view/`).
 //! - `getDownloadLink`'s response carries only `result.url`; unlike the brief's assumption,
@@ -42,8 +41,8 @@ use url::Url;
 use crate::messages;
 
 /// Bare hostname (no `www.` prefix) this hoster's file links carry. JD's plugin also accepts
-/// the `nitroflare.net` and `nitro.download` aliases, but the task brief pins `match_domains` to
-/// `nitroflare.com` only — see task-7-report.md.
+/// the `nitroflare.net` and `nitro.download` aliases; the manifest's `match_domains` names
+/// `nitroflare.com` (and its `www.` form) only, a scope decision taken when the plugin was written.
 pub(crate) const MATCH_HOST: &str = "nitroflare.com";
 
 pub(crate) const API_BASE: &str = "https://nitroflare.com/api/v2";
@@ -79,11 +78,8 @@ pub(crate) fn file_id(url: &Url) -> Option<&str> {
 /// URL that later fails to parse deeper in the pipeline (or not at all, on the guest side, where
 /// `ResolvedDownload.url` is a bare `String`).
 pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
-    Url::parse(raw).map_err(|error| {
-        let text = messages::invalid_url(&error);
-        ApiFailure::new(ErrorKind::Permanent, (messages::INVALID_URL, text.as_str()))
-            .with_param("error", error.to_string())
-    })
+    Url::parse(raw)
+        .map_err(|error| plugin_common::failure::invalid_url(messages::INVALID_URL, &error))
 }
 
 /// Generic `{"result": {...}}` / `{"message": "...", "code": N}` envelope every Nitroflare v2
@@ -172,21 +168,7 @@ where
 }
 
 /// Nitroflare reports traffic in bytes as either a JSON number or a numeric string.
-#[derive(Clone, Deserialize)]
-#[serde(untagged)]
-pub(crate) enum FlexibleU64 {
-    Number(u64),
-    Text(String),
-}
-
-impl FlexibleU64 {
-    pub(crate) fn into_u64(self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub(crate) use plugin_flexible::FlexibleU64;
 
 /// Classifies a non-success `code`/`message` pair from the envelope (see the module-level
 /// IMPL-VERIFY note). Covers every arm of JD's `checkErrorsAPI` switch (`1`, `4`, `6`, `8`,
@@ -247,14 +229,17 @@ pub(crate) fn error_from_envelope(code: Option<i64>, message: Option<&str>) -> O
 /// How Nitroflare's codes name an HTTP status the JSON envelope doesn't otherwise explain, with
 /// the mapping every plugin shares (`plugin_common::http_status`, RD-191-07); a 429 or 5xx
 /// carries the `Retry-After` the answer stated.
+///
+/// Without a stated wait a `429` waits a minute and a `5xx` five minutes: the fallback the
+/// API plugins share (RD-1120-10).
 pub(crate) const HTTP: HttpWords = HttpWords {
     unauthorized: messages::BAD_CREDENTIALS,
     gone: messages::FILE_OFFLINE,
     unavailable: messages::FILE_OFFLINE,
     rate_limited: messages::RATE_LIMITED,
     server_error: messages::SERVER_ERROR,
-    rate_limited_wait: None,
-    server_error_wait: None,
+    rate_limited_wait: Some(60),
+    server_error_wait: Some(300),
     other: HttpError {
         code: messages::HTTP_ERROR,
         text: messages::http_error,

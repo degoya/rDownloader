@@ -11,7 +11,7 @@
 
 use std::net::IpAddr;
 
-use url::{Host, Url};
+use url::Url;
 
 use crate::{format::Rule, text::host_matches};
 
@@ -35,15 +35,7 @@ pub(crate) fn host_allowed(rule: &Rule, origin_host: &str, url: &Url) -> bool {
             .any(|pattern| host_matches(pattern, host))
 }
 
-/// The literal address a URL's host *is*, when it is one rather than a name.
-#[must_use]
-pub(crate) fn literal_address(url: &Url) -> Option<IpAddr> {
-    match url.host()? {
-        Host::Ipv4(address) => Some(IpAddr::V4(address)),
-        Host::Ipv6(address) => Some(IpAddr::V6(address)),
-        Host::Domain(_) => None,
-    }
-}
+pub(crate) use rd_core::literal_address;
 
 /// Whether an address is one a rule may be pointed at: routable, on the public internet, and
 /// not this machine or its neighbours.

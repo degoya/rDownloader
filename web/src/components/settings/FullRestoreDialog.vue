@@ -161,11 +161,11 @@ function kindLabel(value: string): string {
     v-model:open="open"
     :title="t('system.backup.full_restore.dialog.title')"
     :description="t('system.backup.full_restore.dialog.description')"
-    :ui="{ content: 'max-w-3xl', footer: 'justify-end' }"
+    :ui="{ content: 'max-w-3xl' }"
   >
     <template #body>
       <div class="space-y-6" data-testid="full-restore-dialog">
-        <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
 
         <section class="space-y-3">
           <h3 class="text-sm font-semibold text-highlighted">{{ t('system.backup.full_restore.source.title') }}</h3>
@@ -241,7 +241,7 @@ function kindLabel(value: string): string {
           <p class="text-sm text-toned">
             {{ t('system.backup.full_restore.preview.created', { date: formatMoment(preview.created_at), version: preview.app_version, size: formatBytes(String(preview.archive_size)) }) }}
           </p>
-          <UAlert v-if="preview.from_newer_version" color="warning" variant="subtle" :description="t('system.backup.full_restore.preview.newer', { version: preview.current_version })" />
+          <UAlert v-if="preview.from_newer_version" color="warning" :description="t('system.backup.full_restore.preview.newer', { version: preview.current_version })" />
           <ul class="grid gap-1 text-sm text-toned sm:grid-cols-2">
             <li v-for="part in preview.parts" :key="part.kind">
               {{ kindLabel(part.kind) }}: {{ t('system.backup.full_restore.preview.part', { count: part.count, size: formatBytes(String(part.size)) }) }}
@@ -293,7 +293,6 @@ function kindLabel(value: string): string {
         <section v-if="report" class="space-y-3" data-testid="full-restore-report">
           <UAlert
             :color="report.ok ? 'success' : 'error'"
-            variant="subtle"
             :icon="report.ok ? 'i-lucide-circle-check' : 'i-lucide-circle-x'"
             :description="report.ok ? t('system.backup.full_restore.test.ok') : t('system.backup.full_restore.test.failed')"
           />

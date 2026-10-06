@@ -132,6 +132,25 @@ impl AutomationService {
             .collect())
     }
 
+    /// [`Self::dry_run`] for the editor's draft alone (RD-1120-17): judged whether or not it
+    /// is saved or switched on, and no stored automation is looked at.
+    pub async fn dry_run_draft(
+        &self,
+        trigger: Trigger,
+        package_id: Option<rd_core::PackageId>,
+        draft: DryRunDraft,
+    ) -> anyhow::Result<DryRunMatch> {
+        let database = &self.inner.context.database;
+        let context = crate::automation_context::package_context(database, package_id).await?;
+        Ok(DryRunMatch {
+            automation_id: draft
+                .automation_id
+                .unwrap_or_else(|| AutomationId::from_uuid(uuid::Uuid::nil())),
+            trigger_matches: draft.trigger == trigger,
+            condition_matches: draft.condition.matches(&context),
+        })
+    }
+
     async fn watch_events(self) {
         // Recovery first: a run left `running` means the process died between claiming it
         // and recording its outcome, and it belongs back in the queue.
@@ -330,6 +349,19 @@ impl AutomationService {
             }
         }
     }
+}
+
+/// The automation as the editor holds it, for a dry run (RD-1120-17): saved or not, on or off.
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+pub struct DryRunDraft {
+    /// The saved automation this draft edits; absent for one not saved yet, which the answer
+    /// then names with the nil id.
+    #[serde(default)]
+    pub automation_id: Option<AutomationId>,
+    /// The trigger the draft listens for.
+    pub trigger: Trigger,
+    #[serde(default)]
+    pub condition: rd_automation::ConditionNode,
 }
 
 /// What a dry run found for one automation.

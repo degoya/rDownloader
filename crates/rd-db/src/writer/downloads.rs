@@ -20,6 +20,13 @@ impl Writer {
             } => {
                 send(reply, self.create_download(download, sources).await);
             }
+            DownloadsCommand::AnnounceCreated {
+                package_id,
+                ids,
+                reply,
+            } => {
+                send(reply, self.announce_created(package_id, &ids).await);
+            }
             DownloadsCommand::TransitionDownload { id, next, reply } => {
                 send(reply, self.transition_download(id, next).await);
             }
@@ -35,6 +42,9 @@ impl Writer {
             }
             DownloadsCommand::DeleteDownload { id, reply } => {
                 send(reply, self.delete_download(id).await);
+            }
+            DownloadsCommand::DeleteDownloads { ids, reply } => {
+                send(reply, self.delete_downloads(&ids).await);
             }
             DownloadsCommand::DeleteEmptyPackage { id, reply } => {
                 send(reply, self.delete_empty_package(id).await);

@@ -86,12 +86,15 @@ async fn running_and_finished(
             DownloadState::Resolving,
             DownloadState::Downloading,
             DownloadState::Verifying,
-            DownloadState::Completed,
         ],
     )
     .await;
-    // Its post-processing settled, as `auto_remove` does it: with the scheduler parked nothing
-    // runs the pipeline, and a package waiting for it is the one the clear rightly spares.
+    // Its post-processing settled, as `auto_remove` finds it: with the scheduler parked nothing
+    // runs the pipeline, and a package waiting for it is the one the clear rightly spares. The
+    // package is settled *before* its file completes (RD-1120-09): the completion listener
+    // reads the package after the event, sees it settled and asks the pipeline for nothing.
+    // Settled afterwards, the listener raced the test: it either queued the package or did
+    // not, and a wait for the pipeline to let go could end before it had been asked at all.
     let package_id = harness
         .database
         .get_download(finished)
@@ -110,22 +113,18 @@ async fn running_and_finished(
         )
         .await
         .expect("package completed");
-    // The completion queued the package for post-processing; there is nothing to unpack, so the
-    // pipeline lets go of it at once — the clear spares it until then.
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while harness
-        .state
-        .extraction
-        .pending()
+    walk(harness, finished, &[DownloadState::Completed]).await;
+    let package = harness
+        .database
+        .get_package(package_id)
         .await
-        .contains(&package_id)
-    {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "post-processing never let go of the finished package"
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
+        .expect("read")
+        .expect("the finished package");
+    assert_eq!(
+        package.state,
+        rd_core::PackageState::Completed,
+        "the completed file leaves the settled package alone"
+    );
     std::fs::create_dir_all(&finished_folder).expect("finished folder");
     let payload = finished_folder.join("done.bin");
     std::fs::write(&payload, b"payload").expect("payload");

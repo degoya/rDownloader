@@ -236,12 +236,7 @@ pub fn validate(
     if actions.is_empty() || actions.len() > MAX_ACTIONS {
         return Err(DefinitionError::ActionCount);
     }
-    if condition.depth() > MAX_CONDITION_DEPTH {
-        return Err(DefinitionError::ConditionDepth);
-    }
-    condition
-        .validate()
-        .map_err(|detail| DefinitionError::Predicate(detail.to_string()))?;
+    validate_condition(condition)?;
     for action in actions {
         if let Action::Script { name } = action
             && !is_script_name(name)
@@ -250,6 +245,17 @@ pub fn validate(
         }
     }
     Ok(())
+}
+
+/// The condition half of [`validate`], for a definition that is only tried out: the editor's
+/// draft in a dry run (RD-1120-17), which has no name or actions to judge yet.
+pub fn validate_condition(condition: &ConditionNode) -> Result<(), DefinitionError> {
+    if condition.depth() > MAX_CONDITION_DEPTH {
+        return Err(DefinitionError::ConditionDepth);
+    }
+    condition
+        .validate()
+        .map_err(|detail| DefinitionError::Predicate(detail.to_string()))
 }
 
 /// Whether a string can name a script in the scripts directory.

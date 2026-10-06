@@ -170,10 +170,6 @@ pub(crate) fn api_error(message: &str) -> String {
     format!("KatFile API: {message}")
 }
 
-pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> String {
-    format!("Invalid provider URL: {error}")
-}
-
 pub(crate) fn premium_only(reason: &str) -> String {
     format!("KatFile reports this file requires a premium account: {reason}")
 }

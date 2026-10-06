@@ -8,6 +8,7 @@
 use plugin_guest_auth::{
     AuthState, Guest, credentials, http,
     key_derivation::{self, Pbkdf2, SecretHandle, Span, Step},
+    refuse,
     types::{Failure, FailureKind},
 };
 
@@ -15,17 +16,11 @@ use crate::{flow, rsa};
 
 struct Component;
 
+/// The prefix of every translation code this plugin reports.
+const SLUG: &str = "mega_auth";
+
 /// The reference this plugin's manifest declares, and the only one it may name.
 const SECRET: &str = "mega_password";
-
-fn refuse(code: &str, message: impl Into<String>, category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.into(),
-        code: Some(format!("mega_auth.{code}")),
-        params: Vec::new(),
-    }
-}
 
 fn handle() -> SecretHandle {
     SecretHandle {
@@ -66,26 +61,31 @@ const fn flow_endpoint() -> &'static str {
 fn api_failure(code: i64) -> Failure {
     match code {
         -9 | -11 => refuse(
+            SLUG,
             "credentials_rejected",
             "MEGA refused this address and password",
             FailureKind::AccountInvalid,
         ),
         -26 => refuse(
+            SLUG,
             "multi_factor_required",
             "This MEGA account asks for a second factor, which this plugin cannot answer",
             FailureKind::AuthRequired,
         ),
         -16 => refuse(
+            SLUG,
             "account_blocked",
             "MEGA has blocked this account",
             FailureKind::AccountInvalid,
         ),
         -3 | -4 => refuse(
+            SLUG,
             "rate_limited",
             "MEGA is rate limiting sign-in attempts from this address",
             FailureKind::RateLimited(None),
         ),
         -18 => refuse(
+            SLUG,
             "unavailable",
             "MEGA is temporarily not answering sign-in requests",
             FailureKind::Transient(None),
@@ -104,6 +104,7 @@ impl Guest for Component {
     fn begin(account_id: String, _credential_ref: Option<String>) -> Result<AuthState, Failure> {
         let preflight = flow::preflight(&call(flow::preflight_body())?).ok_or_else(|| {
             refuse(
+                SLUG,
                 "bad_reply",
                 "MEGA answered the sign-in probe with something this plugin could not read",
                 FailureKind::Permanent,
@@ -114,6 +115,7 @@ impl Guest for Component {
             // instead, which is a stage the contract does not carry. Saying so is better
             // than a generic refusal: the person can upgrade the account at MEGA.
             return Err(refuse(
+                SLUG,
                 "account_version_unsupported",
                 "This MEGA account still uses the legacy key derivation",
                 FailureKind::Unsupported,
@@ -134,6 +136,7 @@ impl Guest for Component {
         let session = flow::session(&call(flow::sign_in_body(&flow::b64_encode(&user_hash)))?)
             .ok_or_else(|| {
                 refuse(
+                    SLUG,
                     "bad_reply",
                     "MEGA answered the sign-in with something this plugin could not read",
                     FailureKind::Permanent,
@@ -164,6 +167,7 @@ impl Guest for Component {
             .and_then(|plain| flow::session_id(&plain))
             .ok_or_else(|| {
                 refuse(
+                    SLUG,
                     "session_unreadable",
                     "MEGA's session identifier could not be opened with this account's key",
                     FailureKind::AuthRequired,
@@ -179,6 +183,7 @@ impl Guest for Component {
     /// Nothing to continue. MEGA's sign-in finishes inside `begin` or not at all.
     fn poll(_account_id: String, _flow_state: Option<String>) -> Result<AuthState, Failure> {
         Ok(AuthState::Failed(refuse(
+            SLUG,
             "nothing_to_poll",
             "a MEGA sign-in finishes in one step; start it again",
             FailureKind::AuthRequired,

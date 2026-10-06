@@ -38,7 +38,9 @@
 //! provider's documentation and from two independent clients of it; `docs/roadmap/jobs/
 //! 120-02-offcloud.md` records the run against a real account as open.
 
-use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
+use offcloud_common::{BUSY_SECONDS, QUOTA_SECONDS, Words};
+pub use offcloud_common::{ErrorEnvelope, error_envelope};
+use plugin_common::failure::{ApiFailure, HttpError, HttpWords};
 use plugin_common::percent_encode;
 use serde::Deserialize;
 
@@ -193,15 +195,6 @@ pub struct ExploreFile {
     pub size: Option<u64>,
 }
 
-/// The two refusal shapes, read out of one answer.
-#[derive(Default, Deserialize)]
-pub struct ErrorEnvelope {
-    #[serde(default)]
-    pub error: Option<String>,
-    #[serde(default, alias = "notAvailable")]
-    pub not_available: Option<String>,
-}
-
 /// Where a cloud request stands, in the vocabulary of `interface remote-job` rather than of
 /// Offcloud.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -339,18 +332,13 @@ pub fn name_from_url(url: &str) -> Option<String> {
     (!decoded.is_empty()).then_some(decoded)
 }
 
-/// How long a provider-side outage is waited out. Five minutes, the figure the resolver
-/// sibling and the other multihoster plugins settled on.
-const BUSY_SECONDS: u64 = 300;
-
-/// How long an exhausted allowance is waited out.
-const QUOTA_SECONDS: u64 = 3600;
-
 /// How Offcloud's codes name an HTTP status no document in the answer explains: the classes
 /// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
 /// or a `5xx` carries the response's `Retry-After` into the wait.
 ///
-/// The waits fall back to this bucket's own figures when the response named none.
+/// The waits fall back to the provider's own figures when the response named none: an hour for
+/// a `429`, which is also how Offcloud reports an exhausted allowance, and five minutes for a
+/// `5xx` (`offcloud_common::QUOTA_SECONDS`, `BUSY_SECONDS`).
 pub const HTTP: HttpWords = HttpWords {
     unauthorized: messages::AUTH_INVALID,
     gone: messages::JOB_GONE,
@@ -365,99 +353,24 @@ pub const HTTP: HttpWords = HttpWords {
     },
 };
 
-/// What is left of a provider's word once everything that is not code-shaped is gone.
-///
-/// Offcloud answers a refusal with a sentence, and a sentence can quote whatever was sent to
-/// it. So the value is kept only when the whole of it is a short, code-shaped token, and
-/// dropped whole otherwise: filtering an answer that echoed a credential would keep its digits.
-#[must_use]
-pub fn sanitize_error(reason: &str) -> Option<String> {
-    let reason = reason.trim();
-    let code_shaped = !reason.is_empty()
-        && reason.len() <= 40
-        && reason
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'));
-    code_shaped.then(|| reason.to_ascii_lowercase())
-}
+/// The words this plugin reports a refusal under; the rules are `offcloud_common`'s, shared
+/// with the resolver sibling.
+pub const WORDS: Words = Words {
+    http: HTTP,
+    auth_invalid: messages::AUTH_INVALID,
+    api_error: messages::API_ERROR,
+    addon_required: messages::ADDON_REQUIRED,
+};
 
-/// Classifies the one stable word Offcloud puts in `error`, and buckets everything else.
-#[must_use]
-pub fn classify_error(reason: &str) -> ApiFailure {
-    match sanitize_error(reason).as_deref() {
-        Some("noauth") => ApiFailure::new(ErrorKind::AccountInvalid, messages::AUTH_INVALID),
-        Some(token) => ApiFailure::with_api_code(ErrorKind::Permanent, messages::API_ERROR, token),
-        None => ApiFailure::new(
-            ErrorKind::Transient(Some(BUSY_SECONDS)),
-            messages::API_ERROR,
-        ),
-    }
-}
-
-/// Classifies the closed set of `not_available` reasons.
-///
-/// None of them is a fault of the source: each says the account's plan does not cover this kind
-/// of download.
-#[must_use]
-pub fn classify_not_available(reason: &str) -> ApiFailure {
-    let token = sanitize_error(reason).unwrap_or_else(|| "unknown".to_owned());
-    ApiFailure::new(ErrorKind::Unsupported, messages::ADDON_REQUIRED).with_param("addon", token)
-}
-
-/// The refusal an answer carries, or an empty envelope when it carries none.
-///
-/// **Only a JSON object can be a refusal**, and that has to be checked rather than assumed:
-/// serde deserialises a struct from a *sequence* as readily as from a map, taking the elements
-/// in field order. So `["https://a", "https://b"]` read straight into [`ErrorEnvelope`] becomes
-/// `{error: "https://a", not_available: "https://b"}` -- a refusal invented out of a perfectly
-/// good answer. Both `cloud/explore` and `cloud/history` answer with arrays, and before this
-/// guard a finished job whose file tree came back in the bare-address shape was classified as
-/// a missing add-on and arrived as an empty package.
-#[must_use]
-pub fn error_envelope(body: &[u8]) -> ErrorEnvelope {
-    serde_json::from_slice::<serde_json::Value>(body)
-        .ok()
-        .filter(serde_json::Value::is_object)
-        .and_then(|value| serde_json::from_value(value).ok())
-        .unwrap_or_default()
-}
-
-/// The failure an answer describes, or `None` when it describes none.
-///
-/// Three sources disagree often enough that the order between them has to be written down
-/// rather than fallen into:
-///
-/// 1. `not_available` wins outright. It is the one answer that names something a person can
-///    do, and an answer carrying it and an error is still about the add-on.
-/// 2. **A code-shaped `error` beats the status.** Offcloud answers a refusal with a 200 as
-///    readily as with a 401, so a status-first rule would read `NOAUTH` on a 200 as no refusal
-///    at all.
-/// 3. **The status beats prose.** A 429 is a spent request budget whatever sentence rides
-///    along with it, and reading that sentence instead would turn the one answer that carries
-///    a `Retry-After` into a guess. This is the order the fixtures caught: before it,
-///    `{"error": "Too many requests, please slow down."}` on a 429 was a five-minute wait
-///    rather than the two minutes the header asked for.
-/// 4. Prose on a 2xx is left: something refused this and nothing says what.
+/// The failure an answer describes, or `None` when it describes none: see
+/// [`offcloud_common::failure_from`] for the order a word, a status and prose are believed in.
 #[must_use]
 pub fn failure_from(
     status: u16,
     retry_after: Option<u64>,
     envelope: &ErrorEnvelope,
 ) -> Option<ApiFailure> {
-    if let Some(reason) = envelope.not_available.as_deref() {
-        return Some(classify_not_available(reason));
-    }
-    if let Some(reason) = envelope
-        .error
-        .as_deref()
-        .filter(|reason| sanitize_error(reason).is_some())
-    {
-        return Some(classify_error(reason));
-    }
-    if let Err(failure) = HTTP.ensure_http_status(status, retry_after) {
-        return Some(failure);
-    }
-    envelope.error.as_deref().map(classify_error)
+    offcloud_common::failure_from(status, retry_after, envelope, &WORDS)
 }
 
 /// `application/x-www-form-urlencoded` body, as the published API asks for its parameters.

@@ -160,7 +160,8 @@ pub async fn rename_package_folder(
         .downloads_for_package(id)
         .await?
         .iter()
-        .any(|file| is_transferring(file.state))
+        // A file that is writing right now would lose its handle if the folder moved.
+        .any(|file| file.state.holds_the_file())
     {
         return Err(ApiError::conflict(
             "package.folder_busy",
@@ -213,19 +214,6 @@ pub async fn rename_package_folder(
         tracing::warn!(package_id = %id, %error, "package folder was not renamed on disk");
     }
     Ok(Json(updated))
-}
-
-/// A file that is writing right now, and would lose its handle if the folder moved.
-fn is_transferring(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Resolving
-            | DownloadState::Downloading
-            | DownloadState::Verifying
-            | DownloadState::Repairing
-            | DownloadState::Extracting
-            | DownloadState::Seeding
-    )
 }
 
 #[utoipa::path(post, path = "/api/v1/packages/{id}/extract", tag = "downloads", params(("id" = rd_core::PackageId, Path)), responses((status = 202, body = MessageResponse), (status = 409)))]

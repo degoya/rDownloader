@@ -5,7 +5,7 @@
 # sqlx stores the SHA-384 of every migration file it applies and compares it on each start, so
 # an installation that applied a file refuses to start once a single byte of it changes -- a
 # comment included ("migration 65 was previously applied but has been modified", 2026-09-23).
-# The pin file holds the checksum of every migration, and `crates/rd-db/tests/migration_checksums.rs`
+# The pin file holds the checksum of every migration, and `crates/rd-db/tests/database/migration_checksums.rs`
 # fails when a file no longer matches its pin, or when a migration has no pin at all. That second
 # failure names this script: a migration is pinned when it is added, not the first time somebody
 # edits it.

@@ -10,12 +10,16 @@ import RoutingCategoryRules from '@/components/routing/RoutingCategoryRules.vue'
 import RoutingStorageRoots from '@/components/routing/RoutingStorageRoots.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import StorageActivityCard from '@/components/storage/StorageActivityCard.vue'
-import SettingsCollectorTab from '@/components/settings/SettingsCollectorTab.vue'
+import SettingsDocumentGate from '@/components/settings/SettingsDocumentGate.vue'
+import SettingsStorageCapacityCard from '@/components/settings/SettingsStorageCapacityCard.vue'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 
 const settings = defineModel<Settings>({ required: true })
-/** Owned by the parent: only the collector pane needs the settings save bar. */
+/**
+ * Owned by the parent: the storage roots, which carry the global storage capacity (RD-1120-21),
+ * need the settings save bar.
+ */
 const activeTab = defineModel<string>('subTab', { required: true })
 const { t } = useI18n()
 const roots = ref<StorageRoot[]>([])
@@ -78,11 +82,13 @@ async function reloadDependents(): Promise<void> {
       :unmount-on-hide="false"
       variant="pill"
       class="w-full"
-      :ui="{ content: 'pt-4' }"
     >
       <template #roots>
         <div class="space-y-4">
           <RoutingStorageRoots v-model="roots" :loading="loading" :load-error="loadError" />
+          <SettingsDocumentGate>
+            <SettingsStorageCapacityCard v-model="settings" />
+          </SettingsDocumentGate>
           <StorageActivityCard />
         </div>
       </template>
@@ -91,9 +97,6 @@ async function reloadDependents(): Promise<void> {
       </template>
       <template #rules>
         <RoutingCategoryRules v-model="rules" :categories="categories" :loading="loading" :load-error="loadError" />
-      </template>
-      <template #collector>
-        <SettingsCollectorTab v-model="settings" />
       </template>
     </UTabs>
   </div>

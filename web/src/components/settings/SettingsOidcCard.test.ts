@@ -1,9 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
+import common from '@/locales/en/common.json'
 import system from '@/locales/en/system.json'
+import { mountComponent } from '@/test/mount'
 import { leaveFor } from '@/utils/identityProvider'
 
 import SettingsOidcCard from './SettingsOidcCard.vue'
@@ -21,24 +22,10 @@ const route = { path: '/settings/security', query: {} as Record<string, string>,
 const replace = vi.fn()
 vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace }) }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { system } } })
-const components = {
-  UAlert: {
-    props: ['title', 'description'],
-    template: '<div role="note">{{ title }} {{ description }}</div>'
-  },
-  UButton: {
-    props: ['label', 'disabled', 'type'],
-    emits: ['click'],
-    template: '<button :type="type || \'button\'" :disabled="disabled" @click="$emit(\'click\')">{{ label }}</button>'
-  },
-  UFormField: { props: ['label'], template: '<label>{{ label }}<slot /></label>' },
-  UInput: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">'
-  },
-  USwitch: { props: ['label'], template: '<span>{{ label }}</span>' }
+/** The notice as a `note`, so a test can read what it says. */
+const UAlert = {
+  props: ['title', 'description'],
+  template: '<div role="note">{{ title }} {{ description }}</div>'
 }
 
 const REDIRECT = 'https://dl.example.com/api/v1/auth/oidc/callback'
@@ -64,7 +51,7 @@ function settings(overrides: Record<string, unknown> = {}) {
 }
 
 function mount() {
-  return render(SettingsOidcCard, { global: { plugins: [i18n], components } })
+  return mountComponent(SettingsOidcCard, { messages: { system }, stubs: { UAlert } })
 }
 
 async function typePassword() {

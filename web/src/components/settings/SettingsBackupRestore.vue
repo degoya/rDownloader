@@ -11,6 +11,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsFullBackupCard from '@/components/settings/SettingsFullBackupCard.vue'
 import SettingsFullRestoreCard from '@/components/settings/SettingsFullRestoreCard.vue'
 import { downloadJson } from '@/utils/jsonFile'
+import { isRecord } from '@/utils/values'
 
 const emit = defineEmits<{ imported: [] }>()
 const { t } = useI18n()
@@ -146,10 +147,6 @@ function isSettingsBundle(value: Record<string, unknown>): value is SettingsBund
     && typeof value.app_version === 'string'
     && isRecord(value.settings)
 }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
 </script>
 
 <template>
@@ -168,7 +165,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         :title="t('system.backup.export.title')"
         :description="t('system.backup.export.description')"
       />
-      <UAlert v-if="exportError" class="mt-5" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="exportError" />
+      <UAlert v-if="exportError" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="exportError" />
       <form class="mt-5 space-y-4" @submit.prevent="downloadBackup">
         <UFormField
           name="include-secrets"
@@ -202,7 +199,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         :title="t('system.backup.import.title')"
         :description="t('system.backup.import.description')"
       />
-      <UAlert v-if="importError" class="mt-5" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="importError" />
+      <UAlert v-if="importError" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="importError" />
       <form class="mt-5 space-y-4" @submit.prevent="restoreBackup">
         <div class="flex flex-wrap items-center gap-3">
           <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">
@@ -220,7 +217,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         <UAlert
           v-if="importBundle"
           color="neutral"
-          variant="subtle"
           :icon="importNeedsPassphrase ? 'i-lucide-lock-keyhole' : 'i-lucide-lock-keyhole-open'"
           :ui="{ icon: 'size-4 text-primary', description: 'flex flex-wrap items-center gap-2 text-xs text-toned' }"
         >

@@ -25,33 +25,11 @@ pub fn google_host(host: &str) -> Option<&'static str> {
     HOSTS.into_iter().find(|known| *known == host)
 }
 
-/// Scheme, host and the rest of an address.
-///
-/// Returns `None` for anything that is not plain http(s), and for an authority carrying
-/// credentials — accepting those would let `x@evil.test` read as one of Google's own hosts.
-#[must_use]
-pub fn split(url: &str) -> Option<(&str, &str)> {
-    let (scheme, rest) = url.split_once("://")?;
-    if !matches!(scheme, "http" | "https") {
-        return None;
-    }
-    let rest = rest.split('#').next()?;
-    let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
-    if authority.contains('@') {
-        return None;
-    }
-    Some((authority.split(':').next()?, path))
-}
-
-/// The value of one query parameter, undecoded.
-#[must_use]
-pub fn query_value<'a>(path: &'a str, name: &str) -> Option<&'a str> {
-    let query = path.split_once('?')?.1;
-    query.split('&').find_map(|pair| {
-        let (key, value) = pair.split_once('=')?;
-        (key == name).then_some(value)
-    })
-}
+// The address readers every cloud plugin shares (RD-1120-10): `split` refuses anything that is
+// not plain http(s) and an authority carrying credentials — accepting those would let
+// `x@evil.test` read as one of Google's own hosts — and `query_value` reads one parameter,
+// undecoded.
+pub use plugin_common::address::{query_value, split};
 
 /// The path segments of an address, with the `/u/<n>` account prefix removed.
 #[must_use]
@@ -74,11 +52,7 @@ pub fn segments(route: &str) -> Vec<&str> {
 /// request path. Anything else could be a path segment, an escape or a second address.
 #[must_use]
 pub fn valid_id(id: &str) -> bool {
-    !id.is_empty()
-        && id.len() <= 128
-        && id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    plugin_common::address::valid_token(id, 128)
 }
 
 /// The canonical address for one Drive item, and the one both plugins hand each other.

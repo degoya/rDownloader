@@ -3,21 +3,10 @@
 //! Kept apart from the component so it can be unit-tested on the host target: `cargo test` runs
 //! these without a WebAssembly toolchain.
 //!
-//! The answers below are the ones the host reacts to differently, which is why they are four
-//! and not one:
-//!
-//! - `Granted` — store the token, report `authorized`.
-//! - `Refused` — Microsoft said no and will keep saying no. It becomes `failed`, and the
-//!   person is told to sign in again.
-//! - `Busy` — a rate limit, or a device sign-in the person has not finished at the other
-//!   screen. It becomes `pending`, and the host waits the given number of seconds. Never a
-//!   failure: nothing is wrong with the credential.
-//! - `Unreadable` — an answer this plugin does not understand. Treated as a refusal rather than
-//!   as success, because reporting `authorized` without a stored token would leave an account
-//!   that looks signed in and cannot download anything.
-//!
-//! A provider that could not be reached at all never gets here: `http-request` fails, the guest
-//! returns that failure, and the host keeps the stored token and tries again later.
+//! What the four answers mean to the host, and why an unreachable provider is none of them,
+//! is `plugin_guest_oauth::token`'s to say; the flow that acts on them is
+//! `plugin_guest_oauth::redirect`'s. What is the provider's own stays here: its refusal codes
+//! and what it says "wait" with, which `guest` hands to the flow.
 
 use plugin_guest_oauth::token::{self, Waiting};
 // Microsoft spells the address `verification_uri`, which the shared reader prefers. Its
@@ -49,7 +38,7 @@ pub fn refusal_code(error: &str) -> &'static str {
 }
 
 /// What this provider's token answer says "wait" with, besides HTTP 429.
-const WAITING: Waiting = Waiting {
+pub const WAITING: Waiting = Waiting {
     errors: &["slow_down", "authorization_pending"],
     fields: &["retry_after", "interval"],
 };

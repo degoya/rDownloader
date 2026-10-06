@@ -1,7 +1,7 @@
 //! The reference OAuth provider (RD-105-01): authorization code with PKCE, and the renewal
 //! that outlives it.
 //!
-//! It exists to be driven by the contract tests in `crates/rd-plugin-ext/tests/oauth_contract.rs`,
+//! It exists to be driven by the contract tests in `crates/rd-plugin-ext/tests/contract/oauth_contract.rs`,
 //! which stand in for the authorization server. It is the same code the `oauth` SDK template
 //! scaffolds, pointed at a host nobody can reach — shipping a usable one would mean shipping a
 //! plugin that signs people in somewhere.
@@ -28,8 +28,8 @@ pub mod flow;
 
 /// PKCE and the JSON reader, shared with the other OAuth plugins.
 ///
-/// Re-exported rather than imported at each use site, so the paths below still read
-/// `pkce::challenge` and a reader can see where the derivation lives.
+/// Re-exported so a reader can see where the derivation lives; since RD-1120-10 the flow that
+/// uses it is `plugin_guest_oauth::redirect`, which `guest` states its provider to.
 pub use plugin_common::pkce;
 
 #[cfg(target_arch = "wasm32")]

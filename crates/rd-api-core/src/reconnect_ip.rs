@@ -71,8 +71,7 @@ pub(crate) async fn wait_for_change(configured: &[String], before: Option<&str>)
 fn endpoints(configured: &[String]) -> Vec<String> {
     let configured: Vec<String> = configured
         .iter()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
+        .filter_map(|value| crate::input_checks::optional_text(Some(value)))
         .collect();
     if configured.is_empty() {
         DEFAULT_ENDPOINTS
@@ -106,7 +105,7 @@ fn client(policy: &rd_http::AddressPolicy) -> Option<reqwest::Client> {
     let hops = policy.clone();
     reqwest::Client::builder()
         .timeout(LOOKUP_TIMEOUT)
-        .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")))
+        .user_agent(rd_core::user_agent!())
         .dns_resolver(rd_http::GuardedResolver::system(policy.clone()))
         .redirect(reqwest::redirect::Policy::custom(move |attempt| {
             if attempt.previous().len() >= MAX_REDIRECTS {

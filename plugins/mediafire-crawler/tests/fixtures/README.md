@@ -20,5 +20,5 @@ Folder keys, quick keys, names, sizes and content hashes are the public share's 
 | `api-folder-get-info-private.json` | synthetic |
 
 The subfolders' own content and a folder wide enough for a second chunk were not captured;
-the contract test in `crates/rd-plugin-ext/tests/mediafire_crawler_contract.rs` builds those
+the contract test in `crates/rd-plugin-ext/tests/contract/mediafire_crawler_contract.rs` builds those
 answers from the captured shape and labels them as generated.

@@ -6,37 +6,11 @@
 
 use serde::Deserialize;
 
-/// One entry of a listing: either something to walk into, or a file to hand back.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Entry {
-    Folder {
-        id: String,
-        name: String,
-    },
-    File {
-        id: String,
-        name: String,
-        size: Option<u64>,
-    },
-}
+/// One entry of a listing: the shared crawler entry (RD-1120-10).
+pub use plugin_common::walk::Entry;
 
 /// Box states sizes as numbers; being lenient costs nothing.
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Flexible {
-    Number(u64),
-    Text(String),
-}
-
-impl Flexible {
-    #[must_use]
-    pub fn as_u64(&self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(*value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub use plugin_flexible::FlexibleU64 as Flexible;
 
 /// One row of `/items`, and the whole of a single-item answer.
 #[derive(Debug, Default, Deserialize)]

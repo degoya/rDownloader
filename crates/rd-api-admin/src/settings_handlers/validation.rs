@@ -1,6 +1,7 @@
 //! Validation of a settings document before it is stored.
 
 use super::*;
+use rd_api_core::input_checks::optional_text;
 
 pub(crate) fn validate_settings(
     settings: &mut SettingsResponse,
@@ -172,11 +173,7 @@ fn validate_power_and_storage(settings: &mut SettingsResponse) -> Result<(), Api
             ),
         ));
     }
-    settings.dlc_service_endpoint = settings
-        .dlc_service_endpoint
-        .take()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty());
+    settings.dlc_service_endpoint = optional_text(settings.dlc_service_endpoint.take());
     if let Some(endpoint) = settings.dlc_service_endpoint.as_deref()
         && !url::Url::parse(endpoint)
             .is_ok_and(|parsed| matches!(parsed.scheme(), "http" | "https"))

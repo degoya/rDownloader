@@ -3,8 +3,8 @@
   "headers": {
     "system": {
       "eyebrow": "Running service",
-      "title": "System overview",
-      "description": "Status of the service, Usenet and capture, and the key runtime facts."
+      "title": "System & maintenance",
+      "description": "Status of the service, Usenet and capture with the key runtime facts, updates, and logs and retention."
     },
     "backup": {
       "eyebrow": "Safety & migration",
@@ -13,13 +13,13 @@
     },
     "general": {
       "eyebrow": "Basics",
-      "title": "Downloads & access",
-      "description": "Scheduler parallelism, chunks, pace and retries — plus the UI port and the password protection."
+      "title": "Queue & retries",
+      "description": "How many downloads run at once, with how many chunks and connections per host, how often they are retried — plus automatic removal and checksums."
     },
     "network": {
       "eyebrow": "Outbound connections",
       "title": "Network & certificates",
-      "description": "Proxy profiles and the global fallback, your own certificate authority, authentication profiles for protected sites, and the reconnect script."
+      "description": "Proxy profiles and the global fallback, your own certificate authority, and the reconnect script."
     },
     "media": {
       "eyebrow": "External tools",
@@ -32,9 +32,9 @@
       "description": "What happens to a finished package: repair, unpack, cleanup, run a script and optionally upload to an rclone remote."
     },
     "interface": {
-      "eyebrow": "This browser only",
+      "eyebrow": "How it looks",
       "title": "Interface",
-      "description": "Language, theme and notifications for this browser, plus how sizes are printed everywhere in the interface."
+      "description": "Language, theme and notifications for this browser, plus, for every browser, how sizes, the tab title, cover images and the NZB hand-over are shown."
     },
     "bandwidth": {
       "eyebrow": "Planned load",
@@ -47,29 +47,19 @@
       "description": "Signed webhooks, e-mail and Apprise-compatible services, filtered by event, category and severity, with a delivery history."
     },
     "services": {
-      "eyebrow": "Transfers",
+      "eyebrow": "Protocols on/off",
       "title": "Services",
       "description": "Switch off what this installation should not do. A switched-off service refuses new links and stops the ones it already had."
-    },
-    "desktop": {
-      "eyebrow": "Capture agent",
-      "title": "Desktop client",
-      "description": "Pair the desktop capture agent with this server so clicks, the clipboard and file associations reach it."
     },
     "accounts": {
       "eyebrow": "Provider access",
       "title": "Provider accounts",
-      "description": "Logins for hosters, debrid services and other providers. Every account uses its own isolated client identity — cookie jar, proxy, TLS — and no secret or cookie is ever returned by the API."
+      "description": "Logins for hosters, debrid services and other providers. Every account uses its own isolated client identity — cookie jar, proxy, TLS — and no secret or cookie is ever returned by the API. Plus the sign-ins for protected sites."
     },
     "security": {
       "eyebrow": "Who gets in",
       "title": "Security",
       "description": "Second factor and passkeys for the login, the sessions signed in right now, and the reverse proxy this service may believe."
-    },
-    "mcp": {
-      "eyebrow": "External access",
-      "title": "API & MCP",
-      "description": "API tokens for REST, the CLI, SABnzbd- and qBittorrent-compatible clients and the MCP server, each limited to the areas you pick."
     },
     "hotfolders": {
       "eyebrow": "Watched folders",
@@ -105,11 +95,21 @@
       "eyebrow": "Origin & licenses",
       "title": "About rDownloader",
       "description": "Which version is running, where it comes from, who made it, and under which licenses the parts it ships are."
+    },
+    "linkgrabber": {
+      "eyebrow": "Taking in links",
+      "title": "LinkGrabber",
+      "description": "Which links the LinkGrabber drops before they reach it, how it opens DLC containers and whether it groups copies of one file as mirrors."
+    },
+    "clients": {
+      "eyebrow": "What talks to the service",
+      "title": "Clients & API",
+      "description": "Pair the desktop client and the browser extension with this server, and issue API tokens for REST, the CLI, SABnzbd- and qBittorrent-compatible clients and the MCP server."
     }
   },
   "active_files": {
-    "label": "Parallel files",
-    "description": "Global scheduler slots"
+    "label": "Simultaneous downloads",
+    "description": "How many downloads run at once; also set in the status bar, and applied without a restart."
   },
   "chunks": {
     "label": "Chunks per file",
@@ -136,7 +136,9 @@
   },
   "import_history": {
     "label": "Keep import history",
-    "description": "Keep imported NZB entries and stored .torrent files after the download finishes. When disabled, they are removed automatically on completion — duplicate detection for re-imported NZBs is then unavailable."
+    "description": "Keep imported NZB entries and stored .torrent files after the download finishes. When disabled, they are removed automatically on completion — duplicate detection for re-imported NZBs is then unavailable.",
+    "eyebrow": "Imports",
+    "title": "Import history"
   },
   "auto_remove": {
     "label": "Remove finished packages",
@@ -151,13 +153,15 @@
     "description": "When a package holds several links to the same file, download one of them and keep the rest as fallbacks. If the one that runs gives up, another takes over."
   },
   "sha256": {
-    "label": "Generate SHA-256",
-    "description": "Always verify multi-chunk downloads in full."
+    "label": "Compute SHA-256",
+    "description": "Compute a SHA-256 for every finished file whose source states no checksum; it is stored with the download."
   },
   "admin_login": {
     "label": "Disable admin login",
     "description": "Whoever opens the interface on this computer may control everything without signing in. Every other machine — on the LAN, through a port mapping, a container or a reverse proxy — still has to sign in with the password. Takes effect immediately after saving.",
-    "warning": "Password protection is switched off."
+    "warning": "Password protection is switched off.",
+    "eyebrow": "Local access",
+    "title": "Sign-in on this computer"
   },
   "proxy": {
     "eyebrow": "Egress route",
@@ -324,9 +328,9 @@
     }
   },
   "appearance": {
-    "eyebrow": "Client preferences",
+    "eyebrow": "This browser only",
     "title": "Appearance",
-    "description": "Language and theme are stored in this browser only and take effect immediately.",
+    "description": "Language, theme and browser notifications are stored in this browser only and take effect immediately.",
     "language_description": "Applies immediately, no saving needed.",
     "theme_description": "“System” follows your operating system setting.",
     "byte_display": {
@@ -433,11 +437,9 @@
     "backup": "Backup & restore",
     "bandwidth": "Bandwidth",
     "captcha": "Captcha & solver",
-    "desktop": "Desktop client",
-    "general": "General",
+    "general": "Queue & retries",
     "hotfolders": "Hotfolders",
     "interface": "Interface",
-    "mcp": "API & MCP",
     "media": "Media",
     "network": "Network",
     "notifications": "Notifications",
@@ -453,7 +455,9 @@
     "transfers": "FTP, SFTP, WebDAV & S3",
     "unattended": "Unattended operation",
     "usenet": "Usenet",
-    "about": "About rDownloader"
+    "about": "About rDownloader",
+    "linkgrabber": "LinkGrabber",
+    "clients": "Clients & API"
   },
   "ui_port": {
     "label": "Web interface port",
@@ -463,7 +467,7 @@
   },
   "collector": {
     "eyebrow": "Link collection",
-    "title": "Collector",
+    "title": "Blocklist",
     "description": "Links whose host is on the blocklist are dropped before they reach the LinkGrabber.",
     "excluded_domains": {
       "label": "Excluded domains file",
@@ -700,11 +704,9 @@
     "certificate_description": "Private key and certificate chain as one decrypted PEM bundle. Passphrase-protected keys are not supported.",
     "certificate_label": "Client certificate (optional)",
     "created": "Authentication profile created",
-    "delete": "Delete",
     "delete_description": "The stored credentials are deleted with it. Jobs pinned to it fall back to automatic matching.",
     "delete_title": "Delete profile?",
     "description": "Reuse a browser session or send HTTP credentials to one approved domain. Cookies, tokens and private keys are stored encrypted and never shown again.",
-    "edit": "Edit",
     "empty": "No authentication profiles yet.",
     "enabled_label": "Active",
     "expires_description": "Optional. An expired profile stays listed but is no longer used.",
@@ -725,7 +727,6 @@
     "secret_cookies_description": "Netscape cookies.txt content or a Cookie header.",
     "secret_keep": "Leave empty to keep the stored value.",
     "subdomains_label": "Include subdomains",
-    "test": "Test",
     "title": "Authentication profiles",
     "username_label": "Username",
     "form_new": "New authentication profile",
@@ -734,7 +735,7 @@
   },
   "storage": {
     "title": "Storage capacity",
-    "description": "Applies to every transport. A destination below its threshold takes no new downloads until space is free again.",
+    "description": "Applies to every transport. A destination below its threshold takes no new downloads until space is free again. A storage root’s own “Minimum free space” above overrides the global value for that root.",
     "minimum_free": {
       "label": "Minimum free space",
       "description": "Kept free on every storage root without an own threshold."
@@ -799,7 +800,8 @@
         "failed": "failed",
         "interrupted": "interrupted"
       }
-    }
+    },
+    "eyebrow": "All storage roots"
   },
   "services": {
     "eyebrow": "Availability",
@@ -829,6 +831,11 @@
     "remote": {
       "label": "Remote file transfer",
       "description": "FTP, FTPS, SFTP and WebDAV links."
+    },
+    "off": {
+      "title": "Service switched off: {name}",
+      "description": "Matching links are refused at intake, and queued rows of this kind wait blocked. The settings here apply once you switch the service back on.",
+      "open": "Go to the switch"
     }
   },
   "managed_tools": {
@@ -954,18 +961,31 @@
   "subtabs": {
     "network": {
       "proxies": "Proxies & TLS",
-      "auth": "Authentication",
       "reconnect": "Reconnect"
     },
     "security": {
       "signin": "Sign-in",
       "sessions": "Sessions",
-      "proxy": "Reverse proxy"
+      "proxy": "Reachability & reverse proxy"
     },
     "system": {
       "status": "Status",
       "updates": "Updates",
-      "retention": "Retention"
+      "retention": "Logs & retention"
+    },
+    "bandwidth": {
+      "status": "Status & limits",
+      "profiles": "Profiles",
+      "schedule": "Schedule"
+    },
+    "accounts": {
+      "accounts": "Accounts",
+      "logins": "Site logins"
+    },
+    "clients": {
+      "desktop": "Desktop",
+      "browser": "Browser",
+      "api": "API & MCP"
     }
   },
   "auto_retry": {
@@ -985,5 +1005,29 @@
     "entries_description": "The oldest entries go first (100-100000).",
     "days_label": "Days kept",
     "days_description": "Entries older than this are removed whatever the count (1-3650)."
+  },
+  "limits": {
+    "eyebrow": "Set by hand",
+    "title": "Download and upload limits",
+    "description": "Apply at all times, whatever the schedule. An active profile overlays them: the stricter of the two limits applies."
+  },
+  "nntp_limits": {
+    "eyebrow": "Per file",
+    "title": "NNTP connections and files",
+    "description": "The connections set per provider above are the ceiling: one file uses at most as many connections as each provider allows, and the cap here can hold it below that. Usenet files running at once share the providers’ connections."
+  },
+  "cross_link": {
+    "see_also": "See also",
+    "program_path": "Program path under"
+  },
+  "tool_paths": {
+    "eyebrow": "Programs",
+    "title": "Custom paths",
+    "description": "A path here comes before the search in the vendor folders and PATH; an empty field leaves it to that search. Which file was found is shown by the tool discovery below."
+  },
+  "display": {
+    "eyebrow": "Every browser",
+    "title": "Display",
+    "description": "Saved with the settings in the service and applies in every browser that opens it."
   }
 }

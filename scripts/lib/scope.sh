@@ -13,6 +13,10 @@
 # scoped run. That is what `--full` is for, and that is why the merge and the release chain run
 # it rather than trusting a scoped green.
 
+# What is documentation (rd_inert_path) and what the Rust build reads, one rule for every check.
+# shellcheck source=inert-paths.sh
+source "$(dirname "${BASH_SOURCE[0]}")/inert-paths.sh"
+
 # The commit a scoped run diffs against.
 #
 # Normally the OLDER of the branch point and the last green run. The branch point alone is empty
@@ -187,8 +191,11 @@ rd_defer_class() {
         printf 'no\n'
         return 0
     fi
+    if rd_inert_path "$path"; then
+        printf 'docs\n'
+        return 0
+    fi
     case "$path" in
-        docs/*|*.md)              printf 'docs\n'; return 0 ;;
         web/src/locales/*)        printf 'locales\n'; return 0 ;;
         web/src/assets/*)         printf 'appearance\n'; return 0 ;;
         *.css)                    printf 'appearance\n'; return 0 ;;

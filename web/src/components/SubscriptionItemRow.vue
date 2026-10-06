@@ -201,8 +201,8 @@ const detailsLabel = computed(() =>
         <p class="truncate text-sm text-highlighted" :title="title">{{ title }}</p>
         <dl v-if="promotedFacts.length" class="flex flex-wrap gap-x-3 gap-y-0.5">
           <div v-for="fact in promotedFacts" :key="fact.label" class="flex items-baseline gap-1">
-            <dt class="text-[11px] text-muted">{{ fact.label }}</dt>
-            <dd class="numeric text-[11px] text-highlighted">{{ fact.value }}</dd>
+            <dt class="text-2xs text-muted">{{ fact.label }}</dt>
+            <dd class="numeric text-2xs text-highlighted">{{ fact.value }}</dd>
           </div>
         </dl>
       </div>

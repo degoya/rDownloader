@@ -88,7 +88,6 @@ const incompatible = computed(() =>
       v-if="incompatible.length"
       class="mt-4"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       :title="t('settings.vendor.compatibility.warning_title')"
       :description="t('settings.vendor.compatibility.warning')"
@@ -98,7 +97,6 @@ const incompatible = computed(() =>
       v-if="ffprobeMissing"
       class="mt-4"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       :title="t('settings.vendor.ffprobe_warning_title')"
       :description="t('settings.vendor.ffprobe_warning')"
@@ -107,7 +105,7 @@ const incompatible = computed(() =>
     <div class="mt-4">
       <p class="text-xs font-medium text-highlighted">{{ t('settings.vendor.searched') }}</p>
       <ol v-if="status?.vendor_directories.length" class="mt-2 space-y-1">
-        <li v-for="(directory, index) in status.vendor_directories" :key="directory" class="flex items-start gap-2 font-mono text-[11px] leading-5 text-muted">
+        <li v-for="(directory, index) in status.vendor_directories" :key="directory" class="flex items-start gap-2 font-mono text-2xs leading-5 text-muted">
           <span class="numeric shrink-0 text-primary">{{ index + 1 }}.</span>
           <span class="min-w-0 break-all">{{ directory }}</span>
         </li>
@@ -122,7 +120,7 @@ const incompatible = computed(() =>
           <UIcon :name="tool.path ? 'i-lucide-circle-check' : 'i-lucide-circle-alert'" class="size-4 shrink-0" :class="tool.path ? 'text-success' : 'text-warning'" />
           <span class="font-mono text-xs text-highlighted">{{ tool.name }}</span>
         </div>
-        <p v-if="tool.path" class="min-w-0 truncate font-mono text-[11px] text-muted" :title="tool.path">{{ tool.path }}</p>
+        <p v-if="tool.path" class="min-w-0 truncate font-mono text-2xs text-muted" :title="tool.path">{{ tool.path }}</p>
         <p v-else class="text-xs text-warning">{{ t('settings.vendor.not_found') }}</p>
         <div v-if="tool.path" class="flex flex-wrap items-center gap-1.5">
           <UBadge v-if="tool.version" color="neutral" variant="subtle" size="sm" class="font-mono">{{ tool.version }}</UBadge>
@@ -134,7 +132,7 @@ const incompatible = computed(() =>
         </div>
         <p
           v-if="hasVerdict(tool) && tool.compatibility.verdict !== 'supported'"
-          class="text-[11px] leading-5 text-muted sm:col-span-3"
+          class="text-2xs leading-5 text-muted sm:col-span-3"
         >
           {{ affectedLabel(tool) }}<template v-if="tool.compatibility.min_version">
             · {{ t('settings.vendor.compatibility.needs', { version: tool.compatibility.min_version }) }}</template>

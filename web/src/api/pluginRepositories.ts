@@ -83,7 +83,7 @@ export const setRefreshHours = (hours: number) =>
 export const listOffers = () => call<PluginOffers>('GET', '/api/v1/plugins/updates')
 
 /** Whether every installed plugin installs its updates itself (RD-191-10). */
-export type PluginUpdateSettings = Schemas['PluginUpdateSettingsResponse']
+type PluginUpdateSettings = Schemas['PluginUpdateSettingsResponse']
 
 export const getUpdateSettings = () =>
   call<PluginUpdateSettings>('GET', '/api/v1/plugins/updates/settings')

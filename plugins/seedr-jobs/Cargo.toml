@@ -12,7 +12,7 @@ seedr-common = { path = "../seedr-common" }
 serde_json.workspace = true
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

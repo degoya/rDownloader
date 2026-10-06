@@ -93,14 +93,8 @@ pub struct AuditQuery {
     pub limit: u32,
 }
 
-/// What one bounded prune did and what it left behind.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct AuditPruneReport {
-    pub deleted: u64,
-    /// Records still over the count cap after this batch; the caller runs again while it is
-    /// non-zero, and yields to the queue in between.
-    pub remaining_over_cap: u64,
-}
+/// What one bounded prune of the audit records did and what it left behind.
+pub type AuditPruneReport = crate::retention::PruneReport;
 
 #[derive(FromRow)]
 struct Row {
@@ -246,62 +240,6 @@ pub(crate) async fn clear_audit_records(
     .context("record the audit clear in the emptied log")?;
     transaction.commit().await?;
     Ok(deleted)
-}
-
-/// Removes what retention no longer keeps, at most `batch` whole rows in this call.
-///
-/// Age first, then count, exactly as `log_store` does, and for the same reason: the writer
-/// runs one command at a time, so a single unbounded `DELETE` over a neglected store would
-/// stall every download state change for its duration. A row is removed whole — there is no
-/// statement anywhere that changes a column of this table, and the trigger in migration
-/// `0079` refuses one.
-pub(crate) async fn prune_audit_records(
-    connection: &mut SqliteConnection,
-    max_records: u64,
-    older_than: Option<DateTime<Utc>>,
-    batch: u64,
-) -> Result<AuditPruneReport> {
-    let mut deleted = 0u64;
-    if let Some(cutoff) = older_than
-        && batch > 0
-    {
-        let result = sqlx::query(
-            "DELETE FROM audit_records WHERE id IN \
-               (SELECT id FROM audit_records WHERE recorded_at < ? ORDER BY id LIMIT ?)",
-        )
-        .bind(timestamp(&cutoff))
-        .bind(i64::try_from(batch).unwrap_or(i64::MAX))
-        .execute(&mut *connection)
-        .await
-        .context("prune audit records by age")?;
-        deleted += result.rows_affected();
-    }
-    let count = count_rows(&mut *connection).await?;
-    let over_cap = count.saturating_sub(max_records);
-    let room = batch.saturating_sub(deleted);
-    let take = over_cap.min(room);
-    if take > 0 {
-        let result = sqlx::query(
-            "DELETE FROM audit_records WHERE id IN \
-               (SELECT id FROM audit_records ORDER BY id LIMIT ?)",
-        )
-        .bind(i64::try_from(take).unwrap_or(i64::MAX))
-        .execute(&mut *connection)
-        .await
-        .context("prune audit records by count")?;
-        deleted += result.rows_affected();
-    }
-    Ok(AuditPruneReport {
-        deleted,
-        remaining_over_cap: over_cap.saturating_sub(take),
-    })
-}
-
-async fn count_rows(connection: &mut SqliteConnection) -> Result<u64> {
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM audit_records")
-        .fetch_one(connection)
-        .await?;
-    Ok(u64::try_from(count).unwrap_or(0))
 }
 
 pub(crate) async fn count_audit_records(pool: &SqlitePool) -> Result<u64> {

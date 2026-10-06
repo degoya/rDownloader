@@ -7,7 +7,7 @@
   "last_live": "Último directo: {time}",
   "never_live": "Nunca visto en directo",
   "probe_error": "La última comprobación falló",
-  "empty": "Aún no hay canales. Añade un canal arriba y actívalo para grabar automáticamente.",
+  "empty": "Aún no hay canales. Añade uno con el formulario y actívalo para grabar automáticamente.",
   "delete": {
     "title": "Eliminar canal",
     "description": "¿Eliminar \"{name}\"? Las grabaciones ya realizadas se conservan."
@@ -53,15 +53,6 @@
     "empty": "Aún no hay programaciones.",
     "needs_channel": "Añade primero un canal arriba: una programación necesita uno para grabar.",
     "replay_used": "grabado desde el principio",
-    "weekday": {
-      "1": "Lun",
-      "2": "Mar",
-      "3": "Mié",
-      "4": "Jue",
-      "5": "Vie",
-      "6": "Sáb",
-      "7": "Dom"
-    },
     "states": {
       "planned": "Programado",
       "waiting": "Vigilando",

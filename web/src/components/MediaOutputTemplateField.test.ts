@@ -1,26 +1,19 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import en from '@/locales/en/linkgrabber.json'
+import { mountComponent } from '@/test/mount'
 
 import MediaOutputTemplateField from './MediaOutputTemplateField.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en } } })
-
-const components = {
-  UFormField: { props: ['label', 'description'], template: '<label v-bind="$attrs">{{ label }} {{ description }}<slot /></label>' },
-  UInput: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">'
-  }
-}
+/** The field with its description, where the template's available fields are listed. */
+const UFormField = { props: ['label', 'description'], template: '<label v-bind="$attrs">{{ label }} {{ description }}<slot /></label>' }
 
 function mount(template: string | null, resolve: (value: string) => Promise<unknown>) {
-  return render(MediaOutputTemplateField, {
+  return mountComponent(MediaOutputTemplateField, {
+    messages: { linkgrabber: en },
     props: { template, resolve: resolve as never },
-    global: { plugins: [i18n], components }
+    stubs: { UFormField }
   })
 }
 

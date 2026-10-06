@@ -308,7 +308,12 @@
     "eta_title": "Geschätzte Restzeit beim aktuellen Tempo",
     "selection_title": "{count} ausgewählt, zusammen {size}",
     "selection_partial_title": "{count} ausgewählt, zusammen mindestens {size} – bei {unknown} ist die Größe noch unbekannt",
-    "selection_unknown_title": "{count} ausgewählt, Größe noch unbekannt"
+    "selection_unknown_title": "{count} ausgewählt, Größe noch unbekannt",
+    "parallel_max": "max.",
+    "parallel_limit_aria": "Höchstzahl gleichzeitiger Downloads",
+    "parallel_limit_title": "Wie viele Downloads gleichzeitig laufen dürfen ({min}–{max}); gilt sofort, ohne Neustart",
+    "parallel_failed": "Parallele Downloads nicht gespeichert",
+    "parallel_range": "Erlaubt sind {min} bis {max} gleichzeitige Downloads."
   },
   "media": {
     "variant": "Variante:",
@@ -423,7 +428,6 @@
     "until_title": "Pausieren bis",
     "until_hint": "Die Downloads laufen zu dieser Uhrzeit von selbst weiter – heute oder, wenn sie schon vorbei ist, morgen.",
     "until_time": "Uhrzeit",
-    "confirm": "Pausieren",
     "paused_until": "Pausiert bis {time}",
     "remaining_title": "Die Warteschlange läuft in {duration} weiter. Klicke, um sofort fortzusetzen.",
     "resume_now": "Jetzt fortsetzen",

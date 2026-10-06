@@ -5,145 +5,20 @@
 //! host's, the token goes into the vault through a host function the plugin cannot read back,
 //! and the address it wants shown has to be one its own manifest declares.
 
-use std::{collections::HashMap, sync::Arc};
-
-use anyhow::Result;
 use rd_core::AccountId;
-use rd_plugin_api::ResolverHost;
 use rd_plugin_host::{
-    PluginInstaller, PluginManifest, PluginType, PluginTypeRegistry,
+    PluginManifest,
     extension::{AuthProgress, AuthProvider},
 };
 
-use crate::provider::{ProviderError, ProviderResult};
+use crate::{ClaimedPlugins, plugin_set::Installed, provider::ProviderResult};
 
 /// The installed authentication providers, one per claimed provider slug.
-pub struct AuthProviders {
-    /// Shared, so a set with a first install joined to it (RD-170-12) is built without
-    /// compiling what is already running a second time.
-    plugins: Vec<Arc<Provider>>,
-    /// Provider slug the plugin claims — the same key resolver dispatch uses — to its index.
-    /// A slug rather than a plugin id, because that is what an account carries.
-    by_slug: HashMap<String, usize>,
-}
+pub type AuthProviders = ClaimedPlugins<AuthProvider>;
 
-struct Provider {
-    manifest: PluginManifest,
-    plugin: AuthProvider,
-}
+type Provider = Installed<AuthProvider>;
 
 impl AuthProviders {
-    /// Loads every installed authentication provider, skipping any that fails to build.
-    pub async fn load(
-        installer: &PluginInstaller,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Result<Self> {
-        Ok(Self::from_registry(
-            &PluginTypeRegistry::load(installer).await?,
-            host,
-        ))
-    }
-
-    /// The same, from a registry the adapters share.
-    ///
-    /// Loading a registry re-verifies and compiles every installed package, so the one `load`
-    /// builds for itself is only worth it for a caller that loads a single adapter. Everything
-    /// started together passes one registry through all of them.
-    #[must_use]
-    pub fn from_registry(
-        registry: &PluginTypeRegistry,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Self {
-        let loaded = registry.instantiate(&PluginType::Auth, |package| {
-            AuthProvider::new(package.manifest.clone(), &package.component, host.clone()).map(
-                |plugin| Provider {
-                    manifest: package.manifest.clone(),
-                    plugin,
-                },
-            )
-        });
-        let mut plugins = Vec::new();
-        let mut by_slug = HashMap::new();
-        for provider in loaded {
-            let claims = provider
-                .manifest
-                .extension
-                .as_ref()
-                .map(|extension| extension.claims.clone())
-                .unwrap_or_default();
-            if claims.is_empty() {
-                // A provider slug is what decides which plugin signs an account in. One that
-                // claims nothing names no account it could run for, so it is left out rather
-                // than offered for everything.
-                tracing::warn!(
-                    plugin = %provider.manifest.name,
-                    "authentication plugin claims no provider and cannot be used"
-                );
-                continue;
-            }
-            let index = plugins.len();
-            plugins.push(Arc::new(provider));
-            for slug in claims {
-                // The newest version of each plugin comes first, and the first claim of a
-                // slug wins: two plugins claiming one provider is a conflict, not a chain.
-                by_slug.entry(slug.to_ascii_lowercase()).or_insert(index);
-            }
-        }
-        Self { plugins, by_slug }
-    }
-
-    /// An empty set, for a service running without plugins.
-    #[must_use]
-    pub fn none() -> Self {
-        Self {
-            plugins: Vec::new(),
-            by_slug: HashMap::new(),
-        }
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.plugins.is_empty()
-    }
-
-    /// Whether any version of this plugin is in the set.
-    #[must_use]
-    pub fn has_plugin(&self, id: rd_core::PluginId) -> bool {
-        self.plugins
-            .iter()
-            .any(|provider| provider.manifest.id == id)
-    }
-
-    /// This set with the plugins of `addition` joined to it: a first install that runs without
-    /// a restart (RD-170-12). A slug already claimed stays with its plugin, as the first claim
-    /// wins at a start.
-    #[must_use]
-    pub fn joined(&self, addition: Self) -> Self {
-        let mut plugins = self.plugins.clone();
-        let mut by_slug = self.by_slug.clone();
-        let offset = plugins.len();
-        plugins.extend(addition.plugins);
-        for (slug, index) in addition.by_slug {
-            by_slug.entry(slug).or_insert(offset + index);
-        }
-        Self { plugins, by_slug }
-    }
-
-    /// Whether a provider can be signed in to by a plugin rather than by typing a key.
-    #[must_use]
-    pub fn supports(&self, provider_slug: &str) -> bool {
-        self.by_slug
-            .contains_key(&provider_slug.to_ascii_lowercase())
-    }
-
-    /// The plugin id that would run a flow for this provider.
-    #[must_use]
-    pub fn plugin_id(&self, provider_slug: &str) -> Option<String> {
-        self.provider(provider_slug)
-            .ok()
-            .map(|provider| provider.manifest.id.to_string())
-    }
-
     /// Starts a flow for one account.
     pub async fn begin(
         &self,
@@ -166,18 +41,6 @@ impl AuthProviders {
         let provider = self.provider(provider_slug)?;
         let progress = provider.plugin.poll(account_id, flow_state).await?;
         Ok(Self::checked(provider, progress))
-    }
-
-    /// The plugin that claims this provider, or the reason there is none.
-    ///
-    /// The error is typed rather than prose because the sweep that calls this has to tell a
-    /// provider nobody claims -- which waiting never fixes -- from a call that failed.
-    fn provider(&self, provider_slug: &str) -> ProviderResult<&Provider> {
-        self.by_slug
-            .get(&provider_slug.to_ascii_lowercase())
-            .and_then(|index| self.plugins.get(*index))
-            .map(Arc::as_ref)
-            .ok_or_else(|| ProviderError::no_plugin(provider_slug))
     }
 
     /// Refuses a verification address the plugin's own manifest does not cover.

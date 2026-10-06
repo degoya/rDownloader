@@ -24,7 +24,7 @@ const MOVE_POLL_MS = 2000
 const MOVE_POLL_ROUNDS = 900
 
 /** The answer of an action: the server's message, or why it was refused. */
-export interface TorrentActionResult {
+interface TorrentActionResult {
   message: string | null
   error: string | null
 }

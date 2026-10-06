@@ -74,6 +74,9 @@ if [[ "$build" -eq 1 ]]; then
     [[ -z "$bin_dir" ]] || { echo "--build and --bin-dir are mutually exclusive" >&2; exit 2; }
     [[ -f web/dist/index.html ]] \
         || { echo "web/dist is missing; rust-embed needs the built frontend (pnpm --dir web run build)" >&2; exit 1; }
+    # shellcheck source=lib/web-dist.sh
+    source "$ROOT/scripts/lib/web-dist.sh"
+    rd_web_dist_guard "$ROOT" "e2e.sh --build" || exit 2
     echo "==> building rdownloader and rdownloader-capture (release-test, -j $JOBS) under the build lock"
     CARGO_TARGET_DIR="$target" "$ROOT/scripts/e2e.sh" --build-only
     bin_dir="$target/release-test"

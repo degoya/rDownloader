@@ -1,24 +1,14 @@
-import { render } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { CollectorPackage, LinkCandidate } from '@/api/types'
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/linkgrabber.json'
+import { mountComponent } from '@/test/mount'
 
 import CollectorPackageGroup from './CollectorPackageGroup.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en, common } } })
-
-/** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UButton: { template: '<button v-bind="$attrs" :disabled="$attrs.disabled"><slot /></button>' },
-  UCheckbox: passthrough,
-  UBadge: passthrough,
-  UIcon: passthrough,
-  USelect: passthrough
-}
+/** A button that keeps its props as attributes, so a test can read the label, icon and variant it was given. */
+const UButton = { template: '<button v-bind="$attrs" :disabled="$attrs.disabled"><slot /></button>' }
 
 function candidate(state: LinkCandidate['state']): LinkCandidate {
   return {
@@ -34,7 +24,8 @@ function candidate(state: LinkCandidate['state']): LinkCandidate {
 }
 
 function renderGroup(candidates: LinkCandidate[]) {
-  return render(CollectorPackageGroup, {
+  return mountComponent(CollectorPackageGroup, {
+    messages: { linkgrabber: en },
     props: {
       package: { id: 'package-1', name: 'Report', priority: 'normal', has_password: false } as CollectorPackage,
       candidates,
@@ -44,7 +35,7 @@ function renderGroup(candidates: LinkCandidate[]) {
       dragging: false,
       open: false
     },
-    global: { plugins: [i18n], components }
+    stubs: { UButton }
   })
 }
 

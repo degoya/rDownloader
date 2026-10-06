@@ -97,14 +97,14 @@ function entryNote(code: string | null | undefined): string {
         :data-testid="`sorting-${kind}`"
       />
     </UFormField>
-    <UAlert v-if="failure && !failure.kind" color="error" variant="subtle" :description="failure.message" />
+    <UAlert v-if="failure && !failure.kind" color="error" :description="failure.message" />
     <UFormField :label="t('routing.category.sorting_preview_label')" :description="t('routing.category.sorting_preview_description')">
       <UTextarea v-model="names" :rows="4" autoresize class="w-full font-mono text-xs" :aria-label="t('routing.category.sorting_preview_label')" />
     </UFormField>
     <p v-if="!exampleNames.length" class="text-xs leading-5 text-muted">{{ t('routing.category.sorting_preview_empty') }}</p>
     <ul v-else-if="entries.length" class="grid gap-2" data-testid="sorting-preview">
       <li v-for="(entry, index) in entries" :key="index" class="border border-muted p-2">
-        <p class="truncate font-mono text-[11px] text-muted" :title="entry.name">{{ entry.name }}</p>
+        <p class="truncate font-mono text-2xs text-muted" :title="entry.name">{{ entry.name }}</p>
         <div class="mt-1 flex min-w-0 items-center gap-2">
           <UBadge v-if="entry.kind" size="sm" color="neutral" variant="outline">{{ t(`routing.category.sorting_kind_${entry.kind}`) }}</UBadge>
           <UIcon :name="entry.path ? 'i-lucide-corner-down-right' : 'i-lucide-minus'" class="size-4 shrink-0" :class="entry.path ? 'text-success' : 'text-muted'" />

@@ -117,193 +117,277 @@ pub(crate) async fn run(
     let mut ok = true;
     let destinations = context.target.destinations(context.directory, sets);
     for (set, destination) in sets.iter().zip(destinations) {
-        let source = path_string(set.first())?;
-        let kind = archive_kind(set);
-        let existing = find_step(steps, kind, &source);
-        // Archives are unpacked into an existing folder (merged, replacing same-named
-        // entries); a manual run therefore always re-extracts.
-        if existing.is_some_and(|step| step.state == PostprocessState::Completed)
-            && context.trigger == ExtractionTrigger::Auto
-        {
-            continue;
-        }
-        let needs_tool = set.kind == rd_files::ArchiveKind::Rar
-            || (set.kind == rd_files::ArchiveKind::Zip && set.is_multipart());
-        if needs_tool && context.rar_tool.is_none() {
-            // A missing tool is a question that could not be asked; a contradiction between
-            // `rar_tool` and `rar_executable` is a misconfiguration, and saying so is the whole
-            // point of detecting it (RD-107-11). An outdated tool is refused, not missing.
-            let (state, outcome) = match (&context.rar_conflict, &context.rar_outdated) {
-                (Some(conflict), _) => (
-                    PostprocessState::Failed,
-                    extraction_outcome(&rd_postprocess::ExtractionError::ToolMismatch(
-                        conflict.clone(),
-                    )),
-                ),
-                (None, Some(outdated)) => (PostprocessState::Failed, outdated_outcome(outdated)),
-                (None, None) => (
-                    PostprocessState::Skipped,
-                    Outcome {
-                        code: NO_TOOL,
-                        params: rd_core::MessageParams::new(),
-                        message: Some("no external RAR/7z tool is configured".to_owned()),
-                    },
-                ),
-            };
-            if state == PostprocessState::Failed {
-                ok = false;
-            }
-            checkpoint_coded(inner, context.owner, kind, &source, state, None, outcome).await?;
-            continue;
-        }
-        // A folder of its own has to exist before the merge can move anything into it. An
-        // existing one is kept: a rerun after a crash finishes what the first run began.
-        if context.target != UnpackTarget::Package
-            && let Err(error) = tokio::fs::create_dir_all(rd_files::long_path(&destination)).await
-        {
+        if !unpack_set(inner, context, steps, set, destination).await? {
             ok = false;
-            let error = rd_postprocess::ExtractionError::Other(anyhow::Error::new(error).context(
-                format!("create extraction folder {}", destination.display()),
+        }
+    }
+    Ok(ok)
+}
+
+/// One set: skipped when done, refused without a tool, otherwise unpacked (or adopted) into
+/// `destination`; `false` when it failed.
+async fn unpack_set(
+    inner: &Inner,
+    context: &UnpackContext<'_>,
+    steps: &[PostprocessStep],
+    set: &ArchiveSet,
+    destination: PathBuf,
+) -> Result<bool> {
+    let source = path_string(set.first())?;
+    let kind = archive_kind(set);
+    let existing = find_step(steps, kind, &source);
+    // Archives are unpacked into an existing folder (merged, replacing same-named
+    // entries); a manual run therefore always re-extracts.
+    if existing.is_some_and(|step| step.state == PostprocessState::Completed)
+        && context.trigger == ExtractionTrigger::Auto
+    {
+        return Ok(true);
+    }
+    let needs_tool = set.kind == rd_files::ArchiveKind::Rar
+        || (set.kind == rd_files::ArchiveKind::Zip && set.is_multipart());
+    if needs_tool && context.rar_tool.is_none() {
+        return refuse_without_tool(inner, context, kind, &source).await;
+    }
+    // A folder of its own has to exist before the merge can move anything into it. An
+    // existing one is kept: a rerun after a crash finishes what the first run began.
+    if context.target != UnpackTarget::Package
+        && let Err(error) = tokio::fs::create_dir_all(rd_files::long_path(&destination)).await
+    {
+        return folder_failed(inner, context, kind, &source, &destination, error).await;
+    }
+    remove_stale_staging(&destination, context.direct).await;
+    crate::steps::stage(
+        inner,
+        context.owner,
+        rd_core::PostprocessStage::Extracting,
+        set.first()
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned()),
+    )
+    .await?;
+    let destination_text = path_string(&destination)?;
+    let volume_ids = volumes_of(context, set);
+    transition_volumes(inner, &volume_ids, DownloadState::Extracting).await;
+    checkpoint(
+        inner,
+        context.owner,
+        kind,
+        &source,
+        PostprocessState::Running,
+        Some(destination_text.clone()),
+        None,
+    )
+    .await?;
+    let extracted = extract_or_adopt(inner, context, set, destination, kind, &source).await?;
+    transition_volumes(inner, &volume_ids, DownloadState::Completed).await;
+    record_result(
+        inner,
+        context,
+        set,
+        kind,
+        &source,
+        destination_text,
+        extracted,
+    )
+    .await
+}
+
+/// Records a set that needs an external tool when there is none; `false` when that is a
+/// failure rather than a skip.
+async fn refuse_without_tool(
+    inner: &Inner,
+    context: &UnpackContext<'_>,
+    kind: PostprocessKind,
+    source: &str,
+) -> Result<bool> {
+    // A missing tool is a question that could not be asked; a contradiction between
+    // `rar_tool` and `rar_executable` is a misconfiguration, and saying so is the whole
+    // point of detecting it (RD-107-11). An outdated tool is refused, not missing.
+    let (state, outcome) = match (&context.rar_conflict, &context.rar_outdated) {
+        (Some(conflict), _) => (
+            PostprocessState::Failed,
+            extraction_outcome(&rd_postprocess::ExtractionError::ToolMismatch(
+                conflict.clone(),
+            )),
+        ),
+        (None, Some(outdated)) => (PostprocessState::Failed, outdated_outcome(outdated)),
+        (None, None) => (
+            PostprocessState::Skipped,
+            Outcome {
+                code: NO_TOOL,
+                params: rd_core::MessageParams::new(),
+                message: Some("no external RAR/7z tool is configured".to_owned()),
+            },
+        ),
+    };
+    let ok = state != PostprocessState::Failed;
+    checkpoint_coded(inner, context.owner, kind, source, state, None, outcome).await?;
+    Ok(ok)
+}
+
+/// Records a set whose own folder could not be created; always `false`.
+async fn folder_failed(
+    inner: &Inner,
+    context: &UnpackContext<'_>,
+    kind: PostprocessKind,
+    source: &str,
+    destination: &Path,
+    error: std::io::Error,
+) -> Result<bool> {
+    let error = rd_postprocess::ExtractionError::Other(anyhow::Error::new(error).context(format!(
+        "create extraction folder {}",
+        destination.display()
+    )));
+    checkpoint_coded(
+        inner,
+        context.owner,
+        kind,
+        source,
+        PostprocessState::Failed,
+        Some(path_string(destination)?),
+        extraction_outcome(&error),
+    )
+    .await?;
+    Ok(false)
+}
+
+/// The downloads that are volumes of `set`.
+fn volumes_of(context: &UnpackContext<'_>, set: &ArchiveSet) -> Vec<rd_core::DownloadId> {
+    context
+        .downloads
+        .iter()
+        .filter(|file| {
+            set.volumes
+                .iter()
+                .any(|volume| *volume == context.directory.join(&file.file_name))
+        })
+        .map(|file| file.id)
+        .collect()
+}
+
+/// Moves every one of `ids` to `state`, one after the other; a refused transition is ignored.
+async fn transition_volumes(inner: &Inner, ids: &[rd_core::DownloadId], state: DownloadState) {
+    for id in ids {
+        let _ = inner.database.transition_download(*id, state).await;
+    }
+}
+
+/// What extracting `set` came to: the code a success is recorded with, and the result.
+type Extracted = (
+    &'static str,
+    std::result::Result<
+        (rd_postprocess::ExtractionReport, Option<String>),
+        rd_postprocess::ExtractionError,
+    >,
+);
+
+/// Moves the set's direct unpack into place, or extracts it when there is none (or its move
+/// failed), with the progress drained into the step until the extraction ends.
+async fn extract_or_adopt(
+    inner: &Inner,
+    context: &UnpackContext<'_>,
+    set: &ArchiveSet,
+    destination: PathBuf,
+    kind: PostprocessKind,
+    source: &str,
+) -> Result<Extracted> {
+    let (progress_tx, progress_rx) = tokio::sync::mpsc::unbounded_channel();
+    let drain = tokio::spawn(drain_progress(
+        inner.database.clone(),
+        context.owner.to_owned(),
+        kind,
+        source.to_owned(),
+        rd_core::PostprocessStage::Extracting,
+        progress_rx,
+    ));
+    let adopted = match context.direct.iter().find(|staged| staged.is_for(set)) {
+        Some(staged) => crate::direct_unpack::adopt(staged, &destination).await?,
+        None => None,
+    };
+    let completed_code = if adopted.is_some() {
+        codes::UNPACK_COMPLETED_DIRECT
+    } else {
+        codes::UNPACK_COMPLETED
+    };
+    let result = match adopted {
+        Some(report) => {
+            // Nothing to report progress on; the drain ends with its last sender.
+            drop(progress_tx);
+            Ok((report, None))
+        }
+        None => {
+            extract_with_passwords(
+                ExtractRequest {
+                    set,
+                    destination,
+                    limits: context.limits,
+                    rar_tool: context.rar_tool.clone(),
+                    merge: true,
+                    progress: Some(progress_tx),
+                },
+                context.candidates,
+            )
+            .await
+        }
+    };
+    let _ = drain.await;
+    Ok((completed_code, result))
+}
+
+/// Records how the set's extraction ended and deletes its volumes after a success when the
+/// package asks for it; `false` when it failed.
+async fn record_result(
+    inner: &Inner,
+    context: &UnpackContext<'_>,
+    set: &ArchiveSet,
+    kind: PostprocessKind,
+    source: &str,
+    destination_text: String,
+    (completed_code, result): Extracted,
+) -> Result<bool> {
+    match result {
+        Ok((report, _)) => {
+            // A stop here leaves the set unpacked and its step `Running`: the next start
+            // unpacks it again into the same place (RD-180-12, recovery matrix).
+            rd_core::failpoint!("postprocess.before_unpack_recorded", || anyhow::anyhow!(
+                "crash point"
             ));
             checkpoint_coded(
                 inner,
                 context.owner,
                 kind,
-                &source,
+                source,
+                PostprocessState::Completed,
+                Some(destination_text),
+                Outcome::new(
+                    completed_code,
+                    &[
+                        ("count", report.files.to_string()),
+                        ("bytes", report.uncompressed_bytes.to_string()),
+                    ],
+                    format!("files={} bytes={}", report.files, report.uncompressed_bytes),
+                ),
+            )
+            .await?;
+            if context.delete_volumes {
+                delete_volumes(inner, context.owner, set).await?;
+            }
+            Ok(true)
+        }
+        Err(error) => {
+            checkpoint_coded(
+                inner,
+                context.owner,
+                kind,
+                source,
                 PostprocessState::Failed,
-                Some(path_string(&destination)?),
+                Some(destination_text),
                 extraction_outcome(&error),
             )
             .await?;
-            continue;
-        }
-        remove_stale_staging(&destination, context.direct).await;
-        crate::steps::stage(
-            inner,
-            context.owner,
-            rd_core::PostprocessStage::Extracting,
-            set.first()
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned()),
-        )
-        .await?;
-        let destination_text = path_string(&destination)?;
-        let volume_ids: Vec<_> = context
-            .downloads
-            .iter()
-            .filter(|file| {
-                set.volumes
-                    .iter()
-                    .any(|volume| *volume == context.directory.join(&file.file_name))
-            })
-            .map(|file| file.id)
-            .collect();
-        for id in &volume_ids {
-            let _ = inner
-                .database
-                .transition_download(*id, DownloadState::Extracting)
-                .await;
-        }
-        checkpoint(
-            inner,
-            context.owner,
-            kind,
-            &source,
-            PostprocessState::Running,
-            Some(destination_text.clone()),
-            None,
-        )
-        .await?;
-        let (progress_tx, progress_rx) = tokio::sync::mpsc::unbounded_channel();
-        let drain = tokio::spawn(drain_progress(
-            inner.database.clone(),
-            context.owner.to_owned(),
-            kind,
-            source.clone(),
-            rd_core::PostprocessStage::Extracting,
-            progress_rx,
-        ));
-        let adopted = match context.direct.iter().find(|staged| staged.is_for(set)) {
-            Some(staged) => crate::direct_unpack::adopt(staged, &destination).await?,
-            None => None,
-        };
-        let completed_code = if adopted.is_some() {
-            codes::UNPACK_COMPLETED_DIRECT
-        } else {
-            codes::UNPACK_COMPLETED
-        };
-        let result = match adopted {
-            Some(report) => {
-                // Nothing to report progress on; the drain ends with its last sender.
-                drop(progress_tx);
-                Ok((report, None))
-            }
-            None => {
-                extract_with_passwords(
-                    ExtractRequest {
-                        set,
-                        destination,
-                        limits: context.limits,
-                        rar_tool: context.rar_tool.clone(),
-                        merge: true,
-                        progress: Some(progress_tx),
-                    },
-                    context.candidates,
-                )
-                .await
-            }
-        };
-        let _ = drain.await;
-        for id in &volume_ids {
-            let _ = inner
-                .database
-                .transition_download(*id, DownloadState::Completed)
-                .await;
-        }
-        match result {
-            Ok((report, _)) => {
-                // A stop here leaves the set unpacked and its step `Running`: the next start
-                // unpacks it again into the same place (RD-180-12, recovery matrix).
-                rd_core::failpoint!("postprocess.before_unpack_recorded", || anyhow::anyhow!(
-                    "crash point"
-                ));
-                checkpoint_coded(
-                    inner,
-                    context.owner,
-                    kind,
-                    &source,
-                    PostprocessState::Completed,
-                    Some(destination_text),
-                    Outcome::new(
-                        completed_code,
-                        &[
-                            ("count", report.files.to_string()),
-                            ("bytes", report.uncompressed_bytes.to_string()),
-                        ],
-                        format!("files={} bytes={}", report.files, report.uncompressed_bytes),
-                    ),
-                )
-                .await?;
-                if context.delete_volumes {
-                    delete_volumes(inner, context.owner, set).await?;
-                }
-            }
-            Err(error) => {
-                ok = false;
-                checkpoint_coded(
-                    inner,
-                    context.owner,
-                    kind,
-                    &source,
-                    PostprocessState::Failed,
-                    Some(destination_text),
-                    extraction_outcome(&error),
-                )
-                .await?;
-            }
+            Ok(false)
         }
     }
-    Ok(ok)
 }
 
 /// Removes the staging directories a killed extraction left in `destination` (RD-180-12).

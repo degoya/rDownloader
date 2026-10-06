@@ -6,7 +6,6 @@
 
 use std::{sync::Arc, time::Duration};
 
-use rd_core::DownloadState;
 use rd_power::CompletionAction;
 use tokio_util::sync::CancellationToken;
 
@@ -231,18 +230,9 @@ impl std::fmt::Debug for QuietHold {
 /// Used for the completion cycle, which must not fire between a download and its unpacking, so
 /// a file merely waiting its turn still counts.
 fn is_busy(downloads: &[rd_core::DownloadFile]) -> bool {
-    downloads.iter().any(|file| {
-        matches!(
-            file.state,
-            DownloadState::Queued
-                | DownloadState::Resolving
-                | DownloadState::Downloading
-                | DownloadState::RetryWait
-                | DownloadState::Verifying
-                | DownloadState::Repairing
-                | DownloadState::Extracting
-        )
-    })
+    downloads
+        .iter()
+        .any(|file| file.state.is_queued_or_working())
 }
 
 /// Whether something is actually being worked on right now.
@@ -251,14 +241,5 @@ fn is_busy(downloads: &[rd_core::DownloadFile]) -> bool {
 /// waiting out an IP block, is not a reason to keep a machine awake for hours. Those states
 /// still stop the completion action, which is a different question.
 fn is_working(downloads: &[rd_core::DownloadFile]) -> bool {
-    downloads.iter().any(|file| {
-        matches!(
-            file.state,
-            DownloadState::Resolving
-                | DownloadState::Downloading
-                | DownloadState::Verifying
-                | DownloadState::Repairing
-                | DownloadState::Extracting
-        )
-    })
+    downloads.iter().any(|file| file.state.is_working())
 }

@@ -37,7 +37,7 @@ vi.mock('@/composables/useEventStream', () => ({
   }
 }))
 
-const { default: SettingsAccountsTab } = await import('./SettingsAccountsTab.vue')
+const { default: SettingsAccountsCard } = await import('./SettingsAccountsCard.vue')
 
 const PROVIDER = {
   slug: 'realdebrid',
@@ -85,7 +85,7 @@ function serve() {
 }
 
 function mount() {
-  return mountComponent(SettingsAccountsTab, {
+  return mountComponent(SettingsAccountsCard, {
     messages: { network },
     stubs: { SettingsRemoteJobsCard: true }
   })
@@ -103,7 +103,7 @@ function flowEvent(): MessageEvent<string> {
 
 const beginCalls = () => post.mock.calls.filter(([path]) => path === '/api/v1/accounts/{id}/auth/begin')
 
-describe('SettingsAccountsTab while a sign-in runs', () => {
+describe('SettingsAccountsCard while a sign-in runs', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()

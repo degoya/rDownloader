@@ -9,7 +9,7 @@
  * listed below by key and phrase; the phrase is cut out of that one string only, so a formal
  * address added elsewhere in the same sentence is still found.
  *
- * `extension/test/german-address.test.mjs` and `crates/rdownloader/tests/german_address.rs`
+ * `extension/test/german-address.test.mjs` and `crates/rdownloader/tests/repo_lints/german_address.rs`
  * hold the same rule for the extension and the plugin catalogues.
  */
 import { readFileSync, readdirSync } from 'node:fs'

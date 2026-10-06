@@ -3,6 +3,7 @@ import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, Download, DownloadPackage, DownloadPriority, PostprocessStep } from '@/api/types'
+import DragHandle from '@/components/DragHandle.vue'
 import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
@@ -292,19 +293,12 @@ function controlPackage(): void {
     @drop.prevent="emit('drop', props.package.id)"
   >
     <header class="queue-row px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
-      <button
-        type="button"
-        class="queue-cell-handle grid cursor-grab select-none place-items-center text-muted"
-        data-row-handle
-        draggable="true"
-        :title="dragTitle"
-        :aria-label="dragTitle"
-        @dragstart.stop="emit('dragstart', props.package.id)"
-        @keydown.up.prevent="emit('move', props.package.id, -1)"
-        @keydown.down.prevent="emit('move', props.package.id, 1)"
-      >
-        <UIcon name="i-lucide-grip-vertical" class="size-4" />
-      </button>
+      <DragHandle
+        class="queue-cell-handle grid place-items-center"
+        :label="dragTitle"
+        @dragstart="emit('dragstart', props.package.id)"
+        @move="(delta: -1 | 1) => emit('move', props.package.id, delta)"
+      />
       <UCheckbox class="queue-cell-select justify-self-center" :model-value="props.selection === 'all' ? true : props.selection === 'some' ? 'indeterminate' : false" :aria-label="t('downloads.package.select_aria')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.package.id, value === true)" />
       <UButton class="queue-cell-expand" :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('downloads.package.hide_files') : t('downloads.package.show_files')" @click="emit('toggle', props.package.id)" />
       <div class="queue-cell-name flex min-w-0 items-center gap-2">
@@ -356,11 +350,11 @@ function controlPackage(): void {
       <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
       <div class="queue-cell-progress items-center gap-2">
         <UProgress :model-value="progress" size="xs" class="flex-1" :color="postprocessFailed ? 'error' : 'primary'" />
-        <span v-if="progress < 100" class="numeric w-9 text-right text-[11px] text-toned">{{ progress }}%</span>
+        <span v-if="progress < 100" class="numeric w-9 text-right text-2xs text-toned">{{ progress }}%</span>
       </div>
       <span class="queue-cell-size min-w-0 text-right">
         <span class="numeric block truncate text-xs text-muted">{{ formatByteProgress(committed, total) }}</span>
-        <span v-if="props.packageRate > 0" class="numeric block truncate text-[10px] font-medium text-primary" :aria-label="t('downloads.package.rate_aria', { rate: formatRate(props.packageRate) })">{{ formatRate(props.packageRate) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.package.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
+        <span v-if="props.packageRate > 0" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.package.rate_aria', { rate: formatRate(props.packageRate) })">{{ formatRate(props.packageRate) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.package.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
       </span>
       <div class="queue-cell-meta min-w-0 items-center gap-1">
         <!-- The category stays editable after the download: changing it moves the package's

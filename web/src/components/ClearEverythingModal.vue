@@ -23,14 +23,12 @@ const deletePartial = ref(false)
     :title="t('downloads.clear_everything.title')"
     :description="t('downloads.clear_everything.description', { count: props.packages }, props.packages)"
     :close="{ onClick: () => emit('close', { confirmed: false, deletePartial: false }) }"
-    :ui="{ footer: 'justify-end' }"
   >
     <template #body>
       <UAlert
         v-if="props.active"
         data-testid="clear-everything-active"
         color="warning"
-        variant="subtle"
         icon="i-lucide-triangle-alert"
         :description="t('downloads.clear_everything.active', { count: props.active }, props.active)"
       />

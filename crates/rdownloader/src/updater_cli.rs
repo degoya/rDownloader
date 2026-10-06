@@ -414,7 +414,7 @@ async fn answers_as(client: &reqwest::Client, address: &str, version: &str) -> b
 /// When the journal is unreadable or a roll-back fails: the program folder may then hold two
 /// versions, and nothing may start on it.
 pub fn recover(database: &Path) -> Result<bool> {
-    let data = data_directory(database);
+    let data = crate::auth_cli::data_directory_of(database);
     let executable = std::env::current_exe().context("locate rDownloader executable")?;
     match recover_at_start(&data, &executable, env!("CARGO_PKG_VERSION"))? {
         Recovery::Continue => Ok(false),
@@ -433,7 +433,7 @@ pub fn recover(database: &Path) -> Result<bool> {
 /// Once the service answers: an update whose updater is gone is proven by that
 /// (`rd_update::install::recover::confirm_started`). Polls only when one waits for its proof.
 pub fn confirm_when_answering(database: &Path, listen: std::net::SocketAddr) {
-    let data = data_directory(database);
+    let data = crate::auth_cli::data_directory_of(database);
     let waiting = Journal::read(&data)
         .ok()
         .flatten()
@@ -461,12 +461,4 @@ pub fn confirm_when_answering(database: &Path, listen: std::net::SocketAddr) {
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
-}
-
-fn data_directory(database: &Path) -> PathBuf {
-    database
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."))
-        .to_path_buf()
 }

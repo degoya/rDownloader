@@ -65,7 +65,7 @@ function isolatedReason(source: DownloadSourceView): string {
           />
           <span class="min-w-0 truncate font-mono text-xs" :title="source.url">{{ source.url }}</span>
         </div>
-        <p class="flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-1 text-[11px] text-muted">
+        <p class="flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-1 text-2xs text-muted">
           <span v-if="source.priority !== null && source.priority !== undefined">
             {{ t('downloads.transfer.sources.priority', { value: source.priority }) }}
           </span>
@@ -84,6 +84,6 @@ function isolatedReason(source: DownloadSourceView): string {
         </p>
       </li>
     </ul>
-    <p v-if="hasUnsupported" class="text-[11px] text-muted">{{ t('downloads.transfer.sources.unsupported_hint') }}</p>
+    <p v-if="hasUnsupported" class="text-2xs text-muted">{{ t('downloads.transfer.sources.unsupported_hint') }}</p>
   </div>
 </template>

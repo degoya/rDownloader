@@ -8,6 +8,7 @@ import { createApp } from 'vue'
 
 import App from './App.vue'
 import { withBase } from './basePath'
+import { BUILD_VERSION } from './composables/serviceVersion'
 import { i18n, setLocale, detectLocale } from './i18n'
 import { router } from './router'
 
@@ -19,11 +20,13 @@ const localeReady = setLocale(detectLocale())
 
 // Registered after load so it never competes with the first render. A failure is ignored on
 // purpose: the app works without it, and an install prompt is not worth an error dialog.
-// Under the mount point, so a reverse proxy's path gets a worker whose scope is the app.
+// Under the mount point, so a reverse proxy's path gets a worker whose scope is the app. The
+// build's version in the address makes a new version a new worker, which names its shell cache
+// after it and drops the old one when it takes over (RD-1120-16).
 if ('serviceWorker' in navigator && window.isSecureContext) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker
-      .register(withBase('/sw.js'), { scope: withBase('/') })
+      .register(`${withBase('/sw.js')}?v=${encodeURIComponent(BUILD_VERSION)}`, { scope: withBase('/') })
       .catch(() => undefined)
   })
 }

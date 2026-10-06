@@ -122,10 +122,9 @@ fn client_options(opening: &Opening<'_>) -> Result<ClientOptions, OpenError> {
         .with_timeout_disabled()
         .with_connect_timeout(opening.timeout)
         .with_read_timeout(opening.timeout)
-        .with_user_agent(object_store::HeaderValue::from_static(concat!(
-            "rDownloader/",
-            env!("CARGO_PKG_VERSION")
-        )));
+        .with_user_agent(object_store::HeaderValue::from_static(
+            rd_core::user_agent!(),
+        ));
     // Plain HTTP only when the person typed an `http://` endpoint; certificates are always
     // validated, against the system roots plus the custom CA every other transport trusts.
     let insecure = opening

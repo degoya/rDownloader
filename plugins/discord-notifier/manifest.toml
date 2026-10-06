@@ -3,7 +3,7 @@ plugin_type = "notifier"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000104"
 name = "Discord"
-version = "0.9.10"
+version = "0.9.11"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -24,7 +24,7 @@ description = "Delivers notifications to a Discord channel through a webhook."
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "0.9.0"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

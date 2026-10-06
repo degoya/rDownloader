@@ -3,7 +3,7 @@
 # scripts/check.sh --preflight (RD-1110-15) in a scratch checkout, every stage a stand-in that
 # logs its call: a red run lists every red stage at once — git diff --check, the job layout, cargo
 # fmt, both test maps, gitleaks, shellcheck, a script test — after every stage ran, and records no
-# green; cargo is asked to format and nothing else; gitleaks sees the new files of the working tree
+# green, a green one its tree as the half `preflight` and no revision; cargo is asked to format and nothing else; gitleaks sees the new files of the working tree
 # and .gitleaks.toml, not what scripts/public-exclude.txt leaves out; RD_SKIP_JOB_LAYOUT=1 skips the
 # job layout with its reason; --preflight runs alone.
 #
@@ -93,7 +93,10 @@ git -C "$TREE" checkout -q -- text.txt
 preflight
 expect_status "a green preflight" 0
 expect_output "to its closing line" "==> all requested checks passed"
-expect_output "saying it records no green" "no green is recorded"
+expect_output "saying it verifies no revision" "it verifies no revision, scripts/check.sh is still due"
+expect "but records its green for the tree, as the half --full reads (RD-1120-06)" \
+    "preflight $(git -C "$TREE" rev-parse 'HEAD^{tree}')" "$(grep '^preflight ' "$SCRATCH/target/.rd-verified-full/"* || true)"
+expect "and no revision" "" "$(cat "$SCRATCH/target/.rd-verified/"* 2> /dev/null || true)"
 expect_true "the job layout was checked" 'grep -qx "archive-jobs.sh --check" "$FAKE/calls"'
 
 rm -f "$FAKE/calls"

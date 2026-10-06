@@ -1,7 +1,7 @@
 {
   "header": {
     "eyebrow": "Resolver-Registry",
-    "title": "Versionierte Provider-Components",
+    "title": "Plugins",
     "description": "Pakete werden vor der atomaren Installation auf Signatur, Manifest, Component-Format und erlaubte Imports geprüft. Unsignierte Pakete funktionieren nur bei explizitem Entwicklungsmodus des Dienstes."
   },
   "install": {
@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Installierte Versionen",
     "title": "Lokaler Bestand",
-    "empty": "Noch keine Plugins installiert. Hoster-Links brauchen ein Resolver-Plugin: Installiere einen Dienst aus dem Paket-Bündel oben oder aus einem Repository.",
+    "empty": "Noch keine Plugins installiert. Hoster-Links brauchen ein Resolver-Plugin: Installiere einen Dienst aus dem Paket-Bündel im Reiter „Hinzufügen“ oder aus einem Repository.",
     "filter_label": "Nach Plugin-Gruppe filtern"
   },
   "card": {
@@ -48,7 +48,6 @@
     "key_id": "Schlüssel-ID",
     "fingerprint": "Fingerabdruck",
     "warning": "Bestätige nur, wenn dieser Fingerabdruck mit dem vom Plugin-Autor veröffentlichten übereinstimmt. Ein falscher Schlüssel erlaubt Fremden, Updates für dieses Plugin auszuliefern.",
-    "cancel": "Abbrechen",
     "confirm": "Vertrauen und installieren"
   },
   "type": {

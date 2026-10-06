@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000150"
 name = "Put.io"
-version = "0.1.11"
+version = "0.1.12"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # The canonical per-file API address the remote-job sibling emits, plus the address a person
@@ -36,7 +36,7 @@ description = "Resolves files in a Put.io account through the official API."
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "1.0.0"
+min_app_version = "1.9.0"
 
 # The provider row every Put.io plugin hangs off. Only a resolver manifest may carry one, which
 # is why this plugin exists at all: without this row there is no Put.io account, no vault

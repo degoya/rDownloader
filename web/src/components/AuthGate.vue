@@ -73,7 +73,6 @@ function signInWithProvider(): void {
           v-if="session.expired"
           class="mb-6"
           color="warning"
-          variant="subtle"
           icon="i-lucide-clock-alert"
           :title="t('auth.expired_title')"
           :description="t('auth.expired_description')"
@@ -83,7 +82,6 @@ function signInWithProvider(): void {
           v-if="providerError"
           class="mb-6"
           color="error"
-          variant="subtle"
           icon="i-lucide-circle-alert"
           :title="providerError"
           :description="providerReturn.name ? t('auth.provider_account', { name: providerReturn.name }) : undefined"
@@ -122,7 +120,7 @@ function signInWithProvider(): void {
           </p>
         </div>
 
-        <UAlert v-if="session.error" class="mb-4" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="session.error" />
+        <UAlert v-if="session.error" class="mb-4" color="error" icon="i-lucide-circle-alert" :description="session.error" />
         <p v-if="!passwordOffered" class="text-sm leading-6 text-muted">{{ t('auth.password_off') }}</p>
         <form v-else class="space-y-4" @submit.prevent="submit">
           <UFormField :label="t('auth.password')" required>

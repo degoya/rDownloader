@@ -59,6 +59,11 @@ pub(super) async fn finish(
         }
         _ => return Err(deny("oidc_state", "auth.oidc_state_invalid").await),
     };
+    if let FlowPurpose::Link { session } = &flow.purpose
+        && !requester_signed_in(state, session).await
+    {
+        return Err(deny("oidc_state", "auth.oidc_state_invalid").await);
+    }
     if query
         .iss
         .as_deref()
@@ -145,6 +150,31 @@ pub(super) fn not_the_administrator(refusal: Refusal, label: Option<String>) -> 
     Refusal {
         code: "auth.oidc_not_administrator",
         name: label.or(refusal.name),
+    }
+}
+
+/// Whether whoever started a link is still signed in when the provider sends the browser back.
+///
+/// The link was asked for with a session and the password, and the session cannot travel with
+/// the callback (its cookie is `Strict`, the callback a navigation from the provider's site), so
+/// it is looked up by the id the flow kept. A sign-out, a revocation or a password change in the
+/// ten minutes between ends the link with the session: otherwise a flow started by somebody who
+/// has just been locked out would still bind their account afterwards (RD-1120-19). A link
+/// started on this machine while its login is switched off holds only as long as that switch.
+pub(super) async fn requester_signed_in(state: &AppState, session: &str) -> bool {
+    if session == THIS_MACHINE {
+        return state.auth.disabled();
+    }
+    match state
+        .database
+        .list_sessions(state.auth.session_limits())
+        .await
+    {
+        Ok(open) => open.iter().any(|open| open.id.to_string() == session),
+        Err(error) => {
+            tracing::warn!(%error, "could not read the sessions for an identity link");
+            false
+        }
     }
 }
 

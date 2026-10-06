@@ -1,6 +1,7 @@
 //! Validation of a subscription request into what the store accepts.
 
 use super::*;
+use rd_api_core::input_checks::optional_text;
 
 /// Validates the request and turns it into what the store accepts.
 ///
@@ -238,8 +239,7 @@ pub(super) fn sanitize_filters(
     let clean = |values: &[String]| -> Result<Vec<String>, ApiError> {
         let cleaned: Vec<String> = values
             .iter()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty())
+            .filter_map(|value| optional_text(Some(value)))
             .collect();
         if cleaned.len() > MAX_FILTER_PATTERNS {
             return Err(ApiError::unprocessable(

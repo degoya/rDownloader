@@ -67,7 +67,7 @@ async function submit(): Promise<void> {
       :description="t('system.password.description')"
     />
 
-    <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
 
     <form class="mt-4 space-y-4" @submit.prevent="submit">
       <UFormField :label="t('system.password.current_label')">

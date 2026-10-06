@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use rd_core::{AccountId, DownloadState, Failure, ProxyProfileId};
+use rd_core::{AccountId, DownloadState, Failure};
 use rd_http::SharedNetworkDefaults;
 use url::Url;
 
@@ -167,29 +167,6 @@ impl SchedulerHandle {
     #[must_use]
     pub fn network_defaults(&self) -> SharedNetworkDefaults {
         self.network_defaults.clone()
-    }
-
-    /// Builds (or reuses) the HTTP client for a URL, with the auth profile, proxy and
-    /// custom CA that would apply to a download of it.
-    ///
-    /// WebDAV needs this: its `PROPFIND` has to authenticate exactly like the transfer that
-    /// follows, and building a second client would bypass the pool and the profile rules.
-    pub async fn network_client(
-        &self,
-        account_id: Option<AccountId>,
-        proxy_profile_id: Option<ProxyProfileId>,
-        auth_profile: rd_core::AuthProfileSelection,
-        scope: &Url,
-    ) -> Result<NetworkClient> {
-        worker::build_client(
-            self,
-            account_id,
-            proxy_profile_id,
-            auth_profile,
-            scope,
-            None,
-        )
-        .await
     }
 
     /// Verifies a configured provider identity through its installed resolver.

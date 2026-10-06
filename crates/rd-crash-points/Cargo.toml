@@ -1,0 +1,14 @@
+[package]
+name = "rd-crash-points"
+version = "1.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The crash point registry (RD-1120-12); a dev-dependency only, so a new point rebuilds no
+# production crate. Its own version, not the workspace's: `rd-core` names it, and every crate a
+# plugin's manifest reaches carries one (`crates/rdownloader/tests/plugin_crate_versions.rs`).
+[dependencies]
+
+[lints]
+workspace = true

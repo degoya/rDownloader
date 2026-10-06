@@ -134,12 +134,9 @@
         "description": "Jedes Ziel bekommt seine eigene Kopie. Ein unerreichbares Ziel wird erneut versucht und kostet nur seinen eigenen Eintrag im Verlauf.",
         "empty": "Noch kein Ziel. Füge einen Ordner, einen Objektspeicher-Bucket oder ein rclone-Remote hinzu.",
         "add": "Ziel hinzufügen",
-        "edit": "Bearbeiten",
-        "delete": "Entfernen",
         "deleted": "Ziel entfernt. Seine Archive bleiben, wo sie sind.",
         "saved": "Ziel gespeichert",
         "save": "Ziel speichern",
-        "cancel": "Abbrechen",
         "off": "Aus",
         "kind": {
           "label": "Art",
@@ -451,11 +448,9 @@
       "once": "Nur jetzt sichtbar. Nach dem Verlassen der Seite ist nichts davon wieder abrufbar.",
       "scan": "Diesen Code mit der Authenticator-App scannen:",
       "copy_secret": "Schlüssel kopieren",
-      "copy_uri": "Link kopieren",
       "recovery": "Wiederherstellungscodes — an einem sicheren Ort aufbewahren:",
       "copy_codes": "Codes kopieren",
       "confirm_label": "Code aus der App",
-      "confirm": "Bestätigen",
       "qr_alt": "QR-Code zum Einrichten der Authenticator-App",
       "manual": "Oder den Schlüssel von Hand eintragen:"
     },
@@ -493,7 +488,6 @@
     "description": "Statt mit dem Passwort mit dem Gerät anmelden. Der Authenticator prüft PIN oder Fingerabdruck, bevor er signiert — ein Schritt deckt damit beides ab. Das Passwort funktioniert weiter: ein Passkey ist ein zusätzlicher Weg hinein, kein Ersatz.",
     "unsupported": "Dieser Browser kann hier keine Passkeys verwenden. Du brauchst eine sichere Verbindung: entweder https oder den Dienst über localhost erreichen.",
     "add": "Passkey hinzufügen",
-    "save": "Speichern",
     "failed": "Der Passkey konnte nicht eingerichtet werden.",
     "added_toast": "Passkey hinzugefügt",
     "name_label": "Name",
@@ -503,10 +497,8 @@
     "last_used": "Zuletzt verwendet {moment}",
     "never_used": "nie",
     "remove": {
-      "action": "Entfernen",
       "title": "Diesen Passkey entfernen?",
-      "description": "„{label}“ kann sich dann nicht mehr anmelden. Das Passwort funktioniert weiterhin.",
-      "confirm": "Entfernen"
+      "description": "„{label}“ kann sich dann nicht mehr anmelden. Das Passwort funktioniert weiterhin."
     },
     "step_up_hint": "Einen Passkey hinzufügen oder entfernen verlangt das Passwort noch einmal."
   },
@@ -722,10 +714,8 @@
       "confirm": "Lösen"
     },
     "remove": {
-      "action": "Entfernen",
       "title": "Identitätsanbieter entfernen?",
-      "description": "Die Konfiguration, das Client-Secret und die Verknüpfung werden gelöscht.",
-      "confirm": "Entfernen"
+      "description": "Die Konfiguration, das Client-Secret und die Verknüpfung werden gelöscht."
     },
     "password_is_off": "Die Anmeldung mit Passwort ist ausgeschaltet",
     "password_is_off_hint": "Nur auf dem Rechner des Dienstes kommt sie zurück: {command}. Passkeys funktionieren weiter, und das Passwort bestätigt weiterhin Änderungen.",
@@ -749,8 +739,7 @@
     "group_hint": "Optional: Das verknüpfte Konto muss zusätzlich in dieser Gruppe sein.",
     "provider_logout": "Beim Abmelden auch beim Anbieter abmelden",
     "provider_logout_hint": "Aus: Abmelden beendet nur die Sitzung hier, deine anderen Dienste bleiben angemeldet.",
-    "step_up_hint": "Jede Änderung hier verlangt das Passwort noch einmal.",
-    "save": "Speichern"
+    "step_up_hint": "Jede Änderung hier verlangt das Passwort noch einmal."
   },
   "token_expiry": {
     "label": "Läuft ab",

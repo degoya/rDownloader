@@ -15,6 +15,7 @@
 //! CutCaptcha is answered by a solver service alone: no browser reads its token, so without a
 //! service it is refused at once rather than queued (RD-110-15).
 
+mod failures;
 mod manual;
 mod presence;
 mod settings;
@@ -27,9 +28,15 @@ use rd_db::Database;
 use rd_plugin_api::{CaptchaAnswer, CaptchaChallenge, ClickPoint};
 use secrecy::ExposeSecret;
 
+use failures::{
+    Answerers, answerers, key_missing, key_unreadable, no_solver, page_without_widget,
+    widget_needs_solver,
+};
+
 pub use manual::{AnswerSource, CaptchaKind, PendingCaptcha, PendingWidget, SubmitOutcome};
 pub use presence::{BROWSER_EXTENSION_PRESENCE_WINDOW, CaptchaAnswerers};
 pub use settings::{CaptchaSettings, DEFAULT_ENDPOINT, SETTINGS_KEY, SolverKind};
+pub use solver::SolverTiming;
 
 /// Timeout for one solver-service HTTP call.
 const SOLVER_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -49,6 +56,7 @@ struct Inner {
     secrets: rd_secrets::SecretStore,
     manual: manual::ManualQueue,
     http: reqwest::Client,
+    solver_timing: SolverTiming,
     /// When a browser extension last polled the waiting widgets. In memory only, like the
     /// queue itself: presence is a live fact, not a setting.
     browser_extension_seen: std::sync::Mutex<Option<chrono::DateTime<chrono::Utc>>>,
@@ -65,9 +73,19 @@ impl CaptchaBroker {
     /// changing the solver in the UI takes effect without a restart.
     #[must_use]
     pub fn new(database: Database, secrets: rd_secrets::SecretStore) -> Self {
+        Self::with_solver_timing(database, secrets, SolverTiming::default())
+    }
+
+    /// [`Self::new`], polling a solver service with `solver_timing` instead of the default.
+    #[must_use]
+    pub fn with_solver_timing(
+        database: Database,
+        secrets: rd_secrets::SecretStore,
+        solver_timing: SolverTiming,
+    ) -> Self {
         let http = reqwest::Client::builder()
             .timeout(SOLVER_REQUEST_TIMEOUT)
-            .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")))
+            .user_agent(rd_core::user_agent!())
             .build()
             .unwrap_or_default();
         Self {
@@ -76,6 +94,7 @@ impl CaptchaBroker {
                 secrets,
                 manual: manual::ManualQueue::default(),
                 http,
+                solver_timing,
                 browser_extension_seen: std::sync::Mutex::new(None),
             }),
         }
@@ -304,6 +323,7 @@ impl CaptchaBroker {
             &settings.endpoint,
             key.expose_secret(),
             challenge,
+            self.inner.solver_timing,
         )
         .await
     }
@@ -383,95 +403,6 @@ fn announce(inner: &Inner) {
         EventKind::CaptchaChanged,
         serde_json::json!({ "pending": pending }),
     ));
-}
-
-fn key_missing() -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        "captcha.solver_key_missing",
-        "The captcha solver has no API key",
-    )
-}
-
-/// Reports an unreadable key without quoting the stored value or its reference.
-fn key_unreadable(error: &impl std::fmt::Display) -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        "captcha.solver_key_missing",
-        format!("The captcha solver API key could not be read: {error}"),
-    )
-}
-
-/// Who, besides a solver service, could answer a challenge.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Answerers {
-    /// A person, in the web interface: the picture is shown and the answer typed or clicked.
-    Person,
-    /// A browser on the hoster's own page, through the extension.
-    Browser,
-    /// Nobody: the widget's token is not readable by any browser rDownloader drives.
-    ServiceOnly,
-}
-
-const fn answerers(challenge: &CaptchaChallenge) -> Answerers {
-    match challenge {
-        CaptchaChallenge::Image(_) | CaptchaChallenge::ClickPoint(_) => Answerers::Person,
-        CaptchaChallenge::RecaptchaV2(_)
-        | CaptchaChallenge::HCaptcha(_)
-        | CaptchaChallenge::Turnstile(_) => Answerers::Browser,
-        CaptchaChallenge::Cutcaptcha(_) => Answerers::ServiceOnly,
-    }
-}
-
-/// Explains why a challenge cannot be answered at all, so the UI can point at the fix.
-///
-/// For a picture only reachable with manual solving switched off; with it on, the user is
-/// shown the challenge itself. A widget is shown as a hint naming its hoster. A CutCaptcha
-/// always ends here without a solver, because nothing else can answer one.
-fn no_solver(challenge: &CaptchaChallenge) -> Failure {
-    match answerers(challenge) {
-        Answerers::Person => Failure::coded(
-            FailureKind::NeedsCaptcha,
-            "captcha.no_solver",
-            "No captcha solver is configured",
-        ),
-        Answerers::Browser => widget_needs_solver(),
-        Answerers::ServiceOnly => Failure::coded(
-            FailureKind::NeedsCaptcha,
-            "captcha.cutcaptcha_needs_solver",
-            "This hoster uses CutCaptcha, which only a solver service can answer: configure one",
-        ),
-    }
-}
-
-/// The one sentence every widget stall ends in, so the three places that raise it agree.
-/// The browser found the hoster's page without the widget the service met there.
-///
-/// Worded for the one cause measured so far (RD-120-45): the person's browser holds a session
-/// at the hoster, so the page the service fetched as a guest is skipped over in the browser.
-/// The service cannot read that session by itself; the text says what can.
-pub(crate) fn page_without_widget(host: Option<&str>) -> Failure {
-    let host = host.unwrap_or_default();
-    Failure::coded(
-        FailureKind::NeedsCaptcha,
-        "captcha.page_without_widget",
-        format!(
-            "{host} showed no captcha in your browser, most likely because the browser is \
-             already signed in there, and rDownloader cannot use that session by itself. Take \
-             it over with \"Take over from browser\" at the account, or sign out of {host} in \
-             the browser and test the account again, so the sign-in page shows its captcha"
-        ),
-    )
-    .with_param("host", host)
-}
-
-fn widget_needs_solver() -> Failure {
-    Failure::coded(
-        FailureKind::NeedsCaptcha,
-        "captcha.widget_needs_solver",
-        "This hoster uses a captcha widget: answer it in your browser through the \
-         rDownloader extension, in the desktop agent's window, or configure a solver service",
-    )
 }
 
 #[async_trait::async_trait]

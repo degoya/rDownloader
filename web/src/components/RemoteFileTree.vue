@@ -167,13 +167,13 @@ const range = useRangeSelection(
     <div class="flex flex-wrap items-center gap-3 border-b border-muted bg-elevated/50 px-3 py-2">
       <UIcon name="i-lucide-folder-tree" class="text-primary" />
       <span class="text-xs font-medium text-highlighted">{{ t('remote.listing.title') }}</span>
-      <span class="font-mono text-[11px] text-muted">{{ listing.root }}</span>
-      <span class="ml-auto text-[11px] text-muted">
+      <span class="font-mono text-2xs text-muted">{{ listing.root }}</span>
+      <span class="ml-auto text-2xs text-muted">
         {{ t('remote.listing.selected', { count: listing.selected_files, total: totalFiles }) }}
         · {{ t('remote.listing.selected_bytes', { size: selectedBytes }) }}
       </span>
       <div v-if="!readonly" class="flex gap-1">
-        <UButton size="xs" color="neutral" variant="ghost" :label="t('remote.listing.select_all')" :disabled="busy" @click="setAll(true)" />
+        <UButton size="xs" color="neutral" variant="ghost" :label="t('common.actions.select_all')" :disabled="busy" @click="setAll(true)" />
         <UButton size="xs" color="neutral" variant="ghost" :label="t('remote.listing.select_none')" :disabled="busy" @click="setAll(false)" />
       </div>
     </div>
@@ -184,7 +184,7 @@ const range = useRangeSelection(
       color="warning"
       variant="soft"
       class="rounded-none border-b border-muted px-3 py-2"
-      :ui="{ description: 'text-[11px]' }"
+      :ui="{ description: 'text-2xs' }"
       :description="t('remote.listing.no_resume')"
     />
     <UAlert
@@ -192,7 +192,7 @@ const range = useRangeSelection(
       color="warning"
       variant="soft"
       class="rounded-none border-b border-muted px-3 py-2"
-      :ui="{ description: 'text-[11px]' }"
+      :ui="{ description: 'text-2xs' }"
       :description="t('remote.listing.truncated_entries', { limit: 5000 })"
     />
     <UAlert
@@ -200,7 +200,7 @@ const range = useRangeSelection(
       color="warning"
       variant="soft"
       class="rounded-none border-b border-muted px-3 py-2"
-      :ui="{ description: 'text-[11px]' }"
+      :ui="{ description: 'text-2xs' }"
       :description="t('remote.listing.truncated_depth', { limit: 16 })"
     />
 
@@ -232,7 +232,7 @@ const range = useRangeSelection(
         <span class="min-w-0 flex-1 truncate" :class="isExcluded(node.path) ? 'text-muted line-through' : 'text-highlighted'">
           {{ node.name }}
         </span>
-        <span v-if="!node.isDir" class="shrink-0 font-mono text-[11px] text-muted">{{ formatBytes(node.size) }}</span>
+        <span v-if="!node.isDir" class="shrink-0 font-mono text-2xs text-muted">{{ formatBytes(node.size) }}</span>
       </div>
       <p v-if="!rows.length" class="p-5 text-center text-xs text-muted">{{ t('remote.listing.empty') }}</p>
     </div>

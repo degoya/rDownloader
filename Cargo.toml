@@ -20,6 +20,7 @@ members = [
   "crates/rd-capture",
   "crates/rd-collector",
   "crates/rd-core",
+  "crates/rd-crash-points",
   "crates/rd-db",
   "crates/rd-diagnostics",
   "crates/rd-extract",
@@ -76,6 +77,7 @@ members = [
   "plugins/example-stream-transform",
   "plugins/example-transfer",
   "plugins/filejoker",
+  "plugins/flexible",
   "plugins/google-drive",
   "plugins/google-drive-common",
   "plugins/google-drive-crawler",
@@ -83,7 +85,10 @@ members = [
   "plugins/guest",
   "plugins/guest-auth",
   "plugins/guest-crawler",
+  "plugins/guest-enricher",
+  "plugins/guest-notifier",
   "plugins/guest-oauth",
+  "plugins/guest-postprocess",
   "plugins/guest-remote-job",
   "plugins/hitfile",
   "plugins/katfile",
@@ -107,6 +112,7 @@ members = [
   "plugins/ntfy-notifier",
   "plugins/offcloud",
   "plugins/offcloud-cloud",
+  "plugins/offcloud-common",
   "plugins/onedrive",
   "plugins/onedrive-common",
   "plugins/onedrive-crawler",
@@ -131,6 +137,7 @@ members = [
   "plugins/rapidgator",
   "plugins/realdebrid",
   "plugins/realdebrid-auth",
+  "plugins/realdebrid-common",
   "plugins/realdebrid-torrents",
   "plugins/seedr",
   "plugins/seedr-common",
@@ -140,6 +147,7 @@ members = [
   "plugins/telegram-notifier",
   "plugins/torbox",
   "plugins/torbox-auth",
+  "plugins/torbox-common",
   "plugins/torbox-jobs",
   "plugins/torrent-common",
   "plugins/turbobit",
@@ -150,7 +158,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.11.0"
+version = "1.12.0"
 authors = ["Alexander Herling"]
 edition = "2024"
 rust-version = "1.99"
@@ -267,6 +275,7 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-rustls = "0.26"
 tokio-util = "0.7"
 toml = "1"
+tower = "0.5"
 tower-http = { version = "0.7", features = ["cors", "limit", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
@@ -355,4 +364,21 @@ opt-level = 3
 [profile.dev.package.wasmtime-internal-core]
 opt-level = 3
 [profile.dev.package.wasmtime-internal-cranelift]
+opt-level = 3
+# The hashes and key derivations optimised in test builds too (RD-1120-08): unoptimised, a test that
+# hashes a password (`Argon2::default()`), seals a backup or derives a plugin key
+# (`MIN_PBKDF2_ROUNDS`) spends seconds in them. An override applies to every version of a name.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
+[profile.dev.package.hmac]
+opt-level = 3
+[profile.dev.package.pbkdf2]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+# SQLite itself: `sqlx`'s `sqlite` feature builds the bundled amalgamation with `cc`, which takes the
+# package's `OPT_LEVEL` — `-O0` without this line, and every test opens databases.
+[profile.dev.package.libsqlite3-sys]
 opt-level = 3

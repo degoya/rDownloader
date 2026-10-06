@@ -9,7 +9,8 @@
 # applies on Windows alone and is named in the verdict; a typo in it, or a table naming no
 # platform, is refused on every platform, and the growth budget still catches a handle leak on
 # Windows. The
-# fixture serves ranges that match its own hash and refuses connections during an outage.
+# fixture serves ranges that match its own hash and refuses connections during an outage. A
+# removal the service refuses while it still holds a finished download is asked again (RD-1120-07).
 #
 # Pure python3 and bash: it runs in seconds. check.sh runs it when scripts/ changes, and under
 # --full.
@@ -122,9 +123,9 @@ platform=windows judge "$SCRATCH/steady.csv" "$SCRATCH/platform-typo.toml"
 expect_true "an override table naming no platform is refused" \
     '[[ $status -eq 2 ]] && has "[budgets.windwos] names no known platform"'
 
-# The fixture: a range matches its own hash, and an outage refuses connections.
+# The fixture: a range matches its own hash, `/stats` counts it, and an outage refuses connections.
 if python3 -B - "$ROOT/scripts/lib" > "$SCRATCH/out" 2>&1 <<'PY'
-import hashlib, sys, urllib.error, urllib.request
+import hashlib, json, sys, urllib.error, urllib.request
 sys.path.insert(0, sys.argv[1])
 import soak_fixture
 fixture = soak_fixture.Fixture().start()
@@ -137,6 +138,8 @@ assert tail.status == 206 and tail.read() == whole[4194310:], "range"
 stale = urllib.request.Request(url, headers={"Range": "bytes=10-", "If-Range": '"other"'})
 assert urllib.request.urlopen(stale).status == 200, "if-range"
 assert soak_fixture.content(7, 0, 64) != soak_fixture.content(8, 0, 64), "seed"
+stats = json.load(urllib.request.urlopen(f"{fixture.base}/stats"))
+assert stats["requests"] == 3 and stats["ranged"] == 1, f"stats {stats}"
 fixture.go_down()
 try:
     urllib.request.urlopen(url, timeout=2)
@@ -147,7 +150,44 @@ fixture.come_back()
 assert urllib.request.urlopen(url).read() == whole, "after the outage"
 fixture.stop()
 PY
-then ok "the fixture serves ranges, honours If-Range and goes away during an outage"
+then ok "the fixture serves ranges, honours If-Range, counts them and goes away during an outage"
 else fail "the fixture: $(tail -3 "$SCRATCH/out")"; fi
+
+# A removal refused while the service still holds a finished download (409
+# package.files_remove_failed, the nightly run of 2026-10-06) is asked again, not the end of the
+# run — unless the refusal outlasts REMOVE_GRACE_S; any other refusal ends the run at once.
+if python3 -B - "$ROOT/scripts/lib" "$SCRATCH/downloads" > "$SCRATCH/out" 2>&1 <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import soak
+downloads = Path(sys.argv[2]); downloads.mkdir()
+class FakeApi:
+    def __init__(self, answers): self.answers, self.calls = list(answers), 0
+    def call(self, method, path, body=None):
+        self.calls += 1
+        return self.answers.pop(0)
+held = (409, {"code": "package.files_remove_failed", "error": "active download"})
+file = {"id": "d1", "package_id": "p1", "file_name": "soak-1.bin"}
+(downloads / "soak-1.bin").write_bytes(b"x")
+api = FakeApi([held, (200, {})])
+assert soak.remove(api, file, downloads) is False, "a held download is refused for now"
+unremoved = {"d1": (file, 0.0)}
+soak.retry_removals(api, unremoved, downloads, 30.0)
+assert unremoved == {} and not (downloads / "soak-1.bin").exists(), "asked again and removed"
+api = FakeApi([held])
+try:
+    soak.retry_removals(api, {"d1": (file, 0.0)}, downloads, soak.REMOVE_GRACE_S + 1.0)
+    raise AssertionError("a refusal past the grace ended nothing")
+except soak.RunError as error:
+    assert "still held as active" in str(error), str(error)
+try:
+    soak.remove(FakeApi([(500, {"error": "boom"})]), file, downloads)
+    raise AssertionError("a 500 was taken as a held download")
+except soak.RunError:
+    pass
+PY
+then ok "a removal refused for a held download is asked again, within the grace only"
+else fail "the removal retry: $(tail -3 "$SCRATCH/out")"; fi
 
 finish_tests "soak harness"

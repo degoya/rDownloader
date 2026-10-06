@@ -9,8 +9,10 @@ name: Installers
 #
 #   deb on Ubuntu 24.04: apt install, the packaged systemd user unit under a lingering user manager
 #   rpm in a Fedora container: dnf install, the service run as a user
+#   deb and rpm alike: the menu entry installed (the deb's checked by desktop-file-validate) and removed
 #   both for x86_64 on ubuntu-24.04 and for aarch64 on ubuntu-24.04-arm, each natively (RD-190-12)
-#   MSI on Windows Server 2025: msiexec /qn per user, AUTOSTART=1, a second build as the upgrade
+#   MSI on Windows Server 2025: msiexec /qn per user, AUTOSTART=1, a second build as the upgrade,
+#     a German build installed and removed (RD-1120-20)
 #   macOS: `rdownloader-capture scheme install|remove` against Launch Services, the helper app
 #     built as release.yml builds it
 #
@@ -19,12 +21,15 @@ name: Installers
 # docs/roadmap/jobs/180-05-linux-arm64-und-installer.md).
 #
 #   gh workflow run installers.yml --ref <branch>
+#
+# The release candidate dispatches it before the tag, beside ci.yml, and a red run holds the tag
+# (owner, 2026-10-06, replacing "no tag runs" of 2026-10-04; the `public-ci` step,
+# scripts/lib/release-steps-publish.sh).
 on:
   push:
     # Branches only, never a tag (owner, 2026-10-04): path filters do not apply to tags, and a
-    # `push` that names `branches` but no `tags` starts for no tag at all. The release's commit
-    # was checked on its integration branch before the merge; the tag adds nothing to check
-    # (scripts/tests/release-assets.sh).
+    # `push` that names `branches` but no `tags` starts for no tag at all. The candidate was
+    # checked before the tag; the tag adds nothing to check (scripts/tests/release-assets.sh).
     branches: ["**"]
     paths:
       - .github/workflows/installers.yml
@@ -50,8 +55,9 @@ concurrency:
 
 env:
   # RUSTUP_TOOLCHAIN: set by .github/actions/setup-rust for every step after it (RD-191-09).
+  # Nothing else CARGO*/RUST*: Swatinem/rust-cache keys a cache by those variables, and with
+  # ci.yml's these jobs restore its `rust-tests` (RD-1120-07).
   CARGO_INCREMENTAL: 0
-  CARGO_TERM_COLOR: always
 
 jobs:
   linux:
@@ -83,10 +89,12 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
-      - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # ci.yml's `rust-tests` cache, read only (RD-1120-07): the dependencies of a debug build
+      # with the same linkers. The `installers` cache these jobs saved (964 MB on Windows alone)
+      # was read by nothing but their next run on main.
+      - uses: ./.github/actions/rust-tests-cache
         with:
-          key: installers
+          nextest: false
       - run: cargo build --locked -p rdownloader -p rd-capture
       - name: Pack a release-layout tarball
         shell: bash
@@ -165,8 +173,11 @@ jobs:
             systemctl --user stop rdownloader
           }
           sudo apt-get update -qq
-          sudo apt-get install -y "./installers/rdownloader-linux-${ARCH}.deb"
+          sudo apt-get install -y desktop-file-utils "./installers/rdownloader-linux-${ARCH}.deb"
           test "$(cat /usr/lib/rdownloader/install-kind)" = deb
+          # The menu entry and its icon (RD-1120-20).
+          desktop-file-validate /usr/share/applications/rdownloader.desktop
+          test -s /usr/share/icons/hicolor/scalable/apps/rdownloader.svg
           rdownloader --version
           serve
           # The data went to the user, nothing next to the program.
@@ -180,6 +191,7 @@ jobs:
           sudo dpkg --purge rdownloader
           test ! -e /usr/lib/rdownloader
           test ! -e /usr/lib/systemd/user/rdownloader.service
+          test ! -e /usr/share/applications/rdownloader.desktop
           test -s "${db}" || { echo "::error::removing the deb took the database with it"; exit 1; }
           test "$(cat "${home}/downloads/installers-marker")" = "installers deb"
       - name: Install the rpm in Fedora, upgrade over itself, remove, keep the data
@@ -191,6 +203,7 @@ jobs:
             # The container image has no runuser; util-linux brings it.
             dnf install --assumeyes util-linux "/installers/rdownloader-linux-${ARCH}.rpm"
             test "$(cat /usr/lib/rdownloader/install-kind)" = rpm
+            test -s /usr/share/applications/rdownloader.desktop
             useradd --create-home tester
             db=/home/tester/.local/share/rdownloader/data/rdownloader.sqlite3
             serve() {
@@ -212,6 +225,7 @@ jobs:
             serve
             rpm --erase rdownloader
             test ! -e /usr/lib/rdownloader || { echo "removing the rpm left /usr/lib/rdownloader:"; find /usr/lib/rdownloader; exit 1; }
+            test ! -e /usr/share/applications/rdownloader.desktop
             test -s "${db}" || { echo "removing the rpm took the database with it"; exit 1; }
             test "$(cat /home/tester/.local/share/rdownloader/data/installers-marker)" = installers-rpm
           '
@@ -229,10 +243,10 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
-      - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # `rust-tests`, read only, as in `linux`.
+      - uses: ./.github/actions/rust-tests-cache
         with:
-          key: installers
+          nextest: false
       - run: cargo build --locked -p rdownloader -p rd-capture
       - name: Stage the release layout
         shell: bash
@@ -251,12 +265,13 @@ jobs:
         uses: ./.github/actions/install-wix
       # Two builds of one version: each gets a product code of its own, so the second installs as
       # the major upgrade of the first, as a release does over the one before it.
-      - name: Build the MSI twice
+      - name: Build the MSI twice, and once in German
         shell: bash
         run: |
           set -euo pipefail
           scripts/package-msi.sh stage installers/first/rdownloader-windows-x86_64.msi
           scripts/package-msi.sh stage installers/second/rdownloader-windows-x86_64.msi
+          scripts/package-msi.sh stage installers/de/rdownloader-windows-x86_64-de.msi de
       - name: Install, upgrade with AUTOSTART=1, uninstall, keep the data
         shell: pwsh
         run: |
@@ -307,6 +322,11 @@ jobs:
           if (Get-ItemProperty $run -Name 'rDownloader Service' -ErrorAction SilentlyContinue) { throw "the uninstall left the autostart entry behind" }
           if (-not (Test-Path $db)) { throw "the uninstall took the database with it" }
           if ((Get-Content "$home_\downloads\installers-marker") -ne 'installers msi') { throw "the uninstall took the downloads with it" }
+          # A language other than English (RD-1120-20): silent, its own strings bound, removed.
+          Msi '/i installers\de\rdownloader-windows-x86_64-de.msi' de.log
+          if (-not (Test-Path "$menu\rDownloader beenden.lnk")) { throw "the German MSI has no entry 'rDownloader beenden'" }
+          Msi '/x installers\de\rdownloader-windows-x86_64-de.msi' de-remove.log
+          if (Test-Path $menu) { throw "the German uninstall left the Start menu folder behind" }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
@@ -321,10 +341,10 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # `rust-tests`, read only, as in `linux`.
+      - uses: ./.github/actions/rust-tests-cache
         with:
-          key: installers
+          nextest: false
       - run: cargo build --locked -p rd-capture
       # The helper as release.yml builds it, beside the agent as in the archive.
       - name: Build the helper app beside the agent

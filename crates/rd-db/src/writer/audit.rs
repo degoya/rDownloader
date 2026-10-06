@@ -18,8 +18,9 @@ impl Writer {
                 batch,
                 reply,
             } => {
-                let result = crate::audit_store::prune_audit_records(
+                let result = crate::retention::prune_records(
                     &mut self.connection,
+                    crate::retention::RecordTable::Audit,
                     max_records,
                     older_than,
                     batch,

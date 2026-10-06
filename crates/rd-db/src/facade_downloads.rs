@@ -30,6 +30,22 @@ impl Database {
         .await
     }
 
+    /// Announces the rows one enqueue created with a single `download.state` event carrying
+    /// `created: true` (RD-1120-17); see `Writer::announce_created` for the payload. Nothing
+    /// happens for an empty list.
+    pub async fn announce_created_downloads(
+        &self,
+        package_id: rd_core::PackageId,
+        ids: Vec<DownloadId>,
+    ) -> Result<()> {
+        writer::request(&self.writer, |reply| DownloadsCommand::AnnounceCreated {
+            package_id,
+            ids,
+            reply,
+        })
+        .await
+    }
+
     /// Changes a file state and commits a matching event atomically.
     pub async fn transition_download(
         &self,
@@ -84,6 +100,51 @@ impl Database {
 
     /// Removes an inactive queue entry and its now-empty package metadata.
     pub async fn delete_download(&self, id: DownloadId) -> Result<()> {
+        let references = self.vaulted_references(id).await;
+        writer::request(&self.writer, |reply| DownloadsCommand::DeleteDownload {
+            id,
+            reply,
+        })
+        .await?;
+        self.forget_secrets(references).await;
+        // The package went with its last file, and its archive password with it (RD-190-04).
+        self.sweep_archive_passwords().await;
+        Ok(())
+    }
+
+    /// [`Self::delete_download`] for many rows in one writer transaction (RD-1120-17).
+    ///
+    /// One answer per id, in order: a row that is gone or still working is refused on its own
+    /// and the others are removed. Only the vaulted material of a removed row is forgotten, and
+    /// the archive passwords are swept once for the whole batch.
+    ///
+    /// # Errors
+    ///
+    /// When the transaction itself fails; then no row of the batch was removed.
+    pub async fn delete_downloads(&self, ids: Vec<DownloadId>) -> Result<Vec<Result<()>>> {
+        let mut references = Vec::with_capacity(ids.len());
+        for &id in &ids {
+            references.push(self.vaulted_references(id).await);
+        }
+        let outcomes = writer::request(&self.writer, |reply| DownloadsCommand::DeleteDownloads {
+            ids,
+            reply,
+        })
+        .await?;
+        let released = references
+            .into_iter()
+            .zip(&outcomes)
+            .filter(|(_, outcome)| outcome.is_ok())
+            .flat_map(|(references, _)| references)
+            .collect();
+        self.forget_secrets(released).await;
+        self.sweep_archive_passwords().await;
+        Ok(outcomes)
+    }
+
+    /// The vault references a download row holds, read before the row goes: afterwards nothing
+    /// names them any more.
+    async fn vaulted_references(&self, id: DownloadId) -> Vec<String> {
         // The second owner of a vaulted link fragment (RD-110-38). Read before the delete for
         // the same reason the candidate's is: the reference is a column of the row going away.
         let orphaned = self.download_secret_fragment_ref(id).await.unwrap_or(None);
@@ -95,22 +156,11 @@ impl Database {
         let body_reference = replay_store::template_body_ref(&self.readers, id)
             .await
             .unwrap_or(None);
-        writer::request(&self.writer, |reply| DownloadsCommand::DeleteDownload {
-            id,
-            reply,
-        })
-        .await?;
-        self.forget_secrets(
-            orphaned
-                .into_iter()
-                .chain(key_reference)
-                .chain(body_reference)
-                .collect(),
-        )
-        .await;
-        // The package went with its last file, and its archive password with it (RD-190-04).
-        self.sweep_archive_passwords().await;
-        Ok(())
+        orphaned
+            .into_iter()
+            .chain(key_reference)
+            .chain(body_reference)
+            .collect()
     }
 
     /// The reference a download row holds, without opening the vault.
@@ -369,9 +419,19 @@ impl Database {
         Ok(packages)
     }
 
-    /// Returns files in creation order.
+    /// Returns files in queue order: package priority and position, then the file's position.
     pub async fn list_downloads(&self) -> Result<Vec<DownloadFile>> {
         models::list_downloads(&self.readers).await
+    }
+
+    /// One page of [`Self::list_downloads`], cut by SQLite, and how many rows the whole list
+    /// holds (RD-1120-17): `offset` rows skipped, then at most `limit` (`None`: the rest).
+    pub async fn downloads_page(
+        &self,
+        offset: u64,
+        limit: Option<u64>,
+    ) -> Result<(Vec<DownloadFile>, u64)> {
+        models::downloads_page(&self.readers, offset, limit).await
     }
 
     /// Returns one package's files in queue order.

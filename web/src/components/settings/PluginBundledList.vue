@@ -52,7 +52,7 @@ defineExpose({ reload: refresh })
       />
       <UBadge color="neutral" variant="outline">{{ available.length }}</UBadge>
     </div>
-    <UAlert v-if="error" class="mb-4" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="error" class="mb-4" color="error" :description="error" />
     <BundledServicePicker
       v-if="!loading && !loadError && available.length"
       :services="available"

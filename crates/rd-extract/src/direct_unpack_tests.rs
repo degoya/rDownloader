@@ -468,7 +468,7 @@ async fn a_failed_verification_never_lets_a_direct_unpack_in() {
 /// kill inside the tool would leave, planted here — and unpacks the set the normal way.
 #[cfg(feature = "failpoints")]
 #[tokio::test]
-async fn a_direct_unpack_stopped_before_it_was_moved_in_is_unpacked_again_by_the_next_start() {
+async fn a_direct_unpack_crashed_before_it_was_moved_in_is_unpacked_again_by_the_next_start() {
     let temp = tempfile::tempdir().expect("tempdir");
     let database = Database::open(temp.path().join("extract.sqlite"))
         .await

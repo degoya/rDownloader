@@ -13,6 +13,7 @@ import { serverMessageFrom } from '@/i18n/server'
 import { GIB, byteModel, formatBytes } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { DECIMAL } from '@/utils/numberInput'
+import { editingRowClass } from '@/utils/editingRow'
 
 const roots = defineModel<StorageRoot[]>({ required: true })
 const props = defineProps<{
@@ -177,12 +178,12 @@ async function remove(root: StorageRoot): Promise<void> {
           class="mb-4"
         />
         <div v-if="error && !pathError" ref="refusalElement" class="mb-3 scroll-mt-4">
-          <UAlert color="error" variant="subtle" :description="error" />
+          <UAlert color="error" :description="error" />
         </div>
         <!-- Between the two on purpose: the warning is a standing condition, the success message
              below it a receipt for the last save. Both can be on screen at once. -->
-        <UAlert v-if="ephemeral.length" class="mb-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('routing.root.ephemeral_title')" :description="t('routing.root.ephemeral_description')" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
+        <UAlert v-if="ephemeral.length" class="mb-3" color="warning" icon="i-lucide-triangle-alert" :title="t('routing.root.ephemeral_title')" :description="t('routing.root.ephemeral_description')" />
+        <UAlert v-if="message" class="mb-3" color="success" :description="message" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField required :label="t('routing.root.name_label')" :description="t('routing.root.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.root.name_placeholder')" icon="i-lucide-hard-drive" />
@@ -195,7 +196,7 @@ async function remove(root: StorageRoot): Promise<void> {
           </UFormField>
           <UFormField orientation="horizontal" :label="t('routing.root.default_label')" :description="t('routing.root.default_description')">
             <USwitch v-model="form.is_default" :disabled="lockDefault" :aria-label="t('routing.root.default_label')" />
-            <p v-if="lockDefault" class="mt-1 text-[11px] leading-5 text-muted">{{ t('routing.root.default_locked_hint') }}</p>
+            <p v-if="lockDefault" class="mt-1 text-2xs leading-5 text-muted">{{ t('routing.root.default_locked_hint') }}</p>
           </UFormField>
           <FormActions :editing="editingId !== null" :create-label="t('routing.root.create')" :loading="pending" @cancel="list.reset" />
         </form>
@@ -204,12 +205,12 @@ async function remove(root: StorageRoot): Promise<void> {
         <div class="divide-y divide-muted border border-muted">
           <!-- Wraps: on a phone the badges and buttons took the row's width and the name ran
                under them; now they move to a line of their own instead. -->
-          <div v-for="root in roots" :key="root.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingId === root.id ? 'border-l-2 border-l-primary' : ''">
+          <div v-for="root in roots" :key="root.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingRowClass(editingId === root.id, 'stripe')">
             <UIcon name="i-lucide-folder-lock" class="text-primary" />
             <div class="min-w-40 flex-1">
               <p class="break-words text-sm font-medium text-highlighted">{{ root.name }}</p>
-              <p class="truncate font-mono text-[11px] text-muted">{{ root.path }}</p>
-              <p v-if="root.minimum_free_bytes" class="text-[11px] text-muted">{{ t('routing.root.minimum_free_badge', { value: formatBytes(root.minimum_free_bytes) }) }}</p>
+              <p class="truncate font-mono text-2xs text-muted">{{ root.path }}</p>
+              <p v-if="root.minimum_free_bytes" class="text-2xs text-muted">{{ t('routing.root.minimum_free_badge', { value: formatBytes(root.minimum_free_bytes) }) }}</p>
             </div>
             <UBadge v-if="editingId === root.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge v-if="root.persistence === 'ephemeral'" color="warning" variant="subtle" icon="i-lucide-triangle-alert">{{ t('routing.root.ephemeral_badge') }}</UBadge>
@@ -218,7 +219,7 @@ async function remove(root: StorageRoot): Promise<void> {
             <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="deletingId === root.id" @click="remove(root)" />
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!roots.length" variant="inline" class="p-5">
-            <p class="text-center text-sm text-muted">{{ t('routing.root.empty') }}</p>
+            <UEmpty :description="t('routing.root.empty')" />
           </DataState>
         </div>
       </template>

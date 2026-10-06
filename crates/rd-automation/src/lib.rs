@@ -10,7 +10,7 @@ mod model;
 pub use condition::{ConditionError, ConditionNode, EventContext, Field, Operator, Predicate};
 pub use model::{
     Action, Automation, AutomationVersion, DefinitionError, MAX_ACTIONS, MAX_CONDITION_DEPTH, Run,
-    RunState, Trigger, is_script_name, validate,
+    RunState, Trigger, is_script_name, validate, validate_condition,
 };
 pub use rd_notify::{MAX_ATTEMPTS, backoff, next_attempt_at};
 

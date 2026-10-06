@@ -382,7 +382,7 @@ fn ensure_http_status_maps_bare_codes() {
     ));
     assert!(matches!(
         ensure_http_status(429, None).expect_err("429").kind,
-        ErrorKind::RateLimited(None)
+        ErrorKind::RateLimited(Some(60))
     ));
     assert!(matches!(
         ensure_http_status(429, Some(90)).expect_err("429").kind,
@@ -394,7 +394,7 @@ fn ensure_http_status_maps_bare_codes() {
     ));
     assert!(matches!(
         ensure_http_status(503, None).expect_err("503").kind,
-        ErrorKind::Transient(None)
+        ErrorKind::Transient(Some(300))
     ));
     let other = ensure_http_status(418, None).expect_err("418");
     assert!(matches!(other.kind, ErrorKind::Permanent));

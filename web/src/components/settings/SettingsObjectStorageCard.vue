@@ -15,6 +15,9 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 import {
   PROVIDERS,
   type ObjectStorageForm,
@@ -150,7 +153,8 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
       level="sub"
     />
     <p class="mt-2 max-w-3xl text-xs leading-5 text-muted">{{ t('remote.object_storage.usage_links', examples) }}</p>
-    <p class="mt-1 mb-4 max-w-3xl text-xs leading-5 text-muted">{{ t('remote.object_storage.usage_upload', examples) }}</p>
+    <p class="mt-1 max-w-3xl text-xs leading-5 text-muted">{{ t('remote.object_storage.usage_upload', examples) }}</p>
+    <SettingsCrossLink class="mt-1 mb-4" anchor="backup.full" />
 
     <FormListLayout :list-title="t('remote.object_storage.list_title')" :count="profiles.length">
       <template #form>
@@ -160,8 +164,7 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
           :title="editingId ? t('remote.object_storage.form_edit') : t('remote.object_storage.form_new')"
           level="sub"
         />
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" data-testid="object-storage-error" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" data-testid="object-storage-message" />
+        <FormFeedback class="mb-3" :error="error" :message="message" testid="object-storage" />
 
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField :label="t('remote.object_storage.provider')">
@@ -240,13 +243,13 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
             v-for="profile in profiles"
             :key="profile.id"
             class="flex flex-wrap items-center gap-3 p-3"
-            :class="editingId === profile.id ? 'border-l-2 border-l-primary' : ''"
+            :class="editingRowClass(editingId === profile.id, 'stripe')"
             data-testid="object-storage-row"
           >
             <UAvatar icon="i-lucide-cylinder" color="primary" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-highlighted">{{ profile.name }}</p>
-              <p class="truncate font-mono text-[11px] text-muted">
+              <p class="truncate font-mono text-2xs text-muted">
                 {{ endpointLabel(profile) }} · {{ bucketLink(profile) ?? t('remote.object_storage.any_bucket') }}
               </p>
             </div>
@@ -260,7 +263,7 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
               color="neutral"
               variant="ghost"
               icon="i-lucide-plug-zap"
-              :label="t('remote.object_storage.test')"
+              :label="t('common.actions.test')"
               :loading="busyId === profile.id"
               @click="runTest(profile)"
             />

@@ -22,28 +22,28 @@
 use std::{collections::HashMap, ops::ControlFlow, sync::Arc};
 
 use anyhow::Result;
-use async_trait::async_trait;
 use chrono::Utc;
 use rd_core::{
-    ByteCount, DownloadFile, DownloadSource, Failure, FailureKind, SourceOutcome, SourceProtocol,
-    SourceState,
+    ChunkId, DownloadFile, DownloadSource, Failure, FailureKind, PieceHashes, SourceState,
 };
-use rd_db::Database;
 use rd_http::{
-    CheckpointSink, ChunkSpec, DownloadEngine, DownloadOutcome, MultiSourceRequest, SourceEndpoint,
-    SourceLedger, chunks_aligned, plan_aligned_chunks, probe_with_headers,
+    ChunkSpec, DownloadEngine, DownloadOutcome, MultiSourceRequest, SourceEndpoint, chunks_aligned,
+    plan_aligned_chunks,
 };
 use tokio_util::sync::CancellationToken;
 
-use super::{
-    NetworkClient, build_replay_client, phases, provider_authorization, to_persisted,
-    transition_stopped,
-};
+use super::{NetworkClient, build_replay_client, phases, to_persisted, transition_stopped};
 use crate::{
     BlockReason, SchedulerHandle,
     failures::{record_error, record_http_error},
-    profile_boundary::admitted,
 };
+
+#[path = "worker_sources_ledger.rs"]
+mod ledger;
+#[path = "worker_sources_probe.rs"]
+mod probe;
+
+use ledger::DatabaseLedger;
 
 /// Most chunks one multi-source run plans, however many sources take part.
 const MAX_CHUNKS: usize = 32;
@@ -77,94 +77,13 @@ pub(super) async fn run(
         result = build_replay_client(scheduler, file, None, Some(policy.clone())) => result?,
     };
 
-    // Probe in order and keep the sources that agree on the file. The size the set stated
-    // is the reference; without one, the first source that names a size sets it.
-    let stated = file.total_bytes.map(ByteCount::get);
-    let mut reference = stated;
-    let mut endpoints = Vec::new();
-    for source in ready {
-        match rd_http::check_target(&policy, &rd_http::SystemLookup, &source.url).await {
-            Ok(_) => {}
-            Err(rd_http::TargetRefusal::Refused(refused)) => {
-                tracing::warn!(
-                    download_id = %file.id,
-                    position = source.position,
-                    address = ?refused.address,
-                    "a mirror points at an address it may not reach; it is not requested"
-                );
-                isolate(
-                    scheduler,
-                    file,
-                    source.position,
-                    rd_core::CODE_INTERNAL_ADDRESS,
-                )
-                .await?;
-                continue;
-            }
-            Err(rd_http::TargetRefusal::Unresolved(error)) => {
-                let failure = transient(
-                    "download.network_failed",
-                    rd_core::error_with_causes(&error),
-                );
-                note_failure(scheduler, file, source.position, &failure).await?;
-                continue;
-            }
-        }
-        let probed = if matches!(
-            source.protocol,
-            SourceProtocol::Http | SourceProtocol::Https
-        ) {
-            tokio::select! {
-                () = cancellation.cancelled() => {
-                    transition_stopped(scheduler, file).await?;
-                    return Ok(ControlFlow::Break(()));
-                }
-                result = http_endpoint(scheduler, &network, source) => result?,
-            }
-        } else {
-            tokio::select! {
-                () = cancellation.cancelled() => {
-                    transition_stopped(scheduler, file).await?;
-                    return Ok(ControlFlow::Break(()));
-                }
-                result = mirror_endpoint(scheduler, source, &policy) => result,
-            }
-        };
-        let (endpoint, offered) = match probed {
-            Ok(Some(probed)) => probed,
-            // No runner for this protocol in this service: nothing to fetch it with.
-            Ok(None) => continue,
-            Err(failure) => {
-                note_failure(scheduler, file, source.position, &failure).await?;
-                continue;
-            }
-        };
-        match (reference, offered) {
-            (Some(expected), Some(offered)) if expected != offered => {
-                // A different size is a different file. Stated by the document, that is
-                // final; merely disagreeing with another mirror, it is one failure.
-                if stated.is_some() {
-                    isolate(
-                        scheduler,
-                        file,
-                        source.position,
-                        rd_core::CODE_SOURCE_SIZE_MISMATCH,
-                    )
-                    .await?;
-                } else {
-                    let failure = transient(
-                        rd_core::CODE_SOURCE_SIZE_MISMATCH,
-                        "a mirror offers a different size",
-                    );
-                    note_failure(scheduler, file, source.position, &failure).await?;
-                }
-                continue;
-            }
-            (None, Some(offered)) => reference = Some(offered),
-            _ => {}
-        }
-        endpoints.push(endpoint);
-    }
+    let ControlFlow::Continue(probe::Probed {
+        reference,
+        endpoints,
+    }) = probe::probe_sources(scheduler, file, ready, &policy, &network, &cancellation).await?
+    else {
+        return Ok(ControlFlow::Break(()));
+    };
     let Some(total) = reference else {
         // The single path fetches the download's own address, which the set named as well:
         // it is judged by the same rule first, whether or not it was among the sources tried
@@ -183,6 +102,40 @@ pub(super) async fn run(
         return Ok(ControlFlow::Break(()));
     }
 
+    let ControlFlow::Continue(plan) = plan_transfer(scheduler, file, total, &endpoints).await?
+    else {
+        return Ok(ControlFlow::Break(()));
+    };
+    transfer(
+        scheduler,
+        file,
+        network,
+        total,
+        endpoints,
+        plan,
+        cancellation,
+    )
+    .await?;
+    Ok(ControlFlow::Break(()))
+}
+
+/// How one attempt fetches the file: its chunks, how many mirrors fetch at the same time, the
+/// piece hashes each chunk is checked by and the chunks an earlier attempt left unchecked.
+struct Plan {
+    chunks: Vec<ChunkSpec>,
+    parallel: usize,
+    pieces: Option<Arc<PieceHashes>>,
+    unverified: HashMap<ChunkId, Option<u32>>,
+}
+
+/// Plans the attempt's chunks, or takes the recorded plan up again. `Break` when bytes are
+/// already committed for a different size: the download is blocked.
+async fn plan_transfer(
+    scheduler: &SchedulerHandle,
+    file: &DownloadFile,
+    total: u64,
+    endpoints: &[SourceEndpoint],
+) -> Result<ControlFlow<(), Plan>> {
     let pieces = scheduler.database.download_piece_hashes(file.id).await?;
     // Chunks from several mirrors in one file only where something proves the bytes; without
     // it one mirror works at a time and the rest stand by.
@@ -208,25 +161,7 @@ pub(super) async fn run(
         return Ok(ControlFlow::Break(()));
     }
     let chunks: Vec<ChunkSpec> = if transfer.chunks.is_empty() || !committed {
-        let budget = endpoints
-            .iter()
-            .take(parallel)
-            .map(|endpoint| scheduler.chunk_budget(&endpoint.url))
-            .sum::<usize>()
-            .clamp(1, MAX_CHUNKS);
-        let align = pieces.as_ref().map_or(1, |pieces| pieces.length);
-        let planned = plan_aligned_chunks(total, budget, align);
-        scheduler
-            .database
-            .prepare_transfer(
-                file.id,
-                Some(total),
-                None,
-                None,
-                planned.iter().map(to_persisted).collect(),
-            )
-            .await?;
-        planned
+        plan_chunks(scheduler, file, total, endpoints, parallel, pieces.as_ref()).await?
     } else {
         transfer
             .chunks
@@ -252,7 +187,56 @@ pub(super) async fn run(
         .filter(|mark| !mark.verified)
         .map(|mark| (mark.chunk_id, mark.source_position))
         .collect();
+    Ok(ControlFlow::Continue(Plan {
+        chunks,
+        parallel,
+        pieces,
+        unverified,
+    }))
+}
 
+/// Plans fresh chunks on piece boundaries, as many as the mirrors fetching at once allow, and
+/// writes the plan down.
+async fn plan_chunks(
+    scheduler: &SchedulerHandle,
+    file: &DownloadFile,
+    total: u64,
+    endpoints: &[SourceEndpoint],
+    parallel: usize,
+    pieces: Option<&PieceHashes>,
+) -> Result<Vec<ChunkSpec>> {
+    let budget = endpoints
+        .iter()
+        .take(parallel)
+        .map(|endpoint| scheduler.chunk_budget(&endpoint.url))
+        .sum::<usize>()
+        .clamp(1, MAX_CHUNKS);
+    let align = pieces.map_or(1, |pieces| pieces.length);
+    let planned = plan_aligned_chunks(total, budget, align);
+    scheduler
+        .database
+        .prepare_transfer(
+            file.id,
+            Some(total),
+            None,
+            None,
+            planned.iter().map(to_persisted).collect(),
+        )
+        .await?;
+    Ok(planned)
+}
+
+/// Prepares the destination, hands the planned chunks and the agreeing sources to the engine
+/// and records how the transfer ended.
+async fn transfer(
+    scheduler: &SchedulerHandle,
+    file: &DownloadFile,
+    network: NetworkClient,
+    total: u64,
+    endpoints: Vec<SourceEndpoint>,
+    plan: Plan,
+    cancellation: CancellationToken,
+) -> Result<()> {
     let ControlFlow::Continue(phases::Destination {
         root,
         staging,
@@ -260,7 +244,7 @@ pub(super) async fn run(
         final_path,
     }) = phases::prepare_destination(scheduler, file, Some(total)).await?
     else {
-        return Ok(ControlFlow::Break(()));
+        return Ok(());
     };
     let engine = DownloadEngine::new(network.client, scheduler.scoped_limiter(file).await)
         .with_host_limits(scheduler.host_limits().clone());
@@ -269,11 +253,11 @@ pub(super) async fn run(
             MultiSourceRequest {
                 part_path: part_path.clone(),
                 total_bytes: total,
-                chunks,
+                chunks: plan.chunks,
                 sources: endpoints,
-                parallel_sources: parallel,
-                pieces,
-                unverified,
+                parallel_sources: plan.parallel,
+                pieces: plan.pieces,
+                unverified: plan.unverified,
             },
             Arc::new(DatabaseLedger {
                 database: scheduler.database.clone(),
@@ -290,120 +274,7 @@ pub(super) async fn run(
         Ok(DownloadOutcome::Paused) => transition_stopped(scheduler, file).await?,
         Err(error) => record_http_error(scheduler, file, error).await?,
     }
-    Ok(ControlFlow::Break(()))
-}
-
-/// Probes an HTTP mirror: the endpoint the chunks go to — where the probe ended, with the
-/// headers decided again for that address (RD-120-38) — and the size it offers. A failure is
-/// the source's, and the attempt goes on with the others.
-async fn http_endpoint(
-    scheduler: &SchedulerHandle,
-    network: &NetworkClient,
-    source: &DownloadSource,
-) -> Result<std::result::Result<Option<(SourceEndpoint, Option<u64>)>, Failure>> {
-    let headers = match headers_for(scheduler, network, &source.url).await? {
-        Ok(headers) => headers,
-        Err(failure) => return Ok(Err(failure)),
-    };
-    let probe = match probe_with_headers(&network.client, source.url.clone(), &headers).await {
-        Ok(probe) => probe,
-        Err(rd_http::HttpDownloadError::Failure(failure)) => return Ok(Err(failure)),
-        Err(other) => return Ok(Err(transient("download.network_failed", other.to_string()))),
-    };
-    if !probe.looks_downloadable() {
-        return Ok(Err(transient(
-            "download.not_a_file",
-            "a mirror answered with a page",
-        )));
-    }
-    if !probe.accepts_ranges {
-        return Ok(Err(transient(
-            "download.range_ignored",
-            "a mirror refuses ranges",
-        )));
-    }
-    let headers = if probe.final_url == source.url {
-        headers
-    } else {
-        match headers_for(scheduler, network, &probe.final_url).await? {
-            Ok(headers) => headers,
-            Err(failure) => return Ok(Err(failure)),
-        }
-    };
-    Ok(Ok(Some((
-        SourceEndpoint {
-            position: source.position,
-            url: probe.final_url,
-            headers,
-            via: None,
-        },
-        probe.total_bytes,
-    ))))
-}
-
-/// An FTP or SFTP mirror, fetched through its runner (RD-150-03): the size it reports over a
-/// connection held to `policy`, and the endpoint whose chunks each open one more such
-/// connection. `Ok(None)` when this service has no runner for the protocol.
-async fn mirror_endpoint(
-    scheduler: &SchedulerHandle,
-    source: &DownloadSource,
-    policy: &rd_http::AddressPolicy,
-) -> std::result::Result<Option<(SourceEndpoint, Option<u64>)>, Failure> {
-    let kind = match source.protocol {
-        SourceProtocol::Ftp | SourceProtocol::Ftps => rd_core::DownloadKind::Ftp,
-        SourceProtocol::Sftp => rd_core::DownloadKind::Sftp,
-        SourceProtocol::Http | SourceProtocol::Https => return Ok(None),
-    };
-    let Some(range_source) = scheduler
-        .runners
-        .get(kind)
-        .and_then(|runner| runner.range_source())
-    else {
-        tracing::debug!(
-            position = source.position,
-            protocol = source.protocol.as_str(),
-            "no runner fetches this mirror's protocol here"
-        );
-        return Ok(None);
-    };
-    let Some(target) = rd_core::RemoteTarget::parse(&source.url) else {
-        return Err(Failure::coded(
-            FailureKind::Permanent,
-            "download.mirror_address_invalid",
-            "the mirror's address is not a valid remote link",
-        ));
-    };
-    let size = range_source.size(&target, Some(policy)).await?;
-    Ok(Some((
-        SourceEndpoint {
-            position: source.position,
-            url: source.url.clone(),
-            headers: Vec::new(),
-            via: Some(rd_http::RangeTransport {
-                source: range_source,
-                target,
-                policy: Some(policy.clone()),
-            }),
-        },
-        Some(size),
-    )))
-}
-
-/// The headers a request to `target` carries: the profile's where its scope admits them, the
-/// account's credential where its provider's gate does. Decided per address, because the
-/// mirrors of one file sit on hosts that have nothing to do with each other.
-async fn headers_for(
-    scheduler: &SchedulerHandle,
-    network: &NetworkClient,
-    target: &url::Url,
-) -> Result<std::result::Result<Vec<(String, String)>, Failure>> {
-    let mut headers = admitted(&network.headers, network.profile_boundary.as_ref(), target);
-    match provider_authorization(scheduler, network.provider_credential.as_ref(), target).await? {
-        Ok(Some(header)) => headers.push(header),
-        Ok(None) => {}
-        Err(failure) => return Ok(Err(failure)),
-    }
-    Ok(Ok(headers))
+    Ok(())
 }
 
 /// The address rule a download's sources keep to: never this machine — loopback, link-local,
@@ -442,71 +313,6 @@ pub(super) async fn only_its_own_address(
         .is_none())
 }
 
-/// Takes a source out for good with a stable code; the attempt goes on with the others.
-async fn isolate(
-    scheduler: &SchedulerHandle,
-    file: &DownloadFile,
-    position: u32,
-    code: &str,
-) -> Result<()> {
-    scheduler
-        .database
-        .record_source_outcome(
-            file.id,
-            position,
-            SourceOutcome::Isolated {
-                code: code.to_owned(),
-            },
-        )
-        .await
-}
-
-/// Records one source's failure; the attempt goes on with the others. A failure that says the
-/// source points inside the network — a probe the guarded client refused — isolates it.
-async fn note_failure(
-    scheduler: &SchedulerHandle,
-    file: &DownloadFile,
-    position: u32,
-    failure: &Failure,
-) -> Result<()> {
-    if failure.code.as_deref() == Some(rd_core::CODE_INTERNAL_ADDRESS) {
-        return isolate(scheduler, file, position, rd_core::CODE_INTERNAL_ADDRESS).await;
-    }
-    let retry_after_seconds = match failure.category {
-        FailureKind::RateLimited {
-            retry_after_seconds,
-        }
-        | FailureKind::Transient {
-            retry_after_seconds,
-        } => retry_after_seconds,
-        _ => None,
-    };
-    scheduler
-        .database
-        .record_source_outcome(
-            file.id,
-            position,
-            SourceOutcome::Failed {
-                code: failure
-                    .code
-                    .clone()
-                    .unwrap_or_else(|| "download.failed".to_owned()),
-                retry_after_seconds,
-            },
-        )
-        .await
-}
-
-fn transient(code: &str, message: impl Into<String>) -> Failure {
-    Failure::coded(
-        FailureKind::Transient {
-            retry_after_seconds: None,
-        },
-        code,
-        message.into(),
-    )
-}
-
 /// Why no source can be tried: all isolated is final, a backoff is a wait for the earliest.
 fn nothing_ready(sources: &[DownloadSource], now: chrono::DateTime<Utc>) -> Failure {
     let wait = sources
@@ -529,85 +335,5 @@ fn nothing_ready(sources: &[DownloadSource], now: chrono::DateTime<Utc>) -> Fail
             rd_core::CODE_NO_USABLE_SOURCE,
             "no source of this file can be used".to_owned(),
         ),
-    }
-}
-
-/// Writes what the engine learns straight to the download's rows.
-struct DatabaseLedger {
-    database: Database,
-    download_id: rd_core::DownloadId,
-}
-
-#[async_trait]
-impl CheckpointSink for DatabaseLedger {
-    async fn commit(&self, chunk_id: rd_core::ChunkId, committed_offset: u64) -> Result<()> {
-        self.database
-            .checkpoint_chunk(chunk_id, committed_offset)
-            .await
-    }
-}
-
-#[async_trait]
-impl SourceLedger for DatabaseLedger {
-    async fn source_delivered(&self, position: u32, bytes: u64) -> Result<()> {
-        self.database
-            .record_source_outcome(
-                self.download_id,
-                position,
-                SourceOutcome::Delivered { bytes },
-            )
-            .await
-    }
-
-    async fn source_failed(
-        &self,
-        position: u32,
-        code: &str,
-        retry_after_seconds: Option<u64>,
-    ) -> Result<()> {
-        self.database
-            .record_source_outcome(
-                self.download_id,
-                position,
-                SourceOutcome::Failed {
-                    code: code.to_owned(),
-                    retry_after_seconds,
-                },
-            )
-            .await
-    }
-
-    async fn source_isolated(&self, position: u32, code: &str) -> Result<()> {
-        // A position the row does not know — a mark left by a set that was since replaced —
-        // has nothing to isolate; the rewind that follows still happens.
-        match self
-            .database
-            .record_source_outcome(
-                self.download_id,
-                position,
-                SourceOutcome::Isolated {
-                    code: code.to_owned(),
-                },
-            )
-            .await
-        {
-            Err(error) if rd_db::store_kind(&error) == Some(rd_db::StoreErrorKind::NotFound) => {
-                Ok(())
-            }
-            other => other,
-        }
-    }
-
-    async fn chunk_marked(
-        &self,
-        chunk_id: rd_core::ChunkId,
-        position: Option<u32>,
-        verified: bool,
-    ) -> Result<()> {
-        self.database.mark_chunk(chunk_id, position, verified).await
-    }
-
-    async fn chunk_rewound(&self, chunk_id: rd_core::ChunkId, committed: u64) -> Result<()> {
-        self.database.rewind_chunk(chunk_id, committed).await
     }
 }

@@ -13,7 +13,7 @@ md-5.workspace = true
 plugin-common = { path = "../common" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

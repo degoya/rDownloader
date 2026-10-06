@@ -30,14 +30,5 @@
     "draining": "Letting transfers finish",
     "running": "Running the script",
     "waiting_for_address": "Waiting for the address to change"
-  },
-  "days": {
-    "mon": "Mon",
-    "tue": "Tue",
-    "wed": "Wed",
-    "thu": "Thu",
-    "fri": "Fri",
-    "sat": "Sat",
-    "sun": "Sun"
   }
 }

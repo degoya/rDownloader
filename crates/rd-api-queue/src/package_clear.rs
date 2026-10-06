@@ -165,17 +165,8 @@ pub(crate) fn clear_targets(
 /// Whether a member has to be stopped before "clear the entire list" may remove it: running,
 /// or waiting to run. A seeding member is stopped through the torrent engine instead, and
 /// everything else is idle already.
-fn must_cancel(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Queued
-            | DownloadState::RetryWait
-            | DownloadState::Resolving
-            | DownloadState::Downloading
-            | DownloadState::Verifying
-            | DownloadState::Repairing
-            | DownloadState::Extracting
-    )
+const fn must_cancel(state: DownloadState) -> bool {
+    state.is_queued_or_working()
 }
 
 /// Stops every member of the targets that still runs, waits or seeds, before any is removed.

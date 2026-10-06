@@ -185,5 +185,19 @@
     "menu": "Spalten",
     "reset_all": "Alle Spaltenbreiten zurücksetzen",
     "state_linkgrabber": "Linkstatus"
+  },
+  "weekdays": {
+    "mon": "Mo",
+    "tue": "Di",
+    "wed": "Mi",
+    "thu": "Do",
+    "fri": "Fr",
+    "sat": "Sa",
+    "sun": "So"
+  },
+  "week_window": {
+    "from": "Von",
+    "to": "Bis",
+    "days_label": "Tage"
   }
 }

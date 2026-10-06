@@ -108,4 +108,38 @@ expect_output "and the run went on to its report" "total (all stages)"
 expect "the failure list names the red test, and only it" \
     "script test: scripts/tests/a.sh — exit 3, log $TESTS/logs/full-01.log" "$(grep ' — exit ' "$TESTS/logs/failures")"
 
+# A --full over a tree a preflight green covers skips the script lints and tests (audit C2).
+run_status bash -c '
+    set -euo pipefail
+    CHECK_LOGS="$1/logs" RUN_KIND=full full=1 changed="" preflight_covered=1
+    source "$2/scripts/lib/stages.sh"
+    source "$2/scripts/lib/script-checks.sh"
+    rd_stages_init
+    cd "$1"
+    rd_script_checks
+    rd_stages_report
+' run "$TESTS" "$ROOT"
+expect_output "a preflight green covers the script checks of a --full" \
+    "- actionlint, bash -n, shellcheck and the script tests — a recorded preflight green covers this tree"
+expect_true "and no test ran" '! grep -q "a is red" <<< "$output"'
+
+# The lints record their half only when green (audit C8: --clippy-all as `clippy`, the gate's
+# halves, --windows).
+run_status bash -c '
+    set -euo pipefail
+    export CARGO_TARGET_DIR="$1/target"
+    CHECK_LOGS="$1/logs" RUN_KIND=full ROOT="$1"
+    source "$2/scripts/lib/stages.sh"
+    source "$2/scripts/lib/verified.sh"
+    source "$2/scripts/lib/lint.sh"
+    rd_stages_init
+    step "red"
+    rd_lint_recorded clippy tree-red false
+    step "green"
+    rd_lint_recorded clippy tree-green true
+    cat "$(rd_full_marker "$ROOT")"
+' run "$TESTS" "$ROOT"
+expect "a green lint records its half for the tree, a red one nothing" "clippy tree-green" \
+    "$(grep '^clippy ' <<< "$output")"
+
 finish_tests check-stages

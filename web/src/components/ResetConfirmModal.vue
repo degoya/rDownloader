@@ -26,7 +26,6 @@ const overflow = computed(() => Math.max(0, props.files.length - SHOWN))
     :title="t('downloads.reset.title', { count: props.files.length }, props.files.length)"
     :description="t('downloads.reset.description')"
     :close="{ onClick: () => emit('close', { confirmed: false, deleteFiles: false }) }"
-    :ui="{ footer: 'justify-end' }"
   >
     <template #body>
       <ul class="max-h-48 space-y-0.5 overflow-y-auto text-sm text-toned">

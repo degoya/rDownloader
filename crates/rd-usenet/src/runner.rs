@@ -1,6 +1,7 @@
 //! Usenet transport as a scheduler runner: one NZB file per queue entry.
 
 use std::{
+    ops::ControlFlow,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -26,10 +27,10 @@ use crate::{
     worker::{FileOutcome, download_file_counted, recovered_file_path},
 };
 
-/// How long a download waits before it asks again when every enabled server is paused by its
-/// quota (RD-1100-05). A wait for a limit, not an attempt: a quota is raised or reset by a
-/// person or on its reset day, and the queue should notice within minutes, not hours.
-const QUOTA_RETRY_SECONDS: u64 = 15 * 60;
+#[path = "runner_pool.rs"]
+mod cached_pool;
+
+use cached_pool::CachedPool;
 
 /// Limits applied per NZB file.
 ///
@@ -72,13 +73,6 @@ pub struct UsenetRunner {
     traffic: UsenetTraffic,
 }
 
-/// A pool and what it was built from; it is replaced when either changes.
-struct CachedPool {
-    fingerprint: String,
-    cap: Option<usize>,
-    pool: NntpPool,
-}
-
 impl UsenetRunner {
     #[must_use]
     pub fn new(database: Database, secrets: SecretStore, config: UsenetRunnerConfig) -> Self {
@@ -108,53 +102,6 @@ impl UsenetRunner {
     pub fn with_network_defaults(mut self, network: SharedNetworkDefaults) -> Self {
         self.network = network;
         self
-    }
-
-    /// The pool for the current settings, built only if there is not one already.
-    pub(crate) async fn pool(&self, cap: Option<usize>) -> Result<NntpPool> {
-        let (custom_ca_pem, tls_revision) = {
-            let defaults = self.network.read().await;
-            (defaults.custom_ca_pem.clone(), defaults.tls_revision)
-        };
-        // The TLS revision belongs in the key for the same reason the server records do: a pool
-        // that outlives a single file would otherwise keep handing out connections built on the
-        // trust roots the operator has just replaced.
-        let fingerprint = format!(
-            "{}|tls{tls_revision}",
-            crate::connection_fingerprint(&self.database).await?
-        );
-        let mut cached = self.pool.lock().await;
-        if let Some(current) = cached.as_ref()
-            && current.fingerprint == fingerprint
-            && current.cap == cap
-        {
-            return Ok(current.pool.clone());
-        }
-        let ordered =
-            crate::servers_by_quota(&self.database, &self.secrets, &custom_ca_pem).await?;
-        if ordered.servers.is_empty() && ordered.paused > 0 {
-            return Err(Failure::coded(
-                FailureKind::RateLimited {
-                    retry_after_seconds: Some(QUOTA_RETRY_SECONDS),
-                },
-                "usenet.quota_reached",
-                "Every enabled Usenet server is paused because its quota is used up",
-            )
-            .with_param("servers", ordered.paused)
-            .into());
-        }
-        let servers = ordered
-            .servers
-            .into_iter()
-            .map(|(id, config)| (config, Some(self.traffic.counter(id))))
-            .collect();
-        let pool = NntpPool::metered(servers, cap)?;
-        *cached = Some(CachedPool {
-            fingerprint,
-            cap,
-            pool: pool.clone(),
-        });
-        Ok(pool)
     }
 }
 
@@ -234,17 +181,7 @@ impl ExternalRunner for UsenetRunner {
                 .with_param("limit", self.config.max_file_bytes),
             ));
         }
-        if package.destination.is_empty() {
-            bail!("usenet package has no destination directory");
-        }
-        let root = StorageRoot::create(
-            StorageRootId::new(),
-            "download destination".to_owned(),
-            PathBuf::from(&package.destination),
-        )
-        .await?;
-        let destination = root.path().to_path_buf();
-        tokio::fs::create_dir_all(&destination).await?;
+        let (root, destination) = destination_root(package).await?;
         if let Some(path) = recovered_file_path(nzb_file, &destination).await? {
             let final_name = file_name_of(&path)?;
             self.settle(file, &path, &final_name).await?;
@@ -256,33 +193,14 @@ impl ExternalRunner for UsenetRunner {
         if let Some(failure) = self.verdicts.verdict(import_id) {
             return Ok(RunOutcome::Failed(failure));
         }
-        let staging = root.resolve(std::path::Path::new(&format!(".rdownloader-{import_id}")))?;
-        tokio::fs::create_dir_all(&staging).await?;
-        // `0` is "as many as the servers allow" (RD-108-25); anything else caps one file.
-        let cap = (limits.max_parallel_requests > 0).then_some(limits.max_parallel_requests);
-        let pool = match self.pool(cap).await {
-            Ok(pool) => pool,
-            // Every server paused by its quota is a wait, not a broken runner.
-            Err(error) => {
-                return match error.downcast::<Failure>() {
-                    Ok(failure) => Ok(RunOutcome::Failed(failure)),
-                    Err(error) => Err(error),
-                };
-            }
+        let (staging, pool) = match self.staging_and_pool(&root, import_id, &limits).await? {
+            ControlFlow::Continue(ready) => ready,
+            ControlFlow::Break(outcome) => return Ok(outcome),
         };
         self.load.set_window(pool.max_parallel_requests());
         // The attempt stops for the queue's reason or for the set's, whichever comes first.
         let attempt = enrolment.abort().child_token();
-        let link = {
-            let scheduler = cancellation.clone();
-            let attempt = attempt.clone();
-            tokio::spawn(async move {
-                tokio::select! {
-                    () = scheduler.cancelled() => attempt.cancel(),
-                    () = attempt.cancelled() => {}
-                }
-            })
-        };
+        let link = link_cancellation(&cancellation, &attempt);
         let outcome = download_file_counted(
             &self.database,
             &pool,
@@ -296,6 +214,40 @@ impl ExternalRunner for UsenetRunner {
         .await;
         link.abort();
         drop(open);
+        self.log_writer_totals(file);
+        self.conclude(outcome, file, package, import_id, &cancellation, &staging)
+            .await
+    }
+}
+
+impl UsenetRunner {
+    /// The set's staging directory and the pool the attempt fetches through; `Break` with the
+    /// failure the file waits on when every server is paused by its quota.
+    async fn staging_and_pool(
+        &self,
+        root: &StorageRoot,
+        import_id: NzbImportId,
+        limits: &rd_scheduler::RunLimits,
+    ) -> Result<ControlFlow<RunOutcome, (PathBuf, NntpPool)>> {
+        let staging = root.resolve(std::path::Path::new(&format!(".rdownloader-{import_id}")))?;
+        tokio::fs::create_dir_all(&staging).await?;
+        // `0` is "as many as the servers allow" (RD-108-25); anything else caps one file.
+        let cap = (limits.max_parallel_requests > 0).then_some(limits.max_parallel_requests);
+        let pool = match self.pool(cap).await {
+            Ok(pool) => pool,
+            // Every server paused by its quota is a wait, not a broken runner.
+            Err(error) => {
+                return match error.downcast::<Failure>() {
+                    Ok(failure) => Ok(ControlFlow::Break(RunOutcome::Failed(failure))),
+                    Err(error) => Err(error),
+                };
+            }
+        };
+        Ok(ControlFlow::Continue((staging, pool)))
+    }
+
+    /// How the assembly checkpoints have waited on the writer since start.
+    fn log_writer_totals(&self, file: &DownloadFile) {
         let (waited, batches, confirmed) = self.load.writer_totals();
         tracing::debug!(
             download_id = %file.id,
@@ -304,6 +256,18 @@ impl ExternalRunner for UsenetRunner {
             confirmed,
             "usenet assembly checkpoints since start"
         );
+    }
+
+    /// What the end of the file's attempt means for its queue entry.
+    async fn conclude(
+        &self,
+        outcome: Result<FileOutcome>,
+        file: &DownloadFile,
+        package: &DownloadPackage,
+        import_id: NzbImportId,
+        cancellation: &CancellationToken,
+        staging: &Path,
+    ) -> Result<RunOutcome> {
         let outcome = match outcome {
             Ok(outcome) => outcome,
             // Coded failures describe the file (not the runner) and belong in the queue.
@@ -330,44 +294,57 @@ impl ExternalRunner for UsenetRunner {
             }
             FileOutcome::Cancelled => Ok(RunOutcome::Stopped),
             FileOutcome::Completed { path, missing } => {
-                let final_name = file_name_of(&path)?;
-                self.settle(file, &path, &final_name).await?;
-                let _ = tokio::fs::remove_dir(&staging).await;
-                if missing > 0 {
-                    // RD-108-24: the verdict is the set's to give, not this file's. Asking
-                    // here answers on whatever the package happens to have shown of itself
-                    // by now, and a fully obfuscated set has shown nothing until its PAR2
-                    // files are assembled - which is how an NZB with seven of them came to
-                    // be told it contained none. The row waits, carrying the reason, and
-                    // `settle_par2_verdicts` decides it when nothing is on its way any more.
-                    // A package that has nothing left running is decided by that same call,
-                    // during the transition below, so a set without PAR2 fails as promptly
-                    // as it always did.
-                    tracing::info!(
-                        download_id = %file.id,
-                        missing,
-                        "segments missing; the verdict waits for the rest of the set"
-                    );
-                    self.database.defer_par2_verdict(file.id, missing).await?;
-                    // Unless the holes already show the set cannot be repaired (RD-1100-02):
-                    // then the rest of it is not fetched to find that out at the end.
-                    if let Some(failure) = self
-                        .abandon_if_hopeless(file, package, import_id, Ending::Holes)
-                        .await?
-                    {
-                        return Ok(RunOutcome::Failed(failure));
-                    }
-                    return Ok(RunOutcome::Detached {
-                        state: DownloadState::Verifying,
-                    });
-                }
-                Ok(RunOutcome::Completed { final_name })
+                self.completed(file, package, import_id, staging, &path, missing)
+                    .await
             }
         }
     }
-}
 
-impl UsenetRunner {
+    /// A file assembled at `path`: settled under its name, or, with articles `missing`, left
+    /// to the set's PAR2 verdict.
+    async fn completed(
+        &self,
+        file: &DownloadFile,
+        package: &DownloadPackage,
+        import_id: NzbImportId,
+        staging: &Path,
+        path: &Path,
+        missing: usize,
+    ) -> Result<RunOutcome> {
+        let final_name = file_name_of(path)?;
+        self.settle(file, path, &final_name).await?;
+        let _ = tokio::fs::remove_dir(staging).await;
+        if missing > 0 {
+            // RD-108-24: the verdict is the set's to give, not this file's. Asking
+            // here answers on whatever the package happens to have shown of itself
+            // by now, and a fully obfuscated set has shown nothing until its PAR2
+            // files are assembled - which is how an NZB with seven of them came to
+            // be told it contained none. The row waits, carrying the reason, and
+            // `settle_par2_verdicts` decides it when nothing is on its way any more.
+            // A package that has nothing left running is decided by that same call,
+            // during the transition below, so a set without PAR2 fails as promptly
+            // as it always did.
+            tracing::info!(
+                download_id = %file.id,
+                missing,
+                "segments missing; the verdict waits for the rest of the set"
+            );
+            self.database.defer_par2_verdict(file.id, missing).await?;
+            // Unless the holes already show the set cannot be repaired (RD-1100-02):
+            // then the rest of it is not fetched to find that out at the end.
+            if let Some(failure) = self
+                .abandon_if_hopeless(file, package, import_id, Ending::Holes)
+                .await?
+            {
+                return Ok(RunOutcome::Failed(failure));
+            }
+            return Ok(RunOutcome::Detached {
+                state: DownloadState::Verifying,
+            });
+        }
+        Ok(RunOutcome::Completed { final_name })
+    }
+
     /// Gives the set up when `file`, ending as `ending`, leaves it beyond repair (RD-1100-02),
     /// and answers with the failure the file then ends with.
     async fn abandon_if_hopeless(
@@ -428,6 +405,38 @@ fn lost_everything(failure: &Failure) -> bool {
         failure.code.as_deref(),
         Some("usenet.all_segments_missing" | "usenet.recovery_unavailable")
     )
+}
+
+/// The package's destination as a storage root, created if it does not exist yet.
+async fn destination_root(package: &DownloadPackage) -> Result<(StorageRoot, PathBuf)> {
+    if package.destination.is_empty() {
+        bail!("usenet package has no destination directory");
+    }
+    let root = StorageRoot::create(
+        StorageRootId::new(),
+        "download destination".to_owned(),
+        PathBuf::from(&package.destination),
+    )
+    .await?;
+    let destination = root.path().to_path_buf();
+    tokio::fs::create_dir_all(&destination).await?;
+    Ok((root, destination))
+}
+
+/// Cancels `attempt` when the queue cancels the run; ends by itself once the attempt is
+/// cancelled for the set's reason.
+fn link_cancellation(
+    scheduler: &CancellationToken,
+    attempt: &CancellationToken,
+) -> tokio::task::JoinHandle<()> {
+    let scheduler = scheduler.clone();
+    let attempt = attempt.clone();
+    tokio::spawn(async move {
+        tokio::select! {
+            () = scheduler.cancelled() => attempt.cancel(),
+            () = attempt.cancelled() => {}
+        }
+    })
 }
 
 fn file_name_of(path: &std::path::Path) -> Result<String> {

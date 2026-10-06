@@ -11,6 +11,14 @@ use sqlx::{Connection, SqliteConnection};
 
 use crate::{error::StoreError, writer::insert_event};
 
+#[path = "nzb_queue_verdict.rs"]
+mod verdict;
+
+pub(crate) use verdict::{
+    AWAITING_PAR2, AWAITING_PAR2_PATTERN, defer_par2_verdict, packages_awaiting_par2_verdict,
+    settle_par2_verdicts,
+};
+
 /// `start_paused` creates every download row of the package in `Paused` instead of `Queued`.
 ///
 /// The package row itself stays `queued`, exactly as the collector path leaves it
@@ -26,12 +34,52 @@ pub(crate) async fn enqueue_import(
     // `destination` is the category directory; the package gets its own folder below it.
     let now = Utc::now();
     let mut tx = connection.begin().await?;
+    let (name, category_id, priority) = load_queueable_import(&mut tx, import_id, priority).await?;
+    let package_id = insert_import_package(
+        &mut tx,
+        import_id,
+        destination,
+        &name,
+        category_id,
+        priority,
+        now,
+    )
+    .await?;
+    let named = named_import_files(&mut tx, import_id).await?;
+    let initial_state = if start_paused {
+        DownloadState::Paused
+    } else {
+        DownloadState::Queued
+    };
+    let postpone = postpone_recovery_volumes(&mut tx, &named).await?;
+    insert_import_downloads(
+        &mut tx,
+        import_id,
+        package_id,
+        named,
+        initial_state,
+        postpone,
+        now,
+    )
+    .await?;
+    let events = mark_import_enqueued(&mut tx, import_id, package_id, now).await?;
+    tx.commit().await?;
+    Ok((package_id, events))
+}
+
+/// Reads the import's name, category and effective priority, refusing one that cannot be
+/// queued (already queued, failed, or already behind a package).
+async fn load_queueable_import(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    import_id: NzbImportId,
+    priority: DownloadPriority,
+) -> Result<(String, Option<String>, DownloadPriority)> {
     // The archive password is not carried here: `Database::enqueue_nzb_import` gives the
     // package a vault entry of its own once the package exists (RD-190-04).
     let (name, category_id, state, stored_priority): (String, Option<String>, String, Option<i64>) =
         sqlx::query_as("SELECT name, category_id, state, priority FROM nzb_imports WHERE id = ?")
             .bind(import_id.to_string())
-            .fetch_optional(&mut *tx)
+            .fetch_optional(&mut **tx)
             .await?
             .context(StoreError::not_found("NZB import not found"))?;
     // The priority picked during import wins; the argument stays the fallback for imports
@@ -51,17 +99,30 @@ pub(crate) async fn enqueue_import(
     }
     let existing: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM packages WHERE nzb_import_id = ?")
         .bind(import_id.to_string())
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
     if existing > 0 {
         bail!(StoreError::wrong_state("NZB import is already queued"));
     }
+    Ok((name, category_id, priority))
+}
+
+/// Writes the Usenet package row of the import, at the end of the queue.
+async fn insert_import_package(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    import_id: NzbImportId,
+    destination: &Path,
+    name: &str,
+    category_id: Option<String>,
+    priority: DownloadPriority,
+    now: chrono::DateTime<Utc>,
+) -> Result<PackageId> {
     let package_id = PackageId::new();
     // Neither the package nor its folder should carry file extensions (`.nzb`, `.mp4`, …).
-    let package_name = rd_files::package_name_from_file_name(&name);
+    let package_name = rd_files::package_name_from_file_name(name);
     let package_directory = rd_files::package_directory(destination, &package_name);
     let position: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(position), 0) + 1 FROM packages")
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
     sqlx::query(
         "INSERT INTO packages (id, name, state, destination, category_id, priority, position, kind, nzb_import_id, created_at, updated_at) \
@@ -76,25 +137,28 @@ pub(crate) async fn enqueue_import(
     .bind(import_id.to_string())
     .bind(now)
     .bind(now)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
+    Ok(package_id)
+}
+
+/// The import's files with the name each queue row gets: `(file id, name, bytes, ordinal)`.
+async fn named_import_files(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    import_id: NzbImportId,
+) -> Result<Vec<(String, String, i64, i64)>> {
     let files: Vec<(String, String, Option<String>, i64, i64)> = sqlx::query_as(
         "SELECT id, subject, assembly_name, total_bytes, ordinal FROM nzb_files WHERE import_id = ? ORDER BY ordinal",
     )
     .bind(import_id.to_string())
-    .fetch_all(&mut *tx)
+    .fetch_all(&mut **tx)
     .await?;
     if files.is_empty() {
         bail!("NZB import contains no files");
     }
-    let initial_state = if start_paused {
-        DownloadState::Paused
-    } else {
-        DownloadState::Queued
-    };
     // Resolve every row's name first: postponing the recovery volumes is a decision about the
     // set as a whole, and it may only be taken when the set has a main index to verify with.
-    let named: Vec<(String, String, i64, i64)> = files
+    Ok(files
         .into_iter()
         .map(|(file_id, subject, assembly_name, total_bytes, ordinal)| {
             let file_name = assembly_name
@@ -108,8 +172,19 @@ pub(crate) async fn enqueue_import(
                 ordinal,
             )
         })
-        .collect();
-    let postpone = postpone_recovery_volumes(&mut tx, &named).await?;
+        .collect())
+}
+
+/// Writes one download row per NZB file of the package.
+async fn insert_import_downloads(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    import_id: NzbImportId,
+    package_id: PackageId,
+    named: Vec<(String, String, i64, i64)>,
+    initial_state: DownloadState,
+    postpone: bool,
+    now: chrono::DateTime<Utc>,
+) -> Result<()> {
     for (file_id, file_name, total_bytes, ordinal) in named {
         // A recovery volume nobody has asked for waits as `Skipped` instead of being fetched
         // with the payload; the PAR2 stage re-queues exactly as many as a repair turns out to
@@ -141,15 +216,25 @@ pub(crate) async fn enqueue_import(
         .bind(recovery)
         .bind(now)
         .bind(now)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
+    Ok(())
+}
+
+/// Marks the import as queued and records the `usenet.changed` and `package.state` events.
+async fn mark_import_enqueued(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    import_id: NzbImportId,
+    package_id: PackageId,
+    now: chrono::DateTime<Utc>,
+) -> Result<Vec<EventEnvelope>> {
     sqlx::query(
         "UPDATE nzb_imports SET state = 'enqueued', last_error = NULL, updated_at = ? WHERE id = ?",
     )
     .bind(now)
     .bind(import_id.to_string())
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
     let events = vec![
         EventEnvelope::new(
@@ -162,10 +247,9 @@ pub(crate) async fn enqueue_import(
         ),
     ];
     for event in &events {
-        insert_event(&mut tx, event).await?;
+        insert_event(tx, event).await?;
     }
-    tx.commit().await?;
-    Ok((package_id, events))
+    Ok(events)
 }
 
 /// Whether this NZB's `vol` PAR2 volumes should wait instead of downloading with the payload.
@@ -284,250 +368,4 @@ pub(crate) async fn settle_recovery(
     }
     tx.commit().await?;
     Ok(events)
-}
-
-/// The stable code a finished Usenet row carries while its verdict is still open (RD-108-24).
-///
-/// It is the marker *and* the explanation: the row sits in `Verifying` with this failure in
-/// `last_error_json`, which is what the queue shows the reader and what
-/// [`settle_par2_verdicts`] and `recover_interrupted` recognise the row by. A separate column
-/// would have said the same thing twice and left the two free to disagree.
-pub(crate) const AWAITING_PAR2: &str = "usenet.segments_missing_awaiting_par2";
-
-/// The `LIKE` pattern that finds a row carrying [`AWAITING_PAR2`] in its stored failure.
-///
-/// The code is quoted in the JSON, so the pattern cannot match a message that merely
-/// mentions it.
-pub(crate) const AWAITING_PAR2_PATTERN: &str = "%\"usenet.segments_missing_awaiting_par2\"%";
-
-/// States that still say something of this package is on its way.
-///
-/// The window RD-108-24 defers in: while one of these is left, the set is not settled and no
-/// verdict about missing segments can be final. The same list `par2_refill::is_on_the_way`
-/// uses, and for the same reason - a row in one of these states is going to arrive without
-/// anybody planning for it. `paused` and `skipped` are deliberately not here: neither arrives
-/// on its own. A row that is itself waiting for a verdict is `verifying` too and is taken out
-/// before this list is consulted.
-const ON_THE_WAY: &[&str] = &[
-    "queued",
-    "resolving",
-    "downloading",
-    "retry_wait",
-    "verifying",
-    "repairing",
-];
-
-/// Holds back the verdict on a file that finished with holes (RD-108-24).
-///
-/// The row is complete on disk, with zeros where the missing articles belong - SABnzbd fills
-/// the same holes and lets post-processing decide. What cannot be decided yet is whether the
-/// set can repair them: in a fully obfuscated post no PAR2 file has declared itself until it
-/// has been assembled, so a payload file that happens to finish first would be failed at a
-/// moment when the answer is simply not known. The note written here is what the reader sees
-/// and what [`settle_par2_verdicts`] picks the row up by.
-pub(crate) async fn defer_par2_verdict(
-    connection: &mut SqliteConnection,
-    id: DownloadId,
-    missing: usize,
-) -> Result<()> {
-    let failure = rd_core::redact_failure(
-        rd_core::Failure::coded(
-            rd_core::FailureKind::Transient {
-                retry_after_seconds: None,
-            },
-            AWAITING_PAR2,
-            format!(
-                "{missing} segment(s) were unavailable on every server; the verdict waits until the rest of the set has arrived"
-            ),
-        )
-        .with_param("missing", missing),
-    );
-    sqlx::query("UPDATE downloads SET last_error_json = ?, updated_at = ? WHERE id = ?")
-        .bind(serde_json::to_string(&failure)?)
-        .bind(Utc::now())
-        .bind(id.to_string())
-        .execute(&mut *connection)
-        .await?;
-    Ok(())
-}
-
-/// One row of the package, as the verdict needs to see it.
-struct VerdictRow {
-    id: String,
-    state: String,
-    recovery: bool,
-    /// The number of missing segments, when this row is waiting for its verdict.
-    awaiting: Option<usize>,
-}
-
-/// Decides every held-back verdict of a package whose set has settled (RD-108-24).
-///
-/// Nothing happens while a sibling is still `queued`, `resolving`, `downloading` or waiting
-/// for a retry - that is the whole point of the delay. Once none is left, the same question
-/// RD-108-23 asks in the runner is asked again, now on a package where every file has its
-/// real name and its content has been looked at: does the set carry PAR2 at all? If it does,
-/// the row completes and post-processing repairs it; if it does not, it fails with exactly
-/// the message it would have failed with immediately.
-///
-/// Returns the state events of the rows it decided, for the writer to broadcast.
-pub(crate) async fn settle_par2_verdicts(
-    connection: &mut SqliteConnection,
-    package_id: PackageId,
-) -> Result<Vec<EventEnvelope>> {
-    let rows: Vec<VerdictRow> = sqlx::query_as::<_, (String, String, bool, Option<String>)>(
-        "SELECT id, state, recovery, last_error_json FROM downloads WHERE package_id = ?",
-    )
-    .bind(package_id.to_string())
-    .fetch_all(&mut *connection)
-    .await?
-    .into_iter()
-    .map(|(id, state, recovery, last_error)| VerdictRow {
-        awaiting: (state == "verifying")
-            .then(|| awaiting_missing(&id, last_error.as_deref()))
-            .flatten(),
-        id,
-        state,
-        recovery,
-    })
-    .collect();
-    if rows.iter().all(|row| row.awaiting.is_none()) {
-        return Ok(Vec::new());
-    }
-    let on_the_way = rows
-        .iter()
-        .any(|row| row.awaiting.is_none() && ON_THE_WAY.contains(&row.state.as_str()));
-    if on_the_way {
-        return Ok(Vec::new());
-    }
-    let announced = package_subjects_announce_par2(connection, package_id).await?;
-    let now = Utc::now();
-    let mut events = Vec::new();
-    let mut tx = connection.begin().await?;
-    for row in rows.iter().filter(|row| row.awaiting.is_some()) {
-        let missing = row.awaiting.unwrap_or_default();
-        // A PAR2 file with a hole does not vouch for itself (RD-108-23, review round 1).
-        let has_par2 = announced
-            || rows
-                .iter()
-                .any(|other| other.id != row.id && other.recovery);
-        let event = if has_par2 {
-            // The name was written when the file was settled; only the verdict is new.
-            sqlx::query(
-                "UPDATE downloads SET state = 'completed', last_error_json = NULL, \
-                 next_retry_at = NULL, \
-                 total_bytes = MAX(COALESCE(total_bytes, 0), committed_bytes), \
-                 committed_bytes = MAX(COALESCE(total_bytes, 0), committed_bytes), \
-                 updated_at = ? WHERE id = ?",
-            )
-            .bind(now)
-            .bind(&row.id)
-            .execute(&mut *tx)
-            .await?;
-            tracing::info!(
-                download_id = %row.id,
-                missing,
-                "the settled set carries PAR2; the file with holes goes to repair"
-            );
-            EventEnvelope::new(
-                EventKind::DownloadState,
-                serde_json::json!({
-                    "download_id": row.id,
-                    "previous": DownloadState::Verifying,
-                    "state": DownloadState::Completed,
-                }),
-            )
-        } else {
-            let failure = rd_core::redact_failure(
-                rd_core::Failure::coded(
-                    rd_core::FailureKind::Permanent,
-                    "usenet.segments_missing_no_par2",
-                    format!(
-                        "{missing} segment(s) were unavailable on every server and the NZB contains no PAR2 repair data"
-                    ),
-                )
-                .with_param("missing", missing),
-            );
-            sqlx::query(
-                "UPDATE downloads SET state = 'failed', last_error_json = ?, \
-                 next_retry_at = NULL, updated_at = ? WHERE id = ?",
-            )
-            .bind(serde_json::to_string(&failure)?)
-            .bind(now)
-            .bind(&row.id)
-            .execute(&mut *tx)
-            .await?;
-            EventEnvelope::new(
-                EventKind::DownloadState,
-                serde_json::json!({
-                    "download_id": row.id,
-                    "previous": DownloadState::Verifying,
-                    "state": DownloadState::Failed,
-                    "failure": failure,
-                }),
-            )
-        };
-        insert_event(&mut tx, &event).await?;
-        events.push(event);
-    }
-    tx.commit().await?;
-    Ok(events)
-}
-
-/// Packages that still hold a row waiting for its PAR2 verdict (RD-108-24).
-pub(crate) async fn packages_awaiting_par2_verdict(
-    connection: &mut SqliteConnection,
-) -> Result<Vec<PackageId>> {
-    sqlx::query_scalar::<_, String>(
-        "SELECT DISTINCT package_id FROM downloads \
-         WHERE state = 'verifying' AND last_error_json LIKE ?",
-    )
-    .bind(AWAITING_PAR2_PATTERN)
-    .fetch_all(&mut *connection)
-    .await?
-    .iter()
-    .map(|id| id.parse::<PackageId>().map_err(Into::into))
-    .collect()
-}
-
-/// The number of missing segments a stored failure is holding a verdict open for.
-fn awaiting_missing(id: &str, last_error_json: Option<&str>) -> Option<usize> {
-    let failure: rd_core::Failure = crate::json_column::lenient(
-        serde_json::from_str(last_error_json?),
-        "downloads",
-        "last_error_json",
-        id,
-    )?;
-    if failure.code.as_deref() != Some(AWAITING_PAR2) {
-        return None;
-    }
-    Some(
-        failure
-            .params
-            .get("missing")
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(0),
-    )
-}
-
-/// Whether any subject of the package's NZB names a PAR2 file.
-///
-/// The half of the question that survives a file nobody could assemble: a recovery volume
-/// whose every segment is gone never gets a row marked `recovery`, but its subject still
-/// says what it was.
-async fn package_subjects_announce_par2(
-    connection: &mut SqliteConnection,
-    package_id: PackageId,
-) -> Result<bool> {
-    let subjects: Vec<String> = sqlx::query_scalar(
-        "SELECT nzb_files.subject FROM nzb_files \
-         JOIN packages ON packages.nzb_import_id = nzb_files.import_id \
-         WHERE packages.id = ?",
-    )
-    .bind(package_id.to_string())
-    .fetch_all(&mut *connection)
-    .await?;
-    Ok(subjects.iter().any(|subject| {
-        let name = rd_collector::subject_file_name(subject).unwrap_or_else(|| subject.clone());
-        rd_core::is_recovery_volume(&name)
-    }))
 }

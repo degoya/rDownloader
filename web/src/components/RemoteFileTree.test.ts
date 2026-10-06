@@ -1,27 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { ResolvedRemoteListing } from '@/api/types'
 import en from '@/locales/en/remote.json'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 import RemoteFileTree from './RemoteFileTree.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { remote: en } } })
-
-/** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UAlert: uiStubs.UAlert,
-  UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
-  UCheckbox: {
-    props: ['modelValue', 'indeterminate'],
-    emits: ['update:modelValue'],
-    template:
-      '<button type="button" :data-state="indeterminate ? \'some\' : String(modelValue)" v-bind="$attrs" @click="$emit(\'update:modelValue\', modelValue !== true)"><slot /></button>'
-  },
-  UIcon: passthrough
+/** A checkbox that reports all, some or none in `data-state`, the way the tree's folder rows are read. */
+const UCheckbox = {
+  props: ['modelValue', 'indeterminate'],
+  emits: ['update:modelValue'],
+  template:
+    '<button type="button" :data-state="indeterminate ? \'some\' : String(modelValue)" v-bind="$attrs" @click="$emit(\'update:modelValue\', modelValue !== true)"><slot /></button>'
 }
 
 /** One top-level file plus a folder holding two more. */
@@ -44,9 +35,10 @@ function listing(overrides: Partial<ResolvedRemoteListing> = {}): ResolvedRemote
 
 function mount(value: ResolvedRemoteListing = listing()) {
   const changes: string[][] = []
-  const view = render(RemoteFileTree, {
-    props: { listing: value, onChange: (excluded: string[]) => changes.push(excluded) },
-    global: { plugins: [i18n], components }
+  const view = mountComponent(RemoteFileTree, {
+    messages: { remote: en },
+    stubs: { UCheckbox },
+    props: { listing: value, onChange: (excluded: string[]) => changes.push(excluded) }
   })
   return { view, changes }
 }

@@ -20,7 +20,7 @@ rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [dev-dependencies]
 tokio.workspace = true

@@ -1,8 +1,8 @@
 //! Target-independent parsing for Nitroflare's account-less (free) *website* flow, the
 //! counterpart of [`crate::api`]'s JSON-API helpers. Shared verbatim by the native
 //! (`native/free.rs`) and WebAssembly (`guest/free.rs`) adapters so both report byte-identical
-//! failures; only `url` is used here, so it compiles on every target and every function is
-//! unit-testable without a host (see `page/tests.rs`).
+//! failures; only `url` and `plugin_common::html`'s page primitives are used here, so it compiles
+//! on every target and every function is unit-testable without a host (see `page/tests.rs`).
 //!
 //! IMPL-VERIFY (against JD's `NitroFlareCom.java`, `svn_trunk/src/jd/plugins/hoster/`, fetched
 //! 2026-09-02 — the file is 1251 lines; `handleFreeDownload`'s website branch is lines 484-617
@@ -31,6 +31,8 @@
 //! - **Deliberate deviation from JD**: JD retries a rejected captcha up to five times. A rejection
 //!   is reported here instead, so a second paid captcha is never spent inside one resolve; the
 //!   scheduler retries the whole flow, which also gets a fresh countdown.
+
+use plugin_common::html::{clamp, decode_entities, digits_at, element_text, quoted_value};
 
 /// Which answer `POST /ajax/freeDownload.php method=startTimer` gave.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -74,34 +76,7 @@ pub(crate) const DEFAULT_WAIT_SECONDS: u64 = 60;
 
 /// The reCAPTCHA v2 site key the file page embeds: the widget's `data-sitekey` attribute first,
 /// then a key carried in a `/recaptcha/` script or iframe URL.
-#[must_use]
-pub(crate) fn recaptcha_site_key(html: &str) -> Option<String> {
-    const ATTRIBUTE: &str = "data-sitekey=";
-    if let Some(at) = html.find(ATTRIBUTE)
-        && let Some(key) =
-            quoted_value(html[at + ATTRIBUTE.len()..].trim_start()).filter(|key| !key.is_empty())
-    {
-        return Some(key);
-    }
-    site_key_from_recaptcha_url(html)
-}
-
-/// `.../recaptcha/api.js?render=<key>` or `.../recaptcha/api2/anchor?...&k=<key>`. The length
-/// floor rejects `render=explicit`, which is a rendering mode rather than a key.
-fn site_key_from_recaptcha_url(html: &str) -> Option<String> {
-    let at = html.find("/recaptcha/")?;
-    let rest = clamp(&html[at..], 400);
-    ["render=", "k="].into_iter().find_map(|marker| {
-        let offset = rest.find(marker)?;
-        let value: String = rest[offset + marker.len()..]
-            .chars()
-            .take_while(|character| {
-                character.is_ascii_alphanumeric() || *character == '-' || *character == '_'
-            })
-            .collect();
-        (value.len() >= 20).then_some(value)
-    })
-}
+pub(crate) use plugin_common::html::recaptcha_site_key;
 
 /// Seconds this IP must wait before Nitroflare grants another free download, or `Some(0)` when
 /// the page states a limit without naming a duration. `None` means no limit notice at all.
@@ -248,63 +223,6 @@ fn number_between(html: &str, start: &str, end: &str) -> Option<u64> {
     let limit = window.find(end)?;
     let digits_at_index = window[..limit].find(|character: char| character.is_ascii_digit())?;
     digits_at(&window[digits_at_index..])
-}
-
-fn digits_at(text: &str) -> Option<u64> {
-    let digits: String = text.chars().take_while(char::is_ascii_digit).collect();
-    digits.parse().ok()
-}
-
-/// The content of a quoted attribute at the front of `rest`; `Some("")` for an explicitly empty
-/// value, `None` when `rest` does not start with a quote.
-fn quoted_value(rest: &str) -> Option<String> {
-    let quote = rest.chars().next()?;
-    if quote != '"' && quote != '\'' {
-        return None;
-    }
-    let value = &rest[quote.len_utf8()..];
-    let end = value.find(quote)?;
-    Some(decode_entities(&value[..end]))
-}
-
-/// Text following `marker` up to the next tag, whitespace collapsed and capped at 160 bytes.
-fn element_text(html: &str, marker: &str) -> Option<String> {
-    let at = html.find(marker)? + marker.len();
-    let rest = &html[at..];
-    let rest = if marker.starts_with("class=") {
-        &rest[rest.find('>')? + 1..]
-    } else {
-        rest
-    };
-    let end = rest.find('<').unwrap_or(rest.len());
-    let collapsed = rest[..end].split_whitespace().collect::<Vec<_>>().join(" ");
-    let text = clamp(&collapsed, 160).to_owned();
-    (!text.is_empty()).then_some(text)
-}
-
-/// The named HTML entities these pages use; anything else is left as it stands.
-fn decode_entities(text: &str) -> String {
-    if !text.contains('&') {
-        return text.to_owned();
-    }
-    text.replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
-}
-
-/// `text` truncated to at most `max` bytes, never splitting a UTF-8 character.
-fn clamp(text: &str, max: usize) -> &str {
-    if text.len() <= max {
-        return text;
-    }
-    let mut end = max;
-    while end > 0 && !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    &text[..end]
 }
 
 #[cfg(test)]

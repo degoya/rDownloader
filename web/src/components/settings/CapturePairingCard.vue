@@ -126,7 +126,7 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
           </i18n-t>
         </template>
       </SectionHeader>
-      <UAlert v-if="pairError" class="mt-4" color="error" variant="subtle" :description="pairError" />
+      <UAlert v-if="pairError" class="mt-4" color="error" :description="pairError" />
       <form class="mt-4 space-y-3" @submit.prevent="pair">
         <UFormField :label="t('system.pairing.label')" required>
           <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor" class="w-full" />
@@ -143,16 +143,16 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
         </UFormField>
         <FormActions :create-label="t('system.pairing.submit')" create-icon="i-lucide-link" :loading="pairing" />
       </form>
-      <UAlert v-if="bearer" class="mt-3" color="warning" variant="subtle" :title="t('system.pairing.copy_hint')">
+      <UAlert v-if="bearer" class="mt-3" color="warning" :title="t('system.pairing.copy_hint')">
         <template #description>
           <template v-if="!props.extension">
             <CopyField class="mt-1" :value="captureCommand" :label="t('system.pairing.copy_command')" @copied="commandCopied" />
-            <p class="mt-2 font-mono text-[10px] leading-5 text-muted">{{ t('system.pairing.afterwards') }}<br>rdownloader-capture autostart install<br>rdownloader-capture association install</p>
+            <p class="mt-2 font-mono text-2xs leading-5 text-muted">{{ t('system.pairing.afterwards') }}<br>rdownloader-capture autostart install<br>rdownloader-capture association install</p>
             <USeparator class="my-3" :ui="{ border: 'border-warning/30' }" />
           </template>
           <p class="mb-2 text-xs font-medium text-warning">{{ t('system.pairing.extension_hint') }}</p>
           <CopyField :value="bearer!" :label="t('system.pairing.copy_token')" @copied="tokenCopied" />
-          <p class="mt-2 text-[11px] leading-5 text-muted">{{ t('system.pairing.extension_steps', { origin: serverOrigin }) }}</p>
+          <p class="mt-2 text-2xs leading-5 text-muted">{{ t('system.pairing.extension_steps', { origin: serverOrigin }) }}</p>
         </template>
       </UAlert>
     </template>
@@ -162,10 +162,10 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
           <UChip standalone :color="tokenExpired(agent.expires_at) ? 'error' : 'success'" />
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-highlighted">{{ agent.label }}</p>
-            <p class="font-mono text-[11px] text-muted">{{ agent.scopes.join(', ') }}</p>
-            <p v-if="agent.expires_at" class="text-[11px]" :class="tokenExpired(agent.expires_at) ? 'text-error' : 'text-muted'">{{ tokenExpiryLabel(agent.expires_at, t) }}</p>
+            <p class="font-mono text-2xs text-muted">{{ agent.scopes.join(', ') }}</p>
+            <p v-if="agent.expires_at" class="text-2xs" :class="tokenExpired(agent.expires_at) ? 'text-error' : 'text-muted'">{{ tokenExpiryLabel(agent.expires_at, t) }}</p>
           </div>
-          <span class="numeric text-[11px] text-muted">{{ formatDay(agent.created_at) }}</span>
+          <span class="numeric text-2xs text-muted">{{ formatDay(agent.created_at) }}</span>
           <UButton
             icon="i-lucide-trash-2"
             :aria-label="t('system.agents.revoke')"

@@ -55,8 +55,8 @@ function revocationName(entry: PluginRevocation): string {
                longer has cannot be pointed at by name and version alone. -->
           <template v-if="!isInstalledHere(entry)">
             <p class="mt-1 text-xs leading-5 text-muted">{{ t('plugins.withdrawn.not_installed') }}</p>
-            <p class="mt-2 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.withdrawn.digest') }}</p>
-            <p class="break-all font-mono text-[11px] text-muted">{{ groupFingerprint(entry.digest) }}</p>
+            <p class="mt-2 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.withdrawn.digest') }}</p>
+            <p class="break-all font-mono text-2xs text-muted">{{ groupFingerprint(entry.digest) }}</p>
           </template>
           <p v-if="entry.reason" class="mt-1 text-xs leading-5 text-toned">{{ t('plugins.withdrawn.reason', { reason: entry.reason }) }}</p>
           <p class="mt-1 text-xs text-muted">{{ t('plugins.withdrawn.since', { when: formatMoment(entry.revoked_at) }) }}</p>

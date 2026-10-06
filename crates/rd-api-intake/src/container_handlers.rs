@@ -13,6 +13,7 @@ use axum::{Json, extract::State, http::StatusCode};
 use serde::Serialize;
 use utoipa::ToSchema;
 
+use rd_api_core::input_checks::optional_text;
 use rd_collector::ContainerFormat;
 
 use crate::{
@@ -57,10 +58,7 @@ async fn import(
     forced: Option<ContainerFormat>,
 ) -> Result<(StatusCode, Json<ContainerImportResponse>), ApiError> {
     let upload = body.read().await?;
-    let package_name = upload
-        .name
-        .map(|value| value.trim().to_owned())
-        .filter(|name| !name.is_empty());
+    let package_name = optional_text(upload.name);
     let category_id = match upload.category_id.as_deref().map(str::trim) {
         None | Some("") => None,
         Some(id) => Some(id.parse::<rd_core::CategoryId>().map_err(|_| {

@@ -4,21 +4,11 @@
 //! again for the verification `PROPFIND`. They are built here rather than inline so the
 //! percent-encoding and the slash handling have somewhere to be tested.
 
-/// Characters that must be escaped in a path segment. Deliberately an allowlist: a file name
-/// comes from a release somebody else made, and guessing which characters a given server
-/// tolerates is how an upload ends up at an address nobody meant.
-fn encode_segment(segment: &str) -> String {
-    let mut out = String::with_capacity(segment.len());
-    for byte in segment.as_bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(*byte as char);
-            }
-            other => out.push_str(&format!("%{other:02X}")),
-        }
-    }
-    out
-}
+/// Path segments are percent-encoded with RFC 3986's unreserved set as the allowlist
+/// (`plugin_common::percent_encode`): a file name comes from a release somebody else made, and
+/// guessing which characters a given server tolerates is how an upload ends up at an address
+/// nobody meant.
+use plugin_common::percent_encode as encode_segment;
 
 /// The collection this package writes into: the configured destination plus the package name.
 #[must_use]

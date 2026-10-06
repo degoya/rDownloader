@@ -11,12 +11,27 @@ use rd_plugin_api::{
 };
 use serde_json::{Value, json};
 
-/// How long to keep polling one task before giving up.
-const MAX_POLL: Duration = Duration::from_secs(150);
-/// Delay between result polls; services need several seconds for a widget captcha.
-const POLL_INTERVAL: Duration = Duration::from_secs(5);
-/// Grace period before the first poll, so the obvious "not ready yet" round trip is skipped.
-const FIRST_POLL_DELAY: Duration = Duration::from_secs(8);
+/// How a solver service is polled. The service runs with the default; a test against a local
+/// solver that answers at once passes shorter waits (RD-1120-08), which change nothing else.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SolverTiming {
+    /// Grace period before the first poll, so the obvious "not ready yet" round trip is skipped.
+    pub first_poll_delay: Duration,
+    /// Delay between result polls; services need several seconds for a widget captcha.
+    pub poll_interval: Duration,
+    /// How long to keep polling one task before giving up.
+    pub max_poll: Duration,
+}
+
+impl Default for SolverTiming {
+    fn default() -> Self {
+        Self {
+            first_poll_delay: Duration::from_secs(8),
+            poll_interval: Duration::from_secs(5),
+            max_poll: Duration::from_secs(150),
+        }
+    }
+}
 
 /// Submits a challenge and polls until the service returns an answer in the challenge's
 /// shape: a token, or a point for a click-point captcha.
@@ -25,6 +40,7 @@ pub(crate) async fn solve(
     endpoint: &str,
     api_key: &str,
     challenge: &CaptchaChallenge,
+    timing: SolverTiming,
 ) -> Result<CaptchaAnswer, Failure> {
     let task = task_for(challenge);
     let created = post(
@@ -45,8 +61,8 @@ pub(crate) async fn solve(
         })
         .ok_or_else(|| solver_failure("solver did not return a task id"))?;
 
-    tokio::time::sleep(FIRST_POLL_DELAY).await;
-    let deadline = tokio::time::Instant::now() + MAX_POLL;
+    tokio::time::sleep(timing.first_poll_delay).await;
+    let deadline = tokio::time::Instant::now() + timing.max_poll;
     loop {
         let result = post(
             http,
@@ -67,7 +83,7 @@ pub(crate) async fn solve(
                 "The captcha solver did not answer in time",
             ));
         }
-        tokio::time::sleep(POLL_INTERVAL).await;
+        tokio::time::sleep(timing.poll_interval).await;
     }
 }
 

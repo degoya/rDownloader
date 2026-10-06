@@ -8,12 +8,13 @@ license.workspace = true
 [dependencies]
 onedrive-common = { path = "../onedrive-common" }
 plugin-common = { path = "../common" }
+plugin-flexible = { path = "../flexible" }
 plugin-guest-crawler = { path = "../guest-crawler" }
 serde.workspace = true
 serde_json.workspace = true
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

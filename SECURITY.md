@@ -59,10 +59,14 @@ worse than an honest "upgrade".
 | Latest release | Yes |
 | Anything older | No — upgrade |
 
-Because updates are not yet delivered in-app, staying current means watching the releases page.
-That is a known gap, and the releases up to and including 1.6 keep it: the in-app updater with
-signed manifests and channels is planned for milestone 1.8, together with the installers and
-platform signing.
+Which platforms, packages and external tools a release runs on, and how each of them is tested,
+is the [support matrix](https://github.com/degoya/rDownloader/wiki/support-matrix); a finding on a
+combination it lists as untested or not supported is still welcome.
+
+Since 1.8 rDownloader finds new releases itself, from a signed update manifest per channel, and
+the portable archives and the Windows installer install them from inside the application; the
+deb and rpm packages and the package managers update with their own command. The programs are
+not code-signed yet.
 
 ## What the project already does
 

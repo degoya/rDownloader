@@ -3,7 +3,7 @@ plugin_type = "remote-job"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000152"
 name = "Put.io transfers"
-version = "0.1.11"
+version = "0.1.12"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -35,7 +35,7 @@ author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
 # The `remote-job` world does not exist before 1.0.7; an older host could not load this.
-min_app_version = "1.0.7"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 67108864

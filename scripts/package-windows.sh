@@ -28,6 +28,10 @@ source "$ROOT/scripts/lib/jobs.sh"
 # Sourced before the `cd`, because the lock library resolves this script's own path from $0.
 # shellcheck source=lib/lock.sh
 source "$ROOT/scripts/lib/lock.sh"
+# A worktree's own web/dist would not be what the binary embeds (scripts/lib/web-dist.sh).
+# shellcheck source=lib/web-dist.sh
+source "$ROOT/scripts/lib/web-dist.sh"
+rd_web_dist_guard "$ROOT" "the package" || exit 2
 rd_take_lock "$@"
 OUT="$ROOT/artifacts/windows"
 ZIP="$ROOT/artifacts/rdownloader-windows-x86_64.zip"

@@ -185,5 +185,19 @@
     "menu": "Columnas",
     "reset_all": "Restablecer todos los anchos de columna",
     "state_linkgrabber": "Estado del enlace"
+  },
+  "weekdays": {
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mié",
+    "thu": "Jue",
+    "fri": "Vie",
+    "sat": "Sáb",
+    "sun": "Dom"
+  },
+  "week_window": {
+    "from": "Desde",
+    "to": "Hasta",
+    "days_label": "Días"
   }
 }

@@ -66,7 +66,6 @@ onMounted(async () => {
     <UAlert
       v-if="restartRequired"
       color="warning"
-      variant="subtle"
       icon="i-lucide-rotate-ccw"
       :title="t('wizard.services.restart_required_title')"
       :description="t('wizard.services.restart_required')"
@@ -75,7 +74,6 @@ onMounted(async () => {
     <UAlert
       v-if="browserSessionProviders.length && !connected"
       color="warning"
-      variant="subtle"
       icon="i-lucide-puzzle"
       :title="t('wizard.services.extension_title')"
       :description="t('wizard.services.extension_hint', { providers: browserSessionProviders.join(', ') })"
@@ -85,7 +83,6 @@ onMounted(async () => {
     <UAlert
       v-if="providersLoaded && !accountProviders.length"
       color="info"
-      variant="subtle"
       icon="i-lucide-layout-grid"
       :title="t('wizard.services.no_providers_title')"
       :description="t('wizard.services.no_providers')"
@@ -95,7 +92,7 @@ onMounted(async () => {
     <ExtensionPairingModal v-model:open="pairingOpen" />
     <UTabs v-model="activeTab" :items="tabItems" variant="link" :unmount-on-hide="false">
       <template #content="{ item }">
-        <div class="pt-4">
+        <div>
           <SettingsAccountsTab v-if="item.value === 'accounts'" hide-header />
           <SettingsUsenetTab v-else hide-header />
         </div>

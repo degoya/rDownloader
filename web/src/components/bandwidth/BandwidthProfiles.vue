@@ -13,6 +13,8 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { GIB, MIB, byteModel, formatBytes } from '@/utils/format'
 import { DECIMAL, WHOLE, orNull } from '@/utils/numberInput'
+import { editingRowClass } from '@/utils/editingRow'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const profiles = defineModel<BandwidthProfile[]>({ required: true })
 const props = defineProps<{
@@ -179,7 +181,7 @@ function summary(profile: BandwidthProfile): string {
           :title="editingId ? t('bandwidth.profile.form_edit') : t('bandwidth.profile.form_new')"
         />
         <p class="mt-2 mb-4 text-xs leading-5 text-muted">{{ t('bandwidth.profile.description') }}</p>
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
+        <UAlert v-if="error" class="mb-3" color="error" :description="error" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField :label="t('bandwidth.profile.name_label')" required>
             <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-gauge" :placeholder="t('bandwidth.profile.name_placeholder')" />
@@ -199,6 +201,7 @@ function summary(profile: BandwidthProfile): string {
           <UFormField hint="GiB" data-settings-anchor="bandwidth.monthly" :label="t('bandwidth.profile.monthly_label')">
             <UInputNumber v-model="monthlyGiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
           </UFormField>
+          <SettingsCrossLink class="-mt-2" anchor="unattended.power" title-key="power.context.metered_label" />
 
           <div>
             <p class="text-sm font-medium text-highlighted">{{ t('bandwidth.scope.title') }}</p>
@@ -227,11 +230,11 @@ function summary(profile: BandwidthProfile): string {
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
-          <div v-for="profile in profiles" :key="profile.id" class="flex items-center gap-3 p-3" :class="editingId === profile.id ? 'border-l-2 border-l-primary' : ''">
+          <div v-for="profile in profiles" :key="profile.id" class="flex items-center gap-3 p-3" :class="editingRowClass(editingId === profile.id, 'stripe')">
             <UIcon name="i-lucide-gauge" class="text-primary" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-highlighted">{{ profile.name }}</p>
-              <p class="numeric text-[11px] text-muted">
+              <p class="numeric text-2xs text-muted">
                 {{ summary(profile) }}
               </p>
             </div>
@@ -241,7 +244,7 @@ function summary(profile: BandwidthProfile): string {
             <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="remove(profile)" />
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!profiles.length" variant="inline" class="p-5">
-            <p class="text-center text-sm text-muted">{{ t('bandwidth.profile.empty') }}</p>
+            <UEmpty :description="t('bandwidth.profile.empty')" />
           </DataState>
         </div>
       </template>

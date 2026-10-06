@@ -18,6 +18,7 @@ import SubscriptionArchive from '@/components/SubscriptionArchive.vue'
 import SubscriptionForm from '@/components/SubscriptionForm.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
+import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
 import { formatMoment } from '@/utils/format'
 import { translateServerMessage } from '@/i18n/server'
@@ -32,6 +33,8 @@ const copyName = useCopyName()
 const categories = ref<Category[]>([])
 const editing = ref<string | null>(null)
 const subscriptionForm = ref<InstanceType<typeof SubscriptionForm> | null>(null)
+/** A subscription typed into the form is not lost to a leave without a question (RD-1120-15). */
+useUnsavedGuard(() => subscriptionForm.value?.dirty ?? false)
 const expanded = ref<string | null>(null)
 
 onMounted(async () => {
@@ -174,7 +177,7 @@ async function removeSubscription(subscription: Subscription): Promise<void> {
   const confirmed = await confirm({
     title: t('subscriptions.remove.title'),
     description: t('subscriptions.remove.description', { name: subscription.name }),
-    confirmLabel: t('subscriptions.remove.confirm'),
+    confirmLabel: t('common.actions.delete'),
     confirmIcon: 'i-lucide-trash-2',
     destructive: true
   })
@@ -210,7 +213,7 @@ const MODE_ICONS: Record<Subscription['mode'], string> = {
 function rowActions(subscription: Subscription) {
   return [[
     { label: t('common.actions.edit'), icon: 'i-lucide-pencil', onSelect: () => edit(subscription) },
-    { label: t('subscriptions.actions.duplicate'), icon: 'i-lucide-copy-plus', onSelect: () => { void duplicate(subscription) } }
+    { label: t('common.actions.duplicate'), icon: 'i-lucide-copy-plus', onSelect: () => { void duplicate(subscription) } }
   ], [
     { label: t('common.actions.delete'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => { void removeSubscription(subscription) } }
   ]]
@@ -224,11 +227,10 @@ function rowActions(subscription: Subscription) {
     </template>
     <template #body>
       <div class="flex flex-col gap-5">
-        <UAlert v-if="store.error" color="error" variant="subtle" :description="store.error" />
+        <UAlert v-if="store.error" color="error" :description="store.error" />
         <UAlert
           v-if="notice"
           :color="notice.tone === 'error' ? 'error' : 'info'"
-          variant="subtle"
           :icon="notice.tone === 'error' ? 'i-lucide-triangle-alert' : 'i-lucide-info'"
           :description="notice.text"
         />
@@ -243,7 +245,7 @@ function rowActions(subscription: Subscription) {
           <template #list>
             <UCard as="section">
               <DataState :loading="store.loading" :empty="!store.error && !store.subscriptions.length" variant="inline" :rows="3">
-                <p class="text-sm text-muted">{{ t('subscriptions.list.empty') }}</p>
+                <UEmpty :description="t('subscriptions.list.empty')" />
               </DataState>
               <ul v-if="store.subscriptions.length" class="flex flex-col divide-y divide-muted">
                 <li

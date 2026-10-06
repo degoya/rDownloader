@@ -647,6 +647,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Judges a trigger and a sample package against the enabled automations, or against the
+         *     editor's draft alone when the request carries one (RD-1120-17). Never has an effect.
+         */
         post: operations["dry_run_automations"];
         delete?: never;
         options?: never;
@@ -2378,7 +2382,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every download in creation order; `limit`/`offset` cut a page out of that order (API-15). */
+        /**
+         * Every download in queue order; `limit`/`offset` cut a page out of that order (API-15), and
+         *     the database cuts it: only the page is read, not the table (RD-1120-17).
+         */
         get: operations["list_downloads"];
         put?: never;
         post: operations["create_download"];
@@ -8910,6 +8917,13 @@ export interface components {
             total_bytes: components["schemas"]["ByteCount"];
             transferring_remaining_bytes?: components["schemas"]["ByteCount"] | null;
         };
+        /** @description The automation as the editor holds it, for a dry run (RD-1120-17): saved or not, on or off. */
+        DryRunDraft: {
+            automation_id?: components["schemas"]["AutomationId"] | null;
+            condition?: components["schemas"]["ConditionNode"];
+            /** @description The trigger the draft listens for. */
+            trigger: components["schemas"]["Trigger"];
+        };
         /** @description What a dry run found for one automation. */
         DryRunMatch: {
             automation_id: components["schemas"]["AutomationId"];
@@ -8919,6 +8933,7 @@ export interface components {
             trigger_matches: boolean;
         };
         DryRunRequest: {
+            draft?: components["schemas"]["DryRunDraft"] | null;
             package_id?: components["schemas"]["PackageId"] | null;
             trigger: components["schemas"]["Trigger"];
         };
@@ -12083,9 +12098,10 @@ export interface components {
             source_kind: components["schemas"]["RemoteJobSourceKind"];
             /**
              * @description The name the source was handed in under -- a container's file name, as the person's
-             *     browser carried it. The job's LinkGrabber package is named after it: the bytes cross
-             *     the plugin contract without a name, and what a provider calls its transfer can be a
-             *     fixed upload name every job shares.
+             *     browser carried it -- or, without one, a magnet's `dn` and an address's last path
+             *     segment. The list of remote jobs shows it as the job's title. A container's job names
+             *     its LinkGrabber package after it: the bytes cross the plugin contract without a name,
+             *     and what a provider calls its transfer can be a fixed upload name every job shares.
              */
             source_name?: string | null;
             state: components["schemas"]["RemoteJobState"];
@@ -14368,7 +14384,8 @@ export interface components {
              * @description The name the source was added under -- a container's file name, as the browser carried
              *     it. Optional; the finished job's LinkGrabber package is named after it (`Show.S01.nzb`
              *     becomes `Show.S01`). Only the last path segment is kept, control characters are
-             *     dropped and it is cut at 255 characters.
+             *     dropped and it is cut at 255 characters. Without it a magnet is listed under its `dn`
+             *     and an address under its last path segment.
              */
             file_name?: string | null;
             /** @description The `magnet:` address to hand over. */
@@ -17518,6 +17535,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DryRunMatch"][];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Not Found */
             404: {

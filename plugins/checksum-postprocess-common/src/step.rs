@@ -2,13 +2,13 @@
 
 use std::collections::BTreeSet;
 
+use plugin_guest_postprocess::{
+    StepComplete, StepEnd, StepInput, source,
+    types::{Failure, FailureKind, LabelPart},
+};
+
 use crate::{
     Checksum,
-    exports::rdownloader::plugin::postprocess::{StepComplete, StepEnd, StepInput},
-    rdownloader::plugin::{
-        source,
-        types::{Failure, FailureKind, LabelPart},
-    },
     sidecar::{self, Algorithm},
 };
 

@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
+import { trimmed } from '@/utils/values'
 import type {
   AuthMethod,
   AuthProfile,
@@ -49,11 +50,6 @@ export function formFor(profile: AuthProfile): AuthProfileForm {
     expires_at: profile.expires_at?.slice(0, 10) ?? '',
     enabled: profile.enabled
   }
-}
-
-function trimmed(value: string): string | null {
-  const text = value.trim()
-  return text.length > 0 ? text : null
 }
 
 /** Local dates become an end-of-day UTC instant, matching what the user means by "until". */

@@ -10,6 +10,9 @@ name: E2E
 # docs/development.md.
 #
 # Each step has a time budget (web/e2e/lib/service.mjs, BUDGET_MS); a step over it fails the run.
+#
+# The release candidate dispatches it before the tag, beside ci.yml, and a red run holds the tag
+# (owner, 2026-10-06; the `public-ci` step, scripts/lib/release-steps-publish.sh).
 
 on:
   push:
@@ -101,8 +104,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    # A keychain call that waits for ever is cut off here, not after six hours.
-    timeout-minutes: 60
+    # A keychain call that waits for ever is cut off here, not after six hours. 75 minutes since
+    # the Windows and macOS legs build without a cache (RD-1120-07).
+    timeout-minutes: 75
     defaults:
       run:
         shell: bash
@@ -115,10 +119,15 @@ jobs:
           name: e2e-web-dist
           path: web/dist
       - uses: ./.github/actions/setup-rust
-      # Saved from main only, as in ci.yml (RD-1100-13): a branch's own cache served that branch.
+      # Read, never saved (RD-1120-07): this job's own caches, 2.5 GB over three systems, held the
+      # component and Docker caches out of the repository's 10 GB and served only its next run on
+      # main. The Linux leg reads what ci.yml's `docker` job (amd64) saves on main — the same
+      # profile and environment, and `shared-key: docker` is the key that job's id gives it;
+      # Windows and macOS find none and build without.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
+          shared-key: docker
+          save-if: false
       # `release-test`: the release profile without its single codegen unit and LTO, so the run
       # tests release code in a fraction of the release build's time.
       - name: Build the service and the capture agent

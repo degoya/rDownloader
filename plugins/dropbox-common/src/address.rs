@@ -37,33 +37,11 @@ pub fn dropbox_host(host: &str) -> Option<&'static str> {
     HOSTS.into_iter().find(|known| *known == host)
 }
 
-/// Scheme, host and the rest of an address.
-///
-/// Returns `None` for anything that is not plain http(s), and for an authority carrying
-/// credentials — accepting those would let `x@evil.test` read as one of Dropbox's own hosts.
-#[must_use]
-pub fn split(url: &str) -> Option<(&str, &str)> {
-    let (scheme, rest) = url.split_once("://")?;
-    if !matches!(scheme, "http" | "https") {
-        return None;
-    }
-    let rest = rest.split('#').next()?;
-    let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
-    if authority.contains('@') {
-        return None;
-    }
-    Some((authority.split(':').next()?, path))
-}
-
-/// The value of one query parameter, undecoded.
-#[must_use]
-pub fn query_value<'a>(path: &'a str, name: &str) -> Option<&'a str> {
-    let query = path.split_once('?')?.1;
-    query.split('&').find_map(|pair| {
-        let (key, value) = pair.split_once('=')?;
-        (key == name).then_some(value)
-    })
-}
+// The address readers every cloud plugin shares (RD-1120-10): `split` refuses anything that is
+// not plain http(s) and an authority carrying credentials — accepting those would let
+// `x@evil.test` read as one of Dropbox's own hosts — and `query_value` reads one parameter,
+// undecoded.
+pub use plugin_common::address::{query_value, split};
 
 // One percent-encoder for every plugin (RD-191-07): RFC 3986's unreserved set and nothing else,
 // which reads the same in a query, a form body and a path segment.
@@ -82,25 +60,12 @@ pub use plugin_common::encode::percent_decode_strict as percent_decode;
 /// API argument. Anything else could be a second address.
 #[must_use]
 pub fn valid_key(key: &str) -> bool {
-    !key.is_empty()
-        && key.len() <= 128
-        && key
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    plugin_common::address::valid_token(key, 128)
 }
 
 /// A file or folder name as one segment of a path: decoded, non-empty, not a dot entry, no
 /// separator and no control character.
-#[must_use]
-pub fn valid_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= 255
-        && name != "."
-        && name != ".."
-        && !name
-            .chars()
-            .any(|character| matches!(character, '/' | '\\') || character.is_control())
-}
+pub use plugin_common::address::valid_name;
 
 /// A revision as the API issues them — lowercase hexadecimal, at least nine characters.
 #[must_use]
@@ -111,7 +76,7 @@ pub fn valid_rev(rev: &str) -> bool {
 /// A `content_hash` as the API issues them — 64 hexadecimal characters.
 #[must_use]
 pub fn valid_content_hash(hash: &str) -> bool {
-    hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+    plugin_common::address::valid_hex(hash, 64)
 }
 
 /// A Dropbox id as the API issues them: `id:` followed by URL-safe characters.

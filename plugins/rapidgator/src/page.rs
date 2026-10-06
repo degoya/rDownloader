@@ -1,8 +1,9 @@
 //! Target-independent parsing for Rapidgator's account-less (free) *website* flow, the
 //! counterpart of [`crate::api`]'s JSON-API helpers. Shared verbatim by the native
 //! (`native/free.rs`) and WebAssembly (`guest/free.rs`) adapters so both report byte-identical
-//! failures; only `serde`/`serde_json`/`url` are used here, so it compiles on every target and
-//! every function is unit-testable without a host (see `page/tests.rs`).
+//! failures; only `serde`/`serde_json`/`url` and `plugin_common::html` are used here, so it
+//! compiles on every target and every function is unit-testable without a host (see
+//! `page/tests.rs`).
 //!
 //! IMPL-VERIFY (against JD's `RapidGatorNet.java`, `svn_trunk/src/jd/plugins/hoster/`, fetched
 //! 2026-09-02 — the file is 2186 lines; `handleDownloadWebsite` is lines 436-725 and
@@ -38,9 +39,9 @@ use serde::Deserialize;
 mod parse;
 
 use self::parse::{
-    clamp, decode_entities, element_text, form_fields, form_with_id, js_number_var, js_string_var,
-    number_after, open_tag, quoted_value, tag_attribute,
+    form_fields, form_with_id, js_number_var, js_string_var, number_after, open_tag, tag_attribute,
 };
+use plugin_common::html::{decode_entities, element_text, quoted_value};
 
 /// JD's own hard-coded reCAPTCHA v2 site key for Rapidgator's free flow
 /// (`RapidGatorNet.java:563`), used when the file page carries no site key of its own. JD relies
@@ -74,33 +75,7 @@ pub(crate) fn timer_markers(html: &str) -> Option<TimerMarkers> {
 /// The reCAPTCHA v2 site key a page embeds: the widget's `data-sitekey` attribute first, then a
 /// key carried in a `/recaptcha/` script or iframe URL. `None` leaves the caller to fall back to
 /// [`RECAPTCHA_SITE_KEY_FALLBACK`].
-#[must_use]
-pub(crate) fn recaptcha_site_key(html: &str) -> Option<String> {
-    site_key_attribute(html).or_else(|| site_key_from_recaptcha_url(html))
-}
-
-fn site_key_attribute(html: &str) -> Option<String> {
-    const ATTRIBUTE: &str = "data-sitekey=";
-    let at = html.find(ATTRIBUTE)?;
-    quoted_value(html[at + ATTRIBUTE.len()..].trim_start()).filter(|value| !value.is_empty())
-}
-
-/// `.../recaptcha/api.js?render=<key>` or `.../recaptcha/api2/anchor?...&k=<key>`. The length
-/// floor rejects `render=explicit`, which is a rendering mode rather than a key.
-fn site_key_from_recaptcha_url(html: &str) -> Option<String> {
-    let at = html.find("/recaptcha/")?;
-    let rest = clamp(&html[at..], 400);
-    ["render=", "k="].into_iter().find_map(|marker| {
-        let offset = rest.find(marker)?;
-        let value: String = rest[offset + marker.len()..]
-            .chars()
-            .take_while(|character| {
-                character.is_ascii_alphanumeric() || *character == '-' || *character == '_'
-            })
-            .collect();
-        (value.len() >= 20).then_some(value)
-    })
-}
+pub(crate) use plugin_common::html::recaptcha_site_key;
 
 /// Seconds this IP must wait before Rapidgator grants another free download, or `Some(0)` when
 /// the page states a limit without naming a duration. `None` means no limit notice at all.

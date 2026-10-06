@@ -2,8 +2,7 @@
   "tabs": {
     "roots": "Storage roots",
     "categories": "Categories",
-    "rules": "Rules",
-    "collector": "Collector"
+    "rules": "Rules"
   },
   "header": {
     "eyebrow": "Destination control",
@@ -61,7 +60,7 @@
     "form_edit": "Edit category",
     "description": "A category combines a storage root with a relative folder and the post-processing defaults for its packages.",
     "name_label": "Name",
-    "name_description": "Used in the LinkGrabber, the download list and the rules below.",
+    "name_description": "Used in the LinkGrabber, the download list and the rules in the “Rules” tab.",
     "name_placeholder": "Movies",
     "root_label": "Storage root",
     "root_description": "The allowlisted root this category writes into.",

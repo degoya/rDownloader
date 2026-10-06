@@ -1200,7 +1200,7 @@ name = "checksum-postprocess-common"
 version = "1.2.2"
 dependencies = [
  "plugin-common",
- "wit-bindgen 0.62.0",
+ "plugin-guest-postprocess",
 ]
 
 [[package]]
@@ -4819,7 +4819,6 @@ version = "1.2.2"
 dependencies = [
  "plugin-common",
  "serde_json",
- "url",
 ]
 
 [[package]]
@@ -5578,6 +5577,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "offcloud-common"
+version = "0.1.0"
+dependencies = [
+ "plugin-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "oid-registry"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5611,6 +5619,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 name = "onedrive-common"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "serde",
  "serde_json",
 ]
@@ -6167,6 +6176,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin-flexible"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "plugin-guest"
 version = "1.2.2"
 dependencies = [
@@ -6189,6 +6206,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin-guest-enricher"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
+name = "plugin-guest-notifier"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
 name = "plugin-guest-oauth"
 version = "1.2.2"
 dependencies = [
@@ -6197,10 +6228,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin-guest-postprocess"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen 0.62.0",
+]
+
+[[package]]
 name = "plugin-guest-remote-job"
 version = "1.2.2"
 dependencies = [
  "plugin-common",
+ "serde",
+ "serde_json",
  "wit-bindgen 0.62.0",
 ]
 
@@ -6328,6 +6368,7 @@ name = "premiumize-common"
 version = "1.2.2"
 dependencies = [
  "plugin-common",
+ "plugin-flexible",
  "serde",
  "serde_json",
 ]
@@ -6765,7 +6806,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6830,7 +6871,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-access"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6860,7 +6901,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-admin"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6904,7 +6945,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-compat"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6912,19 +6953,17 @@ dependencies = [
  "rd-api-core",
  "rd-api-intake",
  "rd-api-queue",
- "rd-authn",
  "rd-collector",
  "rd-core",
  "serde",
  "serde_json",
- "tokio",
  "tracing",
  "url",
 ]
 
 [[package]]
 name = "rd-api-core"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6987,7 +7026,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-intake"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7026,7 +7065,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-mcp"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7049,7 +7088,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-queue"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7080,7 +7119,7 @@ dependencies = [
 
 [[package]]
 name = "rd-authn"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -7102,7 +7141,7 @@ dependencies = [
 
 [[package]]
 name = "rd-automation"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "chrono",
  "rd-core",
@@ -7115,7 +7154,7 @@ dependencies = [
 
 [[package]]
 name = "rd-autostart"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -7125,7 +7164,7 @@ dependencies = [
 
 [[package]]
 name = "rd-backup"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -7163,7 +7202,7 @@ dependencies = [
 
 [[package]]
 name = "rd-captcha"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -7186,7 +7225,7 @@ dependencies = [
 
 [[package]]
 name = "rd-capture"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7226,7 +7265,7 @@ dependencies = [
 
 [[package]]
 name = "rd-collector"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7248,6 +7287,7 @@ dependencies = [
  "chrono",
  "hex",
  "percent-encoding",
+ "rd-crash-points",
  "rd-provider-registry",
  "serde",
  "serde_json",
@@ -7261,8 +7301,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rd-crash-points"
+version = "1.0.0"
+
+[[package]]
 name = "rd-db"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -7289,7 +7333,7 @@ dependencies = [
 
 [[package]]
 name = "rd-diagnostics"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7311,7 +7355,7 @@ dependencies = [
 
 [[package]]
 name = "rd-extract"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7335,7 +7379,7 @@ dependencies = [
 
 [[package]]
 name = "rd-files"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "crc32fast",
@@ -7358,7 +7402,7 @@ dependencies = [
 
 [[package]]
 name = "rd-ftp"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7377,12 +7421,11 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-util",
- "tracing",
 ]
 
 [[package]]
 name = "rd-gallery"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7397,7 +7440,7 @@ dependencies = [
 
 [[package]]
 name = "rd-hotfolder"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7415,7 +7458,7 @@ dependencies = [
 
 [[package]]
 name = "rd-http"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7430,6 +7473,7 @@ dependencies = [
  "psl",
  "rcgen",
  "rd-core",
+ "rd-crash-points",
  "rd-files",
  "rd-limits",
  "reqwest",
@@ -7451,7 +7495,7 @@ dependencies = [
 
 [[package]]
 name = "rd-limits"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7465,7 +7509,7 @@ dependencies = [
 
 [[package]]
 name = "rd-media"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7491,7 +7535,7 @@ dependencies = [
 
 [[package]]
 name = "rd-notify"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7513,7 +7557,7 @@ dependencies = [
 
 [[package]]
 name = "rd-object-storage"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7546,7 +7590,7 @@ dependencies = [
 
 [[package]]
 name = "rd-pack"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7606,6 +7650,7 @@ dependencies = [
  "async-trait",
  "box-common",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
@@ -7621,6 +7666,7 @@ version = "1.2.2"
 dependencies = [
  "box-common",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest-crawler",
  "serde",
  "serde_json",
@@ -7691,7 +7737,7 @@ dependencies = [
 name = "rd-plugin-discord-notifier"
 version = "1.2.2"
 dependencies = [
- "wit-bindgen 0.62.0",
+ "plugin-guest-notifier",
 ]
 
 [[package]]
@@ -7751,7 +7797,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-ext"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7801,6 +7847,7 @@ dependencies = [
  "async-trait",
  "google-drive-common",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
@@ -7816,6 +7863,7 @@ version = "1.2.2"
 dependencies = [
  "google-drive-common",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest-crawler",
  "serde",
  "serde_json",
@@ -7845,7 +7893,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-host"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -8025,13 +8073,14 @@ name = "rd-plugin-metadata-enricher"
 version = "1.2.2"
 dependencies = [
  "plugin-common",
- "wit-bindgen 0.62.0",
+ "plugin-guest-enricher",
 ]
 
 [[package]]
 name = "rd-plugin-metalink-intake"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8049,6 +8098,7 @@ version = "1.2.2"
 dependencies = [
  "async-trait",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
@@ -8062,7 +8112,7 @@ dependencies = [
 name = "rd-plugin-ntfy-notifier"
 version = "1.2.2"
 dependencies = [
- "wit-bindgen 0.62.0",
+ "plugin-guest-notifier",
 ]
 
 [[package]]
@@ -8070,6 +8120,7 @@ name = "rd-plugin-offcloud"
 version = "1.2.2"
 dependencies = [
  "async-trait",
+ "offcloud-common",
  "plugin-common",
  "plugin-guest",
  "rd-core",
@@ -8084,6 +8135,7 @@ dependencies = [
 name = "rd-plugin-offcloud-cloud"
 version = "1.2.2"
 dependencies = [
+ "offcloud-common",
  "plugin-common",
  "plugin-guest-remote-job",
  "serde",
@@ -8098,6 +8150,7 @@ dependencies = [
  "async-trait",
  "onedrive-common",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
@@ -8113,6 +8166,7 @@ version = "1.2.2"
 dependencies = [
  "onedrive-common",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest-crawler",
  "serde",
  "serde_json",
@@ -8132,6 +8186,7 @@ version = "1.2.2"
 dependencies = [
  "async-trait",
  "plugin-common",
+ "plugin-flexible",
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
@@ -8177,6 +8232,7 @@ dependencies = [
 name = "rd-plugin-peeplink-crawler"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "plugin-guest-crawler",
 ]
 
@@ -8199,10 +8255,10 @@ dependencies = [
 name = "rd-plugin-pixeldrain-crawler"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "plugin-guest-crawler",
  "serde",
  "serde_json",
- "url",
 ]
 
 [[package]]
@@ -8311,6 +8367,7 @@ dependencies = [
  "plugin-guest",
  "rd-core",
  "rd-plugin-api",
+ "realdebrid-common",
  "serde",
  "serde_json",
  "tokio",
@@ -8331,6 +8388,7 @@ version = "1.2.2"
 dependencies = [
  "plugin-common",
  "plugin-guest-remote-job",
+ "realdebrid-common",
  "serde",
  "serde_json",
  "torrent-common",
@@ -8340,7 +8398,7 @@ dependencies = [
 name = "rd-plugin-rename-postprocess"
 version = "1.2.2"
 dependencies = [
- "wit-bindgen 0.62.0",
+ "plugin-guest-postprocess",
 ]
 
 [[package]]
@@ -8382,14 +8440,14 @@ dependencies = [
 name = "rd-plugin-sponsorblock-enricher"
 version = "1.2.2"
 dependencies = [
- "wit-bindgen 0.62.0",
+ "plugin-guest-enricher",
 ]
 
 [[package]]
 name = "rd-plugin-telegram-notifier"
 version = "1.2.2"
 dependencies = [
- "wit-bindgen 0.62.0",
+ "plugin-guest-notifier",
 ]
 
 [[package]]
@@ -8404,6 +8462,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "torbox-common",
  "url",
 ]
 
@@ -8426,12 +8485,13 @@ dependencies = [
  "plugin-guest-remote-job",
  "serde",
  "serde_json",
+ "torbox-common",
  "torrent-common",
 ]
 
 [[package]]
 name = "rd-plugin-transfer"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8480,6 +8540,7 @@ dependencies = [
 name = "rd-plugin-webdav-storage"
 version = "1.2.2"
 dependencies = [
+ "plugin-common",
  "wit-bindgen 0.62.0",
 ]
 
@@ -8499,7 +8560,7 @@ dependencies = [
 
 [[package]]
 name = "rd-postprocess"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "dunce",
@@ -8518,7 +8579,7 @@ dependencies = [
 
 [[package]]
 name = "rd-power"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8544,7 +8605,7 @@ dependencies = [
 
 [[package]]
 name = "rd-scheduler"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8554,6 +8615,7 @@ dependencies = [
  "rcgen",
  "rd-captcha",
  "rd-core",
+ "rd-crash-points",
  "rd-db",
  "rd-files",
  "rd-http",
@@ -8578,7 +8640,7 @@ dependencies = [
 
 [[package]]
 name = "rd-secrets"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8596,7 +8658,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sftp"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8620,7 +8682,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sign"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8634,7 +8696,7 @@ dependencies = [
 
 [[package]]
 name = "rd-siterules"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8654,7 +8716,7 @@ dependencies = [
 
 [[package]]
 name = "rd-stream"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8674,7 +8736,7 @@ dependencies = [
 
 [[package]]
 name = "rd-subscription"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8697,7 +8759,7 @@ dependencies = [
 
 [[package]]
 name = "rd-tools"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -8727,7 +8789,7 @@ dependencies = [
 
 [[package]]
 name = "rd-torrent"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8749,16 +8811,18 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
  "url",
  "utoipa",
 ]
 
 [[package]]
 name = "rd-transfer-file"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "rd-core",
+ "rd-crash-points",
  "rd-db",
  "rd-files",
  "rd-limits",
@@ -8771,7 +8835,7 @@ dependencies = [
 
 [[package]]
 name = "rd-update"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8800,7 +8864,7 @@ dependencies = [
 
 [[package]]
 name = "rd-usenet"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8810,6 +8874,7 @@ dependencies = [
  "futures-util",
  "rd-collector",
  "rd-core",
+ "rd-crash-points",
  "rd-db",
  "rd-extract",
  "rd-files",
@@ -8830,7 +8895,7 @@ dependencies = [
 
 [[package]]
 name = "rd-webdav"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8845,7 +8910,7 @@ dependencies = [
 
 [[package]]
 name = "rdownloader"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -8879,7 +8944,6 @@ dependencies = [
  "rd-sign",
  "rd-siterules",
  "rd-stream",
- "rd-tools",
  "rd-torrent",
  "rd-update",
  "rd-usenet",
@@ -8894,6 +8958,14 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "realdebrid-common"
+version = "0.1.0"
+dependencies = [
+ "plugin-common",
+ "serde",
 ]
 
 [[package]]
@@ -10974,6 +11046,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
+name = "torbox-common"
+version = "0.1.0"
+dependencies = [
+ "plugin-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "torrent-common"
 version = "1.2.2"
 dependencies = [
@@ -12686,6 +12767,7 @@ name = "xfs-common"
 version = "1.2.2"
 dependencies = [
  "plugin-common",
+ "plugin-flexible",
  "serde",
  "serde_json",
  "url",

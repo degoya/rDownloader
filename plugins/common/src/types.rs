@@ -270,3 +270,67 @@ pub struct LinkCheck {
     pub file_name: Option<String>,
     pub size: Option<u64>,
 }
+
+impl LinkCheck {
+    /// A file the provider says is there, with what it said about it.
+    #[must_use]
+    pub fn online(url: &str, file_name: Option<String>, size: Option<u64>) -> Self {
+        Self {
+            url: url.to_owned(),
+            status: LinkStatus::Online,
+            file_name,
+            size,
+        }
+    }
+
+    /// A file the provider says is gone; it names nothing about a file that is not there.
+    #[must_use]
+    pub fn offline(url: &str) -> Self {
+        Self::bare(url, LinkStatus::Offline)
+    }
+
+    /// A link the answer said nothing about, which is not the same as a dead one: a check that
+    /// could not ask, or was not answered, keeps the row rather than deleting it.
+    #[must_use]
+    pub fn unknown(url: &str) -> Self {
+        Self::bare(url, LinkStatus::Unknown)
+    }
+
+    /// `status` without a name or a size.
+    #[must_use]
+    pub fn bare(url: &str, status: LinkStatus) -> Self {
+        Self {
+            url: url.to_owned(),
+            status,
+            file_name: None,
+            size: None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LinkCheck, LinkStatus};
+
+    /// Only an online answer carries a name and a size; the others carry the status alone.
+    #[test]
+    fn each_constructor_sets_its_status() {
+        let online = LinkCheck::online("https://a.test/f", Some("f.bin".to_owned()), Some(7));
+        assert_eq!(online.url, "https://a.test/f");
+        assert_eq!(online.status, LinkStatus::Online);
+        assert_eq!(online.file_name.as_deref(), Some("f.bin"));
+        assert_eq!(online.size, Some(7));
+        for (check, status) in [
+            (LinkCheck::offline("https://a.test/f"), LinkStatus::Offline),
+            (LinkCheck::unknown("https://a.test/f"), LinkStatus::Unknown),
+            (
+                LinkCheck::bare("https://a.test/f", LinkStatus::Cached),
+                LinkStatus::Cached,
+            ),
+        ] {
+            assert_eq!(check.url, "https://a.test/f");
+            assert_eq!(check.status, status);
+            assert_eq!((check.file_name, check.size), (None, None));
+        }
+    }
+}

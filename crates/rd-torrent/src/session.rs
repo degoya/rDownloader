@@ -6,13 +6,16 @@
 //! settings endpoint calls [`TorrentService::reconfigure`], which applies what the engine
 //! can change live and rebuilds only when it must.
 
-use std::{num::NonZeroU32, sync::Arc};
+use std::{collections::HashSet, num::NonZeroU32, sync::Arc};
 
 use anyhow::{Context, Result};
 use librqbit::{ListenerOptions, Session, SessionOptions, SessionPersistenceConfig};
 use rd_core::{TorrentEngineCapabilities, TorrentSettings};
 
-use crate::{ServiceInner, TorrentService};
+use crate::{ServiceInner, TorrentService, kill_switch};
+
+/// Who pauses, in the log line of a torrent that refused.
+const REBUILD: &str = "session rebuild";
 
 /// What the embedded librqbit 9 build can and cannot do.
 ///
@@ -210,13 +213,15 @@ impl TorrentService {
             slot.config = next;
             return Ok(());
         }
-        // Pause everything first so no torrent keeps writing while the engine is replaced.
-        let registered = self.inner.registry.read().await.snapshot();
-        for (_, entry) in &registered {
-            if let Some(handle) = slot.session.get(entry.handle()) {
-                let _ = slot.session.pause(&handle).await;
-            }
-        }
+        // Pause everything first so no torrent keeps writing while the engine is replaced. One
+        // the engine refuses is named in the log (RD-1120-04); while the kill switch holds the
+        // traffic, its next check pauses it again.
+        let registered = kill_switch::session_torrents(
+            &slot.session,
+            self.inner.registry.read().await.snapshot(),
+        );
+        let mut paused = HashSet::new();
+        kill_switch::hold_torrents(&registered, &mut paused, REBUILD).await;
         let generation = slot.generation;
         match build(&self.inner, next.clone()).await {
             Ok(rebuilt) => {
@@ -246,12 +251,9 @@ impl TorrentService {
             }
             Err(error) => {
                 *self.inner.rebuild_error.write().await = Some(format!("{error:#}"));
-                // Keep the old session and let the torrents run again.
-                for (_, entry) in &registered {
-                    if let Some(handle) = slot.session.get(entry.handle()) {
-                        let _ = slot.session.unpause(&handle).await;
-                    }
-                }
+                // Keep the old session and let what was paused here run again; a torrent the
+                // user had stopped stays stopped, and one the engine refuses is logged.
+                kill_switch::resume_held(&registered, &mut paused, REBUILD).await;
                 Err(error).context("rebuild torrent session")
             }
         }

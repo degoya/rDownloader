@@ -11,7 +11,7 @@ plugin-guest-oauth = { path = "../guest-oauth" }
 putio-common = { path = "../putio-common" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

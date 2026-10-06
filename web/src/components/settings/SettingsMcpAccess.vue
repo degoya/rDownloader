@@ -219,7 +219,7 @@ function scopeLabel(token: CaptureToken): string {
 </script>
 
 <template>
-  <UCard as="section" data-settings-anchor="mcp.access" :class="embedded ? '' : 'mt-6'" :ui="embedded ? { root: 'overflow-visible rounded-none bg-transparent', body: 'p-0 sm:p-0' } : undefined">
+  <UCard as="section" data-settings-anchor="clients.api" :ui="embedded ? { root: 'overflow-visible rounded-none bg-transparent', body: 'p-0 sm:p-0' } : undefined">
     <FormListLayout :list-title="t('system.mcp.tokens_eyebrow')" :count="tokens.length">
       <template #form>
         <SectionHeader :eyebrow="t('system.mcp.eyebrow')" :title="t('system.mcp.title')">
@@ -230,7 +230,7 @@ function scopeLabel(token: CaptureToken): string {
             </i18n-t>
           </template>
         </SectionHeader>
-        <UAlert v-if="pairError" class="mt-4" color="error" variant="subtle" :description="pairError" />
+        <UAlert v-if="pairError" class="mt-4" color="error" :description="pairError" />
         <form class="mt-4 space-y-3" @submit.prevent="pair">
           <UFormField :label="t('system.mcp.label_label')" required>
             <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor-cog" class="w-full" :placeholder="t('system.mcp.label_placeholder')" />
@@ -242,7 +242,7 @@ function scopeLabel(token: CaptureToken): string {
                 <span class="flex flex-wrap items-center gap-2">
                   <span class="text-sm font-medium text-highlighted">{{ item.label }}</span>
                   <UBadge v-if="item.sensitive" color="warning" variant="subtle" size="sm">{{ t('system.mcp.sensitive') }}</UBadge>
-                  <span class="numeric text-[11px] text-muted">{{ t('system.mcp.scope_operations', { count: item.operations }) }}</span>
+                  <span class="numeric text-2xs text-muted">{{ t('system.mcp.scope_operations', { count: item.operations }) }}</span>
                 </span>
               </template>
               <template #description="{ item }">
@@ -255,7 +255,6 @@ function scopeLabel(token: CaptureToken): string {
             <UAlert
               v-if="grantsSensitive"
               color="warning"
-              variant="subtle"
               icon="i-lucide-triangle-alert"
               :description="t('system.mcp.sensitive_warning')"
             />
@@ -266,17 +265,17 @@ function scopeLabel(token: CaptureToken): string {
           </UFormField>
           <FormActions :create-label="t('system.mcp.submit')" create-icon="i-lucide-key-round" :loading="pairing" :disabled="!chosen.length" />
         </form>
-        <UAlert v-if="bearer" class="mt-3" color="warning" variant="subtle" :title="t('system.mcp.copy_hint')">
+        <UAlert v-if="bearer" class="mt-3" color="warning" :title="t('system.mcp.copy_hint')">
           <template #description>
             <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.token_hint') }}</p>
-            <p class="mb-2 text-[11px] text-muted">
+            <p class="mb-2 text-2xs text-muted">
               {{ t('system.mcp.minted_areas', { areas: bearerScopes.map(areaName).join(', ') }) }}
             </p>
             <CopyField :value="bearer!" :label="t('system.mcp.copy_token')" @copied="copied(t('system.mcp.token_copied'))" />
             <USeparator class="my-3" :ui="{ border: 'border-warning/30' }" />
             <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.header_hint') }}</p>
             <CopyField :value="authorizationHeader" :label="t('system.mcp.copy_header')" @copied="copied(t('system.mcp.header_copied'))" />
-            <p class="mt-2 text-[11px] text-muted">{{ t('system.mcp.single_source_hint') }}</p>
+            <p class="mt-2 text-2xs text-muted">{{ t('system.mcp.single_source_hint') }}</p>
             <USeparator class="my-3" :ui="{ border: 'border-warning/30' }" />
             <p class="mb-2 text-xs font-medium text-warning">{{ t('system.mcp.mcp_hint') }}</p>
             <CopyField :value="claudeCommand" :label="t('system.mcp.copy_command')" @copied="copied(t('system.mcp.command_copied'))" />
@@ -290,10 +289,10 @@ function scopeLabel(token: CaptureToken): string {
               <UChip standalone :color="tokenExpired(token.expires_at) ? 'error' : 'success'" />
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-highlighted">{{ token.label }}</p>
-                <p class="text-[11px] text-muted">{{ scopeLabel(token) }} · <span class="font-mono">{{ token.scopes.join(', ') }}</span></p>
-                <p v-if="token.expires_at" class="text-[11px]" :class="tokenExpired(token.expires_at) ? 'text-error' : 'text-muted'">{{ tokenExpiryLabel(token.expires_at, t) }}</p>
+                <p class="text-2xs text-muted">{{ scopeLabel(token) }} · <span class="font-mono">{{ token.scopes.join(', ') }}</span></p>
+                <p v-if="token.expires_at" class="text-2xs" :class="tokenExpired(token.expires_at) ? 'text-error' : 'text-muted'">{{ tokenExpiryLabel(token.expires_at, t) }}</p>
               </div>
-              <span class="numeric text-[11px] text-muted">{{ formatDay(token.created_at) }}</span>
+              <span class="numeric text-2xs text-muted">{{ formatDay(token.created_at) }}</span>
               <UButton
                 icon="i-lucide-pencil"
                 :aria-label="t('system.mcp.edit.label')"
@@ -331,7 +330,7 @@ function scopeLabel(token: CaptureToken): string {
                   <span class="flex flex-wrap items-center gap-2">
                     <span class="text-sm font-medium text-highlighted">{{ item.label }}</span>
                     <UBadge v-if="item.sensitive" color="warning" variant="subtle" size="sm">{{ t('system.mcp.sensitive') }}</UBadge>
-                    <span class="numeric text-[11px] text-muted">{{ t('system.mcp.scope_operations', { count: item.operations }) }}</span>
+                    <span class="numeric text-2xs text-muted">{{ t('system.mcp.scope_operations', { count: item.operations }) }}</span>
                   </span>
                 </template>
               </UCheckboxGroup>
@@ -339,12 +338,11 @@ function scopeLabel(token: CaptureToken): string {
                 v-if="editGrantsSensitive"
                 class="mt-2"
                 color="warning"
-                variant="subtle"
                 icon="i-lucide-triangle-alert"
                 :description="t('system.mcp.sensitive_warning')"
               />
               <p v-if="!editScopes.length" class="mt-2 text-xs text-warning">{{ t('system.mcp.edit.empty') }}</p>
-              <UAlert v-if="editError" class="mt-2" color="error" variant="subtle" :description="editError" />
+              <UAlert v-if="editError" class="mt-2" color="error" :description="editError" />
               <FormActions
                 class="mt-3"
                 editing

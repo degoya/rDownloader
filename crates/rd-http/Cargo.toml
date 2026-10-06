@@ -35,6 +35,8 @@ zeroize.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+# The crash point registry, which the crash cases check their points against (RD-1120-12).
+rd-crash-points = { path = "../rd-crash-points" }
 axum.workspace = true
 hex.workspace = true
 rcgen.workspace = true

@@ -21,7 +21,7 @@ function submit(): void {
 </script>
 
 <template>
-  <UModal :title="t('linkgrabber.intake.title')" :description="t('linkgrabber.intake.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end', content: 'sm:max-w-2xl' }">
+  <UModal :title="t('linkgrabber.intake.title')" :description="t('linkgrabber.intake.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ content: 'sm:max-w-2xl' }">
     <template #body>
       <form id="collector-intake-form" class="space-y-3" @submit.prevent="submit">
         <UTextarea v-model="text" :rows="10" autoresize autofocus :placeholder="t('linkgrabber.intake.placeholder')" class="w-full font-mono text-xs" />

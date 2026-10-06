@@ -101,6 +101,7 @@ fn a_status_no_document_explains_carries_the_number_and_nothing_else() {
     let failure = failure_from(418, None, &envelope("<html>418</html>")).expect("a refusal");
     assert_eq!(failure.code, messages::HTTP_ERROR.0);
     assert_eq!(failure.message, "Seedr HTTP status 418");
+    assert_eq!(failure.param("status"), Some("418"));
     assert_eq!(failure.param("reason"), None);
 }
 

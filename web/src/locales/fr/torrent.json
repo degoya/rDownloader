@@ -28,7 +28,8 @@
     "files": "Fichiers",
     "trackers": "Trackers",
     "peers": "Pairs",
-    "seeding": "Seed"
+    "seeding": "Seed",
+    "label": "Détails du torrent"
   },
   "trackers": {
     "counters_hint": "Seeders / leechers / terminés",
@@ -77,7 +78,6 @@
     "override_ratio": "Remplacer le ratio",
     "override_time": "Remplacer la durée",
     "override_unlimited": "Seeder sans limite de temps",
-    "save": "Enregistrer",
     "clear": "Hériter à nouveau",
     "source": {
       "global": "des réglages globaux",

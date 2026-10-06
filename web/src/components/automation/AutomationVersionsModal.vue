@@ -13,9 +13,11 @@ import { useI18n } from 'vue-i18n'
 import type { Automation, AutomationVersion, Category, NotificationTarget } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useFetchState } from '@/composables/useFetchState'
 import { useAutomationsStore } from '@/stores/automations'
 import { changedParts, describeAction, describeCondition } from '@/utils/automationText'
 import { formatMoment } from '@/utils/format'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 const props = defineProps<{
   automation: Automation
@@ -29,7 +31,7 @@ const { t } = useI18n()
 const store = useAutomationsStore()
 const confirm = useConfirm()
 const versions = ref<AutomationVersion[]>([])
-const loading = ref(true)
+const { loading, load: track } = useFetchState()
 const restoringId = ref<string | null>(null)
 const message = ref<string | null>(null)
 /** The version in force, which moves when a restore saves a new one. */
@@ -47,10 +49,8 @@ const entries = computed(() =>
   versions.value.map((version, index) => ({ version, changed: changedParts(version, versions.value[index + 1]) }))
 )
 
-async function load(): Promise<void> {
-  loading.value = true
-  versions.value = (await store.versions(props.automation.id)) ?? []
-  loading.value = false
+function load(): Promise<void> {
+  return track(async () => { versions.value = (await store.versions(props.automation.id)) ?? [] })
 }
 
 async function restore(version: AutomationVersion): Promise<void> {
@@ -84,8 +84,7 @@ onMounted(() => void load())
   >
     <template #body>
       <div class="space-y-3">
-        <UAlert v-if="store.error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="store.error" />
-        <UAlert v-if="message" color="success" variant="subtle" icon="i-lucide-circle-check" :description="message" />
+        <FormFeedback :error="store.error" :message="message" />
         <ol v-if="entries.length" class="divide-y divide-muted border border-muted">
           <li v-for="{ version, changed } in entries" :key="version.id" class="space-y-2 p-3" data-testid="automation-version">
             <div class="flex flex-wrap items-center gap-2">
@@ -125,7 +124,7 @@ onMounted(() => void load())
           </li>
         </ol>
         <DataState v-else :loading="loading" :empty="!store.error" :rows="2">
-          <p class="py-6 text-center text-sm text-muted">{{ t('automation.history.empty') }}</p>
+          <UEmpty :description="t('automation.history.empty')" />
         </DataState>
       </div>
     </template>

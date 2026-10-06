@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The installer's own strings in English (RD-1120-20); WiX's dialogs come in the culture's
+     language from WixToolset.UI.wixext. Every language file names the same ids. -->
+<WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="ProductLanguage" Value="1033" />
+  <String Id="DowngradeError" Value="A newer version of rDownloader is already installed. Uninstall it first; your data stays." />
+  <String Id="AutostartCheckbox" Value="Start the rDownloader service at every login" />
+  <String Id="StartShortcutDescription" Value="Starts the rDownloader service and the capture agent" />
+  <String Id="CaptureShortcutDescription" Value="Starts only the desktop capture agent" />
+  <String Id="StopShortcutName" Value="Stop rDownloader" />
+  <String Id="StopShortcutDescription" Value="Stops the rDownloader service and the capture agent" />
+</WixLocalization>

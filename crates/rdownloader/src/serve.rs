@@ -3,6 +3,7 @@
 
 use std::{
     net::SocketAddr,
+    path::Path,
     sync::{Arc, Mutex},
 };
 
@@ -31,68 +32,154 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         instance: _instance,
     } = startup::open_store(&args.paths, telemetry).await?;
     let (stored, runtime) = load_stored_settings(&database, &args.paths.database).await?;
-    // The stored port only applies when neither --listen nor RDOWNLOADER_LISTEN is given, so
-    // an operator can always override a setting that locked them out.
-    let listen = args.listen.unwrap_or_else(|| {
+    let listen = listen_address(args.listen, &stored);
+    let controls = queue_controls();
+    let scheduler_config = scheduler_config_for(&args, &runtime, listen, &controls);
+    let plugins = plugin_boot::open_plugins(&args, &database, &stored).await?;
+    let mut native = startup::native_runners(
+        &database,
+        &secrets,
+        &scheduler_config,
+        &controls.bandwidth,
+        &data_directory,
+        &plugins,
+        args.plugin_allow_local_targets,
+    )
+    .await?;
+    // The runners go to the scheduler; the rest of `native` feeds the flusher and the state.
+    let runners = std::mem::take(&mut native.runners);
+    let scheduler = start_scheduler(
+        &database,
+        scheduler_config,
+        &secrets,
+        &native.plugin_registry,
+        runners,
+        runtime,
+    )
+    .await?;
+    // Written in batches, never per article (RD-1100-05); the last batch after the scheduler
+    // stopped, so nothing the runner counted is left in memory.
+    let traffic_flusher = native
+        .usenet_traffic
+        .start_flushing(database.clone(), rd_usenet::FLUSH_INTERVAL);
+    let shutdown = shutdown_on_signal();
+
+    let (state, extraction, torrent_service) = assemble_state(
+        native,
+        controls,
+        &scheduler,
+        database,
+        secrets,
+        &data_directory,
+        plugins,
+    )
+    .await;
+    let running = Running {
+        scheduler,
+        extraction,
+        torrent_service,
+        traffic_flusher,
+    };
+    serve_until_stopped(
+        state,
+        &args,
+        &data_directory,
+        &restore,
+        listen,
+        shutdown,
+        running,
+    )
+    .await
+}
+
+/// The stored port only applies when neither --listen nor RDOWNLOADER_LISTEN is given, so
+/// an operator can always override a setting that locked them out.
+fn listen_address(listen: Option<SocketAddr>, stored: &crate::StoredSettings) -> SocketAddr {
+    listen.unwrap_or_else(|| {
         SocketAddr::from((
             [127, 0, 0, 1],
             stored.ui_port.unwrap_or(DEFAULT_LISTEN_PORT),
         ))
-    });
-    let postprocess_hold = rd_core::PostprocessHold::new();
-    // Created here rather than inside the scheduler: the torrent engine owns its own
-    // sockets and needs the same handle, and it is built before the scheduler is.
-    let bandwidth = rd_scheduler::BandwidthService::new();
-    // Raised while quiet hours defer the resource-intensive post-processing steps.
-    let quiet_hold = rd_core::PostprocessHold::new();
-    let power = rd_power::PowerService::default();
+    })
+}
+
+/// The handles the queue and the post-processing are steered by, made before anything that
+/// shares them.
+struct QueueControls {
+    postprocess_hold: rd_core::PostprocessHold,
+    bandwidth: rd_scheduler::BandwidthService,
+    quiet_hold: rd_core::PostprocessHold,
+    power: rd_power::PowerService,
+}
+
+fn queue_controls() -> QueueControls {
+    QueueControls {
+        postprocess_hold: rd_core::PostprocessHold::new(),
+        // Created here rather than inside the scheduler: the torrent engine owns its own
+        // sockets and needs the same handle, and it is built before the scheduler is.
+        bandwidth: rd_scheduler::BandwidthService::new(),
+        // Raised while quiet hours defer the resource-intensive post-processing steps.
+        quiet_hold: rd_core::PostprocessHold::new(),
+        power: rd_power::PowerService::default(),
+    }
+}
+
+/// The scheduler's configuration from the paths, the stored runtime settings and the
+/// address this service answers on.
+fn scheduler_config_for(
+    args: &ServeArgs,
+    runtime: &rd_scheduler::RuntimeSettings,
+    listen: SocketAddr,
+    controls: &QueueControls,
+) -> SchedulerConfig {
     let mut scheduler_config = SchedulerConfig::for_directory(args.paths.downloads.clone());
-    scheduler_config.postprocess_hold = postprocess_hold.clone();
-    scheduler_config.bandwidth = bandwidth.clone();
+    scheduler_config.postprocess_hold = controls.postprocess_hold.clone();
+    scheduler_config.bandwidth = controls.bandwidth.clone();
     scheduler_config.max_active_files = runtime.max_active_files;
     scheduler_config.max_chunks_per_file = runtime.max_chunks_per_file;
     scheduler_config.max_connections_per_host = runtime.max_connections_per_host;
     scheduler_config.external_parallel_files = runtime.external_parallel_files;
     scheduler_config.speed_limit_bytes_per_second = runtime.speed_limit_bytes_per_second;
     scheduler_config.own_address = Some(listen);
-    let plugins = plugin_boot::open_plugins(&args, &database, &stored).await?;
-    let startup::NativeRunners {
-        runners,
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent_service,
-        torrent_settings,
-        remote,
-        plugin_transfer_schemes,
-        plugin_registry,
-        usenet_traffic,
-    } = startup::native_runners(
-        &database,
-        &secrets,
-        &scheduler_config,
-        &bandwidth,
-        &data_directory,
-        &plugins,
-        args.plugin_allow_local_targets,
-    )
-    .await?;
+    scheduler_config
+}
+
+/// Starts the queue with every runner and hands it the stored runtime settings.
+async fn start_scheduler(
+    database: &rd_db::Database,
+    scheduler_config: SchedulerConfig,
+    secrets: &rd_secrets::SecretStore,
+    plugin_registry: &rd_plugin_host::PluginTypeRegistry,
+    runners: Vec<Arc<dyn rd_scheduler::ExternalRunner>>,
+    runtime: rd_scheduler::RuntimeSettings,
+) -> Result<SchedulerHandle> {
     let scheduler = SchedulerHandle::start(
         database.clone(),
         scheduler_config,
         secrets.clone(),
-        Some(&plugin_registry),
+        Some(plugin_registry),
         runners,
     )
     .await?;
     scheduler.update_runtime_settings(runtime).await?;
-    // Written in batches, never per article (RD-1100-05); the last batch after the scheduler
-    // stopped, so nothing the runner counted is left in memory.
-    let traffic_flusher =
-        usenet_traffic.start_flushing(database.clone(), rd_usenet::FLUSH_INTERVAL);
-    let shutdown = shutdown_on_signal();
+    Ok(scheduler)
+}
 
+/// Compiles the plugin extensions, adds the site rules, resumes what a stop interrupted and
+/// assembles the application state; hands back the two services the stop needs besides it.
+async fn assemble_state(
+    native: startup::NativeRunners,
+    controls: QueueControls,
+    scheduler: &SchedulerHandle,
+    database: rd_db::Database,
+    secrets: rd_secrets::SecretStore,
+    data_directory: &Path,
+    plugins: rd_plugin_host::PluginInstaller,
+) -> (
+    AppState,
+    rd_extract::ExtractionService,
+    rd_torrent::TorrentService,
+) {
     let startup::PluginServices {
         plugin_steps,
         storage_destinations,
@@ -102,17 +189,17 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         auth_providers,
         oauth_providers,
     } = startup::plugin_services(
-        &plugin_registry,
-        &scheduler,
+        &native.plugin_registry,
+        scheduler,
         &database,
-        &data_directory,
-        postprocess_hold,
-        quiet_hold.clone(),
-        remote.object_storage.clone(),
+        data_directory,
+        controls.postprocess_hold,
+        controls.quiet_hold.clone(),
+        native.remote.object_storage.clone(),
     );
     // The registry holds every installed component's bytes; nothing below needs them, and a
     // local in `serve` would otherwise keep them for the life of the process.
-    drop(plugin_registry);
+    drop(native.plugin_registry);
     if crawlers.has_plugins() {
         tracing::info!("folder crawler plugins loaded");
     }
@@ -121,26 +208,26 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     // from the database -- the signed release file is imported, not compiled in -- so a fresh
     // installation starts with none; the adapters the rules run on live in `rd-plugin-host`,
     // where the proxies and the captcha broker already are.
-    let crawlers = startup::with_site_rules(crawlers, &database, &secrets, &scheduler).await;
-    resume_interrupted(&extraction, &torrent_service).await;
-    sweep_abandoned_uploads(remote.object_storage.clone());
+    let crawlers = startup::with_site_rules(crawlers, &database, &secrets, scheduler).await;
+    resume_interrupted(&extraction, &native.torrent_service).await;
+    sweep_abandoned_uploads(native.remote.object_storage.clone());
     let state = AppState::new(
         database,
         scheduler.clone(),
         secrets,
         plugins,
         extraction.clone(),
-        media_settings,
-        media_probe,
-        gallery_settings,
-        stream_settings,
-        torrent_service.clone(),
-        torrent_settings,
-        power,
-        quiet_hold,
-        remote,
+        native.media_settings,
+        native.media_probe,
+        native.gallery_settings,
+        native.stream_settings,
+        native.torrent_service.clone(),
+        native.torrent_settings,
+        controls.power,
+        controls.quiet_hold,
+        native.remote,
     )
-    .with_plugin_transfer_schemes(plugin_transfer_schemes)
+    .with_plugin_transfer_schemes(native.plugin_transfer_schemes)
     .with_intake_parsers(intake_parsers)
     .with_crawlers(crawlers)
     .with_plugin_steps(plugin_steps)
@@ -151,10 +238,31 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         env!("RD_BUILD_COMMIT"),
         env!("RD_BUILD_TIME"),
     ));
+    (state, extraction, native.torrent_service)
+}
+
+/// What runs beside the HTTP surface and is stopped after it.
+struct Running {
+    scheduler: SchedulerHandle,
+    extraction: rd_extract::ExtractionService,
+    torrent_service: rd_torrent::TorrentService,
+    traffic_flusher: rd_usenet::TrafficFlusher,
+}
+
+/// Serves until the stop, then stops everything in order; the control file goes last.
+async fn serve_until_stopped(
+    state: AppState,
+    args: &ServeArgs,
+    data_directory: &Path,
+    restore: &rd_backup::restore::cutover::Cutover,
+    listen: SocketAddr,
+    shutdown: CancellationToken,
+    running: Running,
+) -> Result<()> {
     // Written only now, with everything the stop route needs in place; removed as the last
     // step of this function, so `rdownloader stop --wait` sees it gone once the queue is safe.
     let (local_control, control_file) =
-        rd_api::local_control::LocalControl::issue(&data_directory, listen)
+        rd_api::local_control::LocalControl::issue(data_directory, listen)
             .context("write the local control file")?;
     let control_file = Arc::new(Mutex::new(Some(control_file)));
     end_after_stop_deadline(shutdown.clone(), Arc::downgrade(&control_file));
@@ -162,7 +270,7 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
         .with_local_control(local_control)
         .with_shutdown(shutdown);
     startup::prepare_state(&state).await?;
-    startup::finish_restore(&args.paths, &restore);
+    startup::finish_restore(&args.paths, restore);
     let hotfolders = state.hotfolders.clone();
     let state_link_check = state.link_check.clone();
     let remote_jobs = state.remote_jobs.clone();
@@ -170,13 +278,13 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
     updater_cli::confirm_when_answering(&args.paths.database, listen);
     let result = rd_api::serve(state, listen).await;
     stream_monitor.shutdown();
-    torrent_service.shutdown();
+    running.torrent_service.shutdown();
     hotfolders.shutdown().await;
     state_link_check.shutdown();
     remote_jobs.shutdown();
-    extraction.shutdown().await;
-    let stopped = scheduler.shutdown().await;
-    traffic_flusher.shutdown().await;
+    running.extraction.shutdown().await;
+    let stopped = running.scheduler.shutdown().await;
+    running.traffic_flusher.shutdown().await;
     remove_control_file(&control_file);
     stopped?;
     result

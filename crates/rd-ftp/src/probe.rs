@@ -1,6 +1,7 @@
 //! Resolving one FTP link into the listing the LinkGrabber reviews.
 
 use anyhow::Result;
+use rd_core::remote_path::{file_name, normalize, parent};
 use rd_core::{
     ByteCount, Failure, RemoteCredential, RemoteEntry, RemoteListing, RemoteTarget,
     is_safe_relative_path,
@@ -78,29 +79,6 @@ pub fn require_credential(
     target: &RemoteTarget,
 ) -> Result<RemoteCredential, Failure> {
     credential.ok_or_else(|| error::no_credential(&target.host))
-}
-
-/// Collapses `//` and a trailing slash, and maps an empty path to the server root.
-fn normalize(path: &str) -> String {
-    let trimmed = path.trim_end_matches('/');
-    if trimmed.is_empty() {
-        return "/".to_owned();
-    }
-    trimmed.to_owned()
-}
-
-fn file_name(path: &str) -> String {
-    path.rsplit('/')
-        .find(|segment| !segment.is_empty())
-        .unwrap_or_default()
-        .to_owned()
-}
-
-fn parent(path: &str) -> String {
-    match path.trim_end_matches('/').rfind('/') {
-        Some(0) | None => "/".to_owned(),
-        Some(index) => path[..index].to_owned(),
-    }
 }
 
 #[cfg(test)]

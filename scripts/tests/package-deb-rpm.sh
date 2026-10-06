@@ -2,7 +2,8 @@
 #
 # scripts/package-deb-rpm.sh on a scratch release tarball (RD-180-05): the nfpm configs it renders
 # name the tarball's version and the architecture nfpm expects, mark each format's install kind,
-# and leave no placeholder; a tarball in the old nested layout or of another platform is refused.
+# install the menu entry and its icon from files the checkout has (RD-1120-20), and leave no
+# placeholder; the menu entry names that icon and a command; a tarball in the old nested layout or of another platform is refused.
 # With nfpm installed, the deb is built as well and its content checked with dpkg-deb when that
 # is present; without them those two cases say so and pass.
 #
@@ -40,7 +41,35 @@ for kind in deb rpm; do
     expect "the $kind config installs the marker beside the binaries" \
         "    dst: /usr/lib/rdownloader/install-kind" \
         "$(grep -A1 '^  - src: .*install-kind\.' "$config" | sed -n '2p')"
+    for pair in rdownloader.desktop:/usr/share/applications/rdownloader.desktop \
+        favicon.svg:/usr/share/icons/hicolor/scalable/apps/rdownloader.svg \
+        icon-512.png:/usr/share/icons/hicolor/512x512/apps/rdownloader.png; do
+        source="$(grep -B1 "^    dst: ${pair#*:}$" "$config" | sed -n 's/^  - src: "\(.*\)"$/\1/p')"
+        expect "the $kind config installs ${pair#*:} from the checkout" "${pair%%:*}" \
+            "$([[ "$source" == "$ROOT"/* && -s "$source" ]] && basename "$source")"
+    done
 done
+run_status python3 - "$ROOT/packaging/linux/rdownloader.desktop" <<'PY'
+import configparser, sys
+entry = configparser.ConfigParser(interpolation=None, comment_prefixes=("#",))
+entry.optionxform = str
+entry.read(sys.argv[1], encoding="utf-8")
+group = entry["Desktop Entry"]
+assert group["Type"] == "Application", group["Type"]
+assert group["Icon"] == "rdownloader", group["Icon"]
+assert group["Terminal"] == "false"
+assert "xdg-open http://127.0.0.1:8710/" in group["Exec"], group["Exec"]
+for key in ("GenericName", "Comment"):
+    for language in ("de", "es", "fr"):
+        assert group[f"{key}[{language}]"], (key, language)
+PY
+expect_status "the menu entry opens the interface with the packaged icon, in four languages" 0
+if command -v desktop-file-validate > /dev/null; then
+    run_status desktop-file-validate "$ROOT/packaging/linux/rdownloader.desktop"
+    expect_status "desktop-file-validate accepts the menu entry" 0
+else
+    echo "skip desktop-file-validate is not installed; the menu entry is not validated by it"
+fi
 expect "the rpm config asks for glibc's floor" "      - glibc >= 2.39" \
     "$(grep -F 'glibc >= 2.39' "$SCRATCH/out/nfpm-rpm-aarch64.yaml")"
 
@@ -66,7 +95,8 @@ if command -v nfpm > /dev/null; then
         run_status dpkg-deb --contents "$deb"
         for path in ./usr/lib/rdownloader/rdownloader ./usr/lib/rdownloader/install-kind \
             ./usr/lib/rdownloader/plugins/http-1.0.0.rdplug ./usr/lib/systemd/user/rdownloader.service \
-            ./usr/lib/systemd/user/rdownloader-capture.service "./usr/bin/rdownloader -> /usr/lib/rdownloader/rdownloader"; do
+            ./usr/lib/systemd/user/rdownloader-capture.service "./usr/bin/rdownloader -> /usr/lib/rdownloader/rdownloader" \
+            ./usr/share/applications/rdownloader.desktop ./usr/share/icons/hicolor/scalable/apps/rdownloader.svg; do
             expect_output "the deb carries $path" "$path"
         done
         mkdir -p "$SCRATCH/unpacked"

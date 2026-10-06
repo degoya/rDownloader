@@ -19,6 +19,7 @@ mod bandwidth;
 mod collector;
 mod config;
 mod download_rows;
+pub(crate) use download_rows::rows_event;
 mod downloads;
 mod full_backup;
 mod history;

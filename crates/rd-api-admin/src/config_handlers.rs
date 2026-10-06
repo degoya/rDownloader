@@ -5,7 +5,7 @@ use axum::{
     extract::{Path as AxumPath, State},
     http::StatusCode,
 };
-use rd_api_core::input_checks::{TextLimit, required_text};
+use rd_api_core::input_checks::{TextLimit, optional_text, required_text};
 use rd_db::StoreErrorKind;
 use regex::Regex;
 
@@ -134,12 +134,6 @@ async fn validate_proxy_selection(
         ));
     }
     Ok(())
-}
-
-fn normalized_optional(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }
 
 #[cfg(test)]

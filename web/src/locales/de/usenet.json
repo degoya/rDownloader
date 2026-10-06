@@ -5,8 +5,8 @@
   },
   "header": {
     "eyebrow": "Segmenttransport",
-    "title": "NNTP-Server und Fallback",
-    "description": "Der oberste Server der Kette wird zuerst verwendet. Fehlende oder defekte Segmente wechseln zum nächsten aktiven Server; Passwörter liegen ausschließlich verschlüsselt im lokalen Tresor."
+    "title": "Server, Indexer & Kontingente",
+    "description": "Die Server-Kette mit ihren Kontingenten und NNTP-Grenzen, dazu die Indexer, die der LinkGrabber durchsucht. Der oberste Server der Kette wird zuerst verwendet. Fehlende oder defekte Segmente wechseln zum nächsten aktiven Server; Passwörter liegen ausschließlich verschlüsselt im lokalen Tresor."
   },
   "form": {
     "eyebrow": "Neuer Endpoint",
@@ -80,8 +80,7 @@
     "delete": {
       "action": "Indexer löschen",
       "title": "Indexer löschen?",
-      "description": "{name} und sein gespeicherter API-Schlüssel werden entfernt. Abos, die ihn übernommen haben, behalten ihre eigene Kopie.",
-      "confirm": "Löschen"
+      "description": "{name} und sein gespeicherter API-Schlüssel werden entfernt. Abos, die ihn übernommen haben, behalten ihre eigene Kopie."
     },
     "messages": {
       "created": "Indexer angelegt",
@@ -117,5 +116,9 @@
     "reset_usage": "Verbrauch zurücksetzen",
     "remove": "Kontingent entfernen",
     "saved": "Kontingent gespeichert"
+  },
+  "tabs": {
+    "servers": "Server",
+    "indexers": "Indexer"
   }
 }

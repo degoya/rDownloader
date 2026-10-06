@@ -10,11 +10,11 @@ name: Reproducibility
 # development repository (not part of the public export; the job summary and the diffoscope
 # report below stand on their own).
 #
-# The build is release.yml's `linux-binaries` job — the web interface built and embedded through
-# rust-embed, the toolchain pinned through RUSTUP_TOOLCHAIN, the environment from the tag's own
-# scripts/release-build-env.sh, `cargo build --locked --release --target x86_64-unknown-linux-gnu
-# -p rdownloader -p rd-capture` — without its caches (rust-cache, the pnpm store), which would be
-# state the two rebuilds share.
+# The build is release.yml's `linux-binaries` job — the web interface built (there by its `web`
+# job) and embedded through rust-embed, the toolchain pinned through RUSTUP_TOOLCHAIN, the
+# environment from the tag's own scripts/release-build-env.sh, `cargo build --locked --release
+# --target x86_64-unknown-linux-gnu -p rdownloader -p rd-capture` — without the pnpm store
+# release.yml caches, which would be state the two rebuilds share.
 #
 # It runs when the Release workflow of a tag has succeeded, so the published archive exists, and
 # by hand for any tag; a tag without a published Linux x86_64 archive is then compared with

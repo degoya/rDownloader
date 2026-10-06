@@ -1,7 +1,7 @@
 {
   "header": {
     "eyebrow": "Registre des résolveurs",
-    "title": "Composants fournisseurs versionnés",
+    "title": "Plugins",
     "description": "Avant l’installation atomique, les paquets sont vérifiés : signature, manifeste, format de composant et imports autorisés. Les paquets non signés ne fonctionnent que si le service est explicitement en mode développement."
   },
   "install": {
@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Versions installées",
     "title": "Inventaire local",
-    "empty": "Aucun plugin installé pour le moment. Les liens d’hébergeurs ont besoin d’un plugin résolveur : installez un service du lot fourni ci-dessus ou d’un dépôt.",
+    "empty": "Aucun plugin installé pour le moment. Les liens d’hébergeurs ont besoin d’un plugin résolveur : installez un service du lot fourni dans l’onglet « Ajouter » ou d’un dépôt.",
     "filter_label": "Filtrer par groupe de plugins"
   },
   "card": {
@@ -48,7 +48,6 @@
     "key_id": "Identifiant de clé",
     "fingerprint": "Empreinte",
     "warning": "Ne confirmez que si cette empreinte correspond à celle publiée par l’auteur du plugin. Une mauvaise clé permettrait à un tiers de publier des mises à jour pour ce plugin.",
-    "cancel": "Annuler",
     "confirm": "Approuver et installer"
   },
   "type": {

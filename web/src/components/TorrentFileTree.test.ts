@@ -1,33 +1,20 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { ResolvedTorrentPlan, TorrentPlanRequest } from '@/api/types'
 import en from '@/locales/en/torrent.json'
+import { mountComponent } from '@/test/mount'
 
 import TorrentFileTree from './TorrentFileTree.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { torrent: en } } })
-
-/** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+/** Deliberate stand-ins: the tri-state checkbox and a priority select that answers with a fixed value. */
+const stubs = {
   // Mirrors the real checkbox closely enough to drive tri-state assertions.
   UCheckbox: {
     props: ['modelValue'],
     emits: ['update:modelValue'],
     template:
       '<button type="button" :data-state="String(modelValue)" v-bind="$attrs" @click="$emit(\'update:modelValue\', modelValue !== true)"><slot /></button>'
-  },
-  UBadge: passthrough,
-  UIcon: passthrough,
-  UFormField: passthrough,
-  UInput: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template:
-      '<input :value="modelValue" v-bind="$attrs" @input="$emit(\'update:modelValue\', $event.target.value)">'
   },
   // Emits a fixed value on click, which is enough to drive the priority handler.
   USelect: {
@@ -54,9 +41,10 @@ function plan(overrides: Partial<ResolvedTorrentPlan['files'][number]>[] = []): 
 }
 
 function renderTree(value: ResolvedTorrentPlan = plan()) {
-  return render(TorrentFileTree, {
-    props: { plan: value },
-    global: { plugins: [i18n], components }
+  return mountComponent(TorrentFileTree, {
+    messages: { torrent: en },
+    stubs: stubs,
+    props: { plan: value }
   })
 }
 

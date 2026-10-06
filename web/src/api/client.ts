@@ -4,6 +4,7 @@ import { reportServiceReachable, reportServiceUnreachable } from '@/composables/
 import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
 
 import { BASE_PATH } from '@/basePath'
+import { isRecord } from '@/utils/values'
 
 import type { paths } from './schema'
 
@@ -110,8 +111,4 @@ export function responseError(response: unknown): string {
 /** Translated text of a successful `MessageResponse`. */
 export function resultMessage(body: unknown): string {
   return translateServerMessage(serverMessageFrom(body))
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }

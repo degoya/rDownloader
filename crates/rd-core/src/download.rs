@@ -132,6 +132,39 @@ impl DownloadState {
                 | (Skipped, Queued | Cancelled)
         ) || self == next
     }
+
+    /// A worker runs the entry right now: resolving, fetching, verifying, repairing or
+    /// unpacking. Seeding is not counted — it is stopped through the torrent engine.
+    #[must_use]
+    pub const fn is_working(self) -> bool {
+        matches!(
+            self,
+            Self::Resolving
+                | Self::Downloading
+                | Self::Verifying
+                | Self::Repairing
+                | Self::Extracting
+        )
+    }
+
+    /// The payload is being written, read or served: [`Self::is_working`] or seeding.
+    #[must_use]
+    pub const fn holds_the_file(self) -> bool {
+        self.is_working() || matches!(self, Self::Seeding)
+    }
+
+    /// Waiting for its turn (`Queued`, `RetryWait`) or [`Self::is_working`] — what a pause acts
+    /// on and what has to be stopped before the entry may be removed.
+    #[must_use]
+    pub const fn is_queued_or_working(self) -> bool {
+        self.is_working() || matches!(self, Self::Queued | Self::RetryWait)
+    }
+
+    /// A runner holds a network connection: resolving, downloading or seeding.
+    #[must_use]
+    pub const fn holds_a_connection(self) -> bool {
+        matches!(self, Self::Resolving | Self::Downloading | Self::Seeding)
+    }
 }
 
 impl fmt::Display for DownloadState {

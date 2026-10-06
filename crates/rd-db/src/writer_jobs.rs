@@ -1,12 +1,19 @@
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use rd_core::{DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind};
-use sqlx::{Connection, Row};
+use sqlx::Connection;
 
 use crate::{
     error::StoreError,
     writer::{Writer, insert_event},
 };
+
+#[path = "writer_jobs_fields.rs"]
+mod fields;
+#[path = "writer_jobs_maintenance.rs"]
+mod maintenance;
+#[path = "writer_jobs_package.rs"]
+mod package;
 
 /// Adds a transfer's outcome to the persistent statistics, inside the caller's transaction.
 ///
@@ -80,14 +87,7 @@ impl Writer {
         let current = crate::models::get_download_from_connection(&mut self.connection, id)
             .await?
             .context(StoreError::not_found("download not found"))?;
-        if matches!(
-            current.state,
-            DownloadState::Resolving
-                | DownloadState::Downloading
-                | DownloadState::Verifying
-                | DownloadState::Repairing
-                | DownloadState::Extracting
-        ) {
+        if current.state.is_working() {
             bail!(StoreError::wrong_state(
                 "active download must be paused or cancelled before it can be reset"
             ));
@@ -185,14 +185,7 @@ impl Writer {
         let current = crate::models::get_download_from_connection(&mut self.connection, id)
             .await?
             .context(StoreError::not_found("download not found"))?;
-        if matches!(
-            current.state,
-            DownloadState::Resolving
-                | DownloadState::Downloading
-                | DownloadState::Verifying
-                | DownloadState::Repairing
-                | DownloadState::Extracting
-        ) {
+        if current.state.is_working() {
             bail!(StoreError::wrong_state(
                 "active download must be paused or cancelled before removal"
             ));
@@ -225,6 +218,74 @@ impl Writer {
             );
         }
         Ok(())
+    }
+
+    /// [`Self::delete_download`] for many rows at once (RD-1120-17): every row the store may
+    /// remove goes in one transaction, so a batch costs one commit instead of one per row, and
+    /// an interruption leaves all of them or none.
+    ///
+    /// A row that is gone or still working is refused on its own, as the single removal
+    /// refuses it, and the others go ahead; the answer holds one entry per id, in order, and a
+    /// second mention of an id finds its row gone. A package goes with its last file as it does
+    /// there. The removed rows are announced with one `removed` event for the batch
+    /// ([`crate::writer::rows_event`]), not one each: 500 at once would overrun the bus.
+    pub(crate) async fn delete_downloads(&mut self, ids: &[DownloadId]) -> Result<Vec<Result<()>>> {
+        let mut outcomes = Vec::with_capacity(ids.len());
+        let mut removed = Vec::new();
+        let mut packages = Vec::new();
+        let mut transaction = self.connection.begin().await?;
+        for &id in ids {
+            let Some(current) =
+                crate::models::get_download_from_connection(&mut transaction, id).await?
+            else {
+                outcomes.push(Err(anyhow::anyhow!(StoreError::not_found(
+                    "download not found"
+                ))));
+                continue;
+            };
+            if current.state.is_working() {
+                outcomes.push(Err(anyhow::anyhow!(StoreError::wrong_state(
+                    "active download must be paused or cancelled before removal"
+                ))));
+                continue;
+            }
+            sqlx::query("DELETE FROM downloads WHERE id = ?")
+                .bind(id.to_string())
+                .execute(&mut *transaction)
+                .await?;
+            removed.push(id);
+            if !packages.contains(&current.package_id) {
+                packages.push(current.package_id);
+            }
+            outcomes.push(Ok(()));
+        }
+        let mut remaining = Vec::new();
+        for package_id in packages {
+            if !remove_package_if_empty(&mut transaction, &package_id.to_string()).await? {
+                remaining.push(package_id);
+            }
+        }
+        let event = (!removed.is_empty())
+            .then(|| crate::writer::rows_event(&removed, serde_json::json!({ "removed": true })));
+        if let Some(event) = &event {
+            insert_event(&mut transaction, event).await?;
+        }
+        transaction.commit().await?;
+        if let Some(event) = event {
+            let _ = self.events.send(event);
+        }
+        // As after a single removal: a sibling held back for the PAR2 verdict may have been
+        // waiting for one of these rows, and the removal is committed whatever this answers.
+        for package_id in remaining {
+            if let Err(error) = self.settle_package_after_download(package_id).await {
+                tracing::warn!(
+                    %package_id,
+                    %error,
+                    "the package was not settled after a removal"
+                );
+            }
+        }
+        Ok(outcomes)
     }
 
     /// Removes a package that has no files, for a caller that has no download id to offer.
@@ -399,404 +460,5 @@ impl Writer {
         self.settle_package_after_download(updated.package_id)
             .await?;
         Ok(updated)
-    }
-
-    /// The tail of every write that moves one download of a package.
-    ///
-    /// A row held back for the PAR2 verdict (RD-108-24) is waiting for exactly this moment:
-    /// the transition that just happened may have been the last one the set was waiting for.
-    /// The verdict is taken before the package state is derived, so the package settles on
-    /// the states the verdict leaves behind rather than on the ones it was about to change.
-    pub(crate) async fn settle_package_after_download(
-        &mut self,
-        package_id: rd_core::PackageId,
-    ) -> Result<()> {
-        let events =
-            crate::nzb_queue::settle_par2_verdicts(&mut self.connection, package_id).await?;
-        for event in events {
-            let _ = self.events.send(event);
-        }
-        self.refresh_package_state(package_id).await
-    }
-
-    /// Derives `packages.state` from its files: any active file → `downloading`; files
-    /// still pending → `queued`; a Usenet set given up as beyond repair → `failed`.
-    /// Post-processing states are owned by the extraction service and are left alone until a
-    /// file becomes active again.
-    pub(crate) async fn refresh_package_state(
-        &mut self,
-        package_id: rd_core::PackageId,
-    ) -> Result<()> {
-        let Some(current) =
-            sqlx::query_scalar::<_, String>("SELECT state FROM packages WHERE id = ?")
-                .bind(package_id.to_string())
-                .fetch_optional(&mut self.connection)
-                .await?
-        else {
-            return Ok(());
-        };
-        let rows: Vec<(String, Option<String>)> =
-            sqlx::query_as("SELECT state, last_error_json FROM downloads WHERE package_id = ?")
-                .bind(package_id.to_string())
-                .fetch_all(&mut self.connection)
-                .await?;
-        let states: Vec<String> = rows.iter().map(|(state, _)| state.clone()).collect();
-        let active = states.iter().any(|state| {
-            matches!(
-                state.as_str(),
-                "resolving" | "downloading" | "verifying" | "repairing"
-            )
-        });
-        // A skipped mirror never completes by design, so it must not hold the package back;
-        // at least one file still has to have finished, or an all-skipped package would
-        // announce itself done without a single byte.
-        let all_completed = states.iter().any(|state| state == "completed")
-            && states
-                .iter()
-                .all(|state| matches!(state.as_str(), "completed" | "skipped"));
-        let next = if active {
-            rd_core::PackageState::Downloading
-        } else if all_completed || current == "postprocessing" {
-            return Ok(());
-        } else if crate::nzb_hopeless::gave_up(&rows) {
-            // A Usenet set given up as beyond repair (RD-1100-02) ends here, not back in the
-            // queue: nothing of it will run again unless somebody retries a row.
-            rd_core::PackageState::Failed
-        } else {
-            rd_core::PackageState::Queued
-        };
-        if next.to_string() == current {
-            return Ok(());
-        }
-        self.set_package_state(package_id, next, None, None, None)
-            .await
-    }
-
-    /// Writes the package lifecycle state plus live post-processing stage and emits
-    /// `package.state`.
-    pub(crate) async fn set_package_state(
-        &mut self,
-        package_id: rd_core::PackageId,
-        state: rd_core::PackageState,
-        stage: Option<rd_core::PostprocessStage>,
-        percent: Option<u8>,
-        current: Option<String>,
-    ) -> Result<()> {
-        let event = EventEnvelope::new(
-            EventKind::PackageState,
-            serde_json::json!({
-                "package_id": package_id,
-                "state": state,
-                "stage": stage,
-                "percent": percent,
-                "current": current,
-            }),
-        );
-        let mut transaction = self.connection.begin().await?;
-        // Stamped on the way into `Completed` and cleared on the way out, so a package that is
-        // restarted starts its removal delay over rather than carrying the old one.
-        let completed_at = (state == rd_core::PackageState::Completed).then_some(event.occurred_at);
-        sqlx::query(
-            "UPDATE packages SET state = ?, postprocess_stage = ?, postprocess_percent = ?, \
-             postprocess_current = ?, completed_at = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(state.to_string())
-        .bind(stage.map(|value| value.to_string()))
-        .bind(percent.map(i64::from))
-        .bind(current)
-        .bind(completed_at)
-        .bind(event.occurred_at)
-        .bind(package_id.to_string())
-        .execute(&mut *transaction)
-        .await?;
-        // The history entry rides in the transaction that gives the package its outcome
-        // (RD-1100-04), so it survives the package's removal and never describes an outcome
-        // the queue does not know.
-        let outcome = match state {
-            rd_core::PackageState::Completed => Some(rd_core::HistoryOutcome::Completed),
-            rd_core::PackageState::Failed => Some(rd_core::HistoryOutcome::Failed),
-            _ => None,
-        };
-        if let Some(outcome) = outcome {
-            crate::history_store::record(
-                &mut transaction,
-                &package_id.to_string(),
-                outcome,
-                event.occurred_at,
-            )
-            .await?;
-            rd_core::failpoint!("history.before_entry_committed", || {
-                anyhow::anyhow!("crash point: the history entry is written and not committed")
-            });
-        }
-        insert_event(&mut transaction, &event).await?;
-        transaction.commit().await?;
-        let _ = self.events.send(event);
-        Ok(())
-    }
-
-    /// Persists the unpack outcome of the current post-processing run. Emits no event —
-    /// the final `package.state` write follows and triggers the UI refresh.
-    pub(crate) async fn set_package_extraction(
-        &mut self,
-        package_id: rd_core::PackageId,
-        result: Option<rd_core::ExtractionResult>,
-    ) -> Result<()> {
-        sqlx::query("UPDATE packages SET extraction_result = ?, updated_at = ? WHERE id = ?")
-            .bind(result.map(|value| value.to_string()))
-            .bind(chrono::Utc::now())
-            .bind(package_id.to_string())
-            .execute(&mut self.connection)
-            .await?;
-        Ok(())
-    }
-
-    /// User-driven rename; refused while the file is active or already finished.
-    pub(crate) async fn rename_download(
-        &mut self,
-        id: DownloadId,
-        file_name: &str,
-    ) -> Result<DownloadFile> {
-        let current = crate::models::get_download_from_connection(&mut self.connection, id)
-            .await?
-            .context(StoreError::not_found("download not found"))?;
-        if !matches!(
-            current.state,
-            DownloadState::Queued
-                | DownloadState::Paused
-                | DownloadState::RetryWait
-                | DownloadState::Failed
-                | DownloadState::Blocked
-                | DownloadState::Cancelled
-        ) {
-            bail!(StoreError::wrong_state(
-                "download cannot be renamed while active or completed"
-            ));
-        }
-        let event = EventEnvelope::new(
-            EventKind::DownloadState,
-            serde_json::json!({ "download_id": id, "renamed": true }),
-        );
-        let mut transaction = self.connection.begin().await?;
-        // The PAR2 marking follows the name it was taken on (RD-108-23).
-        sqlx::query(
-            "UPDATE downloads SET file_name = ?, recovery = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(file_name)
-        .bind(rd_core::is_recovery_volume(file_name))
-        .bind(Utc::now())
-        .bind(id.to_string())
-        .execute(&mut *transaction)
-        .await?;
-        crate::writer::insert_event(&mut transaction, &event).await?;
-        transaction.commit().await?;
-        let _ = self.events.send(event);
-        crate::models::get_download_from_connection(&mut self.connection, id)
-            .await?
-            .context(StoreError::not_found("download not found"))
-    }
-
-    pub(crate) async fn set_file_name(&mut self, id: DownloadId, file_name: &str) -> Result<()> {
-        let result = sqlx::query(
-            "UPDATE downloads SET file_name = ?, recovery = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(file_name)
-        .bind(rd_core::is_recovery_volume(file_name))
-        .bind(Utc::now())
-        .bind(id.to_string())
-        .execute(&mut self.connection)
-        .await?;
-        if result.rows_affected() != 1 {
-            bail!(StoreError::not_found("download not found"));
-        }
-        Ok(())
-    }
-
-    /// Records which vault entry holds this download's transform key (RD-120-11).
-    ///
-    /// Written once per key rather than per attempt: the reference is part of
-    /// `ContentTransform::fingerprint`, so a new one on every attempt would tell every
-    /// continuation that its own chunk MACs belonged to somebody else.
-    pub(crate) async fn set_transform_key_ref(
-        &mut self,
-        id: DownloadId,
-        reference: Option<String>,
-    ) -> Result<()> {
-        let result =
-            sqlx::query("UPDATE downloads SET transform_key_ref = ?, updated_at = ? WHERE id = ?")
-                .bind(reference)
-                .bind(Utc::now())
-                .bind(id.to_string())
-                .execute(&mut self.connection)
-                .await?;
-        if result.rows_affected() != 1 {
-            bail!(StoreError::not_found("download not found"));
-        }
-        Ok(())
-    }
-
-    pub(crate) async fn claim_resolver_refresh(&mut self, id: DownloadId) -> Result<bool> {
-        let result = sqlx::query(
-            "UPDATE downloads SET resolver_refresh_count = 1, updated_at = ? \
-             WHERE id = ? AND resolver_refresh_count = 0",
-        )
-        .bind(Utc::now())
-        .bind(id.to_string())
-        .execute(&mut self.connection)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
-    pub(crate) async fn claim_resolver_pin(
-        &mut self,
-        id: DownloadId,
-        pin: rd_core::ResolverPin,
-    ) -> Result<rd_core::ResolverPin> {
-        sqlx::query(
-            "INSERT INTO download_resolver_pins \
-             (download_id, plugin_id, plugin_version, created_at) VALUES (?, ?, ?, ?) \
-             ON CONFLICT(download_id) DO NOTHING",
-        )
-        .bind(id.to_string())
-        .bind(pin.plugin_id.to_string())
-        .bind(&pin.version)
-        .bind(Utc::now())
-        .execute(&mut self.connection)
-        .await?;
-        let row = sqlx::query(
-            "SELECT plugin_id, plugin_version FROM download_resolver_pins WHERE download_id = ?",
-        )
-        .bind(id.to_string())
-        .fetch_optional(&mut self.connection)
-        .await?
-        .context("download resolver pin was not persisted")?;
-        Ok(rd_core::ResolverPin {
-            plugin_id: crate::parse_id(row.get::<String, _>("plugin_id").as_str())?,
-            version: row.get("plugin_version"),
-        })
-    }
-
-    pub(crate) async fn recover_interrupted(&mut self) -> Result<u64> {
-        let now = Utc::now();
-        let mut transaction = self.connection.begin().await?;
-        // A row held back for the PAR2 verdict (RD-108-24) is `verifying` and must stay
-        // where it is: its file is whole on disk apart from the holes, and requeueing it
-        // would fetch the whole file again to arrive at the same open question.
-        let result = sqlx::query(
-            "UPDATE downloads SET state = 'queued', updated_at = ? \
-             WHERE state IN ('resolving', 'downloading', 'repairing') \
-             OR (state = 'verifying' \
-                 AND (last_error_json IS NULL OR last_error_json NOT LIKE ?))",
-        )
-        .bind(now)
-        .bind(crate::nzb_queue::AWAITING_PAR2_PATTERN)
-        .execute(&mut *transaction)
-        .await?;
-        // Extraction runs on finished files; an interrupted extraction must not re-download.
-        sqlx::query(
-            "UPDATE downloads SET state = 'completed', updated_at = ? WHERE state = 'extracting'",
-        )
-        .bind(now)
-        .execute(&mut *transaction)
-        .await?;
-        sqlx::query("UPDATE nzb_segments SET state = 'queued' WHERE state = 'downloading'")
-            .execute(&mut *transaction)
-            .await?;
-        sqlx::query("UPDATE postprocess_steps SET state = 'queued' WHERE state = 'running'")
-            .execute(&mut *transaction)
-            .await?;
-        sqlx::query(
-            "UPDATE link_candidates SET state = 'online' WHERE state IN ('resolving', 'checking')",
-        )
-        .execute(&mut *transaction)
-        .await?;
-        // A package row is always written before its first file — `rd_scheduler::enqueue` and
-        // every other creator do it in that order — so a process that stops in that window
-        // leaves a package with nothing in it. Nothing in the queue or the interface tells
-        // such a row apart from a package that is simply short, so it reads as a finished
-        // package that downloaded nothing, and it can never be removed the ordinary way
-        // because removal hangs off a file it does not have. `delete_download` already treats
-        // a package whose last file is gone as gone; this applies the same rule at the start.
-        let empty: Vec<String> = sqlx::query_scalar(
-            "SELECT id FROM packages WHERE NOT EXISTS \
-             (SELECT 1 FROM downloads WHERE package_id = packages.id)",
-        )
-        .fetch_all(&mut *transaction)
-        .await?;
-        for package_id in &empty {
-            remove_package_if_empty(&mut transaction, package_id).await?;
-        }
-        transaction.commit().await?;
-        // Whatever the set was waiting for before the restart, it is not running now. A
-        // package whose other rows all reached a terminal state before the process stopped
-        // gets its verdict here; one whose rows were just requeued keeps waiting for them.
-        let waiting =
-            crate::nzb_queue::packages_awaiting_par2_verdict(&mut self.connection).await?;
-        for package_id in waiting {
-            self.settle_package_after_download(package_id).await?;
-        }
-        Ok(result.rows_affected())
-    }
-
-    pub(crate) async fn checkpoint_wal(&mut self) -> Result<()> {
-        sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)")
-            .execute(&mut self.connection)
-            .await?;
-        Ok(())
-    }
-
-    /// `VACUUM INTO` on the writer's own connection: the copy is the state after every
-    /// command sent before this one, and no command sent after it (see `crate::snapshot`).
-    pub(crate) async fn vacuum_into(&mut self, path: &std::path::Path) -> Result<()> {
-        // SQLite refuses a target that already holds data; refusing earlier names the reason.
-        anyhow::ensure!(
-            !path.exists(),
-            "the snapshot target {} already exists",
-            path.display()
-        );
-        let target = path
-            .to_str()
-            .with_context(|| format!("snapshot path {} is not UTF-8", path.display()))?;
-        sqlx::query("VACUUM INTO ?")
-            .bind(target)
-            .execute(&mut self.connection)
-            .await
-            .with_context(|| format!("write database snapshot {}", path.display()))?;
-        Ok(())
-    }
-
-    /// Writes `value` under `key` unless the key already holds one; `false` when it did.
-    ///
-    /// One statement, so two callers racing for the same key cannot both see it empty and both
-    /// write -- the check and the write are the same row lock.
-    pub(crate) async fn insert_setting_if_absent(
-        &mut self,
-        key: &str,
-        value: &serde_json::Value,
-    ) -> Result<bool> {
-        let written = sqlx::query(
-            "INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?) \
-             ON CONFLICT(key) DO NOTHING",
-        )
-        .bind(key)
-        .bind(serde_json::to_string(value)?)
-        .bind(Utc::now())
-        .execute(&mut self.connection)
-        .await?
-        .rows_affected();
-        Ok(written == 1)
-    }
-
-    pub(crate) async fn set_setting(&mut self, key: &str, value: &serde_json::Value) -> Result<()> {
-        sqlx::query(
-            "INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?) \
-             ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at",
-        )
-        .bind(key)
-        .bind(serde_json::to_string(value)?)
-        .bind(Utc::now())
-        .execute(&mut self.connection)
-        .await?;
-        Ok(())
     }
 }

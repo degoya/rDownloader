@@ -11,9 +11,12 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/api/client'
+import type { Settings } from '@/api/types'
 
 import common from '@/locales/en/common.json'
+import settingsMessages from '@/locales/en/settings.json'
 import en from '@/locales/en/usenet.json'
+import { defaultSettings } from '@/settingsDefaults'
 import { mountComponent } from '@/test/mount'
 
 import SettingsUsenetTab from './SettingsUsenetTab.vue'
@@ -226,5 +229,64 @@ describe('SettingsUsenetTab server state', () => {
     } finally {
       SERVERS[2]!.enabled = true
     }
+  })
+})
+
+/** RD-1120-21: the NNTP limits left General for the servers they are measured against. */
+describe('SettingsUsenetTab NNTP limits', () => {
+  function mountWith(modelValue: Settings | undefined, hideHeader = false) {
+    return mountComponent(SettingsUsenetTab, {
+      messages: { usenet: en, common, settings: settingsMessages },
+      props: { modelValue, hideHeader }
+    })
+  }
+
+  it('shows the limits beside the servers, measured against the largest enabled one', async () => {
+    mountWith({ ...defaultSettings(), nntp_connections_per_file: 4 })
+
+    await waitFor(() => expect(screen.getByTestId('nntp-cap-hint').textContent).toContain('allows 8 connections; one file gets at most 4 per server'))
+    expect(screen.getByText(settingsMessages.nntp_parallel_files.label)).toBeTruthy()
+    expect(document.querySelector('[data-settings-anchor="usenet.nntp_connections"]')).not.toBeNull()
+  })
+
+  it('leaves them out of the setup wizard, which hands no settings document', async () => {
+    mountWith(undefined, true)
+
+    await waitFor(() => expect(screen.getAllByLabelText(en.chain.move_down).length).toBeGreaterThan(0))
+    expect(screen.queryByText(settingsMessages.nntp_connections.label)).toBeNull()
+  })
+})
+
+/**
+ * RD-1120-23: with the NNTP limits the page had five cards, so it has two tabs — the servers with
+ * their quotas and limits, the indexers. The setup wizard asks for servers and shows no tabs.
+ */
+describe('SettingsUsenetTab tabs', () => {
+  it('puts the chain and the NNTP limits on Servers and the indexers on Indexers', async () => {
+    const { container } = mountComponent(SettingsUsenetTab, {
+      messages: { usenet: en, common, settings: settingsMessages },
+      props: { modelValue: defaultSettings() }
+    })
+
+    await waitFor(() => expect(screen.getAllByLabelText(en.chain.move_down).length).toBeGreaterThan(0))
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.trim())).toEqual([en.tabs.servers, en.tabs.indexers])
+    const servers = container.querySelector('[data-tab="servers"]') as HTMLElement
+    for (const anchor of ['usenet.server', 'usenet.chain', 'usenet.nntp_connections']) {
+      expect(servers.querySelector(`[data-settings-anchor="${anchor}"]`), anchor).not.toBeNull()
+    }
+    expect(container.querySelector('[data-tab="indexers"] [data-settings-anchor="usenet.indexers"]')).not.toBeNull()
+    expect(screen.getByRole('heading', { level: 2 }).textContent?.trim()).toBe(en.header.title)
+  })
+
+  it('shows the setup wizard the chain alone, without tabs or indexers', async () => {
+    const { container } = mountComponent(SettingsUsenetTab, {
+      messages: { usenet: en, common, settings: settingsMessages },
+      props: { hideHeader: true }
+    })
+
+    await waitFor(() => expect(screen.getAllByLabelText(en.chain.move_down).length).toBeGreaterThan(0))
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(container.querySelector('[data-settings-anchor="usenet.indexers"]')).toBeNull()
+    expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
   })
 })

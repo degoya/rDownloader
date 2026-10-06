@@ -10,8 +10,8 @@ use rd_plugin_api::{
 
 use super::super::KatfileResolver;
 use super::{
-    CAPTCHA_FORM_PAGE, CAPTCHA_OUTSIDE_FORM_PAGE, FORM_PAGE, MockHost, file, html, json,
-    resolve_request,
+    CAPTCHA_FORM_PAGE, CAPTCHA_OUTSIDE_FORM_PAGE, FORM_PAGE, MockHost, SessionHost, file, html,
+    json, resolve_request,
 };
 
 #[tokio::test]
@@ -25,7 +25,7 @@ async fn cookie_probe_returns_final_transfer_url() {
         }],
         body: vec![0],
     };
-    let resolver = KatfileResolver::new(MockHost::new(response, false));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(response, false));
     let account = AccountId::new();
     let resolved = resolver
         .resolve(ResolveRequest {
@@ -44,7 +44,7 @@ async fn cookie_probe_returns_final_transfer_url() {
 
 #[tokio::test]
 async fn download_form_is_posted_and_redirect_target_is_used() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![
             html(FORM_PAGE),
             file("https://fs7.katfile.biz/d/r4nd/release.rar"),
@@ -72,7 +72,7 @@ async fn download_form_is_posted_and_redirect_target_is_used() {
 
 #[tokio::test]
 async fn direct_link_page_after_post_is_followed() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![
             html(FORM_PAGE),
             html(
@@ -93,7 +93,7 @@ async fn direct_link_page_after_post_is_followed() {
 
 #[tokio::test]
 async fn captcha_challenge_on_file_page_is_reported_and_form_is_not_posted() {
-    let host = MockHost::with_responses(vec![html(CAPTCHA_FORM_PAGE)], false);
+    let host = MockHost::in_session(vec![html(CAPTCHA_FORM_PAGE)], false);
     let resolver = KatfileResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .resolve(resolve_request())
@@ -110,7 +110,7 @@ async fn captcha_widget_outside_the_form_does_not_block_resolve() {
     // Finding 3: has_captcha_challenge must be scoped to the download2 form, not the whole page —
     // a widget elsewhere (a login modal here) must not abort a resolve that would otherwise
     // succeed.
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![
             html(CAPTCHA_OUTSIDE_FORM_PAGE),
             file("https://fs7.katfile.biz/d/r4nd/release.rar"),
@@ -131,7 +131,7 @@ async fn captcha_widget_outside_the_form_does_not_block_resolve() {
 
 #[tokio::test]
 async fn premium_only_page_reports_auth_required_and_form_is_not_posted() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![html(
             "<title>File</title><div>This file is available for Premium members only.</div>",
         )],
@@ -150,7 +150,7 @@ async fn premium_only_page_reports_auth_required_and_form_is_not_posted() {
 #[tokio::test]
 async fn wait_page_reports_transient_with_retry_after_seconds() {
     // `var estimated_time = 450` is in TENTHS of a second (JD's own comment) -> 45 whole seconds.
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![html(
             "<html><body><script>var estimated_time = 450;</script></body></html>",
         )],
@@ -173,7 +173,7 @@ async fn wait_page_reports_transient_with_retry_after_seconds() {
 
 #[tokio::test]
 async fn guest_page_after_post_reports_missing_premium_session() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![html(FORM_PAGE), html("<html>please wait 60 seconds</html>")],
         false,
     );
@@ -271,7 +271,7 @@ async fn api_direct_link_is_used_without_cookies() {
 
 #[tokio::test]
 async fn file_info_reports_file_unavailable_for_non_200_item_status() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![
             // `api_direct_link` attempt: no usable result -> silently falls through.
             json(

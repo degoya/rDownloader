@@ -7,42 +7,14 @@
 use google_drive_common::export;
 use serde::Deserialize;
 
-/// One entry of a listing: either something to walk into, or a file to hand back.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Entry {
-    Folder {
-        id: String,
-        name: String,
-    },
-    File {
-        id: String,
-        /// The name this file will arrive under — already carrying the export extension when
-        /// it is a Workspace document, because the LinkGrabber is where somebody has to be
-        /// able to see that their spreadsheet is about to become a `.xlsx`.
-        name: String,
-        /// `None` for a Workspace document: the bytes do not exist until the export runs, and
-        /// Drive states no size for one.
-        size: Option<u64>,
-    },
-}
+/// One entry of a listing: the shared crawler entry (RD-1120-10). A Workspace document's file
+/// name already carries the export extension, because the LinkGrabber is where somebody has to
+/// be able to see that their spreadsheet is about to become a `.xlsx`; its size is `None`,
+/// because the bytes do not exist until the export runs and Drive states no size for one.
+pub use plugin_common::walk::Entry;
 
 /// Drive quotes byte counts as JSON strings.
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Flexible {
-    Number(u64),
-    Text(String),
-}
-
-impl Flexible {
-    #[must_use]
-    pub fn as_u64(&self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(*value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub use plugin_flexible::FlexibleU64 as Flexible;
 
 /// One row of `files.list`, and the whole of a `files.get` answer.
 #[derive(Debug, Deserialize)]

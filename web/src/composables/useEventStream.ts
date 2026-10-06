@@ -49,6 +49,8 @@ const RESUMED_EVENT = 'stream.resumed'
 
 /** Event name -> the subscribers interested in it. A name may have several (e.g. `usenet.changed`). */
 const listeners = new Map<string, Set<StreamListener>>()
+/** Called on every `open`, the browser's own reconnects included; see `onEventStreamOpened`. */
+const openListeners = new Set<() => void>()
 /** Names already bound on the live `EventSource`; reset on every reconnect. */
 const bound = new Set<string>()
 
@@ -119,6 +121,8 @@ function open(): void {
   stream.onopen = () => {
     attempt = 0
     reportServiceReachable()
+    // Copy first: a listener may unregister while we iterate.
+    for (const listener of [...openListeners]) listener()
     if (!resync) return
     resync = false
     dispatchLagged(new MessageEvent(RESUMED_EVENT, { data: '{}' }))
@@ -228,6 +232,16 @@ function reconnectEventStream(): void {
 window.addEventListener('online', reconnectEventStream)
 // A request answered while the stream waits out its backoff (up to 30 s): open it now.
 onServiceReconnected(reconnectEventStream)
+
+/**
+ * Calls `listener` every time the stream opens — the first time, and after every reconnect, the
+ * ones the browser makes by itself included. A service that restarted, after an update say, shows
+ * itself here first. Returns the matching unregister.
+ */
+export function onEventStreamOpened(listener: () => void): () => void {
+  openListeners.add(listener)
+  return () => openListeners.delete(listener)
+}
 
 /** Test seam: drops every subscription and closes the stream. */
 export function resetEventStream(): void {

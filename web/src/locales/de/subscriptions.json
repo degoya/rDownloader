@@ -162,13 +162,11 @@
     "hide_details": "Details ausblenden",
     "enable": "Abonnement aktivieren",
     "disable": "Abonnement deaktivieren",
-    "duplicate": "Duplizieren",
     "menu": "Aktionen für das Abo"
   },
   "remove": {
     "title": "Abonnement löschen?",
-    "description": "„{name}\" wird mit allen Filtern, Kategoriezuordnungen und dem Verlauf des bereits Gesehenen entfernt.",
-    "confirm": "Löschen"
+    "description": "„{name}\" wird mit allen Filtern, Kategoriezuordnungen und dem Verlauf des bereits Gesehenen entfernt."
   },
   "history": {
     "action": "Erledigten Verlauf löschen",

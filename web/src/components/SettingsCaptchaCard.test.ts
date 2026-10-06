@@ -1,11 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, ref } from 'vue'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import en from '@/locales/en/captcha.json'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 import SettingsCaptchaCard from './SettingsCaptchaCard.vue'
 
@@ -14,36 +13,18 @@ vi.mock('@/api/client', () => ({
   responseError: vi.fn(() => 'The solver rejected the key')
 }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { captcha: en } } })
-
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const model = {
-  props: ['modelValue'],
-  emits: ['update:modelValue'],
-  template:
-    '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-}
-const components = {
-  UButton: {
-    props: ['label', 'disabled', 'loading'],
-    template: '<button v-bind="$attrs" :disabled="disabled">{{ label }}</button>'
-  },
+/**
+ * The key field with its trailing slot, where the test button sits, and the notice as an
+ * `alert`, where the test's answer is read.
+ */
+const stubs = {
   UInput: {
-    ...model,
-    template:
-      '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot name="trailing" />'
-  },
-  UInputNumber: uiStubs.UInputNumber,
-  USelect: model,
-  USwitch: {
     props: ['modelValue'],
     emits: ['update:modelValue'],
     template:
-      '<input type="checkbox" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />'
+      '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot name="trailing" />'
   },
-  UAlert: { props: ['title'], template: '<div role="alert">{{ title }}</div>' },
-  UFormField: passthrough,
-  UBadge: passthrough
+  UAlert: { props: ['title'], template: '<div role="alert">{{ title }}</div>' }
 }
 
 const storedConfig = {
@@ -65,7 +46,7 @@ const Harness = defineComponent({
 })
 
 function renderCard() {
-  return render(Harness, { global: { plugins: [i18n], components } })
+  return mountComponent(Harness, { messages: { captcha: en }, stubs })
 }
 
 /** The timeout is the only number field on the card. */

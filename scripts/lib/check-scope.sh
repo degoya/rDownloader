@@ -15,21 +15,20 @@
 # checkout root.
 
 rd_check_scope() {
-    # crates/rd-core/recovery-matrix.md is deliberately NOT harmless text: a test compares it
-    # against rd_core::failpoint::CRASH_POINTS, so editing it is a code change wearing a .md
-    # extension. crates/rd-api/mcp-coverage.md is the same kind: rd-api's library include_str!s it
-    # and mcp_coverage::doc_tests compares it with the capability table.
+    # Documentation only: no path the change touches is read by any check (rd_inert_path,
+    # scripts/lib/inert-paths.sh — the one rule verified.sh and --defer apply too). The two .md
+    # files a test reads are not documentation there.
     docs_only=0
-    if [[ -n "$changed" ]] && ! grep -qvE '^docs/|\.md$' <<< "$changed"; then
+    if [[ -n "$changed" && -z "$(rd_non_inert_paths <<< "$changed")" ]]; then
         docs_only=1
     fi
-    if touches '^crates/rd-core/recovery-matrix\.md$|^crates/rd-api/mcp-coverage\.md$'; then docs_only=0; fi
     if [[ "$full" -eq 1 ]]; then docs_only=0; fi
 
-    # Whether anything the Rust build reads changed at all. A web-only or scripts-only change
-    # compiles nothing, so it gets no Rust test — not even rd-api's library.
+    # Whether anything the Rust build reads changed at all (rd_rust_input_touched, the rule the
+    # lint greens are kept by). A web-only or scripts-only change compiles nothing, so it gets no
+    # Rust test — not even rd-api's library.
     rust_touched=0
-    if [[ "$full" -eq 1 ]] || touches '^crates/|^plugins/|^Cargo\.(toml|lock)$|^rust-toolchain\.toml$|\.sql$|^\.config/nextest\.toml$|^deny\.toml$'; then
+    if [[ "$full" -eq 1 ]] || { [[ -n "$changed" ]] && rd_rust_input_touched <<< "$changed"; }; then
         rust_touched=1
     fi
 
@@ -146,7 +145,7 @@ rd_check_scope() {
     mapfile -t crash_triggers < <(rd_crash_matrix_triggers)
     failpoints=0
     if [[ "$full" -eq 1 ]] \
-        || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$|^scripts/lib/crash-matrix\.' \
+        || touches '^crates/rd-core/src/failpoint\.rs$|^crates/rd-core/recovery-matrix\.md$|^crates/rd-crash-points/|^scripts/lib/crash-matrix\.' \
         || printf '%s\n' "${packages[@]+"${packages[@]}"}" | grep -qxF -f <(printf '%s\n' "${crash_triggers[@]}"); then
         failpoints=1
     fi

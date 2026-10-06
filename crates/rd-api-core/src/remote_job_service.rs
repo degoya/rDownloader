@@ -37,8 +37,11 @@ use tokio_util::sync::CancellationToken;
 
 use crate::link_check_service::LinkCheckService;
 
+mod naming;
 mod requests;
 mod sweep;
+
+pub use naming::source_name;
 
 /// Largest container a remote job may carry: 16 MiB.
 ///

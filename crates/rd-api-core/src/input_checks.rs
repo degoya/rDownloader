@@ -52,6 +52,15 @@ pub fn required_text(
     Ok(trimmed.to_owned())
 }
 
+/// `value` trimmed, or `None` when it is absent or nothing but whitespace is left: an optional
+/// field a person cleared is no value, not an empty one.
+#[must_use]
+pub fn optional_text<S: AsRef<str>>(value: Option<S>) -> Option<String> {
+    value
+        .map(|value| value.as_ref().trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
 /// `400 code` unless `value`, trimmed, is between 1 and `max` characters long.
 ///
 /// # Errors

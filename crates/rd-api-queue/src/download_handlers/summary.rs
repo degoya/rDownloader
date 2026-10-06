@@ -77,16 +77,7 @@ pub async fn summarize_downloads(state: &AppState) -> Result<DownloadSummaryResp
     }
     Ok(DownloadSummaryResponse {
         queued: count(|state| matches!(state, DownloadState::Queued | DownloadState::RetryWait)),
-        active: count(|state| {
-            matches!(
-                state,
-                DownloadState::Resolving
-                    | DownloadState::Downloading
-                    | DownloadState::Verifying
-                    | DownloadState::Repairing
-                    | DownloadState::Extracting
-            )
-        }),
+        active: count(DownloadState::is_working),
         paused: count(|state| state == DownloadState::Paused),
         blocked: count(|state| state == DownloadState::Blocked),
         failed: count(|state| matches!(state, DownloadState::Failed | DownloadState::Cancelled)),

@@ -10,6 +10,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import TimezoneSelect from '@/components/TimezoneSelect.vue'
 import { useEditableList } from '@/composables/useEditableList'
+import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useStreamSchedules } from '@/composables/useStreamSchedules'
 import { useStreamsStore } from '@/stores/streams'
@@ -17,13 +18,16 @@ import { streamQualityItems } from '@/utils/streamQuality'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
 import { formatMoment } from '@/utils/format'
 import { WHOLE } from '@/utils/numberInput'
+import { editingRowClass } from '@/utils/editingRow'
+import { clockOf, timeFieldValue } from '@/utils/timeFields'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 const { t } = useI18n()
 // Shared with the nav badge, so every add/remove here keeps the sidebar count in sync.
 const streams = useStreamsStore()
 const { channels, schedules } = storeToRefs(streams)
 const categories = ref<Category[]>([])
-const loading = ref(true)
+const { loading, load } = useFetchState()
 const message = ref<string | null>(null)
 const channelForm = ref<HTMLFormElement | null>(null)
 const focusChannelForm = useFormFocus(channelForm)
@@ -129,16 +133,15 @@ const qualityItems = computed(() => [
   ...streamQualityItems()
 ])
 
-onMounted(async () => {
+onMounted(() => load(async () => {
   const [, , categoriesResponse] = await Promise.all([
     streams.refresh(),
     streams.refreshSchedules(),
     api.GET('/api/v1/categories')
   ])
-  loading.value = false
   if (streams.error) error.value = streams.error
   if (categoriesResponse.data) categories.value = categoriesResponse.data
-})
+}))
 
 function body(): StreamChannelRequest {
   return {
@@ -229,8 +232,7 @@ const {
                 :title="editingId ? t('streams.form.form_edit') : t('streams.form.form_new')"
                 class="mb-4"
               />
-              <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
-              <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
+              <FormFeedback class="mb-3" :error="error" :message="message" />
               <form ref="channelForm" class="grid gap-3" data-testid="channel-form" @submit.prevent="submit">
                 <UFormField :label="t('streams.form.url_label')" :description="t('streams.form.url_description')" required>
                   <UInput v-model="form.url" required class="w-full font-mono" placeholder="https://twitch.tv/channel" icon="i-lucide-radio" />
@@ -279,7 +281,7 @@ const {
             </template>
             <template #list>
               <div class="grid gap-2">
-                <div v-for="channel in channels" :key="channel.id" class="border p-3" :class="editingId === channel.id ? 'border-primary' : 'border-muted'">
+                <div v-for="channel in channels" :key="channel.id" class="p-3" :class="editingRowClass(editingId === channel.id)">
                   <div class="flex items-center gap-2">
                     <UIcon name="i-lucide-radio" class="size-4 shrink-0 text-primary" />
                     <p class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted">{{ channel.name }}</p>
@@ -290,7 +292,7 @@ const {
                     <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(channel)" />
                     <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="remove(channel)" />
                   </div>
-                  <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ channel.url }}</p>
+                  <p class="mt-1 truncate font-mono text-2xs text-muted">{{ channel.url }}</p>
                   <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                     <span v-if="channel.last_live_at">{{ t('streams.last_live', { time: formatMoment(channel.last_live_at) }) }}</span>
                     <span v-else>{{ t('streams.never_live') }}</span>
@@ -324,7 +326,7 @@ const {
                 :description="t('streams.schedules.hint')"
                 class="mb-4"
               />
-              <UAlert v-if="scheduleError" class="mb-3" color="error" variant="subtle" :description="scheduleError" />
+              <UAlert v-if="scheduleError" class="mb-3" color="error" :description="scheduleError" />
               <form ref="scheduleForm" class="grid gap-3" @submit.prevent="submitSchedule">
                 <UFormField :label="t('streams.schedules.channel')" required>
                   <USelect v-model="schedule.channelId" :items="channelItems" value-key="value" class="w-full" />
@@ -334,7 +336,7 @@ const {
                 </UFormField>
                 <UCheckboxGroup v-model="scheduleDays" :items="weekdayItems" :legend="t('streams.schedules.days')" orientation="horizontal" size="sm" />
                 <UFormField :label="t('streams.schedules.start')" required>
-                  <UInput v-model="schedule.startTime" type="time" required class="w-full" />
+                  <UInputTime :model-value="timeFieldValue(schedule.startTime)" required class="w-full" @update:model-value="schedule.startTime = clockOf($event)" />
                 </UFormField>
                 <UFormField :label="t('streams.schedules.timezone')" :description="t('streams.schedules.timezone_hint')">
                   <TimezoneSelect v-model="schedule.timezone" :aria-label="t('streams.schedules.timezone')" />
@@ -362,7 +364,7 @@ const {
             <template #list>
               <div class="grid gap-2">
                 <UEmpty v-if="!schedules.length" :description="t('streams.schedules.empty')" />
-                <div v-for="entry in schedules" :key="entry.id" class="border p-3" :class="schedule.id === entry.id ? 'border-primary' : 'border-muted'" data-testid="schedule-row">
+                <div v-for="entry in schedules" :key="entry.id" class="p-3" :class="editingRowClass(schedule.id === entry.id)" data-testid="schedule-row">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium">{{ entry.name }}</span>
                     <UBadge v-if="schedule.id === entry.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>

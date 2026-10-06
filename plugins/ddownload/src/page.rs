@@ -16,8 +16,8 @@
 //!   `download1`, removes `method_premium`, and fills `method_free` with the page's own value or,
 //!   when it is missing/empty/disabled, the literal `"Free Download"`; the second form is found by
 //!   `op` = `download2` (`findFormDownload2Free`'s `getFormByInputFieldKeyValue("op",
-//!   "download2")` fallback). Those are exactly [`OP_DOWNLOAD1`]/[`OP_DOWNLOAD2`]/[`FREE_BUTTON`]
-//!   below and match KatFile's defaults.
+//!   "download2")` fallback). Those are exactly `xfs_common::standard`'s `OP_DOWNLOAD1`,
+//!   `OP_DOWNLOAD2` and `FREE_BUTTON`, which every XFS plugin uses (RD-1120-10).
 //! - **Countdown**: `DdownloadCom.regexWaittime` (dated 2026-04-21 in the source) overrides the
 //!   base class with `id="dk2CountdownNum"[^>]*>\s*(\d{1,2})` and falls back to `super`, which is
 //!   what [`free_wait_seconds`] reproduces ([`dk2_countdown_seconds`] first, then
@@ -36,11 +36,12 @@
 //!   of reCAPTCHA v2, hCaptcha and Turnstile, and `xfs_common::free::widget_marker` still
 //!   recognises all three.
 
-const OP_DOWNLOAD1: &str = "download1";
-const OP_DOWNLOAD2: &str = "download2";
-const PREMIUM_BUTTON: &str = "Premium Download";
-/// `XFileSharingProBasic.findFormDownload1Free`'s own fallback label — see the module doc.
-const FREE_BUTTON: &str = "Free Download";
+use xfs_common::standard::OP_DOWNLOAD2;
+
+pub(crate) use xfs_common::free::with_captcha_token;
+pub(crate) use xfs_common::page::encode_form;
+pub(crate) use xfs_common::standard::{download2_form as download_form, free_form, premium_form};
+
 /// Hosts a download link may point at: the site itself plus the CDN it delivers from,
 /// matching `manifest.toml`'s `download_domains`. The answer page of a free download often
 /// links straight to the CDN, so restricting the scan to `ddownload.com` would report "no
@@ -90,25 +91,6 @@ pub(crate) fn login_outcome(set_cookies: &[String], html: &str) -> xfs_common::l
 #[must_use]
 pub(crate) fn api_key(html: &str) -> Option<String> {
     xfs_common::login::api_key(html)
-}
-
-/// Hidden form fields of the `download2` form on a file page.
-#[must_use]
-pub(crate) fn download_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD2)
-}
-
-/// Hidden form fields of the `download1` form, the first step of the free flow.
-#[must_use]
-pub(crate) fn download1_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD1)
-}
-
-/// Turns raw form fields into the free submission (keeps `method_free`, drops the premium
-/// marker) — the counterpart of [`premium_form`].
-#[must_use]
-pub(crate) fn free_form(fields: &[(String, String)]) -> Vec<(String, String)> {
-    xfs_common::free::free_form(fields, FREE_BUTTON)
 }
 
 /// Clears ddownload's `adblock_detected` field when the form carries it, the way JD's
@@ -168,28 +150,12 @@ fn widget_marker_outside_markup(html: &str) -> Option<xfs_common::free::WidgetMa
     xfs_common::free::widget_marker(&xfs_common::page::without_style_script_and_comments(html))
 }
 
-/// Adds a solved captcha's token to a form under its widget's field name.
-#[must_use]
-pub(crate) fn with_captcha_token(
-    fields: &[(String, String)],
-    kind: xfs_common::free::WidgetKind,
-    token: &str,
-) -> Vec<(String, String)> {
-    xfs_common::free::with_captcha_token(fields, kind, token)
-}
-
 /// Seconds to wait before the free download may be requested: ddownload's own
 /// `id="dk2CountdownNum"` marker first, then the XFS base class's generic countdown markers —
 /// exactly the order `DdownloadCom.regexWaittime` uses (see the module doc).
 #[must_use]
 pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
     dk2_countdown_seconds(html).or_else(|| xfs_common::free::countdown_seconds(html))
-}
-
-/// Whether the page says the captcha answer was rejected.
-#[must_use]
-pub(crate) fn is_wrong_captcha(html: &str) -> bool {
-    xfs_common::free::is_wrong_captcha(html)
 }
 
 /// ddownload's own countdown marker, `id="dk2CountdownNum"` (JD `DdownloadCom.regexWaittime`,
@@ -210,22 +176,10 @@ fn dk2_countdown_seconds(html: &str) -> Option<u64> {
     (seconds > 0).then_some(seconds)
 }
 
-/// Turns the raw `download2` fields into the premium submission JDownloader sends.
-#[must_use]
-pub(crate) fn premium_form(fields: &[(String, String)]) -> Vec<(String, String)> {
-    xfs_common::page::premium_form(fields, PREMIUM_BUTTON)
-}
-
 /// Explains why an HTML page came back instead of a file, for error messages.
 #[must_use]
 pub(crate) fn diagnose(html: &str) -> String {
     xfs_common::page::diagnose(html)
-}
-
-/// Encodes form fields as `application/x-www-form-urlencoded`.
-#[must_use]
-pub(crate) fn encode_form(fields: &[(String, String)]) -> Vec<u8> {
-    xfs_common::page::encode_form(fields)
 }
 
 /// Finds the premium direct link on the page returned after submitting the form.
@@ -237,10 +191,11 @@ pub(crate) fn direct_link(html: &str, hints: &[&str]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        diagnose, direct_link, download_form, download1_form, encode_form, free_form,
-        free_wait_seconds, premium_form, widget_marker, with_adblock_cleared,
+        diagnose, direct_link, download_form, encode_form, free_form, free_wait_seconds,
+        premium_form, widget_marker, with_adblock_cleared,
     };
     use xfs_common::free::ip_block_seconds;
+    use xfs_common::standard::download1_form;
 
     const PAGE: &str = r#"<html><body>
 <form name="F1" method="POST" action="" style="display:contents;">

@@ -3,7 +3,7 @@ plugin_type = "postprocess"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000109"
 name = "Tidy file names"
-version = "0.9.12"
+version = "0.9.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -22,7 +22,7 @@ description = "Replaces spaces with dots and collapses runs of separators in the
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "0.9.2"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

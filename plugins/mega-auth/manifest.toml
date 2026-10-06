@@ -3,7 +3,7 @@ plugin_type = "auth"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000134"
 name = "MEGA sign-in"
-version = "0.1.12"
+version = "0.1.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -32,7 +32,7 @@ description = "Signs a MEGA account in without the password ever entering the sa
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "1.2.0"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

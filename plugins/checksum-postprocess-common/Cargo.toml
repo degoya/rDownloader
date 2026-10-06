@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 plugin-common = { path = "../common" }
-wit-bindgen.workspace = true
+plugin-guest-postprocess = { path = "../guest-postprocess" }
 
 [lib]
 crate-type = ["rlib"]

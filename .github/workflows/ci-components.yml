@@ -3,8 +3,9 @@ name: CI components
 # The plugin half of ci.yml, called by its `components` job (RD-1101-07 split it off; the job is
 # unchanged): every bundled plugin built as a wasm component, held to the `rdownloader:plugin`
 # imports, driven by the contract tests, packaged and run through conformance, and every SDK
-# template scaffolded and built outside the repository. It needs nothing from the other jobs and
-# nothing waits for it. The component cache it saves on `main` is the one release.yml reads.
+# template scaffolded and built outside the repository. It needs nothing from the other jobs but
+# the gate's word (RD-1120-07), and nothing waits for it. The component cache it saves on `main`
+# is the one release.yml reads.
 on:
   workflow_call:
 
@@ -25,8 +26,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
       # rd-api and its `#[derive(RustEmbed)]`.
-      # ~90 wasm components, the test binaries of three plugin crates (rd-plugin-ext's 30 at
-      # ~175 MB each), a debug rd-pack and eleven scaffold builds in a second target dir:
+      # ~90 wasm components, the test binaries of three plugin crates (rd-plugin-ext's one
+      # `contract` binary since RD-1120-08, 34 at ~175 MB each before), a debug rd-pack and eleven scaffold builds in a second target dir:
       # the same disk the `rust` job ran out of (RD-120-67).
       - name: Free runner disk
         uses: ./.github/actions/free-runner-disk
@@ -87,9 +88,11 @@ jobs:
         # component too — until RD-108-16 they skipped themselves here and passed quietly
         # there, so they ran nowhere at all. The second line is the same rule for unit tests in
         # other crates: they load components since no resolver is compiled in (RD-150-18), and
-        # the profile leaves them out by their `on_real_components` ending.
+        # the profile leaves them out by their `on_real_components` ending. `-P components` runs
+        # exactly what `no-components` leaves out, not the three crates' other tests a second
+        # time (RD-1120-08).
         run: |
-          cargo nextest run --locked --no-fail-fast -p rd-plugin-transfer -p rd-plugin-ext -p rd-plugin-host
+          cargo nextest run --locked --no-fail-fast -P components -p rd-plugin-transfer -p rd-plugin-ext -p rd-plugin-host
           cargo nextest run --locked --no-fail-fast -p rd-scheduler --lib -E 'test(/on_real_components$/)'
       # The packager, `rd-pack` (RD-150-20): the `plugin` commands of `rdownloader` without the
       # service. In the dev profile, so it reuses the plugin host the contract tests above built;

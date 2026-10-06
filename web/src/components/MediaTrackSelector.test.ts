@@ -1,27 +1,20 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { AudioTrack, SubtitleTrack, TrackSelection, TrackWarning } from '@/api/types'
 import en from '@/locales/en/linkgrabber.json'
+import { mountComponent } from '@/test/mount'
 
 import MediaTrackSelector from './MediaTrackSelector.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en } } })
-
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UAlert: { props: ['description'], template: '<div v-bind="$attrs">{{ description }}<slot /></div>' },
-  UButton: { props: ['label'], template: '<button v-bind="$attrs">{{ label }}<slot /></button>' },
-  UCheckbox: {
-    props: ['modelValue', 'label', 'description'],
-    emits: ['update:modelValue'],
-    template: '<button type="button" v-bind="$attrs" @click="$emit(\'update:modelValue\', modelValue !== true)">{{ label }} {{ description }}</button>'
-  },
-  UFormField: { props: ['label'], template: '<label v-bind="$attrs">{{ label }}<slot /></label>' },
-  UIcon: passthrough,
-  USelect: { props: ['modelValue', 'items'], template: '<select v-bind="$attrs"><slot /></select>' },
-  USelectMenu: { props: ['modelValue', 'items'], template: '<select v-bind="$attrs"><slot /></select>' }
+/**
+ * The checkbox as one element carrying the field's test id and its description; the shared stub
+ * repeats its attributes on the label and the input.
+ */
+const UCheckbox = {
+  props: ['modelValue', 'label', 'description'],
+  emits: ['update:modelValue'],
+  template: '<button type="button" v-bind="$attrs" @click="$emit(\'update:modelValue\', modelValue !== true)">{{ label }} {{ description }}</button>'
 }
 
 function tracks(overrides: Partial<TrackSelection> = {}): TrackSelection {
@@ -39,15 +32,16 @@ function mount(props: {
   warnings?: TrackWarning[]
   canMerge?: boolean
 }) {
-  return render(MediaTrackSelector, {
+  return mountComponent(MediaTrackSelector, {
+    messages: { linkgrabber: en },
+    stubs: { UCheckbox },
     props: {
       tracks: props.tracks ?? tracks(),
       audioTracks: props.audioTracks ?? [],
       subtitles: props.subtitles ?? [],
       warnings: props.warnings ?? [],
       canMerge: props.canMerge ?? true
-    },
-    global: { plugins: [i18n], components }
+    }
   })
 }
 
@@ -77,16 +71,24 @@ describe('MediaTrackSelector', () => {
 
   it('disables embedding when ffmpeg is unavailable', () => {
     mount({ canMerge: false, subtitles: [manual('de')] })
-    const embed = screen.getByText('Embedded').closest('button')
-    expect(embed?.hasAttribute('disabled')).toBe(true)
+    const embed = screen.getByRole('radio', { name: 'Embedded' }) as HTMLInputElement
+    expect(embed.disabled).toBe(true)
+    expect(screen.getByText('Embedded').getAttribute('title')).toBe(en.media.tracks.embed_needs_ffmpeg)
     // A sidecar file needs no remux, so it stays offered.
-    const sidecar = screen.getByText('Separate file').closest('button')
-    expect(sidecar?.hasAttribute('disabled')).toBe(false)
+    const sidecar = screen.getByRole('radio', { name: 'Separate file' }) as HTMLInputElement
+    expect(sidecar.disabled).toBe(false)
+  })
+
+  // RD-1120-14: the mode is a radio group, so the chosen one is announced, not only coloured.
+  it('checks the radio of the subtitle mode in force', () => {
+    mount({ tracks: tracks({ subtitles: { mode: 'embed', languages: [], include_automatic: false, convert_to: null } }), subtitles: [manual('de')] })
+    expect((screen.getByRole('radio', { name: 'Embedded' }) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByRole('radio', { name: 'Separate file' }) as HTMLInputElement).checked).toBe(false)
   })
 
   it('emits the whole selection when the subtitle mode changes', async () => {
     const { emitted } = mount({ subtitles: [manual('de')] })
-    await fireEvent.click(screen.getByText('Separate file'))
+    await fireEvent.click(screen.getByRole('radio', { name: 'Separate file' }))
     const change = emitted().change as TrackSelection[][]
     const [selection] = change[0] ?? []
     expect(selection?.subtitles.mode).toBe('sidecar')

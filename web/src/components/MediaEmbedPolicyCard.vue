@@ -73,24 +73,22 @@ function warningText(warning: EmbedWarning): string {
     </UFormField>
 
     <UFormField :label="t('linkgrabber.media.embed.sponsorblock')">
-      <div class="flex flex-wrap items-center gap-1.5">
-        <UButton
-          v-for="item in modeItems"
-          :key="item.value"
-          :label="item.label"
-          size="xs"
-          :color="props.embed.sponsorblock.mode === item.value ? 'primary' : 'neutral'"
-          :variant="props.embed.sponsorblock.mode === item.value ? 'soft' : 'ghost'"
-          :disabled="props.busy || !props.canTranscode"
-          @click="setMode(item.value)"
-        />
-      </div>
+      <URadioGroup
+        :model-value="props.embed.sponsorblock.mode"
+        :items="modeItems"
+        variant="card"
+        indicator="hidden"
+        orientation="horizontal"
+        size="xs"
+        :disabled="props.busy || !props.canTranscode"
+        :aria-label="t('linkgrabber.media.embed.sponsorblock')"
+        @update:model-value="setMode"
+      />
     </UFormField>
 
     <UAlert
       v-if="destructive"
       color="warning"
-      variant="subtle"
       icon="i-lucide-scissors"
       data-testid="media-sponsor-destructive"
       :description="t('linkgrabber.media.embed.remove_hint')"
@@ -114,7 +112,6 @@ function warningText(warning: EmbedWarning): string {
       v-for="(warning, index) in props.warnings ?? []"
       :key="index"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       data-testid="media-embed-warning"
       :description="warningText(warning)"

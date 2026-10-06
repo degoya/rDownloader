@@ -16,6 +16,7 @@ import type { StatsRange, TransferStatsGroup, UsenetServerTraffic } from '@/api/
 import { serviceUrl } from '@/basePath'
 import DataState from '@/components/DataState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import StatTiles from '@/components/StatTiles.vue'
 import TransferStatsChart from '@/components/TransferStatsChart.vue'
 import { useStatsStore } from '@/stores/stats'
 import { formatBytes, formatDuration } from '@/utils/format'
@@ -24,6 +25,7 @@ const { t, n } = useI18n()
 const store = useStatsStore()
 
 const RANGES: StatsRange[] = ['day', 'week', 'month', 'year']
+const rangeItems = computed(() => RANGES.map(value => ({ label: t(`stats.ranges.${value}`), value })))
 
 onMounted(() => store.start())
 onUnmounted(() => store.stop())
@@ -89,30 +91,22 @@ const endpoint = computed(() => serviceUrl('/api/v1/metrics'))
            below it on a phone. -->
       <div class="flex flex-wrap items-start justify-between gap-4">
         <SectionHeader level="page" :eyebrow="t('stats.eyebrow')" :title="t('stats.title')" :description="t('stats.description')" />
-        <div class="flex flex-wrap gap-1" role="group" :aria-label="t('stats.ranges.label')">
-          <UButton
-            v-for="range in RANGES"
-            :key="range"
-            size="sm"
-            :color="store.range === range ? 'primary' : 'neutral'"
-            :variant="store.range === range ? 'solid' : 'subtle'"
-            :aria-pressed="store.range === range"
-            :label="t(`stats.ranges.${range}`)"
-            @click="store.setRange(range)"
-          />
-        </div>
+        <URadioGroup
+          :model-value="store.range"
+          :items="rangeItems"
+          variant="card"
+          indicator="hidden"
+          orientation="horizontal"
+          size="xs"
+          :aria-label="t('stats.ranges.label')"
+          @update:model-value="store.setRange"
+        />
       </div>
-      <UAlert v-if="store.error" class="mt-4" color="error" variant="subtle" role="alert" :description="store.error" />
+      <UAlert v-if="store.error" class="mt-4" color="error" role="alert" :description="store.error" />
       <DataState :loading="store.loading" :error="null" :empty="empty" :rows="2" variant="inline" class="mt-4">
-        <p class="text-sm text-muted">{{ t('stats.chart.empty') }}</p>
+        <UEmpty :description="t('stats.chart.empty')" />
       </DataState>
-      <div v-if="tiles.length" class="mt-4 grid gap-px border border-muted bg-muted sm:grid-cols-3 xl:grid-cols-6">
-        <div v-for="tile in tiles" :key="tile.key" class="bg-elevated p-4" :data-tile="tile.key">
-          <p class="eyebrow">{{ tile.label }}</p>
-          <p class="numeric mt-2 text-lg text-highlighted">{{ tile.value }}</p>
-          <p class="mt-1 text-xs text-muted">{{ tile.hint }}</p>
-        </div>
-      </div>
+      <StatTiles v-if="tiles.length" :tiles="tiles" class="mt-4 sm:grid-cols-3 xl:grid-cols-6" />
       <TransferStatsChart v-if="store.stats?.buckets.length" class="mt-3" :buckets="store.stats.buckets" :resolution="store.stats.resolution" :since="store.stats.since" />
     </UCard>
 

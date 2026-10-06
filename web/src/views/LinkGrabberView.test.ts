@@ -49,8 +49,10 @@ vi.mock('@nuxt/ui/composables', () => ({
   useOverlay: () => ({ create: (component: unknown) => ({ open: (props?: Record<string, unknown>) => overlayOpen(component, props) }) }),
   useToast: () => ({ add: vi.fn() })
 }))
+/** The query the view is opened with; a remote job's package link sets `package` (RD-1120-02). */
+const routeQuery = vi.hoisted(() => ({ value: {} as Record<string, unknown> }))
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: {} }),
+  useRoute: () => ({ query: routeQuery.value }),
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() })
 }))
 // A candidate row asks which providers have an account, and that lookup subscribes to
@@ -185,6 +187,7 @@ function handleOf(container: Element, key: string): HTMLElement {
 beforeEach(() => {
   setActivePinia(createPinia())
   localStorage.clear()
+  routeQuery.value = {}
 })
 
 describe('LinkGrabberView', () => {
@@ -207,6 +210,17 @@ describe('LinkGrabberView', () => {
     const rendered = container.querySelectorAll('[role="listitem"]')
     expect(rendered.length).toBeLessThan(550)
     expect(rendered[0]?.getAttribute('aria-setsize')).toBe('550')
+  })
+
+  /** A remote job's package link lands on its package, even one far outside the window. */
+  it('puts the keyboard on the package a link named', async () => {
+    seedCollector(60, 10)
+    routeQuery.value = { package: 'cpkg-42' }
+    const { container } = mountView()
+    await settle()
+    await settle()
+
+    expect(document.activeElement).toBe(handleOf(container, 'package:cpkg-42'))
   })
 
   /** A focused handle is pinned, so scrolling the window past it does not drop the keyboard. */

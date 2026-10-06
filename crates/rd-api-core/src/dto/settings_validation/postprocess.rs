@@ -1,6 +1,7 @@
 //! The post-processing half of a settings update: paths, limits, retries, archives and tools.
 
 use super::*;
+use crate::input_checks::optional_text;
 
 /// Longest path or address a post-processing setting may hold.
 const MAX_PATH_LENGTH: usize = 4096;
@@ -76,11 +77,7 @@ impl SettingsResponse {
             .with_param("min", 10)
             .with_param("max", 86_400));
         }
-        self.scripts_directory = self
-            .scripts_directory
-            .take()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty());
+        self.scripts_directory = optional_text(self.scripts_directory.take());
         if self.scripts_directory.as_ref().is_some_and(|value| {
             value.len() > MAX_PATH_LENGTH || !std::path::Path::new(value).is_absolute()
         }) {
@@ -102,11 +99,7 @@ impl SettingsResponse {
             ));
         }
         self.upload_remote = normalize_upload_remote(self.upload_remote.take())?;
-        self.rclone_executable = self
-            .rclone_executable
-            .take()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty());
+        self.rclone_executable = optional_text(self.rclone_executable.take());
         if self.rclone_executable.as_ref().is_some_and(|value| {
             value.len() > MAX_PATH_LENGTH || !std::path::Path::new(value).is_absolute()
         }) {
@@ -215,11 +208,7 @@ impl SettingsResponse {
                 "RAR tool must be either 'unrar' or '7z'",
             ));
         }
-        self.rar_executable = self
-            .rar_executable
-            .take()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty());
+        self.rar_executable = optional_text(self.rar_executable.take());
         if self
             .rar_executable
             .as_ref()
@@ -241,11 +230,7 @@ impl SettingsResponse {
                 "RAR tool must be given as an absolute path",
             ));
         }
-        self.passwords_file = self
-            .passwords_file
-            .take()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty());
+        self.passwords_file = optional_text(self.passwords_file.take());
         if self.passwords_file.as_ref().is_some_and(|value| {
             value.len() > MAX_PATH_LENGTH || !std::path::Path::new(value).is_absolute()
         }) {
@@ -275,10 +260,7 @@ impl SettingsResponse {
                 &mut self.excluded_domains_file,
             ),
         ] {
-            *value = value
-                .take()
-                .map(|text| text.trim().to_owned())
-                .filter(|text| !text.is_empty());
+            *value = optional_text(value.take());
             if value.as_ref().is_some_and(|text| {
                 text.len() > MAX_PATH_LENGTH || !std::path::Path::new(text).is_absolute()
             }) {
@@ -294,11 +276,7 @@ impl SettingsResponse {
         // A manifest served over plain HTTP is a manifest whoever sits on the path can
         // replace. The signature would still be checked, but refusing here says why rather
         // than failing later with "untrusted key" on a document nobody tampered with.
-        self.managed_tools_manifest_url = self
-            .managed_tools_manifest_url
-            .take()
-            .map(|text| text.trim().to_owned())
-            .filter(|text| !text.is_empty());
+        self.managed_tools_manifest_url = optional_text(self.managed_tools_manifest_url.take());
         if self
             .managed_tools_manifest_url
             .as_ref()

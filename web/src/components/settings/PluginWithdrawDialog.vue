@@ -25,13 +25,13 @@ const open = computed({
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="t('plugins.withdraw.title')" :ui="{ footer: 'justify-end' }">
+  <UModal v-model:open="open" :title="t('plugins.withdraw.title')">
     <template #body>
       <div v-if="pending" class="space-y-4">
         <p class="text-sm leading-6 text-toned">{{ t('plugins.withdraw.intro', { name: pending.name, version: pending.version }) }}</p>
         <!-- The one sentence somebody has to read before they conclude the feature is broken:
              the package they just withdrew keeps running until the service restarts. -->
-        <UAlert color="warning" variant="subtle" :description="t('plugins.withdraw.restart')" />
+        <UAlert color="warning" :description="t('plugins.withdraw.restart')" />
         <p class="text-sm leading-6 text-toned">{{ t('plugins.withdraw.key_untouched') }}</p>
         <UFormField :label="t('plugins.withdraw.reason_label')" :description="t('plugins.withdraw.reason_hint')">
           <UInput v-model="reason" class="mt-2 w-full" :maxlength="200" />

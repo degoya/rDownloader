@@ -8,7 +8,6 @@
     "code": "Código",
     "correlation": "Id de correlación",
     "search": "Buscar en los mensajes",
-    "apply": "Aplicar",
     "clear": "Quitar filtros"
   },
   "levels": {
@@ -79,5 +78,9 @@
         "secrets": "secretos: contraseñas, tokens, claves de API, cookies, certificados y referencias al almacén"
       }
     }
+  },
+  "tabs": {
+    "log": "Registro",
+    "bundle": "Paquete de diagnóstico"
   }
 }

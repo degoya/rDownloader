@@ -316,7 +316,7 @@ push, so a manifest Mozilla would refuse fails before a tag.
 
 ## Pairing
 
-1. In the rDownloader web interface open **Settings → Desktop client** and create a capture token
+1. In the rDownloader web interface open **Settings → Clients & API → Browser** and create a capture token
    (shown once).
 2. Open the extension options, enter the server URL (e.g. `http://127.0.0.1:8710` or `http://nas.local:8710`)
    and the token, press **Test connection**, then **Save**.

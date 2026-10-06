@@ -41,5 +41,5 @@ pub(crate) const FREE: xfs_common::free::FreeWords = xfs_common::free::FreeWords
 };
 
 pub(crate) fn invalid_url(error: &url::ParseError) -> Failure {
-    xfs_common::glue::invalid_url(error, messages::INVALID_URL, messages::invalid_url)
+    plugin_common::failure::invalid_url(messages::INVALID_URL, error).into()
 }

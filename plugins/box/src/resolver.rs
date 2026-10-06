@@ -28,9 +28,10 @@
 //! `?password=` on the pasted link, both redacted by the core — because a resolver sees nothing
 //! else of what a person entered, and it leaves this plugin in that header and nowhere else.
 
+use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
-    LinkStatus, PluginHost, ResolveInput, Resolved,
+    PluginHost, ResolveInput, Resolved,
 };
 
 use box_common::{address, reason};
@@ -38,6 +39,12 @@ use box_common::{address, reason};
 use crate::{
     api, messages,
     target::{self, Target},
+};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: SECRET,
+    missing: messages::SIGN_IN_REQUIRED,
 };
 
 /// The vault reference the Box provider keeps its access token under. The value never reaches
@@ -72,7 +79,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_token(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(
         host,
         HttpRequest::get(format!("{}/users/me", address::API)).with_query("fields", "login,name"),
@@ -80,7 +87,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     )
     .await?;
     let user = api::user(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
     Ok(Account {
         valid: true,
         // A Box account is a Box account: no plan changes what this plugin may do, so claiming
@@ -101,23 +108,23 @@ pub(crate) async fn resolve<H: PluginHost>(
     host: &H,
     input: &ResolveInput,
 ) -> Result<Resolved, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let claimed = target::claim(&input.url)
-        .ok_or_else(|| refuse(messages::NOT_A_BOX_LINK, FailureKind::Unsupported))?;
+        .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_BOX_LINK))?;
     let item = fetch_item(host, &claimed).await?;
     if item.is_gone() {
-        return Err(refuse(messages::FILE_NOT_FOUND, FailureKind::Permanent));
+        return Err(coded(FailureKind::Permanent, messages::FILE_NOT_FOUND));
     }
     if item.is_folder() {
         // The sibling crawler's address, pasted at the resolver. Said plainly rather than as
         // "this file has no bytes", which is what a folder's metadata looks like.
-        return Err(refuse(messages::IS_A_FOLDER, FailureKind::Unsupported));
+        return Err(coded(FailureKind::Unsupported, messages::IS_A_FOLDER));
     }
     if !item.is_file() {
         // A bookmark or anything else Box keeps in a folder that is not a file: there are no
         // bytes, and offering it would produce a queue entry that can only fail.
-        return Err(refuse(messages::NOT_A_FILE, FailureKind::Unsupported));
+        return Err(coded(FailureKind::Unsupported, messages::NOT_A_FILE));
     }
     Ok(Resolved {
         // The stable API route, pinned to the version Box just described, rather than the
@@ -145,30 +152,29 @@ pub(crate) async fn check<H: PluginHost>(
     host: &H,
     input: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let mut results = Vec::new();
     for url in input.urls.iter().take(MAX_CHECKS) {
         let Some(claimed) = target::claim(url) else {
-            results.push(unknown(url));
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         results.push(match fetch_item(host, &claimed).await {
-            Ok(item) if item.is_gone() => offline(url),
-            Ok(item) if item.is_file() => LinkCheck {
-                url: url.clone(),
-                status: LinkStatus::Online,
-                file_name: item.name.clone().filter(|name| !name.is_empty()),
-                size: item.size.as_ref().and_then(api::Flexible::as_u64),
-            },
+            Ok(item) if item.is_gone() => LinkCheck::offline(url),
+            Ok(item) if item.is_file() => LinkCheck::online(
+                url,
+                item.name.clone().filter(|name| !name.is_empty()),
+                item.size.as_ref().and_then(api::Flexible::as_u64),
+            ),
             // A folder says nothing about a file link: it stays unknown.
-            Ok(_) => unknown(url),
+            Ok(_) => LinkCheck::unknown(url),
             // A file Box says is gone is offline; anything else says nothing about the link, so
             // it stays unknown rather than being reported as missing.
             Err(failure) if failure.code.as_deref() == Some(messages::FILE_NOT_FOUND.0) => {
-                offline(url)
+                LinkCheck::offline(url)
             }
-            Err(_) => unknown(url),
+            Err(_) => LinkCheck::unknown(url),
         });
     }
     Ok(results)
@@ -183,7 +189,7 @@ async fn fetch_item<H: PluginHost>(host: &H, target: &Target) -> Result<api::Ite
     }
     let response = call(host, request, target.is_shared()).await?;
     api::item(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))
 }
 
 /// Makes one request and turns every answer that is not one into a refusal.
@@ -218,46 +224,6 @@ async fn call<H: PluginHost>(
         failure = failure.with_param("reason", code);
     }
     Err(failure)
-}
-
-/// Refuses early when the account holds no token at all, rather than making a call that Box is
-/// certain to refuse and reporting whatever it says about it.
-async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if host.secret_available(account_id, SECRET).await {
-        return Ok(());
-    }
-    Err(refuse(
-        messages::SIGN_IN_REQUIRED,
-        FailureKind::AuthRequired,
-    ))
-}
-
-fn account(account_id: Option<&str>) -> Result<&str, Failure> {
-    account_id
-        .filter(|id| !id.is_empty())
-        .ok_or_else(|| refuse(messages::ACCOUNT_MISSING, FailureKind::AuthRequired))
-}
-
-fn refuse((code, message): (&str, &str), kind: FailureKind) -> Failure {
-    Failure::coded(kind, code, message)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
-}
-
-fn offline(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Offline,
-        file_name: None,
-        size: None,
-    }
 }
 
 /// The account row's label: the address the person signed in with, and nothing else; the

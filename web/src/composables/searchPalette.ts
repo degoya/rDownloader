@@ -2,7 +2,7 @@ import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { ref } from 'vue'
 
 import { router } from '@/router'
-import { SETTINGS_SEARCH_ENTRIES, SETTINGS_SEARCH_PAGES, type SettingsSearchEntry, type SettingsSearchPage, settingsSearchLocation } from '@/settingsSearch'
+import { SETTINGS_SEARCH_ENTRIES, SETTINGS_SEARCH_PAGES, type SettingsSearchEntry, type SettingsSearchPage, settingsSearchEntry, settingsSearchLocation } from '@/settingsSearch'
 import { SETTINGS_SECTION_GROUPS, SETTINGS_SECTIONS } from '@/settingsSections'
 import { revealAnchor } from '@/utils/revealAnchor'
 
@@ -67,6 +67,12 @@ export async function openSettingsEntry(entry: SettingsSearchEntry): Promise<boo
   focusHandedOver = entry.kind === 'field'
   await router.push(settingsSearchLocation(entry))
   return revealAnchor(entry.id, { focus: entry.kind === 'field' })
+}
+
+/** Opens the setting an anchor id names; an anchor that moved leads to the new place (RD-1120-21). */
+export async function openSettingsAnchor(id: string): Promise<boolean> {
+  const entry = settingsSearchEntry(id)
+  return entry ? openSettingsEntry(entry) : false
 }
 
 export function buildPaletteGroups(t: Translate): CommandPaletteGroup<CommandPaletteItem>[] {

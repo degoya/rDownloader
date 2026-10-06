@@ -6,7 +6,7 @@ name = "Keep2Share"
 # 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
 # the installed package (`sync_bundled` only installs newer ones) and never picks the free
 # flow up. Pinned jobs are unaffected: the older version stays installed.
-version = "0.7.12"
+version = "0.7.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # IMPL-VERIFY (JD Keep2ShareCc.getInternalAPIDomain() / K2SApi.getApiUrl()): every API call
@@ -46,7 +46,7 @@ description = "Resolves Keep2Share links with a premium account."
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "0.7.0"
+min_app_version = "1.9.0"
 
 [provider]
 slug = "keep2share"

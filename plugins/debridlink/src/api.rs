@@ -83,12 +83,8 @@ pub(crate) fn add_body(link: &str) -> Vec<u8> {
 /// both the native and guest adapters instead of one erroring and the other silently forwarding a
 /// URL that later fails to parse deeper in the pipeline.
 pub(crate) fn parse_download_url(raw: &str) -> Result<url::Url, ApiFailure> {
-    url::Url::parse(raw).map_err(|error| ApiFailure {
-        kind: ErrorKind::Permanent,
-        code: messages::INVALID_URL,
-        message: messages::invalid_url(&error),
-        params: vec![("error", error.to_string())],
-    })
+    url::Url::parse(raw)
+        .map_err(|error| plugin_common::failure::invalid_url(messages::INVALID_URL, &error))
 }
 
 /// Generic `{"success": bool, "error": "<key>"|null, "value": {...}|null}` envelope every
@@ -213,14 +209,17 @@ fn classify_error(code: &str) -> ApiFailure {
 /// How Debrid-Link's codes name an HTTP status no document in the answer explains: the classes
 /// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
 /// or a `5xx` carries the response's `Retry-After` into the wait.
+///
+/// Without a stated wait a `429` waits a minute and a `5xx` five minutes: the fallback the
+/// API plugins share (RD-1120-10).
 pub(crate) const HTTP: HttpWords = HttpWords {
     unauthorized: messages::AUTH_INVALID,
     gone: messages::FILE_OFFLINE,
     unavailable: messages::FILE_OFFLINE,
     rate_limited: messages::RATE_LIMITED,
     server_error: messages::SERVER_ERROR,
-    rate_limited_wait: None,
-    server_error_wait: None,
+    rate_limited_wait: Some(60),
+    server_error_wait: Some(300),
     other: HttpError {
         code: messages::HTTP_ERROR,
         text: messages::http_error,

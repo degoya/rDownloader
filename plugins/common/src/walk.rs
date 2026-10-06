@@ -21,9 +21,14 @@
 //! a limit reimplemented per provider is a limit that drifts. What a person gets back from
 //! pasting a folder should not depend on which cloud it was in. What stays in a crawler is what
 //! differs: how a folder is named (`Id`), what it keeps of a file (`File`), and how one page of
-//! its provider's listing is read.
+//! its provider's listing is read. A provider that names both by an opaque string takes the
+//! standard [`Entry`], [`Found`] and [`Walk::absorb`] as well.
 //!
 //! Plain Rust with no dependencies, so a guest that takes it gains no import.
+
+mod standard;
+
+pub use standard::{Entry, Found};
 
 /// How many levels below the crawled address are walked.
 pub const MAX_DEPTH: u32 = 4;
@@ -137,16 +142,6 @@ impl<Id: Clone + PartialEq, File> Walk<Id, File> {
         self.limit.get_or_insert(limit);
     }
 
-    /// Whether `folder` may be read for one more page. `false` records the page limit, so a
-    /// crawler that paginates in its own loop asks this before every page after the first.
-    pub fn another_page(&mut self, pages_read: usize) -> bool {
-        if pages_read >= MAX_PAGES {
-            self.limit.get_or_insert(Limit::Pages);
-            return false;
-        }
-        true
-    }
-
     /// Queues the next page of `folder` ahead of everything else, under the provider's cursor.
     /// Past [`MAX_PAGES`] — or once the walk is full — the folder is cut short instead, and the
     /// limit says so.
@@ -208,7 +203,8 @@ impl<Id: Clone + PartialEq, File> Walk<Id, File> {
         self.limit
     }
 
-    /// How many folders were read.
+    /// How many folders were read. Only tests ask: a crawler reports the limit, not the count.
+    #[cfg(any(test, feature = "test-support"))]
     #[must_use]
     pub const fn folders_read(&self) -> usize {
         self.read
@@ -382,15 +378,6 @@ mod tests {
         assert_eq!(pages, MAX_PAGES);
         assert_eq!(walk.limit(), Some(Limit::Pages));
         assert_eq!(walk.folders_read(), 2);
-    }
-
-    #[test]
-    fn a_crawler_paginating_in_its_own_loop_is_stopped_at_the_cap() {
-        let mut walk = TestWalk::start("root".to_owned());
-        assert!(walk.another_page(MAX_PAGES - 1));
-        assert_eq!(walk.limit(), None);
-        assert!(!walk.another_page(MAX_PAGES));
-        assert_eq!(walk.limit(), Some(Limit::Pages));
     }
 
     /// The path a file is reported under is rooted in the crawled folder's own name, and a

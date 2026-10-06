@@ -22,6 +22,7 @@ pub use exports::rdownloader::plugin::auth::{AuthState, Guest, UserPrompt};
 pub use rdownloader::plugin::{credentials, host, http, key_derivation, types};
 
 use http::RequestQuery;
+use types::{Failure, FailureKind};
 
 /// A form body's fields, each taken literally: a `{{secret:…}}` marker in a value is the host's
 /// to expand, nothing here builds one.
@@ -34,6 +35,26 @@ pub fn form(pairs: &[(&str, &str)]) -> Vec<RequestQuery> {
             value_template: (*value).to_owned(),
         })
         .collect()
+}
+
+/// A failure carrying a stable translation code, `<slug>.<code>`, and nothing a provider wrote.
+///
+/// The auth guests compose their codes from their slug, where `plugin_guest_crawler` and
+/// `plugin_guest_remote_job` take whole codes from a catalogue; otherwise the same helper
+/// (RD-1120-10, PL-4).
+#[must_use]
+pub fn refuse(
+    slug: &str,
+    code: &str,
+    message: impl Into<String>,
+    category: FailureKind,
+) -> Failure {
+    Failure {
+        category,
+        message: message.into(),
+        code: Some(format!("{slug}.{code}")),
+        params: Vec::new(),
+    }
 }
 
 /// Exports an authentication plugin: `$component` implements [`Guest`].

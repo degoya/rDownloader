@@ -1,31 +1,20 @@
-import { fireEvent, render } from '@testing-library/vue'
+import { fireEvent } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
+import { mountComponent } from '@/test/mount'
 
 import ClearEverythingModal from './ClearEverythingModal.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common, downloads } } })
-
-/** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const components = {
-  UModal: {
-    props: ['title', 'description'],
-    template: '<div><h2>{{ title }}</h2><p>{{ description }}</p><slot name="body" /><slot name="footer" /></div>'
-  },
-  UAlert: { props: ['description'], template: '<div v-bind="$attrs">{{ description }}</div>' },
-  UCheckbox: {
-    props: ['modelValue', 'label'],
-    emits: ['update:modelValue'],
-    template: '<label>{{ label }}<input type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
-  },
-  UButton: { props: ['label'], template: '<button type="button">{{ label }}</button>' }
+/** The modal with its title, description, body and footer; everything else is the shared stub. */
+const UModal = {
+  props: ['title', 'description'],
+  template: '<div><h2>{{ title }}</h2><p>{{ description }}</p><slot name="body" /><slot name="footer" /></div>'
 }
 
 function mount(packages: number, active: number) {
-  return render(ClearEverythingModal, { props: { packages, active }, global: { plugins: [i18n], components } })
+  return mountComponent(ClearEverythingModal, { messages: { downloads }, props: { packages, active }, stubs: { UModal } })
 }
 
 /** "Clear the entire list" says what goes and what is still working before it asks (RD-180-21). */

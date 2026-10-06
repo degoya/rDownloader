@@ -9,7 +9,8 @@ use pcloud_common::address::Region;
 use plugin_guest_oauth::{
     AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, host,
     http::{self, RequestQuery},
-    retry_after,
+    redirect::no_device_flow,
+    refuse, retry_after,
     types::{Failure, FailureKind},
     unguessable_value,
 };
@@ -56,15 +57,8 @@ const AUTHORIZATION_LIFETIME: u64 = 600;
 
 struct Component;
 
-/// A failure carrying a stable translation code and nothing a provider wrote.
-fn refuse(code: &str, message: String, category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message,
-        code: Some(format!("pcloud_oauth.{code}")),
-        params: Vec::new(),
-    }
-}
+/// The prefix of every translation code this plugin reports.
+const SLUG: &str = "pcloud_oauth";
 
 /// Refuses before any request when the account carries no registered application.
 ///
@@ -78,6 +72,7 @@ fn require_registered_application(account_id: &str) -> Result<(), Failure> {
         return Ok(());
     }
     Err(refuse(
+        SLUG,
         "client_not_configured",
         "this account has no registered pCloud application to sign in with".to_owned(),
         FailureKind::AuthRequired,
@@ -137,6 +132,7 @@ fn outcome(account_id: &str, answer: flow::TokenAnswer) -> Result<TokenOutcome, 
             Ok(TokenOutcome::Authorized)
         }
         flow::TokenAnswer::Refused(result) => Ok(TokenOutcome::Failed(refuse(
+            SLUG,
             flow::refusal_code(result),
             format!("pcloud refused the sign-in with result {result}"),
             FailureKind::AuthRequired,
@@ -144,20 +140,12 @@ fn outcome(account_id: &str, answer: flow::TokenAnswer) -> Result<TokenOutcome, 
         // A rate limit says nothing about the credential, so it is a wait and not a failure.
         flow::TokenAnswer::Busy(seconds) => Ok(TokenOutcome::Pending(seconds.unwrap_or(30))),
         flow::TokenAnswer::Unreadable(status) => Ok(TokenOutcome::Failed(refuse(
+            SLUG,
             "bad_reply",
             format!("pcloud answered {status} to the token request"),
             FailureKind::Permanent,
         ))),
     }
-}
-
-/// The one refusal both device functions answer with.
-fn no_device_flow() -> Failure {
-    refuse(
-        "flow_unsupported",
-        "pcloud is signed in through the browser, not with a device code".to_owned(),
-        FailureKind::Unsupported,
-    )
 }
 
 impl Guest for Component {
@@ -170,7 +158,7 @@ impl Guest for Component {
         _account_id: String,
         _credential_ref: Option<String>,
     ) -> Result<AuthorizationRequest, Failure> {
-        let state = unguessable_value("pcloud_oauth")?;
+        let state = unguessable_value(SLUG)?;
         let authorization_url = format!(
             "{AUTHORIZE_ENDPOINT}?response_type=code&client_id={}&redirect_uri={}&state={}",
             // Left as the marker: the host substitutes this installation's own application id
@@ -225,6 +213,7 @@ impl Guest for Component {
         match refusal {
             Some(answer) => outcome(&account_id, answer),
             None => Ok(TokenOutcome::Failed(refuse(
+                SLUG,
                 "bad_reply",
                 "pcloud answered neither data centre's exchange".to_owned(),
                 FailureKind::Permanent,
@@ -238,7 +227,7 @@ impl Guest for Component {
         _account_id: String,
         _credential_ref: Option<String>,
     ) -> Result<DeviceAuthorization, Failure> {
-        Err(no_device_flow())
+        Err(no_device_flow(SLUG, "pcloud"))
     }
 
     /// Not offered, for the same reason as `device-begin`.
@@ -246,7 +235,7 @@ impl Guest for Component {
         _account_id: String,
         _flow_state: Option<String>,
     ) -> Result<TokenOutcome, Failure> {
-        Err(no_device_flow())
+        Err(no_device_flow(SLUG, "pcloud"))
     }
 
     /// There is nothing to renew from, and saying so is the honest answer.
@@ -261,6 +250,7 @@ impl Guest for Component {
         _credential_ref: Option<String>,
     ) -> Result<TokenOutcome, Failure> {
         Ok(TokenOutcome::Failed(refuse(
+            SLUG,
             "renewal_unsupported",
             "pcloud issues no renewal material; this account has to be signed in again".to_owned(),
             FailureKind::AuthRequired,

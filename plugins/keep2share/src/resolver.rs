@@ -7,14 +7,21 @@
 mod free;
 
 pub(crate) use plugin_common::failure::coded;
+use plugin_common::failure::{SecretSlot, require_secret};
 use plugin_common::{
-    Account, CheckInput, Failure, FailureKind, HttpRequest, Label, LinkCheck, LinkStatus,
-    PluginHost, ResolveInput, Resolved,
+    Account, CheckInput, Failure, FailureKind, HttpRequest, Label, LinkCheck, PluginHost,
+    ResolveInput, Resolved,
 };
 use serde::de::DeserializeOwned;
 use url::Url;
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: crate::PASSWORD_REFERENCE,
+    missing: messages::PASSWORD_MISSING,
+};
 
 /// What an API round trip can fail with: a host-level problem (transport, budget, a rejected
 /// captcha hand-off) already in the host's shape, or an error the API itself reported and
@@ -72,7 +79,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let token = require_token(host).await?;
     let info: api::AccountInfoResult =
         api_call(host, "accountinfo", api::accountinfo_body(&token)).await?;
@@ -100,7 +107,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     let Some(account_id) = request.account_id.as_deref() else {
         return free::resolve(host, &file_id).await;
     };
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let token = require_token(host).await?;
     let result: api::GetUrlResult =
         api_call(host, "geturl", api::geturl_body(&file_id, &token)).await?;
@@ -132,7 +139,11 @@ pub(crate) async fn check<H: PluginHost>(
     /// JD chunks at 100 file ids per call and loops.
     const CHUNK_SIZE: usize = 100;
 
-    let mut results: Vec<LinkCheck> = request.urls.iter().map(|url| unknown(url)).collect();
+    let mut results: Vec<LinkCheck> = request
+        .urls
+        .iter()
+        .map(|url| LinkCheck::unknown(url))
+        .collect();
     let indexed_ids: Vec<(usize, String)> = request
         .urls
         .iter()
@@ -169,27 +180,12 @@ pub(crate) async fn check<H: PluginHost>(
 /// absent from the response is offline.
 fn check_one(url: &str, fuid: &str, files: &[api::FileEntry]) -> LinkCheck {
     match files.iter().find(|entry| entry.matches_fuid(fuid)) {
-        Some(entry) if entry.is_online() => LinkCheck {
-            url: url.to_owned(),
-            status: LinkStatus::Online,
-            file_name: entry.name.clone(),
-            size: entry.size.and_then(|size| u64::try_from(size).ok()),
-        },
-        Some(_) | None => LinkCheck {
-            url: url.to_owned(),
-            status: LinkStatus::Offline,
-            file_name: None,
-            size: None,
-        },
-    }
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
+        Some(entry) if entry.is_online() => LinkCheck::online(
+            url,
+            entry.name.clone(),
+            entry.size.and_then(|size| u64::try_from(size).ok()),
+        ),
+        Some(_) | None => LinkCheck::offline(url),
     }
 }
 
@@ -243,14 +239,4 @@ pub(crate) async fn api_call_raw<H: PluginHost, T: DeserializeOwned>(
         return Err(failure.into());
     }
     serde_json::from_slice(&response.body).map_err(|_| api::invalid_response().into())
-}
-
-async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if !host
-        .secret_available(account_id, crate::PASSWORD_REFERENCE)
-        .await
-    {
-        return Err(coded(FailureKind::AuthRequired, messages::PASSWORD_MISSING));
-    }
-    Ok(())
 }

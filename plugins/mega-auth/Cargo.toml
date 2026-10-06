@@ -18,7 +18,7 @@ plugin-guest-auth = { path = "../guest-auth" }
 serde_json.workspace = true
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

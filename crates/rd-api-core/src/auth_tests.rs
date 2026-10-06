@@ -354,3 +354,36 @@ async fn the_gate_counts_attempts_still_in_flight() {
     held.pop();
     let _again = auth.gate(client).await.expect("a slot came back");
 }
+
+/// Audit 1.9.1, API-14: a busy token queues one "last used" write a minute, not one per
+/// request — an MCP tool call passed the credential check three times and queued three.
+#[test]
+fn a_token_is_touched_once_a_minute_however_often_it_is_used() {
+    use std::time::{Duration, Instant};
+
+    let interval = Duration::from_secs(
+        u64::try_from(rd_db::SESSION_TOUCH_INTERVAL_SECONDS).expect("a positive interval"),
+    );
+    let mut touched = std::collections::HashMap::new();
+    let start = Instant::now();
+    assert!(super::tokens::touch_due(&mut touched, "token-a", start));
+    for later in [
+        Duration::ZERO,
+        Duration::from_secs(1),
+        interval - Duration::from_secs(1),
+    ] {
+        assert!(
+            !super::tokens::touch_due(&mut touched, "token-a", start + later),
+            "touched again after {later:?}"
+        );
+    }
+    assert!(
+        super::tokens::touch_due(&mut touched, "token-b", start + Duration::from_secs(1)),
+        "one token's write held back another's"
+    );
+    assert!(super::tokens::touch_due(
+        &mut touched,
+        "token-a",
+        start + interval
+    ));
+}

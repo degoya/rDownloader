@@ -53,12 +53,11 @@ defineExpose({ reload: load })
 
 <template>
   <div v-if="prompts.length" class="flex flex-col gap-2" data-testid="collision-prompts">
-    <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
     <UAlert
       v-for="prompt in prompts"
       :key="prompt.download_id"
       color="warning"
-      variant="subtle"
       icon="i-lucide-files"
       :title="t('downloads.collision.prompts.title', { name: prompt.target_name })"
     >

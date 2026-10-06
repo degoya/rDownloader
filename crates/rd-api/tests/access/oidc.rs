@@ -9,6 +9,7 @@
 //! `admin::canaries`.
 
 mod browser;
+mod review;
 
 use axum::{
     body::Body,

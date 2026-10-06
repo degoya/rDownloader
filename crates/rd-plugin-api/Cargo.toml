@@ -5,6 +5,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+# The scripted `ResolverHost` the plugins' native suites share (`test_support`, RD-1120-10).
+# Switched on only from their dev-dependencies, so the service never carries it.
+test-support = []
+
 [dependencies]
 async-trait.workspace = true
 rd-core = { path = "../rd-core" }

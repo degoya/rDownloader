@@ -3,9 +3,13 @@
 //! These assert the binding rather than the parsing: `xfs-common` has its own tests for the
 //! parsers themselves, and what can break here is a wrong `op` value or a wrong button label —
 //! a plugin that looks for `op=download3` finds nothing and reports an unrecognised page on a
-//! site that works perfectly.
+//! site that works perfectly. The forms and the captcha check are `xfs_common::standard`'s and
+//! `xfs_common::free`'s since RD-1120-10, which the free flow uses directly; they are checked here
+//! all the same, because this plugin relies on exactly those values.
 
 use super::*;
+use xfs_common::free::is_wrong_captcha;
+use xfs_common::standard::{download1_form, download2_form};
 
 const FILE_PAGE: &str = r#"<form name="F1" method="POST" action="">
 <input type="hidden" name="op" value="download1">

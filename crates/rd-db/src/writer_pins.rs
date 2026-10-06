@@ -6,7 +6,7 @@
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
-use rd_core::{DownloadId, DownloadState, EventEnvelope, EventKind, Failure, FailureKind};
+use rd_core::{DownloadId, EventEnvelope, EventKind, Failure, FailureKind};
 use sqlx::{Connection, Row};
 
 use crate::{
@@ -34,15 +34,7 @@ impl Writer {
         let current = crate::models::get_download_from_connection(&mut self.connection, id)
             .await?
             .context(StoreError::not_found("download not found"))?;
-        if matches!(
-            current.state,
-            DownloadState::Resolving
-                | DownloadState::Downloading
-                | DownloadState::Verifying
-                | DownloadState::Repairing
-                | DownloadState::Extracting
-                | DownloadState::Seeding
-        ) {
+        if current.state.holds_the_file() {
             bail!(StoreError::wrong_state(
                 "a running download keeps the version it started with; pause it first"
             ));

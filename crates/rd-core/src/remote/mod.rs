@@ -4,6 +4,7 @@
 
 mod credential;
 mod listing;
+pub mod path;
 mod settings;
 
 pub use credential::{

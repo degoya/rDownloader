@@ -83,7 +83,7 @@ function submit(): void {
 </script>
 
 <template>
-  <UModal :title="t('downloads.edit_package.title')" :description="t('downloads.edit_package.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end' }">
+  <UModal :title="t('downloads.edit_package.title')" :description="t('downloads.edit_package.description')" :close="{ onClick: () => emit('close', null) }">
     <template #body>
       <form id="package-edit-form" class="space-y-3" @submit.prevent="submit">
         <UFormField :label="t('downloads.edit_package.name')">

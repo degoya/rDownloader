@@ -72,6 +72,7 @@ pub(crate) fn routes() -> Router<AppState> {
         automation_handlers::AutomationVocabulary,
         automation_handlers::DryRunRequest,
         automation_handlers::EnableRequest,
+        crate::automation_service::DryRunDraft,
         crate::automation_service::DryRunMatch,
         rd_automation::Action,
         rd_automation::Automation,

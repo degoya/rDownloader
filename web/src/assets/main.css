@@ -4,6 +4,9 @@
 @theme static {
   --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  /* The size below `text-xs` for metadata lines and badges (RD-1120-14); no line height of its
+     own, so a line keeps the one it inherits, as the `text-[11px]` it replaces did. */
+  --text-2xs: 0.6875rem;
 
   --color-signal-50: #edfffd;
   --color-signal-100: #c7fff9;

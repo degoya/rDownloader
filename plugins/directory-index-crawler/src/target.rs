@@ -85,26 +85,7 @@ pub fn directory_name(path: &str) -> String {
 ///
 /// Lossy on purpose: the result is a file name to show, not bytes to send anywhere, and a
 /// server that emitted an invalid sequence should not be able to end the crawl over it.
-#[must_use]
-pub fn decode(segment: &str) -> String {
-    let bytes = segment.as_bytes();
-    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' && index + 2 < bytes.len() {
-            let high = (bytes[index + 1] as char).to_digit(16);
-            let low = (bytes[index + 2] as char).to_digit(16);
-            if let (Some(high), Some(low)) = (high, low) {
-                out.push((high * 16 + low) as u8);
-                index += 3;
-                continue;
-            }
-        }
-        out.push(bytes[index]);
-        index += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
+pub use plugin_common::encode::percent_decode_lossy as decode;
 
 #[cfg(test)]
 mod tests {

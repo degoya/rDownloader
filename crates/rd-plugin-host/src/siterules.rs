@@ -142,7 +142,7 @@ impl RuleFetcher {
             // Obligation two: the executor follows redirects itself, checking every hop.
             .redirect(Policy::none())
             .connect_timeout(CONNECT_TIMEOUT)
-            .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")));
+            .user_agent(rd_core::user_agent!());
         // Obligation one. Empty exactly when the host is a literal address, where there was
         // nothing to resolve and nothing to pin.
         if !addresses.is_empty() {

@@ -25,6 +25,7 @@ import { categoryCopyBody, seedingRequest } from '@/utils/categoryCopy'
 import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 import { translateServerMessage } from '@/i18n/server'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 /** Matches `validate_name` in `crates/rd-api-core/src/config_fields.rs`. */
 const MAX_CATEGORY_NAME = 100
@@ -298,8 +299,7 @@ async function remove(category: Category): Promise<void> {
           :description="t('routing.category.description')"
           class="mb-4"
         />
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
+        <FormFeedback class="mb-3" :error="error" :message="message" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField required :label="t('routing.category.name_label')" :description="t('routing.category.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.category.name_placeholder')" />
@@ -394,7 +394,7 @@ async function remove(category: Category): Promise<void> {
             <template #default="{ item }">
               <span class="flex min-w-0 flex-1 items-center gap-2">
                 <span class="truncate text-sm font-medium text-highlighted">{{ item.label }}</span>
-                <span class="truncate font-mono text-[11px] text-muted">{{ item.path }}</span>
+                <span class="truncate font-mono text-2xs text-muted">{{ item.path }}</span>
                 <UBadge v-if="item.hasDefault" size="sm" color="primary" variant="subtle">{{ t('routing.category.default_badge') }}</UBadge>
                 <UBadge size="sm" color="neutral" variant="outline" class="ms-auto">{{ t('routing.category.group_count', { count: item.count }, item.count) }}</UBadge>
               </span>

@@ -169,12 +169,24 @@ async fn an_end_that_passed_while_the_service_was_down_resumes_at_start() {
     let (scheduler, database) = installation(directory.path()).await;
     let queued = file(&scheduler, directory.path(), false).await;
     scheduler
-        .pause_queue_until(Utc::now() + chrono::Duration::seconds(1))
+        .pause_queue_until(Utc::now() + chrono::Duration::hours(1))
         .await
         .expect("pause");
     scheduler.shutdown().await.expect("shutdown");
     assert_eq!(state(&database, queued.id).await, DownloadState::Paused);
-    tokio::time::sleep(Duration::from_millis(1_200)).await;
+    // The end passes while the service is down: moved into the past in the record the next
+    // start reads, instead of waiting for a real one to pass (RD-1120-08).
+    let mut stored = database
+        .get_setting("queue.timed_pause")
+        .await
+        .expect("read the pause")
+        .expect("the stored pause");
+    stored["until"] =
+        serde_json::to_value(Utc::now() - chrono::Duration::seconds(1)).expect("an end");
+    database
+        .set_setting("queue.timed_pause".to_owned(), stored)
+        .await
+        .expect("move the end");
 
     let restarted = start(directory.path(), &database).await;
 

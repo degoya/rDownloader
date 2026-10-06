@@ -32,7 +32,6 @@ if (props.confirmKey) defineShortcuts({ [props.confirmKey]: () => emit('close', 
     :title="title"
     :description="description"
     :close="{ onClick: () => emit('close', false) }"
-    :ui="{ footer: 'justify-end' }"
   >
     <template #footer>
       <UButton

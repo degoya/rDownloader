@@ -1,5 +1,8 @@
 use anyhow::{Context, Result, bail};
-use quick_xml::{Reader, XmlVersion, events::Event};
+use quick_xml::{
+    Reader, XmlVersion,
+    events::{BytesCData, BytesEnd, BytesRef, BytesStart, BytesText, Event},
+};
 
 /// Hard upper bound for an imported NZB document.
 pub const MAX_NZB_BYTES: usize = 64 * 1024 * 1024;
@@ -96,166 +99,214 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
 
     let mut reader = Reader::from_reader(input);
     reader.config_mut().trim_text(true);
-    let mut document = NzbDocument::default();
-    let mut current_file: Option<NzbFile> = None;
-    let mut current_segment: Option<(u32, u64)> = None;
-    let mut current_element = String::new();
-    let mut in_head = false;
-    let mut password_meta: Option<String> = None;
+    let mut parser = NzbParser::default();
     loop {
         match reader.read_event()? {
-            Event::Start(start) => {
-                current_element = start.name().as_ref().to_owned();
-                match start.name().as_ref() {
-                    "head" => in_head = true,
-                    "meta" if in_head => {
-                        let is_password = start.attributes().with_checks(true).try_fold(
-                            false,
-                            |is_password, attribute| {
-                                let attribute = attribute?;
-                                Ok::<_, quick_xml::Error>(
-                                    is_password
-                                        || (attribute.key.as_ref() == "type"
-                                            && attribute
-                                                .normalized_value(XmlVersion::Implicit1_0)?
-                                                .eq_ignore_ascii_case("password")),
-                                )
-                            },
-                        )?;
-                        password_meta = is_password.then(String::new);
-                    }
-                    "file" => {
-                        let mut file = NzbFile::default();
-                        for attribute in start.attributes().with_checks(true) {
-                            let attribute = attribute?;
-                            match attribute.key.as_ref() {
-                                "subject" => {
-                                    file.subject = attribute
-                                        .normalized_value(XmlVersion::Implicit1_0)?
-                                        .into_owned()
-                                }
-                                "poster" => {
-                                    file.poster = attribute
-                                        .normalized_value(XmlVersion::Implicit1_0)?
-                                        .into_owned()
-                                }
-                                _ => {}
-                            }
-                        }
-                        current_file = Some(file);
-                    }
-                    "segment" => {
-                        let mut number = None;
-                        let mut bytes = None;
-                        for attribute in start.attributes().with_checks(true) {
-                            let attribute = attribute?;
-                            match attribute.key.as_ref() {
-                                "number" => {
-                                    number = Some(
-                                        attribute
-                                            .normalized_value(XmlVersion::Implicit1_0)?
-                                            .parse()?,
-                                    )
-                                }
-                                "bytes" => {
-                                    bytes = Some(
-                                        attribute
-                                            .normalized_value(XmlVersion::Implicit1_0)?
-                                            .parse()?,
-                                    )
-                                }
-                                _ => {}
-                            }
-                        }
-                        current_segment = Some((
-                            number.context("NZB segment has no number")?,
-                            bytes.context("NZB segment has no size")?,
-                        ));
-                    }
-                    _ => {}
-                }
-            }
-            Event::Text(text) => {
-                let value = quick_xml::escape::unescape(&text)?.into_owned();
-                if let Some(password) = &mut password_meta {
-                    password.push_str(&value);
-                }
-                match current_element.as_str() {
-                    "group" => {
-                        if let Some(file) = &mut current_file {
-                            file.groups.push(value);
-                        }
-                    }
-                    "segment" => {
-                        if let (Some(file), Some((number, bytes))) =
-                            (&mut current_file, current_segment.take())
-                        {
-                            file.segments.push(NzbSegment {
-                                number,
-                                bytes,
-                                message_id: value.trim_matches(['<', '>']).to_owned(),
-                            });
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            Event::CData(text) => {
-                if let Some(password) = &mut password_meta {
-                    password.push_str(&text);
-                }
-            }
-            Event::GeneralRef(reference) => {
-                if let Some(password) = &mut password_meta {
-                    if let Some(character) = reference.resolve_char_ref()? {
-                        password.push(character);
-                    } else {
-                        let value = quick_xml::escape::resolve_xml_entity(&reference)
-                            .context("NZB password contains an unknown XML entity")?;
-                        password.push_str(value);
-                    }
-                }
-            }
-            Event::End(end) => {
-                match end.name().as_ref() {
-                    "meta" => {
-                        if let Some(password) = password_meta.take() {
-                            remember_password(&mut document, &password)?;
-                        }
-                    }
-                    "head" => in_head = false,
-                    "file" => {
-                        if let Some(mut file) = current_file.take() {
-                            file.segments.sort_by_key(|segment| segment.number);
-                            // Real-world NZBs occasionally repeat a segment or count from 0;
-                            // the database enforces `number > 0` and `UNIQUE(file_id, number)`,
-                            // so both would otherwise abort the whole import.
-                            file.segments.dedup_by_key(|segment| segment.number);
-                            if file
-                                .segments
-                                .first()
-                                .is_some_and(|segment| segment.number == 0)
-                            {
-                                for segment in &mut file.segments {
-                                    segment.number += 1;
-                                }
-                            }
-                            document.files.push(file);
-                        }
-                    }
-                    _ => {}
-                }
-                current_element.clear();
-            }
+            Event::Start(start) => parser.start(start)?,
+            Event::Text(text) => parser.text(text)?,
+            Event::CData(text) => parser.cdata(text),
+            Event::GeneralRef(reference) => parser.general_ref(reference)?,
+            Event::End(end) => parser.end(end)?,
             Event::Eof => break,
             Event::DocType(doctype) => validate_doctype(&doctype)?,
             _ => {}
         }
     }
+    let document = parser.document;
     if document.files.is_empty() {
         bail!("NZB contains no files");
     }
     Ok(document)
+}
+
+/// What `parse_nzb` holds between two events.
+#[derive(Default)]
+struct NzbParser {
+    document: NzbDocument,
+    current_file: Option<NzbFile>,
+    current_segment: Option<(u32, u64)>,
+    current_element: String,
+    in_head: bool,
+    /// The text of a `<meta type="password">` while it is open.
+    password_meta: Option<String>,
+}
+
+impl NzbParser {
+    fn start(&mut self, start: BytesStart<'_>) -> Result<()> {
+        self.current_element = start.name().as_ref().to_owned();
+        match start.name().as_ref() {
+            "head" => self.in_head = true,
+            "meta" if self.in_head => {
+                let is_password = is_password_meta(&start)?;
+                self.password_meta = is_password.then(String::new);
+            }
+            "file" => {
+                let file = file_start(&start)?;
+                self.current_file = Some(file);
+            }
+            "segment" => {
+                let segment = segment_start(&start)?;
+                self.current_segment = Some(segment);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn text(&mut self, text: BytesText<'_>) -> Result<()> {
+        let value = quick_xml::escape::unescape(&text)?.into_owned();
+        if let Some(password) = &mut self.password_meta {
+            password.push_str(&value);
+        }
+        match self.current_element.as_str() {
+            "group" => {
+                if let Some(file) = &mut self.current_file {
+                    file.groups.push(value);
+                }
+            }
+            "segment" => {
+                if let (Some(file), Some((number, bytes))) =
+                    (&mut self.current_file, self.current_segment.take())
+                {
+                    file.segments.push(NzbSegment {
+                        number,
+                        bytes,
+                        message_id: value.trim_matches(['<', '>']).to_owned(),
+                    });
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn cdata(&mut self, text: BytesCData<'_>) {
+        if let Some(password) = &mut self.password_meta {
+            password.push_str(&text);
+        }
+    }
+
+    fn general_ref(&mut self, reference: BytesRef<'_>) -> Result<()> {
+        if let Some(password) = &mut self.password_meta {
+            if let Some(character) = reference.resolve_char_ref()? {
+                password.push(character);
+            } else {
+                let value = quick_xml::escape::resolve_xml_entity(&reference)
+                    .context("NZB password contains an unknown XML entity")?;
+                password.push_str(value);
+            }
+        }
+        Ok(())
+    }
+
+    fn end(&mut self, end: BytesEnd<'_>) -> Result<()> {
+        match end.name().as_ref() {
+            "meta" => {
+                if let Some(password) = self.password_meta.take() {
+                    remember_password(&mut self.document, &password)?;
+                }
+            }
+            "head" => self.in_head = false,
+            "file" => {
+                if let Some(file) = self.current_file.take() {
+                    self.document.files.push(finished_file(file));
+                }
+            }
+            _ => {}
+        }
+        self.current_element.clear();
+        Ok(())
+    }
+}
+
+/// Whether a `<meta>` in the head is `type="password"`.
+fn is_password_meta(start: &BytesStart<'_>) -> Result<bool> {
+    let is_password =
+        start
+            .attributes()
+            .with_checks(true)
+            .try_fold(false, |is_password, attribute| {
+                let attribute = attribute?;
+                Ok::<_, quick_xml::Error>(
+                    is_password
+                        || (attribute.key.as_ref() == "type"
+                            && attribute
+                                .normalized_value(XmlVersion::Implicit1_0)?
+                                .eq_ignore_ascii_case("password")),
+                )
+            })?;
+    Ok(is_password)
+}
+
+/// A `<file>` with its subject and poster.
+fn file_start(start: &BytesStart<'_>) -> Result<NzbFile> {
+    let mut file = NzbFile::default();
+    for attribute in start.attributes().with_checks(true) {
+        let attribute = attribute?;
+        match attribute.key.as_ref() {
+            "subject" => {
+                file.subject = attribute
+                    .normalized_value(XmlVersion::Implicit1_0)?
+                    .into_owned()
+            }
+            "poster" => {
+                file.poster = attribute
+                    .normalized_value(XmlVersion::Implicit1_0)?
+                    .into_owned()
+            }
+            _ => {}
+        }
+    }
+    Ok(file)
+}
+
+/// A `<segment>`'s number and size; its message id is the text that follows.
+fn segment_start(start: &BytesStart<'_>) -> Result<(u32, u64)> {
+    let mut number = None;
+    let mut bytes = None;
+    for attribute in start.attributes().with_checks(true) {
+        let attribute = attribute?;
+        match attribute.key.as_ref() {
+            "number" => {
+                number = Some(
+                    attribute
+                        .normalized_value(XmlVersion::Implicit1_0)?
+                        .parse()?,
+                )
+            }
+            "bytes" => {
+                bytes = Some(
+                    attribute
+                        .normalized_value(XmlVersion::Implicit1_0)?
+                        .parse()?,
+                )
+            }
+            _ => {}
+        }
+    }
+    Ok((
+        number.context("NZB segment has no number")?,
+        bytes.context("NZB segment has no size")?,
+    ))
+}
+
+/// A closed `<file>`, its segments in order, once each, counted from 1.
+fn finished_file(mut file: NzbFile) -> NzbFile {
+    file.segments.sort_by_key(|segment| segment.number);
+    // Real-world NZBs occasionally repeat a segment or count from 0;
+    // the database enforces `number > 0` and `UNIQUE(file_id, number)`,
+    // so both would otherwise abort the whole import.
+    file.segments.dedup_by_key(|segment| segment.number);
+    if file
+        .segments
+        .first()
+        .is_some_and(|segment| segment.number == 0)
+    {
+        for segment in &mut file.segments {
+            segment.number += 1;
+        }
+    }
+    file
 }
 
 /// Writes an NZB document back out (RD-191-13).
@@ -346,209 +397,5 @@ fn validate_doctype(value: &str) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{NzbDocument, NzbFile, NzbSegment, parse_nzb, render_nzb};
-
-    const BODY: &str = r#"<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
-      <file poster="tester" subject="example.bin">
-        <groups><group>alt.binaries.test</group></groups>
-        <segments><segment bytes="42" number="1">message-id@example</segment></segments>
-      </file>
-    </nzb>"#;
-
-    #[test]
-    fn subject_file_name_prefers_the_quoted_name() {
-        assert_eq!(
-            super::subject_file_name(r#"[FATX-AMPED] - "ampnjl08.vol07-15.par2" yEnc (1/5)"#)
-                .as_deref(),
-            Some("ampnjl08.vol07-15.par2")
-        );
-        assert_eq!(
-            super::subject_file_name("example.bin").as_deref(),
-            Some("example.bin")
-        );
-        assert_eq!(
-            super::subject_file_name("Some release without a name (1/7)"),
-            None
-        );
-        assert_eq!(super::subject_file_name(r#"bad "../evil.par2" yEnc"#), None);
-    }
-
-    /// The subject from the live finding (RD-108-23): the release name is quoted first, the
-    /// file name second. `x265-FuN` is no extension, so the first group is no file name -
-    /// and giving up on it named fifty queue rows after their whole subject line.
-    #[test]
-    fn subject_file_name_takes_the_quoted_group_that_is_a_file_name() {
-        assert_eq!(
-            super::subject_file_name(
-                r#""Starfight.1984.German.AC3.DL.1080p.BluRay.x265-FuN" - [44/50] - "amiJ997Yyt9XdW9fApe3pSvlsehAlqpoMKB.vol03+04.par2" yEnc (1/13)"#
-            )
-            .as_deref(),
-            Some("amiJ997Yyt9XdW9fApe3pSvlsehAlqpoMKB.vol03+04.par2")
-        );
-        // Two groups that both pass as a file name: the release comes first, the file last.
-        assert_eq!(
-            super::subject_file_name(r#""Show.S01" - [01/10] - "abc.part01.rar" yEnc (1/50)"#)
-                .as_deref(),
-            Some("abc.part01.rar")
-        );
-        // No group passes: nothing is guessed, the caller keeps its own fallback.
-        assert_eq!(
-            super::subject_file_name(r#""Show S01" - [01/10] - "readme" yEnc (1/1)"#),
-            None
-        );
-        // An unterminated quote is not a group.
-        assert_eq!(
-            super::subject_file_name(r#""Show.S01" - [01/10] - "abc.part01.rar yEnc (1/50)"#)
-                .as_deref(),
-            Some("Show.S01")
-        );
-    }
-
-    #[test]
-    fn accepts_the_standard_external_nzb_doctype() {
-        let input = format!(
-            "<?xml version=\"1.0\"?><!DOCTYPE nzb PUBLIC \"-//newzBin//DTD NZB 1.1//EN\" \"http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd\">{BODY}"
-        );
-        let parsed = parse_nzb(input.as_bytes()).expect("standard NZB doctype");
-        assert_eq!(parsed.files.len(), 1);
-        assert_eq!(parsed.files[0].segments.len(), 1);
-    }
-
-    #[test]
-    fn reads_the_archive_password_from_the_nzb_head() {
-        let input = BODY.replacen(
-            "<nzb xmlns=\"http://www.newzbin.com/DTD/2003/nzb\">",
-            "<nzb xmlns=\"http://www.newzbin.com/DTD/2003/nzb\"><head>\
-             <meta type=\"category\">movies</meta>\
-             <meta type=\"PASSWORD\"> hunter&amp;2 </meta></head>",
-            1,
-        );
-        let parsed = parse_nzb(input.as_bytes()).expect("NZB with password metadata");
-
-        assert_eq!(parsed.password.as_deref(), Some("hunter&2"));
-    }
-
-    #[test]
-    fn parses_the_legal_sabnzbd_fixture() {
-        let input = include_bytes!("../../../testfile/sabnzbd-test-download-100MB.nzb");
-        let parsed = parse_nzb(input).expect("official SABnzbd test NZB");
-
-        assert_eq!(parsed.files.len(), 13);
-        assert_eq!(
-            parsed
-                .files
-                .iter()
-                .map(|file| file.segments.len())
-                .sum::<usize>(),
-            163
-        );
-        assert!(
-            parsed
-                .files
-                .iter()
-                .all(|file| file.groups == ["alt.binaries.test"])
-        );
-    }
-
-    #[test]
-    fn deduplicates_and_renumbers_broken_segments() {
-        let input = r#"<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
-          <file poster="tester" subject="example.bin">
-            <groups><group>alt.binaries.test</group></groups>
-            <segments>
-              <segment bytes="42" number="1">a@example</segment>
-              <segment bytes="42" number="1">a-again@example</segment>
-              <segment bytes="42" number="0">zero@example</segment>
-            </segments>
-          </file>
-        </nzb>"#;
-        let parsed = parse_nzb(input.as_bytes()).expect("broken numbering is tolerated");
-        let numbers: Vec<u32> = parsed.files[0]
-            .segments
-            .iter()
-            .map(|segment| segment.number)
-            .collect();
-        assert_eq!(numbers, vec![1, 2]);
-    }
-
-    #[test]
-    fn rejects_internal_entity_declarations() {
-        let input = format!(
-            "<?xml version=\"1.0\"?><!DOCTYPE nzb [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]>{BODY}"
-        );
-        let error = parse_nzb(input.as_bytes()).expect_err("internal subset must be rejected");
-        assert!(error.to_string().contains("external NZB doctype"));
-    }
-
-    /// What an import hands a provider reads back as the import it came from: every file,
-    /// group, article and the password, with markup in the values escaped rather than
-    /// interpreted (RD-191-13).
-    #[test]
-    fn a_rendered_document_parses_back_to_what_it_was_made_from() {
-        let document = NzbDocument {
-            password: Some("p<&>\"ss".to_owned()),
-            files: vec![
-                NzbFile {
-                    subject: "[1/2] - \"Show.S01E01.part1.rar\" yEnc (1/2)".to_owned(),
-                    poster: "Poster <poster@example.test>".to_owned(),
-                    groups: vec!["alt.binaries.test".to_owned(), "a.b.other".to_owned()],
-                    segments: vec![
-                        NzbSegment {
-                            number: 1,
-                            bytes: 739_000,
-                            message_id: "part1of2@example.test".to_owned(),
-                        },
-                        NzbSegment {
-                            number: 2,
-                            bytes: 12,
-                            message_id: "part2of2@example.test".to_owned(),
-                        },
-                    ],
-                },
-                NzbFile {
-                    subject: "Show.S01E01.par2".to_owned(),
-                    poster: "poster".to_owned(),
-                    groups: vec!["alt.binaries.test".to_owned()],
-                    segments: vec![NzbSegment {
-                        number: 1,
-                        bytes: 42,
-                        message_id: "par@example.test".to_owned(),
-                    }],
-                },
-            ],
-        };
-        let rendered = render_nzb(&document, Some("Show.S01E01"), 1_700_000_000);
-        assert_eq!(
-            rendered,
-            render_nzb(&document, Some("Show.S01E01"), 1_700_000_000),
-            "the same import renders the same bytes"
-        );
-        let text = String::from_utf8(rendered.clone()).expect("UTF-8");
-        assert!(
-            text.contains("<meta type=\"name\">Show.S01E01</meta>"),
-            "{text}"
-        );
-        assert!(text.contains("date=\"1700000000\""), "{text}");
-        let parsed = parse_nzb(&rendered).expect("the rendered document parses");
-        assert_eq!(parsed.password, document.password);
-        assert_eq!(parsed.files.len(), 2);
-        for (parsed, original) in parsed.files.iter().zip(&document.files) {
-            assert_eq!(parsed.subject, original.subject);
-            assert_eq!(parsed.poster, original.poster);
-            assert_eq!(parsed.groups, original.groups);
-            assert_eq!(parsed.segments, original.segments);
-        }
-    }
-
-    #[test]
-    fn a_document_without_name_or_password_has_no_head() {
-        let document = parse_nzb(BODY.as_bytes()).expect("fixture");
-        let text = String::from_utf8(render_nzb(&document, Some("  "), 0)).expect("UTF-8");
-        assert!(!text.contains("<head>"), "{text}");
-        assert!(
-            text.contains("<nzb"),
-            "a provider sniffs this element: {text}"
-        );
-    }
-}
+#[path = "nzb_tests.rs"]
+mod tests;

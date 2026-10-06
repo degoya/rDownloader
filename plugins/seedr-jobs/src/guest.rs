@@ -12,11 +12,10 @@
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_remote_job::{
-    CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteHandle,
-    RemoteProgress, RemoteWork, SubmitRequest,
-    http::RequestHeader,
-    refuse,
+    CacheAnswer, CacheKind, CacheQuery, Guest, JobSource, RemoteArtifact, RemoteHandle,
+    RemoteProgress, RemoteWork, SubmitRequest, headers, refuse,
     types::{Failure, FailureKind},
+    unknown_answers,
 };
 use seedr_common::{address, folder::Listing, reason::ErrorEnvelope, torrent};
 
@@ -26,29 +25,6 @@ use crate::{
 };
 
 struct Component;
-
-/// The credential header, as a template. Neither half of it ever reaches this plugin: the host
-/// pairs the account's e-mail address with its password, encodes the two and sends the result
-/// towards `www.seedr.cc` and nowhere else.
-fn headers(content_type: Option<&str>) -> Vec<RequestHeader> {
-    let mut headers = vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: address::AUTHORIZATION_TEMPLATE.to_owned(),
-        },
-        RequestHeader {
-            name: "Accept".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ];
-    if let Some(value) = content_type {
-        headers.push(RequestHeader {
-            name: "Content-Type".to_owned(),
-            value_template: value.to_owned(),
-        });
-    }
-    headers
-}
 
 /// One request, with every refusal — in either of Seedr's two shapes — turned into one failure.
 ///
@@ -60,13 +36,17 @@ fn call(
     content_type: Option<&str>,
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
+    // The credential header is a template. Neither half of it ever reaches this plugin: the
+    // host pairs the account's e-mail address with its password, encodes the two and sends the
+    // result towards `www.seedr.cc` and nowhere else.
+    let headers = headers(address::AUTHORIZATION_TEMPLATE.to_owned(), content_type);
     // A refusal decides whatever the status says, and a status decides when there is no
     // document to read. Both directions matter: Seedr answers refusals with a 200.
     plugin_guest_remote_job::call(
         method,
         url,
         &[],
-        &headers(content_type),
+        &headers,
         body,
         |status, retry_after, answer| {
             api::failure_from(status, retry_after, &ErrorEnvelope::of(answer))
@@ -149,14 +129,7 @@ impl Guest for Component {
         _account_id: String,
         queries: Vec<CacheQuery>,
     ) -> Result<Vec<CacheAnswer>, Failure> {
-        Ok(queries
-            .iter()
-            .map(|_| CacheAnswer {
-                state: CacheState::Unknown,
-                file_name: None,
-                size: None,
-            })
-            .collect())
+        Ok(unknown_answers(&queries))
     }
 
     /// Reaches nothing. Asked of every source before anything is handed to anybody, and

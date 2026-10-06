@@ -4,16 +4,11 @@
 //! returned. The flow itself is exercised in `flow_tests.rs`; this file holds the host, the
 //! fixtures and the metadata cases.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
-
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind, LinkStatus};
+use rd_core::{AccountId, FailureKind, LinkStatus};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest,
-    ResolvedHeader, Resolver, ResolverHost,
+    ResolvedHeader, Resolver,
 };
 use url::Url;
 
@@ -37,76 +32,10 @@ pub(super) const DOWNLOAD_OK: &str =
 
 pub(super) const TURNSTILE_SITE_KEY: &str = "0x4AAAAAAB4S-Cq-7quNHQy8";
 pub(super) const FILE_PAGE_URL: &str = "https://krakenfiles.com/view/dp3ngkjnsx/file.html";
+/// The canonical file link the flow tests resolve.
+pub(super) const CANONICAL_LINK: &str = "https://krakenfiles.com/view/DP3nGKJNsX/file.html";
 pub(super) const DIRECT_LINK: &str =
     "https://dl.krakenfiles.com/force-download/ZGlyZWN0LWxpbmstc3ludGhldGlj?fileHash=DP3nGKJNsX";
-
-pub(super) struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    pub(super) requests: Mutex<Vec<HostHttpRequest>>,
-    pub(super) captchas: Mutex<Vec<rd_plugin_api::CaptchaChallenge>>,
-    /// Token every captcha is answered with; `None` mimics a host with no solver.
-    captcha_token: Option<String>,
-}
-
-impl MockHost {
-    pub(super) fn new(responses: Vec<HostHttpResponse>, captcha_token: Option<&str>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: captcha_token.map(str::to_owned),
-        })
-    }
-
-    pub(super) fn request_count(&self) -> usize {
-        self.requests.lock().expect("mock lock").len()
-    }
-
-    pub(super) fn request(&self, index: usize) -> HostHttpRequest {
-        self.requests.lock().expect("mock lock")[index].clone()
-    }
-
-    pub(super) fn captcha_count(&self) -> usize {
-        self.captchas.lock().expect("mock lock").len()
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, _reference: &str) -> bool {
-        false
-    }
-
-    async fn solve_captcha(
-        &self,
-        _client: &ClientIdentity,
-        challenge: rd_plugin_api::CaptchaChallenge,
-        _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, Failure> {
-        self.captchas.lock().expect("mock lock").push(challenge);
-        match &self.captcha_token {
-            Some(token) => Ok(rd_plugin_api::CaptchaAnswer::Token(token.clone())),
-            None => Err(Failure::coded(
-                FailureKind::NeedsCaptcha,
-                "captcha.no_solver",
-                "No captcha solver is configured",
-            )),
-        }
-    }
-}
 
 pub(super) fn response(
     status: u16,
@@ -186,7 +115,7 @@ pub(super) fn header_of(request: &HostHttpRequest, name: &str) -> Option<String>
 
 #[test]
 fn the_resolver_requires_no_account_and_claims_the_url_table() {
-    let resolver = KrakenfilesResolver::new(MockHost::new(Vec::new(), None));
+    let resolver = KrakenfilesResolver::new(MockHost::free(Vec::new(), None));
     assert!(!resolver.metadata().requires_account);
     for link in [
         "https://krakenfiles.com/view/DP3nGKJNsX/file.html",
@@ -231,7 +160,7 @@ fn the_download_hosts_constant_matches_the_manifest() {
 
 #[tokio::test]
 async fn check_account_has_nothing_to_check() {
-    let resolver = KrakenfilesResolver::new(MockHost::new(Vec::new(), None));
+    let resolver = KrakenfilesResolver::new(MockHost::free(Vec::new(), None));
     let failure = resolver
         .check_account(AccountId::new())
         .await
@@ -242,7 +171,7 @@ async fn check_account_has_nothing_to_check() {
 
 #[tokio::test]
 async fn hosters_is_the_apex_domain() {
-    let resolver = KrakenfilesResolver::new(MockHost::new(Vec::new(), None));
+    let resolver = KrakenfilesResolver::new(MockHost::free(Vec::new(), None));
     assert_eq!(
         resolver.hosters(AccountId::new()).await.expect("hosters"),
         vec!["krakenfiles.com".to_owned()]
@@ -251,7 +180,7 @@ async fn hosters_is_the_apex_domain() {
 
 #[tokio::test]
 async fn check_reads_the_metadata_endpoint_per_link() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![
             response(
                 200,
@@ -349,3 +278,6 @@ async fn check_reads_the_metadata_endpoint_per_link() {
 
 #[path = "flow_tests.rs"]
 mod flow_tests;
+
+#[path = "request_tests.rs"]
+mod request_tests;

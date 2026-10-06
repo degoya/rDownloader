@@ -5,16 +5,11 @@
 #
 # Sourced, never run. The functions return non-zero and say why; the caller decides to stop.
 
-# The generated files: nobody edits them by hand, so a merge conflict in one of them has no side
-# to take — either side is taken and the generator writes the truth after the last merge.
-RD_GENERATED_FILES=(
-    web/openapi.json
-    web/src/api/schema.d.ts
-    crates/rd-api/mcp-coverage.md
-    crates/rd-api/licenses/third-party.json
-    web/components.d.ts
-    web/auto-imports.d.ts
-)
+# The generated files, RD_GENERATED_FILES (inert-paths.sh): nobody edits them by hand, so a merge
+# conflict in one of them has no side to take — either side is taken and the generator writes the
+# truth after the last merge.
+# shellcheck source=inert-paths.sh
+source "$(dirname "${BASH_SOURCE[0]}")/inert-paths.sh"
 
 # The merge drivers .gitattributes names (RD-1100-13), registered in the repository's config, which
 # every worktree shares, so the merges resolve the files whose conflicts have one right answer

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # scripts/edge-addons.sh against a stub `curl` (RD-190-11): without credentials it warns and
-# succeeds; a new version is uploaded, waited for and submitted for certification through API
-# v1.1; a version the store has already ends in "nothing to do"; every refusal ends in a warning
+# succeeds; a new version is uploaded, waited for — through HTTP 202 too — and submitted for
+# certification through API v1.1; a version the store has already ends in "nothing to do"; every refusal ends in a warning
 # and exit 0, never a failed release; no key appears in any output or command line.
 #
 #   scripts/tests/edge-addons.sh
@@ -21,7 +21,8 @@ ZIP="$SCRATCH/rdownloader-chrome.zip"
 (cd "$SCRATCH/ext" && zip -q "$ZIP" manifest.json)
 
 # The stub answers by URL from $FAKE/<name>.status and <name>.json (upload, upload-op, publish,
-# publish-op); an operation query takes <name>.2.json from its second call on when that exists.
+# publish-op); an operation query takes <name>.2.json and <name>.2.status from its second call on
+# when they exist.
 # Accepted calls carry a Location header with the operation ID. It records every argument, the
 # header file's lines with their values cut off, and the body it was sent.
 cat > "$SCRATCH/bin/curl" <<'EOF'
@@ -53,6 +54,7 @@ body="$FAKE/$name.json"
 [[ "$count" -ge 2 && -f "$FAKE/$name.2.json" ]] && body="$FAKE/$name.2.json"
 [[ -f "$body" ]] && cp "$body" "$out"
 code="$(cat "$FAKE/$name.status" 2> /dev/null || echo 200)"
+[[ "$count" -ge 2 && -f "$FAKE/$name.2.status" ]] && code="$(cat "$FAKE/$name.2.status")"
 if [[ -n "$headers" ]]; then
     printf 'HTTP/1.1 %s\r\n' "$code" > "$headers"
     [[ -n "${location:-}" && ! -f "$FAKE/no-location" ]] && printf 'Location: %s\r\n' "$location" >> "$headers"
@@ -127,6 +129,23 @@ echo '{"id":"op-upload-1","status":"Succeeded","message":"done","errorCode":"","
 store publish
 expect_status "an upload processed in the background" 0
 expect_true "is waited for, then submitted" '[[ "$(grep -c "/draft/package/operations/" "$FAKE/urls")" == 2 ]] && grep -qx "$PRODUCT/submissions" "$FAKE/urls"'
+
+# HTTP 202 without a body: accepted, still processing (v1.11.0, run 37381495818; RD-1120-07).
+reset
+answer upload-op 202 ''
+echo 200 > "$FAKE/upload-op.2.status"
+echo '{"id":"op-upload-1","status":"Succeeded","message":"done","errorCode":"","errors":null}' > "$FAKE/upload-op.2.json"
+store publish
+expect_status "an operation answered with 202, then finished" 0
+expect_true "is waited for, not refused" '! grep -qF "::warning::" <<< "$output" && [[ "$(grep -c "/draft/package/operations/" "$FAKE/urls")" == 2 ]]'
+expect_output "and submitted" "submitted: 1.2.3 is in certification"
+
+reset
+answer publish-op 202 ''
+store publish
+expect_status "a submission that stays at 202" 0
+expect_output "warns after the wait, not at the first answer" "still processing the submission after 0 s"
+expect "asked as often as the wait allows" "3" "$(grep -c "/submissions/operations/" "$FAKE/urls")"
 
 reset
 answer upload-op 200 '{"id":"op-upload-1","status":"InProgress","message":null,"errorCode":null,"errors":null}'

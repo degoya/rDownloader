@@ -38,6 +38,8 @@ MAIN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # green, which cost two refused merges on 2026-09-22. A CARGO_TARGET_DIR that is set still wins.
 # shellcheck source=lib/verified.sh
 source "$MAIN/scripts/lib/verified.sh"
+# shellcheck source=lib/web-dist.sh
+source "$MAIN/scripts/lib/web-dist.sh"
 BASE="${BASE:-development}"
 GENERATED=(web/auto-imports.d.ts web/components.d.ts)
 
@@ -82,6 +84,9 @@ INFO
 
 check)
     [[ -d "$path" ]] || { echo "no worktree at $path" >&2; exit 1; }
+    # A warning here, a refusal in check.sh, the packaging scripts and e2e.sh --build (RD-1120-06).
+    rd_web_dist_guard "$path" "a check, package or e2e build of $branch" \
+        || echo "   (a warning here; those scripts refuse to run in it)" >&2
     if git -C "$path" diff --quiet -- "${GENERATED[@]}"; then
         echo "==> generated declarations are unchanged"
     else

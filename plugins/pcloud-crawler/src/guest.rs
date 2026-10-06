@@ -22,8 +22,8 @@ use pcloud_common::{
     metadata::{self, Metadata},
 };
 use plugin_guest_crawler::{
-    CrawledLink, Guest, host,
-    http::{self, RequestHeader, RequestQuery},
+    CrawledLink, Guest, bearer, host,
+    http::{self, RequestQuery},
     refuse,
     types::{Failure, FailureKind},
 };
@@ -60,13 +60,6 @@ fn refuse_with_result(
     }
 }
 
-fn authorization() -> Vec<RequestHeader> {
-    vec![RequestHeader {
-        name: "Authorization".to_owned(),
-        value_template: format!("Bearer {{{{secret:{TOKEN_REFERENCE}}}}}"),
-    }]
-}
-
 fn query(pairs: &[(&str, String)]) -> Vec<RequestQuery> {
     pairs
         .iter()
@@ -91,7 +84,7 @@ fn once(
     authenticated: bool,
 ) -> Result<Vec<u8>, Rejected> {
     let headers = if authenticated {
-        authorization()
+        vec![bearer(TOKEN_REFERENCE)]
     } else {
         Vec::new()
     };

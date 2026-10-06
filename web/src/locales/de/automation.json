@@ -52,12 +52,12 @@
     "heading": "Testlauf",
     "package": "Beispielpaket",
     "run": "Auswerten",
-    "help": "Wertet gegen ein echtes Paket aus und verändert nichts.",
+    "help": "Wertet dieses Formular, gespeichert oder nicht, gegen ein echtes Paket aus und verändert nichts.",
     "trigger_yes": "Auslöser passt",
     "trigger_no": "anderer Auslöser",
     "condition_yes": "Bedingung trifft zu",
     "condition_no": "Bedingung trifft nicht zu",
-    "none": "Keine aktive Automation zum Auswerten."
+    "draft": "Diese Automation"
   },
   "trigger": {
     "intake_received": "Links übernommen",

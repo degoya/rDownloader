@@ -12,6 +12,7 @@
 //! `{"success":false,"value":"list_not_found","message":"..."}`. The `value` token is the stable
 //! code; the `message` is prose and never travels.
 
+use plugin_common::address::Parts;
 use serde::Deserialize;
 
 pub const API_BASE: &str = "https://pixeldrain.com/api";
@@ -60,20 +61,18 @@ pub struct Child {
 /// Two shapes and no more: the share page `/l/{id}` and the API's own `/api/list/{id}`. A file
 /// address belongs to `plugins/pixeldrain/` and is deliberately left alone here, so exactly one
 /// of the two plugins answers for any given address.
+///
+/// Read without a URL parser, so the `url` crate and its IDNA tables stay out of the component
+/// (RD-1120-10, PL-22): a dot segment or a `\` refuses the address rather than being resolved
+/// ([`Parts`]).
 #[must_use]
 pub fn list_id(url: &str) -> Option<String> {
-    let parsed = url::Url::parse(url).ok()?;
-    let host = parsed
-        .host_str()?
-        .trim_end_matches('.')
-        .to_ascii_lowercase();
+    let parts = Parts::of(url)?;
+    let host = parts.host.trim_end_matches('.').to_ascii_lowercase();
     if host != "pixeldrain.com" && host != "www.pixeldrain.com" {
         return None;
     }
-    let segments: Vec<&str> = parsed
-        .path_segments()?
-        .filter(|segment| !segment.is_empty())
-        .collect();
+    let segments = parts.segments()?;
     let id = match segments.as_slice() {
         ["l", id] | ["api", "list", id] => *id,
         _ => return None,

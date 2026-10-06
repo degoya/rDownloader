@@ -10,6 +10,7 @@ mod common;
 
 mod archive_password_backup;
 mod area_backup;
+mod automation_dry_run;
 mod automation_triggers;
 mod automations;
 mod backup_destinations;
@@ -28,6 +29,7 @@ mod plugin_bundled;
 mod plugin_bundled_removal;
 mod plugin_enabled;
 mod plugin_repositories;
+mod plugin_trust;
 mod plugin_versions;
 mod protected_roots;
 mod routing_backup;

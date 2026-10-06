@@ -75,7 +75,7 @@ function submit(): void {
 </script>
 
 <template>
-  <UModal :title="t('linkgrabber.nzb.modal.title')" :description="t('linkgrabber.nzb.modal.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end' }">
+  <UModal :title="t('linkgrabber.nzb.modal.title')" :description="t('linkgrabber.nzb.modal.description')" :close="{ onClick: () => emit('close', null) }">
     <template #body>
       <form id="nzb-import-form" class="space-y-3" @submit.prevent="submit">
         <!--

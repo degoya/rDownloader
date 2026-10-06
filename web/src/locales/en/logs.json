@@ -8,7 +8,6 @@
     "code": "Code",
     "correlation": "Correlation id",
     "search": "Search in messages",
-    "apply": "Apply",
     "clear": "Clear filters"
   },
   "levels": {
@@ -79,5 +78,9 @@
         "secrets": "secrets: passwords, tokens, API keys, cookies, certificates and vault references"
       }
     }
+  },
+  "tabs": {
+    "log": "Log",
+    "bundle": "Diagnostic bundle"
   }
 }

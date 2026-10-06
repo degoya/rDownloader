@@ -9,8 +9,13 @@
 # WiX 5 rather than 6 or later: from 6 on, WiX asks for its maintenance-fee EULA to be accepted.
 #
 # Usage:
-#   scripts/package-msi.sh <unpacked-zip-dir> <out.msi>
-#   scripts/package-msi.sh --sources-only <unpacked-zip-dir> <out-dir>   # generated sources, no wix
+#   scripts/package-msi.sh <unpacked-zip-dir> <out.msi> [en|de|es|fr]
+#   scripts/package-msi.sh --sources-only <unpacked-zip-dir> <out-dir> [en|de|es|fr]   # no wix
+#
+# The language (default en) picks the culture of WiX's dialogs and the .wxl of the installer's
+# own strings beside rdownloader.wxs (RD-1120-20): one MSI per language of the interface. The
+# release publishes the English one as rdownloader-windows-x86_64.msi, the update manifest's
+# installer, and the others as rdownloader-windows-x86_64-<language>.msi.
 #
 # The MSI's version is the three numbers of the one VERSION.txt names: MSI compares no more, and
 # a pre-release suffix is not allowed in it (1.8.0-beta.1 is 1.8.0).
@@ -22,8 +27,21 @@ if [[ "${1:-}" == --sources-only ]]; then
     sources_only=1
     shift
 fi
-stage="${1:?usage: scripts/package-msi.sh [--sources-only] <unpacked-zip-dir> <out.msi|out-dir>}"
-out="${2:?usage: scripts/package-msi.sh [--sources-only] <unpacked-zip-dir> <out.msi|out-dir>}"
+usage="usage: scripts/package-msi.sh [--sources-only] <unpacked-zip-dir> <out.msi|out-dir> [en|de|es|fr]"
+stage="${1:?$usage}"
+out="${2:?$usage}"
+language="${3:-en}"
+# The required languages of web/src/locales/languages.json, each with the culture WiX knows.
+case "$language" in
+    en) culture=en-US ;;
+    de) culture=de-DE ;;
+    es) culture=es-ES ;;
+    fr) culture=fr-FR ;;
+    *)
+        echo "no installer language '$language' (en, de, es or fr)" >&2
+        exit 2
+        ;;
+esac
 
 # A native Windows program takes Windows paths; under Git Bash cygpath makes them.
 winpath() {
@@ -106,6 +124,7 @@ printf 'msi\n' > "$work/install-kind"
 
 arguments=(build -arch x64
     -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
+    -culture "$culture" -loc "$(winpath "$ROOT/packaging/msi/$culture.wxl")"
     -d "Version=$msi_version"
     -d "Stage=$(winpath "$stage")"
     -d "InstallKind=$(winpath "$work/install-kind")"
@@ -117,7 +136,7 @@ if [[ "$sources_only" -eq 1 ]]; then
     mkdir -p "$out"
     cp "$work/plugins.wxs" "$work/license.rtf" "$work/install-kind" "$out/"
     printf '%s\n' "${arguments[@]}" > "$out/wix-arguments.txt"
-    echo "    sources in $out (rdownloader $version, MSI $msi_version, ${#plugins[@]} plugins)"
+    echo "    sources in $out (rdownloader $version, MSI $msi_version $culture, ${#plugins[@]} plugins)"
     exit 0
 fi
 
@@ -128,4 +147,4 @@ fi
 mkdir -p "$(dirname "$out")"
 rm -f "$out"
 wix "${arguments[@]}" -o "$(winpath "$out")"
-echo "    $out (rdownloader $version, MSI $msi_version, ${#plugins[@]} plugins)"
+echo "    $out (rdownloader $version, MSI $msi_version $culture, ${#plugins[@]} plugins)"

@@ -7,7 +7,7 @@
   "last_live": "Last live: {time}",
   "never_live": "Never seen live",
   "probe_error": "Last probe failed",
-  "empty": "No channels yet. Add a channel above and enable it to record automatically.",
+  "empty": "No channels yet. Add one with the form and enable it to record automatically.",
   "delete": {
     "title": "Delete channel",
     "description": "Delete \"{name}\"? Recordings already made are kept."
@@ -53,15 +53,6 @@
     "empty": "No schedules yet.",
     "needs_channel": "Add a channel above first — a schedule needs one to record.",
     "replay_used": "recorded from the beginning",
-    "weekday": {
-      "1": "Mon",
-      "2": "Tue",
-      "3": "Wed",
-      "4": "Thu",
-      "5": "Fri",
-      "6": "Sat",
-      "7": "Sun"
-    },
     "states": {
       "planned": "Planned",
       "waiting": "Watching",

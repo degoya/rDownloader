@@ -1,0 +1,21 @@
+# The menu entry of the deb and rpm packages (RD-1120-20): it starts the systemd user service if it
+# is not running and opens the web interface at the service's default address. The icon is
+# web/public/favicon.svg, installed as rdownloader.svg into the hicolor theme beside its 512 px
+# rendering (scripts/generate-icons.sh).
+[Desktop Entry]
+Type=Application
+Name=rDownloader
+GenericName=Download Manager
+GenericName[de]=Download-Manager
+GenericName[es]=Gestor de descargas
+GenericName[fr]=Gestionnaire de téléchargements
+Comment=Open the rDownloader web interface
+Comment[de]=Öffnet die Oberfläche von rDownloader
+Comment[es]=Abre la interfaz web de rDownloader
+Comment[fr]=Ouvre l’interface web de rDownloader
+Exec=sh -c "systemctl --user start rdownloader.service; exec xdg-open http://127.0.0.1:8710/"
+Icon=rdownloader
+Terminal=false
+StartupNotify=false
+Categories=Network;FileTransfer;
+Keywords=download;torrent;usenet;nzb;

@@ -27,7 +27,12 @@ const emit = defineEmits<{ change: [tracks: TrackSelection] }>()
 const MODES: SubtitleMode[] = ['off', 'sidecar', 'embed', 'sidecar_and_embed']
 const FORMATS = ['srt', 'vtt', 'ass'] as const
 
-const modeItems = computed(() => MODES.map(value => ({ label: t(`linkgrabber.media.tracks.modes.${value}`), value })))
+/** Embedding needs ffmpeg; without it the two embedding modes stay visible but cannot be chosen. */
+const modeItems = computed(() => MODES.map(value => ({
+  label: t(`linkgrabber.media.tracks.modes.${value}`),
+  value,
+  disabled: embedDisabled.value && (value === 'embed' || value === 'sidecar_and_embed')
+})))
 const formatItems = computed(() => FORMATS.map(value => ({ label: value.toUpperCase(), value })))
 
 /** Audio languages the page actually offers, so the filter never lists an impossible one. */
@@ -110,21 +115,21 @@ function warningText(warning: TrackWarning): string {
     </UFormField>
 
     <UFormField :label="t('linkgrabber.media.tracks.subtitles')">
-      <div class="flex flex-wrap items-center gap-1.5">
-        <UButton
-          v-for="item in modeItems"
-          :key="item.value"
-          :label="item.label"
-          size="xs"
-          :color="props.tracks.subtitles.mode === item.value ? 'primary' : 'neutral'"
-          :variant="props.tracks.subtitles.mode === item.value ? 'soft' : 'ghost'"
-          :disabled="props.busy || (embedDisabled && (item.value === 'embed' || item.value === 'sidecar_and_embed'))"
-          :title="embedDisabled && (item.value === 'embed' || item.value === 'sidecar_and_embed')
-            ? t('linkgrabber.media.tracks.embed_needs_ffmpeg')
-            : undefined"
-          @click="setMode(item.value)"
-        />
-      </div>
+      <URadioGroup
+        :model-value="props.tracks.subtitles.mode"
+        :items="modeItems"
+        variant="card"
+        indicator="hidden"
+        orientation="horizontal"
+        size="xs"
+        :disabled="props.busy"
+        :aria-label="t('linkgrabber.media.tracks.subtitles')"
+        @update:model-value="setMode"
+      >
+        <template #label="{ item }">
+          <span :title="item.disabled ? t('linkgrabber.media.tracks.embed_needs_ffmpeg') : undefined">{{ item.label }}</span>
+        </template>
+      </URadioGroup>
     </UFormField>
 
     <template v-if="!subtitlesOff">
@@ -164,7 +169,6 @@ function warningText(warning: TrackWarning): string {
     <UAlert
       v-if="hasAutomaticOnly && !subtitlesOff && !props.tracks.subtitles.include_automatic"
       color="warning"
-      variant="subtle"
       icon="i-lucide-captions-off"
       data-testid="media-automatic-only"
       :description="t('linkgrabber.media.tracks.automatic_only_hint')"
@@ -173,7 +177,6 @@ function warningText(warning: TrackWarning): string {
       v-for="(warning, index) in props.warnings ?? []"
       :key="index"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       data-testid="media-track-warning"
       :description="warningText(warning)"

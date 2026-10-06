@@ -11,12 +11,97 @@ use rd_core::{DownloadFile, DownloadId, DownloadState, StorageRootId};
 use rd_db::StoreError;
 use rd_files::StorageRoot;
 
-use super::{NzbDropped, is_active};
+use super::NzbDropped;
 use crate::SchedulerHandle;
+
+/// Why a removal is refused while a worker holds the row.
+const REMOVAL_REFUSAL: &str = "active download must be paused or cancelled before removal";
+
+/// What a removal needs once its row is gone, read while the row was still there.
+struct StagedRemoval {
+    current: DownloadFile,
+    /// The package the row belonged to, when it has a folder.
+    package: Option<rd_core::DownloadPackage>,
+    usenet_import: Option<rd_core::NzbImportId>,
+}
 
 impl SchedulerHandle {
     /// Removes an inactive queue entry and its incomplete staging file.
     pub async fn remove(&self, id: DownloadId) -> Result<()> {
+        let current = self.removable(id).await?;
+        self.while_held(id, REMOVAL_REFUSAL, self.remove_idle(current))
+            .await
+    }
+
+    /// [`Self::remove`] for many rows (RD-1120-17): the checks, the holds and the staging
+    /// files row by row as there, the rows themselves in one writer transaction instead of one
+    /// each. One answer per id, in order; a refused row leaves the others to go ahead, and a
+    /// second mention of an id finds its row gone.
+    pub async fn remove_many(&self, ids: &[DownloadId]) -> Vec<Result<()>> {
+        let mut outcomes = Vec::with_capacity(ids.len());
+        let mut staged: Vec<(usize, StagedRemoval)> = Vec::new();
+        for &id in ids {
+            match self.stage_removal(id, &staged).await {
+                Ok(entry) => {
+                    staged.push((outcomes.len(), entry));
+                    outcomes.push(Ok(()));
+                }
+                Err(error) => outcomes.push(Err(error)),
+            }
+        }
+        if staged.is_empty() {
+            return outcomes;
+        }
+        let rows = staged.iter().map(|(_, entry)| entry.current.id).collect();
+        let answers = match self.database.delete_downloads(rows).await {
+            Ok(answers) => answers,
+            // The transaction failed as a whole: no row of the batch is gone.
+            Err(error) => {
+                let message = format!("{error:#}");
+                staged
+                    .iter()
+                    .map(|_| Err(anyhow::anyhow!(message.clone())))
+                    .collect()
+            }
+        };
+        let mut directories_done = Vec::new();
+        for ((index, entry), answer) in staged.into_iter().zip(answers) {
+            let id = entry.current.id;
+            let answer = match answer {
+                Ok(()) => self.after_removal(entry, &mut directories_done).await,
+                Err(error) => Err(error),
+            };
+            if let Some(slot) = outcomes.get_mut(index) {
+                *slot = answer;
+            }
+            self.let_go(id).await;
+        }
+        outcomes
+    }
+
+    /// One row of [`Self::remove_many`] up to its delete: checked, held and its staging file
+    /// gone. The hold is let go again when this refuses.
+    async fn stage_removal(
+        &self,
+        id: DownloadId,
+        staged: &[(usize, StagedRemoval)],
+    ) -> Result<StagedRemoval> {
+        if staged.iter().any(|(_, entry)| entry.current.id == id) {
+            bail!(StoreError::not_found("download not found"));
+        }
+        let current = self.removable(id).await?;
+        self.hold(id, REMOVAL_REFUSAL).await?;
+        match self.clear_staging(current).await {
+            Ok(entry) => Ok(entry),
+            Err(error) => {
+                self.let_go(id).await;
+                Err(error)
+            }
+        }
+    }
+
+    /// The row `id` names, once nothing works on it any more; refused while something does.
+    async fn removable(&self, id: DownloadId) -> Result<DownloadFile> {
         let mut current = self
             .database
             .get_download(id)
@@ -42,21 +127,21 @@ impl SchedulerHandle {
                 .await?
                 .context(StoreError::not_found("download not found"))?;
         }
-        if is_active(current.state) {
-            bail!(StoreError::wrong_state(
-                "active download must be paused or cancelled before removal"
-            ));
+        if current.state.is_working() {
+            bail!(StoreError::wrong_state(REMOVAL_REFUSAL));
         }
-        self.while_held(
-            id,
-            "active download must be paused or cancelled before removal",
-            self.remove_idle(current),
-        )
-        .await
+        Ok(current)
     }
 
     /// The part of [`Self::remove`] that runs while the stop reason keeps the dispatcher off.
     async fn remove_idle(&self, current: DownloadFile) -> Result<()> {
+        let staged = self.clear_staging(current).await?;
+        self.database.delete_download(staged.current.id).await?;
+        self.after_removal(staged, &mut Vec::new()).await
+    }
+
+    /// Deletes the row's incomplete staging file and keeps what the removal needs afterwards.
+    async fn clear_staging(&self, current: DownloadFile) -> Result<StagedRemoval> {
         let id = current.id;
         let package = self
             .database
@@ -79,21 +164,39 @@ impl SchedulerHandle {
                 tracing::warn!(download_id = %id, %error, "incomplete staging file was not removed");
             }
         }
-        // Read before the row is gone: after the delete there is nothing left to say which
-        // group it belonged to.
-        let mirror_of = current.mirror_group.is_some().then(|| current.clone());
-        self.database.delete_download(id).await?;
-        if let Some(removed) = mirror_of
-            && let Err(error) = crate::failures::wake_mirror(self, &removed).await
+        Ok(StagedRemoval {
+            current,
+            package,
+            usenet_import,
+        })
+    }
+
+    /// What follows a deleted row: a waiting mirror takes the turn, and the package folder
+    /// goes once the package has. `directories_done` names the packages whose folder a batch
+    /// already looked at, so many files of one package look once.
+    async fn after_removal(
+        &self,
+        staged: StagedRemoval,
+        directories_done: &mut Vec<rd_core::PackageId>,
+    ) -> Result<()> {
+        let StagedRemoval {
+            current,
+            package,
+            usenet_import,
+        } = staged;
+        if current.mirror_group.is_some()
+            && let Err(error) = crate::failures::wake_mirror(self, &current).await
         {
-            tracing::warn!(%error, download_id = %id, "no mirror could take over");
+            tracing::warn!(%error, download_id = %current.id, "no mirror could take over");
         }
         // The package row disappears with its last file; only then may its directory go, and
         // only while it is empty — data the user kept there stays untouched.
         if let Some(package) = package
+            && !directories_done.contains(&package.id)
             && Path::new(&package.destination) != self.config.downloads_directory
             && self.database.get_package(package.id).await?.is_none()
         {
+            directories_done.push(package.id);
             remove_empty_package_directory(&package.destination, usenet_import).await;
         }
         Ok(())
@@ -112,7 +215,7 @@ impl SchedulerHandle {
             .get_download(id)
             .await?
             .context(StoreError::not_found("download not found"))?;
-        if is_active(current.state) {
+        if current.state.is_working() {
             bail!(StoreError::wrong_state(
                 "active download must be paused or cancelled before it can be reset"
             ));
@@ -161,7 +264,7 @@ impl SchedulerHandle {
             .context(StoreError::not_found("download not found"))?;
         const REFUSAL: &str =
             "active download must be paused or cancelled before its data is discarded";
-        if is_active(current.state) {
+        if current.state.is_working() {
             bail!(StoreError::wrong_state(REFUSAL));
         }
         self.while_held(id, REFUSAL, async {
@@ -297,7 +400,7 @@ pub(super) async fn discard_scratch_files(
         .iter()
         .filter_map(|neighbour| {
             let other = file_stem(&neighbour.file_name);
-            (other.len() > stem.len() || (other == stem && is_active(neighbour.state)))
+            (other.len() > stem.len() || (other == stem && neighbour.state.is_working()))
                 .then(|| format!("{other}."))
         })
         .collect::<Vec<_>>();

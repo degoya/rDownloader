@@ -925,7 +925,8 @@ fn a_destination_names_its_bucket_unless_the_profile_is_bound() {
 /// `object_storage.after_part_upload`: the service confirmed a part the record never heard of.
 #[cfg(feature = "failpoints")]
 #[tokio::test]
-async fn a_part_confirmed_but_not_recorded_is_uploaded_again_and_nothing_before_it() {
+async fn a_part_confirmed_but_not_recorded_before_a_crash_is_uploaded_again_and_nothing_before_it()
+{
     let harness = Harness::start().await;
     let directory = package_file(&harness, "big.bin", 40 * MIB).await;
     let files = vec!["big.bin".to_owned()];

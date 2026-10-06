@@ -26,7 +26,7 @@ use crate::{ApiError, dto::SettingsResponse};
 #[tool_router(router = config_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read the service settings (concurrency, speed limit, retries and the automatic retry of failed downloads - auto_retry_failed, auto_retry_interval_hours 1-24, auto_retry_max_rounds 0-100 with 0 no limit -, post-processing, fail_hopeless_jobs - whether a Usenet download that can no longer be repaired is stopped early and failed with usenet.job_hopeless, default true -, media/gallery/stream/torrent options, nzb_hand_over_linkgrabber_enabled and nzb_hand_over_downloads_enabled - whether the LinkGrabber and the Downloads view offer handing an NZB to a remote-job provider, both default true). Pass keys to project a subset; update_settings changes them."
+        description = "Read the service settings (concurrency - max_active_files 1-32, the downloads running at once, which the scheduler applies on its next pass without a restart -, speed limit, retries and the automatic retry of failed downloads - auto_retry_failed, auto_retry_interval_hours 1-24, auto_retry_max_rounds 0-100 with 0 no limit -, post-processing, fail_hopeless_jobs - whether a Usenet download that can no longer be repaired is stopped early and failed with usenet.job_hopeless, default true -, media/gallery/stream/torrent options, nzb_hand_over_linkgrabber_enabled and nzb_hand_over_downloads_enabled - whether the LinkGrabber and the Downloads view offer handing an NZB to a remote-job provider, both default true). Pass keys to project a subset; update_settings changes them."
     )]
     pub async fn get_settings(
         &self,

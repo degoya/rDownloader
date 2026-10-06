@@ -133,12 +133,12 @@ function submit(): void {
 </script>
 
 <template>
-  <UModal :title="t('routing.rule.regex_editor.title')" :description="t('routing.rule.regex_editor.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end', content: 'sm:max-w-2xl' }">
+  <UModal :title="t('routing.rule.regex_editor.title')" :description="t('routing.rule.regex_editor.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ content: 'sm:max-w-2xl' }">
     <template #body>
       <div class="space-y-4">
         <UTabs v-model="activeTab" :items="tabItems" size="sm">
           <template #visual>
-            <div v-if="builderUsable" class="space-y-3 pt-3">
+            <div v-if="builderUsable" class="space-y-3">
               <div v-for="(condition, index) in builder.conditions" :key="index" class="flex items-center gap-2">
                 <USelect v-model="condition.kind" :items="kindItems(index)" value-key="value" class="w-44 shrink-0" />
                 <UInput v-model="condition.value" class="min-w-0 flex-1 font-mono" :placeholder="t('routing.rule.regex_editor.value_placeholder')" />
@@ -153,20 +153,20 @@ function submit(): void {
                 <p class="mt-1 break-all font-mono text-xs" :class="pattern ? 'text-highlighted' : 'text-muted'">{{ pattern || '—' }}</p>
               </div>
             </div>
-            <div v-else class="space-y-3 pt-3">
-              <UAlert color="warning" variant="subtle" :description="t('routing.rule.regex_editor.unparseable_hint')" />
+            <div v-else class="space-y-3">
+              <UAlert color="warning" :description="t('routing.rule.regex_editor.unparseable_hint')" />
               <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-eraser" :label="t('routing.rule.regex_editor.rebuild')" @click="rebuild" />
             </div>
           </template>
           <template #expert>
-            <div class="pt-3">
+            <div>
               <UFormField :label="t('routing.rule.regex_editor.pattern_label')" :description="t('routing.rule.regex_editor.clear_hint')">
                 <UInput v-model="pattern" class="w-full font-mono" :placeholder="t('routing.rule.regex_placeholder')" />
               </UFormField>
             </div>
           </template>
         </UTabs>
-        <UAlert v-if="invalid" color="error" variant="subtle" :title="t('routing.rule.regex_editor.invalid_pattern')" :description="evaluation?.response.error ?? undefined" :ui="{ description: 'font-mono text-xs break-all' }" />
+        <UAlert v-if="invalid" color="error" :title="t('routing.rule.regex_editor.invalid_pattern')" :description="evaluation?.response.error ?? undefined" :ui="{ description: 'font-mono text-xs break-all' }" />
         <div>
           <p class="eyebrow">{{ t('routing.rule.regex_editor.tester_title') }}</p>
           <div class="mt-2 space-y-2">
@@ -174,7 +174,7 @@ function submit(): void {
               <UIcon :name="sampleIcon(index).name" :class="sampleIcon(index).class" :aria-label="sampleIcon(index).label" class="mt-2 size-4 shrink-0" />
               <div class="min-w-0 flex-1">
                 <UInput v-model="samples[index]" class="w-full font-mono" :placeholder="t('routing.rule.regex_editor.sample_placeholder')" />
-                <p v-if="sampleParts(index)" class="mt-1 truncate font-mono text-[11px] text-muted">{{ sampleParts(index)!.before }}<span class="bg-primary/20 text-primary">{{ sampleParts(index)!.match }}</span>{{ sampleParts(index)!.after }}</p>
+                <p v-if="sampleParts(index)" class="mt-1 truncate font-mono text-2xs text-muted">{{ sampleParts(index)!.before }}<span class="bg-primary/20 text-primary">{{ sampleParts(index)!.match }}</span>{{ sampleParts(index)!.after }}</p>
               </div>
               <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('routing.rule.regex_editor.remove_sample')" @click="removeSample(index)" />
             </div>

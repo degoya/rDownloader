@@ -25,7 +25,6 @@
     "secret_generic_password": "Kontopasswort",
     "hint_generic": "Gib die vom Provider benötigten Zugangsdaten ein.",
     "cookies_warning": "Cookies gewähren Zugriff auf deine Sitzung. Importiere nur die Cookies des jeweiligen Providers und gib den Inhalt niemals weiter.",
-    "test": "Test",
     "edit": "Konto bearbeiten",
     "delete": "Konto löschen",
     "empty": "Noch kein Providerkonto angelegt.",

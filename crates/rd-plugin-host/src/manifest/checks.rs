@@ -42,6 +42,26 @@ pub(super) fn validate_metadata(metadata: &PluginMetadata) -> Result<()> {
 
 pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String]) -> Result<()> {
     validate_slug(&provider.slug)?;
+    validate_no_account(provider)?;
+    validate_secret_spelling(provider)?;
+    let slots = provider.secret_slots();
+    validate_secret_slots(&slots, domains)?;
+    validate_transfer_auth(provider, &slots)?;
+    validate_credential_modes(provider, &slots)?;
+    validate_flow_slots(provider, &slots)?;
+    validate_cookie_scope(provider, domains)?;
+    for (alias, canonical) in &provider.host_aliases {
+        validate_domain_pattern(alias, false)?;
+        validate_domain_pattern(canonical, false)?;
+    }
+    if provider.kind == ProviderKindManifest::Multihoster && !provider.host_aliases.is_empty() {
+        bail!("multihoster providers cannot declare host_aliases");
+    }
+    Ok(())
+}
+
+/// A provider that takes no account describes none.
+fn validate_no_account(provider: &ProviderManifest) -> Result<()> {
     // A provider that takes no account must not describe one. Nothing would ever fill these:
     // the accounts list hides such a provider, so a declared secret or cookie scope would be a
     // credential no one can enter and a grant no one asked for (RD-098-01).
@@ -62,6 +82,11 @@ pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String])
             bail!("provider.credentials = \"none\" cannot require a username");
         }
     }
+    Ok(())
+}
+
+/// The secret slots are spelled one way: `secrets`, or `secret_reference` with its domains.
+fn validate_secret_spelling(provider: &ProviderManifest) -> Result<()> {
     // One spelling or the other, never both: a manifest that sets each of them would leave
     // which slots actually exist up to the reader.
     if !provider.secrets.is_empty()
@@ -74,7 +99,11 @@ pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String])
     if !provider.secret_domains.is_empty() && provider.secret_reference.is_none() {
         bail!("provider.secret_domains requires provider.secret_reference");
     }
-    let slots = provider.secret_slots();
+    Ok(())
+}
+
+/// Each slot's reference is a plain identifier, declared once, and its hosts are the plugin's.
+fn validate_secret_slots(slots: &[SecretSlotManifest], domains: &[String]) -> Result<()> {
     for (index, slot) in slots.iter().enumerate() {
         // Ownership of a reference is enforced when the row is registered
         // (`rd_provider_registry` refuses one another provider already claims); here we only
@@ -107,6 +136,11 @@ pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String])
             }
         }
     }
+    Ok(())
+}
+
+/// HTTP Basic on the transfer needs one typed credential with the hosts it goes to.
+fn validate_transfer_auth(provider: &ProviderManifest, slots: &[SecretSlotManifest]) -> Result<()> {
     // HTTP Basic on the transfer is built from exactly one credential the person typed, and it
     // goes to exactly the hosts that credential's slot names (RD-120-38). So it needs one slot,
     // with hosts, of a kind whose secret *is* that credential: not a token a flow obtained, not
@@ -120,13 +154,22 @@ pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String])
                 "provider.transfer_auth = \"basic\" requires credentials = \"api_key\" or \"username_password\""
             );
         }
-        match slots.as_slice() {
+        match slots {
             [slot] if !slot.domains.is_empty() => {}
             _ => bail!(
                 "provider.transfer_auth = \"basic\" requires one secret_reference with secret_domains"
             ),
         }
     }
+    Ok(())
+}
+
+/// A slot names a mode only where the provider offers a choice of modes, and then every slot
+/// does and every mode is described.
+fn validate_credential_modes(
+    provider: &ProviderManifest,
+    slots: &[SecretSlotManifest],
+) -> Result<()> {
     // A choice of modes is only meaningful if every slot says which mode it serves and both
     // modes are actually described; anything else would leave an account unable to reach a
     // credential it was allowed to enter.
@@ -155,12 +198,17 @@ pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String])
             );
         }
     } else if provider.credentials == CredentialKindManifest::OAuthOrApiKey {
-        validate_oauth_or_api_key(&slots)?;
+        validate_oauth_or_api_key(slots)?;
     } else if slots.iter().any(|slot| slot.mode.is_some()) {
         bail!(
             "provider.secrets may only declare a mode when credentials = \"login_or_api_key\" or \"oauth_or_api_key\""
         );
     }
+    Ok(())
+}
+
+/// A slot the flow fills: only for a provider with a sign-in flow, once, beside the person's.
+fn validate_flow_slots(provider: &ProviderManifest, slots: &[SecretSlotManifest]) -> Result<()> {
     // A slot the flow fills only makes sense where a flow fills one, and only beside a slot
     // the person fills -- otherwise the account would have a credential nobody can enter, or
     // a sign-in with nowhere to put what it obtained (RD-106-03).
@@ -191,6 +239,11 @@ pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String])
             );
         }
     }
+    Ok(())
+}
+
+/// The cookie scope is an https address on one of the plugin's hosts.
+fn validate_cookie_scope(provider: &ProviderManifest, domains: &[String]) -> Result<()> {
     if let Some(scope) = &provider.cookie_scope {
         let url = url::Url::parse(scope).context("provider.cookie_scope is not a valid URL")?;
         if url.scheme() != "https" {
@@ -203,13 +256,6 @@ pub(super) fn validate_provider(provider: &ProviderManifest, domains: &[String])
         if !host_covered(&host, domains) {
             bail!("provider.cookie_scope host {host} is outside the plugin's domains");
         }
-    }
-    for (alias, canonical) in &provider.host_aliases {
-        validate_domain_pattern(alias, false)?;
-        validate_domain_pattern(canonical, false)?;
-    }
-    if provider.kind == ProviderKindManifest::Multihoster && !provider.host_aliases.is_empty() {
-        bail!("multihoster providers cannot declare host_aliases");
     }
     Ok(())
 }

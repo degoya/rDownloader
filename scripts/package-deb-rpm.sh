@@ -4,8 +4,9 @@
 # (RD-180-05), with nfpm and packaging/linux/nfpm.yaml.in. The packages hold exactly the tarball's
 # binaries, plugins and VERSION.txt, so they are what the tarball is, installed: the program in
 # /usr/lib/rdownloader, the commands linked into /usr/bin, systemd user units for the service and
-# the capture agent, and an install-kind marker (`deb`, `rpm`) that moves the data into
-# ~/.local/share/rdownloader. The version is the one VERSION.txt names.
+# the capture agent, a menu entry with its icon (RD-1120-20), and an install-kind marker (`deb`,
+# `rpm`) that moves the data into ~/.local/share/rdownloader. The version is the one VERSION.txt
+# names.
 #
 # Usage:
 #   scripts/package-deb-rpm.sh <rdownloader-linux-ARCH.tar.gz> <out-dir>
@@ -60,6 +61,7 @@ for kind in deb rpm; do
     sed -e "s|@VERSION@|$version|g" -e "s|@ARCH@|$nfpm_arch|g" \
         -e "s|@STAGE@|$work/stage|g" -e "s|@KIND_FILE@|$work/install-kind.$kind|g" \
         -e "s|@PACKAGING@|$ROOT/packaging/linux|g" -e "s|@SYSTEMD@|$ROOT/packaging/systemd|g" \
+        -e "s|@ICONS@|$ROOT/web/public|g" \
         "$ROOT/packaging/linux/nfpm.yaml.in" > "$work/nfpm-$kind.yaml"
     if grep -q '@[A-Z_]*@' "$work/nfpm-$kind.yaml"; then
         echo "packaging/linux/nfpm.yaml.in has a placeholder this script does not fill" >&2

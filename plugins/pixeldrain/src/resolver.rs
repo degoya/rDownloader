@@ -149,14 +149,14 @@ pub(crate) async fn check<H: PluginHost>(
     // Anything past the cap is answered honestly rather than silently dropped: the row keeps
     // its place in the batch and says the check did not reach it.
     for url in request.urls.iter().skip(MAX_CHECKS) {
-        results.push(unknown(url));
+        results.push(LinkCheck::unknown(url));
     }
     Ok(results)
 }
 
 async fn check_one<H: PluginHost>(host: &H, url: &str, auth: Option<&str>) -> LinkCheck {
     let Some(id) = api::file_id(url) else {
-        return unknown(url);
+        return LinkCheck::unknown(url);
     };
     match file_info(host, &id, auth).await {
         Ok(info) => LinkCheck {
@@ -173,30 +173,18 @@ async fn check_one<H: PluginHost>(host: &H, url: &str, auth: Option<&str>) -> Li
             file_name: api::file_name(&info),
             size: info.size,
         },
-        Err(failure) => LinkCheck {
-            url: url.to_owned(),
-            // Only "the provider says this file is gone" is offline. Every other refusal --
-            // a spent allowance, an outage, an unknown token -- says nothing about the file,
-            // and reporting those as offline would delete rows that are perfectly good. Read
-            // by its code: a 404 or 410 is `Permanent`, the `not_found` word `Offline`, and
-            // both say the same about the file.
-            status: if failure.code.as_deref() == Some(messages::FILE_NOT_FOUND.0) {
+        // Only "the provider says this file is gone" is offline. Every other refusal -- a spent
+        // allowance, an outage, an unknown token -- says nothing about the file, and reporting
+        // those as offline would delete rows that are perfectly good. Read by its code: a 404 or
+        // 410 is `Permanent`, the `not_found` word `Offline`, and both say the same about the file.
+        Err(failure) => LinkCheck::bare(
+            url,
+            if failure.code.as_deref() == Some(messages::FILE_NOT_FOUND.0) {
                 LinkStatus::Offline
             } else {
                 LinkStatus::Unknown
             },
-            file_name: None,
-            size: None,
-        },
-    }
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
+        ),
     }
 }
 

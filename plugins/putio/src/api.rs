@@ -156,12 +156,11 @@ pub fn failure_from(
         return None;
     }
     let mut refusal = classify(status, reset_in_seconds, envelope);
-    // The sanitised `error_type`, when Put.io stated one, and nothing else: this plugin's
-    // `http_error` has never carried the `status` parameter (RD-1110-02 keeps that).
-    refusal.params = envelope
-        .kind()
-        .map(|reason| vec![("reason", reason)])
-        .unwrap_or_default();
+    // The sanitised `error_type`, when Put.io stated one, beside the `status` parameter the
+    // shared mapping gives `http_error` (RD-1120-05), and nothing else.
+    refusal
+        .params
+        .extend(envelope.kind().map(|reason| ("reason", reason)));
     Some(refusal)
 }
 

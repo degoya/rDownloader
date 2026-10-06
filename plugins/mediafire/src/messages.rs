@@ -114,10 +114,6 @@ pub(crate) fn api_error(message: &str) -> String {
     format!("MediaFire API: {message}")
 }
 
-pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> String {
-    format!("Invalid provider URL: {error}")
-}
-
 pub(crate) fn file_blocked(reason: &str) -> String {
     format!("MediaFire blocked this file: {reason}")
 }

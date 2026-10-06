@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { CaptureToken, Settings, UsenetServer } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import StatTiles from '@/components/StatTiles.vue'
 import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
 import SettingsReadinessCard from '@/components/settings/SettingsReadinessCard.vue'
 import SettingsUpdateCard from '@/components/settings/SettingsUpdateCard.vue'
@@ -87,6 +88,15 @@ const usenetStatus = computed(() => {
 /** Configured port wins; without an override the address this page was loaded from is the truth. */
 const uiAddress = computed(() => settings.value.ui_port ? `127.0.0.1:${settings.value.ui_port}` : window.location.host)
 
+/** The fixed facts under the status cards; the product's own tile shows its version in its slot. */
+const facts = computed(() => [
+  { key: 'about', label: t('system.facts.about'), value: 'rDownloader', hint: 'Alexander Herling · GPL-3.0-or-later', numeric: false },
+  { key: 'web_ui', label: t('system.facts.web_ui'), value: uiAddress.value, hint: settings.value.ui_port ? t('system.facts.web_ui_configured') : t('system.facts.web_ui_default') },
+  { key: 'cnl2', label: t('system.facts.cnl2'), value: '127.0.0.1:9666', hint: t('system.facts.loopback_only') },
+  { key: 'hotfolder', label: t('system.facts.hotfolder'), value: `${settings.value.hotfolder_poll_seconds} s`, hint: t('system.facts.hotfolder_note') },
+  { key: 'nzb', label: t('system.facts.nzb'), value: '64 MiB', hint: t('system.facts.nzb_note') }
+])
+
 const systems = computed(() => [
   {
     title: t('system.cards.http.title'),
@@ -157,7 +167,6 @@ const systems = computed(() => [
       :unmount-on-hide="false"
       variant="pill"
       class="w-full"
-      :ui="{ content: 'pt-4' }"
     >
       <template #status>
         <div>
@@ -174,13 +183,12 @@ const systems = computed(() => [
 
           <SettingsReadinessCard class="mt-6" />
 
-          <section class="mt-6 grid gap-px border border-muted bg-muted md:grid-cols-3 lg:grid-cols-5" data-testid="system-facts">
-            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.about') }}</p><p class="mt-2 text-lg text-highlighted">rDownloader <span class="numeric text-sm text-muted">{{ serviceVersion || '…' }}</span></p><p class="mt-1 text-xs text-muted">Alexander Herling · GPL-3.0-or-later</p></div>
-            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.web_ui') }}</p><p class="numeric mt-2 text-lg text-highlighted">{{ uiAddress }}</p><p class="mt-1 text-xs text-muted">{{ settings.ui_port ? t('system.facts.web_ui_configured') : t('system.facts.web_ui_default') }}</p></div>
-            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.cnl2') }}</p><p class="numeric mt-2 text-lg text-highlighted">127.0.0.1:9666</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.loopback_only') }}</p></div>
-            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.hotfolder') }}</p><p class="numeric mt-2 text-lg text-highlighted">{{ settings.hotfolder_poll_seconds }} s</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.hotfolder_note') }}</p></div>
-            <div class="bg-default p-5"><p class="eyebrow">{{ t('system.facts.nzb') }}</p><p class="numeric mt-2 text-lg text-highlighted">64 MiB</p><p class="mt-1 text-xs text-muted">{{ t('system.facts.nzb_note') }}</p></div>
-          </section>
+          <StatTiles as="section" surface="default" :tiles="facts" class="mt-6 md:grid-cols-3 lg:grid-cols-5" data-testid="system-facts">
+            <template #value="{ tile }">
+              <template v-if="tile.key === 'about'">rDownloader <span class="numeric text-sm text-muted">{{ serviceVersion || '…' }}</span></template>
+              <template v-else>{{ tile.value }}</template>
+            </template>
+          </StatTiles>
         </div>
       </template>
       <template #updates>
@@ -290,6 +298,14 @@ const systems = computed(() => [
               </UFormField>
             </div>
             <SettingsDataResetButton class="mt-4" target="stats" :count="dataCounts.stats" @cleared="loadDataCounts()" />
+          </UCard>
+
+          <!-- With the other retention rules since RD-1120-23; it was a switch on General. -->
+          <UCard as="section" class="mt-6" data-testid="import-history-retention">
+            <SectionHeader :eyebrow="t('settings.import_history.eyebrow')" :title="t('settings.import_history.title')" />
+            <UFormField data-settings-anchor="system.import_history" :label="t('settings.import_history.label')" :description="t('settings.import_history.description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+              <USwitch v-model="settings.keep_import_history" />
+            </UFormField>
           </UCard>
         </div>
       </template>

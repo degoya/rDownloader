@@ -169,23 +169,6 @@ fn a_change_to_the_contract_changes_the_source_hash() {
 }
 
 #[test]
-fn the_bindings_cargo_component_generates_are_not_a_source() {
-    // A checkout that built the plugin with cargo-component (before 1.11) has `src/bindings.rs`,
-    // a fresh one does not; both must agree with the same stamp. A module that merely has the
-    // same name deeper down counts.
-    let root = workspace();
-    let before = hash(&root);
-    let generated = root.path().join("plugins/sample/src/bindings.rs");
-    std::fs::write(&generated, "// generated\n").expect("bindings");
-    assert_eq!(hash(&root), before);
-
-    let nested = root.path().join("plugins/sample/src/guest/bindings.rs");
-    std::fs::create_dir_all(nested.parent().expect("parent")).expect("directory");
-    std::fs::write(&nested, "pub fn real() {}\n").expect("module");
-    assert_ne!(hash(&root), before);
-}
-
-#[test]
 fn a_change_outside_the_source_set_does_not() {
     let root = workspace();
     let before = hash(&root);

@@ -308,7 +308,12 @@
     "eta_title": "Estimated remaining time at the current speed",
     "selection_title": "{count} selected, {size} in total",
     "selection_partial_title": "{count} selected, at least {size} in total – the size of {unknown} is not known yet",
-    "selection_unknown_title": "{count} selected, size not known yet"
+    "selection_unknown_title": "{count} selected, size not known yet",
+    "parallel_max": "max",
+    "parallel_limit_aria": "Maximum parallel downloads",
+    "parallel_limit_title": "How many downloads may run at once ({min}–{max}); applies at once, without a restart",
+    "parallel_failed": "Parallel downloads not saved",
+    "parallel_range": "Between {min} and {max} downloads may run at once."
   },
   "media": {
     "variant": "Variant:",
@@ -423,7 +428,6 @@
     "until_title": "Pause until",
     "until_hint": "Downloads continue by themselves at this time – today, or tomorrow if it has already passed.",
     "until_time": "Time",
-    "confirm": "Pause",
     "paused_until": "Paused until {time}",
     "remaining_title": "The queue continues in {duration}. Click to resume now.",
     "resume_now": "Resume now",

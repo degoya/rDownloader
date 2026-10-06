@@ -6,7 +6,7 @@ use rd_core::{DownloadFile, DownloadState};
 use crate::{FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
 
 /// A scheduler over a temporary database, plus one paused package below `storage/`.
-async fn paused_package(directory: &Path) -> (SchedulerHandle, DownloadFile, PathBuf) {
+pub(super) async fn paused_package(directory: &Path) -> (SchedulerHandle, DownloadFile, PathBuf) {
     paused_package_of(directory, rd_core::DownloadKind::Http).await
 }
 

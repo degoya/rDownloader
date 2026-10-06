@@ -4,7 +4,7 @@
 use plugin_guest_oauth::{
     AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, host,
     http::{self, RequestHeader, RequestQuery},
-    retry_after,
+    refuse, retry_after,
     types::{Failure, FailureKind},
 };
 
@@ -40,15 +40,8 @@ const CLIENT_SECRET_REFERENCE: &str = "realdebrid_client_secret";
 
 struct Component;
 
-/// A failure carrying a stable translation code and nothing a provider wrote.
-fn refuse(code: &str, message: String, category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message,
-        code: Some(format!("realdebrid_auth.{code}")),
-        params: Vec::new(),
-    }
-}
+/// The prefix of every translation code this plugin reports.
+const SLUG: &str = "realdebrid_auth";
 
 fn query(pairs: &[(&str, &str)]) -> Vec<RequestQuery> {
     pairs
@@ -115,6 +108,7 @@ fn exchange(account_id: &str, code: Field<'_>) -> Result<TokenOutcome, Failure> 
 /// A refusal the provider made, as the outcome that ends the flow.
 fn refused(error: &str, api_code: Option<u64>) -> TokenOutcome {
     TokenOutcome::Failed(refuse(
+        SLUG,
         flow::refusal_code(error, api_code),
         format!(
             "the provider refused the sign-in: {}",
@@ -192,6 +186,7 @@ fn outcome(
         // about the credential, so both are a wait and not a failure.
         flow::TokenAnswer::Busy(seconds) => Ok(TokenOutcome::Pending(seconds)),
         flow::TokenAnswer::Unreadable(status) => Ok(TokenOutcome::Failed(refuse(
+            SLUG,
             "bad_reply",
             format!("the provider answered {status} to the token request"),
             FailureKind::Permanent,
@@ -206,6 +201,7 @@ fn outcome(
 /// exports, and a stable code is a better thing to find here than a trap.
 fn no_redirect_entrance() -> Failure {
     refuse(
+        SLUG,
         "redirect_unsupported",
         "this provider signs in with a device code and has no redirect".to_owned(),
         FailureKind::Unsupported,
@@ -255,6 +251,7 @@ impl Guest for Component {
         // this plugin failed to read, and the person can simply try again a little later.
         if flow::is_rate_limited(response.status, &body) {
             return Err(refuse(
+                SLUG,
                 "rate_limited",
                 "the provider asked for fewer requests before a sign-in can start".to_owned(),
                 FailureKind::RateLimited(plugin_common::retry_after(&response.headers)),
@@ -262,6 +259,7 @@ impl Guest for Component {
         }
         let Some(code) = flow::read_device_code(&body) else {
             return Err(refuse(
+                SLUG,
                 "bad_reply",
                 format!(
                     "the provider answered {} to the device sign-in request",
@@ -294,6 +292,7 @@ impl Guest for Component {
         // of asking the provider a question it cannot answer, for ever.
         let Some(device_code) = flow_state.filter(|value| !value.is_empty()) else {
             return Ok(TokenOutcome::Failed(refuse(
+                SLUG,
                 "code_expired",
                 "the sign-in has no device code to continue with".to_owned(),
                 FailureKind::AuthRequired,
@@ -321,6 +320,7 @@ impl Guest for Component {
             .all(|reference| host::secret_available(&account_id, reference));
         if !has_client {
             return Ok(TokenOutcome::Failed(refuse(
+                SLUG,
                 "sign_in_refused",
                 "this account keeps no client of its own to renew with".to_owned(),
                 FailureKind::AuthRequired,
@@ -328,6 +328,7 @@ impl Guest for Component {
         }
         let Some(reference) = credential_ref.filter(|value| !value.is_empty()) else {
             return Ok(TokenOutcome::Failed(refuse(
+                SLUG,
                 "sign_in_refused",
                 "this account has no stored sign-in to renew".to_owned(),
                 FailureKind::AuthRequired,

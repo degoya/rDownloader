@@ -27,8 +27,8 @@
 //! - **Rejected captcha**: `Wrong Captcha`, already one of
 //!   `xfs_common::free::is_wrong_captcha`'s markers.
 //! - **Not verified**: the `op` values. plowshare reads `op` dynamically off each form rather
-//!   than asserting a literal, so [`OP_DOWNLOAD1`]/[`OP_DOWNLOAD2`] stay the XFS defaults
-//!   ddownload and KatFile use — if FileJoker's values differ, the forms are simply not found
+//!   than asserting a literal, so the `op` values stay the XFS defaults
+//!   (`xfs_common::standard`) ddownload and KatFile use — if FileJoker's values differ, the forms are simply not found
 //!   and the flow reports `filejoker.no_free_form` rather than posting something wrong. The free
 //!   button label is likewise the XFS default (`"Free Download"`), and only used when the page
 //!   itself carries no `method_free` value to echo back. plowshare posts both forms as
@@ -39,53 +39,16 @@
 //!   current widget is unknown, so the free flow uses the generic
 //!   `xfs_common::free::widget_marker`, which recognizes reCaptchaV2, hCaptcha and Turnstile.
 
-const OP_DOWNLOAD1: &str = "download1";
-const OP_DOWNLOAD2: &str = "download2";
-const PREMIUM_BUTTON: &str = "Premium Download";
-/// The XFS base class's own fallback label — see the module doc.
-const FREE_BUTTON: &str = "Free Download";
 const DOMAIN: &str = "filejoker.net";
 
-/// Hidden form fields of the `download2` form on a file page.
-#[must_use]
-pub(crate) fn download_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD2)
-}
-
-/// Hidden form fields of the `download1` form, the first step of the free flow.
-#[must_use]
-pub(crate) fn download1_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD1)
-}
+pub(crate) use xfs_common::page::encode_form;
+pub(crate) use xfs_common::standard::{download2_form as download_form, free_form, premium_form};
 
 /// The raw `<form>...</form>` substring carrying `op=download2`, for scoping a captcha-marker
 /// scan to the form itself rather than the whole page.
 #[must_use]
 pub(crate) fn form_html(html: &str) -> Option<&str> {
-    xfs_common::page::form_html(html, OP_DOWNLOAD2)
-}
-
-/// Turns raw form fields into the free submission (keeps `method_free`, drops the premium
-/// marker) — the counterpart of [`premium_form`].
-#[must_use]
-pub(crate) fn free_form(fields: &[(String, String)]) -> Vec<(String, String)> {
-    xfs_common::free::free_form(fields, FREE_BUTTON)
-}
-
-/// The captcha widget a page asks for, with the site key needed to solve it.
-#[must_use]
-pub(crate) fn widget_marker(html: &str) -> Option<xfs_common::free::WidgetMarker> {
-    xfs_common::free::widget_marker(html)
-}
-
-/// Adds a solved captcha's token to a form under its widget's field name.
-#[must_use]
-pub(crate) fn with_captcha_token(
-    fields: &[(String, String)],
-    kind: xfs_common::free::WidgetKind,
-    token: &str,
-) -> Vec<(String, String)> {
-    xfs_common::free::with_captcha_token(fields, kind, token)
+    xfs_common::page::form_html(html, xfs_common::standard::OP_DOWNLOAD2)
 }
 
 /// Seconds to wait before the free download may be requested. FileJoker's own `Please Wait
@@ -102,12 +65,6 @@ pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
 #[must_use]
 pub(crate) fn ip_block_seconds(html: &str) -> Option<u64> {
     forced_delay_seconds(html).or_else(|| xfs_common::free::ip_block_seconds(html))
-}
-
-/// Whether the page says the captcha answer was rejected.
-#[must_use]
-pub(crate) fn is_wrong_captcha(html: &str) -> bool {
-    xfs_common::free::is_wrong_captcha(html)
 }
 
 /// FileJoker's forced-delay notice between two free downloads (`plowshare`'s `filejoker.sh`:
@@ -142,22 +99,10 @@ pub(crate) fn is_free_size_limited(html: &str) -> bool {
     html.contains("Free user can't download large files")
 }
 
-/// Turns the raw `download2` fields into the premium submission this plugin sends.
-#[must_use]
-pub(crate) fn premium_form(fields: &[(String, String)]) -> Vec<(String, String)> {
-    xfs_common::page::premium_form(fields, PREMIUM_BUTTON)
-}
-
 /// Explains why an HTML page came back instead of a file, for error messages.
 #[must_use]
 pub(crate) fn diagnose(html: &str) -> String {
     xfs_common::page::diagnose(html)
-}
-
-/// Encodes form fields as `application/x-www-form-urlencoded`.
-#[must_use]
-pub(crate) fn encode_form(fields: &[(String, String)]) -> Vec<u8> {
-    xfs_common::page::encode_form(fields)
 }
 
 /// Finds the premium direct link on the page returned after submitting the form. Uses
@@ -247,10 +192,11 @@ pub(crate) fn estimated_wait_seconds(html: &str) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::{
-        diagnose, direct_link, download_form, download1_form, encode_form, estimated_wait_seconds,
-        form_html, free_form, free_wait_seconds, has_captcha_challenge, ip_block_seconds,
-        is_file_offline, is_free_size_limited, is_login_wall, is_premium_only, premium_form,
+        diagnose, direct_link, download_form, encode_form, estimated_wait_seconds, form_html,
+        free_form, free_wait_seconds, has_captcha_challenge, ip_block_seconds, is_file_offline,
+        is_free_size_limited, is_login_wall, is_premium_only, premium_form,
     };
+    use xfs_common::standard::download1_form;
 
     const PAGE: &str = r#"<html><body>
 <form name="F1" method="POST" action="">

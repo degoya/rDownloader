@@ -14,6 +14,7 @@ import common from '@/locales/en/common.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
+import { uiStubs } from '@/test/mount'
 
 import IndexerReviewList from './IndexerReviewList.vue'
 
@@ -49,6 +50,11 @@ const i18n = createI18n({
 /** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
 const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const components = {
+  // The shared stubs for the wrappers these cases do not look into (RD-1120-08: 840 warnings).
+  UAlert: uiStubs.UAlert,
+  UCollapsible: uiStubs.UCollapsible,
+  UEmpty: uiStubs.UEmpty,
+  UPopover: uiStubs.UPopover,
   UButton: {
     props: ['label', 'disabled', 'loading'],
     template: '<button v-bind="$attrs" :disabled="disabled">{{ label }}</button>'

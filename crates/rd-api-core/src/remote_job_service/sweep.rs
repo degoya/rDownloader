@@ -132,7 +132,7 @@ impl RemoteJobService {
                 job.account_id,
                 &source,
                 &job.content_key,
-                job.source_name.as_deref(),
+                container_name(job),
             )
             .await
         {
@@ -317,9 +317,7 @@ impl RemoteJobService {
                 // the label says where it came from.
                 source: IngressSource::Api,
                 source_label: Some(label),
-                package_name: current
-                    .source_name
-                    .as_deref()
+                package_name: container_name(&current)
                     .map(rd_collector::container_name)
                     .filter(|name| !name.is_empty()),
                 password: None,
@@ -420,5 +418,17 @@ impl RemoteJobService {
             )
             .await?;
         Ok(())
+    }
+}
+
+/// The name a container was added under, and nothing for a magnet or an address.
+///
+/// Their rows carry a name too since RD-1120-02 -- the `dn`, the last path segment -- but it is
+/// there for the list of remote jobs. What reaches the plugin as `job-context.source-name` and
+/// what names the LinkGrabber package stays the container's file name alone, as it was.
+fn container_name(job: &RemoteJob) -> Option<&str> {
+    match job.source_kind {
+        RemoteJobSourceKind::Container => job.source_name.as_deref(),
+        RemoteJobSourceKind::Magnet | RemoteJobSourceKind::Address => None,
     }
 }

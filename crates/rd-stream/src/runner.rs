@@ -2,7 +2,7 @@
 //! or the user stops it. A stop with recorded bytes finalizes the file as completed, so
 //! post-processing (including rclone upload) still runs.
 
-use std::path::PathBuf;
+use std::{ops::ControlFlow, path::PathBuf};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -131,6 +131,39 @@ impl ExternalRunner for StreamRunner {
         cancellation: CancellationToken,
         _limits: rd_scheduler::RunLimits,
     ) -> Result<RunOutcome> {
+        let recording = match self.prepare_recording(file, package).await? {
+            ControlFlow::Continue(recording) => recording,
+            ControlFlow::Break(outcome) => return Ok(outcome),
+        };
+        let (state, last_error) = match self
+            .record_segments(file, &recording, &cancellation)
+            .await?
+        {
+            ControlFlow::Continue(recorded) => recorded,
+            ControlFlow::Break(outcome) => return Ok(outcome),
+        };
+        Ok(self.conclude(file, &recording, state, &last_error).await)
+    }
+}
+
+/// What one recording works with, settled before its first segment.
+struct Recording {
+    /// Held for the whole recording: its lease keeps the binary on disk.
+    streamlink: rd_tools::PreparedTool,
+    quality: String,
+    directory: PathBuf,
+    policy: rd_core::RecordingPolicy,
+    stem: String,
+}
+
+impl StreamRunner {
+    /// Leases Streamlink and settles quality, folder, policy and name, or names the outcome
+    /// that ends the run first.
+    async fn prepare_recording(
+        &self,
+        file: &DownloadFile,
+        package: &DownloadPackage,
+    ) -> Result<ControlFlow<RunOutcome, Recording>> {
         let settings = self.settings.read().await.clone();
         // Leased before the version is assessed, and only recordings stop when Streamlink is
         // too old or listed as broken (RD-102-02, RD-102-03); both rules live in `prepare`.
@@ -144,7 +177,7 @@ impl ExternalRunner for StreamRunner {
         .await
         {
             Ok(tool) => tool,
-            Err(failure) => return Ok(RunOutcome::Failed(failure)),
+            Err(failure) => return Ok(ControlFlow::Break(RunOutcome::Failed(failure))),
         };
         let quality = file
             .media
@@ -161,7 +194,24 @@ impl ExternalRunner for StreamRunner {
             .and_then(|value| value.to_str())
             .unwrap_or("recording")
             .to_owned();
+        Ok(ControlFlow::Continue(Recording {
+            streamlink,
+            quality,
+            directory,
+            policy,
+            stem,
+        }))
+    }
 
+    /// Records segment after segment until the stream ends or the user stops it. Hands back
+    /// the recorded state and the last error, or the outcome that ends the run without one.
+    async fn record_segments(
+        &self,
+        file: &DownloadFile,
+        recording: &Recording,
+        cancellation: &CancellationToken,
+    ) -> Result<ControlFlow<RunOutcome, (rd_core::RecordingState, String)>> {
+        let policy = recording.policy;
         // Recorded segments accumulate here and are persisted after each one, so a crash
         // mid-recording leaves a history that says what is on disk rather than nothing.
         let mut state = rd_core::RecordingState::default();
@@ -170,33 +220,14 @@ impl ExternalRunner for StreamRunner {
 
         loop {
             index += 1;
-            let name = crate::segments::next_name(&stem, index);
-            let output = directory.join(&name);
+            let name = crate::segments::next_name(&recording.stem, index);
+            let output = recording.directory.join(&name);
             let started_at = chrono::Utc::now();
             let carried = state.total_bytes();
 
-            let database = self.database.clone();
-            let file_id = file.id;
-            let (outcome, bytes, stderr_text) = crate::segments::record(
-                &crate::segments::SegmentTool {
-                    streamlink: streamlink.path(),
-                    url: file.source.as_str(),
-                    quality: &quality,
-                },
-                &output,
-                policy,
-                carried,
-                &cancellation,
-                move |total| {
-                    // Fire-and-forget: progress is advisory, and awaiting it here would stall
-                    // the sampling loop behind the database writer.
-                    let database = database.clone();
-                    tokio::spawn(async move {
-                        let _ = database.set_download_progress(file_id, total, None).await;
-                    });
-                },
-            )
-            .await?;
+            let (outcome, bytes, stderr_text) = self
+                .record_segment(file, recording, &output, carried, cancellation)
+                .await?;
 
             if bytes > 0 {
                 crate::segments::push_segment(
@@ -221,10 +252,12 @@ impl ExternalRunner for StreamRunner {
                 if outcome == crate::segments::SegmentOutcome::Cancelled
                     && state.segments.is_empty()
                 {
-                    return Ok(RunOutcome::Stopped);
+                    return Ok(ControlFlow::Break(RunOutcome::Stopped));
                 }
                 if state.segments.is_empty() {
-                    return Ok(RunOutcome::Failed(map_stream_error(&last_error)));
+                    return Ok(ControlFlow::Break(RunOutcome::Failed(map_stream_error(
+                        &last_error,
+                    ))));
                 }
                 break;
             }
@@ -246,16 +279,60 @@ impl ExternalRunner for StreamRunner {
                 }
             }
         }
+        Ok(ControlFlow::Continue((state, last_error)))
+    }
 
+    /// Records one segment into `output`, reporting progress on the way.
+    async fn record_segment(
+        &self,
+        file: &DownloadFile,
+        recording: &Recording,
+        output: &std::path::Path,
+        carried: u64,
+        cancellation: &CancellationToken,
+    ) -> Result<(crate::segments::SegmentOutcome, u64, String)> {
+        let database = self.database.clone();
+        let file_id = file.id;
+        crate::segments::record(
+            &crate::segments::SegmentTool {
+                streamlink: recording.streamlink.path(),
+                url: file.source.as_str(),
+                quality: &recording.quality,
+            },
+            output,
+            recording.policy,
+            carried,
+            cancellation,
+            move |total| {
+                // Fire-and-forget: progress is advisory, and awaiting it here would stall
+                // the sampling loop behind the database writer.
+                let database = database.clone();
+                tokio::spawn(async move {
+                    let _ = database.set_download_progress(file_id, total, None).await;
+                });
+            },
+        )
+        .await
+    }
+
+    /// Captures the sidecars, records the final state and progress and names the recording.
+    async fn conclude(
+        &self,
+        file: &DownloadFile,
+        recording: &Recording,
+        mut state: rd_core::RecordingState,
+        last_error: &str,
+    ) -> RunOutcome {
+        let policy = recording.policy;
         // Sidecars are captured once, after the recording, so a reconnect does not refetch
         // them and they are unambiguously the recording's own.
         if !policy.sidecars.is_empty() {
             state.sidecars = crate::sidecars::capture(
                 &self.sidecars,
-                streamlink.path(),
+                recording.streamlink.path(),
                 file.source.as_str(),
-                &directory,
-                &stem,
+                &recording.directory,
+                &recording.stem,
                 policy.sidecars,
             )
             .await;
@@ -286,7 +363,7 @@ impl ExternalRunner for StreamRunner {
             .first()
             .map(|segment| segment.file_name.clone())
             .unwrap_or_else(|| file.file_name.clone());
-        Ok(RunOutcome::Completed { final_name })
+        RunOutcome::Completed { final_name }
     }
 }
 

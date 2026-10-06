@@ -19,14 +19,21 @@
 //! a fresh redirect for free. Short-lived addresses are renewed without losing progress
 //! precisely because nothing short-lived is ever stored.
 
+use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
-    LinkStatus, PluginHost, ResolveInput, Resolved,
+    PluginHost, ResolveInput, Resolved,
 };
 
 use onedrive_common::{address, reason};
 
 use crate::{api, messages, target};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: SECRET,
+    missing: messages::SIGN_IN_REQUIRED,
+};
 
 /// The vault reference the OneDrive provider keeps its access token under. The value never
 /// reaches this plugin.
@@ -61,7 +68,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_token(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(
         host,
         HttpRequest::get(format!("{}/me/drive", address::GRAPH))
@@ -69,7 +76,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     )
     .await?;
     let drive = api::drive(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
     let user = drive.owner.and_then(|owner| owner.user).unwrap_or_default();
     Ok(Account {
         valid: true,
@@ -94,22 +101,22 @@ pub(crate) async fn resolve<H: PluginHost>(
     host: &H,
     input: &ResolveInput,
 ) -> Result<Resolved, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let claimed = target::claim(&input.url)
-        .ok_or_else(|| refuse(messages::NOT_A_ONEDRIVE_LINK, FailureKind::Unsupported))?;
+        .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_ONEDRIVE_LINK))?;
     let route = claimed.route();
     let item = fetch_item(host, &route).await?;
     if item.is_deleted() {
-        return Err(refuse(messages::ITEM_NOT_FOUND, FailureKind::Permanent));
+        return Err(coded(FailureKind::Permanent, messages::ITEM_NOT_FOUND));
     }
     if item.is_folder() {
         // The sibling crawler's address, pasted at the resolver. Said plainly rather than as
         // "this item has no bytes", which is what a folder's metadata looks like.
-        return Err(refuse(messages::IS_A_FOLDER, FailureKind::Unsupported));
+        return Err(coded(FailureKind::Unsupported, messages::IS_A_FOLDER));
     }
     if !item.is_file() {
-        return Err(refuse(messages::NOT_A_FILE, FailureKind::Unsupported));
+        return Err(coded(FailureKind::Unsupported, messages::NOT_A_FILE));
     }
     Ok(Resolved {
         // The stable route rather than the pre-authenticated `@microsoft.graph.downloadUrl`.
@@ -129,28 +136,27 @@ pub(crate) async fn check<H: PluginHost>(
     host: &H,
     input: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let mut results = Vec::new();
     for url in input.urls.iter().take(MAX_CHECKS) {
         let Some(claimed) = target::claim(url) else {
-            results.push(unknown(url));
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         results.push(match fetch_item(host, &claimed.route()).await {
-            Ok(item) if item.is_deleted() => offline(url),
-            Ok(item) => LinkCheck {
-                url: url.clone(),
-                status: LinkStatus::Online,
-                file_name: item.name.clone().filter(|name| !name.is_empty()),
-                size: item.size.as_ref().and_then(api::Flexible::as_u64),
-            },
+            Ok(item) if item.is_deleted() => LinkCheck::offline(url),
+            Ok(item) => LinkCheck::online(
+                url,
+                item.name.clone().filter(|name| !name.is_empty()),
+                item.size.as_ref().and_then(api::Flexible::as_u64),
+            ),
             // An item Graph says is gone is offline; anything else says nothing about the
             // link, so it stays unknown rather than being reported as missing.
             Err(failure) if failure.code.as_deref() == Some(messages::ITEM_NOT_FOUND.0) => {
-                offline(url)
+                LinkCheck::offline(url)
             }
-            Err(_) => unknown(url),
+            Err(_) => LinkCheck::unknown(url),
         });
     }
     Ok(results)
@@ -164,7 +170,7 @@ async fn fetch_item<H: PluginHost>(host: &H, route: &str) -> Result<api::DriveIt
     )
     .await?;
     api::item(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))
 }
 
 /// Makes one request and turns every answer that is not one into a refusal.
@@ -193,46 +199,6 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
         failure = failure.with_param("reason", code);
     }
     Err(failure)
-}
-
-/// Refuses early when the account holds no token at all, rather than making a call that Graph
-/// is certain to refuse and reporting whatever it says about it.
-async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if host.secret_available(account_id, SECRET).await {
-        return Ok(());
-    }
-    Err(refuse(
-        messages::SIGN_IN_REQUIRED,
-        FailureKind::AuthRequired,
-    ))
-}
-
-fn account(account_id: Option<&str>) -> Result<&str, Failure> {
-    account_id
-        .filter(|id| !id.is_empty())
-        .ok_or_else(|| refuse(messages::ACCOUNT_MISSING, FailureKind::AuthRequired))
-}
-
-fn refuse((code, message): (&str, &str), kind: FailureKind) -> Failure {
-    Failure::coded(kind, code, message)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
-}
-
-fn offline(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Offline,
-        file_name: None,
-        size: None,
-    }
 }
 
 /// The account row's label: the address the person signed in with, and nothing else; the

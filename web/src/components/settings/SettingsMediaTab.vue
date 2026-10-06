@@ -7,6 +7,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsGalleryCard from '@/components/SettingsGalleryCard.vue'
 import SettingsMediaCard from '@/components/SettingsMediaCard.vue'
 import SettingsStreamCard from '@/components/SettingsStreamCard.vue'
+import SettingsServiceOffAlert from '@/components/settings/SettingsServiceOffAlert.vue'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -22,6 +23,9 @@ const { t } = useI18n()
         level="page"
       />
     </header>
+    <SettingsServiceOffAlert service="media" :enabled="settings.media_service_enabled" />
+    <SettingsServiceOffAlert service="gallery" :enabled="settings.gallery_service_enabled" />
+    <SettingsServiceOffAlert service="recording" :enabled="settings.recording_service_enabled" />
     <SettingsMediaCard :model-value="settings" />
     <SettingsGalleryCard :model-value="settings" />
     <SettingsStreamCard :model-value="settings" />

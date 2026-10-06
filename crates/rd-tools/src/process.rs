@@ -31,7 +31,7 @@ use anyhow::{Context, Result};
 use rd_core::{Failure, FailureKind, ToolLease};
 use rd_files::NoConsoleWindow as _;
 use tokio::{
-    io::{AsyncBufReadExt, BufReader, Lines},
+    io::{AsyncBufReadExt, BufReader},
     process::{Child, ChildStdout, Command},
     time::{Instant, error::Elapsed},
 };
@@ -119,7 +119,7 @@ pub enum Stdout {
 pub struct ToolProcess {
     child: Child,
     stdout: Option<ChildStdout>,
-    lines: Option<Lines<BufReader<ChildStdout>>>,
+    lines: Option<BufReader<ChildStdout>>,
     stderr: tokio::task::JoinHandle<String>,
     deadline: Option<Instant>,
 }
@@ -127,7 +127,7 @@ pub struct ToolProcess {
 /// What [`ToolProcess::next_line`] found.
 #[derive(Debug, Eq, PartialEq)]
 pub enum ToolLine {
-    /// One line of stdout, without its line ending.
+    /// One line of stdout, without its line ending; bytes that are not UTF-8 are replaced.
     Line(String),
     /// stdout is closed: the tool is done talking, [`ToolProcess::wait`] tells how it ended.
     End,
@@ -165,6 +165,7 @@ impl ToolProcess {
     /// Only the last [`STDERR_TAIL`] bytes of stderr are kept; the rest is read and dropped.
     pub fn spawn(command: &mut Command, name: &str, stdout: Stdout) -> Result<Self> {
         rd_files::restrict_environment(command, rd_files::TOOL_VARIABLES);
+        speak_utf8(command);
         crate::workdir::isolate(command);
         command
             .stdin(Stdio::null())
@@ -210,14 +211,14 @@ impl ToolProcess {
     ///
     /// `stop` is typically `cancellation.cancelled()`; whichever of the line, `stop` and the
     /// deadline comes first decides, and the last two kill the process before answering.
-    /// Errors when stdout was [`Stdout::Discarded`] or taken with [`Self::take_stdout`].
+    /// Errors when stdout was [`Stdout::Discarded`].
     pub async fn next_line(&mut self, stop: impl Future<Output = ()>) -> Result<ToolLine> {
         if self.lines.is_none() {
             let stdout = self
                 .stdout
                 .take()
                 .context("the tool's stdout is not read")?;
-            self.lines = Some(BufReader::new(stdout).lines());
+            self.lines = Some(BufReader::new(stdout));
         }
         let Some(lines) = self.lines.as_mut() else {
             return Ok(ToolLine::End);
@@ -232,7 +233,7 @@ impl ToolProcess {
                 let _ = self.child.kill().await;
                 Ok(ToolLine::TimedOut)
             }
-            line = lines.next_line() => Ok(line?.map_or(ToolLine::End, ToolLine::Line)),
+            line = read_line_lossy(lines) => Ok(line?.map_or(ToolLine::End, ToolLine::Line)),
         }
     }
 
@@ -251,14 +252,6 @@ impl ToolProcess {
             }
             status = self.child.wait() => Ok(ToolEnd::Exited(status?)),
         }
-    }
-
-    /// The child's stdout, once. `None` for [`Stdout::Discarded`], and on the second call.
-    ///
-    /// The caller adds its own context, because "yt-dlp stdout" is the message its tests and
-    /// its logs already carry.
-    pub fn take_stdout(&mut self) -> Option<ChildStdout> {
-        self.stdout.take()
     }
 
     /// Waits for the process to end.
@@ -282,6 +275,40 @@ impl ToolProcess {
     pub async fn stderr(self) -> String {
         self.stderr.await.unwrap_or_default()
     }
+}
+
+/// Asks a Python tool to write UTF-8 to its pipes.
+///
+/// yt-dlp, gallery-dl and streamlink are Python programs, and Python writes to a pipe in the
+/// locale's encoding — on Windows a code page such as cp1252. A title with an emoji then reached
+/// the runner as bytes that are not UTF-8, and the strict line reader failed the whole download
+/// with "stream did not contain valid UTF-8" (owner report, 2026-10-06, a Facebook reel). With
+/// UTF-8 the file name in yt-dlp's final-path line also survives; ffmpeg and the other
+/// non-Python tools ignore both variables.
+fn speak_utf8(command: &mut Command) {
+    command
+        .env("PYTHONIOENCODING", "utf-8")
+        .env("PYTHONUTF8", "1");
+}
+
+/// The next line of `reader` without its line ending, or `None` at the end of the stream.
+///
+/// Lossy on purpose: one byte a tool wrote in another encoding must cost at most a replaced
+/// character in a log line, never the download. Not cancel-safe, which does not matter here —
+/// when another branch of [`ToolProcess::next_line`]'s select wins, the process is killed and
+/// its stdout is not read again.
+async fn read_line_lossy(reader: &mut BufReader<ChildStdout>) -> std::io::Result<Option<String>> {
+    let mut bytes = Vec::new();
+    if reader.read_until(b'\n', &mut bytes).await? == 0 {
+        return Ok(None);
+    }
+    if bytes.last() == Some(&b'\n') {
+        bytes.pop();
+        if bytes.last() == Some(&b'\r') {
+            bytes.pop();
+        }
+    }
+    Ok(Some(String::from_utf8_lossy(&bytes).into_owned()))
 }
 
 /// Resolves at `deadline`, or never without one.
@@ -324,6 +351,7 @@ pub async fn run_to_output(
     timeout: Duration,
 ) -> Result<std::io::Result<Output>, Elapsed> {
     rd_files::restrict_environment(command, rd_files::TOOL_VARIABLES);
+    speak_utf8(command);
     crate::workdir::isolate(command);
     command
         .stdin(Stdio::null())
@@ -445,7 +473,12 @@ mod tests {
         let mut expected = rd_files::kept_variables(std::env::vars_os(), rd_files::TOOL_VARIABLES)
             .into_iter()
             .map(|(name, value)| format!("{}={}", name.to_string_lossy(), value.to_string_lossy()))
-            .chain(["RD_SET_BY_CALLER=kept".to_owned()])
+            .chain([
+                "RD_SET_BY_CALLER=kept".to_owned(),
+                // `speak_utf8`: the Python tools write UTF-8 to their pipes.
+                "PYTHONIOENCODING=utf-8".to_owned(),
+                "PYTHONUTF8=1".to_owned(),
+            ])
             .collect::<Vec<_>>();
         expected.sort();
         assert_eq!(seen, expected);
@@ -488,6 +521,30 @@ mod tests {
         // `kill_on_drop` is what keeps this from leaving a `sleep` behind: the timeout drops
         // the future that owns the child, and the child goes with it.
         assert!(result.is_err());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_line_that_is_not_utf8_is_read_lossily_and_the_run_goes_on() {
+        // cp1252 bytes for "Ryoya \u{2013} ok" and a line after it: the strict reader failed the
+        // whole download at the first one.
+        let mut command = tokio::process::Command::new("/bin/sh");
+        command.args(["-c", "printf 'Ryoya \\226 ok\\r\\nnext\\n'"]);
+        let mut process =
+            super::ToolProcess::spawn(&mut command, "cp1252", super::Stdout::Read).expect("spawn");
+        let pending = std::future::pending::<()>;
+        assert_eq!(
+            process.next_line(pending()).await.expect("first line"),
+            super::ToolLine::Line("Ryoya \u{fffd} ok".to_owned())
+        );
+        assert_eq!(
+            process.next_line(pending()).await.expect("second line"),
+            super::ToolLine::Line("next".to_owned())
+        );
+        assert_eq!(
+            process.next_line(pending()).await.expect("end"),
+            super::ToolLine::End
+        );
     }
 
     #[test]

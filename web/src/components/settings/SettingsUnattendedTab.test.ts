@@ -1,28 +1,16 @@
-import { render, waitFor } from '@testing-library/vue'
+import { waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import bandwidth from '@/locales/en/bandwidth.json'
-import common from '@/locales/en/common.json'
 import power from '@/locales/en/power.json'
 import settings from '@/locales/en/settings.json'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 import SettingsUnattendedTab from './SettingsUnattendedTab.vue'
 
 vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { bandwidth, common, power, settings } } })
-const components = {
-  UCard: uiStubs.UCard,
-  UFormField: { props: ['label', 'description'], template: '<label><span>{{ label }}</span><slot /></label>' },
-  USelect: { props: ['modelValue'], template: '<select />' },
-  UInput: { props: ['modelValue'], template: '<input :value="modelValue" />' },
-  USwitch: { template: '<input type="checkbox" />' },
-  UButton: { props: ['label'], template: '<button>{{ label }}</button>' },
-  UIcon: { props: ['name'], template: '<span :data-icon="name" />' }
-}
 
 /**
  * Any class that puts two settings beside each other: `grid-cols-N` or `col-span-N` with N > 1,
@@ -55,10 +43,7 @@ function mount() {
     prevent_standby: false,
     prevent_display_standby: false
   }
-  return render(SettingsUnattendedTab, {
-    props: { modelValue: model as never },
-    global: { plugins: [i18n], components }
-  })
+  return mountComponent(SettingsUnattendedTab, { messages: { bandwidth, power, settings }, props: { modelValue: model as never } })
 }
 
 /** RD-120-27: the unattended page is the power card, and it too gets one setting per row. */

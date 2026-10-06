@@ -97,7 +97,7 @@ test whose gate holds every connection still once a given number of bytes has go
 
 ## Registered crash points
 
-This table is checked against `rd_core::failpoint::CRASH_POINTS` by a test, so it cannot
+This table is checked against `rd_crash_points::CRASH_POINTS` by a test, so it cannot
 drift from the code. Adding a crash point without a row here fails the build, and so does a
 row for a point that does not exist.
 
@@ -120,7 +120,8 @@ row for a point that does not exist.
 | `plugin.before_install_recorded` | rd-api-admin | an automatic update whose version folder exists before its repository row was written stays installed whole and listed once, and the version pointers stay as they were: the next start runs what they chose before the update, the newest version when they chose none |
 | `plugin.before_pointers_followed` | rd-api-admin | an automatic update recorded with its repository before the version pointers followed it stays installed whole and listed once, and the pointers stay as they were, never half moved: the next start runs what they chose before the update, the newest version when they chose none |
 | `plugin.before_version_promoted` | rd-plugin-host | a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again |
-| `plugin_transfer.before_checkpoint_saved` | rd-plugin-transfer | bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte |
+| `plugin_transfer.after_pin_saved` | rd-plugin-transfer | a plugin transfer stopped after its backend version was pinned and before its first byte runs again on the pinned version and finishes with the source's bytes; when that version is gone it begins anew on the newest backend, never refused for bytes it does not have |
+| `plugin_transfer.before_checkpoint_saved` | rd-plugin-transfer | bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, on the backend version pinned before its first byte and after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte |
 | `postprocess.before_direct_unpack_adopted` | rd-extract | a set unpacked directly while its package downloaded, stopped before the pipeline moved it into the package, has put nothing at the destination; the next start removes its staging directory, unpacks the set the normal way and completes the package with the same files |
 | `postprocess.after_sort_move` | rd-extract | a sort stopped after it placed a file and before it recorded the step is run again by the next start: the files still in the package are placed by the same templates, the ones already placed are neither moved again nor copied beside themselves, and the package leaves post-processing completed |
 | `postprocess.before_scan_recorded` | rd-extract | a package whose malware scan ran before its verdict was recorded is scanned again by the next start and never released on a verdict nobody recorded; a finding fails it then, with the steps after the scan skipped and not run |
@@ -457,15 +458,26 @@ measured with the next run. Both sessions in the cases are offline.
 
 `plugin_transfer.before_checkpoint_saved` is a plugin transfer that stopped with bytes on disk
 before the runner saved the backend's checkpoint (RD-180-12, `rd_plugin_transfer::runner`). The
-part file is the resume state; the checkpoint only pins it to the backend version that wrote it.
+part file is the resume state; the pin saved before the first byte binds it to the backend version
+that wrote it.
 Its case asserts that the part file holds exactly the source's first bytes, that the next run
 checks the remote file against what the first one saw and continues from the part file's length,
 and that the finished file matches the source byte for byte. The case found a defect on its first
 pass: the runner sized the part file to the whole payload before the transfer began, so a stopped
 transfer continued from its end with nothing but zeros behind what had arrived — any stop, not only
-this one. The part file is no longer preallocated. A stop here also leaves no pin, so a newer
-version of the backend installed before the next run would continue a file the older one began;
-that is recorded below. The case drives the reference backend component and runs with
+this one. The part file is no longer preallocated. A stop here used to leave no pin, so a newer
+version of the backend installed before the next run continued a file the older one began; the
+runner now pins the version before the first byte (RD-1120-18), and the case also asserts that
+the pin is there after the stop.
+
+`plugin_transfer.after_pin_saved` is the moment between that pin and the first byte. A transfer
+without a pin discards whatever its staging file holds — no build can be named for those bytes —
+and records the pin before the backend writes; a pin it cannot record keeps it from starting.
+Its cases stop there and assert that the pin names the version and holds no checkpoint, that the
+next run on the same version finishes with the source's bytes, and that a run after an upgrade
+that took the pinned version away begins anew on the newest backend instead of failing with
+`plugin.pinned_version_missing`, which stays the answer whenever the pin holds a checkpoint or the
+staging file holds bytes. Both cases drive the reference backend component and run with
 `rd-plugin-transfer/failpoints` where the components are built.
 
 `plugin.before_install_recorded` and `plugin.before_pointers_followed` are the two writes an
@@ -481,7 +493,7 @@ activated by hand. The cases run in the admin suite with `rd-api/failpoints`.
 
 ## Migration baselines
 
-`crates/rd-db/tests/migration_forward/` upgrades a database from each shipped release and
+`crates/rd-db/tests/database/migration_forward/` upgrades a database from each shipped release and
 asserts that its queue survives, together with every row a later migration rewrites. A baseline
 is the highest migration number that release carried. The count differs from it once the chain
 has gaps (`0066`, `0068`, `0088` were never shipped):
@@ -527,7 +539,7 @@ database and ends the start with `db.migration_failed`, naming the copy; the pre
 starts on the file as it was. `crates/rd-db/src/pre_migration_tests.rs` proves both halves with
 a chain whose last migration fails after two real ones committed. The encrypted, verified
 backup before an update, called by the updater, stays RD-180-03. The forward path is what
-Axis C covers, in `crates/rd-db/tests/migration_forward/`.
+Axis C covers, in `crates/rd-db/tests/database/migration_forward/`.
 
 ## Not yet covered
 
@@ -541,9 +553,5 @@ as completeness it does not have:
   refresh sees the version installed and offers nothing. That is on purpose — the rows cannot
   tell such a version from one somebody installed by hand beside a version they chose to keep —
   and it costs an activation by hand, never a half-switched plugin.
-- A plugin transfer stopped before its checkpoint was saved is not pinned to the backend version
-  that began it. The next run takes the newest backend for the scheme; only when a different
-  version was installed in between does it continue another build's file. Pinning before the
-  first byte would close that and is not done yet.
 - Axis B has two cases, a download and a post-processing step; the other persistent states are
   covered by Axis A alone.

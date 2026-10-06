@@ -1,13 +1,20 @@
-import { render, screen } from '@testing-library/vue'
+import { screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { AutomationCondition, AutomationVocabulary } from '@/api/types'
 import en from '@/locales/en/automation.json'
+import { mountComponent } from '@/test/mount'
 
 import ConditionTree from './ConditionTree.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { automation: en } } })
+/** The menu as a `<select>` that answers with the chosen item, the way the real one hands it back. */
+const USelectMenu = {
+  props: ['modelValue', 'items'],
+  emits: ['update:modelValue'],
+  template:
+    '<select v-bind="$attrs" @change="$emit(\'update:modelValue\', items[$event.target.selectedIndex])">' +
+    '<option v-for="item in items" :key="item.value ?? item.id">{{ item.label ?? item.name }}</option></select>'
+}
 
 const vocabulary = {
   triggers: [],
@@ -31,7 +38,8 @@ function mount(modelValue: AutomationCondition, depth = 0) {
   // Named `changes` rather than `emitted`: testing-library's render result already has an
   // `emitted` helper, and spreading it would shadow this one.
   const changes: AutomationCondition[] = []
-  const utils = render(ConditionTree, {
+  const utils = mountComponent(ConditionTree, {
+    messages: { automation: en },
     props: {
       modelValue,
       vocabulary,
@@ -39,28 +47,7 @@ function mount(modelValue: AutomationCondition, depth = 0) {
       numericFields: ['size_bytes'],
       'onUpdate:modelValue': (value: AutomationCondition) => changes.push(value)
     },
-    global: {
-      plugins: [i18n],
-      stubs: {
-        USelectMenu: {
-          props: ['modelValue', 'items'],
-          emits: ['update:modelValue'],
-          template:
-            '<select v-bind="$attrs" @change="$emit(\'update:modelValue\', items[$event.target.selectedIndex])">' +
-            '<option v-for="item in items" :key="item.value ?? item.id">{{ item.label ?? item.name }}</option></select>'
-        },
-        UInput: {
-          props: ['modelValue'],
-          emits: ['update:modelValue'],
-          template:
-            '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-        },
-        UButton: {
-          props: ['label'],
-          template: '<button v-bind="$attrs">{{ label }}</button>'
-        }
-      }
-    }
+    stubs: { USelectMenu }
   })
   return { changes, ...utils }
 }

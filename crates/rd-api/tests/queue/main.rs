@@ -15,6 +15,7 @@ mod capture_queue;
 mod category_move_and_reset;
 mod clear_list;
 mod collisions;
+mod download_list;
 mod history;
 mod power;
 mod queue_pause;

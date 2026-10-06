@@ -17,7 +17,7 @@ use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection, SqlitePool};
 /// One file of a package as the history keeps it: id, source, sizes, state, failure.
 type FileRow = (String, String, Option<i64>, i64, String, Option<String>);
 
-use crate::{enum_string, parse_enum, parse_time, timestamp};
+use crate::{enum_string, escape_like, parse_enum, parse_time, timestamp};
 
 /// Download states after which a file does nothing more by itself.
 const SETTLED_FAILED: [&str; 4] = ["failed", "blocked", "cancelled", "skipped"];
@@ -242,14 +242,6 @@ async fn failure_of(
 
 const COLUMNS: &str = "id, package_id, name, kind, category, destination, total_bytes, \
      file_count, sources_json, outcome, error_code, error_params_json, created_at, finished_at";
-
-/// `LIKE` treats `%` and `_` as wildcards; a person searching for `100%` means the characters.
-fn escape_like(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
 
 fn push_filters(builder: &mut QueryBuilder<Sqlite>, query: &HistoryQuery) -> Result<()> {
     builder.push(" WHERE 1 = 1");

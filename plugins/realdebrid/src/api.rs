@@ -33,6 +33,8 @@
 //!   `Retry-After` is honoured when it is there.
 
 use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
+pub(crate) use realdebrid_common::ErrorEnvelope;
+use realdebrid_common::Words;
 use serde::Deserialize;
 use url::form_urlencoded;
 
@@ -72,23 +74,8 @@ pub(crate) fn link_body(link: &str) -> Vec<u8> {
 /// adapters instead of one erroring and the other forwarding an address that fails deeper in
 /// the pipeline.
 pub(crate) fn parse_download_url(raw: &str) -> Result<url::Url, ApiFailure> {
-    url::Url::parse(raw).map_err(|error| ApiFailure {
-        kind: ErrorKind::Permanent,
-        code: messages::INVALID_URL,
-        message: messages::invalid_url(&error),
-        params: vec![("error", error.to_string())],
-    })
-}
-
-/// The failure envelope every endpoint answers a refusal with.
-#[derive(Default, Deserialize)]
-pub(crate) struct ErrorEnvelope {
-    /// The provider's own sentence. Read so its presence can be detected and **never**
-    /// forwarded: see the module doc of `messages.rs`.
-    #[serde(default)]
-    pub(crate) error: Option<String>,
-    #[serde(default)]
-    pub(crate) error_code: Option<i64>,
+    url::Url::parse(raw)
+        .map_err(|error| plugin_common::failure::invalid_url(messages::INVALID_URL, &error))
 }
 
 /// `POST /unrestrict/link`.
@@ -245,7 +232,8 @@ fn classify_error(api_code: i64, retry_after: Option<u64>) -> ApiFailure {
 /// are `plugin_common::http_status`'s, the one mapping every plugin shares (RD-191-07); a `429`
 /// or a `5xx` carries the response's `Retry-After` into the wait.
 ///
-/// A `429` without a stated wait waits a minute.
+/// A `429` without a stated wait waits a minute, a `5xx` five minutes: the fallback the API
+/// plugins share (RD-1120-10).
 pub(crate) const HTTP: HttpWords = HttpWords {
     unauthorized: messages::AUTH_INVALID,
     gone: messages::FILE_OFFLINE,
@@ -253,11 +241,18 @@ pub(crate) const HTTP: HttpWords = HttpWords {
     rate_limited: messages::RATE_LIMITED,
     server_error: messages::SERVER_ERROR,
     rate_limited_wait: Some(60),
-    server_error_wait: None,
+    server_error_wait: Some(BUSY_SECONDS),
     other: HttpError {
         code: messages::HTTP_ERROR,
         text: messages::http_error,
     },
+};
+
+/// The words this plugin reports a refusal under; which half of the envelope decides is
+/// `realdebrid_common`'s, shared with `plugins/realdebrid-torrents/`.
+const WORDS: Words = Words {
+    http: HTTP,
+    classify: classify_error,
 };
 
 /// The failure an answer describes, or `None` when it describes none.
@@ -269,15 +264,7 @@ pub(crate) fn failure_from(
     retry_after: Option<u64>,
     envelope: &ErrorEnvelope,
 ) -> Option<ApiFailure> {
-    if let Some(api_code) = envelope.error_code {
-        return Some(classify_error(api_code, retry_after));
-    }
-    // A sentence with no number is still a refusal — it is just one the document does not
-    // name, so it goes to the generic bucket by status rather than being read.
-    if envelope.error.is_some() || !(200..=299).contains(&status) {
-        return HTTP.ensure_http_status(status, retry_after).err();
-    }
-    None
+    realdebrid_common::failure_from(status, retry_after, envelope, &WORDS)
 }
 
 #[cfg(test)]

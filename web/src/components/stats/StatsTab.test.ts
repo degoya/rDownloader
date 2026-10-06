@@ -89,8 +89,11 @@ describe('StatsTab', () => {
   it('asks for another range and draws its figures, groups and bars', async () => {
     mount()
     await waitFor(() => expect(get).toHaveBeenCalled())
-    await fireEvent.click(await screen.findByRole('button', { name: stats.ranges.week }))
+    await fireEvent.click(await screen.findByRole('radio', { name: stats.ranges.week }))
     await waitFor(() => expect(get).toHaveBeenLastCalledWith('/api/v1/stats/transfers', { params: { query: { range: 'week' } } }))
+    // RD-1120-14: the range in force is the checked radio, said and not only coloured.
+    await waitFor(() => expect((screen.getByRole('radio', { name: stats.ranges.week }) as HTMLInputElement).checked).toBe(true))
+    expect((screen.getByRole('radio', { name: stats.ranges.day }) as HTMLInputElement).checked).toBe(false)
 
     const completed = await screen.findByText(stats.tiles.completed)
     expect(completed.nextElementSibling?.textContent).toBe('4')
@@ -124,7 +127,7 @@ describe('StatsTab', () => {
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/stats/usenet-servers'))
     expect(screen.queryByText(stats.servers.title)).toBeNull()
     get.mockImplementation(async (path: string) => ({ data: path === '/api/v1/stats/usenet-servers' ? TRAFFIC : EMPTY_DAY }))
-    await fireEvent.click(await screen.findByRole('button', { name: stats.ranges.week }))
+    await fireEvent.click(await screen.findByRole('radio', { name: stats.ranges.week }))
     expect(await screen.findByText(stats.servers.title)).toBeTruthy()
     expect(screen.getByText('Unmetered')).toBeTruthy()
     expect(screen.getByText('5.0 GiB')).toBeTruthy()
@@ -140,7 +143,7 @@ describe('StatsTab', () => {
     })
     const { container } = mount()
     await waitFor(() => expect(get).toHaveBeenCalled())
-    await fireEvent.click(await screen.findByRole('button', { name: stats.ranges.week }))
+    await fireEvent.click(await screen.findByRole('radio', { name: stats.ranges.week }))
     await screen.findByText('rapidgator')
     await screen.findByText(stats.servers.title)
     expect(await axeViolations(container)).toBe('')

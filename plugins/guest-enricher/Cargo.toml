@@ -1,0 +1,15 @@
+[package]
+name = "plugin-guest-enricher"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+wit-bindgen.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[lints]
+workspace = true

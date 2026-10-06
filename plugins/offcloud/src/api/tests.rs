@@ -1,11 +1,21 @@
+use offcloud_common::sanitize_error;
+use plugin_common::failure::{ApiFailure, ErrorKind};
 use plugin_common::retry_after_seconds;
 
 use super::{
-    AccountInfo, AccountState, ErrorEnvelope, ErrorKind, HTTP, SiteEntry, account_name,
-    account_state, classify_error, classify_not_available, error_envelope, failure_from, form_body,
-    merge_hosters, sanitize_error,
+    AccountInfo, AccountState, ErrorEnvelope, HTTP, SiteEntry, WORDS, account_name, account_state,
+    error_envelope, failure_from, form_body, merge_hosters,
 };
 use crate::messages;
+
+/// The shared rule in this plugin's words, which is what this plugin answers with.
+fn classify_error(reason: &str) -> ApiFailure {
+    offcloud_common::classify_error(reason, &WORDS)
+}
+
+fn classify_not_available(reason: &str) -> ApiFailure {
+    offcloud_common::classify_not_available(reason, &WORDS)
+}
 
 fn envelope(error: Option<&str>, not_available: Option<&str>) -> ErrorEnvelope {
     ErrorEnvelope {
@@ -171,6 +181,7 @@ fn a_status_decides_when_no_document_explains_itself() {
     );
     let failure = HTTP.ensure_http_status(418, None).expect_err("refused");
     assert_eq!(failure.code, messages::HTTP_ERROR.0);
+    assert_eq!(failure.message, "Offcloud HTTP status 418");
     assert_eq!(failure.params, vec![("status", "418".to_owned())]);
 }
 

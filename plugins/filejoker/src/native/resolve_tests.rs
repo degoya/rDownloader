@@ -7,11 +7,11 @@ use rd_core::FailureKind;
 use rd_plugin_api::{HostHttpResponse, ResolvedHeader, Resolver, ResolverHost};
 
 use super::super::FilejokerResolver;
-use super::{CAPTCHA_FORM_PAGE, FORM_PAGE, MockHost, file, html, resolve_request};
+use super::{CAPTCHA_FORM_PAGE, FORM_PAGE, MockHost, SessionHost, file, html, resolve_request};
 
 #[tokio::test]
 async fn download_form_is_posted_and_redirect_target_is_used() {
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::in_session(vec![
         html(FORM_PAGE),
         file("https://fs1.filejoker.net/d/r4nd/release.rar"),
     ]);
@@ -43,7 +43,7 @@ async fn download_form_is_posted_and_redirect_target_is_used() {
 
 #[tokio::test]
 async fn direct_link_page_after_post_is_followed() {
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::in_session(vec![
         html(FORM_PAGE),
         html(
             r#"<a href="https://filejoker.net/premium">Premium</a><a href="https://fs1.filejoker.net/d/r4nd/release.rar">Download File</a>"#,
@@ -70,7 +70,7 @@ async fn direct_file_response_with_no_form_is_returned_as_is() {
         }],
         body: vec![0],
     };
-    let resolver = FilejokerResolver::new(MockHost::new(response));
+    let resolver = FilejokerResolver::new(MockHost::one_in_session(response));
     let resolved = resolver.resolve(resolve_request()).await.expect("resolved");
     assert_eq!(resolved.file_name.as_deref(), Some("release.bin"));
 }
@@ -78,7 +78,7 @@ async fn direct_file_response_with_no_form_is_returned_as_is() {
 #[tokio::test]
 async fn login_wall_page_reports_session_invalid_with_diagnosis() {
     // The sign-in form, not the header's `/login` link: the link is on every guest page.
-    let host = MockHost::with_responses(vec![html(
+    let host = MockHost::in_session(vec![html(
         r#"<form method="POST" name="FL"><input type="hidden" name="op" value="login"></form>"#,
     )]);
     let resolver = FilejokerResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
@@ -99,7 +99,7 @@ async fn login_wall_page_reports_session_invalid_with_diagnosis() {
 
 #[tokio::test]
 async fn offline_page_reports_offline() {
-    let host = MockHost::with_responses(vec![html("<title>Error</title><b>File Not Found</b>")]);
+    let host = MockHost::in_session(vec![html("<title>Error</title><b>File Not Found</b>")]);
     let resolver = FilejokerResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .resolve(resolve_request())
@@ -112,7 +112,7 @@ async fn offline_page_reports_offline() {
 
 #[tokio::test]
 async fn premium_only_page_after_post_reports_no_premium_file() {
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::in_session(vec![
         html(FORM_PAGE),
         html(r#"<div class="premium-download-expand">Premium members only</div>"#),
     ]);
@@ -128,7 +128,7 @@ async fn premium_only_page_after_post_reports_no_premium_file() {
 
 #[tokio::test]
 async fn wait_page_reports_transient_with_retry_after_seconds() {
-    let host = MockHost::with_responses(vec![html(
+    let host = MockHost::in_session(vec![html(
         "<p>Please Wait <b>45</b> seconds before next download</p>",
     )]);
     let resolver = FilejokerResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
@@ -148,7 +148,7 @@ async fn wait_page_reports_transient_with_retry_after_seconds() {
 
 #[tokio::test]
 async fn unrecognized_page_with_no_form_reports_page_error() {
-    let host = MockHost::with_responses(vec![html("<title>Something else</title>")]);
+    let host = MockHost::in_session(vec![html("<title>Something else</title>")]);
     let resolver = FilejokerResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .resolve(resolve_request())
@@ -160,7 +160,7 @@ async fn unrecognized_page_with_no_form_reports_page_error() {
 
 #[tokio::test]
 async fn captcha_challenge_on_file_page_is_reported_and_form_is_not_posted() {
-    let host = MockHost::with_responses(vec![html(CAPTCHA_FORM_PAGE)]);
+    let host = MockHost::in_session(vec![html(CAPTCHA_FORM_PAGE)]);
     let resolver = FilejokerResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .resolve(resolve_request())

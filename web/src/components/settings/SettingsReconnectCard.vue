@@ -14,8 +14,10 @@ import type { Settings } from '@/api/types'
 import { useErrorToast } from '@/composables/useErrorToast'
 import { translateServerMessage } from '@/i18n/server'
 import SectionHeader from '@/components/SectionHeader.vue'
+import WeekWindowRow from '@/components/WeekWindowRow.vue'
 import { formatMoment } from '@/utils/format'
 import { WHOLE } from '@/utils/numberInput'
+import { EVERY_DAY, type WeekWindow } from '@/utils/weekWindows'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -79,7 +81,7 @@ async function reconnectNow(): Promise<void> {
 function addWindow(): void {
   settings.value.reconnect_windows = [
     ...(settings.value.reconnect_windows ?? []),
-    { days: 0b0111_1111, start_minute: 0, end_minute: 24 * 60 }
+    { days: EVERY_DAY, start_minute: 0, end_minute: 24 * 60 }
   ]
 }
 
@@ -88,37 +90,10 @@ function removeWindow(index: number): void {
     .filter((_, position) => position !== index)
 }
 
-/** The window's bitmask as the list of days a checkbox group holds, Monday first. */
-function daysOf(mask: number): number[] {
-  return [0, 1, 2, 3, 4, 5, 6].filter(day => (mask & (1 << day)) !== 0)
+function setWindow(index: number, window: WeekWindow): void {
+  settings.value.reconnect_windows = (settings.value.reconnect_windows ?? [])
+    .map((entry, position) => (position === index ? window : entry))
 }
-
-function setDays(index: number, days: number[]): void {
-  const windows = [...(settings.value.reconnect_windows ?? [])]
-  const window = windows[index]
-  if (!window) return
-  windows[index] = { ...window, days: days.reduce((mask, day) => mask | (1 << day), 0) }
-  settings.value.reconnect_windows = windows
-}
-
-function timeOf(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  return `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
-}
-
-function setTime(index: number, key: 'start_minute' | 'end_minute', value: string): void {
-  const [hours, minutes] = value.split(':').map(Number)
-  const total = Math.min(Math.max((hours ?? 0) * 60 + (minutes ?? 0), 0), 1440)
-  const windows = [...(settings.value.reconnect_windows ?? [])]
-  const window = windows[index]
-  if (!window) return
-  windows[index] = { ...window, [key]: total }
-  settings.value.reconnect_windows = windows
-}
-
-const dayItems = computed(() =>
-  (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((day, index) => ({ value: index, label: t(`reconnect.days.${day}`) }))
-)
 </script>
 
 <template>
@@ -153,21 +128,15 @@ const dayItems = computed(() =>
           <UButton icon="i-lucide-plus" size="xs" color="neutral" variant="soft" :label="t('reconnect.window_add')" @click="addWindow" />
         </div>
         <p class="mt-1 text-xs leading-5 text-muted">{{ t('reconnect.windows_description') }}</p>
-        <div v-for="(window, index) in settings.reconnect_windows ?? []" :key="index" class="mt-3 flex flex-wrap items-center gap-2 border border-muted p-3">
-          <UCheckboxGroup
-            class="basis-full"
-            :model-value="daysOf(window.days)"
-            :items="dayItems"
-            :legend="t('bandwidth.schedule.days_label')"
-            orientation="horizontal"
-            size="sm"
-            @update:model-value="(days: number[]) => setDays(index, days)"
-          />
-          <UInput :model-value="timeOf(window.start_minute)" type="time" class="w-32" @update:model-value="(value: string | number) => setTime(index, 'start_minute', String(value))" />
-          <span class="text-xs text-muted">&ndash;</span>
-          <UInput :model-value="timeOf(window.end_minute)" type="time" class="w-32" @update:model-value="(value: string | number) => setTime(index, 'end_minute', String(value))" />
-          <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('reconnect.window_remove')" :title="t('reconnect.window_remove')" @click="removeWindow(index)" />
-        </div>
+        <WeekWindowRow
+          v-for="(window, index) in settings.reconnect_windows ?? []"
+          :key="index"
+          class="mt-3"
+          :model-value="window"
+          :remove-label="t('reconnect.window_remove')"
+          @update:model-value="setWindow(index, $event)"
+          @remove="removeWindow(index)"
+        />
       </div>
     </div>
 

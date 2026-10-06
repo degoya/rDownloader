@@ -7,6 +7,8 @@
 
 use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
+use torbox_common::Words;
+pub use torbox_common::{ErrorEnvelope, is_safe_id};
 
 use crate::messages;
 
@@ -99,16 +101,6 @@ pub fn read_ticket(url: &str) -> Option<Ticket> {
     })
 }
 
-/// Whether an identifier read out of an address is safe to put back into a request.
-#[must_use]
-pub fn is_safe_id(id: &str) -> bool {
-    !id.is_empty()
-        && id.len() <= 64
-        && id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
-}
-
 /// Whether this plugin claims an address at all.
 #[must_use]
 pub fn matches(url: &str) -> bool {
@@ -148,24 +140,6 @@ impl UserInfo {
             .as_deref()
             .map(str::trim)
             .filter(|name| !name.is_empty())
-    }
-}
-
-/// The failure envelope, and the `data` of a `requestdl` call, which is the address itself.
-#[derive(Default, Deserialize)]
-pub struct ErrorEnvelope {
-    #[serde(default)]
-    pub success: Option<bool>,
-    #[serde(default)]
-    pub error: Option<serde_json::Value>,
-}
-
-impl ErrorEnvelope {
-    /// The error word, upper-cased, or `None` when the answer names none.
-    #[must_use]
-    pub fn code(&self) -> Option<String> {
-        let text = self.error.as_ref()?.as_str()?.trim();
-        (!text.is_empty()).then(|| text.to_ascii_uppercase())
     }
 }
 
@@ -281,6 +255,15 @@ pub fn classify_error(api_code: &str, retry_after: Option<u64>) -> ApiFailure {
     }
 }
 
+/// The words this plugin reports a refusal under; the order they are believed in is
+/// `torbox_common`'s, shared with `plugins/torbox-jobs/`.
+pub const WORDS: Words = Words {
+    http: HTTP,
+    classify: classify_error,
+    api_error: messages::API_ERROR.0,
+    refused: messages::REQUEST_REFUSED,
+};
+
 /// The failure an answer describes, or `None` when it describes none.
 #[must_use]
 pub fn failure_from(
@@ -288,35 +271,7 @@ pub fn failure_from(
     retry_after: Option<u64>,
     envelope: &ErrorEnvelope,
 ) -> Option<ApiFailure> {
-    if let Some(api_code) = envelope.code() {
-        let classified = classify_error(&api_code, retry_after);
-        // A word this build has no bucket for is not the end of what the answer said. When the
-        // status carries a meaning of its own -- a 429, a 5xx, a 401 -- that meaning is better
-        // than "permanent, unknown word", and it is the difference between a wait and a job
-        // somebody has to start again by hand. The word still travels as the parameter.
-        if classified.code == messages::API_ERROR.0
-            && let Err(by_status) = HTTP.ensure_http_status(status, retry_after)
-        {
-            return Some(ApiFailure {
-                params: vec![("api_code", api_code)],
-                ..by_status
-            });
-        }
-        return Some(classified);
-    }
-    if envelope.success == Some(false) {
-        return Some(
-            HTTP.ensure_http_status(status, retry_after)
-                .err()
-                .unwrap_or_else(|| {
-                    ApiFailure::new(ErrorKind::Permanent, messages::REQUEST_REFUSED)
-                }),
-        );
-    }
-    if !(200..=299).contains(&status) {
-        return HTTP.ensure_http_status(status, retry_after).err();
-    }
-    None
+    torbox_common::failure_from(status, retry_after, envelope, &WORDS)
 }
 
 /// Reads the address a `requestdl` answer carries.

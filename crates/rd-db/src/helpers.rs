@@ -24,6 +24,14 @@ pub(crate) fn timestamp(value: &chrono::DateTime<chrono::Utc>) -> String {
     value.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
+/// `LIKE` treats `%` and `_` as wildcards; a person searching for `100%` means the characters.
+pub(crate) fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 /// Reads back an instant [`timestamp`] stored.
 pub(crate) fn parse_time(value: &str) -> Result<chrono::DateTime<chrono::Utc>> {
     Ok(chrono::DateTime::parse_from_rfc3339(value)

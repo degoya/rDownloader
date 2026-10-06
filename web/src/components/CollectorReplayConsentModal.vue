@@ -50,14 +50,13 @@ function submit(): void {
     :title="t('linkgrabber.replay.title')"
     :description="t('linkgrabber.replay.description')"
     :close="{ onClick: () => emit('close', null) }"
-    :ui="{ footer: 'justify-end', content: 'sm:max-w-2xl' }"
+    :ui="{ content: 'sm:max-w-2xl' }"
   >
     <template #body>
       <div class="space-y-4">
         <UAlert
           v-if="!preview.replayable"
           color="warning"
-          variant="subtle"
           icon="i-lucide-shield-alert"
           :title="t('linkgrabber.replay.blocked.title')"
           :description="t(`linkgrabber.replay.blocked.${preview.blocked_reason ?? 'refresh_unavailable'}`)"

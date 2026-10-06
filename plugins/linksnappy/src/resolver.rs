@@ -5,7 +5,7 @@
 //! this plugin has no session to rely on, so `username`/`password` travel with each request as
 //! `{{username}}`/`{{secret:…}}` markers the host expands.
 
-use plugin_common::failure::coded;
+use plugin_common::failure::{SecretSlot, coded, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
     PluginHost, ResolveInput, Resolved,
@@ -13,6 +13,12 @@ use plugin_common::{
 use serde::de::DeserializeOwned;
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: api::PASSWORD_REFERENCE,
+    missing: messages::PASSWORD_MISSING,
+};
 
 /// Whether this plugin claims `url`. A multihoster claims by account catalogue rather than by
 /// host, so anything fetchable over http(s) is a candidate.
@@ -26,7 +32,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let details: api::UserDetails =
         api_call(host, "USERDETAILS", credential_query(), false).await?;
     Ok(Account {
@@ -52,7 +58,7 @@ pub(crate) async fn resolve<H: PluginHost>(
         .account_id
         .as_deref()
         .ok_or_else(|| coded(FailureKind::AuthRequired, messages::ACCOUNT_MISSING))?;
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = get(
         host,
         "linkgen",
@@ -108,7 +114,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = get(host, "FILEHOSTS", credential_query()).await?;
     let envelope: api::Envelope<std::collections::HashMap<String, api::HostEntry>> =
         match serde_json::from_slice(&response.body) {
@@ -191,17 +197,6 @@ async fn get<H: PluginHost>(
         body: Vec::new(),
     })
     .await
-}
-
-/// Fails before any request when the account has no password: every flow needs one.
-async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if !host
-        .secret_available(account_id, api::PASSWORD_REFERENCE)
-        .await
-    {
-        return Err(coded(FailureKind::AuthRequired, messages::PASSWORD_MISSING));
-    }
-    Ok(())
 }
 
 fn invalid_response() -> Failure {

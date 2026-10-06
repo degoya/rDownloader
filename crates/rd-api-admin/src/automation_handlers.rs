@@ -13,7 +13,7 @@ use utoipa::ToSchema;
 use crate::{
     ApiError, AppState,
     automation_input::{AutomationRequest, validated},
-    automation_service::DryRunMatch,
+    automation_service::{DryRunDraft, DryRunMatch},
 };
 
 /// An automation together with the definition currently in force.
@@ -39,6 +39,10 @@ pub struct DryRunRequest {
     /// which is what a condition-free automation is.
     #[serde(default)]
     pub package_id: Option<PackageId>,
+    /// The automation as it stands in the editor (RD-1120-17). When present only it is judged,
+    /// whether or not it is saved or switched on, and the answer holds its one entry.
+    #[serde(default)]
+    pub draft: Option<DryRunDraft>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -161,20 +165,35 @@ pub async fn list_automation_runs(
     ))
 }
 
-#[utoipa::path(post, path = "/api/v1/automations/dry-run", tag = "automations", request_body = DryRunRequest, responses((status = 200, body = [DryRunMatch]), (status = 404)))]
+/// Judges a trigger and a sample package against the enabled automations, or against the
+/// editor's draft alone when the request carries one (RD-1120-17). Never has an effect.
+#[utoipa::path(post, path = "/api/v1/automations/dry-run", tag = "automations", request_body = DryRunRequest, responses((status = 200, body = [DryRunMatch]), (status = 400), (status = 404)))]
 pub async fn dry_run_automations(
     State(state): State<AppState>,
     Json(request): Json<DryRunRequest>,
 ) -> Result<Json<Vec<DryRunMatch>>, ApiError> {
-    state
+    let missing = |error: anyhow::Error| {
+        ApiError::not_found("automation.dry_run_target_missing", error.to_string())
+            .with_param("reason", error)
+    };
+    let Some(draft) = request.draft else {
+        return state
+            .automations
+            .dry_run(request.trigger, request.package_id, None)
+            .await
+            .map(Json)
+            .map_err(missing);
+    };
+    // Refused with the code a save would answer: a draft whose condition cannot be evaluated
+    // would otherwise read as a condition that does not hold.
+    rd_automation::validate_condition(&draft.condition)
+        .map_err(|error| ApiError::bad_request(error.code(), error.to_string()))?;
+    let matched = state
         .automations
-        .dry_run(request.trigger, request.package_id, None)
+        .dry_run_draft(request.trigger, request.package_id, draft)
         .await
-        .map(Json)
-        .map_err(|error| {
-            ApiError::not_found("automation.dry_run_target_missing", error.to_string())
-                .with_param("reason", error)
-        })
+        .map_err(missing)?;
+    Ok(Json(vec![matched]))
 }
 
 #[utoipa::path(get, path = "/api/v1/automations/vocabulary", tag = "automations", responses((status = 200, body = AutomationVocabulary)))]

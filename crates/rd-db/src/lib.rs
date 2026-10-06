@@ -85,6 +85,7 @@ pub mod pre_migration;
 mod remote_job_store;
 mod replay_store;
 pub mod restore_copy;
+mod retention;
 mod service_settings;
 mod session_store;
 mod site_rule_checks_store;
@@ -161,7 +162,7 @@ pub use full_backup_store::{
     BackupDestinationRecord, BackupKeyRecord, BackupRun, BackupRunOutcome, NewBackupDestination,
     NewBackupRun,
 };
-pub(crate) use helpers::{enum_string, parse_enum, parse_id, parse_time, timestamp};
+pub(crate) use helpers::{enum_string, escape_like, parse_enum, parse_id, parse_time, timestamp};
 pub use history_store::{
     DOWNLOAD_FAILED_CODE as HISTORY_DOWNLOAD_FAILED_CODE, HistoryPage, HistoryQuery,
     POSTPROCESS_FAILED_CODE as HISTORY_POSTPROCESS_FAILED_CODE,
@@ -191,13 +192,14 @@ pub use postprocess_store::AssembledSegment;
 pub use remote_job_store::{AdvanceRemoteJob, ClaimRemoteJob};
 pub use remote_store::{HostKeyVerdict, NewRemoteCredential, UpdateRemoteCredential};
 pub use replay_store::{REFRESH_WINDOW_HOURS, REPLAY_REFRESH_MAX};
+pub use retention::PruneReport;
 pub use service_settings::{
     SERVICE_SETTINGS_KEY, SettingsFieldError, parse_service_settings,
     parse_service_settings_per_field, service_setting_field_of,
 };
 pub use session_store::TOUCH_INTERVAL_SECONDS as SESSION_TOUCH_INTERVAL_SECONDS;
 pub use site_rule_checks_store::{NewSiteRuleCheck, SiteRuleCheck};
-pub use site_rule_switches_store::{SCOPE_GROUP, SCOPE_RULE, SiteRuleSwitch};
+pub use site_rule_switches_store::{SCOPE_GROUP, SiteRuleSwitch};
 pub use site_rules_store::{NewUserSiteRule, UserSiteRule};
 pub use stats_store::{
     DIRECT_PROVIDER, PRUNE_BATCH, StatsPruneReport, StatsResolution, StatsRetention,

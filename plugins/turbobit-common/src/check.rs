@@ -52,7 +52,7 @@ pub async fn check<H: PluginHost>(
         let mut entries = entries.into_iter();
         for (url, id) in chunk {
             let Some(id) = id else {
-                results.push(unknown(url));
+                results.push(LinkCheck::unknown(url));
                 continue;
             };
             // Answers come back in the order they were asked; an entry that names another id
@@ -73,13 +73,4 @@ pub async fn check<H: PluginHost>(
         }
     }
     Ok(results)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
 }

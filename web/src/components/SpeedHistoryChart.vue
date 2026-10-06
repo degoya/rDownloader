@@ -84,7 +84,7 @@ const accessibleLabel = computed(() => t('common.chart.description', {
       <circle v-if="lastCoordinate && !props.compact" :cx="lastCoordinate.x" :cy="lastCoordinate.y" r="2.5" fill="var(--ui-primary)" vector-effect="non-scaling-stroke" />
       <line v-if="!props.compact" x1="0" :y1="BOTTOM" :x2="WIDTH" :y2="BOTTOM" stroke="currentColor" class="text-muted" stroke-width="0.8" vector-effect="non-scaling-stroke" />
     </svg>
-    <div v-if="!props.compact" class="numeric mt-1 flex justify-between text-[10px] text-muted" aria-hidden="true">
+    <div v-if="!props.compact" class="numeric mt-1 flex justify-between text-2xs text-muted" aria-hidden="true">
       <span>{{ t('common.chart.window_start') }}</span>
       <span>{{ t('common.chart.window_end') }}</span>
     </div>

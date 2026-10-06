@@ -22,6 +22,12 @@ pub(crate) enum DownloadsCommand {
         sources: Option<Box<rd_core::SourceSet>>,
         reply: Reply<DownloadFile>,
     },
+    /// One event for the rows one enqueue created (RD-1120-17).
+    AnnounceCreated {
+        package_id: rd_core::PackageId,
+        ids: Vec<DownloadId>,
+        reply: Reply<()>,
+    },
     TransitionDownload {
         id: DownloadId,
         next: DownloadState,
@@ -43,6 +49,11 @@ pub(crate) enum DownloadsCommand {
     DeleteDownload {
         id: DownloadId,
         reply: Reply<()>,
+    },
+    /// Removes many inactive rows in one transaction (RD-1120-17); one answer per id, in order.
+    DeleteDownloads {
+        ids: Vec<DownloadId>,
+        reply: Reply<Vec<anyhow::Result<()>>>,
     },
     /// Removes a package that has no files, for a caller with no download id to offer.
     DeleteEmptyPackage {

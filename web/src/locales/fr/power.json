@@ -7,8 +7,6 @@
   "quiet": {
     "label": "Heures calmes",
     "description": "Les travaux reportés attendent dans ces fenêtres. Les téléchargements continuent.",
-    "from": "De",
-    "to": "À",
     "add": "Ajouter une fenêtre",
     "defer_postprocess": "Reporter réparation, décompression et envois",
     "defer_notifications": "Regrouper les notifications jusqu'à la fin de la fenêtre"
@@ -45,8 +43,7 @@
     "shutdown": "La machine s'éteint",
     "none": "Action de fin en attente",
     "script": "Le script de fin s'exécute",
-    "countdown": "Dans {seconds} s — annulez pour garder la machine allumée.",
-    "cancel": "Annuler"
+    "countdown": "Dans {seconds} s — annulez pour garder la machine allumée."
   },
   "paused": {
     "battery": "La file est suspendue : la machine fonctionne sur batterie.",

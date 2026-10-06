@@ -134,12 +134,9 @@
         "description": "Cada destino recibe su propia copia. Uno inalcanzable se reintenta y solo afecta a su propia entrada del historial.",
         "empty": "Aún no hay destinos. Añade una carpeta, un bucket de almacenamiento de objetos o un remoto de rclone.",
         "add": "Añadir destino",
-        "edit": "Editar",
-        "delete": "Quitar",
         "deleted": "Destino quitado. Sus archivos se quedan donde están.",
         "saved": "Destino guardado",
         "save": "Guardar destino",
-        "cancel": "Cancelar",
         "off": "Desactivado",
         "kind": {
           "label": "Tipo",
@@ -451,11 +448,9 @@
       "once": "Visible solo ahora. Nada de esto puede recuperarse una vez que salgas de la página.",
       "scan": "Escanea este código con tu aplicación de autenticación:",
       "copy_secret": "Copiar clave",
-      "copy_uri": "Copiar enlace",
       "recovery": "Códigos de recuperación: guárdalos en un lugar seguro:",
       "copy_codes": "Copiar códigos",
       "confirm_label": "Código de la aplicación",
-      "confirm": "Confirmar",
       "qr_alt": "Código QR para configurar la aplicación de autenticación",
       "manual": "O introduce la clave manualmente:"
     },
@@ -493,7 +488,6 @@
     "description": "Inicia sesión con tu dispositivo en lugar de con la contraseña. Tu autenticador comprueba un PIN o una huella antes de firmar, así que un solo paso cubre ambos factores. La contraseña sigue funcionando: una clave de acceso es otra forma de entrar, no un sustituto.",
     "unsupported": "Este navegador no puede usar claves de acceso aquí. Necesitan una conexión segura: https, o acceder al servicio en localhost.",
     "add": "Añadir una clave de acceso",
-    "save": "Guardar",
     "failed": "No se pudo configurar la clave de acceso.",
     "added_toast": "Clave de acceso añadida",
     "name_label": "Nombre",
@@ -503,10 +497,8 @@
     "last_used": "Usada por última vez {moment}",
     "never_used": "nunca",
     "remove": {
-      "action": "Quitar",
       "title": "¿Quitar esta clave de acceso?",
-      "description": "«{label}» dejará de poder iniciar sesión. Tu contraseña sigue funcionando.",
-      "confirm": "Quitar"
+      "description": "«{label}» dejará de poder iniciar sesión. Tu contraseña sigue funcionando."
     },
     "step_up_hint": "Añadir o quitar una passkey vuelve a pedir la contraseña."
   },
@@ -722,10 +714,8 @@
       "confirm": "Desvincular"
     },
     "remove": {
-      "action": "Quitar",
       "title": "¿Quitar el proveedor de identidad?",
-      "description": "Se borran la configuración, el secreto del cliente y la cuenta vinculada.",
-      "confirm": "Quitar"
+      "description": "Se borran la configuración, el secreto del cliente y la cuenta vinculada."
     },
     "password_is_off": "El inicio de sesión con contraseña está desactivado",
     "password_is_off_hint": "Solo el equipo donde se ejecuta el servicio puede reactivarlo: {command}. Las passkeys siguen funcionando y la contraseña sigue confirmando los cambios.",
@@ -749,8 +739,7 @@
     "group_hint": "Opcional: la cuenta vinculada también debe estar en este grupo.",
     "provider_logout": "Cerrar sesión también en el proveedor",
     "provider_logout_hint": "Desactivado: cerrar sesión solo termina la sesión aquí; tus otros servicios siguen conectados.",
-    "step_up_hint": "Cada cambio aquí vuelve a pedir la contraseña.",
-    "save": "Guardar"
+    "step_up_hint": "Cada cambio aquí vuelve a pedir la contraseña."
   },
   "token_expiry": {
     "label": "Caduca",

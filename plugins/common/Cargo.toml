@@ -19,6 +19,11 @@ url.workspace = true
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
 tracing.workspace = true
 
+[features]
+# Helpers only tests ask for, kept out of every plugin's own build: a dependent crate turns this
+# on in its `[dev-dependencies]` line.
+test-support = []
+
 [lib]
 crate-type = ["rlib"]
 

@@ -2,11 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/vue'
 import axe from 'axe-core'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { PendingCaptcha } from '@/api/types'
 import en from '@/locales/en/captcha.json'
 import { useCaptchasStore } from '@/stores/captchas'
+import { createTestI18n, uiStubs } from '@/test/mount'
 
 import CaptchaDialog from './CaptchaDialog.vue'
 
@@ -21,30 +21,24 @@ vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 const toast = { add: vi.fn() }
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => toast }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { captcha: en } } })
-
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UModal: {
-    props: ['open'],
-    template: '<div v-if="open"><slot name="body" /><slot name="footer" /></div>'
-  },
-  UButton: {
-    props: ['label', 'disabled', 'loading'],
-    template: '<button v-bind="$attrs" :disabled="disabled">{{ label }}</button>'
-  },
-  UInput: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template:
-      '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-  },
-  UAlert: {
-    props: ['title', 'description'],
-    template: '<div role="alert">{{ title }} {{ description }}</div>'
-  },
-  UFormField: passthrough,
-  UBadge: passthrough
+/**
+ * The shared stubs, with the modal rendered only while open and the notice as an `alert`.
+ * Rendered directly rather than through the shared mount helper, which starts a fresh Pinia: each
+ * test fills the captcha store first.
+ */
+const global = {
+  plugins: [createTestI18n({ captcha: en })],
+  stubs: {
+    ...uiStubs,
+    UModal: {
+      props: ['open'],
+      template: '<div v-if="open"><slot name="body" /><slot name="footer" /></div>'
+    },
+    UAlert: {
+      props: ['title', 'description'],
+      template: '<div role="alert">{{ title }} {{ description }}</div>'
+    }
+  } as never
 }
 
 function imageCaptcha(): PendingCaptcha {
@@ -103,7 +97,7 @@ function sizeImage(rendered: { width: number, height: number }, natural: { width
 function renderDialog(queue: PendingCaptcha[]) {
   const store = useCaptchasStore()
   store.pending = queue
-  render(CaptchaDialog, { global: { plugins: [i18n], components } })
+  render(CaptchaDialog, { global })
   return store
 }
 
@@ -205,7 +199,7 @@ describe('CaptchaDialog', () => {
   it('renders a click-point captcha without an axe violation', async () => {
     const store = useCaptchasStore()
     store.pending = [clickCaptcha()]
-    const { container } = render(CaptchaDialog, { global: { plugins: [i18n], components } })
+    const { container } = render(CaptchaDialog, { global })
 
     // `region` is a property of the page shell, not of a component; see accessibility.test.ts.
     const results = await axe.run(container, { rules: { region: { enabled: false } } })
@@ -249,7 +243,7 @@ describe('CaptchaDialog', () => {
     expect(screen.queryByTestId('extension-connected')).toBeNull()
 
     await fireEvent.click(button(en.widget.extension_setup))
-    expect(push).toHaveBeenCalledWith('/settings/desktop')
+    expect(push).toHaveBeenCalledWith('/settings/clients?tab=browser')
   })
 
   it('says the extension will open the hoster page once the server has seen one', () => {
@@ -299,7 +293,7 @@ describe('CaptchaDialog', () => {
     const store = useCaptchasStore()
     store.pending = [imageCaptcha()]
     store.error = 'The captcha queue is unreachable'
-    render(CaptchaDialog, { global: { plugins: [i18n], components } })
+    render(CaptchaDialog, { global })
 
     expect(screen.getByRole('alert').textContent).toContain('unreachable')
   })

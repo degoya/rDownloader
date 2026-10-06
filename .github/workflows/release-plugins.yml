@@ -32,12 +32,9 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
-      # Read, never saved (RD-1100-13): a cache saved by a tag's run is readable by that tag only,
-      # so every release stored gigabytes nobody could use against the repository's 10 GB.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          key: release-plugins
-          save-if: false
+      # No Rust cache (RD-1120-07): `release-plugins` was restored and never saved by any workflow
+      # (a tag's run reads only its own caches and the default branch's), so it found nothing. The
+      # components come from the component cache below; only the packager builds from scratch.
       # Makes each core module a component (RD-1110-08), and reads the imports for the check
       # scripts/build-plugins.sh runs on every component it builds and the one below over all of
       # them; the version the script requires, as in ci-components.yml whose cache this run reads.

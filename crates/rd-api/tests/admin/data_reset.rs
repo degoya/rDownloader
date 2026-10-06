@@ -10,7 +10,7 @@
 //! the queue is not touched by any of them.
 //!
 //! The three-way isolation measured as store counts — including the transfer statistics, which
-//! have no public write — is in `crates/rd-db/tests/data_reset.rs`.
+//! have no public write — is in `crates/rd-db/tests/database/data_reset.rs`.
 
 use crate::common;
 
@@ -205,7 +205,7 @@ async fn clearing_the_statistics_touches_neither_log() {
 ///
 /// None is left `queued`: the harness runs the delivery worker, which would pick a due row up
 /// within its sweep and move it on. The retrying one is due in an hour, so the worker leaves it
-/// alone for the length of the test. The queued case is in `crates/rd-db/tests/data_reset.rs`,
+/// alone for the length of the test. The queued case is in `crates/rd-db/tests/database/data_reset.rs`,
 /// where no worker runs.
 async fn seed_deliveries(database: &rd_db::Database) {
     let rule_id = rd_core::NotificationRuleId::new();

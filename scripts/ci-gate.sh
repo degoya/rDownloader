@@ -11,14 +11,23 @@
 # Windows images left out build for main's cache instead (`warm-cache`); macOS is checked at a
 # release candidate only and keeps none. CI only.
 #
-#   REQUESTED='["ubuntu-24.04",…]' ONCE='["docker",…]' scripts/ci-gate.sh
+# `CALLED` are once-per-run jobs too, but calls of a workflow, whose check no tree green finds by
+# its name (`components / components`): they run on every push to `main`, for the cache
+# release.yml reads. A dispatch's `jobs` input (REQUESTED_JOBS, a JSON list; empty for all) keeps
+# only the once-per-run jobs it names, of `ONCE` and `CALLED` alike: scripts/lib/public-ci.sh
+# passes `[]` when recorded Linux and Windows greens cover the tree, and a dispatch for macOS
+# alone then runs none of them again (RD-1120-07).
+#
+#   REQUESTED='["ubuntu-24.04",…]' ONCE='["docker",…]' CALLED='["components"]' \
+#       [REQUESTED_JOBS='[]'] scripts/ci-gate.sh
 #
 # Reads GITHUB_EVENT_NAME, GITHUB_REF, GITHUB_REPOSITORY and GH_TOKEN as the runner sets them and
-# appends to GITHUB_OUTPUT. Moved out of the workflow unchanged (RD-1101-07).
+# appends to GITHUB_OUTPUT. Moved out of the workflow in RD-1101-07.
 set -euo pipefail
 
 platforms="${REQUESTED}"
 jobs="${ONCE}"
+called="${CALLED:-[]}"
 warm='[]'
 if [[ "${GITHUB_EVENT_NAME}" == push && "${GITHUB_REF}" == refs/heads/main ]]; then
     mapfile -t images < <(jq -r '.[]' <<< "${REQUESTED}")
@@ -31,6 +40,11 @@ if [[ "${GITHUB_EVENT_NAME}" == push && "${GITHUB_REF}" == refs/heads/main ]]; t
     warm="$(jq -c --argjson run "${platforms}" \
         '[.[] | select(startswith("macos") | not) | select(. as $image | $run | index($image) | not)]' \
         <<< "${REQUESTED}")"
+fi
+jobs="$(jq -c --argjson called "${called}" '. + $called' <<< "${jobs}")"
+if [[ -n "${REQUESTED_JOBS:-}" ]]; then
+    jobs="$(jq -c --argjson want "${REQUESTED_JOBS}" '[.[] | select(IN($want[]))]' <<< "${jobs}")" \
+        || { echo "::error::the jobs input is not a JSON list: ${REQUESTED_JOBS}" >&2; exit 1; }
 fi
 check=true
 if [[ "${platforms}" == "[]" ]]; then check=false; fi

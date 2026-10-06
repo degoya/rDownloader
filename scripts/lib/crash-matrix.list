@@ -6,12 +6,13 @@
 #     <package> [<nextest selection>]
 #
 # Every package without a selection joins one shared run: `--features <package>/failpoints` and
-# `-p <package>` for each. A package with a selection runs alone, its own feature on, with that
+# `-p <package>` for each, filtered to the tests the feature turns on — a test behind it carries
+# `crash` in its binary, module or name (RD-1120-08; scripts/tests/crash-matrix.sh holds that). A package with a selection runs alone, its own feature on, with that
 # selection. The feature is off everywhere else, so the shipped build has no crash point in it, and
 # each crash-test file is gated on the feature of the crate that owns its point — rd-core's alone
 # turns none of the others on, and a binary compiled to nothing reports success.
 #
-# A new persistence path gets its point in rd_core::failpoint::CRASH_POINTS, its row in
+# A new persistence path gets its point in rd_crash_points::CRASH_POINTS, its row in
 # crates/rd-core/recovery-matrix.md, a case — and, in a crate not listed yet, its line here.
 rd-core
 rd-http

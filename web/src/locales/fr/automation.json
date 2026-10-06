@@ -52,12 +52,12 @@
     "heading": "Essai à blanc",
     "package": "Paquet d’exemple",
     "run": "Évaluer",
-    "help": "Évalue sur un paquet réel et ne modifie rien.",
+    "help": "Évalue ce formulaire tel quel, enregistré ou non, sur un paquet réel et ne modifie rien.",
     "trigger_yes": "déclencheur correspondant",
     "trigger_no": "autre déclencheur",
     "condition_yes": "condition vérifiée",
     "condition_no": "condition non vérifiée",
-    "none": "Aucune automatisation active à évaluer."
+    "draft": "Cette automatisation"
   },
   "trigger": {
     "intake_received": "Liens reçus",

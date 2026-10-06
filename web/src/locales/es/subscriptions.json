@@ -162,13 +162,11 @@
     "hide_details": "Ocultar detalles",
     "enable": "Activar suscripción",
     "disable": "Desactivar suscripción",
-    "duplicate": "Duplicar",
     "menu": "Acciones de la suscripción"
   },
   "remove": {
     "title": "¿Eliminar la suscripción?",
-    "description": "«{name}» se elimina junto con sus filtros, su enrutamiento de categorías y el registro de lo ya visto.",
-    "confirm": "Eliminar"
+    "description": "«{name}» se elimina junto con sus filtros, su enrutamiento de categorías y el registro de lo ya visto."
   },
   "history": {
     "action": "Borrar historial completado",

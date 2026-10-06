@@ -369,7 +369,8 @@
     "unresolved": {
       "formats_missing": "yt-dlp n'a signalé aucun format téléchargeable pour cette page. Vérifiez à nouveau le lien ; si la liste reste vide, le site n'est pas pris en charge.",
       "audio_missing": "La page propose des flux vidéo, mais aucune piste audio. « Meilleur » télécharge quand même la vidéo, sans le son."
-    }
+    },
+    "preset_label": "Préréglage de qualité"
   },
   "replay": {
     "title": "Autoriser ce téléchargement",
@@ -558,5 +559,6 @@
     "torrent": "Torrent",
     "swarm": "{seeders} sources, {leechers} clients",
     "grabbed_torrents": "Aucun torrent ajouté | Un torrent ajouté au LinkGrabber | {count} torrents ajoutés au LinkGrabber"
-  }
+  },
+  "empty_title": "Aucun lien en attente de vérification"
 }

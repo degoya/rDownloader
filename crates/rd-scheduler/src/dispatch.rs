@@ -10,9 +10,12 @@ use anyhow::Result;
 use rd_core::{DownloadId, DownloadState, Failure, FailureKind, PackageId};
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-    BlockReason, ExternalRunner, SchedulerHandle, mirrors, provider::ProviderSlot, rates, worker,
-};
+use crate::{BlockReason, ExternalRunner, SchedulerHandle, rates, worker};
+
+#[path = "dispatch_admission.rs"]
+mod admission;
+
+use admission::{Claim, Slots};
 
 impl SchedulerHandle {
     pub(crate) async fn supervise(self) {
@@ -107,31 +110,11 @@ impl SchedulerHandle {
     }
 
     pub(crate) async fn schedule_runnable(&self) -> Result<()> {
-        if self.pause_during_postprocess.load(Ordering::Acquire)
-            && self.config.postprocess_hold.is_held()
-        {
-            return Ok(());
-        }
-        // An exhausted traffic budget holds back new starts only; transfers already running
-        // finish, so nothing is thrown away at the period boundary. Battery and metered
-        // operation hold the queue the same way.
-        if self.config.bandwidth.budget_exceeded().await.is_some()
-            || self.network_hold().await.is_some()
-        {
+        if self.dispatch_held().await {
             return Ok(());
         }
         let now = chrono::Utc::now();
-        // The active profile may cap parallelism more tightly than the base setting.
-        let active_limit = self
-            .config
-            .bandwidth
-            .max_active_files()
-            .await
-            .map(|value| value as usize)
-            .map_or_else(
-                || self.max_active_files.load(Ordering::Acquire),
-                |profile_limit| profile_limit.min(self.max_active_files.load(Ordering::Acquire)),
-            );
+        let active_limit = self.active_limit().await;
         // Only the rows that can start, through the state index: an idle queue of finished
         // downloads used to be loaded whole, JSON and all, twice a second (audit 1.9.1, TR-08).
         let files = self
@@ -153,90 +136,18 @@ impl SchedulerHandle {
         // A switched-off kind is blocked once per pass, not once per waiting file of it.
         let mut blocked_kinds: Vec<rd_core::DownloadKind> = Vec::new();
         for file in files {
-            // A hoster's free-download limit applies to the whole IP, so hold back its
-            // other anonymous links instead of spending another wait and captcha on them.
-            // Downloads backed by an account are unaffected.
-            if file.account_id.is_none()
-                && self.host_blocks.blocked_until(&file.source, now).is_some()
+            if !self
+                .may_start(&file, now, &destinations, &mut groups, &mut blocked_kinds)
+                .await?
             {
                 continue;
             }
-            // One link of a mirror group at a time. Enqueueing already picks the member that
-            // runs; this catches the case where somebody started a waiting one by hand, and
-            // stands the loser down rather than fetching the same bytes twice.
-            if file.mirror_group.is_some() {
-                if let std::collections::hash_map::Entry::Vacant(slot) =
-                    groups.entry(file.package_id)
-                {
-                    slot.insert(self.database.downloads_for_package(file.package_id).await?);
-                }
-                let siblings = groups
-                    .get(&file.package_id)
-                    .map(|members| mirrors::siblings(&file, members))
-                    .unwrap_or_default();
-                let taken = siblings
-                    .iter()
-                    .any(|sibling| mirrors::has_taken_the_turn(sibling.state));
-                // Decided by `best_candidate` rather than by which one this loop reached
-                // first, so two links added together always resolve the same way round.
-                let mut contenders: Vec<&rd_core::DownloadFile> = siblings
-                    .into_iter()
-                    .filter(|sibling| mirrors::is_contending(sibling.state))
-                    .collect();
-                contenders.push(&file);
-                let loses =
-                    mirrors::best_candidate(&contenders).is_some_and(|winner| winner.id != file.id);
-                if taken || loses {
-                    self.database
-                        .transition_download(file.id, DownloadState::Skipped)
-                        .await?;
-                    // Read again on the next member of the group, which must see this one
-                    // standing by rather than contending.
-                    groups.remove(&file.package_id);
-                    continue;
-                }
-            }
-            // A storage root below its threshold holds back only its own packages; every
-            // other destination keeps downloading.
-            if let Some(destination) = destinations.get(&file.package_id) {
-                let target = self.config.capacity.target_for(destination).await;
-                if self.config.capacity.is_blocked(target).await {
-                    continue;
-                }
-            }
-            // A switched-off service must not leave work waiting forever with no reason
-            // shown, so the job is blocked instead of skipped.
-            if self.kind_disabled(file.kind).await {
-                if !blocked_kinds.contains(&file.kind) {
-                    blocked_kinds.push(file.kind);
-                    self.block_queued_of_kind(file.kind).await;
-                }
+            let Some(Slots {
+                external,
+                provider_permit,
+            }) = self.acquire_slots(&file).await?
+            else {
                 continue;
-            }
-            let external = match file.kind {
-                rd_core::DownloadKind::Http => None,
-                kind => {
-                    let Some(runner) = self.runners.get(kind) else {
-                        continue;
-                    };
-                    let requested = self.external_parallel_files.load(Ordering::Acquire);
-                    let Some(permit) = self.runners.try_slot(kind, requested).await else {
-                        continue;
-                    };
-                    Some((runner, permit))
-                }
-            };
-            let provider_permit = if external.is_some() {
-                None
-            } else {
-                match self
-                    .try_provider_slot(file.id, file.account_id, &file.source)
-                    .await?
-                {
-                    ProviderSlot::Unrestricted => None,
-                    ProviderSlot::Acquired(permit) => Some(permit),
-                    ProviderSlot::Busy => continue,
-                }
             };
             let exempt = external
                 .as_ref()
@@ -245,29 +156,13 @@ impl SchedulerHandle {
                 .as_ref()
                 .is_some_and(|(runner, _)| runner.shares_one_global_slot());
             let cancellation = CancellationToken::new();
+            match self
+                .claim_slot(&file, exempt, pooled, active_limit, &cancellation)
+                .await
             {
-                let mut active = self.active.lock().await;
-                // Asked under the lock `shutdown` collects the tokens under: a pass that was
-                // already running when the shutdown began would otherwise add a token nobody
-                // cancels and start a job while the WAL is checkpointed (audit 1.9.1, TR-06).
-                if self.shutdown.is_cancelled() {
-                    return Ok(());
-                }
-                if active.untouchable(&file.id) {
-                    continue;
-                }
-                // Exempt kinds (recordings) start regardless of the global cap, and so does
-                // another file of a pooled kind that is running already, so keep scanning
-                // instead of breaking when the cap is reached.
-                if !active.admits(file.kind, exempt, pooled, active_limit) {
-                    continue;
-                }
-                active.tokens.insert(file.id, cancellation.clone());
-                if exempt {
-                    active.exempt.insert(file.id);
-                } else if pooled {
-                    active.pooled.insert(file.id, file.kind);
-                }
+                Claim::ShuttingDown => return Ok(()),
+                Claim::Refused => continue,
+                Claim::Claimed => {}
             }
             let scheduler = self.clone();
             tokio::spawn(async move {
@@ -278,6 +173,34 @@ impl SchedulerHandle {
             });
         }
         Ok(())
+    }
+
+    /// Whether the queue holds back new starts this pass.
+    async fn dispatch_held(&self) -> bool {
+        if self.pause_during_postprocess.load(Ordering::Acquire)
+            && self.config.postprocess_hold.is_held()
+        {
+            return true;
+        }
+        // An exhausted traffic budget holds back new starts only; transfers already running
+        // finish, so nothing is thrown away at the period boundary. Battery and metered
+        // operation hold the queue the same way.
+        self.config.bandwidth.budget_exceeded().await.is_some()
+            || self.network_hold().await.is_some()
+    }
+
+    /// How many files may run at once.
+    async fn active_limit(&self) -> usize {
+        // The active profile may cap parallelism more tightly than the base setting.
+        self.config
+            .bandwidth
+            .max_active_files()
+            .await
+            .map(|value| value as usize)
+            .map_or_else(
+                || self.max_active_files.load(Ordering::Acquire),
+                |profile_limit| profile_limit.min(self.max_active_files.load(Ordering::Acquire)),
+            )
     }
 
     /// Whether a kind is currently switched off.
@@ -353,14 +276,8 @@ impl SchedulerHandle {
             let message = format!("{error:#}");
             tracing::warn!(download_id = %file.id, error = %message, "download attempt failed");
             if let Ok(Some(current)) = self.database.get_download(file.id).await
-                && (matches!(
-                    current.state,
-                    DownloadState::Resolving
-                        | DownloadState::Downloading
-                        | DownloadState::Verifying
-                        | DownloadState::Repairing
-                        | DownloadState::Extracting
-                ) || (panicked
+                && (current.state.is_working()
+                    || (panicked
                     // A panic before the first transition left the row startable; without a
                     // recorded attempt the next pass would run into the same panic at once.
                     && matches!(

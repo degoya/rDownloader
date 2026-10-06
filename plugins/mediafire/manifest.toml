@@ -5,7 +5,7 @@ id = "019d0000-0000-7000-8000-00000000000d"
 name = "MediaFire"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones).
-version = "0.1.10"
+version = "0.1.11"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # The hosts a share link is spelled with (RD-103-06, measured 2026-09-21): `mfi.re` and
@@ -39,7 +39,7 @@ description = "Resolves public MediaFire file links through the documented API a
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "1.1.0"
+min_app_version = "1.9.0"
 
 [provider]
 slug = "mediafire"

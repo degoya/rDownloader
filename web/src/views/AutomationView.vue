@@ -31,7 +31,9 @@ import ConditionTree from '@/components/automation/ConditionTree.vue'
 import { type AutomationTrigger, useAutomationDraft } from '@/composables/useAutomationDraft'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
+import { useFormBaseline } from '@/composables/useFormBaseline'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import { useAutomationsStore } from '@/stores/automations'
 import { usePostprocessStore } from '@/stores/postprocess'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
@@ -62,6 +64,9 @@ const { draft, triggerOptions, actionKindOptions, canAddAction, scriptItems, can
   useAutomationDraft(categories, targets)
 
 const open = computed(() => creating.value || editing.value !== null)
+/** An open editor with changes asks before a leave drops them (RD-1120-15). */
+const draftBaseline = useFormBaseline(() => draft)
+useUnsavedGuard(() => open.value && draftBaseline.dirty.value)
 
 onMounted(async () => {
   await Promise.all([
@@ -102,6 +107,7 @@ function startCreate(): void {
     condition: { type: 'always' } as AutomationCondition,
     actions: [{ kind: 'pause_package' } as AutomationAction]
   })
+  draftBaseline.settle()
 }
 
 function startEdit(automation: Automation): void {
@@ -115,6 +121,7 @@ function startEdit(automation: Automation): void {
     condition: (automation.definition?.condition ?? { type: 'always' }) as AutomationCondition,
     actions: [...((automation.definition?.actions ?? []) as AutomationAction[])]
   })
+  draftBaseline.settle()
   void focusForm()
 }
 
@@ -158,8 +165,18 @@ async function duplicate(automation: Automation): Promise<void> {
   if (saved) startEdit(saved)
 }
 
+/**
+ * Judges the form as it stands — saved or not, switched on or not (RD-1120-17). Only the stored,
+ * enabled automations used to be judged, so a new or switched-off one had nothing to show here.
+ */
 async function runDryRun(): Promise<void> {
-  dryRunResult.value = await store.dryRun(draft.trigger, dryRunPackage.value)
+  const result = await store.dryRun(draft.trigger, dryRunPackage.value, {
+    automation_id: editing.value ?? undefined,
+    trigger: draft.trigger,
+    condition: draft.condition
+  })
+  // A refusal shows in the alert above; an empty list here would read as "nothing matched".
+  dryRunResult.value = store.error ? null : result
 }
 
 async function removeAutomation(automation: Automation): Promise<void> {
@@ -219,7 +236,6 @@ function runsOf(id: string) {
               v-if="store.error"
               class="mb-4"
               color="error"
-              variant="subtle"
               :description="store.error"
             />
             <form v-if="open" ref="formElement" data-testid="automation-form" @submit.prevent="save">
@@ -354,14 +370,11 @@ function runsOf(id: string) {
               </UFieldGroup>
               <ul v-if="dryRunResult" class="mt-3 space-y-1 text-sm">
                 <li v-for="match in dryRunResult" :key="match.automation_id" class="text-muted">
-                  <span class="font-medium text-highlighted">
-                    {{ store.automations.find(item => item.id === match.automation_id)?.name ?? match.automation_id }}
-                  </span>
+                  <span class="font-medium text-highlighted">{{ draft.name.trim() || t('automation.dry_run.draft') }}</span>
                   —
                   {{ match.trigger_matches ? t('automation.dry_run.trigger_yes') : t('automation.dry_run.trigger_no') }},
                   {{ match.condition_matches ? t('automation.dry_run.condition_yes') : t('automation.dry_run.condition_no') }}
                 </li>
-                <li v-if="!dryRunResult.length" class="text-muted">{{ t('automation.dry_run.none') }}</li>
               </ul>
 
               <FormActions

@@ -185,5 +185,19 @@
     "menu": "Colonnes",
     "reset_all": "Réinitialiser toutes les largeurs de colonne",
     "state_linkgrabber": "État du lien"
+  },
+  "weekdays": {
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mer",
+    "thu": "Jeu",
+    "fri": "Ven",
+    "sat": "Sam",
+    "sun": "Dim"
+  },
+  "week_window": {
+    "from": "De",
+    "to": "À",
+    "days_label": "Jours"
   }
 }

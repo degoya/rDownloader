@@ -1,10 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/vue'
-import { createPinia, setActivePinia } from 'pinia'
+import { screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
+import { mountComponent } from '@/test/mount'
 
 import SettingsReadinessCard from './SettingsReadinessCard.vue'
 
@@ -13,14 +12,8 @@ vi.mock('@/stores/session', () => ({
   useSessionStore: () => ({ setupRequired: false, loginDisabled: false })
 }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { system } } })
-const components = {
-  UIcon: { props: ['name'], template: '<span :data-icon="name" />' },
-  ULink: { template: '<a><slot /></a>' }
-}
-
 function mount() {
-  return render(SettingsReadinessCard, { global: { plugins: [i18n], components } })
+  return mountComponent(SettingsReadinessCard, { messages: { system } })
 }
 
 function status(overrides: Record<string, unknown> = {}) {
@@ -40,7 +33,6 @@ function status(overrides: Record<string, unknown> = {}) {
 
 describe('SettingsReadinessCard', () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
     vi.mocked(api.GET).mockReset()
   })
 

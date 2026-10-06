@@ -2,13 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api } from '@/api/client'
 import QueuePauseControl from '@/components/QueuePauseControl.vue'
 import SpeedHistoryChart from '@/components/SpeedHistoryChart.vue'
+import { serviceVersion } from '@/composables/serviceVersion'
+import { useErrorToast } from '@/composables/useErrorToast'
 import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
+import { MAX_ACTIVE_FILES, MIN_ACTIVE_FILES } from '@/stores/transfersSpeedLimit'
 import { formatBytes, formatDuration, formatRate } from '@/utils/format'
-import { DECIMAL } from '@/utils/numberInput'
+import { DECIMAL, WHOLE } from '@/utils/numberInput'
 
 const { t } = useI18n()
 const transfers = useTransfersStore()
@@ -37,7 +39,6 @@ const selectionTitle = computed(() => {
   const params = { count: size.count, size: formatBytes(size.bytes), unknown: size.unknown }
   return t(size.unknown ? 'downloads.rail.selection_partial_title' : 'downloads.rail.selection_title', params)
 })
-const serviceVersion = ref('')
 
 const speedInput = ref<number | null>(null)
 watch(() => transfers.speedLimitMiB, (value) => { speedInput.value = value }, { immediate: true })
@@ -50,12 +51,25 @@ async function applySpeedLimit(): Promise<void> {
   await transfers.setSpeedLimit(speedInput.value && speedInput.value > 0 ? speedInput.value : null)
 }
 
-onMounted(async () => {
-  void transfers.loadSpeedLimit()
-  const response = await api.GET('/api/v1/health')
-  const data = response.data as { version?: string } | undefined
-  if (data?.version) serviceVersion.value = data.version
-})
+/**
+ * How many downloads run at once (RD-1120-22), beside how many do: set here as the speed limit
+ * is, through the same settings write, and applied by the scheduler without a restart.
+ */
+const showError = useErrorToast()
+const parallelInput = ref<number | null>(null)
+watch(() => transfers.maxActiveFiles, (value) => { parallelInput.value = value }, { immediate: true })
+const parallelChanged = computed(() => parallelInput.value !== null && parallelInput.value !== transfers.maxActiveFiles)
+
+async function applyParallel(): Promise<void> {
+  if (!parallelChanged.value || parallelInput.value === null) return
+  const failure = await transfers.setMaxActiveFiles(parallelInput.value)
+  if (failure) {
+    showError(t('downloads.rail.parallel_failed'), failure)
+    parallelInput.value = transfers.maxActiveFiles
+  }
+}
+
+onMounted(() => void transfers.loadRailSettings())
 </script>
 
 <template>
@@ -85,6 +99,24 @@ onMounted(async () => {
       <div class="flex shrink-0 items-center gap-1.5 text-toned" :title="t('downloads.rail.parallel_title')">
         <UIcon name="i-lucide-waypoints" class="size-3.5 text-muted" />
         <span class="numeric"><strong class="text-highlighted">{{ parallelDownloads }}</strong> <span class="hidden @min-[72rem]:inline">{{ t('downloads.rail.parallel') }}</span></span>
+      </div>
+      <!-- Folded away on a narrow rail like the version, so the rail never takes a second line. -->
+      <div v-if="parallelInput !== null" data-testid="rail-parallel-limit" class="hidden shrink-0 items-center gap-1 @min-[56rem]:flex" :title="t('downloads.rail.parallel_limit_title', { min: MIN_ACTIVE_FILES, max: MAX_ACTIVE_FILES })">
+        <UFieldGroup size="xs" class="w-28">
+          <UBadge color="neutral" variant="outline" :label="t('downloads.rail.parallel_max')" />
+          <UInputNumber
+            v-model="parallelInput"
+            :min="MIN_ACTIVE_FILES"
+            :max="MAX_ACTIVE_FILES"
+            :format-options="WHOLE"
+            increment
+            decrement
+            :ui="{ base: 'font-mono' }"
+            :aria-label="t('downloads.rail.parallel_limit_aria')"
+            @keyup.enter="applyParallel"
+          />
+        </UFieldGroup>
+        <UButton v-if="parallelChanged" size="xs" color="neutral" variant="outline" :label="t('common.actions.apply')" :loading="transfers.maxActiveFilesBusy" @click="applyParallel" />
       </div>
       <div class="hidden shrink-0 items-center gap-1 sm:flex" :title="t('downloads.toolbar.speed_limit_title')">
         <UIcon name="i-lucide-gauge" class="size-3.5 text-muted" />

@@ -35,47 +35,15 @@ pub fn box_host(host: &str) -> Option<String> {
         return Some(host);
     }
     host.strip_suffix(".app.box.com")
-        .filter(|label| valid_label(label))
+        .filter(|label| plugin_common::address::valid_label(label))
         .map(|_| host.clone())
 }
 
-/// An enterprise subdomain label: letters, digits and hyphens, one label and no more.
-fn valid_label(label: &str) -> bool {
-    !label.is_empty()
-        && label.len() <= 63
-        && !label.contains('.')
-        && label
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-}
-
-/// Scheme, host and the rest of an address.
-///
-/// Returns `None` for anything that is not plain http(s), and for an authority carrying
-/// credentials — accepting those would let `x@evil.test` read as one of Box's own hosts.
-#[must_use]
-pub fn split(url: &str) -> Option<(&str, &str)> {
-    let (scheme, rest) = url.split_once("://")?;
-    if !matches!(scheme, "http" | "https") {
-        return None;
-    }
-    let rest = rest.split('#').next()?;
-    let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
-    if authority.contains('@') {
-        return None;
-    }
-    Some((authority.split(':').next()?, path))
-}
-
-/// The value of one query parameter, undecoded.
-#[must_use]
-pub fn query_value<'a>(path: &'a str, name: &str) -> Option<&'a str> {
-    let query = path.split_once('?')?.1;
-    query.split('&').find_map(|pair| {
-        let (key, value) = pair.split_once('=')?;
-        (key == name).then_some(value)
-    })
-}
+// The address readers every cloud plugin shares (RD-1120-10): `split` refuses anything that is
+// not plain http(s) and an authority carrying credentials — accepting those would let
+// `x@evil.test` read as one of Box's own hosts — and `query_value` reads one parameter,
+// undecoded.
+pub use plugin_common::address::{query_value, split};
 
 /// The path segments of an address, without the query and without empty ones.
 #[must_use]
@@ -115,11 +83,7 @@ pub fn valid_id(id: &str) -> bool {
 /// and nothing else.
 #[must_use]
 pub fn valid_share(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= 64
-        && name
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    plugin_common::address::valid_token(name, 64)
 }
 
 /// A file version id, which Box issues in the same shape as an item id.
@@ -131,7 +95,7 @@ pub fn valid_version(version: &str) -> bool {
 /// A SHA-1 as the API states it — 40 hexadecimal characters.
 #[must_use]
 pub fn valid_sha1(value: &str) -> bool {
-    value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+    plugin_common::address::valid_hex(value, 40)
 }
 
 /// A Box address, read down to what the API needs.

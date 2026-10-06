@@ -1,10 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
+import common from '@/locales/en/common.json'
 import system from '@/locales/en/system.json'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 import SettingsMfaCard from './SettingsMfaCard.vue'
 
@@ -17,24 +17,10 @@ vi.mock('@/api/client', () => ({
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { system } } })
-const components = {
-  UAlert: uiStubs.UAlert,
-  UBadge: { template: '<span><slot /></span>' },
-  UButton: { props: ['label'], template: '<button>{{ label }}<slot /></button>' },
-  UFormField: { props: ['label'], template: '<label>{{ label }}<slot /></label>' },
-  UInput: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">'
-  },
-  USeparator: uiStubs.USeparator
-}
-
 const OTPAUTH = 'otpauth://totp/rDownloader:administrator?secret=JBSWY3DPEHPK3PXP&issuer=rDownloader'
 
 function mount() {
-  return render(SettingsMfaCard, { global: { plugins: [i18n], components } })
+  return mountComponent(SettingsMfaCard, { messages: { system } })
 }
 
 /// Types the password the enrolment asks for again, then starts it.
@@ -121,7 +107,7 @@ describe('SettingsMfaCard', () => {
     expect(screen.getByDisplayValue('JBSWY3DPEHPK3PXP')).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.manual)).toBeTruthy()
     expect(screen.getByText(system.mfa.enrol.copy_secret)).toBeTruthy()
-    expect(screen.getByText(system.mfa.enrol.copy_uri)).toBeTruthy()
+    expect(screen.getByText(common.actions.copy_link)).toBeTruthy()
   })
 
   // The one-time secret is a warning notice, its warning the title, the codes inside it (RD-1110-11).

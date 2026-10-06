@@ -5,7 +5,7 @@
 //! here rather than in a year, when somebody needed it.
 //!
 //! The store, the append-only trigger and retention are covered in
-//! `crates/rd-db/tests/audit_store.rs`; the trace export in `crates/rd-diagnostics/tests`.
+//! `crates/rd-db/tests/database/audit_store.rs`; the trace export in `crates/rd-diagnostics/tests`.
 
 use crate::common;
 

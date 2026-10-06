@@ -15,6 +15,7 @@ use axum::{
     http::StatusCode,
 };
 use chrono::{DateTime, Utc};
+use rd_api_core::input_checks::optional_text;
 use rd_backup::{DestinationConfig, RecordedArchive, RetentionPolicy, retention};
 use rd_core::{AuditAction, BackupOrigin, BackupVerifyState};
 use rd_db::{BackupArchive, BackupDestinationRecord, BackupVerification, NewBackupDestination};
@@ -97,30 +98,25 @@ async fn new_destination(
     state: &AppState,
     request: BackupDestinationRequest,
 ) -> Result<NewBackupDestination, ApiError> {
-    let field = |value: Option<String>| {
-        value
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty())
-    };
     let config = match request.kind.as_str() {
         rd_backup::LocalFolder::KIND => DestinationConfig::Local {
-            path: field(request.path)
+            path: optional_text(request.path)
                 .ok_or_else(|| {
                     ApiError::bad_request("backup.destination_path_missing", "Name a folder")
                 })?
                 .into(),
         },
         rd_backup::remote::OBJECT_STORAGE_KIND => DestinationConfig::ObjectStorage {
-            profile_id: field(request.profile_id).ok_or_else(|| {
+            profile_id: optional_text(request.profile_id).ok_or_else(|| {
                 ApiError::bad_request(
                     "backup.destination_profile_missing",
                     "Choose an object storage profile",
                 )
             })?,
-            prefix: field(request.prefix).unwrap_or_default(),
+            prefix: optional_text(request.prefix).unwrap_or_default(),
         },
         rd_backup::remote::RCLONE_KIND => DestinationConfig::Rclone {
-            remote: field(request.remote).ok_or_else(|| {
+            remote: optional_text(request.remote).ok_or_else(|| {
                 ApiError::bad_request(
                     rd_backup::remote::RCLONE_REMOTE_INVALID,
                     "Name an rclone remote as name:path",
@@ -143,7 +139,7 @@ async fn new_destination(
         .validate(&context)
         .await
         .map_err(|error| ApiError::bad_request(error.code(), error.to_string()))?;
-    let name = field(request.name).unwrap_or_else(|| config.describe());
+    let name = optional_text(request.name).unwrap_or_else(|| config.describe());
     if name.chars().count() > MAX_NAME_CHARS {
         return Err(ApiError::bad_request(
             "backup.destination_name_too_long",

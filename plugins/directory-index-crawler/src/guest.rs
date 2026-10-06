@@ -20,7 +20,7 @@ use plugin_guest_crawler::{
 use crate::{
     listing, messages,
     target::{self, Address},
-    walk::{Absorb, Limit},
+    walk::Limit,
 };
 
 struct Component;
@@ -124,7 +124,7 @@ fn crawl_directory(root: &Address) -> Result<Vec<CrawledLink>, Failure> {
     Ok(files
         .into_iter()
         .map(|found| CrawledLink {
-            url: found.url,
+            url: found.id,
             file_name: Some(found.name).filter(|name| !name.is_empty()),
             size: found.size,
             package_hint: Some(found.path).filter(|path| !path.is_empty()),

@@ -2,8 +2,7 @@
   "tabs": {
     "roots": "Racines de stockage",
     "categories": "Catégories",
-    "rules": "Règles",
-    "collector": "Collecteur"
+    "rules": "Règles"
   },
   "header": {
     "eyebrow": "Contrôle des destinations",
@@ -61,7 +60,7 @@
     "form_edit": "Modifier la catégorie",
     "description": "Une catégorie associe une racine de stockage à un dossier relatif et aux valeurs de post-traitement de ses paquets.",
     "name_label": "Nom",
-    "name_description": "Utilisé dans le LinkGrabber, la liste de téléchargement et les règles ci-dessous.",
+    "name_description": "Utilisé dans le LinkGrabber, la liste de téléchargement et les règles de l’onglet « Règles ».",
     "name_placeholder": "Films",
     "root_label": "Racine de stockage",
     "root_description": "La racine autorisée dans laquelle cette catégorie écrit.",

@@ -12,7 +12,7 @@ use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver};
 
 use super::super::DdownloadResolver;
 use super::{
-    ERROR_PAGE_2026_09_17, FILE_PAGE_2026_09_17, MockHost, TURNSTILE_SITE_KEY, file,
+    ERROR_PAGE_2026_09_17, FILE_PAGE_2026_09_17, MockHost, SessionHost, TURNSTILE_SITE_KEY, file,
     file_page_without_the_form, html,
 };
 

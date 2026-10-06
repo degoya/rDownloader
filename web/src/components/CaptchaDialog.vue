@@ -207,10 +207,10 @@ async function openSettings(): Promise<void> {
   await router.push('/settings/captcha')
 }
 
-/** Pairing the browser extension lives with the desktop client, next to the capture token. */
+/** Pairing the browser extension has its tab on *Clients & API* (RD-1120-23). */
 async function openExtensionSetup(): Promise<void> {
   dismissedId.value = current.value?.id ?? null
-  await router.push('/settings/desktop')
+  await router.push('/settings/clients?tab=browser')
 }
 </script>
 
@@ -221,7 +221,7 @@ async function openExtensionSetup(): Promise<void> {
     :close="false"
     :title="t('captcha.title')"
     :description="t('captcha.description', { host: hostLabel })"
-    :ui="{ footer: 'justify-end', content: 'sm:max-w-lg' }"
+    :ui="{ content: 'sm:max-w-lg' }"
   >
     <template #body>
       <div v-if="current" class="space-y-4">
@@ -299,7 +299,6 @@ async function openExtensionSetup(): Promise<void> {
         <template v-else>
           <UAlert
             color="warning"
-            variant="subtle"
             icon="i-lucide-shield-alert"
             :title="t('captcha.widget.title', { kind: kindLabel })"
             :description="t('captcha.widget.description', { host: hostLabel, kind: kindLabel })"
@@ -307,7 +306,6 @@ async function openExtensionSetup(): Promise<void> {
           <UAlert
             v-if="extensionConnected"
             color="success"
-            variant="subtle"
             icon="i-lucide-puzzle"
             data-testid="extension-connected"
             :title="t('captcha.widget.extension_connected', { host: hostLabel })"
@@ -315,7 +313,6 @@ async function openExtensionSetup(): Promise<void> {
           <div v-else class="space-y-2" data-testid="extension-missing">
             <UAlert
               color="neutral"
-              variant="subtle"
               icon="i-lucide-puzzle"
               :title="t('captcha.widget.extension_missing')"
             />
@@ -334,7 +331,6 @@ async function openExtensionSetup(): Promise<void> {
         <UAlert
           v-if="captchas.error"
           color="error"
-          variant="subtle"
           icon="i-lucide-circle-alert"
           :title="captchas.error"
         />

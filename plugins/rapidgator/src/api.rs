@@ -54,11 +54,8 @@ pub(crate) fn file_id(url: &Url) -> Option<&str> {
 /// forwarding a URL that later fails to parse deeper in the pipeline (or not at all, on the guest
 /// side, where `ResolvedDownload.url` is a bare `String`).
 pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
-    Url::parse(raw).map_err(|error| {
-        let text = messages::invalid_url(&error);
-        ApiFailure::new(ErrorKind::Permanent, (messages::INVALID_URL, text.as_str()))
-            .with_param("error", error.to_string())
-    })
+    Url::parse(raw)
+        .map_err(|error| plugin_common::failure::invalid_url(messages::INVALID_URL, &error))
 }
 
 /// Generic `{"response": T|null, "status": <int>, "details": "..."}` envelope every Rapidgator
@@ -274,15 +271,18 @@ pub(crate) fn ensure_http_status(
 }
 
 /// How Rapidgator's codes name every status class [`ensure_http_status`] leaves to the shared
-/// mapping; a 429 and a 5xx carry only the wait they stated.
+/// mapping; a 429 and a 5xx carry the wait they stated.
+///
+/// Without a stated wait a `429` waits a minute and a `5xx` five minutes: the fallback the
+/// API plugins share (RD-1120-10).
 pub(crate) const HTTP: HttpWords = HttpWords {
     unauthorized: messages::BAD_CREDENTIALS,
     gone: messages::FILE_OFFLINE,
     unavailable: messages::FILE_OFFLINE,
     rate_limited: messages::RATE_LIMITED,
     server_error: messages::SERVER_ERROR,
-    rate_limited_wait: None,
-    server_error_wait: None,
+    rate_limited_wait: Some(60),
+    server_error_wait: Some(300),
     other: HttpError {
         code: messages::HTTP_ERROR,
         text: messages::http_error,

@@ -10,8 +10,10 @@ name: Soak
 # Nightly on the default branch, which in the public repository is `main`; by hand on any branch:
 #   gh workflow run soak.yml --ref <branch> -f duration=30m
 #   gh workflow run soak.yml --ref <branch> -f platforms='["ubuntu-24.04","windows-2025"]'
-# Linux only by default: a Windows release build plus two hours cost several times the Linux run
-# (Actions minutes ran out on 2026-09-25), so Windows is run on purpose, not every night.
+# Linux only by default: a Windows release build plus two hours hold a runner several times as
+# long as the Linux run, so Windows is run on purpose, not every night. The repository is public
+# and its standard runners cost nothing (RD-1120-07); the limit is the runners the other
+# workflows wait for, not money.
 on:
   schedule:
     - cron: "23 1 * * *"
@@ -46,7 +48,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    # The build, three hours at most and the shutdown; a hang is cut off rather than billed.
+    # The build, three hours at most and the shutdown; a hang is cut off rather than left running.
     timeout-minutes: 240
     env:
       DURATION: ${{ inputs.duration || '2h' }}
@@ -60,7 +62,11 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build
       - uses: ./.github/actions/setup-rust
+      # Saved from the nightly run on main, which the next night reads; a run dispatched on a
+      # branch reads main's and saves none, which nothing would read (RD-1120-07).
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       # The binary the budgets are written for: release, as shipped.
       - name: Build the release binary
         run: cargo build --locked --release -p rdownloader

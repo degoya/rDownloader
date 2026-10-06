@@ -1,19 +1,10 @@
-import { render } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
-import common from '@/locales/en/common.json'
 import settings from '@/locales/en/settings.json'
+import { mountComponent } from '@/test/mount'
 
 import SettingsInterfaceTab from './SettingsInterfaceTab.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common, settings } } })
-const components = {
-  UFormField: { props: ['label', 'description'], template: '<label><span>{{ label }}</span><slot /></label>' },
-  USelect: { props: ['modelValue'], template: '<select />' },
-  USwitch: { template: '<input type="checkbox" />' },
-  UIcon: { props: ['name'], template: '<span :data-icon="name" />' }
-}
 
 /**
  * Any class that puts two settings beside each other: `grid-cols-N` or `col-span-N` with N > 1,
@@ -33,10 +24,7 @@ function mount() {
     byte_unit: 'auto',
     title_status_enabled: true
   }
-  return render(SettingsInterfaceTab, {
-    props: { modelValue: model as never },
-    global: { plugins: [i18n], components }
-  })
+  return mountComponent(SettingsInterfaceTab, { messages: { settings }, props: { modelValue: model as never } })
 }
 
 /**
@@ -54,5 +42,41 @@ describe('SettingsInterfaceTab layout', () => {
     const { container } = mount()
 
     expect(container.querySelectorAll('select')).toHaveLength(4)
+  })
+})
+
+/**
+ * RD-1120-23: the page said "This browser only" over fields of the settings document. The card
+ * of the browser's own choices says so now, and the fields every browser shares — sizes, the tab
+ * title and the two display switches that were on Storage & rules — are a card of their own.
+ */
+describe('SettingsInterfaceTab browser and display', () => {
+  function card(anchor: string): HTMLElement {
+    return document.querySelector(`[data-settings-anchor="${anchor}"]`) as HTMLElement
+  }
+
+  it('keeps language, theme and notifications under "This browser only"', () => {
+    mount()
+
+    const appearance = card('interface.appearance')
+    expect(appearance.textContent).toContain(settings.appearance.eyebrow)
+    // The page header no longer claims the whole page for this browser.
+    expect(settings.headers.interface.eyebrow).not.toBe(settings.appearance.eyebrow)
+    for (const anchor of ['interface.language', 'interface.theme', 'interface.browser_notifications']) {
+      expect(appearance.querySelector(`[data-settings-anchor="${anchor}"]`), anchor).not.toBeNull()
+    }
+    expect(appearance.querySelector('[data-settings-anchor="interface.byte_display"]')).toBeNull()
+  })
+
+  it('puts the shared fields and the display switches on the display card', () => {
+    mount()
+
+    const display = card('interface.display')
+    expect(display.textContent).toContain(settings.display.title)
+    for (const anchor of ['interface.byte_display', 'interface.title_status', 'interface.indexer_images', 'interface.nzb_hand_over']) {
+      expect(display.querySelector(`[data-settings-anchor="${anchor}"]`), anchor).not.toBeNull()
+    }
+    expect(display.textContent).toContain(settings.collector.nzb_hand_over.linkgrabber.label)
+    expect(display.textContent).toContain(settings.collector.nzb_hand_over.downloads.label)
   })
 })

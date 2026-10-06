@@ -5,8 +5,8 @@
   },
   "header": {
     "eyebrow": "Transport des segments",
-    "title": "Serveurs NNTP et repli",
-    "description": "Le premier serveur de la chaîne est utilisé en priorité. Les segments manquants ou endommagés basculent vers le serveur actif suivant ; les mots de passe sont stockés uniquement chiffrés dans le coffre local."
+    "title": "Serveurs, indexeurs et quotas",
+    "description": "La chaîne de serveurs avec ses quotas et ses limites NNTP, ainsi que les indexeurs que le LinkGrabber interroge. Le premier serveur de la chaîne est utilisé en priorité. Les segments manquants ou endommagés basculent vers le serveur actif suivant ; les mots de passe sont stockés uniquement chiffrés dans le coffre local."
   },
   "form": {
     "eyebrow": "Nouveau point de terminaison",
@@ -80,8 +80,7 @@
     "delete": {
       "action": "Supprimer l’indexeur",
       "title": "Supprimer l’indexeur ?",
-      "description": "{name} et sa clé API enregistrée sont supprimés. Les abonnements qui l’ont repris gardent leur propre copie.",
-      "confirm": "Supprimer"
+      "description": "{name} et sa clé API enregistrée sont supprimés. Les abonnements qui l’ont repris gardent leur propre copie."
     },
     "messages": {
       "created": "Indexeur ajouté",
@@ -117,5 +116,9 @@
     "reset_usage": "Réinitialiser la consommation",
     "remove": "Supprimer le quota",
     "saved": "Quota enregistré"
+  },
+  "tabs": {
+    "servers": "Serveurs",
+    "indexers": "Indexeurs"
   }
 }

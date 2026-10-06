@@ -8,13 +8,16 @@ import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
-import SettingsAuthProfilesCard from '@/components/settings/SettingsAuthProfilesCard.vue'
 import SettingsReconnectCard from '@/components/settings/SettingsReconnectCard.vue'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
+import { useFormBaseline } from '@/composables/useFormBaseline'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 /** Matches `validate_name` in `crates/rd-api-admin/src/config_handlers.rs`. */
 const MAX_PROXY_NAME = 100
@@ -54,6 +57,8 @@ const proxyForm = reactive<CreateProxyProfile>({
   username: null,
   password: null
 })
+/** Whether the proxy form holds edits a leave would lose; the settings view asks before them. */
+const proxyBaseline = useFormBaseline(() => proxyForm)
 const proxyKindItems = [
   { label: 'HTTP', value: 'http' },
   { label: 'HTTPS', value: 'https' },
@@ -83,6 +88,7 @@ const list = useEditableList<ProxyProfile, CreateProxyProfile>({
     proxyForm.username = null
     proxyForm.password = null
     copiedFrom.value = null
+    proxyBaseline.settle()
   },
   confirmDelete: proxy => ({
     title: t('settings.proxy.delete.title'),
@@ -135,6 +141,7 @@ function editProxy(proxy: ProxyProfile): void {
   copiedFrom.value = null
   list.edit(proxy)
   fill(proxy, proxy.name)
+  proxyBaseline.settle()
   void focusForm()
 }
 
@@ -158,6 +165,8 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
   deletingId.value = null
   if (removed) proxyMessage.value = t('settings.proxy.deleted')
 }
+
+defineExpose({ proxyDirty: proxyBaseline.dirty })
 </script>
 
 <template>
@@ -176,7 +185,6 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
       :unmount-on-hide="false"
       variant="pill"
       class="w-full"
-      :ui="{ content: 'pt-4' }"
     >
       <template #proxies>
         <div class="space-y-6">
@@ -190,8 +198,11 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
                   :description="t('settings.proxy.description')"
                   level="sub"
                 />
-                <UAlert v-if="error" class="mb-3" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
-                <UAlert v-if="proxyMessage" class="mb-3" color="success" variant="subtle" icon="i-lucide-circle-check" :description="proxyMessage" />
+                <div class="-mt-2 mb-4 space-y-1">
+                  <SettingsCrossLink anchor="accounts.list" />
+                  <SettingsCrossLink anchor="torrent.settings" />
+                </div>
+                <FormFeedback class="mb-3" :error="error" :message="proxyMessage" />
                 <!-- The protocol rewrites the endpoint's scheme and port, so it stands first. -->
                 <form ref="formElement" class="grid gap-3" @submit.prevent="saveProxy">
                   <UFormField :label="t('settings.proxy.kind_label')" :description="t('settings.proxy.kind_description')" required>
@@ -236,13 +247,13 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
                     v-for="proxy in proxies"
                     :key="proxy.id"
                     class="flex flex-wrap items-center gap-3 p-3"
-                    :class="editingId === proxy.id ? 'border-l-2 border-l-primary' : ''"
+                    :class="editingRowClass(editingId === proxy.id, 'stripe')"
                     data-testid="proxy-row"
                   >
                     <UAvatar icon="i-lucide-waypoints" color="primary" />
                     <div class="min-w-0 flex-1 basis-40">
                       <p class="text-sm font-medium text-highlighted">{{ proxy.name }}</p>
-                      <p class="truncate font-mono text-[11px] text-muted">{{ proxy.endpoint }}</p>
+                      <p class="truncate font-mono text-2xs text-muted">{{ proxy.endpoint }}</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                       <UBadge v-if="editingId === proxy.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
@@ -262,7 +273,7 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
                     </div>
                   </div>
                   <DataState :loading="props.proxiesLoading" :error="props.proxiesError" :empty="!proxies.length" variant="inline" class="p-5">
-                    <p class="text-center text-sm text-muted">{{ t('settings.proxy.empty') }}</p>
+                    <UEmpty :description="t('settings.proxy.empty')" />
                   </DataState>
                 </div>
               </template>
@@ -284,9 +295,6 @@ async function deleteProxy(proxy: ProxyProfile): Promise<void> {
             </UFormField>
           </UCard>
         </div>
-      </template>
-      <template #auth>
-        <SettingsAuthProfilesCard />
       </template>
       <template #reconnect>
         <SettingsReconnectCard v-model="settings" />

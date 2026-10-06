@@ -3,8 +3,8 @@
   "headers": {
     "system": {
       "eyebrow": "Servicio en ejecución",
-      "title": "Resumen del sistema",
-      "description": "Estado del servicio, Usenet y captura, y los principales datos de ejecución."
+      "title": "Sistema y mantenimiento",
+      "description": "Estado del servicio, Usenet y captura con los principales datos de ejecución, actualizaciones, y registros y retención."
     },
     "backup": {
       "eyebrow": "Protección y migración",
@@ -13,13 +13,13 @@
     },
     "general": {
       "eyebrow": "Ajustes básicos",
-      "title": "Descargas y acceso",
-      "description": "Paralelismo, fragmentos, ritmo y reintentos del planificador, además del puerto de la interfaz y la protección por contraseña."
+      "title": "Cola y reintentos",
+      "description": "Cuántas descargas se ejecutan a la vez, con cuántos fragmentos y conexiones por host, cuántas veces se reintentan — además de la eliminación automática y las sumas de verificación."
     },
     "network": {
       "eyebrow": "Conexiones salientes",
       "title": "Red y certificados",
-      "description": "Perfiles proxy y el respaldo global, tu propia autoridad de certificación, perfiles de autenticación para sitios protegidos y el script de reconexión."
+      "description": "Perfiles proxy y el respaldo global, tu propia autoridad de certificación y el script de reconexión."
     },
     "media": {
       "eyebrow": "Herramientas externas",
@@ -32,9 +32,9 @@
       "description": "Qué ocurre con un paquete terminado: reparar, extraer, limpiar, ejecutar un script y, opcionalmente, subirlo a un remoto de rclone."
     },
     "interface": {
-      "eyebrow": "Solo este navegador",
+      "eyebrow": "Cómo se ve",
       "title": "Interfaz",
-      "description": "Idioma, tema y notificaciones de este navegador, además de cómo se muestran los tamaños en toda la interfaz."
+      "description": "Idioma, tema y notificaciones de este navegador y, para todos los navegadores, cómo se muestran los tamaños, el título de la pestaña, las portadas y la entrega de NZB."
     },
     "bandwidth": {
       "eyebrow": "Carga planificada",
@@ -47,29 +47,19 @@
       "description": "Webhooks firmados, correo y servicios compatibles con Apprise, filtrados por evento, categoría y gravedad, con historial de entregas."
     },
     "services": {
-      "eyebrow": "Transferencias",
+      "eyebrow": "Activar protocolos",
       "title": "Servicios",
       "description": "Desactiva lo que esta instalación no deba hacer. Un servicio desactivado rechaza los enlaces nuevos y detiene los que ya tenía."
-    },
-    "desktop": {
-      "eyebrow": "Agente de captura",
-      "title": "Cliente de escritorio",
-      "description": "Vincula el agente de captura de escritorio con este servidor para que los clics, el portapapeles y las asociaciones de archivos lleguen aquí."
     },
     "accounts": {
       "eyebrow": "Acceso a proveedores",
       "title": "Cuentas de proveedor",
-      "description": "Accesos a hosters, servicios debrid y otros proveedores. Cada cuenta usa su propia identidad de cliente aislada — cookie jar, proxy, TLS — y la API nunca devuelve un secreto ni una cookie."
+      "description": "Accesos a hosters, servicios debrid y otros proveedores. Cada cuenta usa su propia identidad de cliente aislada — cookie jar, proxy, TLS — y la API nunca devuelve un secreto ni una cookie. Además, los inicios de sesión para sitios protegidos."
     },
     "security": {
       "eyebrow": "Quién entra",
       "title": "Seguridad",
       "description": "Segundo factor y passkeys para el inicio de sesión, las sesiones abiertas ahora mismo y el proxy inverso en el que este servicio puede confiar."
-    },
-    "mcp": {
-      "eyebrow": "Acceso externo",
-      "title": "API & MCP",
-      "description": "Tokens de API para REST, la CLI, los clientes compatibles con SABnzbd y qBittorrent y el servidor MCP, cada uno limitado a las áreas que elijas."
     },
     "hotfolders": {
       "eyebrow": "Carpetas vigiladas",
@@ -105,11 +95,21 @@
       "eyebrow": "Origen y licencias",
       "title": "Acerca de rDownloader",
       "description": "Qué versión se ejecuta, de dónde viene, quién la hizo y bajo qué licencias están las partes que incluye."
+    },
+    "linkgrabber": {
+      "eyebrow": "Recepción de enlaces",
+      "title": "LinkGrabber",
+      "description": "Qué enlaces descarta el LinkGrabber antes de que le lleguen, cómo abre los contenedores DLC y si agrupa las copias de un mismo archivo como espejos."
+    },
+    "clients": {
+      "eyebrow": "Quién habla con el servicio",
+      "title": "Clientes y API",
+      "description": "Vincula el cliente de escritorio y la extensión del navegador con este servidor y emite tokens de API para REST, la CLI, los clientes compatibles con SABnzbd y qBittorrent y el servidor MCP."
     }
   },
   "active_files": {
-    "label": "Archivos en paralelo",
-    "description": "Ranuras globales del planificador"
+    "label": "Descargas simultáneas",
+    "description": "Cuántas descargas se ejecutan a la vez; también se ajusta en la barra de estado y se aplica sin reiniciar."
   },
   "chunks": {
     "label": "Fragmentos por archivo",
@@ -136,7 +136,9 @@
   },
   "import_history": {
     "label": "Conservar historial de importación",
-    "description": "Conservar las entradas NZB importadas y los archivos .torrent guardados tras finalizar la descarga. Si se desactiva, se eliminan automáticamente al completarse; la detección de duplicados para NZB reimportados deja de estar disponible."
+    "description": "Conservar las entradas NZB importadas y los archivos .torrent guardados tras finalizar la descarga. Si se desactiva, se eliminan automáticamente al completarse; la detección de duplicados para NZB reimportados deja de estar disponible.",
+    "eyebrow": "Importaciones",
+    "title": "Historial de importación"
   },
   "auto_remove": {
     "label": "Eliminar paquetes terminados",
@@ -151,13 +153,15 @@
     "description": "Cuando un paquete contiene varios enlaces al mismo archivo, se descarga uno y el resto se conserva como alternativa. Si el activo se rinde, otro toma el relevo."
   },
   "sha256": {
-    "label": "Generar SHA-256",
-    "description": "Verificar siempre por completo las descargas de varios fragmentos."
+    "label": "Calcular SHA-256",
+    "description": "Calcular un SHA-256 para cada archivo terminado cuya fuente no indique suma de verificación; se guarda con la descarga."
   },
   "admin_login": {
     "label": "Desactivar inicio de sesión de administrador",
     "description": "Quien abra la interfaz en este equipo puede controlarlo todo sin iniciar sesión. Cualquier otro equipo — en la LAN, a través de una redirección de puertos, un contenedor o un proxy inverso — sigue teniendo que iniciar sesión con la contraseña. Surte efecto inmediatamente tras guardar.",
-    "warning": "La protección por contraseña está desactivada."
+    "warning": "La protección por contraseña está desactivada.",
+    "eyebrow": "Acceso local",
+    "title": "Inicio de sesión en este equipo"
   },
   "proxy": {
     "eyebrow": "Ruta de salida",
@@ -324,9 +328,9 @@
     }
   },
   "appearance": {
-    "eyebrow": "Preferencias del cliente",
+    "eyebrow": "Solo este navegador",
     "title": "Apariencia",
-    "description": "El idioma y el tema se guardan solo en este navegador y se aplican de inmediato.",
+    "description": "El idioma, el tema y las notificaciones del navegador se guardan solo en este navegador y se aplican de inmediato.",
     "language_description": "Se aplica de inmediato, sin necesidad de guardar.",
     "theme_description": "«Sistema» sigue la configuración del sistema operativo.",
     "byte_display": {
@@ -433,11 +437,9 @@
     "backup": "Copia y restauración",
     "bandwidth": "Ancho de banda",
     "captcha": "Captcha y resolutor",
-    "desktop": "Cliente de escritorio",
-    "general": "General",
+    "general": "Cola y reintentos",
     "hotfolders": "Hotfolders",
     "interface": "Interfaz",
-    "mcp": "API & MCP",
     "media": "Medios",
     "network": "Red",
     "notifications": "Notificaciones",
@@ -453,7 +455,9 @@
     "transfers": "FTP, SFTP, WebDAV y S3",
     "unattended": "Funcionamiento desatendido",
     "usenet": "Usenet",
-    "about": "Acerca de rDownloader"
+    "about": "Acerca de rDownloader",
+    "linkgrabber": "LinkGrabber",
+    "clients": "Clientes y API"
   },
   "ui_port": {
     "label": "Puerto de la interfaz web",
@@ -463,7 +467,7 @@
   },
   "collector": {
     "eyebrow": "Recolección de enlaces",
-    "title": "Recolector",
+    "title": "Lista de bloqueo",
     "description": "Los enlaces cuyo host está en la lista de bloqueo se descartan antes de llegar al LinkGrabber.",
     "excluded_domains": {
       "label": "Archivo de dominios excluidos",
@@ -700,11 +704,9 @@
     "certificate_description": "Clave privada y cadena de certificados en un único PEM descifrado. No se admiten claves protegidas con contraseña.",
     "certificate_label": "Certificado de cliente (opcional)",
     "created": "Perfil de autenticación creado",
-    "delete": "Eliminar",
     "delete_description": "Las credenciales guardadas se eliminan con él. Las tareas fijadas a él vuelven a la coincidencia automática.",
     "delete_title": "¿Eliminar el perfil?",
     "description": "Reutiliza una sesión del navegador o envía credenciales HTTP a un único dominio aprobado. Las cookies, los tokens y las claves privadas se guardan cifrados y no se vuelven a mostrar.",
-    "edit": "Editar",
     "empty": "Todavía no hay perfiles de autenticación.",
     "enabled_label": "Activo",
     "expires_description": "Opcional. Un perfil caducado sigue en la lista pero ya no se utiliza.",
@@ -725,7 +727,6 @@
     "secret_cookies_description": "Contenido de un cookies.txt de Netscape o una cabecera Cookie.",
     "secret_keep": "Déjalo vacío para conservar el valor guardado.",
     "subdomains_label": "Incluir subdominios",
-    "test": "Probar",
     "title": "Perfiles de autenticación",
     "username_label": "Usuario",
     "form_new": "Nuevo perfil de autenticación",
@@ -734,7 +735,7 @@
   },
   "storage": {
     "title": "Capacidad de almacenamiento",
-    "description": "Se aplica a todos los transportes. Un destino por debajo de su umbral no acepta descargas nuevas hasta que haya espacio.",
+    "description": "Se aplica a todos los transportes. Un destino por debajo de su umbral no acepta descargas nuevas hasta que haya espacio. El «Espacio libre mínimo» propio de una raíz, arriba, sustituye al valor global para esa raíz.",
     "minimum_free": {
       "label": "Espacio libre mínimo",
       "description": "Se mantiene libre en cada raíz sin umbral propio."
@@ -799,7 +800,8 @@
         "failed": "fallido",
         "interrupted": "interrumpido"
       }
-    }
+    },
+    "eyebrow": "Todas las raíces"
   },
   "services": {
     "eyebrow": "Disponibilidad",
@@ -829,6 +831,11 @@
     "remote": {
       "label": "Transferencia remota de archivos",
       "description": "Enlaces FTP, FTPS, SFTP y WebDAV."
+    },
+    "off": {
+      "title": "Servicio desactivado: {name}",
+      "description": "Los enlaces correspondientes se rechazan en la recepción y las entradas de este tipo en la cola esperan bloqueadas. Los ajustes de aquí se aplican en cuanto vuelvas a activar el servicio.",
+      "open": "Ir al interruptor"
     }
   },
   "managed_tools": {
@@ -954,18 +961,31 @@
   "subtabs": {
     "network": {
       "proxies": "Proxies y TLS",
-      "auth": "Autenticación",
       "reconnect": "Reconectar"
     },
     "security": {
       "signin": "Inicio de sesión",
       "sessions": "Sesiones",
-      "proxy": "Proxy inverso"
+      "proxy": "Acceso y proxy inverso"
     },
     "system": {
       "status": "Estado",
       "updates": "Actualizaciones",
-      "retention": "Retención"
+      "retention": "Registros y retención"
+    },
+    "bandwidth": {
+      "status": "Estado y límites",
+      "profiles": "Perfiles",
+      "schedule": "Horario"
+    },
+    "accounts": {
+      "accounts": "Cuentas",
+      "logins": "Inicios de sesión en sitios"
+    },
+    "clients": {
+      "desktop": "Escritorio",
+      "browser": "Navegador",
+      "api": "API & MCP"
     }
   },
   "auto_retry": {
@@ -985,5 +1005,29 @@
     "entries_description": "Las entradas más antiguas se eliminan primero (100-100000).",
     "days_label": "Días conservados",
     "days_description": "Las entradas más antiguas se eliminan sea cual sea su número (1-3650)."
+  },
+  "limits": {
+    "eyebrow": "A mano",
+    "title": "Límites de descarga y subida",
+    "description": "Se aplican siempre, sea cual sea el horario. Un perfil activo se superpone a ellos: rige el más estricto de los dos límites."
+  },
+  "nntp_limits": {
+    "eyebrow": "Por archivo",
+    "title": "Conexiones NNTP y archivos",
+    "description": "Las conexiones de cada proveedor, arriba, son el techo: un archivo usa como máximo las conexiones que permite cada proveedor, y el límite de aquí puede dejarlo por debajo. Los archivos de Usenet que se ejecutan a la vez comparten las conexiones de los proveedores."
+  },
+  "cross_link": {
+    "see_also": "Ver también",
+    "program_path": "Ruta del programa en"
+  },
+  "tool_paths": {
+    "eyebrow": "Programas",
+    "title": "Rutas propias",
+    "description": "Una ruta aquí tiene prioridad sobre la búsqueda en las carpetas vendor y en el PATH; un campo vacío la deja a esa búsqueda. El archivo encontrado se muestra en la búsqueda de herramientas de abajo."
+  },
+  "display": {
+    "eyebrow": "Todos los navegadores",
+    "title": "Visualización",
+    "description": "Se guarda con los ajustes en el servicio y se aplica en todos los navegadores que lo abran."
   }
 }

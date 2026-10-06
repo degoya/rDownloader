@@ -7,15 +7,6 @@
     "gallery": "Galerías",
     "record": "Grabaciones"
   },
-  "days": {
-    "0": "Lun",
-    "1": "Mar",
-    "2": "Mié",
-    "3": "Jue",
-    "4": "Vie",
-    "5": "Sáb",
-    "6": "Dom"
-  },
   "source": {
     "manual": "Límite manual",
     "global": "Perfil",
@@ -93,8 +84,6 @@
     "default_description": "Perfil aplicado cuando ninguna ventana coincide.",
     "no_default": "Sin límites",
     "window_profile": "Perfil",
-    "from": "Desde",
-    "to": "Hasta",
     "priority": "Prioridad",
     "enabled": "Activo",
     "add_window": "Añadir ventana",
@@ -102,7 +91,6 @@
     "empty": "Aún no hay ventanas: el perfil por defecto se aplica todo el día.",
     "needs_profile": "Crea primero un perfil.",
     "windows_title": "Ventanas horarias",
-    "days_label": "Días",
     "duplicate_hint": "Añade una copia de la ventana justo debajo; se guarda con la programación"
   },
   "manual": {

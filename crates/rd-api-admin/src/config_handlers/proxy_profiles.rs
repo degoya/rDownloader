@@ -25,7 +25,7 @@ pub(super) fn validated_proxy_profile(
         "proxy.password_invalid",
         "Proxy password",
     )?;
-    let username = normalized_optional(request.username.clone());
+    let username = optional_text(request.username.clone());
     let endpoint = url::Url::parse(&request.endpoint).map_err(|_| {
         ApiError::bad_request(
             "proxy.endpoint_invalid",

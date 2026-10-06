@@ -22,7 +22,6 @@ const origin = serviceUrl()
   <div class="space-y-3" data-testid="extension-pairing-guide">
     <UAlert
       :color="connected ? 'success' : 'neutral'"
-      variant="subtle"
       :icon="connected ? 'i-lucide-plug-zap' : 'i-lucide-puzzle'"
       :title="connected ? t('system.extension.connected_title') : t('system.extension.missing_title')"
       :description="connected ? t('system.extension.connected_description') : t('system.extension.missing_description')"

@@ -515,7 +515,7 @@ fn every_scheduler_crash_point_is_exercised_by_a_case() {
     // fallback, and the auto-retry sweep, RD-191-12); the timed pause's case lives with the
     // other timed-pause tests (RD-190-20).
     let source = crate_sources();
-    for point in rd_core::failpoint::CRASH_POINTS
+    for point in rd_crash_points::CRASH_POINTS
         .iter()
         .filter(|point| point.owner == "rd-scheduler")
     {

@@ -8,6 +8,8 @@
 //! same element — because the namespace prefix is the server's choice and has changed between
 //! Nextcloud releases.
 
+use plugin_common::html::decode_entities;
+
 /// The `PROPFIND` body: exactly the three properties a listing needs.
 ///
 /// Asking for everything (`<d:allprop/>`) is the other option and a much larger answer for a
@@ -71,7 +73,7 @@ fn name_from_href(href: &str) -> String {
 /// The text of the first element with this local name, with the five XML entities undone.
 fn text(xml: &str, name: &str) -> Option<String> {
     let (start, end) = elements(xml, name).into_iter().next()?;
-    Some(unescape(&xml[start..end]))
+    Some(decode_entities(&xml[start..end]))
 }
 
 /// The content ranges of every element with this local name, ignoring namespace prefixes.
@@ -134,17 +136,6 @@ fn closing(xml: &str, from: usize, name: &str) -> Option<usize> {
         cursor = open + 2;
     }
     None
-}
-
-/// The five entities XML defines, and nothing else: a numeric reference is left as it stands
-/// rather than decoded into a character a name has no business carrying.
-fn unescape(value: &str) -> String {
-    value
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
 }
 
 #[cfg(test)]

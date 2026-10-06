@@ -35,7 +35,7 @@ pub use manifest::{
 pub use probe::{MediaProbe, YtDlpProbe};
 pub use progress::{DownloadProgressLine, parse_progress_line};
 pub use runner::MediaRunner;
-pub use select::{MediaCapabilities, extract_audio, remux_container, resolve};
+pub use select::{MediaCapabilities, resolve};
 pub use tools::{FfmpegTools, ToolStatus, locate_tool, tool_status};
 pub use tracks::{RawSubtitle, RawSubtitleMap, audio_tracks, sub_langs, subtitle_tracks};
 pub use variants::{synthesize_from_inventory, synthesize_variants};

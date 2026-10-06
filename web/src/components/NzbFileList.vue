@@ -4,17 +4,17 @@ import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { NzbFileStatus } from '@/api/types'
+import { useFetchState } from '@/composables/useFetchState'
 
 const { t } = useI18n()
 const props = defineProps<{ importId: string }>()
 const files = ref<NzbFileStatus[]>([])
-const loading = ref(true)
+const { loading, load } = useFetchState()
 
-onMounted(async () => {
+onMounted(() => load(async () => {
   const response = await api.GET('/api/v1/nzb/imports/{id}/files', { params: { path: { id: props.importId } } })
   files.value = response.data ?? []
-  loading.value = false
-})
+}))
 
 function completed(file: NzbFileStatus): number {
   return file.segments.filter(segment => segment.state === 'completed').length

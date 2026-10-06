@@ -24,7 +24,7 @@ use rd_core::AccountId;
 use rd_plugin_api::{HostHttpResponse, ResolvedHeader, Resolver, ResolverHost};
 
 use super::super::DdownloadResolver;
-use super::{LOGIN_PAGE_2026_09_20, MockHost, html, json};
+use super::{LOGIN_PAGE_2026_09_20, MockHost, SessionHost, html, json};
 
 /// Where the session probe goes: the account page, as in the `login` branch.
 const ACCOUNT_PAGE_URL: &str = "https://ddownload.com/?op=my_account";
@@ -65,7 +65,7 @@ fn redirected_to_login() -> HostHttpResponse {
 /// the one thing that fixes it.
 #[tokio::test]
 async fn an_api_key_account_with_an_expired_cookie_session_reports_it() {
-    let host = MockHost::with_responses(vec![json(ACCOUNT_INFO), html(EXPIRED_SESSION_PAGE)], true);
+    let host = MockHost::in_session(vec![json(ACCOUNT_INFO), html(EXPIRED_SESSION_PAGE)], true);
     let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .check_account(AccountId::new())
@@ -92,7 +92,7 @@ async fn an_api_key_account_with_an_expired_cookie_session_reports_it() {
 /// verified it rather than leaving a cookie count to imply it.
 #[tokio::test]
 async fn an_api_key_account_with_a_live_session_stays_green() {
-    let host = MockHost::with_responses(vec![json(ACCOUNT_INFO), html(SIGNED_IN_PAGE)], true);
+    let host = MockHost::in_session(vec![json(ACCOUNT_INFO), html(SIGNED_IN_PAGE)], true);
     let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let status = resolver
         .check_account(AccountId::new())
@@ -120,7 +120,7 @@ async fn an_api_key_account_with_a_live_session_stays_green() {
 #[tokio::test]
 async fn a_proven_key_passes_when_the_account_page_settles_nothing() {
     for unrecognized in [REPORTED_PAGE, UNREADABLE_PAGE] {
-        let host = MockHost::with_responses(vec![json(ACCOUNT_INFO), html(unrecognized)], true);
+        let host = MockHost::in_session(vec![json(ACCOUNT_INFO), html(unrecognized)], true);
         let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
         let status = resolver
             .check_account(AccountId::new())
@@ -150,7 +150,7 @@ async fn a_proven_key_passes_when_the_account_page_settles_nothing() {
 /// finding — read off the recorded login page, not a page made up for the test.
 #[tokio::test]
 async fn the_redirect_to_the_login_page_is_an_expired_session() {
-    let host = MockHost::with_responses(vec![json(ACCOUNT_INFO), redirected_to_login()], true);
+    let host = MockHost::in_session(vec![json(ACCOUNT_INFO), redirected_to_login()], true);
     let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .check_account(AccountId::new())
@@ -192,7 +192,7 @@ async fn an_api_key_account_without_cookies_is_reported_without_a_probe() {
 /// neither marker, so every such account lost its test.
 #[tokio::test]
 async fn a_cookie_only_account_is_verified_on_the_account_page() {
-    let host = MockHost::with_responses(vec![html(SIGNED_IN_PAGE)], false);
+    let host = MockHost::in_session(vec![html(SIGNED_IN_PAGE)], false);
     let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let status = resolver
         .check_account(AccountId::new())
@@ -214,7 +214,7 @@ async fn a_cookie_only_account_is_verified_on_the_account_page() {
 /// account: the same clear finding the branch has always reported for a guest page.
 #[tokio::test]
 async fn a_cookie_only_account_redirected_to_the_login_page_is_refused() {
-    let host = MockHost::with_responses(vec![redirected_to_login()], false);
+    let host = MockHost::in_session(vec![redirected_to_login()], false);
     let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .check_account(AccountId::new())
@@ -231,7 +231,7 @@ async fn a_cookie_only_account_redirected_to_the_login_page_is_refused() {
 /// neither a pass nor a verdict against it — reported as unconfirmed and retryable.
 #[tokio::test]
 async fn a_cookie_only_account_on_an_unrecognized_page_is_reported_unconfirmed() {
-    let host = MockHost::with_responses(vec![html(REPORTED_PAGE)], false);
+    let host = MockHost::in_session(vec![html(REPORTED_PAGE)], false);
     let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let failure = resolver
         .check_account(AccountId::new())

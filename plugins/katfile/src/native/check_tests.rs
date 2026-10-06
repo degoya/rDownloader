@@ -7,7 +7,7 @@ use rd_core::{AccountId, LinkStatus};
 use rd_plugin_api::{CheckRequest, ClientIdentity, Resolver, ResolverHost};
 
 use super::super::KatfileResolver;
-use super::{MockHost, json};
+use super::{MockHost, SessionHost, json};
 
 #[tokio::test]
 async fn check_batches_file_info_and_maps_online_and_offline_status() {
@@ -15,7 +15,7 @@ async fn check_batches_file_info_and_maps_online_and_offline_status() {
         "https://katfile.biz/api/file/info",
         br#"{"status":200,"msg":"OK","result":[{"status":200,"filecode":"abc123xyz","name":"release.rar","size":"2048"},{"status":404,"filecode":"deaddeadde"}]}"#,
     );
-    let host = MockHost::new(response, true);
+    let host = MockHost::one_in_session(response, true);
     let resolver = KatfileResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let results = resolver
         .check(CheckRequest {

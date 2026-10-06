@@ -1,7 +1,7 @@
 {
   "header": {
     "eyebrow": "Registro de resolvers",
-    "title": "Componentes de proveedor versionados",
+    "title": "Plugins",
     "description": "Antes de la instalación atómica se comprueban la firma, el manifiesto, el formato del componente y las importaciones permitidas de cada paquete. Los paquetes sin firmar solo funcionan si el servicio está explícitamente en modo de desarrollo."
   },
   "install": {
@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Versiones instaladas",
     "title": "Inventario local",
-    "empty": "Todavía no hay plugins instalados. Los enlaces de hosters necesitan un plugin resolver: instala un servicio del paquete incluido de arriba o de un repositorio.",
+    "empty": "Todavía no hay plugins instalados. Los enlaces de hosters necesitan un plugin resolver: instala un servicio del paquete incluido en la pestaña «Añadir» o de un repositorio.",
     "filter_label": "Filtrar por grupo de plugins"
   },
   "card": {
@@ -48,7 +48,6 @@
     "key_id": "Id de clave",
     "fingerprint": "Huella digital",
     "warning": "Confirma solo si esta huella coincide con la publicada por el autor del plugin. Una clave incorrecta permitiría que otra persona publique actualizaciones para él.",
-    "cancel": "Cancelar",
     "confirm": "Confiar e instalar"
   },
   "type": {

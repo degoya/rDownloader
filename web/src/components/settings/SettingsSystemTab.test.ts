@@ -1,6 +1,5 @@
-import { render, waitFor } from '@testing-library/vue'
+import { waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import settings from '@/locales/en/settings.json'
@@ -9,7 +8,7 @@ import system from '@/locales/en/system.json'
 import tour from '@/locales/en/tour.json'
 import usenet from '@/locales/en/usenet.json'
 import wizard from '@/locales/en/wizard.json'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 import SettingsSystemTab from './SettingsSystemTab.vue'
 
@@ -34,17 +33,6 @@ vi.mock('@/stores/session', () => ({
   useSessionStore: () => ({ setupRequired: false, loginDisabled: false, openWizard: vi.fn() })
 }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { settings, stats, system, tour, usenet, wizard } } })
-const components = {
-  UFormField: { props: ['label', 'description'], template: '<label><span>{{ label }}</span><slot /></label>' },
-  UInput: { props: ['modelValue'], template: '<input :value="modelValue" />' },
-  USwitch: { template: '<input type="checkbox" />' },
-  UButton: { props: ['label'], template: '<button>{{ label }}</button>' },
-  UBadge: { template: '<span><slot /></span>' },
-  UIcon: { props: ['name'], template: '<span :data-icon="name" />' },
-  // The three sub-tabs (RD-180-15); every panel stays in the DOM, so the order below still reads.
-  UTabs: uiStubs.UTabs
-}
 const stubs = { SettingsReadinessCard: { template: '<div data-testid="readiness-card" />' } }
 
 const MARKERS = '[data-testid="readiness-card"], [data-testid="system-facts"], [data-testid="log-retention"], [data-testid="audit-retention"]'
@@ -61,9 +49,10 @@ function mount() {
     otlp_endpoint: '',
     otlp_timeout_seconds: 10
   }
-  return render(SettingsSystemTab, {
+  return mountComponent(SettingsSystemTab, {
+    messages: { settings, stats, system, tour, usenet, wizard },
     props: { modelValue: model as never },
-    global: { plugins: [i18n], components, stubs }
+    stubs
   })
 }
 
@@ -137,5 +126,26 @@ describe('SettingsSystemTab clear buttons', () => {
     })
     expect(container.querySelector('[data-testid="data-reset-audit"]')?.getAttribute('data-count')).toBe('9')
     expect(container.querySelector('[data-testid="data-reset-stats"]')?.getAttribute('data-count')).toBe('3')
+  })
+})
+
+/** RD-1120-23: the import history is kept or dropped with the other retention rules, not on General. */
+describe('SettingsSystemTab import history', () => {
+  beforeEach(() => {
+    vi.mocked(api.GET).mockReset()
+    vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
+  })
+
+  it('carries the switch on the retention tab, after the other retention cards', async () => {
+    const { container } = mount()
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="import-history-retention"]')).toBeTruthy()
+    })
+    const card = container.querySelector('[data-testid="import-history-retention"]') as HTMLElement
+    expect(card.closest('[data-tab="retention"]')).not.toBeNull()
+    expect(card.querySelector('[data-settings-anchor="system.import_history"]')?.textContent).toContain(settings.import_history.label)
+    const order = [...container.querySelectorAll('[data-testid$="-retention"]')].map(element => element.getAttribute('data-testid'))
+    expect(order.at(-1)).toBe('import-history-retention')
   })
 })

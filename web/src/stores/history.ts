@@ -10,7 +10,7 @@ import type { HistoryEntry, HistoryOutcome } from '@/api/types'
 type DownloadKind = components['schemas']['DownloadKind']
 
 /** Entries one read asks for; the server caps a page at 1000. */
-export const HISTORY_PAGE_SIZE = 50
+const HISTORY_PAGE_SIZE = 50
 
 /** The kinds the filter offers, in the order people meet them. */
 export const HISTORY_KINDS: readonly DownloadKind[] = [

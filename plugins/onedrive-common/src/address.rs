@@ -43,48 +43,16 @@ pub fn microsoft_host(host: &str) -> Option<Host> {
         "graph.microsoft.com" => Some(Host::Graph),
         _ => host
             .strip_suffix(".sharepoint.com")
-            .filter(|tenant| valid_tenant(tenant))
+            .filter(|tenant| plugin_common::address::valid_label(tenant))
             .map(|_| Host::SharePoint),
     }
 }
 
-/// A SharePoint tenant label: letters, digits and hyphens, one label and no more.
-fn valid_tenant(tenant: &str) -> bool {
-    !tenant.is_empty()
-        && tenant.len() <= 63
-        && !tenant.contains('.')
-        && tenant
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-}
-
-/// Scheme, host and the rest of an address.
-///
-/// Returns `None` for anything that is not plain http(s), and for an authority carrying
-/// credentials — accepting those would let `x@evil.test` read as one of Microsoft's own hosts.
-#[must_use]
-pub fn split(url: &str) -> Option<(&str, &str)> {
-    let (scheme, rest) = url.split_once("://")?;
-    if !matches!(scheme, "http" | "https") {
-        return None;
-    }
-    let rest = rest.split('#').next()?;
-    let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
-    if authority.contains('@') {
-        return None;
-    }
-    Some((authority.split(':').next()?, path))
-}
-
-/// The value of one query parameter, undecoded.
-#[must_use]
-pub fn query_value<'a>(path: &'a str, name: &str) -> Option<&'a str> {
-    let query = path.split_once('?')?.1;
-    query.split('&').find_map(|pair| {
-        let (key, value) = pair.split_once('=')?;
-        (key == name).then_some(value)
-    })
-}
+// The address readers every cloud plugin shares (RD-1120-10): `split` refuses anything that is
+// not plain http(s) and an authority carrying credentials — accepting those would let
+// `x@evil.test` read as one of Microsoft's own hosts — and `query_value` reads one parameter,
+// undecoded.
+pub use plugin_common::address::{query_value, split};
 
 /// The path segments of an address, without the query and without empty ones.
 #[must_use]

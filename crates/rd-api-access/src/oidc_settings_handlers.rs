@@ -23,7 +23,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, header},
     response::{IntoResponse, Response},
 };
-use rd_api_core::input_checks::{TextLimit, required_text};
+use rd_api_core::input_checks::{TextLimit, optional_text, required_text};
 use rd_api_core::oidc_client::{self, LinkedIdentity, ProviderConfig};
 use rd_authn::oidc::{self, FlowPurpose};
 use serde::{Deserialize, Serialize};
@@ -213,8 +213,8 @@ pub async fn put_oidc_settings(
             "The provider needs a name for the sign-in button",
         ));
     }
-    let group_claim = cleaned(request.group_claim);
-    let group_value = cleaned(request.group_value);
+    let group_claim = optional_text(request.group_claim);
+    let group_value = optional_text(request.group_value);
     if group_claim.is_some() != group_value.is_some()
         || group_claim.as_deref().is_some_and(|claim| {
             !claim
@@ -239,10 +239,18 @@ pub async fn put_oidc_settings(
         Some(previous) => oidc_client::identity(&state, previous).await?,
         None => None,
     };
-    if provider_changed && linked.is_some() && oidc_client::password_login_off(&state).await? {
+    // A new group condition ends the provider sign-in as surely as another provider does when
+    // the bound account lacks the group, and nothing here can tell whether it does: while the
+    // password form is off, neither is accepted (RD-1120-19).
+    let group_changed = previous.as_ref().and_then(ProviderConfig::group)
+        != group_claim.as_deref().zip(group_value.as_deref());
+    if (provider_changed || group_changed)
+        && linked.is_some()
+        && oidc_client::password_login_off(&state).await?
+    {
         return Err(crate::password_login_handlers::password_login_is_off());
     }
-    let new_secret = cleaned(request.client_secret);
+    let new_secret = optional_text(request.client_secret);
     // Another provider or client gets its own secret: the stored one was issued for the old.
     if new_secret.is_none() && provider_changed {
         return Err(ApiError::bad_request(
@@ -362,12 +370,6 @@ pub async fn delete_oidc_settings(
         "auth.oidc_removed",
         "The identity provider was removed",
     )))
-}
-
-fn cleaned(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }
 
 /// The names of the fields a change touched, for the audit record. Names only, never values.

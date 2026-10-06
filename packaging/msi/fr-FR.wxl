@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The installer's own strings in French (RD-1120-20). -->
+<WixLocalization Culture="fr-FR" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="ProductLanguage" Value="1036" />
+  <String Id="DowngradeError" Value="Une version plus récente de rDownloader est déjà installée. Désinstallez-la d’abord ; vos données sont conservées." />
+  <String Id="AutostartCheckbox" Value="Démarrer le service rDownloader à chaque ouverture de session" />
+  <String Id="StartShortcutDescription" Value="Démarre le service rDownloader et l’agent de bureau" />
+  <String Id="CaptureShortcutDescription" Value="Démarre uniquement l’agent de bureau" />
+  <String Id="StopShortcutName" Value="Arrêter rDownloader" />
+  <String Id="StopShortcutDescription" Value="Arrête le service rDownloader et l’agent de bureau" />
+</WixLocalization>

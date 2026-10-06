@@ -14,16 +14,13 @@
 //! A run against the real provider is deliberately **not** claimed here: it needs an account
 //! with an API key, and `docs/roadmap/jobs/120-01-torbox.md` records that as open.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind, LinkStatus};
+use rd_core::{AccountId, FailureKind, LinkStatus};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
-    CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest,
-    ResolvedHeader, Resolver, ResolverHost,
+    CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver,
+    ResolverHost,
 };
 
 use super::TorBoxResolver;
@@ -31,47 +28,22 @@ use super::TorBoxResolver;
 const TORRENT: &str = "https://api.torbox.app/v1/api/torrents/requestdl?torrent_id=4711&file_id=3";
 const KEY_TEMPLATE: &str = "{{secret:torbox_api_key}}";
 
-struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    requests: Mutex<Vec<HostHttpRequest>>,
-    has_key: bool,
+/// The shared scripted host with TorBox's one credential slot, `torbox_api_key`.
+trait KeyedHost {
+    fn keyed(response: HostHttpResponse) -> Arc<MockHost>;
+    fn keyed_responses(responses: Vec<HostHttpResponse>, has_key: bool) -> Arc<MockHost>;
 }
 
-impl MockHost {
-    fn with_responses(responses: Vec<HostHttpResponse>, has_key: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_key,
-        })
+impl KeyedHost for MockHost {
+    /// One answer, for an account that holds its key.
+    fn keyed(response: HostHttpResponse) -> Arc<MockHost> {
+        Self::keyed_responses(vec![response], true)
     }
 
-    fn new(response: HostHttpResponse) -> Arc<Self> {
-        Self::with_responses(vec![response], true)
-    }
-
-    fn requests(&self) -> Vec<HostHttpRequest> {
-        self.requests.lock().expect("mock lock").clone()
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, reference: &str) -> bool {
-        self.has_key && reference == "torbox_api_key"
+    fn keyed_responses(responses: Vec<HostHttpResponse>, has_key: bool) -> Arc<MockHost> {
+        MockHost::scripted(responses)
+            .secret_for("torbox_api_key", has_key)
+            .shared()
     }
 }
 
@@ -113,7 +85,7 @@ fn request(url: &str, account: AccountId) -> ResolveRequest {
 /// what comes back is the address TorBox minted.
 #[tokio::test]
 async fn a_download_address_is_minted_from_the_two_identifiers_and_the_key_marker() {
-    let host = MockHost::new(minted("https://store-1.torbox.app/dl/abc"));
+    let host = MockHost::keyed(minted("https://store-1.torbox.app/dl/abc"));
     let account = AccountId::new();
     let resolved = resolver(&host)
         .resolve(request(TORRENT, account))
@@ -157,7 +129,7 @@ async fn a_download_address_is_minted_from_the_two_identifiers_and_the_key_marke
 /// `requestdl` one, and every resolve mints a new ticket rather than reusing the last.
 #[tokio::test]
 async fn every_resolve_of_one_address_mints_a_fresh_ticket() {
-    let host = MockHost::with_responses(
+    let host = MockHost::keyed_responses(
         vec![
             minted("https://store-1.torbox.app/dl/first?expires=1"),
             minted("https://store-1.torbox.app/dl/second?expires=2"),
@@ -184,7 +156,7 @@ async fn every_resolve_of_one_address_mints_a_fresh_ticket() {
 /// A person can edit a candidate row, and what goes out carries the account's key.
 #[tokio::test]
 async fn an_address_this_plugin_does_not_claim_is_refused_before_any_request() {
-    let host = MockHost::new(minted("https://store-1.torbox.app/dl/abc"));
+    let host = MockHost::keyed(minted("https://store-1.torbox.app/dl/abc"));
     let failure = resolver(&host)
         .resolve(request(
             "https://api.torbox.app/v1/api/torrents/mylist",
@@ -199,7 +171,7 @@ async fn an_address_this_plugin_does_not_claim_is_refused_before_any_request() {
 /// Without a key there is nothing to ask with, and saying so costs no request.
 #[tokio::test]
 async fn an_account_without_a_key_is_refused_before_any_request() {
-    let host = MockHost::with_responses(Vec::new(), false);
+    let host = MockHost::keyed_responses(Vec::new(), false);
     let failure = resolver(&host)
         .resolve(request(TORRENT, AccountId::new()))
         .await
@@ -213,7 +185,7 @@ async fn an_account_without_a_key_is_refused_before_any_request() {
 /// thing that helps: entering it again.
 #[tokio::test]
 async fn an_expired_key_invalidates_the_account() {
-    let host = MockHost::new(answer(
+    let host = MockHost::keyed(answer(
         200,
         r#"{"success":false,"error":"BAD_TOKEN","detail":"invalid api key"}"#,
         Vec::new(),
@@ -230,7 +202,7 @@ async fn an_expired_key_invalidates_the_account() {
 /// cap that refused them, so asking again at once would only extend it.
 #[tokio::test]
 async fn a_spent_request_budget_is_a_wait_carrying_retry_after() {
-    let host = MockHost::new(answer(
+    let host = MockHost::keyed(answer(
         429,
         r#"{"success":false,"error":"TOO_MANY_REQUESTS"}"#,
         vec![ResolvedHeader {
@@ -253,7 +225,7 @@ async fn a_spent_request_budget_is_a_wait_carrying_retry_after() {
 /// What the account is worth, and the label the accounts list prints beside it.
 #[tokio::test]
 async fn the_account_check_reports_the_plan_and_who_it_belongs_to() {
-    let host = MockHost::new(answer(
+    let host = MockHost::keyed(answer(
         200,
         r#"{"success":true,"data":{"email":"nobody@example.invalid","plan":2,
             "premium_expires_at":"2027-01-01T00:00:00Z","is_subscribed":true}}"#,
@@ -285,7 +257,7 @@ async fn a_check_tells_a_missing_file_apart_from_a_job_still_running() {
         "files":[{"id":3,"short_name":"ep01.mkv","size":10}]}}"#;
     let gone = r#"{"success":true,"data":{"name":"Example.Release","download_present":true,
         "files":[{"id":9,"short_name":"other.mkv"}]}}"#;
-    let host = MockHost::with_responses(
+    let host = MockHost::keyed_responses(
         vec![
             answer(200, present, Vec::new()),
             answer(200, running, Vec::new()),
@@ -324,7 +296,7 @@ async fn a_check_tells_a_missing_file_apart_from_a_job_still_running() {
 /// tell the core this plugin can resolve links it cannot.
 #[tokio::test]
 async fn the_provider_offers_no_hoster_catalogue() {
-    let host = MockHost::with_responses(Vec::new(), true);
+    let host = MockHost::keyed_responses(Vec::new(), true);
     let hosters = resolver(&host)
         .hosters(AccountId::new())
         .await

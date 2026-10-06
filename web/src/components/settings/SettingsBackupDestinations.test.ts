@@ -130,7 +130,7 @@ describe('SettingsBackupDestinations', () => {
   it('previews retention with the rules being typed and deletes nothing', async () => {
     answer()
     mounted()
-    await fireEvent.click(await screen.findByText(en.edit))
+    await fireEvent.click(await screen.findByText(common.actions.edit))
     await fireEvent.update(screen.getByTestId('backup-destination-keep-last') as HTMLInputElement, '1')
     await fireEvent.click(screen.getByTestId('backup-destination-preview-button'))
     await waitFor(() => expect(calls.get).toHaveBeenCalledWith('/api/v1/backups/destinations/{id}/retention', {

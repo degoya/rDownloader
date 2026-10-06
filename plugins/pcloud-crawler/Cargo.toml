@@ -11,7 +11,7 @@ plugin-common = { path = "../common" }
 plugin-guest-crawler = { path = "../guest-crawler" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

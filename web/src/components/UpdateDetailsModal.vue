@@ -105,7 +105,6 @@ function reload(): void {
     v-model:open="open"
     :title="offer ? t('system.updates.modal.title', { version: offer.version }) : t('system.updates.title')"
     :description="offer ? t('system.updates.modal.released', { when: formatLongMoment(offer.released_at) }) : undefined"
-    :ui="{ footer: 'justify-end' }"
   >
     <template #body>
       <div class="space-y-5" data-testid="update-details">
@@ -113,7 +112,6 @@ function reload(): void {
           <UAlert
             v-if="ended"
             color="error"
-            variant="subtle"
             icon="i-lucide-undo-2"
             :title="progressText"
             :description="progressReason ?? undefined"
@@ -122,7 +120,6 @@ function reload(): void {
           <UAlert
             v-else-if="progress.state === 'done'"
             color="success"
-            variant="subtle"
             icon="i-lucide-circle-check"
             :title="progressText"
             :description="t('system.updates.install.reload_hint')"
@@ -131,7 +128,6 @@ function reload(): void {
           <UAlert
             v-else-if="lost"
             color="error"
-            variant="subtle"
             icon="i-lucide-circle-alert"
             :title="progressText"
             :description="t('system.updates.install.lost')"

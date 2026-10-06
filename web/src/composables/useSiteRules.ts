@@ -9,6 +9,7 @@ import type {
 } from '@/api/types'
 import { useFetchState } from '@/composables/useFetchState'
 import type { useCopyName } from '@/composables/useCopyName'
+import { isPlainRecord } from '@/utils/values'
 
 /**
  * The site rules of this installation, and the writes the settings page performs (RD-110-08).
@@ -113,10 +114,6 @@ function lines(value: string): string[] {
   return value.split('\n').map(line => line.trim()).filter(line => line.length > 0)
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function text(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -170,9 +167,9 @@ function stepBody(step: StepDraft): Record<string, unknown> {
 }
 
 function stepDraft(value: unknown): StepDraft {
-  if (!isRecord(value)) return emptyStep()
+  if (!isPlainRecord(value)) return emptyStep()
   const kind = STEP_KINDS.find(candidate => candidate === value.kind) ?? 'fetch'
-  const fields = isRecord(value.fields)
+  const fields = isPlainRecord(value.fields)
     ? Object.entries(value.fields).map(([name, entry]) => `${name}=${String(entry)}`).join('\n')
     : ''
   const encoding = ENCODINGS.find(candidate => candidate === value.encoding) ?? 'base64'
@@ -222,9 +219,9 @@ export function toBody(draft: RuleDraft): Record<string, unknown> {
 
 /** The draft behind one rule of the list, so pressing edit fills the form. */
 export function fromRule(rule: SiteRule): RuleDraft {
-  const body = isRecord(rule.rule) ? rule.rule : {}
-  const match = isRecord(body.match) ? body.match : {}
-  const pack = isRecord(body.package) ? body.package : { from: 'title' }
+  const body = isPlainRecord(rule.rule) ? rule.rule : {}
+  const match = isPlainRecord(body.match) ? body.match : {}
+  const pack = isPlainRecord(body.package) ? body.package : { from: 'title' }
   const packageFrom = PACKAGE_SOURCES.find(candidate => candidate === pack.from) ?? 'title'
   const steps = Array.isArray(body.steps) ? body.steps.map(stepDraft) : [emptyStep()]
   return {
@@ -276,7 +273,7 @@ export function copyBody(
   existing: SiteRule[],
   copyName: ReturnType<typeof useCopyName>
 ): Record<string, unknown> {
-  const body = isRecord(rule.rule) ? rule.rule : {}
+  const body = isPlainRecord(rule.rule) ? rule.rule : {}
   return {
     ...body,
     id: copyId(rule.id, existing.map(entry => entry.id)),

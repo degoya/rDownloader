@@ -22,7 +22,7 @@
 # it again, so this costs time, never correctness.
 #
 # One more kind of leftover has no hash to group by: the split debug info (`split-debuginfo =
-# "unpacked"`) of a crate built without one, which the plugin cdylibs are on the host —
+# "unpacked"`) of a crate built without one, which the plugin cdylibs were on the host until 1.12 —
 # `<stem>.<codegen unit>.rcgu.dwo`. Every rebuild writes new units and leaves the old ones, 10 765
 # of them for one plugin on 2026-09-26. Such a file goes when it is more than an hour older than
 # the newest `lib<stem>.*` or `<stem>.*` artifact beside it; with no artifact beside it, it stays.

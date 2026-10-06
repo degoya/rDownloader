@@ -28,7 +28,8 @@
     "files": "Archivos",
     "trackers": "Trackers",
     "peers": "Pares",
-    "seeding": "Seeding"
+    "seeding": "Seeding",
+    "label": "Detalles del torrent"
   },
   "trackers": {
     "counters_hint": "Seeders / pares / completados",
@@ -77,7 +78,6 @@
     "override_ratio": "Sobrescribir la proporción",
     "override_time": "Sobrescribir el tiempo",
     "override_unlimited": "Seeding sin límite de tiempo",
-    "save": "Guardar",
     "clear": "Volver a heredar",
     "source": {
       "global": "de los ajustes globales",

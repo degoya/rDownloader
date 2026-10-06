@@ -54,17 +54,27 @@
 
 use pcloud_common::{
     address::Region,
-    api as pcloud_api,
     metadata::{self, Checksums, Link, Metadata, UserInfo},
 };
+use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
 use plugin_common::{
-    Account, CheckInput, Failure, FailureKind, HttpRequest, Label, LabelPart, LinkCheck,
-    LinkStatus, PluginHost, ResolveInput, Resolved,
+    Account, CheckInput, Failure, FailureKind, Label, LabelPart, LinkCheck, PluginHost,
+    ResolveInput, Resolved,
 };
 
 use crate::{
-    api, messages,
+    messages,
     target::{self, Target},
+};
+
+mod request;
+
+use request::{call, fixed};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: SECRET,
+    missing: messages::SIGN_IN_REQUIRED,
 };
 
 /// The vault reference the pCloud provider keeps its access token under. The value never
@@ -96,20 +106,6 @@ struct Described {
     link_is_folder: bool,
 }
 
-/// One refusal pCloud made: its own number, and the wait it asked for if it asked for one.
-struct Refusal {
-    result: u64,
-    retry_after: Option<u64>,
-}
-
-/// Why one call did not produce an answer.
-enum Rejected {
-    /// The host refused, the transport failed, or the document was not pCloud's. Final.
-    Fatal(Failure),
-    /// pCloud answered, and the answer was no. May be worth asking the other installation.
-    Refused(Refusal),
-}
-
 /// Whether this plugin claims `url`. Answered from the address alone and reaching nothing.
 #[must_use]
 pub(crate) fn matches(url: &str) -> bool {
@@ -134,10 +130,10 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_token(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let (body, region) = call(host, DEFAULT_REGION, "userinfo", &[], true).await?;
     let info: UserInfo = metadata::read(&body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
     Ok(Account {
         valid: true,
         premium: info.premium,
@@ -162,10 +158,10 @@ pub(crate) async fn resolve<H: PluginHost>(
     host: &H,
     input: &ResolveInput,
 ) -> Result<Resolved, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let claimed = target::claim(&input.url)
-        .ok_or_else(|| refuse(messages::NOT_A_PCLOUD_LINK, FailureKind::Unsupported))?;
+        .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_PCLOUD_LINK))?;
     let Described {
         item,
         region,
@@ -231,21 +227,20 @@ pub(crate) async fn check<H: PluginHost>(
     host: &H,
     input: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let mut results = Vec::new();
     for url in input.urls.iter().take(MAX_CHECKS) {
         let Some(claimed) = target::claim(url) else {
-            results.push(unknown(url));
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         results.push(match describe(host, &claimed).await {
-            Ok(Described { item, .. }) => LinkCheck {
-                url: url.clone(),
-                status: LinkStatus::Online,
-                file_name: Some(item.name().to_owned()).filter(|name| !name.is_empty()),
-                size: item.size,
-            },
+            Ok(Described { item, .. }) => LinkCheck::online(
+                url,
+                Some(item.name().to_owned()).filter(|name| !name.is_empty()),
+                item.size,
+            ),
             // A file pCloud says is gone, and a link it will not open, are offline. Anything
             // else says nothing about the link, so it stays unknown rather than being reported
             // as missing — including a refused token, which is about the account.
@@ -257,9 +252,9 @@ pub(crate) async fn check<H: PluginHost>(
                             || code == messages::LINK_UNAVAILABLE.0
                 ) =>
             {
-                offline(url)
+                LinkCheck::offline(url)
             }
-            Err(_) => unknown(url),
+            Err(_) => LinkCheck::unknown(url),
         });
     }
     Ok(results)
@@ -280,13 +275,13 @@ async fn describe<H: PluginHost>(host: &H, target: &Target) -> Result<Described,
             )
             .await?;
             let item = metadata::item(&body)
-                .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+                .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
             if item.is_folder() {
                 // The sibling crawler's address, pasted at the resolver.
-                return Err(refuse(messages::IS_A_FOLDER, FailureKind::Unsupported));
+                return Err(coded(FailureKind::Unsupported, messages::IS_A_FOLDER));
             }
             if !item.is_file() {
-                return Err(refuse(messages::FILE_NOT_FOUND, FailureKind::Permanent));
+                return Err(coded(FailureKind::Permanent, messages::FILE_NOT_FOUND));
             }
             Ok(Described {
                 item,
@@ -308,13 +303,13 @@ async fn describe<H: PluginHost>(host: &H, target: &Target) -> Result<Described,
             )
             .await?;
             let root = metadata::item(&body)
-                .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+                .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
             // The link points at the file itself when the document pCloud answered with *is*
             // that file; anything else means it answered with a tree and the file was found in
             // it, which is the case `getpublinkdownload` wants a `fileid` for.
             let link_is_folder = !(root.is_file() && root.fileid == Some(*file_id));
             let item = find_file(&root, *file_id, 0)
-                .ok_or_else(|| refuse(messages::FILE_NOT_FOUND, FailureKind::Permanent))?;
+                .ok_or_else(|| coded(FailureKind::Permanent, messages::FILE_NOT_FOUND))?;
             Ok(Described {
                 item,
                 region,
@@ -344,213 +339,11 @@ fn find_file(node: &Metadata, file_id: u64, depth: u32) -> Option<Metadata> {
 /// The address the bytes come from, out of a `getfilelink` or `getpublinkdownload` answer.
 fn download_address(body: &[u8]) -> Result<String, Failure> {
     let link: Link = metadata::read(body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
     link.download_url()
-        .ok_or_else(|| refuse(messages::INVALID_DOWNLOAD_HOST, FailureKind::Permanent))
-}
-
-/// One call at one installation, with no correction.
-async fn once<H: PluginHost>(
-    host: &H,
-    region: Region,
-    method: &str,
-    query: &[(&'static str, String)],
-    authenticated: bool,
-) -> Result<Vec<u8>, Rejected> {
-    let mut request = HttpRequest::get(format!("{}/{method}", region.api()));
-    for (name, value) in query {
-        request = request.with_query(name, value.clone());
-    }
-    if authenticated {
-        request = request.with_header("Authorization", format!("Bearer {{{{secret:{SECRET}}}}}"));
-    }
-    let response = host.http(request).await.map_err(Rejected::Fatal)?;
-    if !(200..300).contains(&response.status) {
-        // pCloud answers 200 to its own refusals, so a status that is not 2xx never came from
-        // pCloud's application: it is a gateway or the network.
-        return Err(Rejected::Fatal(Failure::coded(
-            FailureKind::Transient(pcloud_api::retry_after(&response.headers)),
-            messages::UNAVAILABLE.0,
-            messages::UNAVAILABLE.1,
-        )));
-    }
-    let Some(result) = pcloud_api::result_of(&response.body) else {
-        return Err(Rejected::Fatal(refuse(
-            messages::INVALID_RESPONSE,
-            FailureKind::Permanent,
-        )));
-    };
-    if result == pcloud_api::OK {
-        return Ok(response.body);
-    }
-    Err(Rejected::Refused(Refusal {
-        result,
-        retry_after: pcloud_api::retry_after(&response.headers),
-    }))
-}
-
-/// One call at an installation that is already settled. No correction, because there is
-/// nothing left to correct.
-async fn fixed<H: PluginHost>(
-    host: &H,
-    region: Region,
-    method: &str,
-    query: &[(&'static str, String)],
-    authenticated: bool,
-) -> Result<Vec<u8>, Failure> {
-    once(host, region, method, query, authenticated)
-        .await
-        .map_err(|rejected| match rejected {
-            Rejected::Fatal(failure) => failure,
-            Rejected::Refused(refusal) => fail(&refusal),
-        })
-}
-
-/// One call, corrected once if pCloud's own answer says the installation was wrong.
-///
-/// The correction is deliberately narrow (see the module comment): only a refused credential
-/// and a refused link code, only once, and only the region that actually answered is returned
-/// — so the caller pins it and the rest of the invocation costs nothing extra.
-async fn call<H: PluginHost>(
-    host: &H,
-    start: Region,
-    method: &str,
-    query: &[(&'static str, String)],
-    authenticated: bool,
-) -> Result<(Vec<u8>, Region), Failure> {
-    let mut carried: Option<Failure> = None;
-    for (attempt, region) in start.both_from().into_iter().enumerate() {
-        match once(host, region, method, query, authenticated).await {
-            Ok(body) => return Ok((body, region)),
-            Err(Rejected::Fatal(failure)) => return Err(failure),
-            Err(Rejected::Refused(refusal)) => {
-                let worth_the_other_region = attempt == 0
-                    && pcloud_api::Category::of(refusal.result).may_be_the_other_region();
-                if !worth_the_other_region {
-                    return Err(fail(&refusal));
-                }
-                host.log(
-                    "debug",
-                    "pcloud refused this at the first data centre; asking the other one",
-                );
-                carried = Some(fail(&refusal));
-            }
-        }
-    }
-    Err(carried.unwrap_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent)))
-}
-
-/// Turns one pCloud refusal into a failure, carrying its number and nothing else.
-fn fail(refusal: &Refusal) -> Failure {
-    let ((code, message), kind) = api::classify(refusal.result, refusal.retry_after);
-    // pCloud's own decimal number. It is an integer, so unlike an `error` sentence there is
-    // nothing in it that could ever have been a token, a file name or a path.
-    Failure::coded(kind, code, message).with_param("result", refusal.result.to_string())
-}
-
-/// Refuses early when the account holds no token at all, rather than making a call that pCloud
-/// is certain to refuse — twice, once per installation — and reporting whatever it says.
-async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if host.secret_available(account_id, SECRET).await {
-        return Ok(());
-    }
-    Err(refuse(
-        messages::SIGN_IN_REQUIRED,
-        FailureKind::AuthRequired,
-    ))
-}
-
-fn account(account_id: Option<&str>) -> Result<&str, Failure> {
-    account_id
-        .filter(|id| !id.is_empty())
-        .ok_or_else(|| refuse(messages::ACCOUNT_MISSING, FailureKind::AuthRequired))
-}
-
-fn refuse((code, message): (&str, &str), kind: FailureKind) -> Failure {
-    Failure::coded(kind, code, message)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
-}
-
-fn offline(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Offline,
-        file_name: None,
-        size: None,
-    }
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_DOWNLOAD_HOST))
 }
 
 #[cfg(test)]
-mod tests {
-    use pcloud_common::metadata::Metadata;
-
-    use super::{MAX_TREE_DEPTH, find_file, matches};
-
-    #[test]
-    fn only_pcloud_file_addresses_are_claimed() {
-        assert!(matches(
-            "https://my.pcloud.com/#/filemanager?folder=42&fileid=123"
-        ));
-        assert!(matches(
-            "https://e.pcloud.link/publink/show?code=XZabc&fileid=7"
-        ));
-        // A folder and a bare public link are the crawler's, and a stranger's host is nobody's.
-        assert!(!matches("https://my.pcloud.com/#/filemanager?folder=42"));
-        assert!(!matches("https://e.pcloud.link/publink/show?code=XZabc"));
-        assert!(!matches("https://ddownload.com/f/abc"));
-    }
-
-    fn folder(folder_id: u64, contents: Vec<Metadata>) -> Metadata {
-        Metadata {
-            name: Some(format!("d{folder_id}")),
-            isfolder: true,
-            folderid: Some(folder_id),
-            contents,
-            ..Metadata::default()
-        }
-    }
-
-    fn file(file_id: u64) -> Metadata {
-        Metadata {
-            name: Some(format!("f{file_id}.bin")),
-            isfolder: false,
-            fileid: Some(file_id),
-            size: Some(file_id),
-            ..Metadata::default()
-        }
-    }
-
-    /// `showpublink` answers a folder link with its whole tree, so the file the address named
-    /// is found in it rather than fetched a second time.
-    #[test]
-    fn the_file_a_public_address_names_is_found_in_the_tree_the_link_answered_with() {
-        let tree = folder(1, vec![file(10), folder(2, vec![file(20), file(21)])]);
-        assert_eq!(
-            find_file(&tree, 21, 0).and_then(|found| found.fileid),
-            Some(21)
-        );
-        assert!(find_file(&tree, 99, 0).is_none());
-        // A link that *is* one file answers with that file, not with a tree.
-        assert_eq!(find_file(&file(5), 5, 0).and_then(|f| f.fileid), Some(5));
-    }
-
-    /// A tree a stranger built is not a reason to recurse without a floor.
-    #[test]
-    fn a_tree_deeper_than_the_floor_is_not_followed_for_ever() {
-        let mut node = file(7);
-        for level in 0..MAX_TREE_DEPTH + 5 {
-            node = folder(u64::from(level) + 100, vec![node]);
-        }
-        assert!(find_file(&node, 7, 0).is_none());
-        let shallow = folder(1, vec![folder(2, vec![file(7)])]);
-        assert!(find_file(&shallow, 7, 0).is_some());
-    }
-}
+#[path = "resolver/tests.rs"]
+mod tests;

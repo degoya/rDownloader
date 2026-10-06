@@ -20,6 +20,8 @@ import {
 } from '@/composables/useRemoteCredentials'
 import { formatMoment } from '@/utils/format'
 import { WHOLE } from '@/utils/numberInput'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 const props = defineProps<{ settings: Settings }>()
 /** The tunables belong to the parent's settings object, saved with the rest of the tab. */
@@ -158,9 +160,9 @@ async function confirmPendingKey(): Promise<void> {
 
 async function confirmRemove(credential: RemoteCredential): Promise<void> {
   const confirmed = await confirm({
-    title: t('remote.credentials.delete'),
+    title: t('common.actions.delete'),
     description: t('remote.credentials.delete_confirm'),
-    confirmLabel: t('remote.credentials.delete'),
+    confirmLabel: t('common.actions.delete'),
     destructive: true
   })
   if (!confirmed) return
@@ -186,7 +188,6 @@ async function confirmForget(key: SshHostKey): Promise<void> {
       v-if="pendingKey"
       class="mb-4"
       :color="pendingKey.changed ? 'error' : 'warning'"
-      variant="subtle"
       :title="t(pendingKey.changed ? 'remote.host_keys.changed_title' : 'remote.host_keys.unknown_title')"
     >
       <template #description>
@@ -230,8 +231,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
           :description="t('remote.description')"
           level="sub"
         />
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" icon="i-lucide-circle-check" :description="message" />
+        <FormFeedback class="mb-3" :error="error" :message="message" />
         <!-- The protocol decides the port, the passive mode and which sign-in methods exist; the
              method then decides the credential fields, which follow it directly (RD-150-11). -->
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
@@ -296,12 +296,12 @@ async function confirmForget(key: SshHostKey): Promise<void> {
             v-for="credential in credentials"
             :key="credential.id"
             class="flex flex-wrap items-center gap-3 p-3"
-            :class="editingId === credential.id ? 'outline outline-1 outline-primary' : ''"
+            :class="editingRowClass(editingId === credential.id, 'outline')"
           >
             <UAvatar :icon="credential.protocol === 'sftp' ? 'i-lucide-shield' : 'i-lucide-folder-symlink'" color="primary" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-highlighted">{{ credential.name }}</p>
-              <p class="truncate font-mono text-[11px] text-muted">{{ endpointLabel(credential) }}</p>
+              <p class="truncate font-mono text-2xs text-muted">{{ endpointLabel(credential) }}</p>
             </div>
             <UBadge v-if="editingId === credential.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge color="neutral" variant="subtle">{{ t(`remote.protocols.${credential.protocol}`) }}</UBadge>
@@ -312,7 +312,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
               variant="subtle"
             >{{ t('remote.credentials.incomplete') }}</UBadge>
             <UBadge v-else-if="!credential.enabled" color="neutral" variant="outline">{{ t('remote.credentials.enabled') }}</UBadge>
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('remote.credentials.test')" :loading="busyId === credential.id" @click="runTest(credential)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="busyId === credential.id" @click="runTest(credential)" />
             <UButton
               size="xs"
               color="neutral"
@@ -327,8 +327,8 @@ async function confirmForget(key: SshHostKey): Promise<void> {
               color="error"
               variant="ghost"
               icon="i-lucide-trash-2"
-              :aria-label="t('remote.credentials.delete')"
-              :title="t('remote.credentials.delete')"
+              :aria-label="t('common.actions.delete')"
+              :title="t('common.actions.delete')"
               :loading="busyId === credential.id"
               @click="confirmRemove(credential)"
             />
@@ -365,10 +365,10 @@ async function confirmForget(key: SshHostKey): Promise<void> {
           <UIcon name="i-lucide-key-round" class="text-success" />
           <div class="min-w-0 flex-1">
             <p class="font-mono text-xs text-highlighted">{{ key.host }}:{{ key.port }}</p>
-            <p class="truncate break-all font-mono text-[11px] text-muted">{{ key.fingerprint }}</p>
+            <p class="truncate break-all font-mono text-2xs text-muted">{{ key.fingerprint }}</p>
           </div>
           <UBadge color="neutral" variant="subtle">{{ key.algorithm }}</UBadge>
-          <span class="text-[11px] text-muted">{{ formatMoment(key.first_seen) }}</span>
+          <span class="text-2xs text-muted">{{ formatMoment(key.first_seen) }}</span>
           <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('remote.host_keys.forget')" :loading="busyId === hostKeyId(key)" @click="confirmForget(key)" />
         </div>
         <p v-if="!loading && !hostKeys.length" class="p-5 text-center text-sm text-muted">{{ t('remote.host_keys.empty') }}</p>

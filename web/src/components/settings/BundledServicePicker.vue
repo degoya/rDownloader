@@ -77,21 +77,19 @@ function toggle(service: BundledService, on: boolean | 'indeterminate'): void {
         :aria-label="t('plugins.bundled.search')"
         data-testid="bundled-search"
       />
-      <div class="flex flex-wrap items-center gap-2" role="group" :aria-label="t('plugins.bundled.filter_label')">
-        <UButton
-          v-for="entry in categories"
-          :key="entry.value"
-          class="max-w-full"
-          size="xs"
-          :color="category === entry.value ? 'primary' : 'neutral'"
-          :variant="category === entry.value ? 'solid' : 'outline'"
-          :aria-pressed="category === entry.value"
-          @click="category = entry.value"
-        >
-          <span class="whitespace-normal text-left">{{ entry.label }}</span>
-          <UBadge size="xs" color="neutral" variant="subtle" class="font-mono">{{ entry.count }}</UBadge>
-        </UButton>
-      </div>
+      <URadioGroup
+        v-model="category"
+        :items="categories"
+        variant="card"
+        indicator="hidden"
+        orientation="horizontal"
+        size="xs"
+        :aria-label="t('plugins.bundled.filter_label')"
+      >
+        <template #label="{ item }">
+          {{ item.label }}<UBadge size="xs" color="neutral" variant="subtle" class="ms-1.5 font-mono">{{ item.count }}</UBadge>
+        </template>
+      </URadioGroup>
     </div>
 
     <UEmpty v-if="!visible.length" :description="t('plugins.bundled.no_match', { query: query.trim() })" />

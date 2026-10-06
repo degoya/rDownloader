@@ -9,13 +9,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/system.json'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 import SettingsMcpAccess from './SettingsMcpAccess.vue'
 
 const AREAS = [
   { scope: 'api:read', sensitive: false, operations: 40, implies: [] },
-  { scope: 'api:settings', sensitive: true, operations: 12, implies: ['api:read'] }
+  { scope: 'api:config', sensitive: true, operations: 12, implies: ['api:read'] }
 ]
 
 const post = vi.fn(async () => ({
@@ -46,9 +47,9 @@ describe('SettingsMcpAccess', () => {
   it('opens on the reading area alone, not on everything', async () => {
     mount()
     await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))
-    const [read, settings] = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    const [read, config] = screen.getAllByRole('checkbox') as HTMLInputElement[]
     expect(read?.checked).toBe(true)
-    expect(settings?.checked).toBe(false)
+    expect(config?.checked).toBe(false)
   })
 
   it('warns only once a sensitive area is actually chosen', async () => {
@@ -96,6 +97,14 @@ describe('SettingsMcpAccess', () => {
  * now, so the group carries its own name and each area its checked state (RD-150-11).
  */
 describe('SettingsMcpAccess areas as a group', () => {
+  // RD-1120-14 (RD-150-11): the token form with its area chips.
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+    const group = await screen.findByRole('group', { name: en.mcp.scopes_label })
+    await waitFor(() => expect(within(group).getAllByRole('checkbox')).toHaveLength(2))
+    expect(await axeViolations(container)).toBe('')
+  })
+
   it('names the areas as one group, each area a checkbox named by the area', async () => {
     mount()
     const group = await screen.findByRole('group', { name: en.mcp.scopes_label })

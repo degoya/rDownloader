@@ -199,7 +199,7 @@ fn an_undocumented_error_code_lands_in_the_generic_bucket() {
 fn a_numberless_refusal_is_classified_by_status() {
     let failure =
         failure_from(503, None, &envelope(r#"{"error":"service unavailable"}"#)).expect("refusal");
-    assert!(matches!(failure.kind, ErrorKind::Transient(None)));
+    assert!(matches!(failure.kind, ErrorKind::Transient(Some(300))));
     assert_eq!(failure.code, messages::SERVER_ERROR.0);
     let unauthorized = failure_from(401, None, &envelope("{}")).expect("refusal");
     assert!(matches!(unauthorized.kind, ErrorKind::AccountInvalid));

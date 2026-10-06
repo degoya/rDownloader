@@ -18,6 +18,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, SecondsFormat, Utc};
+use rd_api_core::input_checks::optional_text;
 use rd_core::{AuditAction, AuditActorKind, AuditOutcome, AuditRetentionSettings};
 use rd_db::AuditQuery;
 
@@ -43,30 +44,24 @@ fn parse_moment(value: Option<&str>, name: &str) -> Result<Option<DateTime<Utc>>
         .map_err(|_| invalid(name, "An audit filter value could not be read"))
 }
 
-fn trimmed(value: Option<&String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-}
-
 /// Turns the query string into the store's query, refusing what it cannot mean.
 ///
 /// `ceiling` differs between the page read and the export, and nothing else does: the same
 /// filters, read the same way, so an export is exactly what the viewer is showing.
 fn to_query(params: &AuditQueryParams, ceiling: u32) -> Result<AuditQuery, ApiError> {
-    let action = match trimmed(params.action.as_ref()) {
+    let action = match optional_text(params.action.as_ref()) {
         Some(word) => Some(
             AuditAction::parse(&word).ok_or_else(|| invalid("action", "Unknown audit action"))?,
         ),
         None => None,
     };
-    let outcome = match trimmed(params.outcome.as_ref()) {
+    let outcome = match optional_text(params.outcome.as_ref()) {
         Some(word) => {
             Some(AuditOutcome::parse(&word).ok_or_else(|| invalid("outcome", "Unknown outcome"))?)
         }
         None => None,
     };
-    let actor_kind = match trimmed(params.actor_kind.as_ref()) {
+    let actor_kind = match optional_text(params.actor_kind.as_ref()) {
         Some(word) => Some(
             AuditActorKind::parse(&word).ok_or_else(|| invalid("actor_kind", "Unknown actor"))?,
         ),
@@ -83,10 +78,10 @@ fn to_query(params: &AuditQueryParams, ceiling: u32) -> Result<AuditQuery, ApiEr
         action,
         outcome,
         actor_kind,
-        actor_id: trimmed(params.actor_id.as_ref()),
-        target_kind: trimmed(params.target_kind.as_ref()),
-        target_id: trimmed(params.target_id.as_ref()),
-        trace_id: trimmed(params.trace_id.as_ref()),
+        actor_id: optional_text(params.actor_id.as_ref()),
+        target_kind: optional_text(params.target_kind.as_ref()),
+        target_id: optional_text(params.target_id.as_ref()),
+        trace_id: optional_text(params.trace_id.as_ref()),
         since: parse_moment(params.since.as_deref(), "since")?,
         until: parse_moment(params.until.as_deref(), "until")?,
         before_id: params.before_id,

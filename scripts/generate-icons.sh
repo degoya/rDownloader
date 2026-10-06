@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Regenerates the browser-extension PNGs and the Windows .ico from the
-# single source of truth, web/public/favicon.svg.
+# Regenerates the browser-extension PNGs, the web app and Linux menu icons and the
+# Windows .ico from the single source of truth, web/public/favicon.svg.
 # Rasterizes with sharp (librsvg) via npx — ImageMagick's builtin SVG
 # renderer drops the stroke elements. ImageMagick only assembles the .ico.
 set -eu
@@ -19,7 +19,8 @@ for size in 16 32 48 128; do
 done
 
 # Progressive web app icons (RD-090-08). A manifest needs raster icons: the install
-# prompt and the home-screen entry are rendered by the platform, not the browser.
+# prompt and the home-screen entry are rendered by the platform, not the browser. The deb
+# and rpm menu entry installs the 512 px one beside the SVG itself (RD-1120-20).
 mkdir -p web/public/icons
 for size in 192 512; do
     render "$size" "web/public/icons/icon-${size}.png"

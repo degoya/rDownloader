@@ -1,56 +1,13 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind};
+use rd_core::{AccountId, FailureKind};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver,
     ResolverHost,
 };
 
 use super::DebridLinkResolver;
-
-struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    requests: Mutex<Vec<HostHttpRequest>>,
-    has_secret: bool,
-}
-
-impl MockHost {
-    fn new(response: HostHttpResponse, has_secret: bool) -> Arc<Self> {
-        Self::with_responses(vec![response], has_secret)
-    }
-
-    fn with_responses(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret,
-        })
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, _reference: &str) -> bool {
-        self.has_secret
-    }
-}
 
 fn json_response(status: u16, url: &str, body: &str) -> HostHttpResponse {
     HostHttpResponse {

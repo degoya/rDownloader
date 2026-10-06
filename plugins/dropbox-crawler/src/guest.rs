@@ -10,9 +10,7 @@
 
 use dropbox_common::{address, metadata, reason};
 use plugin_guest_crawler::{
-    CrawledLink, Guest, host,
-    http::{self, RequestHeader},
-    refuse,
+    CrawledLink, Guest, bearer_post_json, host, http, refuse,
     types::{Failure, FailureKind},
 };
 use serde_json::{Value, json};
@@ -36,19 +34,6 @@ const ROOT_NAME: &str = "Dropbox";
 
 struct Component;
 
-fn headers() -> Vec<RequestHeader> {
-    vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{TOKEN_REFERENCE}}}}}"),
-        },
-        RequestHeader {
-            name: "Content-Type".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ]
-}
-
 /// The `Retry-After` Dropbox sent, or the wait inside its document — either clamped to the
 /// shared one-day ceiling, and a `0` read as no wait at all.
 fn retry_after(headers: &[(String, String)], body: &[u8]) -> Option<u64> {
@@ -70,7 +55,7 @@ fn call(endpoint: &str, argument: &Value) -> Result<Vec<u8>, Failure> {
         "POST",
         &format!("{API}/{endpoint}"),
         &[],
-        &headers(),
+        &bearer_post_json(TOKEN_REFERENCE),
         argument.to_string().as_bytes(),
     )?;
     if (200..300).contains(&response.status) {

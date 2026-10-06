@@ -8,8 +8,12 @@ import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import TimezoneSelect from '@/components/TimezoneSelect.vue'
+import WeekWindowRow from '@/components/WeekWindowRow.vue'
 import { PLAIN, isNumber } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
+import { EVERY_DAY } from '@/utils/weekWindows'
+import FormFeedback from '@/components/FormFeedback.vue'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const props = defineProps<{ profiles: BandwidthProfile[] }>()
 const schedule = defineModel<BandwidthSchedule>({ required: true })
@@ -18,10 +22,6 @@ const { t } = useI18n()
 const pending = ref(false)
 const error = ref<string | null>(null)
 const message = ref<string | null>(null)
-
-/** Monday-first, matching the backend's bitmask. */
-const DAYS = [0, 1, 2, 3, 4, 5, 6]
-const dayItems = computed(() => DAYS.map(day => ({ value: day, label: t(`bandwidth.days.${day}`) })))
 const windowList = ref<HTMLElement | null>(null)
 
 interface WindowDraft {
@@ -53,33 +53,12 @@ const profileItems = computed(() =>
   props.profiles.map(profile => ({ value: profile.id, label: profile.name }))
 )
 
-/** `HH:MM` in the schedule's own timezone; the backend stores minutes since midnight. */
-function timeOf(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  return `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
-}
-
-function minutesOf(value: string): number {
-  const [hours, minutes] = value.split(':').map(Number)
-  const total = (hours ?? 0) * 60 + (minutes ?? 0)
-  return Number.isFinite(total) ? Math.min(Math.max(total, 0), 1440) : 0
-}
-
-/** The window's bitmask as the list of days a checkbox group holds, and back. */
-function daysOf(window: WindowDraft): number[] {
-  return DAYS.filter(day => (window.days & (1 << day)) !== 0)
-}
-
-function setDays(window: WindowDraft, days: number[]): void {
-  window.days = days.reduce((mask, day) => mask | (1 << day), 0)
-}
-
 function addWindow(): void {
   const first = props.profiles[0]
   if (!first) return
   windows.value = [
     ...windows.value,
-    { profile_id: first.id, days: 0b0111_1111, start_minute: 22 * 60, end_minute: 6 * 60, priority: 0, enabled: true }
+    { profile_id: first.id, days: EVERY_DAY, start_minute: 22 * 60, end_minute: 6 * 60, priority: 0, enabled: true }
   ]
 }
 
@@ -131,10 +110,10 @@ async function save(): Promise<void> {
           :eyebrow="t('bandwidth.schedule.eyebrow')"
           :title="t('bandwidth.schedule.title')"
           :description="t('bandwidth.schedule.description')"
-          class="mb-4"
+          class="mb-2"
         />
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
+        <SettingsCrossLink class="mb-4" anchor="unattended.quiet_hours" />
+        <FormFeedback class="mb-3" :error="error" :message="message" />
 
         <form class="grid gap-3" @submit.prevent="save">
           <UFormField :label="t('bandwidth.schedule.timezone_label')" :description="t('bandwidth.schedule.timezone_description')">
@@ -156,35 +135,21 @@ async function save(): Promise<void> {
       </template>
       <template #list>
         <div ref="windowList" class="space-y-3">
-          <div v-for="(window, index) in windows" :key="index" class="border border-muted p-3" data-window>
-            <div class="flex flex-wrap items-end gap-2">
+          <WeekWindowRow v-for="(window, index) in windows" :key="index" data-window :model-value="window" @update:model-value="windows[index] = $event" @remove="removeWindow(index)">
+            <template #leading>
               <USelect v-model="window.profile_id" :items="profileItems" value-key="value" class="w-44" :aria-label="t('bandwidth.schedule.window_profile')" />
-              <UFormField :label="t('bandwidth.schedule.from')">
-                <UInput :model-value="timeOf(window.start_minute)" type="time" class="w-28" @update:model-value="window.start_minute = minutesOf(String($event))" />
-              </UFormField>
-              <UFormField :label="t('bandwidth.schedule.to')">
-                <UInput :model-value="timeOf(window.end_minute)" type="time" class="w-28" @update:model-value="window.end_minute = minutesOf(String($event))" />
-              </UFormField>
+            </template>
+            <template #actions>
               <UFormField :label="t('bandwidth.schedule.priority')">
                 <UInputNumber v-model="window.priority" required :format-options="PLAIN" class="w-24" />
               </UFormField>
               <USwitch v-model="window.enabled" :aria-label="t('bandwidth.schedule.enabled')" />
               <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('bandwidth.schedule.duplicate_hint')" @click="duplicateWindow(index)" />
-              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="removeWindow(index)" />
-            </div>
-            <UCheckboxGroup
-              class="mt-2"
-              :model-value="daysOf(window)"
-              :items="dayItems"
-              :legend="t('bandwidth.schedule.days_label')"
-              orientation="horizontal"
-              size="sm"
-              @update:model-value="(days: number[]) => setDays(window, days)"
-            />
+            </template>
             <p v-if="window.end_minute <= window.start_minute" class="mt-2 text-xs text-muted">
               {{ t('bandwidth.schedule.wraps') }}
             </p>
-          </div>
+          </WeekWindowRow>
           <p v-if="!windows.length" class="border border-muted p-5 text-center text-sm text-muted">
             {{ profiles.length ? t('bandwidth.schedule.empty') : t('bandwidth.schedule.needs_profile') }}
           </p>

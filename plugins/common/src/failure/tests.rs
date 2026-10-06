@@ -1,4 +1,7 @@
-use super::{ApiFailure, ErrorKind, HttpError, HttpWords, call, coded, diagnosed, free_limit};
+use super::{
+    ApiFailure, ErrorKind, HttpError, HttpWords, SecretSlot, call, coded, diagnosed, free_limit,
+    invalid_url, require_account, require_secret,
+};
 use crate::{
     CaptchaAnswer, CaptchaChallenge, CaptchaSolution, Failure, FailureKind, HttpRequest,
     HttpResponse, PluginHost, block_on,
@@ -232,8 +235,9 @@ impl PluginHost for Answering {
         Vec::new()
     }
 
-    async fn secret_available(&self, _account_id: &str, _reference: &str) -> bool {
-        true
+    /// Every slot holds a secret but the empty one, which stands for a slot never filled.
+    async fn secret_available(&self, _account_id: &str, reference: &str) -> bool {
+        !reference.is_empty()
     }
 
     async fn wait(&self, _seconds: u32) -> Result<(), Failure> {
@@ -295,4 +299,51 @@ fn call_turns_a_named_refusal_into_the_failure() {
     ))
     .expect("200");
     assert_eq!(answered.status, 200);
+}
+
+/// An address that does not parse is permanent, under the plugin's code, with the parser's words
+/// as the `error` parameter and in the text.
+#[test]
+fn an_unparsable_address_names_the_parsers_words() {
+    let failure = invalid_url("example.invalid_url", &"relative URL without a base");
+    assert_eq!(failure.kind, ErrorKind::Permanent);
+    assert_eq!(failure.code, "example.invalid_url");
+    assert_eq!(
+        failure.message,
+        "Invalid provider URL: relative URL without a base"
+    );
+    assert_eq!(failure.param("error"), Some("relative URL without a base"));
+}
+
+const ACCOUNT_MISSING: (&str, &str) = ("example.account_missing", "No account");
+
+/// No account and an empty id are both refused as a missing account; an id passes unchanged.
+#[test]
+fn an_empty_account_id_is_no_account() {
+    assert_eq!(require_account(Some("a1"), ACCOUNT_MISSING), Ok("a1"));
+    for missing in [None, Some("")] {
+        let failure = require_account(missing, ACCOUNT_MISSING).expect_err("refused");
+        assert_eq!(failure.kind, FailureKind::AuthRequired);
+        assert_eq!(failure.code.as_deref(), Some("example.account_missing"));
+    }
+}
+
+/// A secret slot that holds nothing is refused before any request, under the plugin's words.
+#[test]
+fn a_missing_secret_is_refused_before_a_request() {
+    let host = Answering(200, Vec::new());
+    let missing = ("example.key_missing", "No key");
+    let stored = SecretSlot {
+        reference: "key",
+        missing,
+    };
+    assert_eq!(block_on(require_secret(&host, "a1", stored)), Ok(()));
+    let empty = SecretSlot {
+        reference: "",
+        missing,
+    };
+    let failure = block_on(require_secret(&host, "a1", empty)).expect_err("refused");
+    assert_eq!(failure.kind, FailureKind::AuthRequired);
+    assert_eq!(failure.code.as_deref(), Some("example.key_missing"));
+    assert_eq!(failure.message, "No key");
 }

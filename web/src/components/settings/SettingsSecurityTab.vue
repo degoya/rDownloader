@@ -5,7 +5,9 @@
  * may believe. The page had no header until RD-110-29, no way to change the password until
  * RD-120-22, and a fixed twelve-hour sign-in until RD-130-09. Six cards made it three tabs in
  * RD-180-15: how one signs in, how long a sign-in lasts and where, and the reverse proxy. The
- * identity provider (RD-190-15) is one more way to sign in, under the first.
+ * identity provider (RD-190-15) is one more way to sign in, under the first. The switch that
+ * turns signing in off for this computer and the UI port came from *General* (RD-1120-21); the
+ * one saves with the settings document, the other cards of the first tab save themselves.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,6 +15,8 @@ import { useI18n } from 'vue-i18n'
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { subTabItems } from '@/composables/useSettingsSubTab'
+import SettingsAdminLoginCard from '@/components/settings/SettingsAdminLoginCard.vue'
+import SettingsDocumentGate from '@/components/settings/SettingsDocumentGate.vue'
 import SettingsMfaCard from '@/components/settings/SettingsMfaCard.vue'
 import SettingsOidcCard from '@/components/settings/SettingsOidcCard.vue'
 import SettingsPasskeysCard from '@/components/settings/SettingsPasskeysCard.vue'
@@ -61,7 +65,6 @@ const proxyWikiActions = computed(() => [{
     <UAlert
       v-if="loginOffBehindProxy"
       color="warning"
-      variant="subtle"
       icon="i-lucide-shield-alert"
       :title="t('system.proxy.login_off_title')"
       :description="t('system.proxy.login_off_description')"
@@ -74,11 +77,13 @@ const proxyWikiActions = computed(() => [{
       :unmount-on-hide="false"
       variant="pill"
       class="w-full"
-      :ui="{ content: 'pt-4' }"
     >
       <template #signin>
         <div class="space-y-6">
           <SettingsPasswordCard />
+          <SettingsDocumentGate>
+            <SettingsAdminLoginCard v-model="settings" />
+          </SettingsDocumentGate>
           <div class="grid items-start gap-6 lg:grid-cols-2">
             <SettingsMfaCard />
             <SettingsPasskeysCard />

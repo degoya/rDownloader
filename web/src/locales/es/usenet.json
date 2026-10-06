@@ -5,8 +5,8 @@
   },
   "header": {
     "eyebrow": "Transporte de segmentos",
-    "title": "Servidores NNTP y respaldo",
-    "description": "El primer servidor de la cadena se usa primero. Los segmentos ausentes o dañados pasan al siguiente servidor activo; las contraseñas se guardan solo cifradas en el almacén local."
+    "title": "Servidores, indexadores y cuotas",
+    "description": "La cadena de servidores con sus cuotas y límites NNTP, además de los indexadores en los que busca el LinkGrabber. El primer servidor de la cadena se usa primero. Los segmentos ausentes o dañados pasan al siguiente servidor activo; las contraseñas se guardan solo cifradas en el almacén local."
   },
   "form": {
     "eyebrow": "Nuevo endpoint",
@@ -80,8 +80,7 @@
     "delete": {
       "action": "Eliminar indexador",
       "title": "¿Eliminar el indexador?",
-      "description": "Se eliminan {name} y su clave API guardada. Las suscripciones que lo adoptaron conservan su propia copia.",
-      "confirm": "Eliminar"
+      "description": "Se eliminan {name} y su clave API guardada. Las suscripciones que lo adoptaron conservan su propia copia."
     },
     "messages": {
       "created": "Indexador añadido",
@@ -117,5 +116,9 @@
     "reset_usage": "Reiniciar consumo",
     "remove": "Quitar cuota",
     "saved": "Cuota guardada"
+  },
+  "tabs": {
+    "servers": "Servidores",
+    "indexers": "Indexadores"
   }
 }

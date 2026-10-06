@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
+import { trimmed } from '@/utils/values'
 import type {
   CreateRemoteCredential,
   RemoteAuthMode,
@@ -75,11 +76,6 @@ export function formFor(credential: RemoteCredential): RemoteCredentialForm {
     passphrase: '',
     enabled: credential.enabled
   }
-}
-
-function trimmed(value: string): string | null {
-  const text = value.trim()
-  return text.length > 0 ? text : null
 }
 
 function portOf(form: RemoteCredentialForm): number | null {

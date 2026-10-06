@@ -15,6 +15,7 @@ import {
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes } from '@/utils/format'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 /**
  * A package's collision policy and its files' duplicates (RD-150-01, RD-150-02).
@@ -132,8 +133,7 @@ onMounted(() => {
   >
     <template #body>
       <div class="space-y-5">
-        <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
-        <UAlert v-if="success" color="success" variant="subtle" icon="i-lucide-circle-check" :description="success" />
+        <FormFeedback :error="error" :message="success" />
 
         <form class="space-y-3" data-testid="package-collision-form" @submit.prevent="savePolicy">
           <UFormField :label="t('downloads.collision.label')" :description="t('downloads.collision.package_description')">

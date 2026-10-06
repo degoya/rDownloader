@@ -9,6 +9,7 @@ use mediafire_common::{
     address,
     api::{self, ApiError, Envelope, FileInfo},
 };
+pub(crate) use plugin_common::failure::coded;
 use plugin_common::{Failure, FailureKind, HttpRequest, HttpResponse, PluginHost};
 use serde_json::Value;
 
@@ -17,12 +18,6 @@ use crate::messages;
 /// Most keys one `file/get_info` call carries. The documentation allows 500; JDownloader
 /// sends 100, and a smaller batch keeps one bad answer from taking down a large check.
 pub(crate) const CHECK_BATCH: usize = 100;
-
-/// A failure from one of the `(code, text)` pairs in `messages`.
-#[must_use]
-pub(crate) fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
-    Failure::coded(kind, code, message)
-}
 
 /// One API call; the `response` object on success.
 pub(crate) async fn call<H: PluginHost>(
@@ -149,10 +144,5 @@ pub(crate) fn errno_failure(errno: u32) -> Failure {
 /// A URL the plugin built or read that does not parse.
 #[must_use]
 pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        messages::INVALID_URL,
-        messages::invalid_url(error),
-    )
-    .with_param("error", error.to_string())
+    plugin_common::failure::invalid_url(messages::INVALID_URL, error).into()
 }

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
+import { mountComponent } from '@/test/mount'
 
 import SettingsDataResetButton from './SettingsDataResetButton.vue'
 
@@ -20,19 +20,10 @@ vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
 const added = vi.fn()
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: added }) }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { system } } })
-
-const components = {
-  UButton: {
-    props: ['label', 'disabled', 'loading'],
-    template: '<button v-bind="$attrs" :disabled="disabled">{{ label }}</button>'
-  }
-}
-
 type Target = 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index' | 'history'
 
 function renderButton(props: { target: Target, count: number | null }) {
-  return render(SettingsDataResetButton, { props, global: { plugins: [i18n], components } })
+  return mountComponent(SettingsDataResetButton, { messages: { system }, props })
 }
 
 beforeEach(() => {

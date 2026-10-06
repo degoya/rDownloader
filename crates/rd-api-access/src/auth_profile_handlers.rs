@@ -11,6 +11,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::optional_text;
 use rd_core::{
     AuthMethod, AuthOrigin, AuthProfile, AuthProfileId, AuthScope, MAX_AUTH_CERTIFICATE,
     MAX_AUTH_COOKIES, MAX_AUTH_SECRET, ScopeError,
@@ -44,14 +45,14 @@ pub async fn create_auth_profile(
 ) -> Result<(StatusCode, Json<AuthProfile>), ApiError> {
     validate_name(&request.name)?;
     let scope = parse_scope(&request.scope, request.include_subdomains)?;
-    let username = normalized(request.username);
-    let secret = normalized(request.secret);
+    let username = optional_text(request.username);
+    let secret = optional_text(request.secret);
     validate_method(request.method, username.as_deref(), secret.as_deref(), true)?;
     validate_secret_size(request.method, secret.as_deref())?;
     if let (AuthMethod::Cookies, Some(cookies)) = (request.method, secret.as_deref()) {
         validate_cookies(&scope, cookies)?;
     }
-    let certificate = validate_certificate(normalized(request.certificate_pem))?;
+    let certificate = validate_certificate(optional_text(request.certificate_pem))?;
 
     let secret_ref = store_optional(&state.secrets, secret).await?;
     let certificate_ref = store_optional(&state.secrets, certificate).await?;
@@ -91,10 +92,10 @@ pub async fn update_auth_profile(
         .auth_profile(id)
         .await?
         .ok_or_else(not_found)?;
-    let username = normalized(request.username);
-    let secret = normalized(request.secret);
+    let username = optional_text(request.username);
+    let secret = optional_text(request.secret);
     validate_secret_size(request.method, secret.as_deref())?;
-    let certificate = validate_certificate(normalized(request.certificate_pem))?;
+    let certificate = validate_certificate(optional_text(request.certificate_pem))?;
 
     // An omitted credential keeps the stored one; the method may only change when the
     // profile ends up with a credential that fits it.
@@ -279,7 +280,7 @@ pub async fn capture_cookies(
     validate_cookies(&scope, &request.cookies)?;
     // A browser session ends when its cookies do, so inherit the earliest expiry.
     let expires_at = rd_http::earliest_expiry(&request.cookies);
-    let name = normalized(request.name).unwrap_or_else(|| scope.host.clone());
+    let name = optional_text(request.name).unwrap_or_else(|| scope.host.clone());
     validate_name(&name)?;
 
     let secret_ref = Some(state.secrets.put_string(request.cookies).await?);
@@ -423,12 +424,6 @@ fn validate_certificate(pem: Option<String>) -> Result<Option<String>, ApiError>
         .with_param("reason", error)
     })?;
     Ok(Some(pem))
-}
-
-fn normalized(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }
 
 fn not_found() -> ApiError {

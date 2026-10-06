@@ -173,6 +173,28 @@ describe('AutomationView', () => {
     expect(screen.getByText(common.editing)).toBeTruthy()
   })
 
+  it('judges the form it holds in a dry run, saved or not (RD-1120-17)', async () => {
+    post.mockImplementation(async (path: string) =>
+      path === '/api/v1/automations/dry-run'
+        ? { data: [{ automation_id: '00000000-0000-0000-0000-000000000000', trigger_matches: true, condition_matches: false }] }
+        : { data: null }
+    )
+    mount()
+    await fireEvent.click(await screen.findByRole('button', { name: automation.create }))
+    await fireEvent.click(await screen.findByRole('button', { name: automation.dry_run.run }))
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/automations/dry-run', expect.anything()))
+    // The draft travels with the request; a new one has no id yet.
+    expect(post.mock.calls[0]?.[1]?.body).toEqual({
+      trigger: 'download_completed',
+      package_id: undefined,
+      draft: { automation_id: undefined, trigger: 'download_completed', condition: { type: 'always' } }
+    })
+    // The answer is the draft's, named by the form since nothing is saved under that id.
+    expect(await screen.findByText(automation.dry_run.draft)).toBeTruthy()
+    expect(screen.getByText(new RegExp(automation.dry_run.condition_no))).toBeTruthy()
+  })
+
   it('renders without an axe violation', async () => {
     const { container } = mount()
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/notifications/targets'))

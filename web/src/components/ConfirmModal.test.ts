@@ -1,24 +1,21 @@
-import { fireEvent, render } from '@testing-library/vue'
+import { fireEvent } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
-import common from '@/locales/en/common.json'
+import { mountComponent } from '@/test/mount'
 
 import ConfirmModal from './ConfirmModal.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common } } })
-
-/** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const components = {
+/** The footer alone, and a button that shows its trailing key the way the real one does. */
+const stubs = {
   UModal: { template: '<div><slot name="footer" /></div>' },
   UButton: { template: '<button v-bind="$attrs">{{ $attrs.label }}<slot name="trailing" /></button>' },
   UKbd: { template: '<kbd>{{ $attrs.value }}</kbd>' }
 }
 
 function mount(confirmKey?: string) {
-  return render(ConfirmModal, {
+  return mountComponent(ConfirmModal, {
     props: { title: 'Clear the list?', description: 'Completed packages leave the list.', ...(confirmKey ? { confirmKey } : {}) },
-    global: { plugins: [i18n], components }
+    stubs
   })
 }
 

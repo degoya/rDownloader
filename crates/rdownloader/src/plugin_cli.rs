@@ -4,9 +4,9 @@
 //! flattened in here, and the same ones the `rd-pack` binary offers (RD-150-20). What stays here
 //! needs an installation or is run once by hand: keygen, install and the trusted keys.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use rd_pack::plugin::{
     PluginPackageArgs, build_plugin_verifier, describe_verify_error, group_fingerprint,
@@ -37,9 +37,10 @@ enum PluginCommand {
 pub struct KeysArgs {
     #[command(subcommand)]
     command: KeysCommand,
-    /// Database holding the confirmed keys.
-    #[arg(long, default_value = "data/rdownloader.sqlite3", global = true)]
-    database: PathBuf,
+    /// Database holding the confirmed keys; by default the service's (`data/rdownloader.sqlite3`,
+    /// in the user's data folder for an installed build).
+    #[arg(long, env = "RDOWNLOADER_DATABASE", global = true)]
+    database: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -121,8 +122,28 @@ impl KeyRole {
 struct PluginInstallArgs {
     #[command(flatten)]
     package: PluginPackageArgs,
-    #[arg(long, default_value = "data/plugins")]
-    root: PathBuf,
+    /// Plugin folder; by default the service's (`data/plugins`, in the user's data folder for an
+    /// installed build).
+    #[arg(long, env = "RDOWNLOADER_PLUGIN_ROOT")]
+    root: Option<PathBuf>,
+}
+
+/// `given`, or the service's relative default where `serve` resolves it (RD-1120-20): in the
+/// user's data folder when an installer put `executable` in place, the working folder for a
+/// portable copy. The working folder itself is never changed, so a relative package path still
+/// means what it meant where it was typed.
+fn service_path(executable: &Path, given: Option<PathBuf>, default: &str) -> Result<PathBuf> {
+    if let Some(given) = given {
+        return Ok(given);
+    }
+    Ok(match rd_autostart::installed_home(executable)? {
+        Some(home) => home.join(default),
+        None => PathBuf::from(default),
+    })
+}
+
+fn current_exe() -> Result<PathBuf> {
+    std::env::current_exe().context("locate rDownloader executable")
 }
 
 pub async fn run(args: PluginArgs) -> Result<()> {
@@ -135,7 +156,8 @@ pub async fn run(args: PluginArgs) -> Result<()> {
                 &args.package.trusted_keys,
                 !args.package.no_default_plugin_key,
             )?;
-            let installer = rd_plugin_host::PluginInstaller::new(args.root, verifier);
+            let root = service_path(&current_exe()?, args.root, "data/plugins")?;
+            let installer = rd_plugin_host::PluginInstaller::new(root, verifier);
             match installer.install(args.package.package).await {
                 Ok(installed) => {
                     println!("installed {}", installed.path.display());
@@ -149,7 +171,8 @@ pub async fn run(args: PluginArgs) -> Result<()> {
 }
 
 async fn keys(args: KeysArgs) -> Result<()> {
-    let database = rd_db::Database::open(&args.database).await?;
+    let path = service_path(&current_exe()?, args.database, "data/rdownloader.sqlite3")?;
+    let database = rd_db::Database::open(&path).await?;
     match args.command {
         KeysCommand::List => {
             let keys = database.list_plugin_trusted_keys().await?;
@@ -252,4 +275,42 @@ async fn keygen(args: &KeygenArgs) -> Result<()> {
         "paste the public key into EMBEDDED_KEYS in crates/rd-sign/src/roots.rs to make it the default"
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::service_path;
+
+    #[test]
+    fn a_portable_copy_keeps_the_relative_defaults() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let executable = root.path().join("rdownloader");
+        let path = service_path(&executable, None, "data/plugins").expect("no marker");
+        assert_eq!(path, Path::new("data/plugins"));
+    }
+
+    #[test]
+    fn an_installed_build_finds_the_service_data_folder() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let executable = root.path().join("rdownloader");
+        std::fs::write(root.path().join(rd_autostart::INSTALL_KIND_FILE), "deb\n")
+            .expect("write the marker");
+        let home = rd_autostart::installed_home(&executable)
+            .expect("a marker")
+            .expect("a data folder");
+        for default in ["data/rdownloader.sqlite3", "data/plugins"] {
+            let path = service_path(&executable, None, default).expect("a marker");
+            assert_eq!(path, home.join(default));
+            assert!(path.is_absolute(), "{}", path.display());
+            // Never the program folder an upgrade replaces.
+            assert!(!path.starts_with(root.path()), "{}", path.display());
+        }
+        let given = PathBuf::from("elsewhere/plugins");
+        assert_eq!(
+            service_path(&executable, Some(given.clone()), "data/plugins").expect("given"),
+            given
+        );
+    }
 }

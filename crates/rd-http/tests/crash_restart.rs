@@ -574,7 +574,7 @@ async fn a_finished_chunk_mac_that_was_never_recorded_is_computed_again() {
 #[test]
 fn every_http_crash_point_is_exercised_by_a_case() {
     let source = crate_sources();
-    for point in rd_core::failpoint::CRASH_POINTS
+    for point in rd_crash_points::CRASH_POINTS
         .iter()
         .filter(|point| point.owner == "rd-http")
     {

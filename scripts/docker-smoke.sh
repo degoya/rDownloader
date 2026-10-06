@@ -7,7 +7,8 @@
 #
 #  * Fresh named volumes, as a first start on a user's machine has: the entrypoint must be able
 #    to take ownership of both, and the bundled plugins must install into /config.
-#  * The bundled Python tools run as the service user, apprise included (RD-130-14).
+#  * The bundled Python tools run as the service user: yt-dlp, streamlink, gallery-dl and apprise
+#    (RD-130-14, RD-1120-07), each answering `--version`.
 #
 # Usage:
 #   scripts/docker-smoke.sh <image> [port]
@@ -46,5 +47,8 @@ if ! curl --fail --silent --show-error --retry 60 --retry-delay 2 --retry-all-er
     exit 1
 fi
 echo
-docker exec --user rdownloader "${container_id}" apprise --version
+for tool in yt-dlp streamlink gallery-dl apprise; do
+    echo "==> ${tool} as the service user"
+    docker exec --user rdownloader "${container_id}" "${tool}" --version
+done
 echo "==> ${image} passed the smoke test"

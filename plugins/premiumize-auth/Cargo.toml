@@ -10,7 +10,7 @@ plugin-common = { path = "../common" }
 plugin-guest-auth = { path = "../guest-auth" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

@@ -35,17 +35,8 @@ pub struct QueuePause {
 
 /// The states a pause acts on — the web interface's `PAUSABLE_STATES`, waiting and moving.
 /// Public for the capture agent's "pause all" (RD-1100-06), which stops the same files.
-pub fn pausable(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Queued
-            | DownloadState::RetryWait
-            | DownloadState::Resolving
-            | DownloadState::Downloading
-            | DownloadState::Verifying
-            | DownloadState::Repairing
-            | DownloadState::Extracting
-    )
+pub const fn pausable(state: DownloadState) -> bool {
+    state.is_queued_or_working()
 }
 
 impl SchedulerHandle {

@@ -8,11 +8,15 @@
 //! waiting out the countdown, the `op=download2` form is posted and the answer is either the
 //! file itself or a page carrying the direct link.
 //!
-//! Like the rest of this crate these are pure functions: each consuming plugin's native and
-//! WebAssembly adapter drives the flow and performs the requests itself. The one exception is
-//! [`FreeWords`]: the form post and the failures every XFS free flow reports, which the four
-//! plugins carried byte for byte and which now take the plugin's codes instead (RD-1110-03,
-//! audit R4).
+//! Most of these are pure functions. The exceptions are [`FreeWords`] — the form post and the
+//! failures every XFS free flow reports, which the four plugins carried byte for byte and which
+//! now take the plugin's codes instead (RD-1110-03, audit R4) — and [`FreeFlow`], the flow
+//! itself, which the four plugins carried too and which now takes each site's departures from
+//! the script as fields (RD-1120-10, PL-2).
+
+mod flow;
+
+pub use flow::FreeFlow;
 
 use plugin_common::failure::{HttpError, diagnosed, free_limit};
 use plugin_common::{

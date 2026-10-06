@@ -6,6 +6,7 @@ import { fireEvent, screen, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import audit from '@/locales/en/audit.json'
+import common from '@/locales/en/common.json'
 import { mountComponent } from '@/test/mount'
 import { axeViolations } from '@/test/axe'
 
@@ -128,7 +129,7 @@ describe('AuditView', () => {
     await screen.findByTestId('audit-list')
     get.mockClear()
 
-    await fireEvent.click(screen.getByRole('button', { name: audit.filters.apply }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.apply }))
 
     expect(get).toHaveBeenCalledWith('/api/v1/audit/records', {
       params: { query: { limit: 200 } }

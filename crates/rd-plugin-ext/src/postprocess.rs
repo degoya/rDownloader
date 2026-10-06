@@ -5,27 +5,16 @@
 //! implementation of the runner trait it takes, translating between a package on disk and a
 //! plugin that may only ever name files, never locations.
 
-use std::{collections::HashMap, sync::Arc};
-
 use anyhow::Result;
 use async_trait::async_trait;
 use rd_extract::{PluginStepJob, PluginStepOutcome, PluginStepRunner, PluginStepWarning};
-use rd_plugin_api::ResolverHost;
-use rd_plugin_host::{
-    PluginInstaller, PluginManifest, PluginType, PluginTypeRegistry,
-    extension::{PostprocessPlugin, SourceState, StepOutcome},
-};
+use rd_plugin_host::extension::{PostprocessPlugin, SourceState, StepOutcome};
 
-/// The installed post-processing steps, newest version of each.
-pub struct PluginSteps {
-    /// Keyed by plugin id, which is what a category stores.
-    plugins: HashMap<String, Step>,
-}
+use crate::PluginSet;
 
-struct Step {
-    manifest: PluginManifest,
-    plugin: PostprocessPlugin,
-}
+/// The installed post-processing steps, newest version of each, looked up by plugin id —
+/// which is what a category stores.
+pub type PluginSteps = PluginSet<PostprocessPlugin>;
 
 /// What a step looks like to whoever is choosing one.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -37,81 +26,28 @@ pub struct StepInfo {
 }
 
 impl PluginSteps {
-    /// Loads every installed post-processing step, skipping any that fails to build.
-    pub async fn load(
-        installer: &PluginInstaller,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Result<Self> {
-        Ok(Self::from_registry(
-            &PluginTypeRegistry::load(installer).await?,
-            host,
-        ))
-    }
-
-    /// The same, from a registry the adapters share.
-    ///
-    /// Loading a registry re-verifies and compiles every installed package, so the one `load`
-    /// builds for itself is only worth it for a caller that loads a single adapter. Everything
-    /// started together passes one registry through all of them.
-    #[must_use]
-    pub fn from_registry(
-        registry: &PluginTypeRegistry,
-        host: Option<Arc<dyn ResolverHost>>,
-    ) -> Self {
-        let loaded = registry.instantiate(&PluginType::Postprocess, |package| {
-            PostprocessPlugin::new(package.manifest.clone(), &package.component, host.clone()).map(
-                |plugin| Step {
-                    manifest: package.manifest.clone(),
-                    plugin,
-                },
-            )
-        });
-        // Newest version of each plugin comes first, so the first entry for an id wins.
-        let mut plugins = HashMap::new();
-        for step in loaded {
-            plugins.entry(step.manifest.id.to_string()).or_insert(step);
-        }
-        Self { plugins }
-    }
-
-    /// An empty set, for a service running without plugins.
-    #[must_use]
-    pub fn none() -> Self {
-        Self {
-            plugins: HashMap::new(),
-        }
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.plugins.is_empty()
-    }
-
     /// Every installed step, sorted by name so the list does not reshuffle itself.
     #[must_use]
     pub fn list(&self) -> Vec<StepInfo> {
-        let mut steps: Vec<StepInfo> = self
-            .plugins
-            .values()
+        self.by_name()
+            .into_iter()
             .map(|step| StepInfo {
                 plugin_id: step.manifest.id.to_string(),
                 name: step.manifest.name.clone(),
                 version: step.manifest.version.clone(),
             })
-            .collect();
-        steps.sort_by(|left, right| left.name.cmp(&right.name));
-        steps
+            .collect()
     }
 }
 
 #[async_trait]
 impl PluginStepRunner for PluginSteps {
     fn installed(&self, plugin_id: &str) -> bool {
-        self.plugins.contains_key(plugin_id)
+        self.contains(plugin_id)
     }
 
     async fn run(&self, plugin_id: &str, job: PluginStepJob<'_>) -> Result<PluginStepOutcome> {
-        let Some(step) = self.plugins.get(plugin_id) else {
+        let Some(step) = self.get(plugin_id) else {
             anyhow::bail!("no installed post-processing step with id {plugin_id}");
         };
         // The handle and the file list are all the plugin gets. The directory stays here.

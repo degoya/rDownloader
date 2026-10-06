@@ -63,53 +63,36 @@ source "$ROOT/scripts/lib/jobs.sh"
 source "$ROOT/scripts/lib/lock.sh"
 # --defer and --preflight build nothing (rustfmt writes nothing to target/), so they do not queue
 # behind somebody else's build. Read from "$@" rather than from the parsed flags because the lock
-# has to be taken before anything else.
-case " $* " in *" --defer "*|*" --preflight "*) RD_NO_LOCK=1 ;; esac
+# has to be taken before anything else. Every other run compiles, and a worktree's own web/dist
+# would not be what rust-embed serves it (scripts/lib/web-dist.sh, RD-1120-06).
+case " $* " in
+    *" --defer "*|*" --preflight "*) RD_NO_LOCK=1 ;;
+    *)
+        # shellcheck source=lib/web-dist.sh
+        source "$ROOT/scripts/lib/web-dist.sh"
+        rd_web_dist_guard "$ROOT" "scripts/check.sh" || exit 2
+        ;;
+esac
 
-# Not twice (RD-160-06; owner, 2026-09-28: "unnötige Doppelprüfung immer vermeiden"): a --full run
-# of content a --full green already covers — the same tree, or one that differs in documentation
-# only, recorded by any checkout on this target — records the green for this tree and ends. The
-# rule is the one the tag and the Windows package apply (rd_full_gate). The Windows lint alone
-# (--windows) keeps its green the same way, as the half `windows`. Decided before the lock, so it
-# never queues behind somebody else's build; --again runs everything anyway.
-reuse=0
-full_halves=(rust web)
-for argument in "$@"; do
-    case "$argument" in
-        --full) [[ "$reuse" -eq -1 ]] || reuse=1 ;;
-        --rust|--web)
-            if [[ ${#full_halves[@]} -eq 2 ]]; then full_halves=("${argument#--}"); else reuse=-1; fi ;;
-        *) reuse=-1 ;;
-    esac
-done
-if [[ "$*" == "--windows" ]]; then
-    reuse=1
-    full_halves=(windows)
-fi
-# The gate's two lints (RD-1100-13) are kept the same way, as the halves `clippy` and `windows`.
-if [[ "$*" == "--gate" ]]; then
-    reuse=1
-    full_halves=(clippy windows)
-fi
-if [[ "$reuse" -eq 1 ]]; then
-    # shellcheck source=lib/verified.sh
-    source "$ROOT/scripts/lib/verified.sh"
-    if rd_full_already_green "$ROOT" "${full_halves[@]}"; then
-        if [[ "${full_halves[*]}" == "rust web" ]]; then
-            rd_record_verified "$ROOT" "$(git -C "$ROOT" rev-parse HEAD)"
-            echo "==> recorded green at $(git -C "$ROOT" rev-parse --short HEAD) in $(rd_verified_marker "$ROOT")"
-        fi
-        echo
-        echo "==> all requested checks passed"
-        exit 0
-    fi
+# Not twice (RD-160-06, RD-1120-06): a --full, --windows or --gate run of content recorded greens
+# already cover — the same tree, or one that differs only in what each half does not read,
+# recorded by any checkout on this target — records them for this tree and ends, before the lock,
+# so it never queues behind somebody else's build; --again runs everything anyway. The rule is
+# the one the tag and the Windows package apply (rd_full_gate). Partly covered, a --full runs
+# only the rest (scripts/lib/check-reuse.sh).
+# shellcheck source=lib/verified.sh
+source "$ROOT/scripts/lib/verified.sh"
+# shellcheck source=lib/check-reuse.sh
+source "$ROOT/scripts/lib/check-reuse.sh"
+if rd_check_reuse_plan "$ROOT" "$@"; then
+    echo
+    echo "==> all requested checks passed"
+    exit 0
 fi
 
 rd_take_lock "$@"
 cd "$ROOT"
 
-# shellcheck source=lib/verified.sh
-source "$ROOT/scripts/lib/verified.sh"
 # shellcheck source=lib/scope.sh
 source "$ROOT/scripts/lib/scope.sh"
 
@@ -190,78 +173,45 @@ source "$ROOT/scripts/lib/public.sh"
 # shellcheck source=lib/preflight.sh
 source "$ROOT/scripts/lib/preflight.sh"
 
-# The Windows half of the workspace (RD-140-23). Nothing else here reads `cfg(windows)` code, and
-# v1.3.0 shipped with 42 Windows test failures that only GitHub's runner found. Clippy links
-# nothing, so this is minutes (4m40s at -j 2 on 2026-09-25, 76-85 s warm), not the hour a Windows
-# test run would be; it is a run of its own because it shares nothing with the Linux scope below.
-# Under the lock taken above, which also stamped this checkout's sources. Its green is recorded by
-# tree as the half `windows` (RD-160-06), never as a revision: it verifies one platform's lint,
-# and a later --windows over content it covers up to documentation ends before the lock.
-if [[ "$windows" -eq 1 ]]; then
-    windows_tree="$(rd_worktree_tree "$ROOT")"
-    step "the Windows lint"
-    attempt rd_lint_windows
-    rd_stages_report
-    rd_stages_exit_if_failed
-    if [[ -n "$windows_tree" ]]; then
-        rd_record_full "$ROOT" windows "$windows_tree"
-        echo "==> recorded the Windows lint's green for tree ${windows_tree:0:12} in $(rd_full_marker "$ROOT")"
-    fi
-    echo "==> all requested checks passed"
-    exit 0
-fi
-
-# The integration gate (RD-1100-13): both whole-workspace lints, before scripts/integrate.sh runs
-# a generator. The 1.9.1 integration's first run died in api-contract.sh on the first compile
-# error, and four fix rounds over 24 files followed; here both lints run with --keep-going and
-# the second whatever the first said, so one round shows every error of both platforms. Each
-# green is recorded by tree, as the halves `clippy` and `windows`, and a half its green already
-# covers up to documentation is not run again (--again runs it anyway).
-if [[ "$gate" -eq 1 ]]; then
-    gate_tree="$(rd_worktree_tree "$ROOT")"
-    for half in clippy windows; do
-        if [[ "$again" -eq 0 && -n "$gate_tree" && -n "$(rd_full_covering "$ROOT" "$half" "$gate_tree")" ]]; then
-            echo "==> $half: a recorded green covers this content; not run again"
-            continue
-        fi
-        failed_before=${#failed_stages[@]}
-        if [[ "$half" == clippy ]]; then
-            step "the Linux lint"
-            attempt rd_lint_linux
-        else
-            step "the Windows lint"
-            attempt rd_lint_windows
-        fi
-        if [[ ${#failed_stages[@]} -eq "$failed_before" && -n "$gate_tree" ]]; then
-            rd_record_full "$ROOT" "$half" "$gate_tree"
-        fi
-    done
-    rd_stages_report
-    rd_stages_exit_if_failed
-    [[ -z "$gate_tree" ]] || echo "==> recorded the gate's green for tree ${gate_tree:0:12} in $(rd_full_marker "$ROOT")"
-    echo "==> all requested checks passed"
-    exit 0
-fi
+# The Windows lint alone and the integration gate, each a run of its own (scripts/lib/lint.sh).
+if [[ "$windows" -eq 1 ]]; then rd_check_windows; fi
+if [[ "$gate" -eq 1 ]]; then rd_check_gate; fi
 
 # The preflight (RD-1110-15): every check that compiles nothing, each finding collected, in
-# minutes; a wave agent's before its report, integrate.sh's before the gate. Records no green.
+# minutes; a wave agent's before its report, integrate.sh's before the gate. It verifies no
+# revision; its green is recorded by tree as the half `preflight` (audit C2), and a --full of the
+# same content up to the generators' output skips the script lints and tests it ran.
 if [[ "$preflight" -eq 1 ]]; then
+    preflight_tree="$(rd_worktree_tree "$ROOT")"
     rd_preflight "$(rd_scope_boundary "$BASE" "$ROOT")"
     rd_stages_report
     rd_stages_exit_if_failed
-    echo "==> preflight: no green is recorded; scripts/check.sh is still due"
+    [[ -z "$preflight_tree" ]] || rd_record_full "$ROOT" preflight "$preflight_tree"
+    echo "==> preflight: recorded for tree ${preflight_tree:0:12}; it verifies no revision, scripts/check.sh is still due"
     echo "==> all requested checks passed"
     exit 0
 fi
 
+# The halves of a --full a recorded green covers are not run again (lib/check-reuse.sh); the
+# Rust and the web half name the green as their skip reason.
+rd_check_reuse_apply
+
 # Runs one test selection through nextest, or through cargo test when nextest is absent. Both
 # with --no-fail-fast: a run lists every failing test, not the first (RD-1100-13).
-# `-j` is nextest's own alias for `--test-threads`, so passing both is an error there.
+# `-j` is nextest's own alias for `--test-threads`, so passing both is an error there. cargo test
+# knows no `-E` filterset (the crash matrix's, RD-1120-08): without nextest it runs the whole
+# selection instead, which is more, never less.
 run_tests() {
     if command -v cargo-nextest > /dev/null; then
         CARGO_BUILD_JOBS="$JOBS" cargo nextest run "$@" --no-fail-fast --test-threads "$TEST_THREADS"
     else
-        CARGO_BUILD_JOBS="$JOBS" cargo test "$@" --no-fail-fast -j "$JOBS"
+        local args=()
+        while [[ $# -gt 0 ]]; do
+            if [[ "$1" == -E ]]; then shift; [[ $# -eq 0 ]] || shift; continue; fi
+            args+=("$1")
+            shift
+        done
+        CARGO_BUILD_JOBS="$JOBS" cargo test ${args[@]+"${args[@]}"} --no-fail-fast -j "$JOBS"
     fi
 }
 command -v cargo-nextest > /dev/null || skip "nextest" "cargo-nextest is not installed; cargo test ran instead"
@@ -402,8 +352,9 @@ if [[ "$run_rust" -eq 1 ]]; then
         clippy_auto=("${packages[@]+"${packages[@]}"}")
     fi
     if [[ "$clippy_all" -eq 1 ]]; then
+        # The Linux half of the gate, so its green is recorded as `clippy` too (audit C8).
         step "clippy over the whole workspace (JOBS=2 — this is the heavy one)"
-        attempt rd_lint_linux
+        rd_lint_recorded clippy "$(rd_worktree_tree "$ROOT")" rd_lint_linux
     elif [[ ${#clippy_crates[@]} -gt 0 ]]; then
         step "clippy on ${clippy_crates[*]}"
         args=()
@@ -446,7 +397,7 @@ if [[ "$run_rust" -eq 1 ]]; then
         rd_check_rust_tests
     fi
 else
-    skip "the whole Rust half" "--web was given"
+    skip "the whole Rust half" "${rust_skip_reason:---web was given}"
 fi
 
 # ---------------------------------------------------------------------------------------------
@@ -471,7 +422,7 @@ rd_stages_exit_if_failed
 
 # The green record only moves for a run that covered both halves. Half a run says nothing about
 # the other half, and a docs-only conclusion is only meaningful relative to a previous record.
-if [[ "$run_rust" -eq 1 && "$run_web" -eq 1 ]]; then
+if [[ "$((run_rust | covered_rust))" -eq 1 && "$((run_web | covered_web))" -eq 1 ]]; then
     if [[ "$docs_only" -eq 1 && -z "$verified_before" ]]; then
         echo
         echo "==> green record not moved: this run was documentation only and no earlier run is"
@@ -489,9 +440,11 @@ fi
 # The full green is recorded per half and by tree, for the tag and the Windows package; see
 # scripts/lib/verified.sh. The tree was taken before the run, so a run that rewrote a tracked
 # file records the content it tested, and the gates then refuse the rewritten one.
+# A --full that ran the script lints and tests also stands for the preflight of its tree.
 if [[ "$full" -eq 1 && -n "$full_tree" ]]; then
-    [[ "$run_rust" -eq 1 ]] && rd_record_full "$ROOT" rust "$full_tree"
-    [[ "$run_web" -eq 1 ]] && rd_record_full "$ROOT" web "$full_tree"
+    [[ "$((run_rust | covered_rust))" -eq 1 ]] && rd_record_full "$ROOT" rust "$full_tree"
+    [[ "$((run_web | covered_web))" -eq 1 ]] && rd_record_full "$ROOT" web "$full_tree"
+    [[ "$preflight_covered" -eq 1 ]] || rd_record_full "$ROOT" preflight "$full_tree"
     echo "==> recorded a --full green for tree ${full_tree:0:12} in $(rd_full_marker "$ROOT")"
 fi
 

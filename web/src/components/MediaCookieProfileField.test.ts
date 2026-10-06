@@ -1,27 +1,11 @@
-import { render, screen } from '@testing-library/vue'
+import { screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { AuthProfile } from '@/api/types'
 import en from '@/locales/en/linkgrabber.json'
+import { mountComponent } from '@/test/mount'
 
 import MediaCookieProfileField from './MediaCookieProfileField.vue'
-
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en } } })
-
-const components = {
-  UFormField: {
-    props: ['label', 'description'],
-    template: '<label v-bind="$attrs">{{ label }} {{ description }}<slot /></label>'
-  },
-  USelect: {
-    props: ['modelValue', 'items'],
-    emits: ['update:modelValue'],
-    template: `<select v-bind="$attrs" :value="modelValue" @change="$emit('update:modelValue', $event.target.value)">
-      <option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option>
-    </select>`
-  }
-}
 
 function profile(overrides: Partial<AuthProfile> = {}): AuthProfile {
   return {
@@ -44,10 +28,7 @@ function profile(overrides: Partial<AuthProfile> = {}): AuthProfile {
 }
 
 function mount(profiles: AuthProfile[], url: string) {
-  return render(MediaCookieProfileField, {
-    props: { selection: null, profiles, url },
-    global: { plugins: [i18n], components }
-  })
+  return mountComponent(MediaCookieProfileField, { messages: { linkgrabber: en }, props: { selection: null, profiles, url } })
 }
 
 describe('MediaCookieProfileField', () => {

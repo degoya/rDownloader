@@ -151,5 +151,6 @@ fn an_unremarkable_status_travels_as_its_number() {
     let refusal = failure_from(418, None, &envelope("")).expect("a refusal");
     assert_eq!(refusal.code, messages::HTTP_ERROR.0);
     assert_eq!(refusal.message, "Put.io HTTP status 418");
+    assert_eq!(refusal.param("status"), Some("418"));
     assert_eq!(refusal.param("reason"), None);
 }

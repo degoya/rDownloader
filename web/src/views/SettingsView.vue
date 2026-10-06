@@ -11,11 +11,11 @@ import SettingsAccountsTab from '@/components/settings/SettingsAccountsTab.vue'
 import SettingsBandwidthTab from '@/components/settings/SettingsBandwidthTab.vue'
 import SettingsBackupRestore from '@/components/settings/SettingsBackupRestore.vue'
 import SettingsCaptchaTab from '@/components/settings/SettingsCaptchaTab.vue'
-import SettingsDesktopTab from '@/components/settings/SettingsDesktopTab.vue'
+import SettingsClientsTab from '@/components/settings/SettingsClientsTab.vue'
 import SettingsGeneralTab from '@/components/settings/SettingsGeneralTab.vue'
 import SettingsHotfoldersTab from '@/components/settings/SettingsHotfoldersTab.vue'
 import SettingsInterfaceTab from '@/components/settings/SettingsInterfaceTab.vue'
-import SettingsMcpTab from '@/components/settings/SettingsMcpTab.vue'
+import SettingsLinkgrabberTab from '@/components/settings/SettingsLinkgrabberTab.vue'
 import SettingsMediaTab from '@/components/settings/SettingsMediaTab.vue'
 import SettingsNetworkTab from '@/components/settings/SettingsNetworkTab.vue'
 import SettingsNotificationsTab from '@/components/settings/SettingsNotificationsTab.vue'
@@ -34,10 +34,12 @@ import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
 import { clearWhenReconnected, onServiceReconnected } from '@/composables/serviceConnection'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
+import { provideSettingsDocument } from '@/composables/useSettingsDocument'
 import { useSettingsSubTab } from '@/composables/useSettingsSubTab'
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
 import { SETTINGS_SECTIONS, settingsSection } from '@/settingsSections'
+import { useTransfersStore } from '@/stores/transfers'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
@@ -45,6 +47,7 @@ import { setTitleStatus } from '@/utils/titleStatus'
 import { MIB } from '@/utils/format'
 
 const { t } = useI18n()
+const transfers = useTransfersStore()
 /** One shared settings object: the PUT replaces the whole document, so saving is global. */
 const settings = reactive<Settings>(defaultSettings())
 const proxies = ref<ProxyProfile[]>([])
@@ -86,6 +89,7 @@ const { tabs: subTabs, active: subTab } = useSettingsSubTab(() => activeSection.
 const confirm = useConfirm()
 const systemTab = ref<InstanceType<typeof SettingsSystemTab> | null>(null)
 const captchaTab = ref<InstanceType<typeof SettingsCaptchaTab> | null>(null)
+const networkTab = ref<InstanceType<typeof SettingsNetworkTab> | null>(null)
 
 /**
  * Pages bound to the settings document; the others (including backup/restore) save themselves.
@@ -93,17 +97,17 @@ const captchaTab = ref<InstanceType<typeof SettingsCaptchaTab> | null>(null)
  * button, through `saveCaptcha`.
  */
 const DOCUMENT_TABS = [
-  'general', 'interface', 'unattended', 'postprocess', 'captcha', 'torrent', 'media', 'transfers',
-  'services', 'tools'
+  'general', 'interface', 'linkgrabber', 'unattended', 'postprocess', 'captcha', 'torrent', 'media',
+  'transfers', 'services', 'tools'
 ]
 /**
- * On a page with sub-tabs the tab decides: routing saves itself everywhere except its collector
- * pane, and network, security and system only have document fields on some of theirs (`saveBar`
- * in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its update and retention fields were
- * saved only by the button of another page.
+ * On a page with sub-tabs the tab decides: routing saves itself on its categories and rules,
+ * and network, security, bandwidth, Usenet and system only have document fields on some of theirs
+ * (`saveBar` or `documentCard` in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its
+ * update and retention fields were saved only by the button of another page.
  */
 const showSaveBar = computed(() => loaded.value && (subTabs.value.length
-  ? subTabs.value.some(tab => tab.value === subTab.value && tab.saveBar)
+  ? subTabs.value.some(tab => tab.value === subTab.value && (tab.saveBar || tab.documentCard))
   : DOCUMENT_TABS.includes(activeSection.value)))
 
 /**
@@ -111,11 +115,12 @@ const showSaveBar = computed(() => loaded.value && (subTabs.value.length
  * Until the document is loaded they show its state instead of a form of placeholders; the
  * self-saving pages do not wait for it.
  */
-const BOUND_TABS = new Set([...DOCUMENT_TABS, 'hotfolders', 'bandwidth'])
+const BOUND_TABS = new Set([...DOCUMENT_TABS, 'hotfolders'])
 /**
  * On a page with sub-tabs the sub-tab decides, not the page (RA-WEB-05): categories, rules,
  * sign-in or the authentication profiles save themselves and stay usable when the document
  * cannot be loaded; only a tab with its fields (`saveBar`) or its values (`showsDocument`) waits.
+ * A tab with one card of the document among its own (`documentCard`) does not: the card waits.
  */
 const waitingForDocument = computed(() => {
   if (loaded.value) return false
@@ -146,17 +151,23 @@ const savedDocument = ref(documentState())
 /** An obligatory number field the person emptied holds the save until it has a value again. */
 const numberEmpty = computed(() => emptyNumberFields(settings).length > 0)
 const captchaDirty = computed(() => captchaTab.value?.dirty ?? false)
+const proxyDirty = computed(() => networkTab.value?.proxyDirty ?? false)
 /**
  * Another page or sub-tab of this view keeps the document, which lives here; only the captcha
- * card's own form unmounts with its page. So a switch inside the settings asks only for that, and
- * leaving the settings or closing the tab asks for either.
+ * card's own form and the proxy form unmount with their page. So a switch inside the settings
+ * asks only for those, and leaving the settings or closing the tab asks for any of them.
  */
 useUnsavedGuard(
-  () => documentState() !== savedDocument.value || captchaDirty.value,
-  { dropsEdits: to => captchaDirty.value && to.params.section !== 'captcha' }
+  () => documentState() !== savedDocument.value || captchaDirty.value || proxyDirty.value,
+  {
+    dropsEdits: to => (captchaDirty.value && to.params.section !== 'captcha')
+      || (proxyDirty.value && to.params.section !== 'network')
+  }
 )
 
 const { loading: proxiesLoading, loadError: proxiesError, load: trackProxies } = useFetchState()
+
+provideSettingsDocument({ loaded, loadError, retry: load })
 
 onMounted(() => void Promise.all([load(), loadProxies()]))
 // A document that never arrived is fetched again once the service is back.
@@ -188,6 +199,9 @@ function applyLoadedSettings(value: Settings): void {
   setShowItemImages(value.subscription_item_images_enabled)
   setShowNzbHandOver(value)
   setTitleStatus(value.title_status_enabled)
+  // The status bar sets the speed limit and the parallel downloads too (RD-1120-22); what this
+  // page loaded or saved is what the bar shows from now on.
+  transfers.applyRailSettings(value)
   speedMiB.value = value.speed_limit_bytes_per_second
     ? Number(value.speed_limit_bytes_per_second) / MIB
     : null
@@ -307,13 +321,10 @@ async function resetSettings(): Promise<void> {
         </div>
         <div v-else class="w-full" data-tour="settings-tabs">
           <div v-if="activeSection === 'general'" class="pt-4">
-            <SettingsGeneralTab :model-value="settings" v-model:speed-mib="speedMiB" />
+            <SettingsGeneralTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'interface'" class="pt-4">
             <SettingsInterfaceTab :model-value="settings" />
-          </div>
-          <div v-if="activeSection === 'desktop'" class="pt-4">
-            <SettingsDesktopTab />
           </div>
           <div v-if="activeSection === 'routing'" class="pt-4">
             <SettingsRoutingTab :model-value="settings" v-model:sub-tab="subTab" />
@@ -321,8 +332,11 @@ async function resetSettings(): Promise<void> {
           <div v-if="activeSection === 'hotfolders'" class="pt-4">
             <SettingsHotfoldersTab :model-value="settings" />
           </div>
+          <div v-if="activeSection === 'linkgrabber'" class="pt-4">
+            <SettingsLinkgrabberTab :model-value="settings" />
+          </div>
           <div v-if="activeSection === 'bandwidth'" class="pt-4">
-            <SettingsBandwidthTab v-model="settings" />
+            <SettingsBandwidthTab v-model="settings" v-model:speed-mib="speedMiB" v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'unattended'" class="pt-4">
             <SettingsUnattendedTab :model-value="settings" />
@@ -331,7 +345,7 @@ async function resetSettings(): Promise<void> {
             <SettingsPostprocessTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'accounts'" class="pt-4">
-            <SettingsAccountsTab />
+            <SettingsAccountsTab v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'captcha'" class="pt-4">
             <SettingsCaptchaTab ref="captchaTab" @error="(text: string) => (error = text)" />
@@ -340,7 +354,7 @@ async function resetSettings(): Promise<void> {
             <SettingsSiteRulesTab />
           </div>
           <div v-if="activeSection === 'usenet'" class="pt-4">
-            <SettingsUsenetTab />
+            <SettingsUsenetTab v-model:sub-tab="subTab" :model-value="settings" :service-off="!settings.usenet_service_enabled" />
           </div>
           <div v-if="activeSection === 'torrent'" class="pt-4">
             <SettingsTorrentTab :model-value="settings" />
@@ -363,11 +377,12 @@ async function resetSettings(): Promise<void> {
           <div v-if="activeSection === 'notifications'" class="pt-4">
             <SettingsNotificationsTab />
           </div>
-          <div v-if="activeSection === 'mcp'" class="pt-4">
-            <SettingsMcpTab />
+          <div v-if="activeSection === 'clients'" class="pt-4">
+            <SettingsClientsTab v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'network'" class="pt-4">
             <SettingsNetworkTab
+              ref="networkTab"
               :model-value="settings"
               v-model:proxies="proxies"
               v-model:sub-tab="subTab"
@@ -395,8 +410,8 @@ async function resetSettings(): Promise<void> {
           </div>
         </div>
 
-        <UAlert v-if="message" color="success" variant="subtle" icon="i-lucide-circle-check" :description="message" />
-        <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="message" color="success" icon="i-lucide-circle-check" :description="message" />
+        <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
         <template v-if="showSaveBar">
           <div class="flex flex-wrap items-center justify-end gap-2">
             <p v-if="numberEmpty" class="text-sm text-error" data-testid="settings-number-empty">{{ t('settings.messages.number_empty') }}</p>

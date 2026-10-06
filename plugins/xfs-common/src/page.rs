@@ -1,6 +1,6 @@
 //! HTML helpers for the XFS `download2` premium form flow, shared by every consuming plugin's
-//! native and WebAssembly adapters. Generalized verbatim from `plugins/ddownload/src/page.rs`
-//! (pre-Task-11): the two functions whose text is XFS-site-specific (the download-form's `op`
+//! native and WebAssembly adapters. Generalized verbatim from ddownload's original `page.rs`
+//! module: the two functions whose text is XFS-site-specific (the download-form's `op`
 //! marker and the premium submit button's label, plus the direct-link domain filter) now take
 //! that text as a parameter instead of hardcoding ddownload's own value; every consuming plugin's
 //! thin `page.rs` wrapper supplies its own site's parameterization (ddownload's unchanged;

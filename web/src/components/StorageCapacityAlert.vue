@@ -44,12 +44,11 @@ defineExpose({ reload: load })
 
 <template>
   <div v-if="capacity?.roots.some(root => root.blocked)" class="flex flex-col gap-2">
-    <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
     <UAlert
       v-for="root in capacity.roots.filter(entry => entry.blocked)"
       :key="root.target"
       color="warning"
-      variant="subtle"
       icon="i-lucide-hard-drive-download"
       :title="t('downloads.capacity.title', { name: root.name })"
     >
@@ -63,7 +62,7 @@ defineExpose({ reload: load })
         <p v-if="root.shortfall && !root.shortfall.size_known" class="mt-1 text-xs">
           {{ t('downloads.capacity.unknown_size') }}
         </p>
-        <p class="mt-1 truncate font-mono text-[11px] opacity-80">{{ root.path }}</p>
+        <p class="mt-1 truncate font-mono text-2xs opacity-80">{{ root.path }}</p>
       </template>
       <template #actions>
         <UButton

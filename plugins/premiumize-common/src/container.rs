@@ -22,6 +22,8 @@
 //! Hex is tested before base64 because every hex digit is also a base64 character, and the
 //! reverse is not true.
 
+use plugin_common::html::decode_entities;
+
 /// Longest container this plugin reads. A `.torrent`, an `.nzb` or a `.dlc` is kilobytes;
 /// anything far past this is not one, and scanning it would spend the invocation's budget
 /// finding that out.
@@ -139,15 +141,6 @@ pub fn nzb_release_name(bytes: &[u8]) -> Option<String> {
         }
     }
     None
-}
-
-/// The five entities XML predefines; `&amp;` last, so `&amp;lt;` stays `&lt;`.
-fn decode_entities(text: &str) -> String {
-    text.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
 }
 
 /// ASCII letters, digits and `. - _ ( ) +` kept, whitespace folded to single spaces, anything

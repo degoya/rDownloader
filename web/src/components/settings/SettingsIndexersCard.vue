@@ -26,6 +26,8 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useIndexersStore } from '@/stores/indexers'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 /** `MAX_NAME` in `crates/rd-api-intake/src/indexer_handlers.rs`. */
 const MAX_NAME = 200
@@ -71,7 +73,7 @@ const list = useEditableList<Indexer, IndexerRequest>({
   confirmDelete: indexer => ({
     title: t('usenet.indexers.delete.title'),
     description: t('usenet.indexers.delete.description', { name: indexer.name }),
-    confirmLabel: t('usenet.indexers.delete.confirm'),
+    confirmLabel: t('common.actions.delete'),
     confirmIcon: 'i-lucide-trash-2',
     destructive: true
   })
@@ -187,8 +189,7 @@ async function remove(indexer: Indexer): Promise<void> {
           :title="editingId ? t('usenet.indexers.title_edit') : t('usenet.indexers.title_add')"
           :description="t('usenet.indexers.description')"
         />
-        <UAlert v-if="error" class="mt-4" color="error" variant="subtle" :description="error" />
-        <UAlert v-if="message" class="mt-4" color="success" variant="subtle" :description="message" data-testid="indexer-message" />
+        <FormFeedback class="mt-4" :error="error" :message="message" testid="indexer" />
         <form ref="formElement" class="mt-4 grid gap-3" @submit.prevent="save">
           <UFormField :label="t('usenet.indexers.name')" name="name" required>
             <UInput v-model="form.name" required :maxlength="MAX_NAME" class="w-full" data-testid="indexer-name" />
@@ -259,7 +260,7 @@ async function remove(indexer: Indexer): Promise<void> {
           <UBadge color="neutral" variant="outline">{{ indexers.length }}</UBadge>
         </div>
         <div class="space-y-2">
-          <article v-for="indexer in indexers" :key="indexer.id" class="min-w-0 border p-4" :class="editingId === indexer.id ? 'border-primary' : 'border-muted'" data-testid="indexer-row">
+          <article v-for="indexer in indexers" :key="indexer.id" class="min-w-0 p-4" :class="editingRowClass(editingId === indexer.id)" data-testid="indexer-row">
             <div class="flex flex-wrap items-start gap-4">
               <div class="min-w-0 flex-1 basis-40">
                 <div class="flex items-center gap-2"><UChip standalone color="success" :show="indexer.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ indexer.name }}</h4></div>

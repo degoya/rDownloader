@@ -333,7 +333,7 @@ function ageLabel(hit: IndexerSearchHit): string {
         <p v-if="queryError" class="mt-1 text-xs text-error" data-testid="indexer-search-query-error">{{ queryError }}</p>
         <p v-if="unavailable" :id="hintId" ref="hint" class="mt-1 text-xs text-muted" data-testid="indexer-search-unavailable">
           {{ t('linkgrabber.search.unavailable') }}
-          <ULink to="/settings/usenet" class="text-primary underline">{{ t('linkgrabber.search.unavailable_link') }}</ULink>
+          <ULink to="/settings/usenet?tab=indexers" class="text-primary underline">{{ t('linkgrabber.search.unavailable_link') }}</ULink>
         </p>
       </div>
       <USelect v-model="indexerChoice" :items="indexerItems" value-key="value" class="w-44" :disabled="!available" :aria-label="t('linkgrabber.search.indexer_label')" data-testid="indexer-search-indexer" />
@@ -359,14 +359,13 @@ function ageLabel(hit: IndexerSearchHit): string {
       <UButton type="submit" icon="i-lucide-search" :label="t('linkgrabber.search.submit')" :disabled="!available" :loading="searching" data-testid="indexer-search-submit" />
     </form>
 
-    <UAlert v-if="searchError" class="mt-3" color="error" variant="subtle" :description="searchError" />
+    <UAlert v-if="searchError" class="mt-3" color="error" :description="searchError" />
     <template v-if="result">
       <UAlert
         v-for="outcome in failures"
         :key="outcome.indexer_id"
         class="mt-3"
         color="warning"
-        variant="subtle"
         icon="i-lucide-circle-alert"
         :title="t('linkgrabber.search.indexer_failed', { name: outcome.indexer_name })"
         :description="translateServerMessage(outcome.error)"
@@ -455,7 +454,7 @@ function ageLabel(hit: IndexerSearchHit): string {
               <!-- One line, cut at the cell's edge; the tooltip holds all of it. -->
               <div
                 v-if="metadataTitle(row.original)"
-                class="mt-0.5 flex min-w-0 items-baseline gap-x-3 overflow-hidden whitespace-nowrap text-[11px]"
+                class="mt-0.5 flex min-w-0 items-baseline gap-x-3 overflow-hidden whitespace-nowrap text-2xs"
                 :title="metadataTitle(row.original)"
                 data-testid="indexer-search-hit-metadata"
               >

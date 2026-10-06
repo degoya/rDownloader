@@ -62,7 +62,10 @@
       "signature": "firma, clave, editor, confianza",
       "managed_tools": "descargar herramientas, instalar automáticamente, actualizar",
       "updates": "actualización, nueva versión, beta, canal de versiones",
-      "indexers": "indexador, newznab, torznab, jackett, prowlarr, búsqueda nzb, búsqueda torrent, clave api, estilo de lista, portada"
+      "indexers": "indexador, newznab, torznab, jackett, prowlarr, búsqueda nzb, búsqueda torrent, clave api, estilo de lista, portada",
+      "active_files": "descargas en paralelo, simultáneas, a la vez, cola",
+      "collision": "colisión, conflicto de nombres, sobrescribir, renombrar",
+      "linkgrabber": "lista de bloqueo, dominios excluidos, espejos, contenedor"
     }
   },
   "connection": {
@@ -73,5 +76,10 @@
     "reload": "Recargar"
   },
   "history": "Historial",
-  "stats_history": "Estadísticas e historial"
+  "stats_history": "Estadísticas e historial",
+  "version": {
+    "outdated": "Nueva versión disponible: recarga",
+    "outdated_hint": "El servicio ya ejecuta la versión {version}, esta página aún la {build}. Recárgala para obtener la interfaz actual.",
+    "reload": "Recargar"
+  }
 }

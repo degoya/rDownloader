@@ -45,6 +45,19 @@ describe('UsenetQuotaEditor', () => {
     await waitFor(() => expect(emitted().saved).toHaveLength(1))
   })
 
+  // The reset day is Nuxt UI's date field (RD-1120-23); the request keeps `YYYY-MM-DD`.
+  it('sends a changed reset day as the day it stores', async () => {
+    vi.mocked(api.PUT).mockResolvedValue({ data: SERVER } as never)
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: en.quota.edit }))
+    const day = screen.getByLabelText(en.quota.reset_on) as HTMLInputElement
+    expect(day.value).toBe('2027-01-01')
+    await fireEvent.update(day, '2027-02-15')
+    await fireEvent.submit(day.closest('form') as HTMLFormElement)
+    await waitFor(() => expect(api.PUT).toHaveBeenCalled())
+    expect(vi.mocked(api.PUT).mock.calls[0]?.[1]).toMatchObject({ body: { reset_on: '2027-02-15' } })
+  })
+
   it('removes the quota by sending no limit', async () => {
     vi.mocked(api.PUT).mockResolvedValue({ data: { ...SERVER, quota: null } } as never)
     mount()

@@ -1,31 +1,14 @@
-import { render, screen } from '@testing-library/vue'
+import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { MediaFormatsResponse } from '@/api/types'
 import en from '@/locales/en/linkgrabber.json'
+import { mountComponent } from '@/test/mount'
 
 import MediaFormatSelector from './MediaFormatSelector.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en } } })
-
-/** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UAlert: {
-    props: ['title', 'description'],
-    template: '<div v-bind="$attrs"><span>{{ title }}</span><span>{{ description }}</span><slot name="description" /></div>'
-  },
-  UBadge: passthrough,
-  UButton: {
-    props: ['label'],
-    template: '<button v-bind="$attrs">{{ label }}<slot /></button>'
-  },
-  UFormField: { props: ['label'], template: '<label v-bind="$attrs">{{ label }}<slot /></label>' },
-  UIcon: passthrough,
-  UInput: { props: ['modelValue'], template: '<input v-bind="$attrs">' },
-  USelectMenu: { props: ['modelValue', 'items'], template: '<select v-bind="$attrs"><slot /></select>' }
-}
+/** The multi-select as a `<select>`, the element the filter tests look for under each label. */
+const USelectMenu = { props: ['modelValue', 'items'], template: '<select v-bind="$attrs"><slot /></select>' }
 
 function formats(overrides: Partial<MediaFormatsResponse> = {}): MediaFormatsResponse {
   return {
@@ -74,13 +57,20 @@ function formats(overrides: Partial<MediaFormatsResponse> = {}): MediaFormatsRes
 const resolveOutput = async () => ({ relative_path: 'clip.mp4', fields: ['title', 'ext'] })
 
 function mount(props: MediaFormatsResponse) {
-  return render(MediaFormatSelector, {
-    props: { formats: props, resolveOutput },
-    global: { plugins: [i18n], components }
-  })
+  return mountComponent(MediaFormatSelector, { messages: { linkgrabber: en }, props: { formats: props, resolveOutput }, stubs: { USelectMenu } })
 }
 
 describe('MediaFormatSelector', () => {
+  // RD-1120-14: the presets are a radio group, so the one in force is announced, not only coloured.
+  it('offers the presets as radios, the one in force checked, and previews another', async () => {
+    const { emitted } = mount(formats())
+    const group = screen.getByRole('group', { name: en.media.preset_label })
+    expect((within(group).getByRole('radio', { name: 'Best' }) as HTMLInputElement).checked).toBe(true)
+    await fireEvent.click(within(group).getByRole('radio', { name: '1080p' }))
+    const [criteria] = (emitted().preview as { preset: string | null }[][]).at(-1) ?? []
+    expect(criteria?.preset).toBe('1080p')
+  })
+
   it('explains an empty result with the per-criterion counts instead of just reporting it', () => {
     // AV1 and HDR both exist on this page, but never in the same format — the useful thing
     // to say is which combination is impossible, not "0 formats".
@@ -193,5 +183,46 @@ describe('MediaFormatSelector', () => {
     expect(notice.textContent).toContain('Dynamic range')
     expect(notice.textContent).toContain('Video codec')
     expect(screen.getByTestId('media-match-count').textContent).toContain('2 of 3')
+  })
+})
+
+/**
+ * RD-1110-10, RD-1120-09: an emptied limit is sent as `null`, the criteria's "no limit". The
+ * shared stubs carry the number field, which hands an emptied field `undefined`.
+ */
+describe('MediaFormatSelector limits', () => {
+  const RESOLVED = {
+    format_expression: '137+251',
+    container: 'mp4',
+    estimated_bytes: null,
+    label: '',
+    relaxations: [],
+    warnings: [],
+    matched_counts: [],
+    matched_total: 1,
+    candidate_total: 3,
+    track_warnings: [],
+    embed_warnings: [],
+    variant: {} as never
+  }
+
+  it.each([
+    ['max_height', en.media.filters.max_height],
+    ['max_fps', en.media.filters.max_fps],
+    ['max_total_bitrate_kbps', en.media.filters.max_bitrate]
+  ])('applies an emptied %s as null', async (key, label) => {
+    const base = formats()
+    const view = mountComponent(MediaFormatSelector, {
+      messages: { linkgrabber: en },
+      props: {
+        formats: { ...base, resolved: RESOLVED, criteria: { ...base.criteria, max_height: 1080, max_fps: 30, max_total_bitrate_kbps: 4000 } },
+        resolveOutput
+      }
+    })
+
+    await fireEvent.update(screen.getByLabelText(label), '')
+    await fireEvent.click(screen.getByRole('button', { name: en.media.apply }))
+
+    expect(view.emitted<[Record<string, unknown>]>().apply?.at(-1)?.[0]).toHaveProperty(key, null)
   })
 })

@@ -308,7 +308,12 @@
     "eta_title": "Temps restant estimé au rythme actuel",
     "selection_title": "{count} sélectionnés, {size} au total",
     "selection_partial_title": "{count} sélectionnés, au moins {size} au total – la taille de {unknown} n'est pas encore connue",
-    "selection_unknown_title": "{count} sélectionnés, taille encore inconnue"
+    "selection_unknown_title": "{count} sélectionnés, taille encore inconnue",
+    "parallel_max": "max",
+    "parallel_limit_aria": "Nombre maximal de téléchargements simultanés",
+    "parallel_limit_title": "Combien de téléchargements peuvent tourner en même temps ({min}–{max}) ; s’applique aussitôt, sans redémarrage",
+    "parallel_failed": "Téléchargements simultanés non enregistrés",
+    "parallel_range": "Entre {min} et {max} téléchargements peuvent tourner en même temps."
   },
   "media": {
     "variant": "Variante :",
@@ -423,7 +428,6 @@
     "until_title": "Mettre en pause jusqu’à",
     "until_hint": "Les téléchargements reprennent d’eux-mêmes à cette heure : aujourd’hui, ou demain si elle est déjà passée.",
     "until_time": "Heure",
-    "confirm": "Mettre en pause",
     "paused_until": "En pause jusqu’à {time}",
     "remaining_title": "La file reprend dans {duration}. Cliquez pour reprendre maintenant.",
     "resume_now": "Reprendre maintenant",

@@ -162,13 +162,11 @@
     "hide_details": "Masquer les détails",
     "enable": "Activer l'abonnement",
     "disable": "Désactiver l'abonnement",
-    "duplicate": "Dupliquer",
     "menu": "Actions de l'abonnement"
   },
   "remove": {
     "title": "Supprimer l'abonnement ?",
-    "description": "« {name} » est supprimé avec ses filtres, son routage de catégories et l'historique de ce qu'il a déjà vu.",
-    "confirm": "Supprimer"
+    "description": "« {name} » est supprimé avec ses filtres, son routage de catégories et l'historique de ce qu'il a déjà vu."
   },
   "history": {
     "action": "Effacer l’historique terminé",

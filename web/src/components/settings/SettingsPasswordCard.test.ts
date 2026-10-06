@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
+import { mountComponent } from '@/test/mount'
 
 import SettingsPasswordCard from './SettingsPasswordCard.vue'
 
@@ -15,30 +15,18 @@ vi.mock('@/api/client', () => ({
 // which Vitest cannot resolve.
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { system } } })
-const components = {
-  UAlert: { props: ['description'], template: '<div>{{ description }}</div>' },
-  UButton: {
-    props: ['label', 'disabled'],
-    template: '<button :disabled="disabled" type="submit">{{ label }}</button>'
-  },
+const stubs = {
   // The error sits *outside* the label on purpose: inside, it would join the field's
   // accessible name and `field()` below would stop finding the input the moment the
   // mismatch it is checking appears.
   UFormField: {
     props: ['label', 'error'],
     template: '<div><label>{{ label }}<slot /></label><span v-if="error">{{ error }}</span></div>'
-  },
-  UInput: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template:
-      '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">'
   }
 }
 
 function mount() {
-  return render(SettingsPasswordCard, { global: { plugins: [i18n], components } })
+  return mountComponent(SettingsPasswordCard, { messages: { system }, stubs })
 }
 
 /// One password field by its label, narrowed rather than asserted.

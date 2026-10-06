@@ -46,6 +46,11 @@ pub(crate) struct DryRunParams {
     /// against nothing, which only a condition-free automation matches.
     #[serde(default)]
     pub package_id: Option<String>,
+    /// An automation that need not be saved or switched on, to judge on its own: `trigger`,
+    /// `condition` as create_automation takes them, and optionally `automation_id` when it is
+    /// an edit of a saved one. Absent judges every enabled automation.
+    #[serde(default)]
+    pub draft: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]

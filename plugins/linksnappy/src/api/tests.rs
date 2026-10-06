@@ -314,13 +314,16 @@ fn ensure_http_status_maps_common_statuses() {
     let caching = ensure_http_status(425, None).expect_err("425");
     assert!(matches!(caching.kind, ErrorKind::Transient(Some(60))));
     let rate_limited = ensure_http_status(429, None).expect_err("429");
-    assert!(matches!(rate_limited.kind, ErrorKind::RateLimited(None)));
+    assert!(matches!(
+        rate_limited.kind,
+        ErrorKind::RateLimited(Some(60))
+    ));
     let waited = ensure_http_status(429, Some(120)).expect_err("429");
     assert!(matches!(waited.kind, ErrorKind::RateLimited(Some(120))));
     let removed = ensure_http_status(451, None).expect_err("451");
     assert!(matches!(removed.kind, ErrorKind::Offline));
     let server_error = ensure_http_status(503, None).expect_err("503");
-    assert!(matches!(server_error.kind, ErrorKind::Transient(None)));
+    assert!(matches!(server_error.kind, ErrorKind::Transient(Some(300))));
     let other = ensure_http_status(418, None).expect_err("418");
     assert!(matches!(other.kind, ErrorKind::Permanent));
     assert_eq!(other.code, messages::HTTP_ERROR);

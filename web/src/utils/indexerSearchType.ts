@@ -11,7 +11,7 @@ import type { IndexerCaps } from '@/api/types'
  */
 
 /** `IndexerSearchType` in `crates/rd-subscription/src/query.rs`. */
-export type SearchType = 'search' | 'tv' | 'movie'
+type SearchType = 'search' | 'tv' | 'movie'
 export const SEARCH_TYPES: readonly SearchType[] = ['search', 'tv', 'movie']
 
 /** An id field by its wire name. */
@@ -21,7 +21,7 @@ export type IdField = 'season' | 'ep' | 'tvdbid' | 'tvmazeid' | 'imdbid' | 'tmdb
 const CAPS_NAME: Record<SearchType, string> = { search: 'search', tv: 'tv-search', movie: 'movie-search' }
 
 /** `IndexerSearchType::params` there: the fields each type may send, in the form's order. */
-export const TYPE_FIELDS: Record<SearchType, readonly IdField[]> = {
+const TYPE_FIELDS: Record<SearchType, readonly IdField[]> = {
   search: [],
   tv: ['season', 'ep', 'tvdbid', 'tvmazeid', 'imdbid'],
   movie: ['imdbid', 'tmdbid']
@@ -78,7 +78,7 @@ function whole(value: string, minimum: number): number | null {
 }
 
 /** A problem as the server would name it, so the same translation says it. */
-export interface TypedProblem {
+interface TypedProblem {
   code: 'indexer.episode_without_season' | 'indexer.search_id_invalid'
   params: Record<string, string>
 }

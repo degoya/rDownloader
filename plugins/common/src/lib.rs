@@ -18,11 +18,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod address;
 pub mod device_flow;
 pub mod disposition;
 pub mod encode;
 pub mod failure;
 mod host;
+pub mod html;
 pub mod http;
 pub mod json;
 pub mod label;
@@ -53,3 +55,21 @@ pub use types::{
     CutcaptchaChallenge, Failure, FailureKind, Header, HttpRequest, HttpResponse, ImageChallenge,
     LinkCheck, LinkStatus, ResolveInput, Resolved, WidgetChallenge,
 };
+
+/// The `hosters` answer of a plugin that downloads only from its own domains: the list it
+/// claims, owned. Every such plugin carried this conversion in its own `hosters`.
+#[must_use]
+pub fn own_hosters(hosts: &[&str]) -> Vec<String> {
+    hosts.iter().map(|host| (*host).to_owned()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn own_hosters_are_the_claimed_domains_in_order() {
+        assert_eq!(
+            super::own_hosters(&["mediafire.com", "mfi.re"]),
+            vec!["mediafire.com".to_owned(), "mfi.re".to_owned()]
+        );
+    }
+}

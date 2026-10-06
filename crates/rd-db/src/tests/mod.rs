@@ -9,6 +9,7 @@ mod auth;
 mod automations;
 mod categories;
 mod collector;
+mod download_batches;
 mod downloads;
 mod enrichment;
 mod grabber_order;

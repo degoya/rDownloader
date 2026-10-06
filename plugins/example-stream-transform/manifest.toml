@@ -3,12 +3,12 @@ plugin_type = "stream-transform"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-0000000000e3"
 name = "Example Stream Transform"
-version = "0.1.7"
+version = "0.1.8"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
 # The reference plugin ships with a host nobody can reach. It exists to be driven by the
-# contract tests in `crates/rd-plugin-ext/tests/stream_transform_contract.rs`, and a usable
+# contract tests in `crates/rd-plugin-ext/tests/contract/stream_transform_contract.rs`, and a usable
 # domain here would mean shipping a plugin that fetches from somebody's provider.
 [capabilities.net_http]
 domains = ["transform.example.invalid"]
@@ -23,7 +23,7 @@ description = "Reference plugin demonstrating the stream-transform contract."
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "1.1.0"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

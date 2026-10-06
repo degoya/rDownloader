@@ -9,18 +9,12 @@
 //! The sidecar format lives in [`sidecar`], which knows nothing about the plugin contract, so it
 //! is unit-tested without a WebAssembly target. [`step`] is the component's run over it.
 
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
-
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "postprocess-plugin",
-    // The bindings live here rather than in each plugin, so the export macro has to be usable
-    // from another crate and needs a name that says what it exports.
-    pub_export_macro: true,
-    export_macro_name: "export_postprocess",
-});
-
-pub use exports::rdownloader::plugin::postprocess::{Guest, StepEnd, StepInput};
+// The bindings are the post-processing world's, generated once in `plugin-guest-postprocess`
+// for every post-processing plugin (RD-1120-10); the export macro reaches them through here, so
+// a checksum plugin depends on this crate alone.
+#[doc(hidden)]
+pub use plugin_guest_postprocess;
+pub use plugin_guest_postprocess::{Guest, StepEnd, StepInput};
 
 pub mod sidecar;
 pub mod step;
@@ -47,6 +41,6 @@ macro_rules! checksum_plugin {
             }
         }
 
-        $crate::export_postprocess!(Component with_types_in $crate);
+        $crate::plugin_guest_postprocess::postprocess_plugin!(Component);
     };
 }

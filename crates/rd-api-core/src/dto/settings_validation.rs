@@ -1,6 +1,7 @@
 //! Validation and normalisation of a settings update before it is stored.
 
 use super::*;
+use crate::input_checks::optional_text;
 
 mod postprocess;
 
@@ -21,10 +22,7 @@ impl SettingsResponse {
             ("gallery-dl", &mut self.gallery_executable),
             ("streamlink", &mut self.record_streamlink_executable),
         ] {
-            *value = value
-                .take()
-                .map(|text| text.trim().to_owned())
-                .filter(|text| !text.is_empty());
+            *value = optional_text(value.take());
             if value.as_ref().is_some_and(|text| {
                 text.len() > max_path || !std::path::Path::new(text).is_absolute()
             }) {
@@ -78,11 +76,7 @@ impl SettingsResponse {
                 "Default media variant must be 'best', '<height>p', 'audio_mp3' or 'custom'",
             ));
         }
-        self.media_output_template = self
-            .media_output_template
-            .take()
-            .map(|template| template.trim().to_owned())
-            .filter(|template| !template.is_empty());
+        self.media_output_template = optional_text(self.media_output_template.take());
         if let Some(template) = self.media_output_template.as_deref() {
             rd_files::validate(template).map_err(|error| {
                 crate::ApiError::bad_request("media.template_invalid", error.to_string())
@@ -265,11 +259,7 @@ impl SettingsResponse {
     fn validate_malware_scan(&mut self) -> Result<(), crate::ApiError> {
         /// clamd's `StreamMaxLength` is capped at 4 GiB.
         const MAX_SCAN_BYTES: u64 = 4 * 1024 * 1024 * 1024;
-        self.clamd_address = self
-            .clamd_address
-            .take()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty());
+        self.clamd_address = optional_text(self.clamd_address.take());
         if let Some(address) = &self.clamd_address
             && let Err(error) = rd_extract::clamd::ClamdAddress::parse(address)
         {

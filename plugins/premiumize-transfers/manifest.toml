@@ -3,7 +3,7 @@ plugin_type = "remote-job"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000013f"
 name = "Premiumize transfers"
-version = "0.2.8"
+version = "0.2.9"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -34,7 +34,7 @@ homepage = "https://rdownloader.net"
 license = "MIT"
 # `job-source::address` and `rdownloader:plugin@0.8.0` do not exist before 1.2.0. The cache
 # check (RD-130-11) needs `rdownloader:plugin@0.9.0`, which `api_version` already gates.
-min_app_version = "1.2.0"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

@@ -11,23 +11,13 @@
 
 use crate::listing::Entry;
 
-pub use plugin_common::walk::{Limit, join};
+pub use plugin_common::walk::{Found, Limit, join};
 
 /// A directory still to be read, by its address.
 pub type Pending = plugin_common::walk::Pending<String>;
 
-/// The state of one crawl.
+/// The state of one crawl. A found file's `id` is its address.
 pub type Walk = plugin_common::walk::Walk<String, Found>;
-
-/// One file the walk found.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Found {
-    pub url: String,
-    pub name: String,
-    /// The directory path this file sat in, starting at the crawled directory's name.
-    pub path: String,
-    pub size: Option<u64>,
-}
 
 /// Starts at the crawled address, with the path every file is reported under.
 #[must_use]
@@ -35,34 +25,24 @@ pub fn start(url: &str, root: &str) -> Walk {
     Walk::start_at(url.to_owned(), root.to_owned())
 }
 
-/// Takes what one directory listed.
-pub trait Absorb {
-    fn absorb(&mut self, directory: &Pending, found: Vec<Entry>);
-}
-
-impl Absorb for Walk {
-    fn absorb(&mut self, directory: &Pending, found: Vec<Entry>) {
-        for entry in found {
-            match entry {
-                Entry::Directory { url, name } => {
-                    self.enter(directory, url, &name);
-                }
-                Entry::File { url, name, size } => {
-                    self.add_file(Found {
-                        url,
-                        name,
-                        path: directory.path.clone(),
-                        size,
-                    });
-                }
-            }
+/// A listing entry as the shared walk takes it (RD-1120-10): a directory is a folder named by
+/// its address, and a file is kept under its address.
+impl From<Entry> for plugin_common::walk::Entry {
+    fn from(entry: Entry) -> Self {
+        match entry {
+            Entry::Directory { url, name } => Self::Folder { id: url, name },
+            Entry::File { url, name, size } => Self::File {
+                id: url,
+                name,
+                size,
+            },
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Absorb, Walk, join};
+    use super::{Walk, join};
     use crate::listing::Entry;
     use plugin_common::walk::MAX_FOLDERS;
 

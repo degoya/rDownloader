@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { PLAIN } from '@/utils/numberInput'
 
 const props = defineProps<{ modelValue: Settings }>()
 const { t } = useI18n()
@@ -32,6 +33,15 @@ const allowedHostsText = computed({
   }
 })
 
+/** Empty input clears the override; the backend then keeps the built-in default port (RD-1120-21, from *General*). */
+const uiPort = computed<number | null>({
+  get: () => props.modelValue.ui_port ?? null,
+  set: (value) => {
+    const port = Number(value)
+    props.modelValue.ui_port = Number.isFinite(port) && port > 0 ? Math.round(port) : null
+  }
+})
+
 const cookieOptions = computed(() => [
   { value: 'auto', label: t('system.proxy.cookie.auto') },
   { value: 'always', label: t('system.proxy.cookie.always') },
@@ -54,6 +64,15 @@ const warning = computed(() => {
     <SectionHeader :eyebrow="t('system.proxy.eyebrow')" :title="t('system.proxy.title')" :description="t('system.proxy.description')" />
 
     <div class="mt-4 grid gap-4">
+      <div>
+        <UFormField data-settings-anchor="security.ui_port" :label="t('settings.ui_port.label')" :description="t('settings.ui_port.description')">
+          <UInputNumber v-model="uiPort" :min="1024" :max="65535" :format-options="PLAIN" :placeholder="t('settings.ui_port.placeholder')" class="mt-2 w-full" />
+        </UFormField>
+        <p class="mt-2 flex items-start gap-1.5 text-xs leading-5 text-warning">
+          <UIcon name="i-lucide-rotate-cw" class="mt-0.5 size-3.5 shrink-0" />
+          <span>{{ t('settings.ui_port.restart_hint') }}</span>
+        </p>
+      </div>
       <UFormField data-settings-anchor="security.external_url" :label="t('system.proxy.external_url')" :description="t('system.proxy.external_url_hint')">
         <UInput
           :model-value="modelValue.external_url ?? ''"
@@ -77,7 +96,6 @@ const warning = computed(() => {
       v-if="warning"
       class="mt-3"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       :description="warning"
     />

@@ -46,26 +46,13 @@ pub(crate) fn session_token(headers: &HeaderMap) -> Option<&str> {
 /// busy client -- an MCP tool call passed through here three times -- from queueing one
 /// command per request in the first place (audit 1.9.1, API-14).
 pub(super) fn note_token_use(state: &AppState, digest: String) {
-    let now = Instant::now();
     {
         let Ok(mut touched) = TOKEN_TOUCHED.lock() else {
             return;
         };
-        let interval = std::time::Duration::from_secs(
-            u64::try_from(rd_db::SESSION_TOUCH_INTERVAL_SECONDS).unwrap_or(60),
-        );
-        if touched
-            .get(&digest)
-            .is_some_and(|last| now.duration_since(*last) < interval)
-        {
+        if !touch_due(&mut touched, &digest, Instant::now()) {
             return;
         }
-        // Bounded by the live tokens in practice; the sweep only keeps revoked ones from
-        // lingering forever.
-        if touched.len() >= 1024 {
-            touched.retain(|_, last| now.duration_since(*last) < interval);
-        }
-        touched.insert(digest.clone(), now);
     }
     let database = state.database.clone();
     tokio::spawn(async move {
@@ -73,6 +60,31 @@ pub(super) fn note_token_use(state: &AppState, digest: String) {
             tracing::debug!(error = %error, "a machine token's last use was not recorded");
         }
     });
+}
+
+/// Whether `digest` is due its next "last used" write at `now`, noted as queued when it is: once
+/// per [`rd_db::SESSION_TOUCH_INTERVAL_SECONDS`] for each token.
+pub(super) fn touch_due(
+    touched: &mut std::collections::HashMap<String, Instant>,
+    digest: &str,
+    now: Instant,
+) -> bool {
+    let interval = std::time::Duration::from_secs(
+        u64::try_from(rd_db::SESSION_TOUCH_INTERVAL_SECONDS).unwrap_or(60),
+    );
+    if touched
+        .get(digest)
+        .is_some_and(|last| now.duration_since(*last) < interval)
+    {
+        return false;
+    }
+    // Bounded by the live tokens in practice; the sweep only keeps revoked ones from
+    // lingering forever.
+    if touched.len() >= 1024 {
+        touched.retain(|_, last| now.duration_since(*last) < interval);
+    }
+    touched.insert(digest.to_owned(), now);
+    true
 }
 
 /// When each token digest last queued its "last used" write, for [`note_token_use`].

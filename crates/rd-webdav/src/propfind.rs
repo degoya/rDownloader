@@ -7,6 +7,7 @@
 use chrono::{DateTime, Utc};
 use quick_xml::Reader;
 use quick_xml::events::Event;
+use rd_core::remote_path::{file_name, parent as parent_path};
 use rd_core::{
     ByteCount, ListingLimit, MAX_REMOTE_ENTRIES, RemoteEntry, RemoteListing, is_safe_relative_path,
 };
@@ -296,20 +297,6 @@ fn normalize_path(path: &str) -> String {
         "/".to_owned()
     } else {
         trimmed.to_owned()
-    }
-}
-
-fn file_name(path: &str) -> String {
-    path.rsplit('/')
-        .find(|segment| !segment.is_empty())
-        .unwrap_or_default()
-        .to_owned()
-}
-
-fn parent_path(path: &str) -> String {
-    match path.trim_end_matches('/').rfind('/') {
-        Some(0) | None => "/".to_owned(),
-        Some(index) => path[..index].to_owned(),
     }
 }
 

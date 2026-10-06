@@ -8,6 +8,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PluginPreview, PreviewSource } from '@/api/pluginRepositories'
+import common from '@/locales/en/common.json'
 import pluginsCatalogue from '@/locales/en/plugins.json'
 import { mountComponent } from '@/test/mount'
 
@@ -208,8 +209,8 @@ describe('PluginInstallPreviewModal', () => {
     await screen.findByText('DDownload')
     expect(screen.getByText(pluginsCatalogue.preview.restart)).toBeTruthy()
     const buttons = screen.getAllByRole('button').map(button => button.textContent)
-    expect(buttons.slice(-2)).toEqual([pluginsCatalogue.trust.cancel, pluginsCatalogue.preview.install])
-    await fireEvent.click(screen.getByRole('button', { name: pluginsCatalogue.trust.cancel }))
+    expect(buttons.slice(-2)).toEqual([common.actions.cancel, pluginsCatalogue.preview.install])
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.cancel }))
     expect(emitted().close).toHaveLength(1)
   })
 

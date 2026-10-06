@@ -47,6 +47,7 @@ import ControlRoomLayout from './ControlRoomLayout.vue'
 import { i18n, SUPPORTED_LOCALES } from '@/i18n'
 import { sidebarCollapsed } from '@/composables/sidebarCollapse'
 import { SETTINGS_SECTION_GROUPS } from '@/settingsSections'
+import { passthrough } from '@/test/mount'
 
 /** Mirrors `@nuxt/ui`'s `DashboardSidebar`: provides the context, exposes `collapsed` as a model. */
 const UDashboardSidebar = defineComponent({
@@ -78,8 +79,6 @@ const UDashboardSidebarCollapse = defineComponent({
   },
   template: '<button type="button" v-bind="$attrs" @click="collapseSidebar?.(!contextCollapsed)" />'
 })
-
-const passthrough = { template: '<div><slot /></div>' }
 
 /**
  * Mirrors the shape `UNavigationMenu` reads: every item of every list as a link with its

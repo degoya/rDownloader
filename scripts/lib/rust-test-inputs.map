@@ -29,6 +29,8 @@
 # The capture agent's macOS helper and tray icon, compiled in.
 ^resources/macos/                           rd-capture
 ^extension/icons/icon32\.png$               rd-capture
+# The Windows version resource both executables' build scripts include (RD-1120-12).
+^resources/build/                           rdownloader rd-capture
 # The container fixtures.
 ^testfile/                                  rd-api rd-collector
 # The plugin templates the scaffold and the stream-transform contract read.

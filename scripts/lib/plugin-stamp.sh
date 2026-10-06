@@ -52,13 +52,8 @@ source_files() {
             pending+=("$dependency")
         done < <(sed -n 's|.*path = "\.\./\([^/"]*\)".*|\1|p' "$current/Cargo.toml")
     done
-    # `src/bindings.rs` is what cargo-component wrote into a plugin crate at every build until
-    # 1.11 (gitignored). Nothing writes it any more, but a checkout that built plugins before
-    # still has the files, and counting them would make that checkout disagree with every fresh
-    # worktree.
     find "${directories[@]}" -type f \
         \( -name '*.rs' -o -name '*.wit' -o -name Cargo.toml -o -name manifest.toml \) \
-        ! -regex 'plugins/[^/]*/src/bindings\.rs' \
         | LC_ALL=C sort
 }
 

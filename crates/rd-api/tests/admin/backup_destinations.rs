@@ -42,6 +42,18 @@ pub(crate) async fn run(harness: &Harness) -> rd_db::BackupRun {
     .await
 }
 
+/// Waits until the clock has left the second `previous` started in. An archive is named after
+/// its run's start in whole seconds, so a run in the same second would name the same archive;
+/// a run takes most of a second itself, so this is the rest of it, where a fixed 1.1 s sleep
+/// always waited the whole of one (RD-1120-08).
+async fn after_the_second_of(previous: &rd_db::BackupRun) {
+    use chrono::SubsecRound as _;
+    let next = previous.started_at.trunc_subsecs(0) + chrono::Duration::seconds(1);
+    if let Ok(rest) = (next - chrono::Utc::now()).to_std() {
+        tokio::time::sleep(rest).await;
+    }
+}
+
 fn archives_in(folder: &std::path::Path) -> Vec<String> {
     let mut names: Vec<String> = std::fs::read_dir(folder)
         .expect("folder")
@@ -135,7 +147,7 @@ async fn every_destination_gets_a_copy_and_one_outage_costs_only_its_row() {
     // The USB disk is gone and a file sits where it was mounted.
     std::fs::remove_dir_all(&usb).expect("unplug");
     std::fs::write(&usb, b"not a folder").expect("occupy");
-    tokio::time::sleep(Duration::from_millis(1_100)).await;
+    after_the_second_of(&both).await;
     let partial = run(&harness).await;
     assert_eq!(partial.state, rd_core::BackupRunState::Succeeded);
     assert_eq!(
@@ -189,7 +201,7 @@ async fn retention_removes_only_this_installation_s_recorded_archives() {
         "{:?}",
         first.error_detail
     );
-    tokio::time::sleep(Duration::from_millis(1_100)).await;
+    after_the_second_of(&first).await;
     let second = run(&harness).await;
     assert_eq!(second.state, rd_core::BackupRunState::Succeeded);
 
@@ -219,7 +231,7 @@ async fn retention_removes_only_this_installation_s_recorded_archives() {
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    tokio::time::sleep(Duration::from_millis(1_100)).await;
+    after_the_second_of(&second).await;
     let third = run(&harness).await;
     assert_eq!(third.destinations[0].pruned, 2);
     let left = archives_in(&nas);

@@ -68,14 +68,13 @@ onMounted(() => void load(read))
       :title="t('system.backup.full_restore.title')"
       :description="t('system.backup.full_restore.description')"
     />
-    <UAlert v-if="error" class="mt-5" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="error" />
     <DataState :loading="loading" :error="loadError" class="mt-5" />
     <template v-if="!loading && !loadError && status">
       <UAlert
         v-if="waiting"
         class="mt-5"
         color="info"
-        variant="subtle"
         icon="i-lucide-clock"
         data-testid="full-restore-waiting"
         :description="t(`system.backup.full_restore.status.${status.state}`, { archive: status.archive_name ?? '', date: formatMoment(status.backup_created_at) })"
@@ -84,7 +83,6 @@ onMounted(() => void load(read))
         v-else-if="status.state === 'failed'"
         class="mt-5"
         color="error"
-        variant="subtle"
         icon="i-lucide-triangle-alert"
         data-testid="full-restore-failed"
         :description="t('system.backup.full_restore.status.failed', { archive: status.archive_name ?? '', date: formatMoment(status.failed_at), reason: status.reason ?? '' })"

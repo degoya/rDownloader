@@ -3,7 +3,7 @@ plugin_type = "crawler"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000118"
 name = "Dropbox folders"
-version = "0.1.10"
+version = "0.1.11"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -27,7 +27,7 @@ description = "Lists the files behind a Dropbox folder or shared folder link."
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "1.0.0"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

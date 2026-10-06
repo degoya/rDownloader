@@ -6,26 +6,11 @@
 //! is not a clone this plugin serves — it belongs in a plugin of its own, and here it fails with
 //! a named cause rather than being guessed at.
 //!
-//! The constants below are the XFS base script's defaults, the same values `ddownload` and
-//! `katfile` use: `op=download1` for the first step of the free flow, `op=download2` for the
-//! second, and `Free Download` as the free button's label.
+//! The forms are the XFS base script's defaults, the same values every XFS plugin uses
+//! (`xfs_common::standard`): `op=download1` for the first step of the free flow, `op=download2`
+//! for the second, and `Free Download` as the free button's label.
 
-const OP_DOWNLOAD1: &str = "download1";
-const OP_DOWNLOAD2: &str = "download2";
-/// The XFS base script's own fallback label.
-const FREE_BUTTON: &str = "Free Download";
-
-/// Hidden form fields of the `download1` form, the first step of the free flow.
-#[must_use]
-pub(crate) fn download1_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD1)
-}
-
-/// Hidden form fields of the `download2` form, the second step.
-#[must_use]
-pub(crate) fn download2_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD2)
-}
+use xfs_common::standard::FREE_BUTTON;
 
 /// Turns raw form fields into the free submission: drops the premium marker and sets
 /// `method_free` to the label the site expects.
@@ -54,26 +39,10 @@ pub(crate) fn widget_marker(html: &str) -> Option<xfs_common::free::WidgetMarker
     xfs_common::free::widget_marker(html)
 }
 
-/// Adds a solved captcha's token to a form under its widget's field name.
-#[must_use]
-pub(crate) fn with_captcha_token(
-    fields: &[(String, String)],
-    kind: xfs_common::free::WidgetKind,
-    token: &str,
-) -> Vec<(String, String)> {
-    xfs_common::free::with_captcha_token(fields, kind, token)
-}
-
 /// Seconds to wait before the free download may be requested.
 #[must_use]
 pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
     xfs_common::free::countdown_seconds(html)
-}
-
-/// Whether the page says the captcha answer was rejected.
-#[must_use]
-pub(crate) fn is_wrong_captcha(html: &str) -> bool {
-    xfs_common::free::is_wrong_captcha(html)
 }
 
 /// The direct link on the final page, recognised by the hints the link itself carries.

@@ -6,7 +6,7 @@ import { fireEvent, render } from '@testing-library/vue'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 
-import { MAIN_VIEWS, PALETTE_FUSE, buildPaletteGroups, keepFocusOnClose, openPalette, openSettingsEntry, paletteOpen } from './searchPalette'
+import { MAIN_VIEWS, PALETTE_FUSE, buildPaletteGroups, keepFocusOnClose, openPalette, openSettingsAnchor, openSettingsEntry, paletteOpen } from './searchPalette'
 import { SHORTCUT_DEFINITIONS, registeredShortcuts } from './shortcutDefinitions'
 import { i18n, setLocale } from '@/i18n'
 import { router } from '@/router'
@@ -80,6 +80,22 @@ describe('the palette content', () => {
     expect(find('Captcha')).toContain('page:captcha')
     expect(find('Hotfolder')).toContain('page:hotfolders')
   })
+
+  // RD-1120-21: what left General is found where it is now, and only there.
+  it('finds the settings that left General at their new place', async () => {
+    await setLocale('de')
+    expect(find('Admin')).toContain('setting:security.admin_login')
+    expect(find('frei')).toContain('setting:routing.minimum_free')
+    expect(find('Kollision')).toContain('setting:routing.collision')
+    expect(find('NNTP')).toEqual(expect.arrayContaining(['setting:usenet.nntp_connections', 'setting:usenet.nntp_parallel_files']))
+    expect(find('Limit')).toEqual(expect.arrayContaining(['setting:bandwidth.speed_limit', 'setting:bandwidth.upload_limit']))
+    expect(find('Port')).toContain('setting:security.ui_port')
+    expect(find('parallele Downloads')).toContain('setting:general.active_files')
+    const ids = items().map(item => String(item.id))
+    for (const old of ['admin_login', 'minimum_free', 'collision', 'speed_limit', 'ui_port']) {
+      expect(ids).not.toContain(`setting:general.${old}`)
+    }
+  })
 })
 
 describe('choosing a result', () => {
@@ -95,9 +111,9 @@ describe('choosing a result', () => {
   })
 
   it('opens a card on its routing sub-tab', () => {
-    const item = items().find(candidate => candidate.id === 'setting:routing.dlc')
+    const item = items().find(candidate => candidate.id === 'setting:routing.rules')
     item?.onSelect?.(new Event('select'))
-    expect(router.push).toHaveBeenCalledWith({ path: '/settings/routing', query: { tab: 'collector' } })
+    expect(router.push).toHaveBeenCalledWith({ path: '/settings/routing', query: { tab: 'rules' } })
   })
 
   // RD-180-15: the plugins page became tabs; the trusted keys sit on the last one. The panel is
@@ -113,6 +129,14 @@ describe('choosing a result', () => {
     expect(await opened).toBe(true)
     expect(scrolled).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[data-settings-anchor]')?.hasAttribute('data-search-highlight')).toBe(true)
+  })
+
+  it('leads an anchor that left General to its field at the new place (RD-1120-21)', async () => {
+    document.body.innerHTML = '<div data-settings-anchor="security.admin_login"><button type="button" role="switch"></button></div>'
+    expect(await openSettingsAnchor('general.admin_login')).toBe(true)
+    expect(router.push).toHaveBeenCalledWith({ path: '/settings/security', query: { tab: 'signin' } })
+    expect(document.activeElement).toBe(document.querySelector('[role="switch"]'))
+    expect(await openSettingsAnchor('general.nonsense')).toBe(false)
   })
 
   it('scrolls to a field, marks it and moves the focus into it', async () => {

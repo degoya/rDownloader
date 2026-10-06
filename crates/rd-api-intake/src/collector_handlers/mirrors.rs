@@ -5,6 +5,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
+use rd_api_core::input_checks::optional_text;
 use rd_core::CandidateId;
 
 use super::message;
@@ -33,9 +34,9 @@ pub async fn put_mirror_preference(
     Json(request): Json<rd_core::MirrorPreference>,
 ) -> Result<Json<rd_core::MirrorPreference>, ApiError> {
     let preference = rd_core::MirrorPreference {
-        quality: trimmed_facet(request.quality),
-        language: trimmed_facet(request.language),
-        hoster: trimmed_facet(request.hoster),
+        quality: optional_text(request.quality),
+        language: optional_text(request.language),
+        hoster: optional_text(request.hoster),
         hidden_hosters: normalized_hosters(request.hidden_hosters),
     };
     if preference.hidden_hosters.len() > MAX_HIDDEN_HOSTERS {
@@ -135,14 +136,6 @@ const MAX_FACET: usize = 64;
 const MAX_HIDDEN_HOSTERS: usize = 256;
 /// The longest host name DNS allows.
 const MAX_HOSTER: usize = 253;
-
-/// An empty facet is no facet: a select that was cleared sends `""`, and storing that would
-/// make the preference match nothing and hide the whole list.
-fn trimmed_facet(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-}
 
 /// Hidden hosters in the form the grouping compares them in (RD-130-21): the shared
 /// [`rd_core::host_key`] (trimmed, lowercased, without a trailing dot or a leading `www.`;

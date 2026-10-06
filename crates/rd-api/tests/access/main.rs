@@ -26,6 +26,7 @@ mod public_surface;
 mod reverse_proxy;
 mod scope_matrix;
 mod sessions;
+mod sign_in_doors;
 mod step_up;
 mod stream_revocation;
 mod token_expiry;

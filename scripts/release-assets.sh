@@ -9,7 +9,8 @@
 #
 # <assets> is every workflow artifact of the run, downloaded into one directory. Drops what is
 # no release file — the archives without their plugins (`*.unpacked.*`), the packager `rd-pack`,
-# a `*.dockerbuild` build record of docker/build-push-action — and moves every `*.rdplug` into
+# the binary legs' web interface `web-dist.tar` (RD-1120-07), a `*.dockerbuild` build record of
+# docker/build-push-action — and moves every `*.rdplug` into
 # <plugins>. Everything else stays: archives, installers, extensions, the site-rule pack and the
 # plugin index, whose entries point into the plugin release. Exit 1 when <assets> holds no
 # `.rdplug`: a release without its plugins would publish an index naming files nobody can fetch.
@@ -38,7 +39,7 @@ usage() {
 split() {
     local assets="$1" plugins="$2" moved=0 package
     [[ -d "$assets" ]] || { echo "release-assets: $assets is not a directory" >&2; exit 2; }
-    rm -f "$assets"/*.unpacked.* "$assets/rd-pack" "$assets"/*.dockerbuild
+    rm -f "$assets"/*.unpacked.* "$assets/rd-pack" "$assets/web-dist.tar" "$assets"/*.dockerbuild
     mkdir -p "$plugins"
     for package in "$assets"/*.rdplug; do
         [[ -f "$package" ]] || continue

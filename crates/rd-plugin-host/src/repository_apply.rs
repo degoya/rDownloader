@@ -60,7 +60,13 @@ impl PluginRepositoryService {
                 tracing::debug!(repository = %repository.id, digest = %hex, "ignoring a withdrawal of a package this repository did not deliver");
                 continue;
             }
-            if verifier.is_package_revoked(&digest).unwrap_or(false) {
+            // A list that cannot be read counts as "not withdrawn yet": recording the
+            // withdrawal again is harmless, skipping it is not.
+            let known = verifier.is_package_revoked(&digest).unwrap_or_else(|error| {
+                tracing::warn!(repository = %repository.id, digest = %hex, %error, "could not read the withdrawn plugin packages; recording the withdrawal anyway");
+                false
+            });
+            if known {
                 continue;
             }
             let (plugin_id, plugin_name, version) = self.installed_context(&digest).await;
@@ -77,7 +83,9 @@ impl PluginRepositoryService {
                 .await;
             match recorded {
                 Ok(_) => {
-                    let _ = verifier.revoke_package_digest(digest);
+                    if let Err(error) = verifier.revoke_package_digest(digest) {
+                        tracing::warn!(repository = %repository.id, digest = %hex, %error, "a withdrawn plugin package is recorded, but this process trusts it until the next start");
+                    }
                     tracing::info!(repository = %repository.id, digest = %hex, "a plugin repository withdrew a package");
                 }
                 Err(error) => {
@@ -92,7 +100,13 @@ impl PluginRepositoryService {
             return;
         }
         for key in &index.revoked.keys {
-            if verifier.is_key_withdrawn(&key.fingerprint).unwrap_or(false) {
+            let known = verifier
+                .is_key_withdrawn(&key.fingerprint)
+                .unwrap_or_else(|error| {
+                    tracing::warn!(repository = %repository.id, key_id = %key.key_id, fingerprint = %key.fingerprint, %error, "could not read the withdrawn plugin signing keys; recording the withdrawal anyway");
+                    false
+                });
+            if known {
                 continue;
             }
             let recorded = self
@@ -108,7 +122,9 @@ impl PluginRepositoryService {
                 tracing::warn!(key_id = %key.key_id, %error, "could not record a withdrawn plugin signing key");
                 continue;
             }
-            let _ = verifier.withdraw_key(&key.fingerprint);
+            if let Err(error) = verifier.withdraw_key(&key.fingerprint) {
+                tracing::warn!(repository = %repository.id, key_id = %key.key_id, fingerprint = %key.fingerprint, %error, "a withdrawn plugin signing key is recorded, but this process accepts it until the next start");
+            }
             // A trusted key of that id *and* fingerprint stops being trusted in memory too; one
             // with the same id and another key is somebody else's and stays.
             if verifier
@@ -117,8 +133,9 @@ impl PluginRepositoryService {
                 .ok()
                 .flatten()
                 .is_some_and(|trusted| key_fingerprint(&trusted) == key.fingerprint)
+                && let Err(error) = verifier.revoke_key(&key.key_id)
             {
-                let _ = verifier.revoke_key(&key.key_id);
+                tracing::warn!(repository = %repository.id, key_id = %key.key_id, fingerprint = %key.fingerprint, %error, "a withdrawn plugin signing key stays trusted in this process until the next start");
             }
             tracing::warn!(key_id = %key.key_id, "a plugin repository withdrew a signing key; plugins signed with it are skipped from the next start");
         }

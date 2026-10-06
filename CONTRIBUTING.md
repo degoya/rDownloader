@@ -55,7 +55,7 @@ its options. Please say in your pull request which checks you ran.
 These are the conventions a contribution most often runs into:
 
 - **Rust sources are English-only** — comments, identifiers, test strings and commit messages.
-  `crates/rdownloader/tests/no_german.rs` fails on an umlaut or sharp s in a `.rs` file.
+  `crates/rdownloader/tests/repo_lints/no_german.rs` fails on an umlaut or sharp s in a `.rs` file.
 - **No `.unwrap()` outside tests.** Clippy warns on `unwrap_used` and the checks run with
   `-D warnings`; `unsafe_code`, `dbg!` and `todo!` are denied outright.
 - **Every UI string exists in every required language** — German, English, French and Spanish,

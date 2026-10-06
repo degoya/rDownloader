@@ -26,6 +26,8 @@ use crate::{
     worker::{FileOutcome, download_file},
 };
 
+mod rounds;
+
 /// yEnc-encodes `payload` into 128-column lines, dot-stuffed, escape pairs never split.
 pub(crate) fn yenc_lines(payload: &[u8]) -> Vec<u8> {
     let mut encoded = Vec::with_capacity(payload.len() + payload.len() / 64 + 16);
@@ -91,8 +93,8 @@ pub(crate) struct FixtureLog {
     clocks: Mutex<Vec<ConnectionClock>>,
     /// Answer bytes written, over every connection.
     bytes_sent: std::sync::atomic::AtomicU64,
-    /// When the last `BODY` arrived on any connection.
-    last_command: Mutex<Option<Instant>>,
+    /// The order of commands and answers over every connection (RD-1120-09).
+    rounds: Mutex<rounds::Rounds>,
 }
 
 /// One connection's commands in flight over time, as the server sees them.
@@ -171,13 +173,11 @@ impl FixtureLog {
             .collect()
     }
 
-    /// Each connection's idle time while some article was still to be asked for: up to the
-    /// last command the fixture received, for a run that asks for every article once.
-    pub(crate) fn idle_while_work_remained(&self) -> Vec<Duration> {
-        let Some(last) = *self.last_command.lock().expect("fixture clock") else {
-            return Vec::new();
-        };
-        self.idle_per_connection(last)
+    /// Per connection, how many round trips of the others it sat out idle while some article
+    /// was still to be asked for - up to the last command the fixture received, for a run that
+    /// asks for every article once. Told by order, not by the clock (RD-1120-09).
+    pub(crate) fn round_trips_sat_out(&self) -> Vec<usize> {
+        self.rounds.lock().expect("fixture rounds").sat_out()
     }
 
     /// The most commands any one connection had waiting at once.
@@ -198,13 +198,14 @@ impl FixtureLog {
     fn command(&self, index: usize) {
         let now = Instant::now();
         self.clocks.lock().expect("fixture clocks")[index].command(now);
-        *self.last_command.lock().expect("fixture clock") = Some(now);
+        self.rounds.lock().expect("fixture rounds").command(index);
     }
 
     fn answered(&self, index: usize, bytes: usize) {
         self.bytes_sent
             .fetch_add(bytes as u64, std::sync::atomic::Ordering::AcqRel);
         self.clocks.lock().expect("fixture clocks")[index].answered(Instant::now());
+        self.rounds.lock().expect("fixture rounds").answered(index);
     }
 }
 
@@ -398,6 +399,7 @@ pub(crate) async fn spawn_fixture_with(
                     .lock()
                     .expect("fixture clocks")
                     .push(ConnectionClock::default());
+                served.rounds.lock().expect("fixture rounds").connected();
                 connections.len() - 1
             };
             let (read, mut write) = stream.into_split();

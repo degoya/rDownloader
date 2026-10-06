@@ -13,7 +13,7 @@
 
 use box_common::{address, reason};
 use plugin_guest_crawler::{
-    CrawledLink, Guest, host,
+    CrawledLink, Guest, bearer_accept_json, host,
     http::{self, RequestHeader, RequestQuery},
     query, refuse,
     types::{Failure, FailureKind},
@@ -23,7 +23,7 @@ use crate::{
     listing::{self, Entry},
     messages,
     target::{self, Target},
-    walk::{Absorb, Limit, MAX_PAGES, Walk},
+    walk::{Limit, MAX_PAGES, Walk},
 };
 
 /// The vault reference the Box provider keeps its access token under. The value never reaches
@@ -41,16 +41,7 @@ struct Component;
 /// The headers every request of one crawl carries: the token marker, and the shared link the
 /// folder is reached through when it is reached through one.
 fn headers(claimed: &Target) -> Vec<RequestHeader> {
-    let mut headers = vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{TOKEN_REFERENCE}}}}}"),
-        },
-        RequestHeader {
-            name: "Accept".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ];
+    let mut headers = bearer_accept_json(TOKEN_REFERENCE);
     if let Some(value) = claimed.box_api() {
         headers.push(RequestHeader {
             name: "boxapi".to_owned(),

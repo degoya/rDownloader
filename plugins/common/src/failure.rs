@@ -100,6 +100,62 @@ pub fn coded(kind: FailureKind, (code, message): (&str, &str)) -> Failure {
     Failure::coded(kind, code, message)
 }
 
+/// A provider address that does not parse: `Permanent` under the plugin's `invalid_url` code,
+/// with the parser's words as the `error` parameter. An [`ApiFailure`], because most callers
+/// validate an address the API handed back; a resolver turns it into a [`Failure`] with `into`.
+#[must_use]
+pub fn invalid_url(code: &'static str, error: &dyn Display) -> ApiFailure {
+    let text = format!("Invalid provider URL: {error}");
+    ApiFailure::new(FailureKind::Permanent, (code, text.as_str()))
+        .with_param("error", error.to_string())
+}
+
+/// The account a call needs, or `AuthRequired` under the plugin's `missing` words: an empty id
+/// is no account either.
+///
+/// # Errors
+///
+/// `missing`, when there is no account or its id is empty.
+pub fn require_account<'a>(
+    account_id: Option<&'a str>,
+    missing: (&str, &str),
+) -> Result<&'a str, Failure> {
+    account_id
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| coded(FailureKind::AuthRequired, missing))
+}
+
+/// The secret slot every call of a plugin needs, and the words it refuses with when the slot
+/// is empty; a plugin declares it once, as a constant.
+#[derive(Clone, Copy, Debug)]
+pub struct SecretSlot {
+    /// The reference the `{{secret:...}}` marker names.
+    pub reference: &'static str,
+    /// Reported `AuthRequired` when nothing is stored under `reference`.
+    pub missing: Message,
+}
+
+/// Refuses before any request when the account holds nothing in `slot`.
+///
+/// Asked rather than assumed: without it the host would expand `{{secret:...}}` into nothing, and
+/// the provider's `401` would read as "your sign-in expired" for an account that never had a
+/// key or a token at all.
+///
+/// # Errors
+///
+/// The slot's `missing` words, `AuthRequired`, when the secret is not there.
+pub async fn require_secret<H: PluginHost>(
+    host: &H,
+    account_id: &str,
+    slot: SecretSlot,
+) -> Result<(), Failure> {
+    if host.secret_available(account_id, slot.reference).await {
+        Ok(())
+    } else {
+        Err(coded(FailureKind::AuthRequired, slot.missing))
+    }
+}
+
 /// A dead end a page explains: `kind` under the plugin's code, with the text built from the
 /// page's own diagnosis and the diagnosis as the `diagnosis` parameter, so the failure names a
 /// cause instead of being empty (RD-1110-03, audit R4).

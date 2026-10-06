@@ -22,6 +22,9 @@ impl RemoteJobService {
 
     /// [`Self::submit`], with the name the source was handed in under -- a container's file
     /// name. The job's LinkGrabber package is named after it when the job finishes.
+    ///
+    /// Without one, a magnet is listed under its `dn` and an address under its last path
+    /// segment (RD-1120-02), so the list of remote jobs names what each row is.
     pub async fn submit_named(
         &self,
         account_id: AccountId,
@@ -55,6 +58,7 @@ impl RemoteJobService {
         {
             return Ok(SubmitOutcome::AlreadyOurs(existing));
         }
+        let source_name = source_name.or_else(|| super::naming::implied_name(&source));
         let (source_kind, bytes) = match source {
             RemoteJobSource::Magnet(address) => (RemoteJobSourceKind::Magnet, address.into_bytes()),
             RemoteJobSource::Container(bytes) => (RemoteJobSourceKind::Container, bytes),

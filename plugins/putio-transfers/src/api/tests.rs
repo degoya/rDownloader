@@ -181,6 +181,7 @@ fn bare_statuses_follow_the_shared_mapping() {
     let odd = failure_from(418, None, &envelope("")).expect("a refusal");
     assert_eq!(odd.kind, ErrorKind::Permanent);
     assert_eq!(odd.code, messages::HTTP_ERROR.0);
+    assert_eq!(odd.param("status"), Some("418"));
 }
 
 /// A full account is not "Put.io said no": it is one thing the person can actually fix, and it

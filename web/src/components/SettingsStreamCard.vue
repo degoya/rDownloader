@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { Settings } from '@/api/types'
 import { streamQualityItems } from '@/utils/streamQuality'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -21,9 +22,7 @@ const qualityItems = streamQualityItems()
         level="sub"
       />
     </div>
-    <UFormField :label="t('settings.streams.executable.label')" :description="t('settings.streams.executable.description')">
-      <UInput v-model="settings.record_streamlink_executable" icon="i-lucide-terminal" placeholder="/usr/bin/streamlink" class="w-full font-mono" />
-    </UFormField>
+    <SettingsCrossLink anchor="tools.paths" :lead="t('settings.cross_link.program_path')" />
     <UFormField :label="t('settings.streams.quality.label')" :description="t('settings.streams.quality.description')">
       <USelect v-model="settings.record_default_quality" :items="qualityItems" value-key="value" icon="i-lucide-gauge" class="w-full font-mono" />
     </UFormField>

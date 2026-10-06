@@ -369,7 +369,8 @@
     "unresolved": {
       "formats_missing": "yt-dlp hat für diese Seite kein ladbares Format gemeldet. Prüfe den Link erneut; bleibt die Liste leer, wird die Seite nicht unterstützt.",
       "audio_missing": "Die Seite bietet Videospuren, aber keine einzige Tonspur. „Beste“ lädt das Video trotzdem – ohne Ton."
-    }
+    },
+    "preset_label": "Qualitätsvorgabe"
   },
   "replay": {
     "title": "Diesen Download freigeben",
@@ -558,5 +559,6 @@
     "torrent": "Torrent",
     "swarm": "{seeders} Seeder, {leechers} Leecher",
     "grabbed_torrents": "Kein Torrent übernommen | Ein Torrent in den LinkGrabber übernommen | {count} Torrents in den LinkGrabber übernommen"
-  }
+  },
+  "empty_title": "Noch keine Links zur Prüfung"
 }

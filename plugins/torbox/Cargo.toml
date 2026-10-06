@@ -10,6 +10,7 @@ plugin-common = { path = "../common" }
 plugin-guest = { path = "../guest" }
 serde.workspace = true
 serde_json.workspace = true
+torbox-common = { path = "../torbox-common" }
 url.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -18,9 +19,10 @@ rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [dev-dependencies]
+rd-plugin-api = { path = "../../crates/rd-plugin-api", features = ["test-support"] }
 tokio.workspace = true
 
 [lints]

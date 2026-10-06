@@ -5,7 +5,8 @@ name: Self-update
 # scripts/self-update-smoke.sh, which runs the first as a portable installation and hands it
 # three updates the way the service does: the next version (installed, answers, old files kept in
 # .previous/, with the web interface's and a capture agent's event streams open across the
-# stop), a candidate whose program ends at once (rolled back, database copy put back), and a
+# stop and a slow download from the soak fixture that resumes and ends with the source's SHA-256,
+# RD-1120-18), a candidate whose program ends at once (rolled back, database copy put back), and a
 # candidate that answers but is declared unhealthy through RD_UPDATE_TEST_FAIL_HEALTH, which only
 # a debug build honours (stopped and rolled back).
 #
@@ -16,16 +17,20 @@ name: Self-update
 # (docs/roadmap/jobs/180-02-atomare-updates-und-rollback.md).
 #
 #   gh workflow run self-update.yml --ref <branch>
+#
+# The release candidate dispatches it before the tag, beside ci.yml, and a red run holds the tag
+# (owner, 2026-10-06, replacing "no tag runs" of 2026-10-04; the `public-ci` step,
+# scripts/lib/release-steps-publish.sh).
 on:
   push:
     # Branches only, never a tag (owner, 2026-10-04): path filters do not apply to tags, and a
-    # `push` that names `branches` but no `tags` starts for no tag at all. The release's commit
-    # was checked on its integration branch before the merge; the tag adds nothing to check
-    # (scripts/tests/release-assets.sh).
+    # `push` that names `branches` but no `tags` starts for no tag at all. The candidate was
+    # checked before the tag; the tag adds nothing to check (scripts/tests/release-assets.sh).
     branches: ["**"]
     paths:
       - .github/workflows/self-update.yml
       - scripts/self-update-smoke.sh
+      - scripts/lib/soak_fixture.py
       - crates/rd-update/**
       - crates/rdownloader/src/updater_cli.rs
       - crates/rdownloader/src/stop_cli.rs
@@ -45,8 +50,9 @@ concurrency:
 
 env:
   # RUSTUP_TOOLCHAIN: set by .github/actions/setup-rust for every step after it (RD-191-09).
+  # Nothing else CARGO*/RUST*: Swatinem/rust-cache keys a cache by those variables, and with
+  # ci.yml's this job restores its `rust-tests` (RD-1120-07).
   CARGO_INCREMENTAL: 0
-  CARGO_TERM_COLOR: always
 
 jobs:
   smoke:
@@ -54,7 +60,8 @@ jobs:
       fail-fast: false
       matrix:
         # ubuntu-24.04-arm: the same code on Linux aarch64, whose portable archive installs
-        # itself too (RD-190-12). macOS is not run: its minutes cost ten times Linux's.
+        # itself too (RD-190-12). macOS is not run: the macOS half is held by clippy in CI
+        # (owner, 2026-09-25, kept on 2026-10-06; a question of scope, not of cost).
         os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
@@ -69,10 +76,12 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
-      - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # ci.yml's `rust-tests` cache, read only (RD-1120-07): the dependencies of a debug build
+      # with the same linkers. The cache of its own this job saved (852 MB on Windows alone) was
+      # read by nothing but its next run on main. No saved cache exists for the arm leg.
+      - uses: ./.github/actions/rust-tests-cache
         with:
-          key: self-update
+          nextest: false
       - name: Build this version
         shell: bash
         run: |

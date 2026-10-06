@@ -109,10 +109,6 @@ pub(crate) fn http_error(status: u16) -> String {
     format!("FileJoker HTTP status {status}")
 }
 
-pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> String {
-    format!("Invalid provider URL: {error}")
-}
-
 pub(crate) fn session_invalid(diagnosis: &str) -> String {
     format!("FileJoker cookie session requires logging in again: {diagnosis}")
 }

@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Account } from '@/api/types'
 import en from '@/locales/en/remote_jobs.json'
 import server from '@/locales/en/server.json'
+import { useCollectorStore } from '@/stores/collector'
 import { mountComponent } from '@/test/mount'
 
 import SettingsRemoteJobsCard from './SettingsRemoteJobsCard.vue'
@@ -51,6 +52,8 @@ const ASKING = {
 }
 
 const jobs = vi.hoisted(() => ({ value: [] as unknown[] }))
+/** The LinkGrabber's packages, as `/api/v1/collector/packages` answers them. */
+const collectorPackages = vi.hoisted(() => ({ value: [] as unknown[] }))
 /** What `/api/v1/remote-jobs/providers` answers; `null` makes the request fail. */
 const providers = vi.hoisted(() => ({ value: ['realdebrid', 'premiumize'] as string[] | null }))
 /** When set, the providers request waits for this instead of answering at once. */
@@ -71,6 +74,8 @@ vi.mock('@/api/client', () => ({
         if (providersGate.value) await providersGate.value
         return providers.value ? { data: providers.value } : { error: { code: 'x' } }
       }
+      if (path === '/api/v1/collector/packages') return { data: collectorPackages.value }
+      if (path === '/api/v1/collector/candidates' || path === '/api/v1/nzb/imports') return { data: [] }
       return { data: jobs.value }
     }),
     POST: vi.fn(async (path: string, init: unknown) => {
@@ -114,6 +119,54 @@ describe('SettingsRemoteJobsCard', () => {
     await waitFor(() => expect(screen.getByText(en.states.working)).toBeTruthy())
     expect(screen.getByText('42%')).toBeTruthy()
     expect(screen.getByText('REMOTE01')).toBeTruthy()
+  })
+
+  /**
+   * RD-1120-02: a row is named by what was handed in -- the file, the magnet's `dn`, the
+   * address's last segment -- and says what kind it is in a word. Only a job without any name
+   * is shown by its content key.
+   */
+  it('names each job by what it was handed in as, and says its kind in a word', async () => {
+    jobs.value = [
+      { ...WORKING, id: 'n1', source_kind: 'container', source_name: 'Show.S01E01.nzb', content_key: 'nzb-digest' },
+      { ...WORKING, id: 't1', source_kind: 'container', source_name: 'bbb.torrent', content_key: 'torrent-hash' },
+      { ...WORKING, id: 'm1', source_name: 'Some.Show.S01', content_key: 'magnet-hash' },
+      { ...WORKING, id: 'l1', source_kind: 'address', source_name: 'Some.Show.S01.rar', content_key: 'url:https://hoster.example/f/Some.Show.S01.rar' },
+      WORKING
+    ]
+    mount()
+    await waitFor(() => expect(screen.getByText('Show.S01E01.nzb')).toBeTruthy())
+    for (const title of ['bbb.torrent', 'Some.Show.S01', 'Some.Show.S01.rar']) expect(screen.getByText(title)).toBeTruthy()
+    expect(screen.getByText(en.kind.nzb)).toBeTruthy()
+    expect(screen.getByText(en.kind.torrent)).toBeTruthy()
+    expect(screen.getAllByText(en.kind.magnet).length).toBe(2)
+    expect(screen.getByText(en.kind.link)).toBeTruthy()
+    // The key stays beside a name, and is the title where there is none.
+    expect(screen.getByText('nzb-digest')).toBeTruthy()
+    expect(screen.getAllByText(en.content_key).length).toBe(4)
+    expect(screen.getByText('da39a3ee').className).toContain('font-mono')
+    expect(screen.getAllByText(ACCOUNT.label).length).toBe(5)
+  })
+
+  it('links a job to its package in the LinkGrabber, or to the download list once it has left', async () => {
+    jobs.value = [
+      { ...WORKING, id: 'p1', source_kind: 'container', source_name: 'Here.nzb', package_id: 'cpkg-1' },
+      { ...WORKING, id: 'p2', source_kind: 'container', source_name: 'Gone.nzb', package_id: 'cpkg-gone' },
+      { ...WORKING, id: 'p3', source_kind: 'container', source_name: 'Running.nzb' }
+    ]
+    collectorPackages.value = [{ id: 'cpkg-1', name: 'Here', priority: 'normal', created_at: '2026-09-20T10:00:00Z', position: 0 }]
+    mount()
+    await waitFor(() => expect(screen.getByText('Here.nzb')).toBeTruthy())
+    // Before the LinkGrabber was read, a package not found there is not yet one that has left.
+    expect(screen.queryByRole('link', { name: en.package.downloads })).toBeNull()
+
+    await useCollectorStore().refresh()
+    const here = await waitFor(() => screen.getByRole('link', { name: en.package.linkgrabber.replace('{name}', 'Here') }))
+    expect(here.getAttribute('href')).toBe('/linkgrabber?package=cpkg-1')
+    expect(screen.getByRole('link', { name: en.package.downloads }).getAttribute('href')).toBe('/downloads')
+    // A job without a package has no link.
+    expect(screen.getAllByTestId('remote-job-package').length).toBe(2)
+    collectorPackages.value = []
   })
 
   it('asks a job that waits for a selection, and sends only what it offered', async () => {

@@ -159,4 +159,59 @@ describe('leaving the settings with unsaved changes', () => {
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(router.currentRoute.value.path).toBe('/settings/captcha')
   })
+
+  it('asks before another settings page when the proxy form would be dropped (191-01 N3)', async () => {
+    const { router } = await mountAt('/settings/network')
+    confirm.mockResolvedValue(false)
+    await screen.findByPlaceholderText(settingsCatalogue.proxy.name_placeholder)
+
+    await router.push('/settings/general')
+    expect(confirm).not.toHaveBeenCalled()
+    await router.push('/settings/network')
+
+    await fireEvent.update(await screen.findByPlaceholderText(settingsCatalogue.proxy.name_placeholder), 'Office proxy')
+    await router.push('/settings/general')
+
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.path).toBe('/settings/network')
+  })
+
+  // RD-1120-21 / RD-1120-15 N3: the fields that left General are guarded on their new tabs too,
+  // and the save bar under those tabs saves them.
+  it('guards and saves the admin login on the sign-in tab it moved to', async () => {
+    const { router, container } = await mountAt('/settings/security')
+    const field = await waitFor(() => {
+      const anchor = container.querySelector<HTMLElement>('[data-settings-anchor="security.admin_login"] [role="switch"]')
+      expect(anchor).not.toBeNull()
+      return anchor as HTMLElement
+    })
+    await fireEvent.click(field)
+    confirm.mockResolvedValue(false)
+
+    await router.push('/queue')
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.path).toBe('/settings/security')
+
+    await fireEvent.click(screen.getByRole('button', { name: settingsCatalogue.save }))
+    await waitFor(() => expect(api.PUT).toHaveBeenCalledTimes(1))
+    const [, init] = vi.mocked(api.PUT).mock.calls[0] as unknown as [string, { body: { admin_login_disabled: boolean } }]
+    expect(init.body.admin_login_disabled).toBe(true)
+  })
+
+  it('guards the NNTP limits on the Usenet page they moved to', async () => {
+    const { router, container } = await mountAt('/settings/usenet')
+    const field = await waitFor(() => {
+      const input = container.querySelector<HTMLInputElement>('[data-testid="nntp-parallel-files"]')
+      expect(input).not.toBeNull()
+      return input as HTMLInputElement
+    })
+    await fireEvent.update(field, '4')
+    confirm.mockResolvedValue(false)
+
+    await router.push('/queue')
+
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.path).toBe('/settings/usenet')
+    expect(screen.getByRole('button', { name: settingsCatalogue.save })).toBeTruthy()
+  })
 })

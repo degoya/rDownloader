@@ -212,7 +212,7 @@ onUnmounted(() => {
       :title="t('system.backup.full.title')"
       :description="t('system.backup.full.description')"
     />
-    <UAlert v-if="error" class="mt-5" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="error" />
 
     <DataState :loading="loading" :error="loadError" class="mt-5" />
     <template v-if="!loading && !loadError">
@@ -221,7 +221,6 @@ onUnmounted(() => {
           <h3 class="text-sm font-semibold text-highlighted">{{ t('system.backup.full.key.title') }}</h3>
           <UAlert
             color="neutral"
-            variant="subtle"
             :icon="keyConfigured ? 'i-lucide-lock-keyhole' : 'i-lucide-lock-keyhole-open'"
             :ui="{ icon: 'size-4 text-primary', description: 'text-xs text-toned' }"
             :description="keyConfigured && config

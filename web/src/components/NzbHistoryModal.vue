@@ -25,7 +25,7 @@ async function remove(item: NzbImport): Promise<void> {
   <UModal :title="t('linkgrabber.nzb.history.title')" :description="t('linkgrabber.nzb.history.description')" :close="{ onClick: () => emit('close') }">
     <template #body>
       <div class="space-y-3">
-        <UAlert v-if="nzb.error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="nzb.error" />
+        <UAlert v-if="nzb.error" color="error" icon="i-lucide-circle-alert" :description="nzb.error" />
         <p v-if="!entries.length" class="py-6 text-center text-sm text-muted">{{ t('linkgrabber.nzb.history.empty') }}</p>
         <ul v-else class="divide-y divide-muted">
           <li v-for="item in entries" :key="item.id" class="flex items-center gap-3 py-2">

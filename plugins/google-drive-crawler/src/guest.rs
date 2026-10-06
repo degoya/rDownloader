@@ -9,8 +9,8 @@
 
 use google_drive_common::{address, reason};
 use plugin_guest_crawler::{
-    CrawledLink, Guest, host,
-    http::{self, RequestHeader, RequestQuery},
+    CrawledLink, Guest, bearer_accept_json, host,
+    http::{self, RequestQuery},
     query, refuse,
     types::{Failure, FailureKind},
 };
@@ -18,7 +18,7 @@ use plugin_guest_crawler::{
 use crate::{
     listing::{self, Entry},
     messages, target,
-    walk::{Absorb, Limit, MAX_PAGES, Walk},
+    walk::{Limit, MAX_PAGES, Walk},
 };
 
 const API: &str = "https://www.googleapis.com/drive/v3";
@@ -35,26 +35,19 @@ const PAGE_SIZE: &str = "1000";
 
 struct Component;
 
-fn headers() -> Vec<RequestHeader> {
-    vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{TOKEN_REFERENCE}}}}}"),
-        },
-        RequestHeader {
-            name: "Accept".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ]
-}
-
 /// Fetches one API document, turning every status that is not an answer into one refusal.
 ///
 /// A crawl makes many requests, so the vocabulary stays small: the caller gets bytes or a
 /// failure and never decides a second time what a status code meant. The reason Google named is
 /// sanitised before it is looked at, so an error document that quoted a token publishes nothing.
 fn fetch(url: &str, parameters: &[RequestQuery]) -> Result<Vec<u8>, Failure> {
-    let response = http::http_request("GET", url, parameters, &headers(), &[])?;
+    let response = http::http_request(
+        "GET",
+        url,
+        parameters,
+        &bearer_accept_json(TOKEN_REFERENCE),
+        &[],
+    )?;
     if (200..300).contains(&response.status) {
         return Ok(response.body);
     }

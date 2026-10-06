@@ -134,7 +134,7 @@ async function remove(): Promise<void> {
   const confirmed = await confirm({
     title: t('system.oidc.remove.title'),
     description: t('system.oidc.remove.description'),
-    confirmLabel: t('system.oidc.remove.confirm'),
+    confirmLabel: t('common.actions.remove'),
     confirmIcon: 'i-lucide-trash-2',
     destructive: true
   })
@@ -206,7 +206,7 @@ async function copy(value: string): Promise<void> {
   <UCard as="section" data-settings-anchor="security.oidc">
     <SectionHeader :eyebrow="t('system.oidc.eyebrow')" :title="t('system.oidc.title')" :description="t('system.oidc.description')" />
 
-    <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
 
     <template v-if="!loading && settings">
       <!-- What to register at the provider. Derived from the external URL, never from a request. -->
@@ -217,7 +217,6 @@ async function copy(value: string): Promise<void> {
           v-else
           class="mt-2"
           color="warning"
-          variant="subtle"
           icon="i-lucide-triangle-alert"
           :description="t('system.oidc.external_url_missing')"
         />
@@ -260,7 +259,6 @@ async function copy(value: string): Promise<void> {
         <UAlert
           v-if="!settings.password_login"
           color="info"
-          variant="subtle"
           icon="i-lucide-lock"
           :title="t('system.oidc.password_is_off')"
           :description="t('system.oidc.password_is_off_hint', { command: BREAK_GLASS })"
@@ -318,13 +316,13 @@ async function copy(value: string): Promise<void> {
           <UInput v-model="password" type="password" autocomplete="current-password" class="w-full sm:max-w-sm" />
         </UFormField>
         <div class="flex flex-wrap gap-2 sm:col-span-2">
-          <UButton type="submit" icon="i-lucide-save" :label="t('system.oidc.save')" :loading="busy" :disabled="!canSave" />
+          <UButton type="submit" icon="i-lucide-save" :label="t('common.actions.save')" :loading="busy" :disabled="!canSave" />
           <UButton
             v-if="configured"
             color="error"
             variant="ghost"
             icon="i-lucide-trash-2"
-            :label="t('system.oidc.remove.action')"
+            :label="t('common.actions.remove')"
             :loading="busy"
             :disabled="!password || !settings?.password_login"
             @click="remove"

@@ -470,3 +470,27 @@ async fn a_package_holding_a_torrent_refuses_a_limit_the_engine_cannot_apply() {
     .await;
     assert_eq!(status, StatusCode::OK, "{cleared}");
 }
+
+const MAGNET: &str = "magnet:?xt=urn:btih:5d3f2b8e0c7a4f1e9b6d2c8a0e4f7b1d3c5a9e2f";
+
+/// Audit 1.9.1, API-02: a package is judged by its own rows (`downloads_for_package`), not by a
+/// pass over every download — a torrent in another package takes nothing from this one.
+#[tokio::test]
+async fn a_package_is_judged_by_its_own_downloads_only() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = common::parked_harness(directory.path()).await.router;
+    let mut packages = Vec::new();
+    for url in [MAGNET, "https://example.invalid/own.mkv"] {
+        let body = serde_json::json!({ "url": url });
+        let (status, created) = common::post_json(&router, "/api/v1/downloads", body).await;
+        assert_eq!(status, StatusCode::CREATED, "{created}");
+        packages.push(created["package_id"].as_str().expect("package").to_owned());
+    }
+    assert_ne!(packages[0], packages[1]);
+    for (package, supported) in packages.iter().zip([false, true]) {
+        let uri = format!("/api/v1/packages/{package}/speed-limit");
+        let (status, view) = common::get_json(&router, &uri).await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        assert_eq!(view["supported"], supported, "{package}: {view}");
+    }
+}

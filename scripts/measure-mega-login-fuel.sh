@@ -27,7 +27,8 @@ source scripts/lib/jobs.sh
 TARGET="wasm32-unknown-unknown"
 
 echo "==> building the probe for $TARGET (jobs: $JOBS)"
-cargo build --release -j "$JOBS" --target "$TARGET" -p mega-login-probe
+# The crate is `rlib` only, like every plugin crate (RD-1120-11); the module is asked for here.
+cargo rustc --release -j "$JOBS" --target "$TARGET" -p mega-login-probe --lib --crate-type cdylib
 
 echo "==> measuring"
 cargo run -j "$JOBS" -p rd-plugin-host --example mega_login_fuel

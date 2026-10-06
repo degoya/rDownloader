@@ -13,7 +13,6 @@
     "target_placeholder": "download",
     "target_id": "Id del objetivo",
     "trace": "Id de traza",
-    "apply": "Aplicar",
     "clear": "Limpiar filtros"
   },
   "outcomes": {

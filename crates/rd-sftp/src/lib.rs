@@ -18,6 +18,7 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 use chrono::Utc;
+use rd_core::remote_path::{file_name, normalize, parent};
 use rd_core::{
     Failure, RemoteCredential, RemoteCredentialId, RemoteListing, RemoteTarget, SshHostKey,
 };
@@ -223,28 +224,6 @@ impl SftpService {
             Ok(_) => Ok(None),
             Err(failure) => Ok(Some(failure)),
         }
-    }
-}
-
-fn normalize(path: &str) -> String {
-    let trimmed = path.trim_end_matches('/');
-    if trimmed.is_empty() {
-        return "/".to_owned();
-    }
-    trimmed.to_owned()
-}
-
-fn file_name(path: &str) -> String {
-    path.rsplit('/')
-        .find(|segment| !segment.is_empty())
-        .unwrap_or_default()
-        .to_owned()
-}
-
-fn parent(path: &str) -> String {
-    match path.trim_end_matches('/').rfind('/') {
-        Some(0) | None => "/".to_owned(),
-        Some(index) => path[..index].to_owned(),
     }
 }
 

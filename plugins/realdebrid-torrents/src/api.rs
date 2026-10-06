@@ -28,6 +28,8 @@
 //!   is why the suggested waits below are generous rather than eager.
 
 use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
+pub use realdebrid_common::ErrorEnvelope;
+use realdebrid_common::Words;
 use serde::Deserialize;
 
 use crate::messages;
@@ -101,16 +103,6 @@ pub struct TorrentInfo {
     /// been made, which is the contract's whole reason for asking a person first.
     #[serde(default)]
     pub links: Vec<String>,
-}
-
-/// The failure envelope every endpoint answers a refusal with.
-#[derive(Default, Deserialize)]
-pub struct ErrorEnvelope {
-    /// The provider's own sentence. Read so its presence can be detected and never forwarded.
-    #[serde(default)]
-    pub error: Option<String>,
-    #[serde(default)]
-    pub error_code: Option<i64>,
 }
 
 /// Where a torrent stands, in the vocabulary of `interface remote-job` rather than of
@@ -281,7 +273,8 @@ const QUOTA_SECONDS: u64 = 3600;
 /// or a `5xx` carries the response's `Retry-After` into the wait.
 ///
 /// A `404`/`410` is the torrent gone for good; a `451` is `Offline` and retried, still worded
-/// `CONTENT_REFUSED` (RA-PLG-04). A `429` without a stated wait waits a minute.
+/// `CONTENT_REFUSED` (RA-PLG-04). A `429` without a stated wait waits a minute, a `5xx` five
+/// minutes: the fallback the API plugins share (RD-1120-10).
 pub const HTTP: HttpWords = HttpWords {
     unauthorized: messages::AUTH_INVALID,
     gone: messages::TORRENT_GONE,
@@ -289,7 +282,7 @@ pub const HTTP: HttpWords = HttpWords {
     rate_limited: messages::RATE_LIMITED,
     server_error: messages::SERVER_ERROR,
     rate_limited_wait: Some(60),
-    server_error_wait: None,
+    server_error_wait: Some(BUSY_SECONDS),
     other: HttpError {
         code: messages::HTTP_ERROR.0,
         text: messages::http_error,
@@ -347,6 +340,13 @@ pub fn classify_error(api_code: i64, retry_after: Option<u64>) -> ApiFailure {
     }
 }
 
+/// The words this plugin reports a refusal under; which half of the envelope decides is
+/// `realdebrid_common`'s, shared with the resolver `plugins/realdebrid/`.
+pub const WORDS: Words = Words {
+    http: HTTP,
+    classify: classify_error,
+};
+
 /// The failure an answer describes, or `None` when it describes none.
 ///
 /// An answer is a failure when it carries an `error_code`, whatever its HTTP status; a 2xx
@@ -357,13 +357,7 @@ pub fn failure_from(
     retry_after: Option<u64>,
     envelope: &ErrorEnvelope,
 ) -> Option<ApiFailure> {
-    if let Some(api_code) = envelope.error_code {
-        return Some(classify_error(api_code, retry_after));
-    }
-    if envelope.error.is_some() || !(200..=299).contains(&status) {
-        return HTTP.ensure_http_status(status, retry_after).err();
-    }
-    None
+    realdebrid_common::failure_from(status, retry_after, envelope, &WORDS)
 }
 
 #[cfg(test)]

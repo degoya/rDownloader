@@ -16,7 +16,7 @@ num-bigint.workspace = true
 sha2.workspace = true
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

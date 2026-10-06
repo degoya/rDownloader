@@ -27,7 +27,7 @@ const { t } = useI18n()
             <UBadge color="neutral" variant="subtle">v{{ plugin.version }}</UBadge>
           </div>
           <p class="mt-1 text-sm leading-5 text-toned">{{ t(`plugins.incompatible.reason.${plugin.code}`) }}</p>
-          <p class="mt-1 truncate font-mono text-[11px] text-muted">{{ plugin.id }}</p>
+          <p class="mt-1 truncate font-mono text-2xs text-muted">{{ plugin.id }}</p>
         </div>
         <UButton color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('plugins.incompatible.remove')" @click="emit('remove', plugin)" />
       </div>

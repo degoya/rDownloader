@@ -32,6 +32,6 @@ const { t } = useI18n()
         <span v-if="source.location" class="shrink-0 uppercase text-muted">{{ source.location }}</span>
       </li>
     </ol>
-    <p class="text-[11px] text-muted">{{ t('linkgrabber.sources.hint') }}</p>
+    <p class="text-2xs text-muted">{{ t('linkgrabber.sources.hint') }}</p>
   </div>
 </template>

@@ -9,7 +9,7 @@ use std::{
 use sqlx::{
     Connection, SqliteConnection,
     migrate::{Migration, MigrationType, Migrator},
-    sqlite::SqliteConnectOptions,
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous},
 };
 
 use crate::{
@@ -33,11 +33,16 @@ fn chain(last: i64, extra: Vec<Migration>) -> Migrator {
 }
 
 /// A database the way release `up_to` left it, with one setting a later check looks for.
+///
+/// Built with the journal in memory and no `fsync` (RD-1120-08), which only the fixture skips:
+/// the upgrade under test is `Database::open` with the service's own settings.
 async fn installed(path: &Path, up_to: i64) {
     let mut connection = SqliteConnection::connect_with(
         &SqliteConnectOptions::new()
             .filename(path)
-            .create_if_missing(true),
+            .create_if_missing(true)
+            .journal_mode(SqliteJournalMode::Memory)
+            .synchronous(SqliteSynchronous::Off),
     )
     .await
     .expect("create");

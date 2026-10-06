@@ -213,7 +213,7 @@ mod tests {
     ///
     /// Three bytes per character, so a byte-based truncation would land inside one and panic
     /// rather than merely produce the wrong length. The character is CJK rather than an umlaut
-    /// because `crates/rdownloader/tests/no_german.rs` rejects those in Rust sources, and a
+    /// because `crates/rdownloader/tests/repo_lints/no_german.rs` rejects those in Rust sources, and a
     /// wider character tests the boundary harder anyway.
     #[test]
     fn truncation_does_not_cut_a_character_in_half() {

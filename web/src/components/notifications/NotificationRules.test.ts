@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationRule, NotificationTarget } from '@/api/types'
 import common from '@/locales/en/common.json'
 import notifications from '@/locales/en/notifications.json'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 const post = vi.fn()
@@ -37,6 +38,13 @@ function mount(rules: NotificationRule[] = []) {
 
 describe('NotificationRules', () => {
   beforeEach(() => post.mockReset())
+
+  // RD-1120-14 (RD-150-11): the form with its event chips, and a rule in the list beside it.
+  it('renders without an axe violation', async () => {
+    const { container } = mount([RULE])
+    expect(screen.getByRole('group', { name: notifications.rule.events_label })).toBeTruthy()
+    expect(await axeViolations(container)).toBe('')
+  })
 
   it('offers the events as a named group of checkboxes that say which are chosen', async () => {
     mount()

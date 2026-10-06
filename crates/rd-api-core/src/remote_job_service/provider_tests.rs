@@ -5,7 +5,7 @@
 //! packages whose component is not WebAssembly at all: a compile would refuse every one of them,
 //! so an answer that still names their provider can only have come from the manifest. The
 //! equality of the two answers over the real bundled components is proven in
-//! `crates/rd-plugin-ext/tests/remote_job_providers_contract.rs`.
+//! `crates/rd-plugin-ext/tests/contract/remote_job_providers_contract.rs`.
 
 use std::{collections::BTreeSet, path::Path, sync::Arc};
 

@@ -8,7 +8,6 @@
     "code": "Code",
     "correlation": "Korrelations-ID",
     "search": "In Nachrichten suchen",
-    "apply": "Anwenden",
     "clear": "Filter zurücksetzen"
   },
   "levels": {
@@ -79,5 +78,9 @@
         "secrets": "Geheimnisse: Passwörter, Token, API-Schlüssel, Cookies, Zertifikate und Tresor-Verweise"
       }
     }
+  },
+  "tabs": {
+    "log": "Protokoll",
+    "bundle": "Diagnosepaket"
   }
 }

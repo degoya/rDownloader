@@ -15,7 +15,7 @@
 use plugin_common::failure::coded;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
-    LinkStatus, PluginHost, ResolveInput, Resolved,
+    PluginHost, ResolveInput, Resolved,
 };
 use serde::Deserialize;
 
@@ -132,16 +132,11 @@ pub(crate) async fn check<H: PluginHost>(
             return Err(coded(FailureKind::Unsupported, messages::HOST_UNSUPPORTED));
         }
     }
-    Ok(request.urls.iter().map(|url| unknown(url)).collect())
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
+    Ok(request
+        .urls
+        .iter()
+        .map(|url| LinkCheck::unknown(url))
+        .collect())
 }
 
 /// Calls `{API_BASE}{path}` and turns whatever came back into a failure or a response.

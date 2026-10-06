@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsTorrentCard from '@/components/SettingsTorrentCard.vue'
+import SettingsServiceOffAlert from '@/components/settings/SettingsServiceOffAlert.vue'
 import SettingsTorrentNetworkStatus from '@/components/settings/SettingsTorrentNetworkStatus.vue'
 
 const settings = defineModel<Settings>({ required: true })
@@ -24,6 +25,7 @@ const { t } = useI18n()
         level="page"
       />
     </header>
+    <SettingsServiceOffAlert service="torrent" :enabled="settings.torrent_service_enabled" />
     <SettingsTorrentNetworkStatus />
     <SettingsTorrentCard v-model="settings" />
   </div>

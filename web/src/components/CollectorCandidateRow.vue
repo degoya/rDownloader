@@ -6,6 +6,7 @@ import type { LinkCandidate, MediaVariant } from '@/api/types'
 import CollectorCandidateRequest from '@/components/CollectorCandidateRequest.vue'
 import CollectorCandidateSources from '@/components/CollectorCandidateSources.vue'
 import CollectorMirrorBadge from '@/components/CollectorMirrorBadge.vue'
+import DragHandle from '@/components/DragHandle.vue'
 import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import MediaFormatSelector from '@/components/MediaFormatSelector.vue'
 import RemoteFileTree from '@/components/RemoteFileTree.vue'
@@ -275,20 +276,13 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         no checkbox, and the cells stay empty rather than disappearing, or the grid loses its
         shape (RD-110-19).
       -->
-      <button
+      <DragHandle
         v-if="!props.mirrorMember"
-        type="button"
-        class="queue-cell-handle grid cursor-grab select-none place-items-center text-muted"
-        data-row-handle
-        draggable="true"
-        :title="dragTitle"
-        :aria-label="dragTitle"
-        @dragstart.stop="emit('dragstart', props.candidate.id)"
-        @keydown.up.prevent="emit('move', props.candidate.id, -1)"
-        @keydown.down.prevent="emit('move', props.candidate.id, 1)"
-      >
-        <UIcon name="i-lucide-grip-vertical" class="size-4" />
-      </button>
+        class="queue-cell-handle grid place-items-center"
+        :label="dragTitle"
+        @dragstart="emit('dragstart', props.candidate.id)"
+        @move="(delta: -1 | 1) => emit('move', props.candidate.id, delta)"
+      />
       <div v-else class="queue-cell-handle" />
       <div v-if="props.mirrorMember" class="queue-cell-select" />
       <UCheckbox v-else-if="selectable" class="queue-cell-select justify-self-center" :model-value="props.selected" :aria-label="t('linkgrabber.candidate.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.candidate.id, value === true)" />

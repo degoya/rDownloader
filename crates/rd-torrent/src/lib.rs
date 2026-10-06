@@ -8,6 +8,7 @@
 mod bencode;
 mod error;
 mod forget;
+mod kill_switch;
 mod metadata;
 mod network;
 mod plan;
@@ -83,6 +84,9 @@ pub(crate) struct ServiceInner {
     pub seeding_nudge: tokio::sync::Notify,
     /// Whether the kill switch currently holds torrent traffic.
     pub kill_switch_engaged: std::sync::atomic::AtomicBool,
+    /// The rows whose torrents the kill switch paused, so its release resumes exactly those and
+    /// a resume that failed is tried again at the next check (RD-1120-04).
+    pub kill_switch_held: tokio::sync::Mutex<std::collections::HashSet<rd_core::DownloadId>>,
     /// Why the last session rebuild failed; the previous session keeps running.
     pub rebuild_error: RwLock<Option<String>>,
     /// Rows whose files a move is carrying to another folder right now (RD-1100-10). Kept here
@@ -124,6 +128,7 @@ impl TorrentService {
                 registry: RwLock::new(registry::Registry::default()),
                 seeding_nudge: tokio::sync::Notify::new(),
                 kill_switch_engaged: std::sync::atomic::AtomicBool::new(false),
+                kill_switch_held: tokio::sync::Mutex::new(std::collections::HashSet::new()),
                 rebuild_error: RwLock::new(None),
                 relocating: tokio::sync::Mutex::new(std::collections::HashSet::new()),
                 secrets: None,

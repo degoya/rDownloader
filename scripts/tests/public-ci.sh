@@ -5,8 +5,10 @@
 # a bare repository. What is tested is the flow — the platforms become ci.yml's JSON input, a
 # dispatched run is watched by its event and its push run skipped, green deletes the public
 # branch, red, a run that never appears and one past the ceiling keep it and fail, and a long
-# run is waited for past the start deadline; a green is recorded per platform, and a platform
-# already green for the tree is not dispatched again (RD-160-06); a job that fails is reported
+# run is waited for past the start deadline — by its id once seen, through an empty list and a
+# failed look, its completion read twice (RD-1120-06); a green is recorded per platform, and a platform
+# already green for the tree is not dispatched again (RD-160-06), and with Linux and Windows green
+# ci.yml's once-per-run jobs neither (RD-1120-07); a job that fails is reported
 # the moment it is seen, while its run goes on, and what did not change is not printed again
 # (RD-1100-13) — not GitHub.
 #
@@ -31,7 +33,10 @@ mkdir -p "$FAKE" "$SCRATCH/bin"
 # gh: every call is logged; `run list` prints $FAKE/runs, and fails while it does not exist.
 # A $FAKE/runs.next replaces $FAKE/runs after one look, so a run can finish while it is watched.
 # Lines as the --jq of scripts/lib/public-ci.sh prints them: `<id> <status> <conclusion|-> <url>
-# <name>`. `run view <id>` prints the jobs in $FAKE/jobs-<id>, in the same shape without the id.
+# <name>`. `run view <id> --json jobs` prints the jobs in $FAKE/jobs-<id>, in the same shape
+# without the id; `run view <id>` otherwise answers with the first line of $FAKE/view-<id> and
+# drops it (`FAIL` fails, `EMPTY` prints nothing), and without one with the run's line in
+# $FAKE/runs, failing when there is none.
 cat > "$SCRATCH/bin/gh" <<'EOF'
 #!/usr/bin/env bash
 echo "$*" >> "$FAKE/gh.calls"
@@ -43,7 +48,16 @@ case "$1 $2" in
         cat "$FAKE/runs"
         [[ ! -f "$FAKE/runs.next" ]] || mv "$FAKE/runs.next" "$FAKE/runs"
         ;;
-    "run view") cat "$FAKE/jobs-$3" 2> /dev/null || true ;;
+    "run view")
+        if [[ "$*" == *"--json jobs"* ]]; then cat "$FAKE/jobs-$3" 2> /dev/null || true; exit 0; fi
+        if [[ -s "$FAKE/view-$3" ]]; then
+            line="$(head -n 1 "$FAKE/view-$3")"
+            sed -i 1d "$FAKE/view-$3"
+            case "$line" in FAIL) exit 1 ;; EMPTY) exit 0 ;; *) echo "$line" ;; esac
+        else
+            grep "^$3 " "$FAKE/runs" 2> /dev/null || exit 1
+        fi
+        ;;
     *) echo "fake gh: unexpected $*" >&2; exit 1 ;;
 esac
 EOF
@@ -54,7 +68,7 @@ export PATH="$SCRATCH/bin:$PATH"
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib"
 cp "$ROOT/scripts/public-ci.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{public-ci,verified,lanes,workspace-version}.sh "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{public-ci,verified,lanes,workspace-version,inert-paths}.sh "$TREE/scripts/lib/"
 cat > "$TREE/scripts/export-public.sh" <<'EOF'
 #!/usr/bin/env bash
 # Stub: records its arguments, commits onto --branch in the public clone and pushes it.
@@ -94,6 +108,15 @@ expect "a runner image is taken as it is" '["macos-15","windows-2022"]' "$(rd_pu
 run_status rd_public_ci_platforms linux,beos
 expect_status "an unknown platform is refused" 2
 
+# ci.yml's `jobs` input (RD-1120-07): `[]` once recorded Linux and Windows greens cover the tree.
+JOBS_TREE="$(git -C "$TREE" rev-parse 'HEAD^{tree}')"
+expect "no record: the default, every once-per-run job" "" "$(rd_public_ci_once_jobs "$TREE" "$JOBS_TREE")"
+echo "ubuntu-24.04 $JOBS_TREE x" > "$RECORD"
+expect "Linux alone on record: still every one" "" "$(rd_public_ci_once_jobs "$TREE" "$JOBS_TREE")"
+echo "windows-2025 $JOBS_TREE x" >> "$RECORD"
+expect "Linux and Windows on record: none" "[]" "$(rd_public_ci_once_jobs "$TREE" "$JOBS_TREE")"
+rm -f "$RECORD"
+
 public_ci integration/1.4-w4 --platforms amiga
 expect_status "public-ci.sh refuses it before exporting anything" 2
 expect_true "nothing was exported" '[[ ! -f "$FAKE/export.args" ]]'
@@ -131,6 +154,8 @@ expect_status "without platforms: only the one not yet green" 0
 expect_output "naming what it relies on" "windows-2025: green for this tree already"
 expect_true "macOS alone is dispatched" \
     'grep -qF "workflow run ci.yml --repo owner/repo --ref ci/integration-1.4-w4 -f platforms=[\"macos-15\"]" "$FAKE/gh.calls"'
+expect_true "without the once-per-run jobs the Linux and Windows runs passed (RD-1120-07)" \
+    'grep -q "platforms=\[\"macos-15\"\] -f jobs=\[\]$" "$FAKE/gh.calls"'
 expect_true "with [skip ci] on the export" 'grep -q -- "--skip-push-ci" "$FAKE/export.args"'
 expect "and recorded" "3" "$(wc -l < "$RECORD")"
 
@@ -152,6 +177,7 @@ public_ci integration/1.4-w4
 expect_status "green on every platform" 0
 expect_true "ci.yml is dispatched for all three" \
     'grep -qF "platforms=[\"ubuntu-24.04\",\"windows-2025\",\"macos-15\"]" "$FAKE/gh.calls"'
+expect_true "with every once-per-run job, ci.yml's default" '! grep -q -- "-f jobs=" "$FAKE/gh.calls"'
 
 # --- red, and a run that never finishes ----------------------------------------------------------
 printf '%s\n' "2 completed success https://example.invalid/runs/2 web" \
@@ -196,9 +222,41 @@ expect_true "the jobs were asked per run" 'grep -q "^run view 7 --repo owner/rep
 expect_output "the run's change is printed" "run CI (https://example.invalid/runs/7): completed failure"
 rm -f "$FAKE/jobs-7"
 
+# --- a run seen, then an empty list and failed looks, then finished (RD-1120-06, audit A3) --------
+# 1.11 wave 2: the list came back empty after the run had been seen, and past the start deadline
+# that read as "no CI run appeared". Seen once, a run is asked for by its id, and a failed or empty
+# answer keeps what was seen last.
+echo "8 in_progress - https://example.invalid/runs/8 CI" > "$FAKE/runs"
+: > "$FAKE/runs.next"
+printf '%s\n' FAIL EMPTY "8 in_progress - https://example.invalid/runs/8 CI" \
+    "8 completed success https://example.invalid/runs/8 CI" \
+    "8 completed success https://example.invalid/runs/8 CI" > "$FAKE/view-8"
+RD_PUBLIC_CI_TIMEOUT=0 public_ci integration/1.4-w4 --platforms windows
+expect_status "a run seen, then an empty list and failed looks, then green: green" 0
+expect_true "past the start deadline without giving up" '! grep -q "no CI run appeared" <<< "$output"'
+expect_true "asked for by its id after the first look" 'grep -q "^run view 8 --repo owner/repo --json databaseId,status,conclusion,name,url" "$FAKE/gh.calls"'
+expect "every view answer used, the second completed one as the confirmation" "" "$(cat "$FAKE/view-8")"
+expect "completed confirmed by a second list" "2" "$(grep -c "^run list" "$FAKE/gh.calls")"
+expect_true "and recorded" 'grep -q "^windows-2025 " "$RECORD"'
+
+# The confirmation finds a run that appeared meanwhile, and waits for it too.
+echo "9 completed success https://example.invalid/runs/9 CI" > "$FAKE/runs"
+printf '%s\n' "9 completed success https://example.invalid/runs/9 CI" \
+    "10 in_progress - https://example.invalid/runs/10 web" > "$FAKE/runs.next"
+printf '%s\n' "10 completed failure https://example.invalid/runs/10 web" \
+    "10 completed failure https://example.invalid/runs/10 web" > "$FAKE/view-10"
+public_ci integration/1.4-w4 --platforms windows
+expect_status "a run that appeared before the confirmation decides: red" 1
+expect_output "naming it" "completed failure web https://example.invalid/runs/10"
+rm -f "$FAKE/view-10"
+
+# --- never a run --------------------------------------------------------------------------------
 rm -f "$FAKE/runs"
 RD_PUBLIC_CI_TIMEOUT=0 public_ci integration/1.4-w4 --platforms windows
 expect_status "no run at all fails at the start deadline" 1
 expect_output "saying so" "no CI run appeared within 0s"
+RD_PUBLIC_CI_TIMEOUT=1 RD_PUBLIC_CI_POLL=1 public_ci integration/1.4-w4 --platforms windows
+expect_status "nor within a deadline that is waited for" 1
+expect_true "after more than one look" '[[ $(grep -c "^run list" "$FAKE/gh.calls") -ge 2 ]]'
 
 finish_tests public-ci

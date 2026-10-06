@@ -11,7 +11,10 @@ use rd_core::AccountId;
 use rd_plugin_api::{Resolver, ResolverHost};
 
 use super::super::KatfileResolver;
-use super::{EXPIRED_SESSION_PAGE, MockHost, SIGNED_IN_PAGE, UNREADABLE_PAGE, json, session_page};
+use super::{
+    EXPIRED_SESSION_PAGE, MockHost, SIGNED_IN_PAGE, SessionHost, UNREADABLE_PAGE, json,
+    session_page,
+};
 
 /// Where the session probe goes. No KatFile page has been measured, signed in or not, so the
 /// probe stays where it was rather than moving to an equally unmeasured account page
@@ -28,7 +31,7 @@ fn account_info() -> rd_plugin_api::HostHttpResponse {
 /// `cookie_session_invalid`, because the account is not what went wrong.
 #[tokio::test]
 async fn an_api_key_account_with_an_expired_cookie_session_reports_it() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![account_info(), session_page(EXPIRED_SESSION_PAGE)],
         true,
     );
@@ -56,7 +59,7 @@ async fn an_api_key_account_with_an_expired_cookie_session_reports_it() {
 /// failed the whole check.
 #[tokio::test]
 async fn a_proven_key_passes_when_the_page_settles_nothing() {
-    let host = MockHost::with_responses(vec![account_info(), session_page(UNREADABLE_PAGE)], true);
+    let host = MockHost::in_session(vec![account_info(), session_page(UNREADABLE_PAGE)], true);
     let resolver = KatfileResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let status = resolver
         .check_account(AccountId::new())
@@ -102,7 +105,10 @@ async fn an_api_key_account_without_cookies_is_reported_without_a_probe() {
 /// is served carries that status, and now it is read.
 #[tokio::test]
 async fn a_cookie_only_account_is_refused_on_the_guest_page_a_200_carries() {
-    let resolver = KatfileResolver::new(MockHost::new(session_page(EXPIRED_SESSION_PAGE), false));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(
+        session_page(EXPIRED_SESSION_PAGE),
+        false,
+    ));
     let failure = resolver
         .check_account(AccountId::new())
         .await
@@ -117,7 +123,7 @@ async fn a_cookie_only_account_is_refused_on_the_guest_page_a_200_carries() {
 /// And the counter-proof: the signed-in page still reports green, and says what it verified.
 #[tokio::test]
 async fn a_cookie_only_account_with_a_live_session_stays_green() {
-    let host = MockHost::new(session_page(SIGNED_IN_PAGE), false);
+    let host = MockHost::one_in_session(session_page(SIGNED_IN_PAGE), false);
     let resolver = KatfileResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let status = resolver
         .check_account(AccountId::new())
@@ -133,7 +139,10 @@ async fn a_cookie_only_account_with_a_live_session_stays_green() {
 /// The unreadable page in the cookie-only branch is retryable too, for the same reason.
 #[tokio::test]
 async fn a_cookie_only_account_is_not_condemned_by_a_page_it_cannot_read() {
-    let resolver = KatfileResolver::new(MockHost::new(session_page(UNREADABLE_PAGE), false));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(
+        session_page(UNREADABLE_PAGE),
+        false,
+    ));
     let failure = resolver
         .check_account(AccountId::new())
         .await

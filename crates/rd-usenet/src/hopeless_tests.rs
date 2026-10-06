@@ -384,7 +384,7 @@ async fn an_article_missing_only_on_the_first_server_does_not_count() {
 /// reaches the same counts and the same rows.
 #[cfg(feature = "failpoints")]
 #[tokio::test]
-async fn a_stop_between_the_verdict_and_its_write_gives_the_same_verdict_after_the_restart() {
+async fn a_crash_between_the_verdict_and_its_write_gives_the_same_verdict_after_the_restart() {
     use rd_core::failpoint::FailpointGuard;
 
     use crate::hopeless::{Ending, Verdicts, give_up, judge};

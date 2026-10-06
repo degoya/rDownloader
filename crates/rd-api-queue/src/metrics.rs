@@ -71,14 +71,6 @@ pub async fn scrape_metrics(
     Ok(([(header::CONTENT_TYPE, content_type)], body).into_response())
 }
 
-/// A download whose runner holds a slot right now.
-fn runner_active(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Resolving | DownloadState::Downloading | DownloadState::Seeding
-    )
-}
-
 fn kind_label(kind: rd_core::DownloadKind) -> String {
     serde_json::to_string(&kind)
         .unwrap_or_default()
@@ -178,7 +170,8 @@ fn queue_families(
         *by_kind_state
             .entry((kind.clone(), download.state.to_string()))
             .or_default() += 1.0;
-        if runner_active(download.state) {
+        // A download whose runner holds a slot right now.
+        if download.state.holds_a_connection() {
             *runners.entry(kind.clone()).or_default() += 1.0;
         }
         if let Some(rate) = rates.get(&download.id) {

@@ -12,94 +12,56 @@
 //! real server would actually respond from/serve links under once the request itself has been
 //! rewritten to the primary domain.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure};
+use rd_core::AccountId;
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
-    ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver,
-    ResolverHost,
+    ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
 };
-
 use url::Url;
 
 use super::KatfileResolver;
 
-pub(crate) struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    pub(crate) requests: Mutex<Vec<HostHttpRequest>>,
-    has_secret: bool,
-    has_cookies: bool,
-    /// Free-flow observations: the countdowns waited out and the challenges handed over, in
-    /// the order the resolver produced them.
-    pub(crate) waits: Mutex<Vec<u32>>,
-    pub(crate) captchas: Mutex<Vec<rd_plugin_api::CaptchaChallenge>>,
-    /// Token every captcha is answered with; `None` mimics a host with no solver.
-    captcha_token: Option<String>,
+/// KatFile's constructors on the shared scripted host: whether every credential slot answers,
+/// and whether the jar holds a cookie session. The free flow is `MockHost::free`.
+trait SessionHost {
+    fn one_in_session(response: HostHttpResponse, has_secret: bool) -> Arc<MockHost>;
+    fn in_session(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<MockHost>;
+    fn bare(has_secret: bool, has_cookies: bool) -> Arc<MockHost>;
+    fn full(responses: Vec<HostHttpResponse>, has_secret: bool, has_cookies: bool)
+    -> Arc<MockHost>;
 }
 
-impl MockHost {
-    pub(crate) fn new(response: HostHttpResponse, has_secret: bool) -> Arc<Self> {
-        Self::with_responses(vec![response], has_secret)
+impl SessionHost for MockHost {
+    fn one_in_session(response: HostHttpResponse, has_secret: bool) -> Arc<MockHost> {
+        Self::in_session(vec![response], has_secret)
     }
 
-    pub(crate) fn with_responses(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret,
-            has_cookies: true,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: None,
-        })
+    fn in_session(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<MockHost> {
+        Self::full(responses, has_secret, true)
     }
 
-    pub(crate) fn bare(has_secret: bool, has_cookies: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(VecDeque::new()),
-            requests: Mutex::new(Vec::new()),
-            has_secret,
-            has_cookies,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: None,
-        })
+    fn bare(has_secret: bool, has_cookies: bool) -> Arc<MockHost> {
+        Self::full(Vec::new(), has_secret, has_cookies)
     }
 
-    /// Host for the account-less free flow: no credentials at all, and every captcha
-    /// answered with `captcha_token` (`None` mimics an instance with no solver configured).
-    pub(crate) fn free(responses: Vec<HostHttpResponse>, captcha_token: Option<&str>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret: false,
-            has_cookies: false,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: captcha_token.map(str::to_owned),
-        })
-    }
-
-    /// Full constructor for a test that needs a queued response *and* no cookies (`with_responses`
-    /// always sets `has_cookies: true`).
-    pub(crate) fn full(
+    /// Full constructor for a test that needs a queued response *and* no cookies (`in_session`
+    /// always has them).
+    fn full(
         responses: Vec<HostHttpResponse>,
         has_secret: bool,
         has_cookies: bool,
-    ) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret,
-            has_cookies,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            captcha_token: None,
-        })
+    ) -> Arc<MockHost> {
+        let cookies: &[(&str, &str)] = if has_cookies {
+            &[("xfss", "session")]
+        } else {
+            &[]
+        };
+        MockHost::scripted(responses)
+            .secret(has_secret)
+            .cookies(cookies)
+            .shared()
     }
 }
 
@@ -195,58 +157,6 @@ pub(crate) const CAPTCHA_OUTSIDE_FORM_PAGE: &str = r#"<div class="login-modal"><
 <input type="hidden" name="method_premium" value="">
 </form>"#;
 
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(rd_core::FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn cookies_get(&self, _account_id: AccountId, _url: &Url) -> Vec<(String, String)> {
-        if self.has_cookies {
-            vec![("xfss".to_owned(), "session".to_owned())]
-        } else {
-            Vec::new()
-        }
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, _reference: &str) -> bool {
-        self.has_secret
-    }
-
-    /// Records the countdown instead of sleeping, so the flow's timing is asserted without
-    /// slowing the suite down.
-    async fn wait(&self, _client: &ClientIdentity, seconds: u32) -> Result<(), Failure> {
-        self.waits.lock().expect("mock lock").push(seconds);
-        Ok(())
-    }
-
-    async fn solve_captcha(
-        &self,
-        _client: &ClientIdentity,
-        challenge: rd_plugin_api::CaptchaChallenge,
-        _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, Failure> {
-        self.captchas.lock().expect("mock lock").push(challenge);
-        match &self.captcha_token {
-            Some(token) => Ok(rd_plugin_api::CaptchaAnswer::Token(token.clone())),
-            None => Err(Failure::coded(
-                rd_core::FailureKind::NeedsCaptcha,
-                "captcha.no_solver",
-                "No captcha solver is configured",
-            )),
-        }
-    }
-}
-
 /// The input link uses the `katfile.com` alias — every test built on this proves
 /// `canonicalize_host` rewrites it to `katfile.biz` before the plugin issues any request.
 pub(crate) fn resolve_request() -> ResolveRequest {
@@ -284,7 +194,7 @@ fn every_alias_domain_is_claimed_by_matches() {
 
 #[tokio::test]
 async fn alias_domain_link_is_rewritten_to_the_primary_domain_before_fetching() {
-    let host = MockHost::with_responses(
+    let host = MockHost::in_session(
         vec![
             html(FORM_PAGE),
             file("https://fs7.katfile.biz/d/r4nd/release.rar"),
@@ -312,7 +222,7 @@ async fn account_info_error_reports_provider_message() {
         headers: Vec::new(),
         body: br#"{"status":400,"server_time":"2026-08-30 13:43:41","msg":"Invalid key"}"#.to_vec(),
     };
-    let resolver = KatfileResolver::new(MockHost::new(response, true));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(response, true));
     let failure = resolver
         .check_account(AccountId::new())
         .await
@@ -331,7 +241,7 @@ async fn check_account_reports_premium_with_traffic_and_the_exact_request() {
         "https://katfile.biz/api/account/info",
         br#"{"status":200,"msg":"OK","result":{"email":"user@example.test","premium_expire":"2028-01-01 00:00:00","traffic_left":"1048576"}}"#,
     );
-    let host = MockHost::with_responses(vec![response, session_page(SIGNED_IN_PAGE)], true);
+    let host = MockHost::in_session(vec![response, session_page(SIGNED_IN_PAGE)], true);
     let resolver = KatfileResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let status = resolver
         .check_account(AccountId::new())
@@ -388,7 +298,7 @@ async fn check_account_reports_not_premium_for_an_expiry_that_has_passed() {
         "https://katfile.biz/api/account/info",
         br#"{"status":200,"msg":"OK","result":{"email":"user@example.test","premium_expire":"2000-01-01 00:00:00","traffic_left":null}}"#,
     );
-    let resolver = KatfileResolver::new(MockHost::with_responses(
+    let resolver = KatfileResolver::new(MockHost::in_session(
         vec![response, session_page(SIGNED_IN_PAGE)],
         true,
     ));
@@ -406,7 +316,7 @@ async fn check_account_reports_premium_while_the_expiry_is_still_ahead() {
         "https://katfile.biz/api/account/info",
         br#"{"status":200,"msg":"OK","result":{"email":"user@example.test","premium_expire":"2099-01-01 00:00:00","traffic_left":null}}"#,
     );
-    let resolver = KatfileResolver::new(MockHost::with_responses(
+    let resolver = KatfileResolver::new(MockHost::in_session(
         vec![response, session_page(SIGNED_IN_PAGE)],
         true,
     ));
@@ -423,7 +333,7 @@ async fn check_account_reports_not_premium_for_an_empty_expiry() {
         "https://katfile.biz/api/account/info",
         br#"{"status":200,"msg":"OK","result":{"email":"user@example.test","premium_expire":"","traffic_left":null}}"#,
     );
-    let resolver = KatfileResolver::new(MockHost::with_responses(
+    let resolver = KatfileResolver::new(MockHost::in_session(
         vec![response, session_page(SIGNED_IN_PAGE)],
         true,
     ));
@@ -437,7 +347,7 @@ async fn check_account_reports_not_premium_for_an_empty_expiry() {
 #[tokio::test]
 async fn check_account_reports_account_invalid_for_401() {
     let response = status_only("https://katfile.biz/api/account/info", 401);
-    let resolver = KatfileResolver::new(MockHost::new(response, true));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(response, true));
     let failure = resolver
         .check_account(AccountId::new())
         .await
@@ -449,7 +359,7 @@ async fn check_account_reports_account_invalid_for_401() {
 #[tokio::test]
 async fn check_account_reports_rate_limited_for_429() {
     let response = status_only("https://katfile.biz/api/account/info", 429);
-    let resolver = KatfileResolver::new(MockHost::new(response, true));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(response, true));
     let failure = resolver
         .check_account(AccountId::new())
         .await
@@ -468,7 +378,7 @@ async fn check_account_reports_rate_limited_for_429() {
 /// `valid: true, premium: true` unconditionally).
 #[tokio::test]
 async fn check_account_with_cookies_but_no_api_key_probes_the_primary_domain() {
-    let host = MockHost::new(session_page(SIGNED_IN_PAGE), false);
+    let host = MockHost::one_in_session(session_page(SIGNED_IN_PAGE), false);
     let resolver = KatfileResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
     let status = resolver
         .check_account(AccountId::new())
@@ -488,7 +398,10 @@ async fn check_account_with_cookies_but_no_api_key_probes_the_primary_domain() {
 /// a free account. The counter-proof is two tests up: a *read* expiry still reports premium.
 #[tokio::test]
 async fn a_cookie_only_session_does_not_claim_premium() {
-    let resolver = KatfileResolver::new(MockHost::new(session_page(SIGNED_IN_PAGE), false));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(
+        session_page(SIGNED_IN_PAGE),
+        false,
+    ));
     let status = resolver
         .check_account(AccountId::new())
         .await
@@ -508,7 +421,7 @@ async fn a_cookie_only_session_does_not_claim_premium() {
 #[tokio::test]
 async fn check_account_with_cookies_but_no_api_key_fails_when_the_probe_fails() {
     let response = status_only("https://katfile.biz/", 403);
-    let resolver = KatfileResolver::new(MockHost::new(response, false));
+    let resolver = KatfileResolver::new(MockHost::one_in_session(response, false));
     resolver
         .check_account(AccountId::new())
         .await

@@ -24,31 +24,22 @@ mod free;
 mod direct_link_tests;
 
 use plugin_common::{
-    Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LabelPart,
-    LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved, file_name_from_disposition,
+    Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LabelPart,
+    LinkCheck, PluginHost, ResolveInput, Resolved, file_name_from_disposition,
 };
 use url::Url;
-
-use xfs_common::api::DirectLinkSkip;
+use xfs_common::site::{premium_until, second_path_segment};
 
 use self::api::{
-    AccountResult, DirectLink, FileInfo, MATCH_HOSTS, api_request, coded, convert_envelope_error,
-    ensure_http_status, file_code, invalid_url, is_html, parse_json, range_probe,
+    MATCH_HOSTS, SITE, api_request, coded, ensure_http_status, file_code, invalid_url, is_html,
+    range_probe,
 };
 use crate::{messages, page};
-
-/// The plugin's own display name, for the one log line a silent fallback leaves behind. A
-/// constant, never a value off the wire: that is what keeps a key or an address out of a log.
-const PROVIDER: &str = "KatFile";
 
 /// Whether this plugin claims `url`.
 #[must_use]
 pub(crate) fn matches(url: &str) -> bool {
-    Url::parse(url)
-        .ok()
-        .as_ref()
-        .and_then(|url| xfs_common::api::file_code(url, MATCH_HOSTS))
-        .is_some()
+    xfs_common::site::matches(url, MATCH_HOSTS)
 }
 
 /// Hoster domains this account can download from. A single hoster serves its own, so neither
@@ -58,10 +49,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     _host: &H,
     _account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    Ok(crate::HOSTERS
-        .iter()
-        .map(|host| (*host).to_owned())
-        .collect())
+    Ok(plugin_common::own_hosters(crate::HOSTERS))
 }
 
 /// What the account is worth, through the API key when there is one and through the cookie
@@ -134,7 +122,9 @@ pub(crate) async fn check_account<H: PluginHost>(
             traffic_left: None,
         });
     }
-    let info = account_info(host).await?;
+    let info = SITE
+        .account_info(host, api_request("account/info", &[]))
+        .await?;
     let premium = premium_until(host.now_unix_seconds().await, &info.premium_expire);
     // The key proves the account; the download runs on the cookie session, and until RD-120-13
     // nothing here looked at that session at all — it counted the jar and reported the count.
@@ -215,7 +205,7 @@ async fn verify_download_session<H: PluginHost>(
 fn trace_unconfirmed<H: PluginHost>(host: &H, body: &str) {
     host.log(
         "warn",
-        &xfs_common::session_trace::unconfirmed_page_line(PROVIDER, "the homepage", body),
+        &xfs_common::session_trace::unconfirmed_page_line(SITE.provider, "the homepage", body),
     );
 }
 
@@ -236,17 +226,17 @@ pub(crate) async fn resolve<H: PluginHost>(
     let has_api_key = host
         .secret_available(account_id, api::API_KEY_REFERENCE)
         .await;
-    if has_api_key && let Some(resolved) = direct_link(host, &code).await {
+    if has_api_key && let Some(resolved) = SITE.direct_link(host, &code).await {
         return Ok(resolved);
     }
-    if cookie_count(host, account_id).await == 0 {
+    if SITE.cookie_count(host, account_id).await == 0 {
         return Err(coded(
             FailureKind::AuthRequired,
             messages::COOKIE_SESSION_REQUIRED_FOR_DOWNLOAD,
         ));
     }
     let metadata = if has_api_key {
-        file_info(host, &code).await?
+        SITE.file_info(host, &code).await?
     } else {
         None
     };
@@ -292,144 +282,8 @@ pub(crate) async fn check<H: PluginHost>(
     {
         return Err(coded(FailureKind::AuthRequired, messages::API_KEY_REQUIRED));
     }
-    let coded: Vec<(String, Option<String>)> = request
-        .urls
-        .iter()
-        .map(|url| {
-            let code = Url::parse(url)
-                .ok()
-                .and_then(|parsed| file_code(&parsed).map(str::to_owned));
-            (url.clone(), code)
-        })
-        .collect();
-    let mut results = Vec::with_capacity(coded.len());
-    for chunk in coded.chunks(50) {
-        let codes: Vec<&str> = chunk
-            .iter()
-            .filter_map(|(_, code)| code.as_deref())
-            .collect();
-        let infos = if codes.is_empty() {
-            Vec::new()
-        } else {
-            let response = host
-                .http(api_request("file/info", &[("file_code", codes.join(","))]))
-                .await?;
-            ensure_http_status(&response)?;
-            let envelope: xfs_common::api::ApiEnvelope<Vec<FileInfo>> = parse_json(&response)?;
-            envelope.into_result().map_err(convert_envelope_error)?
-        };
-        let mut infos = infos.into_iter();
-        for (url, code) in chunk {
-            if code.is_none() {
-                results.push(LinkCheck {
-                    url: url.clone(),
-                    status: LinkStatus::Unknown,
-                    file_name: None,
-                    size: None,
-                });
-                continue;
-            }
-            let info = infos.next();
-            results.push(LinkCheck {
-                url: url.clone(),
-                status: match info.as_ref().map(|item| item.status) {
-                    Some(200) => LinkStatus::Online,
-                    Some(404) => LinkStatus::Offline,
-                    _ => LinkStatus::Unknown,
-                },
-                file_name: info.as_ref().and_then(|item| item.name.clone()),
-                size: info
-                    .and_then(|item| item.size)
-                    .and_then(xfs_common::api::FlexibleU64::into_u64),
-            });
-        }
-    }
-    Ok(results)
-}
-
-async fn account_info<H: PluginHost>(host: &H) -> Result<AccountResult, Failure> {
-    let response = host.http(api_request("account/info", &[])).await?;
-    ensure_http_status(&response)?;
-    let envelope: xfs_common::api::ApiEnvelope<AccountResult> = parse_json(&response)?;
-    envelope.into_result().map_err(convert_envelope_error)
-}
-
-async fn file_info<H: PluginHost>(host: &H, code: &str) -> Result<Option<FileInfo>, Failure> {
-    let response = host
-        .http(api_request("file/info", &[("file_code", code.to_owned())]))
-        .await?;
-    ensure_http_status(&response)?;
-    let envelope: xfs_common::api::ApiEnvelope<Vec<FileInfo>> = parse_json(&response)?;
-    let info = envelope
-        .into_result()
-        .map_err(convert_envelope_error)?
-        .into_iter()
-        .next();
-    if info.as_ref().is_some_and(|item| item.status != 200) {
-        return Err(coded(FailureKind::Permanent, messages::FILE_UNAVAILABLE));
-    }
-    Ok(info)
-}
-
-/// Some XFileSharing installations expose `file/direct_link` for premium API keys; KatFile does
-/// not document it either, so any failure falls back to the cookie flow.
-///
-/// Quiet as far as the download is concerned, no longer silent: the reason goes out exactly
-/// once per attempt, as one of [`DirectLinkSkip`]'s fixed phrases, so no file code, address or
-/// key can travel in it (RD-120-13).
-async fn direct_link<H: PluginHost>(host: &H, code: &str) -> Option<Resolved> {
-    match direct_link_attempt(host, code).await {
-        Ok(resolved) => Some(resolved),
-        Err(skip) => {
-            host.log(
-                "info",
-                &xfs_common::api::direct_link_skipped(PROVIDER, skip),
-            );
-            None
-        }
-    }
-}
-
-/// The attempt itself, with every way it can come to nothing named rather than swallowed.
-async fn direct_link_attempt<H: PluginHost>(
-    host: &H,
-    code: &str,
-) -> Result<Resolved, DirectLinkSkip> {
-    let response = host
-        .http(api_request(
-            "file/direct_link",
-            &[("file_code", code.to_owned())],
-        ))
+    SITE.link_checks(host, &request.urls, file_code, api_request)
         .await
-        .map_err(|_| DirectLinkSkip::RequestFailed)?;
-    let envelope: xfs_common::api::ApiEnvelope<DirectLink> =
-        parse_json(&response).map_err(|_| DirectLinkSkip::NotJson)?;
-    let link = envelope
-        .into_result()
-        .map_err(|_| DirectLinkSkip::ApiError)?;
-    let url = Url::parse(&link.url).map_err(|_| DirectLinkSkip::UnparsableUrl)?;
-    if !url.host_str().is_some_and(|host| {
-        host == api::PRIMARY_DOMAIN || host.ends_with(&format!(".{}", api::PRIMARY_DOMAIN))
-    }) {
-        return Err(DirectLinkSkip::ForeignHost);
-    }
-    Ok(Resolved {
-        file_name: url
-            .path_segments()
-            .and_then(|mut segments| segments.next_back())
-            .filter(|name| !name.is_empty())
-            .map(str::to_owned),
-        size: link.size.and_then(xfs_common::api::FlexibleU64::into_u64),
-        url: url.to_string(),
-        headers: Vec::new(),
-        checksum: None,
-    })
-}
-
-async fn cookie_count<H: PluginHost>(host: &H, account_id: &str) -> usize {
-    host.cookies(account_id, &format!("https://{}/", api::PRIMARY_DOMAIN))
-        .await
-        .len()
 }
 
 /// Runs the XFileSharing premium flow: the file page carries a `download2` form that must be
@@ -508,25 +362,4 @@ fn premium_only_or_wait_failure(html: &str, final_url: &str) -> Option<Failure> 
         )
         .with_param("wait_seconds", seconds.to_string()),
     )
-}
-
-/// The file name segment of a `/<code>/<name>` link.
-fn second_path_segment(url: &Url) -> Option<String> {
-    url.path_segments()
-        .and_then(|segments| segments.filter(|segment| !segment.is_empty()).nth(1))
-        .map(str::to_owned)
-}
-
-/// Whether the account's premium period is still running.
-///
-/// `%Y-%m-%d %H:%M:%S`, as ddownload's API reports it. An unreadable value is not premium:
-/// claiming premium on a date nobody can parse is the one answer that cannot be right.
-fn premium_until(now_unix_seconds: u64, expiry: &str) -> bool {
-    xfs_common::api::parse_expiry_unix(expiry)
-        .is_some_and(|expiry| expiry > i64::try_from(now_unix_seconds).unwrap_or(i64::MAX))
-}
-
-/// The `Referer` a free transfer must carry, so the hoster sees the page that earned it.
-pub(crate) fn referer_header() -> Header {
-    Header::new("Referer", format!("https://{}/", api::PRIMARY_DOMAIN))
 }

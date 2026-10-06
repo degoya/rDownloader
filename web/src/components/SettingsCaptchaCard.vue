@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { CaptchaConfig, SolverKind, TestCaptchaSolver, UpdateCaptchaConfig } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { useFetchState } from '@/composables/useFetchState'
 import { WHOLE, isNumber } from '@/utils/numberInput'
 
 const emit = defineEmits<{ error: [string] }>()
@@ -25,10 +26,10 @@ const form = reactive<CaptchaConfig>({
 })
 const apiKey = ref('')
 const clearApiKey = ref(false)
-const loading = ref(true)
 const pending = ref(false)
 const testing = ref(false)
 const testResult = ref<{ ok: boolean, message: string } | null>(null)
+const { loading, loadError, load } = useFetchState()
 let loadRequest: Promise<boolean> | null = null
 /** The editable fields as last loaded or saved, so the page can tell a leave what it would lose (RD-180-16). */
 const editable = (): string => JSON.stringify([form.solver, form.endpoint, form.manual_enabled, form.manual_timeout_seconds])
@@ -43,17 +44,18 @@ const solverActive = computed(() => form.solver !== 'none')
 /** Testing needs a key: the typed one, or one already stored. */
 const canTest = computed(() => solverActive.value && (apiKey.value.trim().length > 0 || form.has_api_key))
 
-onMounted(() => { loadRequest = load() })
+onMounted(() => { loadRequest = load(fetchConfig).then(() => loadError.value === null) })
 
-async function load(): Promise<boolean> {
+/** The stored configuration into the form; a failure is the page's to show. */
+async function fetchConfig(): Promise<string | null> {
   const response = await api.GET('/api/v1/captcha-config')
-  loading.value = false
   if (!response.data) {
-    emit('error', responseError(response))
-    return false
+    const failure = responseError(response)
+    emit('error', failure)
+    return failure
   }
   apply(response.data)
-  return true
+  return null
 }
 
 function apply(config: CaptchaConfig): void {
@@ -182,7 +184,6 @@ defineExpose({ save, dirty })
       v-if="testResult"
       class="mt-4"
       :color="testResult.ok ? 'success' : 'error'"
-      variant="subtle"
       :icon="testResult.ok ? 'i-lucide-circle-check' : 'i-lucide-circle-alert'"
       :title="testResult.message"
     />

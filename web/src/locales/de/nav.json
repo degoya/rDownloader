@@ -62,7 +62,10 @@
       "signature": "Signatur, Schlüssel, Herausgeber, Vertrauen",
       "managed_tools": "Werkzeuge herunterladen, automatisch installieren, aktualisieren",
       "updates": "Update, Aktualisierung, neue Version, Beta, Versionskanal",
-      "indexers": "Indexer, Newznab, Torznab, Jackett, Prowlarr, NZB-Suche, Torrent-Suche, API-Schlüssel, Listenstil, Cover"
+      "indexers": "Indexer, Newznab, Torznab, Jackett, Prowlarr, NZB-Suche, Torrent-Suche, API-Schlüssel, Listenstil, Cover",
+      "active_files": "parallele Downloads, gleichzeitig, Slots, Warteschlange",
+      "collision": "Kollision, Namenskonflikt, überschreiben, umbenennen",
+      "linkgrabber": "Sperrliste, ausgeschlossene Domains, Spiegel, Mirrors, Container"
     }
   },
   "connection": {
@@ -73,5 +76,10 @@
     "reload": "Neu laden"
   },
   "history": "Verlauf",
-  "stats_history": "Statistik & Verlauf"
+  "stats_history": "Statistik & Verlauf",
+  "version": {
+    "outdated": "Neue Version verfügbar — neu laden",
+    "outdated_hint": "Der Dienst läuft jetzt mit Version {version}, diese Seite noch mit {build}. Lade sie neu, um die aktuelle Oberfläche zu bekommen.",
+    "reload": "Neu laden"
+  }
 }

@@ -123,6 +123,17 @@ async function revealSelection(): Promise<void> {
 }
 const route = useRoute()
 const router = useRouter()
+/**
+ * `?package=<id>`, from a remote job's package link (RD-1120-02): read before the shared-link
+ * handling clears the query, and focused once the package is listed.
+ */
+const wantedPackage = ref(typeof route.query.package === 'string' ? route.query.package : null)
+watch([rows, grabberList], ([current, list]) => {
+  const key = `package:${wantedPackage.value}`
+  if (!wantedPackage.value || !list || !current.some(row => row.key === key)) return
+  wantedPackage.value = null
+  void list.focusRow(key)
+}, { immediate: true, flush: 'post' })
 const checking = computed(() => collector.candidates.some(c => c.state === 'checking'))
 // A failed import holds no files, so it is not something that can be queued (RD-108-20).
 const enqueueableNzbIds = computed(() => nzbGroups.value.filter(entry => !entry.item.duplicate && entry.item.state !== 'failed').map(entry => entry.id))
@@ -334,9 +345,9 @@ const navbarMenu = computed(() => [[
       <div data-tour="grabber-body" class="flex w-full flex-col gap-4">
         <!-- Always shown, disabled with a hint until an indexer is enabled; `f` focuses it (RD-180-19). -->
         <IndexerSearchPanel />
-        <UAlert v-if="collector.error" color="error" variant="subtle" :description="collector.error" />
-        <UAlert v-if="nzb.error" color="error" variant="subtle" :description="nzb.error" />
-        <UAlert v-if="notice" color="info" variant="subtle" icon="i-lucide-info" :description="notice" />
+        <UAlert v-if="collector.error" color="error" :description="collector.error" />
+        <UAlert v-if="nzb.error" color="error" :description="nzb.error" />
+        <UAlert v-if="notice" color="info" icon="i-lucide-info" :description="notice" />
         <CollectorHosterFilter
           :hosters="hiddenHosters.hosters.value"
           :hidden-links="hiddenHosters.hiddenLinks.value.length"
@@ -465,7 +476,12 @@ const navbarMenu = computed(() => [[
         </div>
         <!-- The collector's fetch, not just its result: "no links" waits for it (RD-104-07). -->
         <DataState v-else :loading="collector.loading" :empty="!collector.error" :rows="3">
-          <UEmpty class="signal-grid min-h-60" :description="t('linkgrabber.empty')" />
+          <UEmpty
+            class="signal-grid min-h-60"
+            icon="i-lucide-magnet"
+            :title="t('linkgrabber.empty_title')"
+            :description="t('linkgrabber.empty')"
+          />
         </DataState>
       </div>
         <IndexerReviewList />

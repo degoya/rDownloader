@@ -8,11 +8,12 @@ name: CI warm cache
 # executable through scripts/ci-rust-tests.sh, runs nothing, and saves. Linux and Windows only:
 # macOS is checked at a release candidate and keeps no cache.
 #
-# Expected sizes, against the repository's 10 GB (to be measured after the first runs): the
-# `rust-tests` cache ~2.5 GB on Linux (2,503 MB restored on 2026-10-04) and about as much again
-# on Windows, `components` and the two `docker` legs ~1 GB each, the component and Docker layer
-# caches a few hundred MB — about 8 GB, all of it main's, where sccache and every ci/* branch's
-# own copies made 10.39 GB before.
+# Sizes against the repository's 10 GB (RD-1120-07, measured 2026-10-06 at 10.6 GB): the
+# `rust-tests` cache 2.4 GB on Linux and 2.0 GB on Windows, `components` and the two `docker` legs
+# ~1 GB each, the component and Docker layer caches a few hundred MB. Only jobs whose cache a
+# later run reads save one; E2E, Recovery, Self-update and Installers saved 5.3 GB more until 1.12
+# and now read `rust-tests` (E2E on Linux `docker`'s) and save none. The table is in
+# docs/roadmap/jobs/1120-07-pipeline-github-workflows.md.
 #
 # Called by ci.yml's `warm-cache` job once per image the gate left out (RD-1101-07 split it off;
 # the job is unchanged).
@@ -37,33 +38,20 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 120
-    env:
-      # ci.yml's `rust` job's linkers (its env says why), and so the same key for its cache: mold
-      # on Linux, the toolchain's LLVM linker on Windows.
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
-      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Free runner disk
         if: runner.os != 'Windows'
         uses: ./.github/actions/free-runner-disk
-      - name: Install mold
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q mold
       # rust-embed wants web/dist to exist; nothing here serves it, so no `web` job for it.
       - name: Placeholder web interface
         shell: bash
         run: mkdir -p web/dist && printf '<!doctype html><title>rDownloader</title>\n' > web/dist/index.html
-      - uses: ./.github/actions/setup-rust
+      # ci.yml's `rust` job's linkers, toolchain and cache, saved as there.
+      - uses: ./.github/actions/rust-tests-cache
         with:
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: rust-tests
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: nextest@0.9.146
+          save: true
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Test executables, built and not run
         shell: bash

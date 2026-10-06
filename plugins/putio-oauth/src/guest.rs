@@ -8,7 +8,9 @@
 
 use plugin_guest_oauth::{
     AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, form,
-    http, retry_after,
+    http,
+    redirect::no_device_flow,
+    refuse, retry_after,
     types::{Failure, FailureKind},
     unguessable_value,
 };
@@ -41,15 +43,8 @@ const DEFAULT_WAIT_SECONDS: u64 = 30;
 
 struct Component;
 
-/// A failure carrying a stable translation code and nothing a provider wrote.
-fn refuse(code: &str, message: String, category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message,
-        code: Some(format!("putio_oauth.{code}")),
-        params: Vec::new(),
-    }
-}
+/// The prefix of every translation code this plugin reports.
+const SLUG: &str = "putio_oauth";
 
 /// Turns the token endpoint's answer into the outcome the host acts on.
 ///
@@ -82,6 +77,7 @@ fn outcome(
             Ok(TokenOutcome::Authorized)
         }
         flow::TokenAnswer::Refused(error) => Ok(TokenOutcome::Failed(refuse(
+            SLUG,
             flow::refusal_code(&error),
             format!("put.io refused the sign-in: {error}"),
             FailureKind::AuthRequired,
@@ -91,20 +87,12 @@ fn outcome(
             seconds.unwrap_or(DEFAULT_WAIT_SECONDS),
         )),
         flow::TokenAnswer::Unreadable(status) => Ok(TokenOutcome::Failed(refuse(
+            SLUG,
             "bad_reply",
             format!("put.io answered {status} to the token request"),
             FailureKind::Permanent,
         ))),
     }
-}
-
-/// The one refusal both device functions answer with.
-fn no_device_flow() -> Failure {
-    refuse(
-        "flow_unsupported",
-        "put.io is signed in through the browser, not with a device code".to_owned(),
-        FailureKind::Unsupported,
-    )
 }
 
 impl Guest for Component {
@@ -119,7 +107,7 @@ impl Guest for Component {
         _account_id: String,
         _credential_ref: Option<String>,
     ) -> Result<AuthorizationRequest, Failure> {
-        let state = unguessable_value("putio_oauth")?;
+        let state = unguessable_value(SLUG)?;
         let authorization_url = format!(
             "{AUTHORIZE_ENDPOINT}?client_id={}&response_type=code&redirect_uri={}&state={}",
             // Left as the marker: the host substitutes this installation's own client id
@@ -182,7 +170,7 @@ impl Guest for Component {
         _account_id: String,
         _credential_ref: Option<String>,
     ) -> Result<DeviceAuthorization, Failure> {
-        Err(no_device_flow())
+        Err(no_device_flow(SLUG, "put.io"))
     }
 
     /// Not offered, for the same reason as `device-begin`.
@@ -190,7 +178,7 @@ impl Guest for Component {
         _account_id: String,
         _flow_state: Option<String>,
     ) -> Result<TokenOutcome, Failure> {
-        Err(no_device_flow())
+        Err(no_device_flow(SLUG, "put.io"))
     }
 
     /// Mints a new access token from stored refresh material.
@@ -209,6 +197,7 @@ impl Guest for Component {
     ) -> Result<TokenOutcome, Failure> {
         let Some(reference) = credential_ref.filter(|value| !value.is_empty()) else {
             return Ok(TokenOutcome::Failed(refuse(
+                SLUG,
                 "refresh_refused",
                 "this account has no stored sign-in to renew".to_owned(),
                 FailureKind::AuthRequired,

@@ -25,11 +25,7 @@ use crate::messages;
 /// is doing something it has no business doing.
 #[must_use]
 pub(crate) fn matches(url: &str) -> bool {
-    Url::parse(url)
-        .ok()
-        .as_ref()
-        .and_then(api::file_code)
-        .is_some()
+    xfs_common::site::matches(url, crate::HOSTERS)
 }
 
 /// Hoster domains this plugin serves. Neither the host nor the account changes the answer; the
@@ -38,10 +34,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     _host: &H,
     _account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    Ok(crate::HOSTERS
-        .iter()
-        .map(|host| (*host).to_owned())
-        .collect())
+    Ok(plugin_common::own_hosters(crate::HOSTERS))
 }
 
 /// XFS exposes link status through its account API, which is exactly what this plugin does not
@@ -73,13 +66,6 @@ pub(crate) async fn resolve<H: PluginHost>(
         .ok_or_else(|| coded(FailureKind::Unsupported, messages::UNSUPPORTED_LINK))?
         .to_owned();
     free::resolve(host, request, &parsed, &code).await
-}
-
-/// The file name segment of a `/<code>/<name>` link.
-pub(super) fn second_path_segment(url: &Url) -> Option<String> {
-    url.path_segments()
-        .and_then(|segments| segments.filter(|segment| !segment.is_empty()).nth(1))
-        .map(str::to_owned)
 }
 
 /// The `Referer` a free transfer must carry, so the site sees the page that earned it.

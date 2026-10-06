@@ -7,7 +7,6 @@
 //! lets the module above it be compiled once for both.
 
 use plugin_common::{Failure, HttpRequest, HttpResponse};
-use serde::Deserialize;
 
 use crate::messages;
 
@@ -87,43 +86,24 @@ pub(crate) const FREE: xfs_common::free::FreeWords = xfs_common::free::FreeWords
     free_limit_reached: (messages::FREE_LIMIT_REACHED, messages::free_limit_reached),
 };
 
-/// The codes this plugin's JSON API failures are reported under.
-const API_MESSAGES: xfs_common::glue::ApiMessages = xfs_common::glue::ApiMessages {
-    api_error: messages::API_ERROR,
-    api_error_text: messages::api_error,
-    invalid_response: messages::INVALID_RESPONSE,
+/// KatFile's documented API and cookie session, for the calls it shares with ddownload
+/// (`xfs_common::site`, RD-1120-10).
+pub(crate) const SITE: xfs_common::site::ApiSite = xfs_common::site::ApiSite {
+    provider: "KatFile",
+    primary_domain: PRIMARY_DOMAIN,
+    api_request,
+    http_error: plugin_common::HttpError {
+        code: messages::HTTP_ERROR,
+        text: messages::http_error,
+    },
+    api_messages: xfs_common::glue::ApiMessages {
+        api_error: messages::API_ERROR,
+        api_error_text: messages::api_error,
+        invalid_response: messages::INVALID_RESPONSE,
+    },
+    file_unavailable: messages::FILE_UNAVAILABLE,
 };
 
-pub(crate) fn convert_envelope_error(error: xfs_common::api::EnvelopeError) -> Failure {
-    API_MESSAGES.envelope_error(error)
-}
-
-pub(crate) fn parse_json<T: for<'de> Deserialize<'de>>(
-    response: &HttpResponse,
-) -> Result<T, Failure> {
-    API_MESSAGES.parse_json(response)
-}
-
 pub(crate) fn invalid_url(error: &url::ParseError) -> Failure {
-    xfs_common::glue::invalid_url(error, messages::INVALID_URL, messages::invalid_url)
-}
-
-#[derive(Deserialize)]
-pub(crate) struct AccountResult {
-    pub(crate) email: String,
-    pub(crate) premium_expire: String,
-    pub(crate) traffic_left: Option<xfs_common::api::FlexibleU64>,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct DirectLink {
-    pub(crate) url: String,
-    pub(crate) size: Option<xfs_common::api::FlexibleU64>,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct FileInfo {
-    pub(crate) status: u16,
-    pub(crate) name: Option<String>,
-    pub(crate) size: Option<xfs_common::api::FlexibleU64>,
+    plugin_common::failure::invalid_url(messages::INVALID_URL, error).into()
 }

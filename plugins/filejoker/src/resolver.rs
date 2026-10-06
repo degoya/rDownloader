@@ -9,10 +9,11 @@ pub(crate) mod api;
 mod free;
 
 use plugin_common::{
-    Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
+    Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
     PluginHost, ResolveInput, Resolved, file_name_from_disposition,
 };
 use url::Url;
+use xfs_common::site::second_path_segment;
 
 use self::api::{
     PRIMARY_DOMAIN, coded, ensure_http_status, file_code, invalid_url, is_html, range_probe,
@@ -26,11 +27,7 @@ const PROVIDER: &str = "FileJoker";
 /// Whether this plugin claims `url`.
 #[must_use]
 pub(crate) fn matches(url: &str) -> bool {
-    Url::parse(url)
-        .ok()
-        .as_ref()
-        .and_then(|url| xfs_common::api::file_code(url, api::MATCH_HOSTS))
-        .is_some()
+    xfs_common::site::matches(url, api::MATCH_HOSTS)
 }
 
 /// Hoster domains this account can download from. A single hoster serves its own, so neither
@@ -40,10 +37,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     _host: &H,
     _account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    Ok(crate::HOSTERS
-        .iter()
-        .map(|host| (*host).to_owned())
-        .collect())
+    Ok(plugin_common::own_hosters(crate::HOSTERS))
 }
 
 /// FileJoker has no metadata API, so there is nothing to check a link against without fetching
@@ -263,16 +257,4 @@ pub(super) fn page_failure(html: &str) -> Failure {
         messages::page_error(&diagnosis),
     )
     .with_param("diagnosis", diagnosis)
-}
-
-/// The file name segment of a `/<code>/<name>` link.
-fn second_path_segment(url: &Url) -> Option<String> {
-    url.path_segments()
-        .and_then(|segments| segments.filter(|segment| !segment.is_empty()).nth(1))
-        .map(str::to_owned)
-}
-
-/// The `Referer` a free transfer must carry, so the hoster sees the page that earned it.
-pub(crate) fn referer_header() -> Header {
-    Header::new("Referer", format!("https://{PRIMARY_DOMAIN}/"))
 }

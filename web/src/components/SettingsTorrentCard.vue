@@ -8,6 +8,7 @@ import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { MIB, byteModel } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { DECIMAL, PLAIN, RATIO, WHOLE } from '@/utils/numberInput'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const settings = defineModel<Settings>({ required: true })
 
@@ -110,6 +111,7 @@ const uploadLimitMiB = byteModel(
     <UFormField hint="MiB/s" data-settings-anchor="torrent.upload_limit" :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
       <UInputNumber v-model="uploadLimitMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :disabled="!settings.torrent_sharing_enabled" class="w-full" />
     </UFormField>
+    <SettingsCrossLink class="-mt-3" anchor="bandwidth.upload_limit" title-key="settings.upload_limit.label" />
     <UFormField :label="t('settings.torrent.seeding.label')" :description="t('settings.torrent.seeding.description')" orientation="horizontal">
       <USwitch v-model="settings.torrent_seeding_enabled" :disabled="!settings.torrent_sharing_enabled" />
     </UFormField>
@@ -158,6 +160,7 @@ const uploadLimitMiB = byteModel(
     >
       <USelect v-model="proxyProfile" :items="proxyItems" value-key="value" class="w-full" />
     </UFormField>
+    <SettingsCrossLink v-if="capabilities?.socks5_peer_proxy" class="-mt-3" anchor="network.proxies" />
     <UFormField
       data-settings-anchor="torrent.upnp"
       v-if="capabilities?.upnp"

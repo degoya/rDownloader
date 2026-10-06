@@ -30,14 +30,5 @@
     "draining": "Dejando terminar las transferencias",
     "running": "Ejecutando el script",
     "waiting_for_address": "Esperando el cambio de dirección"
-  },
-  "days": {
-    "mon": "Lun",
-    "tue": "Mar",
-    "wed": "Mié",
-    "thu": "Jue",
-    "fri": "Vie",
-    "sat": "Sáb",
-    "sun": "Dom"
   }
 }

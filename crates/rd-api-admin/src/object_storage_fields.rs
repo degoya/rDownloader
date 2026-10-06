@@ -1,6 +1,7 @@
 //! Validation of an object storage profile request (RD-150-04, RD-150-05): what each
 //! provider needs, what it cannot use, and the shape of the secret it signs with.
 
+use rd_api_core::input_checks::optional_text;
 use rd_core::{
     MAX_OBJECT_ACCESS_KEY, MAX_OBJECT_ENDPOINT, MAX_OBJECT_SECRET, ObjectAddressing,
     ObjectCredentialSource, ObjectStorageProvider,
@@ -56,10 +57,10 @@ impl Fields {
             ));
         }
         let s3 = provider == ObjectStorageProvider::S3;
-        let endpoint = normalized(draft.endpoint)
+        let endpoint = optional_text(draft.endpoint)
             .map(|value| parse_endpoint(&value))
             .transpose()?;
-        let region = normalized(draft.region).filter(|_| s3);
+        let region = optional_text(draft.region).filter(|_| s3);
         if let Some(region) = &region
             && (region.len() > 64
                 || !region
@@ -71,7 +72,7 @@ impl Fields {
                 "The region is not valid",
             ));
         }
-        let bucket = normalized(draft.bucket);
+        let bucket = optional_text(draft.bucket);
         if let Some(bucket) = &bucket
             && !provider.is_valid_bucket(bucket)
         {
@@ -80,7 +81,7 @@ impl Fields {
                 "The bucket name is not valid",
             ));
         }
-        let access_key_id = normalized(draft.access_key_id)
+        let access_key_id = optional_text(draft.access_key_id)
             .filter(|_| s3 && draft.source == ObjectCredentialSource::Static);
         if s3 && draft.source == ObjectCredentialSource::Static {
             let valid = access_key_id.as_deref().is_some_and(|key| {
@@ -95,7 +96,7 @@ impl Fields {
             }
         }
         let account =
-            normalized(draft.account).filter(|_| provider == ObjectStorageProvider::Azure);
+            optional_text(draft.account).filter(|_| provider == ObjectStorageProvider::Azure);
         if provider == ObjectStorageProvider::Azure {
             match account.as_deref() {
                 None => {
@@ -230,10 +231,4 @@ pub(super) fn validate_secrets(
         ));
     }
     Ok(())
-}
-
-pub(super) fn normalized(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }

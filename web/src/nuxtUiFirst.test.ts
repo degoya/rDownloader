@@ -32,6 +32,8 @@ interface Tag {
   name: string
   /** The tag's attributes as written, line breaks included. */
   attrs: string
+  /** The element this tag is the first child of: the opening tag right before it, unless that one closes itself. */
+  firstChildOf: string | null
 }
 
 interface Pattern {
@@ -55,6 +57,11 @@ const PATTERNS = {
   'number-input': {
     use: 'UInputNumber',
     matches: tag => tag.name === 'UInput' && has(/\btype="number"/)(tag)
+  },
+  // A time or a date is Nuxt UI's field, never the browser's (owner, 2026-10-06; RD-1120-23).
+  'time-date-input': {
+    use: 'UInputTime or UInputDate',
+    matches: tag => (tag.name === 'UInput' || tag.name === 'input') && has(/\btype="(?:time|date)"/)(tag)
   },
   'dashed-box': {
     use: 'UEmpty',
@@ -114,6 +121,18 @@ const PATTERNS = {
   'native-control': {
     use: 'USelect, UTextarea, USeparator, UTable, UProgress or UModal',
     matches: tag => NATIVE_CONTROLS.has(tag.name)
+  },
+  // A row of buttons whose look follows "is this the chosen one" tells only the eye which value
+  // holds; the radio group says it to a screen reader as well (RD-1120-14). Two values are
+  // compared, neither a literal: a button coloured for one fixed case is no selection.
+  'toggle-group': {
+    use: 'URadioGroup or UTabs',
+    matches: tag => tag.name === 'UButton' && has(/:variant="\s*[\w$.]+\s*===\s*[\w$.]+\s*\?/)(tag)
+  },
+  // The empty state of a fetched list is a `UEmpty`, like every other (RD-1120-14).
+  'empty-paragraph': {
+    use: 'UEmpty',
+    matches: tag => tag.name === 'p' && tag.firstChildOf === 'DataState'
   }
 } satisfies Record<string, Pattern>
 
@@ -123,6 +142,7 @@ type PatternId = keyof typeof PATTERNS
 const MAX: Record<PatternId, number> = {
   'card': 0,
   'number-input': 0,
+  'time-date-input': 0,
   'dashed-box': 0,
   'drop-zone': 0,
   'file-input': 0,
@@ -136,7 +156,9 @@ const MAX: Record<PatternId, number> = {
   'raw-button': 0,
   'raw-input': 0,
   'focusable-element': 0,
-  'native-control': 0
+  'native-control': 0,
+  'toggle-group': 0,
+  'empty-paragraph': 0
 }
 
 interface Allowance {
@@ -161,15 +183,10 @@ const ALLOWED: Allowance[] = [
   { file: 'components/settings/AccountSignInFlow.vue', pattern: 'card', count: 1, design: 'design.md:402-404', quote: 'inner boxes of a card or a modal (previews, code samples, the statistics chart)' },
   { file: 'components/settings/PluginInstallPreviewModal.vue', pattern: 'card', count: 1, design: 'design.md:402-404', quote: 'inner boxes of a card or a modal (previews, code samples, the statistics chart)' },
   { file: 'components/settings/RemoteJobSubmitForm.vue', pattern: 'card', count: 1, design: 'design.md:402-404', quote: 'inner boxes of a card or a modal (previews, code samples, the statistics chart)' },
-  { file: 'components/settings/SettingsCollectorTab.vue', pattern: 'card', count: 1, design: 'design.md:402-404', quote: 'inner boxes of a card or a modal (previews, code samples, the statistics chart)' },
+  { file: 'components/settings/SettingsLinkgrabberTab.vue', pattern: 'card', count: 1, design: 'design.md:402-404', quote: 'inner boxes of a card or a modal (previews, code samples, the statistics chart)' },
   { file: 'components/settings/SettingsPluginRepositories.vue', pattern: 'card', count: 1, design: 'design.md:402-404', quote: 'inner boxes of a card or a modal (previews, code samples, the statistics chart)' },
-  { file: 'components/routing/RoutingHotfolders.vue', pattern: 'card', count: 1, design: 'design.md:409', quote: 'Not cards, and so not soft: rows and the lists themselves' },
-  // The drag handle of a reorderable row.
-  { file: 'components/TransferCard.vue', pattern: 'raw-button', count: 1, design: 'design.md:1414-1416', quote: 'it is a `<button>` carrying `draggable="true"`' },
-  { file: 'components/PackageGroup.vue', pattern: 'raw-button', count: 1, design: 'design.md:1414-1416', quote: 'it is a `<button>` carrying `draggable="true"`' },
-  { file: 'components/CollectorCandidateRow.vue', pattern: 'raw-button', count: 1, design: 'design.md:1414-1416', quote: 'it is a `<button>` carrying `draggable="true"`' },
-  { file: 'components/CollectorPackageGroup.vue', pattern: 'raw-button', count: 1, design: 'design.md:1414-1416', quote: 'it is a `<button>` carrying `draggable="true"`' },
-  { file: 'components/NzbImportGroup.vue', pattern: 'raw-button', count: 1, design: 'design.md:1414-1416', quote: 'it is a `<button>` carrying `draggable="true"`' },
+  // The drag handle of a reorderable row, one component for every list that reorders (RD-1120-14).
+  { file: 'components/DragHandle.vue', pattern: 'raw-button', count: 1, design: 'design.md:1446-1450', quote: 'it is a `<button>` carrying `draggable="true"`' },
   // The expand chevron of a queue or LinkGrabber row is a grid cell of its own.
   { file: 'components/TransferCard.vue', pattern: 'chevron-toggle', count: 1, design: 'design.md:1617-1619', quote: 'not the trigger of a `UCollapsible`' },
   { file: 'components/PackageGroup.vue', pattern: 'chevron-toggle', count: 1, design: 'design.md:1617-1619', quote: 'not the trigger of a `UCollapsible`' },
@@ -204,12 +221,17 @@ function templateTags(file: string, source: string): Tag[] {
   }
   const template = source.slice(start, end).replace(/<!--[\s\S]*?-->/g, comment => comment.replace(/[^\n]/g, ' '))
   const before = source.slice(0, start).split('\n').length - 1
-  return [...template.matchAll(TAG)].map(match => ({
-    file,
-    line: before + template.slice(0, match.index).split('\n').length,
-    name: match[1] ?? '',
-    attrs: match[2] ?? ''
-  }))
+  const matches = [...template.matchAll(TAG)]
+  return matches.map((match, index) => {
+    const previous = matches[index - 1]
+    return {
+      file,
+      line: before + template.slice(0, match.index).split('\n').length,
+      name: match[1] ?? '',
+      attrs: match[2] ?? '',
+      firstChildOf: previous && !previous[0].endsWith('/>') ? previous[1] ?? null : null
+    }
+  })
 }
 
 function components(directory: string): string[] {
@@ -299,6 +321,21 @@ describe('Nuxt UI first', () => {
     it('asks for a lower MAX once a hand-built control is gone', () => {
       const found = fixture('  <UInputNumber v-model="limit" />')
       expect(verdict('number-input', found['number-input'], 1)).toContain(`Lower MAX['number-input'] to 0`)
+    })
+
+    it('turns red on a time or a date field of the browser', () => {
+      const found = fixture('  <UInput v-model="start" type="time" />\n  <UInput v-model="day" type="date" />\n  <UInputTime v-model="start" />')
+      expect(found['time-date-input'].map(tag => tag.line)).toEqual([5, 6])
+    })
+
+    it('tells a selection row from a button coloured for a fixed case', () => {
+      const found = fixture('  <UButton v-for="item in items" :key="item" :variant="mode === item ? \'soft\' : \'ghost\'" />\n  <UButton :variant="decision === \'rename\' ? \'solid\' : \'outline\'" />')
+      expect(found['toggle-group'].map(tag => tag.line)).toEqual([5])
+    })
+
+    it('finds a paragraph standing in for the empty state of a DataState, and only there', () => {
+      const found = fixture('  <DataState :empty="true">\n    <p class="text-sm text-muted">Nothing</p>\n  </DataState>\n  <DataState :empty="true" />\n  <p class="text-sm text-muted">Below</p>')
+      expect(found['empty-paragraph'].map(tag => tag.line)).toEqual([6])
     })
 
     it('ignores a control that is only mentioned in a comment', () => {

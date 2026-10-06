@@ -1,9 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import routing from '@/locales/en/routing.json'
-import { fileUpload } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 import RoutingBackupButtons from './RoutingBackupButtons.vue'
 
@@ -17,21 +16,8 @@ vi.mock('@/api/client', () => ({
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { routing } } })
-
-/** Renders the menu's items as plain buttons, so each export is one click away in the test. */
-const UDropdownMenu = {
-  props: ['items'],
-  template: '<div><slot /><button v-for="item in items" :key="item.label" @click="item.onSelect()">{{ item.label }}</button></div>'
-}
-
 function mount() {
-  return render(RoutingBackupButtons, {
-    global: {
-      plugins: [i18n],
-      stubs: { UDropdownMenu, UFileUpload: fileUpload, UButton: { props: ['label'], template: '<button>{{ label }}</button>' } }
-    }
-  })
+  return mountComponent(RoutingBackupButtons, { messages: { routing } })
 }
 
 describe('RoutingBackupButtons', () => {

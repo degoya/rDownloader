@@ -16,7 +16,10 @@
 #   1. the new version: exit 0, it answers with its version, the old files wait in .previous/ --
 #      with the web interface's and a capture agent's event streams open across the stop, which
 #      must not hold the old version up (live test 2026-10-01: an open stream kept it running
-#      until the updater gave up), nor need the updater's stop by force;
+#      until the updater gave up), nor need the updater's stop by force; and with a slow download
+#      from the soak fixture (scripts/lib/soak_fixture.py) running into the stop, which the new
+#      version carries on from its checkpoint with a ranged request and ends with the source's
+#      SHA-256 (RD-1120-18);
 #   2. a candidate whose program ends at once: exit 2, rolled back to what ran before, with
 #      update.new_version_exited, and the database copy from before the update back in place;
 #   3. only with a debug build: a candidate that answers but is declared unhealthy
@@ -40,6 +43,7 @@ WORK="$(mktemp -d)"
 INSTALL="$WORK/install"
 DATA="$INSTALL/data"
 LOGS="${RD_SMOKE_LOGS:-$WORK/logs}"
+LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/lib" && pwd)"
 mkdir -p "$INSTALL/plugins" "$LOGS"
 
 # A path the Rust binary understands: Git Bash's /d/a/… is D:/a/… on Windows.
@@ -49,7 +53,7 @@ native() {
 
 fail() {
     echo "!! $*" >&2
-    for pid in ${STREAM_PIDS:-}; do kill "$pid" 2> /dev/null || true; done
+    for pid in ${STREAM_PIDS:-} ${FIXTURE_PID:-}; do kill "$pid" 2> /dev/null || true; done
     for log in "$DATA/update/updater.log" "$INSTALL/logs/rdownloader.err.log" "$DATA/update/journal.json"; do
         [[ -f "$log" ]] && { echo "--- $log" >&2; tail -n 60 "$log" >&2; cp "$log" "$LOGS/" 2>/dev/null || true; }
     done
@@ -69,6 +73,19 @@ await_version() {
         sleep 1
     done
     fail "the service answers as '${seen:-nothing}', not $want"
+}
+
+# One field of the smoke's download, as the queue lists it; empty when the list does not answer.
+download_field() {
+    { curl -fsS -b "$JAR" "$BASE/api/v1/downloads" | "$PY" -c '
+import json, sys
+row = next((row for row in json.load(sys.stdin) if row["id"] == sys.argv[1]), None)
+print("" if row is None else row[sys.argv[2]])' "$DOWNLOAD" "$1"; } 2> /dev/null || true
+}
+
+sign_in() {
+    curl -fsS -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' -d "{\"password\":\"$PASSWORD\"}" \
+        "$BASE/api/v1/auth/login" > /dev/null || fail "the sign-in was refused"
 }
 
 journal_field() {
@@ -176,8 +193,7 @@ JAR="$WORK/cookies"
 PASSWORD="self-update-smoke-password"
 curl -fsS -c "$JAR" -H 'Content-Type: application/json' -d "{\"password\":\"$PASSWORD\"}" \
     "$BASE/api/v1/auth/setup" > /dev/null || fail "the setup was refused"
-curl -fsS -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' -d "{\"password\":\"$PASSWORD\"}" \
-    "$BASE/api/v1/auth/login" > /dev/null || fail "the sign-in was refused"
+sign_in
 bearer="$(curl -fsS -b "$JAR" -H 'Content-Type: application/json' -d '{"label":"self-update smoke"}' \
     "$BASE/api/v1/capture/pair" | "$PY" -c 'import json, sys; print(json.load(sys.stdin)["bearer"])')" \
     || fail "the capture pairing was refused"
@@ -190,9 +206,38 @@ for pid in $STREAM_PIDS; do kill -0 "$pid" 2> /dev/null || fail "an event stream
 grep -q '^retry:' "$LOGS/events.log" || fail "the web interface's event stream did not open"
 grep -q '^retry:' "$LOGS/capture-events.log" || fail "the capture event stream did not open"
 
-echo "==> 1. the next version"
+# The next version is packed and handed over before the download starts: packing the archive
+# took about 40 s on a GitHub runner, long enough for the download to finish before the update
+# it is meant to run into (the 1.12.0 release candidate's self-update run, 2026-10-06).
 archive="$(candidate next "$NEW_BINARY" "$NEW_VERSION" 'new readme')"
 updater="$(hand_over "$OLD_VERSION" "$NEW_VERSION" "$archive" "$INSTALL/rdownloader$EXT")"
+
+echo "==> a slow download runs into the update"
+"$PY" -B "$(native "$LIB/soak.py")" serve-fixture --rate-mib 1 > "$WORK/fixture.url" 2> "$LOGS/fixture.log" &
+FIXTURE_PID="$!"
+for _ in $(seq 1 50); do [[ -s "$WORK/fixture.url" ]] && break; sleep 0.2; done
+FIXTURE="$(head -n 1 "$WORK/fixture.url" | tr -d '\r')"
+[[ "$FIXTURE" == http://* ]] || fail "the download fixture did not start"
+SEED=11 SIZE=$((64 * 1024 * 1024))
+DOWNLOAD="$(curl -fsS -b "$JAR" -H 'Content-Type: application/json' \
+    -d "{\"url\":\"$FIXTURE/f/$SEED/$SIZE/smoke.bin\",\"package_name\":\"self-update-smoke\"}" \
+    "$BASE/api/v1/downloads" | "$PY" -c 'import json, sys; print(json.load(sys.stdin)["id"])')" \
+    || fail "the download was refused"
+# A checkpoint of a few MiB, far from the end: 64 MiB at 1 MiB/s take 64 s. Slow enough, too,
+# that a download fetched anew after the restart could not be back at the checkpoint by the
+# first look at it.
+before=0
+for _ in $(seq 1 120); do
+    before="$(download_field committed_bytes)"
+    (( ${before:-0} >= 4 * 1024 * 1024 )) && break
+    sleep 0.5
+done
+(( ${before:-0} >= 4 * 1024 * 1024 )) || fail "the download did not get going ($(download_field state), ${before:-0} bytes)"
+(( before < SIZE )) || fail "the download finished before the update; it has to run into it"
+ranged_before="$(curl -fsS "$FIXTURE/stats" | "$PY" -c 'import json, sys; print(json.load(sys.stdin)["ranged"])')" \
+    || fail "the download fixture did not answer its counters"
+
+echo "==> 1. the next version"
 code="$(apply "$updater")"
 [[ "$code" == 0 ]] || fail "the update ended with $code, not 0"
 await_version "$NEW_VERSION"
@@ -207,6 +252,38 @@ grep -qx 'new readme' "$INSTALL/README.md" || fail "README.md is not the new one
 grep -qx 'old readme' "$INSTALL/.previous/README.md" || fail ".previous/ lacks the old README.md"
 grep -qx 'payload' "$INSTALL/downloads/kept.bin" || fail "the downloads folder changed"
 [[ -f "$DATA/rdownloader.sqlite3" ]] || fail "the database is gone"
+
+echo "==> the download carries on from its checkpoint and ends with the source's bytes"
+sign_in
+after="$(download_field committed_bytes)"
+(( ${after:-0} >= before )) || fail "the download went back from $before to ${after:-0} bytes over the update"
+state=""
+for _ in $(seq 1 360); do
+    state="$(download_field state)"
+    [[ "$state" == completed || "$state" == failed || "$state" == cancelled ]] && break
+    sleep 0.5
+done
+[[ "$state" == completed ]] || fail "the download ended '$state' after the update, not completed"
+"$PY" -B - "$(native "$INSTALL/downloads")" "$(native "$LIB")" "$SEED" "$SIZE" "$FIXTURE/stats" "$ranged_before" <<'PY' \
+    || fail "the download did not end with the source's bytes"
+import hashlib, json, pathlib, sys, urllib.request
+downloads, lib, stats = sys.argv[1], sys.argv[2], sys.argv[5]
+seed, size, ranged_before = int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[6])
+sys.path.insert(0, lib)
+import soak_fixture
+found = [path for path in pathlib.Path(downloads).rglob("smoke.bin") if path.is_file()]
+assert len(found) == 1, f"{len(found)} files named smoke.bin"
+digest = hashlib.sha256()
+with open(found[0], "rb") as handle:
+    for block in iter(lambda: handle.read(1 << 20), b""):
+        digest.update(block)
+assert digest.hexdigest() == soak_fixture.expected_sha256(seed, size), "SHA-256 differs from the source"
+counted = json.load(urllib.request.urlopen(stats, timeout=5))
+# No outage in this fixture: a request past the first byte after the update is the resume.
+assert counted["ranged"] > ranged_before, f"no ranged request after the update, fetched anew: {counted}"
+PY
+kill "$FIXTURE_PID" 2> /dev/null || true
+FIXTURE_PID=""
 
 echo "==> 2. a candidate that ends at once is taken back"
 if [[ -n "$EXT" ]]; then

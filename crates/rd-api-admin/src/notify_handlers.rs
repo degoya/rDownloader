@@ -292,69 +292,10 @@ pub async fn save_target(
         "A target needs an endpoint",
     )?;
     if request.kind == TargetKind::Plugin {
-        // Refused now rather than at delivery time: a target naming a plugin nobody installed,
-        // or a destination the host would refuse to send to (RD-130-15), would sit in the list
-        // looking configured and fail on every event.
-        let plugin_id = request
-            .config
-            .get("plugin_id")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or_default();
-        match state
-            .notifications
-            .notifiers()
-            .await
-            .check_destination(plugin_id, &endpoint)
-        {
-            None => {
-                return Err(ApiError::bad_request(
-                    "notification.plugin_unknown",
-                    "No installed notification destination has that id",
-                ));
-            }
-            Some(Err(failure)) => {
-                return Err(ApiError::bad_request_owned(
-                    failure
-                        .code
-                        .unwrap_or_else(|| "notification.endpoint_invalid".to_owned()),
-                    failure.message,
-                ));
-            }
-            Some(Ok(())) => {}
-        }
-        // The same for its settings (RD-170-09): a name the destination does not declare, or a
-        // value it does not offer, would otherwise be dropped silently on every delivery.
-        let checked = match rd_plugin_host::extension::settings_from_config(&request.config) {
-            Ok(settings) => state
-                .notifications
-                .notifiers()
-                .await
-                .check_settings(plugin_id, &settings)
-                .unwrap_or(Ok(())),
-            Err(failure) => Err(failure),
-        };
-        if let Err(failure) = checked {
-            return Err(ApiError::bad_request_owned(
-                failure
-                    .code
-                    .unwrap_or_else(|| "plugin.setting_invalid".to_owned()),
-                failure.message,
-            ));
-        }
+        check_plugin_destination(state, &request.config, &endpoint).await?;
     }
     if request.kind == TargetKind::Webhook {
-        let url = url::Url::parse(&endpoint).map_err(|_| {
-            ApiError::bad_request(
-                "notification.endpoint_invalid",
-                "The webhook URL is not valid",
-            )
-        })?;
-        if !matches!(url.scheme(), "http" | "https") {
-            return Err(ApiError::bad_request(
-                "notification.endpoint_invalid",
-                "A webhook must use http or https",
-            ));
-        }
+        check_webhook_endpoint(&endpoint)?;
     }
     let stored = state
         .database
@@ -392,40 +333,16 @@ pub async fn save_target(
     };
     let mut config = request.config;
     rd_notify::seal_executable(&mut config, approved, kept_ref);
-    let saved = state
-        .database
-        .upsert_notification_target(
-            id,
-            rd_db::NewNotificationTarget {
-                name,
-                kind: request.kind,
-                enabled: request.enabled,
-                endpoint,
-                config,
-                secret_ref: secret_ref.clone(),
-                clear_secret: request.clear_secret,
-            },
-        )
-        .await;
-    let saved = match saved {
-        Ok(saved) => saved,
-        Err(error) => {
-            // The save was refused, so the secret just written belongs to no target.
-            if let Some(fresh) = &secret_ref
-                && let Err(cleanup) = state.secrets.remove(fresh).await
-            {
-                tracing::warn!(%cleanup, "orphaned target secret could not be removed");
-            }
-            return Err(crate::error_codes::store_error(
-                &error,
-                "notification.target_not_found",
-                "Not found",
-                rd_db::StoreErrorKind::Duplicate,
-                "notification.name_taken",
-                "A notification target with this name already exists",
-            ));
-        }
+    let target = rd_db::NewNotificationTarget {
+        name,
+        kind: request.kind,
+        enabled: request.enabled,
+        endpoint,
+        config,
+        secret_ref: secret_ref.clone(),
+        clear_secret: request.clear_secret,
     };
+    let saved = store_target(state, id, target, secret_ref.as_deref()).await?;
     // A replaced or cleared secret leaves the old vault entry behind; drop it.
     if let Some(stale) = stale
         && (secret_ref.is_some() || request.clear_secret)
@@ -434,6 +351,109 @@ pub async fn save_target(
         tracing::warn!(%error, "stale target secret could not be removed");
     }
     Ok(saved)
+}
+
+/// Refuses a plugin target whose destination or settings the named plugin would refuse.
+async fn check_plugin_destination(
+    state: &AppState,
+    config: &serde_json::Value,
+    endpoint: &str,
+) -> Result<(), ApiError> {
+    // Refused now rather than at delivery time: a target naming a plugin nobody installed,
+    // or a destination the host would refuse to send to (RD-130-15), would sit in the list
+    // looking configured and fail on every event.
+    let plugin_id = config
+        .get("plugin_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    match state
+        .notifications
+        .notifiers()
+        .await
+        .check_destination(plugin_id, endpoint)
+    {
+        None => {
+            return Err(ApiError::bad_request(
+                "notification.plugin_unknown",
+                "No installed notification destination has that id",
+            ));
+        }
+        Some(Err(failure)) => {
+            return Err(ApiError::bad_request_owned(
+                failure
+                    .code
+                    .unwrap_or_else(|| "notification.endpoint_invalid".to_owned()),
+                failure.message,
+            ));
+        }
+        Some(Ok(())) => {}
+    }
+    // The same for its settings (RD-170-09): a name the destination does not declare, or a
+    // value it does not offer, would otherwise be dropped silently on every delivery.
+    let checked = match rd_plugin_host::extension::settings_from_config(config) {
+        Ok(settings) => state
+            .notifications
+            .notifiers()
+            .await
+            .check_settings(plugin_id, &settings)
+            .unwrap_or(Ok(())),
+        Err(failure) => Err(failure),
+    };
+    if let Err(failure) = checked {
+        return Err(ApiError::bad_request_owned(
+            failure
+                .code
+                .unwrap_or_else(|| "plugin.setting_invalid".to_owned()),
+            failure.message,
+        ));
+    }
+    Ok(())
+}
+
+/// Refuses a webhook endpoint that is not an `http` or `https` URL.
+fn check_webhook_endpoint(endpoint: &str) -> Result<(), ApiError> {
+    let url = url::Url::parse(endpoint).map_err(|_| {
+        ApiError::bad_request(
+            "notification.endpoint_invalid",
+            "The webhook URL is not valid",
+        )
+    })?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(ApiError::bad_request(
+            "notification.endpoint_invalid",
+            "A webhook must use http or https",
+        ));
+    }
+    Ok(())
+}
+
+/// Writes the target; a refused write removes the secret this save just put in the vault.
+async fn store_target(
+    state: &AppState,
+    id: Option<rd_core::NotificationTargetId>,
+    target: rd_db::NewNotificationTarget,
+    fresh_secret: Option<&str>,
+) -> Result<rd_notify::NotificationTarget, ApiError> {
+    let saved = state.database.upsert_notification_target(id, target).await;
+    match saved {
+        Ok(saved) => Ok(saved),
+        Err(error) => {
+            // The save was refused, so the secret just written belongs to no target.
+            if let Some(fresh) = fresh_secret
+                && let Err(cleanup) = state.secrets.remove(fresh).await
+            {
+                tracing::warn!(%cleanup, "orphaned target secret could not be removed");
+            }
+            Err(crate::error_codes::store_error(
+                &error,
+                "notification.target_not_found",
+                "Not found",
+                rd_db::StoreErrorKind::Duplicate,
+                "notification.name_taken",
+                "A notification target with this name already exists",
+            ))
+        }
+    }
 }
 
 async fn save_rule(

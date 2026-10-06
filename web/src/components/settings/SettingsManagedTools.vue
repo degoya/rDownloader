@@ -138,7 +138,6 @@ function versionItems(tool: ManagedTool): { label: string; value: string }[] {
       v-if="!loading && !enabled"
       class="mt-4"
       color="neutral"
-      variant="subtle"
       icon="i-lucide-info"
       :title="t('settings.managed_tools.disabled_title')"
       :description="t('settings.managed_tools.disabled_description')"
@@ -147,11 +146,11 @@ function versionItems(tool: ManagedTool): { label: string; value: string }[] {
     <div v-if="store" class="mt-4 flex flex-wrap items-center justify-between gap-3 border border-muted p-3">
       <div class="min-w-0">
         <p class="text-xs font-medium text-highlighted">{{ t('settings.managed_tools.manifest') }}</p>
-        <p class="mt-1 font-mono text-[11px] leading-5 text-muted">
+        <p class="mt-1 font-mono text-2xs leading-5 text-muted">
           {{ t('settings.managed_tools.manifest_detail', { sequence: store.manifest_sequence, platform: store.platform }) }}
         </p>
-        <p v-if="store.manifest_url" class="min-w-0 truncate font-mono text-[11px] text-muted" :title="store.manifest_url">{{ store.manifest_url }}</p>
-        <p v-else class="text-[11px] leading-5 text-muted">{{ t('settings.managed_tools.manifest_built_in') }}</p>
+        <p v-if="store.manifest_url" class="min-w-0 truncate font-mono text-2xs text-muted" :title="store.manifest_url">{{ store.manifest_url }}</p>
+        <p v-else class="text-2xs leading-5 text-muted">{{ t('settings.managed_tools.manifest_built_in') }}</p>
       </div>
       <UButton
         size="xs"

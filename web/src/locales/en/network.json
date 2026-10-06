@@ -25,7 +25,6 @@
     "secret_generic_password": "Account password",
     "hint_generic": "Enter the credentials required by this provider.",
     "cookies_warning": "Cookies grant access to your session. Import only the cookies of the respective provider and never share the content.",
-    "test": "Test",
     "edit": "Edit account",
     "delete": "Delete account",
     "empty": "No provider account created yet.",

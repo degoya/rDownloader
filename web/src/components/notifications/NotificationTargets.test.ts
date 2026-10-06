@@ -236,3 +236,32 @@ describe('NotificationTargets destination settings', () => {
     expect(screen.queryByTestId('notification-setting-priority_info')).toBeNull()
   })
 })
+
+/** RD-1110-10, RD-1120-09: an emptied port is sent as `null`, so the encryption picks it again. */
+describe('NotificationTargets SMTP port', () => {
+  const MAIL = {
+    id: 't1', name: 'Mail', kind: 'smtp', enabled: true, endpoint: 'smtp.example',
+    config: { from: 'rd@example', to: ['me@example'], tls: 'starttls', port: 2525 }, has_secret: true
+  }
+
+  beforeEach(() => {
+    get.mockReset()
+    get.mockResolvedValue({ data: [] })
+    put.mockReset()
+    put.mockResolvedValue({ data: MAIL })
+  })
+
+  it('sends an emptied port as null instead of dropping it', async () => {
+    mountComponent(NotificationTargets, { messages: { notifications }, props: { modelValue: [MAIL], loading: false, loadError: null } })
+    const row = screen.getByText('Mail').closest('div.flex') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.edit }))
+
+    const port = await screen.findByLabelText(notifications.smtp.port) as HTMLInputElement
+    expect(port.value).toBe('2525')
+    await fireEvent.update(port, '')
+    await fireEvent.submit(port.closest('form') as HTMLFormElement)
+
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    expect(put.mock.calls[0]?.[1]?.body?.config).toHaveProperty('port', null)
+  })
+})

@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
 import ui from '@nuxt/ui/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
+
+import { uiTheme } from './src/uiTheme'
 
 /**
  * Every icon the interface names is bundled at build time, none is fetched (RD-120-48).
@@ -20,34 +23,19 @@ export const iconClientBundle = {
   sizeLimitKb: 256
 }
 
+/**
+ * The version the bundle is built as, from `package.json` (`scripts/set-version.sh` writes it).
+ * The interface compares it with the service's to notice a page left open across an update
+ * (RD-1120-16); `vitest.config.ts` defines the same.
+ */
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
+
 export default defineConfig({
+  define: { __RD_BUILD_VERSION__: JSON.stringify(version) },
   plugins: [
     vue(),
     ui({
-      ui: {
-        colors: {
-          primary: 'signal',
-          secondary: 'cyan',
-          neutral: 'slate',
-          warning: 'amber',
-          error: 'coral'
-        },
-        // A card stands off the page by its ground, not by an outline on the page's own colour
-        // (RD-1101-09); a card nested in another names `variant="outline"` itself. `overflow-clip`
-        // instead of Nuxt UI's `overflow-hidden`: a hidden overflow makes the root a scroll
-        // container, whose automatic minimum height in a flex column is 0, so in the panel body a
-        // card shrank below its content, clipped it and left it out of the scroll height. A clip
-        // keeps the rounded corners without that; `min-h-fit` was ignored by Firefox (RD-1110-17).
-        card: { slots: { root: 'overflow-clip' }, defaultVariants: { variant: 'soft' } },
-        // A number is typed, not stepped (RD-1110-10, `design.md`): only a small count shows its
-        // plus and minus, by naming `increment` and `decrement` itself.
-        inputNumber: { defaultVariants: { increment: false, decrement: false } },
-        // An empty state is a dashed outline around Nuxt UI's own padding, one spacing for every
-        // one of them (RD-1110-11); a ring cannot be dashed, so the outline is a border.
-        empty: { slots: { root: 'border border-dashed border-muted' }, defaultVariants: { variant: 'naked' } },
-        // A sub-section divider is the same muted hairline the hand-drawn `border-t` was.
-        separator: { variants: { color: { neutral: { border: 'border-muted' } } } }
-      },
+      ui: uiTheme,
       icon: { clientBundle: iconClientBundle }
     })
   ],

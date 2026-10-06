@@ -19,12 +19,14 @@
  * - **Composed keys.** `t(\`plugins.type.${type}\`)`, `t('common.' + name)` and anything built
  *   from a variable are invisible to a regular expression. Plugin types are covered because
  *   their *values* are extracted separately; other composed keys are not covered at all.
- * - **Codes from outside the `rd-api` crates, except `Failure::coded`.** A `Failure` raised in
- *   `rd-core`, `rd-scheduler` or a runner reaches the interface through the same `code` field.
- *   Its literal code is read from every crate, directly or through a helper whose first
- *   parameter is `code: &str` (RD-190-18); a code chosen by an enum's own `code()` method, as
- *   `rd-tools` does, is not. Plugin codes (`<slug>.<condition>`) are deliberately out of scope:
- *   they live in the package's own catalogue, which `pluginMessages.test.ts` covers.
+ * - **Codes from outside the `rd-api` crates, except `Failure::coded` and `code()`.** A
+ *   `Failure` raised in `rd-core`, `rd-scheduler` or a runner reaches the interface through the
+ *   same `code` field. Its literal code is read from every crate, directly or through a helper
+ *   whose first parameter is `code: &str` (RD-190-18). A code an enum chooses in its own
+ *   `fn code(&self) -> &'static str`, as `rd-tools` does, is read from the match arms
+ *   (RD-1120-05); a `code()` that returns anything else, or an arm that delegates, is not.
+ *   Plugin codes (`<slug>.<condition>`) are deliberately out of scope: they live in the
+ *   package's own catalogue, which `pluginMessages.test.ts` covers.
  * - **Codes that reach the client another way.** Only the `ApiError::*` constructors and
  *   `MessageResponse::new` are read. A code passed to a validation helper as an argument, or
  *   assembled at runtime, is not seen — `proxy.password_invalid` is exactly such a case and is
@@ -100,7 +102,7 @@ function backendCodes(): string[] {
 }
 
 /** Every crate's sources without its tests: a `#[cfg(test)]` module or a `tests` file raises codes nobody sees. */
-function runtimeSources(): string[] {
+function runtimeSources(): [file: string, source: string][] {
   return readdirSync(crates, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
     .map(entry => join(crates, entry.name, 'src'))
@@ -110,7 +112,7 @@ function runtimeSources(): string[] {
     .map((file) => {
       const source = readFileSync(file, 'utf8')
       const tests = source.indexOf('#[cfg(test)]\nmod tests')
-      return tests < 0 ? source : source.slice(0, tests)
+      return [file, tests < 0 ? source : source.slice(0, tests)] as [string, string]
     })
 }
 
@@ -126,7 +128,7 @@ function runtimeFailureCodes(): string[] {
   const codes = new Set<string>()
   const coded = new RegExp(`Failure::coded\\(\\s*[^";]{0,200}?"${CODE}"`, 'g')
   const helper = /fn (\w+)\s*(?:<[^>]*>)?\(\s*code: &(?:'static )?str[^)]*\)[^{]*\{/g
-  for (const source of runtimeSources()) {
+  for (const [, source] of runtimeSources()) {
     for (const match of source.matchAll(coded)) if (match[1]) codes.add(match[1])
     for (const match of source.matchAll(helper)) {
       const body = source.slice((match.index ?? 0) + match[0].length).slice(0, 600)
@@ -137,6 +139,49 @@ function runtimeFailureCodes(): string[] {
     }
   }
   return [...codes].sort()
+}
+
+/**
+ * The catalogue an enum's codes live in when it is not `server.codes`, by source file.
+ *
+ * `ManifestRejection` reaches the plugin manager as the reason an installed package is
+ * incompatible, not as a REST error, so its two codes are translated beside that list.
+ */
+const CODE_METHOD_CATALOGUES: Readonly<Record<string, string>> = {
+  'rd-plugin-host/src/manifest.rs': 'plugins.incompatible.reason'
+}
+
+/**
+ * The codes every `fn code(&self) -> &'static str` (or `const fn`, or by value) returns, with the
+ * catalogue each has to resolve in (RD-1120-05).
+ *
+ * The `ApiError::*` and `Failure::coded` readers see a literal at the call; an enum's code is
+ * chosen in its own method and passed on as `error.code()`, so the arms — the string literal
+ * right of each `=>` — are read instead. 25 codes from `rd-tools`, `rd-automation`,
+ * `rd-core` and `rd-media` reached the reader as English prose that way.
+ */
+function codeMethodCodes(): { method: string, code: string, catalogue: string }[] {
+  const found: { method: string, code: string, catalogue: string }[] = []
+  const method = /\bfn code\(\s*&?self\s*\)\s*->\s*&'static str\s*\{/g
+  for (const [file, source] of runtimeSources()) {
+    const relative = file.slice(crates.length + 1).split('\\').join('/')
+    for (const match of source.matchAll(method)) {
+      const start = (match.index ?? 0) + match[0].length
+      let depth = 1
+      let end = start
+      while (depth > 0 && end < source.length) {
+        if (source[end] === '{') depth += 1
+        else if (source[end] === '}') depth -= 1
+        end += 1
+      }
+      const catalogue = CODE_METHOD_CATALOGUES[relative] ?? 'server.codes'
+      const line = source.slice(0, start).split('\n').length
+      for (const arm of source.slice(start, end).matchAll(new RegExp(`=>\\s*"${CODE}"`, 'g'))) {
+        if (arm[1]) found.push({ method: `${relative}:${line}`, code: arm[1], catalogue })
+      }
+    }
+  }
+  return found
 }
 
 /** The `plugin_type` values the manifest parser accepts, read from `PluginType::as_str`. */
@@ -170,6 +215,20 @@ describe.skipIf(!backendAvailable)('keys the backend produces', () => {
     expect(codes.length).toBeGreaterThan(100)
     expect(codes).toContain('plugin.net_timeout')
     expect(codes.filter(code => !i18n.global.te(`server.codes.${code}`))).toEqual([])
+  })
+
+  it('translates every code an enum returns from its own `code()` method (RD-1120-05)', () => {
+    i18n.global.locale.value = 'en'
+    const found = codeMethodCodes()
+    // A changed signature would empty the extraction and prove nothing: 22 methods on
+    // 2026-10-06, each with at least two arms.
+    expect(new Set(found.map(entry => entry.method)).size).toBeGreaterThanOrEqual(20)
+    expect(found.map(entry => entry.code)).toContain('tools.hash_mismatch')
+    expect(found.map(entry => entry.code)).toContain('media.cookie_scope_empty')
+    const missing = found
+      .filter(entry => !i18n.global.te(`${entry.catalogue}.${entry.code}`))
+      .map(entry => `${entry.method}: ${entry.code}`)
+    expect(missing).toEqual([])
   })
 
   // A LinkGrabber candidate carries its message in the database, not in a REST body, so none

@@ -161,3 +161,42 @@ async fn revoking_a_capture_token_ends_the_capture_stream() {
         "the capture stream outlived its token"
     );
 }
+
+/// A token that runs out while its stream is open ends the stream like a revoked one: the
+/// re-check reads only live tokens, and one past its expiry is not live (RD-1120-04, TEST-1).
+#[tokio::test]
+async fn a_token_running_out_ends_its_stream() {
+    use sha2::{Digest, Sha256};
+
+    const BEARER: &str = "stream-expiring-read";
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = harness(directory.path()).await;
+    // Three seconds rather than two: the stream has to be seen open first, on a slow runner too.
+    harness
+        .database
+        .create_expiring_capture_token(
+            rd_core::CaptureTokenId::new(),
+            "stream expiry".to_owned(),
+            hex::encode(Sha256::digest(BEARER.as_bytes())),
+            vec![rd_core::API_READ_SCOPE.to_owned()],
+            Some(chrono::Utc::now() + chrono::Duration::seconds(3)),
+        )
+        .await
+        .expect("token");
+
+    let mut body = open(
+        &harness.router,
+        "/api/v1/events",
+        header::AUTHORIZATION,
+        format!("Bearer {BEARER}"),
+    )
+    .await;
+    assert!(
+        !ends_within(&mut body, STAYS_OPEN).await,
+        "a stream with a token before its expiry was ended"
+    );
+    assert!(
+        ends_within(&mut body, ENDS_WITHIN).await,
+        "the stream outlived its token's expiry"
+    );
+}

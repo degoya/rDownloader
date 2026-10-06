@@ -155,14 +155,17 @@ pub(crate) async fn transition_stopped(
     scheduler: &SchedulerHandle,
     file: &DownloadFile,
 ) -> Result<()> {
-    let reason = scheduler
-        .active
-        .lock()
-        .await
-        .reasons
-        .get(&file.id)
-        .copied()
-        .unwrap_or(StopReason::Paused);
+    let reason = scheduler.active.lock().await.reasons.get(&file.id).copied();
+    let reason = match reason {
+        Some(reason) => reason,
+        // Nobody stopped this file: the service is stopping — an update, a restart, the tray's
+        // quit. The row keeps its running state, and the next start's `recover_interrupted`
+        // queues it again from its checkpoint, as after a crash. Writing `Paused` here left
+        // every running download paused after an update until somebody resumed it by hand
+        // (the 1.12.0 release candidate's self-update run, 2026-10-06).
+        None if scheduler.shutdown.is_cancelled() => return Ok(()),
+        None => StopReason::Paused,
+    };
     match reason {
         StopReason::Paused => {
             scheduler

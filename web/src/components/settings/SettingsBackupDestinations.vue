@@ -25,6 +25,7 @@ import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
 import { WHOLE } from '@/utils/numberInput'
 import { positiveCount } from '@/utils/positiveCount'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const props = defineProps<{ destinations: BackupDestination[] }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -213,6 +214,8 @@ onMounted(async () => {
       <div>
         <h3 class="text-sm font-semibold text-highlighted">{{ t('system.backup.full.destinations.title') }}</h3>
         <p class="text-xs text-muted">{{ t('system.backup.full.destinations.description') }}</p>
+        <SettingsCrossLink class="mt-1" anchor="transfers.object_storage" />
+        <SettingsCrossLink class="mt-1" anchor="postprocess.upload" />
       </div>
       <UButton
         icon="i-lucide-plus"
@@ -223,7 +226,7 @@ onMounted(async () => {
         @click="edit(null)"
       />
     </div>
-    <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
 
     <p v-if="!props.destinations.length && editing === null" class="text-sm text-muted">
       {{ t('system.backup.full.destinations.empty') }}
@@ -255,8 +258,8 @@ onMounted(async () => {
             :loading="busy === destination.id"
             @click="verifyNewest(destination)"
           />
-          <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :label="t('system.backup.full.destinations.edit')" @click="edit(destination)" />
-          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('system.backup.full.destinations.delete')" @click="remove(destination)" />
+          <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :label="t('common.actions.edit')" @click="edit(destination)" />
+          <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('common.actions.remove')" @click="remove(destination)" />
         </div>
       </li>
     </ul>
@@ -332,7 +335,7 @@ onMounted(async () => {
           data-testid="backup-destination-preview-button"
           @click="previewRetention"
         />
-        <UButton type="button" color="neutral" variant="ghost" :label="t('system.backup.full.destinations.cancel')" @click="editing = null" />
+        <UButton type="button" color="neutral" variant="ghost" :label="t('common.actions.cancel')" @click="editing = null" />
       </div>
     </UCard>
 

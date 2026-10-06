@@ -134,12 +134,9 @@
         "description": "Chaque destination reçoit sa propre copie. Une destination injoignable est réessayée et n’affecte que sa propre entrée dans l’historique.",
         "empty": "Aucune destination pour l’instant. Ajoutez un dossier, un bucket de stockage objet ou un remote rclone.",
         "add": "Ajouter une destination",
-        "edit": "Modifier",
-        "delete": "Retirer",
         "deleted": "Destination retirée. Ses archives restent où elles sont.",
         "saved": "Destination enregistrée",
         "save": "Enregistrer la destination",
-        "cancel": "Annuler",
         "off": "Désactivée",
         "kind": {
           "label": "Type",
@@ -451,11 +448,9 @@
       "once": "Visible uniquement maintenant. Rien de tout cela ne pourra être récupéré après avoir quitté la page.",
       "scan": "Scannez ce code avec votre application d'authentification :",
       "copy_secret": "Copier la clé",
-      "copy_uri": "Copier le lien",
       "recovery": "Codes de récupération — conservez-les en lieu sûr :",
       "copy_codes": "Copier les codes",
       "confirm_label": "Code de l'application",
-      "confirm": "Confirmer",
       "qr_alt": "Code QR pour configurer l'application d'authentification",
       "manual": "Ou saisissez la clé à la main :"
     },
@@ -493,7 +488,6 @@
     "description": "Connectez-vous avec votre appareil plutôt qu'avec votre mot de passe. Votre authentificateur vérifie un code PIN ou une empreinte avant de signer : une seule étape couvre donc les deux facteurs. Le mot de passe continue de fonctionner — une clé d'accès est une entrée supplémentaire, pas un remplacement.",
     "unsupported": "Ce navigateur ne peut pas utiliser de clés d'accès ici. Elles exigent une connexion sécurisée : https, ou l'accès au service via localhost.",
     "add": "Ajouter une clé d'accès",
-    "save": "Enregistrer",
     "failed": "La clé d'accès n'a pas pu être configurée.",
     "added_toast": "Clé d'accès ajoutée",
     "name_label": "Nom",
@@ -503,10 +497,8 @@
     "last_used": "Dernière utilisation {moment}",
     "never_used": "jamais",
     "remove": {
-      "action": "Retirer",
       "title": "Retirer cette clé d'accès ?",
-      "description": "« {label} » ne pourra plus se connecter. Votre mot de passe fonctionne toujours.",
-      "confirm": "Retirer"
+      "description": "« {label} » ne pourra plus se connecter. Votre mot de passe fonctionne toujours."
     },
     "step_up_hint": "Ajouter ou retirer une passkey demande à nouveau le mot de passe."
   },
@@ -722,10 +714,8 @@
       "confirm": "Délier"
     },
     "remove": {
-      "action": "Retirer",
       "title": "Retirer le fournisseur d’identité ?",
-      "description": "La configuration, le secret client et le compte lié sont supprimés.",
-      "confirm": "Retirer"
+      "description": "La configuration, le secret client et le compte lié sont supprimés."
     },
     "password_is_off": "La connexion par mot de passe est désactivée",
     "password_is_off_hint": "Seule la machine du service peut la réactiver : {command}. Les passkeys continuent de fonctionner et le mot de passe confirme toujours les modifications.",
@@ -749,8 +739,7 @@
     "group_hint": "Facultatif : le compte lié doit aussi appartenir à ce groupe.",
     "provider_logout": "Se déconnecter aussi chez le fournisseur",
     "provider_logout_hint": "Désactivé : la déconnexion ne ferme que la session ici, vos autres services restent connectés.",
-    "step_up_hint": "Chaque modification ici demande à nouveau le mot de passe.",
-    "save": "Enregistrer"
+    "step_up_hint": "Chaque modification ici demande à nouveau le mot de passe."
   },
   "token_expiry": {
     "label": "Expire",

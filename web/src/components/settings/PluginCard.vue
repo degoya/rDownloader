@@ -84,9 +84,9 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
 </script>
 
 <template>
-  <UCard as="article" variant="outline" :ui="{ root: 'flex flex-col divide-y-0', header: 'px-4 pt-4 pb-0 sm:px-4', body: 'flex-1 space-y-3 p-4 sm:p-4', footer: 'border-t border-default px-4 py-3 sm:px-4' }">
+  <UCard as="article" variant="outline" :ui="{ root: 'flex flex-col', header: 'p-4 sm:px-4', body: 'flex-1 space-y-3 p-4 sm:p-4', footer: 'px-4 py-3 sm:px-4' }">
     <template #header>
-      <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-b border-default pb-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+      <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
         <span class="col-start-1 row-span-2 row-start-1" data-plugin-icon><UAvatar icon="i-lucide-box" color="primary" size="lg" /></span>
         <div class="col-start-2 row-start-1 flex flex-wrap items-center gap-2">
           <h4 class="font-semibold text-highlighted">{{ displayName(plugin) }}</h4>
@@ -102,7 +102,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
           <UTooltip :text="t('plugins.card.concurrency_hint', { count: plugin.max_concurrent_downloads })">
             <p class="flex items-baseline gap-1">
               <span class="font-mono text-sm text-toned">{{ plugin.max_concurrent_downloads }}</span>
-              <span class="text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.card.concurrency') }}</span>
+              <span class="text-2xs uppercase tracking-wide text-muted">{{ t('plugins.card.concurrency') }}</span>
             </p>
           </UTooltip>
         </div>
@@ -118,7 +118,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
             <span v-if="plugin.license" :class="[SEPARATED, 'shrink-0']">{{ plugin.license }}</span>
             <ULink v-if="safeHttpUrl(plugin.homepage)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :to="safeHttpUrl(plugin.homepage)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.homepage') }}</ULink>
             <ULink v-if="safeHttpUrl(plugin.support_url)" :class="[SEPARATED, 'shrink-0 text-primary hover:underline']" :to="safeHttpUrl(plugin.support_url)" target="_blank" rel="noopener noreferrer">{{ t('plugins.card.support') }}</ULink>
-            <span :class="[SEPARATED, 'min-w-0 truncate font-mono text-[11px]']">{{ plugin.id }}</span>
+            <span :class="[SEPARATED, 'min-w-0 truncate font-mono text-2xs']">{{ plugin.id }}</span>
           </p>
         </div>
       </div>
@@ -129,7 +129,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
       above runs under each column apart, with the column gap left open between them.
     -->
     <div class="grid gap-x-5 gap-y-1 sm:grid-cols-[6.5rem_minmax(0,1fr)]" data-plugin-permissions>
-      <p class="pt-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.card.capabilities') }}</p>
+      <p class="pt-1 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.card.capabilities') }}</p>
       <div v-if="hasPermissions" class="space-y-1.5">
         <div v-if="plugin.capabilities.length" class="flex flex-wrap gap-1">
           <UBadge v-for="capability in plugin.capabilities" :key="capability" color="warning" variant="outline">{{ capabilityLabel(capability) }}</UBadge>
@@ -154,7 +154,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
       <!-- One hairline over the label and the values, on a phone as beside each other. -->
       <USeparator class="mb-2 sm:col-span-2" :ui="{ border: 'border-default' }" />
       <div>
-        <p class="pt-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.versions.title') }}</p>
+        <p class="pt-1 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.versions.title') }}</p>
         <div v-if="lifecycle" class="mt-1 flex flex-wrap gap-1">
           <UBadge v-if="lifecycle.running_version" color="primary" variant="subtle">
             {{ t('plugins.versions.running', { version: lifecycle.running_version }) }}
@@ -260,7 +260,7 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
                     <span class="text-muted">v{{ entry.plugin_version }}</span>
                   </div>
                   <p v-if="entry.message" class="mt-1 break-words text-muted">{{ entry.message }}</p>
-                  <p class="mt-1 font-mono text-[10px] text-muted">{{ entry.correlation_id }}</p>
+                  <p class="mt-1 font-mono text-2xs text-muted">{{ entry.correlation_id }}</p>
                 </div>
                 <div class="shrink-0 text-right text-muted">
                   <p>{{ formatMoment(entry.started_at) }}</p>

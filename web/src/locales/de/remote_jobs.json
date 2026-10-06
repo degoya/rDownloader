@@ -76,5 +76,17 @@
       "failed": "Fehlgeschlagen",
       "refused": "Nicht gesendet"
     }
+  },
+  "kind": {
+    "torrent": "Torrent",
+    "nzb": "NZB",
+    "magnet": "Magnet",
+    "link": "Link",
+    "container": "Datei"
+  },
+  "content_key": "Kennung",
+  "package": {
+    "linkgrabber": "Paket „{name}“ im LinkGrabber",
+    "downloads": "Das Paket hat den LinkGrabber verlassen – zur Downloadliste"
   }
 }

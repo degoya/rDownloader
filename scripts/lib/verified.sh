@@ -20,6 +20,9 @@
 # the same rule check.sh, build-plugins.sh and the packaging scripts use.
 # shellcheck source=lanes.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lanes.sh"
+# What a changed path asks of a green: rd_inert_path, rd_non_inert_paths, rd_paths_read_by.
+# shellcheck source=inert-paths.sh
+source "$(dirname "${BASH_SOURCE[0]}")/inert-paths.sh"
 
 # The marker file for the checkout rooted at $1.
 rd_verified_marker() {
@@ -108,16 +111,10 @@ rd_record_full() {
     mv "$marker.tmp" "$marker"
 }
 
-# The paths on stdin that are not documentation, by the rule check.sh applies ("a
-# documentation-only change gets no build"): docs/ and *.md are documentation,
-# crates/rd-core/recovery-matrix.md and crates/rd-api/mcp-coverage.md excepted because a test
-# reads them.
+# The paths on stdin that are not documentation, by the one rule every check applies
+# (rd_inert_path, scripts/lib/inert-paths.sh).
 rd_non_doc_paths() {
-    local paths
-    paths="$(cat)"
-    { grep -vE '^docs/|\.md$' <<< "$paths" || true
-      grep -xE 'crates/rd-core/recovery-matrix\.md|crates/rd-api/mcp-coverage\.md' <<< "$paths" || true
-    } | sed '/^$/d'
+    rd_non_inert_paths
 }
 
 # Whether tree $2 differs from tree $3 of checkout $1 in documentation only (rd_non_doc_paths).
@@ -128,11 +125,21 @@ rd_tree_docs_only() {
     [[ -z "$(rd_non_doc_paths <<< "$changes")" ]]
 }
 
-# The tree a --full green of half $2 was recorded for that covers tree $3 of checkout $1: that
-# very tree, or one it differs from in documentation only; prints nothing when there is none.
-# Every checkout that shares the target directory counts, not only $1 (RD-160-06): a tree is
-# content, and the integration worktree's green is development's after the fast-forward merge —
-# the release chain of 2026-09-28 ran --full again for want of this and of the documentation rule.
+# Whether tree $3 differs from tree $4 of checkout $1 only in paths half $2 does not read
+# (rd_paths_read_by, audit C1): the generated web files of integrate.sh's commit after the gate
+# are nothing the Windows lint reads, so its green of the gate's tree still covers the merged one.
+rd_tree_unread_by() {
+    local changes
+    changes="$(git -C "$1" diff --name-only "$3" "$4" 2> /dev/null)" || return 1
+    [[ -z "$(rd_paths_read_by "$2" <<< "$changes")" ]]
+}
+
+# The tree a green of half $2 was recorded for that covers tree $3 of checkout $1: that very tree,
+# or one it differs from only in what that half does not read (rd_tree_unread_by) — documentation
+# for every half; prints nothing when there is none. Every checkout that shares the target
+# directory counts, not only $1 (RD-160-06): a tree is content, and the integration worktree's
+# green is development's after the fast-forward merge — the release chain of 2026-09-28 ran
+# --full again for want of this and of the documentation rule.
 rd_full_covering() {
     local root="$1" half="$2" tree="$3" directory recorded candidate
     directory="$(dirname "$(rd_full_marker "$root")")"
@@ -144,15 +151,27 @@ rd_full_covering() {
     fi
     while read -r candidate; do
         [[ -n "$candidate" ]] || continue
-        if rd_tree_docs_only "$root" "$candidate" "$tree"; then
+        if rd_tree_unread_by "$root" "$half" "$candidate" "$tree"; then
             printf '%s\n' "$candidate"
             return 0
         fi
     done <<< "$recorded"
 }
 
+# How recorded tree $3 of half $2 relates to tree $4 in checkout $1, for a message.
+rd_covering_note() {
+    if [[ "$3" == "$4" ]]; then
+        echo "this very content"
+    elif rd_tree_docs_only "$1" "$3" "$4"; then
+        echo "documentation changed since"
+    else
+        echo "only what $2 does not read changed since"
+    fi
+}
+
 # Refuses unless both halves of a --full run are recorded for the current working state of
-# checkout $1, or for a tree it differs from in documentation only (rd_full_covering) — so the
+# checkout $1, or for a tree it differs from only in what that half does not read, documentation
+# above all (rd_full_covering) — so the
 # verification note written after the full run, and the changelog of the release commit, do not
 # demand another. $2 names what is being gated, for the message.
 rd_full_gate() {
@@ -168,7 +187,7 @@ rd_full_gate() {
     done
     if [[ ${#missing[@]} -eq 0 ]]; then
         echo "==> full green: $label is covered by a check.sh --full run$([[ "$docs" -eq 1 ]] \
-            && echo ', documentation changed since') (tree ${tree:0:12})"
+            && echo ', only what it does not read changed since') (tree ${tree:0:12})"
         return 0
     fi
     echo "!! $label needs a scripts/check.sh --full green on exactly this content." >&2
@@ -192,11 +211,7 @@ rd_full_already_green() {
     for half in "$@"; do
         recorded="$(rd_full_covering "$root" "$half" "$tree")"
         [[ -n "$recorded" ]] || return 1
-        if [[ "$recorded" == "$tree" ]]; then
-            lines+=("$half: tree ${recorded:0:12}, this very content")
-        else
-            lines+=("$half: tree ${recorded:0:12}, documentation changed since")
-        fi
+        lines+=("$half: tree ${recorded:0:12}, $(rd_covering_note "$root" "$half" "$recorded" "$tree")")
     done
     echo "==> a recorded green already covers this content ($*); it is not run again"
     printf '    %s\n' "${lines[@]}"
@@ -260,21 +275,28 @@ rd_version_pattern() {
     printf '%s\n' "${pattern//+/\\+}"
 }
 
-# The tree a `--full` Rust green was recorded for in checkout $1 when that tree is HEAD's own and
-# the working tree differs from HEAD only by a version bump; prints nothing otherwise. HEAD is
-# the state before the bump, because the release chain commits the bump only later.
-rd_prebump_full_green() {
-    local root="$1" before recorded
+# The tree a green of half $2 (default `rust`) covers in checkout $1 when it covers HEAD's own
+# tree (rd_full_covering) and the working tree differs from HEAD only by a version bump; prints
+# nothing otherwise. HEAD is the state before the bump, because the release chain commits the
+# bump only later. The chain asks it for its test (`rust`), clippy (`clippy`) and web (`web`)
+# steps (RD-1120-06, audit A5).
+rd_prebump_green() {
+    local root="$1" half="${2:-rust}" before recorded
     before="$(git -C "$root" rev-parse 'HEAD^{tree}')"
-    recorded="$(sed -n 's/^rust //p' "$(rd_full_marker "$root")" 2> /dev/null || true)"
-    [[ -n "$recorded" && "$recorded" == "$before" ]] || return 0
+    recorded="$(rd_full_covering "$root" "$half" "$before")"
+    [[ -n "$recorded" ]] || return 0
     rd_version_bump_only "$root" HEAD || return 0
     printf '%s\n' "$recorded"
 }
 
+rd_prebump_full_green() {
+    rd_prebump_green "$1" rust
+}
+
 # --- GitHub greens, per platform (RD-160-06) ---------------------------------------------------
 #
-# The public CI costs an hour and paid minutes per platform. A wave's integration branch goes
+# The public CI costs an hour per platform; its runners cost nothing, the repository being public
+# (RD-1120-07), but the hour is the wave's critical path. A wave's integration branch goes
 # through it on Linux and Windows; the release candidate made from it differs only in the version
 # lines of the bump and the release's documentation, and ran all three platforms again anyway —
 # 1.5.0 was released by hand without --push for that reason, with macOS dispatched alone. The
@@ -282,7 +304,7 @@ rd_prebump_full_green() {
 # no record covers. A red run records nothing, so red still holds the merge.
 #
 # One file for the whole repository, in the common git directory: every worktree sees it, it is
-# never tracked, and deleting target/ does not throw away greens that cost money.
+# never tracked, and deleting target/ does not throw away greens that cost an hour each.
 
 # The record file of the repository checkout $1 belongs to.
 rd_ci_record_file() {
@@ -310,7 +332,8 @@ rd_tree_same_but_versions() {
     git -C "$root" diff -U0 "$from" "$to" -- "${RD_VERSION_FILES[@]}" | rd_version_lines_only "$old" "$new"
 }
 
-# Records that the public CI was green on runner image(s) $3... for tree $2 of checkout $1.
+# Records that the public CI was green on runner image(s) $3... for tree $2 of checkout $1 — or
+# for a release workflow, under its file name (`e2e.yml`, RD-1120-07).
 rd_record_ci() {
     local root="$1" tree="$2" file image
     shift 2

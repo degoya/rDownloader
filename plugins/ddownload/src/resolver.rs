@@ -20,37 +20,29 @@
 
 pub(crate) mod api;
 mod free;
+mod login;
 
 #[cfg(test)]
 mod direct_link_tests;
 
 use plugin_common::{
-    Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LabelPart,
-    LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved, file_name_from_disposition,
+    Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LabelPart,
+    LinkCheck, PluginHost, ResolveInput, Resolved, file_name_from_disposition,
 };
 use url::Url;
-
-use xfs_common::api::DirectLinkSkip;
+use xfs_common::site::{premium_until, second_path_segment};
 
 use self::api::{
-    AccountResult, DirectLink, FileInfo, MATCH_HOSTS, api_request, api_request_with_key, coded,
-    convert_envelope_error, ensure_http_status, file_code, invalid_url, is_html, parse_json,
-    range_probe,
+    MATCH_HOSTS, SITE, api_request, api_request_with_key, coded, ensure_http_status, file_code,
+    invalid_url, is_html, range_probe,
 };
+use self::login::{no_file_delivered, sign_in, signed_in_account_page, signs_in};
 use crate::{messages, page};
-
-/// The plugin's own display name, for the one log line a silent fallback leaves behind. A
-/// constant, never a value off the wire: that is what keeps a key or an address out of a log.
-const PROVIDER: &str = "DDownload";
 
 /// Whether this plugin claims `url`.
 #[must_use]
 pub(crate) fn matches(url: &str) -> bool {
-    Url::parse(url)
-        .ok()
-        .as_ref()
-        .and_then(|url| xfs_common::api::file_code(url, MATCH_HOSTS))
-        .is_some()
+    xfs_common::site::matches(url, MATCH_HOSTS)
 }
 
 /// Hoster domains this account can download from. A single hoster serves its own, so neither
@@ -60,10 +52,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     _host: &H,
     _account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    Ok(crate::HOSTERS
-        .iter()
-        .map(|host| (*host).to_owned())
-        .collect())
+    Ok(plugin_common::own_hosters(crate::HOSTERS))
 }
 
 /// What the account is worth, through the API key when there is one and through the cookie
@@ -109,7 +98,9 @@ pub(crate) async fn check_account<H: PluginHost>(
                 traffic_left: None,
             });
         };
-        let info = account_info_with_key(host, &key).await?;
+        let info = SITE
+            .account_info(host, api_request_with_key("account/info", &key, &[]))
+            .await?;
         let premium = premium_until(host.now_unix_seconds().await, &info.premium_expire);
         return Ok(Account {
             valid: true,
@@ -161,7 +152,7 @@ pub(crate) async fn check_account<H: PluginHost>(
                 host.log(
                     "warn",
                     &xfs_common::session_trace::unconfirmed_page_line(
-                        PROVIDER,
+                        SITE.provider,
                         "the account page",
                         &page.body,
                     ),
@@ -189,7 +180,9 @@ pub(crate) async fn check_account<H: PluginHost>(
             traffic_left: None,
         });
     }
-    let info = account_info(host).await?;
+    let info = SITE
+        .account_info(host, api_request("account/info", &[]))
+        .await?;
     let premium = premium_until(host.now_unix_seconds().await, &info.premium_expire);
     // The key proves the account; the download runs on the cookie session, and until RD-120-13
     // nothing here looked at that session at all — it counted the jar and reported the count.
@@ -240,7 +233,7 @@ async fn verify_download_session<H: PluginHost>(
     account_id: &str,
     label: Label,
 ) -> Result<Label, Failure> {
-    let cookies = cookie_count(host, account_id).await;
+    let cookies = SITE.cookie_count(host, account_id).await;
     let label = label.cookies(cookies);
     if cookies == 0 {
         return Ok(label);
@@ -262,7 +255,7 @@ async fn verify_download_session<H: PluginHost>(
             host.log(
                 "warn",
                 &xfs_common::session_trace::unconfirmed_page_line(
-                    PROVIDER,
+                    SITE.provider,
                     "the account page",
                     &page.body,
                 ),
@@ -292,11 +285,11 @@ pub(crate) async fn resolve<H: PluginHost>(
     let has_api_key = host
         .secret_available(account_id, api::API_KEY_REFERENCE)
         .await;
-    if has_api_key && let Some(resolved) = direct_link(host, &code).await {
+    if has_api_key && let Some(resolved) = SITE.direct_link(host, &code).await {
         return Ok(resolved);
     }
     let signs_in = signs_in(host, account_id).await;
-    if !signs_in && cookie_count(host, account_id).await == 0 {
+    if !signs_in && SITE.cookie_count(host, account_id).await == 0 {
         // With a key in hand the account is an `api_key`-mode one missing its cookie session,
         // which is the older, narrower message. With neither slot answering, the account holds
         // no usable credential at all — in either mode — and saying "paste cookies" would send
@@ -311,7 +304,7 @@ pub(crate) async fn resolve<H: PluginHost>(
         ));
     }
     let metadata = if has_api_key {
-        file_info(host, &code).await?
+        SITE.file_info(host, &code).await?
     } else {
         None
     };
@@ -385,312 +378,16 @@ pub(crate) async fn check<H: PluginHost>(
         }
         None
     };
-    let coded: Vec<(String, Option<String>)> = request
-        .urls
-        .iter()
-        .map(|url| {
-            let code = Url::parse(url)
-                .ok()
-                .and_then(|parsed| file_code(&parsed).map(str::to_owned));
-            (url.clone(), code)
-        })
-        .collect();
-    let mut results = Vec::with_capacity(coded.len());
-    for chunk in coded.chunks(50) {
-        let codes: Vec<&str> = chunk
-            .iter()
-            .filter_map(|(_, code)| code.as_deref())
-            .collect();
-        let infos = if codes.is_empty() {
-            Vec::new()
-        } else {
-            let arguments = [("file_code", codes.join(","))];
-            let request = match scraped_key.as_deref() {
-                Some(key) => api_request_with_key("file/info", key, &arguments),
-                None => api_request("file/info", &arguments),
-            };
-            let response = host.http(request).await?;
-            ensure_http_status(&response)?;
-            let envelope: xfs_common::api::ApiEnvelope<Vec<FileInfo>> = parse_json(&response)?;
-            envelope.into_result().map_err(convert_envelope_error)?
-        };
-        let mut infos = infos.into_iter();
-        for (url, code) in chunk {
-            if code.is_none() {
-                results.push(LinkCheck {
-                    url: url.clone(),
-                    status: LinkStatus::Unknown,
-                    file_name: None,
-                    size: None,
-                });
-                continue;
-            }
-            let info = infos.next();
-            results.push(LinkCheck {
-                url: url.clone(),
-                status: match info.as_ref().map(|item| item.status) {
-                    Some(200) => LinkStatus::Online,
-                    Some(404) => LinkStatus::Offline,
-                    _ => LinkStatus::Unknown,
-                },
-                file_name: info.as_ref().and_then(|item| item.name.clone()),
-                size: info
-                    .and_then(|item| item.size)
-                    .and_then(xfs_common::api::FlexibleU64::into_u64),
-            });
-        }
-    }
-    Ok(results)
-}
-
-async fn account_info<H: PluginHost>(host: &H) -> Result<AccountResult, Failure> {
-    account_info_request(host, api_request("account/info", &[])).await
-}
-
-/// The same call for a `login`-mode account, whose key was read off the account page.
-async fn account_info_with_key<H: PluginHost>(
-    host: &H,
-    key: &str,
-) -> Result<AccountResult, Failure> {
-    account_info_request(host, api_request_with_key("account/info", key, &[])).await
-}
-
-async fn account_info_request<H: PluginHost>(
-    host: &H,
-    request: HttpRequest,
-) -> Result<AccountResult, Failure> {
-    let response = host.http(request).await?;
-    ensure_http_status(&response)?;
-    let envelope: xfs_common::api::ApiEnvelope<AccountResult> = parse_json(&response)?;
-    envelope.into_result().map_err(convert_envelope_error)
-}
-
-async fn file_info<H: PluginHost>(host: &H, code: &str) -> Result<Option<FileInfo>, Failure> {
-    let response = host
-        .http(api_request("file/info", &[("file_code", code.to_owned())]))
-        .await?;
-    ensure_http_status(&response)?;
-    let envelope: xfs_common::api::ApiEnvelope<Vec<FileInfo>> = parse_json(&response)?;
-    let info = envelope
-        .into_result()
-        .map_err(convert_envelope_error)?
-        .into_iter()
-        .next();
-    if info.as_ref().is_some_and(|item| item.status != 200) {
-        return Err(coded(FailureKind::Permanent, messages::FILE_UNAVAILABLE));
-    }
-    Ok(info)
-}
-
-/// Some XFileSharing installations expose `file/direct_link` for premium API keys; DDownload
-/// does not document it, so any failure falls back to the cookie flow.
-///
-/// The fallback stays quiet as far as the download is concerned, but it is no longer silent.
-/// Four `.ok()?` in a row wrote nothing at all, which is why the running installation's error
-/// log held not one line about ddownload while a user spent an evening on an expired session
-/// (RD-120-13). The reason now goes out exactly once per attempt — one call, on the single
-/// path that has an answer to report — and it is one of [`DirectLinkSkip`]'s fixed phrases, so
-/// no file code, address or key can travel in it.
-async fn direct_link<H: PluginHost>(host: &H, code: &str) -> Option<Resolved> {
-    match direct_link_attempt(host, code).await {
-        Ok(resolved) => Some(resolved),
-        Err(skip) => {
-            // `info`, not `warn`: for this provider the endpoint is expected to produce
-            // nothing, so the fallback is normal and only its reason is diagnostic. `debug`
-            // would have left it exactly as invisible as it was.
-            host.log(
-                "info",
-                &xfs_common::api::direct_link_skipped(PROVIDER, skip),
-            );
-            None
-        }
-    }
-}
-
-/// The attempt itself, with every way it can come to nothing named rather than swallowed.
-async fn direct_link_attempt<H: PluginHost>(
-    host: &H,
-    code: &str,
-) -> Result<Resolved, DirectLinkSkip> {
-    let response = host
-        .http(api_request(
-            "file/direct_link",
-            &[("file_code", code.to_owned())],
-        ))
-        .await
-        .map_err(|_| DirectLinkSkip::RequestFailed)?;
-    let envelope: xfs_common::api::ApiEnvelope<DirectLink> =
-        parse_json(&response).map_err(|_| DirectLinkSkip::NotJson)?;
-    let link = envelope
-        .into_result()
-        .map_err(|_| DirectLinkSkip::ApiError)?;
-    let url = Url::parse(&link.url).map_err(|_| DirectLinkSkip::UnparsableUrl)?;
-    if !url
-        .host_str()
-        .is_some_and(|host| host == api::PRIMARY_DOMAIN || host.ends_with(".ddownload.com"))
-    {
-        return Err(DirectLinkSkip::ForeignHost);
-    }
-    Ok(Resolved {
-        file_name: url
-            .path_segments()
-            .and_then(|mut segments| segments.next_back())
-            .filter(|name| !name.is_empty())
-            .map(str::to_owned),
-        size: link.size.and_then(xfs_common::api::FlexibleU64::into_u64),
-        url: url.to_string(),
-        headers: Vec::new(),
-        checksum: None,
-    })
-}
-
-/// Whether a premium attempt came back as a page rather than as the file itself.
-///
-/// The same condition the caller turns into `no_premium_file`; naming it separately is what
-/// lets a sign-in be tried before that failure is reported.
-fn no_file_delivered(response: &HttpResponse) -> bool {
-    response.header("content-disposition").is_none() && is_html(response)
-}
-
-/// Whether this account signs in with stored credentials rather than carrying an API key.
-///
-/// The host answers `secret-available` per reference and admits only the slot the account's
-/// credential mode selects, so this single probe is both "is there a password" and "which mode
-/// is this account in" — the mode itself never crosses the sandbox boundary.
-async fn signs_in<H: PluginHost>(host: &H, account_id: &str) -> bool {
-    host.secret_available(account_id, api::PASSWORD_REFERENCE)
-        .await
-}
-
-/// Signs in with the account's stored credentials.
-///
-/// Neither credential is visible here: the body carries the host's `{{username}}` and
-/// `{{secret:…}}` markers and the host substitutes them, percent-encoded for the form body, on
-/// the way out. The resulting `xfss` cookie is likewise invisible — the host's cookie jar keeps
-/// it and replays it on this account's later requests.
-async fn sign_in<H: PluginHost>(host: &H) -> Result<(), Failure> {
-    let page = host.http(api::login_page_request()).await?;
-    ensure_http_status(&page)?;
-    let page_body = page.text().into_owned();
-    // The login page fetched with a session in the jar is not a login page. `check_account` and
-    // `check` ask the account page first and never get here with a session, but `resolve` signs
-    // in when a premium attempt came back as a page, and that can happen while the session is
-    // perfectly good. Reporting "no sign-in form" for a session that is already established is
-    // the defect RD-109-34 was reported for; a site that answers this fetch with the customer
-    // menu has answered the request, and the caller can carry on.
-    if matches!(
-        page::session_verdict(&page_body),
-        page::SessionVerdict::SignedIn
-    ) {
-        return Ok(());
-    }
-    let form = page::login_form(&page_body).ok_or_else(|| {
-        // Naming the page is the difference between "the site changed" and "this fetch was
-        // answered with something else". RD-109-34 cost a measurement round trip because the
-        // message said only that the form was absent.
-        let diagnosis = page::diagnose(&page_body);
-        Failure::coded(
-            FailureKind::Permanent,
-            messages::LOGIN_FORM_MISSING,
-            messages::login_form_missing(&diagnosis),
-        )
-        .with_param("diagnosis", diagnosis)
-    })?;
-    // DDownload put Cloudflare Turnstile on this form after the sign-in shipped, and until it
-    // was answered every attempt came back as "Wrong captcha" — the credentials were never even
-    // read. The free flow has solved widget challenges through the host all along
-    // (`resolver/free.rs`); the login path simply never had one to solve, so it never asked.
-    let form = match page::login_challenge(&page_body) {
-        Some(marker) => {
-            let solution = host
-                .solve_captcha(xfs_common::free::challenge_for(&marker, &page.final_url))
-                .await?;
-            page::with_challenge_token(&form, marker.kind, &solution.token)
-        }
-        None => form,
-    };
-    let action = form
-        .action
-        .clone()
-        .unwrap_or_else(|| page.final_url.clone());
-    let posted = host
-        .http(
-            HttpRequest::post(action, page::login_body(&form))
-                .with_header("Content-Type", "application/x-www-form-urlencoded")
-                .with_header("Referer", page.final_url.clone()),
-        )
-        .await?;
-    ensure_http_status(&posted)?;
-    match page::login_outcome(&api::set_cookies(&posted), &posted.text()) {
-        xfs_common::login::LoginOutcome::Authenticated => Ok(()),
-        // Wrong credentials will not become right by retrying; the account needs attention.
-        xfs_common::login::LoginOutcome::BadCredentials => {
-            Err(coded(FailureKind::AccountInvalid, messages::LOGIN_FAILED))
-        }
-        // The site refused this network, not this account, so the account stays valid.
-        xfs_common::login::LoginOutcome::IpBlocked => {
-            Err(coded(FailureKind::Transient(None), messages::LOGIN_BLOCKED))
-        }
-        // Nothing to retry and nothing the user can fix in the application: a browser challenge
-        // needs a browser. Reported as `AccountInvalid` so the account is marked rather than
-        // silently retried on every link.
-        // The answer was produced and still refused. Nothing about the account is wrong, so
-        // this is reported apart from bad credentials — sending someone to check a password
-        // that was never read is the worst thing this path can do.
-        xfs_common::login::LoginOutcome::CaptchaRejected(challenge) => Err(Failure::coded(
-            FailureKind::Transient(None),
-            messages::LOGIN_CAPTCHA,
-            messages::login_captcha(challenge),
-        )
-        .with_param("challenge", challenge)),
-        xfs_common::login::LoginOutcome::Unknown(reason) => Err(Failure::coded(
-            FailureKind::AccountInvalid,
-            messages::LOGIN_UNAVAILABLE,
-            messages::login_unavailable(&reason),
-        )
-        .with_param("diagnosis", reason)),
-    }
-}
-
-/// The account page and what it says about the session.
-///
-/// One request answers both questions a `login`-mode check has. Whether there is a session:
-/// the page is what a signed-in visitor gets and what a visitor without a session is redirected
-/// away from, so [`page::session_verdict`] reads it off the body. And the account's API key:
-/// `check` and the traffic/expiry figures go through the metadata API, which knows only keys,
-/// and a `login`-mode account has none stored — so it is read off this page the way
-/// JDownloader's `DdownloadCom.findAPIKey` reads it. Nothing persists the key: a guest is
-/// instantiated fresh for every call, so it lives exactly as long as the invocation.
-///
-/// The `api_key` branch asks the same page for the same reason — whether the imported cookie
-/// session is alive — and reads the full verdict rather than [`AccountPage::signed_in`], because
-/// there a guest page and an unrecognized one lead to different answers (RD-120-44).
-struct AccountPage {
-    body: String,
-    /// What [`page::session_verdict`] read off the body.
-    verdict: page::SessionVerdict,
-}
-
-impl AccountPage {
-    /// The page carried the sign-out marker. Only [`page::SessionVerdict::SignedIn`] counts:
-    /// a page that settles nothing is not a session, and signing in is what answers it.
-    fn signed_in(&self) -> bool {
-        matches!(self.verdict, page::SessionVerdict::SignedIn)
-    }
-}
-
-async fn signed_in_account_page<H: PluginHost>(host: &H) -> Result<AccountPage, Failure> {
-    let response = host.http(api::account_page_request()).await?;
-    ensure_http_status(&response)?;
-    let body = response.text().into_owned();
-    let verdict = page::session_verdict(&body);
-    Ok(AccountPage { body, verdict })
-}
-
-async fn cookie_count<H: PluginHost>(host: &H, account_id: &str) -> usize {
-    host.cookies(account_id, &format!("https://{}/", api::PRIMARY_DOMAIN))
-        .await
-        .len()
+    SITE.link_checks(
+        host,
+        &request.urls,
+        file_code,
+        |path, arguments| match scraped_key.as_deref() {
+            Some(key) => api_request_with_key(path, key, arguments),
+            None => api_request(path, arguments),
+        },
+    )
+    .await
 }
 
 /// Runs the XFileSharing premium flow: the file page carries a `download2` form that must be
@@ -749,25 +446,4 @@ async fn premium_transfer<H: PluginHost>(
     let transfer = host.http(range_probe(link)).await?;
     ensure_http_status(&transfer)?;
     Ok(transfer)
-}
-
-/// The file name segment of a `/<code>/<name>` link.
-fn second_path_segment(url: &Url) -> Option<String> {
-    url.path_segments()
-        .and_then(|segments| segments.filter(|segment| !segment.is_empty()).nth(1))
-        .map(str::to_owned)
-}
-
-/// Whether the account's premium period is still running.
-///
-/// `%Y-%m-%d %H:%M:%S`, as ddownload's API reports it. An unreadable value is not premium:
-/// claiming premium on a date nobody can parse is the one answer that cannot be right.
-fn premium_until(now_unix_seconds: u64, expiry: &str) -> bool {
-    xfs_common::api::parse_expiry_unix(expiry)
-        .is_some_and(|expiry| expiry > i64::try_from(now_unix_seconds).unwrap_or(i64::MAX))
-}
-
-/// Re-exported for the adapters, which need the same header on a free transfer.
-pub(crate) fn referer_header() -> Header {
-    Header::new("Referer", format!("https://{}/", api::PRIMARY_DOMAIN))
 }

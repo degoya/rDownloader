@@ -8,8 +8,8 @@
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_crawler::{
-    CrawledLink, Guest, host,
-    http::{self, RequestHeader, RequestQuery},
+    CrawledLink, Guest, bearer_accept_json, host,
+    http::{self, RequestQuery},
     refuse,
     types::{Failure, FailureKind},
 };
@@ -29,19 +29,6 @@ const API_KEY_REFERENCE: &str = "premiumize_api_key";
 
 struct Component;
 
-fn headers() -> Vec<RequestHeader> {
-    vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{API_KEY_REFERENCE}}}}}"),
-        },
-        RequestHeader {
-            name: "Accept".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ]
-}
-
 /// Fetches one API document, turning every status that is not an answer into one refusal.
 ///
 /// A crawl makes many requests, so the vocabulary stays small: the caller gets bytes or a
@@ -54,7 +41,7 @@ fn fetch(path: &str, id: &str) -> Result<Vec<u8>, Failure> {
             name: "id".to_owned(),
             value_template: id.to_owned(),
         }],
-        &headers(),
+        &bearer_accept_json(API_KEY_REFERENCE),
         &[],
     )?;
     match response.status {

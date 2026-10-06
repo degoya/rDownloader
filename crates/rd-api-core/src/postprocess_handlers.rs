@@ -8,6 +8,7 @@ use rd_core::{CategoryId, PackageState, PostprocessLevel};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::input_checks::optional_text;
 use crate::{
     ApiError, AppState,
     dto::{
@@ -220,10 +221,7 @@ pub async fn test_malware_scanner(
     Json(request): Json<MalwareScannerTestRequest>,
 ) -> Result<Json<MalwareScannerTestResponse>, ApiError> {
     let settings = rd_extract::load_postprocess_settings(&state.database).await?;
-    let text = request
-        .address
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
+    let text = optional_text(request.address)
         .unwrap_or_else(|| settings.effective_clamd_address().to_owned());
     let address = rd_extract::clamd::ClamdAddress::parse(&text).map_err(|error| {
         ApiError::bad_request(

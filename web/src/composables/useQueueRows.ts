@@ -16,7 +16,7 @@ import { useTransfersStore } from '@/stores/transfers'
 interface QueueRowBase extends VirtualRow { group: QueueGroup }
 interface QueuePackageRow extends QueueRowBase { kind: 'package' }
 interface QueueFileRow extends QueueRowBase { kind: 'file', download: Download }
-export type QueueRow = QueuePackageRow | QueueFileRow
+type QueueRow = QueuePackageRow | QueueFileRow
 
 /** Starting estimates only; the list measures what the rows really are once they are drawn. */
 const PACKAGE_ROW_SIZE = 52

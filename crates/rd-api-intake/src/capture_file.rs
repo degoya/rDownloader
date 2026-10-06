@@ -18,17 +18,17 @@
 
 use axum::{
     Json,
-    extract::{FromRequest, Multipart, Request, State},
+    extract::{Multipart, State},
     http::StatusCode,
-    response::{IntoResponse, Response},
 };
+use rd_api_core::input_checks::optional_text;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::{
     ApiError, AppState,
     capture_fetch::{self, FetchPlan},
-    container_upload::{MAX_JSON_CONTAINER_BYTES, decode_base64, is_json, json_rejection},
+    container_upload::{JsonOrMultipart, MAX_JSON_CONTAINER_BYTES, decode_base64},
     dto::CollectorIntakeResponse,
     nzb_zip::{self, ZipLimits},
 };
@@ -88,27 +88,7 @@ pub struct CaptureFileResponse {
 }
 
 /// The request body before it is read: an upload, or a JSON document.
-pub enum CaptureFileBody {
-    Multipart(Multipart),
-    Json(CaptureFileRequest),
-}
-
-impl<S: Send + Sync> FromRequest<S> for CaptureFileBody {
-    type Rejection = Response;
-
-    async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
-        if is_json(request.headers()) {
-            return match Json::<CaptureFileRequest>::from_request(request, state).await {
-                Ok(Json(body)) => Ok(Self::Json(body)),
-                Err(rejection) => Err(json_rejection(&rejection).into_response()),
-            };
-        }
-        Multipart::from_request(request, state)
-            .await
-            .map(Self::Multipart)
-            .map_err(IntoResponse::into_response)
-    }
-}
+pub type CaptureFileBody = JsonOrMultipart<CaptureFileRequest>;
 
 #[utoipa::path(
     post,
@@ -277,10 +257,7 @@ async fn import(
         });
     }
     if looks_like_nzb(&bytes) {
-        let name = file_name
-            .map(|name| name.trim().to_owned())
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| "browser.nzb".to_owned());
+        let name = optional_text(file_name).unwrap_or_else(|| "browser.nzb".to_owned());
         let import =
             crate::nzb_handlers::store_nzb_import(state, &bytes, &name, None, source, None).await?;
         return Ok(CaptureFileResponse {

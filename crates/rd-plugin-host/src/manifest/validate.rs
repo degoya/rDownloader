@@ -12,10 +12,10 @@ use super::checks::{
     validate_slug,
 };
 use super::{
-    Capabilities, CredentialKindManifest, MANIFEST_VERSION, MAX_FUEL, MAX_MEMORY_BYTES,
-    MAX_RESPONSE_BYTES, MAX_SLUG_CHARS, MAX_TIMEOUT_MILLISECONDS, MAX_WAIT_BUDGET_MILLISECONDS,
-    ManifestRejection, PluginManifest, PluginType, ProviderManifest, REMOTE_JOB_CONTAINERS,
-    SUPPORTED_API_VERSIONS, SecretFilledByManifest, safe_segment,
+    Capabilities, CredentialKindManifest, ExtensionManifest, MANIFEST_VERSION, MAX_FUEL,
+    MAX_MEMORY_BYTES, MAX_RESPONSE_BYTES, MAX_SLUG_CHARS, MAX_TIMEOUT_MILLISECONDS,
+    MAX_WAIT_BUDGET_MILLISECONDS, ManifestRejection, PluginManifest, PluginType, ProviderManifest,
+    REMOTE_JOB_CONTAINERS, SUPPORTED_API_VERSIONS, SecretFilledByManifest, safe_segment,
 };
 
 pub(crate) fn validate_manifest(manifest: &PluginManifest) -> Result<()> {
@@ -147,31 +147,7 @@ fn validate_shape(manifest: &PluginManifest) -> Result<()> {
                 bail!("a resolver manifest must not declare [transfer]");
             }
         }
-        PluginType::Transfer => {
-            let Some(transfer) = &manifest.transfer else {
-                bail!("a transfer manifest needs a [transfer] section");
-            };
-            if manifest.provider.is_some() {
-                bail!("a transfer manifest must not declare [provider]");
-            }
-            validate_slug(&transfer.slug)?;
-            if transfer.schemes.is_empty() {
-                bail!("transfer.schemes must name at least one scheme");
-            }
-            for scheme in &transfer.schemes {
-                if scheme.is_empty()
-                    || scheme != &scheme.to_ascii_lowercase()
-                    || !scheme
-                        .bytes()
-                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'+' || byte == b'-')
-                {
-                    bail!("transfer scheme `{scheme}` is not a plain lowercase scheme name");
-                }
-            }
-            if manifest.capabilities.net_stream.is_none() {
-                bail!("a transfer backend needs the net_stream capability");
-            }
-        }
+        PluginType::Transfer => validate_transfer_shape(manifest)?,
         // Every type beyond the first two shares one shape: an `[extension]` section with a
         // slug, and neither of the two older sections. Validated together rather than six
         // times over, so a type added later cannot forget one of the two refusals.
@@ -184,123 +160,172 @@ fn validate_shape(manifest: &PluginManifest) -> Result<()> {
         | PluginType::Postprocess
         | PluginType::Storage
         | PluginType::RemoteJob
-        | PluginType::StreamTransform => {
-            let Some(extension) = &manifest.extension else {
-                bail!(
-                    "a {} manifest needs an [extension] section",
-                    manifest.plugin_type.as_str()
-                );
-            };
-            // One exception, and it is about what a plugin *is* rather than which world it
-            // exports (RD-120-20). A stream-transform plugin is a resolver in everything but
-            // that: it claims addresses, it talks to the provider's API, and it answers with
-            // the address a download runs on. It exports the twelfth world only because the
-            // provider encrypts on the client and the bytes have to be transformed on the
-            // host's write path (ADR 0011). Such a plugin is therefore the natural owner of
-            // its provider's account row -- MEGA had none at all, and no account could be
-            // configured for it, because the only two manifests that named MEGA were an
-            // `[extension]` apiece.
-            //
-            // The sign-in was tried as the owner first and is the wrong one, for a reason
-            // this file decides: `message_slug` is the *provider* slug when a manifest has
-            // one, so a `[provider]` on `plugins/mega-auth` would have moved its codes into
-            // `mega.*`, which `plugins/mega` already owns thirteen of. One namespace, one
-            // owner.
-            if manifest.transfer.is_some()
-                || (manifest.provider.is_some()
-                    && manifest.plugin_type != PluginType::StreamTransform)
-            {
-                bail!(
-                    "a {} manifest must not declare [provider] or [transfer]",
-                    manifest.plugin_type.as_str()
-                );
-            }
-            validate_slug(&extension.slug)?;
-            for claim in &extension.claims {
-                bounded_text("extension.claims entry", claim, MAX_SLUG_CHARS)?;
-            }
-            // Which ways in an OAuth plugin serves. Only that type has any, and a duplicate
-            // entry would make the preference order meaningless.
-            if manifest.plugin_type == PluginType::OAuth {
-                let mut seen = Vec::new();
-                for flow in &manifest.oauth_flows {
-                    if seen.contains(flow) {
-                        bail!("oauth_flows names `{}` twice", flow.as_str());
-                    }
-                    seen.push(*flow);
-                }
-            }
-            // A storage destination writes somewhere; without an outbound grant it could
-            // not, and a manifest that asks for neither is a mistake rather than a plugin
-            // that uploads to nowhere.
-            if manifest.plugin_type == PluginType::Storage
-                && manifest.capabilities.net_http.is_none()
-                && manifest.capabilities.net_stream.is_none()
-            {
-                bail!("a storage destination needs the net_http or net_stream capability");
-            }
-            // A crawler fetches the folder it was asked to open; without an outbound
-            // grant it would answer "empty" to every address it claims, which is worse
-            // than refusing the manifest.
-            if manifest.plugin_type == PluginType::Crawler
-                && manifest.capabilities.net_http.is_none()
-            {
-                bail!("a crawler needs at least one capabilities.net_http domain");
-            }
-            // Same rule, same reason, for the eleventh type (RD-107-06): a remote job that
-            // cannot reach its provider cannot submit, poll, choose or delete anything. A
-            // manifest asking for no way out is a mistake and not a plugin that submits to
-            // nowhere.
-            if manifest.plugin_type == PluginType::RemoteJob
-                && manifest.capabilities.net_http.is_none()
-            {
-                bail!("a remote-job plugin needs at least one capabilities.net_http domain");
-            }
-            // And the twelfth (RD-110-33): a plugin that cannot reach its provider cannot
-            // learn the address or the key schedule it exists to answer with.
-            if manifest.plugin_type == PluginType::StreamTransform
-                && manifest.capabilities.net_http.is_none()
-            {
-                bail!("a stream-transform plugin needs at least one capabilities.net_http domain");
-            }
-            // Only a target of a notification destination has settings to store; on any
-            // other type the list would be a promise nothing keeps (RD-170-09).
-            if !extension.settings.is_empty() && manifest.plugin_type != PluginType::Notifier {
-                bail!(
-                    "a {} manifest must not declare extension.settings",
-                    manifest.plugin_type.as_str()
-                );
-            }
-            validate_settings(&extension.settings)?;
-            // Only a remote job is ever handed a container, and a format nothing offers would be
-            // a promise nobody reads (RD-191-13).
-            if !extension.containers.is_empty() && manifest.plugin_type != PluginType::RemoteJob {
-                bail!(
-                    "a {} manifest must not declare extension.containers",
-                    manifest.plugin_type.as_str()
-                );
-            }
-            for (index, format) in extension.containers.iter().enumerate() {
-                if !REMOTE_JOB_CONTAINERS.contains(&format.as_str())
-                    || extension.containers[..index].contains(format)
-                {
-                    bail!(
-                        "extension.containers names `{format}` badly or twice; one of {}",
-                        REMOTE_JOB_CONTAINERS.join(", ")
-                    );
-                }
-            }
-            // Only a crawler is ever asked in an order, so on any other type the flag would
-            // be a claim about behaviour that does not exist.
-            if extension.generic && manifest.plugin_type != PluginType::Crawler {
-                bail!(
-                    "a {} manifest must not declare extension.generic",
-                    manifest.plugin_type.as_str()
-                );
-            }
-        }
+        | PluginType::StreamTransform => validate_extension_shape(manifest)?,
         PluginType::Unknown(_) => unreachable!("unknown types are refused before this point"),
     }
+    validate_type_bound_fields(manifest)?;
+    validate_net_stream(manifest)
+}
+
+/// A transfer backend: a `[transfer]` section with its slug and schemes, no `[provider]`, and
+/// the `net_stream` grant it speaks its protocol through.
+fn validate_transfer_shape(manifest: &PluginManifest) -> Result<()> {
+    let Some(transfer) = &manifest.transfer else {
+        bail!("a transfer manifest needs a [transfer] section");
+    };
+    if manifest.provider.is_some() {
+        bail!("a transfer manifest must not declare [provider]");
+    }
+    validate_slug(&transfer.slug)?;
+    if transfer.schemes.is_empty() {
+        bail!("transfer.schemes must name at least one scheme");
+    }
+    for scheme in &transfer.schemes {
+        if scheme.is_empty()
+            || scheme != &scheme.to_ascii_lowercase()
+            || !scheme
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'+' || byte == b'-')
+        {
+            bail!("transfer scheme `{scheme}` is not a plain lowercase scheme name");
+        }
+    }
+    if manifest.capabilities.net_stream.is_none() {
+        bail!("a transfer backend needs the net_stream capability");
+    }
+    Ok(())
+}
+
+/// The shape every `[extension]` type shares, then what each of them needs on its own.
+fn validate_extension_shape(manifest: &PluginManifest) -> Result<()> {
+    let Some(extension) = &manifest.extension else {
+        bail!(
+            "a {} manifest needs an [extension] section",
+            manifest.plugin_type.as_str()
+        );
+    };
+    // One exception, and it is about what a plugin *is* rather than which world it
+    // exports (RD-120-20). A stream-transform plugin is a resolver in everything but
+    // that: it claims addresses, it talks to the provider's API, and it answers with
+    // the address a download runs on. It exports the twelfth world only because the
+    // provider encrypts on the client and the bytes have to be transformed on the
+    // host's write path (ADR 0011). Such a plugin is therefore the natural owner of
+    // its provider's account row -- MEGA had none at all, and no account could be
+    // configured for it, because the only two manifests that named MEGA were an
+    // `[extension]` apiece.
+    //
+    // The sign-in was tried as the owner first and is the wrong one, for a reason
+    // this file decides: `message_slug` is the *provider* slug when a manifest has
+    // one, so a `[provider]` on `plugins/mega-auth` would have moved its codes into
+    // `mega.*`, which `plugins/mega` already owns thirteen of. One namespace, one
+    // owner.
+    if manifest.transfer.is_some()
+        || (manifest.provider.is_some() && manifest.plugin_type != PluginType::StreamTransform)
+    {
+        bail!(
+            "a {} manifest must not declare [provider] or [transfer]",
+            manifest.plugin_type.as_str()
+        );
+    }
+    validate_slug(&extension.slug)?;
+    for claim in &extension.claims {
+        bounded_text("extension.claims entry", claim, MAX_SLUG_CHARS)?;
+    }
+    // Which ways in an OAuth plugin serves. Only that type has any, and a duplicate
+    // entry would make the preference order meaningless.
+    if manifest.plugin_type == PluginType::OAuth {
+        let mut seen = Vec::new();
+        for flow in &manifest.oauth_flows {
+            if seen.contains(flow) {
+                bail!("oauth_flows names `{}` twice", flow.as_str());
+            }
+            seen.push(*flow);
+        }
+    }
+    validate_outbound_grant(manifest)?;
+    validate_extension_fields(manifest, extension)
+}
+
+/// The `[extension]` types that exist to reach a provider or a destination need a way out.
+fn validate_outbound_grant(manifest: &PluginManifest) -> Result<()> {
+    // A storage destination writes somewhere; without an outbound grant it could
+    // not, and a manifest that asks for neither is a mistake rather than a plugin
+    // that uploads to nowhere.
+    if manifest.plugin_type == PluginType::Storage
+        && manifest.capabilities.net_http.is_none()
+        && manifest.capabilities.net_stream.is_none()
+    {
+        bail!("a storage destination needs the net_http or net_stream capability");
+    }
+    // A crawler fetches the folder it was asked to open; without an outbound
+    // grant it would answer "empty" to every address it claims, which is worse
+    // than refusing the manifest.
+    if manifest.plugin_type == PluginType::Crawler && manifest.capabilities.net_http.is_none() {
+        bail!("a crawler needs at least one capabilities.net_http domain");
+    }
+    // Same rule, same reason, for the eleventh type (RD-107-06): a remote job that
+    // cannot reach its provider cannot submit, poll, choose or delete anything. A
+    // manifest asking for no way out is a mistake and not a plugin that submits to
+    // nowhere.
+    if manifest.plugin_type == PluginType::RemoteJob && manifest.capabilities.net_http.is_none() {
+        bail!("a remote-job plugin needs at least one capabilities.net_http domain");
+    }
+    // And the twelfth (RD-110-33): a plugin that cannot reach its provider cannot
+    // learn the address or the key schedule it exists to answer with.
+    if manifest.plugin_type == PluginType::StreamTransform
+        && manifest.capabilities.net_http.is_none()
+    {
+        bail!("a stream-transform plugin needs at least one capabilities.net_http domain");
+    }
+    Ok(())
+}
+
+/// The `[extension]` fields only one type may carry: settings, containers and `generic`.
+fn validate_extension_fields(
+    manifest: &PluginManifest,
+    extension: &ExtensionManifest,
+) -> Result<()> {
+    // Only a target of a notification destination has settings to store; on any
+    // other type the list would be a promise nothing keeps (RD-170-09).
+    if !extension.settings.is_empty() && manifest.plugin_type != PluginType::Notifier {
+        bail!(
+            "a {} manifest must not declare extension.settings",
+            manifest.plugin_type.as_str()
+        );
+    }
+    validate_settings(&extension.settings)?;
+    // Only a remote job is ever handed a container, and a format nothing offers would be
+    // a promise nobody reads (RD-191-13).
+    if !extension.containers.is_empty() && manifest.plugin_type != PluginType::RemoteJob {
+        bail!(
+            "a {} manifest must not declare extension.containers",
+            manifest.plugin_type.as_str()
+        );
+    }
+    for (index, format) in extension.containers.iter().enumerate() {
+        if !REMOTE_JOB_CONTAINERS.contains(&format.as_str())
+            || extension.containers[..index].contains(format)
+        {
+            bail!(
+                "extension.containers names `{format}` badly or twice; one of {}",
+                REMOTE_JOB_CONTAINERS.join(", ")
+            );
+        }
+    }
+    // Only a crawler is ever asked in an order, so on any other type the flag would
+    // be a claim about behaviour that does not exist.
+    if extension.generic && manifest.plugin_type != PluginType::Crawler {
+        bail!(
+            "a {} manifest must not declare extension.generic",
+            manifest.plugin_type.as_str()
+        );
+    }
+    Ok(())
+}
+
+/// The grants and sections only some types may carry: `key_derivation`, `oauth_flows` and
+/// `[extension]`.
+fn validate_type_bound_fields(manifest: &PluginManifest) -> Result<()> {
     // Three worlds import `key-derivation`, and a manifest that asks for it anywhere else
     // would be granted an interface its world cannot name -- silent nonsense, which this
     // file refuses everywhere rather than ignores (RD-120-20).
@@ -347,6 +372,11 @@ fn validate_shape(manifest: &PluginManifest) -> Result<()> {
             manifest.plugin_type.as_str()
         );
     }
+    Ok(())
+}
+
+/// The `net_stream` grant, whichever type asks for it: hosts and ports, no port 0.
+fn validate_net_stream(manifest: &PluginManifest) -> Result<()> {
     if let Some(stream) = &manifest.capabilities.net_stream {
         if stream.hosts.is_empty() || stream.ports.is_empty() {
             bail!("capabilities.net_stream needs at least one host and one port");

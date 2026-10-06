@@ -14,22 +14,7 @@ pub use plugin_common::FailureKind;
 use crate::messages;
 
 /// Box states sizes as numbers; being lenient costs nothing.
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Flexible {
-    Number(u64),
-    Text(String),
-}
-
-impl Flexible {
-    #[must_use]
-    pub fn as_u64(&self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(*value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub use plugin_flexible::FlexibleU64 as Flexible;
 
 /// The version of a file Box just described: `file_version` (mini).
 #[derive(Debug, Default, Deserialize)]

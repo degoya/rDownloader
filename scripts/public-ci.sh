@@ -19,7 +19,8 @@
 # differs from it only in documentation and version lines, is not run again; with every named
 # platform green nothing is exported at all. The export's commit carries `[skip ci]` and ci.yml
 # is started by hand with its `platforms` input for the rest, so exactly one run is watched; its
-# green is recorded per platform. The plan, the export, the wait, the record and the deletion
+# green is recorded per platform. With Linux and Windows green on record its `jobs` input is `[]`:
+# the once-per-run jobs passed with them (RD-1120-07). The plan, the export, the wait, the record and the deletion
 # are the ones the release pipeline's `public-ci` step uses (scripts/lib/public-ci.sh).
 #
 # Outward: the branch's tree becomes public while the run lasts, minus what
@@ -41,7 +42,7 @@ platforms=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --platforms) platforms="${2:?--platforms needs a list}"; shift 2 ;;
-        -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) [[ -z "$branch" ]] || usage; branch="$1"; shift ;;
     esac
@@ -73,7 +74,7 @@ platforms_json="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[
 rd_public_ci_gh_ready
 scripts/export-public.sh "$version" --ref "$commit" --branch "$public_branch" --skip-push-ci
 sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$public_branch")"
-rd_public_ci_dispatch "$public_branch" "$platforms_json"
+rd_public_ci_dispatch "$public_branch" "$platforms_json" "$(rd_public_ci_once_jobs "$ROOT" "$tree")"
 if ! rd_public_ci_wait "$public_branch" "$sha" workflow_dispatch; then
     echo "!! $branch is not green on GitHub; it is not merged until it is." >&2
     exit 1

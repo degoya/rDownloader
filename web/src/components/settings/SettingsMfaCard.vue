@@ -180,10 +180,10 @@ async function copy(value: string): Promise<void> {
   <UCard as="section" data-settings-anchor="security.mfa">
     <SectionHeader :eyebrow="t('system.mfa.eyebrow')" :title="t('system.mfa.title')" :description="t('system.mfa.description')" />
 
-    <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
 
     <!-- Enrolment in progress: the one time the secret and the codes are visible. -->
-    <UAlert v-if="pending" class="mt-4" color="warning" variant="subtle" :title="t('system.mfa.enrol.once')">
+    <UAlert v-if="pending" class="mt-4" color="warning" :title="t('system.mfa.enrol.once')">
       <template #description>
         <p class="mt-2 text-sm text-toned">{{ t('system.mfa.enrol.scan') }}</p>
         <img
@@ -197,7 +197,7 @@ async function copy(value: string): Promise<void> {
         <p class="mt-3 text-sm text-toned">{{ t('system.mfa.enrol.manual') }}</p>
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <CopyField class="min-w-0 flex-1 basis-64" :value="pending.secret" :label="t('system.mfa.enrol.copy_secret')" @copied="copied" />
-          <UButton color="neutral" variant="soft" icon="i-lucide-link" :label="t('system.mfa.enrol.copy_uri')" @click="copy(pending.provisioningUri)" />
+          <UButton color="neutral" variant="soft" icon="i-lucide-link" :label="t('common.actions.copy_link')" @click="copy(pending.provisioningUri)" />
         </div>
 
         <p class="mt-4 text-sm text-toned">{{ t('system.mfa.enrol.recovery') }}</p>
@@ -218,7 +218,7 @@ async function copy(value: string): Promise<void> {
           <UFormField class="flex-1" :label="t('system.mfa.enrol.confirm_label')" :error="confirmError ?? undefined">
             <UInput v-model="confirmCode" inputmode="numeric" maxlength="10" class="w-full" />
           </UFormField>
-          <UButton type="submit" icon="i-lucide-shield-check" :label="t('system.mfa.enrol.confirm')" :loading="busy" />
+          <UButton type="submit" icon="i-lucide-shield-check" :label="t('common.actions.confirm')" :loading="busy" />
         </form>
       </template>
     </UAlert>
@@ -254,13 +254,12 @@ async function copy(value: string): Promise<void> {
     <div v-if="enabled" class="mt-4 space-y-4">
       <UAlert
         :color="lowOnCodes ? 'warning' : 'neutral'"
-        variant="subtle"
         :icon="lowOnCodes ? 'i-lucide-triangle-alert' : 'i-lucide-life-buoy'"
         :description="t('system.mfa.remaining', { count: status?.recovery_codes_remaining ?? 0 })"
       />
       <UButton size="sm" color="neutral" variant="soft" icon="i-lucide-refresh-cw" :label="t('system.mfa.regenerate.action')" @click="regenerate" />
 
-      <UAlert v-if="freshCodes" color="warning" variant="subtle" :title="t('system.mfa.enrol.once')">
+      <UAlert v-if="freshCodes" color="warning" :title="t('system.mfa.enrol.once')">
         <template #description>
           <ul class="mt-1 grid grid-cols-2 gap-1 font-mono text-xs text-highlighted sm:grid-cols-3">
             <li v-for="entry in freshCodes" :key="entry">{{ entry }}</li>

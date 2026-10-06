@@ -107,7 +107,6 @@ async function checkNow(): Promise<void> {
       v-if="status && !status.configured"
       class="mt-4"
       color="neutral"
-      variant="subtle"
       icon="i-lucide-info"
       :description="t('system.updates.not_configured')"
     />
@@ -139,7 +138,6 @@ async function checkNow(): Promise<void> {
         v-if="outdatedAgents"
         class="mt-2"
         color="warning"
-        variant="subtle"
         icon="i-lucide-rotate-cw"
         :title="t('system.updates.agents.outdated_title')"
         :description="t('system.updates.agents.outdated_description', { agent: outdatedAgents, service: status.current_version })"

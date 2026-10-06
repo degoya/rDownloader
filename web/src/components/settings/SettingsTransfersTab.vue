@@ -11,6 +11,7 @@ import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsObjectStorageCard from '@/components/settings/SettingsObjectStorageCard.vue'
 import SettingsRemoteCredentialsCard from '@/components/settings/SettingsRemoteCredentialsCard.vue'
+import SettingsServiceOffAlert from '@/components/settings/SettingsServiceOffAlert.vue'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -26,6 +27,7 @@ const { t } = useI18n()
         level="page"
       />
     </header>
+    <SettingsServiceOffAlert service="remote" :enabled="settings.remote_service_enabled" />
     <SettingsRemoteCredentialsCard :settings="settings" />
     <SettingsObjectStorageCard />
   </div>

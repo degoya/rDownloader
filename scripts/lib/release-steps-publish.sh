@@ -237,29 +237,46 @@ step_push() {
 #
 # Only the platforms not yet green (RD-160-06): the candidate is its wave's integration tree plus
 # the version bump and the release's documentation, and that integration branch passed Linux and
-# Windows before it reached development — so as a rule macOS alone is dispatched, and with every
-# platform green on record the step passes without a run. What it relies on is named in the log.
+# Windows before it reached development — so as a rule macOS alone is dispatched, without the
+# once-per-run jobs those runs passed (RD-1120-07), and with every platform green on record ci.yml
+# is not dispatched at all. What it relies on is named in the log.
+#
+# Beside ci.yml the release workflows — E2E, Recovery, Self-update, Installers — run on the same
+# branch, each not yet green for this content (owner, 2026-10-06, RD-1120-07): they ran on the
+# push to `main` after the tag before, where a red one could hold nothing. They run beside the
+# macOS run, not after it; one red run holds the tag.
 step_public_ci() {
-    local branch="ci/$VERSION" sha tree platforms
-    local -a images
+    local branch="ci/$VERSION" sha tree platforms="" workflow
+    local -a images workflows
     # run_step calls a step without errexit, so every command that matters is checked here.
     tree="$(git rev-parse 'HEAD^{tree}')" || return 1
+    echo "the release workflows for tree ${tree:0:12}:"
+    rd_public_ci_plan "$ROOT" "$tree" "${RD_PUBLIC_CI_RELEASE_WORKFLOWS[@]}"
+    workflows=(${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"})
     mapfile -t images < <(rd_public_ci_images "$RD_PUBLIC_CI_ALL")
     echo "the public CI for tree ${tree:0:12}:"
     rd_public_ci_plan "$ROOT" "$tree" "${images[@]}"
-    if [[ ${#RD_PUBLIC_CI_MISSING[@]} -eq 0 ]]; then
-        echo "every platform is green on record for this content; the public CI is not run again"
+    if [[ ${#RD_PUBLIC_CI_MISSING[@]} -eq 0 && ${#workflows[@]} -eq 0 ]]; then
+        echo "every platform and release workflow is green on record for this content; the public CI is not run again"
         return 0
     fi
-    platforms="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")" || return 1
+    if [[ ${#RD_PUBLIC_CI_MISSING[@]} -gt 0 ]]; then
+        platforms="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")" || return 1
+    fi
     rd_public_ci_gh_ready || return 1
     scripts/export-public.sh "$VERSION" --ref HEAD --branch "$branch" --skip-push-ci || return 1
     sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$branch")" || return 1
     rd_public_ci_prune_stale "$branch"
-    rd_public_ci_dispatch "$branch" "$platforms" || return 1
+    if [[ -n "$platforms" ]]; then
+        rd_public_ci_dispatch "$branch" "$platforms" "$(rd_public_ci_once_jobs "$ROOT" "$tree")" || return 1
+    fi
+    for workflow in ${workflows[@]+"${workflows[@]}"}; do
+        rd_public_ci_dispatch_workflow "$branch" "$workflow" || return 1
+    done
     rd_public_ci_wait "$branch" "$sha" workflow_dispatch \
         || { echo "the tag is not made while the public CI is not green" >&2; return 1; }
-    rd_record_ci "$ROOT" "$tree" "${RD_PUBLIC_CI_MISSING[@]}"
+    rd_record_ci "$ROOT" "$tree" ${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"} \
+        ${workflows[@]+"${workflows[@]}"}
     rd_public_ci_delete "$branch"
 }
 

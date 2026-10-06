@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { Category, DownloadPriority, NzbFileStatus, NzbImport, PostprocessStep } from '@/api/types'
+import DragHandle from '@/components/DragHandle.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { formatBytes, priorityItems } from '@/utils/format'
@@ -117,19 +118,11 @@ function completedSegments(file: NzbFileStatus): number {
         share one manual order now, so both lead with the same cell; what the icon said is said
         again by the "NZB" badge further along the row, so nothing was lost with it.
       -->
-      <button
-        type="button"
-        class="cursor-grab select-none text-muted"
-        data-row-handle
-        draggable="true"
-        :title="dragTitle"
-        :aria-label="dragTitle"
-        @dragstart.stop="emit('dragstart', props.item.id)"
-        @keydown.up.prevent="emit('move', props.item.id, -1)"
-        @keydown.down.prevent="emit('move', props.item.id, 1)"
-      >
-        <UIcon name="i-lucide-grip-vertical" class="size-4" />
-      </button>
+      <DragHandle
+        :label="dragTitle"
+        @dragstart="emit('dragstart', props.item.id)"
+        @move="(delta: -1 | 1) => emit('move', props.item.id, delta)"
+      />
       <UCheckbox :model-value="props.selected" :aria-label="t('linkgrabber.nzb.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.item.id, value === true)" />
       <UButton :icon="open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :loading="pending" :aria-expanded="open" :aria-label="open ? t('linkgrabber.nzb.hide_files') : t('linkgrabber.nzb.show_files')" @click="toggle" />
       <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">
@@ -195,7 +188,7 @@ function completedSegments(file: NzbFileStatus): number {
       <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_nzb')" :loading="props.deleting" @click="emit('remove', props.item.id)" />
       </div>
     </header>
-    <UAlert v-if="props.item.error" class="mx-2 my-2" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="props.item.error" />
+    <UAlert v-if="props.item.error" class="mx-2 my-2" color="error" icon="i-lucide-circle-alert" :description="props.item.error" />
     <div v-if="open" class="divide-y divide-muted">
       <p v-if="failedSilently" class="px-2 py-2 text-sm text-error">{{ t('linkgrabber.nzb.failed_no_reason') }}</p>
       <div v-for="file in files" :key="file.id" class="flex items-center gap-2 px-2 py-1.5 transition hover:bg-elevated/60">

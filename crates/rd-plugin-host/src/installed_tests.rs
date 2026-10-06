@@ -453,7 +453,7 @@ async fn a_withdrawn_version_does_not_pass_the_check_before_activation() {
 /// version.
 #[cfg(feature = "failpoints")]
 #[tokio::test]
-async fn an_update_stopped_before_its_rename_is_never_loaded_and_the_start_removes_it() {
+async fn an_update_crashed_before_its_rename_is_never_loaded_and_the_start_removes_it() {
     let directory = tempfile::tempdir().expect("tempdir");
     let signing = SigningKey::from_bytes(&[23_u8; 32]);
     let installer = installer_with(&signing, directory.path());

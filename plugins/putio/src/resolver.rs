@@ -14,6 +14,7 @@
 //! this plugin answers with the stable per-file address instead and lets the host attach the
 //! account's token to it. Why, at length: `putio_common::address`.
 
+use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LabelPart,
     LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved,
@@ -21,6 +22,12 @@ use plugin_common::{
 use putio_common::{address, reason::ErrorEnvelope};
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: api::TOKEN_REFERENCE,
+    missing: messages::TOKEN_MISSING,
+};
 
 /// Most links one `check` call looks up. A check is one request per link, so an unbounded
 /// batch is an unbounded number of requests inside one invocation's budget — and against an
@@ -53,7 +60,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_token(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(
         host,
         HttpRequest::get(format!("{}/account/info", address::API)),
@@ -84,15 +91,15 @@ pub(crate) async fn resolve<H: PluginHost>(
     host: &H,
     input: &ResolveInput,
 ) -> Result<Resolved, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let file_id = address::claim(&input.url)
-        .ok_or_else(|| refuse(messages::NOT_A_PUTIO_LINK, FailureKind::Unsupported))?;
+        .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_PUTIO_LINK))?;
     let file = fetch_file(host, file_id).await?;
     if file.is_folder() {
         // Said plainly rather than as "this file has no bytes", which is what a folder's
         // record looks like from here.
-        return Err(refuse(messages::IS_A_FOLDER, FailureKind::Unsupported));
+        return Err(coded(FailureKind::Unsupported, messages::IS_A_FOLDER));
     }
     Ok(Resolved {
         // The stable API address rather than a signed one-shot URL. That is what makes a
@@ -115,12 +122,12 @@ pub(crate) async fn check<H: PluginHost>(
     host: &H,
     input: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let mut results = Vec::new();
     for url in input.urls.iter().take(MAX_CHECKS) {
         let Some(file_id) = address::claim(url) else {
-            results.push(unknown(url));
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         results.push(match fetch_file(host, file_id).await {
@@ -132,23 +139,17 @@ pub(crate) async fn check<H: PluginHost>(
                 file_name: file.name.clone().filter(|name| !name.is_empty()),
                 size: None,
             },
-            Ok(file) => LinkCheck {
-                url: url.clone(),
-                status: LinkStatus::Online,
-                file_name: file.name.clone().filter(|name| !name.is_empty()),
-                size: file.size,
-            },
+            Ok(file) => LinkCheck::online(
+                url,
+                file.name.clone().filter(|name| !name.is_empty()),
+                file.size,
+            ),
             // A file Put.io says is gone is offline; anything else says nothing about the
             // link, so it stays unknown rather than being reported as missing.
             Err(failure) if failure.code.as_deref() == Some(messages::FILE_NOT_FOUND.0) => {
-                LinkCheck {
-                    url: url.clone(),
-                    status: LinkStatus::Offline,
-                    file_name: None,
-                    size: None,
-                }
+                LinkCheck::offline(url)
             }
-            Err(_) => unknown(url),
+            Err(_) => LinkCheck::unknown(url),
         });
     }
     Ok(results)
@@ -160,7 +161,7 @@ async fn fetch_file<H: PluginHost>(host: &H, file_id: u64) -> Result<api::FileRe
     let document: api::FileResponse = parse(&response)?;
     document
         .file
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))
 }
 
 /// Makes one request and turns every answer that is not one into a refusal.
@@ -200,7 +201,7 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
 
 fn parse<T: serde::de::DeserializeOwned>(response: &HttpResponse) -> Result<T, Failure> {
     serde_json::from_slice(&response.body)
-        .map_err(|_| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+        .map_err(|_| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))
 }
 
 /// The account's free storage, as a label part, when Put.io stated a figure.
@@ -210,41 +211,6 @@ fn disk_free(available: Option<u64>) -> Option<LabelPart> {
         LabelPart::coded(messages::DISK_FREE, format!("{bytes} bytes free"))
             .with_param("bytes", bytes.to_string()),
     )
-}
-
-/// The account holds a Put.io token, or this fails before a request goes out.
-///
-/// Asked rather than assumed: without it the host would expand `{{secret:…}}` into nothing and
-/// Put.io would answer 401, which reads as "your sign-in expired" for an account that was
-/// never signed in at all.
-async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if host
-        .secret_available(account_id, api::TOKEN_REFERENCE)
-        .await
-    {
-        Ok(())
-    } else {
-        Err(refuse(messages::TOKEN_MISSING, FailureKind::AuthRequired))
-    }
-}
-
-fn account(account_id: Option<&str>) -> Result<&str, Failure> {
-    account_id
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| refuse(messages::ACCOUNT_MISSING, FailureKind::AuthRequired))
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
-}
-
-fn refuse((code, message): (&str, &str), kind: FailureKind) -> Failure {
-    Failure::coded(kind, code, message)
 }
 
 #[cfg(test)]

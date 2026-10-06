@@ -109,7 +109,7 @@ const containers = computed(() => [...new Set(inventory.value.map(format => form
 const languages = computed(() => [...new Set(inventory.value.map(format => format.language).filter((value): value is string => Boolean(value)))].sort())
 
 const presetItems = computed(() =>
-  PRESETS.map(preset => ({ label: t(`linkgrabber.media.presets.${preset}`), value: preset }))
+  PRESETS.map((preset): { label: string, value: string } => ({ label: t(`linkgrabber.media.presets.${preset}`), value: preset }))
 )
 const activePreset = computed(() => criteria.value.preset ?? 'custom')
 
@@ -185,15 +185,16 @@ defineExpose({ setResolution })
 <template>
   <div class="flex flex-col gap-4" data-testid="media-format-selector">
     <div class="flex flex-wrap items-center gap-1.5">
-      <UButton
-        v-for="item in presetItems"
-        :key="item.value"
-        :label="item.label"
+      <URadioGroup
+        :model-value="activePreset"
+        :items="presetItems"
+        variant="card"
+        indicator="hidden"
+        orientation="horizontal"
         size="xs"
-        :color="activePreset === item.value ? 'primary' : 'neutral'"
-        :variant="activePreset === item.value ? 'soft' : 'ghost'"
         :disabled="props.busy"
-        @click="selectPreset(item.value)"
+        :aria-label="t('linkgrabber.media.preset_label')"
+        @update:model-value="selectPreset"
       />
       <UBadge v-if="activePreset === 'custom'" color="primary" variant="subtle" size="sm">
         {{ t('linkgrabber.media.presets.custom') }}
@@ -203,7 +204,6 @@ defineExpose({ setResolution })
     <UAlert
       v-if="!canMerge"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       :title="t('linkgrabber.media.merge_unavailable_title')"
       :description="t('linkgrabber.media.merge_unavailable')"
@@ -327,7 +327,6 @@ defineExpose({ setResolution })
     <UAlert
       v-if="unresolved || matched === 0"
       color="warning"
-      variant="subtle"
       icon="i-lucide-filter-x"
       :title="pageReason ? t('linkgrabber.media.unresolved_title') : t('linkgrabber.media.no_match_title')"
       data-testid="media-no-match"
@@ -349,7 +348,6 @@ defineExpose({ setResolution })
     <UAlert
       v-if="relaxations.length"
       color="info"
-      variant="subtle"
       icon="i-lucide-info"
       data-testid="media-relaxations"
       :description="t('linkgrabber.media.relaxed', { criteria: relaxations.map(name => t(`linkgrabber.media.criteria.${name}`)).join(', ') })"
@@ -359,7 +357,6 @@ defineExpose({ setResolution })
       v-for="(warning, index) in warnings"
       :key="index"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       :description="warning.kind === 'codec_container_mismatch'
         ? t('linkgrabber.media.warnings.codec_container_mismatch', { codec: warning.codec, container: warning.container })

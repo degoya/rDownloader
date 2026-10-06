@@ -1,9 +1,21 @@
+use offcloud_common::sanitize_error;
+use plugin_common::failure::{ApiFailure, ErrorKind};
+
 use super::{
-    ErrorEnvelope, ErrorKind, HTTP, Stage, StatusEnvelope, classify_error, classify_not_available,
-    error_envelope, explore_files, failure_from, form_body, is_safe_request_id, name_from_url,
-    permille, place, remove_body, sanitize_error, stage_of, status_detail, status_word,
+    ErrorEnvelope, HTTP, Stage, StatusEnvelope, WORDS, error_envelope, explore_files, failure_from,
+    form_body, is_safe_request_id, name_from_url, permille, place, remove_body, stage_of,
+    status_detail, status_word,
 };
 use crate::messages;
+
+/// The shared rule in this plugin's words, which is what this plugin answers with.
+fn classify_error(reason: &str) -> ApiFailure {
+    offcloud_common::classify_error(reason, &WORDS)
+}
+
+fn classify_not_available(reason: &str) -> ApiFailure {
+    offcloud_common::classify_not_available(reason, &WORDS)
+}
 
 #[test]
 fn a_magnet_survives_the_form_body_whole() {

@@ -3,16 +3,13 @@
 //! `rd-plugin-turbobit-common`; what this covers is the conversion into the core's vocabulary
 //! and the manifest this plugin ships.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind};
+use rd_core::{AccountId, FailureKind};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
-    CaptchaChallenge, CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse,
-    ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
+    CaptchaChallenge, CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest,
+    ResolvedHeader, Resolver,
 };
 use url::Url;
 
@@ -24,60 +21,18 @@ macro_rules! fixture {
     };
 }
 
-pub(crate) struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    pub(crate) requests: Mutex<Vec<HostHttpRequest>>,
-    pub(crate) waits: Mutex<Vec<u32>>,
-    pub(crate) captchas: Mutex<Vec<CaptchaChallenge>>,
-    has_password: bool,
+/// The shared scripted host with TurboBit's one credential slot, `turbobit_password`, and a
+/// solver that answers every Turnstile challenge.
+trait TurnstileHost {
+    fn turnstile(responses: Vec<HostHttpResponse>, has_password: bool) -> Arc<MockHost>;
 }
 
-impl MockHost {
-    pub(crate) fn new(responses: Vec<HostHttpResponse>, has_password: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            has_password,
-        })
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("lock").push(request);
-        self.responses
-            .lock()
-            .expect("lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, reference: &str) -> bool {
-        self.has_password && reference == "turbobit_password"
-    }
-
-    async fn wait(&self, _client: &ClientIdentity, seconds: u32) -> Result<(), Failure> {
-        self.waits.lock().expect("lock").push(seconds);
-        Ok(())
-    }
-
-    async fn solve_captcha(
-        &self,
-        _client: &ClientIdentity,
-        challenge: CaptchaChallenge,
-        _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, Failure> {
-        self.captchas.lock().expect("lock").push(challenge);
-        Ok(rd_plugin_api::CaptchaAnswer::Token(
-            "turnstile-token".to_owned(),
-        ))
+impl TurnstileHost for MockHost {
+    fn turnstile(responses: Vec<HostHttpResponse>, has_password: bool) -> Arc<MockHost> {
+        MockHost::scripted(responses)
+            .secret_for("turbobit_password", has_password)
+            .captcha_token(Some("turnstile-token"))
+            .shared()
     }
 }
 
@@ -129,7 +84,7 @@ fn success() -> Vec<HostHttpResponse> {
 
 #[test]
 fn every_live_domain_is_claimed_and_the_dead_and_foreign_ones_are_not() {
-    let resolver = TurbobitResolver::new(MockHost::new(Vec::new(), false));
+    let resolver = TurbobitResolver::new(MockHost::turnstile(Vec::new(), false));
     for host in [
         "turbobit.net",
         "www.turbobit.net",
@@ -215,7 +170,7 @@ fn the_manifest_declares_the_measured_domains_limits_and_budget() {
 
 #[tokio::test]
 async fn a_guest_download_resolves_to_the_one_shot_link_without_fetching_it() {
-    let host = MockHost::new(success(), false);
+    let host = MockHost::turnstile(success(), false);
     let resolver = TurbobitResolver::new(host.clone());
     let resolved = resolver
         .resolve(guest(
@@ -264,7 +219,7 @@ async fn a_guest_download_resolves_to_the_one_shot_link_without_fetching_it() {
 
 #[tokio::test]
 async fn a_deleted_file_is_final_with_its_code() {
-    let host = MockHost::new(
+    let host = MockHost::turnstile(
         vec![json(
             404,
             fixture!("download-info-deleted-404-2026-09-21.json"),
@@ -282,7 +237,7 @@ async fn a_deleted_file_is_final_with_its_code() {
 
 #[tokio::test]
 async fn the_guest_window_is_an_ip_block_the_scheduler_holds_off_on() {
-    let host = MockHost::new(
+    let host = MockHost::turnstile(
         vec![
             json(200, fixture!("download-info-free-2026-09-21.json")),
             json(200, fixture!("free-init-direct-hit-2026-09-21.json")),
@@ -309,7 +264,7 @@ async fn a_premium_only_file_is_refused_before_any_captcha() {
         "\"premiumOnlyDownload\":false",
         "\"premiumOnlyDownload\":true",
     );
-    let host = MockHost::new(vec![json(200, &info)], false);
+    let host = MockHost::turnstile(vec![json(200, &info)], false);
     let failure = TurbobitResolver::new(host.clone())
         .resolve(guest("https://turbobit.net/a1b2c3d4e5f6.html"))
         .await
@@ -327,7 +282,7 @@ async fn the_spa_shell_never_becomes_a_file() {
     for position in 0..6 {
         let mut answers = success();
         answers[position] = html(200, shell);
-        let failure = TurbobitResolver::new(MockHost::new(answers, false))
+        let failure = TurbobitResolver::new(MockHost::turnstile(answers, false))
             .resolve(guest("https://turbobit.net/a1b2c3d4e5f6.html"))
             .await
             .expect_err("a shell is never a result");
@@ -338,7 +293,7 @@ async fn the_spa_shell_never_becomes_a_file() {
         );
         assert_eq!(failure.category, FailureKind::Permanent);
     }
-    let failure = TurbobitResolver::new(MockHost::new(Vec::new(), false))
+    let failure = TurbobitResolver::new(MockHost::turnstile(Vec::new(), false))
         .resolve(guest("https://turbobit.net/download/folder/123"))
         .await
         .expect_err("a folder");
@@ -347,7 +302,7 @@ async fn the_spa_shell_never_becomes_a_file() {
 
 #[tokio::test]
 async fn check_reports_the_measured_statuses() {
-    let host = MockHost::new(
+    let host = MockHost::turnstile(
         vec![json(200, fixture!("links-check-2026-09-21.json"))],
         true,
     );
@@ -383,7 +338,7 @@ async fn check_reports_the_measured_statuses() {
 
 #[tokio::test]
 async fn check_account_signs_in_and_reports_the_subscription_in_bytes() {
-    let host = MockHost::new(
+    let host = MockHost::turnstile(
         vec![
             json(
                 401,
@@ -426,7 +381,7 @@ async fn check_account_signs_in_and_reports_the_subscription_in_bytes() {
 
 #[tokio::test]
 async fn without_a_password_the_account_is_refused_before_any_request() {
-    let host = MockHost::new(Vec::new(), false);
+    let host = MockHost::turnstile(Vec::new(), false);
     let failure = TurbobitResolver::new(host.clone())
         .check_account(AccountId::new())
         .await

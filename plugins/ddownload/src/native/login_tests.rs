@@ -7,7 +7,9 @@ use rd_core::AccountId;
 use rd_plugin_api::{Resolver, ResolverHost};
 
 use super::super::DdownloadResolver;
-use super::{FORM_PAGE, LOGIN_PAGE_2026_09_20, MockHost, file, html, json, resolve_request};
+use super::{
+    FORM_PAGE, LOGIN_PAGE_2026_09_20, MockHost, SessionHost, file, html, json, resolve_request,
+};
 
 /// The login page as ddownload serves it, trimmed to the form the sign-in submits.
 const LOGIN_PAGE: &str = r#"<form method="POST" action="https://ddownload.com/" name="FL">
@@ -435,7 +437,7 @@ async fn a_session_without_a_readable_api_key_does_not_claim_premium() {
 /// subscription stays unmeasured.
 #[tokio::test]
 async fn a_cookie_only_session_does_not_claim_premium_either() {
-    let host = MockHost::with_responses(vec![html(SIGNED_IN_PAGE)], false);
+    let host = MockHost::in_session(vec![html(SIGNED_IN_PAGE)], false);
     let resolver = DdownloadResolver::new(host as Arc<dyn ResolverHost>);
     let account = resolver
         .check_account(AccountId::new())

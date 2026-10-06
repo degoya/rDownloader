@@ -19,6 +19,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import SubscriptionGitRelease from '@/components/SubscriptionGitRelease.vue'
 import SubscriptionIndexerCategories from '@/components/SubscriptionIndexerCategories.vue'
 import SubscriptionIndexerSearch from '@/components/SubscriptionIndexerSearch.vue'
+import { useFormBaseline } from '@/composables/useFormBaseline'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useRegexEditor } from '@/composables/useRegexEditor'
 import { translateServerMessage } from '@/i18n/server'
@@ -54,6 +55,8 @@ const capsError = ref<string | null>(null)
 const capsBusy = ref(false)
 
 const form = reactive<SubscriptionFormFields>(emptyForm())
+/** Whether the form holds edits a leave would lose; the view asks before them (RD-1120-15). */
+const baseline = useFormBaseline(() => form)
 
 /** How the LinkGrabber draws this subscription's hits (RD-120-37). */
 const viewItems = computed(() => [
@@ -154,6 +157,7 @@ function reset(): void {
   Object.assign(form, emptyForm())
   editing.value = null
   refusal.value = null
+  baseline.settle()
 }
 
 async function submit(): Promise<void> {
@@ -177,6 +181,7 @@ function edit(subscription: Subscription): void {
   editing.value = subscription.id
   refusal.value = null
   fillForm(form, subscription)
+  baseline.settle()
   caps.value = null
   capsError.value = null
   void focusForm()
@@ -233,7 +238,7 @@ async function editTitlePattern(field: 'titleContains' | 'titleExcludes'): Promi
   form[field] = [...entries, `/${result.pattern}/`].join(', ')
 }
 
-defineExpose({ edit, reset })
+defineExpose({ edit, reset, dirty: baseline.dirty })
 </script>
 
 <template>
@@ -244,7 +249,7 @@ defineExpose({ edit, reset })
       :title="editing ? t('subscriptions.form.edit') : t('subscriptions.form.form_new')"
     />
     <div v-if="refusal" ref="refusalElement" class="mb-4 scroll-mt-4" data-testid="subscription-refusal">
-      <UAlert color="error" variant="subtle" icon="i-lucide-circle-alert" :description="refusal" />
+      <UAlert color="error" icon="i-lucide-circle-alert" :description="refusal" />
     </div>
     <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
       <!-- First: the type decides which fields follow (script, address, schedule, filters). -->

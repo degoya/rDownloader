@@ -369,7 +369,8 @@
     "unresolved": {
       "formats_missing": "yt-dlp reported no downloadable format for this page. Check the link again; if the list stays empty, the site is not supported.",
       "audio_missing": "The page offers video streams but not a single audio track. \"Best\" still downloads the video, without sound."
-    }
+    },
+    "preset_label": "Quality preset"
   },
   "replay": {
     "title": "Approve this download",
@@ -558,5 +559,6 @@
     "torrent": "Torrent",
     "swarm": "{seeders} seeders, {leechers} leechers",
     "grabbed_torrents": "No torrent added | One torrent added to the LinkGrabber | {count} torrents added to the LinkGrabber"
-  }
+  },
+  "empty_title": "No links waiting for review"
 }

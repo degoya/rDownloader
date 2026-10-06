@@ -15,6 +15,9 @@ import { useFormFocus } from '@/composables/useFormFocus'
 import { pluginCodeText } from '@/i18n/plugins'
 import { PLAIN, orNull } from '@/utils/numberInput'
 import { withPluginVersion } from '@/utils/pluginVersion'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const targets = defineModel<NotificationTarget[]>({ required: true })
 const props = defineProps<{
@@ -273,9 +276,9 @@ async function remove(target: NotificationTarget): Promise<void> {
           :eyebrow="t('notifications.target.eyebrow')"
           :title="editingId ? t('notifications.target.form_edit') : t('notifications.target.form_new')"
         />
-        <p class="mt-2 mb-4 text-xs leading-5 text-muted">{{ t('notifications.target.description') }}</p>
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
+        <p class="mt-2 mb-2 text-xs leading-5 text-muted">{{ t('notifications.target.description') }}</p>
+        <SettingsCrossLink class="mb-4" anchor="interface.browser_notifications" />
+        <FormFeedback class="mb-3" :error="error" :message="message" />
 
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField :label="t('notifications.target.kind_label')">
@@ -349,11 +352,11 @@ async function remove(target: NotificationTarget): Promise<void> {
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
-          <div v-for="target in targets" :key="target.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingId === target.id ? 'border-l-2 border-l-primary' : ''">
+          <div v-for="target in targets" :key="target.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingRowClass(editingId === target.id, 'stripe')">
             <UIcon name="i-lucide-send" class="text-primary" />
             <div class="min-w-0 shrink grow basis-[200px]">
               <p class="text-sm font-medium text-highlighted">{{ target.name }}</p>
-              <p class="truncate font-mono text-[11px] text-muted">{{ target.endpoint }}</p>
+              <p class="truncate font-mono text-2xs text-muted">{{ target.endpoint }}</p>
             </div>
             <!-- The badges and actions wrap under the name as one group on a narrow screen. -->
             <div class="ms-auto flex flex-wrap items-center justify-end gap-2">
@@ -367,7 +370,7 @@ async function remove(target: NotificationTarget): Promise<void> {
             </div>
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!targets.length" variant="inline" class="p-5">
-            <p class="text-center text-sm text-muted">{{ t('notifications.target.empty') }}</p>
+            <UEmpty :description="t('notifications.target.empty')" />
           </DataState>
         </div>
       </template>

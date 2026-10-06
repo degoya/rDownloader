@@ -3,6 +3,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use rd_api_core::input_checks::optional_text;
 use rd_db::StoreErrorKind;
 
 use crate::{
@@ -48,7 +49,7 @@ pub async fn update_usenet_server(
         None if request.clear_password => None,
         None => old_password_ref.clone(),
     };
-    let username = normalized(request.username);
+    let username = optional_text(request.username);
     if username.is_some() != password_ref.is_some() {
         if password_ref != old_password_ref {
             cleanup_secret(&state.secrets, password_ref).await;
@@ -247,7 +248,7 @@ pub async fn create_usenet_server(
         request.password.as_deref(),
     )?;
     let host = request.host.trim();
-    let username = normalized(request.username);
+    let username = optional_text(request.username);
     if username.is_some() != request.password.is_some() {
         return Err(ApiError::bad_request(
             "usenet.credentials_incomplete",
@@ -432,10 +433,4 @@ async fn cleanup_secret(store: &rd_secrets::SecretStore, reference: Option<Strin
     {
         tracing::warn!(%error, "failed to clean up replaced NNTP secret");
     }
-}
-
-fn normalized(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }

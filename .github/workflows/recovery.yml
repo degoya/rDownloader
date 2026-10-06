@@ -4,7 +4,9 @@ name: Recovery
 # `rdownloader serve` is killed with SIGKILL mid-download and mid-post-processing, started again
 # on the same data, and held to the matrix's invariants. The cases are `#[ignore]` everywhere
 # else, because each spawns a service; this job is where they run. Linux only: SIGKILL is the
-# point, and the state machine behind it is the same on every system (axis A, ci.yml).
+# point, and the state machine behind it is the same on every system (axis A, ci.yml). The
+# release candidate dispatches it before the tag, and a red run holds the tag (owner, 2026-10-06;
+# the `public-ci` step, scripts/lib/release-steps-publish.sh).
 on:
   push:
     branches: ["**", "!dependabot/**"]
@@ -28,26 +30,18 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-    env:
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Free runner disk
         uses: ./.github/actions/free-runner-disk
-      - name: Install mold
-        run: sudo apt-get update -q && sudo apt-get install -y -q mold
       # rust-embed compiles web/dist into rd-api. These cases never open the interface, so a
       # placeholder page stands in for the web build the `web` job of ci.yml makes.
       - name: Placeholder web interface
         run: mkdir -p web/dist && printf '<!doctype html><title>rDownloader</title>\n' > web/dist/index.html
-      - uses: ./.github/actions/setup-rust
-      # No sccache, and the cache saved from main only, as in ci.yml (RD-1100-13).
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: nextest@0.9.146
+      # ci.yml's `rust-tests` cache, read only (RD-1120-07): a debug build of the same workspace
+      # with the same linkers. The cache of its own this job saved on main (927 MB) was read by
+      # nothing but its next run there.
+      - uses: ./.github/actions/rust-tests-cache
       # `--run-ignored only`: exactly the axis B cases, one spawned service each. The service
       # logs of a failed case are part of its failure message.
       - name: Kill and restart cases

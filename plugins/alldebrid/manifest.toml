@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000009"
 name = "AllDebrid"
-version = "0.7.12"
+version = "0.7.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["*"]
@@ -21,7 +21,7 @@ description = "Resolves links of other hosters through an AllDebrid account."
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "0.7.0"
+min_app_version = "1.9.0"
 
 [provider]
 slug = "alldebrid"

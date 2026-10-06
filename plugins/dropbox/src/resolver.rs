@@ -20,9 +20,10 @@
 //! `?password=` on the pasted link, both redacted by the core — because a resolver sees
 //! nothing else of what a person entered.
 
+use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
-    LinkStatus, PluginHost, ResolveInput, Resolved,
+    PluginHost, ResolveInput, Resolved,
 };
 use serde_json::{Value, json};
 
@@ -31,6 +32,12 @@ use dropbox_common::{api_arg, metadata, reason};
 use crate::{
     api, messages,
     target::{self, Target},
+};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: SECRET,
+    missing: messages::SIGN_IN_REQUIRED,
 };
 
 /// The RPC endpoints, and the only address this plugin reaches itself.
@@ -69,10 +76,10 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_token(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(host, rpc("users/get_current_account", Value::Null)).await?;
     let account = metadata::account(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
     Ok(Account {
         valid: true,
         // A Dropbox account is a Dropbox account: no tier changes what this plugin may do, so
@@ -99,23 +106,23 @@ pub(crate) async fn resolve<H: PluginHost>(
     host: &H,
     input: &ResolveInput,
 ) -> Result<Resolved, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let claimed = target::claim(&input.url)
-        .ok_or_else(|| refuse(messages::NOT_A_DROPBOX_LINK, FailureKind::Unsupported))?;
+        .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_DROPBOX_LINK))?;
     let item = fetch_metadata(host, &claimed).await?;
     if item.is_folder() {
         // The sibling crawler's address, pasted at the resolver. Said plainly rather than as
         // "this file has no bytes", which is what a folder's metadata looks like.
-        return Err(refuse(messages::IS_A_FOLDER, FailureKind::Unsupported));
+        return Err(coded(FailureKind::Unsupported, messages::IS_A_FOLDER));
     }
     if !item.is_file() {
-        return Err(refuse(messages::FILE_NOT_FOUND, FailureKind::Permanent));
+        return Err(coded(FailureKind::Permanent, messages::FILE_NOT_FOUND));
     }
     if !item.downloadable() {
-        return Err(refuse(
-            messages::DOWNLOAD_NOT_PERMITTED,
+        return Err(coded(
             FailureKind::Permanent,
+            messages::DOWNLOAD_NOT_PERMITTED,
         ));
     }
     let (url, argument) = download(&claimed, &item);
@@ -139,30 +146,29 @@ pub(crate) async fn check<H: PluginHost>(
     host: &H,
     input: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let mut results = Vec::new();
     for url in input.urls.iter().take(MAX_CHECKS) {
         let Some(claimed) = target::claim(url) else {
-            results.push(unknown(url));
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         results.push(match fetch_metadata(host, &claimed).await {
-            Ok(item) if item.is_file() => LinkCheck {
-                url: url.clone(),
-                status: LinkStatus::Online,
-                file_name: Some(item.name().to_owned()).filter(|name| !name.is_empty()),
-                size: item.size,
-            },
-            Ok(item) if item.is_deleted() => offline(url),
+            Ok(item) if item.is_file() => LinkCheck::online(
+                url,
+                Some(item.name().to_owned()).filter(|name| !name.is_empty()),
+                item.size,
+            ),
+            Ok(item) if item.is_deleted() => LinkCheck::offline(url),
             // A folder says nothing about a file link: it stays unknown.
-            Ok(_) => unknown(url),
+            Ok(_) => LinkCheck::unknown(url),
             // A file Dropbox says is gone is offline; anything else says nothing about the
             // link, so it stays unknown rather than being reported as missing.
             Err(failure) if failure.code.as_deref() == Some(messages::FILE_NOT_FOUND.0) => {
-                offline(url)
+                LinkCheck::offline(url)
             }
-            Err(_) => unknown(url),
+            Err(_) => LinkCheck::unknown(url),
         });
     }
     Ok(results)
@@ -179,7 +185,7 @@ async fn fetch_metadata<H: PluginHost>(
     };
     let response = call(host, request).await?;
     metadata::item(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))
 }
 
 /// The content address the transfer goes to, and the header that names the file there.
@@ -259,46 +265,6 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
         failure = failure.with_param("reason", reason);
     }
     Err(failure)
-}
-
-/// Refuses early when the account holds no token at all, rather than making a call that
-/// Dropbox is certain to refuse and reporting whatever it says about it.
-async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if host.secret_available(account_id, SECRET).await {
-        return Ok(());
-    }
-    Err(refuse(
-        messages::SIGN_IN_REQUIRED,
-        FailureKind::AuthRequired,
-    ))
-}
-
-fn account(account_id: Option<&str>) -> Result<&str, Failure> {
-    account_id
-        .filter(|id| !id.is_empty())
-        .ok_or_else(|| refuse(messages::ACCOUNT_MISSING, FailureKind::AuthRequired))
-}
-
-fn refuse((code, message): (&str, &str), kind: FailureKind) -> Failure {
-    Failure::coded(kind, code, message)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
-}
-
-fn offline(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Offline,
-        file_name: None,
-        size: None,
-    }
 }
 
 /// The account row's label: the address the person signed in with, and nothing else; the

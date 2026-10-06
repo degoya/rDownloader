@@ -141,3 +141,55 @@ async fn a_taken_hotfolder_server_or_profile_name_is_a_conflict() {
     )
     .await;
 }
+
+/// A server refused for its name takes back the password it had just written: the vault holds
+/// the same entries after the `409` as before it, on creation and on a rename (RD-1120-04, S2).
+#[tokio::test]
+async fn a_refused_server_leaves_no_password_in_the_vault() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let router = &harness.router;
+    let server = |name: &str| {
+        json!({
+            "name": format!("vault-news-{name}"),
+            "host": "news.vault.test",
+            "port": 563,
+            "tls": true,
+            "username": "reader",
+            "password": "vault-news-password",
+            "proxy_profile_id": null,
+            "priority": 0,
+            "max_connections": 2,
+            "enabled": false,
+            "clear_password": false,
+        })
+    };
+    let (status, created) = post_json(router, "/api/v1/usenet/servers", server("first")).await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let (status, second) = post_json(router, "/api/v1/usenet/servers", server("second")).await;
+    assert_eq!(status, StatusCode::CREATED, "{second}");
+    let before = harness.secrets.stored_references().await.expect("vault");
+    assert_eq!(before.len(), 2, "{before:?}");
+
+    let (status, refused) = post_json(router, "/api/v1/usenet/servers", server("first")).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(
+        harness.secrets.stored_references().await.expect("vault"),
+        before,
+        "a refused creation left its password behind"
+    );
+
+    let id = second["id"].as_str().expect("id");
+    let (status, refused) = put_json(
+        router,
+        &format!("/api/v1/usenet/servers/{id}"),
+        server("first"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert_eq!(
+        harness.secrets.stored_references().await.expect("vault"),
+        before,
+        "a refused rename left its new password behind"
+    );
+}

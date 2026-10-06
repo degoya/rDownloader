@@ -35,6 +35,7 @@ import {
   type RuleDraft
 } from '@/composables/useSiteRules'
 import { downloadJson } from '@/utils/jsonFile'
+import { editingRowClass } from '@/utils/editingRow'
 
 const { t, te } = useI18n()
 const toast = useToast()
@@ -186,7 +187,6 @@ async function importRules(text: string): Promise<void> {
     <UAlert
       v-if="rules.error.value"
       color="error"
-      variant="subtle"
       icon="i-lucide-circle-alert"
       :description="rules.error.value"
     />
@@ -263,13 +263,13 @@ async function importRules(text: string): Promise<void> {
                 v-for="rule in entry.rules"
                 :key="rule.id"
                 class="flex flex-wrap items-center gap-3 p-3"
-                :class="editingId === rule.id ? 'outline outline-1 outline-primary' : ''"
+                :class="editingRowClass(editingId === rule.id, 'outline')"
                 data-rule-row
               >
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium text-highlighted">{{ rule.name }}</p>
-                  <p class="truncate font-mono text-[11px] text-muted">{{ rule.hosts.join(', ') || rule.id }}</p>
-                  <p v-if="!entry.group.enabled" class="mt-1 text-[11px] text-muted">{{ t('siterules.list.group_off') }}</p>
+                  <p class="truncate font-mono text-2xs text-muted">{{ rule.hosts.join(', ') || rule.id }}</p>
+                  <p v-if="!entry.group.enabled" class="mt-1 text-2xs text-muted">{{ t('siterules.list.group_off') }}</p>
                 </div>
                 <UBadge v-if="editingId === rule.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
                 <UBadge :color="stateColor(rule)" variant="subtle" :title="stateTitle(rule)">

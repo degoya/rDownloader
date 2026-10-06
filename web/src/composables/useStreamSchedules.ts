@@ -9,8 +9,8 @@ import { useCopyName } from '@/composables/useCopyName'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useStreamsStore } from '@/stores/streams'
 import { browserTimezone } from '@/utils/timezones'
+import { timeOf, weekdayItems as weekdayChoices } from '@/utils/weekWindows'
 
-const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const
 /** Matches `MAX_NAME` in `crates/rd-api-intake/src/stream_schedule_handlers.rs`. */
 const MAX_SCHEDULE_NAME = 200
 
@@ -61,12 +61,6 @@ function timing(entry: StreamSchedule): components['schemas']['ScheduleKind'] {
     : { kind: 'once', start: entry.start }
 }
 
-function minuteToTime(value: number): string {
-  const hours = String(Math.floor(value / 60)).padStart(2, '0')
-  const minutes = String(value % 60).padStart(2, '0')
-  return `${hours}:${minutes}`
-}
-
 /** The stream schedules of `StreamsView.vue` (RD-080-08): their form, list actions and runs. */
 export function useStreamSchedules() {
   const { t } = useI18n()
@@ -86,7 +80,8 @@ export function useStreamSchedules() {
     channels.value.map(entry => ({ value: entry.id, label: entry.name }))
   )
 
-  const weekdayItems = computed(() => WEEKDAYS.map(day => ({ value: day, label: t(`streams.schedules.weekday.${day}`) })))
+  /** ISO weekdays, Monday 1, as the server stores a weekly schedule's days. */
+  const weekdayItems = computed(() => weekdayChoices(t, 1))
   /** Kept in weekday order whatever order the boxes were ticked in. */
   const scheduleDays = computed({
     get: () => schedule.days,
@@ -162,7 +157,7 @@ export function useStreamSchedules() {
     schedule.name = entry.name
     // The form edits weekly schedules; a one-off made through the API opens with no days.
     schedule.days = entry.kind === 'weekly' ? [...entry.days] : []
-    schedule.startTime = minuteToTime(entry.kind === 'weekly' ? entry.start_minute : 0)
+    schedule.startTime = timeOf(entry.kind === 'weekly' ? entry.start_minute : 0)
     schedule.timezone = entry.timezone
     schedule.windowMinutes = entry.window_minutes
     schedule.leadMinutes = entry.lead_minutes

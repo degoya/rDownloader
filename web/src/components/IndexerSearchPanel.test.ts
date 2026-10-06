@@ -123,7 +123,7 @@ describe('IndexerSearchPanel without an enabled indexer', () => {
     expect(hint.textContent).toContain(linkgrabber.search.unavailable)
     expect((screen.getByTestId('indexer-search-submit') as HTMLButtonElement).disabled).toBe(true)
     const link = within(hint).getByRole('link', { name: linkgrabber.search.unavailable_link })
-    expect(link.getAttribute('href')).toBe('/settings/usenet')
+    expect(link.getAttribute('href')).toBe('/settings/usenet?tab=indexers')
 
     focusKey.handler()
     expect(document.activeElement).toBe(link)

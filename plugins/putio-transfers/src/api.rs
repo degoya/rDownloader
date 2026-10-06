@@ -296,9 +296,9 @@ pub fn failure_from(
     }
     let word = envelope.kind();
     let mut refusal = classify(status, reset_in_seconds, word.as_deref());
-    // The word, when Put.io stated one, and nothing else: this plugin's `http_error` has never
-    // carried the `status` parameter (RD-1110-02 keeps that).
-    refusal.params = word.map(|word| vec![("reason", word)]).unwrap_or_default();
+    // The word, when Put.io stated one, beside the `status` parameter the shared mapping gives
+    // `http_error` (RD-1120-05), and nothing else.
+    refusal.params.extend(word.map(|word| ("reason", word)));
     Some(refusal)
 }
 

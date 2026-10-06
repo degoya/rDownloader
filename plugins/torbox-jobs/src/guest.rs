@@ -14,10 +14,11 @@
 
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteEntry,
-    RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest, host,
-    http::{RequestHeader, RequestQuery},
+    RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest, bearer, headers, host,
+    http::RequestQuery,
     job_context, refuse,
     types::{Failure, FailureKind},
+    unknown_answer,
 };
 
 use crate::{
@@ -32,28 +33,6 @@ struct Component;
 /// How many random bytes the multipart boundary is built from.
 const BOUNDARY_BYTES: u32 = 16;
 
-/// The bearer header, as a template. The key's value never reaches this plugin: the host
-/// substitutes it on the way out, towards `api.torbox.app` and nowhere else.
-fn headers(content_type: Option<&str>) -> Vec<RequestHeader> {
-    let mut headers = vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{}}}}}", api::TOKEN_REFERENCE),
-        },
-        RequestHeader {
-            name: "Accept".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ];
-    if let Some(value) = content_type {
-        headers.push(RequestHeader {
-            name: "Content-Type".to_owned(),
-            value_template: value.to_owned(),
-        });
-    }
-    headers
-}
-
 /// One request, with every status that is not an answer turned into one refusal.
 ///
 /// The vocabulary stays small on purpose: a caller gets bytes or a failure and never decides a
@@ -66,13 +45,16 @@ fn call(
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
     let url = format!("{}{path}", api::API_BASE);
+    // The bearer header is a template: the key's value never reaches this plugin, the host
+    // substitutes it on the way out, towards `api.torbox.app` and nowhere else.
+    let headers = headers(bearer(api::TOKEN_REFERENCE), content_type);
     // The `error` word decides whatever the status says, and the status decides when there is
     // no document to read. Both directions matter: TorBox answers refusals with 200.
     plugin_guest_remote_job::call(
         method,
         &url,
         query,
-        &headers(content_type),
+        &headers,
         body,
         |status, retry_after, answer| {
             let envelope: api::ErrorEnvelope = serde_json::from_slice(answer).unwrap_or_default();
@@ -129,21 +111,9 @@ const fn job_kind(kind: CacheKind) -> Kind {
     }
 }
 
-const fn not_known() -> CacheAnswer {
-    CacheAnswer {
-        state: CacheState::Unknown,
-        file_name: None,
-        size: None,
-    }
-}
-
 /// Checks an identifier before it is spliced into a request.
 fn safe_id(handle: &RemoteHandle) -> Result<&str, Failure> {
-    if api::is_safe_remote_id(&handle.remote_id) {
-        Ok(&handle.remote_id)
-    } else {
-        Err(refuse(messages::JOB_GONE, FailureKind::Permanent))
-    }
+    plugin_guest_remote_job::safe_id(handle, api::is_safe_remote_id, messages::JOB_GONE)
 }
 
 /// The kind a handle belongs to.
@@ -234,13 +204,13 @@ impl Guest for Component {
             .iter()
             .map(|digest| {
                 let Some((kind, digest)) = digest else {
-                    return not_known();
+                    return unknown_answer();
                 };
                 held.iter()
                     .find(|(held_kind, entry)| {
                         held_kind == kind && entry.hash.eq_ignore_ascii_case(digest)
                     })
-                    .map_or_else(not_known, |(_, entry)| CacheAnswer {
+                    .map_or_else(unknown_answer, |(_, entry)| CacheAnswer {
                         state: CacheState::Cached,
                         file_name: entry.name.clone(),
                         size: entry.size,

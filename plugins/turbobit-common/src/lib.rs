@@ -125,9 +125,5 @@ pub async fn check_account<H: PluginHost>(
 /// The hosts this brand serves. A hoster serves its own, so the account changes nothing.
 #[must_use]
 pub fn hosters(brand: &Brand) -> Vec<String> {
-    brand
-        .match_hosts
-        .iter()
-        .map(|host| (*host).to_owned())
-        .collect()
+    plugin_common::own_hosters(brand.match_hosts)
 }

@@ -13,7 +13,6 @@
     "target_placeholder": "download",
     "target_id": "Target id",
     "trace": "Trace id",
-    "apply": "Apply",
     "clear": "Clear filters"
   },
   "outcomes": {

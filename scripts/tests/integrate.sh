@@ -12,7 +12,8 @@
 # their calls (RD-1100-13): a red preflight stops the run before the gate with every finding shown
 # (RD-1110-15), a red gate stops it before any generator with every error shown,
 # a green one lets the generators run and archive-jobs' rewrite into the generated commit, and
-# the detached check runs --windows first and --full only after a green Windows lint.
+# the detached check runs --windows first and --full only after a green Windows lint, and with
+# --public-ci the public CI beside them (RD-1120-06).
 #
 #   scripts/tests/integrate.sh
 set -euo pipefail
@@ -38,7 +39,7 @@ MAIN="$SCRATCH/repo"
 git init -q -b development "$MAIN"
 mkdir -p "$MAIN/scripts/lib" "$MAIN/web/node_modules" "$MAIN/web/dist" "$MAIN/crates/rd-db/migrations"
 cp "$ROOT/scripts/integrate.sh" "$ROOT/scripts/worktree.sh" "$MAIN/scripts/"
-cp "$ROOT/scripts/lib/integrate.sh" "$ROOT/scripts/lib/verified.sh" "$ROOT/scripts/lib/lanes.sh" \
+cp "$ROOT/scripts/lib/"{integrate,verified,lanes,inert-paths,web-dist}.sh \
     "$ROOT/scripts/lib/workspace-version.sh" "$MAIN/scripts/lib/"
 cp -r "$ROOT/scripts/lib/merge-drivers" "$MAIN/scripts/lib/"
 cp "$ROOT/.gitattributes" "$MAIN/"
@@ -79,6 +80,7 @@ stub licenses.sh
 stub archive-jobs.sh 'echo "| Job Inventory | 2 |" > docs/roadmap/jobs/README.md'
 stub build-plugins.sh
 stub prune-target.sh
+stub public-ci.sh 'if [[ -f "$FAKE/public-ci-red" ]]; then exit 1; fi'
 git -C "$MAIN" add -A
 git -C "$MAIN" commit -qm base
 
@@ -215,7 +217,7 @@ wait_status() {
 rm -f "$FAKE/calls"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-gate
 expect_status "the detached check starts" 0
-expect "both green, and the prune" "full=0 windows=0 prune=0" "$(wait_status)"
+expect "both green, and the prune; no GitHub run without --public-ci" "full=0 windows=0 prune=0 public-ci=skipped" "$(wait_status)"
 expect "the preflight, then --windows before --full" "check.sh --preflight|check.sh --windows|check.sh --full" \
     "$(grep '^check.sh' "$FAKE/calls" | paste -sd'|' -)"
 expect_true "the run writes its failures beside its logs" 'grep -qx "export RD_CHECK_LOGS=.$RD_INTEGRATE_LOGS." "$RD_INTEGRATE_LOGS/run.sh"'
@@ -223,9 +225,28 @@ expect_true "the run writes its failures beside its logs" 'grep -qx "export RD_C
 touch "$FAKE/windows-red"
 rm -f "$FAKE/calls"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-gate
-expect "a red Windows lint holds back --full" "full=skipped windows=1 prune=skipped" "$(wait_status)"
+expect "a red Windows lint holds back --full" "full=skipped windows=1 prune=skipped public-ci=skipped" "$(wait_status)"
 expect_true "which never started" '! grep -q "check.sh --full" "$FAKE/calls"'
 rm -f "$FAKE/windows-red"
+
+# --public-ci (RD-1120-06): GitHub starts after the gate and the generators' commit, beside
+# --windows and --full instead of after them, and its exit is part of the status.
+rm -f "$FAKE/calls"
+run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --public-ci
+expect_status "--public-ci: the detached check starts" 0
+expect "GitHub's exit beside the local ones" "full=0 windows=0 prune=0 public-ci=0" "$(wait_status)"
+expect_true "on the integration branch, Linux and Windows" 'grep -qx "public-ci.sh integration/w3 --platforms linux,windows" "$FAKE/calls"'
+expect "after the gate and the generators: the run starts it before --windows and --full" \
+    "public-ci.sh|check.sh --windows|check.sh --full" \
+    "$(grep -oE 'scripts/(public-ci\.sh|check\.sh --(windows|full))' "$RD_INTEGRATE_LOGS/run.sh" | sed 's|^scripts/||' | paste -sd'|' -)"
+expect_true "the gate and every generator ran before the detached run" \
+    '[[ "$(grep -nE "^(check.sh --gate|archive-jobs.sh)" "$FAKE/calls" | tail -1 | cut -d: -f1)" -lt "$(grep -n "^public-ci.sh" "$FAKE/calls" | cut -d: -f1)" ]]'
+expect_output "the output names it" "and beside them scripts/public-ci.sh integration/w3 --platforms linux,windows"
+expect_true "its log ends with the real exit" '[[ "$(tail -1 "$RD_INTEGRATE_LOGS/public-ci.log")" == "REAL EXIT: 0" ]]'
+touch "$FAKE/public-ci-red"
+run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --public-ci
+expect "a red GitHub run is in the status, the local check unaffected" "full=0 windows=0 prune=0 public-ci=1" "$(wait_status)"
+rm -f "$FAKE/public-ci-red"
 unset RD_INTEGRATE_LOGS
 
 integrate integration/w1 feat/nope

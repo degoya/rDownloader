@@ -1,11 +1,14 @@
 /**
  * The log viewer draws what the store holds and the bundle is only offered after a preview
- * (RD-110-02). The redaction itself is a server-side promise, tested where it is kept.
+ * (RD-110-02). The redaction itself is a server-side promise, tested where it is kept. The two
+ * are tabs of one page whose tab lives in the address (RD-1120-01).
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import logsDe from '@/locales/de/logs.json'
+import common from '@/locales/en/common.json'
 import logs from '@/locales/en/logs.json'
 import { mountComponent } from '@/test/mount'
 import { axeViolations } from '@/test/axe'
@@ -74,10 +77,23 @@ const PREVIEW = {
   directory: '/data/diagnostics'
 }
 
-async function mountView(locale = 'en') {
+async function mountView(locale = 'en', address = '/logs') {
   const { default: LogsView } = await import('./LogsView.vue')
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/logs', component: LogsView }] })
+  await router.push(address)
+  await router.isReady()
   const catalogue = locale === 'de' ? logsDe : logs
-  return mountComponent(LogsView, { messages: { logs: catalogue }, locale })
+  const rendered = mountComponent(LogsView, {
+    messages: { logs: catalogue },
+    locale,
+    plugins: [router],
+    stubs: { UDashboardNavbar: { props: ['title'], template: '<header><h1>{{ title }}</h1><slot name="right" /></header>' } }
+  })
+  return { ...rendered, router }
+}
+
+function selectedTab(): string | undefined {
+  return screen.getAllByRole('tab').find(tab => tab.getAttribute('aria-selected') === 'true')?.textContent ?? undefined
 }
 
 beforeEach(() => {
@@ -124,7 +140,7 @@ describe('LogsView', () => {
     await screen.findByTestId('log-list')
 
     await fireEvent.update(screen.getByTestId('log-search'), 'failed')
-    await fireEvent.click(screen.getByRole('button', { name: logs.filters.apply }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.apply }))
 
     await waitFor(() => {
       expect(get).toHaveBeenLastCalledWith('/api/v1/diagnostics/logs', {
@@ -144,8 +160,8 @@ describe('LogsView', () => {
 
   it('offers the bundle only after its preview was shown, and sends what was ticked', async () => {
     post.mockResolvedValue({ data: { file_name: 'rdownloader-diagnostics-20260920T120000Z.zip', path: '/data/diagnostics/rdownloader-diagnostics-20260920T120000Z.zip', bytes: 1234, manifest: {} } })
-    await mountView()
-    await screen.findByTestId('log-list')
+    await mountView('en', '/logs?tab=bundle')
+    await screen.findByTestId('diagnostic-bundle')
 
     const create = screen.getByRole('button', { name: logs.bundle.create }) as HTMLButtonElement
     expect(create.disabled).toBe(true)
@@ -176,8 +192,8 @@ describe('LogsView', () => {
   // The finding this closes: the frame was German and everything under it English, including
   // the lines that say what was redacted (RD-120-15).
   it('draws the preview in the reader\u2019s language, with no English sentence under the German frame', async () => {
-    await mountView('de')
-    await screen.findByTestId('log-list')
+    await mountView('de', '/logs?tab=bundle')
+    await screen.findByTestId('diagnostic-bundle')
 
     await fireEvent.click(screen.getByRole('button', { name: logsDe.bundle.preview }))
     const preview = await screen.findByTestId('bundle-preview')
@@ -211,8 +227,8 @@ describe('LogsView', () => {
       }
       return { error: { code: 'internal.error' } }
     })
-    await mountView('de')
-    await screen.findByTestId('log-list')
+    await mountView('de', '/logs?tab=bundle')
+    await screen.findByTestId('diagnostic-bundle')
 
     await fireEvent.click(screen.getByRole('button', { name: logsDe.bundle.preview }))
     const preview = await screen.findByTestId('bundle-preview')
@@ -224,6 +240,55 @@ describe('LogsView', () => {
     const { container } = await mountView()
     await screen.findByTestId('log-list')
     expect(await axeViolations(container)).toBe('')
+  })
+
+  it('renders the bundle tab without an axe violation', async () => {
+    const { container } = await mountView('en', '/logs?tab=bundle')
+    await screen.findByTestId('diagnostic-bundle')
+    expect(await axeViolations(container)).toBe('')
+  })
+
+  it('opens on the log, the plain address, with the refresh button and without the bundle', async () => {
+    await mountView()
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual([logs.tabs.log, logs.tabs.bundle])
+    expect(selectedTab()).toBe(logs.tabs.log)
+    expect(await screen.findByTestId('log-list')).toBeTruthy()
+    expect(screen.queryByTestId('diagnostic-bundle')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy()
+  })
+
+  it('opens the bundle tab the address names, without the log and its refresh button', async () => {
+    await mountView('en', '/logs?tab=bundle')
+    expect(await screen.findByTestId('diagnostic-bundle')).toBeTruthy()
+    expect(selectedTab()).toBe(logs.tabs.bundle)
+    expect(screen.queryByTestId('log-list')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull()
+    expect(get).not.toHaveBeenCalledWith('/api/v1/diagnostics/logs', expect.anything())
+  })
+
+  it('shows the log for a tab the page does not have', async () => {
+    await mountView('en', '/logs?tab=nonsense')
+    expect(await screen.findByTestId('log-list')).toBeTruthy()
+    expect(selectedTab()).toBe(logs.tabs.log)
+  })
+
+  it('pushes the tab into the address, keeps the loaded log, and walks back with the browser', async () => {
+    const { router } = await mountView('en', '/logs?level=error')
+    await screen.findByTestId('log-list')
+    await fireEvent.click(screen.getByRole('tab', { name: logs.tabs.bundle }))
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/logs?level=error&tab=bundle'))
+    expect(await screen.findByTestId('diagnostic-bundle')).toBeTruthy()
+    expect(screen.queryByTestId('log-list')).toBeNull()
+
+    router.back()
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/logs?level=error'))
+    expect(await screen.findByTestId('log-list')).toBeTruthy()
+    // Back on the log, the records already loaded are drawn again, not fetched a second time.
+    expect(get.mock.calls.filter(([path]) => path === '/api/v1/diagnostics/logs')).toHaveLength(1)
+
+    router.forward()
+    await vi.waitFor(() => expect(router.currentRoute.value.query.tab).toBe('bundle'))
+    expect(await screen.findByTestId('diagnostic-bundle')).toBeTruthy()
   })
 
 })

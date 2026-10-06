@@ -9,16 +9,12 @@
 //! **A run against the real provider is not claimed here.** It needs a premium Seedr account;
 //! `docs/roadmap/jobs/120-04-seedr-feasibility.md` records that as open.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind, LinkStatus};
+use rd_core::{AccountId, LinkStatus};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
-    CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, Resolver,
-    ResolverHost,
+    CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest, Resolver, ResolverHost,
 };
 
 use super::SeedrResolver;
@@ -26,43 +22,16 @@ use super::SeedrResolver;
 const AUTHORIZATION_TEMPLATE: &str = "Basic {{basic:seedr_password}}";
 const FILE_URL: &str = "https://www.seedr.cc/rest/file/42";
 
-struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    requests: Mutex<Vec<HostHttpRequest>>,
-    has_secret: bool,
+/// The shared scripted host with Seedr's one credential slot, `seedr_password`.
+trait KeyedHost {
+    fn keyed_responses(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<MockHost>;
 }
 
-impl MockHost {
-    fn new(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret,
-        })
-    }
-
-    fn requests(&self) -> Vec<HostHttpRequest> {
-        self.requests.lock().expect("mock lock").clone()
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, reference: &str) -> bool {
-        self.has_secret && reference == "seedr_password"
+impl KeyedHost for MockHost {
+    fn keyed_responses(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<MockHost> {
+        MockHost::scripted(responses)
+            .secret_for("seedr_password", has_secret)
+            .shared()
     }
 }
 
@@ -91,7 +60,7 @@ fn client() -> ClientIdentity {
 /// half of the credential, so neither an address nor a password can appear in what it sent.
 #[tokio::test]
 async fn the_account_check_sends_the_basic_template_and_never_a_credential() {
-    let host = MockHost::new(
+    let host = MockHost::keyed_responses(
         vec![answer(
             200,
             r#"{"username":"person@example.test","space_max":100,"space_used":40}"#,
@@ -123,7 +92,7 @@ async fn the_account_check_sends_the_basic_template_and_never_a_credential() {
 /// a credential and coming back as "Seedr rejected your sign-in".
 #[tokio::test]
 async fn an_account_without_a_password_is_refused_before_a_request_goes_out() {
-    let host = MockHost::new(Vec::new(), false);
+    let host = MockHost::keyed_responses(Vec::new(), false);
     let failure = resolver(&host)
         .check_account(AccountId::new())
         .await
@@ -134,7 +103,7 @@ async fn an_account_without_a_password_is_refused_before_a_request_goes_out() {
 
 #[tokio::test]
 async fn a_rejected_credential_ends_the_account() {
-    let host = MockHost::new(vec![answer(401, "<html>401</html>")], true);
+    let host = MockHost::keyed_responses(vec![answer(401, "<html>401</html>")], true);
     let failure = resolver(&host)
         .check_account(AccountId::new())
         .await
@@ -146,7 +115,7 @@ async fn a_rejected_credential_ends_the_account() {
 /// canonical address — which is also what makes it survive a wait in the queue.
 #[tokio::test]
 async fn a_resolve_reaches_nothing_and_answers_with_the_stable_address() {
-    let host = MockHost::new(Vec::new(), true);
+    let host = MockHost::keyed_responses(Vec::new(), true);
     let resolved = resolver(&host)
         .resolve(ResolveRequest {
             url: format!("{FILE_URL}?download=1").parse().expect("URL"),
@@ -163,7 +132,7 @@ async fn a_resolve_reaches_nothing_and_answers_with_the_stable_address() {
 
 #[tokio::test]
 async fn an_address_that_is_not_a_seedr_file_is_refused() {
-    let host = MockHost::new(Vec::new(), true);
+    let host = MockHost::keyed_responses(Vec::new(), true);
     let failure = resolver(&host)
         .resolve(ResolveRequest {
             url: "https://www.seedr.cc/rest/folder/42".parse().expect("URL"),
@@ -178,7 +147,7 @@ async fn an_address_that_is_not_a_seedr_file_is_refused() {
 /// for a file somebody deleted last week, and Seedr has no call that answers the question.
 #[tokio::test]
 async fn a_link_check_says_it_does_not_know_rather_than_guessing() {
-    let host = MockHost::new(Vec::new(), true);
+    let host = MockHost::keyed_responses(Vec::new(), true);
     let results = resolver(&host)
         .check(CheckRequest {
             urls: vec![FILE_URL.parse().expect("URL")],
@@ -193,7 +162,7 @@ async fn a_link_check_says_it_does_not_know_rather_than_guessing() {
 
 #[tokio::test]
 async fn the_account_catalogue_names_seedr_and_nobody_else() {
-    let host = MockHost::new(Vec::new(), true);
+    let host = MockHost::keyed_responses(Vec::new(), true);
     let hosters = resolver(&host)
         .hosters(AccountId::new())
         .await

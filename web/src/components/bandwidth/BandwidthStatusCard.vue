@@ -132,7 +132,7 @@ defineExpose({ reload: load })
       <UButton icon="i-lucide-arrow-right-left" color="neutral" variant="outline" :label="t('bandwidth.manual.switch')" :loading="switching" @click="switchProfile" />
       <UButton v-if="status.manual" icon="i-lucide-calendar-clock" color="neutral" variant="ghost" :label="t('bandwidth.manual.back_to_schedule')" :disabled="switching" @click="backToSchedule" />
     </div>
-    <UAlert v-if="switchError" class="mt-3" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="switchError" />
+    <UAlert v-if="switchError" class="mt-3" color="error" icon="i-lucide-circle-alert" :description="switchError" />
     <dl class="mt-4 grid gap-4 sm:grid-cols-2">
       <div>
         <dt class="text-xs text-muted">{{ t('bandwidth.status.binding') }}</dt>
@@ -174,7 +174,6 @@ defineExpose({ reload: load })
       v-if="status.budget_exhausted"
       class="mt-4"
       color="warning"
-      variant="subtle"
       icon="i-lucide-gauge"
       :description="t('bandwidth.status.budget_exhausted')"
     />

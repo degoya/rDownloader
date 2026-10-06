@@ -5,7 +5,7 @@
 //! response shapes, the catalogue merge, the failure classification — so what lives here is
 //! the sequence of requests, once rather than once per build.
 
-use plugin_common::failure::coded;
+use plugin_common::failure::{SecretSlot, coded, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
     PluginHost, ResolveInput, Resolved,
@@ -13,6 +13,12 @@ use plugin_common::{
 use serde::Deserialize;
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: api::API_KEY_REFERENCE,
+    missing: messages::API_KEY_MISSING,
+};
 
 /// Whether this plugin claims `url`. A multihoster claims by account catalogue rather than by
 /// host, so anything fetchable over http(s) is a candidate.
@@ -30,7 +36,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(host, HttpRequest::get(endpoint("/account/info"))).await?;
     let info: api::AccountInfo = parse_json(&response)?;
     let state = api::account_state(&info);
@@ -67,7 +73,7 @@ pub(crate) async fn resolve<H: PluginHost>(
         .account_id
         .as_deref()
         .ok_or_else(|| coded(FailureKind::AuthRequired, messages::ACCOUNT_MISSING))?;
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let body = api::form_body(&[("url", &request.url)]);
     let response = call(host, form_post(endpoint("/instant"), body)).await?;
     let answer: api::InstantDownload = parse_json(&response)?;
@@ -94,7 +100,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(host, HttpRequest::get(endpoint("/sites"))).await?;
     let entries: Vec<api::SiteEntry> = parse_json(&response)?;
     Ok(api::merge_hosters(entries))
@@ -135,17 +141,6 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
         api::failure_from(status, retry_after, &api::error_envelope(body))
     })
     .await
-}
-
-/// Fails before any request when the account has no API key: every endpoint requires one.
-async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if !host
-        .secret_available(account_id, api::API_KEY_REFERENCE)
-        .await
-    {
-        return Err(coded(FailureKind::AuthRequired, messages::API_KEY_MISSING));
-    }
-    Ok(())
 }
 
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {

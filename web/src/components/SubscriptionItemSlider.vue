@@ -326,7 +326,7 @@ const autoplayLabel = computed(() =>
 
     <div v-if="selected" class="mt-3 border border-muted p-3" data-testid="slider-details">
       <div class="mb-2 flex items-start gap-2">
-        <span class="font-mono text-[11px] text-muted uppercase">{{ t('linkgrabber.indexers.cards.details_title') }}</span>
+        <span class="font-mono text-2xs text-muted uppercase">{{ t('linkgrabber.indexers.cards.details_title') }}</span>
         <span class="min-w-0 flex-1 font-mono text-xs break-all text-highlighted">{{ selected.title }}</span>
         <UButton
           size="xs"

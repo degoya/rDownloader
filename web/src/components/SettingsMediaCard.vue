@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { MediaStatus, MediaToolStatus, Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -74,22 +75,17 @@ function toolDetail(tool: MediaToolStatus): string {
         level="sub"
       />
     </div>
-    <UFormField :label="t('settings.media.ytdlp.label')" :description="t('settings.media.ytdlp.description')">
-      <UInput v-model="settings.media_ytdlp_executable" icon="i-lucide-terminal" :placeholder="t('settings.media.ytdlp.placeholder')" class="w-full font-mono" />
-    </UFormField>
-    <UFormField :label="t('settings.media.ffmpeg.label')" :description="t('settings.media.ffmpeg.description')">
-      <UInput v-model="settings.media_ffmpeg_executable" icon="i-lucide-terminal" :placeholder="t('settings.media.ffmpeg.placeholder')" class="w-full font-mono" />
-    </UFormField>
     <div class="space-y-2 border border-muted p-3">
       <div v-for="tool in tools" :key="tool.name" class="flex min-w-0 items-center gap-2">
         <UIcon :name="tool.path ? 'i-lucide-circle-check' : 'i-lucide-circle-alert'" class="size-4 shrink-0" :class="tool.path ? 'text-success' : 'text-warning'" />
         <span class="w-14 shrink-0 font-mono text-xs text-highlighted">{{ tool.name }}</span>
-        <span v-if="tool.path" class="min-w-0 truncate font-mono text-[11px] text-muted" :title="toolDetail(tool)">{{ toolDetail(tool) }}</span>
+        <span v-if="tool.path" class="min-w-0 truncate font-mono text-2xs text-muted" :title="toolDetail(tool)">{{ toolDetail(tool) }}</span>
         <span v-else class="text-xs text-warning">{{ t('settings.media.status.not_found') }}</span>
       </div>
       <p v-if="statusError" class="text-xs text-error">{{ t('settings.media.status.unavailable') }}</p>
       <p v-else-if="!status" class="text-xs text-muted">{{ t('settings.media.status.loading') }}</p>
       <p class="text-xs leading-5 text-muted">{{ t('settings.media.status.hint') }}</p>
+      <SettingsCrossLink anchor="tools.paths" :lead="t('settings.cross_link.program_path')" />
     </div>
     <UFormField :label="t('settings.media.default_variant.label')" :description="t('settings.media.default_variant.description')">
       <USelect v-model="settings.media_default_variant" :items="variantItems" value-key="value" icon="i-lucide-clapperboard" class="w-full" />

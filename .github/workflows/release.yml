@@ -40,6 +40,28 @@ jobs:
           path: artifacts/browser-extensions/*.zip
           if-no-files-found: error
 
+  # The web interface once for the five binary legs, which embed it (RD-1120-07): each of them
+  # installed, type-checked and built it itself before, 2-3 minutes a leg and five builds of one
+  # `dist`. A tarball rather than the directory: `publish` downloads every artifact of the run
+  # into one directory, and scripts/release-assets.sh split drops `web-dist.tar` there.
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-web
+      - run: pnpm --dir web install --frozen-lockfile
+      # `run build` stopped type-checking in RD-120-25; named here so it still does.
+      - run: pnpm --dir web run typecheck:full
+      - run: pnpm --dir web run build
+      - run: tar -cf web-dist.tar -C web dist
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-dist
+          path: web-dist.tar
+          if-no-files-found: error
+          retention-days: 1
+
   # The plugin components, signed packages, index and site rules: release-plugins.yml.
   plugins:
     permissions:
@@ -56,6 +78,7 @@ jobs:
   # waits for Linux alone and not for Windows and macOS (RD-150-10). Both jobs run the same steps,
   # written once here and taken over by the YAML anchor `binary-steps`.
   linux-binaries:
+    needs: web
     strategy:
       fail-fast: false
       matrix:
@@ -73,10 +96,17 @@ jobs:
     timeout-minutes: 90
     steps: &binary-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-web
+      # The `web` job's dist, which rust-embed compiles into the binary.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-dist
+      - name: Unpack the web interface
+        shell: bash
+        run: tar -xf web-dist.tar -C web && rm web-dist.tar
       # With RUSTUP_TOOLCHAIN set this is the toolchain cargo builds with, targets included; before
-      # it, rust-toolchain.toml's `stable` was, and 1.5.0's release failed on a target installed
-      # here but missing there ("can't find crate for `std`" for x86_64-apple-darwin).
+      # it, rust-toolchain.toml's was (then `stable`, now the pinned 1.99.0), and 1.5.0's release
+      # failed on a target installed here but missing there ("can't find crate for `std`" for
+      # x86_64-apple-darwin).
       - uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.target }}
@@ -90,21 +120,10 @@ jobs:
       - name: Fix the build environment
         shell: bash
         run: scripts/release-build-env.sh --target ${{ matrix.target }} --release-tag "${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-      # rust-cache stays: cargo reuses a cached dependency only when its fingerprint, the flags
-      # above included, matches, and rustc gives the same bytes for the same input, so the cache
-      # shortens the build without changing it — repro.yml's comparison of the published binary
-      # with two uncached rebuilds is what checks that claim. No sccache in a release: it would
-      # not change the output either, but a build made once per tag gains little from it, and it
-      # would be one more shared state that claim has to cover.
-      # Read, never saved, as above.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          key: release-${{ matrix.target }}
-          save-if: false
-      - run: pnpm --dir web install --frozen-lockfile
-      # `run build` stopped type-checking in RD-120-25; named here so it still does.
-      - run: pnpm --dir web run typecheck:full
-      - run: pnpm --dir web run build
+      # No Rust cache (RD-1120-07). The restore of `release-<target>` found nothing in six of six
+      # legs of v1.11.0: a tag's run reads only its own caches and the default branch's, and no
+      # workflow saves a release build on main — one per target would not fit the repository's
+      # 10 GB beside the test caches. repro.yml builds without a cache, too.
       - run: cargo build --locked --release --target ${{ matrix.target }} -p rdownloader -p rd-capture
       - name: Write VERSION.txt
         shell: bash
@@ -145,6 +164,7 @@ jobs:
           retention-days: 3
 
   binaries:
+    needs: web
     strategy:
       fail-fast: false
       matrix:
@@ -211,7 +231,7 @@ jobs:
   msi:
     needs: packages
     runs-on: windows-2025
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -223,13 +243,20 @@ jobs:
       - name: Unpack the release zip
         shell: pwsh
         run: Expand-Archive -Path packages/rdownloader-windows-x86_64.zip -DestinationPath stage
-      - name: Build the MSI
+      # One per language of the interface (RD-1120-20); the English one keeps the plain name the
+      # update manifest and the package channels read.
+      - name: Build the MSIs
         shell: bash
-        run: scripts/package-msi.sh stage installers/rdownloader-windows-x86_64.msi
+        run: |
+          set -euo pipefail
+          scripts/package-msi.sh stage installers/rdownloader-windows-x86_64.msi en
+          for language in de es fr; do
+            scripts/package-msi.sh stage "installers/rdownloader-windows-x86_64-${language}.msi" "${language}"
+          done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-msi
-          path: installers/rdownloader-windows-x86_64.msi
+          path: installers/*.msi
           if-no-files-found: error
 
   publish:

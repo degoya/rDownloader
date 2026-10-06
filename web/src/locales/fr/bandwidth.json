@@ -7,15 +7,6 @@
     "gallery": "Galeries",
     "record": "Enregistrements"
   },
-  "days": {
-    "0": "Lun",
-    "1": "Mar",
-    "2": "Mer",
-    "3": "Jeu",
-    "4": "Ven",
-    "5": "Sam",
-    "6": "Dim"
-  },
   "source": {
     "manual": "Limite manuelle",
     "global": "Profil",
@@ -93,8 +84,6 @@
     "default_description": "Profil appliqué quand aucune fenêtre ne correspond.",
     "no_default": "Aucune limite",
     "window_profile": "Profil",
-    "from": "De",
-    "to": "À",
     "priority": "Priorité",
     "enabled": "Actif",
     "add_window": "Ajouter une fenêtre",
@@ -102,7 +91,6 @@
     "empty": "Aucune fenêtre — le profil par défaut s'applique en permanence.",
     "needs_profile": "Créez d'abord un profil.",
     "windows_title": "Plages horaires",
-    "days_label": "Jours",
     "duplicate_hint": "Ajoute une copie de la fenêtre juste en dessous ; elle est enregistrée avec le planning"
   },
   "manual": {

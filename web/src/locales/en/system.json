@@ -134,12 +134,9 @@
         "description": "Every destination gets its own copy. One that is unreachable is tried again and costs only its own entry in the history.",
         "empty": "No destination yet. Add a folder, an object storage bucket or an rclone remote.",
         "add": "Add destination",
-        "edit": "Edit",
-        "delete": "Remove",
         "deleted": "Destination removed. Its archives stay where they are.",
         "saved": "Destination saved",
         "save": "Save destination",
-        "cancel": "Cancel",
         "off": "Off",
         "kind": {
           "label": "Type",
@@ -451,11 +448,9 @@
       "once": "Visible only now. None of this can be retrieved once you leave the page.",
       "scan": "Scan this code with your authenticator app:",
       "copy_secret": "Copy key",
-      "copy_uri": "Copy link",
       "recovery": "Recovery codes — keep these somewhere safe:",
       "copy_codes": "Copy codes",
       "confirm_label": "Code from the app",
-      "confirm": "Confirm",
       "qr_alt": "QR code for setting up the authenticator app",
       "manual": "Or enter the key by hand:"
     },
@@ -493,7 +488,6 @@
     "description": "Sign in with your device instead of your password. Your authenticator checks a PIN or a fingerprint before it will sign, so one step covers both. The password keeps working — a passkey is another way in, not a replacement.",
     "unsupported": "This browser cannot use passkeys here. They need a secure connection: either https, or reaching the service at localhost.",
     "add": "Add a passkey",
-    "save": "Save",
     "failed": "The passkey could not be set up.",
     "added_toast": "Passkey added",
     "name_label": "Name",
@@ -503,10 +497,8 @@
     "last_used": "Last used {moment}",
     "never_used": "never",
     "remove": {
-      "action": "Remove",
       "title": "Remove this passkey?",
-      "description": "“{label}” will stop being able to sign in. Your password still works.",
-      "confirm": "Remove"
+      "description": "“{label}” will stop being able to sign in. Your password still works."
     },
     "step_up_hint": "Adding or removing a passkey asks for the password again."
   },
@@ -722,10 +714,8 @@
       "confirm": "Unlink"
     },
     "remove": {
-      "action": "Remove",
       "title": "Remove the identity provider?",
-      "description": "The configuration, the client secret and the linked account are deleted.",
-      "confirm": "Remove"
+      "description": "The configuration, the client secret and the linked account are deleted."
     },
     "password_is_off": "Signing in with the password is switched off",
     "password_is_off_hint": "Only the machine the service runs on brings it back: {command}. Passkeys keep working, and the password still confirms changes.",
@@ -749,8 +739,7 @@
     "group_hint": "Optional: the linked account must also be in this group.",
     "provider_logout": "Sign out at the provider too",
     "provider_logout_hint": "Off: signing out ends only the session here, your other services stay signed in.",
-    "step_up_hint": "Every change here asks for the password again.",
-    "save": "Save"
+    "step_up_hint": "Every change here asks for the password again."
   },
   "token_expiry": {
     "label": "Expires",

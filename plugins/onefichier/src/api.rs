@@ -71,11 +71,8 @@ pub(crate) fn link_body(link: &str) -> Vec<u8> {
 /// URL that later fails to parse deeper in the pipeline (or not at all, on the guest side,
 /// where `ResolvedDownload.url` is a bare `String`).
 pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
-    Url::parse(raw).map_err(|error| {
-        let text = messages::invalid_url(&error);
-        ApiFailure::new(ErrorKind::Permanent, (messages::INVALID_URL, text.as_str()))
-            .with_param("error", error.to_string())
-    })
+    Url::parse(raw)
+        .map_err(|error| plugin_common::failure::invalid_url(messages::INVALID_URL, &error))
 }
 
 /// `POST /v1/download/get_token.cgi` response.
@@ -109,21 +106,7 @@ pub(crate) struct UserInfoResponse {
 }
 
 /// 1fichier reports several numeric fields as either a JSON number or a numeric string.
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub(crate) enum FlexibleU64 {
-    Number(u64),
-    Text(String),
-}
-
-impl FlexibleU64 {
-    pub(crate) fn into_u64(self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub(crate) use plugin_flexible::FlexibleU64;
 
 /// Classifies a `{"status":"KO","message":"..."}` envelope by the provider's `message` text.
 /// Every branch mirrors JDownloader's `OneFichierCom#handleErrorsAPI` regexes; flood messages
@@ -162,7 +145,10 @@ pub(crate) fn error_from_status(status: Option<&str>, message: Option<&str>) -> 
 /// How 1fichier's codes name an HTTP status the JSON envelope doesn't otherwise explain, with
 /// the mapping every plugin shares (`plugin_common::http_status`, RD-191-07): a 404 and a 410 are
 /// the file deleted and final (`Permanent`, owner 2026-10-04), a 451 is `Offline` and retried,
-/// and a 429 waits what its `Retry-After` says, five minutes without one.
+/// and a 429 waits what its `Retry-After` says, five minutes without one -- longer than the
+/// minute the other API plugins give a `429` (RD-1120-10), because a 429 here is the flood
+/// protection `classify_message` waits out with the same fixed cooldown. A `5xx` without a
+/// stated wait waits their five minutes.
 pub(crate) const HTTP: HttpWords = HttpWords {
     unauthorized: messages::BAD_API_KEY,
     gone: messages::FILE_OFFLINE,
@@ -170,7 +156,7 @@ pub(crate) const HTTP: HttpWords = HttpWords {
     rate_limited: messages::FLOOD,
     server_error: messages::SERVER_ERROR,
     rate_limited_wait: Some(300),
-    server_error_wait: None,
+    server_error_wait: Some(300),
     other: HttpError {
         code: messages::HTTP_ERROR,
         text: messages::http_error,

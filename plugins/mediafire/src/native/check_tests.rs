@@ -28,7 +28,7 @@ fn keys_sent(host: &MockHost, index: usize) -> Vec<String> {
 /// The measured batch answer: one key found, one skipped; plus a link that is no key at all.
 #[tokio::test]
 async fn a_batch_maps_found_skipped_and_unparsable_links() {
-    let host = MockHost::with_responses(vec![json(200, GET_INFO_BATCH)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO_BATCH)]);
     let results = resolver(&host)
         .check(check_request(&[
             "https://www.mediafire.com/file/ipnyzofjcwri357/test-10mb.bin/file",
@@ -65,7 +65,7 @@ async fn more_than_a_hundred_keys_are_split_into_calls_of_a_hundred() {
         .collect();
     let refs: Vec<&str> = urls.iter().map(String::as_str).collect();
     let empty = br#"{"response":{"action":"file/get_info","file_infos":[],"result":"Success"}}"#;
-    let host = MockHost::with_responses(vec![json(200, empty), json(200, empty)]);
+    let host = MockHost::answering(vec![json(200, empty), json(200, empty)]);
     let results = resolver(&host)
         .check(check_request(&refs))
         .await
@@ -83,7 +83,7 @@ async fn more_than_a_hundred_keys_are_split_into_calls_of_a_hundred() {
 /// A single unknown key is refused as a whole with 110, which is "offline", not a failure.
 #[tokio::test]
 async fn a_whole_call_refused_with_110_is_offline() {
-    let host = MockHost::with_responses(vec![json(404, GET_INFO_INVALID)]);
+    let host = MockHost::answering(vec![json(404, GET_INFO_INVALID)]);
     let results = resolver(&host)
         .check(check_request(&[
             "https://www.mediafire.com/file/uz9u9zqa0tlk6z7",
@@ -96,7 +96,7 @@ async fn a_whole_call_refused_with_110_is_offline() {
 /// A rate limit is a failure of the batch, with the category the scheduler backs off on.
 #[tokio::test]
 async fn a_rate_limited_batch_fails_with_the_rate_limit_code() {
-    let host = MockHost::with_responses(vec![json(200, API_ERROR_261)]);
+    let host = MockHost::answering(vec![json(200, API_ERROR_261)]);
     let failure = resolver(&host)
         .check(check_request(&[
             "https://www.mediafire.com/file/ipnyzofjcwri357",
@@ -115,7 +115,7 @@ async fn a_rate_limited_batch_fails_with_the_rate_limit_code() {
 /// Links that carry no key cost no request.
 #[tokio::test]
 async fn a_batch_without_a_single_key_makes_no_request() {
-    let host = MockHost::with_responses(Vec::new());
+    let host = MockHost::answering(Vec::new());
     let results = resolver(&host)
         .check(check_request(&[
             "https://example.com/x",

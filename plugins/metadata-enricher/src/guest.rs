@@ -7,13 +7,7 @@
 //! episode to ask about, which for most links it does not.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "enricher-plugin",
-});
-
-use exports::rdownloader::plugin::enricher::{EnrichField, EnrichSubject, Guest};
-use rdownloader::plugin::{http, types::Failure};
+use plugin_guest_enricher::{EnrichField, EnrichSubject, Guest, http, types::Failure};
 
 use crate::{
     lookup::{self, Kind},
@@ -118,4 +112,4 @@ fn take(fields: &mut Vec<(String, String)>, name: &str) -> Option<String> {
     Some(fields.remove(at).1)
 }
 
-export!(Component);
+plugin_guest_enricher::enricher_plugin!(Component);

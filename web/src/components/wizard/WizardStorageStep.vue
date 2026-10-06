@@ -52,7 +52,7 @@ defineExpose({ complete, ensureDefaultCategory })
   <div class="space-y-5">
     <p class="max-w-3xl text-sm leading-6 text-muted">{{ t('wizard.storage.intro') }}</p>
     <RoutingStorageRoots v-model="roots" :suggested-path="suggestedPath" :suggested-name="t('routing.root.name_placeholder')" />
-    <UAlert v-if="categoryError" color="error" variant="subtle" :description="categoryError" />
+    <UAlert v-if="categoryError" color="error" :description="categoryError" />
     <p class="flex items-start gap-2 text-xs leading-5 text-muted">
       <UIcon name="i-lucide-info" class="mt-0.5 size-4 shrink-0" />
       <span>{{ t('wizard.storage.default_category_hint') }}</span>
@@ -60,7 +60,6 @@ defineExpose({ complete, ensureDefaultCategory })
     <UAlert
       v-if="!complete"
       color="warning"
-      variant="subtle"
       icon="i-lucide-triangle-alert"
       :description="t('wizard.storage.required_hint')"
     />

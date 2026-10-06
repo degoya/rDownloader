@@ -114,7 +114,7 @@ function save(): void {
         <UInputNumber v-model="minutes" :min="1" :format-options="WHOLE" :disabled="props.busy || unlimited" />
       </UFormField>
       <div class="flex items-center gap-2">
-        <UButton type="submit" size="xs" icon="i-lucide-save" :loading="props.busy" :label="t('torrent.seeding.save')" />
+        <UButton type="submit" size="xs" icon="i-lucide-save" :loading="props.busy" :label="t('common.actions.save')" />
         <UButton
           size="xs"
           color="neutral"

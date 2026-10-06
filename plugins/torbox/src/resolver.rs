@@ -11,7 +11,7 @@
 //! costs one extra request rather than a failed resume. Writing a minted address into the row
 //! instead would be a ticket that is dead the next time anybody looks at it.
 
-use plugin_common::failure::coded;
+use plugin_common::failure::{SecretSlot, coded, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
     LinkStatus, PluginHost, ResolveInput, Resolved,
@@ -19,6 +19,12 @@ use plugin_common::{
 use serde::Deserialize;
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: api::TOKEN_REFERENCE,
+    missing: messages::KEY_MISSING,
+};
 
 /// Whether this plugin claims `url`: a TorBox `requestdl` address and nothing else.
 #[must_use]
@@ -31,7 +37,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_key(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(host, "GET", "/user/me", &[], None, Vec::new()).await?;
     let user: api::UserInfo = parse_data(&response)?;
     let premium = user.is_premium();
@@ -64,7 +70,7 @@ pub(crate) async fn resolve<H: PluginHost>(
         .account_id
         .as_deref()
         .ok_or_else(|| coded(FailureKind::AuthRequired, messages::ACCOUNT_MISSING))?;
-    require_key(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let ticket = api::read_ticket(&request.url)
         .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_TICKET))?;
     let response = call(
@@ -105,7 +111,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    require_key(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     Ok(Vec::new())
 }
 
@@ -126,7 +132,7 @@ pub(crate) async fn check<H: PluginHost>(
     let mut results = Vec::with_capacity(request.urls.len());
     for (index, url) in request.urls.iter().enumerate() {
         let Some(ticket) = api::read_ticket(url).filter(|_| index < api::CHECK_LIMIT) else {
-            results.push(unknown(url));
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         match call(
@@ -141,27 +147,20 @@ pub(crate) async fn check<H: PluginHost>(
         {
             Ok(response) => results.push(match parse_data::<api::JobEntry>(&response) {
                 Ok(entry) => match entry.file(&ticket.file_id) {
-                    Some(file) if entry.download_present.unwrap_or(false) => LinkCheck {
-                        url: url.clone(),
-                        status: LinkStatus::Online,
-                        file_name: file
-                            .short_name
+                    Some(file) if entry.download_present.unwrap_or(false) => LinkCheck::online(
+                        url,
+                        file.short_name
                             .clone()
                             .or_else(|| file.name.clone())
                             .filter(|name| !name.trim().is_empty()),
-                        size: file.size,
-                    },
+                        file.size,
+                    ),
                     // The job is there and the bytes are not, which is a job still running
                     // rather than a file that is gone.
-                    Some(_) => unknown(url),
-                    None => LinkCheck {
-                        url: url.clone(),
-                        status: LinkStatus::Offline,
-                        file_name: None,
-                        size: None,
-                    },
+                    Some(_) => LinkCheck::unknown(url),
+                    None => LinkCheck::offline(url),
                 },
-                Err(_) => unknown(url),
+                Err(_) => LinkCheck::unknown(url),
             }),
             Err(failure) if matches!(failure.kind, FailureKind::RateLimited(_)) => {
                 // Carrying on would deepen the very limit that refused this one.
@@ -169,28 +168,17 @@ pub(crate) async fn check<H: PluginHost>(
             }
             // Read by its code: TorBox's own "gone" words are `Offline`, a 404 or 410 is
             // `Permanent` (owner, 2026-10-04), and both say the file is not there.
-            Err(failure) => results.push(LinkCheck {
-                url: url.clone(),
-                status: if failure.code.as_deref() == Some(messages::FILE_GONE.0) {
+            Err(failure) => results.push(LinkCheck::bare(
+                url,
+                if failure.code.as_deref() == Some(messages::FILE_GONE.0) {
                     LinkStatus::Offline
                 } else {
                     LinkStatus::Unknown
                 },
-                file_name: None,
-                size: None,
-            }),
+            )),
         }
     }
     Ok(results)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
 }
 
 /// Calls `{API_BASE}{path}` and turns whatever came back into a failure or a response.
@@ -231,17 +219,6 @@ async fn call<H: PluginHost>(
         api::failure_from(status, retry_after, &envelope)
     })
     .await
-}
-
-/// Fails before any request when the account holds no API key.
-async fn require_key<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if !host
-        .secret_available(account_id, api::TOKEN_REFERENCE)
-        .await
-    {
-        return Err(coded(FailureKind::AuthRequired, messages::KEY_MISSING));
-    }
-    Ok(())
 }
 
 /// The `data` half of an answer, parsed.

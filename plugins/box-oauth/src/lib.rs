@@ -37,10 +37,10 @@ pub mod flow;
 
 /// The unguessable-value helper and the JSON reader, shared with the other OAuth plugins.
 ///
-/// Re-exported rather than imported at each use site, so the paths below still read
-/// `pkce::string_field` and a reader can see where the derivation lives. Box takes no PKCE
-/// challenge — it has no public-client entrance — but `state` is still drawn the same way, from
-/// the host's random source and from nothing else.
+/// Re-exported so a reader can see where the derivation lives; since RD-1120-10 the flow that
+/// uses it is `plugin_guest_oauth::redirect`. Box takes no PKCE challenge — it has no
+/// public-client entrance — but `state` is still drawn the same way, from the host's random
+/// source and from nothing else.
 pub use plugin_common::pkce;
 
 #[cfg(target_arch = "wasm32")]

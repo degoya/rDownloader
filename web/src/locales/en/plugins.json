@@ -1,7 +1,7 @@
 {
   "header": {
     "eyebrow": "Resolver registry",
-    "title": "Versioned provider components",
+    "title": "Plugins",
     "description": "Packages are checked for signature, manifest, component format and permitted imports before the atomic installation. Unsigned packages only work when the service runs in explicit development mode."
   },
   "install": {
@@ -13,7 +13,7 @@
   "installed": {
     "eyebrow": "Installed versions",
     "title": "Local inventory",
-    "empty": "No plugins installed yet. Hoster links need a resolver plugin: install a service from the bundle above or from a repository.",
+    "empty": "No plugins installed yet. Hoster links need a resolver plugin: install a service from the bundle in the “Add” tab or from a repository.",
     "filter_label": "Filter by plugin group"
   },
   "card": {
@@ -48,7 +48,6 @@
     "key_id": "Key id",
     "fingerprint": "Fingerprint",
     "warning": "Only confirm if this fingerprint matches the one published by the plugin’s author. A wrong key lets someone else ship updates for this plugin.",
-    "cancel": "Cancel",
     "confirm": "Trust and install"
   },
   "type": {

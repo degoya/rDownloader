@@ -200,18 +200,7 @@ impl StreamMonitorService {
             }
             // One recording per channel at a time: skip while a Record row for this URL
             // is still active (a finished one allows the next recording immediately).
-            let recording = downloads.iter().any(|file| {
-                file.kind == rd_core::DownloadKind::Record
-                    && file.source.as_str() == channel.url
-                    && !matches!(
-                        file.state,
-                        DownloadState::Completed
-                            | DownloadState::Failed
-                            | DownloadState::Cancelled
-                            | DownloadState::Blocked
-                    )
-            });
-            if recording {
+            if is_recording(&downloads, &channel.url) {
                 continue;
             }
             // A scheduled channel is watched only inside its window. Polling it round the
@@ -225,132 +214,162 @@ impl StreamMonitorService {
             match rd_stream::probe_stream(&streamlink.path, &channel.url).await {
                 Ok(probe) if probe.live => {
                     errors.remove(&channel.id);
-                    if let Err(error) = self
-                        .inner
-                        .database
-                        .touch_stream_channel(channel.id, Some(chrono::Utc::now()), None)
-                        .await
-                    {
-                        tracing::warn!(
-                            channel = %channel.name,
-                            error = %format!("{error:#}"),
-                            "stream channel state could not be stored"
-                        );
-                    }
-                    match start_recording(
-                        &self.inner.database,
-                        &self.inner.scheduler,
-                        &channel.url,
-                        &channel.name,
-                        channel.quality.as_deref(),
-                        channel.category_id,
+                    self.touch_channel(&channel, Some(chrono::Utc::now()), None)
+                        .await;
+                    self.record_live_channel(
+                        &channel,
+                        probe.replay_available,
+                        active.as_ref(),
                         &settings,
                     )
-                    .await
-                    {
-                        Err(error) => {
-                            tracing::warn!(channel = %channel.name, %error, "recording could not be started");
-                            if let Some((run, _)) = &active
-                                && let Err(store_error) = self
-                                    .inner
-                                    .database
-                                    .set_stream_run_state(
-                                        run.id,
-                                        rd_core::ScheduledRunState::Failed,
-                                        None,
-                                        None,
-                                        Some(rd_core::redact_text(&error.to_string())),
-                                    )
-                                    .await
-                            {
-                                tracing::warn!(
-                                    channel = %channel.name,
-                                    error = %format!("{store_error:#}"),
-                                    "scheduled recording state could not be stored"
-                                );
-                            }
-                        }
-                        Ok(package) => {
-                            tracing::info!(channel = %channel.name, "channel is live, recording started");
-                            if let Some((run, schedule)) = &active {
-                                // Replay is recorded as what actually happened, not as what
-                                // was asked for: the UI must never claim a capability the
-                                // provider did not offer.
-                                let replay_used =
-                                    schedule.replay_from_start && probe.replay_available;
-                                // One package, one file: read just that package's rows.
-                                let download_id = match self
-                                    .inner
-                                    .database
-                                    .downloads_for_package(package.id)
-                                    .await
-                                {
-                                    Ok(files) => files.first().map(|file| file.id),
-                                    Err(error) => {
-                                        tracing::warn!(
-                                            channel = %channel.name,
-                                            error = %format!("{error:#}"),
-                                            "recording download could not be read back"
-                                        );
-                                        None
-                                    }
-                                };
-                                if let Err(error) = self
-                                    .inner
-                                    .database
-                                    .set_stream_run_state(
-                                        run.id,
-                                        rd_core::ScheduledRunState::Recording,
-                                        download_id,
-                                        Some(replay_used),
-                                        None,
-                                    )
-                                    .await
-                                {
-                                    tracing::warn!(
-                                        channel = %channel.name,
-                                        error = %format!("{error:#}"),
-                                        "scheduled recording state could not be stored"
-                                    );
-                                }
-                            }
-                        }
-                    }
+                    .await;
                 }
                 Ok(_) => {
                     errors.remove(&channel.id);
-                    if let Err(error) = self
-                        .inner
-                        .database
-                        .touch_stream_channel(channel.id, None, None)
-                        .await
-                    {
-                        tracing::warn!(
-                            channel = %channel.name,
-                            error = %format!("{error:#}"),
-                            "stream channel state could not be stored"
-                        );
-                    }
+                    self.touch_channel(&channel, None, None).await;
                 }
                 Err(error) => {
                     *errors.entry(channel.id).or_default() += 1;
-                    if let Err(store_error) = self
-                        .inner
-                        .database
-                        .touch_stream_channel(channel.id, None, Some(error.to_string()))
-                        .await
-                    {
-                        tracing::warn!(
-                            channel = %channel.name,
-                            error = %format!("{store_error:#}"),
-                            "stream channel state could not be stored"
-                        );
-                    }
+                    self.touch_channel(&channel, None, Some(error.to_string()))
+                        .await;
                 }
             }
         }
         Ok(())
     }
+
+    /// Stores what the last probe of `channel` found; a failure to store is only logged.
+    async fn touch_channel(
+        &self,
+        channel: &rd_core::StreamChannel,
+        live_at: Option<chrono::DateTime<chrono::Utc>>,
+        probe_error: Option<String>,
+    ) {
+        if let Err(error) = self
+            .inner
+            .database
+            .touch_stream_channel(channel.id, live_at, probe_error)
+            .await
+        {
+            tracing::warn!(
+                channel = %channel.name,
+                error = %format!("{error:#}"),
+                "stream channel state could not be stored"
+            );
+        }
+    }
+
+    /// Starts the recording of a channel that is live and records the outcome on the
+    /// scheduled run it belongs to, if any.
+    async fn record_live_channel(
+        &self,
+        channel: &rd_core::StreamChannel,
+        replay_available: bool,
+        active: Option<&(rd_core::StreamScheduledRun, rd_core::StreamSchedule)>,
+        settings: &rd_core::StreamSettings,
+    ) {
+        match start_recording(
+            &self.inner.database,
+            &self.inner.scheduler,
+            &channel.url,
+            &channel.name,
+            channel.quality.as_deref(),
+            channel.category_id,
+            settings,
+        )
+        .await
+        {
+            Err(error) => {
+                tracing::warn!(channel = %channel.name, %error, "recording could not be started");
+                if let Some((run, _)) = active
+                    && let Err(store_error) = self
+                        .inner
+                        .database
+                        .set_stream_run_state(
+                            run.id,
+                            rd_core::ScheduledRunState::Failed,
+                            None,
+                            None,
+                            Some(rd_core::redact_text(&error.to_string())),
+                        )
+                        .await
+                {
+                    tracing::warn!(
+                        channel = %channel.name,
+                        error = %format!("{store_error:#}"),
+                        "scheduled recording state could not be stored"
+                    );
+                }
+            }
+            Ok(package) => {
+                tracing::info!(channel = %channel.name, "channel is live, recording started");
+                if let Some((run, schedule)) = active {
+                    // Replay is recorded as what actually happened, not as what
+                    // was asked for: the UI must never claim a capability the
+                    // provider did not offer.
+                    let replay_used = schedule.replay_from_start && replay_available;
+                    self.mark_run_recording(channel, run, &package, replay_used)
+                        .await;
+                }
+            }
+        }
+    }
+
+    /// Marks a scheduled run as recording into the package that was just started.
+    async fn mark_run_recording(
+        &self,
+        channel: &rd_core::StreamChannel,
+        run: &rd_core::StreamScheduledRun,
+        package: &rd_core::DownloadPackage,
+        replay_used: bool,
+    ) {
+        // One package, one file: read just that package's rows.
+        let download_id = match self.inner.database.downloads_for_package(package.id).await {
+            Ok(files) => files.first().map(|file| file.id),
+            Err(error) => {
+                tracing::warn!(
+                    channel = %channel.name,
+                    error = %format!("{error:#}"),
+                    "recording download could not be read back"
+                );
+                None
+            }
+        };
+        if let Err(error) = self
+            .inner
+            .database
+            .set_stream_run_state(
+                run.id,
+                rd_core::ScheduledRunState::Recording,
+                download_id,
+                Some(replay_used),
+                None,
+            )
+            .await
+        {
+            tracing::warn!(
+                channel = %channel.name,
+                error = %format!("{error:#}"),
+                "scheduled recording state could not be stored"
+            );
+        }
+    }
+}
+
+/// Whether a Record row for this channel URL is still active; a finished one allows the
+/// next recording immediately.
+fn is_recording(downloads: &[rd_core::DownloadFile], channel_url: &str) -> bool {
+    downloads.iter().any(|file| {
+        file.kind == rd_core::DownloadKind::Record
+            && file.source.as_str() == channel_url
+            && !matches!(
+                file.state,
+                DownloadState::Completed
+                    | DownloadState::Failed
+                    | DownloadState::Cancelled
+                    | DownloadState::Blocked
+            )
+    })
 }
 
 /// Enqueues one recording package (used by the monitor and the "record now" endpoint).

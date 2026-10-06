@@ -13,6 +13,7 @@ import { api, responseError } from '@/api/client'
 import type { SetUsenetQuota, UsenetQuotaAction, UsenetServer, UsenetServerTraffic } from '@/api/types'
 import { GIB, formatBytes, formatDay } from '@/utils/format'
 import { DECIMAL } from '@/utils/numberInput'
+import { dateFieldValue, dayOf } from '@/utils/timeFields'
 
 const props = defineProps<{ server: UsenetServer, traffic?: UsenetServerTraffic | null | undefined }>()
 const emit = defineEmits<{ saved: [server: UsenetServer] }>()
@@ -102,7 +103,7 @@ const remove = () => send({ limit_bytes: null })
       {{ quota.action === 'pause' ? t('usenet.quota.reached_pause') : t('usenet.quota.reached_backup') }}
     </p>
     <form v-if="open" class="grid gap-3 border border-muted p-3" @submit.prevent="save">
-      <UAlert v-if="error" color="error" variant="subtle" :description="error" />
+      <UAlert v-if="error" color="error" :description="error" />
       <UFormField hint="GiB" :label="t('usenet.quota.limit')" name="quota_limit" :description="t('usenet.quota.limit_hint')" required>
         <UInputNumber v-model="form.limitGiB" :min="0.01" :format-options="DECIMAL" :step-snapping="false" required class="w-full" />
       </UFormField>
@@ -110,7 +111,7 @@ const remove = () => send({ limit_bytes: null })
         <USelect v-model="form.action" :items="actionItems" class="w-full" />
       </UFormField>
       <UFormField :label="t('usenet.quota.reset_on')" name="quota_reset_on" :description="t('usenet.quota.reset_on_hint')">
-        <UInput v-model="form.resetOn" type="date" class="w-full" />
+        <UInputDate :model-value="dateFieldValue(form.resetOn)" class="w-full" @update:model-value="form.resetOn = dayOf($event)" />
       </UFormField>
       <div class="flex flex-wrap gap-2">
         <UButton type="submit" size="sm" icon="i-lucide-save" :label="t('common.actions.save')" :loading="pending" />

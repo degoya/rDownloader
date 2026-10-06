@@ -179,12 +179,6 @@ impl From<anyhow::Error> for ApiError {
     }
 }
 
-impl From<sqlx::Error> for ApiError {
-    fn from(error: sqlx::Error) -> Self {
-        anyhow::Error::new(error).into()
-    }
-}
-
 /// JSON body of every REST error.
 #[derive(Serialize, ToSchema)]
 pub struct ErrorBody {
@@ -212,3 +206,7 @@ impl IntoResponse for ApiError {
             .into_response()
     }
 }
+
+#[cfg(test)]
+#[path = "error_tests.rs"]
+mod tests;

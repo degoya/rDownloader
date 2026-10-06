@@ -28,22 +28,7 @@ use crate::messages;
 
 /// Graph states sizes as numbers; being lenient costs nothing and a quoted one would
 /// otherwise read as "no size".
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Flexible {
-    Number(u64),
-    Text(String),
-}
-
-impl Flexible {
-    #[must_use]
-    pub fn as_u64(&self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(*value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub use plugin_flexible::FlexibleU64 as Flexible;
 
 /// The digests Graph states for a file, in the two algorithms the checksum verifier knows.
 /// `sha1Hash` is stated for personal accounts, `sha256Hash` where the tenant computes one; the

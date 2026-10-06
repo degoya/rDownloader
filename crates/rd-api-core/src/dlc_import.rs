@@ -104,7 +104,7 @@ pub async fn decrypt_container(
     })?;
     let client = reqwest::Client::builder()
         .timeout(SERVICE_TIMEOUT)
-        .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")))
+        .user_agent(rd_core::user_agent!())
         .build()
         .map_err(anyhow::Error::new)?;
     let response = client

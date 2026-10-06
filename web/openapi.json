@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.11.0"
+    "version": "1.12.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -2103,6 +2103,7 @@
         "tags": [
           "automations"
         ],
+        "summary": "Judges a trigger and a sample package against the enabled automations, or against the\neditor's draft alone when the request carries one (RD-1120-17). Never has an effect.",
         "operationId": "dry_run_automations",
         "requestBody": {
           "content": {
@@ -2127,6 +2128,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "404": {
             "description": "Not Found"
@@ -7080,7 +7084,7 @@
         "tags": [
           "downloads"
         ],
-        "summary": "Every download in creation order; `limit`/`offset` cut a page out of that order (API-15).",
+        "summary": "Every download in queue order; `limit`/`offset` cut a page out of that order (API-15), and\nthe database cuts it: only the page is read, not the table (RD-1120-17).",
         "operationId": "list_downloads",
         "parameters": [
           {
@@ -24189,6 +24193,33 @@
           }
         }
       },
+      "DryRunDraft": {
+        "type": "object",
+        "description": "The automation as the editor holds it, for a dry run (RD-1120-17): saved or not, on or off.",
+        "required": [
+          "trigger"
+        ],
+        "properties": {
+          "automation_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AutomationId",
+                "description": "The saved automation this draft edits; absent for one not saved yet, which the answer\nthen names with the nil id."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "$ref": "#/components/schemas/ConditionNode"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/Trigger",
+            "description": "The trigger the draft listens for."
+          }
+        }
+      },
       "DryRunMatch": {
         "type": "object",
         "description": "What a dry run found for one automation.",
@@ -24217,6 +24248,17 @@
           "trigger"
         ],
         "properties": {
+          "draft": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DryRunDraft",
+                "description": "The automation as it stands in the editor (RD-1120-17). When present only it is judged,\nwhether or not it is saved or switched on, and the answer holds its one entry."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "package_id": {
             "oneOf": [
               {
@@ -32126,7 +32168,7 @@
               "string",
               "null"
             ],
-            "description": "The name the source was handed in under -- a container's file name, as the person's\nbrowser carried it. The job's LinkGrabber package is named after it: the bytes cross\nthe plugin contract without a name, and what a provider calls its transfer can be a\nfixed upload name every job shares."
+            "description": "The name the source was handed in under -- a container's file name, as the person's\nbrowser carried it -- or, without one, a magnet's `dn` and an address's last path\nsegment. The list of remote jobs shows it as the job's title. A container's job names\nits LinkGrabber package after it: the bytes cross the plugin contract without a name,\nand what a provider calls its transfer can be a fixed upload name every job shares."
           },
           "state": {
             "$ref": "#/components/schemas/RemoteJobState"
@@ -36790,7 +36832,7 @@
               "string",
               "null"
             ],
-            "description": "The name the source was added under -- a container's file name, as the browser carried\nit. Optional; the finished job's LinkGrabber package is named after it (`Show.S01.nzb`\nbecomes `Show.S01`). Only the last path segment is kept, control characters are\ndropped and it is cut at 255 characters."
+            "description": "The name the source was added under -- a container's file name, as the browser carried\nit. Optional; the finished job's LinkGrabber package is named after it (`Show.S01.nzb`\nbecomes `Show.S01`). Only the last path segment is kept, control characters are\ndropped and it is cut at 255 characters. Without it a magnet is listed under its `dn`\nand an address under its last path segment."
           },
           "magnet": {
             "type": [

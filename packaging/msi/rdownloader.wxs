@@ -2,6 +2,9 @@
 <!--
   rDownloader's Windows installer (RD-180-05), WiX 5. Built by scripts/package-msi.sh from the
   unpacked release zip, which also writes plugins.wxs (the bundled plugins) and license.rtf.
+  One MSI per language (RD-1120-20): the script passes the culture and its .wxl beside this
+  file, which hold the strings below written as !(loc.…); WiX's dialogs come in the same
+  culture from WixToolset.UI.wixext.
 
   Per user, without UAC: the program goes to %LOCALAPPDATA%\Programs\rDownloader, the Start menu
   entries to the user's own menu. The service's data never lives there: the install-kind marker
@@ -19,13 +22,13 @@
            Version="$(var.Version)"
            UpgradeCode="3346ED88-7297-43CC-9BA2-0478E5E2D851"
            Scope="perUser"
-           Language="1033"
+           Language="!(loc.ProductLanguage)"
            InstallerVersion="500"
            Compressed="yes">
     <!-- A pre-release and its release share the three numbers MSI compares (1.8.0-beta.1 and
          1.8.0 are both 1.8.0), so the same version upgrades too. -->
     <MajorUpgrade AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A newer version of rDownloader is already installed. Uninstall it first; your data stays." />
+                  DowngradeErrorMessage="!(loc.DowngradeError)" />
     <MediaTemplate EmbedCab="yes" />
 
     <Icon Id="rdownloader.ico" SourceFile="$(var.Icon)" />
@@ -36,7 +39,7 @@
     <!-- AUTOSTART=1 registers the service for the next login, for an unattended install. -->
     <Property Id="AUTOSTART" Secure="yes" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Start the rDownloader service at every login" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.AutostartCheckbox)" />
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="LocalProgramsFolder" Name="Programs">
@@ -77,11 +80,11 @@
 
     <Component Id="StartMenu" Directory="MenuFolder" Guid="E3502883-8907-4AE0-ACCD-FC13014E4648">
       <RegistryValue Root="HKCU" Key="Software\rDownloader\Installer" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
-      <Shortcut Id="StartShortcut" Name="rDownloader" Description="Starts the rDownloader service and the capture agent"
+      <Shortcut Id="StartShortcut" Name="rDownloader" Description="!(loc.StartShortcutDescription)"
                 Target="[INSTALLFOLDER]start-rdownloader.bat" WorkingDirectory="INSTALLFOLDER" Icon="rdownloader.ico" Show="minimized" />
-      <Shortcut Id="CaptureShortcut" Name="rDownloader Capture" Description="Starts only the desktop capture agent"
+      <Shortcut Id="CaptureShortcut" Name="rDownloader Capture" Description="!(loc.CaptureShortcutDescription)"
                 Target="[INSTALLFOLDER]start-capture.bat" WorkingDirectory="INSTALLFOLDER" Icon="rdownloader.ico" Show="minimized" />
-      <Shortcut Id="StopShortcut" Name="Stop rDownloader" Description="Stops the rDownloader service and the capture agent"
+      <Shortcut Id="StopShortcut" Name="!(loc.StopShortcutName)" Description="!(loc.StopShortcutDescription)"
                 Target="[INSTALLFOLDER]stop-rdownloader.bat" WorkingDirectory="INSTALLFOLDER" Icon="rdownloader.ico" Show="minimized" />
       <RemoveFolder Id="RemoveMenuFolder" On="uninstall" />
     </Component>

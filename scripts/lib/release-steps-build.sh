@@ -60,6 +60,13 @@ step_preflight() {
     # message names how many commits have never been through a green run.
     rd_verified_gate "$ROOT" "$RELEASE_BRANCH" || return 1
 
+    # Everything that compiles nothing (RD-1120-06, audit A2): the script tests read AGENTS.md and
+    # docs/development.md, and since documentation and .github/readme/ no longer cost a --full
+    # (rd_inert_path), this is where a documentation change that breaks one is found. No lock of
+    # its own, minutes. The job layout is the archive-jobs step's, after the docs gate.
+    RD_SKIP_JOB_LAYOUT=1 scripts/check.sh --preflight \
+        || { echo "the preflight is red; the release does not start (every finding above)" >&2; return 1; }
+
     echo "preflight ok at $(git rev-parse --short HEAD)"
 }
 
@@ -82,35 +89,58 @@ step_version_bump() {
 # --full, because a branch-level run leaves out what a release must not (RD-120-58), and because
 # tag-release.sh and package-windows.sh refuse a tree without a --full green of both halves.
 #
-# Not twice (RD-140-06): when a --full Rust green is recorded for HEAD's tree — the state before
-# the bump, which is committed only later — and the bump changed nothing but version lines, that
-# green is this step's evidence. It is named here, in the log, and carried to the bumped tree so
-# the gates of tag-release.sh and package-windows.sh find it. Anything more than the version
-# strings, and the full run happens as before.
+# Not twice (RD-140-06): when a --full Rust green covers HEAD's tree — the state before the bump,
+# which is committed only later — and the bump changed nothing but version lines, that green is
+# this step's evidence (rd_prebump_reuse). Anything more than the version strings, and the full
+# run happens as before.
 step_test() {
-    local green
-    green="$(rd_prebump_full_green "$ROOT")"
-    if [[ -z "$green" ]]; then
-        JOBS="$JOBS" scripts/check.sh --rust --full
-        return
-    fi
-    echo "the full Rust run is not repeated: a check.sh --full green covers the tree before the bump"
-    echo "  green:   rust half of tree $green = HEAD $(git rev-parse --short HEAD)^{tree}"
+    rd_prebump_reuse rust "full Rust run" && return 0
+    JOBS="$JOBS" scripts/check.sh --rust --full
+}
+
+# Whether a green of half $1 covers the tree before the bump while the bump changed version lines
+# only (rd_prebump_green). If so it names the green as the evidence of step $2, carries it to the
+# bumped tree — so the gates of tag-release.sh and package-windows.sh find it — and succeeds;
+# otherwise it fails and says nothing.
+rd_prebump_reuse() {
+    local half="$1" what="$2" green bumped
+    green="$(rd_prebump_green "$ROOT" "$half")"
+    [[ -n "$green" ]] || return 1
+    bumped="$(rd_worktree_tree "$ROOT")"
+    echo "the $what is not repeated: a green of half '$half' covers the tree before the bump"
+    echo "  green:   $half half of tree $green (HEAD $(git rev-parse --short HEAD)^{tree} $(git rev-parse 'HEAD^{tree}'))"
     echo "  record:  $(rd_full_marker "$ROOT")"
     echo "  bump:    version lines only, in:"
     { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sed '/^$/d; s/^/           /'
-    rd_record_full "$ROOT" rust "$(rd_worktree_tree "$ROOT")"
-    echo "  carried: rust half recorded for the bumped tree $(rd_worktree_tree "$ROOT")"
+    rd_record_full "$ROOT" "$half" "$bumped"
+    echo "  carried: $half half recorded for the bumped tree $bumped"
 }
 
 # Deliberately the full workspace, deliberately alone, deliberately at 2 jobs. AGENTS.md calls
-# this the run that has needed a hard restart; nothing else is running beside it here.
+# this the run that has needed a hard restart; nothing else is running beside it here. Not again
+# after a bump of version lines only when a `clippy` green — the integration gate's, or
+# check.sh --clippy-all's — covers the tree before it (RD-1120-06, audit A5); its own green is
+# recorded as that half.
 step_clippy() {
-    CARGO_BUILD_JOBS=2 cargo clippy --workspace --all-targets --all-features -j 2 -- -D warnings
+    rd_prebump_reuse clippy "workspace clippy" && return 0
+    local tree; tree="$(rd_worktree_tree "$ROOT")"
+    CARGO_BUILD_JOBS=2 cargo clippy --workspace --all-targets --all-features -j 2 -- -D warnings || return
+    [[ -z "$tree" ]] || rd_record_full "$ROOT" clippy "$tree"
 }
 
-# typecheck, vitest, the production web build and the browser extensions.
-step_web() { JOBS="$JOBS" scripts/check.sh --web --full; }
+# typecheck, vitest, the production web build and the browser extensions. After a bump of
+# version lines only, with a web green of the tree before it (audit A5), typecheck and vitest are
+# not repeated; the build and the extensions still are, because they carry the new version and
+# the package steps refuse a web/dist older than web/package.json (scripts/web-dist-stale.sh).
+# The green is carried only after both built; anything that fails falls back to the whole step.
+step_web() {
+    if [[ -n "$(rd_prebump_green "$ROOT" web)" ]] \
+        && pnpm --dir web run build && scripts/build-extension.sh --skip-tests \
+        && rd_prebump_reuse web "typecheck and vitest"; then
+        return 0
+    fi
+    JOBS="$JOBS" scripts/check.sh --web --full
+}
 
 step_sign_plugins() {
     # The script refuses a plugin that changed under a signed version and exits 1 after

@@ -10,6 +10,9 @@ is closed, so new connections are refused, and every body being written is cut o
 It then listens on the same port again. That is the reconnect the service has to survive: its
 transfers fail, wait, and resume with a range.
 
+`/stats` answers the counters as JSON - requests, ranged ones that start past the first byte,
+bytes, outages, cut bodies - for a caller in another process (`scripts/self-update-smoke.sh`).
+
 Standard library only; `scripts/tests/soak.sh` tests it without the service.
 """
 
@@ -17,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import http.server
+import json
 import random
 import re
 import socket
@@ -192,6 +196,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if fixture.down.is_set():
             self.close_connection = True
             return
+        if self.path == "/stats":
+            self._stats(body)
+            return
         match = _PATH.match(self.path)
         if not match:
             self.send_error(404)
@@ -241,6 +248,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         except OSError:
             fixture.count("cut")
             self.close_connection = True
+
+
+    def _stats(self, body: bool) -> None:
+        with self.owner.lock:
+            answer = json.dumps(self.owner.stats).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(answer)))
+        self.end_headers()
+        if body:
+            self.wfile.write(answer)
 
 
 def _parse_range(value: str, size: int) -> tuple[int, int] | None:

@@ -59,7 +59,8 @@ pub(crate) fn evaluate(
     if !downloads.iter().any(waiting_on_the_address) {
         return ReconnectVerdict::NothingWaiting;
     }
-    if !inputs.abort_active && downloads.iter().any(|file| is_transferring(file.state)) {
+    // A runner holding a connection loses its work if the connection drops under it.
+    if !inputs.abort_active && downloads.iter().any(|file| file.state.holds_a_connection()) {
         return ReconnectVerdict::TransfersRunning;
     }
     ReconnectVerdict::Go
@@ -76,14 +77,6 @@ fn waiting_on_the_address(file: &DownloadFile) -> bool {
             file.last_error.as_ref().map(|failure| &failure.category),
             Some(FailureKind::IpBlocked { .. })
         )
-}
-
-/// States that lose work if the connection drops under them.
-const fn is_transferring(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Downloading | DownloadState::Resolving | DownloadState::Seeding
-    )
 }
 
 fn inside_window(inputs: &ReconnectInputs<'_>) -> bool {

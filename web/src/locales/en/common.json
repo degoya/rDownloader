@@ -185,5 +185,19 @@
     "menu": "Columns",
     "reset_all": "Reset all column widths",
     "state_linkgrabber": "Link state"
+  },
+  "weekdays": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun"
+  },
+  "week_window": {
+    "from": "From",
+    "to": "To",
+    "days_label": "Days"
   }
 }

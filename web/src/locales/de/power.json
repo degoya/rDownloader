@@ -7,8 +7,6 @@
   "quiet": {
     "label": "Quiet Hours",
     "description": "Verschobene Arbeit wartet in diesen Fenstern. Downloads selbst laufen weiter.",
-    "from": "Von",
-    "to": "Bis",
     "add": "Fenster hinzufügen",
     "defer_postprocess": "Reparatur, Entpacken und Uploads verschieben",
     "defer_notifications": "Benachrichtigungen bis zum Fensterende sammeln"
@@ -45,8 +43,7 @@
     "shutdown": "Der Rechner fährt herunter",
     "none": "Abschlussaktion steht an",
     "script": "Das Abschlussskript läuft",
-    "countdown": "In {seconds} s — abbrechen, um den Rechner anzulassen.",
-    "cancel": "Abbrechen"
+    "countdown": "In {seconds} s — abbrechen, um den Rechner anzulassen."
   },
   "paused": {
     "battery": "Die Warteschlange ist angehalten: der Rechner läuft im Akkubetrieb.",

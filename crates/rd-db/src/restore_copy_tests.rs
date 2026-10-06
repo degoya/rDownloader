@@ -3,17 +3,22 @@
 
 use std::borrow::Cow;
 
-use sqlx::migrate::Migrator;
+use sqlx::{migrate::Migrator, sqlite::SqliteSynchronous};
 
 use super::*;
 
 /// A copy the way a backup writes one: a whole database, closed.
+///
+/// Built with the journal in memory and no `fsync` (RD-1120-08): a journal file synced per
+/// migration made this 32 s on NTFS. The code under test opens the copy with its own options.
 async fn copy_with(directory: &Path, up_to: Option<i64>) -> std::path::PathBuf {
     let path = directory.join("database.sqlite3");
     let mut connection = SqliteConnection::connect_with(
         &SqliteConnectOptions::new()
             .filename(&path)
-            .create_if_missing(true),
+            .create_if_missing(true)
+            .journal_mode(SqliteJournalMode::Memory)
+            .synchronous(SqliteSynchronous::Off),
     )
     .await
     .expect("create");

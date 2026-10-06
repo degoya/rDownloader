@@ -12,13 +12,10 @@
 //! **A run against the live service is not claimed here.**
 //! `docs/roadmap/jobs/120-07-pixeldrain.md` records that as open.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind, LinkStatus};
+use rd_core::{AccountId, FailureKind, LinkStatus};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest,
     ResolvedHeader, Resolver, ResolverHost,
@@ -32,53 +29,17 @@ const DIGEST: &str = "ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef
 /// A quota answer with room in it: what the service says when nothing stands in the way.
 const QUOTA_FREE: &str = r#"{"download_limit":300000000000,"download_limit_used":1048576,"transfer_limit":0,"transfer_limit_used":0,"speed_limit":0,"server_overload":false}"#;
 
-struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    requests: Mutex<Vec<HostHttpRequest>>,
-    /// Whether an account's `pixeldrain_api_key` slot holds a value.
-    has_key: bool,
+/// The shared scripted host for an account whose `pixeldrain_api_key` slot holds a value
+/// (RD-120-38); `MockHost::answering` is the same host without one.
+trait KeyedHost {
+    fn with_key(responses: Vec<HostHttpResponse>) -> Arc<MockHost>;
 }
 
-impl MockHost {
-    fn with_responses(responses: Vec<HostHttpResponse>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_key: false,
-        })
-    }
-
-    /// The same mock for an account that holds an API key (RD-120-38).
-    fn with_key(responses: Vec<HostHttpResponse>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_key: true,
-        })
-    }
-
-    fn requests(&self) -> Vec<HostHttpRequest> {
-        self.requests.lock().expect("mock lock").clone()
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, reference: &str) -> bool {
-        self.has_key && reference == "pixeldrain_api_key"
+impl KeyedHost for MockHost {
+    fn with_key(responses: Vec<HostHttpResponse>) -> Arc<MockHost> {
+        MockHost::scripted(responses)
+            .secret_for("pixeldrain_api_key", true)
+            .shared()
     }
 }
 
@@ -128,7 +89,7 @@ fn resolve_request() -> ResolveRequest {
 
 #[tokio::test]
 async fn a_public_file_resolves_to_a_durable_address() {
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         file_info(
             200,
             &format!(
@@ -176,7 +137,7 @@ async fn a_public_file_resolves_to_a_durable_address() {
 #[tokio::test]
 async fn a_missing_file_is_final_rather_than_a_wait() {
     // The measured answer for an identifier the service never knew.
-    let host = MockHost::with_responses(vec![file_info(
+    let host = MockHost::answering(vec![file_info(
         404,
         r#"{"success":false,"value":"not_found","message":"The requested file does not exist, it may have been deleted."}"#,
     )]);
@@ -199,7 +160,7 @@ async fn a_missing_file_is_final_rather_than_a_wait() {
 async fn a_spent_allowance_is_a_wait_rather_than_a_download() {
     // The file is fine and this connection has spent its share. Reported, waited out, and not
     // worked around: no second address is asked for and nothing is retried in a loop.
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         file_info(
             200,
             r#"{"id":"Ab3xY9Zq","name":"release.rar","size":4096,"availability":""}"#,
@@ -223,7 +184,7 @@ async fn a_spent_allowance_is_a_wait_rather_than_a_download() {
 
 #[tokio::test]
 async fn a_429_on_the_metadata_carries_the_retry_after_the_service_asked_for() {
-    let host = MockHost::with_responses(vec![answer(
+    let host = MockHost::answering(vec![answer(
         429,
         "/file/Ab3xY9Zq/info",
         r#"{"success":false,"value":"ip_rate_limit_reached","message":"x"}"#,
@@ -241,7 +202,7 @@ async fn a_429_on_the_metadata_carries_the_retry_after_the_service_asked_for() {
 async fn an_authentication_refusal_is_reported() {
     // A file that is not public, asked for without an account: the only honest answer is to
     // name the obstacle.
-    let host = MockHost::with_responses(vec![file_info(
+    let host = MockHost::answering(vec![file_info(
         401,
         r#"{"success":false,"value":"authentication_required","message":"x"}"#,
     )]);
@@ -255,7 +216,7 @@ async fn an_authentication_refusal_is_reported() {
 
 #[tokio::test]
 async fn a_blocked_file_is_permanent_and_never_reaches_the_quota_check() {
-    let host = MockHost::with_responses(vec![file_info(
+    let host = MockHost::answering(vec![file_info(
         200,
         r#"{"id":"Ab3xY9Zq","name":"release.rar","availability":"virus_detected_abuse"}"#,
     )]);
@@ -273,7 +234,7 @@ async fn an_unreadable_quota_answer_does_not_block_a_good_file() {
     // The quota call is a courtesy in front of a download that would otherwise fail later.
     // Letting an answer nobody can parse refuse a perfectly good file would be worse than the
     // 429 it guards against.
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         file_info(200, r#"{"id":"Ab3xY9Zq","name":"a.bin","size":9}"#),
         quota("<html>maintenance</html>"),
     ]);
@@ -288,7 +249,7 @@ async fn an_unreadable_quota_answer_does_not_block_a_good_file() {
 async fn an_address_this_plugin_does_not_serve_is_walked_past() {
     // `unsupported` rather than a permanent failure, so the selection hands a list address to
     // `plugins/pixeldrain-crawler/` instead of ending the link here.
-    let host = MockHost::with_responses(Vec::new());
+    let host = MockHost::answering(Vec::new());
     let failure = resolver(&host)
         .resolve(ResolveRequest {
             url: "https://pixeldrain.com/l/Ab3xY9Zq".parse().expect("URL"),
@@ -306,7 +267,7 @@ async fn a_link_check_reads_the_metadata_and_collapses_availability_deliberately
     // RD-120-36: `link-status` holds `online | offline | unknown`. A file behind a captcha
     // exists, so it stays online and the download attempt carries the obstacle; only a
     // moderation block is reported as gone.
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         file_info(
             200,
             r#"{"id":"Ab3xY9Zq","name":"release.rar","size":4096,"availability":""}"#,
@@ -415,7 +376,7 @@ async fn a_resolve_with_a_key_sends_the_template_on_every_request() {
 /// would make the host refuse the request.
 #[tokio::test]
 async fn an_account_without_a_key_resolves_like_no_account() {
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         file_info(200, r#"{"id":"Ab3xY9Zq","name":"release.rar","size":4096}"#),
         quota(QUOTA_FREE),
     ]);
@@ -480,7 +441,7 @@ async fn a_key_the_provider_refuses_is_the_accounts_fault() {
 
 #[tokio::test]
 async fn an_account_without_a_key_is_refused_before_a_request_goes_out() {
-    let host = MockHost::with_responses(Vec::new());
+    let host = MockHost::answering(Vec::new());
     let failure = resolver(&host)
         .check_account(AccountId::new())
         .await
@@ -492,7 +453,7 @@ async fn an_account_without_a_key_is_refused_before_a_request_goes_out() {
 
 #[tokio::test]
 async fn the_manifest_is_the_one_authority_for_what_this_plugin_is() {
-    let host = MockHost::with_responses(Vec::new());
+    let host = MockHost::answering(Vec::new());
     let resolver = resolver(&host);
     let metadata = resolver.metadata().clone();
     assert_eq!(metadata.provider_slug, "pixeldrain");

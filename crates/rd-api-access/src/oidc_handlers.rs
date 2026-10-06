@@ -34,6 +34,10 @@ use callback::*;
 /// Where a link started from *Settings → Security* comes back to.
 pub(crate) const SECURITY_PAGE: &str = "/settings/security";
 
+/// Who a link flow names when it was started on this machine with the login switched off for
+/// it: there is no session then.
+pub(crate) const THIS_MACHINE: &str = "this_machine";
+
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct OidcStartQuery {
     /// Where to land after signing in, inside this application. Anything else lands on `/`.

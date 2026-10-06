@@ -15,6 +15,8 @@ import { MAX_RULE_NAME_LENGTH, nextRulePriority } from '@/utils/categoryRuleCopy
 import { PLAIN } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 type IngressSource = NonNullable<CategoryRule['source']>
 
@@ -193,8 +195,7 @@ async function remove(rule: CategoryRule): Promise<void> {
           :description="t('routing.rule.description')"
           class="mb-4"
         />
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
+        <FormFeedback class="mb-3" :error="error" :message="message" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField required :label="t('routing.rule.name_label')" :description="t('routing.rule.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.rule.name_placeholder')" />
@@ -243,12 +244,12 @@ async function remove(rule: CategoryRule): Promise<void> {
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
-          <div v-for="rule in rules" :key="rule.id" class="flex items-center gap-3 p-3" :class="editingId === rule.id ? 'border-l-2 border-l-primary' : ''">
+          <div v-for="rule in rules" :key="rule.id" class="flex items-center gap-3 p-3" :class="editingRowClass(editingId === rule.id, 'stripe')">
             <UChip standalone color="success" :show="rule.enabled" class="w-2" />
             <span class="numeric w-8 shrink-0 text-xs text-primary">{{ rule.priority }}</span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm text-highlighted">{{ rule.name }} <span class="text-muted">→ {{ categoryName(rule.category_id) }}</span></p>
-              <p class="truncate font-mono text-[11px] text-muted">{{ conditions(rule) }}</p>
+              <p class="truncate font-mono text-2xs text-muted">{{ conditions(rule) }}</p>
             </div>
             <UBadge v-if="editingId === rule.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge v-if="!rule.enabled" size="sm" color="neutral" variant="subtle">{{ t('routing.rule.disabled_badge') }}</UBadge>
@@ -257,7 +258,7 @@ async function remove(rule: CategoryRule): Promise<void> {
             <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="deletingId === rule.id" @click="remove(rule)" />
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!rules.length" variant="inline" class="p-5">
-            <p class="text-center text-sm text-muted">{{ t('routing.rule.empty') }}</p>
+            <UEmpty :description="t('routing.rule.empty')" />
           </DataState>
         </div>
       </template>

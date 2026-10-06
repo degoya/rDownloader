@@ -7,15 +7,6 @@
     "gallery": "Galerien",
     "record": "Aufnahmen"
   },
-  "days": {
-    "0": "Mo",
-    "1": "Di",
-    "2": "Mi",
-    "3": "Do",
-    "4": "Fr",
-    "5": "Sa",
-    "6": "So"
-  },
   "source": {
     "manual": "Manuelles Limit",
     "global": "Profil",
@@ -93,8 +84,6 @@
     "default_description": "Profil, wenn kein Fenster passt.",
     "no_default": "Keine Grenzen",
     "window_profile": "Profil",
-    "from": "Von",
-    "to": "Bis",
     "priority": "Priorität",
     "enabled": "Aktiv",
     "add_window": "Fenster hinzufügen",
@@ -102,7 +91,6 @@
     "empty": "Noch kein Fenster — das Standardprofil gilt rund um die Uhr.",
     "needs_profile": "Zuerst ein Profil anlegen.",
     "windows_title": "Zeitfenster",
-    "days_label": "Tage",
     "duplicate_hint": "Legt eine Kopie des Fensters direkt darunter an; gespeichert wird mit dem Zeitplan"
   },
   "manual": {

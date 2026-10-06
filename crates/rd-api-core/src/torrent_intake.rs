@@ -4,7 +4,7 @@
 use rd_scheduler::{FileSpec, PackageSpec};
 use url::Url;
 
-use crate::{ApiError, AppState};
+use crate::{ApiError, AppState, input_checks::optional_text};
 
 /// Enqueues one torrent as a single-row package (shared by import and magnet links).
 ///
@@ -147,10 +147,7 @@ pub async fn add_torrent_to_collector(
         anyhow::anyhow!("stored torrent path is not absolute: {}", stored.display())
     })?;
     let display_name = rd_files::sanitize_file_name(&parsed.name);
-    let package_name = package_name
-        .map(|name| name.trim().to_owned())
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| display_name.clone());
+    let package_name = optional_text(package_name).unwrap_or_else(|| display_name.clone());
     let intake = database
         .add_collector_batch(rd_db::NewCollectorBatch {
             package_hints: Vec::new(),
@@ -263,9 +260,7 @@ pub async fn prune_checked_torrents(state: &AppState) {
 pub fn magnet_name(url: &Url) -> String {
     url.query_pairs()
         .find(|(key, _)| key == "dn")
-        .map(|(_, value)| value.into_owned())
-        .map(|name| name.trim().to_owned())
-        .filter(|name| !name.is_empty())
+        .and_then(|(_, value)| optional_text(Some(value)))
         .unwrap_or_else(|| {
             url.query_pairs()
                 .find(|(key, _)| key == "xt")

@@ -74,7 +74,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Ask, per active automation, whether a trigger would match it and whether its conditions would hold, without running anything. `trigger` is a word from get_automation_vocabulary; `package_id` (from list_packages) is the package the conditions are judged against."
+        description = "Ask, per active automation, whether a trigger would match it and whether its conditions would hold, without running anything. `trigger` is a word from get_automation_vocabulary; `package_id` (from list_packages) is the package the conditions are judged against. With `draft` (`trigger`, `condition`, optional `automation_id`) only that automation is judged, saved or not, enabled or not; one not saved yet answers with the nil id."
     )]
     pub async fn dry_run_automations(
         &self,
@@ -84,6 +84,7 @@ impl RdMcpServer {
             let request = body(object(&[
                 ("trigger", params.trigger.into()),
                 ("package_id", params.package_id.into()),
+                ("draft", params.draft.into()),
             ]))?;
             let Json(matches) =
                 automations::dry_run_automations(State(self.state.clone()), Json(request)).await?;

@@ -44,7 +44,7 @@ function mount(proxies: ProxyProfile[] = [], globalProxy: string | null = null) 
   return mountComponent(SettingsNetworkTab, {
     messages: { settings },
     props: { modelValue: { global_proxy_profile_id: globalProxy, custom_ca_pem: null } as unknown as Settings, proxies },
-    stubs: { SettingsAuthProfilesCard: true, SettingsReconnectCard: true, DataState: true }
+    stubs: { SettingsReconnectCard: true, DataState: true }
   })
 }
 

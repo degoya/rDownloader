@@ -188,7 +188,7 @@ mod tests {
 
     /// The parameter the hand-over uses has to be one the core treats as a credential. Spelled
     /// out here rather than imported: a plugin links nothing of the host's, so this repeats the
-    /// list's answer and `crates/rd-plugin-ext/tests/box_contract.rs` asserts it against the
+    /// list's answer and `crates/rd-plugin-ext/tests/contract/box_contract.rs` asserts it against the
     /// real `rd_core::is_secret_parameter`.
     fn rd_core_redacts(name: &str) -> bool {
         name == "shared_link_password"

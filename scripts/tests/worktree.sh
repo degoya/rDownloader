@@ -37,7 +37,7 @@ MAIN="$SCRATCH/repo"
 git init -q -b development "$MAIN"
 mkdir -p "$MAIN/scripts/lib" "$MAIN/web/node_modules" "$MAIN/web/dist"
 cp "$ROOT/scripts/worktree.sh" "$MAIN/scripts/"
-cp "$ROOT/scripts/lib/verified.sh" "$ROOT/scripts/lib/lanes.sh" "$ROOT/scripts/lib/workspace-version.sh" \
+cp "$ROOT/scripts/lib/"{verified,lanes,workspace-version,inert-paths,web-dist}.sh \
     "$MAIN/scripts/lib/"
 echo 'export {}' > "$MAIN/web/auto-imports.d.ts"
 echo 'export {}' > "$MAIN/web/components.d.ts"

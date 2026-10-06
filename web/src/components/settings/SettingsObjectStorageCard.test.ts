@@ -192,7 +192,7 @@ describe('SettingsObjectStorageCard rows', () => {
       data: { reachable: true, authenticated: false, code: 'object_storage.access_denied', params: { bucket: 'archive' } }
     })
     await mounted()
-    await fireEvent.click(screen.getByRole('button', { name: en.test }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.test }))
 
     const alert = await waitFor(() => screen.getByTestId('object-storage-error'))
     expect(alert.textContent).toContain('Access to the bucket archive was denied')
@@ -201,7 +201,7 @@ describe('SettingsObjectStorageCard rows', () => {
   it('shows a passed test as a success above the form', async () => {
     calls.post.mockResolvedValue({ data: { reachable: true, authenticated: true, code: null, params: {} } })
     await mounted()
-    await fireEvent.click(screen.getByRole('button', { name: en.test }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.test }))
 
     const alert = await waitFor(() => screen.getByTestId('object-storage-message'))
     expect(alert.textContent).toContain('Archive:')

@@ -25,6 +25,7 @@ import {
   type StepKind
 } from '@/composables/useSiteRules'
 import { PLAIN } from '@/utils/numberInput'
+import { dateFieldValue, dayOf } from '@/utils/timeFields'
 
 const props = withDefaults(defineProps<{
   editingId: string | null
@@ -154,7 +155,7 @@ function verdictColor(verdict: string): 'success' | 'error' | 'neutral' {
           <UInput v-model="draft.probe" class="w-full font-mono text-xs" placeholder="https://example.org/release/1" />
         </UFormField>
         <UFormField :label="t('siterules.editor.checked')">
-          <UInput v-model="draft.checked" type="date" class="w-full" />
+          <UInputDate :model-value="dateFieldValue(draft.checked)" class="w-full" @update:model-value="draft.checked = dayOf($event)" />
         </UFormField>
         <UCheckbox
           v-model="draft.mirrors"
@@ -326,7 +327,7 @@ function verdictColor(verdict: string): 'success' | 'error' | 'neutral' {
           <p v-if="!props.testResult.links.length" class="mt-2 text-xs text-muted">{{ t('siterules.test.no_links') }}</p>
           <ul v-else class="mt-2 space-y-1">
             <li v-for="link in props.testResult.links" :key="link.url" class="flex flex-wrap items-center gap-2">
-              <span class="min-w-0 flex-1 truncate font-mono text-[11px]">{{ link.url }}</span>
+              <span class="min-w-0 flex-1 truncate font-mono text-2xs">{{ link.url }}</span>
               <UBadge
                 :color="verdictColor(link.verdict)"
                 variant="subtle"

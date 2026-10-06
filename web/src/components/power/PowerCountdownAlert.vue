@@ -50,23 +50,21 @@ onUnmounted(() => {
 
 <template>
   <div v-if="status?.pending || status?.paused_reason" class="flex flex-col gap-2">
-    <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
     <UAlert
       v-if="status.pending"
       color="warning"
-      variant="subtle"
       icon="i-lucide-power"
       :title="t(`power.pending.${status.pending.action}`)"
       :description="t('power.pending.countdown', { seconds: remaining })"
     >
       <template #actions>
-        <UButton size="xs" color="warning" icon="i-lucide-x" :label="t('power.pending.cancel')" :loading="cancelling" @click="cancel" />
+        <UButton size="xs" color="warning" icon="i-lucide-x" :label="t('common.actions.cancel')" :loading="cancelling" @click="cancel" />
       </template>
     </UAlert>
     <UAlert
       v-if="status.paused_reason"
       color="neutral"
-      variant="subtle"
       icon="i-lucide-battery-low"
       :description="t(`power.paused.${status.paused_reason}`)"
     />

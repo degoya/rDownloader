@@ -11,7 +11,13 @@ name: Package channels
 # history, the formula and the manifest exactly as that release published them — started, given a
 # marker file, stopped, and then upgraded by `brew upgrade` or `scoop update` to what the channel
 # carries now. The database must still be there with every migration it had, and the markers in
-# data/ and downloads/ too. Uninstalling at the end must leave the data behind.
+# data/ and downloads/ too. Uninstalling at the end must leave the data behind. After a release
+# the gate sets it to the plain release before (RD-1120-07): the upgrade had never run, since no
+# one dispatched it by hand.
+#
+# The published apt and dnf repositories (`repository`, RD-180-10) the same way: the release's
+# version, upgraded from the one before when the repository still keeps it
+# (scripts/ci-published-repo.sh); packages-repo.yml tests the same files on a fixture.
 #
 # The tap runs on four images, one per platform the formula names (RD-190-12): macos-15 (Apple
 # Silicon), macos-15-intel (a real Intel Mac — the cross-built x86_64 binary started natively, not
@@ -23,8 +29,8 @@ name: Package channels
 # `brew services start rdownloader-capture` (no login session) and `brew audit --strict`
 # against the tap (the owner's live checklist).
 #
-#   gh workflow run channels.yml -f upgrade_from=v1.6.1
-#   gh workflow run channels.yml -f expect_version=1.7.0
+#   gh workflow run channels.yml --repo degoya/rDownloader -f upgrade_from=v1.10.1
+#   gh workflow run channels.yml --repo degoya/rDownloader -f expect_version=1.11.0
 on:
   workflow_run:
     workflows: [Release]
@@ -49,44 +55,30 @@ env:
   HOMEBREW_NO_ENV_HINTS: "1"
 
 jobs:
+  # scripts/ci-channels-gate.sh: a dispatch takes its inputs; a green Release run of a plain tag
+  # checks its version and upgrades from the plain release before it (RD-1120-07).
   gate:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       run: ${{ steps.gate.outputs.run }}
       expect: ${{ steps.gate.outputs.expect }}
       from: ${{ steps.gate.outputs.from }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Decide whether and against what to check
         id: gate
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           RUN_REF: ${{ github.event.workflow_run.head_branch }}
           EXPECT: ${{ inputs.expect_version }}
           FROM: ${{ inputs.upgrade_from }}
-        run: |
-          set -euo pipefail
-          if [[ "${EVENT}" == workflow_dispatch ]]; then
-            if [[ -n "${FROM}" && ! "${FROM}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::error::upgrade_from must be a plain release tag like v1.6.1, not '${FROM}'"
-              exit 1
-            fi
-            if [[ -n "${EXPECT}" && ! "${EXPECT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::error::expect_version must be a version like 1.7.0, not '${EXPECT}'"
-              exit 1
-            fi
-            { echo "run=true"; echo "expect=${EXPECT}"; echo "from=${FROM}"; } >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-          # A tag-triggered run names its tag in head_branch.
-          if [[ "${CONCLUSION}" != success || ! "${RUN_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::notice::Release run of '${RUN_REF}' (${CONCLUSION}) does not move the channels; nothing to check"
-            echo "run=false" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-          { echo "run=true"; echo "expect=${RUN_REF#v}"; echo "from="; } >> "${GITHUB_OUTPUT}"
+        run: scripts/ci-channels-gate.sh
 
   homebrew:
     needs: gate
@@ -290,3 +282,35 @@ jobs:
           # Without --purge, Scoop leaves the persist folder for the next install.
           if (-not (Test-Path $db)) { throw "scoop uninstall took the database with it" }
           exit 0
+
+  repository:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu:24.04
+            manager: apt
+          - image: debian:stable
+            manager: apt
+          - image: fedora:latest
+            manager: dnf
+    name: repository (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install from the published repository, upgrade, keep the data
+        env:
+          MANAGER: ${{ matrix.manager }}
+          BASE_URL: https://${{ github.repository_owner }}.github.io/rdownloader-packages
+          EXPECT: ${{ needs.gate.outputs.expect }}
+          FROM: ${{ needs.gate.outputs.from }}
+        run: scripts/ci-published-repo.sh "${MANAGER}" "${BASE_URL}" "${EXPECT}" "${FROM}"

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { nextOccurrence, PAUSE_DURATIONS, useQueuePauseStore } from '@/stores/queuePause'
 import { useTransfersStore } from '@/stores/transfers'
 import { formatDuration, formatPauseEnd } from '@/utils/format'
+import { clockOf, timeFieldValue } from '@/utils/timeFields'
 
 /**
  * The global start/pause control with its timed pause (RD-190-20), in the Downloads header and
@@ -132,15 +133,15 @@ async function resumeNow(): Promise<void> {
         />
       </UDropdownMenu>
     </template>
-    <UModal v-model:open="untilOpen" :title="t('downloads.pause.until_title')" :description="t('downloads.pause.until_hint')" :ui="{ footer: 'justify-end' }">
+    <UModal v-model:open="untilOpen" :title="t('downloads.pause.until_title')" :description="t('downloads.pause.until_hint')">
       <template #body>
         <UFormField :label="t('downloads.pause.until_time')">
-          <UInput v-model="untilClock" type="time" class="w-32" data-testid="queue-pause-until" @keyup.enter="confirmUntil" />
+          <UInputTime :model-value="timeFieldValue(untilClock)" class="w-32" data-testid="queue-pause-until" @update:model-value="untilClock = clockOf($event)" @keyup.enter="confirmUntil" />
         </UFormField>
       </template>
       <template #footer>
         <UButton :label="t('common.actions.cancel')" color="neutral" variant="outline" @click="untilOpen = false" />
-        <UButton icon="i-lucide-pause" :label="t('downloads.pause.confirm')" :disabled="!untilAt" @click="confirmUntil" />
+        <UButton icon="i-lucide-pause" :label="t('common.actions.pause')" :disabled="!untilAt" @click="confirmUntil" />
       </template>
     </UModal>
   </div>

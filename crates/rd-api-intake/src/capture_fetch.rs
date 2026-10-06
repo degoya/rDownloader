@@ -111,7 +111,7 @@ impl FetchPlan {
             ),
         };
         let user_agent = match user_agent.map(str::trim).filter(|text| !text.is_empty()) {
-            None => HeaderValue::from_static(concat!("rDownloader/", env!("CARGO_PKG_VERSION"))),
+            None => HeaderValue::from_static(rd_core::user_agent!()),
             Some(text) => header_value(text).ok_or_else(|| header_invalid("user_agent"))?,
         };
         let cookie = cookie_header(&cookies_for(cookies.unwrap_or_default(), &url)?)?;

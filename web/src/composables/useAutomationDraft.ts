@@ -14,7 +14,7 @@ export type AutomationTrigger = AutomationRequest['trigger']
  * may not exist yet. The server takes a UUID and nothing else, so an unset id must never be
  * sent as an empty string — `actionComplete` gates saving instead.
  */
-export type DraftAction = { kind: string } & Partial<{
+type DraftAction = { kind: string } & Partial<{
   name: string
   category_id: string
   target_id: string

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { Download, DownloadSourcesResponse, TorrentPlanRequest } from '@/api/types'
+import DragHandle from '@/components/DragHandle.vue'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
 import TorrentMoveModal from '@/components/TorrentMoveModal.vue'
 import TorrentPeerList from '@/components/TorrentPeerList.vue'
@@ -93,7 +94,10 @@ const torrentDetail = computed(() => torrents.detail('download', props.download.
 const torrentTrackers = computed(() => torrents.trackersOf(props.download.id))
 const torrentBusy = computed(() => torrents.isBusy('download', props.download.id))
 const torrentError = computed(() => torrents.errorOf('download', props.download.id))
-const torrentTab = ref<'files' | 'trackers' | 'peers' | 'seeding'>('files')
+type TorrentTab = 'files' | 'trackers' | 'peers' | 'seeding'
+const TORRENT_TABS: TorrentTab[] = ['files', 'trackers', 'peers', 'seeding']
+const torrentTab = ref<TorrentTab>('files')
+const torrentTabItems = computed(() => TORRENT_TABS.map(value => ({ label: t(`torrent.tabs.${value}`), value })))
 const torrentStats = computed(() => torrents.statsOf(props.download.id))
 const torrentPeers = computed(() => torrents.peersOf(props.download.id))
 const torrentPieces = computed(() => torrents.piecesOf(props.download.id))
@@ -129,7 +133,7 @@ watch(() => torrentStats.value?.checking, (now, before) => {
 })
 
 /** Peers and pieces are pulled, and only while the tab is actually open. */
-async function openTab(tab: 'files' | 'trackers' | 'peers' | 'seeding'): Promise<void> {
+async function openTab(tab: TorrentTab): Promise<void> {
   torrentTab.value = tab
   if (tab === 'peers') {
     await Promise.all([
@@ -281,19 +285,12 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
     @drop.prevent.stop="emit('drop', props.download.id)"
   >
     <div class="queue-row px-2 py-1.5">
-      <button
-        type="button"
-        class="queue-cell-handle grid cursor-grab select-none place-items-center text-muted"
-        data-row-handle
-        draggable="true"
-        :title="dragTitle"
-        :aria-label="dragTitle"
-        @dragstart.stop="emit('dragstart', props.download.id)"
-        @keydown.up.prevent="emit('move', props.download.id, -1)"
-        @keydown.down.prevent="emit('move', props.download.id, 1)"
-      >
-        <UIcon name="i-lucide-grip-vertical" class="size-4" />
-      </button>
+      <DragHandle
+        class="queue-cell-handle grid place-items-center"
+        :label="dragTitle"
+        @dragstart="emit('dragstart', props.download.id)"
+        @move="(delta: -1 | 1) => emit('move', props.download.id, delta)"
+      />
       <UCheckbox class="queue-cell-select justify-self-center" :model-value="props.selected ?? false" :aria-label="t('downloads.transfer.select_aria')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.download.id, value === true)" />
       <UButton
         class="queue-cell-expand"
@@ -312,11 +309,11 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
       <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
       <div class="queue-cell-progress items-center gap-1.5">
         <UProgress :model-value="progressOf(props.download)" size="2xs" class="flex-1" />
-        <span v-if="progressOf(props.download) < 100" class="numeric w-8 text-right text-[10px] text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
+        <span v-if="progressOf(props.download) < 100" class="numeric w-8 text-right text-2xs text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
       </div>
       <span class="queue-cell-size min-w-0 text-right">
         <span class="numeric block truncate text-xs text-muted">{{ sizeLabel }}</span>
-        <span v-if="props.download.state === 'downloading'" class="numeric block truncate text-[10px] font-medium text-primary" :aria-label="t('downloads.transfer.rate_aria', { rate: formatRate(props.bytesPerSecond) })">{{ formatRate(props.bytesPerSecond) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.transfer.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
+        <span v-if="props.download.state === 'downloading'" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.transfer.rate_aria', { rate: formatRate(props.bytesPerSecond) })">{{ formatRate(props.bytesPerSecond) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.transfer.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
       </span>
       <span class="queue-cell-meta min-w-0 truncate text-xs text-muted" :title="props.accountLabel ?? undefined">{{ props.accountLabel ?? '' }}</span>
       <div class="queue-cell-actions flex items-center justify-end opacity-70 transition group-hover:opacity-100">
@@ -333,23 +330,22 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
     <div v-if="expanded" class="grid gap-1 border-t border-muted px-11 py-2 text-xs text-muted">
       <div class="flex items-center gap-2 md:hidden">
         <UProgress :model-value="progressOf(props.download)" size="xs" class="flex-1" />
-        <span class="numeric w-9 text-right text-[11px] text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
+        <span class="numeric w-9 text-right text-2xs text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
       </div>
       <p class="min-w-0 truncate font-mono" :title="props.download.source">{{ props.download.source }}</p>
       <TransferSourceList v-if="sources" :sources="sources" />
       <USeparator v-if="isTorrent" class="mb-1" />
       <div v-if="isTorrent" class="grid gap-2">
-        <div class="flex items-center gap-1">
-          <UButton
-            v-for="tab in (['files', 'trackers', 'peers', 'seeding'] as const)"
-            :key="tab"
-            size="xs"
-            :color="torrentTab === tab ? 'primary' : 'neutral'"
-            :variant="torrentTab === tab ? 'soft' : 'ghost'"
-            :label="t(`torrent.tabs.${tab}`)"
-            @click="openTab(tab)"
-          />
-        </div>
+        <URadioGroup
+          :model-value="torrentTab"
+          :items="torrentTabItems"
+          variant="card"
+          indicator="hidden"
+          orientation="horizontal"
+          size="xs"
+          :aria-label="t('torrent.tabs.label')"
+          @update:model-value="openTab"
+        />
         <p v-if="torrentStats" class="flex flex-wrap items-center gap-3 text-xs text-muted">
           <span>{{ t('torrent.stats.ratio') }} <span class="numeric text-toned">{{ torrentStats.ratio.toFixed(2) }}</span></span>
           <span>{{ t('torrent.stats.uploaded') }} <span class="numeric text-toned">{{ formatByteProgress(torrentStats.uploaded_bytes, null) }}</span></span>
@@ -430,8 +426,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
         <span v-if="props.download.retry_count">{{ t('downloads.transfer.attempts') }} <span class="numeric">{{ props.download.retry_count }}</span></span>
         <span v-if="props.download.computed_checksum" class="font-mono">{{ props.download.computed_checksum.algorithm }} {{ props.download.computed_checksum.value }}</span>
       </div>
-      <label v-if="props.download.kind === 'http'" class="flex flex-wrap items-center gap-2">
-        <span class="shrink-0">{{ t('downloads.transfer.auth_profile') }}</span>
+      <UFormField v-if="props.download.kind === 'http'" :label="t('downloads.transfer.auth_profile')" orientation="horizontal" size="xs" class="flex-wrap justify-start">
         <USelect
           :model-value="authProfileValue"
           :items="authProfileItems"
@@ -439,7 +434,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
           class="min-w-56"
           @update:model-value="assignAuthProfile"
         />
-      </label>
+      </UFormField>
       <p v-if="lastError" class="leading-5 text-error">{{ lastError }}</p>
     </div>
   </article>

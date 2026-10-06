@@ -10,6 +10,21 @@ use rd_core::{
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+/// The scripted host the native plugin suites share; never part of the service.
+#[cfg(all(feature = "test-support", not(target_arch = "wasm32")))]
+pub mod test_support;
+
+mod captcha;
+mod manifest;
+mod wit_failure;
+
+pub use captcha::{
+    CaptchaAnswer, CaptchaChallenge, CaptchaSolver, ClickPoint, CutcaptchaChallenge,
+    ImageChallenge, WidgetChallenge,
+};
+pub use manifest::metadata_from_manifest;
+pub use wit_failure::WitFailureKind;
+
 /// Waiting time a host reserves for one captcha when nothing better is known.
 pub const DEFAULT_CAPTCHA_ALLOWANCE: Duration = Duration::from_secs(180);
 
@@ -120,81 +135,6 @@ pub struct ResolverMetadata {
     pub requires_account: bool,
 }
 
-/// The fields of a bundled `manifest.toml` that describe the resolver behind it.
-///
-/// Deliberately a subset: the host owns the full manifest (signing key, capabilities,
-/// limits), while a plugin's own native build only needs to know what it *is*. Serde
-/// ignores the rest, and a renamed field fails to deserialise loudly instead of silently
-/// reading a default.
-#[derive(Deserialize)]
-struct BundledManifest {
-    id: PluginId,
-    name: String,
-    version: String,
-    #[serde(default)]
-    match_domains: Vec<String>,
-    max_concurrent_downloads: u32,
-    #[serde(default = "requires_account_default")]
-    requires_account: bool,
-    capabilities: BundledCapabilities,
-    provider: BundledProvider,
-}
-
-#[derive(Deserialize)]
-struct BundledCapabilities {
-    net_http: BundledNetHttp,
-}
-
-#[derive(Deserialize)]
-struct BundledNetHttp {
-    domains: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct BundledProvider {
-    slug: String,
-}
-
-fn requires_account_default() -> bool {
-    true
-}
-
-/// Reads a plugin's own bundled `manifest.toml` into its resolver metadata.
-///
-/// The manifest is the single authority for what a resolver is. Both builds of a plugin read
-/// the same file — the component through the host that installed its package, the native
-/// fallback through `include_str!` — so identity, domain list, concurrency and version can no
-/// longer drift apart between the two. In particular the reported version becomes the plugin's
-/// own, not the workspace's, so a job pinned to a resolver still finds it after a core release
-/// that did not touch the plugin.
-///
-/// Reads the same domain list the component path reports: `match_domains` when the manifest
-/// names one, otherwise the network allowlist.
-///
-/// # Panics
-///
-/// The manifest is embedded at compile time and validated by packaging and the bundled
-/// manifest tests, so a parse failure here is a build defect, not a runtime condition.
-#[must_use]
-pub fn metadata_from_manifest(source: &str) -> ResolverMetadata {
-    let manifest: BundledManifest =
-        toml::from_str(source).expect("bundled plugin manifest is well-formed");
-    let domains = if manifest.match_domains.is_empty() {
-        manifest.capabilities.net_http.domains
-    } else {
-        manifest.match_domains
-    };
-    ResolverMetadata {
-        plugin_id: manifest.id,
-        name: manifest.name,
-        version: manifest.version,
-        provider_slug: manifest.provider.slug,
-        domains,
-        max_concurrent_downloads: manifest.max_concurrent_downloads,
-        requires_account: manifest.requires_account,
-    }
-}
-
 /// Network identity that must be preserved from resolving through transfer.
 ///
 /// Anonymous free downloads rely on this: an account-less identity resolves to the same
@@ -207,97 +147,6 @@ pub struct ClientIdentity {
     pub account_id: Option<AccountId>,
     pub proxy_profile_id: Option<ProxyProfileId>,
     pub tls_revision: u64,
-}
-
-/// A captcha the resolver cannot solve itself.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
-pub enum CaptchaChallenge {
-    RecaptchaV2(WidgetChallenge),
-    HCaptcha(WidgetChallenge),
-    Turnstile(WidgetChallenge),
-    Image(ImageChallenge),
-    /// A picture answered by clicking one spot in it (RD-110-15).
-    ClickPoint(ImageChallenge),
-    /// A CutCaptcha widget, which only a solver service answers (RD-110-15).
-    Cutcaptcha(CutcaptchaChallenge),
-}
-
-impl CaptchaChallenge {
-    /// The hoster page a widget challenge is rendered on, or `None` for a picture.
-    ///
-    /// A widget token is only valid for the origin that produced it, so the page is what
-    /// every consumer of a widget challenge needs: the solver service to reproduce it, the
-    /// host to check it against the plugin's declared domains, and the browser extension to
-    /// know which page a person is about to be shown.
-    #[must_use]
-    pub fn page_url(&self) -> Option<&str> {
-        match self {
-            Self::RecaptchaV2(widget) | Self::HCaptcha(widget) | Self::Turnstile(widget) => {
-                Some(widget.page_url.as_str())
-            }
-            Self::Cutcaptcha(widget) => Some(widget.page_url.as_str()),
-            Self::Image(_) | Self::ClickPoint(_) => None,
-        }
-    }
-
-    /// Whether the answer is a coordinate rather than a token or typed text.
-    #[must_use]
-    pub const fn answers_with_point(&self) -> bool {
-        matches!(self, Self::ClickPoint(_))
-    }
-}
-
-/// Widget captcha, solvable from its site key and the page it is embedded in.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct WidgetChallenge {
-    pub site_key: String,
-    pub page_url: String,
-    pub invisible: bool,
-}
-
-/// Classic image captcha as served by the hoster.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct ImageChallenge {
-    pub mime: String,
-    pub data: Vec<u8>,
-    pub prompt: Option<String>,
-}
-
-/// CutCaptcha widget as its solver task needs it: the widget's own identifier and the page's
-/// misery key, both read from the hoster page, plus the page itself.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct CutcaptchaChallenge {
-    pub site_key: String,
-    pub misery_key: String,
-    pub page_url: String,
-}
-
-/// Where a person clicked in a click-point captcha, in pixels of the image as served.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct ClickPoint {
-    pub x: u32,
-    pub y: u32,
-}
-
-/// The answer to a challenge, in the shape the challenge has: a widget token or the typed
-/// text of an image captcha, or the spot clicked in a click-point captcha.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
-pub enum CaptchaAnswer {
-    Token(String),
-    Point(ClickPoint),
-}
-
-impl CaptchaAnswer {
-    /// The token, or `None` for a point.
-    #[must_use]
-    pub fn token(&self) -> Option<&str> {
-        match self {
-            Self::Token(token) => Some(token),
-            Self::Point(_) => None,
-        }
-    }
 }
 
 /// Resolver input after the scheduler selected an account and client.
@@ -536,100 +385,6 @@ pub trait ResolverHost: Send + Sync {
             "captcha.no_solver",
             "No captcha solver is configured",
         ))
-    }
-}
-
-/// Application-side captcha solving, injected into the resolver host.
-///
-/// Kept as a trait so the host depends on the capability rather than on the solver
-/// implementation, and so tests can answer challenges without a service or a UI.
-#[async_trait]
-pub trait CaptchaSolver: Send + Sync {
-    /// Waiting time one challenge may need, given the current configuration.
-    async fn allowance(&self) -> Duration {
-        DEFAULT_CAPTCHA_ALLOWANCE
-    }
-
-    /// Answers a challenge within `limit`, which the host has reserved for it, in the shape
-    /// the challenge has.
-    async fn solve(
-        &self,
-        challenge: CaptchaChallenge,
-        limit: Duration,
-    ) -> Result<CaptchaAnswer, Failure>;
-}
-
-/// WIT-shaped failure variant used by adapters and parity tests.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
-pub enum WitFailureKind {
-    Transient { retry_after_seconds: Option<u64> },
-    Permanent,
-    Offline,
-    AuthRequired,
-    AccountInvalid,
-    RateLimited { retry_after_seconds: Option<u64> },
-    NeedsCaptcha,
-    Unsupported,
-    IpBlocked { retry_after_seconds: Option<u64> },
-    CaptchaFailed,
-}
-
-impl From<FailureKind> for WitFailureKind {
-    fn from(value: FailureKind) -> Self {
-        match value {
-            FailureKind::Transient {
-                retry_after_seconds,
-            } => Self::Transient {
-                retry_after_seconds,
-            },
-            FailureKind::Permanent => Self::Permanent,
-            FailureKind::Offline => Self::Offline,
-            FailureKind::AuthRequired => Self::AuthRequired,
-            FailureKind::AccountInvalid => Self::AccountInvalid,
-            FailureKind::RateLimited {
-                retry_after_seconds,
-            } => Self::RateLimited {
-                retry_after_seconds,
-            },
-            FailureKind::NeedsCaptcha => Self::NeedsCaptcha,
-            FailureKind::Unsupported => Self::Unsupported,
-            FailureKind::IpBlocked {
-                retry_after_seconds,
-            } => Self::IpBlocked {
-                retry_after_seconds,
-            },
-            FailureKind::CaptchaFailed => Self::CaptchaFailed,
-        }
-    }
-}
-
-impl From<WitFailureKind> for FailureKind {
-    fn from(value: WitFailureKind) -> Self {
-        match value {
-            WitFailureKind::Transient {
-                retry_after_seconds,
-            } => Self::Transient {
-                retry_after_seconds,
-            },
-            WitFailureKind::Permanent => Self::Permanent,
-            WitFailureKind::Offline => Self::Offline,
-            WitFailureKind::AuthRequired => Self::AuthRequired,
-            WitFailureKind::AccountInvalid => Self::AccountInvalid,
-            WitFailureKind::RateLimited {
-                retry_after_seconds,
-            } => Self::RateLimited {
-                retry_after_seconds,
-            },
-            WitFailureKind::NeedsCaptcha => Self::NeedsCaptcha,
-            WitFailureKind::Unsupported => Self::Unsupported,
-            WitFailureKind::IpBlocked {
-                retry_after_seconds,
-            } => Self::IpBlocked {
-                retry_after_seconds,
-            },
-            WitFailureKind::CaptchaFailed => Self::CaptchaFailed,
-        }
     }
 }
 

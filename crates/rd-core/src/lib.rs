@@ -47,7 +47,7 @@ mod trace;
 mod transform;
 mod usenet;
 
-pub use address::{AddressScope, address_scope};
+pub use address::{AddressScope, address_scope, literal_address};
 // The host allowlist matcher lives in the registry, which `rd-core` depends on; re-exported so
 // the crates above find it beside `address_scope` (RD-191-06, PLUG-17).
 pub use audit::{
@@ -162,6 +162,7 @@ pub use redact::{
     is_secret_parameter, is_signed_url, redact_failure, redact_header_value, redact_params,
     redact_text, redact_url, signed_url_expiry,
 };
+pub use remote::path as remote_path;
 pub use remote::{
     FTP_PROVIDER, ListingLimit, MAX_REMOTE_DEPTH, MAX_REMOTE_ENTRIES, MAX_REMOTE_HOST,
     MAX_REMOTE_KEY, MAX_REMOTE_PATH, MAX_REMOTE_SECRET, REMOTE_CONTRACT_VERSION, RemoteAuthMode,
@@ -266,4 +267,16 @@ pub const MAX_PERSISTED_BYTES: u64 = i64::MAX as u64;
 /// before the field existed has to read back as the behaviour that was in force then.
 pub(crate) const fn default_true() -> bool {
     true
+}
+
+/// The `User-Agent` the service's own requests send: `rDownloader/<version>`.
+///
+/// A macro rather than a constant because the version has to be the application's: `rd-core`
+/// is linked into the plugins and carries a version of its own, so `CARGO_PKG_VERSION` is read
+/// in the crate that sends the request.
+#[macro_export]
+macro_rules! user_agent {
+    () => {
+        concat!("rDownloader/", env!("CARGO_PKG_VERSION"))
+    };
 }

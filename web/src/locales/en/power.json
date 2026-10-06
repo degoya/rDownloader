@@ -7,8 +7,6 @@
   "quiet": {
     "label": "Quiet hours",
     "description": "Deferred work waits inside these windows. Downloads themselves keep running.",
-    "from": "From",
-    "to": "To",
     "add": "Add window",
     "defer_postprocess": "Defer repair, unpacking and uploads",
     "defer_notifications": "Group notifications until the window ends"
@@ -45,8 +43,7 @@
     "shutdown": "The machine shuts down",
     "none": "Completion action pending",
     "script": "The completion script runs",
-    "countdown": "In {seconds} s — cancel to keep the machine on.",
-    "cancel": "Cancel"
+    "countdown": "In {seconds} s — cancel to keep the machine on."
   },
   "paused": {
     "battery": "The queue is paused: the machine is running on battery.",

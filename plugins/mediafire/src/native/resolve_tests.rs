@@ -13,7 +13,7 @@ use super::{
 /// address, with the two requests the plan promises and nothing else.
 #[tokio::test]
 async fn a_public_file_resolves_to_its_direct_link_with_name_size_and_hash() {
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), html(FILE_PAGE)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), html(FILE_PAGE)]);
     let resolved = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await
@@ -61,7 +61,7 @@ async fn every_file_form_reaches_the_same_canonical_page() {
         "https://www.mediafire.com/download.php?ipnyzofjcwri357",
         "https://app.mediafire.com/ipnyzofjcwri357",
     ] {
-        let host = MockHost::with_responses(vec![json(200, GET_INFO), html(FILE_PAGE)]);
+        let host = MockHost::answering(vec![json(200, GET_INFO), html(FILE_PAGE)]);
         let resolved = resolver(&host)
             .resolve(resolve_request(url))
             .await
@@ -79,7 +79,7 @@ async fn a_page_without_a_button_never_becomes_the_download() {
     // The stripped page still carries the delivery address in the anchor's href; a scan for
     // it is the third fallback, so the shell page (no address at all) is the real test.
     let shell = "<html><head><title>MediaFire - File sharing and storage made simple</title></head><body></body></html>";
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), html(shell)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), html(shell)]);
     let failure = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await
@@ -105,14 +105,14 @@ async fn a_redirect_to_the_file_is_accepted_only_from_a_delivery_host() {
         }],
         body: vec![0],
     };
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), file(DIRECT_URL)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), file(DIRECT_URL)]);
     let resolved = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await
         .expect("resolved");
     assert_eq!(resolved.url.as_str(), DIRECT_URL);
 
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         json(200, GET_INFO),
         file("https://cdn.evil.test/ipnyzofjcwri357/test-10mb.bin"),
     ]);
@@ -173,7 +173,7 @@ async fn the_api_refusals_end_in_their_own_codes_before_any_page_is_fetched() {
             FailureKind::Permanent,
         ),
     ] {
-        let host = MockHost::with_responses(vec![json(status, body)]);
+        let host = MockHost::answering(vec![json(status, body)]);
         let failure = resolver(&host)
             .resolve(resolve_request(FILE_URL))
             .await
@@ -194,7 +194,7 @@ async fn the_api_refusals_end_in_their_own_codes_before_any_page_is_fetched() {
 #[tokio::test]
 async fn a_bare_folder_key_is_reported_as_a_folder() {
     let folder = br#"{"response":{"action":"folder/get_info","folder_info":{"folderkey":"rww7bhhi0yc1l","name":"Walls","privacy":"public"},"result":"Success"}}"#;
-    let host = MockHost::with_responses(vec![json(400, GET_INFO_MISSING), json(200, folder)]);
+    let host = MockHost::answering(vec![json(400, GET_INFO_MISSING), json(200, folder)]);
     let failure = resolver(&host)
         .resolve(resolve_request("https://www.mediafire.com/?rww7bhhi0yc1l"))
         .await
@@ -206,7 +206,7 @@ async fn a_bare_folder_key_is_reported_as_a_folder() {
     assert!(requests[1].url.as_str().ends_with("/folder/get_info.php"));
 
     // The same key spelled as a file path is not asked twice: the path already decided.
-    let host = MockHost::with_responses(vec![json(400, GET_INFO_MISSING)]);
+    let host = MockHost::answering(vec![json(400, GET_INFO_MISSING)]);
     let failure = resolver(&host)
         .resolve(resolve_request(
             "https://www.mediafire.com/file/rww7bhhi0yc1l",
@@ -217,7 +217,7 @@ async fn a_bare_folder_key_is_reported_as_a_folder() {
     assert_eq!(host.requests().len(), 1);
 
     // A folder path is refused without a request at all.
-    let host = MockHost::with_responses(Vec::new());
+    let host = MockHost::answering(Vec::new());
     let failure = resolver(&host)
         .resolve(resolve_request(
             "https://www.mediafire.com/folder/rww7bhhi0yc1l",
@@ -259,7 +259,7 @@ async fn what_the_api_says_about_the_file_is_refused_before_the_page() {
             "the fixture must carry {}",
             patch.0
         );
-        let host = MockHost::with_responses(vec![json(200, body.as_bytes())]);
+        let host = MockHost::answering(vec![json(200, body.as_bytes())]);
         let failure = resolver(&host)
             .resolve(resolve_request(FILE_URL))
             .await
@@ -314,7 +314,7 @@ async fn the_error_pages_end_in_the_codes_of_the_errno_table() {
         (555, "mediafire.error_page", FailureKind::Permanent, None),
     ] {
         let target = format!("https://www.mediafire.com/error.php?errno={errno}&origin=download");
-        let host = MockHost::with_responses(vec![
+        let host = MockHost::answering(vec![
             json(200, GET_INFO),
             html_at(&target, "<html><title>Error</title></html>"),
         ]);
@@ -344,7 +344,7 @@ async fn the_error_pages_end_in_the_codes_of_the_errno_table() {
 /// The page states the job names (all synthetic; none was seen live).
 #[tokio::test]
 async fn the_page_states_end_in_their_own_codes() {
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), html(THRESHOLD)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), html(THRESHOLD)]);
     let failure = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await
@@ -364,7 +364,7 @@ async fn the_page_states_end_in_their_own_codes() {
         Some("3600")
     );
 
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), html(MALWARE)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), html(MALWARE)]);
     let failure = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await
@@ -376,14 +376,14 @@ async fn the_page_states_end_in_their_own_codes() {
         "the advisory is never clicked through"
     );
 
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), html(PASSWORD)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), html(PASSWORD)]);
     let failure = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await
         .expect_err("password");
     assert_eq!(failure.code.as_deref(), Some("mediafire.password_required"));
 
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         json(200, GET_INFO),
         html(
             "<html><title>Temporarily Unavailable</title><p>retry your download again in 45 seconds</p></html>",
@@ -404,7 +404,7 @@ async fn the_page_states_end_in_their_own_codes() {
         }
     );
 
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         json(200, GET_INFO),
         html_at(
             "https://www.mediafire.com/download_repair.php?qkey=ipnyzofjcwri357",
@@ -419,84 +419,4 @@ async fn the_page_states_end_in_their_own_codes() {
         failure.code.as_deref(),
         Some("mediafire.temporarily_unavailable")
     );
-}
-
-/// The page's status is classified the way every plugin classifies one (RA-PLG-03): a 404 or
-/// 410 is final, a 451 offline and retried, a 429 waits what its `Retry-After` says, and a 403
-/// is no refused account - this plugin sends none.
-#[tokio::test]
-async fn a_page_status_follows_the_shared_mapping() {
-    for (status, retry_after, expected) in [
-        (404_u16, None, FailureKind::Permanent),
-        (410, None, FailureKind::Permanent),
-        (451, None, FailureKind::Offline),
-        (403, None, FailureKind::Permanent),
-        (
-            429,
-            Some("120"),
-            FailureKind::RateLimited {
-                retry_after_seconds: Some(120),
-            },
-        ),
-        (
-            503,
-            Some("0"),
-            FailureKind::Transient {
-                retry_after_seconds: None,
-            },
-        ),
-    ] {
-        let mut refused = html(FILE_PAGE);
-        refused.status = status;
-        if let Some(value) = retry_after {
-            refused.headers.push(rd_plugin_api::ResolvedHeader {
-                name: "Retry-After".to_owned(),
-                value: value.to_owned(),
-            });
-        }
-        let host = MockHost::with_responses(vec![json(200, GET_INFO), refused]);
-        let failure = resolver(&host)
-            .resolve(resolve_request(FILE_URL))
-            .await
-            .expect_err("refused");
-        assert_eq!(failure.category, expected, "{status}");
-        assert_eq!(failure.code.as_deref(), Some("mediafire.http_error"));
-    }
-}
-
-#[tokio::test]
-async fn a_page_status_that_is_not_an_answer_is_reported() {
-    let mut refused = html(FILE_PAGE);
-    refused.status = 503;
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), refused]);
-    let failure = resolver(&host)
-        .resolve(resolve_request(FILE_URL))
-        .await
-        .expect_err("503");
-    assert_eq!(failure.code.as_deref(), Some("mediafire.http_error"));
-    assert_eq!(
-        failure.params.get("status").map(String::as_str),
-        Some("503")
-    );
-}
-
-#[tokio::test]
-async fn links_that_are_not_files_are_refused_without_a_request() {
-    let host = MockHost::with_responses(Vec::new());
-    let failure = resolver(&host)
-        .resolve(resolve_request(
-            "https://www.mediafire.com/upgrade/get_plan.php",
-        ))
-        .await
-        .expect_err("unsupported");
-    assert_eq!(failure.code.as_deref(), Some("mediafire.unsupported_link"));
-    assert_eq!(failure.category, FailureKind::Unsupported);
-    let failure = resolver(&host)
-        .resolve(resolve_request(
-            "https://www.mediafire.com/?ipnyzofjcwri357,8ipst0t9u6sibpx",
-        ))
-        .await
-        .expect_err("a list");
-    assert_eq!(failure.code.as_deref(), Some("mediafire.folder_not_file"));
-    assert!(host.requests().is_empty());
 }

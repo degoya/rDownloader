@@ -8,11 +8,12 @@
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_remote_job::{
-    CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteEntry,
-    RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest, host,
-    http::{RequestHeader, RequestQuery},
+    CacheAnswer, CacheKind, CacheQuery, Guest, JobSource, RemoteArtifact, RemoteEntry,
+    RemoteHandle, RemoteProgress, RemoteWork, SubmitRequest, bearer, handle_for, headers, host,
+    http::RequestQuery,
     refuse,
     types::{Failure, FailureKind},
+    unknown_answers,
 };
 
 use crate::{
@@ -34,28 +35,6 @@ fn token_reference(account_id: &str) -> &'static str {
         .unwrap_or(api::TOKEN_REFERENCES[1])
 }
 
-/// The bearer header, as a template. The token's value never reaches this plugin: the host
-/// substitutes it on the way out, towards `api.real-debrid.com` and nowhere else.
-fn headers(token: &str, content_type: Option<&str>) -> Vec<RequestHeader> {
-    let mut headers = vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{token}}}}}"),
-        },
-        RequestHeader {
-            name: "Accept".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ];
-    if let Some(value) = content_type {
-        headers.push(RequestHeader {
-            name: "Content-Type".to_owned(),
-            value_template: value.to_owned(),
-        });
-    }
-    headers
-}
-
 /// One request, with every status that is not an answer turned into one refusal.
 ///
 /// The vocabulary stays small on purpose: a caller gets bytes or a failure and never decides a
@@ -68,7 +47,9 @@ fn call(
     content_type: Option<&str>,
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
-    let headers = headers(token_reference(account_id), content_type);
+    // The bearer header is a template: the token's value never reaches this plugin, the host
+    // substitutes it on the way out, towards `api.real-debrid.com` and nowhere else.
+    let headers = headers(bearer(token_reference(account_id)), content_type);
     // An `error_code` decides whatever the status says, and a status decides when there is no
     // document to read. Both directions matter: Real-Debrid answers refusals with 2xx.
     plugin_guest_remote_job::call(
@@ -85,8 +66,7 @@ fn call(
 }
 
 fn parse<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, Failure> {
-    serde_json::from_slice(body)
-        .map_err(|_| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+    plugin_guest_remote_job::parse(body, messages::INVALID_RESPONSE)
 }
 
 /// The content key of a source, or the refusal that says it is not one of ours.
@@ -105,21 +85,7 @@ fn key_of(source: &JobSource) -> Result<String, Failure> {
 
 /// Checks an identifier before it is spliced into a request path.
 fn safe_id(handle: &RemoteHandle) -> Result<&str, Failure> {
-    if api::is_safe_remote_id(&handle.remote_id) {
-        Ok(&handle.remote_id)
-    } else {
-        Err(refuse(messages::TORRENT_GONE, FailureKind::Permanent))
-    }
-}
-
-fn handle_for(account_id: &str, remote_id: String) -> RemoteHandle {
-    RemoteHandle {
-        remote_id,
-        account_id: account_id.to_owned(),
-        // Nothing to carry: the identifier is the whole handle, and a plugin that put
-        // something here would be storing state the host would have to keep for no reason.
-        job_state: None,
-    }
+    plugin_guest_remote_job::safe_id(handle, api::is_safe_remote_id, messages::TORRENT_GONE)
 }
 
 impl Guest for Component {
@@ -136,14 +102,7 @@ impl Guest for Component {
         _account_id: String,
         queries: Vec<CacheQuery>,
     ) -> Result<Vec<CacheAnswer>, Failure> {
-        Ok(queries
-            .iter()
-            .map(|_| CacheAnswer {
-                state: CacheState::Unknown,
-                file_name: None,
-                size: None,
-            })
-            .collect())
+        Ok(unknown_answers(&queries))
     }
 
     /// Reaches nothing. Asked of every source before anything is handed to anybody, and

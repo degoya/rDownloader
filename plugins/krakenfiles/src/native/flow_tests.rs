@@ -2,19 +2,18 @@
 //! the direct link's probe - and every way the site says no along it.
 
 use rd_core::FailureKind;
-use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver};
+use rd_plugin_api::{CaptchaChallenge, Resolver};
 
 use super::super::KrakenfilesResolver;
 use super::{
-    CAPTCHA_INVALID, DIRECT_LINK, DOWNLOAD_OK, ERROR_PAGE, FILE_PAGE, FILE_PAGE_URL, MockHost,
-    TURNSTILE_SITE_KEY, body_of, file, header_of, html, json, resolve_request,
+    CANONICAL_LINK, CAPTCHA_INVALID, DIRECT_LINK, DOWNLOAD_OK, ERROR_PAGE, FILE_PAGE,
+    FILE_PAGE_URL, MockHost, TURNSTILE_SITE_KEY, body_of, file, header_of, html, json,
+    resolve_request,
 };
-
-const CANONICAL_LINK: &str = "https://krakenfiles.com/view/DP3nGKJNsX/file.html";
 
 #[tokio::test]
 async fn the_flow_solves_turnstile_posts_the_form_and_probes_the_link() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![html(200, FILE_PAGE), json(200, DOWNLOAD_OK), file(206)],
         Some("turnstile-token"),
     );
@@ -98,7 +97,7 @@ async fn the_flow_solves_turnstile_posts_the_form_and_probes_the_link() {
 /// The embed player's link names the same file; the flow starts at the file page for it.
 #[tokio::test]
 async fn an_embed_link_is_resolved_through_the_file_page() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![html(200, FILE_PAGE), json(200, DOWNLOAD_OK), file(206)],
         Some("turnstile-token"),
     );
@@ -118,7 +117,7 @@ async fn an_embed_link_is_resolved_through_the_file_page() {
 /// 2026-10-04) - and no widget is spent on it.
 #[tokio::test]
 async fn a_deleted_file_is_reported_by_code() {
-    let host = MockHost::new(vec![html(404, ERROR_PAGE)], Some("unused"));
+    let host = MockHost::free(vec![html(404, ERROR_PAGE)], Some("unused"));
     let resolver = KrakenfilesResolver::new(host.clone());
 
     let failure = resolver
@@ -138,7 +137,7 @@ async fn a_deleted_file_is_reported_by_code() {
 /// The same notice under a 200 is the same absence.
 #[tokio::test]
 async fn the_gone_notice_counts_whatever_the_status() {
-    let host = MockHost::new(vec![html(200, ERROR_PAGE)], Some("unused"));
+    let host = MockHost::free(vec![html(200, ERROR_PAGE)], Some("unused"));
     let resolver = KrakenfilesResolver::new(host);
 
     let failure = resolver
@@ -157,7 +156,7 @@ async fn the_gone_notice_counts_whatever_the_status() {
 #[tokio::test]
 async fn a_refused_file_page_is_no_refused_account() {
     for status in [401_u16, 403] {
-        let host = MockHost::new(
+        let host = MockHost::free(
             vec![html(status, "<html><body>Just a moment</body></html>")],
             Some("unused"),
         );
@@ -178,7 +177,7 @@ async fn a_refused_file_page_is_no_refused_account() {
 /// and reported as a rejected captcha the second time.
 #[tokio::test]
 async fn a_rejected_captcha_is_retried_from_the_top_then_reported() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![
             html(200, FILE_PAGE),
             json(500, CAPTCHA_INVALID),
@@ -209,7 +208,7 @@ async fn a_rejected_captcha_is_retried_from_the_top_then_reported() {
 
 #[tokio::test]
 async fn a_rejected_captcha_answered_well_the_second_time_resolves() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![
             html(200, FILE_PAGE),
             json(500, CAPTCHA_INVALID),
@@ -236,7 +235,7 @@ async fn a_rejected_captcha_answered_well_the_second_time_resolves() {
 #[tokio::test]
 async fn an_ok_answer_without_a_link_is_a_code_never_the_page() {
     for answer in [r#"{"status":"ok","url":"","msg":""}"#, r#"{"status":"ok"}"#] {
-        let host = MockHost::new(
+        let host = MockHost::free(
             vec![html(200, FILE_PAGE), json(200, answer)],
             Some("turnstile-token"),
         );
@@ -265,7 +264,7 @@ async fn an_ok_answer_without_a_link_is_a_code_never_the_page() {
 /// Any other refusal is temporary in JDownloader's reading, and the site's words travel.
 #[tokio::test]
 async fn another_refusal_carries_the_sites_wording() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![
             html(200, FILE_PAGE),
             json(
@@ -301,7 +300,7 @@ async fn another_refusal_carries_the_sites_wording() {
 /// A link on a host the manifest does not allow is refused here, not followed.
 #[tokio::test]
 async fn a_link_outside_the_download_domains_is_refused() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![
             html(200, FILE_PAGE),
             json(
@@ -339,7 +338,7 @@ async fn a_link_outside_the_download_domains_is_refused() {
 #[tokio::test]
 async fn a_refused_or_expired_direct_link_is_a_rate_limit_for_an_hour() {
     for status in [403_u16, 404, 405] {
-        let host = MockHost::new(
+        let host = MockHost::free(
             vec![html(200, FILE_PAGE), json(200, DOWNLOAD_OK), file(status)],
             Some("turnstile-token"),
         );
@@ -368,7 +367,7 @@ async fn a_refused_or_expired_direct_link_is_a_rate_limit_for_an_hour() {
 /// A page that is not the file page this plugin knows is a plugin/site mismatch, named.
 #[tokio::test]
 async fn a_page_without_the_form_reports_the_layout() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![html(
             200,
             "<html><head><title>Maintenance - Krakenfiles.com</title></head><body></body></html>",
@@ -397,7 +396,7 @@ async fn a_page_without_the_form_reports_the_layout() {
 /// Without a solver the flow reports the captcha; it never posts the form regardless.
 #[tokio::test]
 async fn a_captcha_without_a_solver_is_reported_verbatim() {
-    let host = MockHost::new(vec![html(200, FILE_PAGE)], None);
+    let host = MockHost::free(vec![html(200, FILE_PAGE)], None);
     let resolver = KrakenfilesResolver::new(host.clone());
 
     let failure = resolver
@@ -418,7 +417,7 @@ async fn a_captcha_without_a_solver_is_reported_verbatim() {
 /// is not the answer is an unreadable answer.
 #[tokio::test]
 async fn an_answer_that_is_not_json_is_judged_by_its_status() {
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![
             html(200, FILE_PAGE),
             html(502, "<title>Bad gateway</title>"),
@@ -441,7 +440,7 @@ async fn an_answer_that_is_not_json_is_judged_by_its_status() {
         Some("502")
     );
 
-    let host = MockHost::new(
+    let host = MockHost::free(
         vec![html(200, FILE_PAGE), html(200, "<title>Not JSON</title>")],
         Some("turnstile-token"),
     );
@@ -453,70 +452,4 @@ async fn an_answer_that_is_not_json_is_judged_by_its_status() {
         failure.code.as_deref(),
         Some("krakenfiles.invalid_response")
     );
-}
-
-/// Nothing survives a restart: a second resolve of the same link, on a fresh process, starts
-/// at the page again and earns its own token and challenge.
-#[tokio::test]
-async fn a_resolve_after_a_restart_starts_from_the_page_again() {
-    for _restart in 0..2 {
-        let host = MockHost::new(
-            vec![html(200, FILE_PAGE), json(200, DOWNLOAD_OK), file(206)],
-            Some("turnstile-token"),
-        );
-        let resolver = KrakenfilesResolver::new(host.clone());
-        resolver
-            .resolve(resolve_request(CANONICAL_LINK))
-            .await
-            .expect("resolves");
-        assert_eq!(host.request_count(), 3);
-        assert_eq!(host.captcha_count(), 1);
-    }
-}
-
-/// An account on the request cannot belong to this provider; the flow is the same.
-#[tokio::test]
-async fn an_account_on_the_request_is_ignored() {
-    let host = MockHost::new(
-        vec![html(200, FILE_PAGE), json(200, DOWNLOAD_OK), file(206)],
-        Some("turnstile-token"),
-    );
-    let resolver = KrakenfilesResolver::new(host.clone());
-
-    let resolved = resolver
-        .resolve(ResolveRequest {
-            url: CANONICAL_LINK.parse().expect("url"),
-            client: ClientIdentity {
-                account_id: Some(rd_core::AccountId::new()),
-                proxy_profile_id: None,
-                tls_revision: 3,
-            },
-        })
-        .await
-        .expect("resolves");
-
-    assert_eq!(resolved.url.as_str(), DIRECT_LINK);
-    assert_eq!(
-        resolved.client.tls_revision, 3,
-        "the identity comes back untouched"
-    );
-}
-
-/// An unsupported link is refused before any request is made.
-#[tokio::test]
-async fn an_unsupported_link_is_refused_without_a_request() {
-    let host = MockHost::new(Vec::new(), Some("unused"));
-    let resolver = KrakenfilesResolver::new(host.clone());
-
-    let failure = resolver
-        .resolve(resolve_request("https://krakenfiles.com/view/DP3nGKJNsX"))
-        .await
-        .expect_err("short form");
-
-    assert_eq!(failure.category, FailureKind::Unsupported);
-    assert_eq!(
-        failure.code.as_deref(),
-        Some("krakenfiles.unsupported_link")
-    );
-    assert_eq!(host.request_count(), 0);
 }

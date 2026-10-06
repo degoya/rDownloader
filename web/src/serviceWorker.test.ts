@@ -16,24 +16,36 @@ const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../pu
 
 interface Worker {
   install: () => Promise<string[]>
+  /** The caches the worker opened, by name, in order. */
+  opened: string[]
+  /** Runs the activate step over the caches `existing` names; returns the ones it deleted. */
+  activate: (existing: string[]) => Promise<string[]>
   /** Whether the worker answers this GET itself (cache or network) or leaves it to the browser. */
   intercepts: (url: string) => boolean
 }
 
-function worker(scope: string): Worker {
+/** `version` is what the page puts in the worker's address (`sw.js?v=…`); none by default. */
+function worker(scope: string, version?: string): Worker {
   const listeners: Record<string, (event: unknown) => void> = {}
   const stored: string[] = []
+  const opened: string[] = []
+  let existing: string[] = []
+  const deleted: string[] = []
   const self = {
     registration: { scope },
-    location: new URL(scope),
+    location: new URL(version ? `sw.js?v=${version}` : 'sw.js', scope),
     addEventListener: (name: string, listener: (event: unknown) => void) => { listeners[name] = listener },
     skipWaiting: () => Promise.resolve(),
     clients: { claim: () => Promise.resolve() }
   }
   const caches = {
-    open: () => Promise.resolve({ addAll: (urls: string[]) => { stored.push(...urls); return Promise.resolve() } }),
+    open: (name: string) => {
+      opened.push(name)
+      return Promise.resolve({ addAll: (urls: string[]) => { stored.push(...urls); return Promise.resolve() } })
+    },
     match: () => Promise.resolve(undefined),
-    keys: () => Promise.resolve([])
+    keys: () => Promise.resolve(existing),
+    delete: (name: string) => { deleted.push(name); return Promise.resolve(true) }
   }
   const fetch = () => Promise.resolve({ ok: false })
   new Function('self', 'caches', 'fetch', source)(self, caches, fetch)
@@ -43,6 +55,14 @@ function worker(scope: string): Worker {
       listeners.install?.({ waitUntil: (promise: Promise<unknown>) => { done = promise } })
       await done
       return stored
+    },
+    opened,
+    activate: async (names: string[]) => {
+      existing = names
+      let done: Promise<unknown> = Promise.resolve()
+      listeners.activate?.({ waitUntil: (promise: Promise<unknown>) => { done = promise } })
+      await done
+      return deleted
     },
     intercepts: (url: string) => {
       const respondWith = vi.fn()
@@ -80,5 +100,21 @@ describe('the service worker', () => {
     expect(sw.intercepts('https://nas.local/api/v1/downloads')).toBe(false)
     expect(sw.intercepts('https://nas.local/api/v2/torrents/info')).toBe(false)
     expect(sw.intercepts('https://nas.local/assets/index-abc.js')).toBe(true)
+  })
+
+  it('keeps one shell cache per version and drops the others when it takes over', async () => {
+    // A tab left open across an update must not be served last version's shell, and the cache
+    // must not grow with every update (RD-1120-16).
+    const sw = worker('https://nas.local/', '1.12.0')
+
+    await sw.install()
+    expect(sw.opened).toEqual(['rdownloader-shell-v2-1.12.0'])
+
+    const deleted = await sw.activate([
+      'rdownloader-shell-v2',
+      'rdownloader-shell-v2-1.11.0',
+      'rdownloader-shell-v2-1.12.0'
+    ])
+    expect(deleted).toEqual(['rdownloader-shell-v2', 'rdownloader-shell-v2-1.11.0'])
   })
 })

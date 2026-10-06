@@ -7,7 +7,7 @@ use std::{
 };
 
 use axum::{Json, Router, extract::State, http::Uri, routing::post};
-use rd_captcha::{CaptchaBroker, CaptchaKind, SubmitOutcome};
+use rd_captcha::{CaptchaBroker, CaptchaKind, SolverTiming, SubmitOutcome};
 use rd_core::FailureKind;
 use rd_plugin_api::{CaptchaAnswer, CaptchaChallenge, ImageChallenge, WidgetChallenge};
 use serde_json::{Value, json};
@@ -31,7 +31,17 @@ async fn fixture() -> Fixture {
         .await
         .expect("secrets");
     Fixture {
-        broker: CaptchaBroker::new(database.clone(), secrets.clone()),
+        // The local solver answers at once; the service's 8 s grace before the first poll
+        // only made the solver tests wait (RD-1120-08).
+        broker: CaptchaBroker::with_solver_timing(
+            database.clone(),
+            secrets.clone(),
+            SolverTiming {
+                first_poll_delay: Duration::from_millis(10),
+                poll_interval: Duration::from_millis(10),
+                ..SolverTiming::default()
+            },
+        ),
         database,
         secrets,
         _directory: directory,

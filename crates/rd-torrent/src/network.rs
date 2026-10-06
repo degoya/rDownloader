@@ -9,7 +9,7 @@
 //!
 //! The kill switch closes the remaining gap: binding stops new traffic from leaving the
 //! wrong interface, but an already established session has to be paused when the interface
-//! disappears, and resumed when it returns.
+//! disappears, and resumed when it returns. What it does to the torrents is `kill_switch.rs`.
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -135,46 +135,6 @@ impl TorrentService {
                 .map(|error| format!("{error:#}")),
             upnp_enabled: settings.torrent_upnp_enabled,
             announce_port: settings.torrent_announce_port,
-        }
-    }
-
-    /// Pauses every registered torrent and remembers that the kill switch did it.
-    async fn engage_kill_switch(&self) {
-        if self
-            .inner
-            .kill_switch_engaged
-            .swap(true, std::sync::atomic::Ordering::SeqCst)
-        {
-            return;
-        }
-        tracing::warn!("bound network interface disappeared; pausing all torrent traffic");
-        let Ok(session) = self.session().await else {
-            return;
-        };
-        for (_, entry) in self.inner.registry.read().await.snapshot() {
-            if let Some(handle) = session.get(entry.handle()) {
-                let _ = session.pause(&handle).await;
-            }
-        }
-    }
-
-    /// Resumes exactly what the kill switch paused.
-    async fn release_kill_switch(&self) {
-        if !self
-            .inner
-            .kill_switch_engaged
-            .swap(false, std::sync::atomic::Ordering::SeqCst)
-        {
-            return;
-        }
-        tracing::info!("bound network interface returned; resuming torrent traffic");
-        let Ok(session) = self.session().await else {
-            return;
-        };
-        for (_, entry) in self.inner.registry.read().await.snapshot() {
-            if let Some(handle) = session.get(entry.handle()) {
-                let _ = session.unpause(&handle).await;
-            }
         }
     }
 }

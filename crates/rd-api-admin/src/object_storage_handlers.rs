@@ -23,7 +23,8 @@ use crate::{ApiError, AppState, config_fields::cleanup_secrets, dto::MessageResp
 #[path = "object_storage_fields.rs"]
 mod fields;
 
-use fields::{Draft, Fields, normalized, secret_required, validate_secrets};
+use fields::{Draft, Fields, secret_required, validate_secrets};
+use rd_api_core::input_checks::optional_text;
 
 /// A new object storage profile. The key fields are write-only.
 #[derive(Deserialize, ToSchema)]
@@ -124,8 +125,8 @@ pub async fn create_object_storage_profile(
         access_key_id: request.access_key_id,
         account: request.account,
     })?;
-    let secret = normalized(request.secret_access_key);
-    let token = normalized(request.session_token);
+    let secret = optional_text(request.secret_access_key);
+    let token = optional_text(request.session_token);
     validate_secrets(&fields, secret.as_deref(), token.as_deref())?;
     let (secret, token) = if fields.source.stores_secret() {
         if secret.is_none() {
@@ -178,8 +179,8 @@ pub async fn update_object_storage_profile(
         access_key_id: request.access_key_id,
         account: request.account,
     })?;
-    let secret = normalized(request.secret_access_key);
-    let token = normalized(request.session_token);
+    let secret = optional_text(request.secret_access_key);
+    let token = optional_text(request.session_token);
     validate_secrets(&fields, secret.as_deref(), token.as_deref())?;
 
     let signs = fields.source.stores_secret();

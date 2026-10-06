@@ -86,15 +86,30 @@ fn serve_with_base(uri: &axum::http::Uri, base: &str) -> Response {
                 .insert(header::CONTENT_SECURITY_POLICY, value);
         }
     }
-    if requested == "sw.js" {
-        // A cached service worker keeps serving an old shell after an update. Browsers
-        // already bypass the HTTP cache for the worker script, but proxies do not.
+    if let Some(policy) = cache_policy(served_as) {
         response.headers_mut().insert(
             header::CACHE_CONTROL,
-            header::HeaderValue::from_static("no-cache"),
+            header::HeaderValue::from_static(policy),
         );
     }
     response
+}
+
+/// How long a browser or proxy may keep what was served as `served_as` (RD-1120-16).
+///
+/// The shell — `index.html` at the root, by name and as the SPA fallback — is revalidated on
+/// every load: it names the bundle's files, and a cached one kept an old interface running after
+/// an update until a hard reload. A cached service worker does the same; browsers already bypass
+/// the HTTP cache for the worker script, but proxies do not. The files under `assets/` carry
+/// their content hash in the name, so a cached copy is right forever.
+fn cache_policy(served_as: &str) -> Option<&'static str> {
+    if served_as == "index.html" || served_as == "sw.js" {
+        Some("no-cache")
+    } else if served_as.starts_with("assets/") {
+        Some("public, max-age=31536000, immutable")
+    } else {
+        None
+    }
 }
 
 /// Whether a path must resolve to a real asset rather than the SPA shell.
@@ -109,7 +124,7 @@ fn must_exist(path: &str) -> bool {
 mod tests {
     use axum::http::header;
 
-    use super::serve_with_base;
+    use super::{WebAssets, serve_with_base};
 
     #[tokio::test]
     async fn a_missing_manifest_or_worker_is_not_answered_with_the_app_shell() {
@@ -151,6 +166,32 @@ mod tests {
         let mounted = policy("/queue", "/downloads").expect("the shell has a policy");
         assert!(mounted.contains("script-src 'self' 'sha256-"), "{mounted}");
         assert_eq!(policy("/favicon.svg", ""), None);
+    }
+
+    /// The shell is revalidated on every load, the content-hashed assets are kept for a year,
+    /// so a page opened after an update gets the new interface without a hard reload
+    /// (RD-1120-16).
+    #[tokio::test]
+    async fn the_shell_is_revalidated_and_hashed_assets_are_immutable() {
+        let cache_control = |path: &str| {
+            serve_with_base(&path.parse().expect("URI"), "")
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned)
+        };
+        for shell in ["/", "/index.html", "/linkgrabber", "/settings/system"] {
+            assert_eq!(cache_control(shell).as_deref(), Some("no-cache"), "{shell}");
+        }
+        assert_eq!(cache_control("/sw.js").as_deref(), Some("no-cache"));
+        let asset = WebAssets::iter()
+            .find(|name| name.starts_with("assets/"))
+            .expect("the bundle has content-hashed assets");
+        assert_eq!(
+            cache_control(&format!("/{asset}")).as_deref(),
+            Some("public, max-age=31536000, immutable")
+        );
+        assert_eq!(cache_control("/favicon.svg"), None);
     }
 
     #[tokio::test]

@@ -1,13 +1,7 @@
 //! The component: rename the package's files to a tidy form.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "postprocess-plugin",
-});
-
-use exports::rdownloader::plugin::postprocess::{Guest, StepComplete, StepEnd, StepInput};
-use rdownloader::plugin::source;
+use plugin_guest_postprocess::{Guest, StepComplete, StepEnd, StepInput, source};
 
 use crate::rules::{Rules, rename_to};
 
@@ -78,4 +72,4 @@ fn read_checkpoint(bytes: &[u8]) -> Option<(u32, String)> {
     Some((u32::from_le_bytes(*count), name.to_owned()))
 }
 
-export!(Component);
+plugin_guest_postprocess::postprocess_plugin!(Component);

@@ -20,6 +20,7 @@ import { createI18n } from 'vue-i18n'
 import { messageResolver } from '@/i18n/resolver'
 import { DATETIME_FORMATS } from '@/i18n/formats'
 import common from '@/locales/en/common.json'
+import { clockOf, dateFieldValue, dayOf, timeFieldValue } from '@/utils/timeFields'
 
 /** Renders slot content, so what sits inside a Nuxt UI wrapper is reachable in the DOM. */
 export const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
@@ -245,8 +246,10 @@ export const uiStubs = {
   UInput: modelInput,
   /**
    * The number field as Reka's renders it — a text input with the role `spinbutton` — handing
-   * its model a number, and `undefined` for an emptied field as the real one does (RD-1110-10).
-   * It neither clamps nor reads a decimal comma; `utils/numberInput.test.ts` runs the real parser.
+   * its model a number, and `undefined` for an emptied field as the real one does (RD-1110-10;
+   * `test/inputNumber.test.ts` mounts the real one and holds both to that value). It commits on
+   * every keystroke where the real one waits for blur or Enter, and it neither clamps nor reads
+   * a decimal comma; `utils/numberInput.test.ts` runs the real parser.
    */
   UInputNumber: {
     props: ['modelValue', 'formatOptions', 'stepSnapping', 'increment', 'decrement'],
@@ -254,6 +257,24 @@ export const uiStubs = {
     template:
       '<input type="text" role="spinbutton" v-bind="$attrs" :value="modelValue ?? \'\'" '
       + '@input="$emit(\'update:modelValue\', $event.target.value.trim() === \'\' ? undefined : Number($event.target.value))" />'
+  },
+  /**
+   * The time and the date field as a text input showing `HH:MM` or `YYYY-MM-DD`, handing its
+   * model the `Time` or `CalendarDate` the real one hands, `undefined` once emptied (RD-1120-23).
+   */
+  UInputTime: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    methods: { clockOf, timeFieldValue },
+    template:
+      '<input type="text" v-bind="$attrs" :value="clockOf(modelValue)" @input="$emit(\'update:modelValue\', timeFieldValue($event.target.value))" />'
+  },
+  UInputDate: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    methods: { dayOf, dateFieldValue },
+    template:
+      '<input type="text" v-bind="$attrs" :value="dayOf(modelValue)" @input="$emit(\'update:modelValue\', dateFieldValue($event.target.value))" />'
   },
   /**
    * The combo box rendered open, with the search term where the real one keeps it: typing
@@ -301,19 +322,20 @@ export const uiStubs = {
   /** Named by its percentage unless the caller names it, as Reka's `ProgressRoot` does. */
   UProgress: { props: ['modelValue'], template: '<div role="progressbar" :aria-label="`${modelValue ?? 0}%`" v-bind="$attrs" />' },
   /**
-   * Real radio inputs, each named by the label that wraps it.
+   * Real radio inputs, each named by the label that wraps it — the item's label or the `label`
+   * slot, and disabled with the group or on its own, as the real one does.
    *
    * A stub that only rendered the labels would answer "is the first option preselected?" with
    * nothing, because the selection lives in the input's checkedness and nowhere else — which is
    * exactly the state RD-109-35 was about.
    */
   URadioGroup: {
-    props: ['modelValue', 'items'],
+    props: ['modelValue', 'items', 'disabled'],
     emits: ['update:modelValue'],
     template:
       '<fieldset v-bind="$attrs"><label v-for="item in items" :key="item.value">'
-      + '<input type="radio" :value="item.value" :checked="modelValue === item.value"'
-      + ' @change="$emit(\'update:modelValue\', item.value)" />{{ item.label }}</label></fieldset>'
+      + '<input type="radio" :value="item.value" :checked="modelValue === item.value" :disabled="disabled || item.disabled"'
+      + ' @change="$emit(\'update:modelValue\', item.value)" /><slot name="label" :item="item">{{ item.label }}</slot></label></fieldset>'
   },
   USelect: {
     props: ['modelValue', 'items'],

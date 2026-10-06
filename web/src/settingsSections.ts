@@ -8,8 +8,11 @@
  *
  * The six rubrics are the owner's decision of 2026-09-22 (RD-110-29, "Vorschlag A"): a page
  * sits where somebody looks for it — tools with the integrations, BitTorrent beside Usenet,
- * unattended operation not under bandwidth. `settingsSections.test.ts` holds this table to
- * that decision, so a page that wanders into another rubric fails a test rather than a reader.
+ * unattended operation not under bandwidth. RD-1120-23 moved *Services* to the head of Sources &
+ * protocols, joined *Desktop client* and *API & MCP* into *Clients & API* and gave the LinkGrabber
+ * a page of its own (owner, 2026-10-06, decisions A and B). `settingsSections.test.ts` holds this
+ * table to those decisions, so a page that wanders into another rubric fails a test rather than a
+ * reader.
  */
 export interface SettingsSection {
   /** Route segment and section id, e.g. `/settings/usenet`. */
@@ -57,25 +60,27 @@ export const SETTINGS_SECTION_GROUPS = [
     labelKey: 'settings.groups.general',
     sections: [
       page('general', 'i-lucide-sliders-horizontal'),
-      page('interface', 'i-lucide-monitor-cog'),
-      page('desktop', 'i-lucide-monitor-smartphone')
+      page('interface', 'i-lucide-monitor-cog')
     ]
   },
   {
     value: 'downloads',
     labelKey: 'settings.groups.downloads',
+    // The way a download takes (RD-1120-23): in, to its folder, after it, and at what pace.
     sections: [
-      domainPage('routing', 'i-lucide-folder-tree', 'routing'),
       page('hotfolders', 'i-lucide-folder-symlink'),
+      page('linkgrabber', 'i-lucide-link'),
+      domainPage('routing', 'i-lucide-folder-tree', 'routing'),
+      page('postprocess', 'i-lucide-workflow'),
       page('bandwidth', 'i-lucide-gauge'),
-      page('unattended', 'i-lucide-moon-star'),
-      page('postprocess', 'i-lucide-workflow')
+      page('unattended', 'i-lucide-moon-star')
     ]
   },
   {
     value: 'sources',
     labelKey: 'settings.groups.sources',
     sections: [
+      page('services', 'i-lucide-toggle-left'),
       page('accounts', 'i-lucide-key-round'),
       page('captcha', 'i-lucide-scan-eye'),
       domainPage('siterules', 'i-lucide-scan-search', 'siterules'),
@@ -89,11 +94,10 @@ export const SETTINGS_SECTION_GROUPS = [
     value: 'integrations',
     labelKey: 'settings.groups.integrations',
     sections: [
-      page('services', 'i-lucide-toggle-left'),
       domainPage('plugins', 'i-lucide-blocks', 'plugins'),
       page('tools', 'i-lucide-wrench'),
       page('notifications', 'i-lucide-bell'),
-      page('mcp', 'i-lucide-bot')
+      page('clients', 'i-lucide-monitor-smartphone')
     ]
   },
   {
@@ -109,7 +113,7 @@ export const SETTINGS_SECTION_GROUPS = [
     labelKey: 'settings.groups.administration',
     sections: [
       page('backup', 'i-lucide-database-backup'),
-      page('system', 'i-lucide-network'),
+      page('system', 'i-lucide-cpu'),
       page('about', 'i-lucide-info')
     ]
   }
@@ -134,6 +138,12 @@ export interface SettingsSubTab {
    * waits for the document rather than showing its placeholders (RA-WEB-05).
    */
   showsDocument?: true
+  /**
+   * The tab saves its own cards and carries one card of the settings document (RD-1120-21): the
+   * save bar belongs under it, but the tab does not wait for the document — that card does, in
+   * `SettingsDocumentGate` — so its own lists stay usable when the document cannot be loaded.
+   */
+  documentCard?: true
 }
 
 /**
@@ -144,10 +154,14 @@ export interface SettingsSubTab {
  */
 export const SETTINGS_SUB_TABS = {
   routing: [
-    { value: 'roots', labelKey: 'routing.tabs.roots', icon: 'i-lucide-hard-drive' },
+    { value: 'roots', labelKey: 'routing.tabs.roots', icon: 'i-lucide-hard-drive', documentCard: true },
     { value: 'categories', labelKey: 'routing.tabs.categories', icon: 'i-lucide-folder-tree' },
-    { value: 'rules', labelKey: 'routing.tabs.rules', icon: 'i-lucide-git-branch' },
-    { value: 'collector', labelKey: 'routing.tabs.collector', icon: 'i-lucide-shield-ban', saveBar: true }
+    { value: 'rules', labelKey: 'routing.tabs.rules', icon: 'i-lucide-git-branch' }
+  ],
+  bandwidth: [
+    { value: 'status', labelKey: 'settings.subtabs.bandwidth.status', icon: 'i-lucide-gauge', documentCard: true },
+    { value: 'profiles', labelKey: 'settings.subtabs.bandwidth.profiles', icon: 'i-lucide-sliders-horizontal' },
+    { value: 'schedule', labelKey: 'settings.subtabs.bandwidth.schedule', icon: 'i-lucide-calendar-clock' }
   ],
   plugins: [
     { value: 'installed', labelKey: 'plugins.tabs.installed', icon: 'i-lucide-blocks' },
@@ -158,11 +172,10 @@ export const SETTINGS_SUB_TABS = {
   ],
   network: [
     { value: 'proxies', labelKey: 'settings.subtabs.network.proxies', icon: 'i-lucide-waypoints', saveBar: true },
-    { value: 'auth', labelKey: 'settings.subtabs.network.auth', icon: 'i-lucide-key-square' },
     { value: 'reconnect', labelKey: 'settings.subtabs.network.reconnect', icon: 'i-lucide-router', saveBar: true }
   ],
   security: [
-    { value: 'signin', labelKey: 'settings.subtabs.security.signin', icon: 'i-lucide-key-round' },
+    { value: 'signin', labelKey: 'settings.subtabs.security.signin', icon: 'i-lucide-key-round', documentCard: true },
     { value: 'sessions', labelKey: 'settings.subtabs.security.sessions', icon: 'i-lucide-monitor-smartphone', saveBar: true },
     { value: 'proxy', labelKey: 'settings.subtabs.security.proxy', icon: 'i-lucide-shield', saveBar: true }
   ],
@@ -170,6 +183,19 @@ export const SETTINGS_SUB_TABS = {
     { value: 'status', labelKey: 'settings.subtabs.system.status', icon: 'i-lucide-activity', showsDocument: true },
     { value: 'updates', labelKey: 'settings.subtabs.system.updates', icon: 'i-lucide-refresh-cw', saveBar: true },
     { value: 'retention', labelKey: 'settings.subtabs.system.retention', icon: 'i-lucide-archive', saveBar: true }
+  ],
+  usenet: [
+    { value: 'servers', labelKey: 'usenet.tabs.servers', icon: 'i-lucide-server', documentCard: true },
+    { value: 'indexers', labelKey: 'usenet.tabs.indexers', icon: 'i-lucide-search' }
+  ],
+  accounts: [
+    { value: 'accounts', labelKey: 'settings.subtabs.accounts.accounts', icon: 'i-lucide-key-round' },
+    { value: 'logins', labelKey: 'settings.subtabs.accounts.logins', icon: 'i-lucide-key-square' }
+  ],
+  clients: [
+    { value: 'desktop', labelKey: 'settings.subtabs.clients.desktop', icon: 'i-lucide-monitor' },
+    { value: 'browser', labelKey: 'settings.subtabs.clients.browser', icon: 'i-lucide-puzzle' },
+    { value: 'api', labelKey: 'settings.subtabs.clients.api', icon: 'i-lucide-bot' }
   ]
 } as const satisfies Partial<Record<SettingsSectionValue, readonly SettingsSubTab[]>>
 
@@ -195,17 +221,34 @@ export function settingsSection(value: unknown): string | null {
 }
 
 /**
+ * Pages and sub-tabs that moved (RD-1120-23), old address to new. Keyed by the segment, or by
+ * `segment?tab=value` where only one sub-tab left its page.
+ */
+const MOVED_SETTINGS_PAGES: Readonly<Record<string, string>> = {
+  desktop: '/settings/clients',
+  mcp: '/settings/clients?tab=api',
+  'routing?tab=collector': '/settings/linkgrabber',
+  'network?tab=auth': '/settings/accounts?tab=logins'
+}
+
+/**
  * Where an older address leads, or null when it needs no redirect.
  *
- * Two forms are kept alive for bookmarks and for the links other views hold: `/settings?tab=usenet`,
- * which every link used before the pages had addresses of their own, and a segment that names
- * no page, which goes to the overview rather than to an arbitrary page. Every segment that
- * existed before the six rubrics still exists, so no old page name has to be mapped to a new one.
+ * Three forms are kept alive for bookmarks and for the links other views hold: `/settings?tab=usenet`,
+ * which every link used before the pages had addresses of their own; a page or a sub-tab that
+ * moved (`MOVED_SETTINGS_PAGES`); and a segment that names no page, which goes to the overview
+ * rather than to an arbitrary page.
  */
 export function settingsRedirect(section: unknown, tab: unknown): string | null {
   if (section === undefined) {
+    if (typeof tab === 'string' && MOVED_SETTINGS_PAGES[tab]) return MOVED_SETTINGS_PAGES[tab]
     const target = settingsSection(tab)
     return target ? `/settings/${target}` : null
+  }
+  if (typeof section === 'string') {
+    const moved = (typeof tab === 'string' ? MOVED_SETTINGS_PAGES[`${section}?tab=${tab}`] : undefined)
+      ?? MOVED_SETTINGS_PAGES[section]
+    if (moved) return moved
   }
   return settingsSection(section) ? null : '/settings'
 }

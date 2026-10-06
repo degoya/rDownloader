@@ -10,7 +10,11 @@
 
 // v2: the shell is stored under the scope's own addresses since the base-path fix; the activate
 // step below drops a v1 cache that may hold API answers stored under a reverse-proxy path.
-const SHELL_CACHE = 'rdownloader-shell-v2'
+// The build's version follows it: the page registers `sw.js?v=<version>`, so every version is a
+// new worker with a cache of its own, and its activate step drops the last version's shell and
+// assets instead of letting one cache grow with every update (RD-1120-16).
+const BUILD = new URL(self.location.href).searchParams.get('v')
+const SHELL_CACHE = BUILD ? `rdownloader-shell-v2-${BUILD}` : 'rdownloader-shell-v2'
 
 /**
  * Where the app is mounted, taken from the worker's own scope: `/` at the root, `/downloads/`

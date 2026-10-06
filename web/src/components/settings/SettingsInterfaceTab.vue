@@ -8,6 +8,7 @@ import { useNotifications } from '@/composables/useNotifications'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { languageItems, setLocale, type AppLocale } from '@/i18n'
 import { BYTE_UNIT_STEPS } from '@/utils/byteDisplay'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const settings = defineModel<Settings>({ required: true })
 
@@ -83,6 +84,28 @@ async function toggleNotifications(value: boolean): Promise<void> {
         <UFormField data-settings-anchor="interface.theme" :label="t('common.preferences.theme')" :description="t('settings.appearance.theme_description')">
           <USelect v-model="theme" :items="themeItems" value-key="value" icon="i-lucide-sun-moon" class="w-full" />
         </UFormField>
+      </div>
+      <UFormField data-settings-anchor="interface.browser_notifications" :label="t('settings.notifications.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+        <template #description>
+          {{ t('settings.notifications.description') }}
+          <span v-if="!notifications.supported" class="mt-1 block text-warning">{{ t('settings.notifications.unsupported') }}</span>
+          <span v-else-if="notificationsDenied || notifications.permission.value === 'denied'" class="mt-1 block text-warning">{{ t('settings.notifications.denied') }}</span>
+        </template>
+        <USwitch v-model="notificationsModel" :disabled="!notifications.supported" />
+      </UFormField>
+      <SettingsCrossLink class="mt-2" anchor="notifications.targets" />
+    </UCard>
+
+    <!-- Fields of the settings document: they hold in every browser, so they are not under the
+         "this browser only" card above (RD-1120-23). -->
+    <UCard as="section" data-settings-anchor="interface.display">
+      <SectionHeader
+        :eyebrow="t('settings.display.eyebrow')"
+        :title="t('settings.display.title')"
+        :description="t('settings.display.description')"
+        level="sub"
+      />
+      <div class="mt-4 grid gap-3">
         <UFormField data-settings-anchor="interface.byte_display" :label="t('settings.appearance.byte_display.label')" :description="t('settings.appearance.byte_display.description')">
           <USelect v-model="settings.byte_display" :items="byteDisplayItems" value-key="value" icon="i-lucide-hard-drive" class="w-full" />
         </UFormField>
@@ -93,15 +116,31 @@ async function toggleNotifications(value: boolean): Promise<void> {
       <UFormField data-settings-anchor="interface.title_status" :label="t('settings.appearance.title_status.label')" :description="t('settings.appearance.title_status.description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
         <USwitch v-model="settings.title_status_enabled" />
       </UFormField>
-      <UFormField data-settings-anchor="interface.browser_notifications" :label="t('settings.notifications.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+      <UFormField data-settings-anchor="interface.indexer_images" :label="t('settings.collector.indexer_images.enabled.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
         <template #description>
-          {{ t('settings.notifications.description') }}
-          <span v-if="!notifications.supported" class="mt-1 block text-warning">{{ t('settings.notifications.unsupported') }}</span>
-          <span v-else-if="notificationsDenied || notifications.permission.value === 'denied'" class="mt-1 block text-warning">{{ t('settings.notifications.denied') }}</span>
+          {{ t('settings.collector.indexer_images.description') }}
+          <span class="mt-1 block">{{ t('settings.collector.indexer_images.enabled.description') }}</span>
         </template>
-        <USwitch v-model="notificationsModel" :disabled="!notifications.supported" />
+        <USwitch v-model="settings.subscription_item_images_enabled" />
       </UFormField>
+      <USeparator class="mt-4" />
+      <div data-settings-anchor="interface.nzb_hand_over" class="mt-4 space-y-4">
+        <div>
+          <SectionHeader
+            :eyebrow="t('settings.collector.nzb_hand_over.eyebrow')"
+            :title="t('settings.collector.nzb_hand_over.title')"
+            :description="t('settings.collector.nzb_hand_over.description')"
+            level="sub"
+          />
+          <SettingsCrossLink class="mt-2" anchor="accounts.list" />
+        </div>
+        <UFormField :label="t('settings.collector.nzb_hand_over.linkgrabber.label')" :description="t('settings.collector.nzb_hand_over.linkgrabber.description')" orientation="horizontal">
+          <USwitch v-model="settings.nzb_hand_over_linkgrabber_enabled" />
+        </UFormField>
+        <UFormField :label="t('settings.collector.nzb_hand_over.downloads.label')" :description="t('settings.collector.nzb_hand_over.downloads.description')" orientation="horizontal">
+          <USwitch v-model="settings.nzb_hand_over_downloads_enabled" />
+        </UFormField>
+      </div>
     </UCard>
-
   </div>
 </template>

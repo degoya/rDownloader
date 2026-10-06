@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Automation, AutomationRun } from '@/api/types'
 import { formatMoment } from '@/utils/format'
+import { editingRowClass } from '@/utils/editingRow'
 
 const props = defineProps<{
   automation: Automation
@@ -17,7 +18,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <article class="p-4" :class="props.editing ? 'border-l-2 border-l-primary' : ''">
+  <article class="p-4" :class="editingRowClass(props.editing, 'stripe')">
     <div class="flex flex-wrap items-center gap-3">
       <UChip standalone color="success" :show="props.automation.enabled" class="w-2" />
       <div class="min-w-0 flex-1">

@@ -12,7 +12,7 @@
 //! a key-shaped string through every surface that takes provider text.
 //!
 //! The wire is proven separately and more strongly in
-//! `crates/rd-plugin-ext/tests/premiumize_transfers_contract.rs`, which reads the headers the
+//! `crates/rd-plugin-ext/tests/contract/premiumize_transfers_contract.rs`, which reads the headers the
 //! component actually produced.
 
 use rd_plugin_premiumize_transfers::{api, messages};
@@ -53,9 +53,17 @@ fn the_reference_is_only_ever_named_inside_a_secret_template() {
         named, 1,
         "the reference is named {named} times in the guest"
     );
+    // The one naming hands the reference to the shared remote-job glue (RD-1120-10), whose
+    // `bearer` is the template and nothing else.
     assert!(
-        guest.contains(r#"format!("Bearer {{{{secret:{}}}}}", api::KEY_REFERENCE)"#),
+        guest.contains("bearer(api::KEY_REFERENCE)"),
         "the one naming is not the bearer template"
+    );
+    let glue = std::fs::read_to_string(manifest_dir().join("../guest-remote-job/src/lib.rs"))
+        .expect("the shared remote-job glue");
+    assert!(
+        glue.contains(r#"format!("Bearer {{{{secret:{reference}}}}}")"#),
+        "the shared bearer is not the secret template"
     );
     for source in sources() {
         assert!(

@@ -17,9 +17,7 @@ pub(crate) fn invalid_response() -> ApiFailure {
 
 /// A URL this plugin built or the API handed back failed to parse.
 pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> ApiFailure {
-    let text = messages::invalid_url(error);
-    ApiFailure::new(ErrorKind::Permanent, (messages::INVALID_URL, text.as_str()))
-        .with_param("error", error.to_string())
+    plugin_common::failure::invalid_url(messages::INVALID_URL, error)
 }
 
 /// Minimal envelope probe every Keep2Share API endpoint answers with — enough of the shape to
@@ -198,14 +196,17 @@ pub(crate) fn ensure_http_status(status: u16, retry_after: Option<u64>) -> Resul
 }
 
 /// How Keep2Share's codes name each class of the shared mapping.
+///
+/// Without a stated wait a `429` waits a minute and a `5xx` five minutes: the fallback the
+/// API plugins share (RD-1120-10).
 const HTTP: HttpWords = HttpWords {
     unauthorized: messages::BAD_CREDENTIALS,
     gone: messages::FILE_OFFLINE,
     unavailable: messages::FILE_OFFLINE,
     rate_limited: messages::FLOOD,
     server_error: messages::SERVER_ERROR,
-    rate_limited_wait: None,
-    server_error_wait: None,
+    rate_limited_wait: Some(60),
+    server_error_wait: Some(300),
     other: HttpError {
         code: messages::HTTP_ERROR,
         text: messages::http_error,

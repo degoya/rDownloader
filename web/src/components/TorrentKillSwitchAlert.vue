@@ -48,7 +48,6 @@ onUnmounted(() => {
   <UAlert
     v-if="status?.kill_switch_engaged"
     color="warning"
-    variant="subtle"
     icon="i-lucide-shield-alert"
     :title="t('downloads.kill_switch.title')"
     :description="t('downloads.kill_switch.description', { name: status.bound_interface ?? '' })"

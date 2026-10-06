@@ -23,7 +23,8 @@
 # through check.sh's `attempt` (scripts/lib/stages.sh), and the run lists them all at the end.
 #
 # Expects from the caller: `step`, `skip`, `attempt`, `full` and `changed`, as check.sh defines
-# them, and the working directory at the checkout root. rd_script_lint and rd_workflow_lint need
+# them (`preflight_covered` when lib/check-reuse.sh set it), and the working directory at the
+# checkout root. rd_script_lint and rd_workflow_lint need
 # only `step` and `skip`; without `attempt` the first finding fails the caller.
 
 # bash -n and shellcheck over every tracked shell script: scripts/ and what ships or runs beside
@@ -104,6 +105,12 @@ rd_script_tests() {
 
 rd_script_checks() {
     local test touched workflows
+    # A --full over content a preflight green covers up to the generators' output (audit C2,
+    # lib/check-reuse.sh): integrate.sh's preflight ran exactly these minutes before.
+    if [[ "$full" -eq 1 && "${preflight_covered:-0}" -eq 1 ]]; then
+        skip "actionlint, bash -n, shellcheck and the script tests" "a recorded preflight green covers this tree up to generated files and documentation"
+        return 0
+    fi
     touched="$(grep -E '^scripts/|\.(sh|command)$' <<< "$changed" | grep -vE '\.md$' || true)"
     workflows="$(grep -E '^(\.github|sdk/ci)/' <<< "$changed" || true)"
     if [[ "$full" -eq 1 || -n "$workflows" ]]; then

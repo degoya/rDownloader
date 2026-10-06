@@ -48,17 +48,17 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <UModal :title="t('torrent.move.title')" :description="t('torrent.move.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ footer: 'justify-end' }">
+  <UModal :title="t('torrent.move.title')" :description="t('torrent.move.description')" :close="{ onClick: () => emit('close', null) }">
     <template #body>
       <form id="torrent-move-form" class="grid gap-3" @submit.prevent="submit">
-        <UAlert v-if="!roots.length" color="warning" variant="subtle" icon="i-lucide-hard-drive" :description="t('torrent.move.no_roots')" />
+        <UAlert v-if="!roots.length" color="warning" icon="i-lucide-hard-drive" :description="t('torrent.move.no_roots')" />
         <UFormField :label="t('torrent.move.root')">
           <USelect v-model="rootId" :items="rootItems" value-key="value" icon="i-lucide-hard-drive" class="w-full" />
         </UFormField>
         <UFormField :label="t('torrent.move.path')">
           <UInput v-model="relativePath" :placeholder="t('torrent.move.path_placeholder')" icon="i-lucide-corner-down-right" class="w-full font-mono" />
         </UFormField>
-        <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
       </form>
     </template>
     <template #footer>

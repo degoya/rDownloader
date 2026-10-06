@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 plugin-common = { path = "../common" }
 plugin-guest = { path = "../guest" }
+realdebrid-common = { path = "../realdebrid-common" }
 serde.workspace = true
 serde_json.workspace = true
 url.workspace = true
@@ -18,9 +19,11 @@ rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [dev-dependencies]
+plugin-common = { path = "../common", features = ["test-support"] }
+rd-plugin-api = { path = "../../crates/rd-plugin-api", features = ["test-support"] }
 tokio.workspace = true
 
 [lints]

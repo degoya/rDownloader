@@ -11,14 +11,21 @@ mod free;
 use std::collections::HashMap;
 
 pub(crate) use plugin_common::failure::coded;
+use plugin_common::failure::{SecretSlot, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
-    LinkStatus, PluginHost, ResolveInput, Resolved,
+    PluginHost, ResolveInput, Resolved,
 };
 use serde::Deserialize;
 use url::Url;
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: crate::PREMIUM_KEY_REFERENCE,
+    missing: messages::PREMIUM_KEY_MISSING,
+};
 
 /// JD batches at most 100 file ids per `getFileInfo` call (`NitroFlareCom#checkLinks`).
 const FILE_INFO_BATCH_SIZE: usize = 100;
@@ -46,7 +53,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(host, "getKeyInfo", authenticated_query()).await?;
     let envelope: api::Envelope<api::KeyInfoResult> = parse_json(&response)?;
     if let Some(failure) = api::error_from_envelope(envelope.code, envelope.message.as_deref()) {
@@ -81,7 +88,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     let Some(account_id) = request.account_id.as_deref() else {
         return free::resolve(host, &file_id).await;
     };
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let metadata = file_info_one(host, &file_id).await?;
     let raw_url = download_link(host, &file_id).await?;
     let url = api::parse_download_url(&raw_url)?;
@@ -132,28 +139,17 @@ fn check_result(
     batch: &Result<HashMap<String, api::FileEntry>, Failure>,
 ) -> LinkCheck {
     let (Some(id), Ok(files)) = (id, batch) else {
-        return LinkCheck {
-            url: url.to_owned(),
-            status: LinkStatus::Unknown,
-            file_name: None,
-            size: None,
-        };
+        return LinkCheck::unknown(url);
     };
     match files.get(id) {
-        Some(entry) if entry.is_online() => LinkCheck {
-            url: url.to_owned(),
-            status: LinkStatus::Online,
-            file_name: entry.name.clone(),
-            size: entry.size.clone().and_then(api::FlexibleU64::into_u64),
-        },
+        Some(entry) if entry.is_online() => LinkCheck::online(
+            url,
+            entry.name.clone(),
+            entry.size.clone().and_then(api::FlexibleU64::into_u64),
+        ),
         // A missing entry and a present-but-not-online status both mean unavailable, exactly as
         // JD treats them.
-        _ => LinkCheck {
-            url: url.to_owned(),
-            status: LinkStatus::Offline,
-            file_name: None,
-            size: None,
-        },
+        _ => LinkCheck::offline(url),
     }
 }
 
@@ -245,21 +241,6 @@ pub(crate) async fn send<H: PluginHost>(
     .await
 }
 
-/// Fails before any request when the account has no premium key. `getFileInfo` is
-/// unauthenticated and deliberately does not call this.
-async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if !host
-        .secret_available(account_id, crate::PREMIUM_KEY_REFERENCE)
-        .await
-    {
-        return Err(coded(
-            FailureKind::AuthRequired,
-            messages::PREMIUM_KEY_MISSING,
-        ));
-    }
-    Ok(())
-}
-
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
     serde_json::from_slice(&response.body).map_err(|_| invalid_response())
 }
@@ -269,10 +250,5 @@ fn invalid_response() -> Failure {
 }
 
 pub(crate) fn invalid_url(error: &url::ParseError) -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        messages::INVALID_URL,
-        messages::invalid_url(error),
-    )
-    .with_param("error", error.to_string())
+    plugin_common::failure::invalid_url(messages::INVALID_URL, error).into()
 }

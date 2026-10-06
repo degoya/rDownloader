@@ -1,11 +1,10 @@
 //! Target-independent XFS API primitives: file-code extraction, the JSON envelope every XFS
 //! `/api/...` endpoint answers with, and its status-code classification. Generalized verbatim from
-//! `plugins/ddownload/src/lib.rs`'s pre-Task-11 native module (`file_code`, `FlexibleU64`,
-//! `ApiEnvelope`, `ensure_http_status`, `ensure_api_status`) — the envelope classification below
-//! reproduces ddownload's original mapping exactly, the transport status follows the mapping every
-//! plugin shares (see the IMPL-VERIFY note in
-//! `plugins/katfile/src/native/api.rs`'s module doc for the ways KatFile's shape differs, namely
-//! its API base path).
+//! ddownload's original native module (`file_code`, `FlexibleU64` (now `plugin_flexible`'s,
+//! re-exported here), `ApiEnvelope`, `ensure_http_status`, `ensure_api_status`) — the envelope
+//! classification below reproduces ddownload's original mapping exactly, the transport status
+//! follows the mapping every plugin shares. KatFile's shape differs only in its API base path
+//! (`plugins/katfile/src/resolver/api.rs`, `API_BASE`).
 //!
 //! A consuming plugin owns its stable `code`/message text, so this module only classifies: in
 //! [`ErrorKind`], the scheduler's own category from `plugin_common::failure` (RD-1110-03), which
@@ -39,22 +38,7 @@ pub fn file_code<'a>(url: &'a Url, hosts: &[&str]) -> Option<&'a str> {
 
 /// Some XFS installations report numeric fields (e.g. `traffic_left`, a direct-link `size`) as a
 /// JSON number on one endpoint and as a numeric string on another; this accepts either.
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub enum FlexibleU64 {
-    Number(u64),
-    Text(String),
-}
-
-impl FlexibleU64 {
-    #[must_use]
-    pub fn into_u64(self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub use plugin_flexible::FlexibleU64;
 
 /// Converts an XFS `traffic_left` field into bytes.
 ///

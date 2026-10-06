@@ -39,5 +39,9 @@ tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
 
+[dev-dependencies]
+# Captures the kill switch's warnings in its tests.
+tracing-subscriber.workspace = true
+
 [lints]
 workspace = true

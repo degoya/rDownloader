@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 plugin-common = { path = "../common" }
+plugin-flexible = { path = "../flexible" }
 serde.workspace = true
 serde_json.workspace = true
 

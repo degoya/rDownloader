@@ -103,8 +103,11 @@ pub async fn change_password(
     let ended = state.database.revoke_all_sessions().await?;
 
     // ...and then straight back in, for the caller only, if they came with a session at all.
-    // A machine token that called this has none, and is not handed one.
-    let reopened = if crate::auth::session_digest(&headers).is_some() {
+    // A machine token that called this has none, and is not handed one: asked by the actor the
+    // middleware established, not by whether a credential header is present — a bearer token
+    // is one too, and the token and the password would otherwise make a browser session that
+    // neither the second factor nor a switched-off password form ever saw (RD-1120-19).
+    let reopened = if audit.actor.kind == rd_core::AuditActorKind::Session {
         let user_agent = headers
             .get(header::USER_AGENT)
             .and_then(|value| value.to_str().ok())

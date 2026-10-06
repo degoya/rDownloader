@@ -33,8 +33,21 @@
 
 use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use serde::Deserialize;
+use torbox_common::Words;
+pub use torbox_common::{ErrorEnvelope, is_safe_id as is_safe_remote_id};
 
-use crate::{messages, source::Kind};
+use crate::messages;
+
+mod bodies;
+mod cache;
+mod paths;
+
+pub use bodies::{boundary, control_body, multipart, multipart_content_type};
+pub use cache::{CachedEntry, cached_entries};
+pub use paths::{
+    check_cached_path, container_name, control_id_field, control_path, create_path,
+    download_address, list_path, request_id_field, request_path, text_field,
+};
 
 /// The vault reference the TorBox provider keeps its API key under. The value never reaches
 /// this plugin.
@@ -54,145 +67,7 @@ pub const ADOPT_LIMIT: u32 = 100;
 /// person with a thousand-file release would rather have the first hundreds than a failure.
 pub const MAX_FILES: usize = 2000;
 
-// --- Paths -----------------------------------------------------------------------------
-
-/// `POST` here to create a job of this kind.
-#[must_use]
-pub const fn create_path(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "/torrents/createtorrent",
-        Kind::Usenet => "/usenet/createusenetdownload",
-        Kind::Web => "/webdl/createwebdownload",
-    }
-}
-
-/// `GET` here to read one job of this kind, or the account's list of them.
-#[must_use]
-pub const fn list_path(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "/torrents/mylist",
-        Kind::Usenet => "/usenet/mylist",
-        Kind::Web => "/webdl/mylist",
-    }
-}
-
-/// `GET` here to mint a download address for one file of this kind of job.
-#[must_use]
-pub const fn request_path(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "/torrents/requestdl",
-        Kind::Usenet => "/usenet/requestdl",
-        Kind::Web => "/webdl/requestdl",
-    }
-}
-
-/// `POST` here to delete a job of this kind.
-#[must_use]
-pub const fn control_path(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "/torrents/controltorrent",
-        Kind::Usenet => "/usenet/controlusenetdownload",
-        Kind::Web => "/webdl/controlwebdownload",
-    }
-}
-
-/// `GET` here to ask whether TorBox holds content of this kind ready (RD-130-11).
-#[must_use]
-pub const fn check_cached_path(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "/torrents/checkcached",
-        Kind::Usenet => "/usenet/checkcached",
-        Kind::Web => "/webdl/checkcached",
-    }
-}
-
-/// The query parameter `requestdl` names the job by.
-#[must_use]
-pub const fn request_id_field(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "torrent_id",
-        Kind::Usenet => "usenet_id",
-        Kind::Web => "web_id",
-    }
-}
-
-/// The field the control endpoint names the job by.
-///
-/// Deliberately its own function rather than [`request_id_field`]: TorBox spells the web
-/// download's identifier `web_id` when it mints an address and `webdl_id` when it deletes one,
-/// and a single spelling would be wrong at one of the two ends.
-#[must_use]
-pub const fn control_id_field(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "torrent_id",
-        Kind::Usenet => "usenet_id",
-        Kind::Web => "webdl_id",
-    }
-}
-
-/// The multipart field a source of this kind is submitted under, when it is submitted as text.
-#[must_use]
-pub const fn text_field(kind: Kind) -> &'static str {
-    match kind {
-        // A magnet; a container of this kind goes in as a file instead.
-        Kind::Torrent => "magnet",
-        Kind::Usenet => "link",
-        Kind::Web => "link",
-    }
-}
-
-/// The generic file name a part of this kind carries; see [`crate::upload`] for a container's.
-///
-/// TorBox reads the bytes, not the name, but a multipart part has to carry one and a name that
-/// says what the part is beats a generic one in anybody's server log.
-#[must_use]
-pub const fn container_name(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Torrent => "upload.torrent",
-        Kind::Usenet => "upload.nzb",
-        Kind::Web => "upload.bin",
-    }
-}
-
-/// The stable address one finished file is fetched from.
-///
-/// **Without the token**, deliberately. `requestdl` needs the account's API key as a query
-/// parameter and this plugin has none: it names secrets, it never holds them. So what travels
-/// is the address that identifies the file and nothing else, `plugins/torbox/` claims it, and
-/// the key is added by the host on every resolve -- which is also what makes the short-lived
-/// ticket behind it renewable rather than a one-shot value written into a row.
-#[must_use]
-pub fn download_address(kind: Kind, remote_id: &str, file_id: u32) -> String {
-    format!(
-        "{API_BASE}{}?{}={remote_id}&file_id={file_id}",
-        request_path(kind),
-        request_id_field(kind)
-    )
-}
-
 // --- Answer shapes ---------------------------------------------------------------------
-
-/// The envelope every endpoint answers in, read for its failure half alone.
-#[derive(Default, Deserialize)]
-pub struct ErrorEnvelope {
-    #[serde(default)]
-    pub success: Option<bool>,
-    /// TorBox's stable upper-case word. Typed as a free value because the field is `null` on
-    /// success, `false` at one or two endpoints, and a string when it means something.
-    #[serde(default)]
-    pub error: Option<serde_json::Value>,
-    // `detail` is deliberately not read: it is prose TorBox wrote, and nothing here forwards
-    // a provider's sentence.
-}
-
-impl ErrorEnvelope {
-    /// The error word, upper-cased, or `None` when the answer names none.
-    #[must_use]
-    pub fn code(&self) -> Option<String> {
-        let text = self.error.as_ref()?.as_str()?.trim();
-        (!text.is_empty()).then(|| text.to_ascii_uppercase())
-    }
-}
 
 /// `data` of a create call. TorBox spells the identifier differently per kind, so every
 /// spelling is read and the first one present wins.
@@ -292,20 +167,6 @@ fn identifier(value: &serde_json::Value) -> Option<String> {
         _ => return None,
     };
     is_safe_remote_id(&text).then_some(text)
-}
-
-/// Whether a provider-supplied identifier is safe to put in a request.
-///
-/// It comes back from TorBox and goes out again in a query, so it is checked rather than
-/// trusted: an identifier carrying a slash or an ampersand would be a request to somewhere
-/// else on the very host this plugin is allowed to reach.
-#[must_use]
-pub fn is_safe_remote_id(id: &str) -> bool {
-    !id.is_empty()
-        && id.len() <= 64
-        && id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
 // --- The state machine -----------------------------------------------------------------
@@ -429,75 +290,6 @@ pub fn place(job_name: &str, path: &str) -> (Option<String>, Option<String>) {
     (file_name, hint)
 }
 
-// --- Request bodies --------------------------------------------------------------------
-
-/// The multipart boundary, derived from bytes the host's random source produced.
-///
-/// Random rather than fixed because a container is somebody else's file: a fixed boundary that
-/// happened to occur inside an NZB would split the part in the middle and submit half a
-/// document. An empty answer from the host is a refusal, not an invitation to invent one, so
-/// the caller checks the length before this is reached.
-#[must_use]
-pub fn boundary(entropy: &[u8]) -> String {
-    let mut text = String::from("rdownloader");
-    for byte in entropy {
-        use std::fmt::Write;
-        let _ = write!(text, "{byte:02x}");
-    }
-    text
-}
-
-/// One `multipart/form-data` body: text fields first, then at most one file part.
-#[must_use]
-pub fn multipart(
-    boundary: &str,
-    fields: &[(&str, &str)],
-    file: Option<(&str, &str, &[u8])>,
-) -> Vec<u8> {
-    let mut body = Vec::new();
-    for (name, value) in fields {
-        body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-        body.extend_from_slice(
-            format!("Content-Disposition: form-data; name=\"{name}\"\r\n\r\n").as_bytes(),
-        );
-        body.extend_from_slice(value.as_bytes());
-        body.extend_from_slice(b"\r\n");
-    }
-    if let Some((name, file_name, bytes)) = file {
-        body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-        body.extend_from_slice(
-            format!(
-                "Content-Disposition: form-data; name=\"{name}\"; filename=\"{file_name}\"\r\n"
-            )
-            .as_bytes(),
-        );
-        body.extend_from_slice(b"Content-Type: application/octet-stream\r\n\r\n");
-        body.extend_from_slice(bytes);
-        body.extend_from_slice(b"\r\n");
-    }
-    body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-    body
-}
-
-/// The `Content-Type` a [`multipart`] body is sent under.
-#[must_use]
-pub fn multipart_content_type(boundary: &str) -> String {
-    format!("multipart/form-data; boundary={boundary}")
-}
-
-/// The JSON body a control endpoint takes.
-#[must_use]
-pub fn control_body(kind: Kind, remote_id: &str, operation: &str) -> Vec<u8> {
-    // `remote_id` has passed `is_safe_remote_id`, so it carries no quote and no backslash and
-    // needs no escaping; it is written through `serde_json` anyway rather than formatted, so
-    // that the guarantee lives in one place instead of in every caller's head.
-    let value = serde_json::json!({
-        control_id_field(kind): remote_id,
-        "operation": operation,
-    });
-    serde_json::to_vec(&value).unwrap_or_default()
-}
-
 // --- Failures --------------------------------------------------------------------------
 
 /// How long a provider-side outage is waited out. Five minutes, the figure the other
@@ -600,130 +392,26 @@ pub fn classify_error(api_code: &str, retry_after: Option<u64>) -> ApiFailure {
     }
 }
 
+/// The words this plugin reports a refusal under; the order they are believed in is
+/// `torbox_common`'s, shared with the resolver `plugins/torbox/`.
+pub const WORDS: Words = Words {
+    http: HTTP,
+    classify: classify_error,
+    api_error: messages::API_ERROR.0,
+    refused: messages::REQUEST_REFUSED,
+};
+
 /// The failure an answer describes, or `None` when it describes none.
 ///
 /// An answer is a failure when it names an `error`, whatever its HTTP status; a 200 carrying
-/// one is still a refusal, and a 4xx carrying none is classified by its status alone. Both
-/// directions matter, because TorBox uses both.
+/// one is still a refusal, and a 4xx carrying none is classified by its status alone.
 #[must_use]
 pub fn failure_from(
     status: u16,
     retry_after: Option<u64>,
     envelope: &ErrorEnvelope,
 ) -> Option<ApiFailure> {
-    if let Some(api_code) = envelope.code() {
-        let classified = classify_error(&api_code, retry_after);
-        // A word this build has no bucket for is not the end of what the answer said. When the
-        // status carries a meaning of its own -- a 429, a 5xx, a 401 -- that meaning is better
-        // than "permanent, unknown word", and it is the difference between a wait and a job
-        // somebody has to start again by hand. The word still travels as the parameter.
-        if classified.code == messages::API_ERROR.0
-            && let Err(by_status) = HTTP.ensure_http_status(status, retry_after)
-        {
-            return Some(ApiFailure {
-                params: vec![("api_code", api_code)],
-                ..by_status
-            });
-        }
-        return Some(classified);
-    }
-    if envelope.success == Some(false) {
-        // A refusal TorBox did not name. The status is tried first, because most of these
-        // carry one that says something; a `success: false` inside a 200 says only that the
-        // call did not do what it was asked, and that is permanent rather than worth a retry.
-        return Some(
-            HTTP.ensure_http_status(status, retry_after)
-                .err()
-                .unwrap_or_else(|| {
-                    ApiFailure::new(ErrorKind::Permanent, messages::REQUEST_REFUSED)
-                }),
-        );
-    }
-    if !(200..=299).contains(&status) {
-        return HTTP.ensure_http_status(status, retry_after).err();
-    }
-    None
-}
-
-// --- Cache check (RD-130-11) ----------------------------------------------------------
-
-/// One thing `checkcached` says TorBox holds.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CachedEntry {
-    /// The digest it is held under, as TorBox spelled it. Compared without regard to case.
-    pub hash: String,
-    pub name: Option<String>,
-    pub size: Option<u64>,
-}
-
-/// What a `checkcached` answer says is held, or `None` when the answer is not one.
-///
-/// Tolerant on purpose, because the shape is not pinned down anywhere: TorBox's OpenAPI
-/// document leaves the response schema empty, and its SDK says `data` is a dictionary of
-/// `{name, size, hash}` without saying what it is keyed by. So `data` is read as an object
-/// keyed by hash, as a list of entries, or as a single entry; `null`, `false`, `{}` and `[]`
-/// all mean "nothing held". Only an answer that is not JSON, or carries no `data` at all, is
-/// refused. TorBox names only what it holds, so nothing here ever says "known but not held".
-#[must_use]
-pub fn cached_entries(body: &[u8]) -> Option<Vec<CachedEntry>> {
-    let envelope: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let data = envelope.as_object()?.get("data")?;
-    Some(match data {
-        serde_json::Value::Object(map) => {
-            if map.get("hash").is_some_and(serde_json::Value::is_string) {
-                cached_entry(data, None).into_iter().collect()
-            } else {
-                map.iter()
-                    .filter_map(|(key, value)| match value {
-                        serde_json::Value::Object(_) => cached_entry(value, Some(key)),
-                        serde_json::Value::Bool(true) => cached_entry(value, Some(key)),
-                        _ => None,
-                    })
-                    .collect()
-            }
-        }
-        serde_json::Value::Array(items) => items
-            .iter()
-            .filter_map(|item| match item {
-                serde_json::Value::String(hash) => cached_entry(item, Some(hash)),
-                _ => cached_entry(item, None),
-            })
-            .collect(),
-        _ => Vec::new(),
-    })
-}
-
-/// One entry, with the hash taken from the entry itself or, failing that, from its key.
-fn cached_entry(value: &serde_json::Value, key: Option<&str>) -> Option<CachedEntry> {
-    let hash = value
-        .get("hash")
-        .and_then(serde_json::Value::as_str)
-        .or(key)
-        .map(str::trim)
-        .filter(|hash| !hash.is_empty())?;
-    Some(CachedEntry {
-        hash: hash.to_owned(),
-        name: value
-            .get("name")
-            .and_then(serde_json::Value::as_str)
-            .map(str::trim)
-            .filter(|name| !name.is_empty())
-            .map(str::to_owned),
-        size: value.get("size").and_then(cached_size),
-    })
-}
-
-/// A size as TorBox states it: an integer, or a float in its SDK's model. Truncated; a
-/// negative or non-finite one is no size at all.
-// `as` saturates for a float above `u64::MAX`, and the checks rule out the two cases where it
-// would invent a number.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-fn cached_size(value: &serde_json::Value) -> Option<u64> {
-    if let Some(size) = value.as_u64() {
-        return Some(size);
-    }
-    let size = value.as_f64()?;
-    (size.is_finite() && size >= 0.0).then_some(size as u64)
+    torbox_common::failure_from(status, retry_after, envelope, &WORDS)
 }
 
 #[cfg(test)]

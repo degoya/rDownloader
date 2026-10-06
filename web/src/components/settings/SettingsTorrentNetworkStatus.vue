@@ -57,12 +57,11 @@ defineExpose({ reload: load })
         @click="load"
       />
     </div>
-    <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
     <template v-if="status">
       <UAlert
         v-if="status.kill_switch_engaged"
         color="warning"
-        variant="subtle"
         icon="i-lucide-shield-alert"
         :title="t('settings.torrent.network_status.engaged_title')"
         :description="t('settings.torrent.network_status.engaged_description', { name: status.bound_interface ?? '' })"
@@ -70,7 +69,6 @@ defineExpose({ reload: load })
       <UAlert
         v-if="status.last_rebuild_error"
         color="error"
-        variant="subtle"
         icon="i-lucide-circle-alert"
         :title="t('settings.torrent.network_status.rebuild_failed')"
         :description="status.last_rebuild_error"
@@ -78,7 +76,6 @@ defineExpose({ reload: load })
       <UAlert
         v-if="status.peer_proxy_error"
         color="error"
-        variant="subtle"
         icon="i-lucide-circle-alert"
         :title="t('settings.torrent.network_status.proxy_failed')"
         :description="status.peer_proxy_error"

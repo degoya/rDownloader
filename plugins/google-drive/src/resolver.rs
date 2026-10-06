@@ -10,14 +10,21 @@
 //! `{{secret:google_drive_access_token}}`, which the host expands on the way out and only
 //! towards `www.googleapis.com`; the sibling OAuth plugin is what puts a value behind it.
 
+use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LinkCheck,
-    LinkStatus, PluginHost, ResolveInput, Resolved,
+    PluginHost, ResolveInput, Resolved,
 };
 
 use google_drive_common::{address, export, reason};
 
 use crate::{api, messages, target};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: SECRET,
+    missing: messages::SIGN_IN_REQUIRED,
+};
 
 /// The Drive v3 API, and the only address this plugin reaches.
 const API: &str = "https://www.googleapis.com/drive/v3";
@@ -55,7 +62,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_token(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(
         host,
         HttpRequest::get(format!("{API}/about"))
@@ -63,7 +70,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     )
     .await?;
     let about = api::about(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))?;
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))?;
     let user = about.user.unwrap_or(api::AboutUser {
         email_address: None,
         display_name: None,
@@ -92,35 +99,35 @@ pub(crate) async fn resolve<H: PluginHost>(
     host: &H,
     input: &ResolveInput,
 ) -> Result<Resolved, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let claimed = target::claim(&input.url)
-        .ok_or_else(|| refuse(messages::NOT_A_DRIVE_LINK, FailureKind::Unsupported))?;
+        .ok_or_else(|| coded(FailureKind::Unsupported, messages::NOT_A_DRIVE_LINK))?;
     let metadata = fetch_metadata(host, &claimed.id).await?;
     if metadata.trashed == Some(true) {
-        return Err(refuse(messages::FILE_NOT_FOUND, FailureKind::Permanent));
+        return Err(coded(FailureKind::Permanent, messages::FILE_NOT_FOUND));
     }
     let mime = metadata.mime_type.clone().unwrap_or_default();
     if export::is_folder(&mime) {
         // The sibling crawler's address, pasted at the resolver. Said plainly rather than as
         // "this file has no bytes", which is what a folder's metadata looks like.
-        return Err(refuse(messages::IS_A_FOLDER, FailureKind::Unsupported));
+        return Err(coded(FailureKind::Unsupported, messages::IS_A_FOLDER));
     }
     if !metadata.can_download() {
-        return Err(refuse(
-            messages::DOWNLOAD_NOT_PERMITTED,
+        return Err(coded(
             FailureKind::Permanent,
+            messages::DOWNLOAD_NOT_PERMITTED,
         ));
     }
     let name = metadata.name.clone().unwrap_or_default();
     if export::is_workspace_document(&mime) {
         let chosen = export::resolve(&mime, claimed.format.as_deref()).map_err(|refusal| {
-            refuse(
+            coded(
+                FailureKind::Unsupported,
                 match refusal {
                     export::Refusal::UnsupportedType => messages::EXPORT_UNSUPPORTED,
                     export::Refusal::UnsupportedFormat => messages::EXPORT_FORMAT_UNSUPPORTED,
                 },
-                FailureKind::Unsupported,
             )
         })?;
         return Ok(Resolved {
@@ -157,21 +164,16 @@ pub(crate) async fn check<H: PluginHost>(
     host: &H,
     input: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    let account_id = account(input.account_id.as_deref())?;
-    require_token(host, account_id).await?;
+    let account_id = require_account(input.account_id.as_deref(), messages::ACCOUNT_MISSING)?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let mut results = Vec::new();
     for url in input.urls.iter().take(MAX_CHECKS) {
         let Some(claimed) = target::claim(url) else {
-            results.push(unknown(url));
+            results.push(LinkCheck::unknown(url));
             continue;
         };
         results.push(match fetch_metadata(host, &claimed.id).await {
-            Ok(metadata) if metadata.trashed == Some(true) => LinkCheck {
-                url: url.clone(),
-                status: LinkStatus::Offline,
-                file_name: None,
-                size: None,
-            },
+            Ok(metadata) if metadata.trashed == Some(true) => LinkCheck::offline(url),
             Ok(metadata) => {
                 let mime = metadata.mime_type.clone().unwrap_or_default();
                 let name = metadata.name.clone().unwrap_or_default();
@@ -184,24 +186,18 @@ pub(crate) async fn check<H: PluginHost>(
                 } else {
                     Some(name).filter(|name| !name.is_empty())
                 };
-                LinkCheck {
-                    url: url.clone(),
-                    status: LinkStatus::Online,
+                LinkCheck::online(
+                    url,
                     file_name,
-                    size: metadata.size.as_ref().and_then(api::Flexible::as_u64),
-                }
+                    metadata.size.as_ref().and_then(api::Flexible::as_u64),
+                )
             }
             // A file Drive says is gone is offline; anything else says nothing about the link,
             // so it stays unknown rather than being reported as missing.
             Err(failure) if failure.code.as_deref() == Some(messages::FILE_NOT_FOUND.0) => {
-                LinkCheck {
-                    url: url.clone(),
-                    status: LinkStatus::Offline,
-                    file_name: None,
-                    size: None,
-                }
+                LinkCheck::offline(url)
             }
-            Err(_) => unknown(url),
+            Err(_) => LinkCheck::unknown(url),
         });
     }
     Ok(results)
@@ -217,7 +213,7 @@ async fn fetch_metadata<H: PluginHost>(host: &H, id: &str) -> Result<api::FileMe
     )
     .await?;
     api::file(&response.body)
-        .ok_or_else(|| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+        .ok_or_else(|| coded(FailureKind::Permanent, messages::INVALID_RESPONSE))
 }
 
 /// Makes one request and turns every answer that is not one into a refusal.
@@ -242,37 +238,6 @@ async fn call<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
         failure = failure.with_param("reason", reason);
     }
     Err(failure)
-}
-
-/// Refuses early when the account holds no token at all, rather than making a call that Google
-/// is certain to refuse and reporting whatever it says about it.
-async fn require_token<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if host.secret_available(account_id, SECRET).await {
-        return Ok(());
-    }
-    Err(refuse(
-        messages::SIGN_IN_REQUIRED,
-        FailureKind::AuthRequired,
-    ))
-}
-
-fn account(account_id: Option<&str>) -> Result<&str, Failure> {
-    account_id
-        .filter(|id| !id.is_empty())
-        .ok_or_else(|| refuse(messages::ACCOUNT_MISSING, FailureKind::AuthRequired))
-}
-
-fn refuse((code, message): (&str, &str), kind: FailureKind) -> Failure {
-    Failure::coded(kind, code, message)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
 }
 
 /// The account row's label: the address the person signed in with, and nothing else; the

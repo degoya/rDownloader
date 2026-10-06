@@ -29,7 +29,7 @@ for file in rdownloader-linux-x86_64.tar.gz rdownloader-windows-x86_64.zip \
     rdownloader-windows-x86_64.msi rdownloader_1.9.1_amd64.deb rdownloader-chrome.zip \
     rdownloader-plugin-index.json rdownloader-site-rules.json \
     rdownloader-linux-x86_64.unpacked.tar rdownloader-windows-x86_64.unpacked.zip rd-pack \
-    'degoya~rDownloader~ABC123.dockerbuild' ddownload-0.3.1.rdplug http-1.0.0.rdplug; do
+    web-dist.tar 'degoya~rDownloader~ABC123.dockerbuild' ddownload-0.3.1.rdplug http-1.0.0.rdplug; do
     echo "$file" > "$download/$file"
 done
 plugins="$SCRATCH/plugin-assets"

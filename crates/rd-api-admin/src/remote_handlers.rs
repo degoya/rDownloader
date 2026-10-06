@@ -10,7 +10,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use rd_api_core::input_checks::{TextLimit, required_text};
+use rd_api_core::input_checks::{TextLimit, optional_text, required_text};
 use rd_core::{
     MAX_REMOTE_HOST, MAX_REMOTE_KEY, MAX_REMOTE_SECRET, RemoteAuthMode, RemoteCredential,
     RemoteCredentialId, RemoteProtocol, SshHostKey,
@@ -44,10 +44,10 @@ pub async fn create_remote_credential(
         .port
         .unwrap_or_else(|| request.protocol.default_port());
     validate_port(port)?;
-    let username = normalized(request.username);
-    let secret = normalized(request.secret);
-    let private_key = normalized(request.private_key);
-    let passphrase = normalized(request.passphrase);
+    let username = optional_text(request.username);
+    let secret = optional_text(request.secret);
+    let private_key = optional_text(request.private_key);
+    let passphrase = optional_text(request.passphrase);
     validate_auth(
         request.protocol,
         request.auth_mode,
@@ -107,10 +107,10 @@ pub async fn update_remote_credential(
         .remote_credential(id)
         .await?
         .ok_or_else(not_found)?;
-    let username = normalized(request.username);
-    let secret = normalized(request.secret);
-    let private_key = normalized(request.private_key);
-    let passphrase = normalized(request.passphrase);
+    let username = optional_text(request.username);
+    let secret = optional_text(request.secret);
+    let private_key = optional_text(request.private_key);
+    let passphrase = optional_text(request.passphrase);
     validate_sizes(
         secret.as_deref(),
         private_key.as_deref(),
@@ -410,12 +410,6 @@ fn validate_sizes(
         "remote.passphrase_length",
         "passphrase",
     )
-}
-
-fn normalized(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
 }
 
 fn invalid_host() -> ApiError {

@@ -19,22 +19,7 @@ pub use plugin_common::FailureKind;
 use crate::messages;
 
 /// Drive quotes byte counts as JSON strings, and a `Number` in a few older fields.
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Flexible {
-    Number(u64),
-    Text(String),
-}
-
-impl Flexible {
-    #[must_use]
-    pub fn as_u64(&self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(*value),
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub use plugin_flexible::FlexibleU64 as Flexible;
 
 /// What the account may do with one file. Only the one bit that decides a download is read.
 #[derive(Debug, Default, Deserialize)]

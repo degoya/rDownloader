@@ -33,7 +33,6 @@ rd-secrets = { path = "../rd-secrets" }
 rd-sign = { path = "../rd-sign" }
 rd-siterules = { path = "../rd-siterules" }
 rd-stream = { path = "../rd-stream" }
-rd-tools = { path = "../rd-tools" }
 rd-torrent = { path = "../rd-torrent" }
 rd-update = { path = "../rd-update" }
 rd-usenet = { path = "../rd-usenet" }

@@ -150,9 +150,9 @@ async function onInstalled(text: string): Promise<void> {
       :description="t('plugins.updates.automatic_all_hint')"
       @update:model-value="setAutomaticForAll"
     />
-    <UAlert v-if="settingsError" class="mb-4" color="error" variant="subtle" data-automatic-all-error :description="settingsError" />
-    <UAlert v-if="message" class="mb-4" color="success" variant="subtle" :description="message" />
-    <UAlert v-if="error" class="mb-4" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="settingsError" class="mb-4" color="error" data-automatic-all-error :description="settingsError" />
+    <UAlert v-if="message" class="mb-4" color="success" :description="message" />
+    <UAlert v-if="error" class="mb-4" color="error" :description="error" />
 
     <div class="space-y-2" data-plugin-updates>
       <div

@@ -52,12 +52,12 @@
     "heading": "Dry run",
     "package": "Sample package",
     "run": "Evaluate",
-    "help": "Evaluates against a real package and changes nothing.",
+    "help": "Evaluates this form as it stands, saved or not, against a real package and changes nothing.",
     "trigger_yes": "trigger matches",
     "trigger_no": "different trigger",
     "condition_yes": "condition holds",
     "condition_no": "condition does not hold",
-    "none": "No enabled automation to evaluate."
+    "draft": "This automation"
   },
   "trigger": {
     "intake_received": "Links arrived",

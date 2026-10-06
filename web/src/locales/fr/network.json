@@ -25,7 +25,6 @@
     "secret_generic_password": "Mot de passe du compte",
     "hint_generic": "Saisissez les identifiants requis par ce fournisseur.",
     "cookies_warning": "Les cookies donnent accès à votre session. N'importez que les cookies du fournisseur concerné et ne partagez jamais leur contenu.",
-    "test": "Tester",
     "edit": "Modifier le compte",
     "delete": "Supprimer le compte",
     "empty": "Aucun compte fournisseur créé pour le moment.",

@@ -9,7 +9,6 @@ use rd_files::{
     release_source, verified_move_file,
 };
 
-use super::is_active;
 use crate::SchedulerHandle;
 
 impl SchedulerHandle {
@@ -61,7 +60,7 @@ impl SchedulerHandle {
 
         let mut outstanding = false;
         for file in &files {
-            if is_active(file.state) || running.contains(&file.id) {
+            if file.state.is_working() || running.contains(&file.id) {
                 outstanding = true;
                 continue;
             }

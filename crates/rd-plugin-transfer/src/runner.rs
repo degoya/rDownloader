@@ -1,52 +1,23 @@
 //! One queue row, one plugin transfer attempt.
 
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use rd_core::{DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind, StorageRootId};
 use rd_files::{PartFile, StorageRoot};
-use rd_plugin_host::{TransferBackend, TransferOutcome, TransferState, TransferTarget};
+use rd_plugin_host::{RemoteFile, TransferBackend, TransferOutcome, TransferTarget};
 use rd_scheduler::{ExternalRunner, RunLimits, RunOutcome};
 use tokio_util::sync::CancellationToken;
 
-/// One database write per megabyte, as the native runners do: the resume-relevant state is
-/// the file on disk, the row only feeds the progress bar.
-const PROGRESS_INTERVAL_BYTES: u64 = 1024 * 1024;
+#[path = "runner_progress.rs"]
+mod progress;
 
-/// The per-megabyte progress writes one transfer attempt started (RD-191-06, PLUG-19).
-///
-/// They run beside the guest so a slow write cannot pace the transfer, which also means one
-/// can still be on its way when the attempt ends; landing after the final write, it put an
-/// older count back into the row. The runner waits for them before it writes the outcome.
-#[derive(Default)]
-struct ProgressWrites {
-    pending: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>>,
-}
-
-impl ProgressWrites {
-    fn spawn(&self, write: impl std::future::Future<Output = ()> + Send + 'static) {
-        let handle = tokio::spawn(write);
-        if let Ok(mut pending) = self.pending.lock() {
-            pending.retain(|handle| !handle.is_finished());
-            pending.push(handle);
-        }
-    }
-
-    /// Waits for every write started so far.
-    async fn settle(&self) {
-        let pending = self
-            .pending
-            .lock()
-            .map(|mut pending| std::mem::take(&mut *pending))
-            .unwrap_or_default();
-        for handle in pending {
-            if let Err(error) = handle.await {
-                tracing::warn!(error = %error, "a plugin transfer progress write did not finish");
-            }
-        }
-    }
-}
+#[cfg(test)]
+use progress::ProgressWrites;
 
 /// Logs a write whose failure must not end the transfer but must not vanish either.
 fn logged(result: Result<()>, what: &'static str) {
@@ -87,13 +58,19 @@ impl PluginTransferRunner {
         }
     }
 
-    /// The backend this row must run on: the pinned one while a transfer is in flight,
-    /// otherwise the newest that claims the scheme.
+    /// The backend this row must run on: the pinned one while a transfer has a pin, otherwise
+    /// the newest that claims the scheme.
+    ///
+    /// A pin whose version is gone is refused while it holds a checkpoint or the staging file
+    /// holds bytes, because only that build could continue them. A transfer stopped between
+    /// its pin and its first byte has neither, so its pin is dropped and it begins anew on the
+    /// newest backend (RD-1120-18).
     async fn backend_for(
         &self,
         file: &DownloadFile,
         scheme: &str,
-    ) -> Result<(Arc<TransferBackend>, Option<Vec<u8>>), Failure> {
+        part_path: &Path,
+    ) -> Result<std::result::Result<Chosen, Failure>> {
         let pinned = self
             .database
             .plugin_transfer(file.id)
@@ -103,29 +80,84 @@ impl PluginTransferRunner {
                 None
             });
         if let Some(state) = pinned {
-            let Some(backend) = self
+            if let Some(backend) = self
                 .backends
                 .pinned(&state.plugin_id, &state.plugin_version)
-            else {
+            {
+                return Ok(Ok(Chosen {
+                    backend: Arc::clone(backend),
+                    checkpoint: state.checkpoint,
+                    pinned: true,
+                }));
+            }
+            if state.checkpoint.is_some() || rd_files::existing_bytes(part_path).await > 0 {
                 // The half-written file belongs to a format only that build could read, so
                 // continuing with another version would corrupt it silently.
-                return Err(Failure::coded(
+                return Ok(Err(Failure::coded(
                     FailureKind::Unsupported,
                     "plugin.pinned_version_missing",
                     "The transfer backend version this download started on is not installed",
-                ));
-            };
-            return Ok((Arc::clone(backend), state.checkpoint));
+                )));
+            }
+            // Cleared rather than overwritten: saving a pin keeps the version a row has.
+            self.database
+                .clear_plugin_transfer(file.id)
+                .await
+                .context("drop the pin of a transfer that never wrote a byte")?;
         }
-        let backend = self.backends.for_scheme(scheme).ok_or_else(|| {
-            Failure::coded(
+        let Some(backend) = self.backends.for_scheme(scheme) else {
+            return Ok(Err(Failure::coded(
                 FailureKind::Unsupported,
                 "plugin.no_backend_for_scheme",
                 "No installed plugin handles this link's protocol",
-            )
-        })?;
-        Ok((Arc::clone(backend), None))
+            )));
+        };
+        Ok(Ok(Chosen {
+            backend: Arc::clone(backend),
+            checkpoint: None,
+            pinned: false,
+        }))
     }
+
+    /// Binds a transfer that has no pin yet to the backend version it is about to run on,
+    /// after the probe and before the first byte (RD-1120-18), so a refused probe binds
+    /// nothing. Not optional: a transfer that cannot record its pin does not start.
+    async fn pin_before_first_byte(
+        &self,
+        file: &DownloadFile,
+        (plugin_id, version): (&str, &str),
+    ) -> Result<()> {
+        self.database
+            .save_plugin_transfer(file.id, plugin_id.to_owned(), version.to_owned(), None)
+            .await
+            .context("pin the plugin transfer to its backend version")?;
+        // The pin is written, no byte is: the restart runs on the pinned version, or begins
+        // anew when that version is gone (recovery matrix).
+        rd_core::failpoint!("plugin_transfer.after_pin_saved", || {
+            anyhow::anyhow!("crash point")
+        });
+        Ok(())
+    }
+}
+
+/// Removes what a staging file holds while no pin names the build that wrote it (RD-1120-18).
+///
+/// Since the pin comes before the first byte, such bytes are from no build anybody can name: a
+/// transfer that kept them would continue another build's file the moment a different version
+/// had been installed in between.
+async fn discard_unowned_bytes(part_path: &Path) -> Result<()> {
+    match tokio::fs::remove_file(part_path).await {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).context("discard staging bytes no backend version owns"),
+    }
+}
+
+/// The backend a row runs on, the checkpoint it resumes from and whether a pin binds it.
+struct Chosen {
+    backend: Arc<TransferBackend>,
+    checkpoint: Option<Vec<u8>>,
+    pinned: bool,
 }
 
 #[async_trait]
@@ -160,59 +192,45 @@ impl ExternalRunner for PluginTransferRunner {
     ) -> Result<RunOutcome> {
         let url = url::Url::parse(file.source.as_str())
             .with_context(|| format!("parse plugin transfer URL for {}", file.id))?;
-        let (backend, checkpoint) = match self.backend_for(file, url.scheme()).await {
+        let (root, part_path) = destination(package, file).await?;
+        let Chosen {
+            backend,
+            checkpoint,
+            pinned,
+        } = match self.backend_for(file, url.scheme(), &part_path).await? {
             Ok(found) => found,
             Err(failure) => return Ok(RunOutcome::Failed(failure)),
         };
-
-        if package.destination.is_empty() {
-            anyhow::bail!("plugin transfer package has no destination directory");
+        let manifest = backend.manifest();
+        let plugin_id = manifest.id.to_string();
+        let version = manifest.version.clone();
+        if !pinned {
+            discard_unowned_bytes(&part_path).await?;
         }
-        let root = StorageRoot::create(
-            StorageRootId::new(),
-            "download destination".to_owned(),
-            PathBuf::from(&package.destination),
-        )
-        .await?;
-        tokio::fs::create_dir_all(root.path()).await?;
-        let part_path = rd_files::part_path(&root, file.id).await?;
 
         let credential_ref = file.remote_credential_id.map(|id| id.to_string());
-        // The probe writes nothing, but it runs against a real store so a backend cannot
-        // tell the two calls apart and keep state between them.
-        let (probe_state, _) = self.state(
-            &backend,
-            file.id,
-            TransferTarget {
-                part: PartFile::open(part_path.clone(), None).await?,
-                committed: 0,
-                total: None,
-            },
-            &cancellation,
-            &limits,
-        );
-        let remote = match backend
-            .probe(probe_state, file.source.to_string(), credential_ref.clone())
-            .await
+        let remote = match self
+            .probe(
+                &backend,
+                file,
+                &part_path,
+                credential_ref.clone(),
+                &cancellation,
+                &limits,
+            )
+            .await?
         {
             Ok(remote) => remote,
             Err(failure) => return Ok(RunOutcome::Failed(failure)),
         };
-
-        // The staging file and its length come from `rd-files`, not from
-        // `rd_transfer_file::Staging`, which owns the same two things for FTP and SFTP. That
-        // type is built around a host-side loop that reads an `AsyncRead` into a file it
-        // opened itself and syncs it before the rename; a plugin transfer has no source in the
-        // host at all. The guest writes through the `PartFile` it was handed, the throttle and
-        // the progress write live in `TransferState`, and the staging file has to exist before
-        // the probe can run — so before any size is known, where `Staging` wants an exact one.
-        let committed = rd_files::existing_bytes(&part_path).await;
-        if let Some(failure) = self.validate_resume(file, &remote, committed).await {
-            return Ok(RunOutcome::Failed(failure));
+        let committed = match self.resume_offset(file, &remote, &part_path).await {
+            Ok(committed) => committed,
+            Err(failure) => return Ok(RunOutcome::Failed(failure)),
+        };
+        if !pinned {
+            self.pin_before_first_byte(file, (&plugin_id, &version))
+                .await?;
         }
-        // A backend that cannot continue starts over rather than writing new bytes on top of
-        // old ones, which is the one way a resume can corrupt without ever erroring.
-        let committed = if remote.resumable { committed } else { 0 };
 
         // Not preallocated: the resume above reads how far the file got from its length, and a
         // file sized to the whole payload up front made a stopped transfer continue from its end,
@@ -239,13 +257,78 @@ impl ExternalRunner for PluginTransferRunner {
             credential_ref,
             checkpoint,
         };
-        let manifest = backend.manifest();
-        let plugin_id = manifest.id.to_string();
-        let version = manifest.version.clone();
-
         let outcome = backend.run(state, job).await;
         // Before anything below writes the row, so no progress write lands after it.
         progress_writes.settle().await;
+        self.conclude(outcome, file, &root, part, &remote, (&plugin_id, &version))
+            .await
+    }
+}
+
+impl PluginTransferRunner {
+    /// Asks the backend about the remote file before a byte is written.
+    async fn probe(
+        &self,
+        backend: &TransferBackend,
+        file: &DownloadFile,
+        part_path: &Path,
+        credential_ref: Option<String>,
+        cancellation: &CancellationToken,
+        limits: &RunLimits,
+    ) -> Result<std::result::Result<RemoteFile, Failure>> {
+        // The probe writes nothing, but it runs against a real store so a backend cannot
+        // tell the two calls apart and keep state between them.
+        let (probe_state, _) = self.state(
+            backend,
+            file.id,
+            TransferTarget {
+                part: PartFile::open(part_path.to_path_buf(), None).await?,
+                committed: 0,
+                total: None,
+            },
+            cancellation,
+            limits,
+        );
+        Ok(backend
+            .probe(probe_state, file.source.to_string(), credential_ref)
+            .await)
+    }
+
+    /// Where the transfer continues in the staging file: its length, when the remote file is
+    /// still the one it was started on and the backend can continue; otherwise from the start.
+    async fn resume_offset(
+        &self,
+        file: &DownloadFile,
+        remote: &RemoteFile,
+        part_path: &Path,
+    ) -> std::result::Result<u64, Failure> {
+        // The staging file and its length come from `rd-files`, not from
+        // `rd_transfer_file::Staging`, which owns the same two things for FTP and SFTP. That
+        // type is built around a host-side loop that reads an `AsyncRead` into a file it
+        // opened itself and syncs it before the rename; a plugin transfer has no source in the
+        // host at all. The guest writes through the `PartFile` it was handed, the throttle and
+        // the progress write live in `TransferState`, and the staging file has to exist before
+        // the probe can run — so before any size is known, where `Staging` wants an exact one.
+        let committed = rd_files::existing_bytes(part_path).await;
+        if let Some(failure) = self.validate_resume(file, remote, committed).await {
+            return Err(failure);
+        }
+        // A backend that cannot continue starts over rather than writing new bytes on top of
+        // old ones, which is the one way a resume can corrupt without ever erroring.
+        Ok(if remote.resumable { committed } else { 0 })
+    }
+
+    /// Writes how the attempt ended: a stop keeps the checkpoint, a complete file is promoted
+    /// out of staging, a failure keeps the pin to the backend build it started on.
+    async fn conclude(
+        &self,
+        outcome: std::result::Result<TransferOutcome, Failure>,
+        file: &DownloadFile,
+        root: &StorageRoot,
+        part: PartFile,
+        remote: &RemoteFile,
+        (plugin_id, version): (&str, &str),
+    ) -> Result<RunOutcome> {
         match outcome {
             Ok(TransferOutcome::Stopped {
                 committed,
@@ -256,7 +339,7 @@ impl ExternalRunner for PluginTransferRunner {
                 rd_core::failpoint!("plugin_transfer.before_checkpoint_saved", || {
                     anyhow::anyhow!("crash point")
                 });
-                self.persist(file, &plugin_id, &version, Some(checkpoint))
+                self.persist(file, plugin_id, version, Some(checkpoint))
                     .await;
                 logged(
                     self.database
@@ -272,7 +355,7 @@ impl ExternalRunner for PluginTransferRunner {
                 if let Some(size) = remote.size
                     && committed < size
                 {
-                    self.persist(file, &plugin_id, &version, None).await;
+                    self.persist(file, plugin_id, version, None).await;
                     return Ok(RunOutcome::Failed(Failure::coded(
                         FailureKind::Transient {
                             retry_after_seconds: None,
@@ -303,57 +386,10 @@ impl ExternalRunner for PluginTransferRunner {
                 Ok(RunOutcome::Completed { final_name: name })
             }
             Err(failure) => {
-                self.persist(file, &plugin_id, &version, None).await;
+                self.persist(file, plugin_id, version, None).await;
                 Ok(RunOutcome::Failed(failure))
             }
         }
-    }
-}
-
-impl PluginTransferRunner {
-    fn state(
-        &self,
-        backend: &TransferBackend,
-        file: rd_core::DownloadId,
-        target: TransferTarget,
-        cancellation: &CancellationToken,
-        limits: &RunLimits,
-    ) -> (TransferState, Arc<ProgressWrites>) {
-        let committed = target.committed;
-        let database = self.database.clone();
-        let writes = Arc::new(ProgressWrites::default());
-        let spawner = Arc::clone(&writes);
-        let reported = Arc::new(std::sync::atomic::AtomicU64::new(committed));
-        // One row update per megabyte and never on the guest's thread: the resume-relevant
-        // state is the file on disk, so a slow write here must not pace the transfer.
-        let progress = Arc::new(move |committed: u64, total: Option<u64>| {
-            let previous = reported.load(std::sync::atomic::Ordering::Relaxed);
-            if committed.saturating_sub(previous) < PROGRESS_INTERVAL_BYTES {
-                return;
-            }
-            reported.store(committed, std::sync::atomic::Ordering::Relaxed);
-            let database = database.clone();
-            spawner.spawn(async move {
-                logged(
-                    database.set_download_progress(file, committed, total).await,
-                    "record a plugin transfer's progress",
-                );
-            });
-        });
-        let state = TransferState::new(
-            target,
-            cancellation.clone(),
-            limits.bandwidth.clone(),
-            backend.manifest().capabilities.net_stream.clone(),
-            Arc::clone(&self.tls),
-            progress,
-        );
-        let state = if self.backends.allows_local_targets() {
-            state.allowing_local_targets()
-        } else {
-            state
-        };
-        (state, writes)
     }
 
     async fn validate_resume(
@@ -412,6 +448,25 @@ impl PluginTransferRunner {
             tracing::warn!(error = %error, "could not persist the plugin transfer checkpoint");
         }
     }
+}
+
+/// The package's destination as a storage root, and the staging file this row writes in it.
+async fn destination(
+    package: &DownloadPackage,
+    file: &DownloadFile,
+) -> Result<(StorageRoot, PathBuf)> {
+    if package.destination.is_empty() {
+        anyhow::bail!("plugin transfer package has no destination directory");
+    }
+    let root = StorageRoot::create(
+        StorageRootId::new(),
+        "download destination".to_owned(),
+        PathBuf::from(&package.destination),
+    )
+    .await?;
+    tokio::fs::create_dir_all(root.path()).await?;
+    let part_path = rd_files::part_path(&root, file.id).await?;
+    Ok((root, part_path))
 }
 
 #[cfg(test)]

@@ -14,7 +14,7 @@ serde_json.workspace = true
 torrent-common = { path = "../torrent-common" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

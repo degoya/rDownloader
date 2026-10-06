@@ -1,16 +1,10 @@
 //! The component: one rDownloader notification, one ntfy request.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "notifier-plugin",
-});
-
-use exports::rdownloader::plugin::notifier::{Guest, Notification};
-use rdownloader::plugin::{
-    destination_settings,
+use plugin_guest_notifier::{
+    Guest, Notification, delivered, destination_settings,
     http::{self, RequestHeader, RequestQuery},
-    types::{Failure, FailureKind},
+    types::Failure,
 };
 
 use crate::payload;
@@ -57,21 +51,9 @@ impl Guest for Component {
             &headers,
             payload::body(&message.body).as_bytes(),
         )?;
-        if (200..300).contains(&response.status) {
-            return Ok(());
-        }
-        Err(Failure {
-            // 4xx will not become 5xx by trying again; 5xx and 429 might.
-            category: if response.status >= 500 || response.status == 429 {
-                FailureKind::Transient(None)
-            } else {
-                FailureKind::Permanent
-            },
-            message: format!("ntfy answered {}", response.status),
-            code: Some("ntfy_notifier.rejected".to_owned()),
-            params: Vec::new(),
-        })
+        // 4xx will not become 5xx by trying again; 5xx and 429 might.
+        delivered(response.status, "ntfy", "ntfy_notifier.rejected")
     }
 }
 
-export!(Component);
+plugin_guest_notifier::notifier_plugin!(Component);

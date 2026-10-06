@@ -12,8 +12,8 @@
 
 use rd_core::{
     CriterionKind, CriterionMatch, MediaCompatibilityWarning, MediaFormat, MediaFormatCriteria,
-    MediaFormatInventory, MediaFormatKind, MediaOutput, MediaResolution, MediaSelectionError,
-    MediaStrictness, MediaTarget, RELAXATION_ORDER,
+    MediaFormatInventory, MediaFormatKind, MediaResolution, MediaSelectionError, MediaStrictness,
+    MediaTarget, RELAXATION_ORDER,
 };
 
 /// What the installed tools allow.
@@ -485,22 +485,4 @@ fn codec_head(codec: &str) -> String {
         .filter(|character| character.is_ascii_alphanumeric())
         .collect::<String>()
         .to_ascii_lowercase()
-}
-
-/// The audio quality yt-dlp should extract at, when the output asks for extraction.
-#[must_use]
-pub fn extract_audio(criteria: &MediaFormatCriteria) -> Option<(&str, u8)> {
-    match &criteria.output {
-        MediaOutput::ExtractAudio { codec, quality } => Some((codec.as_str(), *quality)),
-        MediaOutput::Passthrough | MediaOutput::Remux { .. } => None,
-    }
-}
-
-/// The container yt-dlp should merge into, when the output asks for a remux.
-#[must_use]
-pub fn remux_container(criteria: &MediaFormatCriteria) -> Option<&str> {
-    match &criteria.output {
-        MediaOutput::Remux { container } => Some(container.as_str()),
-        MediaOutput::Passthrough | MediaOutput::ExtractAudio { .. } => None,
-    }
 }

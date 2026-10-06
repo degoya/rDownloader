@@ -10,6 +10,7 @@ import { MIB, byteModel, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsMalwareScan from '@/components/SettingsMalwareScan.vue'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 import { DECIMAL, WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -203,12 +204,10 @@ const sampleMiB = byteModel(
         <UInput v-model="settings.archive_max_uncompressed_bytes" inputmode="numeric" class="w-full font-mono" />
       </UFormField>
     </div>
-    <UFormField data-settings-anchor="postprocess.rar_executable" :label="t('settings.postprocess.rar_executable.label')" :description="t('settings.postprocess.rar_executable.description')">
-      <UInput v-model="settings.rar_executable" icon="i-lucide-terminal" placeholder="/usr/bin/unrar" class="w-full font-mono" />
-    </UFormField>
     <UFormField :label="t('settings.postprocess.rar_tool')">
       <USelect v-model="settings.rar_tool" :items="rarToolItems" class="w-full" />
     </UFormField>
+    <SettingsCrossLink class="-mt-3" anchor="postprocess.rar_executable" :lead="t('settings.cross_link.program_path')" />
     <SettingsMalwareScan v-model="settings" />
     <UFormField data-settings-anchor="postprocess.upload" :label="t('settings.postprocess.upload.label')" :description="t('settings.postprocess.upload.description')" orientation="horizontal" class="border-t border-muted pt-4">
       <USwitch v-model="settings.upload_enabled" />
@@ -248,8 +247,7 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.upload_mode.label')" :description="t('settings.postprocess.upload_mode.description')">
       <USelect v-model="settings.upload_mode" :items="uploadModeItems" value-key="value" :disabled="!settings.upload_enabled" class="w-full" />
     </UFormField>
-    <UFormField data-settings-anchor="postprocess.rclone_executable" :label="t('settings.postprocess.rclone_executable.label')" :description="t('settings.postprocess.rclone_executable.description')">
-      <UInput v-model="settings.rclone_executable" icon="i-lucide-terminal" placeholder="/usr/bin/rclone" class="w-full font-mono" />
-    </UFormField>
+    <SettingsCrossLink class="-mt-3" anchor="postprocess.rclone_executable" :lead="t('settings.cross_link.program_path')" />
+    <SettingsCrossLink class="-mt-3" anchor="backup.full" />
   </UCard>
 </template>

@@ -1,10 +1,12 @@
 //! Small, purely textual primitives [`super`] is built out of: JavaScript variable
-//! assignments, quoted attribute values, a minimal `<form>`/`<input>` reader, and two
-//! byte-safe windowing helpers. Split out of `page.rs` to keep both files well inside the
-//! crate layout's 500-line convention.
+//! assignments and a minimal `<form>`/`<input>` reader, on top of `plugin_common::html`'s quoted
+//! values and byte-safe windows. Split out of `page.rs` to keep both files well inside the crate
+//! layout's 500-line convention.
 //!
 //! None of these know anything about Rapidgator; the hoster-specific markers all live in
 //! [`super`], which is also where they are exercised from (`page/tests.rs`).
+
+use plugin_common::html::{clamp, digits_at, quoted_value};
 
 /// `name = '<value>'` / `name = "<value>"`, skipping occurrences of `name` that are part of a
 /// longer identifier or a JSON key rather than an assignment.
@@ -39,23 +41,6 @@ pub(super) fn number_after(html: &str, marker: &str) -> Option<u64> {
     let rest = clamp(&html[html.find(marker)? + marker.len()..], 80);
     let start = rest.find(|character: char| character.is_ascii_digit())?;
     digits_at(&rest[start..])
-}
-
-fn digits_at(text: &str) -> Option<u64> {
-    let digits: String = text.chars().take_while(char::is_ascii_digit).collect();
-    digits.parse().ok()
-}
-
-/// The content of a quoted attribute or JavaScript string at the front of `rest`; `Some("")` for
-/// an explicitly empty value, `None` when `rest` does not start with a quote.
-pub(super) fn quoted_value(rest: &str) -> Option<String> {
-    let quote = rest.chars().next()?;
-    if quote != '"' && quote != '\'' {
-        return None;
-    }
-    let value = &rest[quote.len_utf8()..];
-    let end = value.find(quote)?;
-    Some(decode_entities(&value[..end]))
 }
 
 /// The `<form ...>` element whose open tag carries `id="<id>"`, up to and including `</form>`.
@@ -128,44 +113,4 @@ pub(super) fn tag_attribute(tag: &str, name: &str) -> Option<String> {
         }
         cursor = after;
     }
-}
-
-/// Text following `marker` up to the next tag, whitespace collapsed and capped at 160 bytes.
-pub(super) fn element_text(html: &str, marker: &str) -> Option<String> {
-    let at = html.find(marker)? + marker.len();
-    let rest = &html[at..];
-    let rest = if marker.starts_with("class=") {
-        &rest[rest.find('>')? + 1..]
-    } else {
-        rest
-    };
-    let end = rest.find('<').unwrap_or(rest.len());
-    let collapsed = rest[..end].split_whitespace().collect::<Vec<_>>().join(" ");
-    let text = clamp(&collapsed, 160).to_owned();
-    (!text.is_empty()).then_some(text)
-}
-
-/// The named HTML entities these pages use; anything else is left as it stands.
-pub(super) fn decode_entities(text: &str) -> String {
-    if !text.contains('&') {
-        return text.to_owned();
-    }
-    text.replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
-}
-
-/// `text` truncated to at most `max` bytes, never splitting a UTF-8 character.
-pub(super) fn clamp(text: &str, max: usize) -> &str {
-    if text.len() <= max {
-        return text;
-    }
-    let mut end = max;
-    while end > 0 && !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    &text[..end]
 }

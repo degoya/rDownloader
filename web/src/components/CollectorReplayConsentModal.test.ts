@@ -1,31 +1,17 @@
-import { render, screen } from '@testing-library/vue'
+import { screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { ReplayPreview } from '@/api/types'
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/linkgrabber.json'
+import { mountComponent } from '@/test/mount'
 
 import CollectorReplayConsentModal from './CollectorReplayConsentModal.vue'
 
-const i18n = createI18n({
-  legacy: false,
-  locale: 'en',
-  messages: { en: { linkgrabber: en, common } }
-})
-
-/** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UModal: { template: '<div><slot name="body" /><slot name="footer" /></div>' },
-  UButton: { template: '<button v-bind="$attrs">{{ $attrs.label }}<slot /></button>' },
-  UBadge: { template: '<span v-bind="$attrs">{{ $attrs.label }}<slot /></span>' },
-  UCheckbox: { template: '<label v-bind="$attrs">{{ $attrs.label }}</label>' },
-  UAlert: {
-    template: '<div v-bind="$attrs">{{ $attrs.title }} {{ $attrs.description }}<slot /></div>'
-  },
-  UFormField: passthrough
-}
+/** The modal's body and footer, where the origins and the approval sit. */
+const UModal = { template: '<div><slot name="body" /><slot name="footer" /></div>' }
+/** A badge that shows its `label`, which is where each category names its host. */
+const UBadge = { template: '<span v-bind="$attrs">{{ $attrs.label }}<slot /></span>' }
 
 function preview(overrides: Partial<ReplayPreview> = {}): ReplayPreview {
   return {
@@ -64,10 +50,7 @@ function preview(overrides: Partial<ReplayPreview> = {}): ReplayPreview {
 }
 
 function renderModal(value: ReplayPreview, readonly = false) {
-  return render(CollectorReplayConsentModal, {
-    props: { preview: value, readonly },
-    global: { plugins: [i18n], components }
-  })
+  return mountComponent(CollectorReplayConsentModal, { messages: { linkgrabber: en }, props: { preview: value, readonly }, stubs: { UModal, UBadge } })
 }
 
 describe('CollectorReplayConsentModal', () => {

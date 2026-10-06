@@ -56,9 +56,9 @@ function field(label: string): HTMLInputElement {
   return screen.getByLabelText(label) as HTMLInputElement
 }
 
-/** The feedback of one colour; the card shows it above its form. */
-function alert(color: 'error' | 'success'): HTMLElement | null {
-  return document.querySelector(`[color="${color}"][variant="subtle"]`)
+/** The feedback of one kind; the card shows it above its form. */
+function alert(kind: 'error' | 'success'): HTMLElement | null {
+  return document.querySelector(`[data-testid="auth-profile-${kind}"]`)
 }
 
 /** The list row that names a profile. */
@@ -173,7 +173,7 @@ describe('editing', () => {
   it('loads the profile without its stored credential', async () => {
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.edit }))
 
     await waitFor(() => expect(field(en.name_label).value).toBe('Intranet'))
     expect(field(en.scope_label).value).toBe('files.example.com')
@@ -187,7 +187,7 @@ describe('editing', () => {
     vi.mocked(api.PUT).mockResolvedValue({ data: { ...STORED, name: 'Renamed' } } as never)
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.edit }))
     await fireEvent.update(field(en.name_label), 'Renamed')
     await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
 
@@ -204,7 +204,7 @@ describe('editing', () => {
     } as never)
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.edit }))
     await fireEvent.update(field(en.secret_bearer), '.evil.tld\tTRUE\t/\tTRUE\t0\tsid\tx')
     await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
 
@@ -236,7 +236,7 @@ describe('activating, testing and deleting', () => {
     } as never)
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: en.test }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.test }))
 
     await waitFor(() => expect(alert('error')?.textContent).toBe('401'))
     expect(alert('success')).toBeNull()
@@ -246,13 +246,13 @@ describe('activating, testing and deleting', () => {
     confirmed.mockResolvedValue(false)
     renderCard()
     await screen.findByText('Intranet')
-    await fireEvent.click(screen.getByRole('button', { name: en.delete }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.delete }))
     await waitFor(() => expect(confirmed).toHaveBeenCalled())
     expect(api.DELETE).not.toHaveBeenCalled()
 
     confirmed.mockResolvedValue(true)
     vi.mocked(api.DELETE).mockResolvedValue({ data: { code: 'authprofile.deleted', message: 'gone' } } as never)
-    await fireEvent.click(screen.getByRole('button', { name: en.delete }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.delete }))
     await waitFor(() => {
       expect(api.DELETE).toHaveBeenCalledWith('/api/v1/auth-profiles/{id}', {
         params: { path: { id: 'profile-1' } }
@@ -301,7 +301,7 @@ describe('the form follows the shared shape (RD-150-11)', () => {
     renderCard()
     await screen.findByText('Intranet')
     expect(screen.getByRole('heading', { name: en.form_new })).toBeTruthy()
-    await fireEvent.click(screen.getByRole('button', { name: en.edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.edit }))
     expect(screen.getByRole('heading', { name: en.form_edit })).toBeTruthy()
     expect(within(rowOf('Intranet')).getByText(common.editing)).toBeTruthy()
   })

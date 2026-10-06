@@ -210,8 +210,8 @@ function lastError(repository: PluginRepository): string {
           :description="t('plugins.repositories.description')"
           level="sub"
         />
-        <UAlert v-if="message" class="mb-4" color="success" variant="subtle" :description="message" />
-        <UAlert v-if="error" class="mb-4" color="error" variant="subtle" :description="error" />
+        <UAlert v-if="message" class="mb-4" color="success" :description="message" />
+        <UAlert v-if="error" class="mb-4" color="error" :description="error" />
         <!-- A repository is registered, not made here, so the action says "Add" rather than
              "Create"; there is no edit state, so the row carries no cancel. -->
         <form class="space-y-3" @submit.prevent="add()">
@@ -240,10 +240,10 @@ function lastError(repository: PluginRepository): string {
                 <p class="font-medium text-highlighted">{{ repository.name }}</p>
                 <UBadge v-if="repository.kind === 'official'" color="primary" variant="subtle">{{ t('plugins.repositories.official') }}</UBadge>
               </div>
-              <p class="mt-1 truncate font-mono text-[11px] text-muted" :title="repository.url">{{ repository.url }}</p>
+              <p class="mt-1 truncate font-mono text-2xs text-muted" :title="repository.url">{{ repository.url }}</p>
               <template v-if="repository.key_id && repository.fingerprint">
                 <p class="mt-1 text-xs text-muted">{{ t('plugins.repositories.key', { key_id: repository.key_id }) }}</p>
-                <p class="break-all font-mono text-[11px] text-muted">{{ groupFingerprint(repository.fingerprint) }}</p>
+                <p class="break-all font-mono text-2xs text-muted">{{ groupFingerprint(repository.fingerprint) }}</p>
               </template>
               <p v-if="repository.last_error" class="mt-1 text-xs leading-5 text-error">
                 {{ t('plugins.repositories.last_error', { reason: lastError(repository) }) }}
@@ -287,7 +287,7 @@ function lastError(repository: PluginRepository): string {
       </template>
     </FormListLayout>
 
-    <UModal v-model:open="approvalOpen" :title="t('plugins.repositories.approve_title')" :ui="{ footer: 'justify-end' }">
+    <UModal v-model:open="approvalOpen" :title="t('plugins.repositories.approve_title')">
       <template #body>
         <div v-if="pending" class="space-y-4" data-repository-approval>
           <p class="break-words text-sm leading-6 text-toned">{{ t('plugins.repositories.approve_intro', { url: pending.url, count: pending.packages }) }}</p>
@@ -297,7 +297,7 @@ function lastError(repository: PluginRepository): string {
             <p class="mt-3 text-xs text-muted">{{ t('plugins.trust.fingerprint') }}</p>
             <p class="break-all font-mono text-sm text-highlighted">{{ groupFingerprint(pending.fingerprint) }}</p>
           </div>
-          <UAlert color="warning" variant="subtle" :description="t('plugins.repositories.approve_warning')" />
+          <UAlert color="warning" :description="t('plugins.repositories.approve_warning')" />
         </div>
       </template>
       <template #footer>

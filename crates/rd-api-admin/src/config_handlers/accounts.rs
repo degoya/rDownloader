@@ -85,7 +85,7 @@ pub async fn update_account(
             rd_db::UpdateAccount {
                 provider: request.provider.trim().to_ascii_lowercase(),
                 label: request.label.trim().to_owned(),
-                username: normalized_optional(request.username),
+                username: optional_text(request.username),
                 credential_mode: request.credential_mode,
                 secret_ref: new_secret_ref.clone(),
                 cookie_ref: new_cookie_ref.clone(),
@@ -241,7 +241,7 @@ pub async fn create_account(
         .create_account(rd_db::NewAccount {
             provider: request.provider.trim().to_ascii_lowercase(),
             label: request.label.trim().to_owned(),
-            username: normalized_optional(request.username),
+            username: optional_text(request.username),
             credential_mode: request.credential_mode,
             secret_ref: secret_ref.clone(),
             cookie_ref: cookie_ref.clone(),

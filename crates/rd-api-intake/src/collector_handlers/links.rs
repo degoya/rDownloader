@@ -1,5 +1,7 @@
 //! One link on its way into a LinkGrabber batch, with what the intake keeps alongside it.
 
+use rd_api_core::input_checks::optional_text;
+
 use crate::AppState;
 
 /// URLs, file names, sizes, package hints, mirror hints, captured requests and vaulted body
@@ -78,9 +80,7 @@ impl CapturedLink {
     pub(super) fn proposed(url: url::Url, file_name: Option<String>) -> Self {
         Self {
             url,
-            file_name: file_name
-                .map(|name| name.trim().to_owned())
-                .filter(|name| !name.is_empty()),
+            file_name: optional_text(file_name),
             size: None,
             package_hint: None,
             mirror: None,

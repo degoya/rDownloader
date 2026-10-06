@@ -10,7 +10,7 @@ use rd_core::FailureKind;
 use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver};
 
 use super::super::FilejokerResolver;
-use super::{MockHost, file, html};
+use super::{MockHost, SessionHost, file, html};
 
 /// The account-less request the free flow answers.
 fn free_request() -> ResolveRequest {

@@ -11,10 +11,11 @@ plugin-common = { path = "../common" }
 plugin-guest-remote-job = { path = "../guest-remote-job" }
 serde.workspace = true
 serde_json.workspace = true
+torbox-common = { path = "../torbox-common" }
 torrent-common = { path = "../torrent-common" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

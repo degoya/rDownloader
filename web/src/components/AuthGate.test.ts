@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import auth from '@/locales/en/auth.json'
 import { useSessionStore } from '@/stores/session'
+import { createTestI18n, uiStubs } from '@/test/mount'
 
 import AuthGate from './AuthGate.vue'
 
@@ -21,20 +21,12 @@ vi.mock('@/utils/identityProvider', async (original) => ({
   leaveFor: vi.fn()
 }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { auth } } })
-const components = {
-  UAlert: { props: ['title', 'description'], template: '<div role="note">{{ title }} {{ description }}</div>' },
-  UButton: {
-    props: ['label', 'disabled', 'type'],
-    emits: ['click'],
-    template: '<button :type="type || \'button\'" :disabled="disabled" @click="$emit(\'click\')">{{ label }}</button>'
-  },
-  UFormField: { props: ['label'], template: '<label>{{ label }}<slot /></label>' },
-  UInput: { props: ['modelValue'], template: '<input :value="modelValue">' }
-}
+/** The notice as a `note`, so a test can read the refusal it carries. */
+const UAlert = { props: ['title', 'description'], template: '<div role="note">{{ title }} {{ description }}</div>' }
 
+/** Rendered directly rather than through the shared mount helper, which starts a fresh Pinia: each test sets the session store up before the mount. */
 function mount() {
-  return render(AuthGate, { global: { plugins: [i18n], components } })
+  return render(AuthGate, { global: { plugins: [createTestI18n({ auth })], stubs: { ...uiStubs, UAlert } as never } })
 }
 
 describe('AuthGate and the identity provider (RD-190-15)', () => {

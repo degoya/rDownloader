@@ -329,15 +329,5 @@ pub async fn call<T: DeserializeOwned, H: PluginHost>(
 }
 
 /// Whether the answer is a page rather than JSON: by content type, or by a body that opens
-/// like markup when no type was sent.
-#[must_use]
-pub fn is_html(response: &HttpResponse) -> bool {
-    match response.header("content-type") {
-        Some(value) => value.to_ascii_lowercase().starts_with("text/html"),
-        None => response
-            .body
-            .iter()
-            .find(|byte| !byte.is_ascii_whitespace())
-            .is_some_and(|byte| *byte == b'<'),
-    }
-}
+/// like markup when no type was sent; the rule every plugin shares.
+pub use plugin_common::is_html;

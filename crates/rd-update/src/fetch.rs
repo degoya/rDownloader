@@ -54,7 +54,7 @@ impl HttpFetcher {
         Self {
             client: reqwest::Client::builder()
                 // GitHub's API refuses a request without one.
-                .user_agent(concat!("rDownloader/", env!("CARGO_PKG_VERSION")))
+                .user_agent(rd_core::user_agent!())
                 .connect_timeout(Duration::from_secs(30))
                 .read_timeout(Duration::from_secs(READ_TIMEOUT_SECONDS))
                 .redirect(redirects)

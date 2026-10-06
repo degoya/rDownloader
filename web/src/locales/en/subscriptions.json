@@ -162,13 +162,11 @@
     "hide_details": "Hide details",
     "enable": "Enable subscription",
     "disable": "Disable subscription",
-    "duplicate": "Duplicate",
     "menu": "Subscription actions"
   },
   "remove": {
     "title": "Delete subscription?",
-    "description": "\"{name}\" is removed along with its filters, its category routing and the record of what it has already seen.",
-    "confirm": "Delete"
+    "description": "\"{name}\" is removed along with its filters, its category routing and the record of what it has already seen."
   },
   "history": {
     "action": "Clear completed history",

@@ -71,7 +71,7 @@ const { t } = useI18n()
     <p class="pt-1 text-center text-xs text-muted">{{ props.label ?? t('common.data.loading') }}</p>
   </div>
   <!-- UAlert sets no role of its own: the failure keeps the `alert` it always announced with. -->
-  <UAlert v-else-if="props.error && props.variant === 'panel'" role="alert" color="error" variant="subtle" :description="props.error" />
+  <UAlert v-else-if="props.error && props.variant === 'panel'" role="alert" color="error" :description="props.error" />
   <p v-else-if="props.error" role="alert" class="text-xs text-error">
     {{ props.error }}
   </p>

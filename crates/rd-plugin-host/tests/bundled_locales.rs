@@ -73,10 +73,10 @@ fn plugin_directories() -> Vec<PathBuf> {
     // fifty-eighth and fifty-ninth are `torbox`, `torbox-auth` and `torbox-jobs` (RD-120-01):
     // the second provider of the eleventh world, and three at once for the same reason the
     // cloud drives are -- a manifest carries one `plugin_type`, only a resolver may declare
-    // the `[provider]` row, and the remote job and the key check hang off its slug. They share
-    // no crate: each of the three talks to a different part of TorBox's API, and the one thing
-    // they agree on is a vault reference, which is a string in three manifests rather than a
-    // dependency.
+    // the `[provider]` row, and the remote job and the key check hang off its slug. The
+    // resolver and the remote job share `torbox-common`, which carries no manifest: TorBox's
+    // error envelope and the failure read from it (RD-1120-10); the key check only agrees with
+    // them on a vault reference, which is a string in three manifests rather than a dependency.
     // The sixtieth, sixty-first and sixty-second are `putio`, `putio-oauth` and
     // `putio-transfers` (RD-120-03): three again, and for the same two reasons at once -- only
     // the resolver may carry the `putio` provider row, and a remote job is a `plugin_type` of

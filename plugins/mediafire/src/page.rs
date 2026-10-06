@@ -8,7 +8,7 @@
 //! fixtures that say so. Everything is a substring scan over one page; there is no HTML
 //! parser in the sandbox and none is needed for four attributes.
 
-use plugin_common::HttpResponse;
+use plugin_common::html::decode_entities;
 
 /// The kinds of captcha form the page can carry.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -29,14 +29,8 @@ pub(crate) struct CaptchaForm {
     pub(crate) fields: Vec<(String, String)>,
 }
 
-/// Whether the answer is a page rather than a file.
-#[must_use]
-pub(crate) fn is_html(response: &HttpResponse) -> bool {
-    match response.header("content-type") {
-        Some(content_type) => content_type.to_ascii_lowercase().contains("text/html"),
-        None => response.body.trim_ascii_start().starts_with(b"<"),
-    }
-}
+/// Whether the answer is a page rather than a file: the rule every plugin shares.
+pub(crate) use plugin_common::is_html;
 
 /// The direct link the page offers, validated to point at a delivery host.
 ///
@@ -47,7 +41,7 @@ pub(crate) fn direct_link(html: &str) -> Option<String> {
     tags(html, "<a")
         .find(|tag| attribute(tag, "id").is_some_and(|id| id == "downloadButton"))
         .and_then(|tag| attribute(&tag, "href"))
-        .and_then(|href| delivery_url(&unescape(&href)))
+        .and_then(|href| delivery_url(&decode_entities(&href)))
         .or_else(|| {
             after(html, "kNO = \"")
                 .and_then(|rest| rest.split('"').next())
@@ -131,7 +125,7 @@ pub(crate) fn captcha_form(html: &str) -> Option<CaptchaForm> {
     let fields = tags(block, "<input")
         .filter(|tag| attribute(tag, "type").is_none_or(|kind| kind.eq_ignore_ascii_case("hidden")))
         .filter_map(|tag| Some((attribute(&tag, "name")?, attribute(&tag, "value")?)))
-        .map(|(name, value)| (unescape(&name), unescape(&value)))
+        .map(|(name, value)| (decode_entities(&name), decode_entities(&value)))
         .collect();
     Some(CaptchaForm { kind, fields })
 }
@@ -152,19 +146,14 @@ pub(crate) fn diagnose(html: &str) -> String {
     }
 }
 
-/// Encodes form fields as `application/x-www-form-urlencoded`.
+/// Encodes form fields as `application/x-www-form-urlencoded`, with the `url` crate's encoder
+/// every other form-posting plugin uses.
 #[must_use]
 pub(crate) fn encode_form(fields: &[(String, String)]) -> Vec<u8> {
-    let mut body = String::new();
-    for (name, value) in fields {
-        if !body.is_empty() {
-            body.push('&');
-        }
-        body.push_str(&form_encode(name));
-        body.push('=');
-        body.push_str(&form_encode(value));
-    }
-    body.into_bytes()
+    url::form_urlencoded::Serializer::new(String::new())
+        .extend_pairs(fields.iter().map(|(name, value)| (name, value)))
+        .finish()
+        .into_bytes()
 }
 
 /// The site key of a reCAPTCHA v2 widget inside `block`.
@@ -255,29 +244,6 @@ fn attribute(tag: &str, name: &str) -> Option<String> {
         from = start + name.len();
     }
     None
-}
-
-/// The five entities HTML attributes and text commonly carry.
-fn unescape(text: &str) -> String {
-    text.replace("&amp;", "&")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-}
-
-fn form_encode(text: &str) -> String {
-    let mut encoded = String::with_capacity(text.len());
-    for byte in text.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                encoded.push(char::from(byte));
-            }
-            b' ' => encoded.push('+'),
-            _ => encoded.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    encoded
 }
 
 #[cfg(test)]

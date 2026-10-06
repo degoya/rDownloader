@@ -6,7 +6,7 @@
 import { formatDay } from '@/utils/format'
 
 /** The durations the forms offer, in days. `0` is "never", the default. */
-export const TOKEN_EXPIRY_DAYS = [0, 7, 30, 90, 365] as const
+const TOKEN_EXPIRY_DAYS = [0, 7, 30, 90, 365] as const
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 

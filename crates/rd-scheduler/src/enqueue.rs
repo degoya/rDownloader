@@ -282,7 +282,18 @@ async fn write_package(
             }
         }
     }
+    announce_created(database, package_id, &created).await;
     Ok((package, created))
+}
+
+/// One event for every row an enqueue wrote (RD-1120-17), after the last of them, so a list
+/// open elsewhere shows the whole package at once and a large hand-over is one event, not one
+/// per link. The rows are committed already; a failure here costs the live update only.
+async fn announce_created(database: &Database, package_id: PackageId, created: &[DownloadFile]) {
+    let ids = created.iter().map(|download| download.id).collect();
+    if let Err(error) = database.announce_created_downloads(package_id, ids).await {
+        tracing::warn!(%error, package = %package_id, "the new rows were not announced");
+    }
 }
 
 /// Writes a torrent row's reviewed state while the row is still paused.
@@ -438,7 +449,8 @@ impl SchedulerHandle {
                 enrichment: Vec::new(),
             })
             .await?;
-        self.database
+        let file = self
+            .database
             .create_download(NewDownload {
                 id: DownloadId::new(),
                 package_id,
@@ -462,6 +474,8 @@ impl SchedulerHandle {
                 replay: None,
                 secret_fragment: None,
             })
-            .await
+            .await?;
+        announce_created(&self.database, package_id, std::slice::from_ref(&file)).await;
+        Ok(file)
     }
 }

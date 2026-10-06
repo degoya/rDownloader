@@ -36,6 +36,17 @@ pub fn address_scope(address: IpAddr) -> AddressScope {
     }
 }
 
+/// The literal address a URL's host *is*, when it is one rather than a name. Shared by the
+/// download engine's guard and the site rules' one (RD-1120-12).
+#[must_use]
+pub fn literal_address(url: &url::Url) -> Option<IpAddr> {
+    match url.host()? {
+        url::Host::Ipv4(address) => Some(IpAddr::V4(address)),
+        url::Host::Ipv6(address) => Some(IpAddr::V6(address)),
+        url::Host::Domain(_) => None,
+    }
+}
+
 fn scope_v4(address: Ipv4Addr) -> AddressScope {
     let [a, b, c, _] = address.octets();
     let local = address.is_loopback()

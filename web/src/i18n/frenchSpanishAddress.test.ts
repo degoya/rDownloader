@@ -19,7 +19,7 @@
  *
  * A sentence the heuristic misreads goes into EXCEPTIONS by key and phrase, as in the German test;
  * the phrase is cut out of that one string only. `extension/test/french-spanish-address.test.mjs`
- * and `crates/rdownloader/tests/french_spanish_address.rs` hold the same rule for the extension
+ * and `crates/rdownloader/tests/repo_lints/french_spanish_address.rs` hold the same rule for the extension
  * and the plugin catalogues.
  */
 import { readFileSync, readdirSync } from 'node:fs'

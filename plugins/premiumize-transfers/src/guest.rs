@@ -21,10 +21,11 @@
 
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteHandle,
-    RemoteProgress, RemoteWork, SubmitRequest,
-    http::{self, RequestHeader, RequestQuery},
+    RemoteProgress, RemoteWork, SubmitRequest, bearer, headers,
+    http::{self, RequestQuery},
     job_context, refuse,
     types::{Failure, FailureKind},
+    unknown_answers,
 };
 use premiumize_common::{
     cache::{self, CacheCheckResponse, Holding},
@@ -67,28 +68,6 @@ fn category_of(kind: Kind) -> FailureKind {
     }
 }
 
-/// The bearer header, as a template. The key's value never reaches this plugin: the host
-/// substitutes it on the way out, towards `www.premiumize.me` and nowhere else.
-fn headers(content_type: Option<&str>) -> Vec<RequestHeader> {
-    let mut headers = vec![
-        RequestHeader {
-            name: "Authorization".to_owned(),
-            value_template: format!("Bearer {{{{secret:{}}}}}", api::KEY_REFERENCE),
-        },
-        RequestHeader {
-            name: "Accept".to_owned(),
-            value_template: "application/json".to_owned(),
-        },
-    ];
-    if let Some(value) = content_type {
-        headers.push(RequestHeader {
-            name: "Content-Type".to_owned(),
-            value_template: value.to_owned(),
-        });
-    }
-    headers
-}
-
 /// One request, with every answer that is not an answer turned into one refusal.
 ///
 /// The body decides, and the status decides only when there is no body to read. Both
@@ -102,7 +81,10 @@ fn call(
     content_type: Option<&str>,
     body: &[u8],
 ) -> Result<Vec<u8>, Failure> {
-    let response = http::http_request(method, url, query, &headers(content_type), body)?;
+    // The bearer header is a template: the key's value never reaches this plugin, the host
+    // substitutes it on the way out, towards `www.premiumize.me` and nowhere else.
+    let headers = headers(bearer(api::KEY_REFERENCE), content_type);
+    let response = http::http_request(method, url, query, &headers, body)?;
     // Seconds only, never `0`, at most a day: the reader every plugin shares (RD-191-07).
     let retry_after = plugin_common::retry_after(&response.headers);
     let envelope: status::Envelope = serde_json::from_slice(&response.body).unwrap_or_default();
@@ -127,8 +109,7 @@ fn call(
 }
 
 fn parse<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, Failure> {
-    serde_json::from_slice(body)
-        .map_err(|_| refuse(messages::INVALID_RESPONSE, FailureKind::Permanent))
+    plugin_guest_remote_job::parse(body, messages::INVALID_RESPONSE)
 }
 
 /// The content key of a source, or the refusal that says it is not one of ours.
@@ -148,26 +129,13 @@ fn key_of(source: &JobSource) -> Result<String, Failure> {
 
 /// Checks an identifier before it is spliced into a request.
 fn safe_id(handle: &RemoteHandle) -> Result<&str, Failure> {
-    if api::is_safe_id(&handle.remote_id) {
-        Ok(&handle.remote_id)
-    } else {
-        Err(refuse(messages::TRANSFER_GONE, FailureKind::Permanent))
-    }
+    plugin_guest_remote_job::safe_id(handle, api::is_safe_id, messages::TRANSFER_GONE)
 }
 
 fn query(name: &str, value: &str) -> RequestQuery {
     RequestQuery {
         name: name.to_owned(),
         value_template: value.to_owned(),
-    }
-}
-
-/// The answer for a query that was not asked, or that Premiumize said nothing about.
-fn unknown() -> CacheAnswer {
-    CacheAnswer {
-        state: CacheState::Unknown,
-        file_name: None,
-        size: None,
     }
 }
 
@@ -189,7 +157,7 @@ impl Guest for Component {
         _account_id: String,
         queries: Vec<CacheQuery>,
     ) -> Result<Vec<CacheAnswer>, Failure> {
-        let mut answers: Vec<CacheAnswer> = queries.iter().map(|_| unknown()).collect();
+        let mut answers: Vec<CacheAnswer> = unknown_answers(&queries);
         let asked: Vec<(usize, String)> = queries
             .iter()
             .enumerate()

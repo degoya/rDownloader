@@ -13,7 +13,6 @@ use super::{NetworkClient, ProviderCredential};
 use crate::{ProfileBoundary, SchedulerHandle};
 
 /// Builds (or reuses) the isolated client for an account/proxy/profile combination.
-/// Reached from outside through [`SchedulerHandle::network_client`].
 pub(crate) async fn build_client(
     scheduler: &SchedulerHandle,
     account_id: Option<rd_core::AccountId>,

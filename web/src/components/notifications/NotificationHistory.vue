@@ -71,16 +71,16 @@ defineExpose({ reload: load })
         <UBadge :color="color(delivery.state)" variant="subtle" class="shrink-0">{{ t(`notifications.state.${delivery.state}`) }}</UBadge>
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm text-highlighted">{{ delivery.title }}</p>
-          <p class="text-[11px] text-muted">
+          <p class="text-2xs text-muted">
             {{ formatLongMoment(delivery.updated_at) }} ·
             {{ t('notifications.history.attempts', { count: delivery.attempt }) }}
             <template v-if="delivery.response_status"> · HTTP {{ delivery.response_status }}</template>
           </p>
-          <p v-if="delivery.response_excerpt" class="mt-1 break-words font-mono text-[11px] text-muted">{{ delivery.response_excerpt }}</p>
+          <p v-if="delivery.response_excerpt" class="mt-1 break-words font-mono text-2xs text-muted">{{ delivery.response_excerpt }}</p>
         </div>
       </div>
       <DataState :loading="loading" :error="loadError" :empty="!deliveries.length" variant="inline" class="p-5">
-        <p class="text-center text-sm text-muted">{{ t('notifications.history.empty') }}</p>
+        <UEmpty :description="t('notifications.history.empty')" />
       </DataState>
     </div>
   </UCard>

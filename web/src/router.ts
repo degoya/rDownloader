@@ -23,8 +23,9 @@ export const router = createRouter({
     { path: '/audit', name: 'audit', component: () => import('./views/AuditView.vue') },
     { path: '/remote-jobs', name: 'remote-jobs', component: () => import('./views/RemoteJobsView.vue') },
     // One view, one page per URL, and `/settings` itself is the overview (RD-110-29). The old
-    // `?tab=` form still redirects, and a segment that names no page lands on the overview, so
-    // links from other views and from anyone's bookmarks keep working.
+    // `?tab=` form still redirects, a page or sub-tab that moved leads to its new place
+    // (RD-1120-23), and a segment that names no page lands on the overview, so links from other
+    // views and from anyone's bookmarks keep working.
     { path: '/settings', name: 'settings-overview', component: () => import('./views/SettingsOverview.vue') },
     { path: '/settings/:section', name: 'settings', component: () => import('./views/SettingsView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/downloads' }
@@ -37,7 +38,7 @@ export const router = createRouter({
 // would have stayed on the overview.
 router.beforeEach((to) => {
   if (to.name === 'settings-overview') return settingsRedirect(undefined, to.query.tab) ?? true
-  if (to.name === 'settings') return settingsRedirect(to.params.section, undefined) ?? true
+  if (to.name === 'settings') return settingsRedirect(to.params.section, to.query.tab) ?? true
   return true
 })
 

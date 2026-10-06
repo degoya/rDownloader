@@ -35,6 +35,8 @@ tracing.workspace = true
 workspace = true
 
 [dev-dependencies]
+# The crash point registry, which the crash cases check their points against (RD-1120-12).
+rd-crash-points = { path = "../rd-crash-points" }
 chrono.workspace = true
 rd-extract = { path = "../rd-extract" }
 rd-limits = { path = "../rd-limits" }

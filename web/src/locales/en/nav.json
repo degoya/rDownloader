@@ -62,7 +62,10 @@
       "signature": "signature, key, publisher, trust",
       "managed_tools": "download tools, install automatically, update",
       "updates": "update, upgrade, new version, beta, release channel",
-      "indexers": "indexer, newznab, torznab, jackett, prowlarr, nzb search, torrent search, api key, list style, cover"
+      "indexers": "indexer, newznab, torznab, jackett, prowlarr, nzb search, torrent search, api key, list style, cover",
+      "active_files": "parallel downloads, at once, simultaneous, slots, queue",
+      "collision": "collision, name clash, overwrite, rename",
+      "linkgrabber": "blocklist, excluded domains, mirrors, container"
     }
   },
   "connection": {
@@ -73,5 +76,10 @@
     "reload": "Reload"
   },
   "history": "History",
-  "stats_history": "Statistics & history"
+  "stats_history": "Statistics & history",
+  "version": {
+    "outdated": "New version available — reload",
+    "outdated_hint": "The service now runs version {version}, this page still {build}. Reload it to get the current interface.",
+    "reload": "Reload"
+  }
 }

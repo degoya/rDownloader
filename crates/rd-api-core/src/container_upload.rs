@@ -35,7 +35,7 @@ use base64::{
     Engine, alphabet,
     engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig},
 };
-use serde::Deserialize;
+use serde::{Deserialize, de::DeserializeOwned};
 use utoipa::ToSchema;
 
 use crate::ApiError;
@@ -95,11 +95,15 @@ pub struct ContainerUpload {
     pub format: Option<String>,
 }
 
-/// An import request's body, before it is read: a multipart upload or a JSON document.
-pub enum UploadBody {
+/// A request body before it is read: a multipart upload, or the JSON document `T` — what a
+/// route that takes both a file and a tool's call accepts (the imports, the capture hand-over).
+pub enum JsonOrMultipart<T> {
     Multipart(Multipart),
-    Json(ContainerUpload),
+    Json(T),
 }
+
+/// An import request's body, before it is read: a multipart upload or a JSON document.
+pub type UploadBody = JsonOrMultipart<ContainerUpload>;
 
 /// What either body carried, in one shape.
 #[derive(Debug, Default)]
@@ -119,15 +123,15 @@ pub struct UploadedFile {
     pub bytes: Vec<u8>,
 }
 
-impl<S: Send + Sync> FromRequest<S> for UploadBody {
+impl<S: Send + Sync, T: DeserializeOwned + Send> FromRequest<S> for JsonOrMultipart<T> {
     /// A multipart body is refused exactly as the `Multipart` extractor always refused it; only
     /// a JSON body gets the codes below.
     type Rejection = Response;
 
     async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
         if is_json(request.headers()) {
-            return match Json::<ContainerUpload>::from_request(request, state).await {
-                Ok(Json(upload)) => Ok(Self::Json(upload)),
+            return match Json::<T>::from_request(request, state).await {
+                Ok(Json(body)) => Ok(Self::Json(body)),
                 Err(rejection) => Err(json_rejection(&rejection).into_response()),
             };
         }

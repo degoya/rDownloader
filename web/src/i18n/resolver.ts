@@ -1,8 +1,5 @@
 import type { MessageResolver, PathValue } from 'vue-i18n'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
+import { isRecord } from '@/utils/values'
 
 /**
  * Resolves a message path, preferring a literal key over a nested walk at every level.

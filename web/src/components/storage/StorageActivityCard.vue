@@ -18,6 +18,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes, formatMoment } from '@/utils/format'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 /**
  * What the storage layer did and can do (RD-150-02): the history of verified moves and dedupe
@@ -109,8 +110,7 @@ onMounted(() => void load())
       :title="t('settings.storage.activity.title')"
       :description="t('settings.storage.activity.description')"
     />
-    <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="error" />
-    <UAlert v-if="checkResult" color="success" variant="subtle" icon="i-lucide-circle-check" :description="checkResult" />
+    <FormFeedback :error="error" :message="checkResult" />
 
     <div>
       <p class="text-sm font-medium text-highlighted">{{ t('settings.storage.activity.links_title') }}</p>

@@ -26,6 +26,8 @@ trap 'rm -rf "$SCRATCH"' EXIT
 source "$ROOT/scripts/lib/verified.sh"
 # shellcheck source=../lib/scope.sh
 source "$ROOT/scripts/lib/scope.sh"
+# shellcheck source=../lib/check-reuse.sh
+source "$ROOT/scripts/lib/check-reuse.sh"
 
 # shellcheck source=lib/expect.sh
 source "$ROOT/scripts/tests/lib/expect.sh"
@@ -170,7 +172,8 @@ expect_line "and names the green it relies on" "rust: tree ${green:0:12}, docume
 expect "and records the halves for this tree, so the gates find them" "$now" "$(sed -n 's/^web //p' "$(rd_full_marker "$repo")")"
 expect "the gate of the tag and the Windows package agrees" "0" "$(rd_full_gate "$repo" "the test" > /dev/null 2>&1; echo $?)"
 reset
-echo "change" > crates.txt
+mkdir -p crates/rd-x/src
+echo "change" > crates/rd-x/src/lib.rs
 expect "a code change is not covered" "" "$(rd_full_covering "$repo" rust "$(rd_worktree_tree "$repo")")"
 set +e
 rd_full_already_green "$repo" rust > /dev/null
@@ -199,6 +202,7 @@ git -C "$wired" commit -qm "the checked state"
 rm -rf "$CARGO_TARGET_DIR"
 rd_record_full "$SCRATCH/elsewhere" rust "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
 rd_record_full "$SCRATCH/elsewhere" web "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
+rd_record_full "$SCRATCH/elsewhere" preflight "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
 echo "note" > "$wired/NOTES.md"
 set +e
 wired_output="$(env -u RD_LOCK_HELD RD_LOCK_FILE="$SCRATCH/lock" RD_LOCK_WAIT=0 "$wired/scripts/check.sh" --full 2>&1)"
@@ -224,9 +228,10 @@ expect "check.sh --windows over a tree its green covers up to documentation: pas
 expect_line "saying it is not run again" "(windows); it is not run again" "$wired_output"
 expect "and records the Windows green for this tree" "$(rd_worktree_tree "$wired")" "$(sed -n 's/^windows //p' "$(rd_full_marker "$wired")")"
 expect "a Windows green covers no half of --full" "" "$(rd_full_covering "$wired" rust "$(rd_worktree_tree "$wired")")"
-echo "change" > "$wired/code.rs"
+mkdir -p "$wired/crates"
+echo "change" > "$wired/crates/code.rs"
 expect "a code change is not covered by the Windows green" "" "$(rd_full_covering "$wired" windows "$(rd_worktree_tree "$wired")")"
-rm -f "$wired/code.rs"
+rm -rf "$wired/crates"
 # The gate (RD-1100-13): its two halves, `clippy` and `windows`, kept the same way.
 rd_record_full "$SCRATCH/elsewhere" clippy "$(git -C "$wired" rev-parse 'HEAD^{tree}')"
 set +e
@@ -236,6 +241,84 @@ set -e
 expect "check.sh --gate over a tree both its greens cover: passes" "0" "$covered"
 expect_line "saying it is not run again" "(clippy windows); it is not run again" "$wired_output"
 expect "and records no verified revision, which only --full's two halves do" "" "$(rd_verified_revision "$wired")"
+
+# --- one rule of what is documentation, and what each half reads (RD-1120-06) -----------------------
+expect_true "the README's pictures are inert" 'rd_inert_path .github/readme/x.png'
+expect_true "documentation is" 'rd_inert_path docs/x.md && rd_inert_path crates/rd-api/README.md'
+expect_true "the two .md files a test reads are not" \
+    '! rd_inert_path crates/rd-core/recovery-matrix.md && ! rd_inert_path crates/rd-api/mcp-coverage.md'
+expect_true "nor is a workflow" '! rd_inert_path .github/workflows/ci.yml'
+expect "check.sh --defer takes a README picture for documentation" "docs" "$(rd_defer_class HEAD .github/readme/x.png)"
+expect "but not a .md a test reads" "no" "$(rd_defer_class HEAD crates/rd-core/recovery-matrix.md)"
+reset
+rm -rf "$CARGO_TARGET_DIR"
+readme_base="$(git rev-parse 'HEAD^{tree}')"
+rd_record_full "$other" rust "$readme_base"
+mkdir -p .github/readme
+echo "png" > .github/readme/x.png
+expect "a README picture changes nothing a --full green covers" "$readme_base" \
+    "$(rd_full_covering "$repo" rust "$(rd_worktree_tree "$repo")")"
+git add -A
+git commit -qm "readme: a picture"
+rd_record_ci "$repo" "$readme_base" macos-15
+expect "nor what a GitHub green covers" "$readme_base" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" macos-15)"
+git reset -q --hard HEAD~1
+rm -f "$(rd_ci_record_file "$repo")"
+
+# Relevance per half (audit C1): a green still covers what its half does not read.
+rd_record_full "$other" windows "$readme_base"
+rd_record_full "$other" web "$readme_base"
+rd_record_full "$other" preflight "$readme_base"
+mkdir -p web/src/api
+echo "export {}" > web/src/api/schema.d.ts
+echo '{"info": {"version": "1.0.0"}, "paths": {"/x": {}}}' > web/openapi.json
+generated="$(rd_worktree_tree "$repo")"
+expect "the generated web files: the Windows lint's green still covers the tree" "$readme_base" \
+    "$(rd_full_covering "$repo" windows "$generated")"
+expect "and the Rust half's" "$readme_base" "$(rd_full_covering "$repo" rust "$generated")"
+expect "and the preflight's, which they are not an input of" "$readme_base" "$(rd_full_covering "$repo" preflight "$generated")"
+expect "but not the web half's" "" "$(rd_full_covering "$repo" web "$generated")"
+reset
+mkdir -p scripts
+echo "echo" > scripts/x.sh
+scripts_only="$(rd_worktree_tree "$repo")"
+expect "a script: the Rust and web halves still covered" "$readme_base $readme_base" \
+    "$(rd_full_covering "$repo" rust "$scripts_only") $(rd_full_covering "$repo" web "$scripts_only")"
+expect "the preflight not" "" "$(rd_full_covering "$repo" preflight "$scripts_only")"
+expect "a check.sh --full of it runs the preflight's stages only" "1 rust web 0" \
+    "$(rd_check_reuse_plan "$repo" --full > /dev/null; echo "$? ${covered_halves[*]} $preflight_covered")"
+rd_check_reuse_plan "$repo" --full > /dev/null || true
+run_rust=1 run_web=1
+rd_check_reuse_apply
+expect "with both halves off, counted as covered" "0 0 1 1" "$run_rust $run_web $covered_rust $covered_web"
+expect_line "naming the green as the reason" "a recorded green covers it (tree ${readme_base:0:12}, only what rust does not read changed since)" "$rust_skip_reason"
+reset
+mkdir -p crates/rd-x/src
+echo "fn x() {}" > crates/rd-x/src/lib.rs
+expect "a Rust source: the Windows green no longer covers" "" "$(rd_full_covering "$repo" windows "$(rd_worktree_tree "$repo")")"
+reset
+mkdir -p .cargo
+echo "[build]" > .cargo/config.toml
+expect "nor after cargo's configuration changed" "" "$(rd_full_covering "$repo" clippy "$(rd_worktree_tree "$repo")")"
+reset
+expect "a .md a test reads: the Rust half reads it" "crates/rd-core/recovery-matrix.md" \
+    "$(printf '%s\n' docs/x.md crates/rd-core/recovery-matrix.md | rd_paths_read_by rust)"
+expect "a path the Rust test inputs map names is a Rust input" "web/src/locales/en/logs.json" \
+    "$(printf '%s\n' web/src/locales/en/logs.json web/src/locales/en/ui.json | rd_paths_read_by rust)"
+expect "a row with - is not" "" "$(printf '%s\n' dist/plugins/x.rdplug | rd_paths_read_by windows)"
+
+# The release chain after a version bump (audit A5): clippy and web reuse the green of the tree
+# before it, as the test step does.
+rm -rf "$CARGO_TARGET_DIR"
+rd_record_full "$other" clippy "$tree"
+bump
+expect "a bump over a clippy green of the tree before it: skip" "$tree" "$(rd_prebump_green "$repo" clippy)"
+expect "no web green: run" "" "$(rd_prebump_green "$repo" web)"
+rd_record_full "$other" web "$tree"
+expect "a web green of the tree before it: skip" "$tree" "$(rd_prebump_green "$repo" web)"
+echo "export const x = 1" > web/extra.ts
+expect "a bump with another web file: run" "" "$(rd_prebump_green "$repo" web)"
+reset
 
 # --- GitHub greens per platform, up to documentation and version lines (RD-160-06) --------------
 rm -f "$(rd_ci_record_file "$repo")"

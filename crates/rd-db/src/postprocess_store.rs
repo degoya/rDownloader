@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rd_core::{
     EventEnvelope, EventKind, NzbFileId, PostprocessKind, PostprocessState, PostprocessStep,
 };
@@ -68,7 +68,17 @@ pub(crate) async fn apply(
     connection: &mut SqliteConnection,
     checkpoint: NzbCheckpoint,
 ) -> Result<EventEnvelope> {
-    let event = match &checkpoint {
+    let event = checkpoint_event(&checkpoint);
+    let mut tx = connection.begin().await?;
+    write_checkpoint(&mut tx, checkpoint, event.occurred_at).await?;
+    insert_event(&mut tx, &event).await?;
+    tx.commit().await?;
+    Ok(event)
+}
+
+/// The event a checkpoint announces itself with.
+fn checkpoint_event(checkpoint: &NzbCheckpoint) -> EventEnvelope {
+    match checkpoint {
         NzbCheckpoint::Progress {
             owner_id,
             kind,
@@ -108,19 +118,19 @@ pub(crate) async fn apply(
                 "resource": "nzb_checkpoint"
             }),
         ),
-    };
-    let mut tx = connection.begin().await?;
+    }
+}
+
+/// Runs the statements of one checkpoint inside the caller's transaction; `at` is the
+/// event's time, which every row it touches is stamped with.
+async fn write_checkpoint(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    checkpoint: NzbCheckpoint,
+    at: DateTime<Utc>,
+) -> Result<()> {
     match checkpoint {
         NzbCheckpoint::FileOutput { id, output_path } => {
-            let result = sqlx::query("UPDATE nzb_files SET output_path = ? WHERE id = ?")
-                .bind(output_path)
-                .bind(id.to_string())
-                .execute(&mut *tx)
-                .await?;
-            anyhow::ensure!(
-                result.rows_affected() == 1,
-                StoreError::not_found("NZB file not found")
-            );
+            write_file_output(tx, id, output_path).await?;
         }
         NzbCheckpoint::AssemblySegments {
             file_id,
@@ -128,54 +138,7 @@ pub(crate) async fn apply(
             declared_size,
             segments,
         } => {
-            anyhow::ensure!(
-                !segments.is_empty(),
-                "an assembly checkpoint needs a segment"
-            );
-            let file = sqlx::query(
-                "UPDATE nzb_files SET assembly_name = ?, declared_size = ? WHERE id = ?",
-            )
-            .bind(name)
-            .bind(i64::try_from(declared_size)?)
-            .bind(file_id.to_string())
-            .execute(&mut *tx)
-            .await?;
-            anyhow::ensure!(
-                file.rows_affected() == 1,
-                StoreError::not_found("NZB file not found")
-            );
-            for segment in segments {
-                let updated = sqlx::query(
-                    "UPDATE nzb_segments SET state = 'completed', crc32 = ?, \
-                     part_begin = ?, part_end = ?, server_attempts = server_attempts + ? \
-                     WHERE id = ? AND file_id = ?",
-                )
-                .bind(i64::from(segment.crc32))
-                .bind(i64::try_from(segment.part_begin)?)
-                .bind(i64::try_from(segment.part_end)?)
-                .bind(i64::from(segment.attempts))
-                .bind(segment.segment_id.to_string())
-                .bind(file_id.to_string())
-                .execute(&mut *tx)
-                .await?;
-                anyhow::ensure!(
-                    updated.rows_affected() == 1,
-                    StoreError::not_found("NZB segment not found")
-                );
-            }
-            // Unified queue: the linked download row mirrors segment progress. Once per
-            // batch, not once per article: the sum reads every segment of the file.
-            sqlx::query(
-                "UPDATE downloads SET committed_bytes = (SELECT COALESCE(SUM(bytes), 0) FROM nzb_segments \
-                 WHERE file_id = ? AND state = 'completed'), total_bytes = ?, updated_at = ? \
-                 WHERE nzb_file_id = ?",
-            )
-            .bind(file_id.to_string())
-            .bind(i64::try_from(declared_size)?)
-            .bind(event.occurred_at)
-            .bind(file_id.to_string())
-            .execute(&mut *tx)
-            .await?;
+            write_assembly_segments(tx, file_id, name, declared_size, segments, at).await?;
         }
         NzbCheckpoint::Postprocess {
             owner_id,
@@ -188,61 +151,23 @@ pub(crate) async fn apply(
             params,
             checkpoint,
         } => {
-            let running = state == PostprocessState::Running;
-            // An empty parameter map is stored as NULL rather than as `{}`: the two mean the
-            // same thing and only one of them has to be read back.
-            let params_json = if params.is_empty() {
-                None
-            } else {
-                Some(serde_json::to_string(&params)?)
-            };
-            sqlx::query(
-                "INSERT INTO postprocess_steps \
-                 (owner_id, kind, source_path, state, output_path, message, code, params_json, \
-                  updated_at, position, progress_percent, started_at, checkpoint) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, CASE WHEN ? THEN ? ELSE NULL END, ?) \
-                 ON CONFLICT(owner_id, kind, source_path) DO UPDATE SET \
-                 state = excluded.state, output_path = excluded.output_path, \
-                 message = excluded.message, code = excluded.code, \
-                 params_json = excluded.params_json, updated_at = excluded.updated_at, \
-                 progress_percent = CASE WHEN excluded.state = 'running' THEN progress_percent ELSE NULL END, \
-                 started_at = CASE WHEN excluded.state = 'running' THEN COALESCE(started_at, excluded.started_at) ELSE started_at END, \
-                 checkpoint = excluded.checkpoint",
+            upsert_step(
+                tx,
+                owner_id,
+                kind,
+                source_path,
+                state,
+                output_path,
+                message,
+                code,
+                params,
+                checkpoint,
+                at,
             )
-            .bind(owner_id)
-            .bind(enum_string(kind)?)
-            .bind(source_path)
-            .bind(enum_string(state)?)
-            .bind(output_path)
-            .bind(message)
-            .bind(code)
-            .bind(params_json)
-            .bind(event.occurred_at)
-            .bind(running)
-            .bind(event.occurred_at)
-            .bind(checkpoint)
-            .execute(&mut *tx)
             .await?;
         }
         NzbCheckpoint::EnqueueSteps { owner_id, steps } => {
-            for (kind, source_path, position) in steps {
-                sqlx::query(
-                    "INSERT INTO postprocess_steps \
-                     (owner_id, kind, source_path, state, updated_at, position) \
-                     VALUES (?, ?, ?, 'queued', ?, ?) \
-                     ON CONFLICT(owner_id, kind, source_path) DO UPDATE SET \
-                     position = excluded.position, \
-                     state = CASE WHEN state = 'running' THEN 'queued' ELSE state END, \
-                     updated_at = excluded.updated_at",
-                )
-                .bind(&owner_id)
-                .bind(enum_string(kind)?)
-                .bind(source_path)
-                .bind(event.occurred_at)
-                .bind(position)
-                .execute(&mut *tx)
-                .await?;
-            }
+            enqueue_steps(tx, owner_id, steps, at).await?;
         }
         NzbCheckpoint::Progress {
             owner_id,
@@ -252,33 +177,200 @@ pub(crate) async fn apply(
             percent,
             current,
         } => {
-            sqlx::query(
-                "UPDATE postprocess_steps SET progress_percent = ?, updated_at = ? \
-                 WHERE owner_id = ? AND kind = ? AND source_path = ?",
-            )
-            .bind(percent.map(i64::from))
-            .bind(event.occurred_at)
-            .bind(&owner_id)
-            .bind(enum_string(kind)?)
-            .bind(&source_path)
-            .execute(&mut *tx)
-            .await?;
-            sqlx::query(
-                "UPDATE packages SET postprocess_stage = ?, postprocess_percent = ?, \
-                 postprocess_current = ?, updated_at = ? WHERE id = ?",
-            )
-            .bind(stage.to_string())
-            .bind(percent.map(i64::from))
-            .bind(current)
-            .bind(event.occurred_at)
-            .bind(&owner_id)
-            .execute(&mut *tx)
-            .await?;
+            write_progress(tx, owner_id, kind, source_path, stage, percent, current, at).await?;
         }
     }
-    insert_event(&mut tx, &event).await?;
-    tx.commit().await?;
-    Ok(event)
+    Ok(())
+}
+
+async fn write_file_output(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    id: NzbFileId,
+    output_path: String,
+) -> Result<()> {
+    let result = sqlx::query("UPDATE nzb_files SET output_path = ? WHERE id = ?")
+        .bind(output_path)
+        .bind(id.to_string())
+        .execute(&mut **tx)
+        .await?;
+    anyhow::ensure!(
+        result.rows_affected() == 1,
+        StoreError::not_found("NZB file not found")
+    );
+    Ok(())
+}
+
+async fn write_assembly_segments(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    file_id: NzbFileId,
+    name: String,
+    declared_size: u64,
+    segments: Vec<AssembledSegment>,
+    at: DateTime<Utc>,
+) -> Result<()> {
+    anyhow::ensure!(
+        !segments.is_empty(),
+        "an assembly checkpoint needs a segment"
+    );
+    let file =
+        sqlx::query("UPDATE nzb_files SET assembly_name = ?, declared_size = ? WHERE id = ?")
+            .bind(name)
+            .bind(i64::try_from(declared_size)?)
+            .bind(file_id.to_string())
+            .execute(&mut **tx)
+            .await?;
+    anyhow::ensure!(
+        file.rows_affected() == 1,
+        StoreError::not_found("NZB file not found")
+    );
+    for segment in segments {
+        let updated = sqlx::query(
+            "UPDATE nzb_segments SET state = 'completed', crc32 = ?, \
+             part_begin = ?, part_end = ?, server_attempts = server_attempts + ? \
+             WHERE id = ? AND file_id = ?",
+        )
+        .bind(i64::from(segment.crc32))
+        .bind(i64::try_from(segment.part_begin)?)
+        .bind(i64::try_from(segment.part_end)?)
+        .bind(i64::from(segment.attempts))
+        .bind(segment.segment_id.to_string())
+        .bind(file_id.to_string())
+        .execute(&mut **tx)
+        .await?;
+        anyhow::ensure!(
+            updated.rows_affected() == 1,
+            StoreError::not_found("NZB segment not found")
+        );
+    }
+    // Unified queue: the linked download row mirrors segment progress. Once per
+    // batch, not once per article: the sum reads every segment of the file.
+    sqlx::query(
+        "UPDATE downloads SET committed_bytes = (SELECT COALESCE(SUM(bytes), 0) FROM nzb_segments \
+         WHERE file_id = ? AND state = 'completed'), total_bytes = ?, updated_at = ? \
+         WHERE nzb_file_id = ?",
+    )
+    .bind(file_id.to_string())
+    .bind(i64::try_from(declared_size)?)
+    .bind(at)
+    .bind(file_id.to_string())
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn upsert_step(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    owner_id: String,
+    kind: PostprocessKind,
+    source_path: String,
+    state: PostprocessState,
+    output_path: Option<String>,
+    message: Option<String>,
+    code: Option<String>,
+    params: rd_core::MessageParams,
+    checkpoint: Option<Vec<u8>>,
+    at: DateTime<Utc>,
+) -> Result<()> {
+    let running = state == PostprocessState::Running;
+    // An empty parameter map is stored as NULL rather than as `{}`: the two mean the
+    // same thing and only one of them has to be read back.
+    let params_json = if params.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&params)?)
+    };
+    sqlx::query(
+        "INSERT INTO postprocess_steps \
+         (owner_id, kind, source_path, state, output_path, message, code, params_json, \
+          updated_at, position, progress_percent, started_at, checkpoint) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, CASE WHEN ? THEN ? ELSE NULL END, ?) \
+         ON CONFLICT(owner_id, kind, source_path) DO UPDATE SET \
+         state = excluded.state, output_path = excluded.output_path, \
+         message = excluded.message, code = excluded.code, \
+         params_json = excluded.params_json, updated_at = excluded.updated_at, \
+         progress_percent = CASE WHEN excluded.state = 'running' THEN progress_percent ELSE NULL END, \
+         started_at = CASE WHEN excluded.state = 'running' THEN COALESCE(started_at, excluded.started_at) ELSE started_at END, \
+         checkpoint = excluded.checkpoint",
+    )
+    .bind(owner_id)
+    .bind(enum_string(kind)?)
+    .bind(source_path)
+    .bind(enum_string(state)?)
+    .bind(output_path)
+    .bind(message)
+    .bind(code)
+    .bind(params_json)
+    .bind(at)
+    .bind(running)
+    .bind(at)
+    .bind(checkpoint)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+async fn enqueue_steps(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    owner_id: String,
+    steps: Vec<(PostprocessKind, String, i64)>,
+    at: DateTime<Utc>,
+) -> Result<()> {
+    for (kind, source_path, position) in steps {
+        sqlx::query(
+            "INSERT INTO postprocess_steps \
+             (owner_id, kind, source_path, state, updated_at, position) \
+             VALUES (?, ?, ?, 'queued', ?, ?) \
+             ON CONFLICT(owner_id, kind, source_path) DO UPDATE SET \
+             position = excluded.position, \
+             state = CASE WHEN state = 'running' THEN 'queued' ELSE state END, \
+             updated_at = excluded.updated_at",
+        )
+        .bind(&owner_id)
+        .bind(enum_string(kind)?)
+        .bind(source_path)
+        .bind(at)
+        .bind(position)
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn write_progress(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    owner_id: String,
+    kind: PostprocessKind,
+    source_path: String,
+    stage: rd_core::PostprocessStage,
+    percent: Option<u8>,
+    current: Option<String>,
+    at: DateTime<Utc>,
+) -> Result<()> {
+    sqlx::query(
+        "UPDATE postprocess_steps SET progress_percent = ?, updated_at = ? \
+         WHERE owner_id = ? AND kind = ? AND source_path = ?",
+    )
+    .bind(percent.map(i64::from))
+    .bind(at)
+    .bind(&owner_id)
+    .bind(enum_string(kind)?)
+    .bind(&source_path)
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query(
+        "UPDATE packages SET postprocess_stage = ?, postprocess_percent = ?, \
+         postprocess_current = ?, updated_at = ? WHERE id = ?",
+    )
+    .bind(stage.to_string())
+    .bind(percent.map(i64::from))
+    .bind(current)
+    .bind(at)
+    .bind(&owner_id)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
 }
 
 pub(crate) async fn list(pool: &SqlitePool, owner_id: &str) -> Result<Vec<PostprocessStep>> {

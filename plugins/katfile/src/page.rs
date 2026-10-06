@@ -3,43 +3,14 @@
 //! `estimated_wait_seconds`) not generalized into `xfs-common` since they mirror JD overrides
 //! specific to `KatfileCom` — see `native/api.rs`'s module doc. No KatFile-specific deviation was
 //! found for the `op` marker or the premium button label (JD's `KatfileCom` does not override
-//! `findFormDownload2Premium`'s field values, only wraps it with a captcha check), so these match
-//! ddownload's defaults; only the direct-link/premium-only domain differs.
+//! `findFormDownload2Premium`'s field values, only wraps it with a captcha check), so the forms
+//! are the script's own (`xfs_common::standard`, re-exported here); only the direct-link domain
+//! differs.
 
-const OP_DOWNLOAD1: &str = "download1";
-const OP_DOWNLOAD2: &str = "download2";
-const PREMIUM_BUTTON: &str = "Premium Download";
-const FREE_BUTTON: &str = "Free Download";
 const DOMAIN: &str = "katfile.biz";
 
-/// Hidden form fields of the `download1` form, the first step of the free flow.
-#[must_use]
-pub(crate) fn download1_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD1)
-}
-
-/// Turns raw form fields into the free submission (keeps `method_free`, drops the premium
-/// marker) — the counterpart of [`premium_form`].
-#[must_use]
-pub(crate) fn free_form(fields: &[(String, String)]) -> Vec<(String, String)> {
-    xfs_common::free::free_form(fields, FREE_BUTTON)
-}
-
-/// The captcha widget a page asks for, with the site key needed to solve it.
-#[must_use]
-pub(crate) fn widget_marker(html: &str) -> Option<xfs_common::free::WidgetMarker> {
-    xfs_common::free::widget_marker(html)
-}
-
-/// Adds a solved captcha's token to a form under its widget's field name.
-#[must_use]
-pub(crate) fn with_captcha_token(
-    fields: &[(String, String)],
-    kind: xfs_common::free::WidgetKind,
-    token: &str,
-) -> Vec<(String, String)> {
-    xfs_common::free::with_captcha_token(fields, kind, token)
-}
+pub(crate) use xfs_common::page::encode_form;
+pub(crate) use xfs_common::standard::{download2_form as download_form, free_form, premium_form};
 
 /// Seconds to wait before the free download may be requested. KatFile's own
 /// `var estimated_time` marker (tenths of a second) is tried first, then the XFS base
@@ -49,29 +20,11 @@ pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
     estimated_wait_seconds(html).or_else(|| xfs_common::free::countdown_seconds(html))
 }
 
-/// Whether the page says the captcha answer was rejected.
-#[must_use]
-pub(crate) fn is_wrong_captcha(html: &str) -> bool {
-    xfs_common::free::is_wrong_captcha(html)
-}
-
-/// Hidden form fields of the `download2` form on a file page.
-#[must_use]
-pub(crate) fn download_form(html: &str) -> Option<Vec<(String, String)>> {
-    xfs_common::page::download_form(html, OP_DOWNLOAD2)
-}
-
 /// The raw `<form>...</form>` substring carrying `op=download2`, for scoping a captcha-marker
 /// scan to the form itself rather than the whole page (see `native/api.rs`'s module doc).
 #[must_use]
 pub(crate) fn form_html(html: &str) -> Option<&str> {
-    xfs_common::page::form_html(html, OP_DOWNLOAD2)
-}
-
-/// Turns the raw `download2` fields into the premium submission JDownloader sends.
-#[must_use]
-pub(crate) fn premium_form(fields: &[(String, String)]) -> Vec<(String, String)> {
-    xfs_common::page::premium_form(fields, PREMIUM_BUTTON)
+    xfs_common::page::form_html(html, xfs_common::standard::OP_DOWNLOAD2)
 }
 
 /// Explains why an HTML page came back instead of a file, for error messages.
@@ -92,12 +45,6 @@ pub(crate) use xfs_common::page::SessionState;
 #[must_use]
 pub(crate) fn classify_session(html: &str) -> SessionState {
     xfs_common::page::classify_session(html)
-}
-
-/// Encodes form fields as `application/x-www-form-urlencoded`.
-#[must_use]
-pub(crate) fn encode_form(fields: &[(String, String)]) -> Vec<u8> {
-    xfs_common::page::encode_form(fields)
 }
 
 /// Finds the premium direct link on the page returned after submitting the form.

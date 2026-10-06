@@ -96,7 +96,7 @@ async function remove(credential: MfaCredential): Promise<void> {
   const confirmed = await confirm({
     title: t('system.passkeys.remove.title'),
     description: t('system.passkeys.remove.description', { label: credential.label }),
-    confirmLabel: t('system.passkeys.remove.confirm'),
+    confirmLabel: t('common.actions.remove'),
     confirmIcon: 'i-lucide-key-round',
     destructive: true
   })
@@ -129,12 +129,11 @@ function defaultLabel(): string {
   <UCard as="section" data-settings-anchor="security.passkeys">
     <SectionHeader :eyebrow="t('system.passkeys.eyebrow')" :title="t('system.passkeys.title')" :description="t('system.passkeys.description')" />
 
-    <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
     <UAlert
       v-if="!supported"
       class="mt-3"
       color="neutral"
-      variant="subtle"
       icon="i-lucide-info"
       :description="t('system.passkeys.unsupported')"
     />
@@ -158,8 +157,8 @@ function defaultLabel(): string {
           color="error"
           variant="ghost"
           icon="i-lucide-trash-2"
-          :aria-label="t('system.passkeys.remove.action')"
-          :title="t('system.passkeys.remove.action')"
+          :aria-label="t('common.actions.remove')"
+          :title="t('common.actions.remove')"
           :disabled="!password"
           @click="remove(credential)"
         />
@@ -171,7 +170,7 @@ function defaultLabel(): string {
       <UFormField class="flex-1" :label="t('system.passkeys.name_label')" :description="t('system.passkeys.name_hint')">
         <UInput v-model="label" maxlength="60" autofocus class="w-full" />
       </UFormField>
-      <UButton type="submit" icon="i-lucide-check" :label="t('system.passkeys.save')" :loading="busy" />
+      <UButton type="submit" icon="i-lucide-check" :label="t('common.actions.save')" :loading="busy" />
     </form>
 
     <template v-else>

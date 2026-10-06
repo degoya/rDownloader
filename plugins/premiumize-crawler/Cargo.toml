@@ -11,7 +11,7 @@ plugin-guest-crawler = { path = "../guest-crawler" }
 premiumize-common = { path = "../premiumize-common" }
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true

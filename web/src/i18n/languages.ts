@@ -5,7 +5,7 @@ import list from '@/locales/languages.json'
  * translated so far — each missing key falls back to English, and the picker marks the language
  * as unfinished (RD-1100-09).
  */
-export type LanguageStatus = 'required' | 'in-progress'
+type LanguageStatus = 'required' | 'in-progress'
 
 export interface Language {
   /** Two lowercase letters: the catalogue directory, the plugin file name and `<html lang>`. */

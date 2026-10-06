@@ -117,6 +117,7 @@ pub(crate) struct SubmitRemoteJobParams {
     #[serde(default)]
     pub container: Option<String>,
     /// The container's file name. The finished job's LinkGrabber package is named after it.
+    /// Without one, the job is listed under a magnet's `dn` or an address's last path segment.
     #[serde(default)]
     pub file_name: Option<String>,
 }

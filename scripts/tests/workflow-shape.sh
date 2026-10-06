@@ -14,6 +14,10 @@
 #   scripts/build-plugins.sh requires (RD-1110-08): it encodes the components, so another one
 #   changes their bytes. The component cache keys and the documents that name it agree.
 #
+# - The GitHub cache stays under its 10 GB (RD-1120-07): every Swatinem/rust-cache step says
+#   whether it saves (`save-if`), and the linker variables its key depends on are set in one place,
+#   .github/actions/rust-tests-cache, not copied into the jobs that restore `rust-tests`.
+#
 # Pure bash and awk over the YAML as this repository writes it (two-space indents, a block `on:`).
 # check.sh runs it when scripts/ change, and under --full.
 #
@@ -121,5 +125,33 @@ done
 while IFS= read -r line; do
     expect "${line%%:*} names wasm-tools $pinned" "$pinned" "${line##* }"
 done < <(cd "$ROOT" && grep -oHE 'wasm-tools(`| --version)? [0-9]+\.[0-9]+\.[0-9]+' "${documents[@]}")
+
+# Every rust-cache step names `save-if` in its `with:` block: the action's default saves on every
+# ref, and a cache nobody reads pushes main's out of the repository's 10 GB (RD-1120-07).
+caches=0
+# `<file>:<line>\t<save-if|no save-if>` for each rust-cache step: its own lines run up to the
+# next step (`- `) or a line indented less than the step.
+rust_cache_steps() {
+    awk '
+        function close_step() { if (inside) print where "\t" found; inside = 0 }
+        FNR == 1 { close_step() }
+        {
+            text = $0; sub(/^ */, "", text)
+            indent = length($0) - length(text)
+        }
+        inside && text != "" && text !~ /^#/ && (indent < step || (indent == step && text ~ /^- /)) { close_step() }
+        inside && text ~ /^save-if:/ { found = "save-if" }
+        text ~ /^- uses: Swatinem\/rust-cache@/ { inside = 1; step = indent; found = "no save-if"; where = FILENAME ":" FNR }
+        END { close_step() }
+    ' "$@"
+}
+while IFS=$'\t' read -r where found; do
+    caches=$((caches + 1))
+    expect "$where: the rust-cache step says whether it saves" "save-if" "$found"
+done < <(cd "$ROOT" && rust_cache_steps .github/workflows/*.yml .github/actions/*/action.yml)
+expect "there are rust-cache steps to check" "yes" "$([[ "$caches" -gt 0 ]] && echo yes || echo no)"
+expect "the linker variables are set in .github/actions/rust-tests-cache alone" \
+    ".github/actions/rust-tests-cache/action.yml" \
+    "$(cd "$ROOT" && grep -rlE 'fuse-ld=mold|WINDOWS_MSVC_LINKER' .github | sort -u | paste -sd' ')"
 
 finish_tests "workflow-shape"

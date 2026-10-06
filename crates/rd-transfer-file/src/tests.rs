@@ -249,7 +249,7 @@ async fn a_stop_records_what_is_on_disk() {
 /// length and fetches nothing twice.
 #[cfg(feature = "failpoints")]
 #[tokio::test]
-async fn a_stop_before_the_progress_is_recorded_resumes_at_the_part_file() {
+async fn a_crash_before_the_progress_is_recorded_resumes_at_the_part_file() {
     use std::time::Duration;
 
     let fixture = Fixture::start().await;
@@ -336,7 +336,7 @@ async fn a_stop_before_the_progress_is_recorded_resumes_at_the_part_file() {
 #[test]
 fn every_transfer_file_crash_point_is_exercised_by_a_case() {
     let source = crate_sources();
-    for point in rd_core::failpoint::CRASH_POINTS
+    for point in rd_crash_points::CRASH_POINTS
         .iter()
         .filter(|point| point.owner == "rd-transfer-file")
     {

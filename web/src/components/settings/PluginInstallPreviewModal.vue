@@ -145,7 +145,7 @@ const added = computed(() => {
     <template #body>
       <div v-if="source" class="space-y-4">
         <p v-if="loading" class="text-sm text-muted">{{ t('common.data.loading') }}</p>
-        <UAlert v-if="error" color="error" variant="subtle" :description="error" />
+        <UAlert v-if="error" color="error" :description="error" />
         <template v-if="preview">
           <div>
             <div class="flex flex-wrap items-center gap-2">
@@ -162,8 +162,8 @@ const added = computed(() => {
             </p>
           </div>
 
-          <UAlert v-if="preview.withdrawn" color="error" variant="subtle" :description="t('plugins.preview.withdrawn')" />
-          <UAlert v-if="preview.incompatible" color="error" variant="subtle" :description="t('plugins.preview.incompatible', { reason: preview.incompatible })" />
+          <UAlert v-if="preview.withdrawn" color="error" :description="t('plugins.preview.withdrawn')" />
+          <UAlert v-if="preview.incompatible" color="error" :description="t('plugins.preview.incompatible', { reason: preview.incompatible })" />
 
           <UCollapsible
             v-if="preview.publisher"
@@ -176,7 +176,7 @@ const added = computed(() => {
                 <UIcon :name="keyIcon" :class="['size-5 shrink-0', keyText]" />
                 <span class="min-w-0 flex-1">
                   <span class="flex flex-wrap items-baseline gap-x-2">
-                    <span class="text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.publisher') }}</span>
+                    <span class="text-2xs uppercase tracking-wide text-muted">{{ t('plugins.preview.publisher') }}</span>
                     <span class="text-sm font-medium text-highlighted">{{ t('plugins.preview.author', { author: preview.publisher.author }) }}</span>
                   </span>
                   <span :class="['block text-xs', keyText]">{{ t(`plugins.preview.key.${preview.key_status}`) }}</span>
@@ -196,14 +196,14 @@ const added = computed(() => {
           <div v-else class="flex items-center gap-3 rounded-md border border-default bg-elevated/50 p-3" data-preview-publisher>
             <UIcon :name="keyIcon" :class="['size-5 shrink-0', keyText]" />
             <span class="min-w-0 flex-1">
-              <span class="block text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.publisher') }}</span>
+              <span class="block text-2xs uppercase tracking-wide text-muted">{{ t('plugins.preview.publisher') }}</span>
               <UBadge class="mt-1" :color="keyColor" variant="subtle">{{ t(`plugins.preview.key.${preview.key_status}`) }}</UBadge>
             </span>
           </div>
-          <UAlert v-if="needsTrust" color="warning" variant="subtle" :description="t('plugins.trust.warning')" />
+          <UAlert v-if="needsTrust" color="warning" :description="t('plugins.trust.warning')" />
 
           <dl class="grid items-start gap-x-3 gap-y-1 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-y-2" data-preview-permissions>
-            <dt class="pt-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.permissions') }}</dt>
+            <dt class="pt-1 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.preview.permissions') }}</dt>
             <dd v-if="preview.permissions.granted.length" class="flex flex-wrap gap-1">
               <UBadge v-for="capability in preview.permissions.granted" :key="capability" color="warning" variant="outline">{{ capabilityLabel(capability) }}</UBadge>
             </dd>
@@ -223,7 +223,7 @@ const added = computed(() => {
           </dl>
 
           <dl v-if="added" class="grid items-start gap-x-3 gap-y-1 sm:grid-cols-[8.5rem_minmax(0,1fr)]" data-preview-added-permissions>
-            <dt class="pt-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.added_permissions', { version: added.version }) }}</dt>
+            <dt class="pt-1 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.preview.added_permissions', { version: added.version }) }}</dt>
             <dd v-if="added.labels.length" class="flex flex-wrap gap-1">
               <UBadge v-for="label in added.labels" :key="label" color="error" variant="subtle" icon="i-lucide-shield-alert">{{ label }}</UBadge>
             </dd>
@@ -232,7 +232,7 @@ const added = computed(() => {
 
           <!-- Plain text from the index, shown as text: never markup, whoever wrote it. -->
           <dl v-if="preview.release_notes" class="grid items-start gap-x-3 gap-y-1 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
-            <dt class="pt-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.release_notes') }}</dt>
+            <dt class="pt-1 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.preview.release_notes') }}</dt>
             <dd class="whitespace-pre-line break-words text-sm leading-6 text-toned">{{ preview.release_notes }}</dd>
           </dl>
 
@@ -240,7 +240,7 @@ const added = computed(() => {
             <template #default="{ open: unfolded }">
               <UButton color="neutral" variant="ghost" block class="justify-start gap-2 px-0 py-0.5 text-left" :aria-expanded="unfolded">
                 <UIcon :name="unfolded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4 shrink-0 text-muted" />
-                <span class="flex-1 text-[10px] uppercase tracking-wide text-muted">{{ t('plugins.preview.digest') }}</span>
+                <span class="flex-1 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.preview.digest') }}</span>
                 <span v-if="!unfolded" class="font-mono text-xs text-muted">{{ shortDigest }}</span>
               </UButton>
             </template>
@@ -257,7 +257,7 @@ const added = computed(() => {
           <template v-if="preview">{{ t('plugins.preview.restart') }}</template>
         </p>
         <div class="flex shrink-0 items-center justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('plugins.trust.cancel')" @click="open = false" />
+          <UButton color="neutral" variant="outline" :label="t('common.actions.cancel')" @click="open = false" />
           <UButton
             color="primary"
             :icon="needsTrust ? 'i-lucide-shield-check' : 'i-lucide-package-plus'"

@@ -3,7 +3,7 @@ plugin_type = "remote-job"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-00000000011e"
 name = "TorBox jobs"
-version = "0.2.8"
+version = "0.2.9"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -40,7 +40,7 @@ license = "MIT"
 # plugin needs for web downloads arrived with the 0.7.0 contract. `cache-kinds` and
 # `check-cached` (RD-130-11) arrived with 0.9.0, which `api_version` already gates: a core
 # that predates them refuses the package by its contract, whatever this line says.
-min_app_version = "1.0.7"
+min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
 import { useConfirm } from '@/composables/useConfirm'
+import { useFetchState } from '@/composables/useFetchState'
 import { formatMoment } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -16,8 +17,7 @@ defineProps<{ embedded?: boolean }>()
 const { t } = useI18n()
 const sessions = ref<Session[]>([])
 const error = ref<string | null>(null)
-/** Starts `true`: the fetch has not run yet on the first frame, and an empty list would lie. */
-const loading = ref(true)
+const { loading, load: track } = useFetchState()
 const busyId = ref<string | null>(null)
 const confirm = useConfirm()
 const toast = useToast()
@@ -28,16 +28,16 @@ const others = computed(() => sessions.value.filter(session => !session.current)
 
 onMounted(() => { void load() })
 
-async function load(): Promise<void> {
-  loading.value = true
-  const response = await api.GET('/api/v1/sessions')
-  loading.value = false
-  if (response.data) {
-    sessions.value = response.data
-    error.value = null
-  } else {
-    error.value = responseError(response)
-  }
+function load(): Promise<void> {
+  return track(async () => {
+    const response = await api.GET('/api/v1/sessions')
+    if (response.data) {
+      sessions.value = response.data
+      error.value = null
+    } else {
+      error.value = responseError(response)
+    }
+  })
 }
 
 async function revoke(session: Session): Promise<void> {
@@ -130,7 +130,7 @@ function deviceLabel(session: Session): string {
       />
     </div>
 
-    <UAlert v-if="error" class="mt-3" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
 
     <div v-if="loading && sessions.length === 0" class="mt-4 text-sm text-muted">
       {{ t('system.sessions.loading') }}

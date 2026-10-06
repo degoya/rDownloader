@@ -5,13 +5,15 @@
  * Until RD-110-29 the three sat at the foot of the Interface page, under a header that said
  * "this browser only" about settings that belong to the service. The vendor folder and the
  * managed-tools switches are settings-document fields, so this page shows the save bar; the
- * status and the managed versions load and act on their own.
+ * status and the managed versions load and act on their own. The program paths the services'
+ * cards used to carry each are one card here since RD-1120-23.
  */
 import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsManagedTools from '@/components/settings/SettingsManagedTools.vue'
+import SettingsToolPathsCard from '@/components/settings/SettingsToolPathsCard.vue'
 import SettingsToolStatus from '@/components/settings/SettingsToolStatus.vue'
 
 const settings = defineModel<Settings>({ required: true })
@@ -70,6 +72,7 @@ const COMPATIBILITY_OVERRIDE_TOOLS = ['yt-dlp', 'gallery-dl', 'streamlink', 'ffm
       </UFormField>
     </UCard>
 
+    <SettingsToolPathsCard v-model="settings" />
     <SettingsToolStatus />
     <SettingsManagedTools />
   </div>

@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 
 import type { PostprocessStep } from '@/api/types'
 import { translateServerMessage } from '@/i18n/server'
+import { formatMoment } from '@/utils/format'
+import { fileName } from '@/utils/values'
 
 const props = defineProps<{ steps: PostprocessStep[], loading?: boolean }>()
 
@@ -47,9 +49,6 @@ function stepMessage(step: PostprocessStep): string {
 function stepKey(step: PostprocessStep): string {
   return `${step.kind}:${step.source_path}`
 }
-function fileName(path: string): string {
-  return path.split(/[\\/]/).pop() ?? path
-}
 function hasProgress(step: PostprocessStep): boolean {
   return step.state === 'running' && step.progress_percent !== null && step.progress_percent !== undefined
 }
@@ -75,9 +74,9 @@ function toggleOutput(key: string): void {
             class="flex-1"
             :aria-label="t('downloads.postprocess.progress_label', { step: kindLabel(step.kind) })"
           />
-          <span class="numeric w-9 text-right text-[11px] text-toned">{{ step.progress_percent }}%</span>
+          <span class="numeric w-9 text-right text-2xs text-toned">{{ step.progress_percent }}%</span>
         </div>
-        <p v-if="step.output_path" class="truncate font-mono text-[11px] text-muted" :title="step.output_path">→ {{ step.output_path }}</p>
+        <p v-if="step.output_path" class="truncate font-mono text-2xs text-muted" :title="step.output_path">→ {{ step.output_path }}</p>
         <UCollapsible v-if="step.message && step.kind === 'script'" :open="openOutput.has(stepKey(step))" @update:open="toggleOutput(stepKey(step))">
           <UButton size="xs" color="neutral" variant="link" class="px-0" :icon="openOutput.has(stepKey(step)) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" :label="openOutput.has(stepKey(step)) ? t('downloads.postprocess.hide_output') : t('downloads.postprocess.show_output')" :aria-expanded="openOutput.has(stepKey(step))" />
           <template #content>
@@ -87,7 +86,7 @@ function toggleOutput(key: string): void {
         <!-- A failed step's reason is the answer the reader came for: wrapped in full, never cut. -->
         <p v-else-if="step.message || step.code" :class="step.state === 'failed' ? 'whitespace-pre-line break-words text-error' : 'truncate text-muted'" :title="step.state === 'failed' ? undefined : stepMessage(step)">{{ stepMessage(step) }}</p>
       </div>
-      <span class="numeric text-[11px] text-muted">{{ new Date(step.updated_at).toLocaleTimeString() }}</span>
+      <span class="numeric text-2xs text-muted">{{ formatMoment(step.updated_at) }}</span>
     </div>
   </div>
 </template>

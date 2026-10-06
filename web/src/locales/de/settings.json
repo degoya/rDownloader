@@ -3,8 +3,8 @@
   "headers": {
     "system": {
       "eyebrow": "Laufender Dienst",
-      "title": "Systemüberblick",
-      "description": "Status von Dienst, Usenet und Erfassung sowie die wichtigsten Laufzeit-Eckdaten."
+      "title": "System & Wartung",
+      "description": "Status von Dienst, Usenet und Erfassung mit den wichtigsten Laufzeit-Eckdaten, Updates sowie Protokolle und Aufbewahrung."
     },
     "backup": {
       "eyebrow": "Backup & Migration",
@@ -13,13 +13,13 @@
     },
     "general": {
       "eyebrow": "Grundeinstellungen",
-      "title": "Downloads & Zugang",
-      "description": "Parallelität, Chunks, Tempo und Wiederholungen des Schedulers — dazu der Port der Oberfläche und der Passwortschutz."
+      "title": "Warteschlange & Wiederholungen",
+      "description": "Wie viele Downloads gleichzeitig laufen, mit wie vielen Teilstücken und Verbindungen je Host, wie oft sie wiederholt werden — dazu automatisches Entfernen und Prüfsummen."
     },
     "network": {
       "eyebrow": "Ausgehende Verbindungen",
       "title": "Netzwerk & Zertifikate",
-      "description": "Proxyprofile und der globale Rückfall, eine eigene Zertifizierungsstelle, Authentifizierungsprofile für geschützte Seiten und das Reconnect-Skript."
+      "description": "Proxyprofile und der globale Rückfall, eine eigene Zertifizierungsstelle und das Reconnect-Skript."
     },
     "media": {
       "eyebrow": "Externe Werkzeuge",
@@ -32,9 +32,9 @@
       "description": "Was mit einem fertigen Paket passiert: reparieren, entpacken, aufräumen, ein Skript ausführen und optional auf ein rclone-Remote hochladen."
     },
     "interface": {
-      "eyebrow": "Nur dieser Browser",
+      "eyebrow": "Wie es aussieht",
       "title": "Oberfläche",
-      "description": "Sprache, Design und Benachrichtigungen für diesen Browser, dazu wie Größen überall in der Oberfläche angezeigt werden."
+      "description": "Sprache, Design und Benachrichtigungen für diesen Browser, dazu für alle Browser, wie Größen, der Tab-Titel, Titelbilder und die NZB-Übergabe angezeigt werden."
     },
     "bandwidth": {
       "eyebrow": "Planbare Auslastung",
@@ -47,29 +47,19 @@
       "description": "Signierte Webhooks, E-Mail und Apprise-kompatible Dienste, gefiltert nach Ereignis, Kategorie und Severity, mit Zustellhistorie."
     },
     "services": {
-      "eyebrow": "Übertragungen",
+      "eyebrow": "Protokolle ein/aus",
       "title": "Dienste",
       "description": "Schalte ab, was diese Installation nicht tun soll. Ein abgeschalteter Dienst nimmt keine neuen Links an und stoppt die vorhandenen."
-    },
-    "desktop": {
-      "eyebrow": "Erfassungsdienst",
-      "title": "Desktop-Client",
-      "description": "Koppelt den Desktop-Erfassungsdienst mit diesem Server, damit Klicks, Zwischenablage und Dateizuordnungen hier ankommen."
     },
     "accounts": {
       "eyebrow": "Zugang zu Anbietern",
       "title": "Providerkonten",
-      "description": "Zugänge zu Hostern, Debrid-Diensten und anderen Anbietern. Jedes Konto nutzt eine eigene, isolierte Clientidentität — Cookie-Jar, Proxy, TLS —, und kein Secret und kein Cookie wird je über die API ausgegeben."
+      "description": "Zugänge zu Hostern, Debrid-Diensten und anderen Anbietern. Jedes Konto nutzt eine eigene, isolierte Clientidentität — Cookie-Jar, Proxy, TLS —, und kein Secret und kein Cookie wird je über die API ausgegeben. Dazu die Anmeldungen für geschützte Seiten."
     },
     "security": {
       "eyebrow": "Wer hineinkommt",
       "title": "Sicherheit",
       "description": "Zweiter Faktor und Passkeys für die Anmeldung, die gerade angemeldeten Sitzungen und der Reverse-Proxy, dem dieser Dienst glauben darf."
-    },
-    "mcp": {
-      "eyebrow": "Externer Zugriff",
-      "title": "API & MCP",
-      "description": "API-Tokens für REST, CLI, SABnzbd- und qBittorrent-kompatible Clients und den MCP-Server, jedes auf die Bereiche begrenzt, die du wählst."
     },
     "hotfolders": {
       "eyebrow": "Überwachte Ordner",
@@ -105,11 +95,21 @@
       "eyebrow": "Herkunft & Lizenzen",
       "title": "Über rDownloader",
       "description": "Welche Version läuft, woher sie kommt, wer sie gemacht hat und unter welchen Lizenzen die mitgelieferten Teile stehen."
+    },
+    "linkgrabber": {
+      "eyebrow": "Links annehmen",
+      "title": "LinkGrabber",
+      "description": "Welche Links der LinkGrabber verwirft, bevor sie ihn erreichen, wie er DLC-Container öffnet und ob er Kopien derselben Datei als Spiegel bündelt."
+    },
+    "clients": {
+      "eyebrow": "Wer den Dienst anspricht",
+      "title": "Clients & API",
+      "description": "Koppelt den Desktop-Client und die Browser-Erweiterung mit diesem Server und vergibt API-Tokens für REST, CLI, SABnzbd- und qBittorrent-kompatible Clients und den MCP-Server."
     }
   },
   "active_files": {
-    "label": "Parallele Dateien",
-    "description": "Globale Scheduler-Slots"
+    "label": "Gleichzeitige Downloads",
+    "description": "Wie viele Downloads zugleich laufen; auch in der Statusleiste einstellbar und ohne Neustart wirksam."
   },
   "chunks": {
     "label": "Chunks pro Datei",
@@ -136,7 +136,9 @@
   },
   "import_history": {
     "label": "Import-Verlauf behalten",
-    "description": "Importierte NZB-Einträge und gespeicherte .torrent-Dateien nach Abschluss des Downloads behalten. Wenn deaktiviert, werden sie nach Abschluss automatisch entfernt — die Duplikat-Erkennung für erneut importierte NZBs entfällt dann."
+    "description": "Importierte NZB-Einträge und gespeicherte .torrent-Dateien nach Abschluss des Downloads behalten. Wenn deaktiviert, werden sie nach Abschluss automatisch entfernt — die Duplikat-Erkennung für erneut importierte NZBs entfällt dann.",
+    "eyebrow": "Importe",
+    "title": "Importverlauf"
   },
   "auto_remove": {
     "label": "Fertige Pakete entfernen",
@@ -151,13 +153,15 @@
     "description": "Wenn ein Paket mehrere Links auf dieselbe Datei enthält, wird einer geladen und der Rest als Rückfallebene behalten. Gibt der laufende auf, übernimmt ein anderer."
   },
   "sha256": {
-    "label": "SHA-256 erzeugen",
-    "description": "Nach Mehrchunk-Downloads immer vollständig prüfen."
+    "label": "SHA-256 berechnen",
+    "description": "Für jede fertige Datei einen SHA-256 berechnen, wenn die Quelle keine Prüfsumme mitliefert; er wird mit dem Download gespeichert."
   },
   "admin_login": {
     "label": "Admin-Login deaktivieren",
     "description": "Wer die Oberfläche von diesem Rechner aus öffnet, darf alles steuern, ohne sich anzumelden. Jeder andere Rechner – im LAN, über eine Portweiterleitung, einen Container oder einen Reverse Proxy – muss sich weiter mit dem Passwort anmelden. Wirkt sofort nach dem Speichern.",
-    "warning": "Der Passwortschutz ist ausgeschaltet."
+    "warning": "Der Passwortschutz ist ausgeschaltet.",
+    "eyebrow": "Lokaler Zugang",
+    "title": "Anmeldung auf diesem Rechner"
   },
   "proxy": {
     "eyebrow": "Ausgangsroute",
@@ -324,9 +328,9 @@
     }
   },
   "appearance": {
-    "eyebrow": "Client-Einstellungen",
+    "eyebrow": "Nur dieser Browser",
     "title": "Darstellung",
-    "description": "Sprache und Design werden nur in diesem Browser gespeichert und wirken sofort.",
+    "description": "Sprache, Design und Browser-Benachrichtigungen werden nur in diesem Browser gespeichert und wirken sofort.",
     "language_description": "Wirkt sofort, ohne zu speichern.",
     "theme_description": "„System“ folgt der Einstellung des Betriebssystems.",
     "byte_display": {
@@ -433,11 +437,9 @@
     "backup": "Backup & Restore",
     "bandwidth": "Bandbreite",
     "captcha": "Captcha & Löser",
-    "desktop": "Desktop-Client",
-    "general": "Allgemein",
+    "general": "Warteschlange & Wiederholungen",
     "hotfolders": "Hotfolder",
     "interface": "Oberfläche",
-    "mcp": "API & MCP",
     "media": "Medien",
     "network": "Netzwerk",
     "notifications": "Benachrichtigungen",
@@ -453,7 +455,9 @@
     "transfers": "FTP, SFTP, WebDAV & S3",
     "unattended": "Unbeaufsichtigter Betrieb",
     "usenet": "Usenet",
-    "about": "Über rDownloader"
+    "about": "Über rDownloader",
+    "linkgrabber": "LinkGrabber",
+    "clients": "Clients & API"
   },
   "ui_port": {
     "label": "Port der Weboberfläche",
@@ -463,7 +467,7 @@
   },
   "collector": {
     "eyebrow": "Linksammlung",
-    "title": "Sammler",
+    "title": "Sperrliste",
     "description": "Links, deren Host auf der Sperrliste steht, werden verworfen, bevor sie den LinkGrabber erreichen.",
     "excluded_domains": {
       "label": "Datei mit gesperrten Domains",
@@ -700,11 +704,9 @@
     "certificate_description": "Privater Schlüssel und Zertifikatskette als ein entschlüsseltes PEM-Bündel. Passphrasengeschützte Schlüssel werden nicht unterstützt.",
     "certificate_label": "Clientzertifikat (optional)",
     "created": "Authentifizierungsprofil erstellt",
-    "delete": "Löschen",
     "delete_description": "Die gespeicherten Zugangsdaten werden mitgelöscht. Jobs, die es fest zugewiesen haben, fallen auf die automatische Zuordnung zurück.",
     "delete_title": "Profil löschen?",
     "description": "Eine Browsersitzung wiederverwenden oder HTTP-Zugangsdaten an genau eine freigegebene Domain senden. Cookies, Tokens und private Schlüssel werden verschlüsselt gespeichert und nie wieder angezeigt.",
-    "edit": "Bearbeiten",
     "empty": "Noch keine Authentifizierungsprofile.",
     "enabled_label": "Aktiv",
     "expires_description": "Optional. Ein abgelaufenes Profil bleibt sichtbar, wird aber nicht mehr verwendet.",
@@ -725,7 +727,6 @@
     "secret_cookies_description": "Inhalt einer Netscape-cookies.txt oder ein Cookie-Header.",
     "secret_keep": "Leer lassen, um den gespeicherten Wert zu behalten.",
     "subdomains_label": "Subdomains einschließen",
-    "test": "Testen",
     "title": "Authentifizierungsprofile",
     "username_label": "Benutzername",
     "form_new": "Neues Authentifizierungsprofil",
@@ -734,7 +735,7 @@
   },
   "storage": {
     "title": "Speicherkapazität",
-    "description": "Gilt für jeden Transportweg. Ein Ziel unterhalb seines Schwellwerts nimmt keine neuen Downloads an, bis wieder Platz frei ist.",
+    "description": "Gilt für jeden Transportweg. Ein Ziel unterhalb seines Schwellwerts nimmt keine neuen Downloads an, bis wieder Platz frei ist. Das eigene „Mindestens frei“ eines Speicherorts oben überschreibt die globale Vorgabe für diesen Ort.",
     "minimum_free": {
       "label": "Mindestens frei",
       "description": "Wird auf jedem Speicherort ohne eigenen Schwellwert frei gehalten."
@@ -799,7 +800,8 @@
         "failed": "fehlgeschlagen",
         "interrupted": "unterbrochen"
       }
-    }
+    },
+    "eyebrow": "Alle Speicherorte"
   },
   "services": {
     "eyebrow": "Verfügbarkeit",
@@ -829,6 +831,11 @@
     "remote": {
       "label": "Entfernte Dateiübertragung",
       "description": "FTP-, FTPS-, SFTP- und WebDAV-Links."
+    },
+    "off": {
+      "title": "Dienst abgeschaltet: {name}",
+      "description": "Passende Links werden bei der Aufnahme abgelehnt, eingereihte Einträge dieser Art warten blockiert. Die Einstellungen hier gelten, sobald du den Dienst wieder einschaltest.",
+      "open": "Zum Schalter"
     }
   },
   "managed_tools": {
@@ -954,18 +961,31 @@
   "subtabs": {
     "network": {
       "proxies": "Proxys & TLS",
-      "auth": "Authentifizierung",
       "reconnect": "Neu verbinden"
     },
     "security": {
       "signin": "Anmeldung",
       "sessions": "Sitzungen",
-      "proxy": "Reverse Proxy"
+      "proxy": "Erreichbarkeit & Reverse Proxy"
     },
     "system": {
       "status": "Status",
       "updates": "Updates",
-      "retention": "Aufbewahrung"
+      "retention": "Protokolle & Aufbewahrung"
+    },
+    "bandwidth": {
+      "status": "Status & Limits",
+      "profiles": "Profile",
+      "schedule": "Zeitplan"
+    },
+    "accounts": {
+      "accounts": "Konten",
+      "logins": "Seiten-Anmeldungen"
+    },
+    "clients": {
+      "desktop": "Desktop",
+      "browser": "Browser",
+      "api": "API & MCP"
     }
   },
   "auto_retry": {
@@ -985,5 +1005,29 @@
     "entries_description": "Die ältesten Einträge gehen zuerst (100-100000).",
     "days_label": "Aufbewahrte Tage",
     "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (1-3650)."
+  },
+  "limits": {
+    "eyebrow": "Von Hand",
+    "title": "Download- und Upload-Limit",
+    "description": "Gelten immer, unabhängig vom Zeitplan. Ein aktives Profil überlagert sie: dann gilt jeweils das strengere der beiden Limits."
+  },
+  "nntp_limits": {
+    "eyebrow": "Je Datei",
+    "title": "NNTP-Verbindungen und Dateien",
+    "description": "Die Verbindungen je Anbieter oben sind die Obergrenze: Eine Datei nutzt höchstens so viele Verbindungen, wie jeder Anbieter erlaubt, und der Wert hier kann sie darunter deckeln. Usenet-Dateien, die gleichzeitig laufen, teilen sich die Verbindungen der Anbieter."
+  },
+  "cross_link": {
+    "see_also": "Siehe auch",
+    "program_path": "Programmpfad unter"
+  },
+  "tool_paths": {
+    "eyebrow": "Programme",
+    "title": "Eigene Pfade",
+    "description": "Ein Pfad hier geht der Suche in den Vendor-Ordnern und im PATH vor; ein leeres Feld lässt sie suchen. Welche Datei gefunden wurde, zeigt die Werkzeugsuche darunter."
+  },
+  "display": {
+    "eyebrow": "Für alle Browser",
+    "title": "Anzeige",
+    "description": "Wird mit den Einstellungen im Dienst gespeichert und gilt in jedem Browser, der ihn öffnet."
   }
 }

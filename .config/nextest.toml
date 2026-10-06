@@ -27,8 +27,11 @@ slow-timeout = { period = "60s", terminate-after = 5 }
 # at all. The selection is by binary, so a new contract test in one of these files is covered
 # without anybody remembering to add it here.
 #
+# rd-plugin-ext's contract tests are one binary, `contract`, each former file a module of it
+# (RD-1120-08).
+#
 # A new test FILE that loads a component is not, and three were missed that way on the first
-# GitHub runs (2026-09-25). `crates/rdownloader/tests/no_components_profile.rs` fails for a test
+# GitHub runs (2026-09-25). `crates/rdownloader/tests/repo_lints/no_components_profile.rs` fails for a test
 # file that calls `artifact::component`, itself or through its `support` module, and is not left
 # out below. Write entries as `binary(name)` or `binary(/suffix$/)`; that test reads no other form.
 # A unit test in a crate's `src/` shares its binary with everything else there, so it is left
@@ -45,6 +48,7 @@ default-filter = """
         test(/.*/)
         & (
             binary(/_contract$/)
+            + binary(contract)
             + binary(signed_resolver)
             + binary(foreign_address_entries)
             + binary(foreign_address_wire)
@@ -54,6 +58,31 @@ default-filter = """
             + test(/real_ddownload_component/)
             + test(/on_real_components$/)
         )
+    )
+"""
+
+# Exactly the tests the profile above leaves out, and nothing else: the `components` job of
+# .github/workflows/ci-components.yml, which builds the components, runs them with
+#
+#   cargo nextest run -P components -p rd-plugin-transfer -p rd-plugin-ext -p rd-plugin-host
+#
+# instead of the three crates' whole suites, whose other tests the `rust` job has already run —
+# 375 library tests of rd-plugin-host among them (RD-1120-08, TEST-2). The selection is the one
+# above without its `not`; no_components_profile.rs fails when the two differ.
+[profile.components]
+default-filter = """
+    test(/.*/)
+    & (
+        binary(/_contract$/)
+        + binary(contract)
+        + binary(signed_resolver)
+        + binary(foreign_address_entries)
+        + binary(foreign_address_wire)
+        + binary(krakenfiles_parity)
+        + binary(notifier_wire)
+        + binary(notifier_foreign_text)
+        + test(/real_ddownload_component/)
+        + test(/on_real_components$/)
     )
 """
 

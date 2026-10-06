@@ -8,6 +8,7 @@
 use plugin_guest_auth::{
     AuthState, Guest, UserPrompt, credentials, form,
     http::{self, RequestHeader},
+    refuse,
     types::{Failure, FailureKind},
 };
 
@@ -15,26 +16,14 @@ use crate::flow;
 
 struct Component;
 
+/// The prefix of every translation code this plugin reports.
+const SLUG: &str = "debridlink_auth";
+
 const DEVICE_ENDPOINT: &str = "https://debrid-link.com/api/oauth/device/code";
 const TOKEN_ENDPOINT: &str = "https://debrid-link.com/api/oauth/token";
 
 /// The scopes rDownloader needs, and no more: resolving links and reading the account.
 const SCOPE: &str = "get.post.downloader get.account";
-
-/// A failure carrying a stable translation code and nothing a provider wrote.
-///
-/// The code is a parameter now (RD-106-01). It used to be `debridlink_auth.flow_expired` for
-/// every refusal there is, so an unreadable answer and a blocked account both told the
-/// person their code had expired — and the one thing they could act on, starting again,
-/// was the one thing that could not help.
-fn refuse(code: &str, message: impl Into<String>, category: FailureKind) -> Failure {
-    Failure {
-        category,
-        message: message.into(),
-        code: Some(format!("debridlink_auth.{code}")),
-        params: Vec::new(),
-    }
-}
 
 impl Guest for Component {
     fn begin(_account_id: String, _credential_ref: Option<String>) -> Result<AuthState, Failure> {
@@ -48,6 +37,7 @@ impl Guest for Component {
         let body = String::from_utf8_lossy(&response.body);
         let Some(code) = flow::device_code(&body) else {
             return Err(refuse(
+                SLUG,
                 "bad_reply",
                 format!(
                     "the provider answered {} to the sign-in request",
@@ -76,6 +66,7 @@ impl Guest for Component {
         // of asking the provider a question it cannot answer, for ever.
         let Some(state) = flow_state.filter(|state| !state.is_empty()) else {
             return Ok(AuthState::Failed(refuse(
+                SLUG,
                 "flow_expired",
                 "the sign-in has no code to continue with",
                 FailureKind::AuthRequired,
@@ -109,6 +100,7 @@ impl Guest for Component {
             // drops anything that is not code-shaped whole rather than filtering it, because
             // filtering an answer that echoed a credential would keep its digits.
             flow::PollOutcome::Failed(reason) => Ok(AuthState::Failed(refuse(
+                SLUG,
                 flow::refusal_code(&reason),
                 format!(
                     "the provider refused the sign-in: {}",

@@ -34,6 +34,8 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+# The crash point registry, which the crash cases check their points against (RD-1120-12).
+rd-crash-points = { path = "../rd-crash-points" }
 # The provider tests load the built components (`artifact`, RD-191-06 PLUG-15).
 rd-plugin-host = { path = "../rd-plugin-host", features = ["test-support"] }
 rcgen.workspace = true

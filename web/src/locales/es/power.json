@@ -7,8 +7,6 @@
   "quiet": {
     "label": "Horas silenciosas",
     "description": "El trabajo pospuesto espera en estas ventanas. Las descargas siguen.",
-    "from": "Desde",
-    "to": "Hasta",
     "add": "Añadir ventana",
     "defer_postprocess": "Posponer reparación, desempaquetado y subidas",
     "defer_notifications": "Agrupar notificaciones hasta el fin de la ventana"
@@ -45,8 +43,7 @@
     "shutdown": "La máquina se apaga",
     "none": "Acción de finalización pendiente",
     "script": "Se ejecuta el script de finalización",
-    "countdown": "En {seconds} s — cancela para mantener la máquina encendida.",
-    "cancel": "Cancelar"
+    "countdown": "En {seconds} s — cancela para mantener la máquina encendida."
   },
   "paused": {
     "battery": "La cola está en pausa: la máquina funciona con batería.",

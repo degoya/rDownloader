@@ -142,7 +142,7 @@ onMounted(() => {
     </div>
 
     <DataState :loading="store.loading" :error="store.error" :empty="store.settled && store.entries.length === 0" :rows="6">
-      <p class="text-sm text-muted">{{ t('history.list.empty') }}</p>
+      <UEmpty :description="t('history.list.empty')" />
     </DataState>
 
     <ul v-if="store.entries.length" class="divide-y divide-muted border border-muted bg-default" data-testid="history-list">

@@ -1,5 +1,5 @@
 //! Crash and restart for NZB assembly - Axis A of the RD-140-04 recovery matrix, for the
-//! Usenet points registered in `rd_core::failpoint::CRASH_POINTS`.
+//! Usenet points registered in `rd_crash_points::CRASH_POINTS`.
 //!
 //! The first instant is the one the removed per-article `sync_data()` sat next to
 //! (RD-108-25): an article's bytes are in the `.part` file and the database has not recorded
@@ -346,7 +346,7 @@ async fn a_batch_of_checkpoints_lost_in_a_crash_is_fetched_again_and_the_one_bef
 #[test]
 fn every_usenet_crash_point_is_exercised_by_a_case() {
     let source = crate_sources();
-    for point in rd_core::failpoint::CRASH_POINTS
+    for point in rd_crash_points::CRASH_POINTS
         .iter()
         .filter(|point| point.owner == "rd-usenet")
     {

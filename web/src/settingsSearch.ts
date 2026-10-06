@@ -43,9 +43,9 @@ const K = 'nav.search.keywords'
 export const SETTINGS_SEARCH_PAGES: Record<SettingsSectionValue, SettingsSearchPage> = {
   general: {},
   interface: {},
-  desktop: { keywordsKey: `${K}.desktop` },
-  routing: { keywordsKey: `${K}.routing` },
   hotfolders: { keywordsKey: `${K}.hotfolders`, terms: ['NZB', 'torrent'] },
+  linkgrabber: { keywordsKey: `${K}.linkgrabber`, terms: ['DLC'] },
+  routing: { keywordsKey: `${K}.routing` },
   bandwidth: { keywordsKey: `${K}.bandwidth` },
   unattended: { keywordsKey: `${K}.unattended` },
   postprocess: { keywordsKey: `${K}.postprocess`, terms: ['PAR2', 'RAR', 'unrar', '7-Zip', 'rclone'] },
@@ -66,7 +66,7 @@ export const SETTINGS_SEARCH_PAGES: Record<SettingsSectionValue, SettingsSearchP
     keywordsKey: `${K}.notifications`,
     terms: ['ntfy', 'Gotify', 'Telegram', 'Discord', 'Apprise', 'SMTP', 'webhook']
   },
-  mcp: { keywordsKey: `${K}.mcp`, terms: ['MCP', 'API'] },
+  clients: { keywordsKey: `${K}.desktop`, terms: ['MCP', 'API'] },
   network: { keywordsKey: `${K}.network`, terms: ['SOCKS5', 'VPN'] },
   security: { keywordsKey: `${K}.security`, terms: ['2FA', 'TOTP', 'WebAuthn'] },
   backup: { keywordsKey: `${K}.backup` },
@@ -84,17 +84,12 @@ function field(id: string, section: SettingsSectionValue, titleKey: string, extr
 
 export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // General
-  field('general.speed_limit', 'general', 'settings.speed_limit.label', { descriptionKey: 'settings.speed_limit.description', keywordsKey: `${K}.speed_limit` }),
+  field('general.active_files', 'general', 'settings.active_files.label', { descriptionKey: 'settings.active_files.description', keywordsKey: `${K}.active_files` }),
   field('general.connections_per_host', 'general', 'settings.connections_per_host.label', { descriptionKey: 'settings.connections_per_host.description' }),
   field('general.retries', 'general', 'settings.retries.label', { descriptionKey: 'settings.retries.description' }),
   field('general.auto_retry', 'general', 'settings.auto_retry.label', { descriptionKey: 'settings.auto_retry.description' }),
-  field('general.ui_port', 'general', 'settings.ui_port.label', { descriptionKey: 'settings.ui_port.description' }),
-  field('general.mirrors', 'general', 'settings.mirrors.label', { descriptionKey: 'settings.mirrors.description' }),
   field('general.auto_remove', 'general', 'settings.auto_remove.label', { descriptionKey: 'settings.auto_remove.description' }),
   field('general.sha256', 'general', 'settings.sha256.label', { descriptionKey: 'settings.sha256.description', terms: ['SHA-256'] }),
-  field('general.minimum_free', 'general', 'settings.storage.minimum_free.label', { descriptionKey: 'settings.storage.minimum_free.description', keywordsKey: `${K}.disk_space` }),
-  field('general.collision', 'general', 'settings.storage.collision.label', { descriptionKey: 'settings.storage.collision.description' }),
-  field('general.admin_login', 'general', 'settings.admin_login.label', { descriptionKey: 'settings.admin_login.description' }),
   // Interface
   card('interface.appearance', 'interface', 'settings.appearance.title', { descriptionKey: 'settings.appearance.description' }),
   field('interface.language', 'interface', 'common.preferences.language', { descriptionKey: 'settings.appearance.language_description', terms: ['Deutsch', 'English', 'Español', 'Français'] }),
@@ -102,25 +97,31 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('interface.byte_display', 'interface', 'settings.appearance.byte_display.label', { descriptionKey: 'settings.appearance.byte_display.description' }),
   field('interface.title_status', 'interface', 'settings.appearance.title_status.label', { descriptionKey: 'settings.appearance.title_status.description' }),
   field('interface.browser_notifications', 'interface', 'settings.notifications.label', { descriptionKey: 'settings.notifications.description' }),
-  // Desktop client
-  card('desktop.pairing', 'desktop', 'system.pairing.title', { keywordsKey: `${K}.desktop` }),
+  card('interface.display', 'interface', 'settings.display.title', { descriptionKey: 'settings.display.description' }),
+  field('interface.indexer_images', 'interface', 'settings.collector.indexer_images.title', { descriptionKey: 'settings.collector.indexer_images.description' }),
+  card('interface.nzb_hand_over', 'interface', 'settings.collector.nzb_hand_over.title', { descriptionKey: 'settings.collector.nzb_hand_over.description', terms: ['NZB', 'TorBox', 'Premiumize'] }),
   // Download routing
   card('routing.roots', 'routing', 'routing.root.title', { tab: 'roots', descriptionKey: 'routing.root.description', keywordsKey: `${K}.routing` }),
+  card('routing.storage_capacity', 'routing', 'settings.storage.title', { tab: 'roots', descriptionKey: 'settings.storage.description', keywordsKey: `${K}.disk_space` }),
+  field('routing.minimum_free', 'routing', 'settings.storage.minimum_free.label', { tab: 'roots', descriptionKey: 'settings.storage.minimum_free.description', keywordsKey: `${K}.disk_space` }),
+  field('routing.collision', 'routing', 'settings.storage.collision.label', { tab: 'roots', descriptionKey: 'settings.storage.collision.description', keywordsKey: `${K}.collision` }),
   card('routing.storage_activity', 'routing', 'settings.storage.activity.title', { tab: 'roots', descriptionKey: 'settings.storage.activity.description' }),
   card('routing.categories', 'routing', 'routing.category.title', { tab: 'categories', descriptionKey: 'routing.category.description' }),
   card('routing.rules', 'routing', 'routing.rule.title', { tab: 'rules', descriptionKey: 'routing.rule.description' }),
-  card('routing.collector', 'routing', 'settings.collector.title', { tab: 'collector', descriptionKey: 'settings.collector.description' }),
-  field('routing.excluded_domains', 'routing', 'settings.collector.excluded_domains.label', { tab: 'collector', descriptionKey: 'settings.collector.excluded_domains.description' }),
-  card('routing.dlc', 'routing', 'settings.collector.dlc.title', { tab: 'collector', descriptionKey: 'settings.collector.dlc.description', terms: ['DLC'] }),
-  card('routing.indexer_images', 'routing', 'settings.collector.indexer_images.title', { tab: 'collector', descriptionKey: 'settings.collector.indexer_images.description' }),
-  card('routing.nzb_hand_over', 'routing', 'settings.collector.nzb_hand_over.title', { tab: 'collector', descriptionKey: 'settings.collector.nzb_hand_over.description', terms: ['NZB', 'TorBox', 'Premiumize'] }),
   // Hotfolders
   card('hotfolders.list', 'hotfolders', 'routing.hotfolder.title', { descriptionKey: 'routing.hotfolder.description', keywordsKey: `${K}.hotfolders` }),
   field('hotfolders.poll', 'hotfolders', 'routing.hotfolder.poll_label', { descriptionKey: 'routing.hotfolder.poll_description' }),
+  // LinkGrabber
+  card('linkgrabber.blocklist', 'linkgrabber', 'settings.collector.title', { descriptionKey: 'settings.collector.description' }),
+  field('linkgrabber.excluded_domains', 'linkgrabber', 'settings.collector.excluded_domains.label', { descriptionKey: 'settings.collector.excluded_domains.description' }),
+  card('linkgrabber.dlc', 'linkgrabber', 'settings.collector.dlc.title', { descriptionKey: 'settings.collector.dlc.description', terms: ['DLC'] }),
+  field('linkgrabber.mirrors', 'linkgrabber', 'settings.mirrors.label', { descriptionKey: 'settings.mirrors.description' }),
   // Bandwidth
-  card('bandwidth.profiles', 'bandwidth', 'bandwidth.profile.title', { descriptionKey: 'bandwidth.profile.description', keywordsKey: `${K}.bandwidth` }),
-  field('bandwidth.monthly', 'bandwidth', 'bandwidth.profile.monthly_label', { keywordsKey: `${K}.quota` }),
-  card('bandwidth.schedule', 'bandwidth', 'bandwidth.schedule.title', { descriptionKey: 'bandwidth.schedule.description', keywordsKey: `${K}.schedule` }),
+  field('bandwidth.speed_limit', 'bandwidth', 'settings.speed_limit.label', { tab: 'status', descriptionKey: 'settings.limits.description', keywordsKey: `${K}.speed_limit` }),
+  field('bandwidth.upload_limit', 'bandwidth', 'settings.upload_limit.label', { tab: 'status', descriptionKey: 'settings.upload_limit.description', keywordsKey: `${K}.speed_limit` }),
+  card('bandwidth.profiles', 'bandwidth', 'bandwidth.profile.title', { tab: 'profiles', descriptionKey: 'bandwidth.profile.description', keywordsKey: `${K}.bandwidth` }),
+  field('bandwidth.monthly', 'bandwidth', 'bandwidth.profile.monthly_label', { tab: 'profiles', keywordsKey: `${K}.quota` }),
+  card('bandwidth.schedule', 'bandwidth', 'bandwidth.schedule.title', { tab: 'schedule', descriptionKey: 'bandwidth.schedule.description', keywordsKey: `${K}.schedule` }),
   // Unattended operation
   card('unattended.power', 'unattended', 'power.card.title', { descriptionKey: 'power.card.description' }),
   field('unattended.quiet_hours', 'unattended', 'power.quiet.label', { descriptionKey: 'power.quiet.description', keywordsKey: `${K}.quiet_hours` }),
@@ -129,7 +130,6 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // Post-processing
   card('postprocess.defaults', 'postprocess', 'settings.postprocess.title', { descriptionKey: 'settings.postprocess.description' }),
   field('postprocess.passwords_file', 'postprocess', 'settings.postprocess.passwords_file.label', { descriptionKey: 'settings.postprocess.passwords_file.description', keywordsKey: `${K}.archive_password` }),
-  field('postprocess.rar_executable', 'postprocess', 'settings.postprocess.rar_executable.label', { descriptionKey: 'settings.postprocess.rar_executable.description', terms: ['unrar', 'RAR', '7-Zip', '7z'] }),
   field('postprocess.unpack_to_subfolder', 'postprocess', 'settings.postprocess.unpack_to_subfolder.label', { descriptionKey: 'settings.postprocess.unpack_to_subfolder.description' }),
   field('postprocess.direct_unpack', 'postprocess', 'settings.postprocess.direct_unpack.label', { descriptionKey: 'settings.postprocess.direct_unpack.description' }),
   field('postprocess.delete_par2', 'postprocess', 'settings.postprocess.delete_par2.label', { descriptionKey: 'settings.postprocess.delete_par2.description', terms: ['PAR2'] }),
@@ -137,9 +137,9 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('postprocess.scripts_directory', 'postprocess', 'settings.postprocess.scripts_directory.label', { descriptionKey: 'settings.postprocess.scripts_directory.description' }),
   field('postprocess.malware_scan', 'postprocess', 'settings.postprocess.malware_scan.label', { descriptionKey: 'settings.postprocess.malware_scan.description', terms: ['ClamAV', 'clamd', 'EICAR'] }),
   field('postprocess.upload', 'postprocess', 'settings.postprocess.upload.label', { descriptionKey: 'settings.postprocess.upload.description', terms: ['rclone'] }),
-  field('postprocess.rclone_executable', 'postprocess', 'settings.postprocess.rclone_executable.label', { descriptionKey: 'settings.postprocess.rclone_executable.description', terms: ['rclone'] }),
   // Accounts
-  card('accounts.list', 'accounts', 'network.account.title', { keywordsKey: `${K}.accounts` }),
+  card('accounts.list', 'accounts', 'network.account.title', { tab: 'accounts', keywordsKey: `${K}.accounts` }),
+  card('accounts.site_logins', 'accounts', 'settings.auth_profiles.title', { tab: 'logins', descriptionKey: 'settings.auth_profiles.description' }),
   // Captcha
   card('captcha.settings', 'captcha', 'captcha.settings.title', { descriptionKey: 'captcha.settings.description' }),
   field('captcha.solver', 'captcha', 'captcha.settings.solver.label', { descriptionKey: 'captcha.settings.solver.description', terms: ['2Captcha'] }),
@@ -148,11 +148,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // Site rules
   card('siterules.editor', 'siterules', 'siterules.editor.eyebrow', { descriptionKey: 'siterules.editor.description', keywordsKey: `${K}.siterules` }),
   // Usenet
-  card('usenet.server', 'usenet', 'usenet.form.title_add', { keywordsKey: `${K}.usenet` }),
-  field('usenet.connections', 'usenet', 'usenet.form.connections', { descriptionKey: 'usenet.form.connections_hint' }),
-  card('usenet.chain', 'usenet', 'usenet.chain.title', { keywordsKey: `${K}.fallback` }),
-  card('usenet.indexer', 'usenet', 'usenet.indexers.title_add', { descriptionKey: 'usenet.indexers.description', keywordsKey: `${K}.indexers`, terms: ['Newznab', 'NZBHydra', 'Prowlarr'] }),
-  card('usenet.indexers', 'usenet', 'usenet.indexers.list_title', { keywordsKey: `${K}.indexers` }),
+  card('usenet.server', 'usenet', 'usenet.form.title_add', { tab: 'servers', keywordsKey: `${K}.usenet` }),
+  field('usenet.connections', 'usenet', 'usenet.form.connections', { tab: 'servers', descriptionKey: 'usenet.form.connections_hint' }),
+  card('usenet.chain', 'usenet', 'usenet.chain.title', { tab: 'servers', keywordsKey: `${K}.fallback` }),
+  field('usenet.nntp_connections', 'usenet', 'settings.nntp_connections.label', { tab: 'servers', descriptionKey: 'settings.nntp_connections.description', terms: ['NNTP'] }),
+  field('usenet.nntp_parallel_files', 'usenet', 'settings.nntp_parallel_files.label', { tab: 'servers', descriptionKey: 'settings.nntp_parallel_files.description', terms: ['NNTP'] }),
+  card('usenet.indexer', 'usenet', 'usenet.indexers.title_add', { tab: 'indexers', descriptionKey: 'usenet.indexers.description', keywordsKey: `${K}.indexers`, terms: ['Newznab', 'NZBHydra', 'Prowlarr'] }),
+  card('usenet.indexers', 'usenet', 'usenet.indexers.list_title', { tab: 'indexers', keywordsKey: `${K}.indexers` }),
   // BitTorrent
   card('torrent.network_status', 'torrent', 'settings.torrent.network_status.title', { descriptionKey: 'settings.torrent.network_status.description', terms: ['VPN'] }),
   card('torrent.settings', 'torrent', 'settings.torrent.title', { descriptionKey: 'settings.torrent.description' }),
@@ -183,21 +185,29 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('plugins.keys', 'plugins', 'plugins.keys.title', { tab: 'trust', keywordsKey: `${K}.signature` }),
   // Tools
   card('tools.status', 'tools', 'settings.vendor.title', { descriptionKey: 'settings.vendor.description', terms: ['yt-dlp', 'ffmpeg', 'ffprobe', 'unrar', '7-Zip', '7z', 'rclone', 'gallery-dl', 'streamlink', 'Apprise'] }),
+  card('tools.paths', 'tools', 'settings.tool_paths.title', { descriptionKey: 'settings.tool_paths.description', terms: ['yt-dlp', 'ffmpeg', 'gallery-dl', 'streamlink', 'unrar', '7z', 'rclone'] }),
+  // The two program paths moved here from Post-processing (RD-1120-23) and kept their ids, so an
+  // address or a link that names them still finds them.
+  field('postprocess.rar_executable', 'tools', 'settings.postprocess.rar_executable.label', { descriptionKey: 'settings.postprocess.rar_executable.description', terms: ['unrar', 'RAR', '7-Zip', '7z'] }),
+  field('postprocess.rclone_executable', 'tools', 'settings.postprocess.rclone_executable.label', { descriptionKey: 'settings.postprocess.rclone_executable.description', terms: ['rclone'] }),
   field('tools.vendor_directory', 'tools', 'settings.vendor.directory.label', { descriptionKey: 'settings.vendor.directory.description' }),
   card('tools.managed', 'tools', 'settings.managed_tools.title', { descriptionKey: 'settings.managed_tools.description', keywordsKey: `${K}.managed_tools` }),
   // Notifications
   card('notifications.targets', 'notifications', 'notifications.target.title', { descriptionKey: 'notifications.target.description', terms: ['ntfy', 'Gotify', 'Telegram', 'Apprise', 'SMTP', 'webhook'] }),
   card('notifications.rules', 'notifications', 'notifications.rule.title', { descriptionKey: 'notifications.rule.description' }),
   card('notifications.history', 'notifications', 'notifications.history.title'),
-  // MCP
-  card('mcp.access', 'mcp', 'system.mcp.title', { terms: ['MCP', 'API', 'token'] }),
+  // Clients & API
+  card('clients.desktop', 'clients', 'system.pairing.title', { tab: 'desktop', keywordsKey: `${K}.desktop` }),
+  card('clients.browser', 'clients', 'system.extension.pair_title', { tab: 'browser', descriptionKey: 'system.extension.why', keywordsKey: `${K}.desktop` }),
+  card('clients.api', 'clients', 'system.mcp.title', { tab: 'api', terms: ['MCP', 'API', 'token'] }),
   // Network
   card('network.proxies', 'network', 'settings.proxy.list_title', { tab: 'proxies', descriptionKey: 'settings.proxy.description', terms: ['SOCKS5', 'HTTP'] }),
   card('network.global_proxy', 'network', 'settings.global_proxy.title', { tab: 'proxies', descriptionKey: 'settings.global_proxy.description' }),
   field('network.custom_ca', 'network', 'settings.custom_ca.label', { tab: 'proxies', descriptionKey: 'settings.custom_ca.description', terms: ['CA', 'PEM', 'TLS'] }),
-  card('network.auth_profiles', 'network', 'settings.auth_profiles.title', { tab: 'auth', descriptionKey: 'settings.auth_profiles.description' }),
   card('network.reconnect', 'network', 'reconnect.title', { tab: 'reconnect', descriptionKey: 'reconnect.description', keywordsKey: `${K}.reconnect` }),
   // Security
+  field('security.admin_login', 'security', 'settings.admin_login.label', { tab: 'signin', descriptionKey: 'settings.admin_login.description' }),
+  field('security.ui_port', 'security', 'settings.ui_port.label', { tab: 'proxy', descriptionKey: 'settings.ui_port.description' }),
   card('security.reverse_proxy', 'security', 'system.proxy.title', { tab: 'proxy', descriptionKey: 'system.proxy.description', terms: ['nginx', 'Caddy', 'Traefik'] }),
   field('security.external_url', 'security', 'system.proxy.external_url', { tab: 'proxy', descriptionKey: 'system.proxy.external_url_hint' }),
   field('security.allowed_hosts', 'security', 'system.proxy.allowed_hosts', { tab: 'proxy', descriptionKey: 'system.proxy.allowed_hosts_hint', keywordsKey: `${K}.allowed_hosts` }),
@@ -222,10 +232,39 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('system.audit', 'system', 'settings.audit.title', { tab: 'retention', descriptionKey: 'settings.audit.description', terms: ['OTLP', 'OpenTelemetry'] }),
   card('system.stats_retention', 'system', 'stats.retention.title', { tab: 'retention', descriptionKey: 'stats.retention.description' }),
   card('system.history', 'system', 'settings.history.title', { tab: 'retention', descriptionKey: 'settings.history.description' }),
+  field('system.import_history', 'system', 'settings.import_history.label', { tab: 'retention', descriptionKey: 'settings.import_history.description', terms: ['NZB', 'torrent'] }),
   // About
   card('about.build', 'about', 'settings.about.build.title'),
   card('about.licenses', 'about', 'settings.about.licenses.title')
 ]
+
+/**
+ * Anchors whose field or card moved to another page (RD-1120-21, RD-1120-23), old id to new: a
+ * link or a bookmark that names the old one still leads to it. The old id is never an anchor
+ * again, so the two cannot both match; `settingsSearch.test.ts` holds both sides.
+ */
+export const MOVED_SETTINGS_ANCHORS: Readonly<Record<string, string>> = {
+  'general.admin_login': 'security.admin_login',
+  'general.minimum_free': 'routing.minimum_free',
+  'general.collision': 'routing.collision',
+  'general.speed_limit': 'bandwidth.speed_limit',
+  'general.ui_port': 'security.ui_port',
+  'general.mirrors': 'linkgrabber.mirrors',
+  'routing.collector': 'linkgrabber.blocklist',
+  'routing.excluded_domains': 'linkgrabber.excluded_domains',
+  'routing.dlc': 'linkgrabber.dlc',
+  'routing.indexer_images': 'interface.indexer_images',
+  'routing.nzb_hand_over': 'interface.nzb_hand_over',
+  'network.auth_profiles': 'accounts.site_logins',
+  'desktop.pairing': 'clients.desktop',
+  'mcp.access': 'clients.api'
+}
+
+/** The entry an anchor id names, following a moved anchor to where its field is now. */
+export function settingsSearchEntry(id: string): SettingsSearchEntry | null {
+  const current = MOVED_SETTINGS_ANCHORS[id] ?? id
+  return SETTINGS_SEARCH_ENTRIES.find(entry => entry.id === current) ?? null
+}
 
 /** Where an entry lives: its page and, on a page with sub-tabs, its tab. */
 export function settingsSearchLocation(entry: Pick<SettingsSearchEntry, 'section' | 'tab'>): { path: string, query?: { tab: string } } {

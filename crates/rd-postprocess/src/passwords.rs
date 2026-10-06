@@ -63,7 +63,7 @@ pub fn password_candidates(package: Option<&str>, list: &[String]) -> Vec<Option
 
 #[cfg(test)]
 mod tests {
-    use super::{load_password_file, password_candidates};
+    use super::{MAX_FILE_BYTES, load_password_file, password_candidates};
 
     #[test]
     fn candidates_prefer_package_password_then_none_then_list() {
@@ -98,6 +98,27 @@ mod tests {
         std::fs::write(&path, " one \n\ntwo\none\n").expect("write");
         assert_eq!(load_password_file(&path), ["one", "two"]);
         assert!(load_password_file(&temp.path().join("missing.txt")).is_empty());
+    }
+
+    /// A list longer than [`MAX_FILE_BYTES`] is read up to its last complete line inside the
+    /// limit, never as a whole (RD-1120-19, mutation probe B10: the device test alone could not
+    /// tell a capped read from an unbounded one, because both end in an error there).
+    #[test]
+    fn a_list_past_the_limit_is_read_only_up_to_the_limit() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let path = temp.path().join("passwords.txt");
+        let mut content = String::from("first\n");
+        content.push_str(&"x".repeat(MAX_FILE_BYTES));
+        content.push_str("\nbeyond-the-limit\n");
+        std::fs::write(&path, content).expect("write");
+        let passwords = load_password_file(&path);
+        assert_eq!(passwords.first().map(String::as_str), Some("first"));
+        assert!(
+            !passwords
+                .iter()
+                .any(|password| password == "beyond-the-limit"),
+            "a line past the limit was read"
+        );
     }
 
     /// A path the settings point at a device is no list (audit 2026-10-05, S9): read as one,

@@ -53,7 +53,7 @@ function mount() {
 
 async function runTest() {
   mount()
-  const button = await waitFor(() => screen.getByRole('button', { name: en.credentials.test }))
+  const button = await waitFor(() => screen.getByRole('button', { name: common.actions.test }))
   await fireEvent.click(button)
 }
 

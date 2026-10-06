@@ -12,6 +12,8 @@ import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
+import { editingRowClass } from '@/utils/editingRow'
+import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const props = defineProps<{
   targets: NotificationTarget[]
@@ -149,8 +151,9 @@ async function remove(rule: NotificationRule): Promise<void> {
           :eyebrow="t('notifications.rule.eyebrow')"
           :title="editingId ? t('notifications.rule.form_edit') : t('notifications.rule.form_new')"
         />
-        <p class="mt-2 mb-4 text-xs leading-5 text-muted">{{ t('notifications.rule.description') }}</p>
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
+        <p class="mt-2 mb-2 text-xs leading-5 text-muted">{{ t('notifications.rule.description') }}</p>
+        <SettingsCrossLink class="mb-4" anchor="unattended.quiet_hours" />
+        <UAlert v-if="error" class="mb-3" color="error" :description="error" />
 
         <form v-if="targets.length" ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField :label="t('notifications.rule.name_label')" required>
@@ -175,11 +178,11 @@ async function remove(rule: NotificationRule): Promise<void> {
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
-          <div v-for="rule in rules" :key="rule.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingId === rule.id ? 'border-l-2 border-l-primary' : ''">
+          <div v-for="rule in rules" :key="rule.id" class="flex flex-wrap items-center gap-x-3 gap-y-2 p-3" :class="editingRowClass(editingId === rule.id, 'stripe')">
             <UIcon name="i-lucide-filter" class="text-primary" />
             <div class="min-w-0 shrink grow basis-[200px]">
               <p class="text-sm font-medium text-highlighted">{{ rule.name }}</p>
-              <p class="truncate text-[11px] text-muted">
+              <p class="truncate text-2xs text-muted">
                 {{ targetName(rule.target_id) }} ·
                 {{ rule.events.length ? rule.events.map(event => t(`notifications.event.${event}`)).join(', ') : t('notifications.rule.all_events') }}
               </p>
@@ -194,7 +197,7 @@ async function remove(rule: NotificationRule): Promise<void> {
             </div>
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!rules.length" variant="inline" class="p-5">
-            <p class="text-center text-sm text-muted">{{ t('notifications.rule.empty') }}</p>
+            <UEmpty :description="t('notifications.rule.empty')" />
           </DataState>
         </div>
       </template>

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { GRACE_MS, reportServiceReachable, resetServiceConnection, serviceConnection } from '@/composables/serviceConnection'
 import {
+  onEventStreamOpened,
   resetEventStream,
   resumeEventStream,
   subscribeEvents,
@@ -277,5 +278,21 @@ describe('useEventStream', () => {
     suspendEventStream()
     vi.advanceTimersByTime(GRACE_MS)
     expect(serviceConnection.value).toBe('connected')
+  })
+
+  it('tells its open listeners about every open, the browser\'s own reconnect included', () => {
+    // A service restarted by an update shows itself as a reopened stream (RD-1120-16).
+    const opened = vi.fn()
+    const stop = onEventStreamOpened(opened)
+    subscribeEvents({ 'a.changed': () => {} })
+    const stream = FakeEventSource.instances[0]
+
+    stream?.open()
+    stream?.open()
+    expect(opened).toHaveBeenCalledTimes(2)
+
+    stop()
+    stream?.open()
+    expect(opened).toHaveBeenCalledTimes(2)
   })
 })

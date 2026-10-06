@@ -19,7 +19,6 @@ axum.workspace = true
 base64.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
-dunce.workspace = true
 fs4.workspace = true
 hex.workspace = true
 openidconnect.workspace = true
@@ -59,10 +58,8 @@ reqwest.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sqlx.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
-tower = { version = "0.5", features = ["util"] }
 tracing.workspace = true
 url.workspace = true
 utoipa.workspace = true
@@ -73,4 +70,8 @@ webauthn-rs.workspace = true
 workspace = true
 
 [dev-dependencies]
+dunce.workspace = true
+# The lib tests read and write the database behind the service's back.
+sqlx.workspace = true
 tempfile.workspace = true
+tower = { workspace = true, features = ["util"] }

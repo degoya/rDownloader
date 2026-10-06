@@ -52,12 +52,12 @@
     "heading": "Ejecución de prueba",
     "package": "Paquete de ejemplo",
     "run": "Evaluar",
-    "help": "Evalúa contra un paquete real y no cambia nada.",
+    "help": "Evalúa este formulario tal como está, guardado o no, contra un paquete real y no cambia nada.",
     "trigger_yes": "el disparador coincide",
     "trigger_no": "otro disparador",
     "condition_yes": "la condición se cumple",
     "condition_no": "la condición no se cumple",
-    "none": "No hay automatizaciones activas que evaluar."
+    "draft": "Esta automatización"
   },
   "trigger": {
     "intake_received": "Enlaces recibidos",

@@ -1,8 +1,8 @@
 # The deb and rpm packages of rDownloader (RD-180-05), for nfpm. Rendered by
 # scripts/package-deb-rpm.sh from a release tarball, once per format: @STAGE@ is the unpacked
 # tarball, @KIND_FILE@ the install-kind marker naming the format, @SYSTEMD@ packaging/systemd/,
-# the user units the AUR package ships too (RD-1110-07). Change this template, not a rendered
-# copy.
+# the user units the AUR package ships too (RD-1110-07), @ICONS@ web/public/ with the icon the menu
+# entry names (RD-1120-20). Change this template, not a rendered copy.
 #
 # The program lives in /usr/lib/rdownloader, with the bundled plugins beside the binaries where the
 # service looks for them, and the two commands are linked into /usr/bin. The data never lives
@@ -82,6 +82,19 @@ contents:
       mode: 0644
   - src: "@SYSTEMD@/rdownloader-capture.service"
     dst: /usr/lib/systemd/user/rdownloader-capture.service
+    file_info:
+      mode: 0644
+  # The menu entry and its icon (RD-1120-20): the scalable source and its 512 px rendering.
+  - src: "@PACKAGING@/rdownloader.desktop"
+    dst: /usr/share/applications/rdownloader.desktop
+    file_info:
+      mode: 0644
+  - src: "@ICONS@/favicon.svg"
+    dst: /usr/share/icons/hicolor/scalable/apps/rdownloader.svg
+    file_info:
+      mode: 0644
+  - src: "@ICONS@/icons/icon-512.png"
+    dst: /usr/share/icons/hicolor/512x512/apps/rdownloader.png
     file_info:
       mode: 0644
   - src: "@STAGE@/README.md"

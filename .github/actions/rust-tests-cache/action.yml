@@ -1,21 +1,53 @@
 name: Rust with the test cache
 description: >
-  The setup of a job that builds a few tests against the `rust` job's dependencies (`s3-live`,
-  `clamav-live`; RD-1101-07 moved the four steps here from ci.yml, unchanged): mold on Linux, the
-  workspace toolchain, `rust`'s cache read only and nextest. Read only (RD-1100-13): a job of its
-  own key saved one more cache per ref. The caller sets `rust`'s two linker variables in its env,
-  so Swatinem/rust-cache, which keys a cache by every CARGO*/RUST* variable, restores `rust-tests`.
+  The Rust setup of every job that builds against `rust-tests`, the one Rust cache of the debug
+  builds (RD-1120-07): ci.yml's `rust`, `s3-live` and `clamav-live`, ci-crash-matrix.yml,
+  ci-warm-cache.yml, recovery.yml, self-update.yml and installers.yml. It sets the linkers itself,
+  then installs the workspace toolchain, restores the cache and installs nextest. Swatinem/rust-cache
+  keys a cache by every CARGO*/RUST* variable, so a job with other linker variables restores
+  nothing; nine copies of them and of the mold setup stood in the workflows before. Saved only with
+  `save: true` and only on main and development (RD-1100-13): a ci/* branch's cache served that
+  branch alone, which is deleted on green, and pushed main's out of the repository's 10 GB.
+inputs:
+  components:
+    description: Comma-separated rustup components (rustfmt, clippy, …)
+    required: false
+    default: ""
+  save:
+    description: "true: save the cache on main and development — `rust` and `warm-cache` only; every other job reads it"
+    required: false
+    default: "false"
+  nextest:
+    description: "false: no nextest, for a job that only builds"
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
+    # mold instead of GNU ld on Linux: the test build links ~40 binaries of up to half a gigabyte
+    # each, and mold does it in a fraction of the time and memory. On Windows the LLVM linker the
+    # toolchain ships (RD-150-10): link.exe was the slowest part of the slowest job. Each variable
+    # names its target only, so every runner sees its own. Test and smoke builds only — release.yml
+    # links the shipped executables with the defaults.
+    - name: Linkers
+      shell: bash
+      run: |
+        {
+          echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS=-C link-arg=-fuse-ld=mold"
+          echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld.exe"
+        } >> "${GITHUB_ENV}"
     - name: Install mold
+      if: runner.os == 'Linux' && runner.arch == 'X64'
       shell: bash
       run: sudo apt-get update -q && sudo apt-get install -y -q mold
     - uses: ./.github/actions/setup-rust
+      with:
+        components: ${{ inputs.components }}
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       with:
         shared-key: rust-tests
-        save-if: false
-    - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        save-if: ${{ inputs.save == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development') }}
+    - if: inputs.nextest == 'true'
+      uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
       with:
         tool: nextest@0.9.146

@@ -124,7 +124,6 @@ defineExpose({ apply, installing, restartRequired })
     <UAlert
       v-if="hasInstalled"
       color="info"
-      variant="subtle"
       icon="i-lucide-package-check"
       :title="t('wizard.selection.installed_note_title')"
       :description="t('wizard.selection.installed_note')"
@@ -133,7 +132,7 @@ defineExpose({ apply, installing, restartRequired })
         : []"
       data-testid="selection-installed-note"
     />
-    <UAlert v-if="error" color="error" variant="subtle" :description="error" data-testid="selection-error" />
+    <UAlert v-if="error" color="error" :description="error" data-testid="selection-error" />
     <div v-if="progress" class="space-y-2" data-testid="selection-progress">
       <UProgress :model-value="percent" />
       <p class="text-xs text-muted">{{ t('wizard.selection.progress', { done: progress.done, total: progress.total }) }}</p>

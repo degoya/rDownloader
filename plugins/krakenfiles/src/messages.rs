@@ -91,7 +91,3 @@ pub(crate) fn page_layout_changed(diagnosis: &str) -> String {
 pub(crate) fn http_error(status: u16) -> String {
     format!("KrakenFiles HTTP status {status}")
 }
-
-pub(crate) fn invalid_url(error: &dyn std::fmt::Display) -> String {
-    format!("Invalid provider URL: {error}")
-}

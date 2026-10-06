@@ -3,7 +3,7 @@ plugin_type = "stream-transform"
 api_version = "0.10.0"
 id = "019d0000-0000-7000-8000-000000000132"
 name = "MEGA"
-version = "0.1.11"
+version = "0.1.12"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -80,7 +80,7 @@ description = "Resolves MEGA file links and files of the signed-in account, and 
 author = "rDownloader project"
 homepage = "https://rdownloader.net"
 license = "MIT"
-min_app_version = "1.1.0"
+min_app_version = "1.9.0"
 
 # An account file is found in the account's node list, which MEGA answers in one piece
 # (`a=f`, no cursor), so this plugin carries the crawler's bounds rather than a file link's.

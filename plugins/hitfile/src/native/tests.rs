@@ -3,16 +3,13 @@
 //! covers is HitFile's own parameters — the id shapes, the `.html`-less canonical link, the
 //! live premium-only file — and the manifest this plugin ships.
 
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind};
+use rd_core::{AccountId, FailureKind};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
-    CaptchaChallenge, CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse,
-    ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
+    CaptchaChallenge, CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest,
+    ResolvedHeader, Resolver,
 };
 use url::Url;
 
@@ -24,58 +21,15 @@ macro_rules! fixture {
     };
 }
 
-struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    requests: Mutex<Vec<HostHttpRequest>>,
-    waits: Mutex<Vec<u32>>,
-    captchas: Mutex<Vec<CaptchaChallenge>>,
+/// The shared scripted host as a guest sees it here: no credential, and a solver that answers
+/// every Turnstile challenge.
+trait TurnstileHost {
+    fn turnstile(responses: Vec<HostHttpResponse>) -> Arc<MockHost>;
 }
 
-impl MockHost {
-    fn new(responses: Vec<HostHttpResponse>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-        })
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("lock").push(request);
-        self.responses
-            .lock()
-            .expect("lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, _reference: &str) -> bool {
-        false
-    }
-
-    async fn wait(&self, _client: &ClientIdentity, seconds: u32) -> Result<(), Failure> {
-        self.waits.lock().expect("lock").push(seconds);
-        Ok(())
-    }
-
-    async fn solve_captcha(
-        &self,
-        _client: &ClientIdentity,
-        challenge: CaptchaChallenge,
-        _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, Failure> {
-        self.captchas.lock().expect("lock").push(challenge);
-        Ok(rd_plugin_api::CaptchaAnswer::Token(
-            "turnstile-token".to_owned(),
-        ))
+impl TurnstileHost for MockHost {
+    fn turnstile(responses: Vec<HostHttpResponse>) -> Arc<MockHost> {
+        MockHost::free(responses, Some("turnstile-token"))
     }
 }
 
@@ -104,7 +58,7 @@ fn guest(url: &str) -> ResolveRequest {
 
 #[test]
 fn every_live_domain_is_claimed_in_both_id_shapes() {
-    let resolver = HitfileResolver::new(MockHost::new(Vec::new()));
+    let resolver = HitfileResolver::new(MockHost::turnstile(Vec::new()));
     for host in [
         "hitfile.net",
         "www.hitfile.net",
@@ -177,7 +131,7 @@ fn the_manifest_declares_the_measured_domains_limits_and_budget() {
 
 #[tokio::test]
 async fn a_guest_download_resolves_with_hitfiles_own_key_and_countdown() {
-    let host = MockHost::new(vec![
+    let host = MockHost::turnstile(vec![
         json(200, fixture!("download-info-free-2026-09-21.json")),
         json(200, fixture!("free-init-ok-synthetic.json")),
         json(200, fixture!("captcha-2026-09-21.json")),
@@ -220,7 +174,7 @@ async fn a_guest_download_resolves_with_hitfiles_own_key_and_countdown() {
 /// captcha is spent (criterion 2).
 #[tokio::test]
 async fn the_live_premium_only_file_is_refused_before_the_captcha() {
-    let host = MockHost::new(vec![json(
+    let host = MockHost::turnstile(vec![json(
         200,
         fixture!("download-info-premium-only-2026-09-21.json"),
     )]);
@@ -263,7 +217,7 @@ async fn the_measured_start_refusals_end_in_structured_codes() {
             FailureKind::Permanent,
         ),
     ] {
-        let host = MockHost::new(vec![
+        let host = MockHost::turnstile(vec![
             json(200, &free_info),
             json(200, fixture!("free-init-ok-synthetic.json")),
             json(200, fixture!("captcha-2026-09-21.json")),
@@ -286,7 +240,7 @@ async fn direct_hit_on_the_premium_only_file_is_an_ip_block() {
         "\"premiumOnlyDownload\":true",
         "\"premiumOnlyDownload\":false",
     );
-    let host = MockHost::new(vec![
+    let host = MockHost::turnstile(vec![
         json(200, &free_info),
         json(
             200,
@@ -308,7 +262,7 @@ async fn direct_hit_on_the_premium_only_file_is_an_ip_block() {
 
 #[tokio::test]
 async fn a_deleted_file_is_final() {
-    let host = MockHost::new(vec![json(
+    let host = MockHost::turnstile(vec![json(
         404,
         fixture!("download-info-deleted-404-2026-09-21.json"),
     )]);
@@ -323,7 +277,7 @@ async fn a_deleted_file_is_final() {
 
 #[tokio::test]
 async fn check_sends_the_html_less_canonical_link_and_maps_the_measured_answer() {
-    let host = MockHost::new(vec![json(
+    let host = MockHost::turnstile(vec![json(
         200,
         fixture!("links-check-mixed-2026-09-21.json"),
     )]);

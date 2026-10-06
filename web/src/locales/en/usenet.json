@@ -5,8 +5,8 @@
   },
   "header": {
     "eyebrow": "Segment transport",
-    "title": "NNTP servers and fallback",
-    "description": "The first server in the chain is used first. Missing or damaged segments fall over to the next active server; passwords are stored encrypted in the local vault only."
+    "title": "Servers, indexers & quotas",
+    "description": "The server chain with its quotas and NNTP limits, plus the indexers the LinkGrabber searches. The first server in the chain is used first. Missing or damaged segments fall over to the next active server; passwords are stored encrypted in the local vault only."
   },
   "form": {
     "eyebrow": "New endpoint",
@@ -80,8 +80,7 @@
     "delete": {
       "action": "Delete indexer",
       "title": "Delete the indexer?",
-      "description": "{name} and its stored API key are removed. Subscriptions that took it over keep their own copy.",
-      "confirm": "Delete"
+      "description": "{name} and its stored API key are removed. Subscriptions that took it over keep their own copy."
     },
     "messages": {
       "created": "Indexer added",
@@ -117,5 +116,9 @@
     "reset_usage": "Reset usage",
     "remove": "Remove quota",
     "saved": "Quota saved"
+  },
+  "tabs": {
+    "servers": "Servers",
+    "indexers": "Indexers"
   }
 }

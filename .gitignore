@@ -1,5 +1,4 @@
 /target/
-plugins/*/src/bindings.rs
 /.cache/
 /.env
 /.sqlx-tmp/

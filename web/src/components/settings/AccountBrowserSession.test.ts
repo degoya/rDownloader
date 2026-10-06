@@ -38,7 +38,7 @@ const { push } = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 
-const { default: SettingsAccountsTab } = await import('./SettingsAccountsTab.vue')
+const { default: SettingsAccountsCard } = await import('./SettingsAccountsCard.vue')
 
 const SCOPED = {
   id: 'account-ddl',
@@ -71,7 +71,7 @@ function answer(path: string) {
 }
 
 function mount() {
-  return mountComponent(SettingsAccountsTab, {
+  return mountComponent(SettingsAccountsCard, {
     messages: { network, captcha, system },
     stubs: {
       SettingsRemoteJobsCard: true,

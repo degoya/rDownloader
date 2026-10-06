@@ -7,15 +7,11 @@
  * useful — so `docs/accessibility.md` records what was checked by hand and how. A green run
  * here is a floor, not a claim of conformance.
  */
-import { render } from '@testing-library/vue'
 import axe from 'axe-core'
-import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { Category, LinkCandidate, Settings, StorageRoot } from '@/api/types'
 
-import common from '@/locales/en/common.json'
 import downloads from '@/locales/en/downloads.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import routing from '@/locales/en/routing.json'
@@ -45,46 +41,8 @@ vi.mock('@/stores/transfers', () => ({
 vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
 
-const i18n = createI18n({
-  legacy: false,
-  locale: 'en',
-  messages: { en: { common, downloads, linkgrabber, settings, subscriptions, torrent } }
-})
-
-/** Renders slot content so what is inside a Nuxt UI wrapper is actually checked. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-
-const stubs = {
-  UAlert: passthrough,
-  UBadge: passthrough,
-  UButton: {
-    props: ['label', 'ariaLabel'],
-    template: '<button type="button" v-bind="$attrs" :aria-label="ariaLabel">{{ label }}<slot /></button>'
-  },
-  UCheckbox: {
-    props: ['modelValue', 'ariaLabel'],
-    template: '<input type="checkbox" v-bind="$attrs" :aria-label="ariaLabel" :checked="modelValue === true" />'
-  },
-  UCollapsible: passthrough,
-  UDropdownMenu: passthrough,
-  /**
-   * The label wraps the control, which names it the way the real field does through `for` — a
-   * switch in a horizontal field row carries no `aria-label` of its own (RD-150-11).
-   */
-  UFormField: {
-    props: ['label'],
-    template: '<div v-bind="$attrs"><label v-if="label">{{ label }}<slot /></label><slot v-else /></div>'
-  },
-  UIcon: { template: '<span aria-hidden="true" />' },
-  UInput: { props: ['modelValue'], template: '<input v-bind="$attrs" :value="modelValue" />' },
-  UProgress: { template: '<div role="progressbar" v-bind="$attrs" />' },
-  USelect: { props: ['modelValue', 'items'], template: '<select v-bind="$attrs" />' },
-  USwitch: {
-    props: ['modelValue', 'ariaLabel', 'disabled'],
-    template: '<button role="switch" v-bind="$attrs" :aria-label="ariaLabel" :aria-checked="modelValue" :disabled="disabled" />'
-  },
-  UTooltip: passthrough
-}
+/** The catalogues the components below read, besides `common`. */
+const messages = { downloads, linkgrabber, settings, subscriptions, torrent }
 
 /**
  * Runs axe over one rendered component.
@@ -134,7 +92,8 @@ describe('accessibility', () => {
   })
 
   it('the services settings have a name for every switch', async () => {
-    const { container } = render(SettingsServicesTab, {
+    const { container } = mountComponent(SettingsServicesTab, {
+      messages,
       props: {
         // Only the fields this component reads; the settings document has ninety more, and
         // spelling them out would say nothing about accessibility.
@@ -146,23 +105,22 @@ describe('accessibility', () => {
           recording_service_enabled: true,
           remote_service_enabled: true
         } as unknown as Settings
-      },
-      global: { plugins: [i18n], stubs }
+      }
     })
     const found = await violations(container)
     expect(describeViolations(found)).toBe('')
   })
 
   it('the post-processing step list is readable without sight', async () => {
-    const { container } = render(PostprocessSteps, {
+    const { container } = mountComponent(PostprocessSteps, {
+      messages,
       props: {
         steps: [
           { owner_id: 'p', kind: 'par2', source_path: '/pkg/a.par2', state: 'completed', position: 1, output_path: null, message: null, updated_at: new Date().toISOString() },
           { owner_id: 'p', kind: 'plugin_step', source_path: 'checksums', state: 'running', position: 2, progress_percent: 40, output_path: null, message: null, updated_at: new Date().toISOString() },
           { owner_id: 'p', kind: 'script', source_path: 'done.sh', state: 'failed', position: 3, output_path: null, message: 'it did not work', updated_at: new Date().toISOString() }
         ]
-      },
-      global: { plugins: [i18n], stubs }
+      }
     })
     const found = await violations(container)
     expect(describeViolations(found)).toBe('')
@@ -190,7 +148,7 @@ describe('accessibility', () => {
       }),
       template: '<ul><SubscriptionItemRow :item="item" :show-images="true" /></ul>'
     }
-    const { container } = render(InList, { global: { plugins: [i18n], stubs } })
+    const { container } = mountComponent(InList, { messages })
 
     const trigger = container.querySelector('button[aria-label="Show the cover larger"]')
     expect(trigger).not.toBeNull()
@@ -218,7 +176,7 @@ describe('accessibility', () => {
           </template>
         </VirtualRowList>`
     }
-    const { container } = render(InList, { global: { plugins: [i18n], stubs } })
+    const { container } = mountComponent(InList, { messages })
 
     const list = container.querySelector('[role="list"]')
     expect(list?.getAttribute('aria-label')).toBe('Download queue, 400 rows')
@@ -234,8 +192,8 @@ describe('accessibility', () => {
    * one way that goes wrong silently is a control or a glyph that lost its name on the way.
    */
   it('a LinkGrabber link row names every control and every glyph', async () => {
-    setActivePinia(createPinia())
-    const { container } = render(CollectorCandidateRow, {
+    const { container } = mountComponent(CollectorCandidateRow, {
+      messages,
       props: {
         candidate: {
           id: 'candidate-1',
@@ -250,15 +208,14 @@ describe('accessibility', () => {
         } as unknown as LinkCandidate,
         selected: false,
         busy: false
-      },
-      global: { plugins: [i18n], stubs }
+      }
     })
     expect(container.querySelector('button[aria-label="Link actions"]')).not.toBeNull()
     expect(describeViolations(await violations(container))).toBe('')
   })
 
   it('the queue announcement is a polite status region', async () => {
-    const { container } = render(LiveAnnouncer, { global: { plugins: [i18n], stubs } })
+    const { container } = mountComponent(LiveAnnouncer, { messages })
     const region = container.querySelector('[role="status"]')
     expect(region).not.toBeNull()
     // Polite, never assertive: a finished download is worth knowing, not worth interrupting

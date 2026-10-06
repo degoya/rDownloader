@@ -33,6 +33,11 @@
 #   7. After both are green, scripts/prune-target.sh --if-free: the old crate variants go while
 #      the wave's own are the newest, and only when no build holds the target's lock (RD-160-06).
 #
+# With --public-ci (RD-1120-06, audit P4) step 6 also starts scripts/public-ci.sh <integration>
+# --platforms linux,windows, detached beside --windows and --full instead of after them: the gate
+# is green and the generators' commit is the content --full checks, so GitHub's hour runs in
+# parallel with the local one. Its log is public-ci.log, its exit the status file's public-ci=.
+#
 # Usage:
 #   scripts/integrate.sh integration/1.4-w4 feat/a fix/b tooling/c
 #   scripts/integrate.sh integration/1.4-w4 feat/a --base integration/1.4-w3
@@ -40,14 +45,16 @@
 #   scripts/integrate.sh integration/1.4-w4 feat/a --no-check      # steps 1 to 5
 #   scripts/integrate.sh integration/1.4-w4 feat/a --no-gate       # step 3 without the gate
 #   scripts/integrate.sh integration/1.4-w4 feat/a --no-windows    # no Windows clippy in 6
+#   scripts/integrate.sh integration/1.4-w4 feat/a --public-ci     # GitHub beside --full in 6
 #
 # RD_INTEGRATE_LOGS names another log directory (the tests use it).
 #
 # Run it again after resolving a conflict or after a fix on a branch: branches already merged are
 # skipped, and so is everything that has nothing to do. An integration branch gets no
-# branch-level check round of its own — after a fix, this is the round. What it does not do: push, merge into development, or run
-# the public CI — that is scripts/public-ci.sh <integration-branch> --platforms linux,windows,
-# once the check is green, and its green is what lets the wave into development.
+# branch-level check round of its own — after a fix, this is the round. What it does not do: push,
+# or merge into development. Without --public-ci it does not run the public CI either — that is
+# then scripts/public-ci.sh <integration-branch> --platforms linux,windows once the check is green;
+# its green is what lets the wave into development either way.
 #
 set -euo pipefail
 
@@ -60,7 +67,7 @@ MAIN="$(dirname "$common")"
 
 usage() {
     echo "usage: scripts/integrate.sh <integration-branch> <branch>... [--base <ref>]" >&2
-    echo "       [--merge-only | --no-check] [--no-gate] [--no-windows]" >&2
+    echo "       [--merge-only | --no-check] [--no-gate] [--no-windows] [--public-ci]" >&2
     exit 2
 }
 
@@ -68,6 +75,7 @@ base="development"
 stop_after="check"
 gate=1
 windows=1
+public_ci=0
 integration=""
 branches=()
 while [[ $# -gt 0 ]]; do
@@ -77,7 +85,8 @@ while [[ $# -gt 0 ]]; do
         --no-check) stop_after="components"; shift ;;
         --no-gate) gate=0; shift ;;
         --no-windows) windows=0; shift ;;
-        -h|--help) sed -n '2,50p' "$0"; exit 0 ;;
+        --public-ci) public_ci=1; shift ;;
+        -h|--help) sed -n '2,56p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) if [[ -z "$integration" ]]; then integration="$1"; else branches+=("$1"); fi; shift ;;
     esac
@@ -203,6 +212,11 @@ rm -f "$logs/status"
     echo '#!/usr/bin/env bash'
     echo "cd '$tree'"
     echo "export RD_CHECK_LOGS='$logs'"
+    # GitHub first, detached within the run, so its hour overlaps the local one (--public-ci).
+    if [[ "$public_ci" -eq 1 ]]; then
+        echo "( scripts/public-ci.sh '$integration' --platforms linux,windows; status=\$?; echo \"REAL EXIT: \$status\"; exit \$status ) > '$logs/public-ci.log' 2>&1 &"
+        echo "public_ci_pid=\$!"
+    fi
     if [[ "$windows" -eq 1 ]]; then
         echo "scripts/check.sh --windows > '$logs/windows.log' 2>&1; windows=\$?"
         echo "echo \"REAL EXIT: \$windows\" >> '$logs/windows.log'"
@@ -218,20 +232,25 @@ rm -f "$logs/status"
     echo "if [[ \$full == 0 && ( \$windows == 0 || \$windows == skipped ) ]]; then"
     echo "    scripts/prune-target.sh --if-free > '$logs/prune.log' 2>&1; prune=\$?"
     echo "fi"
-    echo "echo \"full=\$full windows=\$windows prune=\$prune\" > '$logs/status'"
+    if [[ "$public_ci" -eq 1 ]]; then
+        echo "wait \$public_ci_pid; public_ci=\$?"
+    else
+        echo "public_ci=skipped"
+    fi
+    echo "echo \"full=\$full windows=\$windows prune=\$prune public-ci=\$public_ci\" > '$logs/status'"
 } > "$logs/run.sh"
 chmod +x "$logs/run.sh"
 setsid nohup "$logs/run.sh" > /dev/null 2>&1 < /dev/null &
 echo "$!" > "$logs/check.pid"
 cat <<INFO
-==> started, detached: $([[ "$windows" -eq 1 ]] && echo "scripts/check.sh --windows, then --full (only after a green)" || echo "scripts/check.sh --full")
+==> started, detached: $([[ "$windows" -eq 1 ]] && echo "scripts/check.sh --windows, then --full (only after a green)" || echo "scripts/check.sh --full")$([[ "$public_ci" -eq 1 ]] && echo ", and beside them scripts/public-ci.sh $integration --platforms linux,windows")
     PID      $(cat "$logs/check.pid") (in $logs/check.pid)
-    logs     $([[ "$windows" -eq 1 ]] && echo "$logs/windows.log and check.log" || echo "$logs/check.log")
+    logs     $([[ "$windows" -eq 1 ]] && echo "$logs/windows.log and check.log" || echo "$logs/check.log")$([[ "$public_ci" -eq 1 ]] && echo ", public-ci.log")
     failures $logs/failures — every failed stage with its failing tests, written as they fail
-    status   $logs/status — written last, as "full=<exit|skipped> windows=<exit|skipped> prune=<exit|skipped>"
+    status   $logs/status — written last, as "full=<exit|skipped> windows=<exit|skipped> prune=<exit|skipped> public-ci=<exit|skipped>"
              (the prune, into prune.log, only after both are green and when no build holds the lock)
     follow   scripts/watch-run.sh $(cat "$logs/check.pid") $logs/check.log — stage starts, failures, the end
 
     Judge each log by its closing line "==> all requested checks passed", not by an exit code
-    alone. Then: scripts/public-ci.sh $integration --platforms linux,windows
+    alone. $([[ "$public_ci" -eq 1 ]] && echo "GitHub's verdict is public-ci.log's last lines; red holds the merge." || echo "Then: scripts/public-ci.sh $integration --platforms linux,windows")
 INFO

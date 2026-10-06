@@ -14,6 +14,8 @@
 //! shared: the two plugins share no crate, and a new one for forty lines would put a
 //! dependency into both for what is a naming convention.
 
+use plugin_common::html::decode_entities;
+
 use crate::{
     api,
     source::{self, Kind},
@@ -117,15 +119,6 @@ pub fn nzb_release_name(bytes: &[u8]) -> Option<String> {
         }
     }
     None
-}
-
-/// The five entities XML predefines; `&amp;` last, so `&amp;lt;` stays `&lt;`.
-fn decode_entities(text: &str) -> String {
-    text.replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
-        .replace("&amp;", "&")
 }
 
 /// ASCII letters, digits and `. - _ ( ) +` kept, whitespace folded to single spaces, anything

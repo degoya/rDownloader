@@ -115,12 +115,11 @@ pub fn failure_from(
         return None;
     }
     let mut refusal = classify(status, retry_after_seconds, envelope);
-    // The sanitised reason, when Seedr stated a code-shaped one, and nothing else: this
-    // plugin's `http_error` has never carried the `status` parameter (RD-1110-02 keeps that).
-    refusal.params = envelope
-        .reason()
-        .map(|reason| vec![("reason", reason)])
-        .unwrap_or_default();
+    // The sanitised reason, when Seedr stated a code-shaped one, beside the `status` parameter
+    // the shared mapping gives `http_error` (RD-1120-05), and nothing else.
+    refusal
+        .params
+        .extend(envelope.reason().map(|reason| ("reason", reason)));
     Some(refusal)
 }
 

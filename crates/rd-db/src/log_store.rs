@@ -14,7 +14,7 @@ use rd_core::LogLevel;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, QueryBuilder, Sqlite, SqliteConnection, SqlitePool};
 
-use crate::timestamp;
+use crate::{escape_like, timestamp};
 
 /// One record about to be stored.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -62,14 +62,8 @@ pub struct LogQuery {
     pub limit: u32,
 }
 
-/// What one bounded prune did and what it left behind.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct LogPruneReport {
-    pub deleted: u64,
-    /// Records still over the count cap after this batch; the caller runs again while it is
-    /// non-zero, and yields to the queue in between.
-    pub remaining_over_cap: u64,
-}
+/// What one bounded prune of the log records did and what it left behind.
+pub type LogPruneReport = crate::retention::PruneReport;
 
 #[derive(FromRow)]
 struct Row {
@@ -150,7 +144,7 @@ pub(crate) async fn append_log_records(
 
 /// Empties the store in one statement and reports how many records went (RD-120-34).
 ///
-/// Unbounded on purpose, where [`prune_log_records`] is bounded: the prune runs unattended
+/// Unbounded on purpose, where [`crate::retention::prune_records`] is bounded: the prune runs unattended
 /// against a store that may be neglected, so it yields to the queue between batches. This one
 /// is a deliberate act a person waited for after a confirmation, and a clear that stopped
 /// halfway would leave exactly the mixed state the person asked to be rid of.
@@ -162,75 +156,11 @@ pub(crate) async fn clear_log_records(connection: &mut SqliteConnection) -> Resu
     Ok(result.rows_affected())
 }
 
-/// Removes what retention no longer keeps, at most `batch` rows in this call.
-///
-/// Age first, then count: a record older than `older_than` goes whatever the count, and the
-/// oldest records go while more than `max_records` remain. The batch cap is what keeps a
-/// queue mutation from waiting behind a sweep of a neglected store — the writer runs one
-/// command at a time, so a single unbounded `DELETE` of a million rows would stall every
-/// download state change for its duration.
-pub(crate) async fn prune_log_records(
-    connection: &mut SqliteConnection,
-    max_records: u64,
-    older_than: Option<DateTime<Utc>>,
-    batch: u64,
-) -> Result<LogPruneReport> {
-    let mut deleted = 0u64;
-    if let Some(cutoff) = older_than
-        && batch > 0
-    {
-        let result = sqlx::query(
-            "DELETE FROM log_records WHERE id IN \
-               (SELECT id FROM log_records WHERE recorded_at < ? ORDER BY id LIMIT ?)",
-        )
-        .bind(timestamp(&cutoff))
-        .bind(i64::try_from(batch).unwrap_or(i64::MAX))
-        .execute(&mut *connection)
-        .await
-        .context("prune log records by age")?;
-        deleted += result.rows_affected();
-    }
-    let count = count_rows(&mut *connection).await?;
-    let over_cap = count.saturating_sub(max_records);
-    let room = batch.saturating_sub(deleted);
-    let take = over_cap.min(room);
-    if take > 0 {
-        let result = sqlx::query(
-            "DELETE FROM log_records WHERE id IN \
-               (SELECT id FROM log_records ORDER BY id LIMIT ?)",
-        )
-        .bind(i64::try_from(take).unwrap_or(i64::MAX))
-        .execute(&mut *connection)
-        .await
-        .context("prune log records by count")?;
-        deleted += result.rows_affected();
-    }
-    Ok(LogPruneReport {
-        deleted,
-        remaining_over_cap: over_cap.saturating_sub(take),
-    })
-}
-
-async fn count_rows(connection: &mut SqliteConnection) -> Result<u64> {
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM log_records")
-        .fetch_one(connection)
-        .await?;
-    Ok(u64::try_from(count).unwrap_or(0))
-}
-
 pub(crate) async fn count_log_records(pool: &SqlitePool) -> Result<u64> {
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM log_records")
         .fetch_one(pool)
         .await?;
     Ok(u64::try_from(count).unwrap_or(0))
-}
-
-/// `LIKE` treats `%` and `_` as wildcards; a person searching for `100%` means the characters.
-fn escape_like(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }
 
 /// The newest records matching the query, newest first.

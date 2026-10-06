@@ -61,11 +61,19 @@ pub fn header<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str
 
 /// Whether a response is an HTML page rather than the file itself: how a website flow tells a
 /// hotlink or a direct link from a page it still has to read.
+///
+/// A `Content-Type` decides when there is one: it is HTML when it names `text/html` anywhere,
+/// whatever its case. Without one the body decides: a page opens with `<` once leading
+/// whitespace is skipped, a file almost never does. One rule for every plugin (RD-1120-10); it
+/// was three (a header that had to *start* with `text/html` and no header meaning "a file"
+/// here, a look into the body in MediaFire and Turbobit), so a page served without a type went
+/// on to be saved as the download wherever this one was used.
 #[must_use]
 pub fn is_html(response: &crate::HttpResponse) -> bool {
-    response
-        .header("content-type")
-        .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"))
+    match response.header("content-type") {
+        Some(value) => value.to_ascii_lowercase().contains("text/html"),
+        None => response.body.trim_ascii_start().starts_with(b"<"),
+    }
 }
 
 /// What a status that is not a success means, before a plugin names it in its own words.
@@ -130,9 +138,10 @@ pub fn http_status(status: u16, retry_after: Option<u64>) -> Result<(), HttpRefu
 #[cfg(test)]
 mod tests {
     use super::{
-        HttpRefusal, MAX_RETRY_AFTER_SECONDS, http_status, retry_after, retry_after_seconds,
+        HttpRefusal, MAX_RETRY_AFTER_SECONDS, http_status, is_html, retry_after,
+        retry_after_seconds,
     };
-    use crate::FailureKind;
+    use crate::{FailureKind, HttpResponse};
 
     #[test]
     fn a_success_is_not_a_refusal() {
@@ -233,6 +242,42 @@ mod tests {
         ];
         assert_eq!(retry_after(&headers), Some(45));
         assert_eq!(retry_after(&[]), None);
+    }
+
+    fn answer(content_type: Option<&str>, body: &[u8]) -> HttpResponse {
+        HttpResponse {
+            status: 200,
+            final_url: "https://files.example/f".to_owned(),
+            headers: content_type
+                .map(|value| vec![("Content-Type".to_owned(), value.to_owned())])
+                .unwrap_or_default(),
+            body: body.to_vec(),
+        }
+    }
+
+    /// The header decides when there is one: `text/html` anywhere in it, whatever its case.
+    #[test]
+    fn a_content_type_naming_html_anywhere_is_a_page() {
+        assert!(is_html(&answer(Some("text/html"), b"")));
+        assert!(is_html(&answer(Some("Text/HTML; charset=UTF-8"), b"")));
+        assert!(is_html(&answer(Some("charset=utf-8; text/html"), b"")));
+        // A type that is not HTML is a file, whatever the body opens with.
+        assert!(!is_html(&answer(
+            Some("application/octet-stream"),
+            b"<html>"
+        )));
+        assert!(!is_html(&answer(Some("application/json"), b"{}")));
+    }
+
+    /// Without a header the body decides: markup after leading whitespace is a page.
+    #[test]
+    fn without_a_content_type_a_body_opening_with_markup_is_a_page() {
+        assert!(is_html(&answer(None, b"<!DOCTYPE html><html></html>")));
+        assert!(is_html(&answer(None, b" \r\n\t<html>")));
+        assert!(!is_html(&answer(None, b"PK\x03\x04")));
+        assert!(!is_html(&answer(None, b"{\"ok\":true}")));
+        assert!(!is_html(&answer(None, b"")));
+        assert!(!is_html(&answer(None, b"   ")));
     }
 
     /// The host clamps to the same number; a plugin cannot depend on `rd-core`, so the two are

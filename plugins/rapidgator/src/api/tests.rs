@@ -367,7 +367,7 @@ fn ensure_http_status_keeps_a_stated_wait() {
     ));
     assert!(matches!(
         ensure_http_status(429, true, None).expect_err("429").kind,
-        ErrorKind::RateLimited(None)
+        ErrorKind::RateLimited(Some(60))
     ));
     assert!(matches!(
         ensure_http_status(503, true, Some(45))

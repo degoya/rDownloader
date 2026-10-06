@@ -5,14 +5,16 @@ on:
   # an unfiltered `push` ran this whole workflow twice for it; the tag has release.yml.
   #
   # Not Dependabot's branches: its pull request runs the workflow already, and a push run of the
-  # same commit would bill every job twice (.github/dependabot.yml, RD-140-25).
+  # same commit would run every job twice (.github/dependabot.yml, RD-140-25).
   push:
     branches: ["**", "!dependabot/**"]
   pull_request:
   # A re-check of one fix need not wait an hour for platforms it cannot affect: dispatched by
   # hand, the `rust` and `crash-matrix` matrices take only the runners named here (`docker` still
   # runs; it waits for `web` alone). Pushes and pull requests run all three; a push to `main`
-  # runs what the `gate` job finds its tree still needs (RD-191-09).
+  # runs what the `gate` job finds its tree still needs (RD-191-09). `jobs` narrows the jobs that
+  # run once per run (the gate's `ONCE` and `CALLED`); scripts/lib/public-ci.sh passes `[]` when
+  # recorded Linux and Windows greens cover the tree, so a macOS dispatch runs none (RD-1120-07).
   #   gh workflow run ci.yml --ref ci/1.3.1 -f platforms='["ubuntu-24.04"]'
   workflow_dispatch:
     inputs:
@@ -20,13 +22,17 @@ on:
         description: JSON list of runner images for the rust and crash-matrix jobs
         required: false
         default: '["ubuntu-24.04","windows-2025","macos-15"]'
+      jobs:
+        description: JSON list of the once-per-run jobs to run; empty runs all of them
+        required: false
+        default: ""
 
 # Nothing by default; every job names what it needs, which today is reading the tree. A job that
 # needs more says so where it is written, not by widening the whole workflow (RD-140-25).
 permissions: {}
 
-# A newer push to the same branch makes the running one pointless; cancel it instead of paying
-# for both (the account's Actions minutes ran out on 2026-09-25).
+# A newer push to the same branch makes the running one pointless; cancel it instead of running
+# both side by side and holding the runners the next one waits for.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -48,8 +54,9 @@ env:
 jobs:
   # What this run has to check (RD-191-09 T02): everything, except on a push to `main`, which
   # carries a tree the release chain already had checked; there only the runner images and `ONCE`
-  # jobs no successful run of this very tree covered run (scripts/ci-gate.sh). A tree nobody
-  # checked, or a GitHub that does not answer, gets everything.
+  # jobs no successful run of this very tree covered run (scripts/ci-gate.sh), and `components`
+  # for the cache. A dispatch's `jobs` input narrows the once-per-run jobs. A tree nobody checked,
+  # or a GitHub that does not answer, gets everything.
   gate:
     runs-on: ubuntu-24.04
     permissions:
@@ -69,7 +76,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REQUESTED: ${{ inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]' }}
+          REQUESTED_JOBS: ${{ inputs.jobs }}
           ONCE: '["docker","s3-live","clamav-live","supply-chain","scripts"]'
+          # Once per run as well, but a call, whose check no tree green finds by name: run on
+          # every push to `main` for the cache release.yml reads, left out only by `jobs`.
+          CALLED: '["components"]'
         run: scripts/ci-gate.sh
 
   web:
@@ -118,24 +129,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    # A hang is cut off rather than billed for six hours: on 2026-09-25 a keychain call blocked the
-    # macOS tests for an hour, at ten times the Linux rate. On Windows the test build plus the
-    # crash matrix ran past 90 minutes twice in 1.8 (runs 36734111741, 36743221728) and was
-    # cancelled in the matrix step, not hung; the matrix is its own job since, `crash-matrix`.
+    # A hang is cut off rather than left running for six hours: on 2026-09-25 a keychain call
+    # blocked the macOS tests for an hour. On Windows the test build plus the crash matrix ran past
+    # 90 minutes twice in 1.8 (runs 36734111741, 36743221728) and was cancelled in the matrix
+    # step, not hung; the matrix is its own job since, `crash-matrix`.
     timeout-minutes: 120
-    # `crash-matrix` and `warm-cache` build with the same linkers and caches: ci-crash-matrix.yml
-    # and ci-warm-cache.yml repeat this env and the setup steps, and a change here goes there too.
-    env:
-      # mold instead of GNU ld on Linux (installed below): the test build links ~40 binaries of
-      # up to half a gigabyte each, and mold does it in a fraction of the time and memory. The
-      # variable names the Linux target only, so the other two runners never see it.
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
-      # The same on Windows with the LLVM linker the toolchain ships (RD-150-10): link.exe was
-      # the slowest part of the slowest job. Test and smoke builds only — release.yml links the
-      # shipped executables with link.exe as before.
-      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
-      # No sccache over GitHub's cache any more (RD-1100-13): it hit 0-24 % of its compiles and
-      # held 1.9 GB of the repository's 10 GB. Swatinem/rust-cache alone, saved from main.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # A debug test build does not fit on a hosted runner as it comes: every rd-api integration
@@ -143,33 +141,19 @@ jobs:
       - name: Free runner disk
         if: runner.os != 'Windows'
         uses: ./.github/actions/free-runner-disk
-      - name: Install mold
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q mold
       # rust-embed compiles web/dist into rd-api; the `web` job built it once for every system.
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: web-dist
           path: web/dist
-      - uses: ./.github/actions/setup-rust
+      # The linkers (mold, rust-lld.exe), the toolchain, the cache `rust-tests` and nextest, in one
+      # action for every job that builds against this cache (RD-1120-07). This job and
+      # `warm-cache` save it, on main and development only (RD-1100-13); no sccache, which hit
+      # 0-24 % of its compiles and held 1.9 GB of the repository's 10 GB.
+      - uses: ./.github/actions/rust-tests-cache
         with:
           components: rustfmt, clippy
-      # One key for this job, `crash-matrix`, `warm-cache`, `s3-live` and `clamav-live`: their
-      # dependencies build alike (the failpoints features are the workspace's own), so they
-      # restore what this job saved.
-      #
-      # Saved from main (and development) only (RD-1100-13). A cache belongs to the ref that saved
-      # it, and a ref reads its own and the default branch's: what a ci/* branch saved served that
-      # branch alone, which is deleted on green, and filled the repository's 10 GB (10.39 GB on
-      # 2026-10-04) until GitHub evicted main's. Every ci/* run restores main's instead; the
-      # partial match on the same toolchain and environment still serves when Cargo.lock moved.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: rust-tests
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: nextest@0.9.146
+          save: true
       - run: cargo fmt --all --check
       # The capture agent stays headless on Linux. The manifest gate in
       # crates/rd-capture/src/platform_gate/ sees only what that crate declares; this holds the
@@ -186,12 +170,12 @@ jobs:
       # `components` job below. On top of it the profile writes JUnit, retries a failure once
       # and lists slow and flaky tests at the end (RD-140-21, .config/nextest.toml).
       #
-      # In groups, each group's executables deleted once it ran, every group to its end
-      # (RD-120-67): scripts/ci-rust-tests.sh, which `warm-cache` runs with --no-run. Two build
-      # jobs and mold keep the links' memory down.
-      # macOS is linted (clippy above), not tested: its minutes cost ten times Linux's, and the
-      # owner's decision (2026-09-25) is that the macOS half is held by clippy in CI. release.yml
-      # still builds the macOS binaries.
+      # On Linux in groups, each group's executables deleted once it ran, every group to its end
+      # (RD-120-67); on Windows, which has the disk, in one (RD-1120-07): scripts/ci-rust-tests.sh,
+      # which `warm-cache` runs with --no-run. Two build jobs and mold keep the links' memory down.
+      # macOS is linted (clippy above), not tested: the owner's decision (2026-09-25, kept on
+      # 2026-10-06 — the runners are free, so it is no question of cost). release.yml still
+      # builds the macOS binaries.
       - name: Tests
         if: runner.os != 'macOS'
         shell: bash
@@ -284,8 +268,12 @@ jobs:
     with:
       os: ${{ matrix.os }}
 
-  # The plugin components, contract tests, packaging and SDK scaffolds: ci-components.yml.
+  # The plugin components, contract tests, packaging and SDK scaffolds: ci-components.yml. Behind
+  # the gate (RD-1120-07): a dispatch for macOS alone over a tree Linux and Windows passed ran it
+  # again for nothing.
   components:
+    needs: gate
+    if: contains(fromJSON(needs.gate.outputs.jobs), 'components')
     permissions:
       contents: read
     uses: ./.github/workflows/ci-components.yml
@@ -303,10 +291,6 @@ jobs:
       contents: read
     timeout-minutes: 45
     env:
-      # `rust`'s two linker variables, the Windows one included: Swatinem/rust-cache keys a cache
-      # by every CARGO*/RUST* variable, and with the same ones this job restores `rust-tests`.
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
-      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
       S3_IMAGE: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
       RD_S3_LIVE_ENDPOINT: http://127.0.0.1:9000
       RD_S3_LIVE_REGION: us-east-1
@@ -350,9 +334,6 @@ jobs:
         ports:
           - 3310:3310
     env:
-      # As in `s3-live`: `rust`'s linker variables, for its cache's key.
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
-      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
       RD_CLAMD_LIVE_ADDRESS: 127.0.0.1:3310
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

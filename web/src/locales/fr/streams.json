@@ -7,7 +7,7 @@
   "last_live": "Dernier direct : {time}",
   "never_live": "Jamais vu en direct",
   "probe_error": "Le dernier sondage a échoué",
-  "empty": "Pas encore de chaînes. Ajoutez une chaîne ci-dessus et activez-la pour enregistrer automatiquement.",
+  "empty": "Pas encore de chaînes. Ajoutez-en une avec le formulaire et activez-la pour enregistrer automatiquement.",
   "delete": {
     "title": "Supprimer la chaîne",
     "description": "Supprimer « {name} » ? Les enregistrements déjà réalisés sont conservés."
@@ -53,15 +53,6 @@
     "empty": "Aucune programmation.",
     "needs_channel": "Ajoutez d'abord une chaîne ci-dessus : une programmation en a besoin pour enregistrer.",
     "replay_used": "enregistré depuis le début",
-    "weekday": {
-      "1": "Lun",
-      "2": "Mar",
-      "3": "Mer",
-      "4": "Jeu",
-      "5": "Ven",
-      "6": "Sam",
-      "7": "Dim"
-    },
     "states": {
       "planned": "Programmé",
       "waiting": "Surveillé",

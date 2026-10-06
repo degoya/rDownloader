@@ -14,7 +14,7 @@ use std::time::Duration;
 use anyhow::Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use rd_core::{AuditRetentionSettings, HistoryRetentionSettings, LogRetentionSettings};
-use rd_db::{Database, NewLogRecord};
+use rd_db::{Database, NewLogRecord, PruneReport};
 use tokio::task::JoinHandle;
 
 use crate::capture::LogStream;
@@ -169,37 +169,39 @@ async fn sweep_history(database: &Database) {
 /// aborts one), so "retention" here can only mean deleting old rows and never editing them.
 pub async fn prune_audit(database: &Database, settings: &AuditRetentionSettings) -> Result<u64> {
     let older_than = Utc::now() - ChronoDuration::days(i64::from(settings.audit_retention_days));
-    let mut removed = 0u64;
-    loop {
-        let report = database
-            .prune_audit_records(
-                u64::from(settings.audit_retention_records),
-                Some(older_than),
-                AUDIT_PRUNE_BATCH,
-            )
-            .await?;
-        removed += report.deleted;
-        if report.remaining_over_cap == 0 {
-            return Ok(removed);
-        }
-        // Let the writer serve whoever was waiting before the next batch.
-        tokio::task::yield_now().await;
-    }
+    in_batches(|| {
+        database.prune_audit_records(
+            u64::from(settings.audit_retention_records),
+            Some(older_than),
+            AUDIT_PRUNE_BATCH,
+        )
+    })
+    .await
 }
 
 /// Applies the retention in bounded steps until nothing is over the cap. Returns the rows
 /// removed.
 pub async fn prune(database: &Database, settings: &LogRetentionSettings) -> Result<u64> {
     let older_than = Utc::now() - ChronoDuration::days(i64::from(settings.log_retention_days));
+    in_batches(|| {
+        database.prune_log_records(
+            u64::from(settings.log_retention_records),
+            Some(older_than),
+            PRUNE_BATCH,
+        )
+    })
+    .await
+}
+
+/// Runs bounded prune steps until nothing is over the cap. Returns the rows removed.
+async fn in_batches<Step, Pruned>(mut step: Step) -> Result<u64>
+where
+    Step: FnMut() -> Pruned,
+    Pruned: Future<Output = Result<PruneReport>>,
+{
     let mut removed = 0u64;
     loop {
-        let report = database
-            .prune_log_records(
-                u64::from(settings.log_retention_records),
-                Some(older_than),
-                PRUNE_BATCH,
-            )
-            .await?;
+        let report = step().await?;
         removed += report.deleted;
         if report.remaining_over_cap == 0 {
             return Ok(removed);

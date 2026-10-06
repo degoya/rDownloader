@@ -178,20 +178,7 @@ pub fn leader<'a>(file: &'a DownloadFile, downloads: &'a [DownloadFile]) -> &'a 
 /// second copy.
 #[must_use]
 pub const fn holds_the_group_open(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Queued
-            | DownloadState::RetryWait
-            | DownloadState::Paused
-            | DownloadState::Blocked
-            | DownloadState::Resolving
-            | DownloadState::Downloading
-            | DownloadState::Verifying
-            | DownloadState::Repairing
-            | DownloadState::Extracting
-            | DownloadState::Seeding
-            | DownloadState::Completed
-    )
+    has_taken_the_turn(state) || is_contending(state) || matches!(state, DownloadState::Blocked)
 }
 
 /// Whether the file has already taken the group's turn and is under way or done with it.
@@ -200,16 +187,7 @@ pub const fn holds_the_group_open(state: DownloadState) -> bool {
 /// neither has taken anything yet.
 #[must_use]
 pub const fn has_taken_the_turn(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Resolving
-            | DownloadState::Downloading
-            | DownloadState::Verifying
-            | DownloadState::Repairing
-            | DownloadState::Extracting
-            | DownloadState::Seeding
-            | DownloadState::Completed
-    )
+    state.holds_the_file() || matches!(state, DownloadState::Completed)
 }
 
 /// Whether the file is in the running for the group's turn without having taken it.

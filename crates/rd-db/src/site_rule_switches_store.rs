@@ -15,17 +15,15 @@ use sqlx::{FromRow, SqliteConnection, SqlitePool};
 
 use crate::writer::insert_event;
 
-/// The `scope` of a switch about one rule of the former compiled-in pack. Nothing writes it
-/// since RD-130-07; the schema's `CHECK` still admits it, and a migration that is applied may
-/// not be edited.
-pub const SCOPE_RULE: &str = "rule";
 /// The `scope` of a switch about a whole group.
 pub const SCOPE_GROUP: &str = "group";
 
 /// One stored decision. Absence of a row means the rule or group is on.
 #[derive(Clone, Debug, Deserialize, Eq, FromRow, PartialEq, Serialize)]
 pub struct SiteRuleSwitch {
-    /// [`SCOPE_RULE`] or [`SCOPE_GROUP`].
+    /// [`SCOPE_GROUP`]. `rule`, a switch about one rule of the former compiled-in pack, is
+    /// written by nothing since RD-130-07; the schema's `CHECK` still admits it, and a
+    /// migration that is applied may not be edited.
     pub scope: String,
     /// The rule's id, or the group's name.
     pub key: String,

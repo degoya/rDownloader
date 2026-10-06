@@ -6,6 +6,10 @@
 //! catalogue rather than by domain. A crawler that did the same would try to list a folder
 //! behind every link in the queue.
 
+// The address readers every cloud plugin shares (RD-1120-10): a share link carries no
+// credentials, and accepting them would let `x@evil.test` read as this plugin's own host.
+use plugin_common::address::{query_value, split, valid_token};
+
 /// What a Premiumize address points at.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Kind {
@@ -29,39 +33,10 @@ fn is_premiumize(host: &str) -> bool {
     host == "premiumize.me" || host.ends_with(".premiumize.me")
 }
 
-/// Scheme, host and the rest of an address, without a URL parser.
-fn split(url: &str) -> Option<(&str, &str)> {
-    let (scheme, rest) = url.split_once("://")?;
-    if !matches!(scheme, "http" | "https") {
-        return None;
-    }
-    let rest = rest.split('#').next()?;
-    let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
-    // A share link carries no credentials, and accepting them would let `x@evil.test` read
-    // as this plugin's own host.
-    if authority.contains('@') {
-        return None;
-    }
-    Some((authority.split(':').next()?, path))
-}
-
-/// The value of one query parameter.
-fn query_value<'a>(path: &'a str, name: &str) -> Option<&'a str> {
-    let query = path.split_once('?')?.1;
-    query.split('&').find_map(|pair| {
-        let (key, value) = pair.split_once('=')?;
-        (key == name).then_some(value)
-    })
-}
-
 /// A Premiumize identifier is opaque to this plugin, so it is accepted only in the narrow
 /// shape the API issues. Anything else could be a path, an escape or a second address.
 fn valid_id(id: &str) -> bool {
-    !id.is_empty()
-        && id.len() <= 64
-        && id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    valid_token(id, 64)
 }
 
 /// Reads an address, returning what this plugin would open — or `None`, which is what

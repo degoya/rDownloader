@@ -7,7 +7,8 @@
 # extension's build when extension/ did, each command through `attempt`.
 #
 # Expects from the caller: `run_web`, `web_changed`, `extension_changed`, `step`, `skip` and
-# `attempt`, as check.sh defines them, and the working directory at the checkout root.
+# `attempt`, as check.sh defines them (`web_skip_reason` when lib/check-reuse.sh set one), and the
+# working directory at the checkout root.
 
 rd_check_web() {
     if [[ "$run_web" -eq 1 && "$web_changed" -eq 1 ]]; then
@@ -22,8 +23,14 @@ rd_check_web() {
         # checkout's (scripts/worktree.sh), and a build would empty and rewrite that one. Its own
         # web/node_modules (RD-150-14) is no longer a hazard: until 1.5 that was a link too, and
         # the unplugin generators wrote the other checkout's paths into the tracked declarations.
+        #
+        # Not built here, deliberately, also not by --full in an integration worktree (audit C7):
+        # rd-api's `/` tests embed web/dist through rust-embed, which keeps serving the main
+        # checkout's once compiled through the link (scripts/lib/web-dist.sh), so a build of this
+        # branch's frontend would change nothing they see. The build of this content is GitHub's
+        # (scripts/public-ci.sh, which integrate.sh --public-ci starts beside --full).
         if [[ -L web/dist ]]; then
-            skip "pnpm run build" "this is a feature worktree — web/dist is a symlink"
+            skip "pnpm run build" "a feature worktree: web/dist links the main checkout's, and rd-api's / tests ran against that frontend, not this branch's; GitHub CI builds this one (scripts/public-ci.sh)"
             echo
             echo "    pnpm run build is refused here: it would write into the main checkout's web/dist."
             echo "    'rm web/dist' (the link only) first to build in this worktree."
@@ -50,5 +57,5 @@ rd_check_web() {
     elif [[ "$run_web" -eq 1 ]]; then
         skip "the browser extension" "nothing under extension/ changed"
     fi
-    if [[ "$run_web" -eq 0 ]]; then skip "the whole web half" "--rust was given"; fi
+    if [[ "$run_web" -eq 0 ]]; then skip "the whole web half" "${web_skip_reason:---rust was given}"; fi
 }

@@ -8,6 +8,9 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
+import { dateFieldValue, dayOf } from '@/utils/timeFields'
 import {
   type AuthProfileForm,
   emptyForm,
@@ -89,7 +92,7 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
   const confirmed = await confirm({
     title: t('settings.auth_profiles.delete_title'),
     description: t('settings.auth_profiles.delete_description'),
-    confirmLabel: t('settings.auth_profiles.delete'),
+    confirmLabel: t('common.actions.delete'),
     destructive: true
   })
   if (!confirmed) return
@@ -99,8 +102,8 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
 </script>
 
 <template>
-  <UCard as="section" data-settings-anchor="network.auth_profiles">
-    <UAlert v-if="awaitingApproval.length" class="mb-4" color="warning" variant="subtle" :title="t('settings.auth_profiles.approval_title')">
+  <UCard as="section" data-settings-anchor="accounts.site_logins">
+    <UAlert v-if="awaitingApproval.length" class="mb-4" color="warning" :title="t('settings.auth_profiles.approval_title')">
       <template #description>
         <p class="text-xs leading-5 text-muted">{{ t('settings.auth_profiles.approval_description') }}</p>
         <div v-for="profile in awaitingApproval" :key="profile.id" class="mt-3 flex items-center gap-3">
@@ -126,8 +129,7 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
           :description="t('settings.auth_profiles.description')"
           level="sub"
         />
-        <UAlert v-if="shownError" class="mb-3" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="shownError" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" icon="i-lucide-circle-check" :description="message" />
+        <FormFeedback class="mb-3" :error="shownError" :message="message" testid="auth-profile" />
         <!-- The method decides what the credential is, so it comes first and its two fields
              follow it directly (RD-150-11). -->
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
@@ -157,7 +159,7 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
           </UFormField>
           <UCheckbox v-if="editingId" v-model="clearCertificate" :label="t('settings.auth_profiles.certificate_clear')" />
           <UFormField :label="t('settings.auth_profiles.expires_label')" :description="t('settings.auth_profiles.expires_description')">
-            <UInput v-model="form.expires_at" type="date" class="w-full" />
+            <UInputDate :model-value="dateFieldValue(form.expires_at)" class="w-full" @update:model-value="form.expires_at = dayOf($event)" />
           </UFormField>
           <USwitch v-model="form.enabled" :label="t('settings.auth_profiles.enabled_label')" />
           <FormActions
@@ -177,13 +179,13 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
             v-for="profile in profiles"
             :key="profile.id"
             class="flex flex-wrap items-center gap-3 p-3"
-            :class="editingId === profile.id ? 'outline outline-1 outline-primary' : ''"
+            :class="editingRowClass(editingId === profile.id, 'outline')"
             data-profile-row
           >
             <UAvatar icon="i-lucide-shield-check" color="primary" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-highlighted">{{ profile.name }}</p>
-              <p class="truncate font-mono text-[11px] text-muted">{{ scopeLabel(profile) }}</p>
+              <p class="truncate font-mono text-2xs text-muted">{{ scopeLabel(profile) }}</p>
             </div>
             <UBadge v-if="editingId === profile.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge color="neutral" variant="subtle">{{ profile.method }}</UBadge>
@@ -197,14 +199,14 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
               :loading="busyId === profile.id"
               @update:model-value="setEnabled(profile.id, $event)"
             />
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('settings.auth_profiles.test')" :loading="busyId === profile.id" @click="test(profile.id)" />
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="busyId === profile.id" @click="test(profile.id)" />
             <UButton
               size="xs"
               color="neutral"
               variant="ghost"
               icon="i-lucide-pencil"
-              :aria-label="t('settings.auth_profiles.edit')"
-              :title="t('settings.auth_profiles.edit')"
+              :aria-label="t('common.actions.edit')"
+              :title="t('common.actions.edit')"
               @click="startEdit(profile)"
             />
             <UButton
@@ -212,8 +214,8 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
               color="error"
               variant="ghost"
               icon="i-lucide-trash-2"
-              :aria-label="t('settings.auth_profiles.delete')"
-              :title="t('settings.auth_profiles.delete')"
+              :aria-label="t('common.actions.delete')"
+              :title="t('common.actions.delete')"
               :loading="busyId === profile.id"
               @click="confirmRemove(profile)"
             />

@@ -154,7 +154,7 @@ async fn a_file_the_options_refuse_is_archived_as_skipped_with_the_reason() {
 /// got it. The next start's poll must neither hand it over a second time nor lose it.
 #[cfg(feature = "failpoints")]
 #[tokio::test]
-async fn a_release_file_archived_but_not_handed_over_stays_for_review_after_a_stop() {
+async fn a_release_file_archived_but_not_handed_over_stays_for_review_after_a_crash() {
     let directory = tempfile::tempdir().expect("tempdir");
     let source = Arc::new(FakeReleases::default());
     let adapters: Vec<Arc<dyn SourceAdapter>> = vec![source.clone()];

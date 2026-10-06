@@ -38,10 +38,7 @@ pub(crate) async fn hosters<H: PluginHost>(
     _host: &H,
     _account_id: &str,
 ) -> Result<Vec<String>, Failure> {
-    Ok(crate::HOSTERS
-        .iter()
-        .map(|host| (*host).to_owned())
-        .collect())
+    Ok(plugin_common::own_hosters(crate::HOSTERS))
 }
 
 /// There is no account to check: public files need none, and the premium route is not
@@ -125,7 +122,7 @@ pub(crate) async fn check<H: PluginHost>(
         };
         for (url, key) in chunk {
             let Some(key) = key else {
-                results.push(unknown(url));
+                results.push(LinkCheck::unknown(url));
                 continue;
             };
             let info = infos.iter().find(|info| &info.key == key);
@@ -168,13 +165,4 @@ fn last_segment(url: &str) -> Option<String> {
         .next_back()
         .filter(|name| !name.is_empty())
         .map(str::to_owned)
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
-    }
 }

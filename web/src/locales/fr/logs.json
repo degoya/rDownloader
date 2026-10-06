@@ -8,7 +8,6 @@
     "code": "Code",
     "correlation": "Id de corrélation",
     "search": "Rechercher dans les messages",
-    "apply": "Appliquer",
     "clear": "Effacer les filtres"
   },
   "levels": {
@@ -79,5 +78,9 @@
         "secrets": "secrets : mots de passe, jetons, clés d'API, cookies, certificats et références au coffre"
       }
     }
+  },
+  "tabs": {
+    "log": "Journal",
+    "bundle": "Paquet de diagnostic"
   }
 }

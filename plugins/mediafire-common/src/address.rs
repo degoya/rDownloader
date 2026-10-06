@@ -9,8 +9,10 @@
 //! by the path they sit in — so a bare `/?<key>` is [`Address::Bare`], and whoever reads it
 //! has to ask the service which of the two it is.
 
-use plugin_common::percent_encode;
-use url::Url;
+use plugin_common::{
+    address::{Parts, parameter},
+    percent_encode,
+};
 
 /// Hosts the plugins claim. `app.mediafire.com` serves the same paths behind an application
 /// shell; `mfi.re` redirects to `www.mediafire.com`.
@@ -65,25 +67,26 @@ pub fn is_key(value: &str) -> bool {
 }
 
 /// Reads an address, or `None` for anything that is not one of MediaFire's.
+///
+/// Read without a URL parser, so the `url` crate and its IDNA tables stay out of the crawler's
+/// component (RD-1120-10, PL-22): an address with credentials, a dot segment or a `\` is
+/// refused rather than resolved ([`Parts`]).
 #[must_use]
 pub fn parse(url: &str) -> Option<Address> {
-    let parsed = Url::parse(url).ok()?;
-    if !matches!(parsed.scheme(), "http" | "https") || !parsed.username().is_empty() {
+    let parts = Parts::of(url)?;
+    if !parts.is_http() || parts.credentials {
         return None;
     }
-    let host = parsed.host_str()?.to_ascii_lowercase();
+    let host = parts.host.to_ascii_lowercase();
     if !HOSTS.contains(&host.as_str()) {
         return None;
     }
-    let segments: Vec<&str> = parsed
-        .path_segments()
-        .map(|segments| segments.filter(|segment| !segment.is_empty()).collect())
-        .unwrap_or_default();
+    let segments = parts.segments()?;
     match segments.as_slice() {
-        [] => from_query(parsed.query()?),
+        [] => from_query(parts.query?),
         // `download.php?<key>` names one file — the site redirects it to `/file/<key>` — so
         // it is decided here, unlike the bare `/?<key>`; a list there was never a form.
-        ["download.php"] => match from_query(parsed.query()?)? {
+        ["download.php"] => match from_query(parts.query?)? {
             Address::Bare { key } => Some(Address::File { key }),
             _ => None,
         },
@@ -155,14 +158,11 @@ pub fn is_download_host(host: &str) -> bool {
 /// page request it will not answer.
 #[must_use]
 pub fn error_number(url: &str) -> Option<u32> {
-    let parsed = Url::parse(url).ok()?;
-    if !parsed.path().ends_with("/error.php") {
+    let parts = Parts::of(url)?;
+    if !parts.path.ends_with("/error.php") {
         return None;
     }
-    parsed
-        .query_pairs()
-        .find(|(name, _)| name == "errno")
-        .and_then(|(_, value)| value.parse().ok())
+    parameter(parts.query?, "errno")?.parse().ok()
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ use super::{
 /// A reCAPTCHA form goes to the host with the page it sits on and the answer is posted back.
 #[tokio::test]
 async fn a_recaptcha_form_is_handed_over_and_its_answer_posted() {
-    let host = MockHost::solving(
+    let host = MockHost::free(
         vec![
             json(200, GET_INFO),
             html(CAPTCHA_RECAPTCHA),
@@ -49,7 +49,7 @@ async fn a_recaptcha_form_is_handed_over_and_its_answer_posted() {
 
 #[tokio::test]
 async fn the_checkbox_form_is_answered_with_the_flag_and_a_second_form_is_a_rejection() {
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         json(200, GET_INFO),
         html(CAPTCHA_CHECKBOX),
         html(FILE_PAGE),
@@ -65,7 +65,7 @@ async fn the_checkbox_form_is_answered_with_the_flag_and_a_second_form_is_a_reje
     );
     assert!(host.captchas.lock().expect("mock lock").is_empty());
 
-    let host = MockHost::with_responses(vec![
+    let host = MockHost::answering(vec![
         json(200, GET_INFO),
         html(CAPTCHA_CHECKBOX),
         html(CAPTCHA_CHECKBOX),
@@ -83,7 +83,7 @@ async fn the_checkbox_form_is_answered_with_the_flag_and_a_second_form_is_a_reje
 async fn an_unknown_captcha_form_and_a_host_without_a_solver_are_reported_not_worked_around() {
     let unknown =
         r#"<html><form name="form_captcha"><input type="hidden" name="x" value="1"></form></html>"#;
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), html(unknown)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), html(unknown)]);
     let failure = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await
@@ -92,7 +92,7 @@ async fn an_unknown_captcha_form_and_a_host_without_a_solver_are_reported_not_wo
     assert_eq!(failure.category, FailureKind::NeedsCaptcha);
     assert_eq!(host.requests().len(), 2, "nothing is posted blind");
 
-    let host = MockHost::with_responses(vec![json(200, GET_INFO), html(CAPTCHA_RECAPTCHA)]);
+    let host = MockHost::answering(vec![json(200, GET_INFO), html(CAPTCHA_RECAPTCHA)]);
     let failure = resolver(&host)
         .resolve(resolve_request(FILE_URL))
         .await

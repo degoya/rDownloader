@@ -1,18 +1,17 @@
 //! The component: one rDownloader notification, one Discord webhook call.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "notifier-plugin",
-});
-
-use exports::rdownloader::plugin::notifier::{Guest, Notification};
-use rdownloader::plugin::{
+use plugin_guest_notifier::{
+    Guest, Notification, delivered,
     http::{self, RequestHeader},
+    refuse,
     types::{Failure, FailureKind},
 };
 
 use crate::payload;
+
+/// The one code every refusal of this plugin carries.
+const REJECTED: &str = "discord_notifier.rejected";
 
 struct Component;
 
@@ -21,12 +20,11 @@ impl Guest for Component {
         // A Discord webhook is its token: without one there is no address to post to, so
         // this fails immediately rather than sending somewhere incomplete.
         if !message.has_secret {
-            return Err(Failure {
-                category: FailureKind::AuthRequired,
-                message: "This destination has no webhook address stored".to_owned(),
-                code: Some("discord_notifier.rejected".to_owned()),
-                params: Vec::new(),
-            });
+            return Err(refuse(
+                REJECTED,
+                "This destination has no webhook address stored",
+                FailureKind::AuthRequired,
+            ));
         }
         let response = http::http_request(
             "POST",
@@ -44,22 +42,10 @@ impl Guest for Component {
             )
             .as_bytes(),
         )?;
-        if (200..300).contains(&response.status) {
-            return Ok(());
-        }
-        Err(Failure {
-            // 429 is Discord's rate limit and 5xx its own trouble; both pass. A 401 or 404
-            // means the webhook was deleted, and repeating that forever helps nobody.
-            category: if response.status >= 500 || response.status == 429 {
-                FailureKind::Transient(None)
-            } else {
-                FailureKind::Permanent
-            },
-            message: format!("Discord answered {}", response.status),
-            code: Some("discord_notifier.rejected".to_owned()),
-            params: Vec::new(),
-        })
+        // 429 is Discord's rate limit and 5xx its own trouble; both pass. A 401 or 404 means
+        // the webhook was deleted, and repeating that forever helps nobody.
+        delivered(response.status, "Discord", REJECTED)
     }
 }
 
-export!(Component);
+plugin_guest_notifier::notifier_plugin!(Component);

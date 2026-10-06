@@ -150,3 +150,83 @@ async fn a_job_package_is_named_after_the_container_it_was_added_as() {
     assert_eq!(packages[0].1, owned(FIRST_FILES));
     assert_eq!(packages[1].1, owned(SECOND_FILES));
 }
+
+/// RD-1120-02: a magnet without a file name is listed under its `dn`. The name is the list's
+/// alone -- the plugin is handed none and the package is not named after it, exactly as before
+/// the row carried one.
+#[tokio::test]
+async fn a_magnet_is_listed_under_its_display_name_and_nothing_else_changes() {
+    let provider = Arc::new(MockProvider::default());
+    provider.will_submit(Ok(handle("RD01")));
+    provider.will_answer(finished(&FIRST_FILES));
+    let harness = harness(&provider).await;
+    let SubmitOutcome::Started(job) = harness
+        .service
+        .submit(
+            harness.account,
+            RemoteJobSource::Magnet(
+                "magnet:?xt=urn:btih:DA39A3EE5E6B4B0D3255BFEF95601890AFD80709&dn=Some.Show.S01"
+                    .to_owned(),
+            ),
+        )
+        .await
+        .expect("submit")
+    else {
+        panic!("a magnet the mock claims starts a job");
+    };
+    assert_eq!(job.source_name.as_deref(), Some("Some.Show.S01"));
+
+    let now = Utc::now();
+    harness.sweep(now).await;
+    assert_eq!(provider.names(), vec![None], "a magnet's name stays here");
+    harness.sweep(later(now, 3_600)).await;
+
+    let job = harness.job(job.id).await;
+    assert_eq!(job.state, RemoteJobState::Ready);
+    assert_eq!(job.source_name.as_deref(), Some("Some.Show.S01"));
+    let package_id = job.package_id.expect("the job points at its package");
+    let packages = harness
+        .database
+        .list_collector_packages()
+        .await
+        .expect("packages");
+    let package = packages
+        .iter()
+        .find(|package| package.id == package_id)
+        .expect("the package is listed");
+    assert_ne!(package.name, "Some.Show.S01");
+}
+
+/// An address is listed under its last path segment, and a name the request carried wins
+/// over the one a source implies.
+#[tokio::test]
+async fn an_address_is_listed_under_its_last_segment_unless_a_name_was_given() {
+    let provider = Arc::new(MockProvider::default());
+    let harness = harness(&provider).await;
+    let SubmitOutcome::Started(address) = harness
+        .service
+        .submit(
+            harness.account,
+            RemoteJobSource::Address("https://hoster.example/f/Some%20Show.S01.rar".to_owned()),
+        )
+        .await
+        .expect("submit")
+    else {
+        panic!("an address the mock claims starts a job");
+    };
+    assert_eq!(address.source_name.as_deref(), Some("Some Show.S01.rar"));
+
+    let SubmitOutcome::Started(named) = harness
+        .service
+        .submit_named(
+            harness.account,
+            RemoteJobSource::Magnet("magnet:?xt=urn:btih:c8f1a0b2&dn=From.The.Magnet".to_owned()),
+            Some("Chosen.Name".to_owned()),
+        )
+        .await
+        .expect("submit")
+    else {
+        panic!("a magnet the mock claims starts a job");
+    };
+    assert_eq!(named.source_name.as_deref(), Some("Chosen.Name"));
+}

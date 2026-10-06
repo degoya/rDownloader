@@ -1,10 +1,7 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind, LinkStatus};
+use rd_core::{AccountId, FailureKind, LinkStatus};
+use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest,
     ResolvedHeader, Resolver, ResolverHost,
@@ -12,99 +9,6 @@ use rd_plugin_api::{
 use url::Url;
 
 use super::NitroflareResolver;
-
-struct MockHost {
-    responses: Mutex<VecDeque<HostHttpResponse>>,
-    requests: Mutex<Vec<HostHttpRequest>>,
-    has_secret: bool,
-    /// Free-flow observations: the countdowns waited out and the challenges handed over, in the
-    /// order the resolver produced them (see `free_tests.rs`).
-    waits: Mutex<Vec<u32>>,
-    captchas: Mutex<Vec<rd_plugin_api::CaptchaChallenge>>,
-    /// `"captcha"`/`"wait"` in the order they happened, so a test can assert that the token was
-    /// minted *before* the countdown was waited out.
-    order: Mutex<Vec<&'static str>>,
-    /// Token every captcha is answered with; `None` mimics a host with no solver configured.
-    captcha_token: Option<String>,
-}
-
-impl MockHost {
-    fn new(response: HostHttpResponse, has_secret: bool) -> Arc<Self> {
-        Self::with_responses(vec![response], has_secret)
-    }
-
-    fn with_responses(responses: Vec<HostHttpResponse>, has_secret: bool) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            order: Mutex::new(Vec::new()),
-            captcha_token: None,
-        })
-    }
-
-    /// Host for the account-less free flow: no credentials at all, and every captcha answered
-    /// with `captcha_token` (`None` mimics an instance with no solver configured).
-    fn free(responses: Vec<HostHttpResponse>, captcha_token: Option<&str>) -> Arc<Self> {
-        Arc::new(Self {
-            responses: Mutex::new(responses.into()),
-            requests: Mutex::new(Vec::new()),
-            has_secret: false,
-            waits: Mutex::new(Vec::new()),
-            captchas: Mutex::new(Vec::new()),
-            order: Mutex::new(Vec::new()),
-            captcha_token: captcha_token.map(str::to_owned),
-        })
-    }
-}
-
-#[async_trait]
-impl ResolverHost for MockHost {
-    async fn http_request(
-        &self,
-        _client: &ClientIdentity,
-        request: HostHttpRequest,
-    ) -> Result<HostHttpResponse, Failure> {
-        self.requests.lock().expect("mock lock").push(request);
-        self.responses
-            .lock()
-            .expect("mock lock")
-            .pop_front()
-            .ok_or_else(|| Failure::new(FailureKind::Permanent, "missing mock response"))
-    }
-
-    async fn secret_available(&self, _account_id: AccountId, _reference: &str) -> bool {
-        self.has_secret
-    }
-
-    /// Records the countdown instead of sleeping, so the flow's timing is asserted without
-    /// slowing the suite down.
-    async fn wait(&self, _client: &ClientIdentity, seconds: u32) -> Result<(), Failure> {
-        self.waits.lock().expect("mock lock").push(seconds);
-        self.order.lock().expect("mock lock").push("wait");
-        Ok(())
-    }
-
-    async fn solve_captcha(
-        &self,
-        _client: &ClientIdentity,
-        challenge: rd_plugin_api::CaptchaChallenge,
-        _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, Failure> {
-        self.captchas.lock().expect("mock lock").push(challenge);
-        self.order.lock().expect("mock lock").push("captcha");
-        match &self.captcha_token {
-            Some(token) => Ok(rd_plugin_api::CaptchaAnswer::Token(token.clone())),
-            None => Err(Failure::coded(
-                FailureKind::NeedsCaptcha,
-                "captcha.no_solver",
-                "No captcha solver is configured",
-            )),
-        }
-    }
-}
 
 fn json_response(status: u16, url: &str, body: &str) -> HostHttpResponse {
     HostHttpResponse {

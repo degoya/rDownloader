@@ -59,26 +59,7 @@ pub struct ItemDetails {
 }
 
 /// Premiumize reports a size as a number, a float or a quoted string depending on endpoint.
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Flexible {
-    Number(u64),
-    Float(f64),
-    Text(String),
-}
-
-impl Flexible {
-    #[must_use]
-    pub fn as_u64(&self) -> Option<u64> {
-        match self {
-            Self::Number(value) => Some(*value),
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            Self::Float(value) if *value >= 0.0 => Some(*value as u64),
-            Self::Float(_) => None,
-            Self::Text(value) => value.parse().ok(),
-        }
-    }
-}
+pub use plugin_flexible::LenientU64 as Flexible;
 
 impl Item {
     /// Turns one row into an entry, or drops it.

@@ -1,26 +1,20 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import type { EmbedWarning, MediaEmbedPolicy } from '@/api/types'
 import en from '@/locales/en/linkgrabber.json'
+import { mountComponent } from '@/test/mount'
 
 import MediaEmbedPolicyCard from './MediaEmbedPolicyCard.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en } } })
-
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UAlert: { props: ['description'], template: '<div v-bind="$attrs">{{ description }}<slot /></div>' },
-  UButton: { props: ['label'], template: '<button v-bind="$attrs">{{ label }}<slot /></button>' },
-  UCheckbox: {
-    props: ['modelValue', 'label'],
-    emits: ['update:modelValue'],
-    template: '<button type="button" v-bind="$attrs" @click="$emit(\'update:modelValue\', modelValue !== true)">{{ label }}</button>'
-  },
-  UFormField: { props: ['label'], template: '<label v-bind="$attrs">{{ label }}<slot /></label>' },
-  UIcon: passthrough,
-  USelectMenu: { props: ['modelValue', 'items'], template: '<select v-bind="$attrs"><slot /></select>' }
+/**
+ * The checkbox as one element carrying the field's test id and `disabled`; the shared stub
+ * repeats its attributes on the label and the input.
+ */
+const UCheckbox = {
+  props: ['modelValue', 'label'],
+  emits: ['update:modelValue'],
+  template: '<button type="button" v-bind="$attrs" @click="$emit(\'update:modelValue\', modelValue !== true)">{{ label }}</button>'
 }
 
 function policy(overrides: Partial<MediaEmbedPolicy> = {}): MediaEmbedPolicy {
@@ -35,13 +29,14 @@ function policy(overrides: Partial<MediaEmbedPolicy> = {}): MediaEmbedPolicy {
 }
 
 function mount(props: { embed?: MediaEmbedPolicy, warnings?: EmbedWarning[], canTranscode?: boolean }) {
-  return render(MediaEmbedPolicyCard, {
+  return mountComponent(MediaEmbedPolicyCard, {
+    messages: { linkgrabber: en },
     props: {
       embed: props.embed ?? policy(),
       warnings: props.warnings ?? [],
       canTranscode: props.canTranscode ?? true
     },
-    global: { plugins: [i18n], components }
+    stubs: { UCheckbox }
   })
 }
 
@@ -76,7 +71,17 @@ describe('MediaEmbedPolicyCard', () => {
   it('disables every piece when ffmpeg is unavailable', () => {
     mount({ canTranscode: false })
     expect(screen.getByTestId('media-embed-metadata').hasAttribute('disabled')).toBe(true)
-    expect(screen.getByText('Remove').closest('button')?.hasAttribute('disabled')).toBe(true)
+    expect((screen.getByRole('radio', { name: 'Remove' }) as HTMLInputElement).disabled).toBe(true)
+  })
+
+  // RD-1120-14: the mode is a radio group, so the chosen one is announced, not only coloured.
+  it('offers the SponsorBlock mode as radios with the chosen one checked', async () => {
+    const { emitted } = mount({ embed: policy({ sponsorblock: { mode: 'mark', categories: [] } }) })
+    expect((screen.getByRole('radio', { name: 'Mark as chapters' }) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByRole('radio', { name: 'Remove' }) as HTMLInputElement).checked).toBe(false)
+    await fireEvent.click(screen.getByRole('radio', { name: 'Remove' }))
+    const [next] = (emitted().change as MediaEmbedPolicy[][])[0] ?? []
+    expect(next?.sponsorblock.mode).toBe('remove')
   })
 
   it('says when a signed source URL is withheld from the file', () => {

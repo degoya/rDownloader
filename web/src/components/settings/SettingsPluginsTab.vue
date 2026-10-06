@@ -297,8 +297,8 @@ async function revokeKey(keyId: string): Promise<void> {
     </header>
 
     <!-- Above the tabs: removing, switching off and withdrawing answer here, whichever tab they came from. -->
-    <UAlert v-if="message" color="success" variant="subtle" :description="message" />
-    <UAlert v-if="error" color="error" variant="subtle" :description="error" />
+    <UAlert v-if="message" color="success" :description="message" />
+    <UAlert v-if="error" color="error" :description="error" />
 
     <UTabs
       v-model="activeTab"
@@ -306,7 +306,6 @@ async function revokeKey(keyId: string): Promise<void> {
       :unmount-on-hide="false"
       variant="pill"
       class="w-full"
-      :ui="{ content: 'pt-4' }"
     >
       <template #installed>
         <div class="space-y-6">
@@ -315,26 +314,21 @@ async function revokeKey(keyId: string): Promise<void> {
               <SectionHeader :eyebrow="t('plugins.installed.eyebrow')" :title="t('plugins.installed.title')" level="sub" />
               <UBadge color="neutral" variant="outline">{{ pluginGroups.length }}</UBadge>
             </div>
-            <div
+            <URadioGroup
               v-if="pluginGroups.length"
-              class="mb-4 flex flex-wrap items-center gap-2"
-              role="group"
+              v-model="typeTab"
+              class="mb-4"
+              :items="typeGroups"
+              variant="card"
+              indicator="hidden"
+              orientation="horizontal"
+              size="xs"
               :aria-label="t('plugins.installed.filter_label')"
             >
-              <UButton
-                v-for="group in typeGroups"
-                :key="group.value"
-                class="max-w-full"
-                size="xs"
-                :color="typeTab === group.value ? 'primary' : 'neutral'"
-                :variant="typeTab === group.value ? 'solid' : 'outline'"
-                :aria-pressed="typeTab === group.value"
-                @click="typeTab = group.value"
-              >
-                <span class="whitespace-normal text-left">{{ group.label }}</span>
-                <UBadge size="xs" color="neutral" variant="subtle" class="font-mono">{{ group.count }}</UBadge>
-              </UButton>
-            </div>
+              <template #label="{ item }">
+                {{ item.label }}<UBadge size="xs" color="neutral" variant="subtle" class="ms-1.5 font-mono">{{ item.count }}</UBadge>
+              </template>
+            </URadioGroup>
             <div class="grid gap-3 md:grid-cols-2">
               <PluginCard
                 v-for="{ plugin, superseded } in visibleGroups"

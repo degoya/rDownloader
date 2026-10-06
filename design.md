@@ -121,10 +121,10 @@ inside the scheduler, runners, and protocol crates.
 | MCP | `rmcp` 3.2 over Streamable HTTP |
 | Plugins | Wasmtime 48, WebAssembly Component Model, WIT, and Ed25519 |
 | Torrent | `librqbit` 9 |
-| Frontend | Vue 3.5, TypeScript 5.9, Vite 7, and Nuxt UI 4.11 |
-| UI state | Pinia 3, Pinia Colada, and VueUse 14 |
+| Frontend | Vue 3.5, TypeScript 5.9, Vite 8, and Nuxt UI 4.11 |
+| UI state | Pinia 4 and VueUse 14 |
 | Localization | Vue I18n 11 |
-| Tests | Rust test/Nextest, Vitest 4, and Testing Library Vue |
+| Tests | Rust test/Nextest, Vitest 5, and Testing Library Vue |
 
 ## Primary Data and Control Flows
 
@@ -359,16 +359,20 @@ The SPA has these primary sections:
    no route that could serve one, and a button that suggested otherwise would be a lie in the
    interface; the export sits beside the filters, because the file *is* the filter.
 7. **Settings:** Twenty-five directly addressable pages in six rubrics, the same in the
-   sidebar and on the entry page at `/settings`: General (General, Interface, Desktop client),
-   Downloads (Storage & rules, Hotfolders, Bandwidth, Unattended operation, Post-processing),
-   Sources & protocols (Accounts, Captcha & solver, Site rules, Usenet, BitTorrent, Media,
-   FTP/SFTP/WebDAV), Integrations (Services, Plugins, Tools, Notifications, API & MCP), Network
-   & security (Network, Security) and Administration (Backup & restore, System, About
-   rDownloader). The table is
-   one module, `settingsSections.ts`, and a test holds it to the owner's decision of
-   2026-09-22. *Site rules* sits under Sources & protocols by the rubric's own test: a rule
-   decides which services rDownloader recognises, which is where the bytes come from, not what
-   happens to the queue afterwards (RD-110-08).
+   sidebar and on the entry page at `/settings`: General (General, Interface), Downloads in the
+   order a download takes — in, to its folder, after it, at what pace (Hotfolders, LinkGrabber,
+   Storage & rules, Post-processing, Bandwidth, Unattended operation), Sources & protocols
+   (Services, Accounts, Captcha & solver, Site rules, Usenet, BitTorrent, Media,
+   FTP/SFTP/WebDAV), Integrations (Plugins, Tools, Notifications, Clients & API), Network &
+   security (Network, Security) and Administration (Backup & restore, System & maintenance, About
+   rDownloader). The table is one module, `settingsSections.ts`, and a test holds it to the
+   owner's decisions of 2026-09-22 and 2026-10-06 (RD-1120-23: *Services* heads Sources &
+   protocols, because its switches turn those protocols on and off; *Desktop client* and *API &
+   MCP* are one page, *Clients & API*, whose tabs are Desktop, Browser and API & MCP). *Site
+   rules* sits under Sources & protocols by the rubric's own test: a rule decides which services
+   rDownloader recognises, which is where the bytes come from, not what happens to the queue
+   afterwards (RD-110-08). A page or sub-tab that moves keeps its old address as a redirect
+   (`MOVED_SETTINGS_PAGES`) and its search anchors as aliases (`MOVED_SETTINGS_ANCHORS`).
 
 A collapsible, resizable sidebar contains navigation and live badges. A persistent transfer rail
 shows global queue state. The captcha dialog and file-drop overlay sit above individual routes
@@ -385,7 +389,9 @@ and other initial data are loaded once.
 ### Visual Language
 
 - **Typography:** IBM Plex Sans Variable for UI and prose, JetBrains Mono Variable for numbers,
-  addresses, status details, and eyebrow labels.
+  addresses, status details, and eyebrow labels. Below `text-xs` there is one size, `text-2xs`
+  (11 px, the `--text-2xs` token in `web/src/assets/main.css`), for metadata lines and small
+  badges; no template writes a pixel size of its own (RD-1120-14).
 - **Primary color:** `signal`, a custom teal scale from `#edfffd` to `#052f30`.
 - **Secondary color:** cyan; **neutral:** slate; **warning:** amber; **error:** a custom `coral`
   scale from `#fff2f1` to `#41110f`.
@@ -393,8 +399,8 @@ and other initial data are loaded once.
   decorative card radii.
 - **Cards are soft cards** (RD-1101-09; the owner: the cards had the page's own colour and only an
   outline). A card on a page — every settings card, the views' cards and framed forms, the
-  overview's link cards — is a `UCard`, whose default variant the theme config in
-  `web/vite.config.ts` sets to `soft`: it stands off the page by its `bg-elevated/50` ground, not
+  overview's link cards — is a `UCard`, whose default variant the theme in
+  `web/src/uiTheme.ts` sets to `soft`: it stands off the page by its `bg-elevated/50` ground, not
   by a border. A card section is `<UCard as="section">` with its anchor and test id on the root and
   its content in the default slot; layout classes for the content go to `:ui="{ body: … }"`,
   placement classes (`mt-6`, `xl:col-span-2`) stay on the root. A card nested in a card names
@@ -522,7 +528,9 @@ prevent columns from shifting during live updates.
   sixth card is the moment to split, not the tenth. The tabs are topics a reader comes with —
   *what is installed*, *what can be added*, *whom this machine trusts* — never "more" or
   "advanced"; three to five of them, because a tab bar divides one line (the chip-row rule
-  below), and every tab at least one real card. Cards move with their order kept and are not
+  below), or two where the page has two subjects (*Usenet*: servers and indexers; *Accounts*:
+  provider accounts and site logins; *Network*: proxies and reconnect, RD-1120-23), and every tab
+  at least one real card. Cards move with their order kept and are not
   rewritten; the page header stays above the tabs and the navbar keeps the page's name. The
   shape is the routing page's since RD-170-15: `UTabs` in `pill` variant, `:unmount-on-hide="false"`
   so every tab's data loads once and the search's anchors exist, the tab's name in the address as
@@ -532,11 +540,16 @@ prevent columns from shifting during live updates.
   The save bar shows only under a tab that edits the settings document — and under every such
   tab: System had none until RD-180-15, and its fields were saved only by another page's button.
   Until the document is loaded, a tab that edits it or shows its values waits with the failure,
-  *Retry* and the tab bar above; the page's self-saving tabs stay usable (RA-WEB-05). The tables are
+  *Retry* and the tab bar above; the page's self-saving tabs stay usable (RA-WEB-05). A tab — or a
+  page without tabs — that saves its own lists and carries one card of the document (`documentCard`,
+  RD-1120-21: the storage capacity beside the storage roots, the admin login beside the password,
+  the NNTP limits under the Usenet servers, the limits beside the bandwidth status) does not wait:
+  that card alone shows the document's state and *Retry* (`SettingsDocumentGate`), and the save
+  bar is under it once the document is there. The tables are
   `SETTINGS_SUB_TABS` in `settingsSections.ts` and `useSettingsSubTab`; the search entries name
   their tab, and a test holds each entry to the tab slot its anchor is actually rendered in. As
-  of 1.8: Storage & rules, Plugins, Network, Security and System have tabs; Bandwidth and
-  Notifications are at five and split with their next card.
+  of 1.12: Storage & rules, Bandwidth, Accounts, Usenet, Plugins, Clients & API, Network, Security
+  and System have tabs; Notifications is at five and splits with its next card.
 - **Unsaved settings are not lost without a question** (RD-180-16; owner, 2026-09-30). A view
   with a save bar knows when what is on screen differs from what was last loaded or saved, and
   `useUnsavedGuard` asks before that is lost: leaving the route asks in the app's confirmation —
@@ -544,8 +557,10 @@ prevent columns from shifting during live updates.
   browser tab gets the browser's own question, the only one a page may raise there. It asks only
   where edits are really lost: the settings pages and their sub-tabs share one document in one
   mounted view, so moving between them asks nothing; a form a page holds for itself (the captcha
-  card) asks when its page is left. A clean view, and a view just saved, never asks. Forms that
-  save each entry themselves carry no save bar and no guard.
+  card, the proxy form) asks when its page is left. A clean view, and a view just saved, never
+  asks. Forms that save each entry themselves carry no save bar, and of them the ones where a
+  half-typed entry is costly ask too: a new subscription and an open automation draft
+  (`useFormBaseline` tells them what changed since the form was last filled; RD-1120-15).
 - The UI is fully translated into English, German, French, and Spanish. Plugin messages are merged
   into the same locale namespace at runtime. Languages come from `web/src/locales/languages.json`;
   the picker names each in its own language (*Deutsch*, *Français*), and one still being
@@ -587,8 +602,35 @@ prevent columns from shifting during live updates.
   talks to, *Network & security* is the way in and out. A card goes on the page whose subject it
   is, never on the page that happened to have room — tools were under Interface, quiet hours
   under Bandwidth, the captcha solver under Network, and each of them was found by scrolling
-  rather than by looking (RD-110-29). A new setting first asks which of the six it belongs to;
+  rather than by looking (RD-110-29), and so were the LinkGrabber's blocklist under Storage &
+  rules, the site logins under Network and two display switches beside the blocklist, until they
+  went to *LinkGrabber*, *Accounts* and *Interface* (RD-1120-23). The same holds for a single
+  field (RD-1120-21; owner, 2026-10-06): *General* is the queue and its retries — parallel files,
+  chunks, connections per host, retries, automatic removal, SHA-256; a field whose topic has a
+  page of its own goes there, beside what it overrides or is measured against — the admin login
+  on *Security* beside the password, the UI port with the reverse proxy and external address,
+  the global storage capacity beside the storage roots, the NNTP limits under the Usenet servers,
+  the speed and upload limits on *Bandwidth* before the profiles that overlay them — and its
+  search anchor stays an alias, so an old link still lands on it. A heading that says where a value
+  is kept stands only over what is kept there: *This browser only* covers language, theme and
+  browser notifications, not the display settings every browser shares, which are a card of
+  their own. A new setting first asks which of the six it belongs to;
   a setting that fits none is a sign the rubric is missing, not that one should be stretched.
+- **Settings that work together point at each other** (RD-1120-23). Where a setting on one page
+  only makes sense with one on another — the torrent upload limit and the global one, a proxy
+  picker and the proxy profiles, quiet hours and the bandwidth schedule, the backup destinations
+  and the S3 profiles — each carries one line under it: *See also* and a link that names the page
+  and the card, `Network › Proxy profiles`. It is `SettingsCrossLink`, and it names the target by
+  its search anchor, never by a path: the anchor's row in `settingsSearch.ts` says where the card
+  is, so a card that moves takes every link along, and a test fails on a link to an anchor that
+  is gone. Following it opens the page and tab and outlines the target as the search does. Where
+  one value was set in two places, it is set in one and the other place links there — every
+  program path is on *Tools › Custom paths*, and the cards of the services that run them say
+  *Program path under* that card.
+- **A switched-off service says so on its own page** (RD-1120-23). While BitTorrent, Usenet,
+  media, galleries, recordings or remote transfers are off under *Services*, the page that sets
+  them up opens with a warning `UAlert` (`SettingsServiceOffAlert`) whose action leads to the
+  switch; the page stays editable, because its settings apply once the service is back on.
 - **The settings open on an overview, not on a page.** `/settings` shows one card per page under
   its rubric, in the sidebar's order, each carrying the page's own title and description — the
   same header the page then opens with — and each a link, so the keyboard reaches the cards the
@@ -647,7 +689,11 @@ prevent columns from shifting during live updates.
   lost* in place of the endpoint once the event stream broke off or a request got no answer for
   1.5 s, with one warning toast for the outage that goes when the service is back; the same
   return clears a *service could not be reached* alert, and a view whose code could not be
-  fetched meanwhile says so in a toast and is loaded once the service answers (1.9.0). A newer version is announced in the same
+  fetched meanwhile says so in a toast and is loaded once the service answers (1.9.0). A page
+  whose build is not the service's version — one left open across an update — says so in one
+  persistent info toast *New version available — reload* with a *Reload* button, checked on start
+  and on every reopened event stream; it never reloads by itself, since a half-filled form would be
+  lost (RD-1120-16). That toast is about the page, not a release: a newer version is announced in the same
   footer, above language and theme, and nowhere else: nothing while there is none, one soft
   button *Version X available* while there is (an icon with a tooltip on the rail), opening a
   dialog with the notes and the download or the package manager's command to copy — never a
@@ -893,6 +939,18 @@ paths differed between them. What the composable states once:
 The caller keeps its own form and its own mapping from a row into it, because that is where the
 DTO lives, and it keeps any message or per-row spinner of its own.
 
+**The row being edited says so in one of three shapes**, all from `editingRowClass()` in
+`utils/editingRow.ts` (RD-1120-15): a row in a box of its own turns its border primary, a row of
+a hairline-divided list gets a primary bar on its left, and a row inside a card that already draws
+its edges gets a primary outline. The subscriptions list keeps its own: its rows have no box, so
+the edited one alone is boxed. **A form's outcome** — the refusal and the confirmation of its
+last action — is `FormFeedback`: an error notice with `i-lucide-circle-alert`, a success notice
+with `i-lucide-circle-check`, never one without its icon.
+
+**A weekly time window** — from, to, the days as a checkbox group, Monday first — is
+`WeekWindowRow` wherever one is edited (quiet hours, reconnect windows, the bandwidth schedule),
+with the day names from `common.weekdays`.
+
 **A duplicate is a create, and the copy opens in the form.** Somebody copies an entry because
 they want one that is almost the same, so the copy is there to be changed: it is stored through
 the list's ordinary create route under a free name — the original's name with `common.copy_suffix`,
@@ -933,8 +991,9 @@ them already did is the standard, and a form that differs is drifting:
    empty carries `required` on its `UFormField` (Nuxt UI draws the mark) and on its control;
    optional fields carry nothing. One field per row, the hint in `description` rather than `help`,
    and the edit state follows *Editing a Row in Place*: badge, "Edit …" heading, focus.
-4. **A dialog footer ends right-aligned.** `:ui="{ footer: 'justify-end' }"`, *Cancel* first as
-   `color="neutral" variant="outline"` without an icon, then the primary action with its icon.
+4. **A dialog footer ends right-aligned.** The theme's `modal.slots.footer` is `justify-end`, so no
+   modal names it; *Cancel* first as `color="neutral" variant="outline"` without an icon, then the
+   primary action with its icon.
 
 **Nuxt UI before anything of our own.** A control Nuxt UI offers is taken from Nuxt UI:
 `UFormField` with `orientation="horizontal"` for a label-and-switch row rather than a hand-built
@@ -954,6 +1013,11 @@ Nuxt UI has no counterpart and the markup would otherwise drift — `FormListLay
 `SectionHeader`, `FormActions`, `CopyField` — and they are compositions of Nuxt UI, not
 replacements for it.
 
+**Time, date and form validation (owner, 2026-10-06).** A time or a date is `UInputTime` /
+`UInputDate`, never the browser's `<input type="time">` or `type="date"` (RD-1120-23). A new form is
+a `UForm` with a schema, so its validation and field errors come from Nuxt UI; an existing form is
+moved to `UForm` the next time it is changed for another reason, not in a sweep of its own.
+
 **A value to copy is a `CopyField`.** A token shown once, a header, a command, an address to
 register at a provider: the value sits in a read-only `UInput` with the copy button joined to it
 in a `UFieldGroup`, never as a `<code>` beside a loose button. The field keeps the value
@@ -963,7 +1027,9 @@ say — where the value goes next — adds its own toast on `copied` (RD-1110-13
 `web/src/nuxtUiFirst.test.ts` holds this as a ratchet (RD-1110-01): it counts each hand-built
 pattern the audit of 2026-10-05 found — framed cards, number fields, dashed empty states, tinted
 notices, chevron toggles, sub-section dividers, file inputs and drop zones, trees, icon tiles,
-status dots, raw links and buttons, native controls — in every template and fails on one more than
+status dots, raw links and buttons, native controls, and since RD-1120-14 button rows that
+mark a selection by colour and paragraphs standing in for a `DataState`'s empty state — in every
+template and fails on one more than
 its `MAX`, and on one fewer until `MAX` is lowered in the same commit. A hand-built control that
 stays on purpose enters the test's `ALLOWED` list only with the passage of this document that says
 why, by line range and a quoted phrase; where no passage says so yet, it is written here first, or
@@ -1000,8 +1066,9 @@ caller's own flex row. The component is the text block, not the bar it may sit i
 
 Three shapes deliberately keep their own markup, because they are not section headers: the `h1`
 splash heading of the login and wizard screens, the stat tile (eyebrow, a numeric figure, a hint)
-used by the queue summary and the system facts, and the eyebrow used as a bare label for a value,
-as the regular-expression editor does for the pattern it generates.
+— one component, `StatTiles`, for the queue summary, the statistics and the system facts
+(RD-1120-15) — and the eyebrow used as a bare label for a value, as the regular-expression editor
+does for the pattern it generates.
 
 ### Row and List Conventions
 
@@ -1160,20 +1227,30 @@ recognised as drifting.
   plugin manager's type bar reached twelve entries with the eleventh plugin world, `remote-job`,
   at which point ten of them read "Benachrich… 3" and "Ordner-Cr… 6" and nobody could tell what
   the groups were (RD-107-17). That is growth, not a defect, so the answer is not a wider row but
-  a shape that grows with the number: `flex flex-wrap`, one `size="xs"` button per group carrying
-  the full name and the group's count in a badge beside it, the selected one solid in `primary`
-  and the rest outlined in neutral. A settings page already scrolls, so height is free where
+  a shape that grows with the number: a `URadioGroup variant="card" indicator="hidden"
+  orientation="horizontal" size="xs"`, whose card fieldset wraps, one card per group carrying the
+  full name and the group's count in a badge beside it (the `#label` slot), the chosen one tinted
+  in `primary`. A settings page already scrolls, so height is free where
   width is not, and the row behaves the same at 400 px as at 1600 px — only the number of lines
   changes. The two obvious alternatives were weighed and rejected for stated reasons: **a select
   shows one count at a time**, and the counts are the whole reason the control is worth having —
   they answer "how many resolvers are installed" before the choice is made, not after it; **a
   side list costs a column** at exactly the widths where the cards it filters need two, and the
-  split beside a list is already spoken for by the form rule below. The row is a `role="group"`
-  with a name and every chip carries `aria-pressed`, because a selection stated only by fill
+  split beside a list is already spoken for by the form rule below. The group has an
+  `aria-label` and every card is a radio Reka checks, because a selection stated only by fill
   colour is the "state is named, not implied by colour alone" rule broken again. A tab bar
   remains right for a handful of stable sections — Routing's four, the wizard's steps; the chip
   row is for a set whose size follows what is installed. Reference implementation:
   `SettingsPluginsTab.vue`.
+- **One value out of a handful is the same radio row, everywhere.** The torrent detail views,
+  the media presets, the SponsorBlock and subtitle modes, the statistics ranges and the two
+  category filters were seven rows of buttons in three looks, four of them telling the chosen
+  value by colour alone (RD-1120-14). All seven are now the chip row above — a `URadioGroup`
+  with the theme's compact card (`radioGroup` in `web/src/uiTheme.ts`) and an `aria-label` — so
+  a screen reader hears "radio, checked" and every row looks alike. A value that cannot be
+  chosen right now is a `disabled` item that keeps its place, its reason in a `title` on the
+  label. The guard test counts a `UButton` whose `:variant` follows a comparison of two values
+  as `toggle-group`; a button coloured for one fixed case is not one.
 - **A persistent review archive pages and filters at its source.** The subscription archive may
   outlive the process and grow past what a browser should receive at once. It starts on the set
   requiring a decision, shows totals for every state, and asks the server for 50 stable rows at a
@@ -1390,6 +1467,16 @@ recognised as drifting.
 
   Below the threshold none of this is switched on: the list renders whole and has no scroll
   viewport of its own, so an ordinary queue looks exactly as it did.
+
+  **Why it is no `UScrollArea virtualize`** (checked against Nuxt UI 4.11, RD-1120-14). Nuxt UI's
+  virtualizer is TanStack's, and the pinned rows would fit its `rangeExtractor`, but three of the
+  rules above would not hold: it decides once, when the component is set up, whether it
+  virtualizes at all, so a queue that grows past sixty rows could not switch the window on, nor a
+  short one stay without a scroll viewport; it places each row absolutely by a transform, so the
+  rows leave the `role="list"` flow the wrapper names with `aria-setsize` and `aria-posinset`; and
+  in jsdom its viewport measures zero and it renders no row, where `useVirtualRows` falls back to a
+  viewport height and the component tests see every row of a short list. The own block stays
+  until Nuxt UI's can be switched on and off with the length.
 - **A list with row checkboxes selects a range with Shift+click, like a file manager.** A plain
   or Ctrl/Cmd click toggles one row and sets the anchor; Shift+click — or Shift+Space on a
   focused checkbox — sets every row from the anchor to the clicked one to the state the clicked
@@ -1409,6 +1496,14 @@ recognised as drifting.
   tooltip; with no size known there is only the count. On a narrow rail the word goes and the
   count and size stay. The view keeps its selection and publishes only the summary
   (`usePublishedSelection`, RD-170-14); another list with sizes publishes the same way.
+- **The status bar sets how many downloads run at once** (RD-1120-22; owner, 2026-10-06). Beside
+  "N running" a compact `UInputNumber` (1–32, whole, plus and minus) behind a *max* badge holds
+  `max_active_files`; *Apply* or Enter saves it through the same settings write as the speed limit
+  beside it (`writeSettings` in `stores/transfersSpeedLimit.ts`), a refusal is an error toast with
+  the service's message, and the field goes back to the stored value. The scheduler takes it on
+  its next pass; a lowered value starts nothing new until fewer run, it stops none. The bar
+  follows what the settings page loads and saves. Below a 56 rem rail the control folds away, as
+  the version does, so the rail never takes a second line.
 - **A list that mixes two kinds of row orders them in one sequence, or it does not order them
   at all.** The LinkGrabber shows collector packages beside NZB imports. Packages carried a
   manual position and a handle; imports carried neither and were interleaved by creation time,
@@ -1421,7 +1516,8 @@ recognised as drifting.
 - **A drag starts at the handle, and only there.** The handle is
   `i-lucide-grip-vertical` in `text-muted`, the first cell of the row, `cursor-grab select-none`,
   and it is a `<button>` carrying `draggable="true"` together with a `title` and an `aria-label`
-  that name both the drag and the keys. The row itself is never `draggable`: a candidate row
+  that name both the drag and the keys — one component, `DragHandle.vue`, for every list that
+  reorders (RD-1120-14). The row itself is never `draggable`: a candidate row
   that was made it turned every drag across the file name into a reorder and left no way to
   select the text, while the grip beside it — the one thing that looks like an anchor — did
   nothing. The row keeps `@dragover.prevent` and `@drop.prevent` so it can be a target, and a
@@ -1738,7 +1834,7 @@ parses and formats in the interface language — German and French type and read
   a `<form>` the browser holds the submit; the settings document's save button is disabled and
   says *A number field is empty* while one of its plain-number fields is (`emptyNumberFields`); a
   form whose fields sit outside a `<form>` checks with `isNumber` before it sends.
-- **No plus and minus, except on a small count.** `vite.config.ts` turns the stepper buttons off
+- **No plus and minus, except on a small count.** `uiTheme.ts` turns the stepper buttons off
   for every field: a number is typed, and the arrow keys and the wheel still step. A count of at
   most 32 steps between `min` and `max` — parallel downloads, connections, chunks — names
   `increment decrement` and shows them, because there a click or two is quicker than typing and
@@ -1750,14 +1846,22 @@ parses and formats in the interface language — German and French type and read
 The four building blocks the audit of 2026-10-05 found drawn by hand all over the interface are
 Nuxt UI's (RD-1110-11):
 
-- **Empty state.** A `UEmpty`. Its frame is the dashed outline the theme in `web/vite.config.ts`
+- **Empty state.** A `UEmpty`. Its frame is the dashed outline the theme in `web/src/uiTheme.ts`
   gives every one (`border-dashed border-muted` on Nuxt UI's `naked` variant), and its padding is
   Nuxt UI's own — one spacing for all of them, where 24 hand-drawn boxes had four. The sentence is
   its `description`; a view's empty state adds an `icon` and a `title`, and the way out is a
   button in `actions`. `signal-grid` stays a class on the ones that carried it (the queue, the
-  LinkGrabber, the Usenet servers and indexers); `DataState` frames its loading panel the same way.
+  LinkGrabber, the Usenet servers and indexers); `DataState` frames its loading panel the same way,
+  and what a caller hands it for "nothing here" is a `UEmpty` too, never a muted `<p>` — the guard
+  test counts the paragraph as `empty-paragraph` (RD-1120-14).
+- **No direction that only one layout keeps.** An empty state or a hint names no "above",
+  "below", "left" or "right" that is true in one layout only: `FormListLayout` puts the form
+  beside the list from `lg` and above it below `lg`, so it says "with the form"; something in
+  another tab is named by its tab (RD-1120-03). A field of the same card, which stands above or
+  below in every layout, may still be pointed at by its place.
 - **Notice.** A box that tells the reader something — a warning to act on, a secret shown once, a
-  state worth knowing — is a `UAlert`, `subtle`, in the colour of its meaning. A heading is its
+  state worth knowing — is a `UAlert`, `subtle`, in the colour of its meaning; `subtle` is the
+  theme's default (`web/src/uiTheme.ts`), so only a `soft` or `outline` one names its variant. A heading is its
   `title`, the rest its `description` or, where it holds controls, its `#description` slot; an
   action goes into `#actions`. UAlert sets no role, so a box that announced itself keeps its role
   on the UAlert (`DataState`'s failure: `role="alert"`). A line that says what went wrong with
@@ -1782,8 +1886,8 @@ Nuxt UI's (RD-1110-11):
 
 ### Frontend Technology
 
-Vue 3.5 and TypeScript 5.9 use the Composition API, Vue Router, Pinia, Pinia Colada, VueUse,
-Vue I18n, and `openapi-fetch`. Nuxt UI 4.11 and Tailwind CSS 4.1 provide accessible components and
+Vue 3.5 and TypeScript 5.9 use the Composition API, Vue Router, Pinia, VueUse, Vue I18n, and
+`openapi-fetch`, built with Vite 8. Nuxt UI 4.11 and Tailwind CSS 4.1 provide accessible components and
 semantic design tokens. Vitest, Testing Library Vue, and jsdom test stores, composables, utilities,
 and interactions.
 

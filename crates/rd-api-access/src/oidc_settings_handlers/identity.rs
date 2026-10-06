@@ -39,7 +39,7 @@ pub async fn link_oidc_identity(
         .actor
         .id
         .clone()
-        .unwrap_or_else(|| "this_machine".to_owned());
+        .unwrap_or_else(|| crate::oidc_handlers::THIS_MACHINE.to_owned());
     let started = crate::oidc_handlers::begin(
         &state,
         client.0,

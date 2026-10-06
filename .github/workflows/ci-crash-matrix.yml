@@ -26,32 +26,18 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 90
-    env:
-      # ci.yml's `rust` job's linkers (its env says why), and so the same key for its cache: mold
-      # on Linux, the toolchain's LLVM linker on Windows.
-      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: -C link-arg=-fuse-ld=mold
-      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: rust-lld.exe
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Free runner disk
         if: runner.os != 'Windows'
         uses: ./.github/actions/free-runner-disk
-      - name: Install mold
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q mold
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: web-dist
           path: web/dist
-      - uses: ./.github/actions/setup-rust
-      # `rust` saves the cache both jobs restore; two writers of one key would race.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          shared-key: rust-tests
-          save-if: false
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: nextest@0.9.146
+      # ci.yml's `rust` job's linkers, toolchain and cache, read only: `rust` saves the cache both
+      # jobs restore, and two writers of one key would race.
+      - uses: ./.github/actions/rust-tests-cache
       # `-P ci` like `rust`'s tests: this job builds no components, and since RD-150-18 a
       # scheduler test runs on the real Rapidgator and DDownload components (`on_real_components`).
       # The runs are scripts/lib/crash-matrix.list's, the list check.sh reads too (RD-191-09).

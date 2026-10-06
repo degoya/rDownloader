@@ -186,7 +186,7 @@ function stateColor(state: SubscriptionItem['state']): 'warning' | 'success' | '
         variant="inline"
         :rows="3"
       >
-        <p class="text-xs text-muted">{{ t('subscriptions.items.empty') }}</p>
+        <UEmpty :description="t('subscriptions.items.empty')" />
       </DataState>
       <ul v-if="itemsOf(subscription.id).length" class="flex flex-col gap-1">
         <SubscriptionItemRow

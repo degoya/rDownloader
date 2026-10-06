@@ -227,9 +227,10 @@ pub struct RemoteJob {
     pub state: RemoteJobState,
     pub source_kind: RemoteJobSourceKind,
     /// The name the source was handed in under -- a container's file name, as the person's
-    /// browser carried it. The job's LinkGrabber package is named after it: the bytes cross
-    /// the plugin contract without a name, and what a provider calls its transfer can be a
-    /// fixed upload name every job shares.
+    /// browser carried it -- or, without one, a magnet's `dn` and an address's last path
+    /// segment. The list of remote jobs shows it as the job's title. A container's job names
+    /// its LinkGrabber package after it: the bytes cross the plugin contract without a name,
+    /// and what a provider calls its transfer can be a fixed upload name every job shares.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_name: Option<String>,
     /// How often the provider has been asked to create this job.

@@ -41,7 +41,7 @@ async function load(): Promise<void> {
     v-model:open="open"
     :title="t('system.extension.modal_title')"
     :description="t('system.extension.modal_description')"
-    :ui="{ footer: 'justify-end', content: 'sm:max-w-4xl' }"
+    :ui="{ content: 'sm:max-w-4xl' }"
   >
     <template #body>
       <div class="space-y-5" data-testid="extension-pairing-modal">

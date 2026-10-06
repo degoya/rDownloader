@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, CollectorPackage, DownloadPriority, LinkCandidate } from '@/api/types'
+import DragHandle from '@/components/DragHandle.vue'
 import { priorityItems, formatBytes } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 import { isEnqueueable, isUnverified } from '@/utils/candidateState'
@@ -92,19 +93,11 @@ const priorityModel = computed({
       the link count gives way first — and the size shows only where a line still has room for it.
     -->
     <header class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
-      <button
-        type="button"
-        class="cursor-grab select-none text-muted"
-        data-row-handle
-        draggable="true"
-        :title="dragTitle"
-        :aria-label="dragTitle"
-        @dragstart.stop="emit('dragstart', props.package.id)"
-        @keydown.up.prevent="emit('move', props.package.id, -1)"
-        @keydown.down.prevent="emit('move', props.package.id, 1)"
-      >
-        <UIcon name="i-lucide-grip-vertical" class="size-4" />
-      </button>
+      <DragHandle
+        :label="dragTitle"
+        @dragstart="emit('dragstart', props.package.id)"
+        @move="(delta: -1 | 1) => emit('move', props.package.id, delta)"
+      />
       <UCheckbox :model-value="allSelected ? true : someSelected ? 'indeterminate' : false" :disabled="!selectable.length" :aria-label="t('linkgrabber.package.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', selectable, value === true)" />
       <UButton :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('linkgrabber.package.hide_links') : t('linkgrabber.package.show_links')" @click="emit('toggle', props.package.id)" />
       <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">

@@ -13,6 +13,12 @@ mod removal;
 use removal::discard_scratch_files;
 pub(crate) use removal::remove_part_file;
 
+/// How long a removal, reset or discard waits for a worker whose row is already finished to
+/// let go of it (RD-1120-18).
+const WORKER_TAIL_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
+/// How often that wait looks again.
+const WORKER_TAIL_POLL: std::time::Duration = std::time::Duration::from_millis(25);
+
 /// A reset refused because the Usenet file's package let go of its NZB after it completed.
 ///
 /// With the NZB gone there are no articles left to fetch, so a queued row could only fail; the
@@ -79,31 +85,62 @@ impl SchedulerHandle {
     /// Runs `work` on a file no worker runs while a hold keeps the dispatcher off it, and lets
     /// the hold go afterwards whatever `work` answered.
     ///
-    /// Refused with `refusal` when a worker holds the file. A queued or retry-waiting row is
-    /// startable the whole time: a reset that let go of the reason before deleting the `.part`
-    /// let the dispatcher start it in between, the worker resumed at the row's checkpoint in a
-    /// new empty file, and the payload began with zeros (audit 1.9.1, TR-04). The hold is a
-    /// count of its own rather than a stop reason, because a resume, the end of a pause or
-    /// cancel, or a second hold on the same row took the reason out in the middle of the work
-    /// (re-audit 1.9.1, RA-TR-02). A stop reason left from the pause or cancel that made the
-    /// work legal still goes at the end, as it did.
+    /// Refused with `refusal` when a worker holds the file and is not in its tail
+    /// ([`Self::hold`]). A queued or retry-waiting row is startable the whole time: a
+    /// reset that let go of the reason before deleting the `.part` let the dispatcher start it
+    /// in between, the worker resumed at the row's checkpoint in a new empty file, and the
+    /// payload began with zeros (audit 1.9.1, TR-04). The hold is a count of its own rather
+    /// than a stop reason, because a resume, the end of a pause or cancel, or a second hold on
+    /// the same row took the reason out in the middle of the work (re-audit 1.9.1, RA-TR-02).
+    /// A stop reason left from the pause or cancel that made the work legal still goes at the
+    /// end, as it did.
     pub(crate) async fn while_held<T>(
         &self,
         id: DownloadId,
         refusal: &'static str,
         work: impl std::future::Future<Output = Result<T>>,
     ) -> Result<T> {
-        {
-            let mut active = self.active.lock().await;
-            if active.tokens.contains_key(&id) {
-                bail!(StoreError::wrong_state(refusal));
-            }
-            *active.held.entry(id).or_default() += 1;
-        }
+        self.hold(id, refusal).await?;
         let result = work.await;
+        self.let_go(id).await;
+        result
+    }
+
+    /// The second half of [`Self::while_held`]: the hold goes, and with it a stop reason left
+    /// from the pause or cancel that made the work legal.
+    pub(crate) async fn let_go(&self, id: DownloadId) {
         self.active.lock().await.release_hold(&id);
         self.release_stop_guard(id).await;
-        result
+    }
+
+    /// The first half of [`Self::while_held`], also for a caller that holds many rows across one
+    /// piece of work (RD-1120-17): takes a hold on `id` as soon as no worker runs it.
+    ///
+    /// A worker that already wrote its row's last state keeps its place in `active` for the
+    /// tail of its run - the content index, the hash an external runner's payload gets - and a
+    /// removal right after the list said "completed" was refused in that window, forced or not
+    /// (RD-1120-18, the nightly soak of 2026-10-06). That tail is waited for now, up to
+    /// [`WORKER_TAIL_WAIT`]; a row whose worker is still at work is refused at once, as before.
+    pub(crate) async fn hold(&self, id: DownloadId, refusal: &'static str) -> Result<()> {
+        let deadline = tokio::time::Instant::now() + WORKER_TAIL_WAIT;
+        loop {
+            {
+                let mut active = self.active.lock().await;
+                if !active.tokens.contains_key(&id) {
+                    *active.held.entry(id).or_default() += 1;
+                    return Ok(());
+                }
+            }
+            let in_its_tail = self
+                .database
+                .get_download(id)
+                .await?
+                .is_some_and(|row| !row.state.is_working());
+            if !in_its_tail || tokio::time::Instant::now() >= deadline {
+                bail!(StoreError::wrong_state(refusal));
+            }
+            tokio::time::sleep(WORKER_TAIL_POLL).await;
+        }
     }
 
     /// Moves a paused, failed, blocked or cancelled job back to the queue.
@@ -232,17 +269,9 @@ impl SchedulerHandle {
     }
 }
 
-fn is_active(state: DownloadState) -> bool {
-    matches!(
-        state,
-        DownloadState::Resolving
-            | DownloadState::Downloading
-            | DownloadState::Verifying
-            | DownloadState::Repairing
-            | DownloadState::Extracting
-    )
-}
-
+#[cfg(test)]
+#[path = "control_tail_tests.rs"]
+mod tail_tests;
 #[cfg(test)]
 #[path = "control_tests.rs"]
 mod tests;

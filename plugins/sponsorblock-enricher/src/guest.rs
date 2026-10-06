@@ -1,15 +1,10 @@
 //! The component: a YouTube link in, a summary of its sponsor segments out.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
-wit_bindgen::generate!({
-    path: "../../crates/rd-plugin-api/wit",
-    world: "enricher-plugin",
-});
-
-use exports::rdownloader::plugin::enricher::{EnrichField, EnrichSubject, Guest};
-use rdownloader::plugin::{
+use plugin_guest_enricher::{
+    EnrichField, EnrichSubject, Guest,
     http::{self, RequestQuery},
-    types::Failure,
+    types::{Failure, FailureKind},
 };
 
 use crate::segments;
@@ -55,7 +50,7 @@ impl Guest for Component {
         }
         if !(200..300).contains(&response.status) {
             return Err(Failure {
-                category: rdownloader::plugin::types::FailureKind::Transient(None),
+                category: FailureKind::Transient(None),
                 message: format!("SponsorBlock answered {}", response.status),
                 code: Some("sponsorblock_enricher.lookup_failed".to_owned()),
                 params: Vec::new(),
@@ -90,4 +85,4 @@ impl Guest for Component {
     }
 }
 
-export!(Component);
+plugin_guest_enricher::enricher_plugin!(Component);

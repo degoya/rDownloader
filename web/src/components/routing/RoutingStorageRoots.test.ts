@@ -1,11 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { StorageRoot } from '@/api/types'
 import routing from '@/locales/en/routing.json'
-import common from '@/locales/en/common.json'
+import { mountComponent } from '@/test/mount'
 
 import RoutingStorageRoots from './RoutingStorageRoots.vue'
 
@@ -16,36 +15,10 @@ vi.mock('@/api/client', () => ({
 }))
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { routing, common } } })
-
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-const components = {
-  UButton: {
-    props: ['label', 'disabled', 'loading'],
-    template: '<button v-bind="$attrs" :disabled="disabled">{{ label }}</button>'
-  },
-  UInput: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template:
-      '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-  },
-  USwitch: {
-    props: ['modelValue', 'disabled'],
-    emits: ['update:modelValue'],
-    template:
-      '<input type="checkbox" role="switch" v-bind="$attrs" :disabled="disabled" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />'
-  },
-  UAlert: {
-    props: ['title', 'description', 'color'],
-    template: '<div :data-color="color">{{ title }} {{ description }}</div>'
-  },
-  UFormField: {
-    props: ['error'],
-    template: '<div><slot /><p v-if="error" data-testid="field-error">{{ error }}</p></div>'
-  },
-  UBadge: passthrough,
-  UIcon: { template: '<span />' }
+/** The field with its error under the control, where the protected-path refusal is read. */
+const UFormField = {
+  props: ['error'],
+  template: '<div><slot /><p v-if="error" data-testid="field-error">{{ error }}</p></div>'
 }
 
 function root(overrides: Partial<StorageRoot> = {}): StorageRoot {
@@ -61,9 +34,10 @@ function root(overrides: Partial<StorageRoot> = {}): StorageRoot {
 }
 
 function mount(roots: StorageRoot[], props: Record<string, unknown> = {}) {
-  return render(RoutingStorageRoots, {
-    props: { modelValue: roots, ...props },
-    global: { plugins: [i18n], components }
+  return mountComponent(RoutingStorageRoots, {
+    messages: { routing },
+    stubs: { UFormField },
+    props: { modelValue: roots, ...props }
   })
 }
 

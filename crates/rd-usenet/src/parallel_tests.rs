@@ -108,8 +108,10 @@ async fn run_together(
 
 /// The acceptance case of RD-130-22: a short file ends while a long one still has articles,
 /// and no connection sits idle for as much as a round trip while any article is still to be
-/// asked for. Idle is measured at the fixture, per connection, from its first command to the
-/// last command the fixture received - the moment nothing was left to ask for.
+/// asked for. Told by order at the fixture, not by the clock (RD-1120-09): no connection sat
+/// out a whole round trip of another one - a command that arrived after it fell idle and was
+/// answered before it was asked again - up to the last command the fixture received, the
+/// moment nothing was left to ask for.
 #[tokio::test(flavor = "multi_thread")]
 async fn no_connection_waits_at_a_file_boundary_while_articles_are_open() {
     let directory = tempfile::tempdir().expect("temporary directory");
@@ -117,8 +119,9 @@ async fn no_connection_waits_at_a_file_boundary_while_articles_are_open() {
         .await
         .expect("database");
     let (articles, files) = release(&database, &[3, 16]).await;
-    // Long enough that scheduler noise stays well below it: at 50 ms a loaded Windows runner
-    // measured 118 ms of idle on a connection. Waiting at the boundary costs a whole round trip.
+    // A wall-clock bound on idle failed on loaded runners at 50 ms and at 250 ms (118 ms of
+    // idle measured on Windows); the order holds however slow the runner is. The long round
+    // trip stays: a connection would have to be starved for all of it to look idle.
     let rtt = Duration::from_millis(250);
     let (address, log) = spawn_fixture(
         articles,
@@ -132,12 +135,12 @@ async fn no_connection_waits_at_a_file_boundary_while_articles_are_open() {
 
     run_together(&database, &pool, &files, directory.path()).await;
 
-    let idle = log.idle_while_work_remained();
-    assert_eq!(idle.len(), 4, "every connection was used");
-    for (connection, idle) in idle.iter().enumerate() {
-        assert!(
-            *idle < rtt,
-            "connection {connection} waited {idle:?} while articles were still open"
+    let sat_out = log.round_trips_sat_out();
+    assert_eq!(sat_out.len(), 4, "every connection was used");
+    for (connection, trips) in sat_out.iter().enumerate() {
+        assert_eq!(
+            *trips, 0,
+            "connection {connection} sat out {trips} round trips of the others while articles were still open"
         );
     }
     assert_eq!(log.requests().len(), 19, "every article was asked for once");

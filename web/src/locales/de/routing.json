@@ -2,8 +2,7 @@
   "tabs": {
     "roots": "Speicherorte",
     "categories": "Kategorien",
-    "rules": "Regeln",
-    "collector": "Sammler"
+    "rules": "Regeln"
   },
   "header": {
     "eyebrow": "Zielsteuerung",
@@ -61,7 +60,7 @@
     "form_edit": "Kategorie bearbeiten",
     "description": "Eine Kategorie verbindet einen Speicherort mit einem relativen Ordner und den Nachbearbeitungs-Vorgaben für ihre Pakete.",
     "name_label": "Name",
-    "name_description": "Wird im LinkGrabber, in der Downloadliste und in den Regeln unten verwendet.",
+    "name_description": "Wird im LinkGrabber, in der Downloadliste und in den Regeln im Reiter „Regeln“ verwendet.",
     "name_placeholder": "Filme",
     "root_label": "Speicherort",
     "root_description": "Der freigegebene Speicherort, in den diese Kategorie schreibt.",

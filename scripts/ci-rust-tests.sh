@@ -17,6 +17,12 @@
 # Every group runs to its end, failing or not, and the script fails at the end: one 45-minute run
 # has to show every failure, not the first (RD-120-67 took three runs).
 #
+# Windows in one group, `--workspace` (RD-1120-07): the groups are for Linux's disk, and Windows
+# has room to spare. Its five serial groups took 38 of the leg's 48-54 minutes, each with a build
+# of its own (12m53, then 2m19 to 4m18, run 37375763106) — the critical path of every wave.
+# RUNNER_OS decides, so `warm-cache` builds on each system exactly what `rust` does there, which
+# is what makes its cache the one `rust` restores.
+#
 #   scripts/ci-rust-tests.sh            # -P ci, JUnit per group into $RUNNER_TEMP/junit
 #   scripts/ci-rust-tests.sh --no-run   # build every group's executables, run none
 set -euo pipefail
@@ -62,6 +68,10 @@ run_group() {
     echo "::endgroup::"
 }
 
+if [[ "${RUNNER_OS:-}" == Windows ]]; then
+    run_group --workspace
+    exit "${failed}"
+fi
 run_group --workspace --exclude rd-api --exclude rd-plugin-ext --exclude rdownloader
 run_group -p rd-plugin-ext
 run_group -p rdownloader

@@ -106,7 +106,7 @@ const accessibleLabel = computed(() => t('stats.chart.description', { peak: form
       </rect>
       <line x1="0" :y1="BOTTOM" :x2="WIDTH" :y2="BOTTOM" stroke="currentColor" class="text-muted" stroke-width="0.8" vector-effect="non-scaling-stroke" />
     </svg>
-    <div v-if="bars.length" class="numeric mt-1 flex justify-between text-[10px] text-muted" aria-hidden="true">
+    <div v-if="bars.length" class="numeric mt-1 flex justify-between text-2xs text-muted" aria-hidden="true">
       <span>{{ first ? formatLabel(first) : '' }}</span>
       <span>{{ last ? formatLabel(last) : '' }}</span>
     </div>

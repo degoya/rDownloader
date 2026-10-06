@@ -2,6 +2,7 @@
 
 use anyhow::Context as _;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use rd_api_core::input_checks::optional_text;
 use rd_collector::extract_urls;
 use rd_db::NewCollectorBatch;
 
@@ -66,14 +67,8 @@ pub async fn collector_intake_inner(
             mirror_hints,
             source: request.source,
             source_label: request.source_label,
-            package_name: request
-                .package_name
-                .map(|name| name.trim().to_owned())
-                .filter(|name| !name.is_empty()),
-            password: request
-                .password
-                .map(|value| value.trim().to_owned())
-                .filter(|value| !value.is_empty()),
+            package_name: optional_text(request.package_name),
+            password: optional_text(request.password),
             passwords: Vec::new(),
             category_id: None,
             priority: None,
@@ -162,10 +157,7 @@ async fn structured_links(
         };
         links.push(CapturedLink {
             url,
-            file_name: link
-                .file_name
-                .map(|name| name.trim().to_owned())
-                .filter(|name| !name.is_empty()),
+            file_name: optional_text(link.file_name),
             size: None,
             package_hint: None,
             mirror: None,

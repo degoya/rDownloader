@@ -7,14 +7,21 @@
 mod free;
 
 pub(crate) use plugin_common::failure::coded;
+use plugin_common::failure::{SecretSlot, require_secret};
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, HttpRequest, HttpResponse, Label, LabelPart,
-    LinkCheck, LinkStatus, PluginHost, ResolveInput, Resolved,
+    LinkCheck, PluginHost, ResolveInput, Resolved,
 };
 use serde::Deserialize;
 use url::Url;
 
 use crate::{api, messages};
+
+/// The secret every call needs, and the words its absence is refused with.
+const ACCOUNT_SECRET: SecretSlot = SecretSlot {
+    reference: crate::API_KEY_REFERENCE,
+    missing: messages::API_KEY_MISSING,
+};
 
 const API_BASE: &str = "https://api.1fichier.com/v1";
 
@@ -44,7 +51,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     host: &H,
     account_id: &str,
 ) -> Result<Account, Failure> {
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let response = call(host, "/user/info.cgi", b"{}".to_vec()).await?;
     let info: api::UserInfoResponse = parse_json(&response)?;
     if let Some(failure) = api::error_from_status(info.status.as_deref(), info.message.as_deref()) {
@@ -81,7 +88,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     let Some(account_id) = request.account_id.as_deref() else {
         return free::resolve(host, &parsed).await;
     };
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let link = api::canonical_link(&parsed)
         .ok_or_else(|| coded(FailureKind::Unsupported, messages::UNSUPPORTED_LINK))?;
     let metadata = file_info(host, &link).await?;
@@ -115,7 +122,7 @@ pub(crate) async fn check<H: PluginHost>(
         .account_id
         .as_deref()
         .ok_or_else(|| coded(FailureKind::AuthRequired, messages::ACCOUNT_MISSING))?;
-    require_secret(host, account_id).await?;
+    require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let mut results = Vec::with_capacity(request.urls.len());
     for url in &request.urls {
         results.push(check_one(host, url).await);
@@ -128,31 +135,16 @@ pub(crate) async fn check<H: PluginHost>(
 async fn check_one<H: PluginHost>(host: &H, url: &str) -> LinkCheck {
     let link = Url::parse(url).ok().as_ref().and_then(api::canonical_link);
     let Some(link) = link else {
-        return unknown(url);
+        return LinkCheck::unknown(url);
     };
     match file_info_status(host, &link).await {
-        Ok(Some(info)) => LinkCheck {
-            url: url.to_owned(),
-            status: LinkStatus::Online,
-            file_name: info.filename,
-            size: info.size.and_then(api::FlexibleU64::into_u64),
-        },
-        Ok(None) => LinkCheck {
-            url: url.to_owned(),
-            status: LinkStatus::Offline,
-            file_name: None,
-            size: None,
-        },
-        Err(_) => unknown(url),
-    }
-}
-
-fn unknown(url: &str) -> LinkCheck {
-    LinkCheck {
-        url: url.to_owned(),
-        status: LinkStatus::Unknown,
-        file_name: None,
-        size: None,
+        Ok(Some(info)) => LinkCheck::online(
+            url,
+            info.filename,
+            info.size.and_then(api::FlexibleU64::into_u64),
+        ),
+        Ok(None) => LinkCheck::offline(url),
+        Err(_) => LinkCheck::unknown(url),
     }
 }
 
@@ -201,26 +193,11 @@ async fn call<H: PluginHost>(host: &H, path: &str, body: Vec<u8>) -> Result<Http
     .await
 }
 
-async fn require_secret<H: PluginHost>(host: &H, account_id: &str) -> Result<(), Failure> {
-    if !host
-        .secret_available(account_id, crate::API_KEY_REFERENCE)
-        .await
-    {
-        return Err(coded(FailureKind::AuthRequired, messages::API_KEY_MISSING));
-    }
-    Ok(())
-}
-
 fn parse_json<T: for<'de> Deserialize<'de>>(response: &HttpResponse) -> Result<T, Failure> {
     serde_json::from_slice(&response.body)
         .map_err(|_| coded(FailureKind::Transient(None), messages::INVALID_RESPONSE))
 }
 
 pub(crate) fn invalid_url(error: &url::ParseError) -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        messages::INVALID_URL,
-        messages::invalid_url(error),
-    )
-    .with_param("error", error.to_string())
+    plugin_common::failure::invalid_url(messages::INVALID_URL, error).into()
 }

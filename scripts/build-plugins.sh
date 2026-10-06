@@ -9,7 +9,7 @@
 #
 # Plugins are built deliberately WITHOUT WASI — scripts/check-plugin-imports.sh rejects any
 # import outside `rdownloader:plugin`, here and in CI — so the target is
-# wasm32-unknown-unknown: `cargo build` links a core module, whose `wit_bindgen::generate!`
+# wasm32-unknown-unknown: `cargo rustc --crate-type cdylib` links a core module, whose `generate!`
 # embeds the world it was written against, and `wasm-tools component new` (the version
 # WASM_TOOLS_VERSION pins, as CI does) turns it into the component (RD-1110-08: cargo-component,
 # unmaintained since 2025, did the same two steps). Signing uses the release key; keep it out of the
@@ -36,9 +36,10 @@
 # and the hash of the component itself, and the dependency hash (`deps_hash`: registry packages,
 # root Cargo.toml, compiler). A component is current when all three still match. File
 # times said "stale" after every checkout and rebase — in 5 of 8 branches on 2026-09-24, for
-# plugins nobody had touched. A bare `cargo build` writes no stamp (and leaves a core module, not
-# a component), so the file it leaves no longer matches the old one and counts as stale: a stamp
-# never vouches for a build it did not see. `crates/rd-plugin-host/src/artifact.rs` applies the same definition.
+# plugins nobody had touched. A bare `cargo rustc --crate-type cdylib` writes no stamp (and leaves
+# a core module, not a component), so the file it leaves no longer matches the old one and counts
+# as stale: a stamp never vouches for a build it did not see; a bare `cargo build` of a plugin
+# links no `.wasm` at all since the crates are `rlib` only (RD-1120-11). `crates/rd-plugin-host/src/artifact.rs` applies the same definition.
 #
 # Same version, same content (RD-120-47). An installation only takes a bundled package whose
 # version is *newer* than the one it has, so a plugin that changed and kept its version is never
@@ -253,8 +254,8 @@ installed_wasm_tools="$(wasm_tools_version)"
 #
 # Written beside it and renamed over it: cargo's file in release/ is a hard link to the one in
 # deps/, and writing through it would leave a component where cargo keeps its core module. The
-# rename leaves deps/ alone, and the next cargo build links release/ to the core module again,
-# fresh crate or not — which is why every call here follows a cargo build of the same plugin.
+# rename leaves deps/ alone, and the next `cargo rustc` links release/ to the core module again,
+# fresh crate or not — which is why every call here follows a `cargo rustc` of the same plugin.
 # No adapter and no `--world`: nothing imports WASI, and the world is the one `generate!`
 # embedded.
 make_component() {
@@ -262,6 +263,20 @@ make_component() {
     wasm-tools component new "$module" -o "$module.component" \
         || { echo "!! rd-plugin-$1: wasm-tools could not make a component of $module" >&2; exit 1; }
     mv "$module.component" "$module"
+}
+
+# The rustflags of every wasm32 build here (RD-1120-10, PL-21): the checkout, the cargo home and
+# the toolchain mapped to fixed names. A panic location embeds the source path, so without the
+# map a component carried `/home/<user>/.cargo/registry/src/…` and two checkouts of the same
+# commit built different bytes. The same disjoint prefixes as the native release targets
+# (scripts/release-build-env.sh), set per target so the native builds of the shared target/ keep
+# their flags; flags the caller already set for wasm32 come first and stay.
+wasm_rustflags() {
+    local cargo_home="${CARGO_HOME:-$HOME/.cargo}" rustup_home="${RUSTUP_HOME:-$HOME/.rustup}"
+    local flags="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:-}"
+    flags+="${flags:+ }--remap-path-prefix=$ROOT=/rdownloader"
+    flags+=" --remap-path-prefix=$cargo_home=/cargo --remap-path-prefix=$rustup_home=/rustup"
+    printf '%s\n' "$flags"
 }
 
 # Builds the components of the plugins named as arguments from THIS checkout, and stamps them.
@@ -275,33 +290,39 @@ make_component() {
 # alone: rd-plugin-api's host bindings are generated from it, and touching it would rebuild
 # half the workspace on the next test run.
 #
-# ONE cargo call with every `-p` (RD-130-17). One call per plugin kept a single core busy on
-# crates that are small, 72 times over; one call lets `-j` fill up across plugins, and its
-# memory still depends on `-j`, not on how many plugins are named. The plugins declare no
-# features of their own, so building them together unifies nothing a plugin built alone would
-# not get — a signed build's same-version comparison would notice if that ever changed.
-# When the combined call fails, cargo's error names a crate but not always the plugin that
-# pulled it in (a shared library breaks all of them), so the plugins are then built one at a
-# time up to the first that fails, which is named, and the run fails.
+# The plugin crates are `rlib` only (RD-1120-11): as `["rlib", "cdylib"]` every native build that
+# named one — a test run, a `cargo build` of the workspace — linked a shared object nobody loads,
+# 72 of them with 551 MiB in target/debug/deps and the link time on every run. The component is
+# asked for here alone, with `cargo rustc --crate-type cdylib`, which takes one package per call.
+# So the shared plugin libraries the selection links, and with them every registry crate, are
+# built first in ONE call with every `-p` (RD-130-17: one call per plugin kept a single core busy
+# on small crates, 72 times over); what is left per plugin is its own leaf crate. The plugins
+# declare no features of their own, so building one alone unifies nothing it would not get in
+# company — a signed build's same-version comparison would notice if that ever changed. A plugin
+# that does not build stops the run with its name.
 build_components() {
-    local name component packages=()
+    local name component library libraries=() started="$SECONDS"
     [[ $# -gt 0 ]] || return 0
+    export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS
+    CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="$(wasm_rustflags)"
     for name in "$@"; do
         rm -f "$(stamp_path "$name")"
         source_files "$name" | grep -v '^crates/' | tr '\n' '\0' | xargs -0 -r touch
-        packages+=(-p "rd-plugin-$name")
     done
-    echo "--> $# component(s) in one cargo call"
-    if ! CARGO_BUILD_JOBS="$JOBS" cargo build --release --target "$TARGET" -j "$JOBS" "${packages[@]}"; then
-        echo "!! the combined build failed; building one plugin at a time to name the one that fails" >&2
-        for name in "$@"; do
-            echo "--> rd-plugin-$name"
-            CARGO_BUILD_JOBS="$JOBS" cargo build --release --target "$TARGET" -j "$JOBS" -p "rd-plugin-$name" \
-                || { echo "!! rd-plugin-$name does not build" >&2; exit 1; }
-        done
-        echo "!! every plugin built on its own, but not together — nothing was stamped" >&2
-        exit 1
+    while read -r library; do
+        libraries+=(-p "$library")
+    done < <(shared_libraries "$@")
+    if [[ ${#libraries[@]} -gt 0 ]]; then
+        echo "--> the $(( ${#libraries[@]} / 2 )) shared plugin libraries first, in one cargo call"
+        CARGO_BUILD_JOBS="$JOBS" cargo build --release --target "$TARGET" -j "$JOBS" "${libraries[@]}" \
+            || { echo "!! the shared plugin libraries do not build" >&2; exit 1; }
     fi
+    for name in "$@"; do
+        echo "--> rd-plugin-$name"
+        CARGO_BUILD_JOBS="$JOBS" cargo rustc --release --target "$TARGET" -j "$JOBS" \
+            -p "rd-plugin-$name" --lib --crate-type cdylib \
+            || { echo "!! rd-plugin-$name does not build" >&2; exit 1; }
+    done
     for name in "$@"; do
         component="$(component_path "$name")"
         [[ -f "$component" ]] || { echo "!! $component was not produced" >&2; exit 1; }
@@ -310,6 +331,19 @@ build_components() {
         # than after it.
         "$ROOT/scripts/check-plugin-imports.sh" "$component"
         write_stamp "$name"
+    done
+    echo "--> $# component(s) built in $(( SECONDS - started )) s"
+}
+
+# The package names of the shared plugin libraries (the plugins/ crates without a manifest) the
+# plugins named as arguments link, each once.
+shared_libraries() {
+    local name directory
+    for name in "$@"; do
+        source_files "$name" | sed -n 's|^\(plugins/[^/]*\)/Cargo\.toml$|\1|p'
+    done | LC_ALL=C sort -u | while read -r directory; do
+        [[ -f "$directory/manifest.toml" ]] && continue
+        sed -n 's/^name = "\(.*\)"/\1/p' "$directory/Cargo.toml" | head -1
     done
 }
 

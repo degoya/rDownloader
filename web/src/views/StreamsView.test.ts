@@ -1,13 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
-import { createPinia, setActivePinia } from 'pinia'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createI18n } from 'vue-i18n'
 
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/streams.json'
 import { useStreamsStore } from '@/stores/streams'
 import { axeViolations } from '@/test/axe'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 import StreamsView from './StreamsView.vue'
 
@@ -29,45 +27,12 @@ vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
 // `IndexerReviewList.test.ts` does.
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 
-const i18n = createI18n({
-  legacy: false,
-  locale: 'en',
-  messages: { en: { streams: en, common } }
-})
-
-/** Renders slot content so the sections under test are reachable. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
-
 function mount() {
-  return render(StreamsView, {
-    global: {
-      plugins: [i18n],
-      stubs: {
-        UAlert: true,
-        UBadge: passthrough,
-        UButton: { props: ['label'], template: '<button v-bind="$attrs">{{ label }}<slot /></button>' },
-        UCheckbox: true,
-        UCheckboxGroup: uiStubs.UCheckboxGroup,
-        UDashboardNavbar: passthrough,
-        UDashboardPanel: {
-          template: '<div><slot name="header" /><slot name="body" /></div>'
-        },
-        UDashboardSidebarCollapse: true,
-        UEmpty: uiStubs.UEmpty,
-        UFileUpload: uiStubs.UFileUpload,
-        UFormField: uiStubs.UFormField,
-        UIcon: true,
-        UInput: { props: ['modelValue'], emits: ['update:modelValue'], template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />' },
-        USelect: { props: ['modelValue', 'items'], template: '<select v-bind="$attrs" />' },
-        USwitch: true
-      }
-    }
-  })
+  return mountComponent(StreamsView, { messages: { streams: en } })
 }
 
 describe('StreamsView schedules', () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
     get.mockReset()
     get.mockResolvedValue({ data: [] })
     post.mockReset()
@@ -130,7 +95,7 @@ describe('StreamsView schedules', () => {
     store.channels = [{ id: 'x', name: 'Example channel', url: 'https://example.com/live', enabled: true } as never]
 
     const group = await screen.findByRole('group', { name: en.schedules.days })
-    const monday = within(group).getByRole('checkbox', { name: en.schedules.weekday['1'] }) as HTMLInputElement
+    const monday = within(group).getByRole('checkbox', { name: common.weekdays.mon }) as HTMLInputElement
     expect(monday.checked).toBe(false)
     await fireEvent.click(monday)
     expect(monday.checked).toBe(true)

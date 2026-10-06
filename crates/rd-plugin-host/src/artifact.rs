@@ -76,11 +76,6 @@ const CONTRACT_DIRECTORY: &str = "crates/rd-plugin-api/wit";
 /// File names, beyond `*.rs` and `*.wit`, that a component is built from.
 const BUILD_INPUTS: [&str; 2] = ["Cargo.toml", "manifest.toml"];
 
-/// What cargo-component wrote into `src/` of a plugin crate at every build until 1.11
-/// (gitignored). Nothing writes it any more, but a checkout that built plugins before still has
-/// it — so it is not a source, or that checkout would disagree with every fresh worktree.
-const GENERATED_BINDINGS: &str = "bindings.rs";
-
 /// Appended to the artefact's file name for the stamp `scripts/build-plugins.sh` writes.
 const STAMP_SUFFIX: &str = ".src-sha256";
 
@@ -351,17 +346,6 @@ fn collect(directory: &Path, files: &mut Vec<PathBuf>) {
         }
         let extension = path.extension().and_then(|value| value.to_str());
         let name = path.file_name().and_then(|value| value.to_str());
-        let generated = name == Some(GENERATED_BINDINGS)
-            && path
-                .parent()
-                .is_some_and(|parent| parent.file_name().is_some_and(|dir| dir == "src"))
-            && path
-                .ancestors()
-                .nth(3)
-                .is_some_and(|plugins| plugins.ends_with("plugins"));
-        if generated {
-            continue;
-        }
         if matches!(extension, Some("rs" | "wit"))
             || name.is_some_and(|n| BUILD_INPUTS.contains(&n))
         {

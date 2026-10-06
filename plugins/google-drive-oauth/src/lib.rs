@@ -27,8 +27,8 @@ pub mod flow;
 
 /// PKCE and the JSON reader, shared with the other OAuth plugins.
 ///
-/// Re-exported rather than imported at each use site, so the paths below still read
-/// `pkce::challenge` and a reader can see where the derivation lives.
+/// Re-exported so a reader can see where the derivation lives; since RD-1120-10 the flow that
+/// uses it is `plugin_guest_oauth::redirect`, which `guest` states its provider to.
 pub use plugin_common::pkce;
 
 #[cfg(target_arch = "wasm32")]

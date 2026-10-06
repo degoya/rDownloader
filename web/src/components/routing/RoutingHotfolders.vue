@@ -13,6 +13,8 @@ import { useFormFocus } from '@/composables/useFormFocus'
 import { WHOLE } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { editingRowClass } from '@/utils/editingRow'
+import FormFeedback from '@/components/FormFeedback.vue'
 
 type ImportMode = HotFolder['import_mode']
 
@@ -197,8 +199,7 @@ async function remove(folder: HotFolder): Promise<void> {
           :description="t('routing.hotfolder.description')"
           class="mb-4"
         />
-        <UAlert v-if="error" class="mb-3" color="error" variant="subtle" :description="error" />
-        <UAlert v-if="message" class="mb-3" color="success" variant="subtle" :description="message" />
+        <FormFeedback class="mb-3" :error="error" :message="message" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField required :label="t('routing.hotfolder.name_label')" :description="t('routing.hotfolder.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.hotfolder.name_placeholder')" />
@@ -248,16 +249,15 @@ async function remove(folder: HotFolder): Promise<void> {
               <UButton type="submit" size="sm" icon="i-lucide-save" :label="t('routing.hotfolder.poll_save')" :loading="pollPending" />
             </div>
           </UFormField>
-          <UAlert v-if="pollError" class="mt-3" color="error" variant="subtle" :description="pollError" />
-          <UAlert v-if="pollMessage" class="mt-3" color="success" variant="subtle" :description="pollMessage" />
+          <FormFeedback class="mt-3" :error="pollError" :message="pollMessage" />
         </form>
         <div class="space-y-2">
-          <div v-for="folder in hotfolders" :key="folder.id" class="border bg-default p-3" :class="editingId === folder.id ? 'border-primary' : 'border-muted'">
+          <div v-for="folder in hotfolders" :key="folder.id" class="bg-default p-3" :class="editingRowClass(editingId === folder.id)">
             <div class="flex items-center gap-3">
               <UChip standalone color="success" :show="folder.enabled" class="w-2" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-highlighted">{{ folder.name }}</p>
-                <p class="truncate font-mono text-[11px] text-muted">{{ folder.path }}</p>
+                <p class="truncate font-mono text-2xs text-muted">{{ folder.path }}</p>
               </div>
               <UBadge v-if="editingId === folder.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
               <UBadge v-if="!folder.enabled" color="neutral" variant="subtle">{{ t('routing.hotfolder.disabled_badge') }}</UBadge>
@@ -267,7 +267,7 @@ async function remove(folder: HotFolder): Promise<void> {
               <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="deletingId === folder.id" @click="remove(folder)" />
             </div>
             <p class="mt-2 text-xs text-muted">{{ executorLabel(folder) }} · {{ t('routing.hotfolder.reconciliation', { seconds: settings.hotfolder_poll_seconds, category: categoryName(folder.category_id) }) }}</p>
-            <p class="mt-1 truncate font-mono text-[10px] text-muted">{{ t('routing.hotfolder.paths', { processed: folder.processed_path, failed: folder.failed_path }) }}</p>
+            <p class="mt-1 truncate font-mono text-2xs text-muted">{{ t('routing.hotfolder.paths', { processed: folder.processed_path, failed: folder.failed_path }) }}</p>
           </div>
           <DataState :loading="props.loading" :error="props.loadError" :empty="!hotfolders.length">
             <UEmpty :description="t('routing.hotfolder.empty')" />

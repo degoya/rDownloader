@@ -25,7 +25,6 @@ async function submit(): Promise<void> {
   <UAlert
     v-if="!session.setupRequired"
     color="success"
-    variant="subtle"
     icon="i-lucide-shield-check"
     :title="t('wizard.password.configured')"
     :description="t('wizard.password.configured_hint')"
@@ -53,7 +52,7 @@ async function submit(): Promise<void> {
         class="w-full"
       />
     </UFormField>
-    <UAlert v-if="session.error" color="error" variant="subtle" icon="i-lucide-circle-alert" :description="session.error" />
+    <UAlert v-if="session.error" color="error" icon="i-lucide-circle-alert" :description="session.error" />
     <UButton
       type="submit"
       size="lg"

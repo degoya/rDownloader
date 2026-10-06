@@ -16,7 +16,7 @@ wit-bindgen.workspace = true
 aes.workspace = true
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [lints]
 workspace = true
