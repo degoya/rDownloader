@@ -12,6 +12,10 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.16.1
+
+- Click'n'Load from hide.cx now reaches the LinkGrabber.
+
 ## 1.16.0
 
 - The settings pages for notifications, backup and restore, About, remote transfers and media are now split into tabs, like the other long settings pages.

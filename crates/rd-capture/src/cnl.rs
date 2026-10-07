@@ -330,9 +330,11 @@ async fn flash_cors_headers(request: axum::extract::Request, next: Next) -> Resp
         header::ACCESS_CONTROL_ALLOW_METHODS,
         HeaderValue::from_static("GET, POST, OPTIONS"),
     );
+    // `X-Referer`: hide.cx posts to `/flash/add` with `fetch()` and that header, so the browser
+    // asks first and drops the post when the preflight does not name it (owner, 2026-10-07).
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("Content-Type"),
+        HeaderValue::from_static("Content-Type, X-Referer"),
     );
     headers.insert(
         "access-control-allow-private-network",

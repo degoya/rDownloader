@@ -159,6 +159,43 @@ async fn the_flash_routes_keep_their_documented_wildcard() {
     cancellation.cancel();
 }
 
+/// A page that posts with `fetch()` and a header of its own is asked about first: hide.cx
+/// sends `X-Referer`, and a preflight that does not name it makes the browser drop the post.
+#[tokio::test]
+async fn the_preflight_allows_the_headers_hoster_pages_send() {
+    let (address, cancellation) = spawn().await;
+    let response = client()
+        .request(
+            reqwest::Method::OPTIONS,
+            format!("http://{address}/flash/add"),
+        )
+        .header(header::ORIGIN, "https://hide.cx")
+        .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+        .header(
+            header::ACCESS_CONTROL_REQUEST_HEADERS,
+            "content-type,x-referer",
+        )
+        .send()
+        .await
+        .expect("the listener answers");
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let allowed: Vec<String> = response
+        .headers()
+        .get(header::ACCESS_CONTROL_ALLOW_HEADERS)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .split(',')
+        .map(|name| name.trim().to_ascii_lowercase())
+        .collect();
+    for wanted in ["content-type", "x-referer"] {
+        assert!(
+            allowed.iter().any(|name| name == wanted),
+            "{wanted} must be allowed: {allowed:?}"
+        );
+    }
+    cancellation.cancel();
+}
+
 /// The body of a refusal is a code. Neither the decryption's own account of itself nor
 /// anything the service said may be readable by the page that made the call.
 #[tokio::test]

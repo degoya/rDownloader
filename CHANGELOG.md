@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-10-07
+
+### Fixed
+
+- **Click'n'Load from hide.cx arrives.** hide.cx posts to `/flash/add` with `fetch()` and an
+  `X-Referer` header; the capture agent's preflight named only `Content-Type`, so the browser
+  dropped the post. The JDownloader-compatible routes now also allow `X-Referer`
+  (`crates/rd-capture/src/cnl.rs`, test `the_preflight_allows_the_headers_hoster_pages_send`).
+
 ## [1.16.0] - 2026-10-07
 
 ### Changed
