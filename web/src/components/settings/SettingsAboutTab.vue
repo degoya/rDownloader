@@ -11,6 +11,9 @@
  * An address that does not lead anywhere yet is written out and marked "not yet published"
  * instead of being drawn as a link, and one that is not decided yet is the mark alone
  * (`design.md`, "An Address That Leads Nowhere Yet").
+ *
+ * Two tabs (RD-1160-01): the build, its addresses and the credits on *About*, the licenses on
+ * *Licenses*. Both draw from the head, so each shows its state until it has answered.
  */
 import type { TableColumn } from '@nuxt/ui'
 import { computed, onMounted, reactive, ref } from 'vue'
@@ -21,11 +24,15 @@ import type { About, AboutLink, ThirdPartyLicenses, ThirdPartyPackage } from '@/
 import DataState from '@/components/DataState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useFetchState } from '@/composables/useFetchState'
+import { subTabItems } from '@/composables/useSettingsSubTab'
 import { safeHttpUrl } from '@/utils/safeUrl'
 
 type Ecosystem = 'rust' | 'npm'
 
+/** Owned by the settings view, which keeps it in the address. */
+const activeTab = defineModel<string>('subTab', { default: 'about' })
 const { t } = useI18n()
+const tabItems = computed(() => subTabItems('about', t))
 const about = ref<About | null>(null)
 const licenses = ref<ThirdPartyLicenses | null>(null)
 const { loading, loadError, load: trackAbout } = useFetchState()
@@ -125,141 +132,156 @@ const anyOpen = computed(() => open.rust || open.npm)
       />
     </header>
 
-    <DataState :loading="loading" :error="loadError" :rows="5" />
-
-    <template v-if="about">
-      <UCard as="section" data-settings-anchor="about.build" data-testid="about-build">
-        <SectionHeader :eyebrow="t('settings.about.build.eyebrow')" :title="t('settings.about.build.title')" />
-        <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
-          <template v-for="fact in facts" :key="fact.key">
-            <dt class="eyebrow">{{ fact.label }}</dt>
-            <dd class="numeric break-all text-sm text-highlighted" :data-fact="fact.key">{{ fact.value }}</dd>
-          </template>
-        </dl>
-      </UCard>
-
-      <UCard as="section" data-testid="about-links">
-        <SectionHeader :eyebrow="t('settings.about.links.eyebrow')" :title="t('settings.about.links.title')" />
-        <ul class="mt-4 space-y-2">
-          <li
-            v-for="link in about.links"
-            :key="link.kind"
-            class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
-            :data-link="link.kind"
-          >
-            <span class="min-w-48 text-toned">{{ t(LINK_LABELS[link.kind]) }}</span>
-            <ULink
-              v-if="link.published && link.url"
-              :to="safeHttpUrl(link.url)"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="break-all font-mono text-xs text-primary underline-offset-2 hover:underline"
-            >{{ link.url }}</ULink>
-            <template v-else>
-              <span v-if="link.url" class="break-all font-mono text-xs text-muted">{{ link.url }}</span>
-              <UBadge color="neutral" variant="subtle" size="sm" data-unpublished>{{ t('settings.about.links.unpublished') }}</UBadge>
-            </template>
-          </li>
-        </ul>
-      </UCard>
-
-      <UCard as="section" data-testid="about-credits">
-        <SectionHeader :eyebrow="t('settings.about.credits.eyebrow')" :title="t('settings.about.credits.title')" />
-        <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
-          <dt class="eyebrow">{{ t('settings.about.credits.author') }}</dt>
-          <dd class="text-sm text-highlighted">{{ about.authors.join(', ') }}</dd>
-        </dl>
-        <p class="mt-3 max-w-3xl text-sm leading-6 text-muted">{{ t('settings.about.credits.thanks') }}</p>
-      </UCard>
-
-      <UCard as="section" data-settings-anchor="about.licenses" data-testid="about-licenses">
-        <SectionHeader :eyebrow="t('settings.about.licenses.eyebrow')" :title="t('settings.about.licenses.title')" />
-
-        <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.own') }}</h3>
-        <p class="mt-1 text-sm text-toned">{{ t('settings.about.licenses.own_text', { license: about.license }) }}</p>
-
-        <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.tools') }}</h3>
-        <p class="mt-1 text-xs text-muted">{{ t('settings.about.licenses.tools_hint') }}</p>
-        <div class="mt-3 overflow-x-auto">
-          <UTable
-            :data="about.bundled_tools"
-            :columns="toolColumns"
-            :ui="{ thead: 'eyebrow', th: 'px-0 py-1 pr-4 font-normal last:pr-0', td: 'px-0 py-1.5 pr-4 text-sm last:pr-0' }"
-            data-testid="about-tools"
-          >
-            <template #name-cell="{ row }">
-              <ULink :to="safeHttpUrl(row.original.homepage)" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ row.original.name }}</ULink>
-            </template>
-            <template #license-cell="{ row }"><span class="font-mono text-xs">{{ row.original.license }}</span></template>
-            <template #file-cell="{ row }"><span class="font-mono text-xs text-muted">{{ row.original.file }}</span></template>
-          </UTable>
-        </div>
-
-        <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.dependencies') }}</h3>
-        <p class="mt-1 text-xs text-muted">{{ t('settings.about.licenses.dependencies_hint') }}</p>
-        <DataState class="mt-3" :loading="licensesLoading" :error="licensesError" variant="inline" />
-        <template v-if="licenses">
-          <UInput
-            v-if="anyOpen"
-            v-model="filter"
-            icon="i-lucide-search"
-            :placeholder="t('settings.about.licenses.filter')"
-            :aria-label="t('settings.about.licenses.filter')"
-            class="mt-3 w-full sm:max-w-sm"
-            data-testid="about-filter"
-          />
-          <div v-for="{ value: ecosystem, labelKey } in ECOSYSTEMS" :key="ecosystem" class="mt-4" :data-ecosystem="ecosystem">
-            <!--
-              The trigger stays beside the heading; the licence summary and then the table are
-              the row's next lines (`design.md`, *Opening and closing*).
-            -->
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h4 class="text-sm text-highlighted">
-                {{ t(labelKey) }}
-                <span class="numeric text-muted">· {{ packages(ecosystem).length }}</span>
-              </h4>
-              <UCollapsible
-                v-if="packages(ecosystem).length"
-                v-model:open="open[ecosystem]"
-                class="contents"
-                :ui="{ content: 'order-2 basis-full' }"
-              >
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  :icon="open[ecosystem] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                  :label="open[ecosystem] ? t('settings.about.licenses.hide') : t('settings.about.licenses.show', { count: packages(ecosystem).length })"
-                  :aria-expanded="open[ecosystem]"
-                  :data-toggle="ecosystem"
-                />
-                <template #content>
-                  <div class="mt-1 max-h-96 overflow-auto border border-muted">
-                    <p v-if="!visible(ecosystem).length" class="p-3 text-sm text-muted">{{ t('settings.about.licenses.no_match') }}</p>
-                    <UTable
-                      v-else
-                      sticky
-                      :data="visible(ecosystem)"
-                      :columns="packageColumns"
-                      :ui="{ thead: 'eyebrow', th: 'px-3 py-1 font-normal', td: 'px-3 py-1 font-mono text-xs' }"
-                      :data-list="ecosystem"
-                    >
-                      <template #name-cell="{ row }"><span class="break-all">{{ row.original.name }}</span></template>
-                      <template #version-cell="{ row }"><span class="numeric">{{ row.original.version }}</span></template>
-                      <template #license-cell="{ row }">{{ row.original.license }}</template>
-                    </UTable>
-                  </div>
+    <UTabs
+      v-model="activeTab"
+      :items="tabItems"
+      :unmount-on-hide="false"
+      variant="pill"
+      class="w-full"
+    >
+      <template #about>
+        <div class="space-y-6">
+          <DataState :loading="loading" :error="loadError" :rows="5" />
+          <template v-if="about">
+            <UCard as="section" data-settings-anchor="about.build" data-testid="about-build">
+              <SectionHeader :eyebrow="t('settings.about.build.eyebrow')" :title="t('settings.about.build.title')" />
+              <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
+                <template v-for="fact in facts" :key="fact.key">
+                  <dt class="eyebrow">{{ fact.label }}</dt>
+                  <dd class="numeric break-all text-sm text-highlighted" :data-fact="fact.key">{{ fact.value }}</dd>
                 </template>
-              </UCollapsible>
-              <ul class="order-1 flex basis-full flex-wrap gap-1.5" :aria-label="t('settings.about.licenses.column_license')">
-                <li v-for="entry in summary(ecosystem)" :key="entry.license">
-                  <UBadge color="neutral" variant="outline" size="sm" class="font-mono">{{ entry.license }} · {{ entry.count }}</UBadge>
+              </dl>
+            </UCard>
+
+            <UCard as="section" data-testid="about-links">
+              <SectionHeader :eyebrow="t('settings.about.links.eyebrow')" :title="t('settings.about.links.title')" />
+              <ul class="mt-4 space-y-2">
+                <li
+                  v-for="link in about.links"
+                  :key="link.kind"
+                  class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
+                  :data-link="link.kind"
+                >
+                  <span class="min-w-48 text-toned">{{ t(LINK_LABELS[link.kind]) }}</span>
+                  <ULink
+                    v-if="link.published && link.url"
+                    :to="safeHttpUrl(link.url)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="break-all font-mono text-xs text-primary underline-offset-2 hover:underline"
+                  >{{ link.url }}</ULink>
+                  <template v-else>
+                    <span v-if="link.url" class="break-all font-mono text-xs text-muted">{{ link.url }}</span>
+                    <UBadge color="neutral" variant="subtle" size="sm" data-unpublished>{{ t('settings.about.links.unpublished') }}</UBadge>
+                  </template>
                 </li>
               </ul>
+            </UCard>
+
+            <UCard as="section" data-testid="about-credits">
+              <SectionHeader :eyebrow="t('settings.about.credits.eyebrow')" :title="t('settings.about.credits.title')" />
+              <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
+                <dt class="eyebrow">{{ t('settings.about.credits.author') }}</dt>
+                <dd class="text-sm text-highlighted">{{ about.authors.join(', ') }}</dd>
+              </dl>
+              <p class="mt-3 max-w-3xl text-sm leading-6 text-muted">{{ t('settings.about.credits.thanks') }}</p>
+            </UCard>
+          </template>
+        </div>
+      </template>
+      <template #licenses>
+        <div class="space-y-6">
+          <DataState :loading="loading" :error="loadError" :rows="5" />
+          <UCard v-if="about" as="section" data-settings-anchor="about.licenses" data-testid="about-licenses">
+            <SectionHeader :eyebrow="t('settings.about.licenses.eyebrow')" :title="t('settings.about.licenses.title')" />
+
+            <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.own') }}</h3>
+            <p class="mt-1 text-sm text-toned">{{ t('settings.about.licenses.own_text', { license: about.license }) }}</p>
+
+            <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.tools') }}</h3>
+            <p class="mt-1 text-xs text-muted">{{ t('settings.about.licenses.tools_hint') }}</p>
+            <div class="mt-3 overflow-x-auto">
+              <UTable
+                :data="about.bundled_tools"
+                :columns="toolColumns"
+                :ui="{ thead: 'eyebrow', th: 'px-0 py-1 pr-4 font-normal last:pr-0', td: 'px-0 py-1.5 pr-4 text-sm last:pr-0' }"
+                data-testid="about-tools"
+              >
+                <template #name-cell="{ row }">
+                  <ULink :to="safeHttpUrl(row.original.homepage)" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">{{ row.original.name }}</ULink>
+                </template>
+                <template #license-cell="{ row }"><span class="font-mono text-xs">{{ row.original.license }}</span></template>
+                <template #file-cell="{ row }"><span class="font-mono text-xs text-muted">{{ row.original.file }}</span></template>
+              </UTable>
             </div>
-          </div>
-        </template>
-      </UCard>
-    </template>
+
+            <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.dependencies') }}</h3>
+            <p class="mt-1 text-xs text-muted">{{ t('settings.about.licenses.dependencies_hint') }}</p>
+            <DataState class="mt-3" :loading="licensesLoading" :error="licensesError" variant="inline" />
+            <template v-if="licenses">
+              <UInput
+                v-if="anyOpen"
+                v-model="filter"
+                icon="i-lucide-search"
+                :placeholder="t('settings.about.licenses.filter')"
+                :aria-label="t('settings.about.licenses.filter')"
+                class="mt-3 w-full sm:max-w-sm"
+                data-testid="about-filter"
+              />
+              <div v-for="{ value: ecosystem, labelKey } in ECOSYSTEMS" :key="ecosystem" class="mt-4" :data-ecosystem="ecosystem">
+                <!--
+                  The trigger stays beside the heading; the licence summary and then the table are
+                  the row's next lines (`design.md`, *Opening and closing*).
+                -->
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <h4 class="text-sm text-highlighted">
+                    {{ t(labelKey) }}
+                    <span class="numeric text-muted">· {{ packages(ecosystem).length }}</span>
+                  </h4>
+                  <UCollapsible
+                    v-if="packages(ecosystem).length"
+                    v-model:open="open[ecosystem]"
+                    class="contents"
+                    :ui="{ content: 'order-2 basis-full' }"
+                  >
+                    <UButton
+                      color="neutral"
+                      variant="ghost"
+                      size="sm"
+                      :icon="open[ecosystem] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                      :label="open[ecosystem] ? t('settings.about.licenses.hide') : t('settings.about.licenses.show', { count: packages(ecosystem).length })"
+                      :aria-expanded="open[ecosystem]"
+                      :data-toggle="ecosystem"
+                    />
+                    <template #content>
+                      <div class="mt-1 max-h-96 overflow-auto border border-muted">
+                        <p v-if="!visible(ecosystem).length" class="p-3 text-sm text-muted">{{ t('settings.about.licenses.no_match') }}</p>
+                        <UTable
+                          v-else
+                          sticky
+                          :data="visible(ecosystem)"
+                          :columns="packageColumns"
+                          :ui="{ thead: 'eyebrow', th: 'px-3 py-1 font-normal', td: 'px-3 py-1 font-mono text-xs' }"
+                          :data-list="ecosystem"
+                        >
+                          <template #name-cell="{ row }"><span class="break-all">{{ row.original.name }}</span></template>
+                          <template #version-cell="{ row }"><span class="numeric">{{ row.original.version }}</span></template>
+                          <template #license-cell="{ row }">{{ row.original.license }}</template>
+                        </UTable>
+                      </div>
+                    </template>
+                  </UCollapsible>
+                  <ul class="order-1 flex basis-full flex-wrap gap-1.5" :aria-label="t('settings.about.licenses.column_license')">
+                    <li v-for="entry in summary(ecosystem)" :key="entry.license">
+                      <UBadge color="neutral" variant="outline" size="sm" class="font-mono">{{ entry.license }} · {{ entry.count }}</UBadge>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </template>
+          </UCard>
+        </div>
+      </template>
+    </UTabs>
   </div>
 </template>

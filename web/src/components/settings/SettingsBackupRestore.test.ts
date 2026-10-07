@@ -11,6 +11,8 @@ import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
 import settings from '@/locales/en/settings.json'
 import system from '@/locales/en/system.json'
+import { SETTINGS_SEARCH_ENTRIES } from '@/settingsSearch'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 import { downloadJson } from '@/utils/jsonFile'
 
@@ -207,5 +209,58 @@ describe('SettingsBackupRestore, import', () => {
     expect(screen.getByText('nas-settings.json')).toBeTruthy()
     expect(view.emitted('imported')).toBeUndefined()
     expect(toastAdd).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * RD-1160-01: the page in three tabs — the settings file, the full backup with its destinations,
+ * restoring one — built like every other settings page with tabs. The full backup's cards keep
+ * their own tests; here only where they stand.
+ */
+describe('SettingsBackupRestore, tabs', () => {
+  const stubs = {
+    SettingsFullBackupCard: { template: '<section data-settings-anchor="backup.full"><div data-settings-anchor="backup.full_passphrase" /><div data-settings-anchor="backup.schedule" /></section>' },
+    SettingsFullRestoreCard: { template: '<section data-settings-anchor="backup.full_restore" />' }
+  }
+  const mount = (subTab?: string) => mountComponent(SettingsBackupRestore, {
+    messages: { system, settings, common },
+    props: subTab ? { subTab } : {},
+    stubs
+  })
+  const panel = (container: Element, tab: string) => container.querySelector(`[data-tab="${tab}"]`) as HTMLElement
+
+  it('has the tabs Configuration, Full backup and Restore, in that order, the first one open', () => {
+    const { getAllByRole, container } = mount()
+
+    expect(getAllByRole('tab').map(tab => tab.textContent?.trim()))
+      .toEqual([settings.subtabs.backup.config, settings.subtabs.backup.full, settings.subtabs.backup.restore])
+    expect(panel(container, 'config').hidden).toBe(false)
+    expect(panel(container, 'full').hidden).toBe(true)
+    expect(panel(container, 'restore').hidden).toBe(true)
+  })
+
+  it('opens the tab it is handed from the address and hands a chosen one back', async () => {
+    const { container, getAllByRole, emitted } = mount('restore')
+
+    expect(panel(container, 'restore').hidden).toBe(false)
+    expect(panel(container, 'config').hidden).toBe(true)
+    await fireEvent.click(getAllByRole('tab')[1] as HTMLElement)
+    expect(emitted()['update:subTab']).toEqual([['full']])
+  })
+
+  it('puts every card and field the search finds on the tab its entry names', () => {
+    const { container } = mount()
+
+    const entries = SETTINGS_SEARCH_ENTRIES.filter(entry => entry.section === 'backup')
+    expect(entries).toHaveLength(7)
+    for (const entry of entries) {
+      expect(panel(container, entry.tab ?? '').querySelector(`[data-settings-anchor="${entry.id}"]`), entry.id).not.toBeNull()
+    }
+  })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+
+    expect(await axeViolations(container)).toBe('')
   })
 })

@@ -18,9 +18,12 @@ function anchorsInSources(): string[] {
     [...source.matchAll(/data-settings-anchor="([^"]+)"/g)].map(match => match[1] ?? ''))
 }
 
+/** Pages whose component does not follow the `Settings<Page>Tab.vue` name. */
+const PAGE_COMPONENTS: Partial<Record<string, string>> = { backup: 'SettingsBackupRestore' }
+
 /** The component that renders a settings page with sub-tabs: `routing` → `SettingsRoutingTab.vue`. */
 function pageSource(section: string): string {
-  const file = `/Settings${section.charAt(0).toUpperCase()}${section.slice(1)}Tab.vue`
+  const file = `/${PAGE_COMPONENTS[section] ?? `Settings${section.charAt(0).toUpperCase()}${section.slice(1)}Tab`}.vue`
   return Object.entries(sources).find(([path]) => path.endsWith(file))?.[1] ?? ''
 }
 
@@ -28,7 +31,7 @@ function pageSource(section: string): string {
 function tabSlots(section: string): Record<string, string> {
   const source = pageSource(section)
   const tabs = source.slice(source.indexOf('<UTabs'), source.indexOf('</UTabs>'))
-  return Object.fromEntries([...tabs.matchAll(/^( *)<template #([a-z]+)>\n([\s\S]*?)^\1<\/template>/gm)]
+  return Object.fromEntries([...tabs.matchAll(/^( *)<template #([a-z0-9]+)>\n([\s\S]*?)^\1<\/template>/gm)]
     .map(match => [match[2] ?? '', match[3] ?? '']))
 }
 
@@ -108,7 +111,7 @@ describe('the settings search registry (RD-170-15)', () => {
   })
 
   it('leads to the page and, on a page with sub-tabs, to the tab', () => {
-    expect(settingsSearchLocation({ section: 'backup' })).toEqual({ path: '/settings/backup' })
+    expect(settingsSearchLocation({ section: 'general' })).toEqual({ path: '/settings/general' })
     expect(settingsSearchLocation({ section: 'routing', tab: 'rules' }))
       .toEqual({ path: '/settings/routing', query: { tab: 'rules' } })
     expect(settingsSubTab('routing', 'rules')).toBe('rules')
@@ -175,5 +178,21 @@ describe('the settings search registry (RD-170-15)', () => {
     expect(location('clients.browser')).toEqual({ path: '/settings/clients', query: { tab: 'browser' } })
     expect(location('system.import_history')).toEqual({ path: '/settings/system', query: { tab: 'retention' } })
     expect(location('usenet.indexers')).toEqual({ path: '/settings/usenet', query: { tab: 'indexers' } })
+  })
+
+  // RD-1160-01: three long pages split by subject; the search and every cross link open the tab.
+  it('opens the cards of Notifications, Backup & restore and About on their tab', () => {
+    const location = (id: string) => {
+      const entry = settingsSearchEntry(id)
+      return entry ? settingsSearchLocation(entry) : null
+    }
+    expect(location('notifications.targets')).toEqual({ path: '/settings/notifications', query: { tab: 'targets' } })
+    expect(location('notifications.rules')).toEqual({ path: '/settings/notifications', query: { tab: 'targets' } })
+    expect(location('notifications.history')).toEqual({ path: '/settings/notifications', query: { tab: 'history' } })
+    expect(location('backup.import')).toEqual({ path: '/settings/backup', query: { tab: 'config' } })
+    expect(location('backup.schedule')).toEqual({ path: '/settings/backup', query: { tab: 'full' } })
+    expect(location('backup.full_restore')).toEqual({ path: '/settings/backup', query: { tab: 'restore' } })
+    expect(location('about.build')).toEqual({ path: '/settings/about', query: { tab: 'about' } })
+    expect(location('about.licenses')).toEqual({ path: '/settings/about', query: { tab: 'licenses' } })
   })
 })

@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+/**
+ * *Notifications* (RD-1160-01): the targets with the rules that send to them on *Targets & rules*,
+ * what was delivered on *History* — the record no longer sits under the forms that set it up.
+ */
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
@@ -8,9 +12,13 @@ import NotificationHistory from '@/components/notifications/NotificationHistory.
 import NotificationRules from '@/components/notifications/NotificationRules.vue'
 import NotificationTargets from '@/components/notifications/NotificationTargets.vue'
 import { useFetchState } from '@/composables/useFetchState'
+import { subTabItems } from '@/composables/useSettingsSubTab'
 import SectionHeader from '@/components/SectionHeader.vue'
 
+/** Owned by the settings view, which keeps it in the address. */
+const activeTab = defineModel<string>('subTab', { default: 'targets' })
 const { t } = useI18n()
+const tabItems = computed(() => subTabItems('notifications', t))
 const targets = ref<NotificationTarget[]>([])
 const rules = ref<NotificationRule[]>([])
 const categories = ref<Category[]>([])
@@ -51,8 +59,23 @@ onMounted(load)
         level="page"
       />
     </header>
-    <NotificationTargets v-model="targets" :loading="loading" :load-error="loadError" @changed="refresh" />
-    <NotificationRules v-model="rules" :targets="targets" :categories="categories" :loading="loading" :load-error="loadError" />
-    <NotificationHistory ref="history" />
+
+    <UTabs
+      v-model="activeTab"
+      :items="tabItems"
+      :unmount-on-hide="false"
+      variant="pill"
+      class="w-full"
+    >
+      <template #targets>
+        <div class="space-y-6">
+          <NotificationTargets v-model="targets" :loading="loading" :load-error="loadError" @changed="refresh" />
+          <NotificationRules v-model="rules" :targets="targets" :categories="categories" :loading="loading" :load-error="loadError" />
+        </div>
+      </template>
+      <template #history>
+        <NotificationHistory ref="history" />
+      </template>
+    </UTabs>
   </div>
 </template>

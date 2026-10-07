@@ -59,9 +59,20 @@ describe('useSettingsSubTab', () => {
   })
 
   it('has no tabs on a page without them', async () => {
-    const { active, tabs } = await open('/settings/backup?tab=trust')
+    const { active, tabs } = await open('/settings/general?tab=trust')
     expect(tabs.value).toEqual([])
     expect(active.value).toBe('')
+  })
+
+  // RD-1160-01: the three pages split since 1.16 take their tab from the address like the others.
+  it('opens the tab of Notifications, Backup & restore and About that `?tab=` names', async () => {
+    expect((await open('/settings/notifications')).active.value).toBe('targets')
+    expect((await open('/settings/notifications?tab=history')).active.value).toBe('history')
+    expect((await open('/settings/backup')).active.value).toBe('config')
+    expect((await open('/settings/backup?tab=full')).active.value).toBe('full')
+    expect((await open('/settings/backup?tab=restore')).active.value).toBe('restore')
+    expect((await open('/settings/about?tab=licenses')).active.value).toBe('licenses')
+    expect((await open('/settings/about?tab=history')).active.value).toBe('about')
   })
 
   it('puts a chosen tab into the address, and the first one back out of it', async () => {

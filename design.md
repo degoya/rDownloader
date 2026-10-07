@@ -533,7 +533,9 @@ prevent columns from shifting during live updates.
   "advanced"; three to five of them, because a tab bar divides one line (the chip-row rule
   below), or two where the page has two subjects (*Usenet*: servers and indexers; *Accounts*:
   provider accounts and site logins; *Network*: proxies and reconnect, RD-1120-23), and every tab
-  at least one real card. Cards move with their order kept and are not
+  at least one real card. A page with fewer cards splits too when one of its subjects is long and
+  read apart from the rest (RD-1160-01; owner, 2026-10-07: the delivery history under the forms,
+  the license list under the build). Cards move with their order kept and are not
   rewritten; the page header stays above the tabs and the navbar keeps the page's name. The
   shape is the routing page's since RD-170-15: `UTabs` in `pill` variant, `:unmount-on-hide="false"`
   so every tab's data loads once and the search's anchors exist, the tab's name in the address as
@@ -551,8 +553,12 @@ prevent columns from shifting during live updates.
   bar is under it once the document is there. The tables are
   `SETTINGS_SUB_TABS` in `settingsSections.ts` and `useSettingsSubTab`; the search entries name
   their tab, and a test holds each entry to the tab slot its anchor is actually rendered in. As
-  of 1.12: Storage & rules, Bandwidth, Accounts, Usenet, Plugins, Clients & API, Network, Security
-  and System have tabs; Notifications is at five and splits with its next card.
+  of 1.16: Storage & rules, Bandwidth, Accounts, Usenet, Plugins, Clients & API, Network, Security
+  and System have tabs, and since RD-1160-01 Notifications (*Targets & rules* | *History*),
+  Backup & restore (*Configuration* | *Full backup* | *Restore*) and About (*About* | *Licenses*).
+  Below six cards, a page whose cards are separate services is split by service too (RD-1160-01;
+  owner, 2026-10-07): *FTP, SFTP, WebDAV & S3* (*FTP, SFTP & WebDAV*, *S3*) and *Media, galleries
+  & streams* (*Media*, *Galleries*, *Streams*), each service's *off* notice on its own tab.
 - **Unsaved settings are not lost without a question** (RD-180-16; owner, 2026-09-30). A view
   with a save bar knows when what is on screen differs from what was last loaded or saved, and
   `useUnsavedGuard` asks before that is lost: leaving the route asks in the app's confirmation —

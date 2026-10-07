@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/api/client'
 import en from '@/locales/en/settings.json'
+import { SETTINGS_SEARCH_ENTRIES } from '@/settingsSearch'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 import SettingsAboutTab from './SettingsAboutTab.vue'
@@ -60,8 +62,8 @@ function answer(about: unknown) {
   })) as never)
 }
 
-function mount() {
-  return mountComponent(SettingsAboutTab, { messages: { settings: en } })
+function mount(subTab?: string) {
+  return mountComponent(SettingsAboutTab, { messages: { settings: en }, props: subTab ? { subTab } : {} })
 }
 
 describe('SettingsAboutTab', () => {
@@ -152,5 +154,65 @@ describe('SettingsAboutTab', () => {
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('The service did not answer'))
     expect(container.querySelector('[data-testid="about-build"]')).toBeNull()
+  })
+})
+
+/**
+ * RD-1160-01: the licenses are long, so they have a tab of their own beside the build, its
+ * addresses and the credits — built like every other settings page with tabs.
+ */
+describe('SettingsAboutTab, tabs', () => {
+  beforeEach(() => {
+    vi.mocked(api.GET).mockReset()
+    answer(aboutAnswer())
+  })
+
+  const panel = (container: Element, tab: string) => container.querySelector(`[data-tab="${tab}"]`) as HTMLElement
+
+  it('has the tabs About and Licenses, the build on the first and the licenses on the second', async () => {
+    const { container } = mount()
+
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.trim())).toEqual([en.subtabs.about.about, en.subtabs.about.licenses])
+    await waitFor(() => expect(panel(container, 'about').querySelector('[data-testid="about-build"]')).not.toBeNull())
+    for (const card of ['about-links', 'about-credits']) {
+      expect(panel(container, 'about').querySelector(`[data-testid="${card}"]`), card).not.toBeNull()
+    }
+    expect(panel(container, 'licenses').querySelector('[data-testid="about-licenses"]')).not.toBeNull()
+    expect(panel(container, 'about').hidden).toBe(false)
+    expect(panel(container, 'licenses').hidden).toBe(true)
+  })
+
+  it('opens the tab it is handed from the address and hands a chosen one back', async () => {
+    const { container, emitted } = mount('licenses')
+
+    expect(panel(container, 'licenses').hidden).toBe(false)
+    expect(panel(container, 'about').hidden).toBe(true)
+    await fireEvent.click(screen.getAllByRole('tab')[0] as HTMLElement)
+    expect(emitted()['update:subTab']).toEqual([['about']])
+  })
+
+  it('puts every card the search finds on the tab its entry names', async () => {
+    const { container } = mount()
+
+    await waitFor(() => expect(container.querySelector('[data-testid="about-licenses"]')).not.toBeNull())
+    const entries = SETTINGS_SEARCH_ENTRIES.filter(entry => entry.section === 'about')
+    expect(entries.map(entry => entry.id)).toEqual(['about.build', 'about.licenses'])
+    for (const entry of entries) {
+      expect(panel(container, entry.tab ?? '').querySelector(`[data-settings-anchor="${entry.id}"]`), entry.id).not.toBeNull()
+    }
+  })
+
+  it('says on the licenses tab, too, that the service did not answer', async () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: undefined, error: { code: 'internal' } } as never)
+    mount('licenses')
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('The service did not answer'))
+  })
+
+  it('renders without an axe violation', async () => {
+    const { container } = mount()
+
+    await waitFor(() => expect(container.querySelector('[data-testid="about-licenses"]')).not.toBeNull())
+    expect(await axeViolations(container)).toBe('')
   })
 })

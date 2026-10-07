@@ -168,13 +168,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('torrent.upnp', 'torrent', 'settings.torrent.upnp.label', { descriptionKey: 'settings.torrent.upnp.description', terms: ['UPnP', 'NAT-PMP'] }),
   field('torrent.blocklist', 'torrent', 'settings.torrent.blocklist.label', { descriptionKey: 'settings.torrent.blocklist.description' }),
   // Media
-  card('media.media', 'media', 'settings.media.title', { descriptionKey: 'settings.media.description', terms: ['yt-dlp', 'ffmpeg', 'YouTube'] }),
-  card('media.gallery', 'media', 'settings.gallery.title', { descriptionKey: 'settings.gallery.description', terms: ['gallery-dl'] }),
-  card('media.streams', 'media', 'settings.streams.title', { descriptionKey: 'settings.streams.description', terms: ['streamlink', 'Twitch'] }),
+  card('media.media', 'media', 'settings.media.title', { tab: 'media', descriptionKey: 'settings.media.description', terms: ['yt-dlp', 'ffmpeg', 'YouTube'] }),
+  card('media.gallery', 'media', 'settings.gallery.title', { tab: 'galleries', descriptionKey: 'settings.gallery.description', terms: ['gallery-dl'] }),
+  card('media.streams', 'media', 'settings.streams.title', { tab: 'streams', descriptionKey: 'settings.streams.description', terms: ['streamlink', 'Twitch'] }),
   // Remote transfers
-  card('transfers.remote', 'transfers', 'remote.credentials.title', { descriptionKey: 'remote.description', terms: ['FTP', 'FTPS', 'SFTP', 'SSH', 'WebDAV'] }),
-  field('transfers.ssh_auto_trust', 'transfers', 'remote.settings.ssh_auto_trust', { descriptionKey: 'remote.settings.ssh_auto_trust_hint', terms: ['SSH'] }),
-  card('transfers.object_storage', 'transfers', 'remote.object_storage.title', { descriptionKey: 'remote.object_storage.description', terms: ['S3', 'MinIO', 'bucket'] }),
+  card('transfers.remote', 'transfers', 'remote.credentials.title', { tab: 'remote', descriptionKey: 'remote.description', terms: ['FTP', 'FTPS', 'SFTP', 'SSH', 'WebDAV'] }),
+  field('transfers.ssh_auto_trust', 'transfers', 'remote.settings.ssh_auto_trust', { tab: 'remote', descriptionKey: 'remote.settings.ssh_auto_trust_hint', terms: ['SSH'] }),
+  card('transfers.object_storage', 'transfers', 'remote.object_storage.title', { tab: 's3', descriptionKey: 'remote.object_storage.description', terms: ['S3', 'MinIO', 'bucket'] }),
   // Services
   card('services.switches', 'services', 'settings.services.title', { descriptionKey: 'settings.services.description', keywordsKey: `${K}.services` }),
   // Plugins
@@ -195,9 +195,9 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('tools.vendor_directory', 'tools', 'settings.vendor.directory.label', { descriptionKey: 'settings.vendor.directory.description' }),
   card('tools.managed', 'tools', 'settings.managed_tools.title', { descriptionKey: 'settings.managed_tools.description', keywordsKey: `${K}.managed_tools` }),
   // Notifications
-  card('notifications.targets', 'notifications', 'notifications.target.title', { descriptionKey: 'notifications.target.description', terms: ['ntfy', 'Gotify', 'Telegram', 'Apprise', 'SMTP', 'webhook'] }),
-  card('notifications.rules', 'notifications', 'notifications.rule.title', { descriptionKey: 'notifications.rule.description' }),
-  card('notifications.history', 'notifications', 'notifications.history.title'),
+  card('notifications.targets', 'notifications', 'notifications.target.title', { tab: 'targets', descriptionKey: 'notifications.target.description', terms: ['ntfy', 'Gotify', 'Telegram', 'Apprise', 'SMTP', 'webhook'] }),
+  card('notifications.rules', 'notifications', 'notifications.rule.title', { tab: 'targets', descriptionKey: 'notifications.rule.description' }),
+  card('notifications.history', 'notifications', 'notifications.history.title', { tab: 'history' }),
   // Clients & API
   card('clients.desktop', 'clients', 'system.pairing.title', { tab: 'desktop', keywordsKey: `${K}.desktop` }),
   card('clients.browser', 'clients', 'system.extension.pair_title', { tab: 'browser', descriptionKey: 'system.extension.why', keywordsKey: `${K}.desktop` }),
@@ -220,13 +220,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('security.sessions', 'security', 'system.sessions.title', { tab: 'sessions', descriptionKey: 'system.sessions.description' }),
   card('security.session_limits', 'security', 'system.session_limits.title', { tab: 'sessions', descriptionKey: 'system.session_limits.description' }),
   // Backup
-  card('backup.export', 'backup', 'system.backup.export.title', { descriptionKey: 'system.backup.export.description' }),
-  field('backup.export_passphrase', 'backup', 'system.backup.export.passphrase', { keywordsKey: `${K}.passphrase` }),
-  card('backup.import', 'backup', 'system.backup.import.title', { descriptionKey: 'system.backup.import.description' }),
-  card('backup.full', 'backup', 'system.backup.full.title', { descriptionKey: 'system.backup.full.description' }),
-  field('backup.full_passphrase', 'backup', 'system.backup.full.key.passphrase', { keywordsKey: `${K}.passphrase` }),
-  field('backup.schedule', 'backup', 'system.backup.full.schedule.cron', { descriptionKey: 'system.backup.full.schedule.cron_description', terms: ['cron'] }),
-  card('backup.full_restore', 'backup', 'system.backup.full_restore.title', { descriptionKey: 'system.backup.full_restore.description' }),
+  card('backup.export', 'backup', 'system.backup.export.title', { tab: 'config', descriptionKey: 'system.backup.export.description' }),
+  field('backup.export_passphrase', 'backup', 'system.backup.export.passphrase', { tab: 'config', keywordsKey: `${K}.passphrase` }),
+  card('backup.import', 'backup', 'system.backup.import.title', { tab: 'config', descriptionKey: 'system.backup.import.description' }),
+  card('backup.full', 'backup', 'system.backup.full.title', { tab: 'full', descriptionKey: 'system.backup.full.description' }),
+  field('backup.full_passphrase', 'backup', 'system.backup.full.key.passphrase', { tab: 'full', keywordsKey: `${K}.passphrase` }),
+  field('backup.schedule', 'backup', 'system.backup.full.schedule.cron', { tab: 'full', descriptionKey: 'system.backup.full.schedule.cron_description', terms: ['cron'] }),
+  card('backup.full_restore', 'backup', 'system.backup.full_restore.title', { tab: 'restore', descriptionKey: 'system.backup.full_restore.description' }),
   // System
   card('system.readiness', 'system', 'system.readiness.title', { tab: 'status' }),
   card('system.updates', 'system', 'system.updates.title', { tab: 'updates', descriptionKey: 'system.updates.description', keywordsKey: `${K}.updates`, terms: ['GitHub'] }),
@@ -236,8 +236,8 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('system.history', 'system', 'settings.history.title', { tab: 'retention', descriptionKey: 'settings.history.description' }),
   field('system.import_history', 'system', 'settings.import_history.label', { tab: 'retention', descriptionKey: 'settings.import_history.description', terms: ['NZB', 'torrent'] }),
   // About
-  card('about.build', 'about', 'settings.about.build.title'),
-  card('about.licenses', 'about', 'settings.about.licenses.title')
+  card('about.build', 'about', 'settings.about.build.title', { tab: 'about' }),
+  card('about.licenses', 'about', 'settings.about.licenses.title', { tab: 'licenses' })
 ]
 
 /**

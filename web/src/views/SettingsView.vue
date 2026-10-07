@@ -97,13 +97,13 @@ const networkTab = ref<InstanceType<typeof SettingsNetworkTab> | null>(null)
  * button, through `saveCaptcha`.
  */
 const DOCUMENT_TABS = [
-  'general', 'interface', 'linkgrabber', 'unattended', 'postprocess', 'captcha', 'torrent', 'media',
-  'transfers', 'services', 'tools'
+  'general', 'interface', 'linkgrabber', 'unattended', 'postprocess', 'captcha', 'torrent', 'services',
+  'tools'
 ]
 /**
  * On a page with sub-tabs the tab decides: routing saves itself on its categories and rules,
- * and network, security, bandwidth, Usenet and system only have document fields on some of theirs
- * (`saveBar` or `documentCard` in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its
+ * and network, security, bandwidth, Usenet, system and FTP, SFTP, WebDAV & S3 only have document
+ * fields on some of theirs (`saveBar` or `documentCard` in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its
  * update and retention fields were saved only by the button of another page.
  */
 const showSaveBar = computed(() => loaded.value && (subTabs.value.length
@@ -360,10 +360,10 @@ async function resetSettings(): Promise<void> {
             <SettingsTorrentTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'media'" class="pt-4">
-            <SettingsMediaTab :model-value="settings" />
+            <SettingsMediaTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'transfers'" class="pt-4">
-            <SettingsTransfersTab :model-value="settings" />
+            <SettingsTransfersTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'services'" class="pt-4">
             <SettingsServicesTab :model-value="settings" />
@@ -375,7 +375,7 @@ async function resetSettings(): Promise<void> {
             <SettingsToolsTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'notifications'" class="pt-4">
-            <SettingsNotificationsTab />
+            <SettingsNotificationsTab v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'clients'" class="pt-4">
             <SettingsClientsTab v-model:sub-tab="subTab" />
@@ -394,10 +394,10 @@ async function resetSettings(): Promise<void> {
             <SettingsSecurityTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'backup'" class="pt-4">
-            <SettingsBackupRestore @imported="handleSettingsImported" />
+            <SettingsBackupRestore v-model:sub-tab="subTab" @imported="handleSettingsImported" />
           </div>
           <div v-if="activeSection === 'about'" class="pt-4">
-            <SettingsAboutTab />
+            <SettingsAboutTab v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'system'" class="pt-4">
             <SettingsSystemTab

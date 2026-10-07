@@ -1022,6 +1022,28 @@
       "desktop": "Escritorio",
       "browser": "Navegador",
       "api": "API & MCP"
+    },
+    "notifications": {
+      "targets": "Destinos y reglas",
+      "history": "Historial"
+    },
+    "backup": {
+      "config": "Configuración",
+      "full": "Copia completa",
+      "restore": "Restauración"
+    },
+    "about": {
+      "about": "Acerca de",
+      "licenses": "Licencias"
+    },
+    "transfers": {
+      "remote": "FTP, SFTP y WebDAV",
+      "s3": "S3"
+    },
+    "media": {
+      "media": "Medios",
+      "galleries": "Galerías",
+      "streams": "Streams"
     }
   },
   "auto_retry": {

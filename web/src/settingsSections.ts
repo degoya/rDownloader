@@ -188,6 +188,16 @@ export const SETTINGS_SUB_TABS = {
     { value: 'servers', labelKey: 'usenet.tabs.servers', icon: 'i-lucide-server', documentCard: true },
     { value: 'indexers', labelKey: 'usenet.tabs.indexers', icon: 'i-lucide-search' }
   ],
+  // Fewer than six cards, split by service (RD-1160-01): each service has its own "off" notice.
+  media: [
+    { value: 'media', labelKey: 'settings.subtabs.media.media', icon: 'i-lucide-clapperboard', saveBar: true },
+    { value: 'galleries', labelKey: 'settings.subtabs.media.galleries', icon: 'i-lucide-images', saveBar: true },
+    { value: 'streams', labelKey: 'settings.subtabs.media.streams', icon: 'i-lucide-radio', saveBar: true }
+  ],
+  transfers: [
+    { value: 'remote', labelKey: 'settings.subtabs.transfers.remote', icon: 'i-lucide-server', saveBar: true },
+    { value: 's3', labelKey: 'settings.subtabs.transfers.s3', icon: 'i-lucide-cylinder' }
+  ],
   accounts: [
     { value: 'accounts', labelKey: 'settings.subtabs.accounts.accounts', icon: 'i-lucide-key-round' },
     { value: 'logins', labelKey: 'settings.subtabs.accounts.logins', icon: 'i-lucide-key-square' }
@@ -196,6 +206,20 @@ export const SETTINGS_SUB_TABS = {
     { value: 'desktop', labelKey: 'settings.subtabs.clients.desktop', icon: 'i-lucide-monitor' },
     { value: 'browser', labelKey: 'settings.subtabs.clients.browser', icon: 'i-lucide-puzzle' },
     { value: 'api', labelKey: 'settings.subtabs.clients.api', icon: 'i-lucide-bot' }
+  ],
+  // RD-1160-01: three pages split by their subjects rather than by a sixth card.
+  notifications: [
+    { value: 'targets', labelKey: 'settings.subtabs.notifications.targets', icon: 'i-lucide-send' },
+    { value: 'history', labelKey: 'settings.subtabs.notifications.history', icon: 'i-lucide-history' }
+  ],
+  backup: [
+    { value: 'config', labelKey: 'settings.subtabs.backup.config', icon: 'i-lucide-file-json-2' },
+    { value: 'full', labelKey: 'settings.subtabs.backup.full', icon: 'i-lucide-database-backup' },
+    { value: 'restore', labelKey: 'settings.subtabs.backup.restore', icon: 'i-lucide-archive-restore' }
+  ],
+  about: [
+    { value: 'about', labelKey: 'settings.subtabs.about.about', icon: 'i-lucide-info' },
+    { value: 'licenses', labelKey: 'settings.subtabs.about.licenses', icon: 'i-lucide-scale' }
   ]
 } as const satisfies Partial<Record<SettingsSectionValue, readonly SettingsSubTab[]>>
 

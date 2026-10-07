@@ -166,6 +166,18 @@ describe('saving before the settings document has loaded', () => {
     expect(document.querySelector('[data-settings-anchor="usenet.nntp_connections"]')).not.toBeNull()
   })
 
+  // RD-1160-01: three self-saving pages took tabs; none waits for the document or gets a save bar.
+  it.each([['notifications', 'history'], ['backup', 'restore'], ['about', 'licenses']])('opens %s on ?tab=%s without waiting for the document', async (section, tab) => {
+    vi.mocked(api.GET).mockImplementation((async () => failed) as never)
+    await mountSection(`${section}?tab=${tab}`)
+
+    await waitFor(() => expect(document.querySelector(`[data-tab="${tab}"]`)).not.toBeNull())
+    expect((document.querySelector(`[data-tab="${tab}"]`) as HTMLElement).hidden).toBe(false)
+    expect(document.querySelectorAll('[role="tabpanel"]:not([hidden])')).toHaveLength(1)
+    expect(screen.queryByTestId('settings-document-state')).toBeNull()
+    expect(button(settingsCatalogue.save)).toBeNull()
+  })
+
   it('still locks a sub-tab that shows the document without editing it', async () => {
     vi.mocked(api.GET).mockImplementation((async () => failed) as never)
     await mountSection('system')

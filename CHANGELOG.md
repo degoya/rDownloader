@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-10-07
+
+### Changed
+
+- **Long settings pages in tabs, built like the others (RD-1160-01).** *Notifications* has
+  *Targets & rules* and *History*; *Backup & restore* has *Configuration* (the settings file),
+  *Full backup* and *Restore*; *About* has *About* and *Licenses*. The tab is in the address as
+  `?tab=`, and the search and every link to a card open its tab.
+- **FTP, SFTP, WebDAV & S3 and Media, galleries & streams have tabs (RD-1160-01).** Built like
+  the other settings pages with tabs (`UTabs` in `pill`, the tab in the address as `?tab=`, the
+  search opening the right one): *FTP, SFTP & WebDAV* | *S3*, and *Media* | *Galleries* |
+  *Streams*, each service's *off* notice on its own tab. The save bar shows under the tabs that
+  edit the settings document; the S3 profiles save themselves.
+
 ## [1.15.0] - 2026-10-07
 
 ### Added
