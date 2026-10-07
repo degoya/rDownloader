@@ -219,6 +219,9 @@ impl BatchWrite<'_> {
                         source: self.intake.source,
                         url,
                         file_name: self.links.file_names[*index].as_deref(),
+                        // The name the package is created under below: the grouping has
+                        // decided it before the first link is written (RD-1140-02).
+                        package_name: Some(group.name.as_str()),
                         mime_type: None,
                     },
                     self.default_category,

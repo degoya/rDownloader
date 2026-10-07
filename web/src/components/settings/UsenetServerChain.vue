@@ -310,7 +310,7 @@ function proxyName(id: string | null | undefined): string {
             <UInputNumber v-model="form.port" required :min="1" :max="65535" :format-options="PLAIN" class="w-full" />
           </UFormField>
           <UFormField data-settings-anchor="usenet.connections" :label="t('usenet.form.connections')" name="max_connections" :description="t('usenet.form.connections_hint')" required>
-            <UInputNumber v-model="form.max_connections" required :min="1" :max="32" :format-options="WHOLE" increment decrement class="w-full" />
+            <UInputNumber v-model="form.max_connections" required :min="1" :max="32" :format-options="WHOLE" class="w-full" />
           </UFormField>
           <UFormField :label="t('usenet.form.username')" name="username">
             <UInput v-model="form.username" class="w-full" autocomplete="username" />

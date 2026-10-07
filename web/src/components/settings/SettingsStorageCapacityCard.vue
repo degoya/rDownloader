@@ -12,6 +12,7 @@ import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 import { GIB, byteModel } from '@/utils/format'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL, WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -35,8 +36,8 @@ const collisionPolicy = computed<CollisionPolicy | null>({
 <template>
   <UCard as="section" :ui="{ body: 'grid gap-4' }" data-settings-anchor="routing.storage_capacity">
     <SectionHeader :eyebrow="t('settings.storage.eyebrow')" :title="t('settings.storage.title')" :description="t('settings.storage.description')" />
-    <UFormField hint="GiB" data-settings-anchor="routing.minimum_free" :label="t('settings.storage.minimum_free.label')" :description="t('settings.storage.minimum_free.description')">
-      <UInputNumber v-model="minimumFreeGiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="mt-2 w-full" />
+    <UFormField data-settings-anchor="routing.minimum_free" :label="t('settings.storage.minimum_free.label')" :description="t('settings.storage.minimum_free.description')">
+      <NumberWithUnit v-model="minimumFreeGiB" unit="GiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="mt-2 w-full" />
     </UFormField>
     <UFormField :label="t('settings.storage.headroom.label')" :description="t('settings.storage.headroom.description')">
       <UInputNumber v-model="settings.storage_unknown_size_headroom" required :min="1" :max="64" :format-options="WHOLE" class="mt-2 w-full" />

@@ -1196,7 +1196,18 @@
     "media.cookie_profile_malformed": "The stored cookies are not a valid cookie file",
     "media.cookie_scope_empty": "The profile has no cookies for this site",
     "media.cookie_write_failed": "The temporary cookie file could not be written",
-    "plugin.invalid_url": "The plugin produced an address that is not a valid URL"
+    "plugin.invalid_url": "The plugin produced an address that is not a valid URL",
+    "postprocess.unwrap_conflict": "The folder {folder} stays as it is: {name} already exists one level up.",
+    "postprocess.unwrap_failed": "The folder {folder} could not be dissolved: {detail}",
+    "plugin.version_next_start": "Version {version} runs from the next start",
+    "plugin.version_under_test": "Version {version} is under test",
+    "plugin.superseded_none": "No superseded plugin versions",
+    "plugin.superseded_removed": "{count} superseded plugin version removed | {count} superseded plugin versions removed",
+    "plugin.superseded_partly_removed": "{count} superseded plugin version removed, {kept} kept | {count} superseded plugin versions removed, {kept} kept",
+    "settings.package_name_regex_invalid": "Package-name rule {index}: the pattern is not a valid regular expression ({detail}).",
+    "settings.package_name_regex_too_many": "At most {max} regex rules for package names.",
+    "settings.package_name_regex_too_long": "Package-name rule {index}: pattern and replacement may have at most {max} characters each.",
+    "category_rule.regex_structure_limits": "The pattern is too large to draw as a diagram."
   },
   "capabilities": {
     "media_download": "media downloads",

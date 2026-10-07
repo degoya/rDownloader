@@ -270,7 +270,7 @@
       "description": "Eine Zeile pro Passwort; leer = passwords.txt neben der Datenbank. Wird nach Paketpasswort und „kein Passwort“ probiert."
     },
     "max_files": "Maximale Dateien",
-    "max_bytes": "Maximale Größe (Bytes)",
+    "max_bytes": "Maximale entpackte Größe",
     "rar_executable": {
       "label": "Externes RAR-Werkzeug",
       "description": "Optionaler absoluter Pfad zu unrar oder 7z; Aufruf erfolgt ohne Shell."
@@ -325,6 +325,42 @@
     "direct_unpack": {
       "label": "Während des Downloads entpacken",
       "description": "Mehrteilige RAR-Archive aus Usenet werden Teil für Teil entpackt, sobald jeder Teil vollständig da ist, statt erst nach dem Download. Muss repariert werden oder fehlt einem Teil etwas, wird der Versuch verworfen und wie gewohnt danach entpackt. Braucht unrar und Platz für das Entpackte neben dem laufenden Download."
+    },
+    "unwrap_package_folder": {
+      "label": "Ordner mit Paketnamen auflösen",
+      "description": "Liegt nach der Nachbearbeitung im Paketordner nur ein einziger Ordner, der wie das Paket heißt (Release/Release/…), wird sein Inhalt eine Ebene hochgezogen und der leere Ordner entfernt. Mit Unterordnern je Archiv gilt das auch für jeden Archivordner. Überschrieben wird nie etwas. Greift nur, wenn sonst nichts im Paketordner liegt – das Quellarchiv also z. B. mit der Stufe „+Löschen“ entfernt wird."
+    },
+    "package_names": {
+      "label": "Paketnamen aufräumen",
+      "description": "Räumt den Namen eines neuen Pakets auf, bevor sein Ordner entsteht – mit denselben Regeln wie das Plugin „Tidy file names“, das die Dateien im Ordner umbenennt. Gilt nur für Namen, die rDownloader selbst ableitet (aus Dateinamen, NZB-Dateien, Torrents); einen Namen, den du angibst oder umbenennst, lässt es, wie er ist. Jede Kategorie kann die Schalter überschreiben.",
+      "strip_bracket_tags": {
+        "label": "Klammer-Tags entfernen",
+        "description": "Tags in eckigen, runden oder geschweiften Klammern wie [1080p] oder (x264) fallen weg, samt Klammern."
+      },
+      "spaces_to_dots": {
+        "label": "Leerzeichen → Punkte",
+        "description": "Big Buck Bunny → Big.Buck.Bunny"
+      },
+      "collapse_separators": {
+        "label": "Trennzeichen zusammenfassen",
+        "description": "Folgen aus Punkten, Unterstrichen, Bindestrichen und Leerzeichen werden zu einem Trennzeichen und am Anfang und Ende entfernt: Big..Buck_-_Bunny → Big.Buck.Bunny"
+      },
+      "lowercase": {
+        "label": "Kleinbuchstaben",
+        "description": "Big.Buck.Bunny → big.buck.bunny"
+      },
+      "example": "Beispiel: „{name}“ bekommt den Ordner",
+      "regex": {
+        "label": "Regex-Regeln",
+        "description": "Suchen und Ersetzen nach den Schaltern, in dieser Reihenfolge; jeder Treffer wird ersetzt, $1, $2 … setzen Gruppen ein. Höchstens 10 Regeln. Wird ein Name dabei leer, bleibt er, wie er war.",
+        "empty": "Keine Regex-Regel.",
+        "add": "Regel hinzufügen",
+        "edit": "Regel bearbeiten",
+        "remove": "Regel entfernen",
+        "move_up": "Nach oben",
+        "move_down": "Nach unten",
+        "replacement_empty": "(entfernen)"
+      }
     }
   },
   "appearance": {

@@ -56,6 +56,7 @@ pub(crate) async fn validated_category(
             .transpose()?,
         recursive_unpack: request.recursive_unpack,
         unpack_to_subfolder: request.unpack_to_subfolder,
+        unwrap_package_folder: request.unwrap_package_folder,
         direct_unpack: request.direct_unpack,
         malware_scan: request.malware_scan,
         sfv_verify: request.sfv_verify,
@@ -196,6 +197,7 @@ pub(crate) async fn validated_category_rule(
             .map(|value| value.trim_start_matches('.').to_ascii_lowercase()),
         mime_type: request.mime_type,
         name_regex: request.name_regex,
+        name_target: request.name_target,
         category_id: request.category_id,
         enabled: request.enabled,
     })

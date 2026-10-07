@@ -31,6 +31,8 @@ impl SettingsResponse {
         }
         self.validate_archives()?;
         self.validate_paths_and_tools()?;
+        self.package_name_regex =
+            crate::input_checks::package_name_regex(std::mem::take(&mut self.package_name_regex))?;
         // Ports below 1024 need elevated privileges on Unix and would make the service fail
         // to start after a restart, i.e. lock the user out of the very UI they configured.
         if self.ui_port.is_some_and(|port| port < 1024) {

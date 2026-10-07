@@ -34,7 +34,8 @@
     "withdraw_version": "Version {version} zurückziehen",
     "staged_badge": "Im Test",
     "more_hosts": "+{count} weitere",
-    "fewer_hosts": "Weniger anzeigen"
+    "fewer_hosts": "Weniger anzeigen",
+    "remove_all_superseded": "Alle entfernen"
   },
   "keys": {
     "eyebrow": "Signaturschlüssel",
@@ -102,13 +103,18 @@
     "enable": "Aktivieren",
     "disable": "Deaktivieren",
     "disabled_badge": "deaktiviert",
-    "withdraw": "Zurückziehen"
+    "withdraw": "Zurückziehen",
+    "remove_all_superseded": "Ersetzte Versionen entfernen ({count})"
   },
   "remove": {
     "title": "Plugin löschen?",
     "description": "„{name}\" wird von der Festplatte entfernt. Zum Wiederherstellen muss es neu installiert werden.",
     "superseded_title": "Abgelöste Version entfernen?",
-    "superseded_description": "Version {version} von „{name}“ wird von der Festplatte entfernt. Version {active} bleibt installiert und wird weiter geladen."
+    "superseded_description": "Version {version} von „{name}“ wird von der Festplatte entfernt. Version {active} bleibt installiert und wird weiter geladen.",
+    "superseded_all_title": "Ersetzte Versionen entfernen?",
+    "superseded_all_description": "{count} ersetzte Version wird von der Festplatte entfernt. Die Version, die jedes Plugin lädt, bleibt – ebenso eine Version, an der noch unfertige Arbeit hängt oder die für den nächsten Start gewählt oder im Test ist. | {count} ersetzte Versionen werden von der Festplatte entfernt. Die Version, die jedes Plugin lädt, bleibt – ebenso eine Version, an der noch unfertige Arbeit hängt oder die für den nächsten Start gewählt oder im Test ist.",
+    "superseded_plugin_description": "{count} ersetzte Version von „{name}“ wird von der Festplatte entfernt. Die geladene Version bleibt – ebenso eine Version, an der noch unfertige Arbeit hängt oder die für den nächsten Start gewählt oder im Test ist. | {count} ersetzte Versionen von „{name}“ werden von der Festplatte entfernt. Die geladene Version bleibt – ebenso eine Version, an der noch unfertige Arbeit hängt oder die für den nächsten Start gewählt oder im Test ist.",
+    "superseded_done": "Ersetzte Versionen – entfernt: {removed}, behalten: {kept}"
   },
   "withdraw": {
     "title": "Diesen Build zurückziehen?",
@@ -148,7 +154,9 @@
     "auto_update_hint": "Sonst wird ein Update angezeigt und per Klick installiert. Aktiv wird es in beiden Fällen erst nach einem Neustart.",
     "release_notes": "Versionshinweise ({count})",
     "release_notes_from": "aus {repository}",
-    "auto_update_global_hint": "Gilt gerade für alle Plugins: Unter „Updates“ ist „Updates aller Plugins automatisch installieren“ eingeschaltet. Schaltest du es aus, gilt wieder die Wahl dieses Plugins."
+    "auto_update_global_hint": "Gilt gerade für alle Plugins: Unter „Updates“ ist „Updates aller Plugins automatisch installieren“ eingeschaltet. Schaltest du es aus, gilt wieder die Wahl dieses Plugins.",
+    "release_notes_more": "Mehr",
+    "release_notes_less": "Weniger"
   },
   "preview": {
     "title": "Vor der Installation prüfen",

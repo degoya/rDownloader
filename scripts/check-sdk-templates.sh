@@ -9,6 +9,7 @@
 #   - manifest.toml with a `plugin_type`,
 #   - wit/rdownloader.wit, byte for byte the contract,
 #   - README.md, pointing its reader at the handbook,
+#   - CHANGES.md, the release notes the plugin index shows per version (RD-1140-03),
 #   - at least one `#[test]` under src/, so `cargo test` in a fresh scaffold proves something.
 #
 # And the versions a template states have to fit together (audit K2, K4):
@@ -91,6 +92,7 @@ for world in "${worlds[@]}"; do
     cmp -s "$WIT" "$dir/wit/rdownloader.wit" \
         || finding "sdk/templates/${world}/wit/rdownloader.wit is not the current contract"
     [[ -f "$dir/README.md" ]] || finding "sdk/templates/${world} has no README.md"
+    [[ -f "$dir/CHANGES.md" ]] || finding "sdk/templates/${world} has no CHANGES.md"
     grep -rqF '#[test]' "$dir/src" 2> /dev/null \
         || finding "sdk/templates/${world} has no unit test under src/"
 

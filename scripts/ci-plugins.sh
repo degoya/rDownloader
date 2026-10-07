@@ -151,7 +151,7 @@ package_signed() {
     mkdir -p dist/plugins dist/plugin-notes
     for plugin in "$@"; do
         version=$(sed -n 's/^version = "\(.*\)"/\1/p' "plugins/${plugin}/manifest.toml" | head -n 1)
-        # RD-160-09: the CHANGELOG entries naming this version are its notes in the index.
+        # RD-1140-03: the section of this version in the plugin's CHANGES.md is its notes in the index.
         notes=$(scripts/plugin-release-notes.sh "${plugin}" "${version}")
         if [[ -n "${notes}" ]]; then
             printf '%s\n' "${notes}" > "dist/plugin-notes/${plugin}-${version}.txt"

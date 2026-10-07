@@ -5,10 +5,16 @@ import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { TestRegexResponse, TestRegexSampleResult } from '@/api/types'
+import RegexDiagram from '@/components/routing/RegexDiagram.vue'
+import type { RegexTarget } from '@/composables/useRegexEditor'
 import type { RegexConditionKind } from '@/utils/regexBuilder'
 import { allowedKinds, buildPattern, parsePattern } from '@/utils/regexBuilder'
 
-const props = defineProps<{ pattern: string | null }>()
+const props = defineProps<{
+  pattern: string | null
+  /** The name a category rule matches (RD-1140-02): the tester's samples and title follow it. */
+  target?: RegexTarget | undefined
+}>()
 const emit = defineEmits<{ close: [result: { pattern: string | null } | null] }>()
 const { t } = useI18n()
 
@@ -18,7 +24,15 @@ const pattern = ref(props.pattern ?? '')
 const builder = reactive(initial ?? { conditions: [], caseInsensitive: false })
 const builderUsable = ref(initial !== null)
 const activeTab = ref(initial ? 'visual' : 'expert')
-const samples = ref(['Movie.2024.1080p.x265.mkv', 'Show.S01E01.720p.mp4'])
+const SAMPLES: Record<RegexTarget, string[]> = {
+  file: ['Movie.2024.1080p.x265.mkv', 'Show.S01E01.720p.mp4'],
+  package: ['Movie.2024.1080p.BluRay-GROUP', 'Show.S01.720p.WEB-GROUP'],
+  either: ['Movie.2024.1080p.x265.mkv', 'Movie.2024.1080p.BluRay-GROUP']
+}
+const target = props.target ?? 'file'
+const samples = ref([...SAMPLES[target]])
+const testerTitle = computed(() => t(target === 'file' ? 'routing.rule.regex_editor.tester_title' : `routing.rule.regex_editor.tester_title_${target}`))
+const samplePlaceholder = computed(() => t(target === 'package' ? 'routing.rule.regex_editor.package_sample_placeholder' : 'routing.rule.regex_editor.sample_placeholder'))
 
 /** Last backend evaluation with the inputs it was computed for, so stale results never render. */
 interface Evaluation { pattern: string, samples: string[], response: TestRegexResponse }
@@ -27,7 +41,6 @@ let sequence = 0
 
 const current = computed(() => pattern.value.trim())
 const upToDate = computed(() => !current.value || evaluation.value?.pattern === current.value)
-const invalid = computed(() => Boolean(current.value) && upToDate.value && evaluation.value?.response.valid === false)
 const canApply = computed(() => !current.value || (upToDate.value && evaluation.value?.response.valid === true))
 
 const tabItems = computed(() => [
@@ -94,11 +107,13 @@ async function evaluate(): Promise<void> {
   if (!requested) return void (evaluation.value = null)
   const id = ++sequence
   const requestedSamples = [...samples.value]
+  const requestedReplacement = replacing ? replaceWith.value : null
   const response = await api.POST('/api/v1/category-rules/test-regex', {
-    body: { pattern: requested, samples: requestedSamples }
+    body: { pattern: requested, samples: requestedSamples, ...(replacing ? { replacement: requestedReplacement } : {}) }
   })
   if (id !== sequence || !response.data) return
   evaluation.value = { pattern: requested, samples: requestedSamples, response: response.data }
+  replacedWith.value = requestedReplacement
 }
 
 onMounted(() => void evaluate())
@@ -126,14 +141,36 @@ function sampleIcon(index: number): { name: string, class: string, label: string
     : { name: 'i-lucide-x', class: 'text-muted', label: t('routing.rule.regex_editor.no_match') }
 }
 
+/**
+ * The replacement mode (RD-1140-05): given a `replacement`, the editor edits a package-name regex
+ * rule — a pattern and what every match becomes — and shows what each sample turns into, from
+ * the same engine the rule runs with. Without it, nothing here applies.
+ */
+const replacement = defineModel<string | null | undefined>('replacement')
+const replacing = typeof replacement.value === 'string'
+const replaceWith = ref(replacement.value ?? '')
+/** The replacement the shown results were computed with. */
+const replacedWith = ref<string | null>(null)
+const PACKAGE_NAME_SAMPLES = ['Big Buck Bunny [1080p]', 'Sintel_Directors_Cut_Update_v1.0.2_EXAMPLE']
+if (replacing) samples.value = [...PACKAGE_NAME_SAMPLES]
+const modalTitle = computed(() => t(replacing ? 'routing.rule.regex_editor.replacement_title' : 'routing.rule.regex_editor.title'))
+watchDebounced(replaceWith, () => void evaluate(), { debounce: 300 })
+
+/** What sample `index` becomes, once the shown evaluation is the current one. */
+function replacedText(index: number): string | null {
+  if (replacedWith.value !== replaceWith.value) return null
+  return sampleResult(index)?.replaced ?? null
+}
+
 function submit(): void {
   if (!canApply.value) return
-  emit('close', { pattern: current.value || null })
+  const result = replacing ? { pattern: current.value || null, replacement: replaceWith.value } : { pattern: current.value || null }
+  emit('close', result)
 }
 </script>
 
 <template>
-  <UModal :title="t('routing.rule.regex_editor.title')" :description="t('routing.rule.regex_editor.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ content: 'sm:max-w-2xl' }">
+  <UModal :title="modalTitle" :description="t('routing.rule.regex_editor.description')" :close="{ onClick: () => emit('close', null) }" :ui="{ content: 'sm:max-w-2xl' }">
     <template #body>
       <div class="space-y-4">
         <UTabs v-model="activeTab" :items="tabItems" size="sm">
@@ -166,14 +203,17 @@ function submit(): void {
             </div>
           </template>
         </UTabs>
-        <UAlert v-if="invalid" color="error" :title="t('routing.rule.regex_editor.invalid_pattern')" :description="evaluation?.response.error ?? undefined" :ui="{ description: 'font-mono text-xs break-all' }" />
+        <UFormField v-if="replacing" :label="t('routing.rule.regex_editor.replacement_label')" :description="t('routing.rule.regex_editor.replacement_description')">
+          <UInput v-model="replaceWith" class="w-full font-mono" placeholder="$1" data-testid="regex-replacement" />
+        </UFormField>
+        <RegexDiagram v-if="current" :response="evaluation?.response ?? null" :stale="!upToDate" />
         <div>
-          <p class="eyebrow">{{ t('routing.rule.regex_editor.tester_title') }}</p>
+          <p class="eyebrow">{{ testerTitle }}</p>
           <div class="mt-2 space-y-2">
             <div v-for="(sample, index) in samples" :key="index" class="flex items-start gap-2">
               <UIcon :name="sampleIcon(index).name" :class="sampleIcon(index).class" :aria-label="sampleIcon(index).label" class="mt-2 size-4 shrink-0" />
               <div class="min-w-0 flex-1">
-                <UInput v-model="samples[index]" class="w-full font-mono" :placeholder="t('routing.rule.regex_editor.sample_placeholder')" />
+                <UInput v-model="samples[index]" class="w-full font-mono" :placeholder="samplePlaceholder" />
                 <p v-if="sampleParts(index)" class="mt-1 truncate font-mono text-2xs text-muted">{{ sampleParts(index)!.before }}<span class="bg-primary/20 text-primary">{{ sampleParts(index)!.match }}</span>{{ sampleParts(index)!.after }}</p>
               </div>
               <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('routing.rule.regex_editor.remove_sample')" @click="removeSample(index)" />
@@ -181,6 +221,13 @@ function submit(): void {
             <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('routing.rule.regex_editor.add_sample')" @click="addSample" />
           </div>
         </div>
+        <ul v-if="replacing" class="space-y-1" data-testid="regex-replaced">
+          <template v-for="(sample, index) in samples" :key="index">
+            <li v-if="replacedText(index) !== null" class="break-all font-mono text-2xs text-muted">
+              {{ sample }} <span class="font-sans">{{ t('routing.rule.regex_editor.replaced_as') }}</span> <span class="text-highlighted">{{ replacedText(index) }}</span>
+            </li>
+          </template>
+        </ul>
       </div>
     </template>
     <template #footer>

@@ -885,6 +885,11 @@ report `execution_count` per plugin. Where no such number exists and none can be
 the honest move is to leave the control and say why in a comment, not to start loading
 everything up front; abandoning load-on-demand is a decision that needs a measurement behind it.
 
+The same holds for a **"More" under a long text**: a release note from an older plugin index can
+run to 2000 characters, so it is clamped to three lines with a *More* link that shows it whole
+and then reads *Less* — and a short note gets neither the clamp nor the link, since there is
+nothing behind it (`PluginVersionPanel`, RD-1140-03).
+
 **Where an empty view is right.** The rule is about controls, not about emptiness, and there are
 three places where showing nothing is the answer rather than a failure of one:
 
@@ -1017,7 +1022,12 @@ Nuxt UI has no counterpart and the markup would otherwise drift — `FormListLay
 replacements for it.
 
 **Time, date and form validation (owner, 2026-10-06).** A time or a date is `UInputTime` /
-`UInputDate`, never the browser's `<input type="time">` or `type="date"` (RD-1120-23). A new form is
+`UInputDate`, never the browser's `<input type="time">` or `type="date"` (RD-1120-23). A date is
+typed or picked: every date field is a `DateField`, the `UInputDate` with a calendar button in its
+`#trailing` slot that opens a `UCalendar` in a `UPopover` — Nuxt UI's documented form. The model
+is the `YYYY-MM-DD` day the settings keep, a pick closes the calendar, `min`/`max` and `disabled`
+reach both halves, and week start and month names follow the interface's language. A bare
+`UInputDate` outside `DateField` fails `nuxtUiFirst.test.ts` (RD-1140-09). A new form is
 a `UForm` with a schema, so its validation and field errors come from Nuxt UI; an existing form is
 moved to `UForm` the next time it is changed for another reason, not in a sweep of its own.
 
@@ -1688,11 +1698,11 @@ underneath, or from a glyph. Concretely (RD-109-30):
   figure twice.
 
 **Why a queued file does not start is a line under the row, not a state of its own**
-(RD-1130-02). A file whose host has no free connection — two files of one hoster fill its six —
-stays `Queued`, leaves its place among the parallel downloads to a file of another host, and
-says so in a muted line under the row: `i-lucide-hourglass` and *Waiting for a connection to
-<host>*, the shape of the next-attempt line of a file waiting to retry. The line goes when the
-file starts or stops being queued. It used to start all the same and stand as *Downloading* with
+(RD-1130-02). A file whose host has no free connection — its running files hold all six, or
+as many files of it are starting — stays `Queued`, leaves its place among the parallel downloads
+to a file of another host, and says so in a muted line under the row: `i-lucide-hourglass` and
+*Waiting for a connection to <host>*, the shape of the next-attempt line of a file waiting to
+retry. The line goes when the file starts or stops being queued. It used to start all the same and stand as *Downloading* with
 0 B, a state the row could not keep.
 
 **The wrap width is measured, and this is the measurement.** The row sits in `UDashboardPanel`'s
@@ -1836,21 +1846,56 @@ parses and formats in the interface language — German and French type and read
   whole and without a thousands separator; `DECIMAL` for sizes in MiB or GiB, two places; `RATIO`
   for seed ratios, three. A field with decimals sets `:step-snapping="false"`, or the default step
   of 1 rounds 1,5 to 2.
-- **The unit is the field's `hint`** (`hint="MiB/s"` on its `UFormField`): the number field has no
-  trailing slot. A field without a `UFormField` puts the unit beside it as an outline `UBadge` in a
-  `UFieldGroup`.
+- **The unit is attached to the field** (RD-1140-08): `NumberWithUnit` (`unit="MiB/s"`) sets the
+  `UInputNumber` and an outline `UBadge` with the unit in one `UFieldGroup`, so the unit ends the
+  field it belongs to. It is never the `hint` of the `UFormField`: the hint stands at the right end
+  of the label row, and with two fields side by side and long descriptions `MiB` landed in the
+  middle of the card and `s` at its edge, far from either field (`nuxtUiFirst.test.ts` refuses a
+  unit as a hint). A field without a `UFormField` takes the same group. A size is typed in MiB or
+  GiB through `byteModel` and stored in bytes; no field asks for raw bytes.
 - **Empty is decided per field.** The field reports an emptied value as `undefined`. An optional
   field — the DTO's `Option`, read as *inherit*, *unlimited* or *no limit* — sends `null`, through
   `orNull` or a byte model, never a key the body drops. An obligatory field carries `required`: in
   a `<form>` the browser holds the submit; the settings document's save button is disabled and
   says *A number field is empty* while one of its plain-number fields is (`emptyNumberFields`); a
   form whose fields sit outside a `<form>` checks with `isNumber` before it sends.
-- **No plus and minus, except on a small count.** `uiTheme.ts` turns the stepper buttons off
-  for every field: a number is typed, and the arrow keys and the wheel still step. A count of at
-  most 32 steps between `min` and `max` — parallel downloads, connections, chunks — names
-  `increment decrement` and shows them, because there a click or two is quicker than typing and
-  the bound is in reach. On a port, a timeout in seconds or a retention of 500 000 records the
-  buttons offer a step nobody takes and cost the field a third of its width at 390 px.
+- **No plus and minus, except on a count one clicks.** `uiTheme.ts` turns the stepper buttons off
+  for every field: a number is typed, and the arrow keys and the wheel still step. A count a person
+  typically clicks — parallel downloads, connections, chunks, retries, rounds — names `increment
+  decrement` and shows them, because there a click or two is quicker than typing; the range may be
+  wider than 32 steps (retries go to 100). On a port, a timeout in seconds or a retention of
+  500 000 records the buttons offer a step nobody takes and cost the field a third of its width at
+  390 px.
+- **The number fields of one group look alike** (RD-1140-08). A card or a block of fields under
+  one switch is a group: all of its number fields show plus and minus, or none does. A group of
+  counts shows them on every count; a group that mixes a count with a duration, a size or a port
+  shows them on none, the count included.
+
+### Regex Diagram
+
+The regex editor (`RegexEditorModal.vue`) draws its pattern under the input as a diagram
+(`RegexDiagram.vue`, RD-1140-06), so a pattern can be read before it is saved.
+
+- **The service parses, the interface draws.** The structure is the tester's answer
+  (`structure` of `POST /api/v1/category-rules/test-regex`, parsed with `regex-syntax`, the grammar
+  the rules run with), never a JavaScript regex library, which reads classes and flags otherwise.
+  It follows the input with the samples' debounce; while a newer pattern is on its way the old
+  diagram dims.
+- **One row of boxes joined by lines**, a dot at each end. Text is one mono outline badge per run
+  of characters; placeholders (*Any digit*, *Any character*, Unicode and ASCII classes) are
+  secondary subtle badges; anchors and boundaries (*Starts with*, *Ends here*, *Word boundary*) are
+  neutral soft badges; flags a warning badge with *From here on*.
+- **Frames carry structure.** A group is a dashed primary frame labelled *Group #n* (with its name,
+  or *not captured*); alternatives, a character class and a set operation are a bordered stack
+  labelled *One of* / *None of*, one row per member. Anything repeated has ↻ min–max under it
+  (`↻ 0–1`, `↻ 1–∞`, `↻ 3`), a lazy repetition adds its word.
+- **Never wider than the dialog.** The frame scrolls sideways (`overflow-x-auto`, keyboard focusable)
+  and the drawing keeps its width (`w-max`); the page itself never scrolls at 390 px.
+- **Read out as steps.** The drawing is `aria-hidden`; the same structure is an `sr-only` ordered
+  list in the frame: *Starts with*, *then Text “http”*, *then Text “s” (optional)* …
+- **Instead of a diagram**: an invalid pattern shows the compiler's error in the error notice; a
+  valid pattern past the depth or node limit says so in one muted line (the code
+  `category_rule.regex_structure_limits`).
 
 ### Empty States, Notices, Opening and Dividers
 

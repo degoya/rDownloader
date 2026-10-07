@@ -6,11 +6,13 @@ import { api } from '@/api/client'
 import type { ObjectStorageProfile, PostprocessLevel, PostprocessPluginStep, Settings, UploadDestination } from '@/api/types'
 import { enabledObjectStorageProfiles, uploadRemoteFor } from '@/composables/useObjectStorageProfiles'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
-import { MIB, byteModel, postprocessLevelItems } from '@/utils/format'
+import { GIB, MIB, byteModel, postprocessLevelItems } from '@/utils/format'
 import { withPluginVersion } from '@/utils/pluginVersion'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsMalwareScan from '@/components/SettingsMalwareScan.vue'
+import SettingsPackageNameRules from '@/components/SettingsPackageNameRules.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL, WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -116,6 +118,13 @@ const sampleMiB = byteModel(
   MIB,
   '0'
 )
+// Obligatory and above zero: an emptied field falls back to the default of 100 GiB.
+const archiveMaxGiB = byteModel(
+  () => settings.value.archive_max_uncompressed_bytes,
+  (raw) => { settings.value.archive_max_uncompressed_bytes = raw ?? String(100 * GIB) },
+  GIB,
+  String(100 * GIB)
+)
 </script>
 
 <template>
@@ -136,6 +145,9 @@ const sampleMiB = byteModel(
     </UFormField>
     <UFormField data-settings-anchor="postprocess.unpack_to_subfolder" :label="t('settings.postprocess.unpack_to_subfolder.label')" :description="t('settings.postprocess.unpack_to_subfolder.description')" orientation="horizontal">
       <USwitch v-model="settings.unpack_to_subfolder" data-testid="unpack-to-subfolder" />
+    </UFormField>
+    <UFormField data-settings-anchor="postprocess.unwrap_package_folder" :label="t('settings.postprocess.unwrap_package_folder.label')" :description="t('settings.postprocess.unwrap_package_folder.description')" orientation="horizontal">
+      <USwitch v-model="settings.unwrap_package_folder" data-testid="unwrap-package-folder" />
     </UFormField>
     <UFormField data-settings-anchor="postprocess.direct_unpack" :label="t('settings.postprocess.direct_unpack.label')" :description="t('settings.postprocess.direct_unpack.description')" orientation="horizontal">
       <USwitch v-model="settings.direct_unpack" data-testid="direct-unpack" />
@@ -184,8 +196,8 @@ const sampleMiB = byteModel(
     <UFormField :label="t('settings.postprocess.ignore_samples.label')" :description="t('settings.postprocess.ignore_samples.description')" orientation="horizontal">
       <USwitch v-model="settings.ignore_samples" />
     </UFormField>
-    <UFormField hint="MiB" :label="t('settings.postprocess.sample_max.label')" :description="t('settings.postprocess.sample_max.description')">
-      <UInputNumber v-model="sampleMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :disabled="!settings.ignore_samples" class="w-full" />
+    <UFormField :label="t('settings.postprocess.sample_max.label')" :description="t('settings.postprocess.sample_max.description')">
+      <NumberWithUnit v-model="sampleMiB" unit="MiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :disabled="!settings.ignore_samples" class="w-full" />
     </UFormField>
     <UFormField data-settings-anchor="postprocess.passwords_file" :label="t('settings.postprocess.passwords_file.label')" :description="t('settings.postprocess.passwords_file.description')">
       <UInput v-model="settings.passwords_file" icon="i-lucide-key-round" placeholder="/config/passwords.txt" class="w-full font-mono" />
@@ -193,21 +205,22 @@ const sampleMiB = byteModel(
     <UFormField data-settings-anchor="postprocess.scripts_directory" :label="t('settings.postprocess.scripts_directory.label')" :description="t('settings.postprocess.scripts_directory.description')">
       <UInput v-model="settings.scripts_directory" icon="i-lucide-folder-code" placeholder="/config/scripts" class="w-full font-mono" />
     </UFormField>
-    <UFormField hint="s" :label="t('settings.postprocess.script_timeout.label')" :description="t('settings.postprocess.script_timeout.description')">
-      <UInputNumber v-model="settings.script_timeout_seconds" required :min="10" :max="86400" :format-options="WHOLE" class="w-full" />
+    <UFormField :label="t('settings.postprocess.script_timeout.label')" :description="t('settings.postprocess.script_timeout.description')">
+      <NumberWithUnit v-model="settings.script_timeout_seconds" unit="s" required :min="10" :max="86400" :format-options="WHOLE" class="w-full" />
     </UFormField>
     <div class="grid gap-3 sm:grid-cols-2">
       <UFormField :label="t('settings.postprocess.max_files')">
         <UInputNumber v-model="settings.archive_max_files" required :min="1" :max="1000000" :format-options="WHOLE" class="w-full" />
       </UFormField>
       <UFormField :label="t('settings.postprocess.max_bytes')">
-        <UInput v-model="settings.archive_max_uncompressed_bytes" inputmode="numeric" class="w-full font-mono" />
+        <NumberWithUnit v-model="archiveMaxGiB" unit="GiB" :min="0.01" :format-options="DECIMAL" :step-snapping="false" class="w-full" data-testid="archive-max-size" />
       </UFormField>
     </div>
     <UFormField :label="t('settings.postprocess.rar_tool')">
       <USelect v-model="settings.rar_tool" :items="rarToolItems" class="w-full" />
     </UFormField>
     <SettingsCrossLink class="-mt-3" anchor="postprocess.rar_executable" :lead="t('settings.cross_link.program_path')" />
+    <SettingsPackageNameRules v-model="settings" />
     <SettingsMalwareScan v-model="settings" />
     <UFormField data-settings-anchor="postprocess.upload" :label="t('settings.postprocess.upload.label')" :description="t('settings.postprocess.upload.description')" orientation="horizontal" class="border-t border-muted pt-4">
       <USwitch v-model="settings.upload_enabled" />

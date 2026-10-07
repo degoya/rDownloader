@@ -1,18 +1,22 @@
 //! RD-1130-02 — a file that would only wait for a connection to its host leaves its place to a
-//! file of another host.
+//! file of another host; RD-1140-07 — and waits only when its host has no connection left.
 //!
-//! Each file plans four chunks and a host allows six connections, so two files of one host
-//! fill it. The third used to be started all the same: it took one of the `max_active_files`
-//! places and then waited inside the engine, showing *Downloading* with 0 B, while a file of
-//! another host stayed queued behind it. The source is a local listener that accepts and never
-//! answers, so a started file stays started for as long as the case runs; `localhost` and
-//! `127.0.0.1` are two hosts to the limit, though one listener serves both.
+//! A starting file promises its host one connection. A host that allows two holds the third
+//! of its files back; that file used to be started all the same: it took one of the
+//! `max_active_files` places and then waited inside the engine, showing *Downloading* with
+//! 0 B, while a file of another host stayed queued behind it. The source is a local listener
+//! that accepts and never answers, so a started file stays started for as long as the case
+//! runs; `localhost` and `127.0.0.1` are two hosts to the limit, though one listener serves
+//! both.
 
 use std::{path::Path, time::Duration};
 
 use rd_core::{DownloadFile, DownloadId, DownloadState};
 use rd_scheduler::{FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
-use tokio::net::TcpListener;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+};
 
 /// Accepts every connection and holds it open without a byte of answer.
 async fn silent_listener() -> u16 {
@@ -80,6 +84,53 @@ async fn state(database: &rd_db::Database, id: DownloadId) -> DownloadState {
         .state
 }
 
+/// A hoster: `127.0.0.1` is its page and answers every request with a redirect to the same
+/// path on `localhost`, its download server, which accepts and never answers.
+async fn hoster_listener() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let port = listener.local_addr().expect("address").port();
+    tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            tokio::spawn(async move {
+                let mut raw = Vec::new();
+                let mut buffer = [0_u8; 4096];
+                while !raw.windows(4).any(|window| window == b"\r\n\r\n") {
+                    match stream.read(&mut buffer).await {
+                        Ok(0) | Err(_) => return,
+                        Ok(read) => raw.extend_from_slice(&buffer[..read]),
+                    }
+                }
+                let text = String::from_utf8_lossy(&raw).into_owned();
+                let path = text
+                    .lines()
+                    .next()
+                    .and_then(|line| line.split(' ').nth(1))
+                    .unwrap_or("/")
+                    .to_owned();
+                let on_the_page = text.lines().any(|line| {
+                    line.split_once(':').is_some_and(|(key, value)| {
+                        key.trim().eq_ignore_ascii_case("host")
+                            && value.trim().starts_with("127.0.0.1")
+                    })
+                });
+                if on_the_page {
+                    let redirect = format!(
+                        "HTTP/1.1 302 Found\r\nlocation: http://localhost:{port}{path}\r\n\
+                         content-length: 0\r\nconnection: close\r\n\r\n"
+                    );
+                    let _ = stream.write_all(redirect.as_bytes()).await;
+                    let _ = stream.shutdown().await;
+                    return;
+                }
+                // The download server: held open, never a byte.
+                let _held = stream;
+                std::future::pending::<()>().await;
+            });
+        }
+    });
+    port
+}
+
 /// Waits for the dispatch pass, which runs twice a second, to have started `id`.
 async fn until_started(database: &rd_db::Database, id: DownloadId) {
     for _ in 0..100 {
@@ -105,6 +156,7 @@ async fn a_file_waiting_for_its_host_leaves_its_place_to_another_host() {
         database.clone(),
         SchedulerConfig {
             max_active_files: 3,
+            max_connections_per_host: 2,
             ..SchedulerConfig::for_directory(directory.path().join("downloads"))
         },
         secrets,
@@ -133,7 +185,7 @@ async fn a_file_waiting_for_its_host_leaves_its_place_to_another_host() {
     assert_eq!(
         waiting.len(),
         1,
-        "two files fill the host's six connections, the third waits"
+        "two starting files take the host's two connections, the third waits"
     );
     let waits = scheduler.host_waits().await;
     assert_eq!(
@@ -145,6 +197,61 @@ async fn a_file_waiting_for_its_host_leaves_its_place_to_another_host() {
         !waits.contains_key(&other_host.id),
         "a started file waits for nothing"
     );
+
+    scheduler.shutdown().await.expect("shutdown");
+}
+
+/// RD-1140-07 — a hoster's files run side by side. Each file of the hoster page promised its
+/// host as many connections as it planned chunks, six of six here, and the bytes came from
+/// another host, so nothing ever took the promise back: one file ran, the others waited
+/// (1.13.0, DDownload). The download server never answers, so no file reaches the engine and
+/// only the promise could have let the next one start.
+#[tokio::test]
+async fn files_of_a_hoster_downloaded_from_another_host_run_side_by_side() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let port = hoster_listener().await;
+    let database = rd_db::Database::open(directory.path().join("hoster-wait.sqlite3"))
+        .await
+        .expect("database");
+    let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
+        .await
+        .expect("secrets");
+    let scheduler = SchedulerHandle::start(
+        database.clone(),
+        SchedulerConfig {
+            max_active_files: 3,
+            max_chunks_per_file: 6,
+            max_connections_per_host: 6,
+            ..SchedulerConfig::for_directory(directory.path().join("downloads"))
+        },
+        secrets,
+        None,
+        Vec::new(),
+    )
+    .await
+    .expect("scheduler");
+    let mut files = Vec::new();
+    for _ in 0..3 {
+        files.push(file(&scheduler, directory.path(), "127.0.0.1", port).await);
+    }
+
+    let mut states = Vec::new();
+    for _ in 0..50 {
+        states.clear();
+        for download in &files {
+            states.push(state(&database, download.id).await);
+        }
+        if states.iter().all(|state| *state != DownloadState::Queued) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert!(
+        states.iter().all(|state| state.is_working()),
+        "three files of one hoster run at once: {states:?}"
+    );
+    let waits = scheduler.host_waits().await;
+    assert!(waits.is_empty(), "no file waits for its host: {waits:?}");
 
     scheduler.shutdown().await.expect("shutdown");
 }

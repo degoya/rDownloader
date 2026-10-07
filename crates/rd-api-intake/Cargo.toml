@@ -30,6 +30,7 @@ rd-subscription = { path = "../rd-subscription" }
 rd-torrent = { path = "../rd-torrent" }
 rd-webdav = { path = "../rd-webdav" }
 regex.workspace = true
+regex-syntax.workspace = true
 reqwest.workspace = true
 secrecy.workspace = true
 serde.workspace = true

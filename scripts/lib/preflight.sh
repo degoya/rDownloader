@@ -9,7 +9,8 @@
 #
 #   scripts/check.sh --preflight
 #
-# Runs: git diff --check, the job layout, the version copies, the action pins, cargo fmt, the
+# Runs: git diff --check, the job layout, the version copies, the action pins, the plugin release
+# notes, cargo fmt, the
 # rd-api test map and the Rust test inputs map, gitleaks over the tree the public export would
 # publish, bash -n, shellcheck, actionlint, and every script test. No lock (rustfmt writes nothing
 # to target/), no green record. The stages are check.sh's own: a --full run goes through the same
@@ -49,6 +50,12 @@ rd_file_checks() {
     # the workflow's token.
     step "the workflows: every action pinned to a commit"
     attempt scripts/check-actions-pinned.sh
+
+    # The plugin release notes (RD-1140-03): every bundled plugin's version has its section in
+    # its CHANGES.md, short and for users. A section is written with the version raise, and
+    # CHANGES.md is documentation (rd_inert_path), so this runs whatever the change touched.
+    step "the plugin release notes: every version has its section, short and for users"
+    attempt scripts/plugin-release-notes.sh --check
 }
 
 # The rd-api test map is only as good as its upkeep: a row naming a suite that is gone, a suite

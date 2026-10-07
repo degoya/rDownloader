@@ -11,7 +11,7 @@ import { reactive } from 'vue'
 
 import settingsMessages from '@/locales/en/settings.json'
 import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, unitOf } from '@/test/mount'
 
 vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn() } }))
 
@@ -32,5 +32,19 @@ describe('the media card', () => {
 
   it('holds the save while the probe timeout is empty', async () => {
     expect(await clear(settingsMessages.media.check_timeout.label)).toEqual(['media_check_timeout_seconds'])
+  })
+})
+
+/** RD-1140-08: a count beside a duration looks like it — no plus and minus — and the seconds stand at their field. */
+describe('the media card number fields', () => {
+  it('shows the two fields alike, the unit at the duration', () => {
+    mountComponent(SettingsMediaCard, { messages: { settings: settingsMessages }, props: { modelValue: reactive(defaultSettings()) } })
+
+    const parallel = screen.getByLabelText(settingsMessages.media.max_parallel.label)
+    const duration = screen.getByLabelText(settingsMessages.media.check_timeout.label)
+    expect(parallel.hasAttribute('data-steppers')).toBe(false)
+    expect(duration.hasAttribute('data-steppers')).toBe(false)
+    expect(unitOf(duration)).toBe('s')
+    expect(unitOf(parallel)).toBeNull()
   })
 })

@@ -22,9 +22,11 @@ use crate::{
 pub(crate) const MAX_PLUGIN_PACKAGE_BYTES: usize = 65 * 1024 * 1024;
 
 mod install;
+mod superseded;
 mod trust;
 
 pub use install::*;
+pub use superseded::*;
 pub use trust::*;
 
 #[utoipa::path(get, path = "/api/v1/plugins", tag = "plugins", responses((status = 200, body = PluginInventoryResponse)))]
@@ -212,6 +214,47 @@ pub(crate) async fn refuse_version_in_use(
             .with_param("names", names));
     }
     Ok(())
+}
+
+/// Removes one installed version as `remove_plugin_version` does, audited with its `source`.
+///
+/// Shared by the removals that take several versions at once — a bundled service (RD-180-14)
+/// and every superseded version (RD-1140-04) — which refresh the provider rows once at the end
+/// rather than per version. The caller has already asked `refuse_version_in_use`. Answers
+/// whether the version was still there: gone in between, by another request, there is nothing
+/// left to forget or to record.
+pub(crate) async fn remove_installed_version(
+    state: &AppState,
+    audit: &crate::audit::AuditContext,
+    manifest: &rd_plugin_host::PluginManifest,
+    source: &str,
+) -> Result<bool, ApiError> {
+    let id = manifest.id.to_string();
+    let removed = state
+        .plugins
+        .remove_version(&id, &manifest.version)
+        .await
+        .map_err(|error| {
+            let reason = format!("{error:#}");
+            ApiError::bad_request("plugin.remove_failed", reason.clone())
+                .with_param("reason", reason)
+        })?;
+    if !removed {
+        return Ok(false);
+    }
+    crate::plugin_lifecycle::forget_version(state, &id, &manifest.version).await?;
+    announce_plugin(state, &id, "removed");
+    crate::audit::record(
+        state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::PluginRemoved)
+            .by(audit)
+            .target("plugin", &id)
+            .named(manifest.name.clone())
+            .detail("version", &manifest.version)
+            .detail("source", source),
+    )
+    .await;
+    Ok(true)
 }
 
 /// Tells open clients that the installed set changed.

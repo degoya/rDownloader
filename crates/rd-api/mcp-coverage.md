@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**98 capabilities, 73 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 425 REST operations, 223 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**99 capabilities, 74 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 428 REST operations, 225 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -38,7 +38,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Subscriptions | Subscriptions | 4 | `create_subscription`, `delete_subscription`, `list_subscriptions`, `update_subscription` |
 | Livestream channels | Streams | 4 | `create_stream_channel`, `delete_stream_channel`, `list_stream_channels`, `update_stream_channel` |
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
-| Installed plugins: switch and uninstall | Settings > Plugins | 3 | `list_configuration`, `set_plugin_enabled`, `uninstall_plugin_version` |
+| Installed plugins: switch and uninstall | Settings > Plugins | 5 | `list_configuration`, `remove_superseded_plugin_versions`, `set_plugin_enabled`, `uninstall_plugin_version` |
 | Choosing the bundled services | Setup wizard, Settings > Plugins | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
 | Remote jobs | Remote jobs | 6 | `choose_remote_job_entries`, `forget_remote_job`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
@@ -62,6 +62,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Rechecking a torrent and moving its files | Downloads > torrent menu | 2 | `move_torrent`, `recheck_torrent` |
 | Post-processing inventory and queue | Settings > Post-processing | 8 | `get_nzb_import`, `get_package_postprocess`, `list_postprocess_options`, `list_postprocess_queue`, `test_malware_scanner`, `update_category_postprocess` |
 | Sort and rename templates for series and films | Settings > Routing > category | 1 | `preview_category_sorting` |
+| Package-name rules, global and per category | Settings > Post-processing; Settings > Routing > category | 1 | `preview_package_name` |
 | Managed external tools | Settings > Tools | 6 | `list_managed_tools`, `manage_tool`, `refresh_tool_manifest` |
 | Storage capacity | Settings > Storage | 2 | `get_storage_capacity`, `resume_storage_target` |
 | File collision policies | Settings > General, Settings > Routing, package editor | 4 | `get_package_collision_policy`, `list_collision_policies`, `set_category_collision_policy`, `set_package_collision_policy` |

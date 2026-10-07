@@ -9,6 +9,7 @@ import UpdateDetailsModal from '@/components/UpdateDetailsModal.vue'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
 import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
 
 /**
@@ -153,8 +154,8 @@ async function checkNow(): Promise<void> {
         <USelect v-model="settings.update_channel" :items="channelItems" value-key="value" class="mt-2 w-full" data-testid="update-channel" />
       </UFormField>
       <p v-if="channelForced" class="text-xs text-muted" data-testid="update-channel-forced">{{ t('system.updates.channel_forced_stable') }}</p>
-      <UFormField hint="h" :label="t('system.updates.interval_label')" :description="t('system.updates.interval_description')">
-        <UInputNumber v-model="settings.update_check_interval_hours" required :min="1" :max="168" :format-options="WHOLE" class="mt-2 w-full" data-testid="update-interval" />
+      <UFormField :label="t('system.updates.interval_label')" :description="t('system.updates.interval_description')">
+        <NumberWithUnit v-model="settings.update_check_interval_hours" unit="h" required :min="1" :max="168" :format-options="WHOLE" class="mt-2 w-full" data-testid="update-interval" />
       </UFormField>
     </div>
 

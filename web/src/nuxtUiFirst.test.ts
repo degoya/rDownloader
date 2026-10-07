@@ -47,6 +47,8 @@ const has = (pattern: RegExp) => (tag: Tag) => pattern.test(tag.attrs)
 const own = (tag: Tag) => !/^U[A-Z]/.test(tag.name)
 const NATIVE_CONTROLS = new Set(['select', 'textarea', 'hr', 'table', 'progress', 'dialog'])
 const FRAMES = new Set(['section', 'div', 'form'])
+/** The one component that holds a `UInputDate`, its calendar beside it. */
+const DATE_FIELD = 'components/DateField.vue'
 
 const PATTERNS = {
   'card': {
@@ -60,8 +62,14 @@ const PATTERNS = {
   },
   // A time or a date is Nuxt UI's field, never the browser's (owner, 2026-10-06; RD-1120-23).
   'time-date-input': {
-    use: 'UInputTime or UInputDate',
+    use: 'UInputTime or DateField',
     matches: tag => (tag.name === 'UInput' || tag.name === 'input') && has(/\btype="(?:time|date)"/)(tag)
+  },
+  // A day is typed or picked from a calendar, which only `DateField` adds to Nuxt UI's date field
+  // (RD-1140-09); a bare `UInputDate` is the field without its calendar.
+  'bare-date-input': {
+    use: 'DateField',
+    matches: tag => tag.name === 'UInputDate' && tag.file !== DATE_FIELD
   },
   'dashed-box': {
     use: 'UEmpty',
@@ -133,6 +141,11 @@ const PATTERNS = {
   'empty-paragraph': {
     use: 'UEmpty',
     matches: tag => tag.name === 'p' && tag.firstChildOf === 'DataState'
+  },
+  // A unit stands at its number, not at the far end of the label row (RD-1140-08).
+  'unit-hint': {
+    use: 'NumberWithUnit (a UInputNumber and an outline UBadge in a UFieldGroup)',
+    matches: tag => tag.name === 'UFormField' && has(/(?<![:\w-])hint="(?:[KMGTP]?i?B(?:\/s)?|ms|s|min|h|d|%)"/)(tag)
   }
 } satisfies Record<string, Pattern>
 
@@ -143,6 +156,7 @@ const MAX: Record<PatternId, number> = {
   'card': 0,
   'number-input': 0,
   'time-date-input': 0,
+  'bare-date-input': 0,
   'dashed-box': 0,
   'drop-zone': 0,
   'file-input': 0,
@@ -158,7 +172,8 @@ const MAX: Record<PatternId, number> = {
   'focusable-element': 0,
   'native-control': 0,
   'toggle-group': 0,
-  'empty-paragraph': 0
+  'empty-paragraph': 0,
+  'unit-hint': 0
 }
 
 interface Allowance {
@@ -200,6 +215,10 @@ const ALLOWED: Allowance[] = [
   { file: 'components/CaptchaDialog.vue', pattern: 'raw-button', count: 1, design: 'design.md:688-689', quote: 'picture is a `<button>` with a name' },
   { file: 'components/SubscriptionItemSlider.vue', pattern: 'raw-button', count: 1, design: 'design.md:1316-1317', quote: 'why it is no `UCarousel`' },
   { file: 'components/SubscriptionItemSlider.vue', pattern: 'focusable-element', count: 1, design: 'design.md:1340', quote: 'The track is focusable and turns pages with the arrow keys' },
+  // The regex diagram: a group is a labelled frame of the drawing, not an empty state; the frame
+  // that scrolls a wide pattern sideways takes keyboard focus (axe scrollable-region-focusable).
+  { file: 'components/routing/RegexDiagramNode.vue', pattern: 'dashed-box', count: 1, design: 'design.md:1888', quote: 'A group is a dashed primary frame' },
+  { file: 'components/routing/RegexDiagram.vue', pattern: 'focusable-element', count: 1, design: 'design.md:1892', quote: 'keyboard focusable' },
   { file: 'components/QueueColumnHeader.vue', pattern: 'focusable-element', count: 1, design: 'design.md:1632-1633', quote: 'has no handle for a grid that is not a `UTable`; this one is the exception' },
   { file: 'components/ControlRoomLayout.vue', pattern: 'raw-link', count: 1, design: 'design.md:377-379', quote: 'not a `ULink`, because it is an in-page jump' },
   { file: 'components/NzbDropOverlay.vue', pattern: 'dashed-box', count: 1, design: 'design.md:375-377', quote: 'The overlay is a picture of the drop over the whole page, not a field' },
@@ -328,6 +347,13 @@ describe('Nuxt UI first', () => {
       expect(found['time-date-input'].map(tag => tag.line)).toEqual([5, 6])
     })
 
+    it('turns red on a date field without its calendar, anywhere but in DateField', () => {
+      const template = '  <UInputDate v-model="day" />\n  <DateField v-model="day" />'
+      expect(fixture(template)['bare-date-input'].map(tag => tag.line)).toEqual([5])
+      const inside = hits(templateTags(DATE_FIELD, `<template>\n${template}\n</template>\n`))
+      expect(inside['bare-date-input']).toEqual([])
+    })
+
     it('tells a selection row from a button coloured for a fixed case', () => {
       const found = fixture('  <UButton v-for="item in items" :key="item" :variant="mode === item ? \'soft\' : \'ghost\'" />\n  <UButton :variant="decision === \'rename\' ? \'solid\' : \'outline\'" />')
       expect(found['toggle-group'].map(tag => tag.line)).toEqual([5])
@@ -336,6 +362,11 @@ describe('Nuxt UI first', () => {
     it('finds a paragraph standing in for the empty state of a DataState, and only there', () => {
       const found = fixture('  <DataState :empty="true">\n    <p class="text-sm text-muted">Nothing</p>\n  </DataState>\n  <DataState :empty="true" />\n  <p class="text-sm text-muted">Below</p>')
       expect(found['empty-paragraph'].map(tag => tag.line)).toEqual([6])
+    })
+
+    it('turns red on a unit as the hint of a field, not on a sentence', () => {
+      const found = fixture('  <UFormField hint="MiB/s" label="Limit">\n    <UInputNumber v-model="limit" />\n  </UFormField>\n  <UFormField\n    hint="s"\n    label="Timeout"\n  />\n  <UFormField :hint="t(\'rule\')" />\n  <UFormField hint="Optional" />')
+      expect(found['unit-hint'].map(tag => tag.line)).toEqual([5, 8])
     })
 
     it('ignores a control that is only mentioned in a comment', () => {

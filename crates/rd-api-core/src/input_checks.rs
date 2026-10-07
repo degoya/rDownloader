@@ -213,6 +213,35 @@ pub async fn read_body_prefix(
     Ok(body)
 }
 
+/// A list of package-name regex pairs as it is saved (RD-1140-05): pairs with a blank pattern
+/// dropped, the rest checked by `rd_files::validate_package_name_regex`.
+///
+/// # Errors
+///
+/// `settings.package_name_regex_too_many` (`max`), `settings.package_name_regex_too_long`
+/// (`index` from 1, `max`) or `settings.package_name_regex_invalid` (`index`, `detail`).
+pub fn package_name_regex(
+    pairs: Vec<rd_core::PackageNameRegex>,
+) -> Result<Vec<rd_core::PackageNameRegex>, ApiError> {
+    let pairs: Vec<_> = pairs
+        .into_iter()
+        .filter(|pair| !pair.pattern.trim().is_empty())
+        .collect();
+    rd_files::validate_package_name_regex(&pairs).map_err(|error| {
+        let api = ApiError::bad_request(error.code(), error.to_string());
+        match error {
+            rd_files::PackageNameRegexError::TooMany { max } => api.with_param("max", max),
+            rd_files::PackageNameRegexError::TooLong { index, max } => {
+                api.with_param("index", index).with_param("max", max)
+            }
+            rd_files::PackageNameRegexError::Invalid { index, detail } => {
+                api.with_param("index", index).with_param("detail", detail)
+            }
+        }
+    })?;
+    Ok(pairs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

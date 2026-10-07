@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/usenet.json'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, openablePopover } from '@/test/mount'
 
 import UsenetQuotaEditor from './UsenetQuotaEditor.vue'
 
@@ -25,7 +25,11 @@ const SERVER = {
 }
 
 function mount() {
-  return mountComponent(UsenetQuotaEditor, { props: { server: SERVER, traffic: null }, messages: { usenet: en, common } })
+  return mountComponent(UsenetQuotaEditor, {
+    props: { server: SERVER, traffic: null },
+    messages: { usenet: en, common },
+    stubs: { UPopover: openablePopover }
+  })
 }
 
 describe('UsenetQuotaEditor', () => {
@@ -56,6 +60,20 @@ describe('UsenetQuotaEditor', () => {
     await fireEvent.submit(day.closest('form') as HTMLFormElement)
     await waitFor(() => expect(api.PUT).toHaveBeenCalled())
     expect(vi.mocked(api.PUT).mock.calls[0]?.[1]).toMatchObject({ body: { reset_on: '2027-02-15' } })
+  })
+
+  // A reset day can be picked in the calendar beside the field as well (RD-1140-09).
+  it('sends a reset day picked in the calendar', async () => {
+    vi.mocked(api.PUT).mockResolvedValue({ data: SERVER } as never)
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: en.quota.edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.date_field.open_calendar }))
+    await fireEvent.click(screen.getByRole('button', { name: '2027-01-15' }))
+    const day = screen.getByLabelText(en.quota.reset_on) as HTMLInputElement
+    expect(day.value).toBe('2027-01-15')
+    await fireEvent.submit(day.closest('form') as HTMLFormElement)
+    await waitFor(() => expect(api.PUT).toHaveBeenCalled())
+    expect(vi.mocked(api.PUT).mock.calls[0]?.[1]).toMatchObject({ body: { reset_on: '2027-01-15' } })
   })
 
   it('removes the quota by sending no limit', async () => {

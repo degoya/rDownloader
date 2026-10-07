@@ -24,7 +24,8 @@ export function categoryCopyBody(category: Category, name: string): CreateCatego
     safe_postproc: category.safe_postproc ?? null,
     delete_par2: category.delete_par2 ?? null,
     upload_enabled: category.upload_enabled ?? null,
-    upload_remote: category.upload_remote ?? null
+    upload_remote: category.upload_remote ?? null,
+    unwrap_package_folder: category.unwrap_package_folder ?? null
   }
 }
 

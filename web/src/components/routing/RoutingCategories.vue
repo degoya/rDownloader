@@ -4,11 +4,12 @@ import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage, responseError } from '@/api/client'
 import { listCollisionPolicies, setCategoryCollisionPolicy, type CollisionPolicy } from '@/api/storage'
-import type { Category, CreateCategory, SortTemplates, StorageRoot } from '@/api/types'
+import type { Category, CreateCategory, PackageNameRegex, PackageNameRulesOverride, SortTemplates, StorageRoot } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import RoutingCategoryColor from '@/components/routing/RoutingCategoryColor.vue'
+import RoutingCategoryPackageNames from '@/components/routing/RoutingCategoryPackageNames.vue'
 import RoutingCategoryPluginSteps from '@/components/routing/RoutingCategoryPluginSteps.vue'
 import RoutingCategoryRow from '@/components/routing/RoutingCategoryRow.vue'
 import RoutingCategorySorting from '@/components/routing/RoutingCategorySorting.vue'
@@ -22,6 +23,7 @@ import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh
 import { useFormFocus } from '@/composables/useFormFocus'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { categoryCopyBody, seedingRequest } from '@/utils/categoryCopy'
+import { packageNameOverrideBody } from '@/utils/packageNameRules'
 import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 import { translateServerMessage } from '@/i18n/server'
@@ -72,6 +74,16 @@ const collisionPolicies = ref<Record<string, CollisionPolicy>>({})
 const sortingOn = ref(false)
 const sorting = ref<SortingForm>(sortingForm(null))
 const sortingStored = ref<SortTemplates | null>(null)
+/**
+ * The package-name rules override (RD-1140-05), on the same endpoint as the sort templates;
+ * `packageNamesStored` is what the category had when it was opened, so a change back to
+ * "inherit" everywhere is sent too.
+ */
+const packageNames = ref<PackageNameRulesOverride | null>(null)
+const packageNamesStored = ref<PackageNameRulesOverride | null>(null)
+/** The category's own regex pairs; `null` inherits the global list, as stored for both. */
+const packageRegex = ref<PackageNameRegex[] | null>(null)
+const packageRegexStored = ref<PackageNameRegex[] | null>(null)
 
 async function loadCollisionPolicies(): Promise<void> {
   const answer = await listCollisionPolicies()
@@ -81,7 +93,8 @@ const {
   form, levelItems, scriptItems, level, script, uploadItems, upload, uploadRemote,
   recursiveItems, recursiveUnpack, subfolderItems, unpackToSubfolder, directUnpackItems, directUnpack,
   malwareScanItems, malwareScan,
-  sfvItems, sfvVerify, safePostprocItems, safePostproc, deletePar2Items, deletePar2, clear, fill
+  sfvItems, sfvVerify, safePostprocItems, safePostproc, deletePar2Items, deletePar2,
+  unwrapItems, unwrapPackageFolder, clear, fill
 } = useCategoryForm()
 
 const rootItems = computed(() => props.roots.map(root => ({ label: `${root.name} · ${root.path}`, value: root.id })))
@@ -153,6 +166,10 @@ const list = useEditableList<Category, CreateCategory>({
     sortingOn.value = false
     sorting.value = sortingForm(null)
     sortingStored.value = null
+    packageNames.value = null
+    packageNamesStored.value = null
+    packageRegex.value = null
+    packageRegexStored.value = null
   },
   confirmDelete: category => ({
     title: t('routing.category.delete_title'),
@@ -174,13 +191,17 @@ async function savePostprocessExtras(
   category: Category,
   updating: boolean,
   templates: SortTemplates | null,
-  stored: SortTemplates | null
+  stored: SortTemplates | null,
+  names: { rules: PackageNameRulesOverride | null, regex: PackageNameRegex[] | null, stored: boolean }
 ): Promise<Category | null> {
   const steps = updating && postprocess.pluginSteps.length > 0
-  if (!steps && templates === null && stored === null) return null
+  // Sent while either side has an override, like the templates: the create and update routes
+  // answer without it, so the row is only current once this endpoint has answered.
+  const namesInvolved = names.rules !== null || names.regex !== null || names.stored
+  if (!steps && templates === null && stored === null && !namesInvolved) return null
   const response = await api.PATCH('/api/v1/categories/{id}/postprocess', {
     params: { path: { id: category.id } },
-    body: categoryPostprocessBody(category, updating && pluginStepsOverride.value ? [...pluginStepIds.value] : null, templates)
+    body: categoryPostprocessBody(category, updating && pluginStepsOverride.value ? [...pluginStepIds.value] : null, templates, { rules: names.rules, regex: names.regex })
   })
   if (!response.data) {
     error.value = responseError(response)
@@ -195,6 +216,11 @@ async function submit(): Promise<void> {
   // Read before the save: a successful one empties the form.
   const templates = sortingOn.value ? sortingBody(sorting.value) : null
   const stored = sortingStored.value
+  const names = {
+    rules: packageNameOverrideBody(packageNames.value),
+    regex: packageRegex.value,
+    stored: packageNamesStored.value !== null || packageRegexStored.value !== null
+  }
   const saved = await list.submit({
     ...form,
     cleanup_extensions: cleanupOverride.value ? [...cleanupExtensions.value] : null
@@ -202,7 +228,7 @@ async function submit(): Promise<void> {
   if (!saved) return
   // The plugin steps and the sort templates ride a second endpoint, which needs an id the create
   // call has only just produced.
-  const withSteps = await savePostprocessExtras(saved, updating, templates, stored)
+  const withSteps = await savePostprocessExtras(saved, updating, templates, stored, names)
   const current = withSteps ?? saved
   if ((collisionPolicies.value[current.id] ?? null) !== collisionPolicy.value) {
     const answer = await setCategoryCollisionPolicy(current.id, collisionPolicy.value)
@@ -228,6 +254,10 @@ function edit(category: Category): void {
   sortingOn.value = Boolean(category.sorting)
   sorting.value = sortingForm(category.sorting)
   sortingStored.value = category.sorting ?? null
+  packageNames.value = category.package_name_rules ?? null
+  packageNamesStored.value = category.package_name_rules ?? null
+  packageRegex.value = category.package_name_regex ? [...category.package_name_regex] : null
+  packageRegexStored.value = category.package_name_regex ?? null
   openRootOf(category)
   collisionPolicy.value = collisionPolicies.value[category.id] ?? null
   void focusForm()
@@ -237,7 +267,7 @@ function edit(category: Category): void {
  * Copies a category and opens the copy in the form (RD-150-12).
  *
  * The copy takes every setting — root, path, post-processing, upload, cleanup, the plugin steps,
- * the sort templates and the seeding override — through the routes that set them: the create route, then the
+ * the sort templates, the package-name rules and the seeding override — through the routes that set them: the create route, then the
  * post-processing and seeding routes, which the create route does not cover. What hangs on a
  * relation stays with the original: the default mark, and the rules that point at it.
  */
@@ -253,10 +283,15 @@ async function duplicate(category: Category): Promise<void> {
     return
   }
   let copy: Category = created.data
-  if (category.plugin_steps || category.sorting) {
+  if (category.plugin_steps || category.sorting || category.package_name_rules || category.package_name_regex) {
     const steps = await api.PATCH('/api/v1/categories/{id}/postprocess', {
       params: { path: { id: copy.id } },
-      body: categoryPostprocessBody(copy, category.plugin_steps ? [...category.plugin_steps] : null, category.sorting ?? null)
+      body: categoryPostprocessBody(
+        copy,
+        category.plugin_steps ? [...category.plugin_steps] : null,
+        category.sorting ?? null,
+        { rules: category.package_name_rules ?? null, regex: category.package_name_regex ?? null }
+      )
     })
     if (steps.data) copy = steps.data
     else error.value = responseError(steps)
@@ -329,6 +364,9 @@ async function remove(category: Category): Promise<void> {
           <UFormField :label="t('routing.category.subfolder_label')" :description="t('routing.category.subfolder_description')">
             <USelect v-model="unpackToSubfolder" :items="subfolderItems" value-key="value" icon="i-lucide-folder-tree" class="w-full" />
           </UFormField>
+          <UFormField :label="t('routing.category.unwrap_label')" :description="t('routing.category.unwrap_description')">
+            <USelect v-model="unwrapPackageFolder" :items="unwrapItems" value-key="value" icon="i-lucide-folder-output" class="w-full" data-testid="category-unwrap-package-folder" />
+          </UFormField>
           <UFormField :label="t('routing.category.direct_unpack_label')" :description="t('routing.category.direct_unpack_description')">
             <USelect v-model="directUnpack" :items="directUnpackItems" value-key="value" icon="i-lucide-package-open" class="w-full" data-testid="category-direct-unpack" />
           </UFormField>
@@ -369,6 +407,7 @@ async function remove(category: Category): Promise<void> {
             <USwitch v-model="sortingOn" :aria-label="t('routing.category.sorting_title')" data-testid="category-sorting-switch" />
           </UFormField>
           <RoutingCategorySorting v-if="sortingOn" v-model="sorting" />
+          <RoutingCategoryPackageNames v-model="packageNames" v-model:regex="packageRegex" />
           <RoutingCategoryPluginSteps v-model:override="pluginStepsOverride" v-model:step-ids="pluginStepIds" />
           <FormActions
             :editing="editingId !== null"

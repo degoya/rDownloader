@@ -60,6 +60,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(auth_flow_handlers|auth_flow_service|auth_flow_guard|auth_profile_handlers)(\.rs$|/)   auth_profiles media_cookie_profile browser_session capture_intake oauth_callback
 ^crates/rd-db/src/auth_flow_store(\.rs$|/)                                                     + oauth_callback
 ^crates/rd-db/src/(config_store|usenet_store|bandwidth_store|notify_store)(\.rs$|/)          + unique_names notifications
+^crates/rd-db/src/(package_names|nzb_queue|config_store_postprocess)(\.rs$|/)                 + package_names
+^crates/rd-api(-[a-z]+)?/src/(collector_enqueue|download_handlers/create|torrent_intake|postprocess_handlers)(\.rs$|/)   + package_names
 ^crates/rd-api(-[a-z]+)?/src/auto_remove_service(\.rs$|/)                                     auto_remove
 ^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)(\.rs$|/)                 automations automation_triggers area_backup automation_dry_run
 ^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+(\.rs$|/)                                   full_backup backup_destinations backup_remote mcp service_lifecycle archive_password_backup
@@ -95,7 +97,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(login_handlers|password_handlers|step_up|passkey_handlers|oidc_handlers|qbittorrent/mod)(\.rs$|/)   + sign_in_doors
 # The password reset on the host (RD-190-24): its route, and the steps it shares with the command.
 ^crates/rd-api(-[a-z]+)?/src/(password_reset_handlers|password_reset)(\.rs$|/)                password_reset auth
-^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)(\.rs$|/)   plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_repositories plugin_auto_updates audit
+^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)(\.rs$|/)   plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_superseded plugin_repositories plugin_auto_updates audit
 # The order of a key revocation, row before live verifier (audit 1.9.1, API-13; RD-1120-19).
 ^crates/rd-api(-[a-z]+)?/src/plugin_handlers(\.rs$|/)                                        + plugin_trust
 ^crates/rd-api(-[a-z]+)?/src/plugin_bundled(\.rs$|/)                                        plugin_bundled plugin_bundled_removal audit
@@ -177,6 +179,7 @@
 ^crates/rd-core/src/history(\.rs$|/)                                                          history compat_sabnzbd mcp
 ^crates/rd-update/                                                                        updates
 ^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr container_json service_switches mcp
+^crates/rd-core/src/package_names(\.rs$|/)                                                   package_names mcp
 ^crates/rd-core/src/usenet(\.rs$|/)                                                           nzb_paused nzb_remote_job container_json indexers compat_sabnzbd mcp
 
 # --- files outside crates/ the suites read (RD-191-09, scripts/lib/rust-test-inputs.map) --------

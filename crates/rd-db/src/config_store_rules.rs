@@ -8,7 +8,7 @@ use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use super::{NewCategoryRule, config_event};
 use crate::{enum_string, error::StoreError, parse_enum, parse_id, writer::insert_event};
 
-const RULE_COLUMNS: &str = "id, name, priority, source, domain, protocol, extension, mime_type, name_regex, category_id, enabled";
+const RULE_COLUMNS: &str = "id, name, priority, source, domain, protocol, extension, mime_type, name_regex, name_target, category_id, enabled";
 
 pub(crate) async fn create_category_rule(
     connection: &mut SqliteConnection,
@@ -24,14 +24,16 @@ pub(crate) async fn create_category_rule(
         extension: input.extension,
         mime_type: input.mime_type,
         name_regex: input.name_regex,
+        name_target: input.name_target,
         category_id: input.category_id,
         enabled: input.enabled,
     };
     let now = Utc::now();
     let event = config_event(EventKind::CategoryChanged, "category_rule", value.id);
     let source = value.source.map(enum_string).transpose()?;
+    let name_target = enum_string(value.name_target)?;
     let mut tx = connection.begin().await?;
-    sqlx::query("INSERT INTO category_rules (id, name, priority, source, domain, protocol, extension, mime_type, name_regex, category_id, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO category_rules (id, name, priority, source, domain, protocol, extension, mime_type, name_regex, name_target, category_id, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(value.id.to_string())
         .bind(&value.name)
         .bind(value.priority)
@@ -41,6 +43,7 @@ pub(crate) async fn create_category_rule(
         .bind(&value.extension)
         .bind(&value.mime_type)
         .bind(&value.name_regex)
+        .bind(&name_target)
         .bind(value.category_id.to_string())
         .bind(value.enabled)
         .bind(now)
@@ -100,15 +103,18 @@ pub(crate) async fn update_category_rule(
         extension: input.extension,
         mime_type: input.mime_type,
         name_regex: input.name_regex,
+        name_target: input.name_target,
         category_id: input.category_id,
         enabled: input.enabled,
     };
     let event = config_event(EventKind::CategoryChanged, "category_rule", id);
     let source = value.source.map(enum_string).transpose()?;
+    let name_target = enum_string(value.name_target)?;
     let mut tx = connection.begin().await?;
     let updated = sqlx::query(
         "UPDATE category_rules SET name = ?, priority = ?, source = ?, domain = ?, protocol = ?, \
-         extension = ?, mime_type = ?, name_regex = ?, category_id = ?, enabled = ?, updated_at = ? \
+         extension = ?, mime_type = ?, name_regex = ?, name_target = ?, category_id = ?, \
+         enabled = ?, updated_at = ? \
          WHERE id = ?",
     )
     .bind(&value.name)
@@ -119,6 +125,7 @@ pub(crate) async fn update_category_rule(
     .bind(&value.extension)
     .bind(&value.mime_type)
     .bind(&value.name_regex)
+    .bind(&name_target)
     .bind(value.category_id.to_string())
     .bind(value.enabled)
     .bind(Utc::now())
@@ -162,6 +169,7 @@ struct RuleRow {
     extension: Option<String>,
     mime_type: Option<String>,
     name_regex: Option<String>,
+    name_target: String,
     category_id: String,
     enabled: bool,
 }
@@ -178,6 +186,7 @@ impl TryFrom<RuleRow> for CategoryRule {
             extension: row.extension,
             mime_type: row.mime_type,
             name_regex: row.name_regex,
+            name_target: parse_enum(&row.name_target)?,
             category_id: parse_id(&row.category_id)?,
             enabled: row.enabled,
         })

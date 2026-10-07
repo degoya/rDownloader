@@ -439,3 +439,6 @@ mod pause;
 
 #[path = "everything_notify_executable.rs"]
 mod notify_executable;
+
+#[path = "everything_superseded.rs"]
+mod superseded;

@@ -19,8 +19,8 @@ export const uiTheme = {
   // card shrank below its content, clipped it and left it out of the scroll height. A clip
   // keeps the rounded corners without that; `min-h-fit` was ignored by Firefox (RD-1110-17).
   card: { slots: { root: 'overflow-clip' }, defaultVariants: { variant: 'soft' } },
-  // A number is typed, not stepped (RD-1110-10, `design.md`): only a small count shows its
-  // plus and minus, by naming `increment` and `decrement` itself.
+  // A number is typed, not stepped (RD-1110-10, `design.md`): only a count one clicks shows its
+  // plus and minus, by naming `increment` and `decrement` itself, alike within its group (RD-1140-08).
   inputNumber: { defaultVariants: { increment: false, decrement: false } },
   // An empty state is a dashed outline around Nuxt UI's own padding, one spacing for every
   // one of them (RD-1110-11); a ring cannot be dashed, so the outline is a border.

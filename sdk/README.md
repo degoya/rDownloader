@@ -34,7 +34,8 @@ type written at the top of `src/lib.rs`. They are what shapes the code, so they 
 before changing it. Everything that can run without a WebAssembly toolchain lives outside the
 component, and `src/guest.rs` — the translation into the WIT vocabulary — exists only on
 `wasm32`, so `cargo test` runs every scaffold's unit tests straight away. Each carries a
-`README.md` pointing at the section of the
+`CHANGES.md` for its release notes, a `## <version>` section per version in one to three
+sentences for the people who install it, and a `README.md` pointing at the section of the
 [plugin reference](https://github.com/degoya/rDownloader/wiki/plugin-reference) for its type and
 at its page in the handbook's *Plugin development* section, which walks from the scaffold to a
 signed package in a repository of your own — the resolver's is
@@ -42,8 +43,9 @@ signed package in a repository of your own — the resolver's is
 reference's last part, *The contract*, is generated from the WIT by `scripts/wit-reference.sh`.
 CI scaffolds, builds, tests, packages and runs conformance on every one of them against the
 current contract, and `scripts/check-sdk-templates.sh` fails when a world of the contract has no
-scaffold, or when a template's `wit-bindgen`, `api_version` or `min_app_version` (the first
-release that accepts that `api_version`) or the release the workflows in `ci/` pin disagree.
+scaffold, a scaffold lacks its `README.md` or `CHANGES.md`, or a template's `wit-bindgen`,
+`api_version` or `min_app_version` (the first release that accepts that `api_version`) or the
+release the workflows in `ci/` pin disagree.
 
 The `stream-transform` scaffold is the one to read for a provider whose files are ciphertext:
 [Stream transforms](https://github.com/degoya/rDownloader/wiki/plugin-reference#stream-transforms)

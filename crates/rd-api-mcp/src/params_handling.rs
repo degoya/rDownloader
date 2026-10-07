@@ -372,6 +372,33 @@ pub(crate) struct SortPreviewParams {
     pub names: Vec<String>,
 }
 
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct PackageNamePreviewParams {
+    /// The name to try the rules on, e.g. `Big Buck Bunny [1080p]`.
+    pub name: String,
+    /// `Big Buck Bunny` -> `Big.Buck.Bunny`; omitted takes the saved global setting.
+    pub spaces_to_dots: Option<bool>,
+    /// Runs of `.`, `_`, `-` and spaces become one separator, trimmed at the ends; omitted
+    /// takes the saved global setting.
+    pub collapse_separators: Option<bool>,
+    /// `[...]`, `(...)` and `{...}` tags are removed; omitted takes the saved global setting.
+    pub strip_bracket_tags: Option<bool>,
+    /// Everything lower case; omitted takes the saved global setting.
+    pub lowercase: Option<bool>,
+    /// Regex find → replace pairs run after the switches, in order (at most 10, each pattern and
+    /// replacement at most 200 characters); omitted takes the saved global list.
+    pub regex: Option<Vec<PackageNameRegexParam>>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct PackageNameRegexParam {
+    /// A `regex`-crate expression (no backreferences, no lookaround).
+    pub pattern: String,
+    /// What every match becomes; `$1`, `${1}` or `${name}` name groups.
+    #[serde(default)]
+    pub replacement: String,
+}
+
 #[derive(Clone, Copy, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ManagedToolsView {

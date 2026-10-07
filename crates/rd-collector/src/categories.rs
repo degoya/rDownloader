@@ -1,4 +1,4 @@
-use rd_core::{CategoryId, CategoryRule, IngressSource};
+use rd_core::{CategoryId, CategoryRule, CategoryRuleNameTarget, IngressSource};
 use regex::Regex;
 use url::Url;
 
@@ -7,6 +7,9 @@ pub struct CategoryContext<'a> {
     pub source: IngressSource,
     pub url: &'a Url,
     pub file_name: Option<&'a str>,
+    /// The name of the package the link is grouped into, for a rule whose `name_regex` targets
+    /// the package (RD-1140-02).
+    pub package_name: Option<&'a str>,
     pub mime_type: Option<&'a str>,
 }
 
@@ -92,17 +95,31 @@ fn matches_rule(
                 .mime_type
                 .is_some_and(|current| current.eq_ignore_ascii_case(mime))
         })
-        && rule.name_regex.as_ref().is_none_or(|_| {
-            context
-                .file_name
-                .is_some_and(|name| name_regex.is_some_and(|regex| regex.is_match(name)))
-        })
+        && rule
+            .name_regex
+            .as_ref()
+            .is_none_or(|_| name_regex.is_some_and(|regex| names_match(rule, regex, context)))
+}
+
+/// Whether `regex` matches the name, or names, the rule's `name_target` points at; an absent
+/// name never matches.
+fn names_match(rule: &CategoryRule, regex: &Regex, context: &CategoryContext<'_>) -> bool {
+    let matches = |name: Option<&str>| name.is_some_and(|name| regex.is_match(name));
+    match rule.name_target {
+        CategoryRuleNameTarget::File => matches(context.file_name),
+        CategoryRuleNameTarget::Package => matches(context.package_name),
+        CategoryRuleNameTarget::Either => {
+            matches(context.file_name) || matches(context.package_name)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{CategoryContext, CategoryRules, select_category};
-    use rd_core::{CategoryId, CategoryRule, CategoryRuleId, IngressSource};
+    use rd_core::{
+        CategoryId, CategoryRule, CategoryRuleId, CategoryRuleNameTarget, IngressSource,
+    };
     use url::Url;
 
     fn rule(priority: i32, name_regex: &str) -> CategoryRule {
@@ -116,6 +133,7 @@ mod tests {
             extension: None,
             mime_type: None,
             name_regex: Some(name_regex.to_owned()),
+            name_target: CategoryRuleNameTarget::File,
             category_id: CategoryId::new(),
             enabled: true,
         }
@@ -137,6 +155,7 @@ mod tests {
                 source: IngressSource::Manual,
                 url: &url,
                 file_name,
+                package_name: None,
                 mime_type: None,
             };
             assert_eq!(
@@ -145,6 +164,84 @@ mod tests {
                 "{file_name:?}"
             );
             assert_eq!(select_category(&rules, &context, default), expected);
+        }
+    }
+
+    /// RD-1140-02: the pattern is matched against the name the rule targets -- a hit and a miss
+    /// for each target, and the file target (every rule stored before the choice) ignores the
+    /// package name entirely.
+    #[test]
+    fn the_name_pattern_is_matched_against_the_targeted_name() {
+        let url: Url = "https://example.test/files".parse().expect("url");
+        let default = Some(CategoryId::new());
+        let release = "Game.Update.v1.2.0.NSW-GROUP";
+        let obfuscated = "a8f3c91d0e.rar";
+        for (target, file_name, package_name, matches) in [
+            (
+                CategoryRuleNameTarget::File,
+                Some(release),
+                Some(obfuscated),
+                true,
+            ),
+            (
+                CategoryRuleNameTarget::File,
+                Some(obfuscated),
+                Some(release),
+                false,
+            ),
+            (
+                CategoryRuleNameTarget::Package,
+                Some(obfuscated),
+                Some(release),
+                true,
+            ),
+            (
+                CategoryRuleNameTarget::Package,
+                Some(release),
+                Some(obfuscated),
+                false,
+            ),
+            (CategoryRuleNameTarget::Package, Some(release), None, false),
+            (
+                CategoryRuleNameTarget::Either,
+                Some(release),
+                Some(obfuscated),
+                true,
+            ),
+            (
+                CategoryRuleNameTarget::Either,
+                Some(obfuscated),
+                Some(release),
+                true,
+            ),
+            (CategoryRuleNameTarget::Either, None, Some(release), true),
+            (
+                CategoryRuleNameTarget::Either,
+                Some(obfuscated),
+                Some(obfuscated),
+                false,
+            ),
+            (CategoryRuleNameTarget::Either, None, None, false),
+        ] {
+            let mut updates = rule(1, "(?i)update.*nsw-");
+            updates.name_target = target;
+            let context = CategoryContext {
+                source: IngressSource::Manual,
+                url: &url,
+                file_name,
+                package_name,
+                mime_type: None,
+            };
+            let expected = if matches {
+                Some(updates.category_id)
+            } else {
+                default
+            };
+            assert_eq!(
+                select_category(std::slice::from_ref(&updates), &context, default),
+                expected,
+                "{target:?} file {file_name:?} package {package_name:?}"
+            );
         }
     }
 }

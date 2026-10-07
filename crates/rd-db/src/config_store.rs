@@ -19,7 +19,10 @@ pub(crate) use categories::{create_category, delete_category, list_categories, u
 pub(crate) use hotfolders::{
     create_hotfolder, delete_hotfolder, list_hotfolders, update_hotfolder,
 };
-pub(crate) use postprocess::{set_category_seeding, sorting_json, update_category_postprocess};
+pub(crate) use postprocess::{
+    package_name_regex_json, package_name_rules_json, set_category_seeding, sorting_json,
+    update_category_postprocess,
+};
 pub(crate) use rules::{
     create_category_rule, delete_category_rule, list_category_rules, routing_config,
     update_category_rule,
@@ -57,6 +60,7 @@ pub struct NewCategory {
     pub delete_par2: Option<bool>,
     pub upload_enabled: Option<bool>,
     pub upload_remote: Option<String>,
+    pub unwrap_package_folder: Option<bool>,
 }
 
 /// A category's post-processing overrides; `None` per field inherits the global setting.
@@ -83,6 +87,12 @@ pub struct CategoryPostprocess {
     /// Sort and rename templates (RD-1100-08); `None` = no sorting. Not an override: there is
     /// no global template to inherit.
     pub sorting: Option<rd_core::SortTemplates>,
+    pub unwrap_package_folder: Option<bool>,
+    /// Package-name rules override (RD-1140-05); `None`, or an override that sets nothing,
+    /// inherits every global switch.
+    pub package_name_rules: Option<rd_core::PackageNameRulesOverride>,
+    /// Regex pairs (RD-1140-05); `None` inherits the global list, a list replaces it.
+    pub package_name_regex: Option<Vec<rd_core::PackageNameRegex>>,
 }
 
 #[derive(Clone, Debug)]
@@ -95,6 +105,7 @@ pub struct NewCategoryRule {
     pub extension: Option<String>,
     pub mime_type: Option<String>,
     pub name_regex: Option<String>,
+    pub name_target: rd_core::CategoryRuleNameTarget,
     pub category_id: CategoryId,
     pub enabled: bool,
 }
@@ -119,7 +130,7 @@ const CATEGORY_NAME_TAKEN: &str = "a category with this name already exists";
 /// A watched folder's name is unique, and so is its folder per executor (`hotfolders`).
 const HOTFOLDER_TAKEN: &str = "a watched folder with this name or folder already exists";
 
-const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json";
+const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, package_name_rules_json, package_name_regex_json, unwrap_package_folder";
 
 /// Repairs the default flag across a restored bundle.
 ///

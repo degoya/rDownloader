@@ -17,7 +17,7 @@ export interface RemoteCredentialForm {
   protocol: RemoteProtocol
   host: string
   /** Empty means "use the protocol default", which the server fills in. */
-  port: string
+  port: number | null
   username: string
   auth_mode: RemoteAuthMode
   passive: boolean
@@ -49,7 +49,7 @@ export function emptyForm(): RemoteCredentialForm {
     name: '',
     protocol: 'ftp',
     host: '',
-    port: '',
+    port: null,
     username: '',
     auth_mode: 'password',
     passive: true,
@@ -67,7 +67,7 @@ export function formFor(credential: RemoteCredential): RemoteCredentialForm {
     protocol: credential.protocol,
     host: credential.host,
     // Only show a port that differs from the default, so the field reads as "default".
-    port: credential.port === DEFAULT_PORTS[credential.protocol] ? '' : String(credential.port),
+    port: credential.port === DEFAULT_PORTS[credential.protocol] ? null : credential.port,
     username: credential.username ?? '',
     auth_mode: credential.auth_mode,
     passive: credential.passive ?? true,
@@ -78,11 +78,10 @@ export function formFor(credential: RemoteCredential): RemoteCredentialForm {
   }
 }
 
+/** The number field hands an emptied port over as `undefined`; that is the default too. */
 function portOf(form: RemoteCredentialForm): number | null {
-  const text = form.port.trim()
-  if (!text) return null
-  const parsed = Number.parseInt(text, 10)
-  return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535 ? parsed : null
+  const port = form.port
+  return typeof port === 'number' && Number.isInteger(port) && port > 0 && port <= 65535 ? port : null
 }
 
 export function toCreateBody(form: RemoteCredentialForm): CreateRemoteCredential {

@@ -158,4 +158,33 @@ describe('PluginVersionPanel', () => {
     mount(lifecycle(), ['2.0.0'])
     expect(document.querySelector('[data-release-notes]')).toBeNull()
   })
+
+  /** Notes from an older index can be 2000 characters of changelog (RD-1140-03). */
+  it('clamps long notes to three lines behind More, and short ones not at all', async () => {
+    mountComponent(PluginVersionPanel, {
+      messages: { plugins: pluginsCatalogue },
+      props: {
+        lifecycle: lifecycle(),
+        versions: ['2.0.0'],
+        releaseNotes: [
+          { version: '2.1.0', notes: 'Folder links are recognised again.', repository: 'rDownloader' },
+          { version: '2.0.0', notes: 'x'.repeat(2000), repository: 'rDownloader' }
+        ]
+      }
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Release notes (2)' }))
+    const [short, long] = Array.from(document.querySelectorAll('[data-release-notes] li'))
+    expect(short!.querySelector('.line-clamp-3')).toBeNull()
+    expect(short!.querySelector('button')).toBeNull()
+    expect(long!.querySelector('.line-clamp-3')?.textContent).toBe('x'.repeat(2000))
+
+    const more = screen.getByRole('button', { name: 'More' })
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+    await fireEvent.click(more)
+    expect(long!.querySelector('.line-clamp-3')).toBeNull()
+    const less = screen.getByRole('button', { name: 'Less' })
+    expect(less.getAttribute('aria-expanded')).toBe('true')
+    await fireEvent.click(less)
+    expect(long!.querySelector('.line-clamp-3')).not.toBeNull()
+  })
 })

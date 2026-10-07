@@ -33,7 +33,7 @@ on:
 env:
   # The rDownloader release whose `plugin index build` runs here: the release this SDK was
   # published with (`scripts/set-version.sh` writes it). `--notes` needs 1.6.0 or later.
-  RDOWNLOADER_VERSION: 1.13.0
+  RDOWNLOADER_VERSION: 1.14.0
   # The key id your index names. Choose it once: people approve your key under this id, and a
   # different id or key later means they remove and add the repository again.
   KEY_ID: example-repository-v1

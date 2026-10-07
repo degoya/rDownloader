@@ -195,6 +195,14 @@ pub(crate) struct UninstallPluginParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct RemoveSupersededPluginVersionsParams {
+    /// Plugin id as `list_configuration(section = "plugins")` reports it; every plugin when left
+    /// out.
+    #[serde(default)]
+    pub id: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct ListBundledServicesParams {
     /// Language of the names and descriptions (`de`, `en`, `es`, `fr`); English when left out.
     #[serde(default)]

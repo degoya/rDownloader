@@ -11,6 +11,7 @@
  * cannot hand a test the catalogues it needs, and a global stub registry would hide which
  * component a test actually depends on. It is a module a test imports.
  */
+import { CalendarDate, endOfMonth, getLocalTimeZone, today } from '@internationalized/date'
 import { useFileUpload } from '@nuxt/ui/composables/useFileUpload'
 import { render, type RenderResult } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
@@ -24,6 +25,17 @@ import { clockOf, dateFieldValue, dayOf, timeFieldValue } from '@/utils/timeFiel
 
 /** Renders slot content, so what sits inside a Nuxt UI wrapper is reachable in the DOM. */
 export const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
+
+/**
+ * A popover a click on its trigger opens and closes, its content rendered only while open and
+ * `update:open` reported as the real one does — for a test that has to reach the content, such as
+ * the calendar of a `DateField` (RD-1140-09). `uiStubs.UPopover` renders the trigger alone.
+ */
+export const openablePopover = {
+  props: ['open'],
+  emits: ['update:open'],
+  template: '<div><div @click="$emit(\'update:open\', !open)"><slot /></div><div v-if="open"><slot name="content" /></div></div>'
+}
 
 /** A two-way bound input, for the wrappers that carry `modelValue`. */
 const modelInput = {
@@ -81,6 +93,14 @@ export const fileUpload = defineComponent({
 })
 
 /**
+ * The unit `NumberWithUnit` attaches to a number field (RD-1140-08), read from the field's own
+ * group — the outline badge beside it; `null` for a field that stands without one.
+ */
+export function unitOf(field: Element): string | null {
+  return field.closest('[data-number-unit]')?.querySelector('[label]')?.getAttribute('label') ?? null
+}
+
+/**
  * The Nuxt UI wrappers component tests need, rendered as the plain elements they stand for.
  * Buttons keep their label and `aria-label` so accessibility checks still see a name.
  */
@@ -98,6 +118,31 @@ export const uiStubs = {
   UButton: {
     props: ['label', 'disabled', 'loading', 'ariaLabel'],
     template: '<button type="button" v-bind="$attrs" :disabled="disabled" :aria-label="ariaLabel">{{ label }}<slot /></button>'
+  },
+  /**
+   * The month of the chosen day — or of a bound, or the current one — as a button per day named
+   * `YYYY-MM-DD`, a day past a bound disabled, handing its model the `CalendarDate` the real one
+   * hands (RD-1140-09). Paging between months is the real one's business.
+   */
+  UCalendar: {
+    props: ['modelValue', 'minValue', 'maxValue', 'disabled', 'locale'],
+    emits: ['update:modelValue'],
+    computed: {
+      days(this: { modelValue?: CalendarDate, minValue?: CalendarDate, maxValue?: CalendarDate }): CalendarDate[] {
+        const shown = this.modelValue ?? this.minValue ?? this.maxValue ?? today(getLocalTimeZone())
+        const first = new CalendarDate(shown.year, shown.month, 1)
+        return Array.from({ length: endOfMonth(first).day }, (_, offset) => first.add({ days: offset }))
+      }
+    },
+    methods: {
+      outside(this: { minValue?: CalendarDate, maxValue?: CalendarDate }, date: CalendarDate): boolean {
+        return (this.minValue !== undefined && date.compare(this.minValue) < 0)
+          || (this.maxValue !== undefined && date.compare(this.maxValue) > 0)
+      }
+    },
+    template:
+      '<div role="group" v-bind="$attrs" :lang="locale"><button v-for="date in days" :key="date.toString()" type="button"'
+      + ' :disabled="disabled || outside(date)" @click="$emit(\'update:modelValue\', date)">{{ date.toString() }}</button></div>'
   },
   /** The element the card renders as, with its three regions in their real order (RD-180-22). */
   UCard: {
@@ -249,13 +294,15 @@ export const uiStubs = {
    * its model a number, and `undefined` for an emptied field as the real one does (RD-1110-10;
    * `test/inputNumber.test.ts` mounts the real one and holds both to that value). It commits on
    * every keystroke where the real one waits for blur or Enter, and it neither clamps nor reads
-   * a decimal comma; `utils/numberInput.test.ts` runs the real parser.
+   * a decimal comma; `utils/numberInput.test.ts` runs the real parser. A field that shows plus and
+   * minus carries `data-steppers` (RD-1140-08).
    */
   UInputNumber: {
     props: ['modelValue', 'formatOptions', 'stepSnapping', 'increment', 'decrement'],
     emits: ['update:modelValue'],
     template:
       '<input type="text" role="spinbutton" v-bind="$attrs" :value="modelValue ?? \'\'" '
+      + ':data-steppers="increment !== undefined && increment !== false && decrement !== undefined && decrement !== false ? \'\' : undefined" '
       + '@input="$emit(\'update:modelValue\', $event.target.value.trim() === \'\' ? undefined : Number($event.target.value))" />'
   },
   /**
@@ -269,12 +316,14 @@ export const uiStubs = {
     template:
       '<input type="text" v-bind="$attrs" :value="clockOf(modelValue)" @input="$emit(\'update:modelValue\', timeFieldValue($event.target.value))" />'
   },
+  /** Its bounds as `min`/`max`, its language as `lang`, and the `#trailing` slot after it (RD-1140-09). */
   UInputDate: {
-    props: ['modelValue'],
+    props: ['modelValue', 'minValue', 'maxValue', 'disabled', 'locale'],
     emits: ['update:modelValue'],
     methods: { dayOf, dateFieldValue },
     template:
-      '<input type="text" v-bind="$attrs" :value="dayOf(modelValue)" @input="$emit(\'update:modelValue\', dateFieldValue($event.target.value))" />'
+      '<input type="text" v-bind="$attrs" :value="dayOf(modelValue)" :min="dayOf(minValue) || undefined" :max="dayOf(maxValue) || undefined"'
+      + ' :disabled="disabled" :lang="locale" @input="$emit(\'update:modelValue\', dateFieldValue($event.target.value))" /><slot name="trailing" />'
   },
   /**
    * The combo box rendered open, with the search term where the real one keeps it: typing

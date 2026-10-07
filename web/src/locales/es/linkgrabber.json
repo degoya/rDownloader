@@ -65,7 +65,8 @@
     "checking": "{count} comprobando",
     "offline": "{count} fuera de línea",
     "unverified": "{count} no comprobables",
-    "enqueue_paused_hint": "Añadir este paquete a la lista de descargas sin iniciarlo"
+    "enqueue_paused_hint": "Añadir este paquete a la lista de descargas sin iniciarlo",
+    "queue_name_hint": "Se añade con el nombre ordenado (Ordenar nombres de paquetes); originalmente: {name}"
   },
   "candidate": {
     "select": "Seleccionar enlace",

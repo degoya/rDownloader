@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
 import settings from '@/locales/en/settings.json'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, openablePopover } from '@/test/mount'
 
 import SettingsAuthProfilesCard from './SettingsAuthProfilesCard.vue'
 
@@ -48,7 +48,7 @@ const CAPTURED = {
 }
 
 function renderCard() {
-  return mountComponent(SettingsAuthProfilesCard, { messages: { settings } })
+  return mountComponent(SettingsAuthProfilesCard, { messages: { settings }, stubs: { UPopover: openablePopover } })
 }
 
 /** A field of the form, found by the label it is announced with. */
@@ -150,6 +150,25 @@ describe('creating', () => {
     expect(await screen.findByText(en.created)).toBeTruthy()
     // The form must not keep a credential lying around after a successful save.
     await waitFor(() => expect(field(en.secret_cookies).value).toBe(''))
+  })
+
+  // The expiry day is typed or picked in the calendar beside the field (RD-1140-09).
+  it('posts an expiry day picked in the calendar as the end of that day', async () => {
+    vi.mocked(api.POST).mockResolvedValue({ data: { ...STORED, id: 'profile-3', name: 'Reports' } } as never)
+    renderCard()
+    await screen.findByText('Intranet')
+
+    await fireEvent.update(field(en.name_label), 'Reports')
+    await fireEvent.update(field(en.scope_label), 'files.example.com/reports')
+    await fireEvent.update(field(en.secret_cookies), 'session=abc')
+    await fireEvent.update(field(en.expires_label), '2027-05-01')
+    await fireEvent.click(screen.getByRole('button', { name: common.date_field.open_calendar }))
+    await fireEvent.click(screen.getByRole('button', { name: '2027-05-20' }))
+    expect(field(en.expires_label).value).toBe('2027-05-20')
+    await fireEvent.click(screen.getByRole('button', { name: en.create_action }))
+
+    await waitFor(() => expect(api.POST).toHaveBeenCalled())
+    expect(bodyOf(vi.mocked(api.POST).mock.calls).body).toMatchObject({ expires_at: '2027-05-20T23:59:59.000Z' })
   })
 
   it('surfaces a rejected credential at the form instead of pretending it worked', async () => {

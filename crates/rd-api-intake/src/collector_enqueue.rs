@@ -228,11 +228,21 @@ async fn build_and_enqueue(
         .into_iter()
         .map(|(source, stored)| (source, rd_core::TorrentJobState::from_candidate(stored)))
         .collect();
+    // A name the LinkGrabber derived gets the package-name rules of the package's category, as
+    // its `queue_name` showed; one somebody stated or renamed stays as it is (RD-1140-05).
+    let name = if package.auto_named {
+        state
+            .database
+            .tidy_package_name(&package.name, package.category_id)
+            .await?
+    } else {
+        package.name.clone()
+    };
     let (created, _) = state
         .scheduler
         .enqueue_package_with_torrents(
             PackageSpec {
-                name: package.name.clone(),
+                name,
                 destination,
                 category_id: package.category_id,
                 priority: package.priority,

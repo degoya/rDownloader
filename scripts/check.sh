@@ -264,7 +264,7 @@ fi
 source "$ROOT/scripts/lib/check-scope.sh"
 rd_check_scope
 
-# git diff --check, the job layout, the version copies and the action pins
+# git diff --check, the job layout, the version copies, the action pins and the plugin release notes
 # (scripts/lib/preflight.sh): files only, well under a second, whatever the change touched.
 rd_file_checks "$boundary"
 

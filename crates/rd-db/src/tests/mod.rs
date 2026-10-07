@@ -8,6 +8,7 @@ use mirrors::mirror_batch;
 mod auth;
 mod automations;
 mod categories;
+mod category_name_target;
 mod collector;
 mod download_batches;
 mod downloads;
@@ -22,6 +23,7 @@ mod notifications;
 mod nzb;
 mod nzb_routing;
 mod online_check;
+mod package_names;
 mod packages;
 mod recovery_volumes;
 mod remote_jobs;
@@ -70,6 +72,7 @@ async fn routing_category(
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,

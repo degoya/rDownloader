@@ -10,6 +10,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -243,9 +244,9 @@ async function remove(folder: HotFolder): Promise<void> {
       </template>
       <template #list>
         <form class="mb-4 border border-muted p-4" data-testid="hotfolder-poll" @submit.prevent="savePollInterval">
-          <UFormField hint="s" data-settings-anchor="hotfolders.poll" :label="t('routing.hotfolder.poll_label')" :description="t('routing.hotfolder.poll_description')">
+          <UFormField data-settings-anchor="hotfolders.poll" :label="t('routing.hotfolder.poll_label')" :description="t('routing.hotfolder.poll_description')">
             <div class="mt-2 flex flex-wrap items-center gap-2">
-              <UInputNumber v-model="pollSeconds" required :min="5" :max="3600" :format-options="WHOLE" class="w-32" :aria-label="t('routing.hotfolder.poll_label')" />
+              <NumberWithUnit v-model="pollSeconds" unit="s" required :min="5" :max="3600" :format-options="WHOLE" class="w-32" :aria-label="t('routing.hotfolder.poll_label')" />
               <UButton type="submit" size="sm" icon="i-lucide-save" :label="t('routing.hotfolder.poll_save')" :loading="pollPending" />
             </div>
           </UFormField>

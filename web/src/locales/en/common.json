@@ -199,5 +199,8 @@
     "from": "From",
     "to": "To",
     "days_label": "Days"
+  },
+  "date_field": {
+    "open_calendar": "Choose the date in a calendar"
   }
 }

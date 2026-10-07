@@ -138,4 +138,7 @@ pub(crate) struct TestRegexParams {
     pub pattern: String,
     /// Up to 50 sample texts, each at most 512 bytes, to match it against.
     pub samples: Vec<String>,
+    /// Replaces every match (`$1`, `${name}` name groups), as a package-name regex rule does;
+    /// each sample's result then carries `replaced`.
+    pub replacement: Option<String>,
 }

@@ -270,7 +270,7 @@
       "description": "Un mot de passe par ligne ; vide = passwords.txt à côté de la base de données. Essayée après le mot de passe du paquet et « sans mot de passe »."
     },
     "max_files": "Fichiers maximum",
-    "max_bytes": "Taille maximale (octets)",
+    "max_bytes": "Taille maximale décompressée",
     "rar_executable": {
       "label": "Outil RAR externe",
       "description": "Chemin absolu facultatif vers unrar ou 7z ; appelé sans shell."
@@ -325,6 +325,42 @@
     "direct_unpack": {
       "label": "Extraire pendant le téléchargement",
       "description": "Les archives RAR multiparties d'Usenet sont extraites partie par partie dès que chaque partie est complète, au lieu d'après le téléchargement. Si une réparation est nécessaire ou s'il manque quelque chose à une partie, la tentative est abandonnée et l'archive est extraite ensuite comme d'habitude. Nécessite unrar et de la place pour les fichiers extraits à côté du téléchargement en cours."
+    },
+    "unwrap_package_folder": {
+      "label": "Dissoudre le dossier portant le nom du paquet",
+      "description": "Si, après le post-traitement, le dossier du paquet ne contient qu’un seul dossier portant le nom du paquet (Release/Release/…), son contenu remonte d’un niveau et le dossier vide est supprimé. Avec un sous-dossier par archive, il en va de même pour le dossier de chaque archive. Rien n’est jamais écrasé. Ne s’applique que s’il ne reste rien d’autre dans le dossier du paquet : laisse supprimer l’archive source, p. ex. avec le niveau « +Supprimer »."
+    },
+    "package_names": {
+      "label": "Ranger les noms de paquets",
+      "description": "Range le nom d'un nouveau paquet avant la création de son dossier, avec les mêmes règles que le plugin « Tidy file names », qui renomme les fichiers dans le dossier. Ne s'applique qu'aux noms que rDownloader déduit lui-même (noms de fichiers, fichiers NZB, torrents) ; un nom que vous indiquez ou modifiez reste tel quel. Chaque catégorie peut remplacer les interrupteurs.",
+      "strip_bracket_tags": {
+        "label": "Retirer les balises entre crochets",
+        "description": "Les balises entre crochets, parenthèses ou accolades comme [1080p] ou (x264) disparaissent, signes compris."
+      },
+      "spaces_to_dots": {
+        "label": "Espaces → points",
+        "description": "Big Buck Bunny → Big.Buck.Bunny"
+      },
+      "collapse_separators": {
+        "label": "Fusionner les séparateurs",
+        "description": "Les suites de points, tirets bas, tirets et espaces deviennent un seul séparateur et sont retirées au début et à la fin : Big..Buck_-_Bunny → Big.Buck.Bunny"
+      },
+      "lowercase": {
+        "label": "Minuscules",
+        "description": "Big.Buck.Bunny → big.buck.bunny"
+      },
+      "example": "Exemple : « {name} » reçoit le dossier",
+      "regex": {
+        "label": "Règles regex",
+        "description": "Rechercher et remplacer après les interrupteurs, dans cet ordre ; chaque correspondance est remplacée, $1, $2 … insèrent des groupes. Au plus 10 règles. Un nom qui deviendrait vide reste tel quel.",
+        "empty": "Aucune règle regex.",
+        "add": "Ajouter une règle",
+        "edit": "Modifier la règle",
+        "remove": "Retirer la règle",
+        "move_up": "Monter",
+        "move_down": "Descendre",
+        "replacement_empty": "(supprimer)"
+      }
     }
   },
   "appearance": {

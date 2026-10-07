@@ -43,6 +43,22 @@ const busy = ref(false)
 /** The version picked in the selector, for activating or testing it. */
 const picked = ref<string | undefined>(undefined)
 const notesOpen = ref(false)
+/**
+ * The notes shown whole although they are long (RD-1140-03). A version's notes are one to three
+ * sentences since 1.14; older indexes carry up to 2000 characters of changelog, which stay
+ * clamped to three lines behind "More" so they do not push the rest of the card away.
+ */
+const notesShownWhole = ref(new Set<string>())
+
+function isLong(notes: string): boolean {
+  return notes.length > 300 || notes.split('\n').length > 3
+}
+
+function toggleWhole(version: string): void {
+  const shown = new Set(notesShownWhole.value)
+  if (!shown.delete(version)) shown.add(version)
+  notesShownWhole.value = shown
+}
 
 const others = computed(() => props.versions
   .filter(version => version !== props.lifecycle.active_version && version !== props.lifecycle.staged_version)
@@ -139,7 +155,17 @@ function setAutomatic(value: boolean): Promise<void> {
               v{{ note.version }}
               <span class="font-sans text-muted">· {{ t('plugins.versions.release_notes_from', { repository: note.repository }) }}</span>
             </p>
-            <p class="whitespace-pre-line break-words text-muted">{{ note.notes }}</p>
+            <p class="whitespace-pre-line break-words text-muted" :class="{ 'line-clamp-3': isLong(note.notes) && !notesShownWhole.has(note.version) }">{{ note.notes }}</p>
+            <UButton
+              v-if="isLong(note.notes)"
+              size="xs"
+              color="neutral"
+              variant="link"
+              class="px-0"
+              :label="t(notesShownWhole.has(note.version) ? 'plugins.versions.release_notes_less' : 'plugins.versions.release_notes_more')"
+              :aria-expanded="notesShownWhole.has(note.version)"
+              @click="toggleWhole(note.version)"
+            />
           </li>
         </ul>
       </template>

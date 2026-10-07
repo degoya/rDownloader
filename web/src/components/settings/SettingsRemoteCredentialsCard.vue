@@ -19,7 +19,7 @@ import {
   useRemoteCredentials
 } from '@/composables/useRemoteCredentials'
 import { formatMoment } from '@/utils/format'
-import { WHOLE } from '@/utils/numberInput'
+import { PLAIN, WHOLE } from '@/utils/numberInput'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
 
@@ -245,7 +245,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
             <UInput v-model="form.host" class="w-full font-mono" :placeholder="t('remote.credentials.host_placeholder')" />
           </UFormField>
           <UFormField :label="t('remote.credentials.port')">
-            <UInput v-model="form.port" inputmode="numeric" class="w-full font-mono" :placeholder="portPlaceholder" />
+            <UInputNumber v-model="form.port" :min="1" :max="65535" :format-options="PLAIN" class="w-full" :placeholder="portPlaceholder" />
           </UFormField>
           <USwitch v-if="isFtp" v-model="form.passive" :label="t('remote.credentials.passive')" :description="t('remote.credentials.passive_hint')" />
           <UFormField :label="t('remote.credentials.auth_mode')" required>
@@ -343,7 +343,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
       <p class="text-sm font-medium text-highlighted">{{ t('remote.settings.title') }}</p>
       <div class="mt-3 grid gap-3">
         <UFormField :label="t('remote.settings.max_parallel')" :description="t('remote.settings.max_parallel_hint')">
-          <UInputNumber v-model="settings.remote_max_parallel" required :min="1" :max="8" :format-options="WHOLE" increment decrement class="w-full" />
+          <UInputNumber v-model="settings.remote_max_parallel" required :min="1" :max="8" :format-options="WHOLE" class="w-full" />
         </UFormField>
         <UFormField :label="t('remote.settings.timeout')" :description="t('remote.settings.timeout_hint')">
           <UInputNumber v-model="settings.remote_timeout_seconds" required :min="5" :max="600" :format-options="WHOLE" class="w-full" />

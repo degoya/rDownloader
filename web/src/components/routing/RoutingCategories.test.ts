@@ -357,6 +357,7 @@ describe('RoutingCategories duplicate', () => {
       cleanup_extensions: ['nfo'],
       upload_enabled: true,
       upload_remote: 'gdrive:films',
+      unwrap_package_folder: true,
       plugin_steps: ['rd-plugin-tag'],
       seeding: { enabled: true, ratio_milli: 1500, time: { minutes: 90 } }
     } as Category
@@ -385,7 +386,8 @@ describe('RoutingCategories duplicate', () => {
       script: 'tag.sh',
       cleanup_extensions: ['nfo'],
       upload_enabled: true,
-      upload_remote: 'gdrive:films'
+      upload_remote: 'gdrive:films',
+      unwrap_package_folder: true
     })
     // What the create route does not take travels on the routes that set it.
     await waitFor(() => expect(put).toHaveBeenCalled())
@@ -476,5 +478,70 @@ describe('RoutingCategories sort templates', () => {
 
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
     expect(patch).not.toHaveBeenCalled()
+  })
+})
+
+/** RD-1140-01: the inherit/on/off override is filled from the stored category and saved back. */
+describe('RoutingCategories folder named like the package', () => {
+  const stored = { ...category('cat-1', 'Films'), unwrap_package_folder: false } as Category
+
+  beforeEach(() => {
+    serveEditor()
+    post.mockReset()
+    put.mockReset()
+    patch.mockReset()
+    put.mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) => ({
+      data: { ...stored, ...body }
+    }))
+  })
+
+  it('keeps a stored override when the category is saved', async () => {
+    mountWith([stored], [ROOT])
+
+    await fireEvent.click(within(rowOf('Films')).getByRole('button', { name: common.actions.edit }))
+    expect(screen.getByTestId('category-unwrap-package-folder')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
+
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      params: { path: { id: 'cat-1' } },
+      body: { unwrap_package_folder: false }
+    })
+  })
+})
+
+/**
+ * RD-1140-05: the package-name override rides the post-processing route like the sort templates,
+ * and a category that had one keeps it through a save.
+ */
+describe('RoutingCategories package-name rules', () => {
+  const RULES = { spaces_to_dots: true, collapse_separators: null, strip_bracket_tags: null, lowercase: null }
+  const stored = { ...category('cat-1', 'Films'), package_name_rules: RULES } as Category
+
+  beforeEach(() => {
+    serveEditor()
+    post.mockReset()
+    put.mockReset()
+    patch.mockReset()
+    post.mockResolvedValue({ data: { name: 'Big.Buck.Bunny.[1080p]', folder: 'Big.Buck.Bunny.[1080p]', rules: {} } })
+    put.mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) => ({
+      data: { ...stored, ...body, package_name_rules: null }
+    }))
+    patch.mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) => ({
+      data: { ...stored, package_name_rules: body.package_name_rules }
+    }))
+  })
+
+  it('keeps the override of a category that is saved', async () => {
+    mountWith([stored], [ROOT])
+
+    await fireEvent.click(within(rowOf('Films')).getByRole('button', { name: common.actions.edit }))
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
+
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect(patch.mock.calls[0]?.[1]).toMatchObject({
+      params: { path: { id: 'cat-1' } },
+      body: { package_name_rules: RULES }
+    })
   })
 })

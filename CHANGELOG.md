@@ -5,6 +5,106 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-10-07
+
+### Added
+
+- **A single folder named like the package can be dissolved (RD-1140-01).** A scene release whose
+  archive carries its own folder used to land as `Release/Release/…`. With *Dissolve a folder named
+  like the package* (`unwrap_package_folder`, off by default, globally under *Post-processing* and
+  per category as inherit/on/off) a package folder that holds nothing but one folder named like it
+  — compared after the package-folder sanitising, case-insensitive — takes its content one level
+  up after unpack, archive deletion and cleanup, before the scan, the script and the sort; with a
+  folder per archive the same holds per archive folder. It works for NZB and torrent packages
+  without archives too, leaves a seeding torrent's payload alone, never overwrites (a taken name
+  keeps everything as it was and shows `postprocess.unwrap_conflict` in the package's steps), and
+  a stop mid-way is finished by the next start (crash point `postprocess.after_unwrap_move`).
+  Migration `0127`; settings, category, backup and routing-bundle DTOs; MCP `update_settings`,
+  `create_category`, `update_category` and `update_category_postprocess` take the value.
+- **A category rule can match the package name (RD-1140-02).** A rule's name pattern is matched
+  against the file name (the default, and what every existing rule keeps), the package name or
+  either — so a LinkGrabber package whose file names are obfuscated still reaches its category
+  through its name, e.g. `(?i)update.*nsw-` → *Updates*. The LinkGrabber passes the name of the
+  package a link is grouped into, an NZB its own name for both; a chosen category and a later
+  rename or regroup are not re-evaluated. New rule field `name_target` (`file`, `package`,
+  `either`; migration 0128) in the REST DTO, the routing and settings backups, MCP's
+  `create_category_rule`/`update_category_rule` and the rule editor, whose regex tester follows
+  the choice (four languages).
+- **Date fields have a calendar (RD-1140-09).** Every date field — a site rule's *Service last
+  seen alive*, a Usenet quota's reset day, an auth profile's expiry — is still typed by its
+  segments and now also has a calendar button that opens Nuxt UI's `UCalendar` beside the field;
+  a picked day fills the field and closes it, bounds and the disabled state hold in both, week
+  start and month names follow the interface language. One component, `DateField`;
+  `nuxtUiFirst.test.ts` refuses a bare `UInputDate` elsewhere.
+- **The regex editor draws its pattern as a diagram (RD-1140-06).** Under the pattern a row of
+  boxes shows what it does — *Starts with*, text, *Any digit* and the other placeholders, groups as
+  labelled frames (*Group #1*, the name), alternatives and character classes as *One of* stacks,
+  ↻ min–max under repetitions — drawn from the structure the tester now answers with (`structure`,
+  parsed with `regex-syntax`, the grammar the rules run with; `structure_error`
+  `category_rule.regex_structure_limits` past 32 levels or 400 nodes). It follows the typing,
+  scrolls sideways inside the dialog, reads out as a list of steps for screen readers and gives way
+  to the error for an invalid pattern; MCP's `test_category_regex` describes the structure
+  (four languages).
+### Changed
+
+- **Plugin release notes are per plugin, short and for users (RD-1140-03).** The plugin index
+  takes a version's notes from the plugin's own `plugins/<name>/CHANGES.md` — a `## <version>`
+  section of one to three sentences, or "Maintenance release: internal changes only, no change in
+  behaviour." — instead of every `CHANGELOG.md` entry naming the version, which put the whole
+  2000-character RD-1120-10 paragraph on 68 plugin cards. Every bundled plugin has its section for
+  the version it carries. `scripts/plugin-release-notes.sh --check` (check.sh's file checks, the
+  preflight, the release's docs gate) refuses a missing section, more than 300 characters, job
+  numbers, paths, Rust identifiers and lists of other plugins; `--missing` is gone. `CHANGES.md` is
+  not hashed into the component nor packaged, so no plugin version moves; `plugins/*/CHANGES.md`
+  merges as a union. The version panel clamps longer notes of older indexes to three lines behind
+  *More*. The SDK templates carry a `CHANGES.md`, which `scripts/check-sdk-templates.sh` requires.
+- **Every superseded plugin version goes at once (RD-1140-04).** Settings → Plugins offers
+  *Remove superseded versions (N)* beside the installed list's heading, only while there are any,
+  and *Remove all* in a card's *Superseded versions*; one confirmation with the number, then a
+  toast with what went and what stayed. The rules are the single removal's: the version that runs
+  never goes, and a version unfinished work is bound to (`plugin.version_in_use`), the one the
+  next start loads (`plugin.version_next_start`) and the one under test
+  (`plugin.version_under_test`) stay and are named. REST `DELETE /api/v1/plugins/superseded` and
+  `DELETE /api/v1/plugins/{id}/superseded` (administration scope, one audit record per version),
+  MCP tool `remove_superseded_plugin_versions`; four languages.
+- **Package names can be tidied, globally and per category (RD-1140-05).** The rules of the
+  "Tidy file names" plugin — spaces to dots, collapse separators, strip bracket tags, lowercase —
+  apply to a new package's name, and so to its folder, before the folder exists. All four are off
+  by default (*Settings → Post-processing → Tidy package names*, settings key
+  `package_name_rules`); a category overrides each switch with inherit / on / off (migration 0129,
+  `package_name_rules` on `PATCH /api/v1/categories/{id}/postprocess`, in the full backup). Only a
+  name the application derives is tidied — from file names in the LinkGrabber, an NZB (also from
+  the SABnzbd adapter and hotfolders), a torrent or magnet (also from the qBittorrent adapter), a
+  direct link, the release name a resolver learns; a name somebody typed, sent or renamed stays.
+  The LinkGrabber shows the tidied name before adding (`queue_name`), the forms preview it on
+  *Big Buck Bunny [1080p]* (`POST /api/v1/postprocess/package-name-preview`, MCP
+  `preview_package_name`). The host keeps the rules in `rd_files::tidy_package_name`, with the
+  plugin's test cases. A fifth rule is an ordered list of regex find → replace pairs that runs
+  after the switches (`package_name_regex`, at most 10, 200 characters each, `$1`/`${name}`
+  groups, checked on save with `settings.package_name_regex_*` codes); a category's list replaces
+  the global one. Each pair is edited in the existing regex editor, which gained a replacement
+  mode — the regex tester takes an optional `replacement` and answers `replaced` per sample, also
+  over MCP `test_category_regex`.
+- **Number fields: the unit at the field, alike buttons per group, no raw bytes (RD-1140-08).**
+  The 32 units that stood as the label row's hint, far right of their field (`MiB/s`, `s`, `h`,
+  `GiB`, …), are attached to the field itself (`NumberWithUnit`: the number field and an outline
+  badge in one group); a unit as a hint fails `nuxtUiFirst.test.ts`. *Retries per file* and the
+  automatic retry's rounds get plus and minus like their neighbours; a group that mixes a count
+  with a duration, a size or a port shows them on none (streams, media, remote transfers, the
+  Usenet server form, bandwidth profiles). *Maximum unpacked size* is typed in GiB instead of
+  bytes (stored in bytes as before), and the port of a remote login is a number field 1–65535.
+
+### Fixed
+
+- **Hoster downloads run side by side again (RD-1140-07).** Since 1.13.0 a file waiting to start
+  promised its host as many connections as it planned chunks, and the promise was made to the
+  host of the link as it was added — a hoster's page, while the bytes come from its download
+  server. Nothing took the promise back, so with *Connections per host* at 6 the files of one
+  hoster (DDownload, reported) ran one at a time however many parallel downloads were set. A
+  starting file now promises one connection, and the promise ends when the download turns to
+  another host, when its chunks start, or after 30 seconds; a file still waits when its host's
+  connections are really all taken.
+
 ## [1.13.0] - 2026-10-06
 
 ### Fixed

@@ -15,6 +15,8 @@ in the handbook walks from this scaffold to a signed package in a repository of 
 - `src/lib.rs` — reading the name, with tests
 - `src/guest.rs` — `enrich`
 - `manifest.toml` — identity, capabilities and limits; `plugin_type = "enricher"`
+- `CHANGES.md` — the release notes, a `## <version>` section per version in one to three
+  sentences for the people who install it
 - `locales/en.json` — the translations of every failure code the plugin reports
 - `wit/rdownloader.wit` — the contract, a copy of the one rDownloader speaks
 

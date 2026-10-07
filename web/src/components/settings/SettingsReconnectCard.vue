@@ -16,6 +16,7 @@ import { translateServerMessage } from '@/i18n/server'
 import SectionHeader from '@/components/SectionHeader.vue'
 import WeekWindowRow from '@/components/WeekWindowRow.vue'
 import { formatMoment } from '@/utils/format'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
 import { EVERY_DAY, type WeekWindow } from '@/utils/weekWindows'
 
@@ -109,11 +110,11 @@ function setWindow(index: number, window: WeekWindow): void {
       <UFormField :label="t('reconnect.script_label')" :description="t('reconnect.script_description')">
         <UInput v-model="settings.reconnect_script" class="mt-2 w-full font-mono" placeholder="reconnect.sh" />
       </UFormField>
-      <UFormField hint="min" :label="t('reconnect.interval_label')" :description="t('reconnect.interval_description')">
-        <UInputNumber v-model="settings.reconnect_min_interval_minutes" required :min="1" :max="1440" :format-options="WHOLE" class="mt-2 w-full" />
+      <UFormField :label="t('reconnect.interval_label')" :description="t('reconnect.interval_description')">
+        <NumberWithUnit v-model="settings.reconnect_min_interval_minutes" unit="min" required :min="1" :max="1440" :format-options="WHOLE" class="mt-2 w-full" />
       </UFormField>
-      <UFormField hint="s" :label="t('reconnect.timeout_label')" :description="t('reconnect.timeout_description')">
-        <UInputNumber v-model="settings.reconnect_timeout_seconds" required :min="30" :max="900" :format-options="WHOLE" class="mt-2 w-full" />
+      <UFormField :label="t('reconnect.timeout_label')" :description="t('reconnect.timeout_description')">
+        <NumberWithUnit v-model="settings.reconnect_timeout_seconds" unit="s" required :min="30" :max="900" :format-options="WHOLE" class="mt-2 w-full" />
       </UFormField>
       <UFormField :label="t('reconnect.checks_label')" :description="t('reconnect.checks_description')">
         <UTextarea v-model="addressChecks" :rows="3" autoresize class="mt-2 w-full font-mono text-xs" :placeholder="t('reconnect.checks_placeholder')" />

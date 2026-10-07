@@ -46,6 +46,8 @@ const emit = defineEmits<{
   withdraw: [build: InstalledPlugin]
   remove: []
   removeSuperseded: [old: InstalledPlugin]
+  /** Every superseded version of this plugin at once (RD-1140-04). */
+  removeAllSuperseded: []
   versionDone: [outcome: { message: string | null, error: string | null }]
 }>()
 
@@ -188,7 +190,18 @@ const hiddenHosts = computed(() => props.plugin.domains.length - HOSTS_SHOWN)
           />
           <template #content>
             <div class="mt-1 space-y-2">
-              <p class="text-xs leading-5 text-muted">{{ t('plugins.card.superseded_hint') }}</p>
+              <div class="flex items-start justify-between gap-3">
+                <p class="text-xs leading-5 text-muted">{{ t('plugins.card.superseded_hint') }}</p>
+                <UButton
+                  size="xs"
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  class="shrink-0"
+                  :label="t('plugins.card.remove_all_superseded')"
+                  @click="emit('removeAllSuperseded')"
+                />
+              </div>
               <div class="divide-y divide-default rounded-md border border-default">
                 <div
                   v-for="old in superseded"

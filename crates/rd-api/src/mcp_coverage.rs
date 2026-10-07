@@ -182,6 +182,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // RD-1100-07: direct unpack is one key of this document (`direct_unpack`, named in
     // update_settings' description) and one field of a category's post-processing
     // (update_category_postprocess); neither has a route of its own.
+    // RD-1140-01: `unwrap_package_folder` the same way, plus create/update_category.
     covered(
         "The settings document",
         "Settings",
@@ -289,10 +290,17 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // `active: false` for every plugin and would have reported `execution_count: 0` for one
     // that had run a thousand times. The decision was not to patch the field but to stop
     // having a second implementation -- see `tools_config`'s plugins section.
+    // Removing every superseded version at once (RD-1140-04) is the same uninstall, many times;
+    // `remove_superseded_plugin_versions` reaches both routes, `/{id}/superseded` through the
+    // `{id}` prefix.
     covered(
         "Installed plugins: switch and uninstall",
         "Settings > Plugins",
-        &[only("/api/v1/plugins", "GET"), any("/api/v1/plugins/{id}")],
+        &[
+            only("/api/v1/plugins", "GET"),
+            any("/api/v1/plugins/{id}"),
+            any("/api/v1/plugins/superseded"),
+        ],
     ),
     // RD-160-05. Not the trust decision "Plugin trust and installation" keeps out: the packages
     // are the release's own, signed with the key the binary carries, so installing one confirms
@@ -477,6 +485,11 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Sort and rename templates for series and films",
         "Settings > Routing > category",
         &[any("/api/v1/postprocess/sort-preview")],
+    ),
+    covered(
+        "Package-name rules, global and per category",
+        "Settings > Post-processing; Settings > Routing > category",
+        &[any("/api/v1/postprocess/package-name-preview")],
     ),
     covered(
         "Managed external tools",

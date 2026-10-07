@@ -44,6 +44,7 @@ fn category(name: &str, root_id: StorageRootId, is_default: bool) -> NewCategory
         cleanup_extensions: None,
         recursive_unpack: None,
         unpack_to_subfolder: None,
+        unwrap_package_folder: None,
         direct_unpack: None,
         malware_scan: None,
         sfv_verify: None,

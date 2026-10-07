@@ -107,6 +107,7 @@ for world in alpha beta; do
     printf 'api_version = "0.10.0"\nplugin_type = "%s"\n\n[metadata]\nmin_app_version = "1.9.0"\n' "$world" \
         > "$TREE/sdk/templates/$world/manifest.toml"
     printf '# {{PLUGIN_NAME}}\n' > "$TREE/sdk/templates/$world/README.md"
+    printf '# Changes\n\n## 0.1.0\n\nThe first release.\n' > "$TREE/sdk/templates/$world/CHANGES.md"
     printf '#[test]\nfn works() {}\n' > "$TREE/sdk/templates/$world/src/lib.rs"
 done
 cp "$WIKI/plugins/plugin-reference.md" "$SCRATCH/page.orig"

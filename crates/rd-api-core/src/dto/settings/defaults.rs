@@ -96,6 +96,7 @@ impl Default for SettingsResponse {
             ignore_samples: true,
             recursive_unpack: false,
             unpack_to_subfolder: false,
+            unwrap_package_folder: false,
             direct_unpack: false,
             sfv_verify: true,
             safe_postproc: true,
@@ -103,6 +104,8 @@ impl Default for SettingsResponse {
             enable_all_par: false,
             fail_hopeless_jobs: true,
             plugin_steps: Vec::new(),
+            package_name_rules: rd_core::PackageNameRules::default(),
+            package_name_regex: Vec::new(),
             metadata_enrichment_enabled: false,
             sample_max_bytes: rd_core::ByteCount::new(300 * 1024 * 1024)
                 .expect("sample limit fits SQLite"),

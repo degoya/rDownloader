@@ -13,6 +13,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { SiteRuleTestResult } from '@/api/types'
+import DateField from '@/components/DateField.vue'
 import FormActions from '@/components/FormActions.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import {
@@ -25,7 +26,6 @@ import {
   type StepKind
 } from '@/composables/useSiteRules'
 import { PLAIN } from '@/utils/numberInput'
-import { dateFieldValue, dayOf } from '@/utils/timeFields'
 
 const props = withDefaults(defineProps<{
   editingId: string | null
@@ -155,7 +155,7 @@ function verdictColor(verdict: string): 'success' | 'error' | 'neutral' {
           <UInput v-model="draft.probe" class="w-full font-mono text-xs" placeholder="https://example.org/release/1" />
         </UFormField>
         <UFormField :label="t('siterules.editor.checked')">
-          <UInputDate :model-value="dateFieldValue(draft.checked)" class="w-full" @update:model-value="draft.checked = dayOf($event)" />
+          <DateField v-model="draft.checked" class="w-full" />
         </UFormField>
         <UCheckbox
           v-model="draft.mirrors"

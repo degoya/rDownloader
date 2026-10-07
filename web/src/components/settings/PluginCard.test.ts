@@ -191,6 +191,18 @@ describe('PluginCard', () => {
     expect(view.emitted('removeSuperseded')).toEqual([[old]])
   })
 
+  it('removes every superseded version at once from the unfolded section (RD-1140-04)', async () => {
+    const versions = [plugin({ version: '0.1.4', active: false }), plugin({ version: '0.1.5', active: false })]
+    const view = mount({ superseded: versions })
+
+    // Folded, the action is not in reach: it belongs to the list it removes.
+    expect(screen.queryByRole('button', { name: pluginsCatalogue.card.remove_all_superseded })).toBeNull()
+    await view.rerender({ supersededOpen: true })
+    await fireEvent.click(screen.getByRole('button', { name: pluginsCatalogue.card.remove_all_superseded }))
+    expect(view.emitted('removeAllSuperseded')).toHaveLength(1)
+    expect(view.emitted('removeSuperseded')).toBeUndefined()
+  })
+
   it('shows no version row for a plugin with neither a lifecycle nor a superseded version', () => {
     mount({ lifecycle: undefined })
 

@@ -7,6 +7,7 @@ import type { NetworkInterface, ProxyProfile, Settings, TorrentEngineCapabilitie
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { MIB, byteModel } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL, PLAIN, RATIO, WHOLE } from '@/utils/numberInput'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
@@ -108,8 +109,8 @@ const uploadLimitMiB = byteModel(
       </template>
       <USwitch v-model="settings.torrent_sharing_enabled" data-testid="torrent-sharing" />
     </UFormField>
-    <UFormField hint="MiB/s" data-settings-anchor="torrent.upload_limit" :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
-      <UInputNumber v-model="uploadLimitMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :disabled="!settings.torrent_sharing_enabled" class="w-full" />
+    <UFormField data-settings-anchor="torrent.upload_limit" :label="t('settings.torrent.upload_limit.label')" :description="t('settings.torrent.upload_limit.description')">
+      <NumberWithUnit v-model="uploadLimitMiB" unit="MiB/s" :min="0" :format-options="DECIMAL" :step-snapping="false" :disabled="!settings.torrent_sharing_enabled" class="w-full" />
     </UFormField>
     <SettingsCrossLink class="-mt-3" anchor="bandwidth.upload_limit" title-key="settings.upload_limit.label" />
     <UFormField :label="t('settings.torrent.seeding.label')" :description="t('settings.torrent.seeding.description')" orientation="horizontal">
@@ -118,8 +119,8 @@ const uploadLimitMiB = byteModel(
     <UFormField data-settings-anchor="torrent.seed_ratio" :label="t('settings.torrent.seed_ratio.label')" :description="t('settings.torrent.seed_ratio.description')">
       <UInputNumber v-model="settings.torrent_seed_ratio" required :min="0" :max="100" :format-options="RATIO" :step-snapping="false" :disabled="!seeding" class="w-full" />
     </UFormField>
-    <UFormField hint="min" :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
-      <UInputNumber v-model="seedTime" :min="1" :format-options="WHOLE" :disabled="!seeding" class="w-full" />
+    <UFormField :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
+      <NumberWithUnit v-model="seedTime" unit="min" :min="1" :format-options="WHOLE" :disabled="!seeding" class="w-full" />
     </UFormField>
     <UFormField
       data-settings-anchor="torrent.bind_interface"

@@ -1196,7 +1196,18 @@
     "media.cookie_profile_malformed": "Die gespeicherten Cookies sind keine gültige Cookie-Datei",
     "media.cookie_scope_empty": "Das Profil hat keine Cookies für diese Seite",
     "media.cookie_write_failed": "Die temporäre Cookie-Datei konnte nicht geschrieben werden",
-    "plugin.invalid_url": "Das Plugin hat eine Adresse erzeugt, die keine gültige URL ist"
+    "plugin.invalid_url": "Das Plugin hat eine Adresse erzeugt, die keine gültige URL ist",
+    "postprocess.unwrap_conflict": "Der Ordner {folder} bleibt, wie er ist: {name} gibt es eine Ebene höher schon.",
+    "postprocess.unwrap_failed": "Der Ordner {folder} ließ sich nicht auflösen: {detail}",
+    "plugin.version_next_start": "Version {version} läuft ab dem nächsten Start",
+    "plugin.version_under_test": "Version {version} ist im Test",
+    "plugin.superseded_none": "Keine ersetzten Plugin-Versionen",
+    "plugin.superseded_removed": "{count} ersetzte Plugin-Version entfernt | {count} ersetzte Plugin-Versionen entfernt",
+    "plugin.superseded_partly_removed": "{count} ersetzte Plugin-Version entfernt, {kept} behalten | {count} ersetzte Plugin-Versionen entfernt, {kept} behalten",
+    "settings.package_name_regex_invalid": "Regel {index} für Paketnamen: Der Suchausdruck ist kein gültiger regulärer Ausdruck ({detail}).",
+    "settings.package_name_regex_too_many": "Höchstens {max} Regex-Regeln für Paketnamen.",
+    "settings.package_name_regex_too_long": "Regel {index} für Paketnamen: Suchausdruck und Ersetzung dürfen je höchstens {max} Zeichen haben.",
+    "category_rule.regex_structure_limits": "Das Muster ist zu umfangreich für ein Diagramm."
   },
   "capabilities": {
     "media_download": "Mediendownloads",

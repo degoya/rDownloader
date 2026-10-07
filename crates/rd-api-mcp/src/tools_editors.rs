@@ -122,7 +122,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Try a routing rule's regular expression before writing it: whether it compiles (and the error if not), and for each of up to 50 sample texts whether and where it matches."
+        description = "Try a routing rule's regular expression before writing it: whether it compiles (and the error if not), and for each of up to 50 sample texts whether and where it matches. With `replacement` it tries a package-name regex rule (find → replace, `$1`/`${name}` for groups, every match replaced) and answers what each sample becomes in `replaced`. A valid pattern also comes back as `structure`, the tree the regex editor draws as a diagram: nodes of a `kind` (sequence, alternation, group with `index`/`name`, repetition with `min`/`max`/`lazy`, literal `text`, class with `range`s and `negated`, digit/word_char/whitespace/any_char, start/end/word boundaries, flags) and their `children`; a pattern too deep or too large to draw carries `structure_error` `category_rule.regex_structure_limits` instead."
     )]
     pub async fn test_category_regex(
         &self,
@@ -132,6 +132,7 @@ impl RdMcpServer {
             let request = body(serde_json::json!({
                 "pattern": params.pattern,
                 "samples": params.samples,
+                "replacement": params.replacement,
             }))?;
             let Json(answer) = crate::regex_tester::test_category_rule_regex(Json(request)).await?;
             Ok(answer)

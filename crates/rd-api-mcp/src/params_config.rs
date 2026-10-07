@@ -106,6 +106,25 @@ impl From<IngressSourceParam> for rd_core::IngressSource {
     }
 }
 
+/// The name a category rule's `name_regex` is matched against (RD-1140-02).
+#[derive(Clone, Copy, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum NameTargetParam {
+    File,
+    Package,
+    Either,
+}
+
+impl From<NameTargetParam> for rd_core::CategoryRuleNameTarget {
+    fn from(value: NameTargetParam) -> Self {
+        match value {
+            NameTargetParam::File => Self::File,
+            NameTargetParam::Package => Self::Package,
+            NameTargetParam::Either => Self::Either,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ImportModeParam {
@@ -200,6 +219,9 @@ pub(crate) struct CreateCategoryParams {
     pub upload_enabled: Option<bool>,
     /// rclone target in `remote:path` form.
     pub upload_remote: Option<String>,
+    /// Whether a single folder named like the package is dissolved into the package folder
+    /// after post-processing (per archive folder too with `unpack_to_subfolder`).
+    pub unwrap_package_folder: Option<bool>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -226,9 +248,12 @@ pub(crate) struct UpdateCategoryParams {
     pub delete_par2: Option<bool>,
     pub upload_enabled: Option<bool>,
     pub upload_remote: Option<String>,
+    /// Whether a single folder named like the package is dissolved into the package folder
+    /// after post-processing (per archive folder too with `unpack_to_subfolder`).
+    pub unwrap_package_folder: Option<bool>,
     /// Fields to reset to the global default: postprocess_level, script, cleanup_extensions,
     /// recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify,
-    /// safe_postproc, delete_par2, upload_enabled, upload_remote.
+    /// safe_postproc, delete_par2, upload_enabled, upload_remote, unwrap_package_folder.
     pub clear: Option<Vec<String>>,
 }
 
@@ -248,8 +273,11 @@ pub(crate) struct CreateCategoryRuleParams {
     /// File extension, with or without the leading dot.
     pub extension: Option<String>,
     pub mime_type: Option<String>,
-    /// Regular expression matched against the file name.
+    /// Regular expression matched against the name `name_target` picks.
     pub name_regex: Option<String>,
+    /// What `name_regex` is matched against: `file` (the default), `package` (the name of the
+    /// LinkGrabber package the link is grouped into; for an NZB its name) or `either`.
+    pub name_target: Option<NameTargetParam>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -265,6 +293,8 @@ pub(crate) struct UpdateCategoryRuleParams {
     pub extension: Option<String>,
     pub mime_type: Option<String>,
     pub name_regex: Option<String>,
+    /// What `name_regex` is matched against: `file`, `package` or `either`.
+    pub name_target: Option<NameTargetParam>,
     /// Filters to drop: source, domain, protocol, extension, mime_type, name_regex.
     pub clear: Option<Vec<String>>,
 }

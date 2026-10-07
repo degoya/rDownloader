@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -37,7 +38,7 @@ const { t } = useI18n()
         <UInputNumber v-model="settings.max_connections_per_host" required :min="0" :max="32" :format-options="WHOLE" increment decrement class="mt-2 w-full" />
       </UFormField>
       <UFormField data-settings-anchor="general.retries" :label="t('settings.retries.label')" :description="t('settings.retries.description')">
-        <UInputNumber v-model="settings.max_retries" required :min="0" :max="100" :format-options="WHOLE" class="mt-2 w-full" />
+        <UInputNumber v-model="settings.max_retries" required :min="0" :max="100" :format-options="WHOLE" increment decrement class="mt-2 w-full" />
       </UFormField>
       <USeparator />
       <div>
@@ -45,11 +46,11 @@ const { t } = useI18n()
           <USwitch v-model="settings.auto_retry_failed" data-testid="auto-retry-switch" />
         </UFormField>
         <div v-if="settings.auto_retry_failed" class="mt-4 grid gap-4" data-testid="auto-retry-options">
-          <UFormField hint="h" :label="t('settings.auto_retry.interval_label')" :description="t('settings.auto_retry.interval_description')">
-            <UInputNumber v-model="settings.auto_retry_interval_hours" required :min="1" :max="24" :format-options="WHOLE" increment decrement class="mt-2 w-full" data-testid="auto-retry-interval" />
+          <UFormField :label="t('settings.auto_retry.interval_label')" :description="t('settings.auto_retry.interval_description')">
+            <NumberWithUnit v-model="settings.auto_retry_interval_hours" unit="h" required :min="1" :max="24" :format-options="WHOLE" increment decrement class="mt-2 w-full" data-testid="auto-retry-interval" />
           </UFormField>
           <UFormField :label="t('settings.auto_retry.rounds_label')" :description="t('settings.auto_retry.rounds_description')">
-            <UInputNumber v-model="settings.auto_retry_max_rounds" required :min="0" :max="100" :format-options="WHOLE" class="mt-2 w-full" data-testid="auto-retry-rounds" />
+            <UInputNumber v-model="settings.auto_retry_max_rounds" required :min="0" :max="100" :format-options="WHOLE" increment decrement class="mt-2 w-full" data-testid="auto-retry-rounds" />
           </UFormField>
         </div>
       </div>
@@ -59,8 +60,8 @@ const { t } = useI18n()
           <USwitch v-model="settings.auto_remove_finished" />
         </UFormField>
         <div v-if="settings.auto_remove_finished" class="mt-4 grid gap-4">
-          <UFormField hint="h" :label="t('settings.auto_remove.delay_label')" :description="t('settings.auto_remove.delay_description')">
-            <UInputNumber v-model="settings.auto_remove_delay_hours" required :min="1" :max="720" :format-options="WHOLE" class="mt-2 w-full" />
+          <UFormField :label="t('settings.auto_remove.delay_label')" :description="t('settings.auto_remove.delay_description')">
+            <NumberWithUnit v-model="settings.auto_remove_delay_hours" unit="h" required :min="1" :max="720" :format-options="WHOLE" class="mt-2 w-full" />
           </UFormField>
           <UFormField :label="t('settings.auto_remove.keep_failed_label')" :description="t('settings.auto_remove.keep_failed_description')" orientation="horizontal">
             <USwitch v-model="settings.auto_remove_keep_failed" />

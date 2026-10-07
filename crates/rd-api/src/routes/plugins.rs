@@ -27,6 +27,16 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/plugins/{id}",
             axum::routing::patch(plugin_handlers::set_plugin_enabled),
         )
+        // Every superseded version at once (RD-1140-04). Static segments beat `/{id}` and
+        // `{version}` in matchit, and neither a plugin id nor a version is ever this word.
+        .route(
+            "/api/v1/plugins/superseded",
+            delete(plugin_handlers::remove_superseded_plugin_versions),
+        )
+        .route(
+            "/api/v1/plugins/{id}/superseded",
+            delete(plugin_handlers::remove_superseded_versions_of_plugin),
+        )
         .route(
             "/api/v1/plugins/install",
             post(plugin_handlers::install_plugin),
@@ -138,6 +148,8 @@ pub(crate) fn routes() -> Router<AppState> {
 #[openapi(paths(
     plugin_handlers::list_plugins,
     plugin_handlers::remove_plugin_version,
+    plugin_handlers::remove_superseded_plugin_versions,
+    plugin_handlers::remove_superseded_versions_of_plugin,
     plugin_handlers::set_plugin_enabled,
     plugin_handlers::list_plugin_executions,
     plugin_handlers::install_plugin,

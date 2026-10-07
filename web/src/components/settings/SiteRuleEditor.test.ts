@@ -10,7 +10,7 @@ import common from '@/locales/en/common.json'
 import server from '@/locales/en/server.json'
 import siterules from '@/locales/en/siterules.json'
 import { emptyDraft, emptyStep, type RuleDraft } from '@/composables/useSiteRules'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, openablePopover } from '@/test/mount'
 
 import SiteRuleEditor from './SiteRuleEditor.vue'
 
@@ -34,7 +34,8 @@ function mount(options: { testResult?: unknown, groups?: string[] } = {}) {
       pending: false,
       testResult: options.testResult ?? null,
       groups: options.groups ?? []
-    }
+    },
+    stubs: { UPopover: openablePopover }
   })
   return { ...rendered, model }
 }
@@ -100,6 +101,18 @@ describe('the site-rule editor', () => {
     // the typo that quietly opens a second group of one is what this field is for.
     expect(within(groupMenu()).getAllByRole('button').map(item => item.textContent))
       .toContain('gallery')
+  })
+
+  // "Service last seen alive" is typed or picked in the calendar beside it (RD-1140-09).
+  it('takes the day the service was last seen alive from the calendar', async () => {
+    const { model } = mount()
+    const checked = screen.getByLabelText(siterules.editor.checked) as HTMLInputElement
+    await fireEvent.update(checked, '2026-09-01')
+    expect(model.value.checked).toBe('2026-09-01')
+    await fireEvent.click(screen.getByRole('button', { name: common.date_field.open_calendar }))
+    await fireEvent.click(screen.getByRole('button', { name: '2026-09-17' }))
+    expect(model.value.checked).toBe('2026-09-17')
+    expect(checked.value).toBe('2026-09-17')
   })
 
   it('asks for a trial run against the address the person names', async () => {

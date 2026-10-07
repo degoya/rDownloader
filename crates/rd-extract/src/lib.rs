@@ -59,6 +59,11 @@ mod unpack_job;
 mod unpack_subfolder_tests;
 #[cfg(test)]
 mod unpack_tests;
+#[cfg(all(test, feature = "failpoints"))]
+mod unwrap_crash_tests;
+mod unwrap_job;
+#[cfg(test)]
+mod unwrap_job_tests;
 mod upload_step;
 #[cfg(test)]
 mod upload_step_tests;

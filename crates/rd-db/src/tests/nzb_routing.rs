@@ -61,6 +61,7 @@ async fn nzb_rule(database: &Database, source: IngressSource, category_id: rd_co
             extension: Some("nzb".to_owned()),
             mime_type: None,
             name_regex: None,
+            name_target: rd_core::CategoryRuleNameTarget::File,
             category_id,
             enabled: true,
         })
@@ -401,6 +402,7 @@ async fn nzb_routing_metadata_can_change_until_enqueue() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,

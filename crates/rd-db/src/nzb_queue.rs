@@ -119,7 +119,11 @@ async fn insert_import_package(
 ) -> Result<PackageId> {
     let package_id = PackageId::new();
     // Neither the package nor its folder should carry file extensions (`.nzb`, `.mp4`, …).
-    let package_name = rd_files::package_name_from_file_name(name);
+    // The name comes from the file or from the adapter that sent it, never from a person, so
+    // the package-name rules of the category it lands in apply (RD-1140-05).
+    let naming = crate::package_names::naming_for(tx, category_id.as_deref()).await?;
+    let package_name =
+        rd_files::tidy_package_name(&rd_files::package_name_from_file_name(name), &naming);
     let package_directory = rd_files::package_directory(destination, &package_name);
     let position: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(position), 0) + 1 FROM packages")
         .fetch_one(&mut **tx)

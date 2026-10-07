@@ -50,6 +50,10 @@ pub struct CreateCategoryRequest {
     /// rclone target override in `remote:path` form (`null` = the global remote).
     #[serde(default)]
     pub upload_remote: Option<String>,
+    /// Whether packages of this category move the content of a single folder named like the
+    /// package up into the package folder and remove it (`null` = global default, RD-1140-01).
+    #[serde(default)]
+    pub unwrap_package_folder: Option<bool>,
 }
 
 /// Post-processing defaults of a category (`null` = inherit the global setting).
@@ -100,6 +104,18 @@ pub struct CategoryPostprocessRequest {
     /// every template blank, means no sorting. Not inherited: there is no global template.
     #[serde(default)]
     pub sorting: Option<rd_core::SortTemplates>,
+    /// Whether packages of this category move the content of a single folder named like the
+    /// package up into the package folder and remove it (`null` = global default, RD-1140-01).
+    #[serde(default)]
+    pub unwrap_package_folder: Option<bool>,
+    /// Package-name rules of this category (RD-1140-05); `null`, and every switch left out or
+    /// `null`, inherits the global setting.
+    #[serde(default)]
+    pub package_name_rules: Option<rd_core::PackageNameRulesOverride>,
+    /// Regex pairs of this category (RD-1140-05); `null` inherits the global list, a list —
+    /// an empty one too — replaces it. Same limits and codes as the global list.
+    #[serde(default)]
+    pub package_name_regex: Option<Vec<rd_core::PackageNameRegex>>,
 }
 
 /// Most example names one preview expands; the rest of a longer list is left out.
@@ -137,6 +153,31 @@ pub struct SortPreviewResponse {
     pub fields: std::collections::BTreeMap<String, Vec<String>>,
 }
 
+/// Longest example name a package-name preview reads; the rest of a longer one is cut off.
+pub const MAX_PACKAGE_NAME_PREVIEW_CHARS: usize = 500;
+
+/// An example name and the rules to try on it (RD-1140-05).
+#[derive(Deserialize, ToSchema)]
+pub struct PackageNamePreviewRequest {
+    pub name: String,
+    /// The switches of a form, saved or not; `null`, and every switch left out or `null`,
+    /// takes the saved global setting.
+    #[serde(default)]
+    pub rules: Option<rd_core::PackageNameRulesOverride>,
+    /// The regex pairs of a form, saved or not; `null` takes the saved global list.
+    #[serde(default)]
+    pub regex: Option<Vec<rd_core::PackageNameRegex>>,
+}
+
+/// What a new package of that name would be called, and the folder it would get.
+#[derive(Serialize, ToSchema)]
+pub struct PackageNamePreviewResponse {
+    pub name: String,
+    pub folder: String,
+    /// The rules in force for the preview, inherited switches filled in.
+    pub rules: rd_core::PackageNameRules,
+}
+
 /// One package currently in (or waiting for) the post-processing pipeline.
 #[derive(Serialize, ToSchema)]
 pub struct PostprocessQueueEntry {
@@ -167,6 +208,9 @@ pub struct CreateCategoryRuleRequest {
     pub extension: Option<String>,
     pub mime_type: Option<String>,
     pub name_regex: Option<String>,
+    /// The name `name_regex` is matched against; omitted means the file name (RD-1140-02).
+    #[serde(default)]
+    pub name_target: rd_core::CategoryRuleNameTarget,
     pub category_id: rd_core::CategoryId,
     pub enabled: bool,
 }

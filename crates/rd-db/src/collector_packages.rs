@@ -406,6 +406,8 @@ impl TryFrom<PackageRow> for CollectorPackage {
                 &row.id,
             ),
             script: row.script,
+            // Filled by the facade, which knows the rules in force (RD-1140-05).
+            queue_name: None,
         })
     }
 }

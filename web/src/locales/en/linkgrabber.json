@@ -65,7 +65,8 @@
     "checking": "{count} checking",
     "offline": "{count} offline",
     "unverified": "{count} not checkable",
-    "enqueue_paused_hint": "Add this package to the download list without starting it"
+    "enqueue_paused_hint": "Add this package to the download list without starting it",
+    "queue_name_hint": "Added with a tidied name (Tidy package names); originally: {name}"
   },
   "candidate": {
     "select": "Select link",

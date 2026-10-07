@@ -50,8 +50,8 @@ pub(super) async fn insert_categories(
              postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, \
              direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, \
              upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, \
-             created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             unwrap_package_folder, package_name_rules_json, package_name_regex_json, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -90,6 +90,13 @@ pub(super) async fn insert_categories(
                 .transpose()?,
         )
         .bind(crate::config_store::sorting_json(value.sorting.as_ref())?)
+        .bind(value.unwrap_package_folder)
+        .bind(crate::config_store::package_name_rules_json(
+            value.package_name_rules,
+        )?)
+        .bind(crate::config_store::package_name_regex_json(
+            value.package_name_regex.as_ref(),
+        )?)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
@@ -106,8 +113,8 @@ pub(super) async fn insert_category_rules(
     for value in values {
         sqlx::query(
             "INSERT INTO category_rules (id, name, priority, source, domain, protocol, extension, \
-             mime_type, name_regex, category_id, enabled, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             mime_type, name_regex, name_target, category_id, enabled, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -118,6 +125,7 @@ pub(super) async fn insert_category_rules(
         .bind(value.extension)
         .bind(value.mime_type)
         .bind(value.name_regex)
+        .bind(enum_string(value.name_target)?)
         .bind(value.category_id.to_string())
         .bind(value.enabled)
         .bind(now)

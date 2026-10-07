@@ -330,8 +330,12 @@ pub async fn remove_bundled_services(
         }
         let mut complete = true;
         for manifest in versions {
-            match remove_version(&state, &audit, manifest).await {
-                Ok(()) => changed = true,
+            match crate::plugin_handlers::remove_installed_version(
+                &state, &audit, manifest, "bundled",
+            )
+            .await
+            {
+                Ok(_) => changed = true,
                 Err(error) => {
                     response.failed.push(failure(manifest, error));
                     complete = false;
@@ -360,39 +364,4 @@ pub async fn remove_bundled_services(
     response.code = result.code;
     response.message = result.message;
     Ok(Json(response))
-}
-
-/// Removes one installed version of a bundled plugin, as `remove_plugin_version` does.
-async fn remove_version(
-    state: &AppState,
-    audit: &crate::audit::AuditContext,
-    manifest: &rd_plugin_host::PluginManifest,
-) -> Result<(), ApiError> {
-    let id = manifest.id.to_string();
-    let removed = state
-        .plugins
-        .remove_version(&id, &manifest.version)
-        .await
-        .map_err(|error| {
-            let reason = format!("{error:#}");
-            ApiError::bad_request("plugin.remove_failed", reason.clone())
-                .with_param("reason", reason)
-        })?;
-    if !removed {
-        // Gone in between, by another request: nothing left to forget or to record.
-        return Ok(());
-    }
-    crate::plugin_lifecycle::forget_version(state, &id, &manifest.version).await?;
-    crate::plugin_handlers::announce_plugin(state, &id, "removed");
-    crate::audit::record(
-        state,
-        crate::audit::AuditEvent::success(rd_core::AuditAction::PluginRemoved)
-            .by(audit)
-            .target("plugin", &id)
-            .named(manifest.name.clone())
-            .detail("version", &manifest.version)
-            .detail("source", "bundled"),
-    )
-    .await;
-    Ok(())
 }

@@ -34,7 +34,8 @@
     "withdraw_version": "Withdraw version {version}",
     "staged_badge": "Under test",
     "more_hosts": "+{count} more",
-    "fewer_hosts": "Show fewer"
+    "fewer_hosts": "Show fewer",
+    "remove_all_superseded": "Remove all"
   },
   "keys": {
     "eyebrow": "Signing keys",
@@ -102,13 +103,18 @@
     "enable": "Enable",
     "disable": "Disable",
     "disabled_badge": "disabled",
-    "withdraw": "Withdraw"
+    "withdraw": "Withdraw",
+    "remove_all_superseded": "Remove superseded versions ({count})"
   },
   "remove": {
     "title": "Delete plugin?",
     "description": "“{name}” is removed from disk. Getting it back means installing it again.",
     "superseded_title": "Remove the superseded version?",
-    "superseded_description": "Version {version} of “{name}” is removed from disk. Version {active} stays installed and keeps being loaded."
+    "superseded_description": "Version {version} of “{name}” is removed from disk. Version {active} stays installed and keeps being loaded.",
+    "superseded_all_title": "Remove the superseded versions?",
+    "superseded_all_description": "{count} superseded version is removed from disk. The version each plugin loads stays, and so does a version unfinished work is still bound to or that is chosen for the next start or under test. | {count} superseded versions are removed from disk. The version each plugin loads stays, and so does a version unfinished work is still bound to or that is chosen for the next start or under test.",
+    "superseded_plugin_description": "{count} superseded version of “{name}” is removed from disk. The version it loads stays, and so does a version unfinished work is still bound to or that is chosen for the next start or under test. | {count} superseded versions of “{name}” are removed from disk. The version it loads stays, and so does a version unfinished work is still bound to or that is chosen for the next start or under test.",
+    "superseded_done": "Superseded versions – removed: {removed}, kept: {kept}"
   },
   "withdraw": {
     "title": "Withdraw this build?",
@@ -148,7 +154,9 @@
     "auto_update_hint": "Otherwise an update is shown and installed when you click it. Either way it becomes active at a restart.",
     "release_notes": "Release notes ({count})",
     "release_notes_from": "from {repository}",
-    "auto_update_global_hint": "Applies to every plugin right now: \"Install updates of all plugins automatically\" is on under Updates. Switch it off there and this plugin's own choice applies again."
+    "auto_update_global_hint": "Applies to every plugin right now: \"Install updates of all plugins automatically\" is on under Updates. Switch it off there and this plugin's own choice applies again.",
+    "release_notes_more": "More",
+    "release_notes_less": "Less"
   },
   "preview": {
     "title": "Review before installing",

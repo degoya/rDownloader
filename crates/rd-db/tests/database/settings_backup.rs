@@ -34,6 +34,8 @@ fn replacement(label: &str) -> ConfigReplacement {
             recursive_unpack: Some(true),
             // Non-default (the global setting is off) so the round trip proves it survives.
             unpack_to_subfolder: Some(true),
+            // Non-default as well (RD-1140-01).
+            unwrap_package_folder: Some(true),
             direct_unpack: Some(true),
             malware_scan: Some(true),
             // Non-default (the global setting is on) so the round trip proves it survives.
@@ -59,6 +61,16 @@ fn replacement(label: &str) -> ConfigReplacement {
                 dated: None,
                 movie: Some("{movie} ({year})/{movie} ({year})".to_owned()),
             }),
+            // Round-tripped as well: the package-name rules are configuration (RD-1140-05).
+            package_name_rules: Some(rd_core::PackageNameRulesOverride {
+                spaces_to_dots: Some(true),
+                lowercase: Some(false),
+                ..rd_core::PackageNameRulesOverride::default()
+            }),
+            package_name_regex: Some(vec![rd_core::PackageNameRegex {
+                pattern: r"\.REPACK".to_owned(),
+                replacement: String::new(),
+            }]),
         }],
         category_rules: vec![CategoryRule {
             id: CategoryRuleId::new(),
@@ -70,6 +82,7 @@ fn replacement(label: &str) -> ConfigReplacement {
             extension: Some("mkv".to_owned()),
             mime_type: None,
             name_regex: None,
+            name_target: rd_core::CategoryRuleNameTarget::Package,
             category_id,
             enabled: true,
         }],
@@ -246,6 +259,7 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
     assert_eq!(seeding.enabled, Some(false));
     assert_eq!(seeding.ratio(), Some(2.5));
     assert_eq!(seeding.time, Some(rd_core::SeedTimeLimit::Unlimited));
+    assert_eq!(restored[0].unwrap_package_folder, Some(true));
     let sorting = restored[0]
         .sorting
         .clone()
@@ -253,6 +267,25 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
     assert_eq!(
         sorting.movie.as_deref(),
         Some("{movie} ({year})/{movie} ({year})")
+    );
+    let rules = database.list_category_rules().await.expect("rules");
+    assert_eq!(rules[0].id, ids.2);
+    // The name a rule's pattern targets (RD-1140-02) is restored, not reset to the file name.
+    assert_eq!(
+        rules[0].name_target,
+        rd_core::CategoryRuleNameTarget::Package
+    );
+    assert_eq!(
+        restored[0].package_name_rules,
+        Some(rd_core::PackageNameRulesOverride {
+            spaces_to_dots: Some(true),
+            lowercase: Some(false),
+            ..rd_core::PackageNameRulesOverride::default()
+        })
+    );
+    assert_eq!(
+        restored[0].package_name_regex.as_deref().map(<[_]>::len),
+        Some(1)
     );
     assert_eq!(
         database.list_category_rules().await.expect("rules")[0].id,

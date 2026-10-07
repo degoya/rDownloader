@@ -101,6 +101,12 @@ impl SchedulerHandle {
         let Some(name) = resolved_package_name(&file.source, &package.name, file_name) else {
             return Ok(());
         };
+        // The release name is derived, so the package-name rules of the package's category
+        // apply to it as to any other name the application made up (RD-1140-05).
+        let name = self
+            .database
+            .tidy_package_name(&name, package.category_id)
+            .await?;
         // One file's name is a statement about the package only while it is the only file in
         // it. A second link makes the package a set, and the set is named by grouping.
         let siblings = self.database.downloads_for_package(package.id).await?.len();

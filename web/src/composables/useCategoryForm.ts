@@ -1,12 +1,12 @@
 import { computed, reactive, type WritableComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Category, CreateCategory, PostprocessLevel, SortTemplates } from '@/api/types'
+import type { Category, CreateCategory, PackageNameRegex, PackageNameRulesOverride, PostprocessLevel, SortTemplates } from '@/api/types'
 import { usePostprocessStore } from '@/stores/postprocess'
 import { INHERIT_LEVEL, postprocessLevelItems } from '@/utils/format'
 
 type Switchable = 'recursive_unpack' | 'unpack_to_subfolder' | 'direct_unpack' | 'malware_scan' | 'sfv_verify'
-  | 'safe_postproc' | 'delete_par2' | 'upload_enabled'
+  | 'safe_postproc' | 'delete_par2' | 'upload_enabled' | 'unwrap_package_folder'
 
 /** The three sort templates as the form holds them (RD-1100-08); an empty one sorts nothing. */
 export interface SortingForm { series: string, dated: string, movie: string }
@@ -27,10 +27,18 @@ export function sortingBody(form: SortingForm): SortTemplates | null {
 /**
  * The category's post-processing fields in the body of `PATCH /api/v1/categories/{id}/postprocess`.
  * The endpoint replaces every field it carries, so the ones not being changed are passed back as
- * they are; the plugin steps and the sort templates are the caller's — the category the create and
- * update routes answer with does not carry them.
+ * they are; the plugin steps, the sort templates and the package-name rules are the caller's — the
+ * category the create and update routes answer with does not carry them.
  */
-export function categoryPostprocessBody(category: Category, pluginSteps: string[] | null, sorting: SortTemplates | null) {
+export function categoryPostprocessBody(
+  category: Category,
+  pluginSteps: string[] | null,
+  sorting: SortTemplates | null,
+  naming: { rules: PackageNameRulesOverride | null, regex: PackageNameRegex[] | null } = {
+    rules: category.package_name_rules ?? null,
+    regex: category.package_name_regex ?? null
+  }
+) {
   return {
     postprocess_level: category.postprocess_level ?? null,
     script: category.script ?? null,
@@ -45,7 +53,10 @@ export function categoryPostprocessBody(category: Category, pluginSteps: string[
     plugin_steps: pluginSteps,
     upload_enabled: category.upload_enabled ?? null,
     upload_remote: category.upload_remote ?? null,
-    sorting
+    sorting,
+    unwrap_package_folder: category.unwrap_package_folder ?? null,
+    package_name_rules: naming.rules,
+    package_name_regex: naming.regex
   }
 }
 
@@ -75,7 +86,8 @@ export function useCategoryForm() {
     safe_postproc: null,
     delete_par2: null,
     upload_enabled: null,
-    upload_remote: null
+    upload_remote: null,
+    unwrap_package_folder: null
   })
 
   /** One inherit/on/off select over `field`; `labels` gives the three item labels in that order. */
@@ -128,6 +140,8 @@ export function useCategoryForm() {
     [t('routing.category.safe_postproc_inherit'), t('routing.category.safe_postproc_on'), t('routing.category.safe_postproc_off')])
   const deletePar2 = inheritable('delete_par2', () =>
     [t('routing.category.delete_par2_inherit'), t('routing.category.delete_par2_on'), t('routing.category.delete_par2_off')])
+  const unwrap = inheritable('unwrap_package_folder', () =>
+    [t('routing.category.unwrap_inherit'), t('routing.category.unwrap_on'), t('routing.category.unwrap_off')])
 
   /** Empties the form for a new category on `rootId`. */
   function clear(rootId: string): void {
@@ -147,6 +161,7 @@ export function useCategoryForm() {
     form.delete_par2 = null
     form.upload_enabled = null
     form.upload_remote = null
+    form.unwrap_package_folder = null
   }
 
   /** Fills the form from a stored category; the cleanup list and plugin steps are the caller's. */
@@ -167,6 +182,7 @@ export function useCategoryForm() {
     form.delete_par2 = category.delete_par2 ?? null
     form.upload_enabled = category.upload_enabled ?? null
     form.upload_remote = category.upload_remote ?? null
+    form.unwrap_package_folder = category.unwrap_package_folder ?? null
   }
 
   return {
@@ -192,6 +208,8 @@ export function useCategoryForm() {
     safePostproc: safePostproc.value,
     deletePar2Items: deletePar2.items,
     deletePar2: deletePar2.value,
+    unwrapItems: unwrap.items,
+    unwrapPackageFolder: unwrap.value,
     clear,
     fill
   }

@@ -39,7 +39,7 @@ async fn category(
 #[tool_router(router = routing_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Create a download category: a name, a colour, a storage root and a folder below it, plus optional post-processing defaults. Names are unique: a name another category has is refused with category.name_taken."
+        description = "Create a download category: a name, a colour, a storage root and a folder below it, plus optional post-processing defaults (among them unwrap_package_folder: dissolve a single folder named like the package). Names are unique: a name another category has is refused with category.name_taken."
     )]
     pub async fn create_category(
         &self,
@@ -57,6 +57,7 @@ impl RdMcpServer {
                 cleanup_extensions: params.cleanup_extensions,
                 recursive_unpack: params.recursive_unpack,
                 unpack_to_subfolder: params.unpack_to_subfolder,
+                unwrap_package_folder: params.unwrap_package_folder,
                 direct_unpack: params.direct_unpack,
                 malware_scan: params.malware_scan,
                 sfv_verify: params.sfv_verify,
@@ -101,6 +102,7 @@ impl RdMcpServer {
                     "delete_par2",
                     "upload_enabled",
                     "upload_remote",
+                    "unwrap_package_folder",
                 ],
             )?;
             let request = CreateCategoryRequest {
@@ -179,6 +181,12 @@ impl RdMcpServer {
                     params.upload_remote,
                     current.upload_remote,
                 ),
+                unwrap_package_folder: merged(
+                    &cleared,
+                    "unwrap_package_folder",
+                    params.unwrap_package_folder,
+                    current.unwrap_package_folder,
+                ),
             };
             Ok(crate::config_handlers::update_category(
                 State(self.state.clone()),
@@ -222,7 +230,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a routing rule. Filters are combined; the lowest priority that matches wins."
+        description = "Create a routing rule. Filters are combined; the lowest priority that matches wins. `name_regex` is matched against the file name, the package name or either, as `name_target` says (default: file)."
     )]
     pub async fn create_category_rule(
         &self,
@@ -238,6 +246,7 @@ impl RdMcpServer {
                 extension: params.extension,
                 mime_type: params.mime_type,
                 name_regex: params.name_regex,
+                name_target: params.name_target.map(Into::into).unwrap_or_default(),
                 category_id: parse_id(&params.category_id)?,
                 enabled: params.enabled.unwrap_or(true),
             };
@@ -254,7 +263,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one routing rule. Only the fields you pass are changed; name filters to drop in `clear`."
+        description = "Change one routing rule. Only the fields you pass are changed; name filters to drop in `clear`. `name_target` switches what `name_regex` is matched against: file, package or either."
     )]
     pub async fn update_category_rule(
         &self,
@@ -302,6 +311,7 @@ impl RdMcpServer {
                     params.name_regex,
                     current.name_regex,
                 ),
+                name_target: params.name_target.map_or(current.name_target, Into::into),
                 category_id: match params.category_id {
                     Some(value) => parse_id(&value)?,
                     None => current.category_id,

@@ -65,7 +65,8 @@
     "checking": "{count} in Prüfung",
     "offline": "{count} offline",
     "unverified": "{count} nicht prüfbar",
-    "enqueue_paused_hint": "Dieses Paket pausiert in die Downloadliste übernehmen"
+    "enqueue_paused_hint": "Dieses Paket pausiert in die Downloadliste übernehmen",
+    "queue_name_hint": "Wird mit aufgeräumtem Namen hinzugefügt (Paketnamen aufräumen); ursprünglich: {name}"
   },
   "candidate": {
     "select": "Link auswählen",

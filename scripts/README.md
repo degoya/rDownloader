@@ -34,7 +34,7 @@ and taken WSL down more than once.
 | `update-schema-change.sh` | `<tag> [<repo>]` prints `true` or `false` for the update manifest's `schema_change`: whether `crates/rd-db/migrations/` differs from the previous plain tag (the previous beta for a beta); `true` whenever it cannot tell; `release.yml` passes it to `update manifest build --schema-change` (RD-180-02) |
 | `self-update-smoke.sh` | The self-update with real binaries (RD-180-02): `<old> <old-version> <new> <new-version>`, the old one run as a portable installation and handed three updates the way the service does (backup through the local control token, journal, `apply-update` from a copy) — the new version (exit 0, with a signed-in web and a capture event stream held open across the stop, which must neither hold it up nor need the updater's stop by force), a program that ends at once and, with `RD_SMOKE_DEBUG_BUILD=1`, one declared unhealthy (both rolled back, exit 2); Linux and Git Bash on Windows; `.github/workflows/self-update.yml` runs it |
 | `build-plugins.sh` | Build, sign and package the bundled plugins → `dist/plugins`, with the packager `rd-pack` in `release-test` rather than the service in `release`; refuses changed content under a signed version; `--components-only [names]` builds and stamps for the tests, unsigned; `--list-packageable` / `--list-examples` name the bundle and the examples, which are built but not bundled (RD-150-20); the stamps and the staleness rule are `lib/plugin-stamp.sh`, the same-version comparison `lib/plugin-drift.sh` (RD-1101-04) |
-| `plugin-release-notes.sh` | The release notes of one plugin version from `CHANGELOG.md`: every entry that ends with `` `<plugin>` <version> `` (or a list of names before the version), as plain text within the index's 2000 characters; the release workflow hands them to `plugin index build --notes` (RD-160-09). `--missing <ref>` before a release: the plugins raised since that tag that no entry names, as the lines to end an entry with; exit 1 while any is left |
+| `plugin-release-notes.sh` | The release notes of one plugin version: its `## <version>` section in `plugins/<plugin>/CHANGES.md`, as one line of plain text; the release workflow hands it to `plugin index build --notes` (RD-160-09, RD-1140-03). `--check`: every bundled plugin has a section for its manifest's version, each at most 300 characters, English, without job numbers, paths, Rust identifiers or lists of other plugins; exit 1 while any finding is left (`check.sh`'s file checks, the preflight, the release's docs gate) |
 | `release-assets.sh` | The files of a tag's two GitHub releases, for `release.yml`'s `publish` job: `split <assets> <plugins>` drops the intermediate archives, the packager, the legs' `web-dist.tar` and docker's `*.dockerbuild` record from the downloaded artifacts and moves every `.rdplug` into the plugin release `plugins-vX.Y.Z` (exit 1 when there is none); `sums <dir>...` writes one `SHA256SUMS` per release over its own files; `fetch-plugins <repository> <dir>` downloads the newest release's plugins for `installers.yml` |
 | `check-plugin-imports.sh` | Verify a built component imports nothing outside `rdownloader:plugin` |
 | `check-capture-linux-tree.sh` | Hold the resolved Linux dependency tree of `rd-capture` against the window stacks |
@@ -196,7 +196,7 @@ collecting script tests (`check-stages.sh`), its preflight (`check-preflight.sh`
 (`rd-api-suites.sh`) on a scratch tree, the documentation's release facts
 (`doc-facts.sh`) on a fixture tree, the contract reference and the template check
 (`wit-reference.sh`) on a fixture contract, the breaking-change rules (`compat-check.sh`) on a
-fixture contract, the plugin release notes (`plugin-release-notes.sh`) on a scratch changelog,
+fixture contract, the plugin release notes (`plugin-release-notes.sh`) on scratch plugins,
 the package-manager files (`package-managers.sh`) on a fixture `SHA256SUMS`, the two releases'
 files and checksums and the workflows' tag triggers (`release-assets.sh`) on a scratch download,
 the release archive layout (`archive-layout.sh`) and the installer sources (`package-deb-rpm.sh`,
@@ -390,7 +390,7 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   signs, and the index names each by the digest of those bytes — an index built here would
   describe components that were never published. `.github/workflows/release.yml` builds and
   verifies `rdownloader-plugin-index.json` in its `plugins` job instead (RD-140-01), with
-  each package's notes from `plugin-release-notes.sh` (RD-160-09) and URLs into the plugin
+  each package's notes from `plugin-release-notes.sh` (RD-1140-03) and URLs into the plugin
   release `plugins-vX.Y.Z`, and `publish` attaches it to the application release; by hand
   it is `rdownloader plugin index build dist/plugins --out <file> --key <repository key>` (or the
   same with `rd-pack`), see

@@ -14,7 +14,8 @@ mod categories;
 mod mirror;
 
 pub use categories::{
-    Category, CategoryRule, HotFolderConfig, HotFolderExecutor, ImportMode, StorageRootConfig,
+    Category, CategoryRule, CategoryRuleNameTarget, HotFolderConfig, HotFolderExecutor, ImportMode,
+    StorageRootConfig,
 };
 pub use mirror::{CandidateMirror, MirrorFacet, MirrorHint, MirrorPreference, MirrorSource};
 
@@ -301,6 +302,11 @@ pub struct CollectorPackage {
     pub postprocess_level: Option<PostprocessLevel>,
     #[serde(default)]
     pub script: Option<String>,
+    /// The name the package gets in the queue when the package-name rules change it
+    /// (RD-1140-05); `None` when it keeps `name` as it is. Only a name the LinkGrabber derived
+    /// itself is tidied: one somebody stated or renamed stays.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub queue_name: Option<String>,
 }
 
 /// Which table a LinkGrabber entry belongs to.

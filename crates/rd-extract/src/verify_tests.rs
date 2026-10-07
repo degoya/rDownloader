@@ -163,6 +163,7 @@ async fn a_category_override_switches_the_sfv_check_off() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: Some(false),

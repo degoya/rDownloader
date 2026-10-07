@@ -365,6 +365,7 @@ async fn category_with(database: &Database, temp: &Path, folders: Option<bool>) 
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: folders,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,

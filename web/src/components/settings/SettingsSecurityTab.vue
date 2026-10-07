@@ -23,6 +23,7 @@ import SettingsPasskeysCard from '@/components/settings/SettingsPasskeysCard.vue
 import SettingsPasswordCard from '@/components/settings/SettingsPasswordCard.vue'
 import SettingsProxyCard from '@/components/settings/SettingsProxyCard.vue'
 import SettingsSessions from '@/components/settings/SettingsSessions.vue'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -100,11 +101,11 @@ const proxyWikiActions = computed(() => [{
               :description="t('system.session_limits.description')"
             />
             <div class="mt-4 grid gap-4">
-              <UFormField hint="h" :label="t('system.session_limits.idle_label')" :description="t('system.session_limits.idle_description')">
-                <UInputNumber v-model="settings.session_idle_hours" required :min="1" :max="720" :format-options="WHOLE" class="w-full" />
+              <UFormField :label="t('system.session_limits.idle_label')" :description="t('system.session_limits.idle_description')">
+                <NumberWithUnit v-model="settings.session_idle_hours" unit="h" required :min="1" :max="720" :format-options="WHOLE" class="w-full" />
               </UFormField>
-              <UFormField hint="h" :label="t('system.session_limits.max_label')" :description="t('system.session_limits.max_description')">
-                <UInputNumber v-model="settings.session_max_hours" required :min="1" :max="2160" :format-options="WHOLE" class="w-full" />
+              <UFormField :label="t('system.session_limits.max_label')" :description="t('system.session_limits.max_description')">
+                <NumberWithUnit v-model="settings.session_max_hours" unit="h" required :min="1" :max="2160" :format-options="WHOLE" class="w-full" />
               </UFormField>
             </div>
           </UCard>

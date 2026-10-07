@@ -393,6 +393,8 @@ async fn resolve_category(
             source: new.source,
             url: &url,
             file_name: Some(new.name.as_str()),
+            // The NZB is the package: its name is both (RD-1140-02).
+            package_name: Some(new.name.as_str()),
             mime_type: None,
         },
         default_category,

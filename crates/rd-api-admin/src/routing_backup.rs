@@ -56,6 +56,8 @@ pub struct BundleRoutingCategory {
     pub upload_enabled: Option<bool>,
     #[serde(default)]
     pub upload_remote: Option<String>,
+    #[serde(default)]
+    pub unwrap_package_folder: Option<bool>,
 }
 
 /// One category rule in a routing bundle; the target category is referenced by name.
@@ -75,6 +77,9 @@ pub struct BundleRoutingRule {
     pub mime_type: Option<String>,
     #[serde(default)]
     pub name_regex: Option<String>,
+    /// Absent in a bundle written before RD-1140-02: the file name, as then.
+    #[serde(default)]
+    pub name_target: rd_core::CategoryRuleNameTarget,
     pub category_name: String,
     pub enabled: bool,
 }
@@ -161,6 +166,7 @@ pub async fn export_routing(
                 cleanup_extensions: category.cleanup_extensions.clone(),
                 recursive_unpack: category.recursive_unpack,
                 unpack_to_subfolder: category.unpack_to_subfolder,
+                unwrap_package_folder: category.unwrap_package_folder,
                 direct_unpack: category.direct_unpack,
                 malware_scan: category.malware_scan,
                 sfv_verify: category.sfv_verify,
@@ -183,6 +189,7 @@ pub async fn export_routing(
                 extension: rule.extension.clone(),
                 mime_type: rule.mime_type.clone(),
                 name_regex: rule.name_regex.clone(),
+                name_target: rule.name_target,
                 category_name: category_name(rule.category_id)?,
                 enabled: rule.enabled,
             })
@@ -261,6 +268,7 @@ pub async fn import_routing(
             cleanup_extensions: entry.cleanup_extensions,
             recursive_unpack: entry.recursive_unpack,
             unpack_to_subfolder: entry.unpack_to_subfolder,
+            unwrap_package_folder: entry.unwrap_package_folder,
             direct_unpack: entry.direct_unpack,
             malware_scan: entry.malware_scan,
             sfv_verify: entry.sfv_verify,
@@ -299,6 +307,7 @@ pub async fn import_routing(
             extension: entry.extension,
             mime_type: entry.mime_type,
             name_regex: entry.name_regex,
+            name_target: entry.name_target,
             category_id,
             enabled: entry.enabled,
         };

@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { AuthMethod, AuthProfile } from '@/api/types'
+import DateField from '@/components/DateField.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -10,7 +11,6 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
-import { dateFieldValue, dayOf } from '@/utils/timeFields'
 import {
   type AuthProfileForm,
   emptyForm,
@@ -159,7 +159,7 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
           </UFormField>
           <UCheckbox v-if="editingId" v-model="clearCertificate" :label="t('settings.auth_profiles.certificate_clear')" />
           <UFormField :label="t('settings.auth_profiles.expires_label')" :description="t('settings.auth_profiles.expires_description')">
-            <UInputDate :model-value="dateFieldValue(form.expires_at)" class="w-full" @update:model-value="form.expires_at = dayOf($event)" />
+            <DateField v-model="form.expires_at" class="w-full" />
           </UFormField>
           <USwitch v-model="form.enabled" :label="t('settings.auth_profiles.enabled_label')" />
           <FormActions

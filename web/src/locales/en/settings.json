@@ -270,7 +270,7 @@
       "description": "One password per line; empty = passwords.txt next to the database. Tried after the package password and \"no password\"."
     },
     "max_files": "Maximum files",
-    "max_bytes": "Maximum size (bytes)",
+    "max_bytes": "Maximum unpacked size",
     "rar_executable": {
       "label": "External RAR tool",
       "description": "Optional absolute path to unrar or 7z; invoked without a shell."
@@ -325,6 +325,42 @@
     "direct_unpack": {
       "label": "Unpack while downloading",
       "description": "Multi-part RAR archives from Usenet are unpacked part by part as each part arrives complete, instead of after the download. If a repair is needed or a part is missing something, the attempt is dropped and the archive is unpacked afterwards as usual. Needs unrar and room for the unpacked files beside the running download."
+    },
+    "unwrap_package_folder": {
+      "label": "Dissolve a folder named like the package",
+      "description": "When the package folder holds nothing but one folder named like the package after post-processing (Release/Release/…), its content moves up one level and the empty folder is removed. With subfolders per archive, the same applies to each archive's folder. Nothing is ever overwritten. Works only when nothing else is left in the package folder — so let the source archive go, e.g. with the level \"+Delete\"."
+    },
+    "package_names": {
+      "label": "Tidy package names",
+      "description": "Tidies a new package's name before its folder is created, with the same rules as the “Tidy file names” plugin, which renames the files inside the folder. Applies only to names rDownloader derives itself (from file names, NZB files, torrents); a name you give or rename stays as it is. Each category can override the switches.",
+      "strip_bracket_tags": {
+        "label": "Remove bracket tags",
+        "description": "Tags in square, round or curly brackets such as [1080p] or (x264) are removed, brackets and all."
+      },
+      "spaces_to_dots": {
+        "label": "Spaces → dots",
+        "description": "Big Buck Bunny → Big.Buck.Bunny"
+      },
+      "collapse_separators": {
+        "label": "Collapse separators",
+        "description": "Runs of dots, underscores, hyphens and spaces become one separator and are trimmed at both ends: Big..Buck_-_Bunny → Big.Buck.Bunny"
+      },
+      "lowercase": {
+        "label": "Lowercase",
+        "description": "Big.Buck.Bunny → big.buck.bunny"
+      },
+      "example": "Example: “{name}” gets the folder",
+      "regex": {
+        "label": "Regex rules",
+        "description": "Find and replace after the switches, in this order; every match is replaced, $1, $2 … insert groups. At most 10 rules. A name that would become empty stays as it was.",
+        "empty": "No regex rule.",
+        "add": "Add rule",
+        "edit": "Edit rule",
+        "remove": "Remove rule",
+        "move_up": "Move up",
+        "move_down": "Move down",
+        "replacement_empty": "(remove)"
+      }
     }
   },
   "appearance": {

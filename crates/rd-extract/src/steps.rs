@@ -110,6 +110,10 @@ pub(crate) mod codes {
     pub(crate) const SORT_DONE: &str = "postprocess.sort_done";
     pub(crate) const SORT_FAILED: &str = "postprocess.sort_failed";
     pub(crate) const SORT_SKIPPED: &str = "postprocess.sort_skipped";
+    /// A folder named like the package stayed: a name inside it is taken (RD-1140-01).
+    pub(crate) const UNWRAP_CONFLICT: &str = "postprocess.unwrap_conflict";
+    /// A folder named like the package could not be dissolved (RD-1140-01).
+    pub(crate) const UNWRAP_FAILED: &str = "postprocess.unwrap_failed";
 }
 
 /// The same as `checkpoint`, with a translatable outcome instead of a bare message.

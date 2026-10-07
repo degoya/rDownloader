@@ -1,6 +1,6 @@
 //! Orchestrates the post-processing pipeline of one package:
-//! PAR2 (Usenet) → SFV → unpack → delete archives → cleanup → malware scan → plugin steps →
-//! script → upload → sort.
+//! PAR2 (Usenet) → SFV → unpack → delete archives → cleanup → dissolve a folder named like the
+//! package → malware scan → plugin steps → script → upload → sort.
 //!
 //! [`run_package`] holds the order and the decisions between the phases; what each phase does
 //! is in `package_phases`, and what the package runs with is resolved in `package_settings`.
@@ -110,8 +110,8 @@ struct Unpacked {
     cleaned: Vec<String>,
 }
 
-/// The unpack, the recovery data's deletion, the cleanup and a recording's remux: the package
-/// as it will be kept.
+/// The unpack, the recovery data's deletion, the cleanup, a recording's remux and a folder named
+/// like the package dissolved: the package as it will be kept.
 async fn unpack_and_clean(
     run: &Run<'_>,
     steps: &[PostprocessStep],
@@ -157,6 +157,13 @@ async fn unpack_and_clean(
         &run.downloads,
         &run.directory,
         &run.settings,
+    )
+    .await?;
+    // Last, so what moves up is what will be kept, and only for a package that got this far: a
+    // failed one keeps its layout for the retry (RD-1140-01).
+    crate::unwrap_job::run(
+        run,
+        run.chosen.unwrap_package_folder && verification_gate && unpack_ok,
     )
     .await?;
     Ok(Unpacked {

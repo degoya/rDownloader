@@ -22,6 +22,8 @@ pub(crate) struct PackageSettings {
     /// Off for a forced run, whatever the setting says.
     pub(crate) safe_postproc: bool,
     pub(crate) unpack_to_subfolder: bool,
+    /// Dissolve a single folder named like the package, or like an archive's folder (RD-1140-01).
+    pub(crate) unwrap_package_folder: bool,
     /// Usenet packages only, whatever the setting says (RD-1100-07).
     pub(crate) direct_unpack: bool,
     /// Off for torrents, whatever the setting says.
@@ -110,6 +112,10 @@ impl PackageSettings {
         let unpack_to_subfolder = category
             .and_then(|category| category.unpack_to_subfolder)
             .unwrap_or(settings.unpack_to_subfolder);
+        // Same precedence again (RD-1140-01).
+        let unwrap_package_folder = category
+            .and_then(|category| category.unwrap_package_folder)
+            .unwrap_or(settings.unwrap_package_folder);
         // Same precedence again (RD-1100-07). Only Usenet tells a complete file from one with
         // missing articles before the package is verified, which is what lets a volume be
         // handed to the tool while the rest is still arriving.
@@ -139,6 +145,7 @@ impl PackageSettings {
             malware_scan,
             safe_postproc,
             unpack_to_subfolder,
+            unwrap_package_folder,
             direct_unpack,
             recursive_unpack,
             sorting,

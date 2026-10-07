@@ -15,6 +15,8 @@ in the handbook walks from this scaffold to a signed package in a repository of 
 - `src/lib.rs` — address, JSON body and how an answer is treated, with tests
 - `src/guest.rs` — `deliver`
 - `manifest.toml` — identity, capabilities and limits; `plugin_type = "notifier"`
+- `CHANGES.md` — the release notes, a `## <version>` section per version in one to three
+  sentences for the people who install it
 - `locales/en.json` — the translations of every failure code the plugin reports
 - `wit/rdownloader.wit` — the contract, a copy of the one rDownloader speaks
 

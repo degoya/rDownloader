@@ -6,13 +6,21 @@ use url::Url;
 
 use crate::{ApiError, AppState, input_checks::optional_text};
 
+/// Where a torrent package's name came from, which decides whether it is tidied (RD-1140-05).
+pub enum TorrentName {
+    /// Somebody gave the package this name; it stays as it is.
+    Stated(String),
+    /// Read off the torrent or its link; the package-name rules of the category apply.
+    Derived(String),
+}
+
 /// Enqueues one torrent as a single-row package (shared by import and magnet links).
 ///
 /// `start_paused` writes the row paused instead of queued (API-09).
 pub async fn enqueue_torrent(
     state: &AppState,
     source: Url,
-    name: String,
+    name: TorrentName,
     size: Option<u64>,
     category_id: Option<rd_core::CategoryId>,
     priority: rd_core::DownloadPriority,
@@ -36,7 +44,7 @@ pub async fn enqueue_torrent(
 /// What one torrent enqueue needs besides the service components.
 struct TorrentEntry {
     source: Url,
-    name: String,
+    name: TorrentName,
     size: Option<u64>,
     category_id: Option<rd_core::CategoryId>,
     priority: rd_core::DownloadPriority,
@@ -59,7 +67,7 @@ pub async fn enqueue_torrent_with(
         scheduler,
         TorrentEntry {
             source,
-            name,
+            name: TorrentName::Derived(name),
             size,
             category_id,
             priority,
@@ -84,11 +92,21 @@ async fn enqueue_torrent_package(
     } = entry;
     let destination =
         crate::destination::intake_destination(database, scheduler, category_id).await?;
+    let (name, derived) = match name {
+        TorrentName::Stated(name) => (name, false),
+        TorrentName::Derived(name) => (name, true),
+    };
     let clean = rd_files::sanitize_file_name(&name);
+    // Only the package is renamed: the row keeps the torrent's own name.
+    let package_name = if derived {
+        database.tidy_package_name(&clean, category_id).await?
+    } else {
+        clean.clone()
+    };
     let (package, _) = scheduler
         .enqueue_package(
             PackageSpec {
-                name: clean.clone(),
+                name: package_name,
                 destination,
                 category_id,
                 priority,

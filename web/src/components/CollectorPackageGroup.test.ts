@@ -102,3 +102,36 @@ describe('CollectorPackageGroup copy links', () => {
     expect(emitted().copyLinks).toEqual([['package-1']])
   })
 })
+
+/** RD-1140-05: the name the package-name rules give it in the queue, shown before it is added. */
+describe('CollectorPackageGroup queue name', () => {
+  function renderNamed(pkg: Partial<CollectorPackage>) {
+    return mountComponent(CollectorPackageGroup, {
+      messages: { linkgrabber: en },
+      props: {
+        package: { id: 'package-1', name: 'Big Buck Bunny', priority: 'normal', has_password: false, ...pkg } as CollectorPackage,
+        candidates: [candidate('online')],
+        categories: [],
+        selectedIds: new Set<string>(),
+        enqueuingIds: new Set<string>(),
+        dragging: false,
+        open: false
+      },
+      stubs: { UButton }
+    })
+  }
+
+  it('shows the tidied name and keeps the original in the title', () => {
+    const { getByTestId } = renderNamed({ queue_name: 'Big.Buck.Bunny' })
+    const name = getByTestId('collector-package-name')
+    expect(name.getAttribute('label')).toBe('Big.Buck.Bunny')
+    expect(name.getAttribute('title')).toBe(en.package.queue_name_hint.replace('{name}', 'Big Buck Bunny'))
+  })
+
+  it('shows the name as it is when the rules leave it alone', () => {
+    const { getByTestId } = renderNamed({})
+    const name = getByTestId('collector-package-name')
+    expect(name.getAttribute('label')).toBe('Big Buck Bunny')
+    expect(name.getAttribute('title')).toBe('Big Buck Bunny')
+  })
+})

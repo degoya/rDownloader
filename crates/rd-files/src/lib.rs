@@ -21,6 +21,8 @@ mod sort_plan;
 mod sort_template;
 mod storage;
 mod template;
+mod tidy_name;
+mod tidy_regex;
 mod verified_move;
 
 #[cfg(test)]
@@ -67,6 +69,8 @@ pub use template::{
     MAX_TEMPLATE_DEPTH, MAX_TEMPLATE_LENGTH, TEMPLATE_FIELDS, TemplateError, TemplateValues,
     expand, validate,
 };
+pub use tidy_name::tidy_package_name;
+pub use tidy_regex::{PackageNameRegexError, package_name_regex, validate_package_name_regex};
 pub use verified_move::{
     PlacedCopy, VerifiedMoveError, copy_verified, move_temporary_of, place_verified,
     release_source, verified_move_file,

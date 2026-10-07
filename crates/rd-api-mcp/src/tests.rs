@@ -106,6 +106,10 @@ fn the_costly_tools_are_priced_accordingly() {
     assert_eq!(tool_scope("update_usenet_server"), Some(Scope::Secrets));
     assert_eq!(tool_scope("delete_proxy_profile"), Some(Scope::Secrets));
     assert_eq!(tool_scope("uninstall_plugin_version"), Some(Scope::Admin));
+    assert_eq!(
+        tool_scope("remove_superseded_plugin_versions"),
+        Some(Scope::Admin)
+    );
     assert_eq!(tool_scope("update_settings"), Some(Scope::Config));
     assert_eq!(tool_scope("delete_category"), Some(Scope::Config));
     assert_eq!(tool_scope("delete_packages"), Some(Scope::Queue));

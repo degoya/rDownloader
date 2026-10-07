@@ -40,6 +40,7 @@ impl Database {
                 reply,
             })
             .await?;
+        self.fill_queue_names(&mut packages).await;
         if passwords.is_empty() {
             return Ok((batch, packages, candidates));
         }
@@ -104,6 +105,7 @@ impl Database {
     pub async fn list_collector_packages(&self) -> Result<Vec<CollectorPackage>> {
         let mut packages = collector_packages::list(&self.readers).await?;
         self.reveal_archive_passwords(&mut packages).await;
+        self.fill_queue_names(&mut packages).await;
         Ok(packages)
     }
 
@@ -115,6 +117,7 @@ impl Database {
         if let Some(package) = &mut package {
             self.reveal_archive_passwords(std::slice::from_mut(package))
                 .await;
+            self.fill_queue_names(std::slice::from_mut(package)).await;
         }
         Ok(package)
     }
@@ -154,6 +157,7 @@ impl Database {
             }
         }
         self.reveal_archive_passwords(&mut updated).await;
+        self.fill_queue_names(&mut updated).await;
         Ok(updated)
     }
 
@@ -211,6 +215,8 @@ impl Database {
         // A package the move emptied is gone, and its password with it (RD-190-04).
         self.sweep_archive_passwords().await;
         self.reveal_archive_passwords(std::slice::from_mut(&mut package))
+            .await;
+        self.fill_queue_names(std::slice::from_mut(&mut package))
             .await;
         Ok(package)
     }

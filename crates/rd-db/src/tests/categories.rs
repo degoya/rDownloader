@@ -38,6 +38,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: Some(true),
             unpack_to_subfolder: Some(true),
+            unwrap_package_folder: Some(true),
             direct_unpack: Some(true),
             malware_scan: Some(true),
             sfv_verify: Some(false),
@@ -50,6 +51,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
         .expect("category");
     assert_eq!(created.delete_par2, Some(true));
     assert_eq!(created.unpack_to_subfolder, Some(true));
+    assert_eq!(created.unwrap_package_folder, Some(true));
     assert_eq!(created.direct_unpack, Some(true));
     assert_eq!(created.malware_scan, Some(true));
     assert_eq!(created.safe_postproc, Some(false));
@@ -69,6 +71,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
                 cleanup_extensions: None,
                 recursive_unpack: Some(false),
                 unpack_to_subfolder: Some(false),
+                unwrap_package_folder: Some(false),
                 direct_unpack: Some(false),
                 malware_scan: Some(false),
                 sfv_verify: Some(true),
@@ -84,6 +87,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
     assert_eq!(updated.delete_par2, Some(false));
     assert_eq!(updated.safe_postproc, Some(true));
     assert_eq!(updated.unpack_to_subfolder, Some(false));
+    assert_eq!(updated.unwrap_package_folder, Some(false));
     assert_eq!(updated.direct_unpack, Some(false));
     assert_eq!(updated.malware_scan, Some(false));
 
@@ -97,6 +101,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
                 cleanup_extensions: Some(vec!["sfv".to_owned()]),
                 recursive_unpack: Some(true),
                 unpack_to_subfolder: Some(true),
+                unwrap_package_folder: Some(true),
                 direct_unpack: Some(true),
                 malware_scan: Some(true),
                 sfv_verify: Some(false),
@@ -111,6 +116,12 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
                     dated: None,
                     movie: Some(" {movie} ({year})/{movie} ({year}) ".to_owned()),
                 }),
+                package_name_rules: Some(rd_core::PackageNameRulesOverride {
+                    strip_bracket_tags: Some(true),
+                    ..rd_core::PackageNameRulesOverride::default()
+                }),
+                // An empty list is kept as a list: it switches the global pairs off.
+                package_name_regex: Some(Vec::new()),
             },
         )
         .await
@@ -126,6 +137,7 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
     assert_eq!(stored.delete_par2, Some(true));
     assert_eq!(stored.safe_postproc, Some(false));
     assert_eq!(stored.unpack_to_subfolder, Some(true));
+    assert_eq!(stored.unwrap_package_folder, Some(true));
     assert_eq!(stored.direct_unpack, Some(true));
     assert_eq!(stored.malware_scan, Some(true));
     assert_eq!(stored.script.as_deref(), Some("after.sh"));
@@ -142,4 +154,12 @@ async fn a_category_survives_both_write_paths_with_every_field_intact() {
             movie: Some("{movie} ({year})/{movie} ({year})".to_owned()),
         })
     );
+    assert_eq!(
+        stored.package_name_rules,
+        Some(rd_core::PackageNameRulesOverride {
+            strip_bracket_tags: Some(true),
+            ..rd_core::PackageNameRulesOverride::default()
+        })
+    );
+    assert_eq!(stored.package_name_regex, Some(Vec::new()));
 }

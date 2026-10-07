@@ -12,6 +12,7 @@ import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { GIB, MIB, byteModel, formatBytes } from '@/utils/format'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL, WHOLE, orNull } from '@/utils/numberInput'
 import { editingRowClass } from '@/utils/editingRow'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
@@ -187,19 +188,19 @@ function summary(profile: BandwidthProfile): string {
             <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-gauge" :placeholder="t('bandwidth.profile.name_placeholder')" />
           </UFormField>
           <UFormField :label="t('bandwidth.profile.parallel_label')" :description="t('bandwidth.profile.parallel_description')">
-            <UInputNumber v-model="form.max_active_files" :min="1" :max="32" :format-options="WHOLE" increment decrement class="w-full" :placeholder="t('bandwidth.profile.inherit')" />
+            <UInputNumber v-model="form.max_active_files" :min="1" :max="32" :format-options="WHOLE" class="w-full" :placeholder="t('bandwidth.profile.inherit')" />
           </UFormField>
-          <UFormField hint="MiB/s" :label="t('bandwidth.profile.download_label')">
-            <UInputNumber v-model="downloadMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.status.unlimited')" />
+          <UFormField :label="t('bandwidth.profile.download_label')">
+            <NumberWithUnit v-model="downloadMiB" unit="MiB/s" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.status.unlimited')" />
           </UFormField>
-          <UFormField hint="MiB/s" :label="t('bandwidth.profile.upload_label')" :description="t('bandwidth.profile.upload_description')">
-            <UInputNumber v-model="uploadMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.status.unlimited')" />
+          <UFormField :label="t('bandwidth.profile.upload_label')" :description="t('bandwidth.profile.upload_description')">
+            <NumberWithUnit v-model="uploadMiB" unit="MiB/s" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.status.unlimited')" />
           </UFormField>
-          <UFormField hint="GiB" :label="t('bandwidth.profile.daily_label')">
-            <UInputNumber v-model="dailyGiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
+          <UFormField :label="t('bandwidth.profile.daily_label')">
+            <NumberWithUnit v-model="dailyGiB" unit="GiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
           </UFormField>
-          <UFormField hint="GiB" data-settings-anchor="bandwidth.monthly" :label="t('bandwidth.profile.monthly_label')">
-            <UInputNumber v-model="monthlyGiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
+          <UFormField data-settings-anchor="bandwidth.monthly" :label="t('bandwidth.profile.monthly_label')">
+            <NumberWithUnit v-model="monthlyGiB" unit="GiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
           </UFormField>
           <SettingsCrossLink class="-mt-2" anchor="unattended.power" title-key="power.context.metered_label" />
 

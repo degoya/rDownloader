@@ -10,6 +10,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { SeedingPolicyRequest, SeedingPolicyResponse } from '@/api/types'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { RATIO, WHOLE, orNull } from '@/utils/numberInput'
 
 const { t } = useI18n()
@@ -110,8 +111,8 @@ function save(): void {
       <UFormField :label="t('torrent.seeding.override_unlimited')" size="xs" orientation="horizontal">
         <USwitch v-model="unlimited" :disabled="props.busy" />
       </UFormField>
-      <UFormField hint="min" :label="t('torrent.seeding.override_time')" size="xs">
-        <UInputNumber v-model="minutes" :min="1" :format-options="WHOLE" :disabled="props.busy || unlimited" />
+      <UFormField :label="t('torrent.seeding.override_time')" size="xs">
+        <NumberWithUnit v-model="minutes" unit="min" :min="1" :format-options="WHOLE" :disabled="props.busy || unlimited" />
       </UFormField>
       <div class="flex items-center gap-2">
         <UButton type="submit" size="xs" icon="i-lucide-save" :loading="props.busy" :label="t('common.actions.save')" />

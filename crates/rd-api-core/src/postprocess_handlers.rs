@@ -12,7 +12,8 @@ use crate::input_checks::optional_text;
 use crate::{
     ApiError, AppState,
     dto::{
-        CategoryPostprocessRequest, MAX_SORT_PREVIEW_NAMES, PostprocessQueueEntry,
+        CategoryPostprocessRequest, MAX_PACKAGE_NAME_PREVIEW_CHARS, MAX_SORT_PREVIEW_NAMES,
+        PackageNamePreviewRequest, PackageNamePreviewResponse, PostprocessQueueEntry,
         PostprocessScriptsResponse, SortPreviewEntry, SortPreviewRequest, SortPreviewResponse,
     },
 };
@@ -278,6 +279,10 @@ pub async fn update_category_postprocess(
         .transpose()?;
     let upload_remote = crate::dto::normalize_upload_remote(request.upload_remote)?;
     let sorting = validate_sorting(request.sorting)?;
+    let package_name_regex = request
+        .package_name_regex
+        .map(crate::input_checks::package_name_regex)
+        .transpose()?;
     let category = state
         .database
         .update_category_postprocess(
@@ -288,6 +293,7 @@ pub async fn update_category_postprocess(
                 cleanup_extensions,
                 recursive_unpack: request.recursive_unpack,
                 unpack_to_subfolder: request.unpack_to_subfolder,
+                unwrap_package_folder: request.unwrap_package_folder,
                 direct_unpack: request.direct_unpack,
                 malware_scan: request.malware_scan,
                 sfv_verify: request.sfv_verify,
@@ -297,6 +303,8 @@ pub async fn update_category_postprocess(
                 upload_enabled: request.upload_enabled,
                 upload_remote,
                 sorting,
+                package_name_rules: request.package_name_rules,
+                package_name_regex,
             },
         )
         .await
@@ -381,6 +389,45 @@ pub async fn preview_category_sorting(
         })
         .collect();
     Ok(Json(SortPreviewResponse { entries, fields }))
+}
+
+/// What the package-name rules make of an example name (RD-1140-05), before anything is saved:
+/// the name a new package would get and the folder that follows from it. Switches the request
+/// leaves open, and a missing regex list, take the saved global setting, so a category editor
+/// previews its override. A regex list is checked as it would be on save.
+#[utoipa::path(
+    post,
+    path = "/api/v1/postprocess/package-name-preview",
+    tag = "configuration",
+    request_body = PackageNamePreviewRequest,
+    responses(
+        (status = 200, body = PackageNamePreviewResponse),
+        (status = 400, body = crate::error::ErrorBody)
+    )
+)]
+pub async fn preview_package_name(
+    State(state): State<AppState>,
+    Json(request): Json<PackageNamePreviewRequest>,
+) -> Result<Json<PackageNamePreviewResponse>, ApiError> {
+    let name: String = request
+        .name
+        .trim()
+        .chars()
+        .take(MAX_PACKAGE_NAME_PREVIEW_CHARS)
+        .collect();
+    let regex = request
+        .regex
+        .map(crate::input_checks::package_name_regex)
+        .transpose()?;
+    let global = state.database.package_naming(None).await?;
+    let naming = global.for_category(request.rules.unwrap_or_default(), regex.as_deref());
+    let tidied = rd_files::tidy_package_name(&name, &naming);
+    let folder = rd_files::sanitize_file_name(&tidied);
+    Ok(Json(PackageNamePreviewResponse {
+        name: tidied,
+        folder,
+        rules: naming.rules,
+    }))
 }
 
 fn preview_name(

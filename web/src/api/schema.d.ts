@@ -4162,6 +4162,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins/superseded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Removes every superseded version of every installed plugin.
+         * @description A version is superseded when another version of the same plugin is the one that runs. The
+         *     one that runs never goes; neither does the one the next start loads — right after an update
+         *     that is the new one, and taking it would undo the update — nor the one under test, nor one
+         *     unfinished work is bound to. Each of those is listed under `kept` with its reason.
+         */
+        delete: operations["remove_superseded_plugin_versions"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins/updates": {
         parameters: {
             query?: never;
@@ -4354,6 +4377,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins/{id}/superseded": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Removes every superseded version of one plugin, by the rules of
+         *     `remove_superseded_plugin_versions`.
+         */
+        delete: operations["remove_superseded_versions_of_plugin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plugins/{id}/{version}": {
         parameters: {
             query?: never;
@@ -4397,6 +4440,28 @@ export interface paths {
          *     what the scan step will use.
          */
         post: operations["test_malware_scanner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/postprocess/package-name-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What the package-name rules make of an example name (RD-1140-05), before anything is saved:
+         *     the name a new package would get and the folder that follows from it. Switches the request
+         *     leaves open, and a missing regex list, take the saved global setting, so a category editor
+         *     previews its override. A regex list is checked as it would be on save.
+         */
+        post: operations["preview_package_name"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7164,6 +7229,7 @@ export interface components {
             sfv_verify?: boolean | null;
             storage_root_name: string;
             unpack_to_subfolder?: boolean | null;
+            unwrap_package_folder?: boolean | null;
             upload_enabled?: boolean | null;
             upload_remote?: string | null;
         };
@@ -7176,6 +7242,8 @@ export interface components {
             mime_type?: string | null;
             name: string;
             name_regex?: string | null;
+            /** @description Absent in a bundle written before RD-1140-02: the file name, as then. */
+            name_target?: components["schemas"]["CategoryRuleNameTarget"];
             /** Format: int32 */
             priority: number;
             protocol?: string | null;
@@ -7845,6 +7913,12 @@ export interface components {
             malware_scan?: boolean | null;
             name: string;
             /**
+             * @description Regex find → replace pairs for new package names of this category (RD-1140-05); `None`
+             *     inherits the global list, a list — an empty one too — replaces it.
+             */
+            package_name_regex?: components["schemas"]["PackageNameRegex"][] | null;
+            package_name_rules?: components["schemas"]["PackageNameRulesOverride"] | null;
+            /**
              * @description Post-processing plugin steps for packages in this category, by plugin id and in the
              *     order they run; `None` = the global list. An empty list means "none here", which is
              *     how a category switches a globally enabled step off.
@@ -7871,6 +7945,11 @@ export interface components {
              *     `None` = global default (RD-170-16).
              */
             unpack_to_subfolder?: boolean | null;
+            /**
+             * @description Whether packages in this category unwrap a single folder named like the package;
+             *     `None` = global default (RD-1140-01).
+             */
+            unwrap_package_folder?: boolean | null;
             /** @description Whether packages in this category upload to rclone; `None` = global default. */
             upload_enabled?: boolean | null;
             /** @description rclone target override in `remote:path` form; `None` = the global remote. */
@@ -7909,6 +7988,12 @@ export interface components {
              */
             malware_scan?: boolean | null;
             /**
+             * @description Regex pairs of this category (RD-1140-05); `null` inherits the global list, a list —
+             *     an empty one too — replaces it. Same limits and codes as the global list.
+             */
+            package_name_regex?: components["schemas"]["PackageNameRegex"][] | null;
+            package_name_rules?: components["schemas"]["PackageNameRulesOverride"] | null;
+            /**
              * @description Post-processing plugin steps for this category, by plugin id and in the order they
              *     run (`null` = the global list). An empty list means "none here", which is how a
              *     category switches a globally enabled step off.
@@ -7931,6 +8016,11 @@ export interface components {
              *     named after the archive (`null` = global default, RD-170-16).
              */
             unpack_to_subfolder?: boolean | null;
+            /**
+             * @description Whether packages of this category move the content of a single folder named like the
+             *     package up into the package folder and remove it (`null` = global default, RD-1140-01).
+             */
+            unwrap_package_folder?: boolean | null;
             /** @description Whether packages of this category upload to rclone (`null` = global default). */
             upload_enabled?: boolean | null;
             /** @description rclone target override in `remote:path` form (`null` = the global remote). */
@@ -7946,6 +8036,11 @@ export interface components {
             mime_type?: string | null;
             name: string;
             name_regex?: string | null;
+            /**
+             * @description Which name `name_regex` is matched against (RD-1140-02); a rule stored before the
+             *     choice existed matches the file name, as it always did.
+             */
+            name_target?: components["schemas"]["CategoryRuleNameTarget"];
             /** Format: int32 */
             priority: number;
             protocol?: string | null;
@@ -7953,6 +8048,11 @@ export interface components {
         };
         /** Format: uuid */
         CategoryRuleId: string;
+        /**
+         * @description The name a category rule's `name_regex` is matched against.
+         * @enum {string}
+         */
+        CategoryRuleNameTarget: "file" | "package" | "either";
         /** @description One line of `doctor` output, with its verdict kept separate from its words. */
         Check: {
             detail: string;
@@ -8070,6 +8170,12 @@ export interface components {
             position: number;
             postprocess_level?: components["schemas"]["PostprocessLevel"] | null;
             priority: components["schemas"]["DownloadPriority"];
+            /**
+             * @description The name the package gets in the queue when the package-name rules change it
+             *     (RD-1140-05); `None` when it keeps `name` as it is. Only a name the LinkGrabber derived
+             *     itself is tidied: one somebody stated or renamed stays.
+             */
+            queue_name?: string | null;
             script?: string | null;
         };
         CollectorPackageBulkRequest: {
@@ -8352,6 +8458,11 @@ export interface components {
              *     named after the archive (`null` = global default, RD-170-16).
              */
             unpack_to_subfolder?: boolean | null;
+            /**
+             * @description Whether packages of this category move the content of a single folder named like the
+             *     package up into the package folder and remove it (`null` = global default, RD-1140-01).
+             */
+            unwrap_package_folder?: boolean | null;
             /** @description Whether packages of this category upload to rclone (`null` = global default). */
             upload_enabled?: boolean | null;
             /** @description rclone target override in `remote:path` form (`null` = the global remote). */
@@ -8365,6 +8476,8 @@ export interface components {
             mime_type?: string | null;
             name: string;
             name_regex?: string | null;
+            /** @description The name `name_regex` is matched against; omitted means the file name (RD-1140-02). */
+            name_target?: components["schemas"]["CategoryRuleNameTarget"];
             /** Format: int32 */
             priority: number;
             protocol?: string | null;
@@ -9744,6 +9857,18 @@ export interface components {
             path: string;
             /** @description What was removed or replaced before the entry was written. */
             redactions: components["schemas"]["Note"][];
+        };
+        /** @description A superseded version that stayed, and why. */
+        KeptPluginVersion: {
+            name: string;
+            plugin_id: components["schemas"]["PluginId"];
+            /**
+             * @description `plugin.version_in_use` while unfinished work is bound to it,
+             *     `plugin.version_next_start` when it is the one the next start loads,
+             *     `plugin.version_under_test` while it is under test, or `plugin.remove_failed`.
+             */
+            reason: components["schemas"]["MessageResponse"];
+            version: string;
         };
         /** @description A scope a profile can put its own limit on, next to the global one. */
         LimitScope: {
@@ -11149,6 +11274,67 @@ export interface components {
         };
         /** Format: uuid */
         PackageId: string;
+        /** @description An example name and the rules to try on it (RD-1140-05). */
+        PackageNamePreviewRequest: {
+            name: string;
+            /** @description The regex pairs of a form, saved or not; `null` takes the saved global list. */
+            regex?: components["schemas"]["PackageNameRegex"][] | null;
+            rules?: components["schemas"]["PackageNameRulesOverride"] | null;
+        };
+        /** @description What a new package of that name would be called, and the folder it would get. */
+        PackageNamePreviewResponse: {
+            folder: string;
+            name: string;
+            /** @description The rules in force for the preview, inherited switches filled in. */
+            rules: components["schemas"]["PackageNameRules"];
+        };
+        /**
+         * @description One find → replace pair of the package-name regex rules, applied after the four switches.
+         *
+         *     `pattern` is a `regex`-crate expression (linear time: no backreferences, no lookaround);
+         *     every match is replaced by `replacement`, which may name groups as `$1`, `${1}` or `${name}`.
+         */
+        PackageNameRegex: {
+            pattern: string;
+            replacement?: string;
+        };
+        /**
+         * @description The rules of the "Tidy file names" plugin, applied to a package name when the package is
+         *     created. All off by default: a package keeps the name it was given unless somebody asked.
+         */
+        PackageNameRules: {
+            /**
+             * @description `Big..Buck._.Bunny` -> `Big.Buck.Bunny`
+             * @default false
+             */
+            collapse_separators: boolean;
+            /**
+             * @description `Big.Buck.Bunny` -> `big.buck.bunny`
+             * @default false
+             */
+            lowercase: boolean;
+            /**
+             * @description `Big Buck Bunny` -> `Big.Buck.Bunny`
+             * @default false
+             */
+            spaces_to_dots: boolean;
+            /**
+             * @description `[1080p]`, `(x264)` and `{…}` tags are removed, brackets and all
+             * @default false
+             */
+            strip_bracket_tags: boolean;
+        };
+        /** @description A category's override of the package-name rules; every `None` inherits the global switch. */
+        PackageNameRulesOverride: {
+            /** @default null */
+            collapse_separators: boolean | null;
+            /** @default null */
+            lowercase: boolean | null;
+            /** @default null */
+            spaces_to_dots: boolean | null;
+            /** @default null */
+            strip_bracket_tags: boolean | null;
+        };
         /** @description Complete queue order; packages are positioned in the given sequence. */
         PackageReorderRequest: {
             ids: components["schemas"]["PackageId"][];
@@ -11588,6 +11774,12 @@ export interface components {
              */
             automatic_updates: boolean;
         };
+        /** @description One installed version of a plugin. */
+        PluginVersionEntry: {
+            name: string;
+            plugin_id: components["schemas"]["PluginId"];
+            version: string;
+        };
         /** @description Names one installed version of the plugin. */
         PluginVersionRequest: {
             version: string;
@@ -12011,6 +12203,55 @@ export interface components {
             /** @default [] */
             sidecars: components["schemas"]["SidecarOutcome"][];
         };
+        RegexFlag: {
+            /** @description False for a flag after `-`, as in `(?-i)`. */
+            enabled: boolean;
+            flag: components["schemas"]["RegexFlagName"];
+        };
+        /** @enum {string} */
+        RegexFlagName: "case_insensitive" | "multi_line" | "dot_matches_new_line" | "swap_greed" | "unicode" | "crlf" | "ignore_whitespace";
+        /** @description One box of the diagram. Which fields a node carries depends on its `kind`. */
+        RegexNode: {
+            /**
+             * @description `sequence`, `alternation`, `class` and the set operations: their parts in order;
+             *     `group` and `repetition`: the one node they wrap.
+             */
+            children?: components["schemas"]["RegexNode"][];
+            /** @description `flags`, and a non-capturing `group` such as `(?i:…)`: the flags switched on or off. */
+            flags?: components["schemas"]["RegexFlag"][];
+            /** @description `range`: the first and the last character. */
+            from?: string | null;
+            /**
+             * Format: int32
+             * @description `group`: the capture group's number; absent for a non-capturing group.
+             */
+            index?: number | null;
+            kind: components["schemas"]["RegexNodeKind"];
+            /** @description `repetition`: matches as few times as possible (`*?`, `+?`, `??`, `{n,m}?`). */
+            lazy?: boolean;
+            /**
+             * Format: int32
+             * @description `repetition`: the most number of times; absent means without limit.
+             */
+            max?: number | null;
+            /**
+             * Format: int32
+             * @description `repetition`: the least number of times.
+             */
+            min?: number | null;
+            /** @description `group`: the capture group's name. */
+            name?: string | null;
+            /** @description Character classes: everything except what they name. */
+            negated?: boolean;
+            /** @description `literal`: the text, adjacent characters merged; `unicode_class`, `ascii_class`: the name. */
+            text?: string | null;
+            to?: string | null;
+        };
+        /**
+         * @description What a node stands for.
+         * @enum {string}
+         */
+        RegexNodeKind: "sequence" | "alternation" | "group" | "repetition" | "literal" | "any_char" | "digit" | "word_char" | "whitespace" | "unicode_class" | "ascii_class" | "class" | "range" | "intersection" | "difference" | "symmetric_difference" | "start" | "end" | "word_boundary" | "not_word_boundary" | "word_start" | "word_end" | "flags" | "empty";
         /**
          * @description How a remote credential authenticates.
          * @enum {string}
@@ -13416,6 +13657,24 @@ export interface components {
              */
             otlp_timeout_seconds: number;
             /**
+             * @description Regex find → replace pairs applied after those switches, in order (RD-1140-05): at most
+             *     ten, pattern and replacement at most 200 characters each; a category may replace the list.
+             * @default []
+             */
+            package_name_regex: components["schemas"]["PackageNameRegex"][];
+            /**
+             * @description The "Tidy file names" rules applied to a package name when the package is created, and
+             *     with it to its folder (RD-1140-05). All off by default; a category may override each
+             *     switch. Only a name the application derived is tidied, never one somebody stated.
+             * @default {
+             *       "collapse_separators": false,
+             *       "lowercase": false,
+             *       "spaces_to_dots": false,
+             *       "strip_bracket_tags": false
+             *     }
+             */
+            package_name_rules: components["schemas"]["PackageNameRules"];
+            /**
              * @description Absolute path of the password list (one per line); empty = `passwords.txt` next to the database.
              * @default null
              */
@@ -13785,6 +14044,13 @@ export interface components {
              * @default false
              */
             unpack_to_subfolder: boolean;
+            /**
+             * @description When the package folder holds nothing but one folder named like the package, move its
+             *     content up one level and remove it; with `unpack_to_subfolder`, the same for every
+             *     archive's folder. Nothing is overwritten. Off by default (RD-1140-01).
+             * @default false
+             */
+            unwrap_package_folder: boolean;
             /**
              * @description Which releases the update check offers: `stable`, or `beta` for the pre-releases too.
              *     Unset, it is `beta` on a pre-release build and `stable` on every other.
@@ -14878,6 +15144,18 @@ export interface components {
             /** @default manual */
             source: components["schemas"]["SubtitleSource"];
         };
+        SupersededRemovalResponse: {
+            /**
+             * @description `plugin.superseded_removed` when every superseded version is gone,
+             *     `plugin.superseded_partly_removed` when some stayed, or `plugin.superseded_none` when
+             *     there was none.
+             */
+            code: string;
+            kept: components["schemas"]["KeptPluginVersion"][];
+            message: string;
+            params?: components["schemas"]["BTreeMap"];
+            removed: components["schemas"]["PluginVersionEntry"][];
+        };
         /**
          * @description Where a notification is delivered.
          * @enum {string}
@@ -14901,6 +15179,8 @@ export interface components {
         };
         TestRegexRequest: {
             pattern: string;
+            /** @description Replaces every match, `$1`/`${name}` naming groups; each result then carries `replaced`. */
+            replacement?: string | null;
             samples: string[];
         };
         TestRegexResponse: {
@@ -14908,12 +15188,20 @@ export interface components {
             error?: string | null;
             /** @description One entry per sample in request order; empty when the pattern is invalid. */
             results: components["schemas"]["TestRegexSampleResult"][];
+            structure?: components["schemas"]["RegexNode"] | null;
+            /**
+             * @description Why a valid pattern has no structure, as a stable code
+             *     (`category_rule.regex_structure_limits`: deeper or larger than a diagram shows).
+             */
+            structure_error?: string | null;
             valid: boolean;
         };
         TestRegexSampleResult: {
             /** Format: int32 */
             end?: number | null;
             matched: boolean;
+            /** @description The sample with every match replaced, when the request carried a replacement. */
+            replaced?: string | null;
             /**
              * Format: int32
              * @description First match offsets in UTF-16 code units, ready for JS `String.prototype.slice`.
@@ -25732,6 +26020,26 @@ export interface operations {
             };
         };
     };
+    remove_superseded_plugin_versions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupersededRemovalResponse"];
+                };
+            };
+        };
+    };
     list_plugin_updates: {
         parameters: {
             query?: never;
@@ -26099,6 +26407,38 @@ export interface operations {
             };
         };
     };
+    remove_superseded_versions_of_plugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Plugin id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupersededRemovalResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
     remove_plugin_version: {
         parameters: {
             query?: never;
@@ -26177,6 +26517,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    preview_package_name: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackageNamePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageNamePreviewResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

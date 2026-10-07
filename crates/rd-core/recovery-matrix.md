@@ -124,6 +124,7 @@ row for a point that does not exist.
 | `plugin_transfer.before_checkpoint_saved` | rd-plugin-transfer | bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, on the backend version pinned before its first byte and after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte |
 | `postprocess.before_direct_unpack_adopted` | rd-extract | a set unpacked directly while its package downloaded, stopped before the pipeline moved it into the package, has put nothing at the destination; the next start removes its staging directory, unpacks the set the normal way and completes the package with the same files |
 | `postprocess.after_sort_move` | rd-extract | a sort stopped after it placed a file and before it recorded the step is run again by the next start: the files still in the package are placed by the same templates, the ones already placed are neither moved again nor copied beside themselves, and the package leaves post-processing completed |
+| `postprocess.after_unwrap_move` | rd-extract | a dissolve of a folder named like the package stopped after an entry moved up and before the last one did leaves every entry either up or in the working folder, none lost and none overwritten; the next start moves the rest up, removes the working folder and completes the package |
 | `postprocess.before_scan_recorded` | rd-extract | a package whose malware scan ran before its verdict was recorded is scanned again by the next start and never released on a verdict nobody recorded; a finding fails it then, with the steps after the scan skipped and not run |
 | `postprocess.before_unpack_recorded` | rd-extract | an archive unpacked before its step was recorded is unpacked again by the next start into the same place, replacing what the first run wrote; the package leaves post-processing completed, and no staging directory, not even one a killed extraction left, survives |
 | `pre_update.before_archive_published` | rd-backup | an archive sealed and checked before an update but not yet moved into the pre-update folder never appears there; the next start removes the staging with the unencrypted copy it held, and the next preparation seals a whole one |
@@ -417,6 +418,15 @@ video — by whose name the rest is recognised — is the last thing to leave. T
 first companion, asserts that the video stayed, and that the restart places the video and the
 other companion beside the first with nothing under a second name, removes the emptied package
 folder and completes the package. The case runs with `rd-extract/failpoints`.
+
+`postprocess.after_unwrap_move` is the dissolve of a folder named like the package between one
+entry moving up and the next (RD-1140-01, `rd_extract::unwrap_job`). The folder is renamed to its
+working name `.rd-unwrap` before anything moves, so a stop leaves the package folder holding the
+entries already up and the working folder with the rest, the package `Postprocessing`. Every pass
+first finishes a working folder it finds, whatever the setting says by then, moving each entry only
+to a free name. The case stops after the first of two entries, asserts that it is up and the other
+in the working folder, and that the restart moves the second up, removes the working folder and
+completes the package with both files intact. The case runs with `rd-extract/failpoints`.
 
 `automation.before_outcome_recorded` is an automation run between an action taking effect and the
 run recording it (RD-180-12, `rd_api_core::automation_service`). The run is claimed as `running`

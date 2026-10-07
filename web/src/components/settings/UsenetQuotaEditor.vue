@@ -11,9 +11,10 @@ import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { SetUsenetQuota, UsenetQuotaAction, UsenetServer, UsenetServerTraffic } from '@/api/types'
+import DateField from '@/components/DateField.vue'
 import { GIB, formatBytes, formatDay } from '@/utils/format'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL } from '@/utils/numberInput'
-import { dateFieldValue, dayOf } from '@/utils/timeFields'
 
 const props = defineProps<{ server: UsenetServer, traffic?: UsenetServerTraffic | null | undefined }>()
 const emit = defineEmits<{ saved: [server: UsenetServer] }>()
@@ -104,14 +105,14 @@ const remove = () => send({ limit_bytes: null })
     </p>
     <form v-if="open" class="grid gap-3 border border-muted p-3" @submit.prevent="save">
       <UAlert v-if="error" color="error" :description="error" />
-      <UFormField hint="GiB" :label="t('usenet.quota.limit')" name="quota_limit" :description="t('usenet.quota.limit_hint')" required>
-        <UInputNumber v-model="form.limitGiB" :min="0.01" :format-options="DECIMAL" :step-snapping="false" required class="w-full" />
+      <UFormField :label="t('usenet.quota.limit')" name="quota_limit" :description="t('usenet.quota.limit_hint')" required>
+        <NumberWithUnit v-model="form.limitGiB" unit="GiB" :min="0.01" :format-options="DECIMAL" :step-snapping="false" required class="w-full" />
       </UFormField>
       <UFormField :label="t('usenet.quota.action')" name="quota_action">
         <USelect v-model="form.action" :items="actionItems" class="w-full" />
       </UFormField>
       <UFormField :label="t('usenet.quota.reset_on')" name="quota_reset_on" :description="t('usenet.quota.reset_on_hint')">
-        <UInputDate :model-value="dateFieldValue(form.resetOn)" class="w-full" @update:model-value="form.resetOn = dayOf($event)" />
+        <DateField v-model="form.resetOn" class="w-full" />
       </UFormField>
       <div class="flex flex-wrap gap-2">
         <UButton type="submit" size="sm" icon="i-lucide-save" :label="t('common.actions.save')" :loading="pending" />

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import settingsMessages from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { axeViolations } from '@/test/axe'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, unitOf } from '@/test/mount'
 
 import SettingsGeneralTab from './SettingsGeneralTab.vue'
 
@@ -41,6 +41,38 @@ describe('SettingsGeneralTab automatic retry', () => {
     expect(rounds.value).toBe('0')
     expect(rounds.max).toBe('100')
     expect(screen.getByText('Rounds per download')).toBeTruthy()
+  })
+})
+
+/**
+ * RD-1140-08: the counts of one group look alike — the retries had no plus and minus beside three
+ * neighbours that had them — and an hour stands at its field, not at the end of the label row.
+ */
+describe('SettingsGeneralTab number fields', () => {
+  it('gives every count of the queue plus and minus, the retries included', () => {
+    mount()
+
+    for (const label of [
+      settingsMessages.active_files.label, settingsMessages.chunks.label,
+      settingsMessages.connections_per_host.label, settingsMessages.retries.label
+    ]) {
+      expect(screen.getByLabelText(label).hasAttribute('data-steppers'), label).toBe(true)
+    }
+  })
+
+  it('gives the rounds of the automatic retry plus and minus like its interval', () => {
+    mount({ auto_retry_failed: true })
+
+    expect(screen.getByTestId('auto-retry-interval').hasAttribute('data-steppers')).toBe(true)
+    expect(screen.getByTestId('auto-retry-rounds').hasAttribute('data-steppers')).toBe(true)
+  })
+
+  it('puts the hours at their fields and leaves a count without a unit', () => {
+    mount({ auto_retry_failed: true, auto_remove_finished: true })
+
+    expect(unitOf(screen.getByTestId('auto-retry-interval'))).toBe('h')
+    expect(unitOf(screen.getByLabelText(settingsMessages.auto_remove.delay_label))).toBe('h')
+    expect(unitOf(screen.getByTestId('auto-retry-rounds'))).toBeNull()
   })
 })
 

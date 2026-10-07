@@ -55,6 +55,29 @@ pub(crate) fn sorting_json(sorting: Option<&rd_core::SortTemplates>) -> Result<O
         .map_err(Into::into)
 }
 
+/// Serialises a category's package-name rules (RD-1140-05); an override that sets nothing stays
+/// NULL, which inherits every global switch, so the two never diverge.
+pub(crate) fn package_name_rules_json(
+    rules: Option<rd_core::PackageNameRulesOverride>,
+) -> Result<Option<String>> {
+    rules
+        .filter(|rules| !rules.is_empty())
+        .map(|rules| serde_json::to_string(&rules))
+        .transpose()
+        .map_err(Into::into)
+}
+
+/// Serialises a category's regex pairs (RD-1140-05); `None` stays NULL ("inherit"), and an empty
+/// list stays a list — it is how a category switches the global pairs off.
+pub(crate) fn package_name_regex_json(
+    pairs: Option<&Vec<rd_core::PackageNameRegex>>,
+) -> Result<Option<String>> {
+    pairs
+        .map(serde_json::to_string)
+        .transpose()
+        .map_err(Into::into)
+}
+
 /// Sets a category's post-processing overrides (`None` = inherit the global setting).
 pub(crate) async fn update_category_postprocess(
     connection: &mut SqliteConnection,
@@ -66,7 +89,8 @@ pub(crate) async fn update_category_postprocess(
     let updated = sqlx::query(
         "UPDATE categories SET postprocess_level = ?, script = ?, cleanup_extensions = ?, \
          recursive_unpack = ?, unpack_to_subfolder = ?, direct_unpack = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, plugin_steps_json = ?, \
-         upload_enabled = ?, upload_remote = ?, sorting_json = ?, updated_at = ? WHERE id = ?",
+         upload_enabled = ?, upload_remote = ?, sorting_json = ?, unwrap_package_folder = ?, package_name_rules_json = ?, \
+         package_name_regex_json = ?, updated_at = ? WHERE id = ?",
     )
     .bind(postprocess.level.map(crate::enum_string).transpose()?)
     .bind(&postprocess.script)
@@ -82,6 +106,9 @@ pub(crate) async fn update_category_postprocess(
     .bind(postprocess.upload_enabled)
     .bind(&postprocess.upload_remote)
     .bind(sorting_json(postprocess.sorting.as_ref())?)
+    .bind(postprocess.unwrap_package_folder)
+    .bind(package_name_rules_json(postprocess.package_name_rules)?)
+    .bind(package_name_regex_json(postprocess.package_name_regex.as_ref())?)
     .bind(Utc::now())
     .bind(id.to_string())
     .execute(&mut *tx)

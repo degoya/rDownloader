@@ -19,6 +19,7 @@ import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
 
 type IngressSource = NonNullable<CategoryRule['source']>
+type NameTarget = NonNullable<CategoryRule['name_target']>
 
 const rules = defineModel<CategoryRule[]>({ required: true })
 const props = defineProps<{
@@ -37,6 +38,8 @@ const focusForm = useFormFocus(formElement)
 const duplicatingId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const SOURCES: IngressSource[] = ['manual', 'clipboard', 'click_and_load', 'api', 'nzb', 'hot_folder', 'browser_extension', 'browser_download']
+/** What the name pattern is matched against (RD-1140-02); `file` is every older rule's behaviour. */
+const NAME_TARGETS: NameTarget[] = ['file', 'package', 'either']
 const form = reactive<CreateCategoryRule>({
   name: '',
   priority: 100,
@@ -47,7 +50,8 @@ const form = reactive<CreateCategoryRule>({
   protocol: null,
   source: null,
   mime_type: null,
-  name_regex: null
+  name_regex: null,
+  name_target: 'file'
 })
 
 const categoryItems = computed(() => props.categories.map(category => ({ label: category.name, value: category.id })))
@@ -55,6 +59,7 @@ const sourceItems = computed(() => [
   { label: t('routing.rule.source_any'), value: NO_SELECTION },
   ...SOURCES.map(source => ({ label: t(`routing.rule.sources.${source}`), value: source }))
 ])
+const nameTargetItems = computed(() => NAME_TARGETS.map(target => ({ label: t(`routing.rule.name_targets.${target}`), value: target })))
 const sourceSelection = computed({
   get: () => optionalSelection(form.source),
   set: (value: string) => { form.source = selectionValue(value) as IngressSource | null }
@@ -76,7 +81,11 @@ function conditions(rule: CategoryRule): string {
   if (rule.domain) parts.push(rule.domain)
   if (rule.extension) parts.push(`.${rule.extension.replace(/^\./, '')}`)
   if (rule.mime_type) parts.push(rule.mime_type)
-  if (rule.name_regex) parts.push(`/${rule.name_regex}/`)
+  if (rule.name_regex) {
+    const target = rule.name_target ?? 'file'
+    // The file name is the long-standing target; only the other two are spelled out.
+    parts.push(target === 'file' ? `/${rule.name_regex}/` : `${t(`routing.rule.name_targets.${target}`)}: /${rule.name_regex}/`)
+  }
   return parts.length ? parts.join(' · ') : t('routing.rule.matches_everything')
 }
 
@@ -96,6 +105,7 @@ const list = useEditableList<CategoryRule, CreateCategoryRule>({
     form.source = null
     form.mime_type = null
     form.name_regex = null
+    form.name_target = 'file'
   },
   confirmDelete: rule => ({
     title: t('routing.rule.delete_title'),
@@ -142,11 +152,12 @@ function edit(rule: CategoryRule): void {
   form.source = rule.source ?? null
   form.mime_type = rule.mime_type ?? null
   form.name_regex = rule.name_regex ?? null
+  form.name_target = rule.name_target ?? 'file'
   void focusForm()
 }
 
 async function openRegexEditor(): Promise<void> {
-  const result = await editRegex(form.name_regex ?? null)
+  const result = await editRegex(form.name_regex ?? null, form.name_target ?? 'file')
   if (result) form.name_regex = result.pattern
 }
 
@@ -165,7 +176,8 @@ async function duplicate(rule: CategoryRule): Promise<void> {
       protocol: rule.protocol ?? null,
       source: rule.source ?? null,
       mime_type: rule.mime_type ?? null,
-      name_regex: rule.name_regex ?? null
+      name_regex: rule.name_regex ?? null,
+      name_target: rule.name_target ?? 'file'
     }
   })
   duplicatingId.value = null
@@ -229,6 +241,9 @@ async function remove(rule: CategoryRule): Promise<void> {
               <UInput v-model="form.name_regex" class="w-full font-mono" :placeholder="t('routing.rule.regex_placeholder')" />
               <UButton color="neutral" variant="outline" icon="i-lucide-regex" :aria-label="t('routing.rule.regex_editor.open_button')" @click="openRegexEditor" />
             </UFieldGroup>
+          </UFormField>
+          <UFormField :label="t('routing.rule.name_target_label')" :description="t('routing.rule.name_target_description')">
+            <USelect v-model="form.name_target" :items="nameTargetItems" value-key="value" class="w-full" data-testid="rule-name-target" />
           </UFormField>
           <FormActions
             :editing="editingId !== null"

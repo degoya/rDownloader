@@ -25,8 +25,8 @@ use super::{
     error::{McpToolResult, parse_id, respond},
     params_handling::{
         IdBodyParams, MalwareScannerTestParams, ManageAction, ManageToolParams, ManagedToolsParams,
-        ManagedToolsView, PostprocessOptions, PostprocessOptionsParams, SortPreviewParams,
-        StorageTargetParams, body,
+        ManagedToolsView, PackageNamePreviewParams, PostprocessOptions, PostprocessOptionsParams,
+        SortPreviewParams, StorageTargetParams, body,
     },
 };
 use crate::{
@@ -97,7 +97,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change only the post-processing of one category (id from list_configuration section categories, which also shows the current values). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote, sorting. Every field is replaced, so pass the current values of the ones you keep. `sorting` is {series, dated, movie}: the sort and rename templates for finished series episodes, dated episodes and films (null = no sorting); try them first with preview_category_sorting. Names come from list_postprocess_options."
+        description = "Change only the post-processing of one category (id from list_configuration section categories, which also shows the current values). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote, sorting, unwrap_package_folder (dissolve a single folder named like the package, per archive folder too with unpack_to_subfolder), package_name_rules, package_name_regex. Every field is replaced, so pass the current values of the ones you keep. `sorting` is {series, dated, movie}: the sort and rename templates for finished series episodes, dated episodes and films (null = no sorting); try them first with preview_category_sorting. `package_name_rules` is {spaces_to_dots, collapse_separators, strip_bracket_tags, lowercase}, each true, false or null (= the global setting): how the name, and with it the folder, of a new package in this category is tidied; `package_name_regex` is a list of up to 10 {pattern, replacement} pairs run after them (null = the global list, [] = none); try both with preview_package_name. Names come from list_postprocess_options."
     )]
     pub async fn update_category_postprocess(
         &self,
@@ -134,6 +134,40 @@ impl RdMcpServer {
                 },
                 names: params.names,
             }))
+            .await
+            .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Preview the package-name rules (\"Tidy file names\" for package names) on one name: what a new package of that name would be called and the folder it would get. Switches left out, and an omitted regex list, take the saved global setting; pass a category's override to see what it does. The regex pairs run after the switches, in order; a list that does not compile is refused with settings.package_name_regex_invalid. The global switches are the settings key package_name_rules and the global pairs package_name_regex (update_settings); a category's are body.package_name_rules and body.package_name_regex of update_category_postprocess (null inherits, a list replaces the global one). Only a name the application derives is tidied (from a file, an NZB, a torrent, a resolver); a name somebody gave the package stays. Nothing is saved or renamed."
+    )]
+    pub async fn preview_package_name(
+        &self,
+        Parameters(params): Parameters<PackageNamePreviewParams>,
+    ) -> McpToolResult {
+        respond(
+            postprocess::preview_package_name(
+                State(self.state.clone()),
+                Json(crate::dto::PackageNamePreviewRequest {
+                    name: params.name,
+                    rules: Some(rd_core::PackageNameRulesOverride {
+                        spaces_to_dots: params.spaces_to_dots,
+                        collapse_separators: params.collapse_separators,
+                        strip_bracket_tags: params.strip_bracket_tags,
+                        lowercase: params.lowercase,
+                    }),
+                    regex: params.regex.map(|pairs| {
+                        pairs
+                            .into_iter()
+                            .map(|pair| rd_core::PackageNameRegex {
+                                pattern: pair.pattern,
+                                replacement: pair.replacement,
+                            })
+                            .collect()
+                    }),
+                }),
+            )
             .await
             .map(|Json(answer)| answer),
         )

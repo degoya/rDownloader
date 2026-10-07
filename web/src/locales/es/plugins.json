@@ -34,7 +34,8 @@
     "withdraw_version": "Retirar la versión {version}",
     "staged_badge": "En prueba",
     "more_hosts": "+{count} más",
-    "fewer_hosts": "Mostrar menos"
+    "fewer_hosts": "Mostrar menos",
+    "remove_all_superseded": "Eliminar todas"
   },
   "keys": {
     "eyebrow": "Claves de firma",
@@ -102,13 +103,18 @@
     "enable": "Activar",
     "disable": "Desactivar",
     "disabled_badge": "desactivado",
-    "withdraw": "Retirar"
+    "withdraw": "Retirar",
+    "remove_all_superseded": "Eliminar versiones sustituidas ({count})"
   },
   "remove": {
     "title": "¿Eliminar el plugin?",
     "description": "«{name}» se elimina del disco. Para recuperarlo hay que instalarlo de nuevo.",
     "superseded_title": "¿Eliminar la versión sustituida?",
-    "superseded_description": "La versión {version} de «{name}» se elimina del disco. La versión {active} sigue instalada y se sigue cargando."
+    "superseded_description": "La versión {version} de «{name}» se elimina del disco. La versión {active} sigue instalada y se sigue cargando.",
+    "superseded_all_title": "¿Eliminar las versiones sustituidas?",
+    "superseded_all_description": "Se elimina del disco {count} versión sustituida. La versión que carga cada plugin se mantiene, igual que una versión a la que sigue ligado trabajo sin terminar o que está elegida para el próximo inicio o en prueba. | Se eliminan del disco {count} versiones sustituidas. La versión que carga cada plugin se mantiene, igual que una versión a la que sigue ligado trabajo sin terminar o que está elegida para el próximo inicio o en prueba.",
+    "superseded_plugin_description": "Se elimina del disco {count} versión sustituida de «{name}». La versión cargada se mantiene, igual que una versión a la que sigue ligado trabajo sin terminar o que está elegida para el próximo inicio o en prueba. | Se eliminan del disco {count} versiones sustituidas de «{name}». La versión cargada se mantiene, igual que una versión a la que sigue ligado trabajo sin terminar o que está elegida para el próximo inicio o en prueba.",
+    "superseded_done": "Versiones sustituidas – eliminadas: {removed}, conservadas: {kept}"
   },
   "withdraw": {
     "title": "¿Retirar esta compilación?",
@@ -148,7 +154,9 @@
     "auto_update_hint": "Si no, la actualización se muestra y se instala al hacer clic. En ambos casos se activa tras un reinicio.",
     "release_notes": "Notas de la versión ({count})",
     "release_notes_from": "de {repository}",
-    "auto_update_global_hint": "Ahora se aplica a todos los plugins: «Instalar automáticamente las actualizaciones de todos los plugins» está activado en Actualizaciones. Si lo desactivas allí, vuelve a valer la elección de este plugin."
+    "auto_update_global_hint": "Ahora se aplica a todos los plugins: «Instalar automáticamente las actualizaciones de todos los plugins» está activado en Actualizaciones. Si lo desactivas allí, vuelve a valer la elección de este plugin.",
+    "release_notes_more": "Más",
+    "release_notes_less": "Menos"
   },
   "preview": {
     "title": "Revisar antes de instalar",

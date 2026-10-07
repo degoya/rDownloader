@@ -17,8 +17,8 @@ use super::{
     params_config::IdParams,
     params_delivery::{
         DefinitionParams, InstallBundledServicesParams, ListBundledServicesParams,
-        RemoveBundledServicesParams, SetPluginEnabledParams, UninstallPluginParams,
-        UpdateDefinitionParams,
+        RemoveBundledServicesParams, RemoveSupersededPluginVersionsParams, SetPluginEnabledParams,
+        UninstallPluginParams, UpdateDefinitionParams,
     },
 };
 use crate::{ApiError, dto::SettingsResponse};
@@ -47,7 +47,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Update service settings with a partial patch of top-level keys (e.g. {\"speed_limit_bytes_per_second\": \"1000000\"}). Unknown keys are rejected; the merged result is validated and applied live. Returns the applied settings. Post-processing switches are keys of this document too, e.g. {\"direct_unpack\": true} unpacks a Usenet package's multi-volume RAR set while it still downloads (off by default; per category: update_category_postprocess). Fields that decide who may sign in, what the service runs or reads, or where it sends data (executables and scripts, reconnect_enabled, reconnect_script, reconnect_ip_check_urls, passwords_file, excluded_domains_file, the trace, DLC and clamd endpoints) need api:admin; without it the change answers auth.scope_insufficient naming the field."
+        description = "Update service settings with a partial patch of top-level keys (e.g. {\"speed_limit_bytes_per_second\": \"1000000\"}). Unknown keys are rejected; the merged result is validated and applied live. Returns the applied settings. Post-processing switches are keys of this document too, e.g. {\"direct_unpack\": true} unpacks a Usenet package's multi-volume RAR set while it still downloads (off by default; per category: update_category_postprocess), and {\"package_name_rules\": {\"spaces_to_dots\": true}} tidies the names and folders of new packages (four switches spaces_to_dots, collapse_separators, strip_bracket_tags, lowercase, all off by default; the object replaces all four, a switch left out is off; try them with preview_package_name), and {\"package_name_regex\": [{\"pattern\": \"_\", \"replacement\": \".\"}]} adds regex find → replace pairs run after those switches (at most 10, 200 characters each), and {\"unwrap_package_folder\": true} moves the content of a single folder named like the package up into the package folder after post-processing (off by default; never overwrites). Fields that decide who may sign in, what the service runs or reads, or where it sends data (executables and scripts, reconnect_enabled, reconnect_script, reconnect_ip_check_urls, passwords_file, excluded_domains_file, the trace, DLC and clamd endpoints) need api:admin; without it the change answers auth.scope_insufficient naming the field."
     )]
     pub async fn update_settings(
         &self,
@@ -318,6 +318,23 @@ impl RdMcpServer {
             )
             .await
             .map(|message| message.0),
+        )
+    }
+
+    #[tool(
+        description = "Uninstall every superseded plugin version at once: of every plugin, or of the one named by id. A version is superseded when another version of the same plugin is the one that runs; that one is never removed. Kept and listed under kept, each with its reason code: a version an unfinished download is still bound to (plugin.version_in_use), the version the next start loads, e.g. right after an update (plugin.version_next_start), and the version under test (plugin.version_under_test). Answers removed and kept; plugin.superseded_none when there was nothing to remove."
+    )]
+    pub async fn remove_superseded_plugin_versions(
+        &self,
+        Parameters(params): Parameters<RemoveSupersededPluginVersionsParams>,
+    ) -> McpToolResult {
+        respond(
+            crate::plugin_handlers::remove_superseded(
+                &self.state,
+                &crate::audit::AuditContext::current(),
+                params.id.as_deref(),
+            )
+            .await,
         )
     }
 

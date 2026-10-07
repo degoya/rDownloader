@@ -1196,7 +1196,18 @@
     "media.cookie_profile_malformed": "Las cookies guardadas no son un archivo de cookies válido",
     "media.cookie_scope_empty": "El perfil no tiene cookies para este sitio",
     "media.cookie_write_failed": "No se pudo escribir el archivo temporal de cookies",
-    "plugin.invalid_url": "El plugin generó una dirección que no es una URL válida"
+    "plugin.invalid_url": "El plugin generó una dirección que no es una URL válida",
+    "postprocess.unwrap_conflict": "La carpeta {folder} se queda como está: {name} ya existe un nivel más arriba.",
+    "postprocess.unwrap_failed": "No se pudo disolver la carpeta {folder}: {detail}",
+    "plugin.version_next_start": "La versión {version} se ejecuta a partir del próximo inicio",
+    "plugin.version_under_test": "La versión {version} está en prueba",
+    "plugin.superseded_none": "No hay versiones de plugins sustituidas",
+    "plugin.superseded_removed": "{count} versión de plugin sustituida eliminada | {count} versiones de plugins sustituidas eliminadas",
+    "plugin.superseded_partly_removed": "{count} versión de plugin sustituida eliminada, {kept} conservadas | {count} versiones de plugins sustituidas eliminadas, {kept} conservadas",
+    "settings.package_name_regex_invalid": "Regla de nombre de paquete {index}: el patrón no es una expresión regular válida ({detail}).",
+    "settings.package_name_regex_too_many": "Como máximo {max} reglas regex para nombres de paquete.",
+    "settings.package_name_regex_too_long": "Regla de nombre de paquete {index}: el patrón y el reemplazo pueden tener como máximo {max} caracteres cada uno.",
+    "category_rule.regex_structure_limits": "El patrón es demasiado grande para dibujarlo como diagrama."
   },
   "capabilities": {
     "media_download": "las descargas de medios",

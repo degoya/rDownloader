@@ -25,6 +25,11 @@ pub struct PostprocessSettings {
     /// the archive (`Film.part1.rar` → `Film/`), instead of straight into the package folder.
     /// Off by default (RD-170-16).
     pub unpack_to_subfolder: bool,
+    /// When the package folder holds nothing but one folder named like the package (a release
+    /// whose archive carries its own folder, `Release/Release/…`), move that folder's content up
+    /// one level and remove it; with `unpack_to_subfolder`, the same for every archive's folder
+    /// (`X/X/…`). Nothing is ever overwritten. Off by default (RD-1140-01).
+    pub unwrap_package_folder: bool,
     /// Unpack a Usenet package's multi-volume RAR set while the package is still downloading,
     /// volume by volume as each one arrives intact (SABnzbd's direct unpack). Off by default; a
     /// repair or a damaged volume discards the attempt and the set is unpacked afterwards as
@@ -138,6 +143,7 @@ impl Default for PostprocessSettings {
             ignore_samples: true,
             recursive_unpack: false,
             unpack_to_subfolder: false,
+            unwrap_package_folder: false,
             direct_unpack: false,
             sfv_verify: true,
             safe_postproc: true,
@@ -315,6 +321,16 @@ mod tests {
         let folders: PostprocessSettings =
             serde_json::from_str(r#"{"unpack_to_subfolder":true}"#).expect("explicit opt-in");
         assert!(folders.unpack_to_subfolder);
+    }
+
+    #[test]
+    fn a_folder_named_like_the_package_stays_unless_unwrapping_is_asked_for() {
+        // RD-1140-01: opt-in; a blob that never mentions it keeps the folder where it is.
+        let legacy: PostprocessSettings = serde_json::from_str("{}").expect("empty blob");
+        assert!(!legacy.unwrap_package_folder);
+        let unwrap: PostprocessSettings =
+            serde_json::from_str(r#"{"unwrap_package_folder":true}"#).expect("explicit opt-in");
+        assert!(unwrap.unwrap_package_folder);
     }
 
     #[test]

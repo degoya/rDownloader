@@ -125,6 +125,19 @@ describe('SettingsRemoteCredentialsCard form (RD-150-11)', () => {
     expect(labels[method + 1]).toContain(en.credentials.username)
   })
 
+  /** RD-1140-08: the port was a text field; it is a number field, empty for the protocol's default. */
+  it('takes the port as a number field, empty for the default', async () => {
+    mount()
+    await screen.findByText('Backup box')
+
+    const port = screen.getByLabelText(en.credentials.port) as HTMLInputElement
+    expect(port.getAttribute('role')).toBe('spinbutton')
+    expect(port.min).toBe('1')
+    expect(port.max).toBe('65535')
+    expect(port.value).toBe('')
+    expect(port.hasAttribute('data-steppers')).toBe(false)
+  })
+
   it('reports a passed test above its own form', async () => {
     testResult.value = { authenticated: true }
     await runTest()

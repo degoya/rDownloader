@@ -43,6 +43,7 @@ EOF
     printf 'api_version = "0.10.0"\nplugin_type = "demo"\n\n[metadata]\nmin_app_version = "1.9.0"\n' \
         > "$TEMPLATE/manifest.toml"
     echo "# Demo" > "$TEMPLATE/README.md"
+    printf '# Changes\n\n## 0.1.0\n\nThe first release.\n' > "$TEMPLATE/CHANGES.md"
     printf '#[test]\nfn works() {}\n' > "$TEMPLATE/src/lib.rs"
     for workflow in plugin repository; do
         printf 'env:\n  RDOWNLOADER_VERSION: 1.10.0\n' > "$TREE/sdk/ci/$workflow.yml"
@@ -59,6 +60,12 @@ sed -i 's/demo-plugin/other-plugin/' "$TEMPLATE/src/guest.rs"
 check
 expect_status "a guest that generates another world: refused" 1
 expect_output "and named" "src/guest.rs does not generate world demo-plugin"
+
+fixture
+rm "$TEMPLATE/CHANGES.md"
+check
+expect_status "a template without its release notes: refused" 1
+expect_output "naming the file" "sdk/templates/demo has no CHANGES.md"
 
 fixture
 sed -i 's/^wit-bindgen = .*/wit-bindgen = "0.61"/' "$TEMPLATE/Cargo.toml"

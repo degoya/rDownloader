@@ -270,7 +270,7 @@
       "description": "Una contraseña por línea; vacío = passwords.txt junto a la base de datos. Se prueba tras la contraseña del paquete y «sin contraseña»."
     },
     "max_files": "Archivos máximos",
-    "max_bytes": "Tamaño máximo (bytes)",
+    "max_bytes": "Tamaño máximo descomprimido",
     "rar_executable": {
       "label": "Herramienta RAR externa",
       "description": "Ruta absoluta opcional a unrar o 7z; se invoca sin shell."
@@ -325,6 +325,42 @@
     "direct_unpack": {
       "label": "Extraer durante la descarga",
       "description": "Los archivos RAR multiparte de Usenet se extraen parte por parte a medida que cada parte llega completa, en lugar de tras la descarga. Si hace falta una reparación o a una parte le falta algo, el intento se descarta y se extrae después como de costumbre. Requiere unrar y espacio para lo extraído junto a la descarga en curso."
+    },
+    "unwrap_package_folder": {
+      "label": "Disolver la carpeta con el nombre del paquete",
+      "description": "Si tras el posprocesado la carpeta del paquete solo contiene una carpeta con el nombre del paquete (Release/Release/…), su contenido sube un nivel y la carpeta vacía se elimina. Con subcarpetas por archivo, lo mismo vale para la carpeta de cada archivo. Nunca se sobrescribe nada. Solo actúa si no queda nada más en la carpeta del paquete; deja que se borre el archivo de origen, p. ej. con el nivel «+Eliminar»."
+    },
+    "package_names": {
+      "label": "Ordenar nombres de paquetes",
+      "description": "Ordena el nombre de un paquete nuevo antes de crear su carpeta, con las mismas reglas que el plugin «Tidy file names», que renombra los archivos dentro de la carpeta. Solo se aplica a los nombres que rDownloader deriva por sí mismo (de nombres de archivo, archivos NZB, torrents); un nombre que indicas o cambias se queda como está. Cada categoría puede sobrescribir los interruptores.",
+      "strip_bracket_tags": {
+        "label": "Quitar etiquetas entre corchetes",
+        "description": "Se eliminan las etiquetas entre corchetes, paréntesis o llaves como [1080p] o (x264), con sus signos."
+      },
+      "spaces_to_dots": {
+        "label": "Espacios → puntos",
+        "description": "Big Buck Bunny → Big.Buck.Bunny"
+      },
+      "collapse_separators": {
+        "label": "Unir separadores",
+        "description": "Las secuencias de puntos, guiones bajos, guiones y espacios se convierten en un solo separador y se quitan al principio y al final: Big..Buck_-_Bunny → Big.Buck.Bunny"
+      },
+      "lowercase": {
+        "label": "Minúsculas",
+        "description": "Big.Buck.Bunny → big.buck.bunny"
+      },
+      "example": "Ejemplo: «{name}» recibe la carpeta",
+      "regex": {
+        "label": "Reglas regex",
+        "description": "Buscar y reemplazar después de los interruptores, en este orden; se reemplaza cada coincidencia, $1, $2 … insertan grupos. Como máximo 10 reglas. Un nombre que quedaría vacío se queda como estaba.",
+        "empty": "Ninguna regla regex.",
+        "add": "Añadir regla",
+        "edit": "Editar regla",
+        "remove": "Quitar regla",
+        "move_up": "Subir",
+        "move_down": "Bajar",
+        "replacement_empty": "(eliminar)"
+      }
     }
   },
   "appearance": {

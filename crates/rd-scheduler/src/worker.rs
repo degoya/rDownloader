@@ -46,6 +46,9 @@ pub(crate) async fn run(
         headers,
         resolved_size,
     } = steps::adopt_resolution(scheduler, file, resolved).await?;
+    // A hoster's or a debrid service's answer is fetched from another host than the link's;
+    // the connection the file promised the link's host is not taken there (RD-1140-07).
+    scheduler.host_turned_to(file.id, &source).await;
     let file = &working_file;
     let replay = crate::replay::load(scheduler, file).await?;
     let ControlFlow::Continue((source, connected)) = steps::connect(
@@ -124,6 +127,8 @@ async fn transfer(
     // The address the chunks are fetched from: the per-host budget and the memory of a
     // host that ignores ranges both belong to it, not to the link the user pasted.
     let transfer_url = probe_result.final_url.clone();
+    // Likewise where the source's redirects led.
+    scheduler.host_turned_to(file.id, &transfer_url).await;
     let ControlFlow::Continue((client, headers)) =
         steps::transfer_headers(scheduler, file, connected, &source, &transfer_url).await?
     else {

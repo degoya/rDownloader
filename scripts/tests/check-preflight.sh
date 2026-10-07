@@ -50,6 +50,7 @@ printf 'import os, sys\nsys.exit(1 if os.path.exists(os.environ["FAKE"] + "/inpu
 stand_in "$TREE/scripts/archive-jobs.sh" archive-jobs.sh
 stand_in "$TREE/scripts/set-version.sh" set-version.sh
 stand_in "$TREE/scripts/check-actions-pinned.sh" check-actions-pinned.sh
+stand_in "$TREE/scripts/plugin-release-notes.sh" plugin-release-notes.sh
 stand_in "$TREE/scripts/tests/a.sh" a.sh
 stand_in "$TREE/scripts/tests/b.sh" b.sh
 echo "internal" > "$TREE/docs/notes.md"
@@ -66,7 +67,7 @@ preflight() {
 }
 
 # --- every stage red at once ------------------------------------------------------------------
-for name in archive-jobs.sh cargo shellcheck a.sh; do touch "$FAKE/$name-red"; done
+for name in archive-jobs.sh plugin-release-notes.sh cargo shellcheck a.sh; do touch "$FAKE/$name-red"; done
 touch "$FAKE/inputs-red"
 mkdir -p "$TREE/crates/rd-api/tests"
 echo "fn main() {}" > "$TREE/crates/rd-api/tests/stray.rs"
@@ -79,7 +80,7 @@ expect_output "after every stage ran, the last script test too" "==> script test
 expect_true "without the closing line" '! grep -q "all requested checks passed" <<< "$output"'
 expect_output "and records no green" "No green was recorded."
 expect "every red stage in the failure list, in one run" \
-    "git diff --check|the job layout: finished jobs archived, open ones not|cargo fmt --all --check|the rd-api test map against the test suites|the Rust test inputs map against the sources|gitleaks over the tree the public export would publish|shellcheck 0.0.0 over N shell scripts (severity warning)|script test: scripts/tests/a.sh" \
+    "git diff --check|the job layout: finished jobs archived, open ones not|the plugin release notes: every version has its section, short and for users|cargo fmt --all --check|the rd-api test map against the test suites|the Rust test inputs map against the sources|gitleaks over the tree the public export would publish|shellcheck 0.0.0 over N shell scripts (severity warning)|script test: scripts/tests/a.sh" \
     "$(sed -n '/ — exit /{s/ — exit .*//; s/ over [0-9]* shell/ over N shell/; p}' "$FAILURES" | paste -sd'|' -)"
 expect "the green ones are not in it" "0" "$(grep -cE '^(the version|the workflows|bash -n|actionlint|script test: scripts/tests/b)' "$FAILURES" || true)"
 expect "cargo formats and builds nothing" "cargo fmt --all --check" "$(grep '^cargo' "$FAKE/calls")"
@@ -98,6 +99,7 @@ expect "but records its green for the tree, as the half --full reads (RD-1120-06
     "preflight $(git -C "$TREE" rev-parse 'HEAD^{tree}')" "$(grep '^preflight ' "$SCRATCH/target/.rd-verified-full/"* || true)"
 expect "and no revision" "" "$(cat "$SCRATCH/target/.rd-verified/"* 2> /dev/null || true)"
 expect_true "the job layout was checked" 'grep -qx "archive-jobs.sh --check" "$FAKE/calls"'
+expect_true "and the plugin release notes" 'grep -qx "plugin-release-notes.sh --check" "$FAKE/calls"'
 
 rm -f "$FAKE/calls"
 preflight RD_SKIP_JOB_LAYOUT=1

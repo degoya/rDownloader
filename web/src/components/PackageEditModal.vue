@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { PostprocessLevel } from '@/api/types'
 import { INHERIT_LEVEL, postprocessLevelItems } from '@/utils/format'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL, orNull } from '@/utils/numberInput'
 
 const props = defineProps<{
@@ -109,12 +110,12 @@ function submit(): void {
         </UFormField>
         <UFormField
           v-if="speedLimitOffered"
-          hint="MiB/s"
           :label="t('downloads.edit_package.speed_limit')"
           :description="props.speedLimitSupported ? t('downloads.edit_package.speed_limit_hint') : t('downloads.edit_package.speed_limit_unsupported')"
         >
-          <UInputNumber
+          <NumberWithUnit
             v-model="speedLimit"
+            unit="MiB/s"
             :min="0"
             :step="0.5"
             :step-snapping="false"

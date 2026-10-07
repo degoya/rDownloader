@@ -85,6 +85,10 @@ vi.mock('@/i18n/server', () => ({
   translateServerMessage: (message: { code: string }) => translated(message)
 }))
 
+/** The toast that answers removing every superseded version at once (RD-1140-04). */
+const toastAdd = vi.fn()
+vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toastAdd }) }))
+
 const { default: SettingsPluginsTab } = await import('./SettingsPluginsTab.vue')
 
 /** The eleven worlds an installation can hold today; `remote-job` was the most recent addition. */
@@ -228,6 +232,7 @@ function resetMocks(): void {
   responseError.mockReturnValue('The service did not answer')
   confirmed.mockReset()
   confirmed.mockResolvedValue(true)
+  toastAdd.mockReset()
   serverMessage.mockReset()
   serverMessage.mockReturnValue(null)
   translated.mockReset()
@@ -473,6 +478,60 @@ describe('SettingsPluginsTab superseded versions', () => {
     expect(remove.mock.calls).toEqual([[
       '/api/v1/plugins/{id}/{version}',
       { params: { path: { id: 'com.example.resolver.2', version: '0.9.0' } } }
+    ]])
+  })
+
+  /** The tab's action for every plugin at once (RD-1140-04), by the name it carries. */
+  function removeAllAction(count: number): HTMLElement | null {
+    return screen.queryByRole('button', { name: pluginsCatalogue.actions.remove_all_superseded.replace('{count}', String(count)) })
+  }
+
+  it('offers removing every superseded version only while there is one', async () => {
+    serveInventory(inventoryFor(INSTALLED_TYPES))
+    mount()
+    await waitFor(() => expect(cardTitles().length).toBe(12))
+    expect(removeAllAction(0)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Remove superseded versions/ })).toBeNull()
+  })
+
+  it('removes every superseded version after one confirmation and answers in a toast', async () => {
+    serveInventory(inventoryWithLeftover())
+    remove.mockResolvedValue({
+      data: {
+        code: 'plugin.superseded_removed',
+        message: '',
+        removed: [{ plugin_id: 'com.example.resolver.2', name: 'resolver plugin 2', version: '0.9.0' }],
+        kept: []
+      }
+    })
+
+    mount()
+
+    await waitFor(() => expect(cardTitles().length).toBe(12))
+    // The number in the header still counts plugins; the action carries the versions.
+    expect(inventoryCount()).toBe('12')
+    await fireEvent.click(removeAllAction(1) as HTMLElement)
+
+    await waitFor(() => expect(toastAdd).toHaveBeenCalled())
+    expect(confirmed.mock.calls[0]?.[0]).toMatchObject({ destructive: true, title: pluginsCatalogue.remove.superseded_all_title })
+    expect(remove.mock.calls).toEqual([['/api/v1/plugins/superseded']])
+    expect(toastAdd.mock.calls[0]?.[0]).toMatchObject({ color: 'success' })
+  })
+
+  it('removes one plugin\'s superseded versions from its card', async () => {
+    serveInventory(inventoryWithLeftover())
+    remove.mockResolvedValue({ data: { code: 'plugin.superseded_removed', message: '', removed: [], kept: [] } })
+
+    mount()
+
+    await waitFor(() => expect(cardTitles().length).toBe(12))
+    const article = await openLeftovers('resolver plugin 2')
+    await fireEvent.click(within(article).getByRole('button', { name: pluginsCatalogue.card.remove_all_superseded }))
+
+    await waitFor(() => expect(remove).toHaveBeenCalled())
+    expect(remove.mock.calls).toEqual([[
+      '/api/v1/plugins/{id}/superseded',
+      { params: { path: { id: 'com.example.resolver.2' } } }
     ]])
   })
 

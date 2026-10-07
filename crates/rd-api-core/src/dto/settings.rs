@@ -131,6 +131,11 @@ pub struct SettingsResponse {
     /// the archive, instead of straight into the package folder. Off by default (RD-170-16).
     #[serde(default)]
     pub unpack_to_subfolder: bool,
+    /// When the package folder holds nothing but one folder named like the package, move its
+    /// content up one level and remove it; with `unpack_to_subfolder`, the same for every
+    /// archive's folder. Nothing is overwritten. Off by default (RD-1140-01).
+    #[serde(default)]
+    pub unwrap_package_folder: bool,
     /// Unpack a Usenet package's multi-volume RAR set while the package still downloads, volume
     /// by volume; a repair or a damaged volume falls back to unpacking afterwards. Off by
     /// default (RD-1100-07).
@@ -164,6 +169,15 @@ pub struct SettingsResponse {
     /// run. A category may override the list, including with an empty one.
     #[serde(default)]
     pub plugin_steps: Vec<String>,
+    /// The "Tidy file names" rules applied to a package name when the package is created, and
+    /// with it to its folder (RD-1140-05). All off by default; a category may override each
+    /// switch. Only a name the application derived is tidied, never one somebody stated.
+    #[serde(default)]
+    pub package_name_rules: rd_core::PackageNameRules,
+    /// Regex find → replace pairs applied after those switches, in order (RD-1140-05): at most
+    /// ten, pattern and replacement at most 200 characters each; a category may replace the list.
+    #[serde(default)]
+    pub package_name_regex: Vec<rd_core::PackageNameRegex>,
     /// Whether installed metadata enricher plugins are asked about resolved links
     /// (RD-090-14). Off by default: an enricher reaches a service outside this machine, and
     /// doing that on the strength of having installed a plugin would be a decision nobody

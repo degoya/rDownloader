@@ -29,6 +29,7 @@ mod plugin_bundled;
 mod plugin_bundled_removal;
 mod plugin_enabled;
 mod plugin_repositories;
+mod plugin_superseded;
 mod plugin_trust;
 mod plugin_versions;
 mod protected_roots;

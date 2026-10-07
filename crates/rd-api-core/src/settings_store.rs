@@ -222,6 +222,21 @@ mod tests {
         }
     }
 
+    /// RD-1140-05: the store reads the global package-name rules out of the blob by this name,
+    /// so the document has to carry them under it, every switch off by default.
+    #[test]
+    fn the_package_name_rules_sit_where_the_store_reads_them() {
+        let document = serde_json::to_value(SettingsResponse::default()).expect("serialize");
+        let rules: rd_core::PackageNameRules =
+            serde_json::from_value(document[rd_db::PACKAGE_NAME_RULES_FIELD].clone())
+                .expect("package-name rules");
+        assert_eq!(rules, rd_core::PackageNameRules::default());
+        assert_eq!(
+            document[rd_db::PACKAGE_NAME_REGEX_FIELD],
+            serde_json::json!([])
+        );
+    }
+
     /// RA-DB-02, owner 2026-10-04: a value outside the runtime slice that no longer parses
     /// (here an enum variant a release removed) starts with its default, the rest as stored.
     #[test]

@@ -537,6 +537,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::DELETE,
         SECRETS,
     ),
+    entry("/api/v1/plugins/superseded", Method::DELETE, ADMIN),
     entry("/api/v1/plugins/updates", Method::GET, ADMIN),
     // Whether every plugin installs its updates itself: the same decision as one plugin's
     // policy, so the same scope (RD-191-10).
@@ -563,9 +564,15 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     ),
     entry("/api/v1/plugins/{id}/lifecycle/stage", Method::POST, ADMIN),
     entry("/api/v1/plugins/{id}/lifecycle/trial", Method::POST, ADMIN),
+    entry("/api/v1/plugins/{id}/superseded", Method::DELETE, ADMIN),
     entry("/api/v1/plugins/{id}/{version}", Method::DELETE, ADMIN),
     entry(
         "/api/v1/postprocess/malware-scanner/test",
+        Method::POST,
+        CONFIG,
+    ),
+    entry(
+        "/api/v1/postprocess/package-name-preview",
         Method::POST,
         CONFIG,
     ),

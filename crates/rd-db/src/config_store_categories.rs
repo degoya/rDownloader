@@ -32,6 +32,7 @@ pub(crate) async fn create_category(
         cleanup_extensions: input.cleanup_extensions,
         recursive_unpack: input.recursive_unpack,
         unpack_to_subfolder: input.unpack_to_subfolder,
+        unwrap_package_folder: input.unwrap_package_folder,
         direct_unpack: input.direct_unpack,
         malware_scan: input.malware_scan,
         sfv_verify: input.sfv_verify,
@@ -44,6 +45,8 @@ pub(crate) async fn create_category(
         plugin_steps: None,
         // Set on the post-processing route only, like the plugin steps.
         sorting: None,
+        package_name_rules: None,
+        package_name_regex: None,
     };
     let event = config_event(EventKind::CategoryChanged, "category", value.id);
     // Clear the old default before inserting the new one: `idx_categories_single_default`
@@ -54,7 +57,7 @@ pub(crate) async fn create_category(
             .execute(&mut *tx)
             .await?;
     }
-    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, unwrap_package_folder, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(value.id.to_string())
         .bind(&value.name)
         .bind(&value.color)
@@ -73,6 +76,7 @@ pub(crate) async fn create_category(
         .bind(value.delete_par2)
         .bind(value.upload_enabled)
         .bind(&value.upload_remote)
+        .bind(value.unwrap_package_folder)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
@@ -123,6 +127,7 @@ pub(crate) async fn update_category(
         cleanup_extensions: input.cleanup_extensions,
         recursive_unpack: input.recursive_unpack,
         unpack_to_subfolder: input.unpack_to_subfolder,
+        unwrap_package_folder: input.unwrap_package_folder,
         direct_unpack: input.direct_unpack,
         malware_scan: input.malware_scan,
         sfv_verify: input.sfv_verify,
@@ -135,6 +140,8 @@ pub(crate) async fn update_category(
         plugin_steps: None,
         // Set on the post-processing route only, like the plugin steps.
         sorting: None,
+        package_name_rules: None,
+        package_name_regex: None,
     };
     if value.is_default {
         sqlx::query("UPDATE categories SET is_default = 0, updated_at = ? WHERE id != ?")
@@ -146,7 +153,7 @@ pub(crate) async fn update_category(
     let updated = sqlx::query(
         "UPDATE categories SET name = ?, color = ?, storage_root_id = ?, relative_path = ?, \
          is_default = ?, postprocess_level = ?, script = ?, cleanup_extensions = ?, \
-         recursive_unpack = ?, unpack_to_subfolder = ?, direct_unpack = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, updated_at = ? WHERE id = ?",
+         recursive_unpack = ?, unpack_to_subfolder = ?, direct_unpack = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, unwrap_package_folder = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&value.name)
     .bind(&value.color)
@@ -165,6 +172,7 @@ pub(crate) async fn update_category(
     .bind(value.delete_par2)
     .bind(value.upload_enabled)
     .bind(&value.upload_remote)
+    .bind(value.unwrap_package_folder)
     .bind(now)
     .bind(id.to_string())
     .execute(&mut *tx)
@@ -283,6 +291,9 @@ pub(super) struct CategoryRow {
     seeding_json: Option<String>,
     plugin_steps_json: Option<String>,
     sorting_json: Option<String>,
+    unwrap_package_folder: Option<bool>,
+    package_name_rules_json: Option<String>,
+    package_name_regex_json: Option<String>,
 }
 impl TryFrom<CategoryRow> for Category {
     type Error = anyhow::Error;
@@ -311,6 +322,7 @@ impl TryFrom<CategoryRow> for Category {
             }),
             recursive_unpack: row.recursive_unpack,
             unpack_to_subfolder: row.unpack_to_subfolder,
+            unwrap_package_folder: row.unwrap_package_folder,
             direct_unpack: row.direct_unpack,
             malware_scan: row.malware_scan,
             sfv_verify: row.sfv_verify,
@@ -341,6 +353,24 @@ impl TryFrom<CategoryRow> for Category {
                     serde_json::from_str(value),
                     "categories",
                     "sorting_json",
+                    &row.id,
+                )
+            }),
+            // A malformed blob inherits the global rules rather than hiding the category.
+            package_name_rules: row.package_name_rules_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "categories",
+                    "package_name_rules_json",
+                    &row.id,
+                )
+            }),
+            // A malformed list inherits the global one rather than hiding the category.
+            package_name_regex: row.package_name_regex_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "categories",
+                    "package_name_regex_json",
                     &row.id,
                 )
             }),

@@ -1196,7 +1196,18 @@
     "media.cookie_profile_malformed": "Les cookies enregistrés ne forment pas un fichier de cookies valide",
     "media.cookie_scope_empty": "Le profil n'a aucun cookie pour ce site",
     "media.cookie_write_failed": "Impossible d'écrire le fichier temporaire de cookies",
-    "plugin.invalid_url": "Le plugin a produit une adresse qui n'est pas une URL valide"
+    "plugin.invalid_url": "Le plugin a produit une adresse qui n'est pas une URL valide",
+    "postprocess.unwrap_conflict": "Le dossier {folder} reste tel quel : {name} existe déjà un niveau plus haut.",
+    "postprocess.unwrap_failed": "Impossible de dissoudre le dossier {folder} : {detail}",
+    "plugin.version_next_start": "La version {version} s'exécute à partir du prochain démarrage",
+    "plugin.version_under_test": "La version {version} est en test",
+    "plugin.superseded_none": "Aucune version de plugin remplacée",
+    "plugin.superseded_removed": "{count} version de plugin remplacée supprimée | {count} versions de plugins remplacées supprimées",
+    "plugin.superseded_partly_removed": "{count} version de plugin remplacée supprimée, {kept} conservées | {count} versions de plugins remplacées supprimées, {kept} conservées",
+    "settings.package_name_regex_invalid": "Règle de nom de paquet {index} : le motif n'est pas une expression régulière valide ({detail}).",
+    "settings.package_name_regex_too_many": "Au plus {max} règles regex pour les noms de paquets.",
+    "settings.package_name_regex_too_long": "Règle de nom de paquet {index} : le motif et le remplacement peuvent avoir au plus {max} caractères chacun.",
+    "category_rule.regex_structure_limits": "Le motif est trop grand pour être dessiné en diagramme."
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

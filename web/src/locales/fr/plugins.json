@@ -34,7 +34,8 @@
     "withdraw_version": "Retirer la version {version}",
     "staged_badge": "En test",
     "more_hosts": "+{count} de plus",
-    "fewer_hosts": "Afficher moins"
+    "fewer_hosts": "Afficher moins",
+    "remove_all_superseded": "Tout supprimer"
   },
   "keys": {
     "eyebrow": "Clés de signature",
@@ -102,13 +103,18 @@
     "enable": "Activer",
     "disable": "Désactiver",
     "disabled_badge": "désactivé",
-    "withdraw": "Retirer"
+    "withdraw": "Retirer",
+    "remove_all_superseded": "Supprimer les versions remplacées ({count})"
   },
   "remove": {
     "title": "Supprimer le plugin ?",
     "description": "« {name} » est retiré du disque. Le récupérer implique de le réinstaller.",
     "superseded_title": "Supprimer la version remplacée ?",
-    "superseded_description": "La version {version} de « {name} » est retirée du disque. La version {active} reste installée et continue d'être chargée."
+    "superseded_description": "La version {version} de « {name} » est retirée du disque. La version {active} reste installée et continue d'être chargée.",
+    "superseded_all_title": "Supprimer les versions remplacées ?",
+    "superseded_all_description": "{count} version remplacée est retirée du disque. La version que charge chaque plugin reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test. | {count} versions remplacées sont retirées du disque. La version que charge chaque plugin reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test.",
+    "superseded_plugin_description": "{count} version remplacée de « {name} » est retirée du disque. La version chargée reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test. | {count} versions remplacées de « {name} » sont retirées du disque. La version chargée reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test.",
+    "superseded_done": "Versions remplacées – supprimées : {removed}, conservées : {kept}"
   },
   "withdraw": {
     "title": "Retirer cette version ?",
@@ -148,7 +154,9 @@
     "auto_update_hint": "Sinon, une mise à jour est affichée et installée d'un clic. Dans les deux cas, elle devient active après un redémarrage.",
     "release_notes": "Notes de version ({count})",
     "release_notes_from": "depuis {repository}",
-    "auto_update_global_hint": "S'applique en ce moment à tous les plugins : « Installer automatiquement les mises à jour de tous les plugins » est activé sous Mises à jour. Désactivez-le là-bas et le choix propre à ce plugin s'applique de nouveau."
+    "auto_update_global_hint": "S'applique en ce moment à tous les plugins : « Installer automatiquement les mises à jour de tous les plugins » est activé sous Mises à jour. Désactivez-le là-bas et le choix propre à ce plugin s'applique de nouveau.",
+    "release_notes_more": "Plus",
+    "release_notes_less": "Moins"
   },
   "preview": {
     "title": "Vérifier avant l’installation",

@@ -12,6 +12,7 @@ import SettingsUpdateCard from '@/components/settings/SettingsUpdateCard.vue'
 import { useAppTour } from '@/composables/useAppTour'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import { useSessionStore } from '@/stores/session'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -254,8 +255,8 @@ const systems = computed(() => [
                 <UFormField :label="t('settings.audit.otlp_endpoint_label')" :description="t('settings.audit.otlp_endpoint_description')">
                   <UInput v-model="settings.otlp_endpoint" placeholder="http://127.0.0.1:4318/v1/traces" icon="i-lucide-waypoints" class="mt-2 w-full" data-testid="otlp-endpoint" />
                 </UFormField>
-                <UFormField hint="s" :label="t('settings.audit.otlp_timeout_label')" :description="t('settings.audit.otlp_timeout_description')">
-                  <UInputNumber v-model="settings.otlp_timeout_seconds" required :min="1" :max="60" :format-options="WHOLE" class="mt-2 w-full" />
+                <UFormField :label="t('settings.audit.otlp_timeout_label')" :description="t('settings.audit.otlp_timeout_description')">
+                  <NumberWithUnit v-model="settings.otlp_timeout_seconds" unit="s" required :min="1" :max="60" :format-options="WHOLE" class="mt-2 w-full" />
                 </UFormField>
               </div>
             </div>
@@ -290,11 +291,11 @@ const systems = computed(() => [
           <UCard as="section" data-settings-anchor="system.stats_retention" class="mt-6" data-testid="stats-retention">
             <SectionHeader :eyebrow="t('stats.retention.eyebrow')" :title="t('stats.retention.title')" :description="t('stats.retention.description')" />
             <div class="mt-4 grid gap-4">
-              <UFormField hint="d" :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
-                <UInputNumber v-model="settings.stats_hourly_days" required :min="1" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
+              <UFormField :label="t('stats.retention.hourly_label')" :description="t('stats.retention.hourly_description')">
+                <NumberWithUnit v-model="settings.stats_hourly_days" unit="d" required :min="1" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
-              <UFormField hint="d" :label="t('stats.retention.retention_label')" :description="t('stats.retention.retention_description')">
-                <UInputNumber v-model="settings.stats_retention_days" required :min="7" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
+              <UFormField :label="t('stats.retention.retention_label')" :description="t('stats.retention.retention_description')">
+                <NumberWithUnit v-model="settings.stats_retention_days" unit="d" required :min="7" :max="3650" :format-options="WHOLE" class="mt-2 w-full" />
               </UFormField>
             </div>
             <SettingsDataResetButton class="mt-4" target="stats" :count="dataCounts.stats" @cleared="loadDataCounts()" />

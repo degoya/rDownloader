@@ -10,6 +10,7 @@ import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { usePluginDiagnostics } from '@/composables/usePluginDiagnostics'
 import { usePluginGroups } from '@/composables/usePluginGroups'
+import { usePluginSupersededRemoval } from '@/composables/usePluginSupersededRemoval'
 import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
@@ -81,6 +82,9 @@ const revocationState = useFetchState()
 const { revocations, pendingWithdrawal, withdrawalReason, withdrawing, isWithdrawn, refreshRevocations, askWithdraw, withdraw, liftWithdrawal } =
   usePluginWithdrawals({ message, error })
 const { executions, openDiagnostics, diagnosticsLoading, toggleDiagnostics } = usePluginDiagnostics(error)
+const { removeSuperseded } = usePluginSupersededRemoval({ message, error, done: refresh })
+/** Every plugin's superseded versions, for the tab's action that removes them all (RD-1140-04). */
+const supersededCount = computed(() => pluginGroups.value.reduce((sum, group) => sum + group.superseded.length, 0))
 
 onMounted(() => {
   void inventoryState.load(refresh)
@@ -310,9 +314,23 @@ async function revokeKey(keyId: string): Promise<void> {
       <template #installed>
         <div class="space-y-6">
           <UCard as="section" data-settings-anchor="plugins.installed">
-            <div class="mb-4 flex items-center justify-between">
+            <div class="mb-4 flex items-center gap-2">
               <SectionHeader :eyebrow="t('plugins.installed.eyebrow')" :title="t('plugins.installed.title')" level="sub" />
-              <UBadge color="neutral" variant="outline">{{ pluginGroups.length }}</UBadge>
+              <!-- Only while there is something to remove; icon-only on a phone, the name in aria-label. -->
+              <UButton
+                v-if="supersededCount"
+                size="sm"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                class="ml-auto"
+                :aria-label="t('plugins.actions.remove_all_superseded', { count: supersededCount })"
+                :title="t('plugins.actions.remove_all_superseded', { count: supersededCount })"
+                @click="removeSuperseded({ count: supersededCount })"
+              >
+                <span class="hidden sm:inline">{{ t('plugins.actions.remove_all_superseded', { count: supersededCount }) }}</span>
+              </UButton>
+              <UBadge color="neutral" variant="outline" :class="supersededCount ? '' : 'ml-auto'">{{ pluginGroups.length }}</UBadge>
             </div>
             <URadioGroup
               v-if="pluginGroups.length"
@@ -350,6 +368,7 @@ async function revokeKey(keyId: string): Promise<void> {
                 @withdraw="build => askWithdraw(displayName(plugin), build.id, build.version)"
                 @remove="confirmRemove(plugin)"
                 @remove-superseded="old => confirmRemoveSuperseded(plugin, old)"
+                @remove-all-superseded="removeSuperseded({ count: superseded.length, plugin: { id: plugin.id, name: displayName(plugin) } })"
                 @version-done="versionActionDone"
               />
               <DataState :loading="inventoryState.loading.value" :error="inventoryState.loadError.value" :empty="!visibleGroups.length" class="md:col-span-2">

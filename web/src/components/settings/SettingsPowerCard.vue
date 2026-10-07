@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import type { PowerStatus, Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import WeekWindowRow from '@/components/WeekWindowRow.vue'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
 import { EVERY_DAY, type WeekWindow } from '@/utils/weekWindows'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
@@ -95,8 +96,8 @@ onMounted(async () => {
       <UFormField v-if="settings.completion_action === 'script'" :label="t('power.completion.script_label')" :description="t('power.completion.script_description')">
         <UInput v-model="settings.completion_script" class="w-full font-mono" placeholder="on-idle.sh" icon="i-lucide-scroll-text" />
       </UFormField>
-      <UFormField v-if="destructive" hint="s" :label="t('power.completion.countdown_label')" :description="t('power.completion.countdown_description')">
-        <UInputNumber v-model="settings.completion_countdown_seconds" required :min="10" :max="3600" :format-options="WHOLE" class="w-full" />
+      <UFormField v-if="destructive" :label="t('power.completion.countdown_label')" :description="t('power.completion.countdown_description')">
+        <NumberWithUnit v-model="settings.completion_countdown_seconds" unit="s" required :min="10" :max="3600" :format-options="WHOLE" class="w-full" />
       </UFormField>
       <template v-if="destructive">
         <UFormField :label="t('power.completion.approval_label')" :description="t('power.completion.approval_description')" orientation="horizontal">

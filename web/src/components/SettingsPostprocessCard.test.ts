@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Settings } from '@/api/types'
 import settings from '@/locales/en/settings.json'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, unitOf } from '@/test/mount'
 
 const get = vi.fn()
 vi.mock('@/api/client', () => ({ api: { GET: (...args: unknown[]) => get(...args) } }))
@@ -203,7 +203,7 @@ describe('SettingsPostprocessCard switch rows', () => {
       props: { modelValue: { ...SETTINGS } },
       stubs: { UInputTags: true, UFormField }
     })
-    const rows = ['recursive_unpack', 'unpack_to_subfolder', 'direct_unpack', 'sfv_verify', 'safe_postproc', 'delete_par2', 'enable_all_par', 'fail_hopeless_jobs', 'enrichment', 'pause', 'ignore_samples', 'upload'] as const
+    const rows = ['recursive_unpack', 'unpack_to_subfolder', 'unwrap_package_folder', 'direct_unpack', 'sfv_verify', 'safe_postproc', 'delete_par2', 'enable_all_par', 'fail_hopeless_jobs', 'enrichment', 'pause', 'ignore_samples', 'upload'] as const
     for (const key of rows) {
       const entry = settings.postprocess[key]
       const toggle = screen.getByRole('switch', { name: entry.label })
@@ -226,6 +226,17 @@ describe('SettingsPostprocessCard switch rows', () => {
     expect(model.unpack_to_subfolder).toBe(true)
   })
 
+  /** RD-1140-01: off by default, and the switch is what writes the setting. */
+  it('switches dissolving a folder named like the package on', async () => {
+    serve([], [])
+    const model = { ...SETTINGS, unwrap_package_folder: false } as Settings
+    mount(model)
+
+    await fireEvent.click(screen.getByRole('switch', { name: settings.postprocess.unwrap_package_folder.label }))
+
+    expect(model.unwrap_package_folder).toBe(true)
+  })
+
   /** RD-1100-07: opt-in, and the switch is what writes the setting. */
   it('switches unpacking while downloading on', async () => {
     serve([], [])
@@ -235,5 +246,46 @@ describe('SettingsPostprocessCard switch rows', () => {
     await fireEvent.click(screen.getByRole('switch', { name: settings.postprocess.direct_unpack.label }))
 
     expect(model.direct_unpack).toBe(true)
+  })
+})
+
+/**
+ * RD-1140-08: the largest unpacked size was a text field of raw bytes (`107374182400`); it is
+ * edited in GiB and still stored in bytes, and the units of the card stand at their fields.
+ */
+describe('SettingsPostprocessCard sizes and units', () => {
+  const GIB = 1024 ** 3
+
+  beforeEach(() => {
+    get.mockReset()
+    serve([], [])
+  })
+
+  it('shows the stored bytes of the archive limit in GiB, the unit at the field', () => {
+    mount({ ...SETTINGS, archive_max_uncompressed_bytes: String(100 * GIB) } as Settings)
+
+    const field = screen.getByLabelText(settings.postprocess.max_bytes) as HTMLInputElement
+    expect(field.getAttribute('role')).toBe('spinbutton')
+    expect(field.value).toBe('100')
+    expect(unitOf(field)).toBe('GiB')
+  })
+
+  it('stores a typed size in bytes and falls back to the default once emptied', async () => {
+    const model = { ...SETTINGS, archive_max_uncompressed_bytes: String(100 * GIB) } as Settings
+    mount(model)
+    const field = screen.getByTestId('archive-max-size')
+
+    await fireEvent.update(field, '1.5')
+    expect(model.archive_max_uncompressed_bytes).toBe(String(1.5 * GIB))
+
+    await fireEvent.update(field, '')
+    expect(model.archive_max_uncompressed_bytes).toBe(String(100 * GIB))
+  })
+
+  it('puts MiB and seconds at their fields', () => {
+    mount({ ...SETTINGS, script_timeout_seconds: 300 } as Settings)
+
+    expect(unitOf(screen.getByLabelText(settings.postprocess.sample_max.label))).toBe('MiB')
+    expect(unitOf(screen.getByLabelText(settings.postprocess.script_timeout.label))).toBe('s')
   })
 })

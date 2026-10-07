@@ -176,8 +176,9 @@ impl SchedulerHandle {
         }
         // Asked under the same lock as the files it counts, so two passes cannot both
         // promise the last connection.
+        let now = std::time::Instant::now();
         if let Some(claim) = &host
-            && !active.host.has_room(claim, std::time::Instant::now())
+            && !active.host.has_room(claim, now)
         {
             return Claim::HostBusy(claim.host.clone());
         }
@@ -194,7 +195,7 @@ impl SchedulerHandle {
             active.pooled.insert(file.id, file.kind);
         }
         if let Some(claim) = host {
-            active.host.start(file.id, claim);
+            active.host.start(file.id, claim, now);
         }
         Claim::Claimed
     }

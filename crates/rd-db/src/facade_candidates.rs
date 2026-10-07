@@ -52,6 +52,7 @@ impl Database {
         let (mut packages, total) =
             crate::collector_packages::page(&self.readers, offset, limit).await?;
         self.reveal_archive_passwords(&mut packages).await;
+        self.fill_queue_names(&mut packages).await;
         Ok((packages, total))
     }
 

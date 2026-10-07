@@ -239,6 +239,7 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
         "create_automation",
         "set_plugin_enabled",
         "uninstall_plugin_version",
+        "remove_superseded_plugin_versions",
     ] {
         assert!(names.contains(&expected), "missing tool: {expected}");
     }

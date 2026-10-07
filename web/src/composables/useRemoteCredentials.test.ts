@@ -44,9 +44,9 @@ describe('remote credential form', () => {
   })
 
   it('shows a default port as empty and a custom one as a number', () => {
-    expect(formFor(credential({ port: 21 })).port).toBe('')
-    expect(formFor(credential({ port: 2121 })).port).toBe('2121')
-    expect(formFor(credential({ protocol: 'sftp', port: 22 })).port).toBe('')
+    expect(formFor(credential({ port: 21 })).port).toBeNull()
+    expect(formFor(credential({ port: 2121 })).port).toBe(2121)
+    expect(formFor(credential({ protocol: 'sftp', port: 22 })).port).toBeNull()
   })
 
   it('sends only the credential the chosen mode uses', () => {
@@ -73,12 +73,13 @@ describe('remote credential form', () => {
   })
 
   it('treats a blank or invalid port as the protocol default', () => {
-    expect(toCreateBody({ ...emptyForm(), port: '' }).port).toBeNull()
-    expect(toCreateBody({ ...emptyForm(), port: '   ' }).port).toBeNull()
-    expect(toCreateBody({ ...emptyForm(), port: 'abc' }).port).toBeNull()
-    expect(toCreateBody({ ...emptyForm(), port: '0' }).port).toBeNull()
-    expect(toCreateBody({ ...emptyForm(), port: '99999' }).port).toBeNull()
-    expect(toCreateBody({ ...emptyForm(), port: '2121' }).port).toBe(2121)
+    expect(toCreateBody({ ...emptyForm(), port: null }).port).toBeNull()
+    // An emptied number field reports `undefined`.
+    expect(toCreateBody({ ...emptyForm(), port: undefined as unknown as null }).port).toBeNull()
+    expect(toCreateBody({ ...emptyForm(), port: 0 }).port).toBeNull()
+    expect(toCreateBody({ ...emptyForm(), port: 99999 }).port).toBeNull()
+    expect(toCreateBody({ ...emptyForm(), port: 21.5 }).port).toBeNull()
+    expect(toCreateBody({ ...emptyForm(), port: 2121 }).port).toBe(2121)
   })
 
   it('carries the clear-key flag only on update', () => {

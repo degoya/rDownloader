@@ -35,6 +35,7 @@ async fn category_rules_are_applied_when_links_enter_the_collector() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,
@@ -55,6 +56,7 @@ async fn category_rules_are_applied_when_links_enter_the_collector() {
             extension: None,
             mime_type: None,
             name_regex: None,
+            name_target: rd_core::CategoryRuleNameTarget::File,
             category_id: category.id,
             enabled: true,
         })

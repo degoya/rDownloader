@@ -130,6 +130,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a sort stopped after it placed a file and before it recorded the step is run again by the next start: the files still in the package are placed by the same templates, the ones already placed are neither moved again nor copied beside themselves, and the package leaves post-processing completed",
     },
     CrashPoint {
+        name: "postprocess.after_unwrap_move",
+        owner: "rd-extract",
+        invariant: "a dissolve of a folder named like the package stopped after an entry moved up and before the last one did leaves every entry either up or in the working folder, none lost and none overwritten; the next start moves the rest up, removes the working folder and completes the package",
+    },
+    CrashPoint {
         name: "postprocess.before_direct_unpack_adopted",
         owner: "rd-extract",
         invariant: "a set unpacked directly while its package downloaded, stopped before the pipeline moved it into the package, has put nothing at the destination; the next start removes its staging directory, unpacks the set the normal way and completes the package with the same files",

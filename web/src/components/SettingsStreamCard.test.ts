@@ -11,7 +11,7 @@ import { reactive } from 'vue'
 
 import settingsMessages from '@/locales/en/settings.json'
 import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, unitOf } from '@/test/mount'
 
 import SettingsStreamCard from './SettingsStreamCard.vue'
 
@@ -30,5 +30,19 @@ describe('the stream card', () => {
 
   it('holds the save while the parallel recordings is empty', async () => {
     expect(await clear(settingsMessages.streams.max_parallel.label)).toEqual(['record_max_parallel'])
+  })
+})
+
+/** RD-1140-08: a count beside a duration looks like it — no plus and minus — and the seconds stand at their field. */
+describe('the stream card number fields', () => {
+  it('shows the two fields alike, the unit at the duration', () => {
+    mountComponent(SettingsStreamCard, { messages: { settings: settingsMessages }, props: { modelValue: reactive(defaultSettings()) } })
+
+    const parallel = screen.getByLabelText(settingsMessages.streams.max_parallel.label)
+    const duration = screen.getByLabelText(settingsMessages.streams.poll_interval.label)
+    expect(parallel.hasAttribute('data-steppers')).toBe(false)
+    expect(duration.hasAttribute('data-steppers')).toBe(false)
+    expect(unitOf(duration)).toBe('s')
+    expect(unitOf(parallel)).toBeNull()
   })
 })

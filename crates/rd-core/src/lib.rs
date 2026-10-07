@@ -27,6 +27,7 @@ mod media;
 mod mfa;
 mod network;
 mod object_storage;
+mod package_names;
 mod postprocess;
 mod recording;
 mod redact;
@@ -73,11 +74,11 @@ pub use capture::{
     scope_satisfies, scopes_grant, scopes_satisfy,
 };
 pub use collector::{
-    CandidateMessage, CandidateMirror, Category, CategoryRule, CollectorBatch, CollectorPackage,
-    EnrichmentField, GrabberEntryKind, GrabberEntryRef, HotFolderConfig, HotFolderExecutor,
-    ImportMode, IngressSource, LinkCandidate, LinkCandidateState, LinkCheckResult, LinkStatus,
-    MirrorFacet, MirrorHint, MirrorPreference, MirrorSource, StorageRootConfig, candidate_url,
-    split_candidate_url,
+    CandidateMessage, CandidateMirror, Category, CategoryRule, CategoryRuleNameTarget,
+    CollectorBatch, CollectorPackage, EnrichmentField, GrabberEntryKind, GrabberEntryRef,
+    HotFolderConfig, HotFolderExecutor, ImportMode, IngressSource, LinkCandidate,
+    LinkCandidateState, LinkCheckResult, LinkStatus, MirrorFacet, MirrorHint, MirrorPreference,
+    MirrorSource, StorageRootConfig, candidate_url, split_candidate_url,
 };
 pub use cookie_file::{
     CookieFileError, CookieRow, MAX_COOKIE_FILE, earliest_expiry as cookie_earliest_expiry,
@@ -147,6 +148,10 @@ pub use object_storage::{
     OBJECT_STORAGE_PROVIDER, ObjectAddress, ObjectAddressing, ObjectCredentialSource,
     ObjectStorageProfile, ObjectStorageProvider, ProfileChoiceError, is_valid_bucket_name,
     is_valid_container_name, is_valid_gcs_bucket_name, select_profile,
+};
+pub use package_names::{
+    MAX_PACKAGE_NAME_REGEX_CHARS, MAX_PACKAGE_NAME_REGEX_RULES, PackageNameRegex, PackageNameRules,
+    PackageNameRulesOverride, PackageNaming,
 };
 pub use postprocess::{
     ExtractionResult, PackageState, PostprocessHold, PostprocessHoldGuard, PostprocessLevel,

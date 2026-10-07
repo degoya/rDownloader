@@ -30,6 +30,7 @@ async fn seed_routing(harness: &Harness, directory: &std::path::Path) -> rd_core
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,
@@ -51,6 +52,7 @@ async fn seed_routing(harness: &Harness, directory: &std::path::Path) -> rd_core
             extension: Some("mkv".to_owned()),
             mime_type: None,
             name_regex: None,
+            name_target: rd_core::CategoryRuleNameTarget::Package,
             category_id: category.id,
             enabled: true,
         })
@@ -195,6 +197,38 @@ async fn import_merges_new_entries_and_keeps_existing_default() {
         .find(|rule| rule.name == "Series rule")
         .expect("imported rule");
     assert_eq!(series_rule.category_id, series.id);
+    // A bundle written before RD-1140-02 has no `name_target`: the rule targets the file name.
+    assert_eq!(
+        series_rule.name_target,
+        rd_core::CategoryRuleNameTarget::File
+    );
+}
+
+/// RD-1140-02: the name target travels with the rule, out and back in.
+#[tokio::test]
+async fn the_name_target_survives_export_and_import() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    seed_routing(&harness, directory.path()).await;
+    let mut bundle = export(&harness.router).await;
+    assert_eq!(bundle["rules"][0]["name_target"], "package");
+    bundle["rules"][0]["name"] = serde_json::json!("Movie packages");
+
+    let (status, summary) = import(&harness.router, bundle).await;
+    assert_eq!(status, StatusCode::OK, "{summary}");
+    assert_eq!(summary["rules_created"], 1);
+    let imported = harness
+        .database
+        .list_category_rules()
+        .await
+        .expect("rules")
+        .into_iter()
+        .find(|rule| rule.name == "Movie packages")
+        .expect("imported rule");
+    assert_eq!(
+        imported.name_target,
+        rd_core::CategoryRuleNameTarget::Package
+    );
 }
 
 #[tokio::test]

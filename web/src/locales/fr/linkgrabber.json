@@ -65,7 +65,8 @@
     "checking": "{count} en vérification",
     "offline": "{count} hors ligne",
     "unverified": "{count} non vérifiables",
-    "enqueue_paused_hint": "Ajouter ce paquet à la liste de téléchargements sans le démarrer"
+    "enqueue_paused_hint": "Ajouter ce paquet à la liste de téléchargements sans le démarrer",
+    "queue_name_hint": "Ajouté avec un nom rangé (Ranger les noms de paquets) ; à l'origine : {name}"
   },
   "candidate": {
     "select": "Sélectionner le lien",

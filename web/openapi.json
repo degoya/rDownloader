@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.13.0"
+    "version": "1.14.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -12090,6 +12090,28 @@
         }
       }
     },
+    "/api/v1/plugins/superseded": {
+      "delete": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Removes every superseded version of every installed plugin.",
+        "description": "A version is superseded when another version of the same plugin is the one that runs. The\none that runs never goes; neither does the one the next start loads — right after an update\nthat is the new one, and taking it would undo the update — nor the one under test, nor one\nunfinished work is bound to. Each of those is listed under `kept` with its reason.",
+        "operationId": "remove_superseded_plugin_versions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupersededRemovalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins/updates": {
       "get": {
         "tags": [
@@ -12585,6 +12607,48 @@
         }
       }
     },
+    "/api/v1/plugins/{id}/superseded": {
+      "delete": {
+        "tags": [
+          "plugins"
+        ],
+        "summary": "Removes every superseded version of one plugin, by the rules of\n`remove_superseded_plugin_versions`.",
+        "operationId": "remove_superseded_versions_of_plugin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Plugin id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupersededRemovalResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/plugins/{id}/{version}": {
       "delete": {
         "tags": [
@@ -12681,6 +12745,47 @@
           },
           "502": {
             "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/v1/postprocess/package-name-preview": {
+      "post": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "What the package-name rules make of an example name (RD-1140-05), before anything is saved:\nthe name a new package would get and the folder that follows from it. Switches the request\nleaves open, and a missing regex list, take the saved global setting, so a category editor\npreviews its override. A regex list is checked as it would be on save.",
+        "operationId": "preview_package_name",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageNamePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageNamePreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -19669,6 +19774,12 @@
               "null"
             ]
           },
+          "unwrap_package_folder": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "upload_enabled": {
             "type": [
               "boolean",
@@ -19725,6 +19836,10 @@
               "string",
               "null"
             ]
+          },
+          "name_target": {
+            "$ref": "#/components/schemas/CategoryRuleNameTarget",
+            "description": "Absent in a bundle written before RD-1140-02: the file name, as then."
           },
           "priority": {
             "type": "integer",
@@ -21196,6 +21311,27 @@
           "name": {
             "type": "string"
           },
+          "package_name_regex": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PackageNameRegex"
+            },
+            "description": "Regex find → replace pairs for new package names of this category (RD-1140-05); `None`\ninherits the global list, a list — an empty one too — replaces it."
+          },
+          "package_name_rules": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PackageNameRulesOverride",
+                "description": "Which package-name rules a new package of this category gets (RD-1140-05); `None`, and\nevery unset switch inside, inherits the global setting."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "plugin_steps": {
             "type": [
               "array",
@@ -21280,6 +21416,13 @@
             ],
             "description": "Whether packages in this category unpack every archive set into a folder of its own;\n`None` = global default (RD-170-16)."
           },
+          "unwrap_package_folder": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages in this category unwrap a single folder named like the package;\n`None` = global default (RD-1140-01)."
+          },
           "upload_enabled": {
             "type": [
               "boolean",
@@ -21352,6 +21495,27 @@
             ],
             "description": "Whether packages of this category are scanned by ClamAV before they count as finished\n(`null` = global default, RD-190-14)."
           },
+          "package_name_regex": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PackageNameRegex"
+            },
+            "description": "Regex pairs of this category (RD-1140-05); `null` inherits the global list, a list —\nan empty one too — replaces it. Same limits and codes as the global list."
+          },
+          "package_name_rules": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PackageNameRulesOverride",
+                "description": "Package-name rules of this category (RD-1140-05); `null`, and every switch left out or\n`null`, inherits the global setting."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "plugin_steps": {
             "type": [
               "array",
@@ -21417,6 +21581,13 @@
             ],
             "description": "Whether packages of this category unpack every archive set into a folder of its own,\nnamed after the archive (`null` = global default, RD-170-16)."
           },
+          "unwrap_package_folder": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category move the content of a single folder named like the\npackage up into the package folder and remove it (`null` = global default, RD-1140-01)."
+          },
           "upload_enabled": {
             "type": [
               "boolean",
@@ -21480,6 +21651,10 @@
               "null"
             ]
           },
+          "name_target": {
+            "$ref": "#/components/schemas/CategoryRuleNameTarget",
+            "description": "Which name `name_regex` is matched against (RD-1140-02); a rule stored before the\nchoice existed matches the file name, as it always did."
+          },
           "priority": {
             "type": "integer",
             "format": "int32"
@@ -21505,6 +21680,15 @@
       "CategoryRuleId": {
         "type": "string",
         "format": "uuid"
+      },
+      "CategoryRuleNameTarget": {
+        "type": "string",
+        "description": "The name a category rule's `name_regex` is matched against.",
+        "enum": [
+          "file",
+          "package",
+          "either"
+        ]
       },
       "Check": {
         "type": "object",
@@ -21810,6 +21994,13 @@
           },
           "priority": {
             "$ref": "#/components/schemas/DownloadPriority"
+          },
+          "queue_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name the package gets in the queue when the package-name rules change it\n(RD-1140-05); `None` when it keeps `name` as it is. Only a name the LinkGrabber derived\nitself is tidied: one somebody stated or renamed stays."
           },
           "script": {
             "type": [
@@ -22666,6 +22857,13 @@
             ],
             "description": "Whether packages of this category unpack every archive set into a folder of its own,\nnamed after the archive (`null` = global default, RD-170-16)."
           },
+          "unwrap_package_folder": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether packages of this category move the content of a single folder named like the\npackage up into the package folder and remove it (`null` = global default, RD-1140-01)."
+          },
           "upload_enabled": {
             "type": [
               "boolean",
@@ -22723,6 +22921,10 @@
               "string",
               "null"
             ]
+          },
+          "name_target": {
+            "$ref": "#/components/schemas/CategoryRuleNameTarget",
+            "description": "The name `name_regex` is matched against; omitted means the file name (RD-1140-02)."
           },
           "priority": {
             "type": "integer",
@@ -26254,6 +26456,31 @@
           }
         }
       },
+      "KeptPluginVersion": {
+        "type": "object",
+        "description": "A superseded version that stayed, and why.",
+        "required": [
+          "plugin_id",
+          "name",
+          "version",
+          "reason"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "plugin_id": {
+            "$ref": "#/components/schemas/PluginId"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/MessageResponse",
+            "description": "`plugin.version_in_use` while unfinished work is bound to it,\n`plugin.version_next_start` when it is the one the next start loads,\n`plugin.version_under_test` while it is under test, or `plugin.remove_failed`."
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
       "LimitScope": {
         "oneOf": [
           {
@@ -29699,6 +29926,135 @@
         "type": "string",
         "format": "uuid"
       },
+      "PackageNamePreviewRequest": {
+        "type": "object",
+        "description": "An example name and the rules to try on it (RD-1140-05).",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "regex": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PackageNameRegex"
+            },
+            "description": "The regex pairs of a form, saved or not; `null` takes the saved global list."
+          },
+          "rules": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PackageNameRulesOverride",
+                "description": "The switches of a form, saved or not; `null`, and every switch left out or `null`,\ntakes the saved global setting."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PackageNamePreviewResponse": {
+        "type": "object",
+        "description": "What a new package of that name would be called, and the folder it would get.",
+        "required": [
+          "name",
+          "folder",
+          "rules"
+        ],
+        "properties": {
+          "folder": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/PackageNameRules",
+            "description": "The rules in force for the preview, inherited switches filled in."
+          }
+        }
+      },
+      "PackageNameRegex": {
+        "type": "object",
+        "description": "One find → replace pair of the package-name regex rules, applied after the four switches.\n\n`pattern` is a `regex`-crate expression (linear time: no backreferences, no lookaround);\nevery match is replaced by `replacement`, which may name groups as `$1`, `${1}` or `${name}`.",
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "replacement": {
+            "type": "string"
+          }
+        }
+      },
+      "PackageNameRules": {
+        "type": "object",
+        "description": "The rules of the \"Tidy file names\" plugin, applied to a package name when the package is\ncreated. All off by default: a package keeps the name it was given unless somebody asked.",
+        "properties": {
+          "collapse_separators": {
+            "type": "boolean",
+            "description": "`Big..Buck._.Bunny` -> `Big.Buck.Bunny`",
+            "default": false
+          },
+          "lowercase": {
+            "type": "boolean",
+            "description": "`Big.Buck.Bunny` -> `big.buck.bunny`",
+            "default": false
+          },
+          "spaces_to_dots": {
+            "type": "boolean",
+            "description": "`Big Buck Bunny` -> `Big.Buck.Bunny`",
+            "default": false
+          },
+          "strip_bracket_tags": {
+            "type": "boolean",
+            "description": "`[1080p]`, `(x264)` and `{…}` tags are removed, brackets and all",
+            "default": false
+          }
+        }
+      },
+      "PackageNameRulesOverride": {
+        "type": "object",
+        "description": "A category's override of the package-name rules; every `None` inherits the global switch.",
+        "properties": {
+          "collapse_separators": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "lowercase": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "spaces_to_dots": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "strip_bracket_tags": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          }
+        }
+      },
       "PackageReorderRequest": {
         "type": "object",
         "description": "Complete queue order; packages are positioned in the given sequence.",
@@ -30890,6 +31246,26 @@
           }
         }
       },
+      "PluginVersionEntry": {
+        "type": "object",
+        "description": "One installed version of a plugin.",
+        "required": [
+          "plugin_id",
+          "name",
+          "version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "plugin_id": {
+            "$ref": "#/components/schemas/PluginId"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
       "PluginVersionRequest": {
         "type": "object",
         "description": "Names one installed version of the plugin.",
@@ -31930,6 +32306,152 @@
             "default": []
           }
         }
+      },
+      "RegexFlag": {
+        "type": "object",
+        "required": [
+          "flag",
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "False for a flag after `-`, as in `(?-i)`."
+          },
+          "flag": {
+            "$ref": "#/components/schemas/RegexFlagName"
+          }
+        }
+      },
+      "RegexFlagName": {
+        "type": "string",
+        "enum": [
+          "case_insensitive",
+          "multi_line",
+          "dot_matches_new_line",
+          "swap_greed",
+          "unicode",
+          "crlf",
+          "ignore_whitespace"
+        ]
+      },
+      "RegexNode": {
+        "type": "object",
+        "description": "One box of the diagram. Which fields a node carries depends on its `kind`.",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegexNode"
+            },
+            "description": "`sequence`, `alternation`, `class` and the set operations: their parts in order;\n`group` and `repetition`: the one node they wrap."
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegexFlag"
+            },
+            "description": "`flags`, and a non-capturing `group` such as `(?i:…)`: the flags switched on or off."
+          },
+          "from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`range`: the first and the last character."
+          },
+          "index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "`group`: the capture group's number; absent for a non-capturing group.",
+            "minimum": 0
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RegexNodeKind"
+          },
+          "lazy": {
+            "type": "boolean",
+            "description": "`repetition`: matches as few times as possible (`*?`, `+?`, `??`, `{n,m}?`)."
+          },
+          "max": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "`repetition`: the most number of times; absent means without limit.",
+            "minimum": 0
+          },
+          "min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "`repetition`: the least number of times.",
+            "minimum": 0
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`group`: the capture group's name."
+          },
+          "negated": {
+            "type": "boolean",
+            "description": "Character classes: everything except what they name."
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`literal`: the text, adjacent characters merged; `unicode_class`, `ascii_class`: the name."
+          },
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RegexNodeKind": {
+        "type": "string",
+        "description": "What a node stands for.",
+        "enum": [
+          "sequence",
+          "alternation",
+          "group",
+          "repetition",
+          "literal",
+          "any_char",
+          "digit",
+          "word_char",
+          "whitespace",
+          "unicode_class",
+          "ascii_class",
+          "class",
+          "range",
+          "intersection",
+          "difference",
+          "symmetric_difference",
+          "start",
+          "end",
+          "word_boundary",
+          "not_word_boundary",
+          "word_start",
+          "word_end",
+          "flags",
+          "empty"
+        ]
       },
       "RemoteAuthMode": {
         "type": "string",
@@ -34920,6 +35442,24 @@
             "default": 5,
             "minimum": 0
           },
+          "package_name_regex": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PackageNameRegex"
+            },
+            "description": "Regex find → replace pairs applied after those switches, in order (RD-1140-05): at most\nten, pattern and replacement at most 200 characters each; a category may replace the list.",
+            "default": []
+          },
+          "package_name_rules": {
+            "$ref": "#/components/schemas/PackageNameRules",
+            "description": "The \"Tidy file names\" rules applied to a package name when the package is created, and\nwith it to its folder (RD-1140-05). All off by default; a category may override each\nswitch. Only a name the application derived is tidied, never one somebody stated.",
+            "default": {
+              "collapse_separators": false,
+              "lowercase": false,
+              "spaces_to_dots": false,
+              "strip_bracket_tags": false
+            }
+          },
           "passwords_file": {
             "type": [
               "string",
@@ -35370,6 +35910,11 @@
           "unpack_to_subfolder": {
             "type": "boolean",
             "description": "Unpack every archive set into a folder of its own below the package folder, named after\nthe archive, instead of straight into the package folder. Off by default (RD-170-16).",
+            "default": false
+          },
+          "unwrap_package_folder": {
+            "type": "boolean",
+            "description": "When the package folder holds nothing but one folder named like the package, move its\ncontent up one level and remove it; with `unpack_to_subfolder`, the same for every\narchive's folder. Nothing is overwritten. Off by default (RD-1140-01).",
             "default": false
           },
           "update_channel": {
@@ -37714,6 +38259,39 @@
           }
         }
       },
+      "SupersededRemovalResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "removed",
+          "kept"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "`plugin.superseded_removed` when every superseded version is gone,\n`plugin.superseded_partly_removed` when some stayed, or `plugin.superseded_none` when\nthere was none."
+          },
+          "kept": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeptPluginVersion"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "params": {
+            "$ref": "#/components/schemas/BTreeMap"
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PluginVersionEntry"
+            }
+          }
+        }
+      },
       "TargetKind": {
         "type": "string",
         "description": "Where a notification is delivered.",
@@ -37780,6 +38358,13 @@
           "pattern": {
             "type": "string"
           },
+          "replacement": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Replaces every match, `$1`/`${name}` naming groups; each result then carries `replaced`."
+          },
           "samples": {
             "type": "array",
             "items": {
@@ -37809,6 +38394,24 @@
             },
             "description": "One entry per sample in request order; empty when the pattern is invalid."
           },
+          "structure": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RegexNode",
+                "description": "The pattern's structure as the service parses it, for the editor's diagram; absent when\nthe pattern is invalid or too large to draw."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "structure_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why a valid pattern has no structure, as a stable code\n(`category_rule.regex_structure_limits`: deeper or larger than a diagram shows)."
+          },
           "valid": {
             "type": "boolean"
           }
@@ -37830,6 +38433,13 @@
           },
           "matched": {
             "type": "boolean"
+          },
+          "replaced": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The sample with every match replaced, when the request carried a replacement."
           },
           "start": {
             "type": [

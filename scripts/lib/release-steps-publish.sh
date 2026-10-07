@@ -75,6 +75,11 @@ step_docs_gate() {
         echo "docs/roadmap.md never mentions $VERSION" >&2; failed=1
     fi
 
+    # The plugin index takes each packaged version's notes from its plugin's CHANGES.md
+    # (RD-1140-03): a raised version without its section, or a section the rules refuse, stops
+    # the release here rather than shipping a card without notes or with developer prose.
+    scripts/plugin-release-notes.sh --check || failed=1
+
     # doc-facts wrote them; this proves nothing edited them back, and holds the user wiki to the
     # same facts. The wiki is updated at the tag from this release's section, before the chain
     # publishes it (publish-public), so a stale contract or count there stops the release here.

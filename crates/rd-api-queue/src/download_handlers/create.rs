@@ -1,6 +1,7 @@
 //! A direct download request: validated and queued as a package of its own.
 
 use super::*;
+use crate::torrent_intake::TorrentName;
 
 #[utoipa::path(post, path = "/api/v1/downloads", tag = "downloads", request_body = CreateDownloadRequest, responses((status = 201, body = rd_core::DownloadFile)))]
 pub async fn create_download(
@@ -19,13 +20,16 @@ pub async fn create_download_inner(
         .map(rd_collector::canonical_url)
         .map_err(|error| ApiError::bad_request("download.url_invalid", error.to_string()))?;
     if url.scheme() == "magnet" {
+        // A name the request stated stays; the magnet's own is tidied (RD-1140-05).
         let name = request
             .package_name
             .as_deref()
             .map(str::trim)
             .filter(|name| !name.is_empty())
-            .map(str::to_owned)
-            .unwrap_or_else(|| crate::torrent_intake::magnet_name(&url));
+            .map_or_else(
+                || TorrentName::Derived(crate::torrent_intake::magnet_name(&url)),
+                |name| TorrentName::Stated(name.to_owned()),
+            );
         let package = crate::torrent_intake::enqueue_torrent(
             state,
             url,
@@ -58,10 +62,20 @@ pub async fn create_download_inner(
         .filter(|value| !value.is_empty())
         .unwrap_or("download.bin")
         .to_owned();
-    // A URL-derived package name doubles as the folder name; extensions are stripped.
-    let package_name = request
-        .package_name
-        .unwrap_or_else(|| rd_files::package_name_from_file_name(&inferred));
+    // A URL-derived package name doubles as the folder name; extensions are stripped, and the
+    // package-name rules of its category apply. A name the request stated stays (RD-1140-05).
+    let package_name = match request.package_name {
+        Some(name) => name,
+        None => {
+            state
+                .database
+                .tidy_package_name(
+                    &rd_files::package_name_from_file_name(&inferred),
+                    request.category_id,
+                )
+                .await?
+        }
+    };
     let file_name = request.file_name.unwrap_or(inferred);
     validate_network_selection(state, request.account_id, request.proxy_profile_id).await?;
     let account_id = match request.account_id {

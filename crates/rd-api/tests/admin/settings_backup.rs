@@ -47,6 +47,7 @@ async fn seed_all(harness: &Harness, directory: &std::path::Path) -> SeededConfi
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,
@@ -68,6 +69,7 @@ async fn seed_all(harness: &Harness, directory: &std::path::Path) -> SeededConfi
             extension: Some("mkv".to_owned()),
             mime_type: None,
             name_regex: None,
+            name_target: rd_core::CategoryRuleNameTarget::Either,
             category_id: category.id,
             enabled: true,
         })
@@ -251,6 +253,7 @@ async fn full_round_trip_preserves_ids_and_rekeys_secrets() {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             direct_unpack: None,
             malware_scan: None,
             sfv_verify: None,
@@ -278,9 +281,12 @@ async fn full_round_trip_preserves_ids_and_rekeys_secrets() {
             .id,
         seeded.category_id
     );
+    let rules = harness.database.list_category_rules().await.expect("rules");
+    assert_eq!(rules[0].id, seeded.rule_id);
+    // RD-1140-02: the rule's name target comes back with it.
     assert_eq!(
-        harness.database.list_category_rules().await.expect("rules")[0].id,
-        seeded.rule_id
+        rules[0].name_target,
+        rd_core::CategoryRuleNameTarget::Either
     );
     assert_eq!(
         harness

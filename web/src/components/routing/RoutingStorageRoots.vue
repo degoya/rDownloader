@@ -12,6 +12,7 @@ import { useFormFocus } from '@/composables/useFormFocus'
 import { serverMessageFrom } from '@/i18n/server'
 import { GIB, byteModel, formatBytes } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL } from '@/utils/numberInput'
 import { editingRowClass } from '@/utils/editingRow'
 
@@ -191,8 +192,8 @@ async function remove(root: StorageRoot): Promise<void> {
           <UFormField required :label="t('routing.root.path_label')" :description="t('routing.root.path_description')" :error="pathError ?? false">
             <UInput v-model="form.path" name="path" required class="w-full font-mono" :placeholder="t('routing.root.path_placeholder')" icon="i-lucide-folder" />
           </UFormField>
-          <UFormField hint="GiB" :label="t('routing.root.minimum_free_label')" :description="t('routing.root.minimum_free_description')">
-            <UInputNumber v-model="minimumFreeGiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('routing.root.minimum_free_placeholder')" />
+          <UFormField :label="t('routing.root.minimum_free_label')" :description="t('routing.root.minimum_free_description')">
+            <NumberWithUnit v-model="minimumFreeGiB" unit="GiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('routing.root.minimum_free_placeholder')" />
           </UFormField>
           <UFormField orientation="horizontal" :label="t('routing.root.default_label')" :description="t('routing.root.default_description')">
             <USwitch v-model="form.is_default" :disabled="lockDefault" :aria-label="t('routing.root.default_label')" />

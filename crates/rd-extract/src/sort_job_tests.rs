@@ -43,6 +43,7 @@ async fn sorting_category(database: &Database, temp: &Path) -> CategoryId {
             cleanup_extensions: None,
             recursive_unpack: None,
             unpack_to_subfolder: None,
+            unwrap_package_folder: None,
             malware_scan: None,
             sfv_verify: None,
             safe_postproc: None,

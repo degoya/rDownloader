@@ -72,6 +72,18 @@ pub struct Category {
     /// inherited: sorting is a property of the category, there is no global template.
     #[serde(default)]
     pub sorting: Option<crate::SortTemplates>,
+    /// Whether packages in this category unwrap a single folder named like the package;
+    /// `None` = global default (RD-1140-01).
+    #[serde(default)]
+    pub unwrap_package_folder: Option<bool>,
+    /// Which package-name rules a new package of this category gets (RD-1140-05); `None`, and
+    /// every unset switch inside, inherits the global setting.
+    #[serde(default)]
+    pub package_name_rules: Option<crate::PackageNameRulesOverride>,
+    /// Regex find → replace pairs for new package names of this category (RD-1140-05); `None`
+    /// inherits the global list, a list — an empty one too — replaces it.
+    #[serde(default)]
+    pub package_name_regex: Option<Vec<crate::PackageNameRegex>>,
 }
 
 /// Allowlisted filesystem root available to categories.
@@ -99,8 +111,25 @@ pub struct CategoryRule {
     pub extension: Option<String>,
     pub mime_type: Option<String>,
     pub name_regex: Option<String>,
+    /// Which name `name_regex` is matched against (RD-1140-02); a rule stored before the
+    /// choice existed matches the file name, as it always did.
+    #[serde(default)]
+    pub name_target: CategoryRuleNameTarget,
     pub category_id: CategoryId,
     pub enabled: bool,
+}
+
+/// The name a category rule's `name_regex` is matched against.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CategoryRuleNameTarget {
+    /// The link's file name.
+    #[default]
+    File,
+    /// The name of the package the link is grouped into; for an NZB, the NZB's name.
+    Package,
+    /// Either of the two; one matching is enough.
+    Either,
 }
 
 /// Location responsible for watching a hotfolder.
@@ -132,4 +161,35 @@ pub struct HotFolderConfig {
     pub processed_path: String,
     pub failed_path: String,
     pub enabled: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CategoryRule, CategoryRuleNameTarget};
+    use crate::{CategoryId, CategoryRuleId};
+
+    /// RD-1140-02: a rule as an older client or backup carries it, without `name_target`,
+    /// targets the file name -- the only name a rule was ever matched against.
+    #[test]
+    fn a_rule_without_a_name_target_matches_the_file_name() {
+        let stored = serde_json::json!({
+            "id": CategoryRuleId::new(),
+            "name": "older",
+            "priority": 1,
+            "source": null,
+            "domain": null,
+            "protocol": null,
+            "extension": null,
+            "mime_type": null,
+            "name_regex": "x",
+            "category_id": CategoryId::new(),
+            "enabled": true,
+        });
+        let rule: CategoryRule = serde_json::from_value(stored).expect("rule");
+        assert_eq!(rule.name_target, CategoryRuleNameTarget::File);
+        assert_eq!(
+            serde_json::to_value(CategoryRuleNameTarget::Either).expect("value"),
+            serde_json::json!("either")
+        );
+    }
 }

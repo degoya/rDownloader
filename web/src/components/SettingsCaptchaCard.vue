@@ -6,6 +6,7 @@ import { api, responseError } from '@/api/client'
 import type { CaptchaConfig, SolverKind, TestCaptchaSolver, UpdateCaptchaConfig } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useFetchState } from '@/composables/useFetchState'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE, isNumber } from '@/utils/numberInput'
 
 const emit = defineEmits<{ error: [string] }>()
@@ -167,9 +168,10 @@ defineExpose({ save, dirty })
       <UFormField :label="t('captcha.settings.manual.label')" :description="t('captcha.settings.manual.description')" orientation="horizontal">
         <USwitch v-model="form.manual_enabled" :disabled="loading" />
       </UFormField>
-      <UFormField hint="s" data-settings-anchor="captcha.timeout" :label="t('captcha.settings.timeout.label')" :description="t('captcha.settings.timeout.description')">
-        <UInputNumber
+      <UFormField data-settings-anchor="captcha.timeout" :label="t('captcha.settings.timeout.label')" :description="t('captcha.settings.timeout.description')">
+        <NumberWithUnit
           v-model="form.manual_timeout_seconds"
+          unit="s"
           required
           :min="MIN_TIMEOUT"
           :max="MAX_TIMEOUT"

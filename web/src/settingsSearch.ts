@@ -131,10 +131,12 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('postprocess.defaults', 'postprocess', 'settings.postprocess.title', { descriptionKey: 'settings.postprocess.description' }),
   field('postprocess.passwords_file', 'postprocess', 'settings.postprocess.passwords_file.label', { descriptionKey: 'settings.postprocess.passwords_file.description', keywordsKey: `${K}.archive_password` }),
   field('postprocess.unpack_to_subfolder', 'postprocess', 'settings.postprocess.unpack_to_subfolder.label', { descriptionKey: 'settings.postprocess.unpack_to_subfolder.description' }),
+  field('postprocess.unwrap_package_folder', 'postprocess', 'settings.postprocess.unwrap_package_folder.label', { descriptionKey: 'settings.postprocess.unwrap_package_folder.description' }),
   field('postprocess.direct_unpack', 'postprocess', 'settings.postprocess.direct_unpack.label', { descriptionKey: 'settings.postprocess.direct_unpack.description' }),
   field('postprocess.delete_par2', 'postprocess', 'settings.postprocess.delete_par2.label', { descriptionKey: 'settings.postprocess.delete_par2.description', terms: ['PAR2'] }),
   field('postprocess.cleanup_extensions', 'postprocess', 'settings.postprocess.cleanup_extensions.label', { descriptionKey: 'settings.postprocess.cleanup_extensions.description' }),
   field('postprocess.scripts_directory', 'postprocess', 'settings.postprocess.scripts_directory.label', { descriptionKey: 'settings.postprocess.scripts_directory.description' }),
+  field('postprocess.package_names', 'postprocess', 'settings.postprocess.package_names.label', { descriptionKey: 'settings.postprocess.package_names.description', terms: ['Tidy file names', 'spaces_to_dots', 'lowercase'] }),
   field('postprocess.malware_scan', 'postprocess', 'settings.postprocess.malware_scan.label', { descriptionKey: 'settings.postprocess.malware_scan.description', terms: ['ClamAV', 'clamd', 'EICAR'] }),
   field('postprocess.upload', 'postprocess', 'settings.postprocess.upload.label', { descriptionKey: 'settings.postprocess.upload.description', terms: ['rclone'] }),
   // Accounts

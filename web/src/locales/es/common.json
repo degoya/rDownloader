@@ -199,5 +199,8 @@
     "from": "Desde",
     "to": "Hasta",
     "days_label": "Días"
+  },
+  "date_field": {
+    "open_calendar": "Elegir la fecha en un calendario"
   }
 }
