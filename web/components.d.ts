@@ -251,6 +251,7 @@ declare module 'vue' {
     UNavigationMenu: typeof import('./node_modules/@nuxt/ui/dist/runtime/components/NavigationMenu.vue')['default']
     UPageCard: typeof import('./node_modules/@nuxt/ui/dist/runtime/components/PageCard.vue')['default']
     UPagination: typeof import('./node_modules/@nuxt/ui/dist/runtime/components/Pagination.vue')['default']
+    UpdateAvailableNotice: typeof import('./src/components/settings/UpdateAvailableNotice.vue')['default']
     UpdateDetailsModal: typeof import('./src/components/UpdateDetailsModal.vue')['default']
     UpdateNotice: typeof import('./src/components/UpdateNotice.vue')['default']
     UPopover: typeof import('./node_modules/@nuxt/ui/dist/runtime/components/Popover.vue')['default']

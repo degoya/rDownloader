@@ -1207,7 +1207,9 @@
     "settings.package_name_regex_invalid": "Regel {index} für Paketnamen: Der Suchausdruck ist kein gültiger regulärer Ausdruck ({detail}).",
     "settings.package_name_regex_too_many": "Höchstens {max} Regex-Regeln für Paketnamen.",
     "settings.package_name_regex_too_long": "Regel {index} für Paketnamen: Suchausdruck und Ersetzung dürfen je höchstens {max} Zeichen haben.",
-    "category_rule.regex_structure_limits": "Das Muster ist zu umfangreich für ein Diagramm."
+    "category_rule.regex_structure_limits": "Das Muster ist zu umfangreich für ein Diagramm.",
+    "subscription.item_no_source": "Zu diesem Abo-Eintrag ist nichts gespeichert, das sich laden ließe",
+    "subscription.item_duplicate": "Die Adresse dieses Abo-Eintrags ist noch im LinkGrabber oder in der Download-Liste"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

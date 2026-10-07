@@ -106,8 +106,21 @@ case "$1" in
         echo "serve $(cat "$FAKE/installed")" >> "$FAKE/calls"
         mkdir -p "$HOME/.local/share/rdownloader/data"
         echo sqlite > "$HOME/.local/share/rdownloader/data/rdownloader.sqlite3"
+        # A service that outlives SIGTERM, standing in for one the container never reaps: `ps`
+        # below calls it a zombie, `kill -0` keeps answering for it.
+        if [[ -f "$FAKE/stubborn" ]]; then
+            echo $$ >> "$FAKE/stubborn-pids"
+            trap '' TERM
+            while :; do sleep 1; done
+        fi
         exec sleep 30 ;;
 esac
+EOF
+# ps: a zombie while $FAKE/zombie exists, the real one otherwise.
+cat > "$SCRATCH/bin/ps" <<'EOF'
+#!/usr/bin/env bash
+if [[ -f "$FAKE/zombie" ]]; then echo "Z"; exit 0; fi
+exec /usr/bin/ps "$@"
 EOF
 chmod +x "$SCRATCH/bin/"*
 export PATH="$SCRATCH/bin:$PATH"
@@ -168,5 +181,20 @@ rm -f "$FAKE/sources"
 
 published zypper "$BASE"
 expect_status "an unknown package manager" 2
+
+# A service the container keeps as a zombie: stopped is stopped (RD-1130-05, 1.14.0's channels run).
+printf '%s\n' 1.11.0 > "$FAKE/versions"
+touch "$FAKE/stubborn" "$FAKE/zombie"
+SECONDS=0
+published apt "$BASE" 1.11.0
+expect_status "a service left a zombie counts as stopped" 0
+expect_true "and the check does not wait for it" '(( SECONDS < 15 ))'
+rm -f "$FAKE/zombie"
+RD_PUBLISHED_REPO_STOP_WAIT=2 published apt "$BASE" 1.11.0
+expect_status "a service that does not stop fails the check" 1
+expect_output "naming it" "did not stop within"
+rm -f "$FAKE/stubborn"
+# The stubborn services ignore SIGTERM on purpose; the test ends them itself.
+while read -r pid; do kill -9 "$pid" 2> /dev/null || true; done < "$FAKE/stubborn-pids"
 
 finish_tests "ci-published-repo"

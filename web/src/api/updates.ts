@@ -13,7 +13,9 @@ import type { components } from './schema'
 type Schemas = components['schemas']
 
 /**
- * A newer version and how to get it. `notes` is plain text, rendered as text, never as markup;
+ * A newer version and how to get it. `notes` is plain text for users, one `- ` point per line
+ * (RD-1150-02; `releaseNotePoints`), rendered as text, never as markup; `changelog_url` is the
+ * version's CHANGELOG section at its tag, `release_url` its release page with the downloads;
  * `action` is `install` (this installation installs it itself and restarts), `download` (the
  * artifact is replaced by hand) or `command` (a package manager does it); `hint` is a stable code
  * (`update.hint.docker_recreate`) the interface translates; `rollback_available` says for
@@ -73,6 +75,15 @@ export const downloadUpdate = () => call<UpdateDownload>('POST', '/api/v1/system
 /** Installs the offered update and restarts; `allowActive` agrees to running downloads pausing. */
 export const installUpdate = (allowActive = false) =>
   call<UpdateInstall>('POST', '/api/v1/system/update/install', { allow_active: allowActive })
+
+/**
+ * The points of an offer's notes, as the update dialog and the Updates page list them
+ * (RD-1150-02): one per line, the `- ` dropped, empty lines left out. A version without visible
+ * change has a single sentence, which is its one point.
+ */
+export function releaseNotePoints(notes: string): string[] {
+  return notes.split('\n').map(line => line.trim().replace(/^[-*]\s+/, '')).filter(line => line.length > 0)
+}
 
 /** The catalogue key of a hint code: `update.hint.aur_helper` → `system.updates.hints.aur_helper`. */
 export function hintKey(code: string): string {

@@ -627,14 +627,13 @@
     "next_check": "Prochaine vérification : {when}",
     "up_to_date": "Vous avez la version la plus récente.",
     "available": "La version {version} est disponible",
-    "show_details": "Détails",
     "not_configured": "Cette version ne contient pas de clé de mise à jour ; la vérification est désactivée.",
     "modal": {
       "title": "rDownloader {version}",
       "released": "Publiée : {when}",
       "notes": "Nouveautés",
       "no_notes": "Cette version n’a pas de notes.",
-      "full_notes": "Notes de version complètes",
+      "full_changes": "Modifications complètes",
       "download": "Télécharger",
       "download_hint": "Remplace les fichiers du programme de cette installation par la nouvelle version ; vos réglages et téléchargements restent où ils sont.",
       "command_hint": "{kind} gère cette installation. Mettez-la à jour avec :",
@@ -645,7 +644,8 @@
       "rollback_automatic": "Si la nouvelle version ne démarre pas correctement, la précédente revient d’elle-même.",
       "rollback_unavailable": "Cette mise à jour par l’installateur Windows ne peut pas être annulée d’elle-même : l’installateur de la version actuelle n’a pas été conservé. À partir de la prochaine mise à jour, ce sera possible.",
       "download_package": "Télécharger le paquet",
-      "download_manual": "Télécharger manuellement"
+      "download_manual": "Télécharger manuellement",
+      "release_page": "Page de la version"
     },
     "hints": {
       "aur_helper": "Avec paru : paru -S rdownloader-bin",
@@ -688,7 +688,8 @@
       "unknown": "antérieur à 1.9",
       "outdated_title": "Redémarrez l'agent de capture",
       "outdated_description": "Un agent de capture tourne encore en version {agent}, rDownloader déjà en {service}. Depuis la 1.8.1, l'agent redémarre de lui-même dans la minute qui suit une mise à jour. S'il ne le fait pas — parce qu'il est plus ancien ou qu'un autre utilisateur l'a lancé —, quittez-le depuis son icône dans la zone de notification ou le Gestionnaire des tâches, puis relancez-le ; sous Linux, systemctl --user restart rdownloader-capture fait les deux."
-    }
+    },
+    "whats_new": "Nouveautés"
   },
   "oidc": {
     "eyebrow": "Fournisseur d’identité",

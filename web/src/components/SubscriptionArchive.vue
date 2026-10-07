@@ -9,27 +9,24 @@ import { useI18n } from 'vue-i18n'
 
 import type { Subscription, SubscriptionItem } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import SubscriptionItemActions from '@/components/SubscriptionItemActions.vue'
 import SubscriptionItemRow from '@/components/SubscriptionItemRow.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
+import { useRangeSelection } from '@/composables/useRangeSelection'
+import { translateServerMessage } from '@/i18n/server'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 import type { SubscriptionItemFilter } from '@/stores/subscriptions'
 import { formatMoment } from '@/utils/format'
+import { INDEXER_POLL_BOUND, indexerPollGap } from '@/utils/indexerGap'
 import { showItemImages } from '@/utils/itemImages'
+import { hitHasSource, hitTitle } from '@/utils/subscriptionHit'
 
 const props = defineProps<{ subscription: Subscription }>()
 
 /** A finished history clear, said in the view's notice line. */
 const emit = defineEmits<{ notice: [notice: { text: string, tone: 'info' | 'error' }] }>()
 
-/**
- * Matches `DEFAULT_LIMIT` in `crates/rd-subscription/src/indexer.rs`.
- *
- * One query returns at most this many hits, and the title filter runs on what came back
- * (RD-106-10). A check that returns a full page therefore says nothing about what lies
- * behind it, and the list says so rather than letting a narrow filter look broken.
- */
-const INDEXER_POLL_LIMIT = 500
 const ITEM_PAGE_SIZE = 50
 
 const { t } = useI18n()
@@ -106,6 +103,83 @@ watch(itemFilter, async () => {
 
 watch(itemPage, loadArchive)
 
+/**
+ * Queueing decided hits again (RD-1150-04): a hit dismissed by mistake — in the LinkGrabber's
+ * review too — or one whose download is gone goes back the way it came. One at a time from its
+ * row, several through the checkboxes of the page on screen; a hit with nothing to fetch has no
+ * checkbox and its action is off, with the reason on its title.
+ */
+const selected = ref<string[]>([])
+const requeueBusy = ref<string[]>([])
+
+function requeueable(item: SubscriptionItem): boolean {
+  return item.state !== 'pending' && hitHasSource(item.url)
+}
+
+/** The hits of this page that can be queued again, in the order they are listed. */
+const requeueOrder = computed(() => itemsOf(props.subscription.id).filter(requeueable).map(item => item.id))
+/** Only what is still on the page counts: a re-read or another page drops the rest. */
+const selectedOnPage = computed(() => selected.value.filter(id => requeueOrder.value.includes(id)))
+const pageSelection = computed<boolean | 'indeterminate'>(() => {
+  const count = selectedOnPage.value.length
+  if (!count) return false
+  return count === requeueOrder.value.length ? true : 'indeterminate'
+})
+
+const range = useRangeSelection(requeueOrder, (keys, on) => {
+  const rest = selected.value.filter(id => !keys.includes(id))
+  selected.value = on ? [...rest, ...keys] : rest
+})
+
+function selectPage(on: boolean | 'indeterminate'): void {
+  selected.value = on === true ? [...requeueOrder.value] : []
+  range.reset()
+}
+
+watch([itemFilter, itemPage], () => {
+  selected.value = []
+})
+
+/**
+ * Hands `ids` over; an address still in the LinkGrabber or the list is asked about once for all
+ * of them, and what stays refused is said with its first reason.
+ */
+async function requeue(ids: string[]): Promise<void> {
+  if (!ids.length || requeueBusy.value.length) return
+  const id = props.subscription.id
+  requeueBusy.value = ids
+  const first = await store.requeueItems(id, ids)
+  if (!first) {
+    requeueBusy.value = []
+    return
+  }
+  let requeued = first.requeued.length
+  const duplicates = first.refused.filter(refusal => refusal.code === 'subscription.item_duplicate')
+  let refused = first.refused.filter(refusal => refusal.code !== 'subscription.item_duplicate')
+  const again = duplicates.length > 0 && await confirm({
+    title: t('subscriptions.requeue.duplicate_title'),
+    description: t('subscriptions.requeue.duplicate_description', { count: duplicates.length }, duplicates.length),
+    confirmLabel: t('subscriptions.requeue.duplicate_confirm'),
+    confirmIcon: 'i-lucide-copy-plus'
+  })
+  if (again) {
+    const second = await store.requeueItems(id, duplicates.map(refusal => refusal.item_id), true)
+    requeued += second?.requeued.length ?? 0
+    refused = [...refused, ...(second?.refused ?? [])]
+  } else {
+    refused = [...refused, ...duplicates]
+  }
+  requeueBusy.value = []
+  selected.value = selected.value.filter(item => refused.some(refusal => refusal.item_id === item))
+  const reason = refused[0]
+  emit('notice', reason
+    ? {
+        text: t('subscriptions.requeue.partial', { requeued, refused: refused.length, reason: translateServerMessage(reason) }),
+        tone: 'error'
+      }
+    : { text: t('subscriptions.requeue.done', { count: requeued }, requeued), tone: 'info' })
+}
+
 async function clearHistory(subscription: Subscription): Promise<void> {
   const count = settledCount(subscription.id)
   const runs = store.itemPages[subscription.id]?.run_total ?? 0
@@ -128,18 +202,15 @@ async function clearHistory(subscription: Subscription): Promise<void> {
 }
 
 /**
- * Whether the last check came back with a full page.
+ * Whether the last check left a gap (RD-1150-05).
  *
- * The indexer answers at most `INDEXER_POLL_LIMIT` hits across the pages we request and the title
- * filter is applied to what arrived, so reaching that cap means an older match may not be fetched. Saying that is the
- * decision taken for the page boundary: the filter is deliberately not sent as the indexer's
- * `q`, because a substring or a regular expression is not what its tokenizer would search
- * for, and it would drop hits the filter accepts.
+ * A check pages until it meets an entry the subscription already has, and the title filter runs
+ * on everything it read — the filter is deliberately not sent as the indexer's `q` (RD-106-10).
+ * Only a check that reached its page bound without meeting anything may have left entries
+ * behind, and only then does the list say so.
  */
 function hitPageLimit(subscription: Subscription): boolean {
-  if (subscription.kind !== 'indexer') return false
-  const latest = (store.runs[subscription.id] ?? [])[0]
-  return latest !== undefined && latest.found >= INDEXER_POLL_LIMIT
+  return subscription.kind === 'indexer' && indexerPollGap((store.runs[subscription.id] ?? [])[0])
 }
 
 /** Skipped is the one state that has to stand out; the badge still carries its name. */
@@ -153,8 +224,27 @@ function stateColor(state: SubscriptionItem['state']): 'warning' | 'success' | '
   <div class="mt-3 flex flex-col gap-3">
     <div>
       <div class="flex flex-wrap items-center gap-2">
+        <UCheckbox
+          v-if="requeueOrder.length"
+          :model-value="pageSelection"
+          :aria-label="t('subscriptions.actions.select_page')"
+          :title="t('subscriptions.actions.select_page')"
+          data-testid="subscription-requeue-page"
+          @update:model-value="selectPage"
+        />
         <h3 class="text-xs font-semibold">{{ t('subscriptions.items.title') }}</h3>
         <span class="grow" />
+        <UButton
+          v-if="requeueOrder.length"
+          size="xs"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-rotate-ccw"
+          :label="t('subscriptions.actions.requeue_selected', { count: selectedOnPage.length })"
+          :loading="requeueBusy.length > 1"
+          :disabled="!selectedOnPage.length || requeueBusy.length > 0"
+          @click="requeue(selectedOnPage)"
+        />
         <UButton
           size="xs"
           color="error"
@@ -177,7 +267,7 @@ function stateColor(state: SubscriptionItem['state']): 'warning' | 'success' | '
         />
       </div>
       <p v-if="hitPageLimit(subscription)" class="text-xs text-warning">
-        {{ t('subscriptions.items.page_limit', { limit: INDEXER_POLL_LIMIT }) }}
+        {{ t('subscriptions.items.page_limit', { limit: INDEXER_POLL_BOUND }) }}
       </p>
       <DataState
         :loading="itemsState.loading.value"
@@ -188,32 +278,37 @@ function stateColor(state: SubscriptionItem['state']): 'warning' | 'success' | '
       >
         <UEmpty :description="t('subscriptions.items.empty')" />
       </DataState>
-      <ul v-if="itemsOf(subscription.id).length" class="flex flex-col gap-1">
+      <ul
+        v-if="itemsOf(subscription.id).length"
+        class="flex flex-col gap-1"
+        @click.capture="range.noteModifier"
+        @keydown.capture="range.noteModifier"
+      >
         <SubscriptionItemRow
           v-for="item in itemsOf(subscription.id)"
           :key="item.id"
           :item="item"
           :show-images="showItemImages"
         >
+          <template v-if="requeueOrder.length" #leading>
+            <UCheckbox
+              v-if="requeueable(item)"
+              :model-value="selected.includes(item.id)"
+              :aria-label="t('subscriptions.actions.select_item', { title: hitTitle(item.title) })"
+              @update:model-value="(on: boolean | 'indeterminate') => range.pick(item.id, on === true)"
+            />
+            <!-- Keeps the titles aligned beside a row that has a checkbox. -->
+            <span v-else class="size-4 shrink-0" />
+          </template>
           <template #actions>
             <UBadge :color="stateColor(item.state)" variant="subtle">{{ t(`subscriptions.states.${item.state}`) }}</UBadge>
-            <UButton
-              v-if="item.state === 'pending'"
-              size="xs"
-              color="primary"
-              variant="soft"
-              icon="i-lucide-list-end"
-              :label="t('subscriptions.actions.queue')"
-              @click="store.setItemState(item.id, subscription.id, 'queued')"
-            />
-            <UButton
-              v-if="item.state === 'pending'"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-x"
-              :label="t('subscriptions.actions.dismiss')"
-              @click="store.setItemState(item.id, subscription.id, 'dismissed')"
+            <SubscriptionItemActions
+              :busy="requeueBusy.includes(item.id)"
+              :state="item.state"
+              :no-source="!hitHasSource(item.url)"
+              @queue="store.setItemState(item.id, subscription.id, 'queued')"
+              @dismiss="store.setItemState(item.id, subscription.id, 'dismissed')"
+              @requeue="requeue([item.id])"
             />
           </template>
         </SubscriptionItemRow>

@@ -361,6 +361,7 @@ impl UpdateService {
                 || install::steps::kept_installer(&self.data_dir(), &self.0.current).is_some()
         });
         UpdateOffer {
+            changelog_url: offer.changelog_url(),
             release_url: format!(
                 "https://github.com/{}/releases/tag/v{}",
                 rd_update::check::OFFICIAL_REPOSITORY,

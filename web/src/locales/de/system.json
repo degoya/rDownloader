@@ -627,14 +627,13 @@
     "next_check": "Nächste Prüfung: {when}",
     "up_to_date": "Du hast die neueste Version.",
     "available": "Version {version} ist verfügbar",
-    "show_details": "Details",
     "not_configured": "Dieser Build trägt keinen Update-Schlüssel; die Update-Prüfung ist aus.",
     "modal": {
       "title": "rDownloader {version}",
       "released": "Erschienen: {when}",
       "notes": "Was ist neu",
       "no_notes": "Zu dieser Version gibt es keine Notizen.",
-      "full_notes": "Vollständige Versionshinweise",
+      "full_changes": "Vollständige Änderungen",
       "download": "Herunterladen",
       "download_hint": "Ersetze die Programmdateien dieser Installation durch die neue Version; deine Einstellungen und Downloads bleiben, wo sie sind.",
       "command_hint": "Diese Installation verwaltet {kind}. Aktualisiere sie mit:",
@@ -645,7 +644,8 @@
       "rollback_automatic": "Startet die neue Version nicht richtig, kommt die bisherige von selbst zurück.",
       "rollback_unavailable": "Dieses Update über den Windows-Installer lässt sich nicht von selbst zurücknehmen: Das Installationspaket der laufenden Version wurde nicht aufbewahrt. Ab dem nächsten Update geht das.",
       "download_package": "Paket herunterladen",
-      "download_manual": "Manuell herunterladen"
+      "download_manual": "Manuell herunterladen",
+      "release_page": "Release-Seite"
     },
     "hints": {
       "aur_helper": "Mit paru: paru -S rdownloader-bin",
@@ -688,7 +688,8 @@
       "unknown": "vor 1.9",
       "outdated_title": "Capture-Agent neu starten",
       "outdated_description": "Ein Capture-Agent läuft noch in Version {agent}, rDownloader schon in {service}. Ab 1.8.1 startet er sich nach einem Update innerhalb einer Minute selbst neu. Tut er das nicht – etwa weil er älter ist oder ein anderer Nutzer ihn gestartet hat –, beende ihn über sein Tray-Symbol oder den Task-Manager und starte ihn wieder; unter Linux erledigt systemctl --user restart rdownloader-capture beides."
-    }
+    },
+    "whats_new": "Was ist neu"
   },
   "oidc": {
     "eyebrow": "Identitätsanbieter",

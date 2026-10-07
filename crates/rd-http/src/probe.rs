@@ -284,6 +284,11 @@ pub async fn fetch_conditional(
             final_url,
         });
     }
+    // A `429` keeps its class and its `Retry-After` (RD-1150-05): a subscription poll waits it
+    // out instead of counting a failure. The message is the same `HTTP 429 …` as before.
+    if status == StatusCode::TOO_MANY_REQUESTS {
+        return Err(status_failure(status, response.headers()).into());
+    }
     if !status.is_success() {
         anyhow::bail!("HTTP {status}");
     }

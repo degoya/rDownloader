@@ -206,10 +206,16 @@ git -C "$TREE" tag v10.0.0
 git -C "$TREE" checkout -q development
 expect "the scenario: git describe on development answers the older tag" "v9.8.0" \
     "$(git -C "$TREE" describe --tags --abbrev=0)"
+# The release's notes for users (RD-1150-02): a section still marked as a draft stops the gate.
+cp "$ROOT/scripts/release-notes.sh" "$TREE/scripts/"
+printf '# Release notes\n\n## 9.9.9\n\n<!-- draft -->\n\n- Something new.\n' > "$TREE/RELEASE-NOTES.md"
 run_step_case "RD_WIKI_SRC='$SCRATCH/no-wiki' step_docs_gate"
 expect_output "docs-gate: the previous release is the highest tag under this one" "previous version: 9.9.8"
 expect_output "docs-gate: a changelog unchanged since that release is refused" \
     "CHANGELOG.md is unchanged since v9.9.8"
+expect_output "docs-gate: the release's notes for users must be finished" \
+    "the section 9.9.9 is still a draft"
+rm "$TREE/RELEASE-NOTES.md" "$TREE/scripts/release-notes.sh"
 
 # A pre-release, X.Y.Z-beta.N and no other form (owner, 2026-09-30): not merged into main, so
 # neither run nor required by the gate; pushed without main; published by the export alone.

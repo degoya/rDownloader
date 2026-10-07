@@ -110,6 +110,8 @@ const detailsLabel = computed(() =>
 <template>
   <li class="border border-muted">
     <div class="flex flex-wrap items-center gap-2 p-2">
+      <!-- A selection checkbox, where the caller's list has one (the archive's re-queue, RD-1150-04). -->
+      <slot name="leading" />
       <!--
         The trigger leads the row; the details are the row's last line, edge to edge under a
         hairline (`design.md`, *Opening and closing*).
@@ -118,7 +120,7 @@ const detailsLabel = computed(() =>
         v-if="expandable"
         v-model:open="expanded"
         class="contents"
-        :ui="{ content: 'order-last -mx-2 -mb-2 basis-full border-t border-muted px-2 py-2' }"
+        :ui="{ content: 'order-last -mx-2 -mb-2 min-w-0 basis-full border-t border-muted px-2 py-2' }"
       >
         <UButton
           :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"

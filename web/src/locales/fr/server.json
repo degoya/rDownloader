@@ -1207,7 +1207,9 @@
     "settings.package_name_regex_invalid": "Règle de nom de paquet {index} : le motif n'est pas une expression régulière valide ({detail}).",
     "settings.package_name_regex_too_many": "Au plus {max} règles regex pour les noms de paquets.",
     "settings.package_name_regex_too_long": "Règle de nom de paquet {index} : le motif et le remplacement peuvent avoir au plus {max} caractères chacun.",
-    "category_rule.regex_structure_limits": "Le motif est trop grand pour être dessiné en diagramme."
+    "category_rule.regex_structure_limits": "Le motif est trop grand pour être dessiné en diagramme.",
+    "subscription.item_no_source": "Cette entrée d’abonnement n’a aucune adresse à télécharger",
+    "subscription.item_duplicate": "L’adresse de cette entrée d’abonnement est encore dans le LinkGrabber ou dans la liste des téléchargements"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

@@ -102,10 +102,13 @@ pub struct UpdateOffer {
     pub channel: String,
     /// RFC 3339.
     pub released_at: String,
-    /// Short plain-text release notes; render as text, never as markup.
+    /// Short plain-text release notes for users, one `- ` point per line (RD-1150-02); render
+    /// as text, never as markup.
     pub notes: String,
-    /// The release page with the full notes.
+    /// The release page: downloads and checksums.
     pub release_url: String,
+    /// The version's section of `CHANGELOG.md` at its tag: the full changes.
+    pub changelog_url: String,
     /// `install` (this installation installs the artifact itself and restarts, RD-180-02),
     /// `download` (the artifact is replaced by hand) or `command` (a package manager or
     /// container runtime does it).

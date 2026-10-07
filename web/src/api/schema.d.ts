@@ -5765,6 +5765,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subscriptions/{id}/items/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queues items of one subscription again, whatever was decided about them before.
+         * @description The same path as the first queueing — the subscription's category, the intake's routing and
+         *     naming rules, the declared name, password and attributes — and the item becomes `queued`.
+         *     An item without an address to fetch is refused, and one whose address is still in the
+         *     LinkGrabber or the download list is refused unless `allow_duplicate` says otherwise. Every
+         *     item stands alone: one refusal does not stop the rest, and each queued one is audited.
+         */
+        post: operations["requeue_subscription_items"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subscriptions/{id}/poll": {
         parameters: {
             query?: never;
@@ -6428,7 +6452,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -15039,6 +15063,32 @@ export interface components {
              */
             view?: components["schemas"]["SubscriptionView"];
         };
+        /** @description One item that was not queued again, and why. */
+        SubscriptionRequeueRefusal: {
+            /**
+             * @description A stable code: `subscription.item_not_found`, `subscription.item_no_source`,
+             *     `subscription.item_duplicate`, or the one the hand-over failed with.
+             */
+            code: string;
+            item_id: components["schemas"]["SubscriptionItemId"];
+            message: string;
+        };
+        /** @description Body of the re-queue. */
+        SubscriptionRequeueRequest: {
+            /**
+             * @description Queue an item whose address is still in the LinkGrabber or the download list anyway.
+             *     Without it such an item is refused with `subscription.item_duplicate`, so nothing is
+             *     doubled silently; with it the LinkGrabber marks the new link as a duplicate.
+             */
+            allow_duplicate?: boolean;
+            /** @description The items to queue again, all of the subscription in the path (1-200). */
+            item_ids: components["schemas"]["SubscriptionItemId"][];
+        };
+        /** @description What a re-queue did: the items handed to the LinkGrabber, and the rest with their reasons. */
+        SubscriptionRequeueResponse: {
+            refused: components["schemas"]["SubscriptionRequeueRefusal"][];
+            requeued: components["schemas"]["SubscriptionItemId"][];
+        };
         /** @description Pending review count for one indexer subscription. */
         SubscriptionReviewCount: {
             /** Format: int64 */
@@ -15959,6 +16009,8 @@ export interface components {
              *     container runtime does it).
              */
             action: string;
+            /** @description The version's section of `CHANGELOG.md` at its tag: the full changes. */
+            changelog_url: string;
             /** @description `stable` or `beta`. */
             channel: string;
             /** @description The command to run, for `action` = `command`. */
@@ -15970,9 +16022,12 @@ export interface components {
             download_url?: string | null;
             /** @description A stable code the interface translates beside the command, e.g. `update.hint.docker_recreate`. */
             hint?: string | null;
-            /** @description Short plain-text release notes; render as text, never as markup. */
+            /**
+             * @description Short plain-text release notes for users, one `- ` point per line (RD-1150-02); render
+             *     as text, never as markup.
+             */
             notes: string;
-            /** @description The release page with the full notes. */
+            /** @description The release page: downloads and checksums. */
             release_url: string;
             /** @description RFC 3339. */
             released_at: string;
@@ -29171,6 +29226,50 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    requeue_subscription_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["SubscriptionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionRequeueRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionRequeueResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

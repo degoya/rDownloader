@@ -37,13 +37,17 @@ mod adapters;
 mod git_fetch;
 #[cfg(test)]
 mod git_release_tests;
+#[cfg(test)]
+mod indexer_poll_tests;
 mod intake;
 mod poll;
 mod scheduled;
 #[cfg(test)]
 mod tests;
 
-pub use adapters::{HttpFeedFetcher, SandboxScriptRunner, SharedSiteRules, VaultSecretResolver};
+pub use adapters::{
+    ArchivedItems, HttpFeedFetcher, SandboxScriptRunner, SharedSiteRules, VaultSecretResolver,
+};
 pub use git_fetch::HttpApiFetcher;
 pub use intake::{SubscriptionIntake, hand_urls_to_intake};
 

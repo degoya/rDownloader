@@ -19,6 +19,18 @@ const HANDOVER_GRACE: chrono::Duration = chrono::Duration::seconds(60);
 /// How long the outcome of a finished update is shown.
 const OUTCOME_SHOWN_FOR: chrono::Duration = chrono::Duration::days(7);
 
+/// Whether an ended update still says something about the running version (RD-1150-01):
+/// "Updated to 1.11.0" under 1.12.0, installed some other way since, is history. A verified
+/// update fits while its version runs, a failed or rolled-back one while the version it started
+/// from, or the one it aimed at, runs.
+fn outcome_fits(journal: &Journal, current: &str) -> bool {
+    let plan = &journal.plan;
+    match journal.phase {
+        Phase::Verified => plan.target_version == current,
+        _ => plan.from_version == current || plan.target_version == current,
+    }
+}
+
 impl UpdateService {
     /// Installs as `kind` from `directory` and starts the updater with `launcher`.
     ///
@@ -141,7 +153,10 @@ impl UpdateService {
         let data = self.data_dir();
         let journal = Journal::read(&data).ok().flatten()?;
         let now = Utc::now();
-        if journal.phase.is_terminal() && now - journal.updated_at > OUTCOME_SHOWN_FOR {
+        if journal.phase.is_terminal()
+            && (now - journal.updated_at > OUTCOME_SHOWN_FOR
+                || !outcome_fits(&journal, &self.0.current))
+        {
             return None;
         }
         let mut reason = journal.reason.clone();

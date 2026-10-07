@@ -61,12 +61,32 @@ impl Database {
         Ok(item)
     }
 
+    /// Whether `url` is still in the LinkGrabber or the download list — the intake's own
+    /// duplicate test, asked before a subscription item is queued again (RD-1150-04).
+    pub async fn address_in_collector_or_queue(&self, url: &url::Url) -> Result<bool> {
+        let taken = sqlx::query_scalar::<_, i64>(crate::collector_store::ADDRESS_TAKEN)
+            .bind(url.as_str())
+            .bind(url.as_str())
+            .fetch_one(&self.readers)
+            .await?;
+        Ok(taken != 0)
+    }
+
     pub async fn subscription_runs(
         &self,
         id: rd_core::SubscriptionId,
         limit: i64,
     ) -> Result<Vec<rd_core::SubscriptionRun>> {
         crate::subscription_store::runs(&self.readers, id, limit).await
+    }
+
+    /// Whether the subscription has archived an item under `key` (RD-1150-05).
+    pub async fn subscription_knows_item(
+        &self,
+        id: rd_core::SubscriptionId,
+        key: &str,
+    ) -> Result<bool> {
+        crate::subscription_store::knows_item(&self.readers, id, key).await
     }
 
     pub async fn create_subscription(

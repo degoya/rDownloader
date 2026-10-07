@@ -70,12 +70,13 @@ impl SubscriptionService {
         let review_only = !primed && matches!(subscription.backlog, BacklogPolicy::ReviewAll);
         let auto_queue = subscription.mode == SubscriptionMode::AutoQueue && !review_only;
 
-        if outcome.items.len() > rd_core::MAX_ITEMS_PER_POLL {
+        let cap = items_per_poll(subscription.kind);
+        if outcome.items.len() > cap {
             // The rest is not lost: the next poll sees them again, since nothing was written.
             tracing::warn!(
                 subscription = %subscription.name,
                 found,
-                limit = rd_core::MAX_ITEMS_PER_POLL,
+                limit = cap,
                 "more results than one poll takes; the remainder waits for the next poll"
             );
         }
@@ -337,6 +338,18 @@ impl SubscriptionService {
     }
 }
 
+/// Most items one poll of `kind` archives.
+///
+/// An indexer poll is the exception (RD-1150-05): it stops paging where it meets its archive, so
+/// an entry it brought and this cap left out would sit below the next poll's stopping point and
+/// never come back. Everything one indexer poll can bring is taken.
+pub(super) fn items_per_poll(kind: rd_core::SubscriptionKind) -> usize {
+    match kind {
+        rd_core::SubscriptionKind::Indexer => rd_subscription::MAX_INDEXER_ITEMS,
+        _ => rd_core::MAX_ITEMS_PER_POLL,
+    }
+}
+
 /// The archive rows of one poll's items: each accepted or skipped, with the reason why.
 fn item_records(
     subscription: &Subscription,
@@ -346,7 +359,7 @@ fn item_records(
 ) -> Vec<NewSubscriptionItem> {
     let mut records = Vec::with_capacity(items.len());
     let filters = rd_subscription::PreparedFilters::new(&subscription.filters);
-    for item in items.iter().take(rd_core::MAX_ITEMS_PER_POLL) {
+    for item in items.iter().take(items_per_poll(subscription.kind)) {
         // The adapter's own refusal (RD-190-13) is as final as a filter's, and stored the
         // same way.
         let decision = match item.refused {

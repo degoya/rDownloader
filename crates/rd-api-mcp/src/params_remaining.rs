@@ -101,6 +101,17 @@ pub(crate) struct ReviewParams {
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct RequeueParams {
+    /// The subscription, as list_subscriptions reports it.
+    pub id: String,
+    /// Its items to queue again, as list_subscription_items reports them (1-200).
+    pub item_ids: Vec<String>,
+    /// Queue an item whose address is still in the LinkGrabber or the download list anyway.
+    #[serde(default)]
+    pub allow_duplicate: Option<bool>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct StreamRunsParams {
     /// Only the occurrences of this schedule (id from list_stream_schedules).
     #[serde(default)]

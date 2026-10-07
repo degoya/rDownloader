@@ -145,7 +145,7 @@
     },
     "filter": "Mostrar",
     "filter_all": "Todos",
-    "page_limit": "Esta comprobación alcanzó el límite de {limit} resultados en cinco páginas del indexador. El filtro de título se aplica después, por lo que pueden faltar resultados aún más antiguos. Unas categorías más concretas hacen el resultado más preciso.",
+    "page_limit": "Esta comprobación recorrió {limit} resultados del indexador sin llegar a ninguno ya conocido, así que pueden faltar entradas aparecidas desde la comprobación anterior. Una categoría más concreta o un intervalo más corto cierra el hueco.",
     "show_cover": "Mostrar la portada más grande",
     "hide_cover": "Cerrar la portada ampliada"
   },
@@ -162,7 +162,11 @@
     "hide_details": "Ocultar detalles",
     "enable": "Activar suscripción",
     "disable": "Desactivar suscripción",
-    "menu": "Acciones de la suscripción"
+    "menu": "Acciones de la suscripción",
+    "requeue": "Volver a poner en cola",
+    "requeue_selected": "Volver a poner en cola los seleccionados ({count})",
+    "select_item": "Seleccionar «{title}»",
+    "select_page": "Seleccionar todas las entradas de esta página que se pueden volver a poner en cola"
   },
   "remove": {
     "title": "¿Eliminar la suscripción?",
@@ -179,5 +183,13 @@
     "poll_start_failed": "No se pudo iniciar la comprobación de «{name}»: {error}",
     "poll_finished": "Comprobación de «{name}» terminada: {found} encontrados, {accepted} aceptados, {skipped} omitidos.",
     "poll_failed": "La comprobación de «{name}» falló: {error}"
+  },
+  "requeue": {
+    "no_source": "No hay ningún enlace ni NZB guardado para esta entrada",
+    "duplicate_title": "Ya está en el LinkGrabber o en la lista",
+    "duplicate_description": "{count} entrada sigue en el LinkGrabber o en la lista de descargas. ¿Volver a ponerla en cola de todos modos? El LinkGrabber la marcará como duplicada. | {count} entradas siguen en el LinkGrabber o en la lista de descargas. ¿Volver a ponerlas en cola de todos modos? El LinkGrabber las marcará como duplicadas.",
+    "duplicate_confirm": "Poner en cola de todos modos",
+    "done": "{count} entrada vuelta a poner en cola. | {count} entradas vueltas a poner en cola.",
+    "partial": "{requeued} vueltas a poner en cola, {refused} no: {reason}"
   }
 }

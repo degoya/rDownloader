@@ -327,12 +327,13 @@ jobs:
       # stable update manifest and the plugin index are found — and a pre-release with a beta.
       # The action creates the tag `plugins-vX.Y.Z` on this commit with the run's token, which
       # starts no workflow, and release.yml's tag pattern does not match it either.
-      - name: Write the plugin release's text
+      # RD-1150-02: the application release's text starts with the version's points for users.
+      - name: Write the releases' texts
         id: plugin-release
         shell: bash
         env:
           REF_NAME: ${{ github.ref_name }}
-        run: scripts/release-publish.sh plugin-release
+        run: scripts/release-publish.sh plugin-release && scripts/release-publish.sh app-release
       - name: Publish the plugin release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
@@ -348,6 +349,7 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
+          body_path: ${{ runner.temp }}/app-release.md
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: release-assets/*

@@ -81,6 +81,7 @@ impl AppState {
         );
         let site_rule_claims = subscription_service::SharedSiteRules::default();
         let subscription_adapters = subscription_adapters(
+            &database,
             &media_probe,
             &scheduler,
             &secrets,
@@ -321,6 +322,7 @@ impl AppState {
 /// way; RD-080-10, RD-080-11, RD-110-21, RD-130-19 and RD-190-13 add their adapters to
 /// this same list.
 fn subscription_adapters(
+    database: &Database,
     media_probe: &std::sync::Arc<dyn rd_media::MediaProbe>,
     scheduler: &SchedulerHandle,
     secrets: &rd_secrets::SecretStore,
@@ -339,6 +341,8 @@ fn subscription_adapters(
             std::sync::Arc::new(subscription_service::VaultSecretResolver::new(
                 secrets.clone(),
             )),
+            // Where a poll meets what it already has, so it pages no further (RD-1150-05).
+            std::sync::Arc::new(subscription_service::ArchivedItems::new(database.clone())),
         )),
         // A watched release or series page (RD-110-21): the listing is fetched
         // conditionally like a feed, and which of its links are release pages is the

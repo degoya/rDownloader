@@ -298,6 +298,20 @@ pub(crate) async fn runs(
     .collect()
 }
 
+/// Whether the subscription's archive holds an item under `key` (RD-1150-05): where an indexer
+/// poll meets what it already has. One lookup on the UNIQUE index over `(subscription_id,
+/// item_key)`.
+pub(crate) async fn knows_item(pool: &SqlitePool, id: SubscriptionId, key: &str) -> Result<bool> {
+    Ok(sqlx::query_scalar::<_, i64>(
+        "SELECT EXISTS(SELECT 1 FROM subscription_items WHERE subscription_id = ? AND item_key = ?)",
+    )
+    .bind(id.to_string())
+    .bind(key)
+    .fetch_one(pool)
+    .await?
+        != 0)
+}
+
 const fn kind_string(kind: SubscriptionKind) -> &'static str {
     match kind {
         SubscriptionKind::Media => "media",

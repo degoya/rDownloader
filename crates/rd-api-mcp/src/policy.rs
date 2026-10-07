@@ -202,6 +202,7 @@ pub const TOOL_POLICY: &[ToolPolicy] = &[
     tool("reorder_collector", "/api/v1/collector/entries/reorder", Method::POST),
     tool("reorder_downloads", "/api/v1/downloads/reorder", Method::POST),
     tool("reorder_packages", "/api/v1/packages/reorder", Method::POST),
+    tool("requeue_subscription_items", "/api/v1/subscriptions/{id}/items/requeue", Method::POST),
     tool("resolve_candidate_torrent", "/api/v1/collector/candidates/{id}/torrent/resolve", Method::POST),
     tool("resume_queue", "/api/v1/queue/pause", Method::DELETE),
     tool("resume_storage_target", "/api/v1/storage/capacity/{target}/resume", Method::POST),

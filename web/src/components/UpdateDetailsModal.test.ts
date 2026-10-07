@@ -41,6 +41,7 @@ const offer: UpdateOffer = {
   released_at: '2026-10-10T12:00:00Z',
   notes: '',
   release_url: 'https://github.com/degoya/rDownloader/releases/tag/v1.8.0',
+  changelog_url: 'https://github.com/degoya/rDownloader/blob/v1.8.0/CHANGELOG.md#180---2026-10-10',
   action: 'install',
   command: null,
   hint: null,
@@ -298,5 +299,53 @@ describe('UpdateDetailsModal: downloading ahead of the install', () => {
     expect(failed).toContain('Downloading 1.8.0 failed.')
     expect(failed).toContain(server.codes['update.digest_mismatch'])
     expect(screen.getByTestId('update-download-start')).toBeTruthy()
+  })
+})
+
+/**
+ * What's new (RD-1150-02): the version's points for users as a list, never as markup, and the two
+ * links — the full changes at the version's tag, not on `main`, and the release page.
+ */
+describe('UpdateDetailsModal: what is new', () => {
+  beforeEach(() => {
+    const shared = useUpdateStatus()
+    shared.status.value = status()
+    shared.installFailure.value = null
+    shared.downloadFailure.value = null
+    shared.followed.value = false
+  })
+
+  it('lists each point of the notes on its own, as text', () => {
+    mount({
+      ...offer,
+      notes: '- Downloads from file hosters run in parallel.\n\n- A <b>bold</b> claim stays text.'
+    })
+    const points = screen.getByTestId('update-notes').querySelectorAll('li')
+    expect([...points].map(point => point.textContent)).toEqual([
+      'Downloads from file hosters run in parallel.',
+      'A <b>bold</b> claim stays text.'
+    ])
+    expect(screen.getByTestId('update-notes').querySelector('b')).toBeNull()
+  })
+
+  it('shows a maintenance sentence as its one point', () => {
+    mount({ ...offer, notes: 'Maintenance release: internal changes only, no change in behaviour.' })
+    expect(screen.getByTestId('update-notes').querySelectorAll('li')).toHaveLength(1)
+  })
+
+  it('says so when the release has no notes', () => {
+    mount({ ...offer, notes: '\n' })
+    expect(screen.queryByTestId('update-notes')).toBeNull()
+    expect(screen.getByText(system.updates.modal.no_notes)).toBeTruthy()
+  })
+
+  it('links the full changes at the tag and the release page', () => {
+    mount()
+    const changelog = screen.getByTestId('update-changelog')
+    expect(changelog.getAttribute('to')).toBe('https://github.com/degoya/rDownloader/blob/v1.8.0/CHANGELOG.md#180---2026-10-10')
+    expect(changelog.textContent).toContain(system.updates.modal.full_changes)
+    const release = screen.getByTestId('update-release-page')
+    expect(release.getAttribute('to')).toBe('https://github.com/degoya/rDownloader/releases/tag/v1.8.0')
+    expect(release.textContent).toContain(system.updates.modal.release_page)
   })
 })

@@ -66,6 +66,11 @@ pub(super) fn remaining_tools() -> Vec<(&'static str, serde_json::Value, &'stati
             config,
         ),
         (
+            "requeue_subscription_items",
+            json!({ "id": NOBODY, "item_ids": [NOBODY] }),
+            config,
+        ),
+        (
             "clear_subscription_history",
             json!({ "id": NOBODY }),
             config,
@@ -107,7 +112,11 @@ async fn every_remaining_tool_costs_what_its_route_costs() {
     let mut names: Vec<&str> = tools.iter().map(|(name, _, _)| *name).collect();
     names.sort_unstable();
     names.dedup();
-    assert_eq!(names.len(), 30, "RD-120-55 added 30 tools");
+    assert_eq!(
+        names.len(),
+        31,
+        "RD-120-55 added 30 tools, RD-1150-04 requeue_subscription_items"
+    );
 
     let mut sessions = Vec::new();
     for bearer in [
@@ -230,6 +239,40 @@ async fn a_subscription_hit_is_reviewed_by_listed_ids_without_its_key() {
     )
     .await;
     assert_eq!(dismissed["items"].as_array().map(Vec::len), Some(2));
+
+    // A hit dismissed by mistake goes back the way it came (RD-1150-04) -- once: the second
+    // time its address is in the LinkGrabber, and that is said rather than doubled.
+    let again = ok(
+        &router,
+        &session,
+        "requeue_subscription_items",
+        serde_json::json!({ "id": subscription, "item_ids": [items[0]] }),
+    )
+    .await;
+    assert_eq!(again["requeued"], serde_json::json!([items[0]]), "{again}");
+    let twice = ok(
+        &router,
+        &session,
+        "requeue_subscription_items",
+        serde_json::json!({ "id": subscription, "item_ids": [items[0]] }),
+    )
+    .await;
+    assert_eq!(
+        twice["refused"][0]["code"], "subscription.item_duplicate",
+        "{twice}"
+    );
+    let queued = ok(
+        &router,
+        &session,
+        "list_subscription_items",
+        serde_json::json!({ "id": subscription, "state": "queued" }),
+    )
+    .await;
+    assert_eq!(
+        queued["items"].as_array().map(Vec::len),
+        Some(1),
+        "{queued}"
+    );
 
     ok(
         &router,

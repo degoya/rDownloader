@@ -12,6 +12,14 @@ use url::Url;
 use super::{BatchPasswords, NewCollectorBatch, insert_event, provider_for, reread_candidates};
 use crate::enum_string;
 
+/// Whether an address is still here, bound twice: in the LinkGrabber (a candidate that is not
+/// itself a duplicate and not merely the record of an earlier hand-over) or in the download list,
+/// finished or not. The intake's duplicate test, and the one a subscription item is checked with
+/// before it is queued again (RD-1150-04), so the two cannot disagree.
+pub(crate) const ADDRESS_TAKEN: &str = "SELECT EXISTS(SELECT 1 FROM link_candidates \
+         WHERE url = ? AND state NOT IN ('duplicate', 'enqueued')) \
+     OR EXISTS(SELECT 1 FROM downloads WHERE source_url = ?)";
+
 /// Intake of one submission: links are grouped into packages (JDownloader-style), duplicates
 /// are flagged, and – when `auto_check` – every fresh link starts in `checking`.
 pub(crate) async fn add_batch(
@@ -272,15 +280,11 @@ impl BatchWrite<'_> {
         transaction: &mut SqliteConnection,
         url: &Url,
     ) -> Result<LinkCandidateState> {
-        let duplicate = sqlx::query_scalar::<_, i64>(
-            "SELECT EXISTS(SELECT 1 FROM link_candidates \
-                 WHERE url = ? AND state NOT IN ('duplicate', 'enqueued')) \
-             OR EXISTS(SELECT 1 FROM downloads WHERE source_url = ?)",
-        )
-        .bind(url.as_str())
-        .bind(url.as_str())
-        .fetch_one(&mut *transaction)
-        .await?
+        let duplicate = sqlx::query_scalar::<_, i64>(ADDRESS_TAKEN)
+            .bind(url.as_str())
+            .bind(url.as_str())
+            .fetch_one(&mut *transaction)
+            .await?
             != 0;
         Ok(if duplicate {
             LinkCandidateState::Duplicate

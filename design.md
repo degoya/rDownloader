@@ -697,10 +697,19 @@ prevent columns from shifting during live updates.
   persistent info toast *New version available — reload* with a *Reload* button, checked on start
   and on every reopened event stream; it never reloads by itself, since a half-filled form would be
   lost (RD-1120-16). That toast is about the page, not a release: a newer version is announced in the same
-  footer, above language and theme, and nowhere else: nothing while there is none, one soft
-  button *Version X available* while there is (an icon with a tooltip on the rail), opening a
-  dialog with the notes and the download or the package manager's command to copy — never a
-  banner over the content, never a toast (RD-180-01). Where the installation installs itself,
+  footer, above language and theme, and on the update page alone besides: nothing while there is
+  none, one soft button *Version X available* while there is (an icon with a tooltip on the rail),
+  opening a dialog with the notes and the download or the package manager's command to copy —
+  never a banner over other content, never a toast (RD-180-01). **An available update** on the
+  update page (*System & maintenance › Updates*) is a primary `UAlert` at the top of the card, not
+  a badge: *Version X is available*, the release date, the first three points of the notes and
+  the actions by how the installation is installed — *Install and restart* (primary) and
+  *Download* where it installs itself, the download where it is replaced by hand, the command to
+  copy where a package manager owns it, and *What's new* for the dialog; the same confirmation
+  and the same second question for running downloads as the dialog, and a started install opens
+  the dialog to follow it. Without one the card stays quiet with *You have the newest version*,
+  and how the last update ended is shown only while it fits the running version (RD-1150-01).
+  Where the installation installs itself,
   the dialog's *Download* fetches the version in the background with its progress in the dialog,
   *Install and restart* uses that file, and the browser's download is a small *Download manually*
   link; a failed install shows its reason with *Try again*, and a service that never comes back
@@ -1269,6 +1278,10 @@ recognised as drifting.
   requiring a decision, shows totals for every state, and asks the server for 50 stable rows at a
   time. A bulk decision names the total and acts on one server-side snapshot across every page;
   it is never implemented by looping only over the rows currently rendered.
+  A decided hit is queued again from its row or by ticking rows (RD-1150-04): those checkboxes
+  are a selection, not a bulk decision — they name the hits by id, the page checkbox ticks the
+  rows of the page on screen, and a hit with nothing to fetch has no checkbox and its action is
+  off with the reason in its `title`.
 - **A list of typed steps is rows of named fields, and where the order is meaning it can be
   changed.** An automation's actions established the row: a kind select on the left, the fields
   that kind needs beside it, one `i-lucide-x` in `color="error"` to remove it, and a

@@ -7,6 +7,7 @@ import {
   cardRatio,
   hitColour,
   hitGroup,
+  hitHasSource,
   hitInitials,
   hitIsMusic,
   hitName,
@@ -70,5 +71,14 @@ describe('subscriptionHit', () => {
     for (const unknown of ['21:9', '', null, undefined]) expect(cardRatio(unknown)).toBe('2:1')
     expect(cardAspect('16:9')).toBe('16 / 9')
     expect(cardAspect('1:1')).toBe('1 / 1')
+  })
+
+  it('counts an address with a host or a magnet link as something to queue again, as the server does (RD-1150-04)', () => {
+    for (const source of ['https://indexer.test/api?t=get&id=1', 'ftp://files.test/a.bin', 'magnet:?xt=urn:btih:0123']) {
+      expect(hitHasSource(source)).toBe(true)
+    }
+    for (const nothing of ['script:fetch-links', 'data:text/plain,x', 'urn:isbn:0451450523', 'not a url', '', null]) {
+      expect(hitHasSource(nothing)).toBe(false)
+    }
   })
 })

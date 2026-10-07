@@ -1,14 +1,16 @@
 /**
  * The update card of Settings > System (RD-180-01): what runs and what is offered, "check now",
  * the refusal a check reports, the build without an update key, and the channel a package
- * manager cannot follow.
+ * manager cannot follow. The offered version at the top of the card, and an ended update's
+ * outcome only while it fits the running version (RD-1150-01).
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UpdateStatus } from '@/api/updates'
+import type { UpdateInstall, UpdateStatus } from '@/api/updates'
 import server from '@/locales/en/server.json'
 import system from '@/locales/en/system.json'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 const fetchUpdateStatus = vi.fn()
@@ -58,6 +60,7 @@ const offer = {
   released_at: '2026-10-10T12:00:00Z',
   notes: 'Added\n- Update check (RD-180-01).',
   release_url: 'https://github.com/degoya/rDownloader/releases/tag/v1.8.0',
+  changelog_url: 'https://github.com/degoya/rDownloader/blob/v1.8.0/CHANGELOG.md#180---2026-10-10',
   action: 'command' as const,
   command: 'brew upgrade rdownloader',
   hint: null,
@@ -106,8 +109,9 @@ describe('SettingsUpdateCard', () => {
     expect(checkForUpdates).toHaveBeenCalledOnce()
     const available = await screen.findByTestId('update-available')
     expect(available.textContent).toContain('Version 1.8.0 is available')
+    expect(screen.queryByTestId('update-current')).toBeNull()
 
-    await fireEvent.click(screen.getByRole('button', { name: system.updates.show_details }))
+    await fireEvent.click(screen.getByRole('button', { name: system.updates.whats_new }))
     const details = await screen.findByTestId('update-details')
     expect(details.textContent).toContain('Update check (RD-180-01).')
     expect(within(screen.getByTestId('update-command')).getByDisplayValue('brew upgrade rdownloader')).toBeTruthy()
@@ -186,5 +190,66 @@ describe('SettingsUpdateCard', () => {
     await screen.findByTestId('update-status')
     expect(screen.queryByTestId('update-capture-agents')).toBeNull()
     expect(screen.queryByTestId('update-capture-outdated')).toBeNull()
+  })
+
+  it('keeps quiet without an update: no notice, only that the version is the newest', async () => {
+    fetchUpdateStatus.mockResolvedValue({ ok: true, data: status({ last_checked_at: '2026-10-10T13:00:00Z' }) })
+    const { container } = mount()
+    await screen.findByTestId('update-current')
+    expect(screen.queryByTestId('update-available')).toBeNull()
+    expect(await axeViolations(container)).toBe('')
+  })
+
+  it('puts the offered version at the top of the card with its actions', async () => {
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ last_checked_at: '2026-10-10T13:00:00Z', available: { ...offer, action: 'install', command: null } })
+    })
+    const { container } = mount()
+    const available = await screen.findByTestId('update-available')
+    // Above the status block, not a badge inside it.
+    expect(available.compareDocumentPosition(screen.getByTestId('update-status')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(available).getByRole('button', { name: system.updates.modal.install })).toBeTruthy()
+    expect(within(available).getByRole('button', { name: system.updates.whats_new })).toBeTruthy()
+    expect(await axeViolations(container)).toBe('')
+  })
+
+  const ended = (state: UpdateInstall['state'], from: string, target: string): UpdateInstall => ({
+    state, from_version: from, target_version: target, reason: null,
+    started_at: '2026-10-01T10:00:00Z', updated_at: '2026-10-01T10:02:00Z'
+  })
+
+  it('no longer says "Updated to 1.11.0" once 1.12.0 runs', async () => {
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ current_version: '1.12.0', install: ended('done', '1.10.0', '1.11.0') })
+    })
+    mount()
+    await screen.findByTestId('update-status')
+    expect(screen.queryByTestId('update-install-last')).toBeNull()
+  })
+
+  it('says "Updated to 1.12.0" while 1.12.0 runs', async () => {
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ current_version: '1.12.0', install: ended('done', '1.11.0', '1.12.0') })
+    })
+    mount()
+    expect((await screen.findByTestId('update-install-last')).textContent).toContain('Updated to 1.12.0.')
+  })
+
+  it('keeps a rollback while the version it went back to runs, and drops it after a later update', async () => {
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ current_version: '1.11.0', install: ended('rolled_back', '1.11.0', '1.12.0') })
+    })
+    mount()
+    expect((await screen.findByTestId('update-install-last')).textContent).toContain('1.11.0 runs again')
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({ current_version: '1.13.0', install: ended('rolled_back', '1.11.0', '1.12.0') })
+    })
+    await useUpdateStatus().load()
+    await waitFor(() => expect(screen.queryByTestId('update-install-last')).toBeNull())
   })
 })

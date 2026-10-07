@@ -46,7 +46,8 @@ pub(crate) fn manifest(channel: Channel, version: &str, sequence: u64) -> Update
         channel,
         version: version.to_owned(),
         released_at: at(0),
-        notes: "Added\n- Update check".to_owned(),
+        notes: "- Update check".to_owned(),
+        changelog_anchor: None,
         artifacts: vec![
             artifact("linux", "x86_64", kind::ARCHIVE),
             artifact("windows", "x86_64", kind::MSI),
@@ -247,6 +248,36 @@ fn the_schema_change_is_signed_and_absent_means_changed() {
         .expect("verify");
         assert_eq!(verified.schema_change, Some(said));
         assert_eq!(verified.changes_schema(), said);
+    }
+}
+
+/// The anchor of the full changes is signed, and only GitHub's anchor alphabet passes: the
+/// interface builds a link from it (RD-1150-02).
+#[test]
+fn the_changelog_anchor_is_signed_and_held_to_the_anchor_alphabet() {
+    let mut original = manifest(Channel::Stable, "1.8.0", 1);
+    assert!(
+        serde_json::to_value(&original)
+            .expect("value")
+            .get("changelog_anchor")
+            .is_none()
+    );
+    original.changelog_anchor = Some("180---2026-10-10".to_owned());
+    let verified = verify_with(
+        &signed(&original),
+        &trust_for(&key()),
+        Channel::Stable,
+        None,
+        at(1),
+    )
+    .expect("verify");
+    assert_eq!(
+        verified.changelog_anchor.as_deref(),
+        Some("180---2026-10-10")
+    );
+    for bad in ["", "180\"><script>", "x?y=1", "UPPER", &"a".repeat(65)] {
+        original.changelog_anchor = Some(bad.to_owned());
+        assert!(original.validate().is_err(), "{bad}");
     }
 }
 

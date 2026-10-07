@@ -110,6 +110,24 @@ pub struct RateLimited {
     pub until: DateTime<Utc>,
 }
 
+/// The shortest pause a refusal gets, and the one it gets when it names no time.
+const MIN_PAUSE_SECONDS: u64 = 60;
+
+impl RateLimited {
+    /// The pause a refusal asked for, counted from `now` (RD-1150-05).
+    ///
+    /// `retry_after_seconds` is the server's word, capped like every other one
+    /// ([`rd_core::clamp_retry_after`]); without one, or below it, the source waits a minute.
+    #[must_use]
+    pub fn after(now: DateTime<Utc>, retry_after_seconds: Option<u64>) -> Self {
+        let seconds = rd_core::clamp_retry_after(retry_after_seconds.unwrap_or_default())
+            .max(MIN_PAUSE_SECONDS);
+        Self {
+            until: now + chrono::Duration::seconds(i64::try_from(seconds).unwrap_or_default()),
+        }
+    }
+}
+
 impl std::fmt::Display for RateLimited {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

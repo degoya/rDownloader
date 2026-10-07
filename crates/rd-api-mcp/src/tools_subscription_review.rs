@@ -25,8 +25,8 @@ use super::{
     params_config::IdParams,
     params_handling::{body, public},
     params_remaining::{
-        ReviewParams, SubscriptionItemsParams, SubscriptionRunsParams, SubscriptionSwitchParams,
-        object,
+        RequeueParams, ReviewParams, SubscriptionItemsParams, SubscriptionRunsParams,
+        SubscriptionSwitchParams, object,
     },
 };
 use crate::subscription_handlers as subscriptions;
@@ -71,7 +71,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List one subscription's newest polls (id from list_subscriptions): when it started and finished, how many hits it found, accepted and skipped, and the (redacted) error of a failed one."
+        description = "List one subscription's newest polls (id from list_subscriptions): when it started and finished, how many hits it found, accepted and skipped, and the (redacted) error of a failed one. An indexer poll pages until it meets a hit the subscription already has (a first poll reads five pages of 100, later ones up to 20); a successful indexer run that found more than 500 hits and accepted plus skipped all it found met none and reached that bound, so hits that appeared since the previous poll may be missing — a narrower category or a shorter interval closes the gap."
     )]
     pub async fn list_subscription_runs(
         &self,
@@ -168,6 +168,32 @@ impl RdMcpServer {
             let request = body(serde_json::json!({ "state": params.state }))?;
             let Json(answer) = subscriptions::set_pending_subscription_items_state(
                 State(self.state.clone()),
+                Path(id),
+                Json(request),
+            )
+            .await?;
+            Ok(answer)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Queue hits of one subscription again (id from list_subscriptions, item ids from list_subscription_items), whatever was decided about them: a dismissed or skipped hit, or a queued one whose download is gone. Same way as the first queueing -- the subscription's category and the LinkGrabber's rules -- and the hit becomes queued. Answers the requeued ids and the refused ones with a code: subscription.item_no_source (nothing to fetch), subscription.item_duplicate (the address is still in the LinkGrabber or the download list; allow_duplicate=true queues it anyway)."
+    )]
+    pub async fn requeue_subscription_items(
+        &self,
+        Parameters(params): Parameters<RequeueParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let request = body(object(&[
+                ("item_ids", params.item_ids.into()),
+                ("allow_duplicate", params.allow_duplicate.into()),
+            ]))?;
+            let Json(answer) = subscriptions::requeue_subscription_items(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
                 Path(id),
                 Json(request),
             )

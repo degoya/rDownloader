@@ -30,7 +30,8 @@
 # Usage:
 #   scripts/check.sh                       # branch level: what the change touches
 #   scripts/check.sh --full                # everything — wave end on development, release, tag
-#   scripts/check.sh --full --again        # ... even when a --full green covers this content
+#   scripts/check.sh --full --again        # ... even when a --full green covers this content,
+#                                          # whole or per crate (RD-1150-06)
 #   scripts/check.sh --defer               # postpone a triviality; does NOT record a green
 #   scripts/check.sh --preflight           # what needs no build, minutes, no lock, no green
 #   scripts/check.sh --rust                # skip the web half
@@ -79,7 +80,8 @@ esac
 # recorded by any checkout on this target — records them for this tree and ends, before the lock,
 # so it never queues behind somebody else's build; --again runs everything anyway. The rule is
 # the one the tag and the Windows package apply (rd_full_gate). Partly covered, a --full runs
-# only the rest (scripts/lib/check-reuse.sh).
+# only the rest (scripts/lib/check-reuse.sh), and of a half a green does not cover only what the
+# change reaches, per crate and per kind (scripts/lib/check-reuse-crates.sh, RD-1150-06).
 # shellcheck source=lib/verified.sh
 source "$ROOT/scripts/lib/verified.sh"
 # shellcheck source=lib/check-reuse.sh
@@ -264,6 +266,15 @@ fi
 source "$ROOT/scripts/lib/check-scope.sh"
 rd_check_scope
 
+# A --full that a green covers only in part builds on it per crate and per kind (RD-1150-06): the
+# changed members with their whole reverse hull, Vitest alone for translation catalogues. It says
+# here what it builds on and what it checks, and lists what it leaves out under "skipped, and why".
+# shellcheck source=lib/crate-graph.sh
+source "$ROOT/scripts/lib/crate-graph.sh"
+# shellcheck source=lib/check-reuse-crates.sh
+source "$ROOT/scripts/lib/check-reuse-crates.sh"
+rd_check_reuse_crates
+
 # git diff --check, the job layout, the version copies, the action pins and the plugin release notes
 # (scripts/lib/preflight.sh): files only, well under a second, whatever the change touched.
 rd_file_checks "$boundary"
@@ -445,7 +456,8 @@ if [[ "$full" -eq 1 && -n "$full_tree" ]]; then
     [[ "$((run_rust | covered_rust))" -eq 1 ]] && rd_record_full "$ROOT" rust "$full_tree"
     [[ "$((run_web | covered_web))" -eq 1 ]] && rd_record_full "$ROOT" web "$full_tree"
     [[ "$preflight_covered" -eq 1 ]] || rd_record_full "$ROOT" preflight "$full_tree"
-    echo "==> recorded a --full green for tree ${full_tree:0:12} in $(rd_full_marker "$ROOT")"
+    echo "==> recorded a --full green for tree ${full_tree:0:12} in $(rd_full_marker "$ROOT")$([[ -z "${crate_reuse_base:-}" ]] \
+        || echo ", its Rust half per crate on the green of tree ${crate_reuse_base:0:12}")"
 fi
 
 echo

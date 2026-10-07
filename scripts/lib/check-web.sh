@@ -7,10 +7,26 @@
 # extension's build when extension/ did, each command through `attempt`.
 #
 # Expects from the caller: `run_web`, `web_changed`, `extension_changed`, `step`, `skip` and
-# `attempt`, as check.sh defines them (`web_skip_reason` when lib/check-reuse.sh set one), and the
-# working directory at the checkout root.
+# `attempt`, as check.sh defines them (`web_skip_reason` when lib/check-reuse.sh set one,
+# `web_locales_only` when lib/check-reuse-crates.sh did), and the working directory at the checkout
+# root.
 
 rd_check_web() {
+    # Only translation catalogues since a web green (RD-1150-06): Vitest, which loads every one.
+    if [[ "$run_web" -eq 1 && "${web_locales_only:-0}" -eq 1 ]]; then
+        local base="the web green of tree ${web_locales_base:0:12}"
+        if [[ "${web_locales_typecheck:-0}" -eq 1 ]]; then
+            step "pnpm run typecheck:full"
+            attempt pnpm --dir web run typecheck:full
+        else
+            skip "pnpm run typecheck:full" "only translation catalogues changed since $base, and no source imports one by name"
+        fi
+        step "pnpm run test"
+        attempt pnpm --dir web run test
+        skip "pnpm run build" "only translation catalogues changed since $base; Vitest loaded every one, GitHub CI and the release build the frontend"
+        skip "the browser extension" "$base covers it; nothing under extension/ changed since"
+        return 0
+    fi
     if [[ "$run_web" -eq 1 && "$web_changed" -eq 1 ]]; then
         # Non-incremental on every run, the one CI and the release chain run: the incremental
         # `typecheck` trusts web/tsconfig.*.tsbuildinfo, and two type errors it passed reached

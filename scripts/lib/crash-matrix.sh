@@ -7,8 +7,9 @@
 # expect the working directory at the checkout root.
 #
 #   source scripts/lib/crash-matrix.sh
-#   rd_crash_matrix_runs        # one line of nextest arguments per run, the shared run first,
-#                               # filtered to the feature's tests
+#   rd_crash_matrix_runs [pkg…] # one line of nextest arguments per run, the shared run first,
+#                               # filtered to the feature's tests; only the named packages' rows
+#                               # when some are named (check.sh --full per crate, RD-1150-06)
 #   rd_crash_matrix_triggers    # the crates that own crash points, one per line, sorted
 #   rd_crash_matrix_ci          # ci.yml's `crash-matrix` step: every run, each to its end
 
@@ -26,9 +27,11 @@ rd_crash_matrix_rows() {
 # space and no quote: the callers split the line on blanks.
 RD_CRASH_MATRIX_FILTER='binary(/crash/)|test(/crash|failpoint/)'
 
+# shellcheck disable=SC2120 # lib/check-tests.sh names the packages, ci.yml and the tests none
 rd_crash_matrix_runs() {
-    local package selection features="" packages="" alone=()
+    local package selection features="" packages="" alone=() only=" $* "
     while read -r package selection; do
+        [[ $# -eq 0 || "$only" == *" $package "* ]] || continue
         if [[ -z "$selection" ]]; then
             features+="${features:+,}$package/failpoints"
             packages+="${packages:+ }-p $package"

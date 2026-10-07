@@ -41,7 +41,8 @@ fn manifest(version: &str, sequence: u64) -> UpdateManifest {
         channel: Channel::Stable,
         version: version.to_owned(),
         released_at: now - Duration::minutes(5),
-        notes: "Added\n- A thing".to_owned(),
+        notes: "- A thing".to_owned(),
+        changelog_anchor: Some("9900---2026-10-10".to_owned()),
         artifacts: vec![Artifact {
             platform: "linux".to_owned(),
             arch: "x86_64".to_owned(),
@@ -110,9 +111,15 @@ async fn a_check_finds_a_newer_signed_release() {
     let offer = &body["available"];
     assert_eq!(offer["version"], "99.0.0", "{body}");
     assert_eq!(offer["channel"], "stable", "{body}");
-    assert_eq!(offer["notes"], "Added\n- A thing", "{body}");
+    assert_eq!(offer["notes"], "- A thing", "{body}");
     assert_eq!(
         offer["release_url"], "https://github.com/degoya/rDownloader/releases/tag/v99.0.0",
+        "{body}"
+    );
+    // RD-1150-02: the full changes are the version's CHANGELOG section at its tag.
+    assert_eq!(
+        offer["changelog_url"],
+        "https://github.com/degoya/rDownloader/blob/v99.0.0/CHANGELOG.md#9900---2026-10-10",
         "{body}"
     );
     assert!(
@@ -415,6 +422,44 @@ async fn a_portable_installation_downloads_backs_up_and_hands_over_to_the_update
         .expect("end");
     let body = install_reaches(&harness, "rolled_back").await;
     assert_eq!(body["install"]["reason"], "update.health_timeout", "{body}");
+}
+
+/// RD-1150-01: "Updated to 1.11.0" stood under a running 1.12.0. An ended update is shown only
+/// while it fits the running version.
+#[tokio::test]
+async fn an_ended_update_is_shown_only_while_it_fits_the_running_version() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (harness, launched) = installable(
+        directory.path(),
+        rd_update::InstallKind::Portable,
+        ARTIFACT_BYTES,
+    )
+    .await;
+    let (status, body) =
+        post_json(&harness.router, "/api/v1/system/update/install", json!({})).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    install_reaches(&harness, "restarting").await;
+    let mut journal = launched.lock().expect("launched")[0].clone();
+
+    // Verified for 99.0.0 while this version runs: an outcome that is history.
+    journal
+        .advance(rd_update::install::Phase::Verified)
+        .expect("advance");
+    let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
+    assert!(body["install"].is_null(), "{body}");
+
+    // Verified for the version that runs: the outcome stands.
+    journal.plan.target_version = env!("CARGO_PKG_VERSION").to_owned();
+    journal.plan.from_version = "0.0.1".to_owned();
+    journal
+        .advance(rd_update::install::Phase::Verified)
+        .expect("advance");
+    let body = install_reaches(&harness, "done").await;
+    assert_eq!(
+        body["install"]["target_version"],
+        env!("CARGO_PKG_VERSION"),
+        "{body}"
+    );
 }
 
 #[tokio::test]

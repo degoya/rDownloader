@@ -26,6 +26,7 @@ mod caps;
 mod input;
 mod items;
 mod request;
+mod requeue;
 mod scripts;
 
 pub(crate) use caps::fetch_caps;
@@ -33,6 +34,7 @@ pub use caps::*;
 pub(crate) use input::{sanitize_source_categories, subscription_input};
 pub use items::*;
 pub use request::*;
+pub use requeue::*;
 use scripts::*;
 
 /// Longest name and URL accepted.

@@ -1207,7 +1207,9 @@
     "settings.package_name_regex_invalid": "Regla de nombre de paquete {index}: el patrón no es una expresión regular válida ({detail}).",
     "settings.package_name_regex_too_many": "Como máximo {max} reglas regex para nombres de paquete.",
     "settings.package_name_regex_too_long": "Regla de nombre de paquete {index}: el patrón y el reemplazo pueden tener como máximo {max} caracteres cada uno.",
-    "category_rule.regex_structure_limits": "El patrón es demasiado grande para dibujarlo como diagrama."
+    "category_rule.regex_structure_limits": "El patrón es demasiado grande para dibujarlo como diagrama.",
+    "subscription.item_no_source": "Esta entrada de suscripción no tiene ninguna dirección que descargar",
+    "subscription.item_duplicate": "La dirección de esta entrada de suscripción sigue en el LinkGrabber o en la lista de descargas"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

@@ -175,3 +175,18 @@ export function hitIsMusic(sourceCategory: string | null | undefined, attributes
   const category = sourceCategory || attributes.category || ''
   return /^3\d{3}\b/.test(category)
 }
+
+/**
+ * Whether a hit still has something to fetch, so it can be queued again (RD-1150-04): an
+ * address with a host, or a magnet link. The same rule as `has_source` in the server's
+ * `subscription_handlers/requeue.rs`, which refuses the rest with `subscription.item_no_source`.
+ */
+export function hitHasSource(url: string | null | undefined): boolean {
+  if (!url) return false
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'magnet:' || parsed.hostname !== ''
+  } catch {
+    return false
+  }
+}

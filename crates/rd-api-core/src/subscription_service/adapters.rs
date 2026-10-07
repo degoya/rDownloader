@@ -1,5 +1,5 @@
-//! The ports the poller drives: feed fetching, the site rules in force, the vault, and the
-//! script sandbox.
+//! The ports the poller drives: feed fetching, the site rules in force, the vault, the item
+//! archive an indexer poll pages towards, and the script sandbox.
 //!
 //! Each is this crate's implementation of a trait `rd-subscription` declares, and each is
 //! the one place a subsystem the poll loop must not know about is reached. Split out of
@@ -46,13 +46,63 @@ impl rd_subscription::FeedFetcher for HttpFeedFetcher {
             &headers,
             rd_subscription::MAX_FEED_BYTES,
         )
-        .await?;
+        .await
+        .map_err(|error| rate_limited(error, chrono::Utc::now()))?;
         Ok(rd_subscription::FetchedFeed {
             body: response.body,
             etag: response.etag,
             last_modified: response.last_modified,
             final_url: Some(response.final_url),
         })
+    }
+}
+
+/// A `429` as the poller's [`rd_subscription::RateLimited`] (RD-1150-05); any other error as
+/// it is.
+///
+/// Waited out until the server's `Retry-After` rather than counted as a failure and backed off —
+/// and for an indexer that refuses its third page, the end of that poll rather than a gap in it.
+pub(super) fn rate_limited(
+    error: anyhow::Error,
+    now: chrono::DateTime<chrono::Utc>,
+) -> anyhow::Error {
+    let retry_after = match error.downcast_ref::<rd_http::HttpDownloadError>() {
+        Some(rd_http::HttpDownloadError::Failure(failure)) => match failure.category {
+            rd_core::FailureKind::RateLimited {
+                retry_after_seconds,
+            } => Some(retry_after_seconds),
+            _ => None,
+        },
+        _ => None,
+    };
+    match retry_after {
+        Some(seconds) => rd_subscription::RateLimited::after(now, seconds).into(),
+        None => error,
+    }
+}
+
+/// What a subscription's item archive holds, as an indexer poll asks it (RD-1150-05).
+pub struct ArchivedItems {
+    database: rd_db::Database,
+}
+
+impl ArchivedItems {
+    #[must_use]
+    pub fn new(database: rd_db::Database) -> Self {
+        Self { database }
+    }
+}
+
+#[async_trait::async_trait]
+impl rd_subscription::ItemArchive for ArchivedItems {
+    async fn knows(
+        &self,
+        subscription: rd_core::SubscriptionId,
+        key: &str,
+    ) -> anyhow::Result<bool> {
+        self.database
+            .subscription_knows_item(subscription, key)
+            .await
     }
 }
 

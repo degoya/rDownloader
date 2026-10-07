@@ -121,7 +121,7 @@ rd_non_doc_paths() {
 # A tree git no longer has cannot be compared and does not qualify.
 rd_tree_docs_only() {
     local changes
-    changes="$(git -C "$1" diff --name-only "$2" "$3" 2> /dev/null)" || return 1
+    changes="$(git -C "$1" diff --no-renames --name-only "$2" "$3" 2> /dev/null)" || return 1
     [[ -z "$(rd_non_doc_paths <<< "$changes")" ]]
 }
 
@@ -130,7 +130,7 @@ rd_tree_docs_only() {
 # are nothing the Windows lint reads, so its green of the gate's tree still covers the merged one.
 rd_tree_unread_by() {
     local changes
-    changes="$(git -C "$1" diff --name-only "$3" "$4" 2> /dev/null)" || return 1
+    changes="$(git -C "$1" diff --no-renames --name-only "$3" "$4" 2> /dev/null)" || return 1
     [[ -z "$(rd_paths_read_by "$2" <<< "$changes")" ]]
 }
 
@@ -141,10 +141,9 @@ rd_tree_unread_by() {
 # green is development's after the fast-forward merge — the release chain of 2026-09-28 ran
 # --full again for want of this and of the documentation rule.
 rd_full_covering() {
-    local root="$1" half="$2" tree="$3" directory recorded candidate
-    directory="$(dirname "$(rd_full_marker "$root")")"
-    [[ -n "$tree" && -d "$directory" ]] || return 0
-    recorded="$(cat "$directory"/* 2> /dev/null | sed -n "s/^$half //p" | sort -u || true)"
+    local root="$1" half="$2" tree="$3" recorded candidate
+    [[ -n "$tree" ]] || return 0
+    recorded="$(rd_full_recorded "$root" "$half")"
     if grep -qxF "$tree" <<< "$recorded"; then
         printf '%s\n' "$tree"
         return 0
@@ -156,6 +155,15 @@ rd_full_covering() {
             return 0
         fi
     done <<< "$recorded"
+}
+
+# Every tree a green of half $2 was recorded for by any checkout sharing the target directory of
+# checkout $1, one per line, sorted.
+rd_full_recorded() {
+    local directory
+    directory="$(dirname "$(rd_full_marker "$1")")"
+    [[ -d "$directory" ]] || return 0
+    cat "$directory"/* 2> /dev/null | sed -n "s/^$2 //p" | sort -u || true
 }
 
 # How recorded tree $3 of half $2 relates to tree $4 in checkout $1, for a message.
@@ -241,7 +249,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/workspace-version.sh"
 # just the key.
 rd_version_bump_only() {
     local root="$1" base="${2:-HEAD}" changed old new path file allowed
-    changed="$({ git -C "$root" diff --name-only "$base"; git -C "$root" ls-files --others --exclude-standard; } | sed '/^$/d' | sort -u)"
+    changed="$({ git -C "$root" diff --no-renames --name-only "$base"; git -C "$root" ls-files --others --exclude-standard; } | sed '/^$/d' | sort -u)"
     [[ -n "$changed" ]] || return 1
     while read -r path; do
         allowed=0

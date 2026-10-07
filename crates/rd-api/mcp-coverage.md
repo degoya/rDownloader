@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**99 capabilities, 74 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 428 REST operations, 225 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**99 capabilities, 74 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 429 REST operations, 226 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -83,7 +83,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Automation history, vocabulary and dry run | Automation | 4 | `dry_run_automations`, `get_automation_vocabulary`, `list_automation_runs`, `list_automation_versions` |
 | Notification history and the destination catalogue | Settings > Notifications | 2 | `list_notification_deliveries`, `list_notification_destinations` |
 | Clearing the notification history and discarding pending notifications | Settings > Notifications | 2 | `clear_notification_deliveries`, `discard_pending_notification_deliveries` |
-| Subscription items, runs and forced polls | Subscriptions | 9 | `clear_subscription_history`, `get_subscription_review_summary`, `list_subscription_items`, `list_subscription_runs`, `poll_subscription`, `review_pending_subscription_items`, `review_subscription_item`, `set_subscription_enabled` |
+| Subscription items, runs and forced polls | Subscriptions | 10 | `clear_subscription_history`, `get_subscription_review_summary`, `list_subscription_items`, `list_subscription_runs`, `poll_subscription`, `requeue_subscription_items`, `review_pending_subscription_items`, `review_subscription_item`, `set_subscription_enabled` |
 | Searching Newznab and Torznab indexers and taking hits into the LinkGrabber | LinkGrabber > Indexer search | 3 | `grab_indexer_results`, `list_indexers`, `search_indexers` |
 | Stream schedules, runs and recording now | Streams | 6 | `create_stream_schedule`, `delete_stream_schedule`, `list_stream_runs`, `list_stream_schedules`, `record_stream_now`, `update_stream_schedule` |
 | The diagnostic bundle: preview | Logs | 1 | `preview_diagnostic_bundle` |

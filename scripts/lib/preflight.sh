@@ -10,7 +10,7 @@
 #   scripts/check.sh --preflight
 #
 # Runs: git diff --check, the job layout, the version copies, the action pins, the plugin release
-# notes, cargo fmt, the
+# notes, the application's release notes, cargo fmt, the
 # rd-api test map and the Rust test inputs map, gitleaks over the tree the public export would
 # publish, bash -n, shellcheck, actionlint, and every script test. No lock (rustfmt writes nothing
 # to target/), no green record. The stages are check.sh's own: a --full run goes through the same
@@ -56,6 +56,12 @@ rd_file_checks() {
     # CHANGES.md is documentation (rd_inert_path), so this runs whatever the change touched.
     step "the plugin release notes: every version has its section, short and for users"
     attempt scripts/plugin-release-notes.sh --check
+
+    # The application's release notes (RD-1150-02): every section of RELEASE-NOTES.md short and
+    # for users — the update dialog and the GitHub release show them. The version's own section is
+    # the docs gate's to demand; here the one in the making may still be a draft.
+    step "the release notes: every section short and for users"
+    attempt scripts/release-notes.sh --check
 }
 
 # The rd-api test map is only as good as its upkeep: a row naming a suite that is gone, a suite

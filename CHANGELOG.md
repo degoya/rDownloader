@@ -5,6 +5,75 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-10-07
+
+### Added
+
+- **Subscription items can be queued again (RD-1150-04).** A hit dismissed by mistake — in the
+  LinkGrabber's review too —, a skipped one or a queued one whose download is gone is queued
+  again from the subscription's archive, from its row or for the ticked rows of a page, the way
+  it was queued first (the subscription's category, the LinkGrabber's routing, naming and
+  category rules); the hit becomes queued and the action is audited
+  (`subscription_item_requeued`). A hit without a link or NZB is refused
+  (`subscription.item_no_source`), an address still in the LinkGrabber or the download list is
+  asked about rather than doubled (`subscription.item_duplicate`). REST
+  `POST /api/v1/subscriptions/{id}/items/requeue`, MCP `requeue_subscription_items`.
+
+### Changed
+
+- **An available update is offered at the top of the update page (RD-1150-01).** Instead of a
+  small badge with a *Details* link that did not look like a button, *System & maintenance ›
+  Updates* opens with a primary notice: *Version X is available*, the release date, the first
+  three points of the notes, and *Install and restart* (primary) and *Download* — or the download
+  or the package manager's command, by installation kind — plus *What's new* for the dialog. The
+  install asks the same confirmations as the dialog and opens it to follow the restart. The
+  dialog and the notice share one composable (`useUpdateActions`); the points come from one
+  function (`updateHighlights`).
+
+### Fixed
+
+- **"Updated to 1.11.0." no longer stands under a running 1.12.0 (RD-1150-01).** The status reports
+  how the last self-update ended only while it fits the running version — a verified one while
+  its version runs, a failed or rolled-back one while the version it started from or aimed at
+  runs — in `GET /api/v1/system/update`, MCP `get_update_status` and the update page.
+- **What's new speaks to users (RD-1150-02).** The update dialog, the Updates page and the top of
+  the GitHub release now show the version's points for users from the new `RELEASE-NOTES.md`
+  (`## X.Y.Z`, one to eight short English points, or the maintenance sentence) instead of the
+  CHANGELOG section's headlines, which carried job numbers, internals and an open
+  "**A file waiting …". `scripts/release-notes.sh --check` holds the rules (no job numbers, paths
+  or code, at most 200 characters a point; preflight, and with `--version` the docs gate, which
+  also refuses a draft); `rd-pack update manifest build --release-notes` applies them once more.
+  The dialog lists the points and links *Full changes* — the version's CHANGELOG section at its
+  tag, through the new signed manifest field `changelog_anchor` and the offer's `changelog_url` —
+  and the *Release page*. MCP `get_update_status` describes both links.
+
+- **An expanded subscription keeps long release names inside its card (RD-1150-03).** The archive
+  under an expanded subscription grew to its longest hit title — a truncated title still measures
+  its full length — and the card cut off its right edge, the *Clear completed history* header
+  included. The archive now shrinks to the card in every state, and the names are truncated with
+  the full text on hover.
+
+- **An indexer subscription pages until it meets what it already has (RD-1150-05).** A check read
+  five pages of 100 and warned on every poll of a busy category, while more than 500 new entries
+  between two checks were lost behind the bound. Now a check stops at the first page whose last
+  entry the subscription has archived — a request or two normally — and pages up to 20 (2,000
+  entries) otherwise; a first check keeps reading five. The poller archives everything such a
+  check brings. The warning (`page_limit`, reworded in four languages) appears only when the bound
+  was reached without meeting a known entry and says what helps. An HTTP `429` (with its
+  `Retry-After`) or Newznab's "request limit reached" mid-paging ends the check as a pause rather
+  than a failure, and a `429` does so for feeds and release pages too. MCP
+  `list_subscription_runs` explains how a run shows the gap.
+- **`check.sh --full` builds on an earlier green per crate and per kind (RD-1150-06).** Of a half
+  a recorded `--full` green covers only in part, the next `--full` tests the members the change
+  lies in with their whole reverse hull — only a member's own tests for test code (`tests/`, a
+  `#[cfg(test)]` module or block) — with the rd-api binaries, crash runs and sqlx among them, and
+  runs Vitest alone when only translation catalogues changed (plus the typecheck when a source
+  imports one). It names the green it builds on and the members it checks at its start, lists the
+  rest under "skipped, and why" and records a `--full` green of the tree, which the tag and the
+  packages accept; a manifest, `Cargo.lock`, the toolchain, a build script, `rd-core` or a
+  migration runs the whole half, `--again` everything. The 1.14.0 chain had rerun both halves for
+  one test string in rd-files and eight translation files.
+
 ## [1.14.0] - 2026-10-07
 
 ### Added

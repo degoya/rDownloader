@@ -95,6 +95,10 @@ pub(crate) fn routes() -> Router<AppState> {
             put(subscription_handlers::set_pending_subscription_items_state),
         )
         .route(
+            "/api/v1/subscriptions/{id}/items/requeue",
+            post(subscription_handlers::requeue_subscription_items),
+        )
+        .route(
             "/api/v1/subscriptions/{id}/history",
             axum::routing::delete(subscription_handlers::clear_subscription_history),
         )
@@ -160,6 +164,7 @@ pub(crate) fn routes() -> Router<AppState> {
     subscription_handlers::list_subscription_runs,
     subscription_handlers::set_subscription_item_state,
     subscription_handlers::set_pending_subscription_items_state,
+    subscription_handlers::requeue_subscription_items,
     subscription_handlers::clear_subscription_history,
     stream_schedule_handlers::list_stream_schedules,
     stream_schedule_handlers::create_stream_schedule,

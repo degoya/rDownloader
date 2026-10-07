@@ -11,7 +11,8 @@
 # `dependant_packages`, `rd_api_selected`, `rd_api_all`, `rd_api_binaries`, `rd_api_filter`,
 # `rd_api_reason`, `RD_API_MAP`, `failpoints`, `crash_triggers`, `sqlx`), `run_tests`, `step`,
 # `skip` and `attempt`, rd_crash_matrix_runs from lib/crash-matrix.sh, and the working directory
-# at the checkout root.
+# at the checkout root. A --full that builds on a green per crate (lib/check-reuse-crates.sh) also
+# sets `test_packages_label`, `rd_api_lib`, `crash_packages` and the `*_skip_reason`s.
 
 rd_check_rust_tests() {
     local crate binary batch_index batch_count crash_line
@@ -21,12 +22,12 @@ rd_check_rust_tests() {
         attempt run_tests --workspace --exclude rd-api
     else
         if [[ ${#test_packages[@]} -gt 0 ]]; then
-            step "tests (touched: ${test_packages[*]})"
+            step "tests (${test_packages_label:-touched}: ${test_packages[*]})"
             args=()
             for crate in "${test_packages[@]}"; do args+=(-p "$crate"); done
             attempt run_tests "${args[@]}"
         else
-            skip "tests of the touched crates" "no crate under crates/ other than rd-api was touched"
+            skip "tests of the touched crates" "no crate under crates/ other than rd-api was ${test_packages_label:-touched}"
         fi
         if [[ ${#dependant_packages[@]} -gt 0 ]]; then
             step "tests (one level of reverse dependencies, library and binaries: ${#dependant_packages[@]} crates)"
@@ -49,8 +50,12 @@ rd_check_rust_tests() {
     # graph, and a plain `--workspace` run builds all of them at once. That has OOM-killed
     # WSL even at JOBS=2: lowering the job count does not make a single link cheaper, so
     # the fix is to build fewer binaries at a time rather than to build them more slowly.
-    step "tests (rd-api library)"
-    attempt run_tests -p rd-api --lib
+    if [[ "${rd_api_lib:-1}" -eq 1 ]]; then
+        step "tests (rd-api library)"
+        attempt run_tests -p rd-api --lib
+    else
+        skip "tests (rd-api library)" "${rd_api_lib_skip_reason:-}"
+    fi
 
     if [[ ${#rd_api_selected[@]} -gt 0 ]]; then
         echo
@@ -79,7 +84,7 @@ rd_check_rust_tests() {
     fi
     if [[ ${#rd_api_selected[@]} -lt ${#rd_api_all[@]} ]]; then
         skip "$(( ${#rd_api_all[@]} - ${#rd_api_selected[@]} )) of ${#rd_api_all[@]} rd-api integration suites" \
-            "the change does not map to them ($RD_API_MAP)"
+            "${rd_api_skip_reason:-the change does not map to them ($RD_API_MAP)}"
     fi
 
     if [[ "$failpoints" -eq 1 ]]; then
@@ -89,13 +94,13 @@ rd_check_rust_tests() {
         # crates/rd-core/recovery-matrix.md, and scripts/lib/crash-matrix.list for why every
         # owning crate's own feature is turned on, not only rd-core's.
         # Read first and run after: a test reading stdin must not eat the next run's line.
-        mapfile -t crash_runs < <(rd_crash_matrix_runs)
+        mapfile -t crash_runs < <(rd_crash_matrix_runs "${crash_packages[@]+"${crash_packages[@]}"}")
         for crash_line in "${crash_runs[@]}"; do
             read -r -a crash_run <<< "$crash_line"
             attempt run_tests "${crash_run[@]}"
         done
     else
-        skip "crash and restart matrix" "none of ${crash_triggers[*]}, failpoint.rs, the recovery matrix or scripts/lib/crash-matrix.list changed"
+        skip "crash and restart matrix" "${crash_skip_reason:-none of ${crash_triggers[*]}, failpoint.rs, the recovery matrix or scripts/lib/crash-matrix.list changed}"
     fi
 
     if [[ "$sqlx" -eq 1 ]]; then
@@ -110,6 +115,6 @@ rd_check_rust_tests() {
             skip "sqlx offline data" "sqlx-cli is not installed"
         fi
     else
-        skip "sqlx offline data" "no rd-db source and no .sql file changed"
+        skip "sqlx offline data" "${sqlx_skip_reason:-no rd-db source and no .sql file changed}"
     fi
 }

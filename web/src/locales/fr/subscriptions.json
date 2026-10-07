@@ -145,7 +145,7 @@
     },
     "filter": "Afficher",
     "filter_all": "Tous",
-    "page_limit": "Cette vérification a atteint la limite de {limit} résultats sur cinq pages de l’indexeur. Le filtre de titre s’applique ensuite ; des résultats encore plus anciens peuvent donc manquer. Des catégories plus précises ciblent mieux le résultat.",
+    "page_limit": "Cette vérification a parcouru {limit} résultats de l’indexeur sans atteindre un résultat déjà connu ; des entrées parues depuis la vérification précédente peuvent donc manquer. Une catégorie plus précise ou un intervalle plus court comble ce manque.",
     "show_cover": "Afficher la jaquette en grand",
     "hide_cover": "Fermer la jaquette agrandie"
   },
@@ -162,7 +162,11 @@
     "hide_details": "Masquer les détails",
     "enable": "Activer l'abonnement",
     "disable": "Désactiver l'abonnement",
-    "menu": "Actions de l'abonnement"
+    "menu": "Actions de l'abonnement",
+    "requeue": "Remettre en file",
+    "requeue_selected": "Remettre en file la sélection ({count})",
+    "select_item": "Sélectionner « {title} »",
+    "select_page": "Sélectionner toutes les entrées de cette page qui peuvent être remises en file"
   },
   "remove": {
     "title": "Supprimer l'abonnement ?",
@@ -179,5 +183,13 @@
     "poll_start_failed": "Impossible de lancer la vérification de « {name} » : {error}",
     "poll_finished": "Vérification de « {name} » terminée : {found} trouvés, {accepted} acceptés, {skipped} ignorés.",
     "poll_failed": "La vérification de « {name} » a échoué : {error}"
+  },
+  "requeue": {
+    "no_source": "Aucun lien ni NZB n’est enregistré pour cette entrée",
+    "duplicate_title": "Déjà dans le LinkGrabber ou dans la liste",
+    "duplicate_description": "{count} entrée est encore dans le LinkGrabber ou dans la liste des téléchargements. La remettre en file quand même ? Le LinkGrabber la marquera alors comme doublon. | {count} entrées sont encore dans le LinkGrabber ou dans la liste des téléchargements. Les remettre en file quand même ? Le LinkGrabber les marquera alors comme doublons.",
+    "duplicate_confirm": "Mettre en file quand même",
+    "done": "{count} entrée remise en file. | {count} entrées remises en file.",
+    "partial": "{requeued} remises en file, {refused} non : {reason}"
   }
 }

@@ -627,14 +627,13 @@
     "next_check": "Next check: {when}",
     "up_to_date": "You have the newest version.",
     "available": "Version {version} is available",
-    "show_details": "Details",
     "not_configured": "This build carries no update key; the update check is off.",
     "modal": {
       "title": "rDownloader {version}",
       "released": "Released: {when}",
       "notes": "What’s new",
       "no_notes": "This release has no notes.",
-      "full_notes": "Full release notes",
+      "full_changes": "Full changes",
       "download": "Download",
       "download_hint": "Replace the program files of this installation with the new version; your settings and downloads stay where they are.",
       "command_hint": "{kind} manages this installation. Update it with:",
@@ -645,7 +644,8 @@
       "rollback_automatic": "If the new version does not start properly, the previous one comes back by itself.",
       "rollback_unavailable": "This update through the Windows installer cannot be taken back by itself: the installer of the running version was not kept. From the next update on it can.",
       "download_package": "Download the package",
-      "download_manual": "Download manually"
+      "download_manual": "Download manually",
+      "release_page": "Release page"
     },
     "hints": {
       "aur_helper": "With paru: paru -S rdownloader-bin",
@@ -688,7 +688,8 @@
       "unknown": "before 1.9",
       "outdated_title": "Restart the capture agent",
       "outdated_description": "A capture agent still runs version {agent}, rDownloader already runs {service}. From 1.8.1 on, the agent restarts itself within a minute of an update. If it does not — because it is older, or another user started it — quit it from its tray icon or in Task Manager and start it again; on Linux, systemctl --user restart rdownloader-capture does both."
-    }
+    },
+    "whats_new": "What’s new"
   },
   "oidc": {
     "eyebrow": "Identity provider",

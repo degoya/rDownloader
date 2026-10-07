@@ -254,11 +254,16 @@ function rowActions(subscription: Subscription) {
                   :class="editing === subscription.id ? 'border border-primary p-3' : 'py-3'"
                 >
                   <div class="flex flex-wrap items-center gap-2">
-                    <!-- The trigger leads the row; the archive is the row's last line (`design.md`, *Opening and closing*). -->
+                    <!--
+                      The trigger leads the row; the archive is the row's last line (`design.md`, *Opening and closing*).
+                      `min-w-0` because the archive is a flex item of this row (RD-1150-03): without it the item is
+                      at least as wide as its widest content, and a truncated title still measures its full length -
+                      a long release name pushed the archive past the card, which clipped its right edge.
+                    -->
                     <UCollapsible
                       class="contents"
                       :open="expanded === subscription.id"
-                      :ui="{ content: 'order-last basis-full' }"
+                      :ui="{ content: 'order-last basis-full min-w-0' }"
                       @update:open="toggleDetails(subscription)"
                     >
                       <UButton

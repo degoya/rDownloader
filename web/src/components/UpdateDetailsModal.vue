@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { hintKey, INSTALL_ENDED, type InstallKind, type UpdateOffer } from '@/api/updates'
+import { hintKey, type InstallKind, releaseNotePoints, type UpdateOffer } from '@/api/updates'
 import CopyField from '@/components/CopyField.vue'
-import { useConfirm } from '@/composables/useConfirm'
+import { useUpdateActions } from '@/composables/useUpdateActions'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes, formatLongMoment } from '@/utils/format'
@@ -16,24 +16,25 @@ import { formatBytes, formatLongMoment } from '@/utils/format'
  * through the restart to the new version or back to the old one, whose reason is shown with a
  * way to try again. There "Download" fetches and verifies the version in the background with its
  * progress, and the install then uses that file; the browser's download stays a small link
- * (owner, 2026-10-01). The notes are plain text from the signed manifest, rendered as text.
+ * (owner, 2026-10-01). The notes are plain text from the signed manifest, the version's points
+ * for users (RD-1150-02), listed as text; below them the full changes, the version's CHANGELOG
+ * section at its tag, and the release page with the downloads and checksums. The install and the
+ * download follow the rules of `useUpdateActions`, which the notice on the update page shares
+ * (RD-1150-01).
  */
 const props = defineProps<{ offer: UpdateOffer | null, kind: InstallKind }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
-const confirm = useConfirm()
-const { status, installFailure, downloadFailure, reconnecting, lost, followed, install, download } = useUpdateStatus()
-const starting = ref(false)
+const { reconnecting, lost } = useUpdateStatus()
+const {
+  starting, progress, installing, ended, refusal,
+  fetched, fetching, fetchedPercent, fetchedReason, downloadFailure,
+  installNow, downloadNow
+} = useUpdateActions(() => props.offer)
 
 const kindLabel = computed(() => t(`system.updates.kind.${props.kind}`))
+const notePoints = computed(() => releaseNotePoints(props.offer?.notes ?? ''))
 
-/** The install to show: one this page followed, or one for the version offered here. */
-const progress = computed(() => {
-  const install = status.value?.install
-  if (!install) return null
-  return followed.value || install.target_version === props.offer?.version ? install : null
-})
-const installing = computed(() => progress.value !== null && !INSTALL_ENDED.includes(progress.value.state))
 const progressText = computed(() => {
   const install = progress.value
   if (!install) return ''
@@ -44,56 +45,6 @@ const progressText = computed(() => {
 })
 const progressReason = computed(() =>
   progress.value?.reason ? translateServerMessage({ code: progress.value.reason }) : null)
-const refusal = computed(() => installFailure.value ? translateServerMessage(installFailure.value) : null)
-const ended = computed(() => progress.value?.state === 'failed' || progress.value?.state === 'rolled_back')
-
-/** The background download of the version offered here. */
-const fetched = computed(() => {
-  const download = status.value?.download
-  return download && download.version === props.offer?.version ? download : null
-})
-const fetching = computed(() => fetched.value?.state === 'downloading')
-const fetchedPercent = computed(() => {
-  const download = fetched.value
-  if (!download || download.total_bytes <= 0) return 0
-  return Math.min(100, Math.round((download.received_bytes / download.total_bytes) * 100))
-})
-const fetchedReason = computed(() => {
-  if (downloadFailure.value) return translateServerMessage(downloadFailure.value)
-  return fetched.value?.reason ? translateServerMessage({ code: fetched.value.reason }) : null
-})
-
-async function installNow(): Promise<void> {
-  const offer = props.offer
-  if (!offer) return
-  const agreed = await confirm({
-    title: t('system.updates.install.confirm_title', { version: offer.version }),
-    description: t('system.updates.install.confirm_description', { version: offer.version }),
-    confirmLabel: t('system.updates.modal.install'),
-    confirmIcon: 'i-lucide-refresh-cw'
-  })
-  if (!agreed) return
-  starting.value = true
-  try {
-    if (await install()) return
-    // Running downloads are saved by the stop and continue after it; installing anyway is the
-    // person's decision, asked once more with the count.
-    if (installFailure.value?.code !== 'update.transfers_active') return
-    const anyway = await confirm({
-      title: t('system.updates.install.confirm_title', { version: offer.version }),
-      description: translateServerMessage(installFailure.value),
-      confirmLabel: t('system.updates.install.anyway'),
-      confirmIcon: 'i-lucide-refresh-cw'
-    })
-    if (anyway) await install(true)
-  } finally {
-    starting.value = false
-  }
-}
-
-async function downloadNow(): Promise<void> {
-  await download()
-}
 
 function reload(): void {
   window.location.reload()
@@ -147,12 +98,20 @@ function reload(): void {
         <template v-if="offer">
           <section>
             <p class="eyebrow">{{ t('system.updates.modal.notes') }}</p>
-            <p v-if="offer.notes" class="mt-2 max-h-72 overflow-y-auto whitespace-pre-line text-sm leading-6 text-toned" data-testid="update-notes">{{ offer.notes }}</p>
+            <ul v-if="notePoints.length" class="mt-2 max-h-72 list-disc space-y-1 overflow-y-auto ps-5 text-sm leading-6 text-toned" data-testid="update-notes">
+              <li v-for="(point, index) in notePoints" :key="index">{{ point }}</li>
+            </ul>
             <p v-else class="mt-2 text-sm text-muted">{{ t('system.updates.modal.no_notes') }}</p>
-            <ULink :to="offer.release_url" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-1 text-sm text-primary">
-              {{ t('system.updates.modal.full_notes') }}
-              <UIcon name="i-lucide-external-link" class="size-3.5" />
-            </ULink>
+            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <ULink :to="offer.changelog_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary" data-testid="update-changelog">
+                {{ t('system.updates.modal.full_changes') }}
+                <UIcon name="i-lucide-external-link" class="size-3.5" />
+              </ULink>
+              <ULink :to="offer.release_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary" data-testid="update-release-page">
+                {{ t('system.updates.modal.release_page') }}
+                <UIcon name="i-lucide-external-link" class="size-3.5" />
+              </ULink>
+            </div>
           </section>
           <section v-if="offer.action === 'command' && offer.command" data-testid="update-command">
             <p class="text-sm text-toned">{{ t('system.updates.modal.command_hint', { kind: kindLabel }) }}</p>

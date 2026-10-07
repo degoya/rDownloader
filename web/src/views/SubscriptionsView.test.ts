@@ -608,13 +608,22 @@ describe('SubscriptionsView, accepted and skipped hits', () => {
     await waitFor(() => expect(screen.getByText('Other.Release.1080p')).toBeTruthy())
   })
 
-  it('names the page boundary when a check came back full', async () => {
-    // The filter runs on what the query returned, so a full page hides whatever is older.
-    get.mockImplementation(answer([{ id: 'r1', started_at: '2026-02-04T13:00:00Z', found: 500, accepted: 1, skipped: 499 }]))
+  it('names the gap when a check read to its bound without meeting a known entry', async () => {
+    // RD-1150-05: every entry of the check was new, so it never reached what it already had.
+    get.mockImplementation(answer([{ id: 'r1', started_at: '2026-02-04T13:00:00Z', found: 2000, accepted: 1, skipped: 1999 }]))
 
     await expand()
 
-    expect(screen.getByText(/500-result limit across five indexer pages/)).toBeTruthy()
+    expect(screen.getByText(/paged through 2000 indexer results without reaching one it already knew/)).toBeTruthy()
+  })
+
+  it('says nothing when a full check met entries it already had', async () => {
+    // Five full pages, the last of them already archived: the busy category's ordinary check.
+    get.mockImplementation(answer([{ id: 'r1', started_at: '2026-02-04T13:00:00Z', found: 500, accepted: 1, skipped: 399 }]))
+
+    await expand()
+
+    expect(screen.queryByText(/without reaching one it already knew/)).toBeNull()
   })
 
   it('says nothing about a page boundary a check did not reach', async () => {
@@ -622,7 +631,7 @@ describe('SubscriptionsView, accepted and skipped hits', () => {
 
     await expand()
 
-    expect(screen.queryByText(/500-result limit across five indexer pages/)).toBeNull()
+    expect(screen.queryByText(/without reaching one it already knew/)).toBeNull()
   })
 
   it('confirms and deletes settled hits plus check records without claiming open hits', async () => {

@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.14.0"
+    "version": "1.15.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -15936,6 +15936,68 @@
         }
       }
     },
+    "/api/v1/subscriptions/{id}/items/requeue": {
+      "post": {
+        "tags": [
+          "subscriptions"
+        ],
+        "summary": "Queues items of one subscription again, whatever was decided about them before.",
+        "description": "The same path as the first queueing — the subscription's category, the intake's routing and\nnaming rules, the declared name, password and attributes — and the item becomes `queued`.\nAn item without an address to fetch is refused, and one whose address is still in the\nLinkGrabber or the download list is refused unless `allow_duplicate` says otherwise. Every\nitem stands alone: one refusal does not stop the rest, and each queued one is audited.",
+        "operationId": "requeue_subscription_items",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SubscriptionId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionRequeueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionRequeueResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/subscriptions/{id}/poll": {
       "post": {
         "tags": [
@@ -17404,7 +17466,8 @@
           "identity_unlinked",
           "password_login_changed",
           "password_reset_local",
-          "history_cleared"
+          "history_cleared",
+          "subscription_item_requeued"
         ]
       },
       "AuditActorKind": {
@@ -38072,6 +38135,69 @@
           }
         }
       },
+      "SubscriptionRequeueRefusal": {
+        "type": "object",
+        "description": "One item that was not queued again, and why.",
+        "required": [
+          "item_id",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "A stable code: `subscription.item_not_found`, `subscription.item_no_source`,\n`subscription.item_duplicate`, or the one the hand-over failed with."
+          },
+          "item_id": {
+            "$ref": "#/components/schemas/SubscriptionItemId"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SubscriptionRequeueRequest": {
+        "type": "object",
+        "description": "Body of the re-queue.",
+        "required": [
+          "item_ids"
+        ],
+        "properties": {
+          "allow_duplicate": {
+            "type": "boolean",
+            "description": "Queue an item whose address is still in the LinkGrabber or the download list anyway.\nWithout it such an item is refused with `subscription.item_duplicate`, so nothing is\ndoubled silently; with it the LinkGrabber marks the new link as a duplicate."
+          },
+          "item_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionItemId"
+            },
+            "description": "The items to queue again, all of the subscription in the path (1-200)."
+          }
+        }
+      },
+      "SubscriptionRequeueResponse": {
+        "type": "object",
+        "description": "What a re-queue did: the items handed to the LinkGrabber, and the rest with their reasons.",
+        "required": [
+          "requeued",
+          "refused"
+        ],
+        "properties": {
+          "refused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionRequeueRefusal"
+            }
+          },
+          "requeued": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionItemId"
+            }
+          }
+        }
+      },
       "SubscriptionReviewCount": {
         "type": "object",
         "description": "Pending review count for one indexer subscription.",
@@ -40291,12 +40417,17 @@
           "released_at",
           "notes",
           "release_url",
+          "changelog_url",
           "action"
         ],
         "properties": {
           "action": {
             "type": "string",
             "description": "`install` (this installation installs the artifact itself and restarts, RD-180-02),\n`download` (the artifact is replaced by hand) or `command` (a package manager or\ncontainer runtime does it)."
+          },
+          "changelog_url": {
+            "type": "string",
+            "description": "The version's section of `CHANGELOG.md` at its tag: the full changes."
           },
           "channel": {
             "type": "string",
@@ -40339,11 +40470,11 @@
           },
           "notes": {
             "type": "string",
-            "description": "Short plain-text release notes; render as text, never as markup."
+            "description": "Short plain-text release notes for users, one `- ` point per line (RD-1150-02); render\nas text, never as markup."
           },
           "release_url": {
             "type": "string",
-            "description": "The release page with the full notes."
+            "description": "The release page: downloads and checksums."
           },
           "released_at": {
             "type": "string",

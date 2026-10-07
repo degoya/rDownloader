@@ -76,6 +76,7 @@ describe('UpdateNotice', () => {
         released_at: '2026-10-10T12:00:00Z',
         notes: '',
         release_url: 'https://github.com/degoya/rDownloader/releases/tag/v1.8.0',
+        changelog_url: 'https://github.com/degoya/rDownloader/blob/v1.8.0/CHANGELOG.md#180---2026-10-10',
         action: 'download',
         command: null,
         hint: null,

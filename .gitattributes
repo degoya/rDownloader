@@ -34,5 +34,8 @@ CHANGELOG.md merge=union
 # A plugin's release notes the same way: two branches raising one plugin to the same version both
 # add its section, and plugin-release-notes.sh --check names the second one to fold in.
 plugins/*/CHANGES.md merge=union
+# The application's release notes too (RD-1150-02); release-notes.sh --check names a second
+# section of one version.
+RELEASE-NOTES.md merge=union
 crates/rd-db/migrations.sha384 merge=rd-pins
 web/src/locales/**/*.json merge=rd-json

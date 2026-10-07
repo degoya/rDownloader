@@ -80,6 +80,12 @@ step_docs_gate() {
     # the release here rather than shipping a card without notes or with developer prose.
     scripts/plugin-release-notes.sh --check || failed=1
 
+    # The application's notes for users (RD-1150-02): the update dialog, the Updates page and the
+    # GitHub release show this version's section of RELEASE-NOTES.md, and rd-pack refuses to sign
+    # a manifest over a draft — so a missing, draft or rule-breaking section stops the release here,
+    # not in the Release workflow after the tag.
+    scripts/release-notes.sh --check --version "$VERSION" || failed=1
+
     # doc-facts wrote them; this proves nothing edited them back, and holds the user wiki to the
     # same facts. The wiki is updated at the tag from this release's section, before the chain
     # publishes it (publish-public), so a stale contract or count there stops the release here.

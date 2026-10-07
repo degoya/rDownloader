@@ -145,7 +145,7 @@
     },
     "filter": "Show",
     "filter_all": "All",
-    "page_limit": "This check reached the {limit}-result limit across five indexer pages. The title filter runs afterwards, so still older hits may be missing. Narrower categories make the result more focused.",
+    "page_limit": "This check paged through {limit} indexer results without reaching one it already knew, so entries that appeared since the previous check may be missing. A narrower category or a shorter interval closes the gap.",
     "show_cover": "Show the cover larger",
     "hide_cover": "Close the enlarged cover"
   },
@@ -162,7 +162,11 @@
     "hide_details": "Hide details",
     "enable": "Enable subscription",
     "disable": "Disable subscription",
-    "menu": "Subscription actions"
+    "menu": "Subscription actions",
+    "requeue": "Queue again",
+    "requeue_selected": "Queue selected again ({count})",
+    "select_item": "Select “{title}”",
+    "select_page": "Select every entry on this page that can be queued again"
   },
   "remove": {
     "title": "Delete subscription?",
@@ -179,5 +183,13 @@
     "poll_start_failed": "The check of \"{name}\" could not be started: {error}",
     "poll_finished": "Check of \"{name}\" finished: {found} found, {accepted} accepted, {skipped} skipped.",
     "poll_failed": "Check of \"{name}\" failed: {error}"
+  },
+  "requeue": {
+    "no_source": "No link or NZB is stored for this entry",
+    "duplicate_title": "Already in the LinkGrabber or the list",
+    "duplicate_description": "{count} entry is still in the LinkGrabber or the download list. Queue it again anyway? The LinkGrabber then marks it as a duplicate. | {count} entries are still in the LinkGrabber or the download list. Queue them again anyway? The LinkGrabber then marks them as duplicates.",
+    "duplicate_confirm": "Queue anyway",
+    "done": "{count} entry queued again. | {count} entries queued again.",
+    "partial": "{requeued} queued again, {refused} not: {reason}"
   }
 }

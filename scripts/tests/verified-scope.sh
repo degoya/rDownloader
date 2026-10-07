@@ -352,4 +352,20 @@ git commit -qm "docs: the verification note"
 rd_record_ci "$repo" "$candidate" macos-15
 expect "only documentation after the green: the same content" "$candidate" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" macos-15)"
 
+# --- a source file moved into docs/ is not documentation ------------------------------------------
+# git's rename detection names only the new path of a move: without --no-renames a source file moved
+# under docs/ read as a documentation-only change and kept a green as covering the code it removed.
+mkdir -p crates/moved/src
+echo "fn main() {}" > crates/moved/src/main.rs
+git add -A
+git commit -qm "the source"
+before="$(git rev-parse 'HEAD^{tree}')"
+git mv crates/moved/src/main.rs docs/main.rs
+git commit -qm "the source moved under docs/"
+after="$(git rev-parse 'HEAD^{tree}')"
+if rd_tree_docs_only "$repo" "$before" "$after"; then moved='docs-only'; else moved='code'; fi
+expect "a source file moved into docs/ is not documentation only" code "$moved"
+if rd_tree_unread_by "$repo" rust "$before" "$after"; then moved='unread'; else moved='read'; fi
+expect "and the Rust half reads the file it lost" read "$moved"
+
 finish_tests verified-scope

@@ -25,6 +25,9 @@ pub struct Offer {
     pub channel: Channel,
     pub released_at: DateTime<Utc>,
     pub notes: String,
+    /// The anchor of the version's `CHANGELOG.md` heading, when the manifest names it.
+    #[serde(default)]
+    pub changelog_anchor: Option<String>,
     /// The file for this platform, architecture and installation kind, when the release has one.
     pub artifact: Option<Artifact>,
     /// Whether installing it changes the database schema ([`UpdateManifest::changes_schema`]);
@@ -112,6 +115,7 @@ pub fn newest_offer(
             channel: manifest.channel,
             released_at: manifest.released_at,
             notes: manifest.notes.clone(),
+            changelog_anchor: manifest.changelog_anchor.clone(),
             artifact: manifest
                 .artifacts
                 .iter()
@@ -123,6 +127,24 @@ pub fn newest_offer(
                 .cloned(),
             schema_change: manifest.changes_schema(),
         })
+}
+
+impl Offer {
+    /// The version's `CHANGELOG.md` section at its tag in the official repository: the full
+    /// changes, which stay put while `main` moves on (RD-1150-02). Without an anchor, the file at
+    /// the tag.
+    #[must_use]
+    pub fn changelog_url(&self) -> String {
+        let file = format!(
+            "https://github.com/{}/blob/v{}/CHANGELOG.md",
+            crate::check::OFFICIAL_REPOSITORY,
+            self.version
+        );
+        match &self.changelog_anchor {
+            Some(anchor) => format!("{file}#{anchor}"),
+            None => file,
+        }
+    }
 }
 
 impl InstallKind {
@@ -162,6 +184,28 @@ mod tests {
         assert_eq!(offer.artifact, Some(artifact("linux", "x86_64", "archive")));
         // The manifest does not say: the offer counts as a schema change.
         assert!(offer.schema_change);
+    }
+
+    #[test]
+    fn the_full_changes_link_to_the_changelog_section_at_the_tag() {
+        let mut anchored = manifest(Channel::Stable, "1.15.0", 1);
+        anchored.changelog_anchor = Some("1150---2026-10-10".to_owned());
+        let offer = newest_offer("1.14.0", Channel::Stable, &[anchored], &LINUX).expect("offer");
+        assert_eq!(
+            offer.changelog_url(),
+            "https://github.com/degoya/rDownloader/blob/v1.15.0/CHANGELOG.md#1150---2026-10-10"
+        );
+        let plain = newest_offer(
+            "1.14.0",
+            Channel::Stable,
+            &[manifest(Channel::Stable, "1.15.0", 1)],
+            &LINUX,
+        )
+        .expect("offer");
+        assert_eq!(
+            plain.changelog_url(),
+            "https://github.com/degoya/rDownloader/blob/v1.15.0/CHANGELOG.md"
+        );
     }
 
     #[test]

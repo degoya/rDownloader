@@ -1207,7 +1207,9 @@
     "settings.package_name_regex_invalid": "Package-name rule {index}: the pattern is not a valid regular expression ({detail}).",
     "settings.package_name_regex_too_many": "At most {max} regex rules for package names.",
     "settings.package_name_regex_too_long": "Package-name rule {index}: pattern and replacement may have at most {max} characters each.",
-    "category_rule.regex_structure_limits": "The pattern is too large to draw as a diagram."
+    "category_rule.regex_structure_limits": "The pattern is too large to draw as a diagram.",
+    "subscription.item_no_source": "This subscription item has no address to fetch",
+    "subscription.item_duplicate": "This subscription item's address is still in the LinkGrabber or the download list"
   },
   "capabilities": {
     "media_download": "media downloads",

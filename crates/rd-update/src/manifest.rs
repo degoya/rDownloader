@@ -3,7 +3,7 @@
 //!
 //! A manifest is a `rd_sign::SignedDocument` under [`UPDATE_MANIFEST_DOMAIN`], signed by the
 //! compiled-in `Role::Release` root (`rdownloader-update-v1`). The release workflow builds one per
-//! release from the published `SHA256SUMS` and the version's `CHANGELOG.md` section and attaches
+//! release from the published `SHA256SUMS` and the version's `RELEASE-NOTES.md` section and attaches
 //! it as [`Channel::file_name`]: `rdownloader-update-stable.json` to a plain `vX.Y.Z` release,
 //! `rdownloader-update-beta.json` to a `vX.Y.Z-beta.N` pre-release.
 //!
@@ -118,9 +118,13 @@ pub struct UpdateManifest {
     pub version: String,
     /// When the release was published.
     pub released_at: DateTime<Utc>,
-    /// Short plain-text release notes, at most [`MAX_NOTES_CHARS`] characters.
+    /// Short plain-text release notes for users, one `- ` point per line (RD-1150-02), at most
+    /// [`MAX_NOTES_CHARS`] characters.
     #[serde(default)]
     pub notes: String,
+    /// GitHub's anchor of the version's `CHANGELOG.md` heading at its tag (`1150---2026-10-10`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub changelog_anchor: Option<String>,
     /// The downloadable files, at most one per platform, architecture and kind.
     pub artifacts: Vec<Artifact>,
     /// Whether this version's database migrations differ from the release before it on its
@@ -311,6 +315,15 @@ impl UpdateManifest {
             return Err(invalid(format!(
                 "the notes are longer than {MAX_NOTES_CHARS} characters"
             )));
+        }
+        if let Some(anchor) = &self.changelog_anchor
+            && (anchor.is_empty()
+                || anchor.len() > 64
+                || !anchor
+                    .bytes()
+                    .all(|byte| matches!(byte, b'a'..=b'z' | b'0'..=b'9' | b'-')))
+        {
+            return Err(invalid("the changelog anchor is not [a-z0-9-]"));
         }
         if self.artifacts.len() > MAX_ARTIFACTS {
             return Err(invalid(format!("more than {MAX_ARTIFACTS} artifacts")));

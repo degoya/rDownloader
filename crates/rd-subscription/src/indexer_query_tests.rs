@@ -1,11 +1,9 @@
 //! The query an indexer is sent: address, saved search, categories, search term, and the key.
 
-use super::{EXTENDED_RESULT, StaticKey, base, indexer_subscription};
+use super::{EXTENDED_RESULT, adapter, base, indexer_subscription};
 use crate::adapter::SourceAdapter;
 use crate::feed_adapter::{FeedFetcher, FetchedFeed};
-use crate::indexer::{
-    DEFAULT_LIMIT, IndexerAdapter, build_page_query, build_query, indexer_error, redact_query,
-};
+use crate::indexer::{DEFAULT_LIMIT, build_page_query, build_query, indexer_error, redact_query};
 use async_trait::async_trait;
 use std::sync::Arc;
 use url::Url;
@@ -121,7 +119,7 @@ async fn a_title_filter_is_never_sent_as_a_search_term() {
         "/^s0\\d/".to_owned(),
         "1080p".to_owned(),
     ];
-    IndexerAdapter::new(fetcher.clone(), Arc::new(StaticKey))
+    adapter(fetcher.clone())
         .poll(&subscription)
         .await
         .expect("poll");
@@ -157,7 +155,7 @@ async fn the_explicit_search_term_is_sent_and_the_title_filter_still_is_not() {
         hide_passworded: true,
         pretime: None,
     };
-    IndexerAdapter::new(fetcher.clone(), Arc::new(StaticKey))
+    adapter(fetcher.clone())
         .poll(&subscription)
         .await
         .expect("poll");

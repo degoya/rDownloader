@@ -1,4 +1,4 @@
-use super::{DEFAULT_LIMIT, IndexerAdapter, MAX_PAGES, SecretResolver};
+use super::{DEFAULT_LIMIT, FIRST_POLL_PAGES, IndexerAdapter, ItemArchive, SecretResolver};
 use crate::adapter::SourceAdapter;
 use crate::feed_adapter::{FeedFetcher, FetchedFeed};
 use async_trait::async_trait;
@@ -58,6 +58,42 @@ impl SecretResolver for StaticKey {
     }
 }
 
+/// The archive earlier polls left: the entries numbered `from` and up, when there are any.
+///
+/// The paging fakes number entries by their position at the time of the poll, newest first,
+/// so "known from 700 on" is a poll that finds 700 new entries above what it has.
+struct Archive {
+    from: Option<usize>,
+    asked: std::sync::Mutex<Vec<String>>,
+}
+
+fn archive(from: Option<usize>) -> Arc<Archive> {
+    Arc::new(Archive {
+        from,
+        asked: std::sync::Mutex::new(Vec::new()),
+    })
+}
+
+#[async_trait]
+impl ItemArchive for Archive {
+    async fn knows(
+        &self,
+        _subscription: rd_core::SubscriptionId,
+        key: &str,
+    ) -> anyhow::Result<bool> {
+        self.asked.lock().expect("lock").push(key.to_owned());
+        let number = key
+            .strip_prefix("id:id-")
+            .and_then(|number| number.parse::<usize>().ok());
+        Ok(matches!((self.from, number), (Some(from), Some(number)) if number >= from))
+    }
+}
+
+/// An adapter over `fetcher` whose subscription has archived nothing yet.
+fn adapter(fetcher: Arc<dyn FeedFetcher>) -> IndexerAdapter {
+    IndexerAdapter::new(fetcher, Arc::new(StaticKey), archive(None))
+}
+
 fn indexer_subscription() -> rd_core::Subscription {
     rd_core::Subscription {
         secret_ref: Some("vault://key".to_owned()),
@@ -71,7 +107,7 @@ fn indexer_subscription() -> rd_core::Subscription {
 }
 
 async fn poll_fixture(body: &'static str) -> crate::adapter::PollOutcome {
-    IndexerAdapter::new(Arc::new(StaticFetcher(body)), Arc::new(StaticKey))
+    adapter(Arc::new(StaticFetcher(body)))
         .poll(&indexer_subscription())
         .await
         .expect("poll")
@@ -95,6 +131,30 @@ struct PagingFetcher {
     requested: std::sync::Mutex<Vec<Url>>,
     fail_offset: Option<u32>,
     overlap: bool,
+    /// The offset answered with a `429` the fetcher turned into a pause (RD-1150-05).
+    rate_limit_offset: Option<u32>,
+    /// The offset answered with Newznab's "request limit reached" document.
+    request_limit_offset: Option<u32>,
+    /// Every page is the first, whatever `offset` asks for.
+    ignores_offset: bool,
+}
+
+/// A fetcher answering full or short pages of `counts` entries, nothing else special.
+fn paging(counts: Vec<usize>) -> PagingFetcher {
+    PagingFetcher {
+        counts,
+        requested: std::sync::Mutex::new(Vec::new()),
+        fail_offset: None,
+        overlap: false,
+        rate_limit_offset: None,
+        request_limit_offset: None,
+        ignores_offset: false,
+    }
+}
+
+/// When the fake's `429` asks to be left alone until.
+fn rate_limit_until() -> chrono::DateTime<chrono::Utc> {
+    chrono::DateTime::from_timestamp(4_102_444_800, 0).expect("instant")
 }
 
 #[async_trait]
@@ -106,13 +166,31 @@ impl FeedFetcher for PagingFetcher {
         _last_modified: Option<&str>,
     ) -> anyhow::Result<FetchedFeed> {
         self.requested.lock().expect("lock").push(url.clone());
-        let offset = url
+        let mut offset = url
             .query_pairs()
             .find(|(key, _)| key == "offset")
             .and_then(|(_, value)| value.parse::<u32>().ok())
             .expect("offset");
         if self.fail_offset == Some(offset) {
             anyhow::bail!("next page failed");
+        }
+        if self.rate_limit_offset == Some(offset) {
+            return Err(crate::RateLimited {
+                until: rate_limit_until(),
+            }
+            .into());
+        }
+        if self.request_limit_offset == Some(offset) {
+            return Ok(FetchedFeed {
+                body: Some(
+                    r#"<?xml version="1.0"?><error code="500" description="Request limit reached"/>"#
+                        .to_owned(),
+                ),
+                ..FetchedFeed::default()
+            });
+        }
+        if self.ignores_offset {
+            offset = 0;
         }
         let page = usize::try_from(offset / DEFAULT_LIMIT).expect("page");
         let count = self.counts.get(page).copied().unwrap_or_default();
@@ -131,15 +209,10 @@ impl FeedFetcher for PagingFetcher {
 
 #[tokio::test]
 async fn polling_uses_offsets_and_stops_after_a_short_page() {
-    let fetcher = Arc::new(PagingFetcher {
-        counts: vec![100, 3],
-        requested: std::sync::Mutex::new(Vec::new()),
-        fail_offset: None,
-        overlap: false,
-    });
+    let fetcher = Arc::new(paging(vec![100, 3]));
     let mut subscription = indexer_subscription();
     subscription.url = base("https://indexer.test/api?t=tvsearch&q=kept&cat=5040");
-    let outcome = IndexerAdapter::new(fetcher.clone(), Arc::new(StaticKey))
+    let outcome = adapter(fetcher.clone())
         .poll(&subscription)
         .await
         .expect("poll");
@@ -163,32 +236,39 @@ async fn polling_uses_offsets_and_stops_after_a_short_page() {
     }
 }
 
+/// A new subscription has no archive to meet: its first poll reads what every poll read
+/// before RD-1150-05, and the backlog policy decides about it.
 #[tokio::test]
-async fn polling_stops_at_five_full_pages() {
-    let fetcher = Arc::new(PagingFetcher {
-        counts: vec![100; usize::try_from(MAX_PAGES).expect("page count")],
-        requested: std::sync::Mutex::new(Vec::new()),
-        fail_offset: None,
-        overlap: false,
-    });
-    let outcome = IndexerAdapter::new(fetcher.clone(), Arc::new(StaticKey))
-        .poll(&indexer_subscription())
+async fn a_first_poll_stops_at_five_full_pages() {
+    let fetcher = Arc::new(paging(vec![100; 20]));
+    let subscription = rd_core::Subscription {
+        primed: false,
+        ..indexer_subscription()
+    };
+    let archive = archive(None);
+    let outcome = IndexerAdapter::new(fetcher.clone(), Arc::new(StaticKey), archive.clone())
+        .poll(&subscription)
         .await
         .expect("poll");
 
     assert_eq!(outcome.items.len(), 500);
-    assert_eq!(fetcher.requested.lock().expect("lock").len(), 5);
+    assert_eq!(
+        fetcher.requested.lock().expect("lock").len(),
+        usize::try_from(FIRST_POLL_PAGES).expect("pages")
+    );
+    assert!(
+        archive.asked.lock().expect("lock").is_empty(),
+        "a first poll has nothing to ask its archive"
+    );
 }
 
 #[tokio::test]
 async fn duplicate_hits_across_page_boundaries_are_kept_once() {
     let fetcher = Arc::new(PagingFetcher {
-        counts: vec![100, 2],
-        requested: std::sync::Mutex::new(Vec::new()),
-        fail_offset: None,
         overlap: true,
+        ..paging(vec![100, 2])
     });
-    let outcome = IndexerAdapter::new(fetcher, Arc::new(StaticKey))
+    let outcome = adapter(fetcher)
         .poll(&indexer_subscription())
         .await
         .expect("poll");
@@ -199,12 +279,10 @@ async fn duplicate_hits_across_page_boundaries_are_kept_once() {
 #[tokio::test]
 async fn a_failed_follow_up_page_fails_the_whole_poll() {
     let fetcher = Arc::new(PagingFetcher {
-        counts: vec![100, 100],
-        requested: std::sync::Mutex::new(Vec::new()),
         fail_offset: Some(100),
-        overlap: false,
+        ..paging(vec![100, 100])
     });
-    let error = IndexerAdapter::new(fetcher, Arc::new(StaticKey))
+    let error = adapter(fetcher)
         .poll(&indexer_subscription())
         .await
         .expect_err("second page should fail");
@@ -279,5 +357,7 @@ async fn an_announced_archive_password_is_kept_apart_from_the_attributes() {
     );
 }
 
+#[path = "indexer_overlap_tests.rs"]
+mod overlap;
 #[path = "indexer_query_tests.rs"]
 mod query;

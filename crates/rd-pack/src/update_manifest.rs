@@ -2,8 +2,9 @@
 //! manifest (RD-180-01).
 //!
 //! The format and its verification are `rd_update::manifest`; this builds one release's manifest
-//! from the release's `SHA256SUMS` (the hashes), the published files (their sizes) and the
-//! version's `CHANGELOG.md` section (the notes), signs it with the update key and writes it as
+//! from the release's `SHA256SUMS` (the hashes), the published files (their sizes), the
+//! version's `RELEASE-NOTES.md` section (the notes for users) and its `CHANGELOG.md` heading (the
+//! anchor of the full changes, RD-1150-02), signs it with the update key and writes it as
 //! the channel's asset name. The release workflow runs `build` after the checksums and `verify`
 //! over what it wrote, before both go to the release.
 //!
@@ -21,7 +22,7 @@ use chrono::{Duration, SubsecRound, Utc};
 use clap::{Args, Subcommand};
 use rd_update::{
     Artifact, Channel, UpdateManifest,
-    manifest::{self, DEFAULT_VALIDITY_DAYS, MAX_NOTES_CHARS, MAX_VALIDITY_DAYS, kind},
+    manifest::{self, DEFAULT_VALIDITY_DAYS, MAX_VALIDITY_DAYS, kind},
 };
 
 /// The environment variable the release workflow hands the update key in.
@@ -34,6 +35,9 @@ pub enum UpdateCommand {
     Manifest(ManifestCommand),
 }
 
+// `Build` carries every flag of the release step and `Verify` two paths; the value is parsed once
+// per command-line call, so boxing it would buy nothing.
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 pub enum ManifestCommand {
     /// Builds and signs the manifest of one release from its SHA256SUMS and files.
@@ -57,10 +61,14 @@ pub struct BuildArgs {
     /// The `https://` directory the files are downloaded from, ending in `/`.
     #[arg(long)]
     base_url: String,
-    /// `CHANGELOG.md`; the version's section, shortened to its entries' headlines, becomes the
-    /// notes.
+    /// `CHANGELOG.md`; the anchor of the version's `## [X.Y.Z] - YYYY-MM-DD` heading goes into
+    /// the manifest, which the interface links as the full changes at the tag.
     #[arg(long)]
     changelog: Option<PathBuf>,
+    /// `RELEASE-NOTES.md`; the version's section, its points for users, becomes the notes. A
+    /// section the rules refuse, or one still marked as a draft, stops the build.
+    #[arg(long)]
+    release_notes: Option<PathBuf>,
     /// Directory the manifest is written to, as `rdownloader-update-<channel>.json`.
     #[arg(long)]
     out: PathBuf,
@@ -165,21 +173,28 @@ async fn build(args: &BuildArgs) -> Result<()> {
     artifacts.sort_by(|left, right| {
         (&left.platform, &left.arch, &left.kind).cmp(&(&right.platform, &right.arch, &right.kind))
     });
-    let notes = match &args.changelog {
+    let notes = match &args.release_notes {
+        Some(path) => notes::user_notes(&read_text(path).await?, &version)?.unwrap_or_else(|| {
+            eprintln!(
+                "warning: {} has no section for {version}; the manifest carries no notes",
+                path.display()
+            );
+            String::new()
+        }),
+        None => String::new(),
+    };
+    let changelog_anchor = match &args.changelog {
         Some(path) => {
-            let text = tokio::fs::read_to_string(path)
-                .await
-                .with_context(|| format!("read {}", path.display()))?;
-            let notes = release_notes(&text, &version);
-            if notes.is_empty() {
+            let anchor = notes::changelog_anchor(&read_text(path).await?, &version);
+            if anchor.is_none() {
                 eprintln!(
-                    "warning: {} has no section for {version}; the manifest carries no notes",
+                    "warning: {} has no heading for {version}; the full changes link the file",
                     path.display()
                 );
             }
-            notes
+            anchor
         }
-        None => String::new(),
+        None => None,
     };
 
     let issued_at = Utc::now().trunc_subsecs(0);
@@ -196,6 +211,7 @@ async fn build(args: &BuildArgs) -> Result<()> {
         version: version.to_string(),
         released_at: issued_at,
         notes,
+        changelog_anchor,
         artifacts,
         schema_change: args.schema_change,
     };
@@ -338,48 +354,10 @@ fn portable_archive(lower: &str) -> Option<(&'static str, &'static str, &'static
     Some((platform, arch, kind::ARCHIVE))
 }
 
-/// The version's `CHANGELOG.md` section, shortened to its headings and each entry's headline.
-///
-/// The section of a pre-release falls back to its release's (`1.8.0-beta.1` → `1.8.0`), which
-/// is where the entries of a version in the making are written before it is out. The full text
-/// stays on the release page; the manifest carries what fits a notice.
-fn release_notes(changelog: &str, version: &semver::Version) -> String {
-    let base = format!("{}.{}.{}", version.major, version.minor, version.patch);
-    let section = section(changelog, &version.to_string()).or_else(|| section(changelog, &base));
-    let Some(section) = section else {
-        return String::new();
-    };
-    let mut lines: Vec<String> = Vec::new();
-    for line in section.lines() {
-        if let Some(heading) = line.strip_prefix("### ") {
-            lines.push(heading.trim().to_owned());
-        } else if let Some(entry) = line.strip_prefix("- ") {
-            let headline = entry
-                .strip_prefix("**")
-                .and_then(|bold| bold.split_once("**"))
-                .map_or(entry, |(headline, _)| headline);
-            lines.push(format!("- {}", headline.trim()));
-        }
-    }
-    let mut notes = lines.join("\n");
-    if notes.chars().count() > MAX_NOTES_CHARS {
-        notes = notes.chars().take(MAX_NOTES_CHARS - 1).collect();
-        notes.push('…');
-    }
-    notes
-}
-
-/// The lines under `## [version]` up to the next `## `.
-fn section<'a>(changelog: &'a str, version: &str) -> Option<&'a str> {
-    let marker = format!("## [{version}]");
-    let start = changelog
-        .match_indices(&marker)
-        .map(|(index, _)| index)
-        .find(|index| *index == 0 || changelog[..*index].ends_with('\n'))?;
-    let body = &changelog[start + marker.len()..];
-    let body = body.split_once('\n').map_or("", |(_, rest)| rest);
-    let end = body.find("\n## ").map_or(body.len(), |index| index + 1);
-    Some(&body[..end])
+async fn read_text(path: &Path) -> Result<String> {
+    tokio::fs::read_to_string(path)
+        .await
+        .with_context(|| format!("read {}", path.display()))
 }
 
 async fn verify(args: &VerifyArgs) -> Result<()> {
@@ -441,6 +419,9 @@ fn check_assets(verified: &UpdateManifest, directory: &Path) -> Result<()> {
     );
     Ok(())
 }
+
+#[path = "update_manifest_notes.rs"]
+mod notes;
 
 #[cfg(test)]
 #[path = "update_manifest_tests.rs"]

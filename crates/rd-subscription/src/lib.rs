@@ -55,8 +55,8 @@ pub use git_release_adapter::{
 };
 pub use identity::{ItemIdentity, item_key, normalize_url};
 pub use indexer::{
-    DEFAULT_LIMIT, IndexerAdapter, SecretResolver, build_caps_query, build_query, indexer_error,
-    redact_query,
+    DEFAULT_LIMIT, IndexerAdapter, ItemArchive, MAX_INDEXER_ITEMS, SecretResolver,
+    build_caps_query, build_query, indexer_error, redact_query,
 };
 pub use media_adapter::{MediaAdapter, parse_upload_date};
 pub use query::{IndexerQuery, IndexerSearchType, TypedSearch, build_indexer_query};

@@ -88,9 +88,26 @@ serve() {
     curl --fail --silent --show-error --max-time 10 --retry 300 --retry-delay 1 --retry-max-time 300 \
         --retry-connrefused --retry-all-errors \
         http://127.0.0.1:8710/api/v1/health > /dev/null || { cat "${run}/serve.log"; exit 1; }
-    kill "$(cat "${run}/serve.pid")"
-    while kill -0 "$(cat "${run}/serve.pid")" 2> /dev/null; do sleep 1; done
+    stop_service "$(cat "${run}/serve.pid")"
     test -s "${db}"
+}
+
+# Stopped means gone or a zombie: PID 1 of GitHub's job containers reaps nobody, so a service that
+# had already ended stayed a zombie, `kill -0` kept answering for it, and the loop waited until the
+# job was cancelled after 20 minutes (RD-1130-05, release 1.14.0's channels run). A minute, then
+# the service's log and a failure.
+stop_service() {
+    local pid="$1" waited=0 state
+    kill "${pid}" 2> /dev/null || true
+    while state="$(ps -o stat= -p "${pid}" 2> /dev/null)" && [[ -n "${state}" && "${state}" != Z* ]]; do
+        if (( waited >= ${RD_PUBLISHED_REPO_STOP_WAIT:-60} )); then
+            echo "::error::the service (pid ${pid}) did not stop within 60 s of SIGTERM"
+            cat "${run}/serve.log"
+            exit 1
+        fi
+        sleep 1
+        waited=$(( waited + 1 ))
+    done
 }
 
 upgraded=0

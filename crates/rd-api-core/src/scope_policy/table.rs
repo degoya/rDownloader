@@ -722,6 +722,11 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::PUT,
         CONFIG,
     ),
+    entry(
+        "/api/v1/subscriptions/{id}/items/requeue",
+        Method::POST,
+        CONFIG,
+    ),
     entry("/api/v1/subscriptions/{id}/poll", Method::POST, QUEUE),
     entry("/api/v1/subscriptions/{id}/runs", Method::GET, CONFIG),
     // Which build runs and what it ships (RD-130-12). Not public like the health check: the

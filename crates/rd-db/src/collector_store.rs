@@ -12,7 +12,7 @@ use crate::{error::StoreError, page_binds};
 mod intake;
 mod rows;
 
-pub(crate) use intake::add_batch;
+pub(crate) use intake::{ADDRESS_TAKEN, add_batch};
 use rows::BatchRow;
 pub(crate) use rows::{CANDIDATE_SELECT, CandidateRow, GET_CANDIDATE};
 

@@ -148,11 +148,15 @@ pub enum AuditAction {
     PasswordResetLocal,
     /// The download history was emptied (RD-1100-04); the queue and the files were left alone.
     HistoryCleared,
+    /// A subscription item that was already decided -- dismissed, skipped or queued before -- was
+    /// handed to the LinkGrabber again (RD-1150-04); `previous_state` names what it was, and
+    /// `duplicate` whether its address was still there and queued anyway.
+    SubscriptionItemRequeued,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 51] = [
+    pub const ALL: [Self; 52] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -204,6 +208,7 @@ impl AuditAction {
         Self::PasswordLoginChanged,
         Self::PasswordResetLocal,
         Self::HistoryCleared,
+        Self::SubscriptionItemRequeued,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -261,6 +266,7 @@ impl AuditAction {
             Self::PasswordLoginChanged => "password_login_changed",
             Self::PasswordResetLocal => "password_reset_local",
             Self::HistoryCleared => "history_cleared",
+            Self::SubscriptionItemRequeued => "subscription_item_requeued",
         }
     }
 

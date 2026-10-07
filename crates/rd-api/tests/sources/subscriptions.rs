@@ -11,6 +11,9 @@ use axum::http::StatusCode;
 use common::{delete_json, get_json, post_json, put_json, test_harness, test_router};
 use serde_json::{Value, json};
 
+/// Queueing items again (RD-1150-04).
+mod requeue;
+
 fn body(name: &str) -> Value {
     json!({
         "name": name,
@@ -1134,8 +1137,8 @@ fn script_body(name: &str, script: &str) -> Value {
     })
 }
 
-/// A category, with the storage root a bare harness does not have yet.
-#[cfg(unix)]
+/// A category, with the storage root a bare harness does not have yet. Not tied to unix: the
+/// script cases use it there, the requeue cases (RD-1150-04) on every platform.
 async fn script_category(router: &axum::Router, directory: &std::path::Path) -> String {
     let path = directory.join("downloads");
     std::fs::create_dir_all(&path).expect("downloads");

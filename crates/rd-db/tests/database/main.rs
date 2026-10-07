@@ -34,5 +34,6 @@ mod storage_root_defaults;
 mod subscription_events;
 mod subscription_filters;
 mod subscription_git_release;
+mod subscription_known_items;
 mod transform_key;
 mod vault_references;

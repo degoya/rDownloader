@@ -129,6 +129,16 @@ pub async fn set_subscription_item_state(
 /// so the review list still shows it and the action can be repeated. The reverse order would
 /// leave a row claiming to be queued with nothing behind it.
 async fn queue_reviewed_item(state: &AppState, id: SubscriptionItemId) -> Result<(), ApiError> {
+    let (item, subscription) = item_with_subscription(state, id).await?;
+    let url = item_download_address(state, &subscription, &item).await?;
+    hand_item_to_intake(state, &subscription, &item, url).await
+}
+
+/// One item and the subscription it belongs to, each a coded 404 when it is gone.
+pub(super) async fn item_with_subscription(
+    state: &AppState,
+    id: SubscriptionItemId,
+) -> Result<(rd_core::SubscriptionItem, Subscription), ApiError> {
     let item = state
         .database
         .subscription_item(id)
@@ -143,19 +153,39 @@ async fn queue_reviewed_item(state: &AppState, id: SubscriptionItemId) -> Result
         .await
         .map_err(ApiError::from)?
         .ok_or_else(|| ApiError::not_found("subscription.not_found", "Subscription not found"))?;
-    let category_id = subscription.category_for(item.source_category.as_deref());
-    // A private repository's file is resolved with the token now, at the moment it is handed
-    // over; the address that answers without one is valid for minutes (RD-190-13).
-    let url = state
+    Ok((item, subscription))
+}
+
+/// The address the item is fetched from now.
+///
+/// A private repository's file is resolved with the token at the moment it is handed over; the
+/// address that answers without one is valid for minutes (RD-190-13).
+pub(super) async fn item_download_address(
+    state: &AppState,
+    subscription: &Subscription,
+    item: &rd_core::SubscriptionItem,
+) -> Result<url::Url, ApiError> {
+    state
         .subscriptions
-        .download_address(&subscription, &item.url)
+        .download_address(subscription, &item.url)
         .await
         .map_err(|error| {
             ApiError::bad_gateway(
                 "subscription.download_address_unavailable",
                 rd_core::redact_text(&error.to_string()),
             )
-        })?;
+        })
+}
+
+/// The one way an item reaches the LinkGrabber after review: the subscription's category, the
+/// intake's routing and naming rules, and the declared name, password and attributes.
+pub(super) async fn hand_item_to_intake(
+    state: &AppState,
+    subscription: &Subscription,
+    item: &rd_core::SubscriptionItem,
+    url: url::Url,
+) -> Result<(), ApiError> {
+    let category_id = subscription.category_for(item.source_category.as_deref());
     let intake = crate::subscription_service::SubscriptionIntake {
         database: &state.database,
         link_check: &state.link_check,

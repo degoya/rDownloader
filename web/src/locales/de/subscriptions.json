@@ -145,7 +145,7 @@
     },
     "filter": "Anzeigen",
     "filter_all": "Alle",
-    "page_limit": "Diese Prüfung hat die Grenze von {limit} Treffern über fünf Indexer-Seiten erreicht. Der Titelfilter greift danach; noch ältere Treffer konnten daher fehlen. Engere Kategorien helfen, das Ergebnis gezielter zu machen.",
+    "page_limit": "Diese Prüfung hat {limit} Indexer-Treffer durchgeblättert, ohne auf einen schon bekannten zu stoßen – seit der letzten Prüfung erschienene Einträge können daher fehlen. Wähle eine engere Kategorie oder ein kürzeres Intervall, um die Lücke zu schließen.",
     "show_cover": "Coverbild groß anzeigen",
     "hide_cover": "Vergrößertes Coverbild schließen"
   },
@@ -162,7 +162,11 @@
     "hide_details": "Details ausblenden",
     "enable": "Abonnement aktivieren",
     "disable": "Abonnement deaktivieren",
-    "menu": "Aktionen für das Abo"
+    "menu": "Aktionen für das Abo",
+    "requeue": "Erneut einreihen",
+    "requeue_selected": "Ausgewählte erneut einreihen ({count})",
+    "select_item": "„{title}“ auswählen",
+    "select_page": "Alle Einträge dieser Seite auswählen, die sich erneut einreihen lassen"
   },
   "remove": {
     "title": "Abonnement löschen?",
@@ -179,5 +183,13 @@
     "poll_start_failed": "Die Prüfung von „{name}\" ließ sich nicht anstoßen: {error}",
     "poll_finished": "Prüfung von „{name}\" fertig: {found} gefunden, {accepted} angenommen, {skipped} übersprungen.",
     "poll_failed": "Prüfung von „{name}\" fehlgeschlagen: {error}"
+  },
+  "requeue": {
+    "no_source": "Zu diesem Eintrag ist kein Link und keine NZB gespeichert",
+    "duplicate_title": "Schon im LinkGrabber oder in der Liste",
+    "duplicate_description": "{count} Eintrag ist noch im LinkGrabber oder in der Download-Liste. Trotzdem erneut einreihen? Der LinkGrabber markiert ihn dann als Duplikat. | {count} Einträge sind noch im LinkGrabber oder in der Download-Liste. Trotzdem erneut einreihen? Der LinkGrabber markiert sie dann als Duplikate.",
+    "duplicate_confirm": "Trotzdem einreihen",
+    "done": "{count} Eintrag erneut eingereiht. | {count} Einträge erneut eingereiht.",
+    "partial": "{requeued} erneut eingereiht, {refused} nicht: {reason}"
   }
 }

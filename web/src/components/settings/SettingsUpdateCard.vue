@@ -3,9 +3,10 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
-import type { CaptureAgentVersion } from '@/api/updates'
+import { INSTALL_ENDED, type CaptureAgentVersion, type UpdateInstall } from '@/api/updates'
 import SectionHeader from '@/components/SectionHeader.vue'
 import UpdateDetailsModal from '@/components/UpdateDetailsModal.vue'
+import UpdateAvailableNotice from '@/components/settings/UpdateAvailableNotice.vue'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
 import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
@@ -17,7 +18,8 @@ import { WHOLE } from '@/utils/numberInput'
  * channel it reads, what it found, and "check now". The three settings are fields of the
  * settings document and are saved with it; the check itself runs on the service. Beside the
  * running version, the versions of the running capture agents and, for one older than the
- * service, how to restart it (RD-190-07).
+ * service, how to restart it (RD-190-07). A newer version stands at the top of the card, with its
+ * actions (RD-1150-01).
  */
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -45,10 +47,21 @@ const lastError = computed(() => {
   return status.value?.error_code ? translateServerMessage({ code: status.value.error_code }) : null
 })
 
+/**
+ * Whether an ended update still says something about the running version (RD-1150-01): "Updated
+ * to 1.11.0" under 1.12.0 is history. A done update fits while its version runs, a failed or
+ * rolled-back one while the version it started from, or the one it aimed at, runs.
+ */
+function fitsRunning(install: UpdateInstall, current: string): boolean {
+  if (!INSTALL_ENDED.includes(install.state)) return true
+  if (install.state === 'done') return install.target_version === current
+  return install.from_version === current || install.target_version === current
+}
+
 /** How the last self-update ended, or where the running one stands (RD-180-02). */
 const lastInstall = computed(() => {
   const install = status.value?.install
-  if (!install) return null
+  if (!install || !fitsRunning(install, status.value?.current_version ?? '')) return null
   const text = t(`system.updates.install.state.${install.state}`, {
     version: install.target_version,
     from: install.from_version
@@ -112,6 +125,14 @@ async function checkNow(): Promise<void> {
       :description="t('system.updates.not_configured')"
     />
 
+    <UpdateAvailableNotice
+      v-if="status?.available"
+      class="mt-4"
+      :offer="status.available"
+      :kind="status.install_kind"
+      @details="detailsOpen = true"
+    />
+
     <div v-if="status" class="mt-4 grid gap-1 text-sm" data-testid="update-status" aria-live="polite">
       <p class="text-highlighted">
         {{ t('system.updates.current', { version: status.current_version }) }}
@@ -124,13 +145,7 @@ async function checkNow(): Promise<void> {
         {{ status.last_checked_at ? t('system.updates.last_checked', { when: formatMoment(status.last_checked_at) }) : t('system.updates.never_checked') }}
         <template v-if="status.next_check_at"> · {{ t('system.updates.next_check', { when: formatMoment(status.next_check_at) }) }}</template>
       </p>
-      <div v-if="status.available" class="mt-2 flex flex-wrap items-center gap-3" data-testid="update-available">
-        <UBadge color="primary" variant="subtle" icon="i-lucide-sparkles">
-          {{ t('system.updates.available', { version: status.available.version }) }}
-        </UBadge>
-        <UButton size="xs" color="neutral" variant="link" :label="t('system.updates.show_details')" @click="detailsOpen = true" />
-      </div>
-      <p v-else-if="status.last_checked_at && !status.error_code" class="mt-2 text-success" data-testid="update-current">
+      <p v-if="!status.available && status.last_checked_at && !status.error_code" class="mt-2 text-success" data-testid="update-current">
         {{ t('system.updates.up_to_date') }}
       </p>
       <p v-if="lastInstall" class="mt-2" :class="lastInstall.failed ? 'text-error' : 'text-toned'" data-testid="update-install-last">{{ lastInstall.text }}</p>

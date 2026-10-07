@@ -627,14 +627,13 @@
     "next_check": "Próxima comprobación: {when}",
     "up_to_date": "Tienes la versión más reciente.",
     "available": "La versión {version} está disponible",
-    "show_details": "Detalles",
     "not_configured": "Esta compilación no lleva clave de actualización; la comprobación está desactivada.",
     "modal": {
       "title": "rDownloader {version}",
       "released": "Publicada: {when}",
       "notes": "Novedades",
       "no_notes": "Esta versión no tiene notas.",
-      "full_notes": "Notas completas de la versión",
+      "full_changes": "Cambios completos",
       "download": "Descargar",
       "download_hint": "Sustituye los archivos del programa de esta instalación por la nueva versión; tus ajustes y descargas se quedan donde están.",
       "command_hint": "{kind} gestiona esta instalación. Actualízala con:",
@@ -645,7 +644,8 @@
       "rollback_automatic": "Si la nueva versión no arranca bien, la anterior vuelve por sí sola.",
       "rollback_unavailable": "Esta actualización con el instalador de Windows no se puede deshacer sola: no se guardó el instalador de la versión actual. A partir de la próxima actualización sí.",
       "download_package": "Descargar el paquete",
-      "download_manual": "Descargar manualmente"
+      "download_manual": "Descargar manualmente",
+      "release_page": "Página de la versión"
     },
     "hints": {
       "aur_helper": "Con paru: paru -S rdownloader-bin",
@@ -688,7 +688,8 @@
       "unknown": "anterior a 1.9",
       "outdated_title": "Reinicia el agente de captura",
       "outdated_description": "Un agente de captura sigue en la versión {agent} y rDownloader ya en {service}. Desde la 1.8.1, el agente se reinicia solo en menos de un minuto tras una actualización. Si no lo hace —porque es más antiguo o lo inició otro usuario—, ciérralo desde su icono de la bandeja o en el Administrador de tareas y vuelve a iniciarlo; en Linux, systemctl --user restart rdownloader-capture hace ambas cosas."
-    }
+    },
+    "whats_new": "Novedades"
   },
   "oidc": {
     "eyebrow": "Proveedor de identidad",

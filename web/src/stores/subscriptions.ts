@@ -12,6 +12,7 @@ import type {
   SubscriptionHistoryClearResponse,
   SubscriptionItemState,
   SubscriptionRequest,
+  SubscriptionRequeueResponse,
   SubscriptionRun
 } from '@/api/types'
 
@@ -266,6 +267,30 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
     return response.data
   }
 
+  /**
+   * Queues items of one subscription again, whatever was decided about them (RD-1150-04).
+   * The server answers per item; a refused one keeps its state, and one whose address is still
+   * in the LinkGrabber or the list comes back as `subscription.item_duplicate` unless
+   * `allowDuplicate` says to queue it anyway.
+   */
+  async function requeueItems(
+    subscriptionId: string,
+    itemIds: string[],
+    allowDuplicate = false
+  ): Promise<SubscriptionRequeueResponse | null> {
+    const response = await api.POST('/api/v1/subscriptions/{id}/items/requeue', {
+      params: { path: { id: subscriptionId } },
+      body: { item_ids: itemIds, allow_duplicate: allowDuplicate }
+    })
+    if (!response.data) {
+      error.value = responseError(response)
+      return null
+    }
+    await reloadItems(subscriptionId)
+    await loadReviewSummary()
+    return response.data
+  }
+
   async function clearHistory(id: string): Promise<SubscriptionHistoryClearResponse | null> {
     const response = await api.DELETE('/api/v1/subscriptions/{id}/history', {
       params: { path: { id } }
@@ -307,6 +332,7 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
     pollNow,
     setItemState,
     setPendingItemStates,
+    requeueItems,
     clearHistory
   }
 })
