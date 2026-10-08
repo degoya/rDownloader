@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     format::{PackageSource, RuleError},
-    step::{Step, check_pattern, check_variable},
+    step::{MAX_STEPS, Step, check_pattern, check_variable},
 };
 
 /// Most attributes one `pick` may read per entry.
@@ -113,6 +113,9 @@ impl Groups {
         check_variable(self.entry_variable())?;
         if self.steps.is_empty() {
             return Err(RuleError::NoGroupSteps);
+        }
+        if self.steps.len() > MAX_STEPS {
+            return Err(RuleError::TooManyGroupSteps(MAX_STEPS));
         }
         for step in &self.steps {
             step.validate()?;

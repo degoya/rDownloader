@@ -11,11 +11,11 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, LinkStatus};
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest, Resolver, ResolverHost,
 };
+use rd_plugin_types::{AccountId, LinkStatus};
 
 use super::SeedrResolver;
 

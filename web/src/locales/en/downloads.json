@@ -141,7 +141,11 @@
     "hand_over": "Hand to provider",
     "hand_over_hint": "The provider fetches this package's NZB from Usenet itself; the finished files come back into the LinkGrabber as links. The package stays here.",
     "handed_over": "Handed to {provider}",
-    "handed_over_hint": "Open remote jobs"
+    "handed_over_hint": "Open remote jobs",
+    "waiting_for_parts": "Waiting for missing files",
+    "waiting_for_parts_title": "Post-processing starts only once every file of the package has arrived.",
+    "reset_failed": "Reset failed and blocked files",
+    "reset_failed_hint": "{count} file of this package | {count} files of this package"
   },
   "transfer": {
     "actions_aria": "File actions",
@@ -438,5 +442,30 @@
     "title": "Torrents paused by the kill switch",
     "description": "The bound interface {name} is gone. Torrents stay paused until it returns; other downloads carry on.",
     "open": "Network status"
+  },
+  "traffic": {
+    "one": "Traffic of {account} used up · next check {time}",
+    "many": "Traffic of {count} accounts used up · next check {time}",
+    "queue_paused": "Queue paused: traffic of {account} used up · next check {time}",
+    "entry": "{account}: waits until {until} at the latest",
+    "title": "The hoster reports the traffic quota as used up. The downloads wait and continue as soon as a check finds traffic again or the wait ends.",
+    "continue": "Continue anyway"
+  },
+  "reset_failed": {
+    "button": "Reset failed",
+    "hint": "Start the failed or blocked files of the shown list over",
+    "failed": "Failed ({count})",
+    "blocked": "Blocked ({count})",
+    "both": "Failed and blocked ({count})",
+    "done": "{count} file reset | {count} files reset"
+  },
+  "view_sort": {
+    "title": "View sorted – queue unchanged",
+    "description": "By “{column}”, {direction}. Downloads still run in queue order; dragging to reorder is off while the view is sorted.",
+    "asc": "ascending",
+    "desc": "descending",
+    "category": "Category",
+    "reset": "Back to queue order",
+    "drag_off": "The view is sorted – reset it to reorder the queue."
   }
 }

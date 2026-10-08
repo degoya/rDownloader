@@ -92,7 +92,9 @@
       "confirm": "Reemplazar configuración",
       "button": "Importar y reemplazar",
       "success": "Ajustes restaurados",
-      "success_description": "Se importaron {count} entradas de configuración."
+      "success_description": "Se importaron {count} entradas de configuración.",
+      "password": "Contraseña de administrador",
+      "password_hint": "Sustituir la configuración vuelve a pedir la contraseña."
     },
     "full": {
       "eyebrow": "Copia completa",
@@ -179,7 +181,16 @@
           "interrupted": "Interrumpida"
         },
         "verifications": "Verificaciones",
-        "digest_only": "solo suma de verificación (frase anterior)"
+        "digest_only": "solo suma de verificación (frase anterior)",
+        "stored_key": "comprobado con la clave guardada, no con la frase de contraseña",
+        "passphrase_check": {
+          "action": "Verificar con la frase de contraseña",
+          "title": "Verificar con la frase de contraseña",
+          "description": "«Verificar el más reciente» usa la clave guardada para la programación. Una restauración solo pide la frase de contraseña, y una frase perdida no se puede recuperar. Aquí se abre el archivo más reciente con la frase.",
+          "hint": "El archivo se lee entero; no se escribe nada.",
+          "submit": "Abrir el archivo",
+          "ok": "La frase de contraseña abre {name} (creado {date})."
+        }
       },
       "run": {
         "button": "Copiar ahora",
@@ -281,6 +292,10 @@
         "label": "Entiendo: en el próximo inicio esta copia sustituye toda la instalación. El estado actual se conserva hasta que el restaurado haya arrancado una vez.",
         "action": "Restaurar en el próximo inicio",
         "staged": "Restauración preparada. Reinicia rDownloader para cambiar."
+      },
+      "password": {
+        "label": "Contraseña de administrador",
+        "hint": "La restauración sustituye la contraseña, las llaves de acceso y los tokens en el próximo inicio, por eso vuelve a pedir la contraseña."
       }
     }
   },

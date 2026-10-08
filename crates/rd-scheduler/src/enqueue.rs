@@ -449,32 +449,41 @@ impl SchedulerHandle {
                 enrichment: Vec::new(),
             })
             .await?;
-        let file = self
-            .database
-            .create_download(NewDownload {
-                id: DownloadId::new(),
-                package_id,
-                source,
-                file_name: rd_files::sanitize_file_name(&file_name),
-                total_bytes: None,
-                expected_checksum: None,
-                account_id,
-                proxy_profile_id,
-                auth_profile: rd_core::AuthProfileSelection::Auto,
-                initial_state: if options.paused {
-                    DownloadState::Paused
-                } else {
-                    DownloadState::Queued
-                },
-                kind: rd_core::DownloadKind::Http,
-                media: None,
-                remote_credential_id: None,
-                mirror_group: None,
-                enrichment: Vec::new(),
-                replay: None,
-                secret_fragment: None,
-            })
-            .await?;
+        // A stranger's address is held to the rule through its source row (RD-1190-18).
+        let held = options
+            .address_reach
+            .and_then(|local_network| rd_core::SourceSet::of_link(&source, local_network));
+        let download = NewDownload {
+            id: DownloadId::new(),
+            package_id,
+            source,
+            file_name: rd_files::sanitize_file_name(&file_name),
+            total_bytes: None,
+            expected_checksum: None,
+            account_id,
+            proxy_profile_id,
+            auth_profile: rd_core::AuthProfileSelection::Auto,
+            initial_state: if options.paused {
+                DownloadState::Paused
+            } else {
+                DownloadState::Queued
+            },
+            kind: rd_core::DownloadKind::Http,
+            media: None,
+            remote_credential_id: None,
+            mirror_group: None,
+            enrichment: Vec::new(),
+            replay: None,
+            secret_fragment: None,
+        };
+        let file = match held {
+            Some(set) => {
+                self.database
+                    .create_download_with_sources(download, set)
+                    .await?
+            }
+            None => self.database.create_download(download).await?,
+        };
         announce_created(&self.database, package_id, std::slice::from_ref(&file)).await;
         Ok(file)
     }

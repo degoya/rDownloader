@@ -2,8 +2,8 @@
 //! link refused before any request. Split from `flow_tests.rs` to keep both files under the
 //! crate layout's 500 lines.
 
-use rd_core::FailureKind;
 use rd_plugin_api::{ClientIdentity, ResolveRequest, Resolver};
+use rd_plugin_types::FailureKind;
 
 use super::super::KrakenfilesResolver;
 use super::{
@@ -43,7 +43,7 @@ async fn an_account_on_the_request_is_ignored() {
         .resolve(ResolveRequest {
             url: CANONICAL_LINK.parse().expect("url"),
             client: ClientIdentity {
-                account_id: Some(rd_core::AccountId::new()),
+                account_id: Some(rd_plugin_types::AccountId::new()),
                 proxy_profile_id: None,
                 tls_revision: 3,
             },

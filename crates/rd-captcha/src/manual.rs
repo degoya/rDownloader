@@ -150,6 +150,11 @@ struct Waiting {
     sender: oneshot::Sender<Reply>,
 }
 
+/// How many challenges may wait for a person at once (RD-1190-22). Every paste could start
+/// another single-stage site rule's captcha, and nothing bounded the queue; a person answers
+/// a handful at a time, so a challenge past this is refused at once rather than queued.
+pub(crate) const MAX_WAITING: usize = 64;
+
 /// Registry of challenges awaiting an answer. Purely in-memory: a restart drops them, and
 /// the resolvers waiting on them fail with the download they belong to.
 #[derive(Clone, Default)]
@@ -180,6 +185,19 @@ impl ManualQueue {
             );
         }
         (description, receiver)
+    }
+
+    /// Whether [`MAX_WAITING`] challenges wait already; the expired ones do not count.
+    pub(crate) fn is_full(&self) -> bool {
+        let Ok(waiting) = self.waiting.lock() else {
+            return true;
+        };
+        let now = Utc::now();
+        waiting
+            .values()
+            .filter(|entry| entry.description.expires_at > now)
+            .count()
+            >= MAX_WAITING
     }
 
     /// Every challenge still waiting, oldest first.

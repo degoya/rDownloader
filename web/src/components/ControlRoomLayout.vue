@@ -15,6 +15,7 @@ import { useAppShortcuts } from '@/composables/useAppShortcuts'
 import { useAppTour } from '@/composables/useAppTour'
 import { serviceConnection } from '@/composables/serviceConnection'
 import { useConnectionNotices } from '@/composables/useConnectionNotices'
+import { useSitePickNotice } from '@/composables/useSitePickNotice'
 import { useVersionNotice } from '@/composables/useVersionNotice'
 import { useFileImportDropZone } from '@/composables/useNzbDropZone'
 import { sidebarCollapsed } from '@/composables/sidebarCollapse'
@@ -48,6 +49,8 @@ useAppShortcuts()
 useConnectionNotices()
 // The toast when the service runs another version than this page (RD-1120-16).
 useVersionNotice()
+// The toast when another intake listed a page whose releases wait for a choice (RD-1190-17).
+useSitePickNotice()
 const connected = computed(() => serviceConnection.value === 'connected')
 const connectionLabel = computed(() => t(connected.value ? 'nav.connected' : 'nav.connection.lost'))
 // The listen port is configurable, so the address has to come from the connection the user

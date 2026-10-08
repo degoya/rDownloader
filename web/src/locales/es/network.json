@@ -61,7 +61,8 @@
     "credential_mode_oauth": "Conectar con un código",
     "no_providers": "Ningún plugin de cuentas está activo. Activa los plugins de hoster en Ajustes → Plugins.",
     "connect_polling": "rDownloader sigue consultando a {provider} en segundo plano hasta que confirmes o el código caduque.",
-    "connect_expires": "El código es válido hasta {time}."
+    "connect_expires": "El código es válido hasta {time}.",
+    "traffic_held": "Tráfico agotado · próxima comprobación {time}"
   },
   "hosters": {
     "toggle": "Hosters compatibles",

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { hintKey, type InstallKind, releaseNotePoints, type UpdateOffer } from '@/api/updates'
+import { hintKey, type InstallKind, offerLinks, releaseNotePoints, type UpdateOffer } from '@/api/updates'
 import CopyField from '@/components/CopyField.vue'
 import { useUpdateActions } from '@/composables/useUpdateActions'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
@@ -34,6 +34,7 @@ const {
 
 const kindLabel = computed(() => t(`system.updates.kind.${props.kind}`))
 const notePoints = computed(() => releaseNotePoints(props.offer?.notes ?? ''))
+const links = computed(() => (props.offer ? offerLinks(props.offer) : null))
 
 const progressText = computed(() => {
   const install = progress.value
@@ -103,11 +104,11 @@ function reload(): void {
             </ul>
             <p v-else class="mt-2 text-sm text-muted">{{ t('system.updates.modal.no_notes') }}</p>
             <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              <ULink :to="offer.changelog_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary" data-testid="update-changelog">
+              <ULink v-if="links?.changelog" :to="links.changelog" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary" data-testid="update-changelog">
                 {{ t('system.updates.modal.full_changes') }}
                 <UIcon name="i-lucide-external-link" class="size-3.5" />
               </ULink>
-              <ULink :to="offer.release_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary" data-testid="update-release-page">
+              <ULink v-if="links?.release" :to="links.release" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-primary" data-testid="update-release-page">
                 {{ t('system.updates.modal.release_page') }}
                 <UIcon name="i-lucide-external-link" class="size-3.5" />
               </ULink>
@@ -118,8 +119,8 @@ function reload(): void {
             <CopyField class="mt-2" :value="offer.command" :label="t('system.updates.modal.copy')" icon-only />
             <p v-if="offer.hint" class="mt-2 text-xs text-muted">{{ t(hintKey(offer.hint)) }}</p>
             <ULink
-              v-if="offer.download_url && (kind === 'deb' || kind === 'rpm')"
-              :to="offer.download_url"
+              v-if="links?.download && (kind === 'deb' || kind === 'rpm')"
+              :to="links.download"
               target="_blank"
               rel="noopener"
               class="mt-2 inline-flex items-center gap-1 text-sm text-primary"
@@ -160,8 +161,8 @@ function reload(): void {
             <p v-else-if="downloadFailure" class="mt-2 text-sm text-error" data-testid="update-download-failed">{{ fetchedReason }}</p>
             <p v-if="refusal" class="mt-2 text-sm text-error" data-testid="update-install-refused">{{ refusal }}</p>
             <ULink
-              v-if="offer.download_url"
-              :to="offer.download_url"
+              v-if="links?.download"
+              :to="links.download"
               target="_blank"
               rel="noopener"
               class="mt-3 inline-flex items-center gap-1 text-xs text-muted"
@@ -211,10 +212,10 @@ function reload(): void {
         />
       </template>
       <UButton
-        v-else-if="offer && offer.action === 'download'"
+        v-else-if="offer && offer.action === 'download' && links?.get"
         icon="i-lucide-download"
         :label="t('system.updates.modal.download')"
-        :to="offer.download_url ?? offer.release_url"
+        :to="links.get"
         target="_blank"
         rel="noopener"
       />

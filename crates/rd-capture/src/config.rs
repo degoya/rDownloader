@@ -172,15 +172,23 @@ fn load_from(
     token: Option<String>,
 ) -> Result<Connection> {
     let service = match service {
-        Some(explicit) => checked_service(explicit)?,
+        // `--service` and `RDOWNLOADER_SERVICE` have no way out of the rule (RD-1190-22): plain
+        // http off this machine is accepted only from a pairing that said so.
+        Some(explicit) => {
+            let explicit = checked_service(explicit)?;
+            ensure_transport_is_safe(&explicit, false).context(
+                "--service and RDOWNLOADER_SERVICE take only https or loopback; for a network \
+                 you trust, pair with `configure --allow-insecure-service` instead",
+            )?;
+            explicit
+        }
         None => match read_public_config(directory)? {
             Some(config) => config.service,
             None => default_service(),
         },
     };
-    // An agent paired before RD-109-04, or one paired with --allow-insecure-service, keeps
-    // working -- the rule is enforced at pairing time and nothing existing is broken by it.
-    // It says so on every start rather than never, which is the whole difference.
+    // A pairing made with --allow-insecure-service keeps working; it says so on every start
+    // rather than never, which is the whole difference.
     if ensure_transport_is_safe(&service, false).is_err() {
         tracing::warn!(
             %service,
@@ -349,8 +357,9 @@ fn save_fallback_token(directory: &std::path::Path, token: &str) -> Result<()> {
         .write(true)
         .mode(0o600)
         .open(&path)?;
+    // `mode` applies to a new file only; an existing one is narrowed before the token is in it.
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
     file.write_all(token.as_bytes())?;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     Ok(())
 }
 

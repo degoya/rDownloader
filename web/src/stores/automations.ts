@@ -16,7 +16,7 @@ import type {
 } from '@/api/types'
 
 /** The editor's form as a dry run judges it (`DryRunDraft` on the server, RD-1120-17). */
-export interface AutomationDraftProbe {
+interface AutomationDraftProbe {
   /** The saved automation the form edits; absent for one not saved yet. */
   automation_id?: string | undefined
   trigger: string

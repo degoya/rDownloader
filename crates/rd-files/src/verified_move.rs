@@ -164,17 +164,7 @@ pub async fn copy_verified(from: &Path, to: &Path) -> Result<PlacedCopy, Verifie
     // Whatever an earlier, stopped copy left under the temporary name is not trusted.
     discard(&temporary).await;
     let result = async {
-        let size_bytes = tokio::fs::copy(from, &temporary).await.map_err(io)?;
-        // Opened for writing: Windows flushes a file only through a handle with write access
-        // and answers a read-only one with "Access is denied".
-        tokio::fs::OpenOptions::new()
-            .write(true)
-            .open(&temporary)
-            .await
-            .map_err(io)?
-            .sync_all()
-            .await
-            .map_err(io)?;
+        let size_bytes = copy_into_new(from, &temporary).await.map_err(io)?;
         let original = sha256(from).await?;
         if sha256(&temporary).await? != original {
             return Err(VerifiedMoveError::Mismatch(from.to_path_buf()));
@@ -191,6 +181,26 @@ pub async fn copy_verified(from: &Path, to: &Path) -> Result<PlacedCopy, Verifie
         discard(&temporary).await;
     }
     result
+}
+
+/// Copies `from` into a file created at `to`, which must not exist: `create_new` neither
+/// follows nor replaces a link somebody put under the predictable name after it was cleared
+/// (RD-1190-19) — `tokio::fs::copy` would have written through it. The copy keeps the
+/// original's permissions and is synced before it is hashed.
+async fn copy_into_new(from: &Path, to: &Path) -> std::io::Result<u64> {
+    let mut source = tokio::fs::File::open(from).await?;
+    let permissions = source.metadata().await?.permissions();
+    // Opened for writing: Windows flushes a file only through a handle with write access and
+    // answers a read-only one with "Access is denied".
+    let mut target = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(to)
+        .await?;
+    let size_bytes = tokio::io::copy(&mut source, &mut target).await?;
+    target.sync_all().await?;
+    target.set_permissions(permissions).await?;
+    Ok(size_bytes)
 }
 
 async fn discard(path: &Path) {
@@ -337,5 +347,26 @@ mod tests {
         )
         .await
         .expect("nothing to release");
+    }
+
+    /// RD-1190-19: a link put under the temporary name between its removal and the copy is
+    /// refused, not written through — `tokio::fs::copy` followed it into any file the service
+    /// may write.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_link_under_the_temporary_name_is_not_written_through() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let from = directory.path().join("archive.bin");
+        std::fs::write(&from, b"archive").expect("write");
+        let victim = directory.path().join("victim.txt");
+        std::fs::write(&victim, b"untouched").expect("write");
+        let temporary = move_temporary_of(&directory.path().join("target.bin"));
+        std::os::unix::fs::symlink(&victim, &temporary).expect("link");
+
+        let refused = super::copy_into_new(&from, &temporary)
+            .await
+            .expect_err("refused");
+        assert_eq!(refused.kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read(&victim).expect("read"), b"untouched");
     }
 }

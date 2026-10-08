@@ -18,10 +18,12 @@ use crate::{
 };
 use rd_api_core::list_bounds::{total_header, validate_bulk};
 
+mod bulk_filter;
 mod bulk_removal;
 mod create;
 mod summary;
 
+pub use bulk_filter::apply_download_action_to;
 pub use create::*;
 pub use summary::*;
 
@@ -78,7 +80,8 @@ pub async fn bulk_downloads(
     Json(request): Json<DownloadBulkRequest>,
 ) -> Result<Json<DownloadBulkResponse>, ApiError> {
     Ok(Json(
-        apply_download_action(&state, request.action, request.ids).await?,
+        bulk_filter::apply_download_action_to(&state, request.action, request.ids, request.filter)
+            .await?,
     ))
 }
 
@@ -88,6 +91,15 @@ pub async fn apply_download_action(
     ids: Vec<DownloadId>,
 ) -> Result<DownloadBulkResponse, ApiError> {
     validate_bulk(ids.len())?;
+    Ok(act_on_ids(state, action, ids).await)
+}
+
+/// The action on every id, each refusal reported in the answer rather than failing the batch.
+async fn act_on_ids(
+    state: &AppState,
+    action: DownloadBulkAction,
+    ids: Vec<DownloadId>,
+) -> DownloadBulkResponse {
     let mut affected = 0_u32;
     let mut errors = Vec::new();
     let mut refusals = Vec::new();
@@ -111,11 +123,11 @@ pub async fn apply_download_action(
             }
         }
     }
-    Ok(DownloadBulkResponse {
+    DownloadBulkResponse {
         affected,
         errors,
         refusals,
-    })
+    }
 }
 
 /// One id of a batch, by the path its single endpoint takes.

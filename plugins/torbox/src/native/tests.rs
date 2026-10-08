@@ -16,12 +16,12 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, FailureKind, LinkStatus};
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver,
     ResolverHost,
 };
+use rd_plugin_types::{AccountId, FailureKind, LinkStatus};
 
 use super::TorBoxResolver;
 
@@ -286,7 +286,10 @@ async fn a_check_tells_a_missing_file_apart_from_a_job_still_running() {
         .expect("checked");
     assert_eq!(results[0].status, LinkStatus::Online);
     assert_eq!(results[0].file_name.as_deref(), Some("ep01.mkv"));
-    assert_eq!(results[0].size.map(rd_core::ByteCount::get), Some(10));
+    assert_eq!(
+        results[0].size.map(rd_plugin_types::ByteCount::get),
+        Some(10)
+    );
     assert_eq!(results[1].status, LinkStatus::Unknown);
     assert_eq!(results[2].status, LinkStatus::Offline);
     assert_eq!(results[3].status, LinkStatus::Offline);

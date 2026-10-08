@@ -6,11 +6,14 @@ use anyhow::Result;
 use rd_core::{Account, BatchId, CandidateId, LinkCandidate, LinkCheckResult, LinkStatus};
 use rd_db::Database;
 use rd_scheduler::SchedulerHandle;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use crate::{hosters, link_check_cache, link_check_probe::probe_direct};
 
+pub use completed::CompletedBatches;
+
+mod completed;
 mod documents;
 mod process;
 mod protocols;
@@ -37,7 +40,7 @@ struct Inner {
     jobs: mpsc::Sender<CheckJob>,
     /// Announces a finished batch check. Lets a caller act on the outcome — the subscription
     /// auto-queue does — without the check service having to know who is waiting.
-    completed: broadcast::Sender<BatchId>,
+    completed: Arc<completed::Completed>,
     cancellation: CancellationToken,
     /// Where the enricher plugins live, and the host they reach the outside world through.
     plugins: rd_plugin_host::PluginInstaller,
@@ -82,7 +85,7 @@ impl LinkCheckService {
                 object_storage,
                 torrent,
                 jobs: sender,
-                completed: broadcast::channel(64).0,
+                completed: completed::Completed::new(),
                 cancellation: CancellationToken::new(),
                 plugins,
                 plugin_host,
@@ -107,15 +110,17 @@ impl LinkCheckService {
     }
 
     /// Lets the check ask the remote-job plugins' caches (RD-130-11). Only the first call
-    /// counts.
+    /// counts; a second one is a wiring mistake (API-06).
     pub fn attach_cache_checkers(&self, checkers: crate::remote_job_service::RemoteJobService) {
-        let _ = self.inner.cache_checkers.set(checkers);
+        let first = self.inner.cache_checkers.set(checkers).is_ok();
+        debug_assert!(first, "the cache checkers are attached once");
     }
 
-    /// Receives the id of every batch whose check has finished, successfully or not.
+    /// Receives the id of every batch whose check has finished, successfully or not; a
+    /// waiter that falls behind a burst takes the ids it missed from the kept ones (CORE-01).
     #[must_use]
-    pub fn subscribe_completed(&self) -> broadcast::Receiver<BatchId> {
-        self.inner.completed.subscribe()
+    pub fn follow_completed(&self) -> CompletedBatches {
+        self.inner.completed.follow()
     }
 
     pub fn shutdown(&self) {
@@ -142,7 +147,7 @@ impl LinkCheckService {
             // either way, and a waiter that never hears back is worse than one that finds
             // nothing enqueueable.
             if let Some(batch) = batch {
-                let _ = self.inner.completed.send(batch);
+                self.inner.completed.announce(batch);
             }
         }
     }

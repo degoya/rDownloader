@@ -207,3 +207,40 @@ async fn each_door_takes_only_its_own_credential() {
     let (status, allowed) = get_with_bearer(router, PAGE, API_BEARER).await;
     assert_eq!(status, StatusCode::OK, "{allowed}");
 }
+
+/// The tray's switch leaves the same audit record the page's switch does, attributed to the
+/// capture token that pressed it (audit 2026-10-08, API-02).
+#[tokio::test]
+async fn the_trays_switch_is_audited_under_its_capture_token() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    // With the login on, so the bearer is consulted: the default harness waves every request
+    // through as anonymous before a credential is looked at.
+    let harness = common::auth_harness(directory.path()).await;
+
+    let (status, paused) = post_with_bearer(
+        &harness.router,
+        CLIPBOARD,
+        CAPTURE_BEARER,
+        serde_json::json!({ "paused": true }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{paused}");
+
+    let records = harness
+        .database
+        .query_audit_records(&rd_db::AuditQuery {
+            action: Some(rd_core::AuditAction::SettingsChanged),
+            target_id: Some("capture.agent".to_owned()),
+            limit: 50,
+            ..rd_db::AuditQuery::default()
+        })
+        .await
+        .expect("audit records");
+    let record =
+        serde_json::to_value(records.first().expect("the switch was not audited")).expect("json");
+    assert_eq!(record["outcome"], "success", "{record}");
+    assert_eq!(record["actor_kind"], "token", "{record}");
+    assert_eq!(record["actor_label"], rd_core::CAPTURE_SCOPE, "{record}");
+    assert_eq!(record["target_kind"], "settings", "{record}");
+    assert_eq!(record["details"]["fields"], "clipboard_paused", "{record}");
+}

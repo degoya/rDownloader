@@ -42,6 +42,12 @@ pub(crate) async fn validated_category(
     allowlist
         .resolve(Path::new(&request.relative_path))
         .map_err(ApiError::from)?;
+    let upload_remote = crate::dto::normalize_upload_remote(request.upload_remote)?;
+    rd_api_core::object_upload_target::check_object_upload_target(
+        &state.database,
+        upload_remote.as_deref(),
+    )
+    .await?;
     Ok(rd_db::NewCategory {
         name: request.name.trim().to_owned(),
         color: request.color.to_ascii_uppercase(),
@@ -63,7 +69,7 @@ pub(crate) async fn validated_category(
         safe_postproc: request.safe_postproc,
         delete_par2: request.delete_par2,
         upload_enabled: request.upload_enabled,
-        upload_remote: crate::dto::normalize_upload_remote(request.upload_remote)?,
+        upload_remote,
     })
 }
 

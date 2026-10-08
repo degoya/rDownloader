@@ -7,7 +7,7 @@
 //! the declared mirror key `rd_collector::mirrors` groups by (RD-110-18).
 
 use rd_plugin_host::extension::CrawledLink;
-use rd_siterules::Crawl;
+use rd_siterules::{Crawl, CrawlGroup};
 
 /// The proposals behind one rule run. `rule` is the rule's name.
 ///
@@ -41,6 +41,29 @@ pub(super) fn proposals(rule: &str, crawl: Crawl) -> Vec<CrawledLink> {
                     .map(|set| hint(format!("{rule}|{page}|{index}|{set}")));
                 proposal(link.url, package.clone(), mirror)
             })
+        })
+        .collect()
+}
+
+/// The proposals behind one entry somebody picked from a two-stage rule's list (RD-1190-17):
+/// one package named after the entry, its mirror sets as declared mirror groups. The key names
+/// the entry the way [`proposals`] names a group, so two entries of one page never share one.
+pub(super) fn picked(
+    rule: &str,
+    page: &url::Url,
+    index: usize,
+    group: CrawlGroup,
+    fallback: Option<String>,
+) -> Vec<CrawledLink> {
+    let package = group.name.or(fallback);
+    group
+        .links
+        .into_iter()
+        .map(|link| {
+            let mirror = link
+                .mirror
+                .map(|set| hint(format!("{rule}|{page}|pick-{index}|{set}")));
+            proposal(link.url, package.clone(), mirror)
         })
         .collect()
 }

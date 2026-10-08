@@ -17,12 +17,15 @@ source "$ROOT/scripts/tests/lib/expect.sh"
 # Characters, not bytes: the ellipsis is three bytes.
 export LC_ALL=C.UTF-8
 
-# A scratch checkout: the script, a stand-in for build-plugins.sh's list of bundled plugins, and
-# three plugins.
+# A scratch checkout: the script, a stand-in for build-plugins.sh's lists of bundled plugins and
+# of examples, and four plugins.
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts"
 cp "$ROOT/scripts/plugin-release-notes.sh" "$TREE/scripts/"
-printf '#!/usr/bin/env bash\nprintf "%%s\\n" alpha bravo-jobs charlie\n' > "$TREE/scripts/build-plugins.sh"
+cat > "$TREE/scripts/build-plugins.sh" <<'STUB'
+#!/usr/bin/env bash
+if [[ "$1" == --list-examples ]]; then echo example-echo; else printf '%s\n' alpha bravo-jobs charlie; fi
+STUB
 chmod +x "$TREE/scripts/build-plugins.sh"
 plugin() {
     mkdir -p "$TREE/plugins/$1"
@@ -31,6 +34,8 @@ plugin() {
 plugin alpha 0.2.2
 plugin bravo-jobs 0.1.1
 plugin charlie 1.0.0
+plugin example-echo 0.3.0
+printf '# Changes\n\n## 0.3.0\n\nThe reference plugin for authors.\n' > "$TREE/plugins/example-echo/CHANGES.md"
 cat > "$TREE/plugins/alpha/CHANGES.md" <<'EOF'
 # Changes
 
@@ -78,10 +83,17 @@ expect "and says so" "…" "${long: -1}"
 run_status notes alpha
 expect_status "a missing version is a usage error" 2
 
-# --check: the three plugins as written pass.
+# --check: the four plugins as written pass.
 check() { "$TREE/scripts/plugin-release-notes.sh" --check "$@"; }
 run_status check
 expect_status "every version has short notes: exit 0" 0
+
+# The examples are checked too, though never bundled: they are what an author copies.
+mv "$TREE/plugins/example-echo/CHANGES.md" "$SCRATCH/example.md"
+run_status check
+expect_status "an example without CHANGES.md: exit 1" 1
+expect_output "names the example" 'plugins/example-echo/CHANGES.md: missing; start it with "## 0.3.0"'
+mv "$SCRATCH/example.md" "$TREE/plugins/example-echo/CHANGES.md"
 
 # A raised version without its section, and a plugin without the file.
 plugin charlie 1.0.1
@@ -141,8 +153,8 @@ hash_before="$(cd "$TREE" && source_hash alpha)"
 printf '\n## 0.2.3\n\nAnother sentence.\n' >> "$TREE/plugins/alpha/CHANGES.md"
 expect "a new section leaves the source hash alone" "$hash_before" "$(cd "$TREE" && source_hash alpha)"
 
-# The real plugins: every bundled one passes.
+# The real plugins: every bundled one and every example passes.
 run_status "$ROOT/scripts/plugin-release-notes.sh" --check
-expect_status "every bundled plugin has short notes for the version it carries" 0
+expect_status "every bundled plugin and example has short notes for the version it carries" 0
 
 finish_tests plugin-release-notes

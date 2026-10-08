@@ -35,6 +35,7 @@
     "ddownload.no_free_link": "DDownload free download did not yield a file link: {diagnosis}",
     "ddownload.no_premium_file": "DDownload cookie session did not return a premium file: {diagnosis}",
     "ddownload.session_unconfirmed": "cookie session not confirmed - the account page was neither signed in nor a guest page",
+    "ddownload.traffic_exhausted": "DDownload account traffic is used up for now; the download waits and tries again later",
     "ddownload.unsupported_link": "Not a supported DDownload link"
   }
 }

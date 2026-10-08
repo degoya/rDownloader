@@ -182,12 +182,6 @@ impl PersistenceProbe {
         }
     }
 
-    /// Whether this process appears to run inside a container.
-    #[must_use]
-    pub fn containerized(&self) -> bool {
-        self.containerized
-    }
-
     /// Whether writes below `path` outlive the container.
     #[must_use]
     pub fn classify(&self, path: &Path) -> PathPersistence {

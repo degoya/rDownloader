@@ -139,3 +139,170 @@ async fn the_sweep_after_a_lag_post_processes_a_package_whose_completion_was_mis
     service.shutdown().await;
     assert_eq!(settled, PackageState::Completed);
 }
+
+/// RD-1190-13: a file of the package that is blocked — the account the owner's DDownload limit
+/// was mistaken for an invalid one — is a part that is missing. Until 1.19 a blocked file counted
+/// as settled and the package was unpacked around it; now it is not post-processed, and the
+/// file completing after a retry is what starts the pipeline.
+#[tokio::test]
+async fn a_blocked_file_holds_post_processing_back_until_it_completes() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(temp.path().join("extract.sqlite"))
+        .await
+        .expect("database");
+    let package = settled_package(&database, temp.path(), "waiting").await;
+    std::fs::write(temp.path().join("waiting").join("second.bin"), b"second").expect("file");
+    let second = database
+        .create_download(rd_db::NewDownload {
+            id: rd_core::DownloadId::new(),
+            package_id: package,
+            source: "https://example.test/second.bin".parse().expect("URL"),
+            file_name: "second.bin".to_owned(),
+            total_bytes: None,
+            expected_checksum: None,
+            account_id: None,
+            proxy_profile_id: None,
+            auth_profile: rd_core::AuthProfileSelection::Auto,
+            initial_state: rd_core::DownloadState::Queued,
+            kind: rd_core::DownloadKind::Http,
+            media: None,
+            remote_credential_id: None,
+            replay: None,
+            mirror_group: None,
+            enrichment: Vec::new(),
+            secret_fragment: None,
+        })
+        .await
+        .expect("download");
+    database
+        .record_failure(
+            second.id,
+            rd_core::Failure::coded(
+                rd_core::FailureKind::AccountInvalid,
+                "ddownload.no_premium_file",
+                "no premium file",
+            ),
+            None,
+        )
+        .await
+        .expect("the file is blocked");
+    let service = ExtractionService::start(database.clone(), config(temp.path()));
+    let state = |database: Database| async move {
+        database
+            .get_package(package)
+            .await
+            .expect("package")
+            .expect("package exists")
+            .state
+    };
+
+    service.sweep_settled_packages().await.expect("sweep");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(
+        !matches!(
+            state(database.clone()).await,
+            PackageState::Postprocessing | PackageState::Completed | PackageState::Failed
+        ),
+        "post-processed around a blocked file"
+    );
+
+    for next in [
+        rd_core::DownloadState::Queued,
+        rd_core::DownloadState::Resolving,
+        rd_core::DownloadState::Downloading,
+        rd_core::DownloadState::Verifying,
+        rd_core::DownloadState::Completed,
+    ] {
+        database
+            .transition_download(second.id, next)
+            .await
+            .expect("transition");
+    }
+    let settled = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let current = state(database.clone()).await;
+            if matches!(current, PackageState::Completed | PackageState::Failed) {
+                break current;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the last file's completion started the pipeline");
+    service.shutdown().await;
+    assert_eq!(settled, PackageState::Completed);
+}
+
+/// RD-1190-13: which files hold a package's post-processing back, and which package counts as
+/// missing a part. Usenet keeps starting over a failed file, which PAR2 may rebuild.
+#[tokio::test]
+async fn only_completed_or_stood_down_files_let_a_hoster_package_start() {
+    use rd_core::{DownloadKind, DownloadState};
+
+    use crate::completion::{parts_missing, ready_for_postprocess};
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let database = Database::open(temp.path().join("extract.sqlite"))
+        .await
+        .expect("database");
+    let package = settled_package(&database, temp.path(), "gate").await;
+    let completed = database
+        .downloads_for_package(package)
+        .await
+        .expect("files")
+        .into_iter()
+        .next()
+        .expect("one file");
+    let with = |state: DownloadState| {
+        let mut other = completed.clone();
+        other.state = state;
+        vec![completed.clone(), other]
+    };
+
+    for state in [
+        DownloadState::Completed,
+        DownloadState::Seeding,
+        DownloadState::Skipped,
+        DownloadState::Cancelled,
+    ] {
+        assert!(
+            ready_for_postprocess(DownloadKind::Http, &with(state)),
+            "{state:?}"
+        );
+        assert!(
+            !parts_missing(DownloadKind::Http, &with(state)),
+            "{state:?}"
+        );
+    }
+    for state in [
+        DownloadState::RetryWait,
+        DownloadState::Queued,
+        DownloadState::Paused,
+        DownloadState::Failed,
+        DownloadState::Blocked,
+    ] {
+        assert!(
+            !ready_for_postprocess(DownloadKind::Http, &with(state)),
+            "{state:?}"
+        );
+        assert!(parts_missing(DownloadKind::Http, &with(state)), "{state:?}");
+    }
+    assert!(ready_for_postprocess(
+        DownloadKind::Usenet,
+        &with(DownloadState::Failed)
+    ));
+    assert!(!parts_missing(
+        DownloadKind::Usenet,
+        &with(DownloadState::Failed)
+    ));
+    assert!(!ready_for_postprocess(
+        DownloadKind::Usenet,
+        &with(DownloadState::RetryWait)
+    ));
+    let mut nothing_finished = with(DownloadState::Skipped);
+    nothing_finished[0].state = DownloadState::Cancelled;
+    assert!(
+        !ready_for_postprocess(DownloadKind::Http, &nothing_finished),
+        "at least one file has to have completed"
+    );
+}

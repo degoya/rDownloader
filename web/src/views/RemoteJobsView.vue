@@ -11,15 +11,15 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api, responseError } from '@/api/client'
-import type { Account } from '@/api/types'
+import { responseError } from '@/api/client'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsRemoteJobsCard from '@/components/settings/SettingsRemoteJobsCard.vue'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
+import { useAccounts } from '@/stores/accounts'
 import FormFeedback from '@/components/FormFeedback.vue'
 
 const { t } = useI18n()
-const accounts = ref<Account[]>([])
+const { accounts, fetchAccounts } = useAccounts()
 /** Until the accounts are read the card cannot tell "none fits" from "not known yet" (RD-120-51). */
 const accountsLoading = ref(true)
 const message = ref<string | null>(null)
@@ -27,13 +27,9 @@ const error = ref<string | null>(null)
 clearWhenReconnected(error)
 
 onMounted(async () => {
-  const response = await api.GET('/api/v1/accounts')
+  const response = await fetchAccounts()
   accountsLoading.value = false
-  if (!response.data) {
-    error.value = responseError(response)
-    return
-  }
-  accounts.value = response.data
+  if (!response.data) error.value = responseError(response)
 })
 </script>
 

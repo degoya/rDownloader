@@ -76,7 +76,7 @@ fn timed_out(stderr: &str) -> Failure {
     rd_tools::tool_failed(
         "gallery.tool_failed",
         stderr,
-        "gallery-dl ran past its time limit",
+        "gallery-dl went silent past its time limit",
     )
 }
 
@@ -143,7 +143,8 @@ impl ExternalRunner for GalleryRunner {
             .arg(&target)
             .arg("--")
             .arg(file.source.as_str());
-        let mut process = ToolProcess::spawn(&mut command, "gallery-dl", Stdout::Read)?;
+        let mut process = ToolProcess::spawn(&mut command, "gallery-dl", Stdout::Read)?
+            .with_silence_limit(rd_tools::SILENCE_LIMIT);
         // gallery-dl prints one path per stored file ("# path" for skipped ones). Sizes are
         // summed from disk; totals stay unknown, so the UI shows plain byte progress.
         let mut committed: u64 = 0;
@@ -153,7 +154,8 @@ impl ExternalRunner for GalleryRunner {
                 ToolLine::Line(line) => line,
                 ToolLine::End => break,
                 ToolLine::Stopped => return Ok(RunOutcome::Stopped),
-                // No deadline is set today: a gallery runs as long as its files take.
+                // No deadline: a gallery runs as long as its files take. Only the silence
+                // limit ends it, when gallery-dl has stored nothing for that long.
                 ToolLine::TimedOut => {
                     return Ok(RunOutcome::Failed(timed_out(&process.stderr().await)));
                 }

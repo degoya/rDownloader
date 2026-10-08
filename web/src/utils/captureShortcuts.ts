@@ -111,7 +111,7 @@ const MODIFIERS: Record<string, keyof Omit<ParsedShortcut, 'key'>> = {
 }
 
 /** Reads a stored combination; `null` for one that does not read. */
-export function parseShortcut(text: string): ParsedShortcut | null {
+function parseShortcut(text: string): ParsedShortcut | null {
   const tokens = text.split('+').map(token => token.trim())
   const key = tokens.pop()
   if (!key) return null

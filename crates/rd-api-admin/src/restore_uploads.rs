@@ -57,7 +57,7 @@ pub async fn create_restore_upload(
     State(state): State<AppState>,
 ) -> Result<(StatusCode, Json<RestoreUploadResponse>), ApiError> {
     let folder = layout(&state).uploads();
-    tokio::fs::create_dir_all(&folder)
+    rd_backup::private_folder(&folder)
         .await
         .map_err(anyhow::Error::from)?;
     let mut waiting = 0;
@@ -150,6 +150,7 @@ pub async fn append_restore_upload(
         )
         .with_param("max", MAX_UPLOAD_BYTES));
     }
+    crate::restore_room::require_room(&layout(&state).uploads(), length).await?;
     let mut file = tokio::fs::OpenOptions::new()
         .append(true)
         .open(&path)

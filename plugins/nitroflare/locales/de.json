@@ -1,5 +1,6 @@
 {
   "name": "Nitroflare",
+  "description": "Löst Nitroflare-Links mit einem Premium-Key auf, oder ohne einen über den kostenlosen Ablauf.",
   "account": {
     "secret_label": "Premium-Key (aus Mein Konto → API)",
     "secret_hint": "Gib deine Konto-E-Mail als Benutzer und deinen Premium-Key (Mein Konto → API) als Secret ein."

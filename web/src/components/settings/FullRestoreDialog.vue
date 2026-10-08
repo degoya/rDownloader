@@ -7,7 +7,8 @@
  * The passphrase is asked for every time — the key the schedule keeps is never used for a
  * restore (owner's decision, 2026-09-28) — and cleared when the dialog closes. A test result
  * belongs to exactly the archive, passphrase and mappings it was made with: changing any of
- * them drops it, and the restore stays unavailable until a new test passed.
+ * them drops it, and the restore stays unavailable until a new test passed. The restore itself
+ * asks for the administrator password as well (RD-1190-19): it replaces the way in.
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -21,6 +22,7 @@ import {
 } from '@/api/fullRestore'
 import type { BackupRun, RestorePreview, RestoreProblem, RestoreReport, RestoreSource } from '@/api/types'
 import { translateServerMessage } from '@/i18n/server'
+import { useSessionStore } from '@/stores/session'
 import { formatBytes, formatMoment } from '@/utils/format'
 
 const props = defineProps<{ runs: BackupRun[] }>()
@@ -28,6 +30,7 @@ const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ staged: [] }>()
 
 const { t } = useI18n()
+const session = useSessionStore()
 
 type SourceKind = 'history' | 'upload' | 'path'
 
@@ -38,6 +41,9 @@ const uploadId = ref<string | null>(null)
 const uploadName = ref('')
 const uploadShare = ref<number | null>(null)
 const passphrase = ref('')
+const password = ref('')
+// With the login switched off there is no password to ask for.
+const needsPassword = computed(() => !session.loginDisabled)
 const preview = ref<RestorePreview | null>(null)
 const targets = ref<Record<string, string>>({})
 const report = ref<RestoreReport | null>(null)
@@ -65,7 +71,8 @@ const mappings = computed<RestoreMapping[]>(() => (preview.value?.storage_roots 
   .map(({ storage_root_id, path }) => ({ storage_root_id, path })))
 
 const canPreview = computed(() => source.value !== null && passphrase.value.length > 0 && busy.value === null)
-const canRestore = computed(() => report.value?.ok === true && confirmed.value && busy.value === null)
+const canRestore = computed(() => report.value?.ok === true && confirmed.value && busy.value === null
+  && (!needsPassword.value || password.value.length > 0))
 
 // A test result speaks for exactly what it was made with.
 watch([source, passphrase, mappings], () => {
@@ -78,6 +85,7 @@ watch([source, passphrase], () => {
 watch(open, (value) => {
   if (value) return
   passphrase.value = ''
+  password.value = ''
   preview.value = null
   report.value = null
   confirmed.value = false
@@ -133,7 +141,7 @@ async function restore(): Promise<void> {
   if (!source.value || !canRestore.value) return
   error.value = null
   busy.value = 'restore'
-  const answer = await startRestore(source.value, passphrase.value, mappings.value)
+  const answer = await startRestore(source.value, passphrase.value, mappings.value, needsPassword.value ? password.value : null)
   busy.value = null
   if (!answer.ok) {
     error.value = answer.error
@@ -317,6 +325,15 @@ function kindLabel(value: string): string {
             :label="t('system.backup.full_restore.confirm.label')"
             data-testid="full-restore-confirm"
           />
+          <UFormField
+            v-if="report.ok && needsPassword"
+            name="full-restore-password"
+            :label="t('system.backup.full_restore.password.label')"
+            :description="t('system.backup.full_restore.password.hint')"
+            required
+          >
+            <UInput v-model="password" type="password" autocomplete="current-password" class="w-full" data-testid="full-restore-password" />
+          </UFormField>
         </section>
       </div>
     </template>

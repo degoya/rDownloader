@@ -3,7 +3,7 @@
 
 use rd_siterules::{Crawl, CrawlGroup, GroupLink};
 
-use super::proposals;
+use super::{picked, proposals};
 
 fn crawl(groups: Vec<CrawlGroup>) -> Crawl {
     Crawl {
@@ -117,4 +117,31 @@ fn a_rule_without_groups_proposes_what_it_did_before() {
         |link| link.mirror_hint.as_ref().map(|hint| hint.group.as_str())
             == Some("board|https://board.example.org/a/b")
     ));
+}
+
+/// A picked entry keeps the hosters as mirrors (RD-1190-17): warez.cx's releases are picked
+/// since 1.19, and before that every release reached the LinkGrabber with its mirror groups.
+#[test]
+fn a_picked_entry_is_one_package_with_its_mirror_sets() {
+    let page: url::Url = "https://board.example.org/a/b".parse().expect("url");
+    let group = CrawlGroup {
+        name: None,
+        links: vec![
+            link("https://one.example/a1", Some(1)),
+            link("https://two.example/b1", Some(1)),
+            link("https://three.example/c1", None),
+        ],
+    };
+    let found = picked("board", &page, 3, group, Some("Show.S02".to_owned()));
+    assert!(
+        found
+            .iter()
+            .all(|link| link.package_hint.as_deref() == Some("Show.S02"))
+    );
+    let keys: Vec<Option<&str>> = found
+        .iter()
+        .map(|link| link.mirror_hint.as_ref().map(|hint| hint.group.as_str()))
+        .collect();
+    let set = "board|https://board.example.org/a/b|pick-3|1";
+    assert_eq!(keys, [Some(set), Some(set), None]);
 }

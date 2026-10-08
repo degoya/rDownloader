@@ -1,6 +1,10 @@
 //! Unit tests of the object storage profile validation (RD-150-04, RD-150-05).
 
-use rd_core::{ObjectAddressing, ObjectCredentialSource, ObjectStorageProvider};
+use chrono::Utc;
+use rd_core::{
+    ObjectAddressing, ObjectCredentialSource, ObjectStorageProfile, ObjectStorageProfileId,
+    ObjectStorageProvider,
+};
 
 use super::fields::{Draft, Fields, parse_endpoint, validate_secrets};
 
@@ -15,6 +19,7 @@ fn draft(source: ObjectCredentialSource) -> Draft<'static> {
         source,
         access_key_id: Some("AKIDEXAMPLE".to_owned()),
         account: Some("ignored".to_owned()),
+        ambient_custom_endpoint: false,
     }
 }
 
@@ -29,6 +34,7 @@ fn azure(source: ObjectCredentialSource) -> Draft<'static> {
         source,
         access_key_id: Some("left-over".to_owned()),
         account: Some("mediaarchive".to_owned()),
+        ambient_custom_endpoint: false,
     }
 }
 
@@ -61,7 +67,9 @@ fn a_static_profile_needs_its_key_id_and_others_drop_it() {
     let mut missing = draft(ObjectCredentialSource::Static);
     missing.access_key_id = None;
     assert!(Fields::validate(missing).is_err());
-    let ambient = Fields::validate(draft(ObjectCredentialSource::Ambient)).expect("fields");
+    let mut ambient = draft(ObjectCredentialSource::Ambient);
+    ambient.ambient_custom_endpoint = true;
+    let ambient = Fields::validate(ambient).expect("fields");
     assert_eq!(ambient.access_key_id, None);
 }
 
@@ -119,4 +127,115 @@ fn names_the_service_would_refuse_are_refused_here() {
     let mut region = draft(ObjectCredentialSource::Anonymous);
     region.region = Some("eu central".to_owned());
     assert!(Fields::validate(region).is_err());
+}
+
+fn code(draft: Draft<'_>) -> Option<String> {
+    Fields::validate(draft)
+        .err()
+        .map(|error| error.code().to_owned())
+}
+
+/// RD-1190-20: the machine's own credentials go to a custom endpoint only on the profile's
+/// explicit yes, and the yes is kept only where it means something.
+#[test]
+fn an_ambient_profile_names_an_endpoint_only_with_the_opt_in() {
+    assert_eq!(
+        code(draft(ObjectCredentialSource::Ambient)).as_deref(),
+        Some(rd_object_storage::AMBIENT_ENDPOINT_UNCONFIRMED)
+    );
+    let mut confirmed = draft(ObjectCredentialSource::Ambient);
+    confirmed.ambient_custom_endpoint = true;
+    assert!(
+        Fields::validate(confirmed)
+            .expect("fields")
+            .ambient_custom_endpoint
+    );
+    // The provider's own service needs no yes, and keeps none.
+    let mut aws = draft(ObjectCredentialSource::Ambient);
+    aws.endpoint = None;
+    aws.ambient_custom_endpoint = true;
+    assert!(
+        !Fields::validate(aws)
+            .expect("fields")
+            .ambient_custom_endpoint
+    );
+    let mut keyed = draft(ObjectCredentialSource::Static);
+    keyed.ambient_custom_endpoint = true;
+    assert!(
+        !Fields::validate(keyed)
+            .expect("fields")
+            .ambient_custom_endpoint
+    );
+}
+
+fn stored(fields: &Fields) -> ObjectStorageProfile {
+    ObjectStorageProfile {
+        id: ObjectStorageProfileId::new(),
+        name: fields.name.clone(),
+        provider: fields.provider,
+        endpoint: fields.endpoint.clone(),
+        region: fields.region.clone(),
+        bucket: fields.bucket.clone(),
+        addressing: fields.addressing,
+        credential_source: fields.source,
+        access_key_id: fields.access_key_id.clone(),
+        account: fields.account.clone(),
+        secret_ref: Some("vault://secret".to_owned()),
+        session_token_ref: Some("vault://token".to_owned()),
+        has_secret: true,
+        has_session_token: true,
+        checksums: true,
+        enabled: true,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+        ambient_custom_endpoint: false,
+    }
+}
+
+/// RD-1190-20: a stored secret signs only for the host it was typed for. Before, an update
+/// that left the secret out kept it whatever endpoint the profile now named.
+#[test]
+fn a_stored_secret_stays_with_its_host() {
+    let fields = Fields::validate(draft(ObjectCredentialSource::Static)).expect("fields");
+    let profile = stored(&fields);
+    assert!(fields.keeps_secret_of(&profile), "nothing changed");
+    let mut moved = draft(ObjectCredentialSource::Static);
+    moved.endpoint = Some("https://collector.example".to_owned());
+    assert!(
+        !Fields::validate(moved)
+            .expect("fields")
+            .keeps_secret_of(&profile)
+    );
+    let mut own_service = draft(ObjectCredentialSource::Static);
+    own_service.endpoint = None;
+    assert!(
+        !Fields::validate(own_service)
+            .expect("fields")
+            .keeps_secret_of(&profile)
+    );
+    let mut renamed = draft(ObjectCredentialSource::Static);
+    renamed.name = "MinIO 2";
+    renamed.bucket = Some("other-bucket".to_owned());
+    assert!(
+        Fields::validate(renamed)
+            .expect("fields")
+            .keeps_secret_of(&profile)
+    );
+
+    // Without an endpoint the Azure account names the host.
+    let blob =
+        Fields::validate(azure(ObjectCredentialSource::SharedAccessSignature)).expect("fields");
+    let profile = stored(&blob);
+    let mut other_account = azure(ObjectCredentialSource::SharedAccessSignature);
+    other_account.account = Some("otheraccount".to_owned());
+    assert!(
+        !Fields::validate(other_account)
+            .expect("fields")
+            .keeps_secret_of(&profile)
+    );
+    let key = Fields::validate(azure(ObjectCredentialSource::Static)).expect("fields");
+    assert!(
+        !key.keeps_secret_of(&profile),
+        "an account key is no signature"
+    );
 }

@@ -166,8 +166,15 @@ pub(crate) struct RemoteJobChoiceParams {
 /// capabilities that destroy something without a confirmation, and an argument the caller had
 /// to set is what makes this one different from the ones it leaves out. The REST handler
 /// refuses the request without it, so a tool that forgot it deletes nothing.
+///
+/// `confirmed` alone was the model's own word; `confirmation` is the code the tool's question
+/// handed out (RD-1190-21, `crate::confirm`), so the step the person answers is the tool's.
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct DataClearToolParams {
     /// Must be `true`. Anything else is refused with `data_reset.not_confirmed`.
     pub confirmed: bool,
+    /// The code from this tool's own question, once the person agreed. Without it the call
+    /// changes nothing and answers with the question.
+    #[serde(default)]
+    pub confirmation: Option<String>,
 }

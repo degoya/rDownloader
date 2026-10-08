@@ -6,6 +6,8 @@
  * the sidebar notice share one typed answer and a refusal keeps its code. The shapes are the
  * generated schema's, with the closed sets the schema writes as `string` put back (WEB-04).
  */
+import { safeHttpUrl } from '@/utils/safeUrl'
+
 import { call } from './call'
 import type { Refine } from './pluginRepositories'
 import type { components } from './schema'
@@ -88,4 +90,25 @@ export function releaseNotePoints(notes: string): string[] {
 /** The catalogue key of a hint code: `update.hint.aur_helper` → `system.updates.hints.aur_helper`. */
 export function hintKey(code: string): string {
   return `system.updates.hints.${code.split('.').pop() ?? code}`
+}
+
+/** What an offer links to, each address `undefined` when it is not one to link. */
+interface OfferLinks {
+  changelog: string | undefined
+  release: string | undefined
+  download: string | undefined
+  /** "Download": the file itself, or the release page that lists it. */
+  get: string | undefined
+}
+
+/**
+ * An offer's addresses as the interface links them (WEB-1): through `safeHttpUrl`, like every
+ * other address that reaches the page as data. The manifest is signed and `rd-update` accepts
+ * https only, so this guards nothing today — it keeps one rule for every external link, so no
+ * link has to be judged by where its address came from.
+ */
+export function offerLinks(offer: Pick<UpdateOffer, 'changelog_url' | 'release_url' | 'download_url'>): OfferLinks {
+  const release = safeHttpUrl(offer.release_url)
+  const download = safeHttpUrl(offer.download_url)
+  return { changelog: safeHttpUrl(offer.changelog_url), release, download, get: download ?? release }
 }

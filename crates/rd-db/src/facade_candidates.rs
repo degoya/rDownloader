@@ -332,7 +332,7 @@ impl Database {
     }
 
     /// Writes -- or clears -- that reference.
-    pub async fn set_download_transform_key_ref(
+    pub(crate) async fn set_download_transform_key_ref(
         &self,
         id: rd_core::DownloadId,
         reference: Option<String>,

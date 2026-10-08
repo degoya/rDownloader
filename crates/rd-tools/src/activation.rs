@@ -16,7 +16,7 @@ use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::error::ToolError;
+use crate::{error::ToolError, store::validate_segment};
 
 /// File name of the pointer inside a tool's directory.
 pub const POINTER_FILE_NAME: &str = "active.json";
@@ -34,12 +34,19 @@ pub struct ActivePointer {
 ///
 /// An unreadable pointer reads as "nothing activated" on purpose: the fallback is the vendor
 /// folders and `PATH`, which is the behaviour this installation had before it managed
-/// anything, and that is the right place to land.
+/// anything, and that is the right place to land. So does a version that is not a plain
+/// directory name: the caller joins it onto the tool's directory, and the store's rule that a
+/// string never becomes a path traversal holds for this file too (audit 2026-10-08, TR-08).
 pub async fn read(tool_directory: &Path) -> Option<ActivePointer> {
     let bytes = tokio::fs::read(tool_directory.join(POINTER_FILE_NAME))
         .await
         .ok()?;
-    serde_json::from_slice(&bytes).ok()
+    let pointer: ActivePointer = serde_json::from_slice(&bytes).ok()?;
+    if let Err(error) = validate_segment(&pointer.version) {
+        tracing::warn!(%error, "the active-version pointer names no usable version");
+        return None;
+    }
+    Some(pointer)
 }
 
 /// Points `tool_directory` at `version`, atomically.
@@ -106,5 +113,23 @@ mod tests {
             .await
             .expect("write");
         assert!(read(directory.path()).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_pointer_that_leaves_its_directory_reads_as_nothing_activated() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        for version in ["../../bin", "/usr/bin", ".hidden", ""] {
+            let pointer = serde_json::json!({
+                "version": version,
+                "activated_at": "2026-10-08T00:00:00Z",
+            });
+            tokio::fs::write(
+                directory.path().join(POINTER_FILE_NAME),
+                pointer.to_string(),
+            )
+            .await
+            .expect("write");
+            assert!(read(directory.path()).await.is_none(), "{version:?}");
+        }
     }
 }

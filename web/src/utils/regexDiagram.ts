@@ -17,7 +17,7 @@ export function repeatRange(node: RegexNode): string {
 }
 
 /** What a repetition means in words. */
-export function repeatWords(node: RegexNode, t: Translate): string {
+function repeatWords(node: RegexNode, t: Translate): string {
   const min = node.min ?? 0
   const max = node.max ?? null
   let words: string
@@ -75,7 +75,7 @@ export function nodeLabel(node: RegexNode, t: Translate): string {
 }
 
 /** The whole node in words, children included. */
-export function describeNode(node: RegexNode, t: Translate): string {
+function describeNode(node: RegexNode, t: Translate): string {
   const children = node.children ?? []
   switch (node.kind) {
     case 'sequence':

@@ -40,6 +40,10 @@ pub(crate) async fn record_error(
     } else {
         failure
     };
+    // Used-up traffic is a property of the account in the same way (RD-1190-14).
+    scheduler
+        .note_account_traffic(file, &failure, retry_at)
+        .await;
     // An IP limit is a property of the hoster, not of this one link: hold the whole hoster
     // back so its other free links do not burn a wait and a captcha to be refused too.
     if matches!(failure.category, FailureKind::IpBlocked { .. })

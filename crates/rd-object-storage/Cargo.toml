@@ -32,6 +32,9 @@ rd-files = { path = "../rd-files" }
 # The proxy and custom CA every other transport uses (`rd_http::SharedNetworkDefaults`).
 rd-http = { path = "../rd-http" }
 rd-limits = { path = "../rd-limits" }
+# The rule an address the person entered keeps to, which a profile's endpoint is held to
+# (`rd_plugin_host::entered_address_policy`, RD-1190-18).
+rd-plugin-host = { path = "../rd-plugin-host" }
 rd-scheduler = { path = "../rd-scheduler" }
 rd-secrets = { path = "../rd-secrets" }
 rd-transfer-file = { path = "../rd-transfer-file" }

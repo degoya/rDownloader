@@ -115,7 +115,7 @@ describe('AuditView', () => {
   it('offers an export of the filter it is showing and no destructive action at all', async () => {
     await mountView()
     const exportLink = await screen.findByTestId('audit-export')
-    expect(exportLink.getAttribute('href')).toBe('/api/v1/audit/export')
+    expect(exportLink.getAttribute('to')).toBe('/api/v1/audit/export')
 
     // No button on this page may claim to remove or edit anything: the log is append-only,
     // and a control that suggested otherwise would be a lie in the interface.

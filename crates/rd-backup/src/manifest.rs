@@ -94,14 +94,22 @@ impl Manifest {
 /// Whether `name` is a member name an archive may carry: relative, `/`-separated, no empty,
 /// `.` or `..` segment, no backslash or drive colon. Checked on writing and on reading, so a
 /// crafted archive cannot place a file outside the folder it is opened into.
+///
+/// Nor a segment Windows reads as another one (RD-1190-22): a device name such as `CON` or
+/// `nul.torrent`, which opens the device instead of a file, or a trailing dot or space, which
+/// Windows drops, so two members would land on one file.
 #[must_use]
 pub fn is_safe_member_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 1_024
         && !name.contains(['\\', ':', '\0'])
-        && name
-            .split('/')
-            .all(|segment| !segment.is_empty() && segment != "." && segment != "..")
+        && name.split('/').all(|segment| {
+            !segment.is_empty()
+                && segment != "."
+                && segment != ".."
+                && !segment.ends_with(['.', ' '])
+                && !rd_files::is_windows_reserved(segment)
+        })
 }
 
 #[cfg(test)]
@@ -127,6 +135,12 @@ mod tests {
             "C:/Windows",
             "torrents\\evil",
             "trailing/",
+            "torrents/CON",
+            "torrents/nul.torrent",
+            "torrents/COM1.fastresume",
+            "torrents/dotted.",
+            "torrents/spaced ",
+            "dotted./inside",
         ] {
             assert!(!is_safe_member_name(bad), "{bad}");
         }

@@ -301,6 +301,17 @@ mkdir -p .cargo
 echo "[build]" > .cargo/config.toml
 expect "nor after cargo's configuration changed" "" "$(rd_full_covering "$repo" clippy "$(rd_worktree_tree "$repo")")"
 reset
+echo "# notes" > RELEASE-NOTES.md
+notes="$(rd_worktree_tree "$repo")"
+expect "RELEASE-NOTES.md: the Rust half's green still covers the tree" "$readme_base" "$(rd_full_covering "$repo" rust "$notes")"
+expect "the preflight's not, whose checks read it (PIPE-04)" "" "$(rd_full_covering "$repo" preflight "$notes")"
+reset
+expect "the documentation the preflight reads, and only that" \
+    "RELEASE-NOTES.md AGENTS.md docs/roadmap/jobs/x.md plugins/p/CHANGES.md docs/development.md" \
+    "$(printf '%s\n' docs/x.md RELEASE-NOTES.md AGENTS.md README.md docs/roadmap/jobs/x.md plugins/p/CHANGES.md \
+        docs/development.md docs/roadmap.md | rd_paths_read_by preflight | paste -sd' ' -)"
+expect "which no other half reads" "" \
+    "$(printf '%s\n' RELEASE-NOTES.md AGENTS.md docs/roadmap/jobs/x.md | rd_paths_read_by rust)"
 expect "a .md a test reads: the Rust half reads it" "crates/rd-core/recovery-matrix.md" \
     "$(printf '%s\n' docs/x.md crates/rd-core/recovery-matrix.md | rd_paths_read_by rust)"
 expect "a path the Rust test inputs map names is a Rust input" "web/src/locales/en/logs.json" \

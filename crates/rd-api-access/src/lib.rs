@@ -20,11 +20,10 @@ pub mod password_login_handlers;
 pub mod password_reset_handlers;
 pub mod session_handlers;
 pub mod setup_handlers;
-mod step_up;
 
 // The modules of the crates below, at this crate's root, so that a module here names them as
 // `crate::…` exactly as it did while the HTTP surface was one crate (RD-160-06).
 use rd_api_core::{
     ApiError, AppState, AuthService, audit, auth, auth_flow_service, browser_session, client,
-    config_fields, dto, error, error_codes, hosters, scope_policy,
+    config_fields, dto, error, error_codes, hosters, scope_policy, step_up,
 };

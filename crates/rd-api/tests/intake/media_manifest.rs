@@ -54,7 +54,8 @@ async fn intake(router: &Router, url: &str) -> serde_json::Value {
         "/api/v1/collector/batches",
         json!({
             "text": url,
-            "source": "api",
+            // The person's own paste: the fixture serves from this machine (RD-1190-18).
+            "source": "manual",
             "source_label": null,
             "package_name": null,
             "password": null

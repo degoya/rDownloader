@@ -6,8 +6,8 @@
 //! what the plugin *did* (which requests, which headers, which captcha, which wait), not only
 //! what it returned.
 
-use rd_core::FailureKind;
 use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver};
+use rd_plugin_types::FailureKind;
 
 use super::{MockHost, NitroflareResolver};
 

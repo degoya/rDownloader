@@ -19,17 +19,18 @@ use crate::AppState;
 ///
 /// Ends when the check service's sender is dropped, which happens with the application state.
 pub fn start(state: AppState) {
-    let mut completed = state.link_check.subscribe_completed();
+    let mut completed = state.link_check.follow_completed();
     tokio::spawn(async move {
         loop {
             let batch_id = match completed.recv().await {
                 Ok(batch_id) => batch_id,
-                // Lagged: batches were checked faster than this task read them. The dropped
-                // ones stay in the LinkGrabber rather than being guessed at.
+                // Lagged: batches were checked faster than this task read them, by more than
+                // the check service keeps for a catch-up (a smaller burst is replayed,
+                // CORE-01). The lost ones stay in the LinkGrabber rather than being guessed at.
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
                     tracing::warn!(
                         missed,
-                        "auto-queue watcher fell behind; those batches stay in the LinkGrabber"
+                        "auto-queue watcher fell behind beyond the kept batches; those batches stay in the LinkGrabber"
                     );
                     continue;
                 }

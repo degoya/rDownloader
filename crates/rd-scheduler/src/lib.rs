@@ -2,6 +2,7 @@
 
 #![warn(unreachable_pub)]
 
+mod account_traffic;
 mod active;
 mod auto_retry;
 #[cfg(test)]
@@ -41,6 +42,7 @@ mod settings;
 mod start;
 mod worker;
 
+pub use account_traffic::{AccountTrafficHold, TRAFFIC_CHECK_INTERVAL_MINUTES};
 pub use profile_boundary::ProfileBoundary;
 pub use worker::{NetworkClient, ProviderCredential};
 
@@ -108,6 +110,10 @@ pub struct PackageOptions {
     /// Write the file paused instead of queued, in the same row write, so the dispatcher
     /// cannot start it before a later pause would land (API-09).
     pub paused: bool,
+    /// `Some(local_network)` when somebody other than the person chose the address — a tool
+    /// an agent drives (RD-1190-18): the download is written with its address as its one source
+    /// row, so the transfer keeps to the address rule (RD-150-03). `None` for the person's own.
+    pub address_reach: Option<bool>,
 }
 
 /// Settings that can be changed without restarting active transfers.
@@ -145,6 +151,11 @@ pub struct RuntimeSettings {
     /// Transfer kinds switched off entirely. A queued job of such a kind is blocked with a
     /// reason rather than left waiting, and intake refuses new ones.
     pub disabled_kinds: Vec<rd_core::DownloadKind>,
+    /// What an account's used-up traffic does to the queue (RD-1190-14).
+    pub account_traffic_action: rd_core::AccountTrafficAction,
+    /// The same, per account, where it differs from `account_traffic_action`.
+    pub account_traffic_overrides:
+        std::collections::BTreeMap<rd_core::AccountId, rd_core::AccountTrafficAction>,
 }
 
 /// Default retries per file.
@@ -182,6 +193,8 @@ impl Default for RuntimeSettings {
             auto_retry_interval_hours: DEFAULT_AUTO_RETRY_INTERVAL_HOURS,
             auto_retry_max_rounds: DEFAULT_AUTO_RETRY_MAX_ROUNDS,
             disabled_kinds: Vec::new(),
+            account_traffic_action: rd_core::AccountTrafficAction::default(),
+            account_traffic_overrides: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -254,6 +267,8 @@ pub struct SchedulerHandle {
     queue_pause: Arc<Mutex<Option<QueuePause>>>,
     /// Hosters holding back their free downloads after an IP limit.
     host_blocks: hostblock::HostBlocks,
+    /// Accounts whose traffic is used up, and what the setting makes of that (RD-1190-14).
+    traffic_holds: account_traffic::TrafficHolds,
     /// Connections one host may see, and the hosts that proved they ignore ranges.
     host_limits: HostLimits,
     /// A plugin's premium concurrency gate, carrying the limit it is currently sized for so

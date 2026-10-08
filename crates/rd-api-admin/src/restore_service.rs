@@ -83,6 +83,11 @@ pub(crate) fn api_error(error: RestoreError) -> ApiError {
 /// The archive a backup run wrote, from one of the destinations that received it: a copy in a
 /// local folder is read where it lies, one elsewhere (a bucket, an rclone remote) is fetched
 /// into the restore work folder first, where the next attempt from the same run finds it.
+///
+/// Every copy has to hold the size and SHA-256 the run recorded (RD-1190-19): whoever writes a
+/// destination could otherwise put an older archive under the same key there — a rollback — or
+/// a foreign one. A copy that does not match is passed over; when none does, the restore is
+/// refused with `backup.restore_archive_changed`.
 async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
     let run =
         state.database.backup_run(id).await?.ok_or_else(|| {
@@ -94,7 +99,7 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
             "This run wrote no archive",
         )
     };
-    let Some(name) = run.archive_name else {
+    let (Some(name), Some(sha256)) = (run.archive_name, run.sha256) else {
         return Err(without_archive());
     };
     let plain = Path::new(&name)
@@ -103,6 +108,11 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
     if !plain {
         return Err(without_archive());
     }
+    let recorded = Recorded {
+        size: run.size_bytes,
+        sha256,
+    };
+    let mut changed = false;
     let delivered: Vec<_> = run
         .destinations
         .into_iter()
@@ -115,7 +125,10 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
                 .await
                 .is_ok_and(|metadata| metadata.is_file())
             {
-                return Ok(path);
+                if recorded.holds(&path).await? {
+                    return Ok(path);
+                }
+                changed = true;
             }
         }
     }
@@ -125,7 +138,10 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
         .await
         .is_ok_and(|metadata| metadata.is_file())
     {
-        return Ok(fetched);
+        if recorded.holds(&fetched).await? {
+            return Ok(fetched);
+        }
+        tokio::fs::remove_file(&fetched).await.ok();
     }
     let context = crate::backup_delivery::destination_context(state).await;
     let mut last = None;
@@ -144,17 +160,21 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
                 continue;
             }
         };
-        tokio::fs::create_dir_all(&folder)
+        rd_backup::private_folder(&folder)
             .await
             .map_err(anyhow::Error::from)?;
         let partial = folder.join(format!("{name}.partial"));
         tokio::fs::remove_file(&partial).await.ok();
         match destination.fetch(&name, &partial).await {
             Ok(_) => {
-                tokio::fs::rename(&partial, &fetched)
-                    .await
-                    .map_err(anyhow::Error::from)?;
-                return Ok(fetched);
+                if recorded.holds(&partial).await? {
+                    tokio::fs::rename(&partial, &fetched)
+                        .await
+                        .map_err(anyhow::Error::from)?;
+                    return Ok(fetched);
+                }
+                tokio::fs::remove_file(&partial).await.ok();
+                changed = true;
             }
             Err(error) => {
                 tokio::fs::remove_file(&partial).await.ok();
@@ -162,10 +182,35 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
             }
         }
     }
+    if changed {
+        return Err(ApiError::unprocessable(
+            "backup.restore_archive_changed",
+            "The archive at the destination is not the one this run wrote",
+        ));
+    }
     Err(ApiError::bad_request(
         "backup.restore_source_missing",
         last.unwrap_or_else(|| "No destination holds this run's archive".to_owned()),
     ))
+}
+
+/// What a run recorded of the archive it wrote.
+struct Recorded {
+    size: Option<u64>,
+    sha256: String,
+}
+
+impl Recorded {
+    /// Whether `path` holds exactly these bytes.
+    async fn holds(&self, path: &Path) -> Result<bool, ApiError> {
+        let path = path.to_path_buf();
+        let (size, sha256) =
+            tokio::task::spawn_blocking(move || rd_backup::archive::digest_file(&path))
+                .await
+                .map_err(anyhow::Error::from)?
+                .map_err(anyhow::Error::from)?;
+        Ok(sha256.eq_ignore_ascii_case(&self.sha256) && self.size.is_none_or(|kept| kept == size))
+    }
 }
 
 /// The archive a request names.

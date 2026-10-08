@@ -2,8 +2,8 @@
 //! `free_tests.rs`, whose request, fixtures and helpers they use; split from it to keep both
 //! files under the crate layout's 500 lines.
 
-use rd_core::FailureKind;
 use rd_plugin_api::{HostHttpResponse, Resolver};
+use rd_plugin_types::FailureKind;
 
 use super::{DOWNLOAD_URL, LINK_PAGE, MockHost, free_request, html, resolver};
 
@@ -89,7 +89,7 @@ async fn the_page_card_supplies_the_name_and_size_the_transfer_needs() {
         Some("outlander.s08e01.german.bdrip.x264-intention.rar")
     );
     assert_eq!(
-        resolved.size.map(rd_core::ByteCount::get),
+        resolved.size.map(rd_plugin_types::ByteCount::get),
         Some(425_134_653)
     );
 }

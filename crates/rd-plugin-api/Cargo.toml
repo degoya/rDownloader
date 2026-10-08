@@ -12,7 +12,7 @@ test-support = []
 
 [dependencies]
 async-trait.workspace = true
-rd-core = { path = "../rd-core" }
+rd-plugin-types = { path = "../rd-plugin-types" }
 serde.workspace = true
 toml.workspace = true
 url.workspace = true

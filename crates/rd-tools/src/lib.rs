@@ -52,8 +52,8 @@ pub use manifest::{
     ToolManifest, is_managed_tool,
 };
 pub use process::{
-    PROGRESS_INTERVAL, PreparedTool, ProgressThrottle, Stdout, ToolEnd, ToolLine, ToolProcess,
-    prepare, run_to_output,
+    PROGRESS_INTERVAL, PreparedTool, ProgressThrottle, SILENCE_LIMIT, Stdout, ToolEnd, ToolLine,
+    ToolProcess, prepare, run_to_output,
 };
 pub use runner::{LiveSlots, parallel_files, stderr_tail, tool_failed};
 pub use service::{ManagedToolService, ManagedToolStatus};

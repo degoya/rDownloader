@@ -141,7 +141,11 @@
     "hand_over": "Confier à un fournisseur",
     "hand_over_hint": "Le fournisseur récupère lui-même le NZB de ce paquet sur Usenet ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens. Le paquet reste ici.",
     "handed_over": "Confié à {provider}",
-    "handed_over_hint": "Ouvrir les travaux distants"
+    "handed_over_hint": "Ouvrir les travaux distants",
+    "waiting_for_parts": "En attente des fichiers manquants",
+    "waiting_for_parts_title": "Le post-traitement ne commence qu’une fois tous les fichiers du paquet arrivés.",
+    "reset_failed": "Réinitialiser les échecs et les blocages",
+    "reset_failed_hint": "{count} fichier de ce paquet | {count} fichiers de ce paquet"
   },
   "transfer": {
     "actions_aria": "Actions du fichier",
@@ -438,5 +442,30 @@
     "title": "Torrents mis en pause par le coupe-circuit",
     "description": "L’interface liée {name} a disparu. Les torrents restent en pause jusqu’à son retour ; les autres téléchargements continuent.",
     "open": "État du réseau"
+  },
+  "traffic": {
+    "one": "Trafic de {account} épuisé · prochaine vérification {time}",
+    "many": "Trafic de {count} comptes épuisé · prochaine vérification {time}",
+    "queue_paused": "File d’attente en pause : trafic de {account} épuisé · prochaine vérification {time}",
+    "entry": "{account} : attend au plus tard jusqu’à {until}",
+    "title": "L’hébergeur signale que le quota de trafic est épuisé. Les téléchargements attendent et reprennent dès qu’une vérification retrouve du trafic ou que l’attente se termine.",
+    "continue": "Reprendre quand même"
+  },
+  "reset_failed": {
+    "button": "Réinitialiser les échecs",
+    "hint": "Relancer les fichiers en échec ou bloqués de la liste affichée",
+    "failed": "En échec ({count})",
+    "blocked": "Bloqués ({count})",
+    "both": "En échec et bloqués ({count})",
+    "done": "{count} fichier réinitialisé | {count} fichiers réinitialisés"
+  },
+  "view_sort": {
+    "title": "Affichage trié – file inchangée",
+    "description": "Par « {column} », {direction}. Les téléchargements suivent toujours l’ordre de la file ; le glisser pour réordonner est désactivé tant que l’affichage est trié.",
+    "asc": "croissant",
+    "desc": "décroissant",
+    "category": "Catégorie",
+    "reset": "Revenir à l’ordre de la file",
+    "drag_off": "L’affichage est trié – réinitialisez-le pour réordonner la file."
   }
 }

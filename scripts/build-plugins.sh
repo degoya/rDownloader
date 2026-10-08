@@ -166,22 +166,9 @@ if [[ "$hash_only" -eq 1 ]]; then
     exit 0
 fi
 
-# The key of the component cache in CI and the release (RD-150-10), as two `name=value` lines
-# for $GITHUB_OUTPUT. `sources` covers every plugin's source hash, so an exact hit is a set of
-# components built from exactly these sources. `deps` covers what a stamp deliberately leaves
-# out and a component still depends on: the registry packages in Cargo.lock, the root Cargo.toml
-# (workspace dependencies, features, the release profile), .cargo/config.toml and the compiler
-# cargo resolves here (`rustc -vV`, RUSTUP_TOOLCHAIN or rust-toolchain.toml's channel), so a
-# toolchain change is a miss even where the key's literal version was not moved. The workspace
-# version is taken out of both files first — every release moves it, and no component reads it.
-# The workflow restores by `deps` alone when `sources` misses, and this script's staleness check
-# then rebuilds exactly the plugins whose stamps no longer match.
+# The key of the component cache in CI and the release (cache_key, lib/plugin-stamp.sh).
 if [[ "$cache_key_only" -eq 1 ]]; then
-    printf 'deps=%s\n' "$(deps_hash)"
-    for manifest in plugins/*/manifest.toml; do
-        name="$(basename "$(dirname "$manifest")")"
-        printf '%s %s\n' "$name" "$(source_hash "$name")"
-    done | sha256_files - | cut -c1-64 | sed 's/^/sources=/'
+    cache_key
     exit 0
 fi
 
@@ -193,16 +180,6 @@ if [[ "$stale_only" -eq 1 ]]; then
     exit 0
 fi
 
-# Whether the plugin in $1 has no built component in this checkout at all.
-#
-# The case the staleness check cannot see, and the one that used to pass quietly: the contract
-# tests read their components from target/, which is per checkout and which `cargo test` never
-# fills. Since RD-108-16 they fail on it rather than returning early, and this is the same
-# question asked before the run instead of forty minutes into it.
-missing() {
-    [[ ! -f "$(component_path "$1")" ]]
-}
-
 if [[ "$missing_only" -eq 1 ]]; then
     for manifest in plugins/*/manifest.toml; do
         name="$(basename "$(dirname "$manifest")")"
@@ -211,30 +188,14 @@ if [[ "$missing_only" -eq 1 ]]; then
     exit 0
 fi
 
-# manifest_version and package_drift, the comparison --list-unbumped and the packaging share.
+# manifest_version, package_drift and list_unbumped, the comparison --list-unbumped and the
+# packaging share.
 # shellcheck source=lib/plugin-drift.sh
 source "$ROOT/scripts/lib/plugin-drift.sh"
 
-# The plugins whose built component, manifest or locales differ from a signed package that
-# already carries their current version: `<name> <version> <member> <package>`, one per line.
-# Without names every plugin; with names only those, which is how check.sh keeps it to the
-# change set. A plugin with no package of its version, or no built component, has nothing to
-# compare and is not named — the latter is --list-missing's question.
+# --list-unbumped (list_unbumped, lib/plugin-drift.sh).
 if [[ "$unbumped_only" -eq 1 ]]; then
-    if [[ ${#selected[@]} -eq 0 ]]; then
-        for manifest in plugins/*/manifest.toml; do
-            selected+=("$(basename "$(dirname "$manifest")")")
-        done
-    fi
-    for name in "${selected[@]}"; do
-        [[ -f "plugins/$name/manifest.toml" ]] || continue
-        version="$(manifest_version "$name")"
-        package="$PACKAGES/$name-$version.rdplug"
-        component="$(component_path "$name")"
-        [[ -n "$version" && -f "$package" && -f "$component" ]] || continue
-        member="$(package_drift "$package" "$name" "$component")"
-        [[ -z "$member" ]] || echo "$name $version $member $package"
-    done
+    list_unbumped "${selected[@]}"
     exit 0
 fi
 

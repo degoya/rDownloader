@@ -244,6 +244,7 @@ async fn start(source: ObjectCredentialSource, secret: &str) -> (Harness, Fixtur
             session_token_ref: None,
             checksums: false,
             enabled: true,
+            ambient_custom_endpoint: false,
         },
         Some(secret),
         "az",

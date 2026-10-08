@@ -1,4 +1,4 @@
-import { api } from '@/api/client'
+import { useSettingsStore } from '@/stores/settings'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
@@ -15,7 +15,7 @@ import { setTitleStatus } from '@/utils/titleStatus'
  * an unreachable settings endpoint is already reported by the views that actually need it.
  */
 export async function loadDisplaySettings(): Promise<void> {
-  const response = await api.GET('/api/v1/settings')
+  const response = await useSettingsStore().fetchSettings()
   if (!response.data) return
   setByteDisplay(response.data.byte_display)
   setByteUnit(response.data.byte_unit)

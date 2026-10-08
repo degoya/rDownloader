@@ -50,6 +50,8 @@ pub fn runtime_settings(settings: &SettingsResponse) -> rd_scheduler::RuntimeSet
         auto_retry_interval_hours: settings.auto_retry_interval_hours,
         auto_retry_max_rounds: settings.auto_retry_max_rounds,
         disabled_kinds: service_switches(settings).disabled_kinds(),
+        account_traffic_action: settings.account_traffic_action,
+        account_traffic_overrides: settings.account_traffic_overrides.clone(),
     }
 }
 

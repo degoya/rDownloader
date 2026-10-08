@@ -24,6 +24,7 @@ use super::{
         PackageSpeedLimitParams, RenameParams, ReorderMembersParams, ReorderPackagesParams, body,
         public,
     },
+    script_gate,
 };
 use crate::{
     ApiError, bandwidth_handlers, download_handlers as downloads, error_codes::parse_id,
@@ -91,7 +92,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one download package (id from list_packages). `body` is the REST body of PATCH /api/v1/packages/{id}: name, category_id or clear_category, priority (low|normal|high), postprocess_level (none|repair|unpack|delete) or clear_postprocess_level, script or clear_script, clear_password. A new category moves the files to its folder."
+        description = "Change one download package (id from list_packages). `body` is the REST body of PATCH /api/v1/packages/{id}: name, category_id or clear_category, priority (low|normal|high), postprocess_level (none|repair|unpack|delete) or clear_postprocess_level, script or clear_script, clear_password. A new category moves the files to its folder. Naming a script the package does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_package(
         &self,
@@ -99,6 +100,14 @@ impl RdMcpServer {
     ) -> McpToolResult {
         let result = async {
             let id = parse_id(&params.id)?;
+            let stored = self.state.database.get_package(id).await?;
+            script_gate::check(
+                &self.state,
+                "script",
+                script_gate::body_script(&params.body),
+                stored.and_then(|package| package.script).as_deref(),
+            )
+            .await?;
             let request = body(serde_json::Value::Object(params.body))?;
             let Json(package) =
                 packages::update_package(State(self.state.clone()), Path(id), Json(request))
@@ -110,13 +119,15 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change several download packages at once. `definition` is the REST body of POST /api/v1/packages/bulk: ids, plus category_id or clear_category, priority, postprocess_level or clear_postprocess_level, script or clear_script."
+        description = "Change several download packages at once. `definition` is the REST body of POST /api/v1/packages/bulk: ids, plus category_id or clear_category, priority, postprocess_level or clear_postprocess_level, script or clear_script. Naming a script is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_packages(
         &self,
         Parameters(params): Parameters<DefinitionParams>,
     ) -> McpToolResult {
         let result = async {
+            let named = script_gate::body_script(&params.definition);
+            script_gate::check(&self.state, "script", named, None).await?;
             let request = body(serde_json::Value::Object(params.definition))?;
             let Json(changed) =
                 packages::bulk_update_packages(State(self.state.clone()), Json(request)).await?;

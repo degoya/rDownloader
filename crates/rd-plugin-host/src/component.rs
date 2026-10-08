@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rand::Rng;
-use rd_core::{AccountId, ByteCount, Failure, FailureKind, LinkCheckResult, LinkStatus};
+use rd_core::{AccountId, ByteCount, Failure, FailureKind, LinkStatus, PluginLinkCheck};
 use rd_plugin_api::{
     AccountStatus, CheckRequest, ClientIdentity, ResolvedDownload, Resolver, ResolverHost,
     ResolverMetadata,
@@ -28,6 +28,8 @@ use rdownloader::plugin::{
 
 mod convert;
 mod host_impls;
+#[cfg(test)]
+mod redaction_tests;
 
 use convert::permanent;
 pub(crate) use convert::{
@@ -218,7 +220,7 @@ impl Resolver for ComponentResolver {
             .await
     }
 
-    async fn check(&self, request: CheckRequest) -> Result<Vec<LinkCheckResult>, Failure> {
+    async fn check(&self, request: CheckRequest) -> Result<Vec<PluginLinkCheck>, Failure> {
         self.recorded("check", self.check_inner(request)).await
     }
 }
@@ -315,7 +317,7 @@ impl ComponentResolver {
             .collect())
     }
 
-    async fn check_inner(&self, request: CheckRequest) -> Result<Vec<LinkCheckResult>, Failure> {
+    async fn check_inner(&self, request: CheckRequest) -> Result<Vec<PluginLinkCheck>, Failure> {
         let (urls, mut unknown) = crate::foreign_address::checkable(request.urls);
         if urls.is_empty() {
             return Ok(unknown);
@@ -343,7 +345,7 @@ impl ComponentResolver {
                         "Plugin reported a URL that was not requested",
                     ));
                 }
-                Ok(LinkCheckResult {
+                Ok(PluginLinkCheck {
                     url: Url::parse(&result.url).map_err(permanent)?,
                     status: match result.status {
                         wit_types::LinkStatus::Online => LinkStatus::Online,
@@ -357,7 +359,6 @@ impl ComponentResolver {
                         .map(ByteCount::new)
                         .transpose()
                         .map_err(permanent)?,
-                    media: None,
                 })
             })
             .collect::<Result<Vec<_>, Failure>>()?;

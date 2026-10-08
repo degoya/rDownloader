@@ -1,5 +1,6 @@
 {
   "name": "Debrid-Link",
+  "description": "Résout les liens d'autres hébergeurs via un compte Debrid-Link.",
   "account": {
     "secret_label": "Clé API (debrid-link.com/webapp/apikey)",
     "secret_hint": "Saisissez votre clé API depuis debrid-link.com/webapp/apikey comme secret."

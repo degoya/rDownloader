@@ -128,7 +128,8 @@
     "mirror": "Mirror {set}",
     "mirror_hint": "Links eines Pakets mit derselben Mirror-Nummer sind Kopien einer Datei.",
     "entries": "keine Einträge zur Auswahl | {count} Eintrag zur Auswahl | {count} Einträge zur Auswahl",
-    "entries_hint": "Die Probe listet nur auf; Links und Captchas kommen erst, wenn im LinkGrabber ausgewählt wird."
+    "entries_hint": "Die Probe listet nur auf; Links und Captchas kommen erst, wenn im LinkGrabber ausgewählt wird.",
+    "address_hint": "Leer: die Prüfadresse der Regel."
   },
   "transfer": {
     "export": "Regeln exportieren",

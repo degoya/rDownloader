@@ -219,7 +219,9 @@ fn no_rule_written_before_two_stage_rules_carries_any_of_their_fields() {
     assert!(shipped("scnlog").groups.is_none());
     let document: serde_json::Value = serde_json::from_str(PAYLOAD).expect("the payload");
     for rule in document["rules"].as_array().expect("rules") {
-        if rule["id"] == "serienjunkies" {
+        // The two-stage rules themselves: serienjunkies since 1.17, warez-cx (version 2, the
+        // release choice without a captcha) since 1.19 (RD-1190-17 B5).
+        if rule["id"] == "serienjunkies" || rule["id"] == "warez-cx" {
             continue;
         }
         let text = rule.to_string();

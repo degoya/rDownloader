@@ -193,8 +193,8 @@ where
     probe().await
 }
 
-/// `guard` is the address rule of a page a stranger wrote (RD-150-03): an address it refuses
-/// is kept unproven rather than requested, and the online check marks it; one it permits is
+/// `guard` is the address rule of the find (RD-150-03, RD-1190-18): an address it refuses is
+/// kept unproven rather than requested, and the online check marks it; one it permits is
 /// probed through a client that holds to the rule at connect time.
 async fn probe(
     state: &AppState,

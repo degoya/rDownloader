@@ -1,5 +1,6 @@
 {
   "name": "AllDebrid",
+  "description": "Löst Links anderer Hoster über ein AllDebrid-Konto auf.",
   "account": {
     "secret_label": "API-Key (alldebrid.com/apikeys)",
     "secret_hint": "Gib deinen API-Key von alldebrid.com/apikeys als Secret ein."

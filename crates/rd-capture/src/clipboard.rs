@@ -16,7 +16,7 @@ use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use crate::client::{CaptureClient, Detail, ServiceRefusal};
+use crate::client::{CaptureClient, Detail, ServiceRefusal, Submitted};
 
 pub(crate) async fn watch_clipboard(
     client: CaptureClient,
@@ -60,6 +60,10 @@ pub(crate) async fn watch_clipboard(
                         let result = client
                             .submit_links(candidate.urls, "clipboard", None, None)
                             .await;
+                        // A page waiting for a choice is news the intake event does not carry.
+                        if let Some(notice) = result.as_ref().ok().and_then(|done| done.notice()) {
+                            crate::notify::toast(notice).await;
+                        }
                         record_submission(&mut state, candidate.hash, result);
                     }
                 }
@@ -143,6 +147,8 @@ async fn read_text(clipboard: &mut Option<Clipboard>, unavailable_logged: &mut b
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum HandOver {
     Delivered(usize),
+    /// A page whose releases wait for a choice in the LinkGrabber (RD-1190-17).
+    Listed(Submitted),
     /// Nothing on the clipboard is a link.
     NoLinks,
     /// More text than the agent reads ([`MAX_CLIPBOARD_BYTES`]).
@@ -161,6 +167,7 @@ impl HandOver {
         match self {
             Self::Delivered(1) => "1 link from the clipboard handed over".to_owned(),
             Self::Delivered(count) => format!("{count} links from the clipboard handed over"),
+            Self::Listed(submitted) => submitted.notice().unwrap_or_default(),
             Self::NoLinks => "No link found on the clipboard".to_owned(),
             Self::TooLong => "The clipboard holds more text than the agent reads".to_owned(),
             Self::Declined(_) => "rDownloader took none of the links on the clipboard".to_owned(),
@@ -208,9 +215,13 @@ async fn hand_over(
         .submit_links(candidate.urls, "clipboard", None, None)
         .await
     {
-        Ok(()) => {
+        Ok(Submitted::Added) => {
             state.accept(candidate.hash);
             HandOver::Delivered(count)
+        }
+        Ok(listed) => {
+            state.accept(candidate.hash);
+            HandOver::Listed(listed)
         }
         Err(error) => match decided_submission_code(&error) {
             Some(code) => {
@@ -276,11 +287,11 @@ fn decided_submission_code(error: &anyhow::Error) -> Option<&str> {
 /// tick leaves that clipboard content alone. Everything else is deferred rather than recorded,
 /// so the same text is offered again — a service that is still starting or a network that
 /// blinked deserve exactly that (RD-107-15) — but with a growing gap in front of it.
-fn record_submission(state: &mut ClipboardState, hash: Vec<u8>, result: Result<()>) {
+fn record_submission(state: &mut ClipboardState, hash: Vec<u8>, result: Result<Submitted>) {
     match result {
-        Ok(()) => {
+        Ok(submitted) => {
             state.accept(hash);
-            tracing::info!("clipboard links submitted");
+            tracing::info!(?submitted, "clipboard links submitted");
         }
         Err(error) => match decided_submission_code(&error) {
             Some(code) => {

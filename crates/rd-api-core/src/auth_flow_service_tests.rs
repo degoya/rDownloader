@@ -384,3 +384,28 @@ async fn a_flow_that_cannot_be_read_is_never_overwritten_without_its_tokens() {
     assert_eq!(refresh.as_deref(), Some("account/example/refresh"));
     assert_eq!(access.as_deref(), Some("account/example/access"));
 }
+
+/// A second preload used to be dropped without a word; a debug build now says it is a wiring
+/// mistake (API-06). The start hands the providers over once, before the first lookup.
+#[tokio::test]
+#[cfg(debug_assertions)]
+#[should_panic(expected = "preloaded once")]
+async fn a_second_preload_is_a_wiring_mistake() {
+    let temporary = tempfile::tempdir().expect("tempdir");
+    let database = rd_db::Database::open(temporary.path().join("auth-preload.sqlite3"))
+        .await
+        .expect("database");
+    let service = AuthFlowService::detached(
+        database,
+        temporary.path().join("plugins"),
+        std::sync::Arc::new(NoHost),
+    );
+    service.preload(
+        rd_plugin_ext::AuthProviders::none(),
+        rd_plugin_ext::OAuthProviders::none(),
+    );
+    service.preload(
+        rd_plugin_ext::AuthProviders::none(),
+        rd_plugin_ext::OAuthProviders::none(),
+    );
+}

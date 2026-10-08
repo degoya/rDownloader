@@ -101,14 +101,15 @@ rd_crate_dir_of() {
 
 # What a changed path cannot be placed in, as a reason; nothing when it can. These govern what
 # every member builds (a manifest, the lock file, the toolchain, cargo's, nextest's and
-# cargo-deny's configuration, a build script), or reach every member anyway (rd-core, the
-# migrations) — the whole Rust half runs, as the job says.
+# cargo-deny's configuration, a build script), or reach every member anyway (rd-core and the
+# plugin types it re-exports, the migrations) — the whole Rust half runs, as the job says.
 rd_crate_wide_reason() {
     case "$1" in
         Cargo.toml|Cargo.lock|*/Cargo.toml|*/Cargo.lock) echo "$1: a manifest or the lock file decides what every member builds" ;;
         rust-toolchain.toml|.cargo/*|.config/nextest.toml|deny.toml) echo "$1 governs the whole build" ;;
         build.rs|*/build.rs) echo "$1: a build script" ;;
         crates/rd-core/*) echo "$1: rd-core, which every member builds on" ;;
+        crates/rd-plugin-types/*) echo "$1: rd-plugin-types, which rd-core re-exports to every member" ;;
         crates/rd-db/migrations/*|*.sql) echo "$1: a migration" ;;
     esac
 }

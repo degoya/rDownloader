@@ -161,11 +161,19 @@ impl FtpRunner {
             Ok(size) => size as u64,
             Err(error) => return Ok(RunOutcome::Failed(classify(&error))),
         };
-        let modified = connection
-            .modified_at(path)
-            .await
-            .ok()
-            .map(|naive| naive.and_utc().to_rfc3339());
+        // Without `MDTM` the size is the only validator left; a timestamp an earlier attempt
+        // recorded then refuses the resume (TR-03), so the cause is worth a line in the log.
+        let modified = match connection.modified_at(path).await {
+            Ok(naive) => Some(naive.and_utc().to_rfc3339()),
+            Err(error) => {
+                tracing::warn!(
+                    download = %file.id,
+                    error = %rd_core::redact_text(&error.to_string()),
+                    "the FTP server did not report the file's modification time"
+                );
+                None
+            }
+        };
 
         let staging =
             Staging::open(self.service.database(), file, root, part_path, size, LABELS).await;

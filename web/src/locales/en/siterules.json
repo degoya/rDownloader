@@ -128,7 +128,8 @@
     "mirror": "Mirror {set}",
     "mirror_hint": "Links of one package with the same mirror number are copies of one file.",
     "entries": "no entries to choose | {count} entry to choose | {count} entries to choose",
-    "entries_hint": "The trial only lists; links and captchas come once somebody picks in the LinkGrabber."
+    "entries_hint": "The trial only lists; links and captchas come once somebody picks in the LinkGrabber.",
+    "address_hint": "Empty: the rule's probe address."
   },
   "transfer": {
     "export": "Export rules",

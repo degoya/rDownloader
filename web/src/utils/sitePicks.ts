@@ -90,3 +90,25 @@ export function seasonGroups(entries: readonly CollectorPickEntry[]): SeasonGrou
 export function selectable(entry: CollectorPickEntry): boolean {
   return entry.state === 'pending' || entry.state === 'failed'
 }
+
+/**
+ * The entries of a list read again that are the ones chosen in the list that vanished
+ * (RD-1190-17): the same release name, or — for an entry the rule names nothing — the same place
+ * in the list. A release the page no longer lists is left out.
+ */
+export function sameEntries(
+  before: readonly CollectorPickEntry[],
+  fresh: readonly CollectorPickEntry[],
+  chosen: readonly number[]
+): number[] {
+  const found = new Set<number>()
+  for (const index of chosen) {
+    const entry = before.find(candidate => candidate.index === index)
+    if (!entry) continue
+    const match = entry.label
+      ? fresh.find(candidate => candidate.label === entry.label)
+      : fresh.find(candidate => candidate.index === index && !candidate.label)
+    if (match) found.add(match.index)
+  }
+  return [...found].sort((left, right) => left - right)
+}

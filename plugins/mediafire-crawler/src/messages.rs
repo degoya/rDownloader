@@ -53,5 +53,5 @@ pub(crate) fn api_error(message: &str) -> String {
 }
 
 pub(crate) fn http_error(status: u16) -> String {
-    format!("MediaFire HTTP status {status}")
+    plugin_common::messages::http_error("MediaFire", status)
 }

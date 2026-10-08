@@ -18,6 +18,8 @@ vi.mock('@/api/client', () => ({
   api: { GET: vi.fn(async () => ({ data: [] })) },
   responseError: vi.fn(() => 'The service did not answer')
 }))
+// The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
+vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
 
 const reload = vi.fn()
 

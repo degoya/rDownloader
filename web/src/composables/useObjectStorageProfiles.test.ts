@@ -17,12 +17,14 @@ vi.mock('@/api/client', () => ({
 const {
   bucketLink,
   credentialSources,
+  dropsSecretForHost,
   emptyForm,
   enabledObjectStorageProfiles,
   endpointLabel,
   formComplete,
   formFor,
   isIncomplete,
+  keepsSecret,
   testOutcome,
   toCreateBody,
   toUpdateBody,
@@ -48,6 +50,7 @@ function profile(overrides: Partial<ObjectStorageProfile> = {}): ObjectStoragePr
     enabled: true,
     created_at: '2026-09-27T00:00:00Z',
     updated_at: '2026-09-27T00:00:00Z',
+    ambient_custom_endpoint: false,
     ...overrides
   }
 }
@@ -115,7 +118,7 @@ describe('object storage form', () => {
     expect(formComplete(named, null)).toBe(false)
     expect(formComplete({ ...named, access_key_id: 'AKIA' }, null)).toBe(false)
     expect(formComplete({ ...named, access_key_id: 'AKIA', secret_access_key: 's' }, null)).toBe(true)
-    expect(formComplete({ ...named, access_key_id: 'AKIA' }, profile())).toBe(true)
+    expect(formComplete({ ...named, access_key_id: 'AKIA', endpoint: 'https://minio.example:9000/' }, profile())).toBe(true)
     // Switching an ambient profile to static needs a secret now.
     expect(formComplete({ ...named, access_key_id: 'AKIA' }, profile({ has_secret: false }))).toBe(false)
     expect(formComplete({ ...named, credential_source: 'ambient' }, null)).toBe(true)
@@ -153,13 +156,43 @@ describe('object storage form', () => {
     const azure = { ...emptyForm(), name: 'Blob', provider: 'azure' as const, credential_source: 'static' as const }
     expect(formComplete({ ...azure, secret_access_key: 'a2V5' }, null)).toBe(false)
     expect(formComplete({ ...azure, account: 'media', secret_access_key: 'a2V5' }, null)).toBe(true)
-    const stored = profile({ provider: 'azure', account: 'media', access_key_id: null })
+    const stored = profile({ provider: 'azure', endpoint: null, account: 'media', access_key_id: null })
     expect(formComplete({ ...azure, account: 'media' }, stored)).toBe(true)
     // An account key does not become a signature by switching the source.
     expect(formComplete({ ...azure, account: 'media', credential_source: 'shared_access_signature' }, stored)).toBe(false)
     // Nor does an S3 secret become a Google key.
     expect(formComplete({ ...emptyForm(), name: 'G', provider: 'gcs' }, profile())).toBe(false)
     expect(formComplete({ ...emptyForm(), name: 'G', provider: 'gcs', secret_access_key: '{}' }, profile())).toBe(true)
+  })
+})
+
+describe('object storage secrets and hosts (RD-1190-20)', () => {
+  it('keeps a stored secret only for the host it was typed for', () => {
+    const form = formFor(profile())
+    expect(keepsSecret(form, profile())).toBe(true)
+    expect(dropsSecretForHost(form, profile())).toBe(false)
+    const moved = { ...form, endpoint: 'https://collector.example' }
+    expect(keepsSecret(moved, profile())).toBe(false)
+    expect(dropsSecretForHost(moved, profile())).toBe(true)
+    expect(formComplete(moved, profile())).toBe(false)
+    expect(formComplete({ ...moved, secret_access_key: 'again' }, profile())).toBe(true)
+    // Without an endpoint the Azure account names the host.
+    const blob = profile({ provider: 'azure', endpoint: null, account: 'media', credential_source: 'shared_access_signature' })
+    expect(keepsSecret(formFor(blob), blob)).toBe(true)
+    expect(dropsSecretForHost({ ...formFor(blob), account: 'other' }, blob)).toBe(true)
+    // Another source is a different secret, not a moved one.
+    expect(dropsSecretForHost({ ...form, credential_source: 'ambient' }, profile())).toBe(false)
+  })
+
+  it('sends machine credentials to an endpoint only with the explicit yes', () => {
+    const ambient = { ...emptyForm(), name: 'Machine', credential_source: 'ambient' as const, endpoint: 'https://minio.example' }
+    expect(formComplete(ambient, null)).toBe(false)
+    expect(formComplete({ ...ambient, ambient_custom_endpoint: true }, null)).toBe(true)
+    expect(toCreateBody({ ...ambient, ambient_custom_endpoint: true }).ambient_custom_endpoint).toBe(true)
+    // The yes travels only where it means something.
+    expect(toCreateBody({ ...ambient, endpoint: '', ambient_custom_endpoint: true }).ambient_custom_endpoint).toBe(false)
+    expect(toCreateBody({ ...ambient, credential_source: 'static', ambient_custom_endpoint: true }).ambient_custom_endpoint).toBe(false)
+    expect(formFor(profile({ credential_source: 'ambient', ambient_custom_endpoint: true })).ambient_custom_endpoint).toBe(true)
   })
 })
 

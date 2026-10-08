@@ -4,7 +4,9 @@
  * storage bucket reached through one of the object storage profiles, or an rclone remote —
  * WebDAV included, which has no destination of its own. Each gets its own copy of every
  * archive and its own retention, which can be previewed before it is saved; nothing is deleted
- * by looking. "Verify newest" fetches the newest archive back and checks it where it lies.
+ * by looking. "Verify newest" fetches the newest archive back and checks it where it lies, with
+ * the key the schedule keeps — the list says so; "Verify with passphrase" opens it with the
+ * passphrase a restore asks for (RD-1190-19).
  *
  * No destination carries a secret: a profile is chosen by name, a remote named as `name:path`,
  * and their credentials stay where they are configured.
@@ -26,6 +28,7 @@ import { translateServerMessage } from '@/i18n/server'
 import { formatMoment } from '@/utils/format'
 import { WHOLE } from '@/utils/numberInput'
 import { positiveCount } from '@/utils/positiveCount'
+import BackupPassphraseCheck from '@/components/settings/BackupPassphraseCheck.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const props = defineProps<{ destinations: BackupDestination[] }>()
@@ -259,6 +262,7 @@ onMounted(async () => {
             :loading="busy === destination.id"
             @click="verifyNewest(destination)"
           />
+          <BackupPassphraseCheck :destination-id="destination.id" :disabled="destination.archive_count === 0" />
           <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :label="t('common.actions.edit')" @click="edit(destination)" />
           <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('common.actions.remove')" @click="remove(destination)" />
         </div>
@@ -349,6 +353,7 @@ onMounted(async () => {
           <span class="text-toned">{{ row.destination }}</span>
           <span class="min-w-0 truncate font-mono text-muted">{{ row.archive_name }}</span>
           <span v-if="row.content_checked === false" class="text-muted">{{ t('system.backup.full.destinations.digest_only') }}</span>
+          <span v-else-if="row.content_checked" class="text-muted">{{ t('system.backup.full.destinations.stored_key') }}</span>
           <p v-if="verificationError(row)" class="w-full text-error">{{ verificationError(row) }}</p>
         </li>
       </ul>

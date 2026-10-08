@@ -3,8 +3,8 @@
 //! The point is that "it worked on my machine" and "this core will run it" become the same
 //! question. Everything checked here is something the host would otherwise only tell the
 //! author about through a user's bug report: a manifest field out of bounds, an import the
-//! manifest never granted, a world that does not match, a plugin that claims none of its own
-//! domains.
+//! manifest never granted, a world that does not match, a translation that lacks codes English
+//! has, a resolver or crawler that claims links on hosts it does not declare.
 //!
 //! Deliberately not here: whether the plugin resolves a real link. That needs a hoster, an
 //! account and a network, none of which belong in a conformance run — and a plugin that
@@ -13,7 +13,13 @@
 
 use serde::Serialize;
 
-use crate::{PluginType, PluginVerifier};
+use crate::{PluginType, PluginVerifier, locales::REQUIRED_LANGUAGES};
+
+/// Addresses on hosts no plugin declares, which a resolver or a crawler must not claim.
+const FOREIGN_LINKS: [&str; 2] = [
+    "https://conformance.invalid/some/file.bin",
+    "https://cdn.example.org/a/b/c.zip",
+];
 
 /// One verified property.
 #[derive(Debug, Serialize)]
@@ -94,32 +100,45 @@ pub async fn check_package(bytes: &[u8], verifier: &PluginVerifier) -> Conforman
     report.version = Some(manifest.version.clone());
     report.plugin_type = Some(manifest.plugin_type.as_str().to_owned());
 
+    // That English is there when anything is was proven by `package`; what verification does
+    // not ask is whether a German, Spanish or French catalogue the package ships is whole. A
+    // missing code falls back to English one string at a time, so the person reads two
+    // languages mixed in one dialog.
     report.push(
-        "locales",
-        "Translations exist for every language the package ships",
-        if package.locales.is_empty() || package.locales.iter().any(|(lang, _)| lang == "en") {
-            Ok(())
-        } else {
-            Err("a localised plugin must ship locales/en.json".to_owned())
-        },
+        "locales_required",
+        "Every interface language the package ships (de, en, es, fr) carries every code \
+         English does",
+        required_locales_complete(manifest.message_slug(), &package.locales),
     );
 
     // Instantiating against the world the type declares is the only way to find out that the
     // exports line up. A component missing an export compiles fine and fails at the first
     // call, which is to say: on a user's download.
     match instantiate(&package).await {
-        Ok(resolver) => {
+        Ok(claimer) => {
             report.push(
                 "world",
                 "The component exports the world its plugin type requires",
                 Ok(()),
             );
-            if let Some(resolver) = resolver {
-                report.push(
+            match claimer {
+                Some(Claimer::Resolver(resolver)) => report.push(
                     "match_url",
                     "The resolver does not claim links belonging to no hoster it declares",
                     does_not_claim_foreign_links(&resolver, manifest).await,
-                );
+                ),
+                Some(Claimer::Crawler(crawler)) => report.push(
+                    "claims_url",
+                    "The crawler does not claim links on hosts it does not declare",
+                    claims_no_foreign_link(async |url| {
+                        crawler
+                            .claims(url)
+                            .await
+                            .map_err(|error| format!("claims-url failed: {error:#}"))
+                    })
+                    .await,
+                ),
+                None => {}
             }
         }
         Err(detail) => report.push(
@@ -131,30 +150,87 @@ pub async fn check_package(bytes: &[u8], verifier: &PluginVerifier) -> Conforman
     report
 }
 
-/// Builds the package as the core would, returning the resolver when it is one.
-async fn instantiate(
-    package: &crate::VerifiedPackage,
-) -> Result<Option<crate::ComponentResolver>, String> {
+/// Whether every interface language in `locales` carries each code `en` does.
+///
+/// Only the languages the interface requires (`web/src/locales/languages.json`): one still in
+/// progress may carry a subset, as a bundled plugin's may. A language the package does not
+/// ship at all is the documented fallback to English, not a gap.
+fn required_locales_complete(slug: &str, locales: &[(String, Vec<u8>)]) -> Result<(), String> {
+    let parse = |language: &str| {
+        locales
+            .iter()
+            .find(|(tag, _)| tag == language)
+            .map(|(_, bytes)| {
+                crate::parse_locale(slug, language, bytes).map_err(|error| format!("{error:#}"))
+            })
+            .transpose()
+    };
+    let Some(english) = parse("en")? else {
+        return Ok(());
+    };
+    let mut gaps = Vec::new();
+    for language in REQUIRED_LANGUAGES.into_iter().filter(|tag| *tag != "en") {
+        let Some(locale) = parse(language)? else {
+            continue;
+        };
+        let missing: Vec<&str> = english
+            .codes
+            .keys()
+            .filter(|code| !locale.codes.contains_key(*code))
+            .map(String::as_str)
+            .collect();
+        if !missing.is_empty() {
+            gaps.push(format!(
+                "locales/{language}.json lacks {}",
+                missing.join(", ")
+            ));
+        }
+    }
+    if gaps.is_empty() {
+        Ok(())
+    } else {
+        Err(gaps.join("; "))
+    }
+}
+
+/// What a conformance run asks the built component beyond "it instantiates".
+enum Claimer {
+    // Both boxed: the two components differ in size by hundreds of bytes (clippy large_enum_variant).
+    Resolver(Box<crate::ComponentResolver>),
+    Crawler(Box<crate::extension::FolderCrawler>),
+}
+
+/// Builds the package as the core would, returning it when it is a resolver or a crawler.
+async fn instantiate(package: &crate::VerifiedPackage) -> Result<Option<Claimer>, String> {
     match package.manifest.plugin_type {
         PluginType::Resolver => crate::ComponentResolver::new(
             package.manifest.clone(),
             &package.component,
-            std::sync::Arc::new(RefusingHost),
+            refusing_host(),
         )
-        .map(Some)
+        .map(|resolver| Some(Claimer::Resolver(Box::new(resolver))))
+        .map_err(|error| format!("{error:#}")),
+        // A crawler answers `claims-url` from the address alone, like a resolver's
+        // `match-url`, and the selection asks it before every paste: over-claiming there takes
+        // a link away from the plugin it belongs to.
+        PluginType::Crawler => crate::extension::FolderCrawler::new(
+            package.manifest.clone(),
+            &package.component,
+            Some(refusing_host()),
+        )
+        .map(|crawler| Some(Claimer::Crawler(Box::new(crawler))))
         .map_err(|error| format!("{error:#}")),
         PluginType::Transfer => {
             crate::TransferBackend::new(package.manifest.clone(), &package.component)
                 .map(|_| None)
                 .map_err(|error| format!("{error:#}"))
         }
-        // The extension types are built through the shared loader, which links the world
-        // their manifest names. Nothing is returned: only a resolver has a behavioural
-        // check beyond "it instantiates".
+        // The other extension types are built through the shared loader, which links the
+        // world their manifest names. Nothing is returned: they have no behavioural check
+        // beyond "it instantiates".
         PluginType::Intake
         | PluginType::Auth
         | PluginType::OAuth
-        | PluginType::Crawler
         | PluginType::Enricher
         | PluginType::Notifier
         | PluginType::Postprocess
@@ -191,18 +267,24 @@ async fn does_not_claim_foreign_links(
     if multihoster {
         return Ok(());
     }
-    for foreign in [
-        "https://conformance.invalid/some/file.bin",
-        "https://cdn.example.org/a/b/c.zip",
-    ] {
-        match resolver.guest_claims(foreign).await {
-            Ok(false) => {}
-            Ok(true) => {
-                return Err(format!(
-                    "the plugin claims {foreign}, which belongs to no hoster it declares"
-                ));
-            }
-            Err(failure) => return Err(format!("match-url failed: {}", failure.message)),
+    claims_no_foreign_link(async |url| {
+        resolver
+            .guest_claims(url)
+            .await
+            .map_err(|failure| format!("match-url failed: {}", failure.message))
+    })
+    .await
+}
+
+/// Asks `claims` about every [`FOREIGN_LINKS`] address; claiming one fails the check.
+async fn claims_no_foreign_link(
+    claims: impl AsyncFn(&'static str) -> Result<bool, String>,
+) -> Result<(), String> {
+    for foreign in FOREIGN_LINKS {
+        if claims(foreign).await? {
+            return Err(format!(
+                "the plugin claims {foreign}, which belongs to no host it declares"
+            ));
         }
     }
     Ok(())
@@ -211,6 +293,10 @@ async fn does_not_claim_foreign_links(
 /// Stands in for the host during a conformance run: nothing here should reach the network,
 /// and a plugin that tries during `match-url` is doing something it has no business doing.
 struct RefusingHost;
+
+fn refusing_host() -> std::sync::Arc<dyn rd_plugin_api::ResolverHost> {
+    std::sync::Arc::new(RefusingHost)
+}
 
 #[async_trait::async_trait]
 impl rd_plugin_api::ResolverHost for RefusingHost {
@@ -230,3 +316,7 @@ impl rd_plugin_api::ResolverHost for RefusingHost {
         false
     }
 }
+
+#[cfg(test)]
+#[path = "conformance_tests.rs"]
+mod tests;

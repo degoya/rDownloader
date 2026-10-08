@@ -246,3 +246,46 @@ fn groups_are_checked_and_exclude_the_page_wide_mirrors() {
         RuleError::Variable(_)
     ));
 }
+
+/// PL-09: a rule's size is bounded before anything is compiled or fetched — at most
+/// `MAX_STEPS` steps, on the page and in `groups` alike, and patterns of at most
+/// `MAX_PATTERN_LENGTH` characters that compile within a limit well below the `regex` crate's
+/// 10 MiB default.
+#[test]
+fn steps_and_patterns_are_bounded() {
+    use crate::step::{MAX_PATTERN_LENGTH, MAX_STEPS};
+
+    let regex_step = serde_json::json!({ "kind": "regex", "pattern": "(a)", "into": "links" });
+    let steps = |count: usize| serde_json::Value::Array(vec![regex_step.clone(); count]);
+    let mut at_the_cap = example_json();
+    at_the_cap["steps"] = steps(MAX_STEPS);
+    serde_json::from_value::<Rule>(at_the_cap)
+        .expect("shape")
+        .validate()
+        .expect("the cap itself is allowed");
+    assert_eq!(
+        refused(|j| j["steps"] = steps(MAX_STEPS + 1)),
+        RuleError::TooManySteps(MAX_STEPS)
+    );
+    let groups = serde_json::json!({
+        "from": "releases",
+        "steps": steps(MAX_STEPS + 1),
+        "package": { "from": "title" }
+    });
+    assert_eq!(
+        refused(|j| j["groups"] = groups),
+        RuleError::TooManyGroupSteps(MAX_STEPS)
+    );
+
+    let long = "a".repeat(MAX_PATTERN_LENGTH + 1);
+    assert_eq!(
+        refused(|j| j["steps"][1]["pattern"] = long.into()),
+        RuleError::PatternLength(MAX_PATTERN_LENGTH)
+    );
+    // Eight characters, yet sixty copies of the Unicode `\w` class, over 45 kB each: within
+    // the crate's default, past this limit.
+    assert!(matches!(
+        refused(|j| j["steps"][1]["pattern"] = "(\\w{60})".into()),
+        RuleError::Pattern { .. }
+    ));
+}

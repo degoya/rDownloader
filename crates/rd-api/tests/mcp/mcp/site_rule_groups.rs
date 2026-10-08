@@ -102,14 +102,20 @@ fn hoster(slug: &str, host: &str) -> DynamicProvider {
     }
 }
 
-/// The warez.cx rule document as the release file will carry it.
+/// The warez.cx rule document as the release file carries it, in its one-stage form: since
+/// RD-1190-17 the shipped rule lists the releases first (`groups.pick`), and a rule without the
+/// choice -- the one an agent writes here -- still yields every release in one run.
 fn warez_rule() -> serde_json::Value {
     let payload: serde_json::Value = serde_json::from_str(PAYLOAD).expect("the payload");
-    payload["rules"]
+    let mut rule = payload["rules"]
         .as_array()
         .and_then(|rules| rules.iter().find(|rule| rule["id"] == "warez-cx"))
         .cloned()
-        .expect("the payload carries warez-cx")
+        .expect("the payload carries warez-cx");
+    if let Some(groups) = rule["groups"].as_object_mut() {
+        groups.remove("pick");
+    }
+    rule
 }
 
 #[tokio::test]

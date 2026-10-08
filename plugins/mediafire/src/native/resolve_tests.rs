@@ -1,7 +1,7 @@
 //! `resolve` on the scripted host: the live success path, and every refusal the job names.
 
-use rd_core::FailureKind;
 use rd_plugin_api::{ResolvedHeader, Resolver};
+use rd_plugin_types::FailureKind;
 
 use super::{
     API_ERROR_261, API_URL, DIRECT_URL, FILE_PAGE, FILE_URL, GET_INFO, GET_INFO_INVALID,
@@ -20,9 +20,15 @@ async fn a_public_file_resolves_to_its_direct_link_with_name_size_and_hash() {
         .expect("resolved");
     assert_eq!(resolved.url.as_str(), DIRECT_URL);
     assert_eq!(resolved.file_name.as_deref(), Some("test-10mb.bin"));
-    assert_eq!(resolved.size.map(rd_core::ByteCount::get), Some(10_485_760));
+    assert_eq!(
+        resolved.size.map(rd_plugin_types::ByteCount::get),
+        Some(10_485_760)
+    );
     let checksum = resolved.checksum.expect("the API's SHA-256");
-    assert_eq!(checksum.algorithm, rd_core::ChecksumAlgorithm::Sha256);
+    assert_eq!(
+        checksum.algorithm,
+        rd_plugin_types::ChecksumAlgorithm::Sha256
+    );
     assert_eq!(
         checksum.value,
         "e5b844cc57f57094ea4585e235f36c78c1cd222262bb89d53c94dcb4d6b3e55d"

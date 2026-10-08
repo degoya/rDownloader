@@ -8,7 +8,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { translateServerMessage } from '@/i18n/server'
 
 /** Whose superseded versions go: every plugin's, or one plugin's, by its card. */
-export interface SupersededScope {
+interface SupersededScope {
   /** How many the list shows, for the confirmation. */
   count: number
   plugin?: { id: string, name: string }

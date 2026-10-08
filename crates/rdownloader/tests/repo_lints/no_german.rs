@@ -1,6 +1,8 @@
 //! Guards the English-only rule for Rust sources: user-facing texts live in code with a
 //! translation code, translations live in the web catalogues. Any German umlaut or sharp s
-//! inside a Rust source (outside explicitly allow-listed fixtures) is a regression.
+//! inside a Rust source (outside explicitly allow-listed fixtures) is a regression, and so is
+//! one of a few German words that need no umlaut — `"Paket"` sat in a folder name unnoticed
+//! (audit 2026-10-08, CORE-04).
 
 use std::path::{Path, PathBuf};
 
@@ -12,6 +14,33 @@ const ALLOWED_FILES: &[&str] = &[
     "crates/rdownloader/tests/repo_lints/no_german.rs",
 ];
 const GERMAN_CHARS: &str = "\u{e4}\u{f6}\u{fc}\u{c4}\u{d6}\u{dc}\u{df}";
+/// Whole words, case-sensitive: the nouns and verbs a German user text is made of and an
+/// English source never spells this way. Short words (`die`, `das`, `und`) are not here; they
+/// are English words too or sit in fixtures on purpose.
+const GERMAN_WORDS: &[&str] = &[
+    "Abbrechen",
+    "Bitte",
+    "Datei",
+    "Dateien",
+    "Einstellungen",
+    "Entpacken",
+    "Fehler",
+    "Herunterladen",
+    "Ordner",
+    "Paket",
+    "Pakete",
+    "Passwort",
+    "Speichern",
+    "Verbindung",
+    "Warteschlange",
+];
+
+fn is_german(line: &str) -> bool {
+    line.chars().any(|c| GERMAN_CHARS.contains(c))
+        || line
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|word| GERMAN_WORDS.contains(&word))
+}
 
 fn rust_sources(directory: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(directory).expect("read dir") {
@@ -46,10 +75,7 @@ fn rust_sources_contain_no_german_text() {
         })
         .filter_map(|path| {
             let text = std::fs::read_to_string(path).ok()?;
-            let line = text
-                .lines()
-                .enumerate()
-                .find(|(_, line)| line.chars().any(|c| GERMAN_CHARS.contains(c)))?;
+            let line = text.lines().enumerate().find(|(_, line)| is_german(line))?;
             Some(format!(
                 "{}:{}: {}",
                 path.display(),
@@ -63,4 +89,12 @@ fn rust_sources_contain_no_german_text() {
         "German text found:\n{}",
         offenders.join("\n")
     );
+}
+
+#[test]
+fn a_german_word_without_an_umlaut_is_found_as_a_whole_word() {
+    assert!(is_german(r#"        "Paket".to_owned()"#));
+    assert!(is_german("// Datei fehlt"));
+    assert!(!is_german(r#"        "package".to_owned()"#));
+    assert!(!is_german("let paket_count = 1; // Paketname"));
 }

@@ -2,7 +2,8 @@
 #
 # scripts/docker-tools.sh's check (RD-191-09 T17), which reads files only: requirements.txt has to
 # be the compile of requirements.in — the header --lock writes, every tool at its version, every
-# package with its hashes. On scratch files, then on docker/ itself. --lock and --bump need uv and
+# package with its hashes. On scratch files; docker/ itself is check.sh's file check (PIPE-05,
+# scripts/lib/preflight.sh), which runs whatever the change touched. --lock and --bump need uv and
 # the network and are not run here.
 #
 # Pure bash. check.sh runs it when scripts/ change, and under --full.
@@ -58,8 +59,5 @@ expect_output "naming it" "not name==version: gallery-dl"
 rm "$SCRATCH/requirements.txt"
 check
 expect_status "no compile at all fails" 1
-
-run_status "$SCRIPT"
-expect_status "docker/requirements.txt is the compile of docker/requirements.in" 0
 
 finish_tests "docker-tools"

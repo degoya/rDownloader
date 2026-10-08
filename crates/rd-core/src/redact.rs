@@ -15,7 +15,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use url::Url;
 
-use crate::{Failure, error::MessageParams};
+use crate::{Failure, MessageParams};
 
 /// Replacement for every redacted value.
 ///

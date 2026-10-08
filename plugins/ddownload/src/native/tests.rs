@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
 };
+use rd_plugin_types::AccountId;
 
 use super::DdownloadResolver;
 
@@ -233,7 +233,7 @@ async fn remaining_traffic_is_reported_in_bytes() {
         .await
         .expect("account status");
     assert_eq!(
-        status.traffic_left.map(rd_core::ByteCount::get),
+        status.traffic_left.map(rd_plugin_types::ByteCount::get),
         Some(114_688 * 1024 * 1024),
         "112 GiB, not 112 KiB"
     );
@@ -339,7 +339,10 @@ async fn guest_page_after_post_reports_missing_premium_session() {
         .resolve(resolve_request())
         .await
         .expect_err("guest session");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(failure.code.as_deref(), Some("ddownload.no_premium_file"));
     assert!(
         failure
@@ -358,7 +361,7 @@ async fn api_key_without_cookie_session_cannot_download() {
         .resolve(resolve_request())
         .await
         .expect_err("cookies required");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("ddownload.cookie_session_required_for_download")

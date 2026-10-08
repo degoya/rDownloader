@@ -41,6 +41,8 @@ export interface ObjectStorageForm {
   /** S3 only. */
   checksums: boolean
   enabled: boolean
+  /** The explicit yes an `ambient` profile with an endpoint needs to send the machine's credentials there. */
+  ambient_custom_endpoint: boolean
 }
 
 export const PROVIDERS: readonly ObjectStorageProvider[] = ['s3', 'azure', 'gcs']
@@ -75,7 +77,8 @@ export function emptyForm(): ObjectStorageForm {
     session_token: '',
     clear_session_token: false,
     checksums: true,
-    enabled: true
+    enabled: true,
+    ambient_custom_endpoint: false
   }
 }
 
@@ -95,8 +98,14 @@ export function formFor(profile: ObjectStorageProfile): ObjectStorageForm {
     session_token: '',
     clear_session_token: false,
     checksums: profile.checksums,
-    enabled: profile.enabled
+    enabled: profile.enabled,
+    ambient_custom_endpoint: profile.ambient_custom_endpoint
   }
+}
+
+/** Whether the form sends the machine's own credentials to an endpoint of its own. */
+export function ambientAtEndpoint(form: ObjectStorageForm): boolean {
+  return form.credential_source === 'ambient' && Boolean(form.endpoint.trim())
 }
 
 /**
@@ -119,7 +128,8 @@ export function toCreateBody(form: ObjectStorageForm): CreateObjectStorageProfil
     secret_access_key: storesSecret(form.credential_source) ? trimmed(form.secret_access_key) : null,
     session_token: s3Keys ? trimmed(form.session_token) : null,
     checksums: s3 && form.checksums,
-    enabled: form.enabled
+    enabled: form.enabled,
+    ambient_custom_endpoint: ambientAtEndpoint(form) && form.ambient_custom_endpoint
   }
 }
 
@@ -130,24 +140,56 @@ export function toUpdateBody(form: ObjectStorageForm): UpdateObjectStorageProfil
 }
 
 /**
+ * Whether the form still names the host a stored secret was typed for: the same endpoint, and
+ * on Azure the same account. The server sends a secret to no other host and asks for it again.
+ */
+export function sameHost(form: ObjectStorageForm, stored: ObjectStorageProfile): boolean {
+  const account = form.provider === 'azure' ? trimmed(form.account) : null
+  return (stored.endpoint ?? null) === normalizedEndpoint(form.endpoint)
+    && (stored.account ?? null) === account
+}
+
+/** The endpoint as the server stores it: trimmed, no trailing slash, empty as none. */
+function normalizedEndpoint(value: string): string | null {
+  const endpoint = trimmed(value)
+  if (!endpoint) return null
+  try {
+    return new URL(endpoint).href.replace(/\/+$/, '')
+  } catch {
+    return endpoint
+  }
+}
+
+/**
  * Whether the stored secret still signs for the form: the server keeps it only while the
- * provider and the source stay what they were.
+ * provider, the source and the host stay what they were.
  */
 export function keepsSecret(form: ObjectStorageForm, stored: ObjectStorageProfile | null): boolean {
   return Boolean(stored?.has_secret)
     && stored?.provider === form.provider
     && stored?.credential_source === form.credential_source
+    && sameHost(form, stored)
+}
+
+/** A stored secret the form's new host drops: the page says so, and asks for it again. */
+export function dropsSecretForHost(form: ObjectStorageForm, stored: ObjectStorageProfile | null): boolean {
+  return Boolean(stored?.has_secret)
+    && stored?.provider === form.provider
+    && stored?.credential_source === form.credential_source
+    && !sameHost(form, stored)
 }
 
 /**
  * Whether the form carries what the server's validation asks for, so the button does not offer
- * a request that fails. Azure needs its account; a new stored-key profile needs its secret (and
- * on S3 the key id); an edit keeps a stored secret, but a profile that had none, or had one for
- * another provider or source, needs one now.
+ * a request that fails. Azure needs its account; machine credentials at a custom endpoint need the
+ * explicit yes; a new stored-key profile needs its secret (and on S3 the key id); an edit keeps a
+ * stored secret, but a profile that had none, or had one for another provider, source or host,
+ * needs one now.
  */
 export function formComplete(form: ObjectStorageForm, stored: ObjectStorageProfile | null): boolean {
   if (!form.name.trim()) return false
   if (form.provider === 'azure' && !form.account.trim()) return false
+  if (ambientAtEndpoint(form) && !form.ambient_custom_endpoint) return false
   if (!storesSecret(form.credential_source)) return true
   if (form.provider === 's3' && !form.access_key_id.trim()) return false
   return Boolean(form.secret_access_key.trim()) || keepsSecret(form, stored)

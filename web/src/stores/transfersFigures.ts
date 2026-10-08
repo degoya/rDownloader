@@ -47,17 +47,22 @@ export function useTransferFigures(
       ACTIVE_STATES.includes(file.state as typeof ACTIVE_STATES[number]))).length)
 
   /**
-   * Packages whose files are all finished.
+   * Packages whose files are all finished: every one completed or stood down as a mirror, at
+   * least one completed.
    *
-   * `refresh_package_state` never sets `Completed` server-side (only post-processing does),
-   * so the all-files check is the reliable predicate; the package state is honoured as well.
+   * The files decide, never the package state alone (RD-1190-13): a package that still holds a
+   * waiting, failed or blocked file is not finished, whatever post-processing made of the rest
+   * — "5/14 · 9 errors" with the finished tick was the owner's report. The state counts only for
+   * a package whose files are no longer listed.
    */
   const packageComplete = computed<Record<string, boolean>>(() => {
     const result: Record<string, boolean> = {}
     for (const pkg of packages.value) {
       const files = filesByPackage.value.get(pkg.id) ?? []
-      result[pkg.id] = pkg.state === 'completed'
-        || (files.length > 0 && files.every(file => file.state === 'completed'))
+      result[pkg.id] = files.length === 0
+        ? pkg.state === 'completed'
+        : files.some(file => file.state === 'completed')
+          && files.every(file => file.state === 'completed' || file.state === 'skipped')
     }
     return result
   })

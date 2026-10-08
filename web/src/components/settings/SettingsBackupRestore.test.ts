@@ -1,8 +1,9 @@
 /**
  * The settings bundle (Settings → Backup): the export asks for a confirmed passphrase before it
  * includes credentials; the import checks the chosen file before anything is sent, shows what it
- * holds, wants the passphrase an encrypted bundle needs, replaces the configuration only after a
- * confirmation, and says why when any of it fails.
+ * holds, wants the passphrase an encrypted bundle needs and the administrator password
+ * (RD-1190-19), replaces the configuration only after a confirmation, and says why when any of
+ * it fails.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +13,7 @@ import common from '@/locales/en/common.json'
 import settings from '@/locales/en/settings.json'
 import system from '@/locales/en/system.json'
 import { SETTINGS_SEARCH_ENTRIES } from '@/settingsSearch'
+import { useSessionStore } from '@/stores/session'
 import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 import { downloadJson } from '@/utils/jsonFile'
@@ -158,6 +160,9 @@ describe('SettingsBackupRestore, import', () => {
     expect(screen.getByText('v1 · rDownloader 1.10.1')).toBeTruthy()
     expect(button(en.import.button).disabled).toBe(true)
     await fireEvent.update(field(en.import.passphrase), 'correct horse')
+    // The bundle replaces the way in: the password is asked for as well.
+    expect(button(en.import.button).disabled).toBe(true)
+    await fireEvent.update(field(en.import.password), 'admin password')
     expect(button(en.import.button).disabled).toBe(false)
   })
 
@@ -166,6 +171,7 @@ describe('SettingsBackupRestore, import', () => {
     renderCard()
     await choose(JSON.stringify(PLAIN))
     await screen.findByText(en.import.without_secrets)
+    await fireEvent.update(field(en.import.password), 'admin password')
     await fireEvent.click(button(en.import.button))
     await waitFor(() => expect(confirmed).toHaveBeenCalled())
     expect(api.POST).not.toHaveBeenCalled()
@@ -176,10 +182,11 @@ describe('SettingsBackupRestore, import', () => {
     const view = renderCard()
     await choose(JSON.stringify(ENCRYPTED), 'nas-settings.json')
     await fireEvent.update(await screen.findByLabelText(en.import.passphrase), 'correct horse')
+    await fireEvent.update(field(en.import.password), 'admin password')
     await fireEvent.click(button(en.import.button))
 
     await waitFor(() => expect(view.emitted('imported')).toHaveLength(1))
-    expect(postsTo('/api/v1/settings/import')).toEqual([{ bundle: ENCRYPTED, passphrase: 'correct horse' }])
+    expect(postsTo('/api/v1/settings/import')).toEqual([{ bundle: ENCRYPTED, passphrase: 'correct horse', password: 'admin password' }])
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
       title: en.import.success,
       description: 'Imported 10 configuration entries.',
@@ -187,6 +194,7 @@ describe('SettingsBackupRestore, import', () => {
     }))
     expect(screen.queryByText('nas-settings.json')).toBeNull()
     expect(screen.queryByLabelText(en.import.passphrase)).toBeNull()
+    expect(screen.queryByLabelText(en.import.password)).toBeNull()
   })
 
   it('sends no passphrase for a bundle without credentials', async () => {
@@ -195,8 +203,20 @@ describe('SettingsBackupRestore, import', () => {
     await choose(JSON.stringify(PLAIN))
     await screen.findByText(en.import.without_secrets)
     expect(screen.queryByLabelText(en.import.passphrase)).toBeNull()
+    await fireEvent.update(field(en.import.password), 'admin password')
     await fireEvent.click(button(en.import.button))
-    await waitFor(() => expect(postsTo('/api/v1/settings/import')).toEqual([{ bundle: PLAIN, passphrase: null }]))
+    await waitFor(() => expect(postsTo('/api/v1/settings/import')).toEqual([{ bundle: PLAIN, passphrase: null, password: 'admin password' }]))
+  })
+
+  it('asks for no password while the login is switched off', async () => {
+    vi.mocked(api.POST).mockResolvedValue({ data: IMPORTED } as never)
+    renderCard()
+    useSessionStore().loginDisabled = true
+    await choose(JSON.stringify(PLAIN))
+    await screen.findByText(en.import.without_secrets)
+    expect(screen.queryByLabelText(en.import.password)).toBeNull()
+    await fireEvent.click(button(en.import.button))
+    await waitFor(() => expect(postsTo('/api/v1/settings/import')).toEqual([{ bundle: PLAIN, passphrase: null, password: null }]))
   })
 
   it('says why a restore failed and keeps the chosen bundle', async () => {
@@ -204,6 +224,7 @@ describe('SettingsBackupRestore, import', () => {
     const view = renderCard()
     await choose(JSON.stringify(ENCRYPTED), 'nas-settings.json')
     await fireEvent.update(await screen.findByLabelText(en.import.passphrase), 'wrong horse')
+    await fireEvent.update(field(en.import.password), 'admin password')
     await fireEvent.click(button(en.import.button))
     expect(await screen.findByText('The passphrase does not open this bundle')).toBeTruthy()
     expect(screen.getByText('nas-settings.json')).toBeTruthy()

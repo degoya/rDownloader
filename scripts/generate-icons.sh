@@ -1,9 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # Regenerates the browser-extension PNGs, the web app and Linux menu icons and the
 # Windows .ico from the single source of truth, web/public/favicon.svg.
 # Rasterizes with sharp (librsvg) via npx — ImageMagick's builtin SVG
 # renderer drops the stroke elements. ImageMagick only assembles the .ico.
-set -eu
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
 SVG=web/public/favicon.svg

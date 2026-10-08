@@ -107,7 +107,7 @@ pub(crate) const NO_ACCOUNT: (&str, &str) = (
 );
 
 pub(crate) fn http_error(status: u16) -> String {
-    format!("MediaFire HTTP status {status}")
+    plugin_common::messages::http_error("MediaFire", status)
 }
 
 pub(crate) fn api_error(message: &str) -> String {

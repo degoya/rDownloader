@@ -105,6 +105,16 @@ pub(crate) const INVALID_RESPONSE: (&str, &str) =
 /// The cookie session returned an HTML page instead of the file; carries a `diagnosis`.
 pub(crate) const NO_PREMIUM_FILE: &str = "ddownload.no_premium_file";
 
+/// The account's traffic quota is used up for now; carries the page's `limit` ("200000 Mb for
+/// last 1 days"), empty when it named none. Reported as `rate-limited` with an hour's wait: the
+/// window rolls, so traffic frees up a little at a time, and the host holds the account's other
+/// files meanwhile and checks the account for traffic in between (RD-1190-13, RD-1190-14). Until
+/// 1.19 this page was taken for a lapsed session and the account for invalid.
+pub(crate) const TRAFFIC_EXHAUSTED: &str = "ddownload.traffic_exhausted";
+
+/// The wait a used-up quota is reported with, in seconds.
+pub(crate) const TRAFFIC_EXHAUSTED_WAIT_SECONDS: u64 = 60 * 60;
+
 /// Unexpected HTTP status; carries a `status` parameter.
 pub(crate) const HTTP_ERROR: &str = "ddownload.http_error";
 
@@ -169,6 +179,14 @@ pub(crate) fn cookie_session_unconfirmed(diagnosis: &str) -> String {
         "DDownload did not confirm the cookie session either way - the site answered with a \
          page that is neither signed in nor a guest page: {diagnosis}"
     )
+}
+
+pub(crate) fn traffic_exhausted(limit: &str) -> String {
+    if limit.is_empty() {
+        "DDownload account traffic is used up for now".to_owned()
+    } else {
+        format!("DDownload account traffic is used up for now: {limit}")
+    }
 }
 
 pub(crate) fn no_premium_file(diagnosis: &str) -> String {

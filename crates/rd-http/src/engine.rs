@@ -286,6 +286,7 @@ impl DownloadEngine {
                     .etag
                     .clone()
                     .or_else(|| request.last_modified.clone()),
+                total_bytes,
                 require_range: ranged,
                 headers: Arc::clone(&headers),
                 method: request.method,
@@ -337,7 +338,7 @@ impl DownloadEngine {
     /// Fetches one chunk from one address: a plain `GET` with a range, no transform, no
     /// replay and no validator. The shape every source of a mirror set is fetched in
     /// (RD-150-03), where each source has validators of its own and the piece and whole-file
-    /// hashes stand in for them.
+    /// hashes stand in for them. The set's length still holds every answer to it (TR-01).
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn fetch_chunk(
         &self,
@@ -348,6 +349,7 @@ impl DownloadEngine {
         cancellation: CancellationToken,
         chunk: ChunkSpec,
         covers_whole_file: bool,
+        total_bytes: u64,
     ) -> Result<DownloadOutcome, HttpDownloadError> {
         Worker {
             client: self.client.clone(),
@@ -359,6 +361,7 @@ impl DownloadEngine {
             cancellation,
             url,
             validator: None,
+            total_bytes: Some(total_bytes),
             require_range: true,
             headers,
             method: rd_core::ReplayMethod::Get,

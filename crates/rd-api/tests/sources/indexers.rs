@@ -369,7 +369,7 @@ async fn an_indexer_nzb_link_is_imported_rather_than_saved_to_disk() {
         "/api/v1/collector/batches",
         json!({
             "text": format!("{origin}/getnzb"),
-            "source": "api",
+            "source": "manual",
             "source_label": null,
             "package_name": null,
             "password": null
@@ -641,7 +641,7 @@ async fn an_nzb_is_recognised_even_when_the_server_does_not_say_so() {
         "/api/v1/collector/batches",
         json!({
             "text": format!("{origin}/getnzb-untyped"),
-            "source": "api",
+            "source": "manual",
             "source_label": null,
             "package_name": null,
             "password": null
@@ -710,7 +710,7 @@ async fn an_import_is_named_by_the_headers_the_indexer_answers_with() {
         "/api/v1/collector/batches",
         json!({
             "text": format!("{origin}/getnzb-named"),
-            "source": "api",
+            "source": "manual",
             "source_label": null,
             "package_name": null,
             "password": null
@@ -751,7 +751,7 @@ async fn a_refusal_dressed_up_as_success_is_reported_as_one() {
         "/api/v1/collector/batches",
         json!({
             "text": format!("{origin}/getnzb-refused"),
-            "source": "api",
+            "source": "manual",
             "source_label": null,
             "package_name": null,
             "password": null

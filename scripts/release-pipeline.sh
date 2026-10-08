@@ -22,7 +22,9 @@
 #   scripts/release-pipeline.sh 1.0.1 --push          # ... with the public CI before the tag, and
 #                                                     # publishes main, the branch, the tag and
 #                                                     # the public export
-#   scripts/release-pipeline.sh 1.0.1 --resume        # continue the run this log already started
+#   scripts/release-pipeline.sh 1.0.1 --resume        # continue the run this log already started;
+#                                                     # a tree changed since then runs every step
+#                                                     # after preflight again (PIPE-09)
 #   scripts/release-pipeline.sh 1.0.1 --plan          # print the steps and exit
 #   scripts/release-pipeline.sh 1.8.0-beta.1 --push   # a pre-release (see below)
 #
@@ -72,7 +74,7 @@ while [[ $# -gt 0 ]]; do
         --push) DO_PUSH=1; shift ;;
         --resume) RESUME=1; shift ;;
         --plan) PLAN_ONLY=1; shift ;;
-        -h|--help) sed -n '2,39p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,41p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; exit 2 ;;
         *) VERSION="$1"; shift ;;
     esac
@@ -236,6 +238,9 @@ source "$ROOT/scripts/lib/release-steps-publish.sh"
 if [[ -n "${RELEASE_PIPELINE_LIB:-}" ]]; then
     return 0 2> /dev/null || exit 0
 fi
+
+# A green step stands on a --resume only while the tree is the one the run left (PIPE-09).
+[[ "$RESUME" -eq 0 ]] || resume_tree_check | tee -a "$LOG"
 
 for id in "${STEP_IDS[@]}"; do
     # From the version bump on, the packages are the release: VERSION.txt then names it and the

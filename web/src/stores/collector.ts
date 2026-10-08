@@ -8,7 +8,7 @@ import { useNotifications } from '@/composables/useNotifications'
 import { i18n } from '@/i18n'
 import type { CollectorPackage, LinkCandidate } from '@/api/types'
 import { useNzbImportsStore } from '@/stores/nzbImports'
-import { useSitePicksStore } from '@/stores/sitePicks'
+import { type PickListing, useSitePicksStore } from '@/stores/sitePicks'
 import { batchError, inBatches } from '@/utils/bulkBatches'
 
 import { useCandidateActions } from './collectorCandidates'
@@ -350,14 +350,30 @@ export const useCollectorStore = defineStore('collector', () => {
     return Boolean(response.data)
   }
 
+  /**
+   * The LinkGrabber changed. One kind of change is news of its own (RD-1190-17): a page whose
+   * releases wait for a choice, listed by whichever intake — a copied link, the browser
+   * extension, Click'n'Load — goes to the pick board, which opens its drawer.
+   */
+  function collectorChanged(event: MessageEvent<string>): void {
+    events.schedule()
+    let listing: PickListing | undefined
+    try {
+      listing = (JSON.parse(event.data) as { payload?: { pick_listed?: PickListing } }).payload?.pick_listed
+    } catch {
+      return
+    }
+    if (listing?.list) void useSitePicksStore().announced(listing)
+  }
+
   const events = debouncedEventRefresh(
-    ['collector.changed', 'usenet.changed', 'category.changed'],
+    ['usenet.changed', 'category.changed'],
     refresh,
     {
       busy: () => refreshing,
       // Links arriving from anywhere (web UI, extension, hotfolder, subscriptions) announce
       // themselves here; the desktop toast is raised from the same envelope.
-      handlers: { 'collector.intake': announceIntake }
+      handlers: { 'collector.intake': announceIntake, 'collector.changed': collectorChanged }
     }
   )
 

@@ -77,7 +77,8 @@
     "password_login_changed": "Connexion par mot de passe basculée",
     "password_reset_local": "Mot de passe réinitialisé sur la machine",
     "history_cleared": "Historique des téléchargements vidé",
-    "subscription_item_requeued": "Entrée d’abonnement remise en file"
+    "subscription_item_requeued": "Entrée d’abonnement remise en file",
+    "object_storage_profile_changed": "Profil de stockage objet modifié"
   },
   "list": {
     "title": "Entrées",

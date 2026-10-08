@@ -20,6 +20,8 @@ vi.mock('@/api/client', () => ({
   },
   responseError: vi.fn()
 }))
+// The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
+vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
 const confirm = vi.hoisted(() => vi.fn())
 vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
 // The export/import buttons pull in Nuxt UI's toast composable, whose runtime path resolves

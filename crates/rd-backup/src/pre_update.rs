@@ -27,6 +27,7 @@ use chrono::{DateTime, Utc};
 use crate::archive::{self, digest_file};
 use crate::create::{BackupError, BackupSources, archive_name, seal_backup, sweep_staging};
 use crate::crypto::BackupKey;
+use crate::private_folder;
 
 /// One preparation or sweep at a time in this process. The start's sweep of a stopped
 /// preparation runs in the background, and without this it removed the `.partial` copy of a
@@ -293,19 +294,6 @@ pub async fn sweep(data_directory: &Path) -> anyhow::Result<()> {
         }
     }
     Ok(())
-}
-
-/// Creates `folder` for the service account alone and makes an existing one so (security review
-/// 2026-09-30, finding 8): it holds plain copies of the database, readable by every account on
-/// the machine under the default umask.
-async fn private_folder(folder: &Path) -> std::io::Result<()> {
-    let folder = folder.to_path_buf();
-    tokio::task::spawn_blocking(move || {
-        rd_files::create_private_dir_all(&folder)?;
-        rd_files::restrict_to_owner(&folder)
-    })
-    .await
-    .map_err(std::io::Error::other)?
 }
 
 /// Opened for writing: Windows flushes a file only through a handle with write access.

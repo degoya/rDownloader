@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import type { Settings } from '@/api/types'
+import { useSettingsStore } from '@/stores/settings'
 import { MIB } from '@/utils/format'
 
 import { t } from './transfersShared'
@@ -43,7 +44,7 @@ export function useSpeedLimit({ error, notice }: SpeedLimitContext) {
   }
 
   async function loadRailSettings(): Promise<void> {
-    const response = await api.GET('/api/v1/settings')
+    const response = await useSettingsStore().fetchSettings()
     if (response.data) applyRailSettings(response.data)
   }
 

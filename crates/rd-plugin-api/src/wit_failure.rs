@@ -1,6 +1,6 @@
-//! The WIT-shaped failure variant and its conversions to and from `rd_core::FailureKind`.
+//! The WIT-shaped failure variant and its conversions to and from `rd_plugin_types::FailureKind`.
 
-use rd_core::FailureKind;
+use rd_plugin_types::FailureKind;
 use serde::{Deserialize, Serialize};
 
 /// WIT-shaped failure variant used by adapters and parity tests.

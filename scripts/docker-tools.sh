@@ -12,9 +12,10 @@
 #   scripts/docker-tools.sh --lock       # compile requirements.txt from requirements.in (needs uv)
 #   scripts/docker-tools.sh --bump       # every tool to its newest PyPI release, then --lock
 #
-# The check reads files only and runs in scripts/tests/docker-tools.sh; --lock and --bump need the
-# network. Dependabot's `docker` updates move the base images; these tools move with --bump, which
-# is worth a run before every release (CHANGELOG line: the versions it moved).
+# The check reads files only and is one of check.sh's file checks (scripts/lib/preflight.sh,
+# PIPE-05), so every run and the preflight hold it; --lock and --bump need the network.
+# Dependabot's `docker` updates move the base images; these tools move with --bump, which is worth
+# a run before every release (CHANGELOG line: the versions it moved).
 #
 # DOCKER_TOOLS_DIR names another directory holding the two files, for the test.
 set -euo pipefail

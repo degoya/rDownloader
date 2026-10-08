@@ -1,5 +1,6 @@
 {
   "name": "DDownload",
+  "description": "Resuelve enlaces de DDownload iniciando sesión con las credenciales de la cuenta o con una clave API.",
   "account": {
     "secret_hint": "Elige cómo inicia sesión esta cuenta. Credenciales de la cuenta es la forma sencilla: introduce el usuario o el correo de DDownload y la contraseña, y rDownloader inicia sesión y mantiene la sesión por sí mismo. Clave API es para una cuenta que no deba guardar una contraseña: pega la clave de Cuenta → API; proporciona el estado de la cuenta y los metadatos de los archivos, y entonces las descargas necesitan además una sesión de cookies pegada abajo.",
     "secret_hint_api_key": "La clave de Cuenta → API. Proporciona el estado de la cuenta y los metadatos de los archivos; las descargas pasan por la sesión de cookies de abajo, porque la API de DDownload no ofrece enlaces directos.",
@@ -34,6 +35,7 @@
     "ddownload.no_free_link": "La descarga gratuita de DDownload no produjo un enlace de archivo: {diagnosis}",
     "ddownload.no_premium_file": "La sesión de cookies de DDownload no devolvió un archivo premium: {diagnosis}",
     "ddownload.session_unconfirmed": "sesión de cookies no confirmada: la página de la cuenta no mostraba ni una sesión iniciada ni una página de invitado",
+    "ddownload.traffic_exhausted": "El tráfico de la cuenta de DDownload se ha agotado por ahora; la descarga espera y lo vuelve a intentar más tarde",
     "ddownload.unsupported_link": "Enlace de DDownload no admitido"
   }
 }

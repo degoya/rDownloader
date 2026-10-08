@@ -148,7 +148,7 @@ impl ResolverService {
     ) -> Result<Vec<LinkCheckResult>, Failure> {
         let (urls, mut unknown) = crate::foreign_address::checkable(urls);
         if urls.is_empty() {
-            return Ok(unknown);
+            return Ok(unknown.into_iter().map(LinkCheckResult::from).collect());
         }
         let provider = account_provider(&self.database, account_id).await?;
         let resolver = self.provider_resolver(&provider)?;
@@ -163,7 +163,7 @@ impl ResolverService {
             })
             .await?;
         checked.append(&mut unknown);
-        Ok(checked)
+        Ok(checked.into_iter().map(LinkCheckResult::from).collect())
     }
 
     /// Returns the manifest concurrency route selected by an account.

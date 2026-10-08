@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError, resultMessage } from '@/api/client'
 import type {
   CreateUsenetServer,
-  ProxyProfile,
   UpdateUsenetServer,
   UsenetServer,
   UsenetServerTraffic
@@ -17,6 +16,7 @@ import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { useProxyProfiles } from '@/stores/proxyProfiles'
 import { PLAIN, WHOLE } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -43,7 +43,7 @@ const loadedChain = defineModel<UsenetServer[] | null>('loaded', { default: null
 
 const { t } = useI18n()
 const servers = ref<UsenetServer[]>([])
-const proxies = ref<ProxyProfile[]>([])
+const { proxies, fetchProxies } = useProxyProfiles()
 /** What each server delivered, by id (RD-1100-05); a server without figures shows none. */
 const traffic = ref<Record<string, UsenetServerTraffic>>({})
 /** The server chain's own fetch; the form's own `pending` comes from the list (RD-104-07). */
@@ -137,12 +137,11 @@ function nextPriority(): number {
 }
 
 async function refresh(): Promise<string | null> {
-  const [serverResponse, proxyResponse] = await Promise.all([
+  const [serverResponse] = await Promise.all([
     api.GET('/api/v1/usenet/servers'),
-    api.GET('/api/v1/proxy-profiles'),
+    fetchProxies(),
     refreshTraffic()
   ])
-  if (proxyResponse.data) proxies.value = proxyResponse.data
   if (!serverResponse.data) return responseError(serverResponse)
   servers.value = sortByPriority(serverResponse.data)
   return null

@@ -72,6 +72,7 @@ async fn harness(live: &Live, secret: &str) -> Harness {
             session_token_ref: None,
             checksums: true,
             enabled: true,
+            ambient_custom_endpoint: false,
         },
         Some(secret),
         "s3",

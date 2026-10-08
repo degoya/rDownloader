@@ -60,6 +60,8 @@ vi.mock('@/api/client', () => ({
   responseError: () => 'failed',
   resultMessage: () => 'done'
 }))
+// The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
+vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
 vi.mock('@nuxt/ui/composables', () => ({
   useToast: () => ({ add: vi.fn() }),
   useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }) })

@@ -2,8 +2,9 @@
  * The calls of a full restore (RD-160-03): the chunked upload, the preview, the test restore,
  * the restore and where it stands.
  *
- * The passphrase goes into a request body and nowhere else: not into a store, not into the
- * URL, not into anything that outlives the dialog that asked for it.
+ * The passphrase — and the password the restore itself asks for — go into a request body and
+ * nowhere else: not into a store, not into the URL, not into anything that outlives the dialog
+ * that asked for it.
  */
 import { api, responseError } from '@/api/client'
 import type {
@@ -75,12 +76,17 @@ export async function testRestore(
   return answer(await api.POST('/api/v1/backups/restore/test', { body: { source, passphrase, mappings } }))
 }
 
+/**
+ * `password` is the administrator password, typed again (RD-1190-19); `null` while the login is
+ * switched off, where there is none to ask for.
+ */
 export async function startRestore(
   source: RestoreSource,
   passphrase: string,
-  mappings: RestoreMapping[]
+  mappings: RestoreMapping[],
+  password: string | null
 ): Promise<RestoreAnswer<RestoreStaged>> {
-  return answer(await api.POST('/api/v1/backups/restore', { body: { source, passphrase, mappings } }))
+  return answer(await api.POST('/api/v1/backups/restore', { body: { source, passphrase, mappings, password } }))
 }
 
 export async function restoreStatus(): Promise<RestoreAnswer<RestoreStatus>> {

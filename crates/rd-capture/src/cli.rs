@@ -49,7 +49,10 @@ pub(crate) enum Command {
 pub(crate) struct ConnectionArgs {
     #[arg(long, env = "RDOWNLOADER_SERVICE")]
     pub(crate) service: Option<Url>,
-    #[arg(long, env = "RDOWNLOADER_CAPTURE_TOKEN")]
+    /// The keyring, the fallback file or `RDOWNLOADER_CAPTURE_TOKEN` -- never an argument:
+    /// every local account reads `argv` through `ps`, and the relaunch after an update repeats
+    /// it (RD-1190-22).
+    #[arg(skip = std::env::var("RDOWNLOADER_CAPTURE_TOKEN").ok())]
     pub(crate) token: Option<String>,
 }
 
@@ -241,6 +244,18 @@ mod tests {
         }
         assert!(Cli::try_parse_from(["rdownloader-capture", "pause"]).is_ok());
         assert!(Cli::try_parse_from(["rdownloader-capture", "pause", "now"]).is_err());
+    }
+
+    /// RD-1190-22: `run --token` put the token in `ps`, and the relaunch after an update kept
+    /// it there. No command that connects takes it as an argument any more.
+    #[test]
+    fn no_connecting_command_takes_the_token_as_an_argument() {
+        for word in ["run", "pause", "resume", "status", "send-clipboard"] {
+            assert!(
+                Cli::try_parse_from(["rdownloader-capture", word, "--token", "x"]).is_err(),
+                "{word}"
+            );
+        }
     }
 
     #[test]

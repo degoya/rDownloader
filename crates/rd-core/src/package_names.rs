@@ -104,7 +104,8 @@ impl PackageNaming {
         }
     }
 
-    /// Whether this naming changes nothing at all.
+    /// Whether this naming changes nothing at all. Only the tests ask (CORE-09).
+    #[cfg(test)]
     #[must_use]
     pub fn is_noop(&self) -> bool {
         !self.rules.any() && self.regex.is_empty()

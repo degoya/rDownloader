@@ -184,7 +184,10 @@
     "resize_hint": "Faites glisser ou utilisez les flèches (Maj pour des pas plus grands) ; un double-clic ou Entrée la rétablit",
     "menu": "Colonnes",
     "reset_all": "Réinitialiser toutes les largeurs de colonne",
-    "state_linkgrabber": "État du lien"
+    "state_linkgrabber": "État du lien",
+    "sort": "Trier l’affichage par « {column} »",
+    "sorted_asc": "Trié par « {column} », croissant – cliquez pour décroissant",
+    "sorted_desc": "Trié par « {column} », décroissant – cliquez pour l’ordre de la file"
   },
   "weekdays": {
     "mon": "Lun",

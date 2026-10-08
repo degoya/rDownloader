@@ -1,5 +1,6 @@
 {
   "name": "LinkSnappy",
+  "description": "Resuelve enlaces de otros hosts mediante una cuenta de LinkSnappy.",
   "account": {
     "secret_label": "Contraseña de la cuenta",
     "secret_hint": "Introduce el nombre de usuario de tu cuenta y tu contraseña como secreto."

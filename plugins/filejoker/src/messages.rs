@@ -106,7 +106,7 @@ pub(crate) const CHECK_UNSUPPORTED: (&str, &str) = (
 );
 
 pub(crate) fn http_error(status: u16) -> String {
-    format!("FileJoker HTTP status {status}")
+    plugin_common::messages::http_error("FileJoker", status)
 }
 
 pub(crate) fn session_invalid(diagnosis: &str) -> String {

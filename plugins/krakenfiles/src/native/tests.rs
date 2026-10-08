@@ -4,12 +4,12 @@
 //! returned. The flow itself is exercised in `flow_tests.rs`; this file holds the host, the
 //! fixtures and the metadata cases.
 
-use rd_core::{AccountId, FailureKind, LinkStatus};
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest,
     ResolvedHeader, Resolver,
 };
+use rd_plugin_types::{AccountId, FailureKind, LinkStatus};
 use url::Url;
 
 use super::KrakenfilesResolver;
@@ -240,7 +240,7 @@ async fn check_reads_the_metadata_endpoint_per_link() {
         Some("EldenRing_Fix_Repair_Steam_Generic.rar")
     );
     assert_eq!(
-        results[0].size.map(rd_core::ByteCount::get),
+        results[0].size.map(rd_plugin_types::ByteCount::get),
         Some(5_138_022),
         "4.90 MB, 1024-based"
     );

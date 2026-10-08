@@ -21,6 +21,14 @@ pub async fn capture_summary(
         &crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads),
     );
     figures.paused_until = state.scheduler.queue_pause().await.map(|pause| pause.until);
+    let holding: Vec<_> = state
+        .scheduler
+        .account_traffic()
+        .into_iter()
+        .filter(|hold| hold.action != rd_core::AccountTrafficAction::Nothing)
+        .collect();
+    figures.traffic_held_accounts = u32::try_from(holding.len()).unwrap_or(u32::MAX);
+    figures.traffic_next_check = holding.iter().map(|hold| hold.next_check_at).min();
     // Read from the grant `require_capture` resolved for this very request, so the tray learns
     // it may pause from the same lookup that will let it, and loses the entries with the right.
     figures.queue_control =
@@ -85,6 +93,8 @@ pub(crate) fn capture_figures(
         // what the asking token holds.
         paused_until: None,
         queue_control: false,
+        traffic_held_accounts: 0,
+        traffic_next_check: None,
     }
 }
 

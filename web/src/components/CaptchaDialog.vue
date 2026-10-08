@@ -25,6 +25,13 @@ const now = ref(Date.now())
 const dismissedId = ref<string | null>(null)
 let ticker: number | null = null
 
+/**
+ * Above every drawer and modal (RD-1190-17). Nuxt UI teleports both to `body` without a z-index,
+ * so the one later in the document wins -- and this dialog, mounted with the layout, comes before
+ * every drawer a view opens: the pick drawer covered the captcha it was waiting for.
+ */
+const layer = { overlay: 'z-[60]', content: 'z-[60] sm:max-w-lg' }
+
 const current = computed(() => captchas.current)
 const open = computed(() => current.value !== null && current.value.id !== dismissedId.value)
 /** A click-point captcha is a picture answered by a click rather than by text (RD-110-15). */
@@ -221,7 +228,7 @@ async function openExtensionSetup(): Promise<void> {
     :close="false"
     :title="t('captcha.title')"
     :description="t('captcha.description', { host: hostLabel })"
-    :ui="{ content: 'sm:max-w-lg' }"
+    :ui="layer"
   >
     <template #body>
       <div v-if="current" class="space-y-4">

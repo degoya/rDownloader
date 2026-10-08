@@ -88,6 +88,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('general.connections_per_host', 'general', 'settings.connections_per_host.label', { descriptionKey: 'settings.connections_per_host.description' }),
   field('general.retries', 'general', 'settings.retries.label', { descriptionKey: 'settings.retries.description' }),
   field('general.auto_retry', 'general', 'settings.auto_retry.label', { descriptionKey: 'settings.auto_retry.description' }),
+  field('general.account_traffic', 'general', 'settings.account_traffic.label', { descriptionKey: 'settings.account_traffic.description', terms: ['Traffic', 'DDownload'] }),
   field('general.auto_remove', 'general', 'settings.auto_remove.label', { descriptionKey: 'settings.auto_remove.description' }),
   field('general.sha256', 'general', 'settings.sha256.label', { descriptionKey: 'settings.sha256.description', terms: ['SHA-256'] }),
   // Interface
@@ -137,6 +138,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('postprocess.delete_par2', 'postprocess', 'settings.postprocess.delete_par2.label', { descriptionKey: 'settings.postprocess.delete_par2.description', terms: ['PAR2'] }),
   field('postprocess.cleanup_extensions', 'postprocess', 'settings.postprocess.cleanup_extensions.label', { descriptionKey: 'settings.postprocess.cleanup_extensions.description' }),
   field('postprocess.scripts_directory', 'postprocess', 'settings.postprocess.scripts_directory.label', { descriptionKey: 'settings.postprocess.scripts_directory.description' }),
+  field('postprocess.mcp_scripts_allowed', 'postprocess', 'settings.postprocess.mcp_scripts_allowed.label', { descriptionKey: 'settings.postprocess.mcp_scripts_allowed.description', terms: ['MCP'] }),
   field('postprocess.package_names', 'postprocess', 'settings.postprocess.package_names.label', { descriptionKey: 'settings.postprocess.package_names.description', terms: ['Tidy file names', 'spaces_to_dots', 'lowercase'] }),
   field('postprocess.malware_scan', 'postprocess', 'settings.postprocess.malware_scan.label', { descriptionKey: 'settings.postprocess.malware_scan.description', terms: ['ClamAV', 'clamd', 'EICAR'] }),
   field('postprocess.upload', 'postprocess', 'settings.postprocess.upload.label', { descriptionKey: 'settings.postprocess.upload.description', terms: ['rclone'] }),

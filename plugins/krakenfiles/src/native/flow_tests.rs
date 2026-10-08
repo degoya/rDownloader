@@ -1,8 +1,8 @@
 //! The account-less flow, step by step: file page, Turnstile, the form's post, the answer,
 //! the direct link's probe - and every way the site says no along it.
 
-use rd_core::FailureKind;
 use rd_plugin_api::{CaptchaChallenge, Resolver};
+use rd_plugin_types::FailureKind;
 
 use super::super::KrakenfilesResolver;
 use super::{
@@ -30,7 +30,7 @@ async fn the_flow_solves_turnstile_posts_the_form_and_probes_the_link() {
         Some("EldenRing_Fix_Repair_Steam_Generic.rar")
     );
     assert_eq!(
-        resolved.size.map(rd_core::ByteCount::get),
+        resolved.size.map(rd_plugin_types::ByteCount::get),
         Some(5_138_022),
         "the exact length from the probe's Content-Range"
     );

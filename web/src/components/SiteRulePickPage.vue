@@ -7,6 +7,8 @@
  * values. "Fetch links" resolves only what is ticked, one release after the other with one
  * captcha each; the header then counts "3 of 8" and says when a captcha waits for a person. A
  * release that is done or underway cannot be ticked again; one whose captcha went unanswered can.
+ * "Take all" fetches every release that can still be fetched, filters or not — for a page whose
+ * releases need no captcha, such as warez.cx's, the choice is a convenience (RD-1190-17).
  */
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -34,6 +36,8 @@ const shown = computed(() => props.page.entries.filter(entry => passes(entry, fi
 const groups = computed(() => seasonGroups(shown.value))
 /** Only what can still be resolved counts as ticked, whatever arrived since it was ticked. */
 const chosen = computed(() => props.page.entries.filter(entry => picked.value.has(entry.index) && selectable(entry)))
+/** Every release "Take all" would fetch. */
+const open = computed(() => props.page.entries.filter(selectable))
 
 const FILTER_KEYS: Record<FilteredAttribute, { label: string, all: string }> = {
   season: { label: 'linkgrabber.picks.filter.season', all: 'linkgrabber.picks.filter.all_seasons' },
@@ -99,6 +103,13 @@ function seasonLabel(group: SeasonGroup): string {
 
 function fetchLinks(): void {
   const entries = chosen.value.map(entry => entry.index)
+  if (!entries.length) return
+  emit('resolve', entries)
+  picked.value = new Set()
+}
+
+function takeAll(): void {
+  const entries = open.value.map(entry => entry.index)
   if (!entries.length) return
   emit('resolve', entries)
   picked.value = new Set()
@@ -194,6 +205,7 @@ function stateBadge(entry: CollectorPickEntry): { text: string, color: 'neutral'
     </div>
     <footer class="flex flex-wrap items-center justify-end gap-2 border-t border-muted px-3 py-2">
       <span class="text-xs text-muted">{{ t('linkgrabber.picks.captcha_hint') }}</span>
+      <UButton icon="i-lucide-list-checks" size="sm" color="neutral" variant="outline" :label="t('linkgrabber.picks.take_all', { count: open.length }, open.length)" :disabled="!open.length || props.busy" data-testid="pick-take-all" @click="takeAll" />
       <UButton icon="i-lucide-download" size="sm" :label="t('linkgrabber.picks.fetch', { count: chosen.length }, chosen.length)" :disabled="!chosen.length" :loading="props.busy" data-testid="pick-fetch" @click="fetchLinks" />
     </footer>
   </section>

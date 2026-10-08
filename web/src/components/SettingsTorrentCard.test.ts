@@ -11,6 +11,8 @@ vi.mock('@/api/client', () => ({
   api: { GET: vi.fn(async () => ({ data: undefined })) },
   responseError: vi.fn()
 }))
+// The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
+vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
 
 /**
  * The shared field stub, plus the description: the leech-only warning lives in that slot. The

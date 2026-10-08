@@ -16,7 +16,7 @@
 //! producing exactly this after the format grew `groups`.
 //!
 //! The rules under test come from `resources/site-rules-payload.json`, the unsigned payload the
-//! signed release file is made from (sequence 8, signed for 1.17.0).
+//! signed release file is made from (sequence 9: warez.cx offers the choice since 1.19).
 
 mod recorded;
 
@@ -97,6 +97,13 @@ fn hide_cx_answers() -> Recorded {
     fetcher
 }
 
+/// Four attributes of a pick entry, in the order the test reads them.
+type Attributes<'a> = (
+    Option<&'a str>,
+    Option<&'a str>,
+    Option<&'a str>,
+    Option<&'a str>,
+);
 #[tokio::test]
 async fn the_owner_s_one_package_warez_rule_answers_as_it_did() {
     let rule = warez_one_package();
@@ -147,13 +154,67 @@ async fn the_hide_cx_rule_answers_as_the_owner_s_did() {
 
 /// The acceptance case of RD-1170-02: four releases, four packages, each named after its
 /// release, and each file at ddownload and at rapidgator one mirror group.
+///
+/// Since RD-1190-17 the shipped rule lists the releases first (`groups.pick`), and each one
+/// picked becomes the same package it was before; the rule without `pick` -- what a person's
+/// own copy of the earlier rule is -- still yields all four in one run.
 #[tokio::test]
 async fn the_warez_rule_yields_a_package_per_release_with_its_hosters_as_mirrors() {
     let rule = payload_rule("warez-cx");
     let groups = rule.groups.as_ref().expect("the shipped rule has groups");
     assert_eq!(groups.mirrors, Some(GroupMirrors::ByHost));
+    assert!(groups.pick.is_some(), "the shipped rule offers the choice");
     let fetcher = Recorded::default().page(WAREZ_API_URL, WAREZ_API);
-    let crawl = run(&rule, &fetcher, WAREZ_PROBE).await.expect("crawled");
+    let listed = run(&rule, &fetcher, WAREZ_PROBE).await.expect("listed");
+    assert!(
+        listed.groups.is_empty() && listed.links.is_empty(),
+        "nothing resolved yet"
+    );
+    let list = listed.pick.clone().expect("a list to choose from");
+    let seasons: Vec<Attributes<'_>> = list
+        .entries
+        .iter()
+        .map(|entry| {
+            let value = |name: &str| entry.attributes.get(name).map(String::as_str);
+            (
+                value("season"),
+                value("resolution"),
+                value("language"),
+                value("episode"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        seasons,
+        [
+            (Some("1"), Some("720p"), Some("German"), None),
+            (Some("1"), Some("1080p"), Some("German"), None),
+            (Some("2"), Some("720p"), Some("German"), None),
+            (Some("2"), Some("1080p"), Some("German"), None),
+        ],
+        "four season packs"
+    );
+    let clock = rd_siterules::SystemClock::new();
+    let executor = rd_siterules::Executor::new(&fetcher, &recorded::PublicDns, &clock);
+    let mut picked = Vec::new();
+    for index in 0..list.entries.len() {
+        let group = executor
+            .resolve(&rule, &listed.address, &list, index)
+            .await
+            .expect("resolved");
+        picked.push(group);
+    }
+    assert_eq!(list.entries[0].label.as_deref(), Some(S01_720P));
+
+    let mut whole = rule.clone();
+    if let Some(groups) = whole.groups.as_mut() {
+        groups.pick = None;
+    }
+    let crawl = run(&whole, &fetcher, WAREZ_PROBE).await.expect("crawled");
+    assert_eq!(
+        picked, crawl.groups,
+        "a picked release is the package it always was"
+    );
 
     let names: Vec<&str> = crawl
         .groups

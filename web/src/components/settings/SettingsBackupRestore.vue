@@ -16,6 +16,7 @@ import { subTabItems } from '@/composables/useSettingsSubTab'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsFullBackupCard from '@/components/settings/SettingsFullBackupCard.vue'
 import SettingsFullRestoreCard from '@/components/settings/SettingsFullRestoreCard.vue'
+import { useSessionStore } from '@/stores/session'
 import { downloadJson } from '@/utils/jsonFile'
 import { isRecord } from '@/utils/values'
 
@@ -26,6 +27,7 @@ const { t } = useI18n()
 const tabItems = computed(() => subTabItems('backup', t))
 const toast = useToast()
 const confirm = useConfirm()
+const session = useSessionStore()
 const includeSecrets = ref(true)
 const exportPassphrase = ref('')
 const exportConfirmation = ref('')
@@ -34,6 +36,8 @@ const exportError = ref<string | null>(null)
 const selectedFileName = ref<string | null>(null)
 const importBundle = ref<SettingsBundle | null>(null)
 const importPassphrase = ref('')
+/** The administrator password, typed again: the import replaces the way in (RD-1190-19). */
+const importPassword = ref('')
 const importing = ref(false)
 const importError = ref<string | null>(null)
 
@@ -42,6 +46,8 @@ const exportReady = computed(() => !includeSecrets.value || (
   && exportPassphrase.value === exportConfirmation.value
 ))
 const importNeedsPassphrase = computed(() => importBundle.value?.secrets != null)
+// With the login switched off there is no password to ask for.
+const importNeedsPassword = computed(() => !session.loginDisabled)
 
 async function downloadBackup(): Promise<void> {
   exportError.value = null
@@ -98,6 +104,7 @@ async function selectFile(file: File | null | undefined): Promise<void> {
   importBundle.value = null
   selectedFileName.value = null
   importPassphrase.value = ''
+  importPassword.value = ''
   await jsonImport.select(file)
 }
 
@@ -120,7 +127,8 @@ async function restoreBackup(): Promise<void> {
   const response = await api.POST('/api/v1/settings/import', {
     body: {
       bundle: importBundle.value,
-      passphrase: importNeedsPassphrase.value ? importPassphrase.value : null
+      passphrase: importNeedsPassphrase.value ? importPassphrase.value : null,
+      password: importNeedsPassword.value ? importPassword.value : null
     }
   })
   importing.value = false
@@ -147,6 +155,7 @@ async function restoreBackup(): Promise<void> {
   importBundle.value = null
   selectedFileName.value = null
   importPassphrase.value = ''
+  importPassword.value = ''
 }
 
 function isSettingsBundle(value: Record<string, unknown>): value is SettingsBundle {
@@ -251,13 +260,22 @@ function isSettingsBundle(value: Record<string, unknown>): value is SettingsBund
               >
                 <UInput v-model="importPassphrase" type="password" autocomplete="current-password" class="w-full" />
               </UFormField>
+              <UFormField
+                v-if="importBundle && importNeedsPassword"
+                name="import-password"
+                :label="t('system.backup.import.password')"
+                :description="t('system.backup.import.password_hint')"
+                required
+              >
+                <UInput v-model="importPassword" type="password" autocomplete="current-password" class="w-full" />
+              </UFormField>
               <UButton
                 type="submit"
                 icon="i-lucide-database-backup"
                 :label="t('system.backup.import.button')"
                 color="error"
                 variant="soft"
-                :disabled="!importBundle || (importNeedsPassphrase && !importPassphrase)"
+                :disabled="!importBundle || (importNeedsPassphrase && !importPassphrase) || (importNeedsPassword && !importPassword)"
                 :loading="importing"
               />
             </form>

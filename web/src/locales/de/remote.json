@@ -167,6 +167,10 @@
     "endpoint_description_gcs": "Leer für storage.googleapis.com. Eine eigene Adresse nur für einen Emulator oder einen vorgeschalteten Dienst. TLS-Zertifikate werden immer geprüft.",
     "account_key": "Kontoschlüssel",
     "sas": "Shared Access Signature",
-    "service_account_key": "Dienstkonto-Schlüssel (JSON)"
+    "service_account_key": "Dienstkonto-Schlüssel (JSON)",
+    "secret_host_changed": "Endpunkt oder Konto geändert: Der gespeicherte Schlüssel geht nicht an den neuen Host. Gib ihn erneut ein.",
+    "session_token_host_changed": "Das gespeicherte Token bleibt beim alten Host. Gib es erneut ein, wenn der neue eins braucht.",
+    "ambient_custom_endpoint": "Zugangsdaten dieser Maschine an den Endpunkt senden",
+    "ambient_custom_endpoint_description": "Die Instanzrolle, die verwaltete Identität oder das Google-Token dieser Maschine geht an den Endpunkt oben. Erlaube das nur für einen Dienst, den du selbst betreibst oder dem du vertraust."
   }
 }

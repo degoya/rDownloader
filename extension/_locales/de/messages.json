@@ -62,6 +62,9 @@
   "sentLinks": {
     "message": "$1 Link(s) an den LinkGrabber gesendet."
   },
+  "pickWaiting": {
+    "message": "Eine Seite listet $1 Release(s); wähle sie im LinkGrabber von rDownloader aus."
+  },
   "sendFailed": {
     "message": "Senden fehlgeschlagen: $1"
   },

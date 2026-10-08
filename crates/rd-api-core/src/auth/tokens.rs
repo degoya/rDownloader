@@ -169,7 +169,9 @@ pub async fn require_api_token(
     let from_this_machine =
         crate::client::from_this_machine(request.extensions(), request.headers());
     let host = request_host(request.uri(), request.headers());
-    refuse_foreign_site(&state, request.method(), host.as_deref(), request.headers()).await?;
+    // Every method, not only the unsafe ones (RD-1190-22): the MCP specification asks a server
+    // to check `Origin` on every connection, the `GET` event stream included.
+    super::middleware::refuse_foreign(&state, host.as_deref(), request.headers(), false).await?;
     // At least one *API* scope, not merely a non-empty set: a browser-capture token carries
     // `capture:*` and must not reach this endpoint through a check that only counts. With the
     // login switched off for this machine the credential is every scope, as before.
@@ -290,16 +292,18 @@ pub async fn require_capture(
 ) -> Result<Response, ApiError> {
     // Owned before anything is awaited; see `RequestFacts`.
     let digest = bearer_token(request.headers()).map(digest_of);
-    let scopes = match digest {
-        Some(digest) => match state.database.capture_token_scopes(&digest).await {
-            Ok(Some(scopes))
+    // The identity, not only the scopes: a handler that audits what the agent changed names the
+    // token that did it (audit 2026-10-08, API-02), as `require_api_token` hands it on.
+    let identity = match digest {
+        Some(digest) => match state.database.capture_token_identity(&digest).await {
+            Ok(Some((id, label, scopes)))
                 if rd_core::scopes_satisfy(
                     scopes.iter().map(String::as_str),
                     rd_core::CAPTURE_SCOPE,
                 ) =>
             {
                 note_token_use(&state, digest);
-                Some(scopes)
+                Some((crate::audit::Actor::token(id.to_string(), label), scopes))
             }
             Ok(_) => None,
             // A token nobody can look up grants nothing, as before.
@@ -310,7 +314,7 @@ pub async fn require_capture(
         },
         None => None,
     };
-    let Some(scopes) = scopes else {
+    let Some((actor, scopes)) = identity else {
         return Err(ApiError::unauthorized(
             "capture.token_required",
             "A valid capture token is required",
@@ -321,6 +325,7 @@ pub async fn require_capture(
         .insert(Granted(rd_core::granted_scopes(
             scopes.iter().map(String::as_str),
         )));
+    request.extensions_mut().insert(actor);
     Ok(next.run(request).await)
 }
 

@@ -1,5 +1,6 @@
 {
   "name": "Debrid-Link",
+  "description": "Löst Links anderer Hoster über ein Debrid-Link-Konto auf.",
   "account": {
     "secret_label": "API-Key (debrid-link.com/webapp/apikey)",
     "secret_hint": "Gib deinen API-Key von debrid-link.com/webapp/apikey als Secret ein."

@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, FailureKind};
 use rd_plugin_api::{CheckRequest, ClientIdentity, Resolver, ResolverHost};
+use rd_plugin_types::{AccountId, FailureKind};
 use url::Url;
 
 use super::XfsGenericResolver;
@@ -22,7 +22,7 @@ impl ResolverHost for RefusingHost {
         &self,
         _client: &ClientIdentity,
         _request: rd_plugin_api::HostHttpRequest,
-    ) -> Result<rd_plugin_api::HostHttpResponse, rd_core::Failure> {
+    ) -> Result<rd_plugin_api::HostHttpResponse, rd_plugin_types::Failure> {
         panic!("no request may be made here")
     }
 
@@ -34,7 +34,11 @@ impl ResolverHost for RefusingHost {
         false
     }
 
-    async fn wait(&self, _client: &ClientIdentity, _seconds: u32) -> Result<(), rd_core::Failure> {
+    async fn wait(
+        &self,
+        _client: &ClientIdentity,
+        _seconds: u32,
+    ) -> Result<(), rd_plugin_types::Failure> {
         panic!("no wait may happen here")
     }
 
@@ -43,7 +47,7 @@ impl ResolverHost for RefusingHost {
         _client: &ClientIdentity,
         _challenge: rd_plugin_api::CaptchaChallenge,
         _limit: std::time::Duration,
-    ) -> Result<rd_plugin_api::CaptchaAnswer, rd_core::Failure> {
+    ) -> Result<rd_plugin_api::CaptchaAnswer, rd_plugin_types::Failure> {
         panic!("no captcha may be solved here")
     }
 }

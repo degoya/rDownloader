@@ -13,8 +13,8 @@ url.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-trait.workspace = true
-rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
+rd-plugin-types = { path = "../../crates/rd-plugin-types" }
 
 [lib]
 crate-type = ["rlib"]

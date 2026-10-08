@@ -4,7 +4,8 @@
 //! Each value goes in through the route the interface uses for it ([`PLANTINGS`]): the
 //! administrator password, an API key filling a plugin's secret slot and a login password on
 //! two provider accounts, the account's cookies, a proxy password, an object storage secret key
-//! and session token, an FTP password, a webhook signing secret, an ntfy token inside an apprise
+//! and session token, an Azure shared access signature and a Google service account key
+//! (RD-1190-20), an FTP password, a webhook signing secret, an ntfy token inside an apprise
 //! URL, an NNTP password, an authentication profile's token, the captcha solver's API key (a
 //! secret the settings table refers to), the full-backup passphrase, a settings-export
 //! passphrase, a minted API token, and the identity provider's client secret with the access,
@@ -23,11 +24,13 @@
 use crate::common::{self, Harness};
 
 mod identity_provider;
+mod plantings;
 mod support;
 
 use std::{path::Path, sync::Arc, time::Duration};
 
 use axum::{Router, http::StatusCode};
+use plantings::PLANTINGS;
 use rd_diagnostics::capture::{CaptureStats, LogCaptureLayer};
 use serde_json::{Value, json};
 use support::{
@@ -47,6 +50,8 @@ const CANARIES: &[&str] = &[
     "proxy-password",
     "s3-secret-key",
     "s3-session-token",
+    "azure-sas-signature",
+    "gcs-private-key",
     "ftp-password",
     "webhook-secret",
     "ntfy-token",
@@ -60,96 +65,6 @@ const CANARIES: &[&str] = &[
     "oidc-client-secret",
     "oidc-access-token",
     "oidc-refresh-token",
-];
-
-/// The planting requests, in order: the name the answer's `id` is kept under (`-` for none),
-/// method, route and body. `{name}` is a canary, a kept id, `{refusing}` (an HTTP fixture that
-/// refuses every request) or `{ftp-port}` (an FTP fixture that refuses every login).
-const PLANTINGS: &[(&str, &str, &str, &str)] = &[
-    (
-        "proxy",
-        "POST",
-        "/api/v1/proxy-profiles",
-        r#"{"name": "canary-proxy", "kind": "socks5", "endpoint": "socks5h://127.0.0.1:1080",
-            "username": "canary-proxy-user", "password": "{proxy-password}"}"#,
-    ),
-    (
-        "key-account",
-        "POST",
-        "/api/v1/accounts",
-        r#"{"provider": "canarykey", "label": "canary-key-account", "username": null,
-            "credential_mode": null, "secret": "{account-api-key}",
-            "cookies": "{account-cookies}", "proxy_profile_id": "{proxy}", "enabled": true}"#,
-    ),
-    (
-        "login-account",
-        "POST",
-        "/api/v1/accounts",
-        r#"{"provider": "canarylogin", "label": "canary-login-account",
-            "username": "canary-login-user", "credential_mode": null,
-            "secret": "{account-password}", "cookies": null, "proxy_profile_id": null,
-            "enabled": true}"#,
-    ),
-    (
-        "bucket",
-        "POST",
-        "/api/v1/object-storage/profiles",
-        r#"{"name": "canary-bucket-profile", "provider": "s3", "endpoint": "{refusing}",
-            "region": "us-east-1", "bucket": "canary-bucket", "credential_source": "static",
-            "access_key_id": "AKIACANARYFIXTURE", "secret_access_key": "{s3-secret-key}",
-            "session_token": "{s3-session-token}"}"#,
-    ),
-    (
-        "ftp",
-        "POST",
-        "/api/v1/remote-credentials",
-        r#"{"name": "canary-ftp", "protocol": "ftp", "host": "127.0.0.1", "port": {ftp-port},
-            "username": "canary-ftp-user", "auth_mode": "password", "secret": "{ftp-password}"}"#,
-    ),
-    (
-        "webhook",
-        "POST",
-        "/api/v1/notifications/targets",
-        r#"{"name": "canary-webhook", "kind": "webhook", "endpoint": "{refusing}/hook",
-            "secret": "{webhook-secret}"}"#,
-    ),
-    (
-        "-",
-        "POST",
-        "/api/v1/notifications/targets",
-        r#"{"name": "canary-apprise", "kind": "apprise", "endpoint": "ntfys",
-            "secret": "ntfys://{ntfy-token}@ntfy.canary.test/canaries"}"#,
-    ),
-    (
-        "-",
-        "POST",
-        "/api/v1/usenet/servers",
-        r#"{"name": "canary-news", "host": "news.canary.test", "port": 563, "tls": true,
-            "username": "canary-reader", "password": "{nntp-password}", "proxy_profile_id": null,
-            "priority": 0, "max_connections": 2, "enabled": false}"#,
-    ),
-    (
-        "-",
-        "POST",
-        "/api/v1/auth-profiles",
-        r#"{"name": "canary-auth-profile", "scope": "files.canary.test",
-            "include_subdomains": false, "method": "bearer", "username": null,
-            "secret": "{auth-profile-token}", "certificate_pem": null, "expires_at": null,
-            "enabled": true}"#,
-    ),
-    (
-        "-",
-        "PUT",
-        "/api/v1/captcha-config",
-        r#"{"solver": "two_captcha_compatible", "endpoint": "https://captcha.canary.test",
-            "api_key": "{captcha-api-key}"}"#,
-    ),
-    (
-        "-",
-        "PUT",
-        "/api/v1/backups/passphrase",
-        r#"{"passphrase": "{backup-passphrase}"}"#,
-    ),
 ];
 
 /// The requests that send or check a planted credential, each made to fail: method, route and
@@ -166,6 +81,8 @@ const FAILURES: &[(&str, &str, Option<&str>)] = &[
         "/api/v1/object-storage/profiles/{bucket}/test",
         None,
     ),
+    ("POST", "/api/v1/object-storage/profiles/{blob}/test", None),
+    ("POST", "/api/v1/object-storage/profiles/{gcs}/test", None),
     ("POST", "/api/v1/notifications/targets/{webhook}/test", None),
     (
         "POST",
@@ -310,6 +227,8 @@ async fn no_planted_secret_comes_back_out_anywhere() {
         "canary-key-account",
         "canary-login-account",
         "canary-bucket-profile",
+        "canary-blob-profile",
+        "canary-gcs-profile",
         "canary-ftp",
         "canary-webhook",
         "canary-apprise",

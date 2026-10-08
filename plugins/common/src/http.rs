@@ -285,6 +285,9 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn the_ceiling_is_the_hosts() {
-        assert_eq!(MAX_RETRY_AFTER_SECONDS, rd_core::MAX_RETRY_AFTER_SECONDS);
+        assert_eq!(
+            MAX_RETRY_AFTER_SECONDS,
+            rd_plugin_types::MAX_RETRY_AFTER_SECONDS
+        );
     }
 }

@@ -28,6 +28,7 @@ use super::{
         ManagedToolsView, PackageNamePreviewParams, PostprocessOptions, PostprocessOptionsParams,
         SortPreviewParams, StorageTargetParams, body,
     },
+    script_gate,
 };
 use crate::{
     ApiError, postprocess_handlers as postprocess, tools_handlers as tools,
@@ -97,7 +98,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change only the post-processing of one category (id from list_configuration section categories, which also shows the current values). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote, sorting, unwrap_package_folder (dissolve a single folder named like the package, per archive folder too with unpack_to_subfolder), package_name_rules, package_name_regex. Every field is replaced, so pass the current values of the ones you keep. `sorting` is {series, dated, movie}: the sort and rename templates for finished series episodes, dated episodes and films (null = no sorting); try them first with preview_category_sorting. `package_name_rules` is {spaces_to_dots, collapse_separators, strip_bracket_tags, lowercase}, each true, false or null (= the global setting): how the name, and with it the folder, of a new package in this category is tidied; `package_name_regex` is a list of up to 10 {pattern, replacement} pairs run after them (null = the global list, [] = none); try both with preview_package_name. Names come from list_postprocess_options."
+        description = "Change only the post-processing of one category (id from list_configuration section categories, which also shows the current values). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote (rclone `remote:path`, or `object-storage:<profile id>/<bucket>/<prefix>` naming an existing profile; one bound to a bucket takes only that bucket), sorting, unwrap_package_folder (dissolve a single folder named like the package, per archive folder too with unpack_to_subfolder), package_name_rules, package_name_regex. Every field is replaced, so pass the current values of the ones you keep. `sorting` is {series, dated, movie}: the sort and rename templates for finished series episodes, dated episodes and films (null = no sorting); try them first with preview_category_sorting. `package_name_rules` is {spaces_to_dots, collapse_separators, strip_bracket_tags, lowercase}, each true, false or null (= the global setting): how the name, and with it the folder, of a new package in this category is tidied; `package_name_regex` is a list of up to 10 {pattern, replacement} pairs run after them (null = the global list, [] = none); try both with preview_package_name. Names come from list_postprocess_options. Naming a script the category does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_category_postprocess(
         &self,
@@ -105,6 +106,14 @@ impl RdMcpServer {
     ) -> McpToolResult {
         let result = async {
             let id = parse_id(&params.id)?;
+            let current = super::tools_routing::category(&self.state, id).await?;
+            script_gate::check(
+                &self.state,
+                "script",
+                script_gate::body_script(&params.body),
+                current.script.as_deref(),
+            )
+            .await?;
             let request = body(serde_json::Value::Object(params.body))?;
             let Json(category) = postprocess::update_category_postprocess(
                 State(self.state.clone()),

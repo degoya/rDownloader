@@ -18,8 +18,28 @@ pub async fn collector_intake_inner(
     state: &AppState,
     request: CollectorIntakeRequest,
 ) -> Result<CollectorIntakeResponse, ApiError> {
+    intake(state, request, Vec::new()).await
+}
+
+/// The intake of links a site rule already found: the entry somebody picked from a series
+/// page's list, with the package and the mirror sets the rule declared (RD-1190-17). They pass
+/// everything a pasted link passes but the crawl pass -- a crawled link is never crawled again.
+pub(crate) async fn collector_intake_crawled(
+    state: &AppState,
+    request: CollectorIntakeRequest,
+    crawled: Vec<rd_plugin_ext::CrawledLink>,
+) -> Result<CollectorIntakeResponse, ApiError> {
+    intake(state, request, crawled).await
+}
+
+async fn intake(
+    state: &AppState,
+    request: CollectorIntakeRequest,
+    crawled: Vec<rd_plugin_ext::CrawledLink>,
+) -> Result<CollectorIntakeResponse, ApiError> {
     // Structured links carry per-link metadata; free text keeps the legacy paste path.
     let mut links = structured_links(state, request.links).await?;
+    links.extend(crawled.into_iter().map(CapturedLink::crawled));
     let text = request.text.as_deref().unwrap_or_default();
     let source_sets = add_text_links(state, text, &mut links).await;
     if links.is_empty() {
@@ -36,8 +56,7 @@ pub async fn collector_intake_inner(
     // Whether the person handed this intake over themselves (RD-150-03). A page a stranger
     // wrote is crawled without reaching into this machine or the person's network.
     let own_hand = crate::collector_source_sets::from_own_hand(request.source);
-    let crawl_guard = (!own_hand).then(|| state.scheduler.remote_address_policy(false));
-    let crawled = expand_crawled_links(state, links, crawl_guard.as_ref()).await?;
+    let crawled = expand_crawled_links(state, links, own_hand).await?;
     let links = crawled.links;
     let excluded = crate::collector_exclusions::blocklist(&state.database).await?;
     let (links, skipped) = drop_excluded(state, links, &excluded).await?;
@@ -46,18 +65,19 @@ pub async fn collector_intake_inner(
     let gallery_settings = state.gallery_settings.read().await.clone();
     let (links, skipped_disabled) =
         drop_disabled(state, links, &settings, &media_settings, &gallery_settings).await?;
-    let guarded_flags: Vec<bool> = links
+    // How far each link may reach (RD-1190-18): one decision, `LinkOrigin::reach`, for every
+    // way in.
+    let reaches: Vec<Option<bool>> = links
         .iter()
-        .map(|link| link.origin.guarded(own_hand))
+        .map(|link| link.origin.reach(own_hand))
         .collect();
     let (mut urls, file_names, sizes, package_hints, mirror_hints, requests, body_refs) =
         CapturedLink::split(links);
     adopt_remote_credentials(&state.database, &state.secrets, &mut urls).await?;
-    let guarded_urls: Vec<url::Url> = urls
+    let held: Vec<(url::Url, bool)> = urls
         .iter()
-        .zip(&guarded_flags)
-        .filter(|(_, guarded)| **guarded)
-        .map(|(url, _)| url.clone())
+        .zip(&reaches)
+        .filter_map(|(url, reach)| reach.map(|local_network| (url.clone(), local_network)))
         .collect();
     let providers = providers_for(&urls, &media_settings, &gallery_settings);
     let (batch, packages, candidates) = state
@@ -86,19 +106,9 @@ pub async fn collector_intake_inner(
     // sources its links came with.
     crate::collector_source_sets::attach(state, &candidates, source_sets, &excluded, own_hand)
         .await?;
-    // Also before the check: the online check of a link a document or a page proposed keeps
-    // to the same address rule as the transfer (RD-150-03).
-    let guarded: Vec<rd_core::CandidateId> = candidates
-        .iter()
-        .filter(|candidate| guarded_urls.contains(&candidate.url))
-        .map(|candidate| candidate.id)
-        .collect();
-    if !guarded.is_empty() {
-        state
-            .database
-            .set_candidates_remote_reach(guarded, own_hand)
-            .await?;
-    }
+    // Also before the check: the online check of a link somebody else chose keeps to the same
+    // address rule as the transfer (RD-150-03).
+    hold_to_reach(state, &candidates, &held).await?;
     state.link_check.check_batch(batch.id).await;
     Ok(CollectorIntakeResponse {
         batch,
@@ -109,6 +119,30 @@ pub async fn collector_intake_inner(
         crawled_found: crawled.found,
         crawled_dropped: crawled.dropped,
     })
+}
+
+/// Holds every candidate whose link somebody else chose to its address reach, the person's
+/// network for those `held` names with `true` and the public internet for the rest. The
+/// stricter reach is written last, so an address held both ways keeps to it.
+async fn hold_to_reach(
+    state: &AppState,
+    candidates: &[rd_core::LinkCandidate],
+    held: &[(url::Url, bool)],
+) -> Result<(), ApiError> {
+    for local_network in [true, false] {
+        let ids: Vec<rd_core::CandidateId> = candidates
+            .iter()
+            .filter(|candidate| held.contains(&(candidate.url.clone(), local_network)))
+            .map(|candidate| candidate.id)
+            .collect();
+        if !ids.is_empty() {
+            state
+                .database
+                .set_candidates_remote_reach(ids, local_network)
+                .await?;
+        }
+    }
+    Ok(())
 }
 
 /// The links a client sent one by one, each with the request it captured alongside.

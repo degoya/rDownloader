@@ -7,12 +7,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
-import type { Category, NotificationRule, NotificationTarget } from '@/api/types'
+import type { NotificationRule, NotificationTarget } from '@/api/types'
 import NotificationHistory from '@/components/notifications/NotificationHistory.vue'
 import NotificationRules from '@/components/notifications/NotificationRules.vue'
 import NotificationTargets from '@/components/notifications/NotificationTargets.vue'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
+import { useCategories } from '@/stores/categories'
 import SectionHeader from '@/components/SectionHeader.vue'
 
 /** Owned by the settings view, which keeps it in the address. */
@@ -21,21 +22,20 @@ const { t } = useI18n()
 const tabItems = computed(() => subTabItems('notifications', t))
 const targets = ref<NotificationTarget[]>([])
 const rules = ref<NotificationRule[]>([])
-const categories = ref<Category[]>([])
+const { categories, fetchCategories } = useCategories()
 const history = ref<InstanceType<typeof NotificationHistory> | null>(null)
 /** One fetch feeds targets and rules, so one state describes both (RD-104-07). */
 const { loading, loadError, load: trackLoad } = useFetchState()
 
 async function load(): Promise<void> {
   await trackLoad(async () => {
-    const [targetResponse, ruleResponse, categoryResponse] = await Promise.all([
+    const [targetResponse, ruleResponse] = await Promise.all([
       api.GET('/api/v1/notifications/targets'),
       api.GET('/api/v1/notifications/rules'),
-      api.GET('/api/v1/categories')
+      fetchCategories()
     ])
     if (targetResponse.data) targets.value = targetResponse.data
     if (ruleResponse.data) rules.value = ruleResponse.data
-    if (categoryResponse.data) categories.value = categoryResponse.data
     const failed = [targetResponse, ruleResponse].find(response => !response.data)
     return failed ? responseError(failed) : null
   })

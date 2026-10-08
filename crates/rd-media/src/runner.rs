@@ -219,7 +219,8 @@ impl ExternalRunner for MediaRunner {
         };
         let mut command = tokio::process::Command::new(ytdlp);
         command.args(plan.build());
-        let process = ToolProcess::spawn(&mut command, "yt-dlp", Stdout::Read)?;
+        let process = ToolProcess::spawn(&mut command, "yt-dlp", Stdout::Read)?
+            .with_silence_limit(rd_tools::SILENCE_LIMIT);
         self.follow(process, file, &cancellation).await
     }
 }
@@ -245,7 +246,8 @@ impl MediaRunner {
                 ToolLine::Line(line) => line,
                 ToolLine::End => break,
                 ToolLine::Stopped => return Ok(RunOutcome::Stopped),
-                // No deadline is set today: a download runs as long as its bytes take.
+                // No deadline: a download runs as long as its bytes take. Only the silence
+                // limit ends it, when yt-dlp has printed nothing for that long.
                 ToolLine::TimedOut => {
                     return Ok(RunOutcome::Failed(timed_out(&process.stderr().await)));
                 }
@@ -458,7 +460,7 @@ fn embed_policy(
 /// as a stop it read as the person's own pause and was never tried again (re-audit 1.9.1,
 /// RA-TR-03).
 fn timed_out(stderr: &str) -> Failure {
-    let tail = rd_tools::stderr_tail(stderr, "yt-dlp ran past its time limit");
+    let tail = rd_tools::stderr_tail(stderr, "yt-dlp went silent past its time limit");
     Failure::coded(
         FailureKind::Transient {
             retry_after_seconds: Some(120),

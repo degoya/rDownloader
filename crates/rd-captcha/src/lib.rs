@@ -339,6 +339,13 @@ impl CaptchaBroker {
         timeout: Duration,
         widget: bool,
     ) -> Result<CaptchaAnswer, Failure> {
+        if self.inner.manual.is_full() {
+            return Err(Failure::coded(
+                FailureKind::NeedsCaptcha,
+                "captcha.queue_full",
+                "Too many captchas are already waiting for an answer",
+            ));
+        }
         let (pending, receiver) = self.inner.manual.enqueue(challenge, timeout);
         // Whatever ends the wait — an answer, a timeout, or the download being paused or
         // cancelled out from under this future — the queue entry goes with it.

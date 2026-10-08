@@ -43,6 +43,10 @@ pub struct Behaviour {
     pub refuse_mlsd: bool,
     /// Close the data connection after this many bytes, simulating a dropped transfer.
     pub truncate_after: Option<usize>,
+    /// Acknowledge `REST` and send the file from its first byte anyway.
+    pub ignore_rest: bool,
+    /// Answer `MDTM` with an error, as servers without the command do.
+    pub refuse_mdtm: bool,
 }
 
 #[derive(Clone)]
@@ -191,6 +195,10 @@ impl Fixture {
                     }
                 }
                 "MDTM" => {
+                    if self.behaviour().refuse_mdtm {
+                        write.write_all(b"502 MDTM not implemented\r\n").await?;
+                        continue;
+                    }
                     let target = self.absolute(&working_directory, argument);
                     match self.file(&target) {
                         Some(file) => {
@@ -222,7 +230,9 @@ impl Fixture {
                     if self.behaviour().refuse_rest {
                         write.write_all(b"502 REST not implemented\r\n").await?;
                     } else {
-                        rest_offset = argument.trim().parse().unwrap_or(0);
+                        if !self.behaviour().ignore_rest {
+                            rest_offset = argument.trim().parse().unwrap_or(0);
+                        }
                         write.write_all(b"350 restarting\r\n").await?;
                     }
                 }

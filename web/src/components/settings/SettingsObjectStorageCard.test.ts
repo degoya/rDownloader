@@ -19,7 +19,7 @@ const PROFILE = {
   id: 'p1', name: 'Archive', provider: 's3', endpoint: 'https://minio.example:9000', region: 'us-east-1',
   bucket: 'archive', addressing: 'path', credential_source: 'static', access_key_id: 'AKIAEXAMPLE',
   account: null, has_secret: true, has_session_token: false, checksums: true, enabled: true,
-  created_at: '2026-09-27T00:00:00Z', updated_at: '2026-09-27T00:00:00Z'
+  created_at: '2026-09-27T00:00:00Z', updated_at: '2026-09-27T00:00:00Z', ambient_custom_endpoint: false
 }
 
 const calls = vi.hoisted(() => ({
@@ -173,6 +173,41 @@ describe('SettingsObjectStorageCard form', () => {
     expect(init.body.secret_access_key).toBeNull()
     expect(init.body.access_key_id).toBe('AKIAEXAMPLE')
     await waitFor(() => expect(screen.getByTestId('object-storage-message').textContent).toContain(en.saved))
+  })
+
+  it('says a changed endpoint drops the stored secret and asks for it again (RD-1190-20)', async () => {
+    const { container } = await mounted()
+    await fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const submit = form(container).querySelector('button[type="submit"]') as HTMLButtonElement
+    expect(submit.disabled).toBe(false)
+
+    await fireEvent.update(screen.getByLabelText(en.endpoint), 'https://collector.example')
+
+    expect(screen.getByText(en.secret_host_changed)).toBeTruthy()
+    expect(screen.queryByText(en.secret_keep)).toBeNull()
+    expect(submit.disabled).toBe(true)
+    await fireEvent.update(screen.getByLabelText(en.secret_access_key), 'typed again')
+    expect(submit.disabled).toBe(false)
+  })
+
+  it('asks for the explicit yes before machine credentials go to an endpoint (RD-1190-20)', async () => {
+    calls.post.mockResolvedValue({ data: { ...PROFILE, id: 'p3', credential_source: 'ambient' } })
+    const { container } = await mounted()
+    const submit = form(container).querySelector('button[type="submit"]') as HTMLButtonElement
+    await fireEvent.update(screen.getByTestId('object-storage-source'), 'ambient')
+    await fireEvent.update(screen.getByLabelText(en.name), 'Machine')
+    expect(screen.queryByRole('switch', { name: en.ambient_custom_endpoint })).toBeNull()
+    expect(submit.disabled).toBe(false)
+
+    await fireEvent.update(screen.getByLabelText(en.endpoint), 'https://minio.example')
+    expect(submit.disabled).toBe(true)
+    await fireEvent.click(screen.getByRole('switch', { name: en.ambient_custom_endpoint }))
+    expect(submit.disabled).toBe(false)
+    await fireEvent.submit(form(container))
+
+    await waitFor(() => expect(calls.post).toHaveBeenCalled())
+    const [, init] = calls.post.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect(init.body).toMatchObject({ credential_source: 'ambient', endpoint: 'https://minio.example', ambient_custom_endpoint: true })
   })
 
   it('does not offer a new static profile without both keys', async () => {

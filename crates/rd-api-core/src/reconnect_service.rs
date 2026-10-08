@@ -147,18 +147,20 @@ impl ReconnectService {
             .await
             .unwrap_or_else(|_| Err(anyhow::anyhow!("the reconnect did not finish in time")));
 
-        // Whatever happened, the queue is released and anything paused for this is resumed.
-        let paused = self.release(app).await;
+        // Whatever happened, the queue is released and anything paused for this is resumed;
+        // how many is said in the line that reports the attempt (API-05).
+        let resumed = self.release(app).await;
         let attempt = match outcome {
             Ok((old, new)) => {
                 app.scheduler.clear_host_blocks();
                 // The reconnect itself succeeded; a requeue that failed is said as such rather
                 // than as "requeued 0", which hid a database error (audit Q2).
                 match app.scheduler.requeue_ip_blocked().await {
-                    Ok(requeued) => tracing::info!(?old, ?new, requeued, "reconnected"),
+                    Ok(requeued) => tracing::info!(?old, ?new, requeued, resumed, "reconnected"),
                     Err(error) => tracing::warn!(
                         ?old,
                         ?new,
+                        resumed,
                         error = %format!("{error:#}"),
                         "reconnected, but the downloads held back by the address block were not requeued"
                     ),
@@ -173,7 +175,7 @@ impl ReconnectService {
             }
             Err(error) => {
                 let error = format!("{error:#}");
-                tracing::warn!(%error, "the reconnect failed");
+                tracing::warn!(%error, resumed, "the reconnect failed");
                 ReconnectAttempt {
                     at: Utc::now(),
                     success: false,
@@ -183,7 +185,6 @@ impl ReconnectService {
                 }
             }
         };
-        let _ = paused;
         {
             let mut state = self.state.write().await;
             state.phase = ReconnectPhase::Idle;

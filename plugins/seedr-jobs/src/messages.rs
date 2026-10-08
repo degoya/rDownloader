@@ -87,5 +87,5 @@ pub const HTTP_ERROR: (&str, &str) = ("seedr_jobs.http_error", "Seedr HTTP statu
 
 #[must_use]
 pub fn http_error(status: u16) -> String {
-    format!("Seedr HTTP status {status}")
+    plugin_common::messages::http_error("Seedr", status)
 }

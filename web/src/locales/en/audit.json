@@ -77,7 +77,8 @@
     "password_login_changed": "Password sign-in switched",
     "password_reset_local": "Password reset on the host",
     "history_cleared": "Download history cleared",
-    "subscription_item_requeued": "Subscription item queued again"
+    "subscription_item_requeued": "Subscription item queued again",
+    "object_storage_profile_changed": "Object storage profile changed"
   },
   "list": {
     "title": "Records",

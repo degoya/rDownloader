@@ -80,6 +80,8 @@ pub async fn pause_capture_queue(
 pub async fn resume_capture_queue(
     State(state): State<AppState>,
 ) -> Result<Json<CaptureQueueResponse>, ApiError> {
+    // A start by hand outranks the hold of an account whose traffic is used up (RD-1190-14).
+    state.scheduler.release_account_traffic().await;
     if state.scheduler.queue_pause().await.is_some() {
         let resumed = state.scheduler.resume_queue().await?;
         return Ok(Json(CaptureQueueResponse {

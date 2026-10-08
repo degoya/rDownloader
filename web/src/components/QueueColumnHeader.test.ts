@@ -6,12 +6,13 @@
  * the view wraps around the header and the list.
  */
 import { fireEvent, screen } from '@testing-library/vue'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 
 import type { SubscriptionItem } from '@/api/types'
 import { QUEUE_COLUMN_DEFAULTS, QUEUE_COLUMN_LIMITS, queueColumnsStorageKey, useQueueColumns, type QueueColumnsView } from '@/composables/useQueueColumns'
 import subscriptions from '@/locales/en/subscriptions.json'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 import QueueColumnHeader from './QueueColumnHeader.vue'
@@ -157,6 +158,42 @@ describe('QueueColumnHeader', () => {
     expect(container().style.getPropertyValue('--queue-col-state')).toBe('128px')
     expect(container().style.getPropertyValue('--queue-col-size')).toBe('144px')
     expect(localStorage.getItem(queueColumnsStorageKey('downloads'))).toBeNull()
+  })
+})
+
+describe('QueueColumnHeader view sort', () => {
+  // RD-1190-16: the labels sort the download list for the eye; the LinkGrabber's stay text.
+  function renderSorted(sort: { column: string, direction: string } | null) {
+    const onSort = vi.fn()
+    const view = mountComponent(QueueColumnHeader, {
+      props: { widths: { ...QUEUE_COLUMN_DEFAULTS }, view: 'downloads', sort, onSort }
+    })
+    return { view, onSort }
+  }
+
+  it('makes every label a button that reports its column', async () => {
+    const { onSort } = renderSorted(null)
+    for (const name of ['Name', 'State', 'Progress', 'Size', 'Category · Account']) {
+      await fireEvent.click(screen.getByRole('button', { name: `Sort the view by “${name}”` }))
+    }
+    expect(onSort.mock.calls).toEqual([['name'], ['state'], ['progress'], ['size'], ['meta']])
+  })
+
+  it('says on the sorted column what the next click does', () => {
+    renderSorted({ column: 'size', direction: 'asc' })
+    expect(screen.getByRole('button', { name: 'Sorted by “Size”, ascending – click for descending' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sort the view by “Name”' })).toBeTruthy()
+  })
+
+  it('leaves the labels as text where the list does not sort', () => {
+    renderHeader('linkgrabber')
+    expect(screen.queryByRole('button', { name: /Sort the view/ })).toBeNull()
+    expect(screen.getByText('Link state')).toBeTruthy()
+  })
+
+  it('has no accessibility violations', async () => {
+    const { view } = renderSorted({ column: 'name', direction: 'desc' })
+    expect(await axeViolations(view.container)).toBe('')
   })
 })
 

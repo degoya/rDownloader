@@ -1,5 +1,6 @@
 {
   "name": "KatFile",
+  "description": "Résout les liens KatFile sur tous ses domaines miroirs.",
   "account": {
     "secret_label": "Clé API",
     "secret_hint": "Saisissez votre clé API comme secret, ou importez les cookies d'une session premium connectée depuis votre navigateur."

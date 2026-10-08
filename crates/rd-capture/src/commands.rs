@@ -90,7 +90,7 @@ pub(crate) async fn send_clipboard(args: ConnectionArgs) -> Result<()> {
     let client = connected(args)?;
     let outcome = clipboard::hand_over_once(&client).await;
     match outcome {
-        HandOver::Delivered(_) | HandOver::NoLinks => {
+        HandOver::Delivered(_) | HandOver::Listed(_) | HandOver::NoLinks => {
             println!("{}", outcome.message());
             Ok(())
         }

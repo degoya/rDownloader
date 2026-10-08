@@ -297,7 +297,7 @@ async fn mcp_initialize_and_tool_calls_round_trip() {
         4,
         "add_downloads",
         serde_json::json!({
-            "urls": ["http://127.0.0.1:9/unreachable.bin"],
+            "urls": ["https://files.example.invalid/unreachable.bin"],
             "package_name": "MCP Test",
             "start_paused": true
         }),
@@ -1403,6 +1403,9 @@ mod site_rule_groups;
 
 #[path = "mcp/series_pick.rs"]
 mod series_pick;
+
+#[path = "mcp/address_rule.rs"]
+mod address_rule;
 
 /// Queues a magnet over REST and leaves its torrent in the persisted engine session.
 async fn queued_magnet(

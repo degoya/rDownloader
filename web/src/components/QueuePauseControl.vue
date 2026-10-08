@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AccountTrafficNotice from '@/components/AccountTrafficNotice.vue'
 import { nextOccurrence, PAUSE_DURATIONS, useQueuePauseStore } from '@/stores/queuePause'
 import { useTransfersStore } from '@/stores/transfers'
 import { formatDuration, formatPauseEnd } from '@/utils/format'
@@ -88,6 +89,7 @@ async function resumeNow(): Promise<void> {
 
 <template>
   <div class="flex shrink-0 items-center gap-1" data-testid="queue-pause-control">
+    <AccountTrafficNotice :placement="props.placement" />
     <template v-if="queuePause.active">
       <UButton
         icon="i-lucide-play"

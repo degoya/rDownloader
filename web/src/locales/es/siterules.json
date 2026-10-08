@@ -128,7 +128,8 @@
     "mirror": "Espejo {set}",
     "mirror_hint": "Los enlaces de un paquete con el mismo número de espejo son copias de un archivo.",
     "entries": "ninguna entrada para elegir | {count} entrada para elegir | {count} entradas para elegir",
-    "entries_hint": "La prueba solo lista; los enlaces y captchas llegan cuando alguien elige en el LinkGrabber."
+    "entries_hint": "La prueba solo lista; los enlaces y captchas llegan cuando alguien elige en el LinkGrabber.",
+    "address_hint": "Vacío: la dirección de prueba de la regla."
   },
   "transfer": {
     "export": "Exportar reglas",

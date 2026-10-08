@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
-import type { Category, CategoryRule, Settings, StorageRoot } from '@/api/types'
+import type { CategoryRule, Settings, StorageRoot } from '@/api/types'
 import RoutingBackupButtons from '@/components/routing/RoutingBackupButtons.vue'
 import RoutingCategories from '@/components/routing/RoutingCategories.vue'
 import RoutingCategoryRules from '@/components/routing/RoutingCategoryRules.vue'
@@ -14,6 +14,7 @@ import SettingsDocumentGate from '@/components/settings/SettingsDocumentGate.vue
 import SettingsStorageCapacityCard from '@/components/settings/SettingsStorageCapacityCard.vue'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
+import { useCategories } from '@/stores/categories'
 
 const settings = defineModel<Settings>({ required: true })
 /**
@@ -23,7 +24,7 @@ const settings = defineModel<Settings>({ required: true })
 const activeTab = defineModel<string>('subTab', { required: true })
 const { t } = useI18n()
 const roots = ref<StorageRoot[]>([])
-const categories = ref<Category[]>([])
+const { categories, fetchCategories } = useCategories()
 const rules = ref<CategoryRule[]>([])
 /** One fetch feeds all three list sub-tabs, so one state describes all three (RD-104-07). */
 const { loading, loadError, load } = useFetchState()
@@ -40,11 +41,10 @@ onMounted(() => void load(refresh))
 async function refresh(): Promise<string | null> {
   const [rootResponse, categoryResponse, ruleResponse] = await Promise.all([
     api.GET('/api/v1/storage-roots'),
-    api.GET('/api/v1/categories'),
+    fetchCategories(),
     api.GET('/api/v1/category-rules')
   ])
   if (rootResponse.data) roots.value = rootResponse.data
-  if (categoryResponse.data) categories.value = categoryResponse.data
   if (ruleResponse.data) rules.value = ruleResponse.data
   // Any of the three failing means at least one sub-tab would otherwise print "none
   // configured" over a list it never received.

@@ -31,8 +31,8 @@ const global = {
   stubs: {
     ...uiStubs,
     UModal: {
-      props: ['open'],
-      template: '<div v-if="open"><slot name="body" /><slot name="footer" /></div>'
+      props: ['open', 'ui'],
+      template: '<div v-if="open" data-testid="captcha-modal" :data-overlay="ui?.overlay" :data-content="ui?.content"><slot name="body" /><slot name="footer" /></div>'
     },
     UAlert: {
       props: ['title', 'description'],
@@ -110,6 +110,19 @@ describe('CaptchaDialog', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.restoreAllMocks()
+  })
+
+  /**
+   * RD-1190-17: the pick drawer covered the captcha it was waiting for. Drawer and dialog are both
+   * teleported to `body` without a z-index, so the later one won; the dialog's layer is explicit.
+   */
+  it('lies above every drawer and modal', () => {
+    renderDialog([imageCaptcha()])
+    const modal = screen.getByTestId('captcha-modal')
+    for (const slot of ['overlay', 'content']) {
+      const layer = /(?:^|\s)z-\[(\d+)\]/.exec(modal.dataset[slot] ?? '')
+      expect(Number(layer?.[1] ?? 0), slot).toBeGreaterThan(50)
+    }
   })
 
   it('shows an image captcha with its picture and sends the typed answer', async () => {

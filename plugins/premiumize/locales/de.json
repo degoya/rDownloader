@@ -1,5 +1,6 @@
 {
   "name": "Premiumize.me",
+  "description": "Löst Links anderer Hoster über ein Premiumize.me-Konto auf.",
   "account": {
     "secret_label": "Premiumize API-Key",
     "secret_hint": "Premiumize benötigt den API-Key im Secret-Feld. Eine Cookie-Session ist für Premiumize normalerweise nicht erforderlich."

@@ -4,7 +4,7 @@ import type { SubscriptionRun } from '@/api/types'
  * Matches `FIRST_POLL_PAGES * DEFAULT_LIMIT` in `crates/rd-subscription/src/indexer.rs`: the most
  * a subscription's first poll reads, which has no archive to meet yet.
  */
-export const INDEXER_FIRST_POLL_ITEMS = 500
+const INDEXER_FIRST_POLL_ITEMS = 500
 
 /** Matches `MAX_INDEXER_ITEMS` there: the page bound of every later poll, in entries. */
 export const INDEXER_POLL_BOUND = 2000

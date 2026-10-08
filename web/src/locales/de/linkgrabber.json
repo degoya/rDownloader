@@ -601,6 +601,8 @@
       "again": "Erneut wählbar"
     },
     "captcha_hint": "Jedes Release fragt ein Captcha ab; löse es im Captcha-Fenster oder in der Browser-Erweiterung.",
-    "fetch": "Links holen | Links für {count} Release holen | Links für {count} Releases holen"
+    "fetch": "Links holen | Links für {count} Release holen | Links für {count} Releases holen",
+    "take_all": "Alle übernehmen | 1 Release übernehmen | Alle {count} übernehmen",
+    "announced": "{rule}: eine Seite wartet auf deine Auswahl"
   }
 }

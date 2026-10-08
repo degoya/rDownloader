@@ -529,4 +529,18 @@ pub struct SettingsResponse {
     /// Days a download history entry is kept at most (1-3650), whatever the count.
     #[serde(default = "default_history_retention_days")]
     pub history_retention_days: u32,
+    /// What an account whose traffic its hoster reports used up does to the queue
+    /// (RD-1190-14): `nothing` (only its failed files wait), `pause_account` (its other files
+    /// wait too; default) or `pause_queue` (the whole queue holds new starts).
+    #[serde(default)]
+    pub account_traffic_action: rd_core::AccountTrafficAction,
+    /// The same per account id, where an account differs from `account_traffic_action`.
+    #[serde(default)]
+    pub account_traffic_overrides:
+        std::collections::BTreeMap<rd_core::AccountId, rd_core::AccountTrafficAction>,
+    /// Whether MCP tools may name a script: a package's, a category's, an automation's script
+    /// action, the completion and the reconnect script (RD-1190-21). Off by default; changed
+    /// in the web interface or the config only, never through a tool.
+    #[serde(default)]
+    pub mcp_scripts_allowed: bool,
 }

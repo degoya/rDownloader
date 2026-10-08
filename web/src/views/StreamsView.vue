@@ -4,7 +4,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
-import type { Category, StreamChannel, StreamChannelRequest } from '@/api/types'
+import type { StreamChannel, StreamChannelRequest } from '@/api/types'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -13,6 +13,7 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useStreamSchedules } from '@/composables/useStreamSchedules'
+import { useCategories } from '@/stores/categories'
 import { useStreamsStore } from '@/stores/streams'
 import { streamQualityItems } from '@/utils/streamQuality'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
@@ -27,7 +28,7 @@ const { t } = useI18n()
 // Shared with the nav badge, so every add/remove here keeps the sidebar count in sync.
 const streams = useStreamsStore()
 const { channels, schedules } = storeToRefs(streams)
-const categories = ref<Category[]>([])
+const { categories, fetchCategories } = useCategories()
 const { loading, load } = useFetchState()
 const message = ref<string | null>(null)
 const channelForm = ref<HTMLFormElement | null>(null)
@@ -135,13 +136,12 @@ const qualityItems = computed(() => [
 ])
 
 onMounted(() => load(async () => {
-  const [, , categoriesResponse] = await Promise.all([
+  await Promise.all([
     streams.refresh(),
     streams.refreshSchedules(),
-    api.GET('/api/v1/categories')
+    fetchCategories()
   ])
   if (streams.error) error.value = streams.error
-  if (categoriesResponse.data) categories.value = categoriesResponse.data
 }))
 
 function body(): StreamChannelRequest {

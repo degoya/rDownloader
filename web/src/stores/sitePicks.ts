@@ -3,9 +3,24 @@ import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import type { CollectorPick } from '@/api/types'
+import { sameEntries } from '@/utils/sitePicks'
 
 /** How often the board is asked again while a page resolves its entries. */
 const POLL_MS = 1500
+/** What the service answers for a list it no longer holds (RD-1190-17). */
+const PICK_NOT_FOUND = 'site_rules.pick_not_found'
+
+/** A page some intake listed, as the event stream announces it (RD-1190-17). */
+export interface PickListing {
+  list: string
+  entries: number
+  rule: string
+}
+
+/** Whether a failed answer says the list is gone. */
+function vanished(response: { error?: unknown }): boolean {
+  return (response.error as { code?: string } | undefined)?.code === PICK_NOT_FOUND
+}
 
 /**
  * The series pages whose releases wait for a choice (RD-1170-03).
@@ -15,6 +30,12 @@ const POLL_MS = 1500
  * lives in the service's memory, so this store only mirrors it: asked when the LinkGrabber opens,
  * after a paste that listed a page, and every 1.5 s while a page is resolving, which is what the
  * "3 of 8" and "waiting for captcha" read from.
+ *
+ * A list can vanish under the drawer — discarded elsewhere, pushed off a full board, or gone with
+ * a restart of the service (RD-1190-17). *Fetch* then lists the page again by itself, which
+ * costs no captcha, and fetches the same releases from the fresh list; *Stop* and *Discard* of a
+ * vanished list simply let it go. A page listed by another intake — a copied link, the browser
+ * extension, Click'n'Load — is announced on the event stream and opens the drawer as a paste does.
  */
 export const useSitePicksStore = defineStore('sitePicks', () => {
   const pages = ref<CollectorPick[]>([])
@@ -26,6 +47,12 @@ export const useSitePicksStore = defineStore('sitePicks', () => {
    * it, as "Check all" opens the indexer drawer. Nothing else opens it (`design.md`).
    */
   const asked = ref(0)
+  /** Panels showing the board right now; an announcement opens the drawer where one is shown. */
+  let attached = 0
+  /** A page was announced while no panel was shown: the next panel opens on it. */
+  const unseen = ref(false)
+  /** The last announcement no panel could show, for the toast that points to the LinkGrabber. */
+  const notice = ref<PickListing & { at: number } | null>(null)
   let timer: ReturnType<typeof setTimeout> | null = null
 
   const running = computed(() => pages.value.some(page => page.running))
@@ -54,10 +81,76 @@ export const useSitePicksStore = defineStore('sitePicks', () => {
     asked.value += 1
   }
 
-  /** Puts one page's new state in place of the old one. */
-  function replace(page: CollectorPick): void {
-    pages.value = pages.value.map(current => current.id === page.id ? page : current)
+  /**
+   * Another intake listed a page (RD-1190-17): fetch the board, and open the drawer where a panel
+   * is shown — or remember it for the next panel and raise the notice.
+   */
+  async function announced(listing: PickListing): Promise<void> {
+    await refresh()
+    if (attached > 0) {
+      asked.value += 1
+      return
+    }
+    unseen.value = true
+    notice.value = { ...listing, at: Date.now() }
+  }
+
+  /** A panel appears; answers whether a page waits that it should open on. */
+  function attach(): boolean {
+    attached += 1
+    const opening = unseen.value
+    unseen.value = false
+    return opening
+  }
+
+  function detach(): void {
+    attached = Math.max(0, attached - 1)
+  }
+
+  /** Puts one page's new state in place of the old one, under `id` — its own, or the vanished one's. */
+  function replace(page: CollectorPick, id = page.id): void {
+    const next = pages.value.filter(current => current.id !== page.id || current.id === id)
+    const position = next.findIndex(current => current.id === id)
+    if (position < 0) next.push(page)
+    else next.splice(position, 1, page)
+    pages.value = next
     schedule()
+  }
+
+  /** Drops a page the service no longer holds. */
+  function forget(id: string): void {
+    pages.value = pages.value.filter(page => page.id !== id)
+    error.value = null
+    schedule()
+  }
+
+  /**
+   * Lists a vanished page again and resolves the releases chosen in it from the fresh list. The
+   * first stage asks no captcha, so this costs what the paste cost.
+   */
+  async function relist(id: string, entries: number[]): Promise<boolean> {
+    const before = pages.value.find(page => page.id === id)
+    if (!before) return false
+    const listed = await api.POST('/api/v1/collector/picks', { body: { address: before.address } })
+    if (!listed.data) {
+      error.value = responseError(listed)
+      return false
+    }
+    const fresh = listed.data
+    replace(fresh, id)
+    const again = sameEntries(before.entries, fresh.entries, entries)
+    if (!again.length) {
+      error.value = null
+      return false
+    }
+    const response = await api.POST('/api/v1/collector/picks/{id}/resolve', { params: { path: { id: fresh.id } }, body: { entries: again } })
+    if (!response.data) {
+      error.value = responseError(response)
+      return false
+    }
+    error.value = null
+    replace(response.data)
+    return true
   }
 
   async function withBusy<T>(id: string, work: () => Promise<T>): Promise<T> {
@@ -76,6 +169,7 @@ export const useSitePicksStore = defineStore('sitePicks', () => {
     if (!entries.length) return false
     return withBusy(id, async () => {
       const response = await api.POST('/api/v1/collector/picks/{id}/resolve', { params: { path: { id } }, body: { entries } })
+      if (!response.data && vanished(response)) return relist(id, entries)
       if (!response.data) {
         error.value = responseError(response)
         return false
@@ -90,6 +184,8 @@ export const useSitePicksStore = defineStore('sitePicks', () => {
   async function cancel(id: string): Promise<void> {
     await withBusy(id, async () => {
       const response = await api.POST('/api/v1/collector/picks/{id}/cancel', { params: { path: { id } } })
+      // Nothing left to stop: the list is gone, and so is the reason to say anything.
+      if (!response.data && vanished(response)) return forget(id)
       if (!response.data) {
         error.value = responseError(response)
         return
@@ -103,6 +199,7 @@ export const useSitePicksStore = defineStore('sitePicks', () => {
   async function discard(id: string): Promise<void> {
     await withBusy(id, async () => {
       const response = await api.DELETE('/api/v1/collector/picks/{id}', { params: { path: { id } } })
+      if (!response.data && vanished(response)) return forget(id)
       if (!response.data) {
         error.value = responseError(response)
         return
@@ -119,5 +216,8 @@ export const useSitePicksStore = defineStore('sitePicks', () => {
     timer = null
   }
 
-  return { pages, error, busy, asked, running, refresh, listed, resolve, cancel, discard, stop }
+  return {
+    pages, error, busy, asked, unseen, notice, running,
+    refresh, listed, announced, attach, detach, resolve, cancel, discard, stop
+  }
 })

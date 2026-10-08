@@ -141,7 +141,11 @@
     "hand_over": "An Anbieter übergeben",
     "hand_over_hint": "Der Anbieter lädt die NZB dieses Pakets selbst aus dem Usenet; die fertigen Dateien kommen als Links in den LinkGrabber zurück. Das Paket bleibt hier.",
     "handed_over": "An {provider} übergeben",
-    "handed_over_hint": "Zu den entfernten Aufträgen"
+    "handed_over_hint": "Zu den entfernten Aufträgen",
+    "waiting_for_parts": "Wartet auf fehlende Dateien",
+    "waiting_for_parts_title": "Die Nachbearbeitung beginnt erst, wenn alle Dateien des Pakets da sind.",
+    "reset_failed": "Fehlgeschlagene und blockierte zurücksetzen",
+    "reset_failed_hint": "{count} Datei dieses Pakets | {count} Dateien dieses Pakets"
   },
   "transfer": {
     "actions_aria": "Dateiaktionen",
@@ -438,5 +442,30 @@
     "title": "Torrents vom Kill-Switch angehalten",
     "description": "Das gebundene Interface {name} ist weg. Die Torrents bleiben angehalten, bis es zurückkommt; andere Downloads laufen weiter.",
     "open": "Netzwerkstatus"
+  },
+  "traffic": {
+    "one": "Traffic von {account} aufgebraucht · nächste Prüfung {time}",
+    "many": "Traffic von {count} Konten aufgebraucht · nächste Prüfung {time}",
+    "queue_paused": "Warteschlange pausiert: Traffic von {account} aufgebraucht · nächste Prüfung {time}",
+    "entry": "{account}: wartet bis spätestens {until}",
+    "title": "Der Hoster meldet das Traffic-Kontingent als aufgebraucht. Die Downloads warten und laufen weiter, sobald eine Prüfung wieder Traffic findet oder die Wartezeit endet.",
+    "continue": "Trotzdem fortsetzen"
+  },
+  "reset_failed": {
+    "button": "Fehlgeschlagene zurücksetzen",
+    "hint": "Fehlgeschlagene oder blockierte Dateien der angezeigten Liste neu starten",
+    "failed": "Fehlgeschlagene ({count})",
+    "blocked": "Blockierte ({count})",
+    "both": "Fehlgeschlagene und blockierte ({count})",
+    "done": "{count} Datei zurückgesetzt | {count} Dateien zurückgesetzt"
+  },
+  "view_sort": {
+    "title": "Ansicht sortiert – Warteschlange unverändert",
+    "description": "Nach „{column}“, {direction}. Die Downloads laufen weiter in der Reihenfolge der Warteschlange; Ziehen zum Umordnen ist aus, solange sortiert ist.",
+    "asc": "aufsteigend",
+    "desc": "absteigend",
+    "category": "Kategorie",
+    "reset": "Zurück zur Warteschlange",
+    "drag_off": "Die Ansicht ist sortiert – setze sie zurück, um die Warteschlange umzuordnen."
   }
 }

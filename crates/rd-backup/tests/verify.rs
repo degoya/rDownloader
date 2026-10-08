@@ -177,3 +177,29 @@ async fn an_archive_under_an_earlier_passphrase_is_checked_by_its_digest() {
     .expect("digest passes");
     assert!(!verified.content_checked);
 }
+
+/// RD-1190-22: the scratch folder holds a copy of the archive while it is checked, and in a data
+/// directory that already exists open -- a Docker volume -- it was left open too.
+#[cfg(unix)]
+#[tokio::test]
+async fn the_scratch_folder_is_the_service_accounts_alone() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let written = written().await;
+    std::fs::create_dir_all(written.scratch()).expect("scratch");
+    std::fs::set_permissions(written.scratch(), std::fs::Permissions::from_mode(0o755))
+        .expect("open it");
+    verify_at(
+        &written.folder,
+        &written.expected,
+        &written.key,
+        &written.scratch(),
+    )
+    .await
+    .expect("verified");
+    let mode = std::fs::metadata(written.scratch())
+        .expect("scratch")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o700, "{mode:o}");
+}

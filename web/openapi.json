@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.18.0"
+    "version": "1.19.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -2863,7 +2863,7 @@
         "tags": [
           "system"
         ],
-        "summary": "Checks the archive like a test restore and stages it; the next start switches to it.",
+        "summary": "Checks the archive like a test restore and stages it; the next start switches to it.\nRequires a signed-in session and the password.",
         "operationId": "start_restore",
         "requestBody": {
           "content": {
@@ -2896,8 +2896,18 @@
               }
             }
           },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
           "403": {
-            "description": "Forbidden",
+            "description": "Not a signed-in session, or a wrong passphrase",
             "content": {
               "application/json": {
                 "schema": {
@@ -4395,6 +4405,7 @@
           "capture"
         ],
         "summary": "The tray's \"Pause clipboard watching\" and `rdownloader-capture pause|resume`.",
+        "description": "Audited like the settings page's switch (audit 2026-10-08, API-02): the same row changes,\nand the record names the capture token that changed it.",
         "operationId": "set_capture_clipboard",
         "requestBody": {
           "content": {
@@ -13461,7 +13472,7 @@
         "tags": [
           "downloads"
         ],
-        "summary": "Ends the timed pause now: the files it stopped are queued again, and the hold goes.",
+        "summary": "Ends the timed pause now: the files it stopped are queued again, and the hold goes. The\naccounts held for their used-up traffic are let go too (RD-1190-14): a start by hand\noutranks the automatic hold, and their waiting files keep their own due times.",
         "operationId": "resume_queue",
         "responses": {
           "200": {
@@ -14318,6 +14329,7 @@
           "system"
         ],
         "summary": "Replaces all configuration tables atomically after validation. Secret-store writes made before\nthe database swap are removed on failure. A process crash after the swap but before settings\npersistence can temporarily leave new tables with old settings; the next settings save heals it.",
+        "description": "Requires a signed-in session and the password (RD-1190-19): the bundle replaces the accounts,\nthe hot folders and the settings the sign-in reads.",
         "operationId": "import_settings",
         "requestBody": {
           "content": {
@@ -14342,6 +14354,26 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a signed-in session",
             "content": {
               "application/json": {
                 "schema": {
@@ -17445,6 +17477,54 @@
           }
         }
       },
+      "AccountTrafficAction": {
+        "type": "string",
+        "description": "What the queue does while an account's traffic is used up.",
+        "enum": [
+          "nothing",
+          "pause_account",
+          "pause_queue"
+        ]
+      },
+      "AccountTrafficHoldResponse": {
+        "type": "object",
+        "description": "An account whose traffic is used up, and what that holds back.",
+        "required": [
+          "account_id",
+          "account_label",
+          "provider",
+          "action",
+          "until",
+          "next_check_at"
+        ],
+        "properties": {
+          "account_id": {
+            "$ref": "#/components/schemas/AccountId"
+          },
+          "account_label": {
+            "type": "string",
+            "description": "The account's own name, as the account list shows it."
+          },
+          "action": {
+            "$ref": "#/components/schemas/AccountTrafficAction",
+            "description": "What the setting makes of it: `nothing`, `pause_account` or `pause_queue`."
+          },
+          "next_check_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the account is next checked for traffic; traffic above zero continues at once."
+          },
+          "provider": {
+            "type": "string",
+            "description": "The provider slug, such as `ddownload`."
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the hoster's wait ends and the waiting files try again."
+          }
+        }
+      },
       "Action": {
         "oneOf": [
           {
@@ -17813,7 +17893,8 @@
           "password_login_changed",
           "password_reset_local",
           "history_cleared",
-          "subscription_item_requeued"
+          "subscription_item_requeued",
+          "object_storage_profile_changed"
         ]
       },
       "AuditActorKind": {
@@ -21596,7 +21677,8 @@
           "total_bytes",
           "bytes_per_second",
           "paused",
-          "queue_control"
+          "queue_control",
+          "traffic_held_accounts"
         ],
         "properties": {
           "active": {
@@ -21653,6 +21735,20 @@
           },
           "total_bytes": {
             "$ref": "#/components/schemas/ByteCount"
+          },
+          "traffic_held_accounts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Accounts whose used-up traffic holds downloads back (RD-1190-14): their own files, or\nthe whole queue, as the setting says. A count, not names: this token sees no accounts.",
+            "minimum": 0
+          },
+          "traffic_next_check": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The soonest of those accounts' next traffic checks; the tray says \"next check\" with it."
           }
         }
       },
@@ -23852,6 +23948,10 @@
               }
             ]
           },
+          "ambient_custom_endpoint": {
+            "type": "boolean",
+            "description": "The explicit yes an `ambient` profile with an `endpoint` needs: the machine's own\ncredentials (instance role, managed identity, Google token) then go to that endpoint.\nWithout it such a profile is refused with `object_storage.ambient_endpoint_unconfirmed`."
+          },
           "bucket": {
             "type": [
               "string",
@@ -24418,21 +24518,59 @@
           "reset_delete_files"
         ]
       },
+      "DownloadBulkFilter": {
+        "type": "object",
+        "description": "Which files a filtered bulk action takes; read when the action starts.",
+        "required": [
+          "states"
+        ],
+        "properties": {
+          "package_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PackageId",
+                "description": "Only the files of this package."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DownloadState"
+            },
+            "description": "At least one state; a file in any of them is taken."
+          }
+        }
+      },
       "DownloadBulkRequest": {
         "type": "object",
         "required": [
-          "ids",
           "action"
         ],
         "properties": {
           "action": {
             "$ref": "#/components/schemas/DownloadBulkAction"
           },
+          "filter": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DownloadBulkFilter",
+                "description": "The files to act on by what they are rather than by id (RD-1190-15): every file in one\nof `states`, of one package when `package_id` is set. Not bounded by the 500 ids."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ids": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DownloadId"
-            }
+            },
+            "description": "The files to act on, 1-500. Empty when `filter` names them instead; one of the two."
           }
         }
       },
@@ -26238,6 +26376,14 @@
               "string",
               "null"
             ],
+            "writeOnly": true
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The administrator password, typed again from a signed-in session (RD-1190-19).",
             "writeOnly": true
           }
         }
@@ -30151,7 +30297,8 @@
           "checksums",
           "enabled",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "ambient_custom_endpoint"
         ],
         "properties": {
           "access_key_id": {
@@ -30171,6 +30318,10 @@
           "addressing": {
             "$ref": "#/components/schemas/ObjectAddressing",
             "description": "S3 only; the other providers have one addressing style."
+          },
+          "ambient_custom_endpoint": {
+            "type": "boolean",
+            "description": "The explicit yes that lets an `ambient` profile send the machine's own credentials —\nan instance role, a managed identity, a Google token — to its custom endpoint\n(RD-1190-20). Without it such a profile is refused before any request."
           },
           "bucket": {
             "type": [
@@ -32758,9 +32909,17 @@
         "type": "object",
         "required": [
           "paused",
-          "files"
+          "files",
+          "account_traffic"
         ],
         "properties": {
+          "account_traffic": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountTrafficHoldResponse"
+            },
+            "description": "The accounts whose traffic their hoster reports used up, the soonest to end first\n(RD-1190-14); empty while none is."
+          },
           "files": {
             "type": "integer",
             "format": "int32",
@@ -34479,6 +34638,14 @@
             "type": "string",
             "writeOnly": true
           },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The administrator password, typed again: the restore itself asks for it from a signed-in\nsession (RD-1190-19); the test restore does not read it.",
+            "writeOnly": true
+          },
           "source": {
             "$ref": "#/components/schemas/RestoreSourceRequest"
           }
@@ -35661,6 +35828,23 @@
         "type": "object",
         "description": "Mutable local service settings exposed in version one.",
         "properties": {
+          "account_traffic_action": {
+            "$ref": "#/components/schemas/AccountTrafficAction",
+            "description": "What an account whose traffic its hoster reports used up does to the queue\n(RD-1190-14): `nothing` (only its failed files wait), `pause_account` (its other files\nwait too; default) or `pause_queue` (the whole queue holds new starts).",
+            "default": "pause_account"
+          },
+          "account_traffic_overrides": {
+            "type": "object",
+            "description": "The same per account id, where an account differs from `account_traffic_action`.",
+            "default": {},
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AccountTrafficAction"
+            },
+            "propertyNames": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
           "admin_login_disabled": {
             "type": "boolean",
             "description": "Switches the administrator login off (only sensible on a trusted loopback/LAN setup).",
@@ -36049,6 +36233,11 @@
             "description": "Retries per file before a retryable failure becomes final (0–100). Waiting out a limit\nthe hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of\nthem; at most 48 such waits in a row (RD-191-12).",
             "default": 8,
             "minimum": 0
+          },
+          "mcp_scripts_allowed": {
+            "type": "boolean",
+            "description": "Whether MCP tools may name a script: a package's, a category's, an automation's script\naction, the completion and the reconnect script (RD-1190-21). Off by default; changed\nin the web interface or the config only, never through a tool.",
+            "default": false
           },
           "media_check_timeout_seconds": {
             "type": "integer",
@@ -41139,7 +41328,7 @@
       },
       "UpdateObjectStorageProfileRequest": {
         "type": "object",
-        "description": "Editable profile fields. An empty secret or session token keeps the stored one while the\nprovider and the credential source stay what they were.",
+        "description": "Editable profile fields. An empty secret or session token keeps the stored one while the\nprovider, the credential source and the host — the endpoint, and the Azure account — stay\nwhat they were; a changed host needs the secret typed again (RD-1190-20).",
         "required": [
           "name",
           "credential_source"
@@ -41166,6 +41355,10 @@
                 "type": "null"
               }
             ]
+          },
+          "ambient_custom_endpoint": {
+            "type": "boolean",
+            "description": "See [`CreateObjectStorageProfileRequest::ambient_custom_endpoint`]."
           },
           "bucket": {
             "type": [

@@ -87,25 +87,29 @@ async fn a_foreign_page_cannot_change_anything_with_the_login_switched_off() {
     }
 }
 
-/// The same refusal on `/mcp`, which the switched-off login opens to this machine as well.
+/// The same refusal on `/mcp`, which the switched-off login opens to this machine as well --
+/// on every method, as the MCP specification asks; the `GET` stream was let through
+/// (RD-1190-22).
 #[tokio::test]
 async fn a_foreign_page_cannot_call_the_mcp_endpoint() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = test_harness(directory.path()).await;
-    let (status, body) = send(
-        &harness.router,
-        browser(
-            "POST",
-            "/mcp",
-            Some("https://attacker.example"),
-            Some("cross-site"),
-            "text/plain",
-            b"{}",
-        ),
-    )
-    .await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
-    assert_eq!(body["code"], REFUSED);
+    for method in ["POST", "GET", "DELETE"] {
+        let (status, body) = send(
+            &harness.router,
+            browser(
+                method,
+                "/mcp",
+                Some("https://attacker.example"),
+                Some("cross-site"),
+                "text/plain",
+                b"{}",
+            ),
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{method}: {body}");
+        assert_eq!(body["code"], REFUSED, "{method}");
+    }
 }
 
 /// The interface itself, a command-line client and a read are all left alone.

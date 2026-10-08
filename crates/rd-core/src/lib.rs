@@ -2,6 +2,7 @@
 
 #![warn(unreachable_pub)]
 
+mod account_traffic;
 mod address;
 mod audit;
 mod auth_flow;
@@ -15,7 +16,6 @@ mod cookie_file;
 mod dedupe;
 mod diagnostics;
 mod download;
-mod error;
 mod event;
 pub mod failpoint;
 mod gallery;
@@ -51,7 +51,17 @@ mod trace;
 mod transform;
 mod usenet;
 
+pub use account_traffic::{
+    AccountTrafficAction, TRAFFIC_EXHAUSTED_SUFFIX, is_account_traffic_exhausted,
+};
 pub use address::{AddressScope, address_scope, literal_address};
+// The plugin contract's vocabulary lives in `rd-plugin-types` since RD-1190-08 (CORE-06), so a
+// change to the service's own types here rebuilds no plugin; re-exported so every service path
+// keeps naming it `rd_core::…`.
+pub use rd_plugin_types::{
+    AccountId, ByteCount, ChecksumAlgorithm, Failure, FailureKind, LinkStatus, MAX_PERSISTED_BYTES,
+    MAX_RETRY_AFTER_SECONDS, MessageParams, PluginId, PluginLinkCheck, ProxyProfileId,
+};
 // The host allowlist matcher lives in the registry, which `rd-core` depends on; re-exported so
 // the crates above find it beside `address_scope` (RD-191-06, PLUG-17).
 pub use audit::{
@@ -83,8 +93,8 @@ pub use collector::{
     CandidateMessage, CandidateMirror, Category, CategoryRule, CategoryRuleNameTarget,
     CollectorBatch, CollectorPackage, EnrichmentField, GrabberEntryKind, GrabberEntryRef,
     HotFolderConfig, HotFolderExecutor, ImportMode, IngressSource, LinkCandidate,
-    LinkCandidateState, LinkCheckResult, LinkStatus, MirrorFacet, MirrorHint, MirrorPreference,
-    MirrorSource, StorageRootConfig, candidate_url, split_candidate_url,
+    LinkCandidateState, LinkCheckResult, MirrorFacet, MirrorHint, MirrorPreference, MirrorSource,
+    StorageRootConfig, candidate_url, split_candidate_url,
 };
 pub use cookie_file::{
     CookieFileError, CookieRow, MAX_COOKIE_FILE, earliest_expiry as cookie_earliest_expiry,
@@ -100,10 +110,9 @@ pub use diagnostics::{
     LOG_RETENTION_RECORDS_RANGE, LogLevel, LogRetentionSettings,
 };
 pub use download::{
-    ByteCount, ChecksumAlgorithm, DownloadFile, DownloadKind, DownloadPackage, DownloadPriority,
-    DownloadState, ExpectedChecksum, is_recovery_volume,
+    DownloadFile, DownloadKind, DownloadPackage, DownloadPriority, DownloadState, ExpectedChecksum,
+    is_recovery_volume,
 };
-pub use error::{Failure, FailureKind, MessageParams};
 pub use event::{EventEnvelope, EventKind};
 pub use gallery::{GALLERY_PROVIDER, GallerySettings};
 pub use git_release::{
@@ -119,14 +128,13 @@ pub use hotfolder::{
     DEFAULT_HOTFOLDER_POLL_SECONDS, HOTFOLDER_POLL_SECONDS_RANGE, HotFolderSettings,
 };
 pub use ids::{
-    AccountId, AuthProfileId, AutomationId, AutomationRunId, AutomationVersionId,
-    BandwidthProfileId, BandwidthWindowId, BatchId, CandidateId, CaptchaId, CaptureAgentId,
-    CaptureTokenId, CategoryId, CategoryRuleId, ChunkId, CollectorPackageId, DownloadId, EventId,
-    HotFolderId, IndexerId, MfaCredentialId, NotificationDeliveryId, NotificationRuleId,
-    NotificationTargetId, NzbFileId, NzbImportId, NzbSegmentId, ObjectStorageProfileId, PackageId,
-    PluginId, ProxyProfileId, RemoteCredentialId, RemoteJobId, SessionId, StorageRootId,
-    StreamChannelId, StreamScheduleId, StreamScheduledRunId, SubscriptionId, SubscriptionItemId,
-    SubscriptionRunId, UsenetServerId,
+    AuthProfileId, AutomationId, AutomationRunId, AutomationVersionId, BandwidthProfileId,
+    BandwidthWindowId, BatchId, CandidateId, CaptchaId, CaptureAgentId, CaptureTokenId, CategoryId,
+    CategoryRuleId, ChunkId, CollectorPackageId, DownloadId, EventId, HotFolderId, IndexerId,
+    MfaCredentialId, NotificationDeliveryId, NotificationRuleId, NotificationTargetId, NzbFileId,
+    NzbImportId, NzbSegmentId, ObjectStorageProfileId, PackageId, RemoteCredentialId, RemoteJobId,
+    SessionId, StorageRootId, StreamChannelId, StreamScheduleId, StreamScheduledRunId,
+    SubscriptionId, SubscriptionItemId, SubscriptionRunId, UsenetServerId,
 };
 pub use indexer::{
     Indexer, IndexerListStyle, IndexerSearch, MAX_INDEXER_AGE_DAYS, MAX_INDEXER_PRETIME,
@@ -233,9 +241,7 @@ pub use subscription::{
     SubscriptionMode, SubscriptionReviewCount, SubscriptionReviewSummary, SubscriptionRun,
     SubscriptionSettings, SubscriptionView,
 };
-pub use timing::{
-    MAX_RETRY_AFTER_SECONDS, RETRY_JITTER_PERCENT, clamp_retry_after, exponential_backoff, jitter,
-};
+pub use timing::{RETRY_JITTER_PERCENT, clamp_retry_after, exponential_backoff, jitter};
 pub use toolpath::{
     ManagedTool, ManagedToolResolver, ManagedToolSettings, ResolvedTool, ToolLease, ToolSource,
     VENDOR_DIR_NAME, data_directory, executable_in, locate_tool, locate_tool_leased, managed_tool,
@@ -271,9 +277,6 @@ pub use usenet::{
     UsenetQuota, UsenetQuotaAction, UsenetServer, provider_for_media_type,
 };
 
-/// Maximum representable byte count in persistent storage.
-pub const MAX_PERSISTED_BYTES: u64 = i64::MAX as u64;
-
 /// Serde default for a flag whose absence means "yes".
 ///
 /// Used where a field was added to a type that is already persisted: a stored value written
@@ -285,8 +288,8 @@ pub(crate) const fn default_true() -> bool {
 /// The `User-Agent` the service's own requests send: `rDownloader/<version>`.
 ///
 /// A macro rather than a constant because the version has to be the application's: `rd-core`
-/// is linked into the plugins and carries a version of its own, so `CARGO_PKG_VERSION` is read
-/// in the crate that sends the request.
+/// carries a version of its own, so `CARGO_PKG_VERSION` is read in the crate that sends the
+/// request.
 #[macro_export]
 macro_rules! user_agent {
     () => {

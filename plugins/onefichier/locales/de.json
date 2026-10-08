@@ -1,5 +1,6 @@
 {
   "name": "1fichier",
+  "description": "Löst 1fichier-Links mit einem API-Key auf.",
   "account": {
     "secret_label": "API-Key (aus Parameters → API)",
     "secret_hint": "Gib deinen API-Key (Parameters → API) als Secret ein."

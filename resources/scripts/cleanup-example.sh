@@ -10,6 +10,8 @@
 #   $5 category          $6 (empty)        $7 status: 0 ok, 1 download, 2 unpack, 3 par2
 # The same values are available as RD_* / SAB_* environment variables.
 
+# POSIX sh, so it runs wherever /bin/sh does; it has no pipe, so `set -eu` misses no failure that
+# bash's pipefail would catch.
 set -eu
 
 status="${7:-${RD_STATUS:-0}}"

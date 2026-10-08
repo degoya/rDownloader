@@ -3,7 +3,7 @@
 #
 # The component stamps of scripts/build-plugins.sh (RD-120-58): where a plugin's component and
 # its stamp lie, the source hash and the dependency hash a stamp records, writing a stamp after a
-# build and the staleness rule that reads one. crates/rd-plugin-host/src/artifact.rs implements
+# build, the staleness rule that reads one, the missing component and the cache key (PIPE-02). crates/rd-plugin-host/src/artifact.rs implements
 # the same definition; `build-plugins.sh --source-hash` is what its test compares.
 #
 # Expects from scripts/build-plugins.sh, which sources it: TARGET_DIR and TARGET, and the
@@ -123,4 +123,33 @@ stale() {
     [[ "$recorded_component" == "$(sha256_files "$component" | cut -c1-64)" ]] || return 0
     [[ "$recorded_deps" == "$(deps_hash)" ]] || return 0
     [[ "$recorded_sources" != "$(source_hash "$name")" ]]
+}
+
+# Whether the plugin in $1 has no built component in this checkout at all.
+#
+# The case the staleness check cannot see, and the one that used to pass quietly: the contract
+# tests read their components from target/, which is per checkout and which `cargo test` never
+# fills. Since RD-108-16 they fail on it rather than returning early, and this is the same
+# question asked before the run instead of forty minutes into it.
+missing() {
+    [[ ! -f "$(component_path "$1")" ]]
+}
+
+# The key of the component cache in CI and the release (RD-150-10), as two `name=value` lines
+# for $GITHUB_OUTPUT. `sources` covers every plugin's source hash, so an exact hit is a set of
+# components built from exactly these sources. `deps` covers what a stamp deliberately leaves
+# out and a component still depends on: the registry packages in Cargo.lock, the root Cargo.toml
+# (workspace dependencies, features, the release profile), .cargo/config.toml and the compiler
+# cargo resolves here (`rustc -vV`, RUSTUP_TOOLCHAIN or rust-toolchain.toml's channel), so a
+# toolchain change is a miss even where the key's literal version was not moved. The workspace
+# version is taken out of both files first — every release moves it, and no component reads it.
+# The workflow restores by `deps` alone when `sources` misses, and build-plugins.sh's staleness
+# check then rebuilds exactly the plugins whose stamps no longer match.
+cache_key() {
+    local manifest name
+    printf 'deps=%s\n' "$(deps_hash)"
+    for manifest in plugins/*/manifest.toml; do
+        name="$(basename "$(dirname "$manifest")")"
+        printf '%s %s\n' "$name" "$(source_hash "$name")"
+    done | sha256_files - | cut -c1-64 | sed 's/^/sources=/'
 }

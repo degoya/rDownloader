@@ -41,14 +41,13 @@ impl PluginRepositoryService {
         index: &PluginIndex,
     ) {
         let scope = withdrawal_scope(repository);
-        let delivered: Vec<PluginRepositoryInstall> = self
-            .database()
-            .list_plugin_repository_installs()
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|install| install.repository_id == repository.id)
-            .collect();
+        let Some(delivered) = delivered_by(
+            &repository.id,
+            scope,
+            self.database().list_plugin_repository_installs().await,
+        ) else {
+            return;
+        };
         let verifier = self.installer().verifier();
         for text in &index.revoked.package_digests {
             let Ok(digest) = parse_package_digest(text) else {
@@ -171,5 +170,77 @@ impl PluginRepositoryService {
             }
         }
         (None, None, None)
+    }
+}
+
+/// What the repository `repository_id` delivered here, from the read of every delivery record.
+///
+/// A third-party repository may withdraw only what it delivered, so an unreadable record used
+/// to turn each of its withdrawals into "not delivered here" and drop it with a debug line
+/// (PL-03). Now that is `None` with a warning: its withdrawals wait for the next refresh, which
+/// applies the same list again. The official repository needs the record only to name a
+/// plugin and goes on without it.
+fn delivered_by(
+    repository_id: &str,
+    scope: WithdrawalScope,
+    installs: anyhow::Result<Vec<PluginRepositoryInstall>>,
+) -> Option<Vec<PluginRepositoryInstall>> {
+    match installs {
+        Ok(installs) => Some(
+            installs
+                .into_iter()
+                .filter(|install| install.repository_id == repository_id)
+                .collect(),
+        ),
+        Err(error) if scope == WithdrawalScope::DeliveredOnly => {
+            tracing::warn!(repository = %repository_id, %error, "could not read which plugin packages this repository delivered; its withdrawals wait for the next refresh");
+            None
+        }
+        Err(error) => {
+            tracing::warn!(repository = %repository_id, %error, "could not read which plugin packages this repository delivered; its withdrawals are applied without naming the plugins");
+            Some(Vec::new())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rd_db::PluginRepositoryInstall;
+
+    use super::{WithdrawalScope, delivered_by};
+
+    fn install(repository_id: &str) -> PluginRepositoryInstall {
+        PluginRepositoryInstall {
+            plugin_id: "019d0000-0000-7000-8000-0000000002a1".to_owned(),
+            version: "1.0.0".to_owned(),
+            digest: "00".repeat(32),
+            repository_id: repository_id.to_owned(),
+            installed_at: "2026-10-08T00:00:00Z".to_owned(),
+        }
+    }
+
+    /// An unreadable delivery record stops a third-party repository's withdrawals instead of
+    /// turning every one of them into "not delivered here" (PL-03).
+    #[test]
+    fn an_unreadable_delivery_record_stops_a_third_party_repositorys_withdrawals() {
+        let read = Err(anyhow::anyhow!("database is locked"));
+        assert!(delivered_by("community", WithdrawalScope::DeliveredOnly, read).is_none());
+    }
+
+    /// The official repository withdraws anything; it goes on without the record.
+    #[test]
+    fn the_official_repository_withdraws_without_the_delivery_record() {
+        let read = Err(anyhow::anyhow!("database is locked"));
+        let delivered = delivered_by("official", WithdrawalScope::Everything, read);
+        assert!(delivered.is_some_and(|delivered| delivered.is_empty()));
+    }
+
+    #[test]
+    fn only_the_repositorys_own_deliveries_count() {
+        let read = Ok(vec![install("community"), install("elsewhere")]);
+        let delivered = delivered_by("community", WithdrawalScope::DeliveredOnly, read)
+            .expect("a readable record");
+        assert_eq!(delivered.len(), 1);
+        assert_eq!(delivered[0].repository_id, "community");
     }
 }

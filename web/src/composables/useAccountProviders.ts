@@ -2,6 +2,7 @@ import { ref } from 'vue'
 
 import { api } from '@/api/client'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useAccountsStore } from '@/stores/accounts'
 
 const providersWithAccount = ref(new Set<string>())
 const registryProviders = ref(new Set<string>())
@@ -12,7 +13,7 @@ let loaded = false
 
 async function refresh(): Promise<void> {
   const [accountsResponse, providersResponse] = await Promise.all([
-    api.GET('/api/v1/accounts'),
+    useAccountsStore().fetchAccounts(),
     api.GET('/api/v1/providers')
   ])
   const enabled = (accountsResponse.data ?? []).filter(account => account.enabled)

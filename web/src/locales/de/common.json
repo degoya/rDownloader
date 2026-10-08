@@ -184,7 +184,10 @@
     "resize_hint": "Ziehen oder mit den Pfeiltasten ändern (Umschalt für größere Schritte); Doppelklick oder Enter setzt sie zurück",
     "menu": "Spalten",
     "reset_all": "Alle Spaltenbreiten zurücksetzen",
-    "state_linkgrabber": "Linkstatus"
+    "state_linkgrabber": "Linkstatus",
+    "sort": "Ansicht nach „{column}“ sortieren",
+    "sorted_asc": "Nach „{column}“ aufsteigend sortiert – klicken für absteigend",
+    "sorted_desc": "Nach „{column}“ absteigend sortiert – klicken für die Reihenfolge der Warteschlange"
   },
   "weekdays": {
     "mon": "Mo",

@@ -65,5 +65,5 @@ pub const DISK_FREE: &str = "putio.disk_free";
 
 #[must_use]
 pub fn http_error(status: u16) -> String {
-    format!("Put.io HTTP status {status}")
+    plugin_common::messages::http_error("Put.io", status)
 }

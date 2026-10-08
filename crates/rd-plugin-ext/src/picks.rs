@@ -12,6 +12,13 @@
 //! the database would buy a list that survives a restart at the price of a migration, a crash
 //! point and a clean-up for state nobody needs back. The board holds at most [`MAX_PAGES`].
 //!
+//! **A list keeps its id while its page is listed again** (RD-1190-17). The capture agent used
+//! to repeat a clipboard paste the intake answered with `site_rules.pick_waiting`, every retry
+//! listed the page again, and each listing replaced the list under a new id -- so the drawer's
+//! list vanished "after a while" and *Fetch* answered `site_rules.pick_not_found`. The same
+//! page listed again by the same rule now refreshes the list it already has, under the same id,
+//! and a page that does leave the board is remembered with the reason ([`PickGone`]).
+//!
 //! **An unanswered captcha is not a failure.** Nobody solved it in time, or somebody declined
 //! it: the entry goes back to `pending` with the code that says so, and can be picked again.
 //! Only a refusal that is a statement about the page -- it changed, it is gone, it is guarded
@@ -25,16 +32,20 @@ use std::{
     },
 };
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use rd_siterules::{Crawl, CrawlGroup, PickList, Rule, RunError, Step};
+use rd_siterules::{Crawl, PickList, Rule, Step};
 use tokio::sync::Notify;
 use url::Url;
 
-use crate::siterules::SiteRules;
+mod worker;
+
+pub use worker::PickDelivery;
 
 /// Most pages the board keeps. The oldest one that is not resolving makes room.
 pub const MAX_PAGES: usize = 20;
+
+/// How many departed pages the board remembers the reason for.
+const GONE_KEPT: usize = 64;
 
 /// The code an entry carries when resolving it was stopped.
 pub(crate) const CANCELLED: &str = "site_rules.pick_cancelled";
@@ -135,6 +146,27 @@ impl PickError {
     }
 }
 
+/// Why a page is no longer on the board (RD-1190-17). A page the board never held -- or held
+/// before the service restarted -- has no reason at all.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PickGone {
+    /// Somebody discarded it.
+    Discarded,
+    /// The board was full and it was the oldest page not resolving.
+    Evicted,
+}
+
+impl PickGone {
+    /// The stable word the interface and the tools read.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Discarded => "discarded",
+            Self::Evicted => "evicted",
+        }
+    }
+}
+
 /// How resolving one entry ended.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EntryOutcome {
@@ -163,6 +195,8 @@ pub struct PickJob {
 pub struct PickBoard {
     pages: Mutex<VecDeque<PickPage>>,
     counter: AtomicU64,
+    /// The last pages that left the board, newest last, with the reason.
+    gone: Mutex<VecDeque<(String, PickGone)>>,
 }
 
 impl PickBoard {
@@ -175,10 +209,31 @@ impl PickBoard {
 
     /// Keeps what a two-stage rule listed. `None` when the crawl lists nothing to choose.
     ///
-    /// The same page listed again by the same rule replaces its earlier list unless that one
-    /// is resolving: pasting a page twice should not leave two lists behind.
+    /// The same page listed again by the same rule keeps its list and its id: a page that is
+    /// resolving is left exactly as it is, any other gets the fresh entries, each keeping the
+    /// state of the identical entry before it, and moves to the newest place. Pasting a page
+    /// twice leaves one list behind, and a drawer showing it never loses it to the paste.
     pub fn add(&self, rule: &Rule, crawl: Crawl) -> Option<PickSummary> {
         let list = crawl.pick?;
+        let mut pages = self.lock();
+        let same = |kept: &PickPage| kept.rule.id == rule.id && kept.address == crawl.address;
+        if let Some(position) = pages.iter().position(same) {
+            let mut page = pages.remove(position)?;
+            if !page.running {
+                page.progress = carried(&page, &list);
+                page.list = list;
+                page.rule = rule.clone();
+                page.package_name = crawl.package_name;
+                page.total = 0;
+                page.finished = 0;
+            }
+            let summary = PickSummary {
+                id: page.id.clone(),
+                entries: page.list.entries.len(),
+            };
+            pages.push_back(page);
+            return Some(summary);
+        }
         let entries = list.entries.len();
         let number = self.counter.fetch_add(1, Ordering::Relaxed);
         let created_at = Utc::now();
@@ -189,14 +244,7 @@ impl PickBoard {
             address: crawl.address,
             package_name: crawl.package_name,
             created_at,
-            progress: vec![
-                EntryProgress {
-                    state: EntryState::Pending,
-                    code: None,
-                    links: 0,
-                };
-                entries
-            ],
+            progress: vec![pending(); entries],
             list,
             running: false,
             total: 0,
@@ -204,18 +252,41 @@ impl PickBoard {
             round: 0,
             cancel: Arc::new(Notify::new()),
         };
-        let mut pages = self.lock();
-        pages.retain(|kept| {
-            kept.running || kept.rule.id != page.rule.id || kept.address != page.address
-        });
         while pages.len() >= MAX_PAGES {
             let Some(oldest) = pages.iter().position(|kept| !kept.running) else {
                 break;
             };
-            pages.remove(oldest);
+            if let Some(evicted) = pages.remove(oldest) {
+                self.left(evicted.id, PickGone::Evicted);
+            }
         }
         pages.push_back(page);
         Some(PickSummary { id, entries })
+    }
+
+    /// Remembers why a page left the board.
+    fn left(&self, id: String, reason: PickGone) {
+        let mut gone = self
+            .gone
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if gone.len() >= GONE_KEPT {
+            gone.pop_front();
+        }
+        gone.push_back((id, reason));
+    }
+
+    /// Why a page the board no longer holds left it; `None` for a page it holds, never held,
+    /// or held before the service restarted.
+    #[must_use]
+    pub fn gone(&self, id: &str) -> Option<PickGone> {
+        self.gone
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .rev()
+            .find(|(gone, _)| gone == id)
+            .map(|(_, reason)| *reason)
     }
 
     /// Every page, oldest first.
@@ -238,12 +309,13 @@ impl PickBoard {
         };
         if let Some(page) = pages.remove(position) {
             page.cancel.notify_waiters();
+            self.left(page.id, PickGone::Discarded);
         }
         true
     }
 
     /// Queues the chosen entries, and names the round a worker has to be started for when
-    /// none is running ([`SiteRules::work_picks`]).
+    /// none is running ([`crate::SiteRules::work_picks`]).
     ///
     /// An entry already queued, being resolved or done is left as it is; a pending or failed
     /// one is queued again. A round that is running grows by what was added.
@@ -372,6 +444,31 @@ impl PickBoard {
     }
 }
 
+/// An entry nothing has happened to yet.
+fn pending() -> EntryProgress {
+    EntryProgress {
+        state: EntryState::Pending,
+        code: None,
+        links: 0,
+    }
+}
+
+/// The progress of a fresh list of a page the board already holds: an entry identical to one
+/// listed before keeps what became of it, so a release that is done stays done.
+fn carried(page: &PickPage, list: &PickList) -> Vec<EntryProgress> {
+    list.entries
+        .iter()
+        .map(|entry| {
+            page.list
+                .entries
+                .iter()
+                .position(|before| before.text == entry.text)
+                .and_then(|index| page.progress.get(index).cloned())
+                .unwrap_or_else(pending)
+        })
+        .collect()
+}
+
 /// Whether an entry of this rule waits for a person: its group's steps hold a captcha.
 fn needs_captcha(rule: &Rule) -> bool {
     rule.groups.as_ref().is_some_and(|groups| {
@@ -380,69 +477,6 @@ fn needs_captcha(rule: &Rule) -> bool {
             .iter()
             .any(|step| matches!(step, Step::Captcha { .. }))
     })
-}
-
-/// Hands one resolved entry to the LinkGrabber. Implemented where the collector is.
-#[async_trait]
-pub trait PickDelivery: Send + Sync {
-    /// Adds the entry's links as one package; how many were kept, or the stable code of the
-    /// refusal.
-    async fn deliver(&self, job: &PickJob, group: CrawlGroup) -> Result<u32, String>;
-}
-
-/// What a refusal of the second stage makes of the entry.
-fn outcome_of(error: &RunError) -> EntryOutcome {
-    match error {
-        // Nobody answered, somebody declined, or no broker could ask: the entry is untouched
-        // and can be picked again.
-        RunError::CaptchaFailed { .. } | RunError::LimitTime(_) => {
-            EntryOutcome::Pending(error.code().to_owned())
-        }
-        _ => EntryOutcome::Failed(error.code().to_owned()),
-    }
-}
-
-impl SiteRules {
-    /// Resolves the queued entries of a page's `round` one after the other until none is left
-    /// or the page is stopped. Started once per round by whoever queued the entries, with the
-    /// round [`PickBoard::queue`] named.
-    pub async fn work_picks(&self, id: &str, round: u64, delivery: &dyn PickDelivery) {
-        let Some(stopper) = self.picks().stopper(id) else {
-            return;
-        };
-        loop {
-            // Waiting before the entry is taken: a stop between the two is not missed.
-            let stopped = stopper.notified();
-            tokio::pin!(stopped);
-            let Some(job) = self.picks().next(id, round) else {
-                return;
-            };
-            let runner = self.runner();
-            let resolved = tokio::select! {
-                result = runner.resolve(&job.rule, &job.address, &job.list, job.index) => result,
-                () = &mut stopped => {
-                    // `cancel` already put the entry back; nothing is delivered.
-                    tracing::info!(page = %job.page, "resolving a picked entry was stopped");
-                    return;
-                }
-            };
-            let outcome = match resolved {
-                Ok(group) => match delivery.deliver(&job, group).await {
-                    Ok(links) => EntryOutcome::Done(links),
-                    Err(code) => EntryOutcome::Failed(code),
-                },
-                Err(error) => {
-                    tracing::info!(
-                        rule = %job.rule.name,
-                        code = error.code(),
-                        "a picked entry could not be resolved"
-                    );
-                    outcome_of(&error)
-                }
-            };
-            self.picks().finish(id, job.index, outcome);
-        }
-    }
 }
 
 #[cfg(test)]

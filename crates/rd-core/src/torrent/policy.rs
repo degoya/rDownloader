@@ -32,7 +32,7 @@ pub enum SeedTimeLimit {
 impl SeedTimeLimit {
     /// Builds the limit from the nullable representation used in the settings blob.
     #[must_use]
-    pub fn from_minutes(minutes: Option<u32>) -> Self {
+    pub(crate) fn from_minutes(minutes: Option<u32>) -> Self {
         minutes.map_or(Self::Unlimited, Self::Minutes)
     }
 

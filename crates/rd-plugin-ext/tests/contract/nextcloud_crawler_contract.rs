@@ -641,6 +641,7 @@ async fn a_protected_share_hands_back_addresses_that_can_be_fetched() {
                 package_hint: link.package_hint.clone(),
                 mirror: None,
                 login,
+                by_rule: false,
             }
         })
         .collect();

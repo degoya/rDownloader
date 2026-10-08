@@ -305,6 +305,15 @@ fn every_required_language_covers_the_same_codes_as_english() {
         required.contains("en") && required.len() >= 4,
         "{required:?}"
     );
+    // The conformance check `locales_required` holds a third party's package to the same list.
+    assert_eq!(
+        required,
+        rd_plugin_host::REQUIRED_LANGUAGES
+            .iter()
+            .map(|tag| (*tag).to_owned())
+            .collect::<BTreeSet<_>>(),
+        "REQUIRED_LANGUAGES is the `required` set of languages.json"
+    );
     for directory in plugin_directories() {
         let manifest = manifest_of(&directory);
         let english = rd_plugin_host::parse_locale(
@@ -351,6 +360,29 @@ fn every_required_language_covers_the_same_codes_as_english() {
                 "{} {language}.json is missing {missing:?}",
                 directory.display()
             );
+        }
+    }
+}
+
+/// The plugin list shows a locale's `name` and `description` in place of the manifest's
+/// English ones, so a required language without them shows English text (PL-05, RD-1190-10).
+#[test]
+fn every_required_language_names_and_describes_the_plugin() {
+    for directory in plugin_directories() {
+        let manifest = manifest_of(&directory);
+        for language in required_languages() {
+            let path = directory.join(format!("locales/{language}.json"));
+            let bytes =
+                std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            let locale = rd_plugin_host::parse_locale(manifest.message_slug(), &language, &bytes)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            for (key, value) in [("name", &locale.name), ("description", &locale.description)] {
+                assert!(
+                    value.as_deref().is_some_and(|text| !text.trim().is_empty()),
+                    "{} lacks `{key}`",
+                    path.display()
+                );
+            }
         }
     }
 }

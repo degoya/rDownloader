@@ -4,12 +4,24 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use rd_plugin_api::ResolverHost;
+use wasmtime::component::InstancePre;
 
 use super::{
     ExtensionRuntime,
     bindings::{intake, intake_mirrors},
 };
 use crate::{PluginManifest, runtime::PluginStoreState};
+
+/// The `mirror-sets` interface's export name up to its version.
+const MIRROR_SETS_EXPORT: &str = "rdownloader:plugin/mirror-sets@";
+
+/// Whether the component exports `mirror-sets` at all, in any version.
+fn exports_mirror_sets(pre: &InstancePre<PluginStoreState>) -> bool {
+    pre.component()
+        .component_type()
+        .exports(pre.engine())
+        .any(|(name, _)| name.starts_with(MIRROR_SETS_EXPORT))
+}
 
 /// A compiled intake parser, pinned to one installed manifest version.
 pub struct IntakeParser {
@@ -29,8 +41,18 @@ impl IntakeParser {
     ) -> Result<Self> {
         let (runtime, pre) = ExtensionRuntime::build(manifest, component_bytes, host)?;
         // Typing the pre-instance is what checks the exports, so a component without
-        // `mirror-sets` fails here and is simply a parser without sources.
-        let mirrors = intake_mirrors::IntakeMirrorsPluginPre::new(pre.clone()).ok();
+        // `mirror-sets` fails here and is simply a parser without sources. One that does export
+        // it, in a form this host cannot type, is a broken package and says so instead of
+        // quietly losing its sources (PL-04).
+        let mirrors = match intake_mirrors::IntakeMirrorsPluginPre::new(pre.clone()) {
+            Ok(mirrors) => Some(mirrors),
+            Err(error) => {
+                if exports_mirror_sets(&pre) {
+                    tracing::warn!(plugin = %runtime.manifest().id, %error, "an intake parser exports mirror-sets in a form this host does not accept; it is used without sources");
+                }
+                None
+            }
+        };
         Ok(Self {
             runtime,
             pre: intake::IntakePluginPre::new(pre)?,

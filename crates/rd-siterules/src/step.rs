@@ -13,7 +13,7 @@
 
 use std::collections::BTreeMap;
 
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -25,6 +25,16 @@ use crate::{
 pub const PAGE_VARIABLE: &str = "page";
 /// The variable the executor reads the result from.
 pub const LINKS_VARIABLE: &str = "links";
+/// Most steps a rule may take, and its `groups` again (PL-09). The shipped rules take six at
+/// most; the run's own limits bound what the steps fetch, this bounds what is checked and
+/// compiled before anything is.
+pub const MAX_STEPS: usize = 32;
+/// Longest regular expression a rule may carry, in characters (PL-09). The shipped rules'
+/// longest has 63.
+pub const MAX_PATTERN_LENGTH: usize = 1024;
+/// Most memory one compiled pattern may take (PL-09). The `regex` crate's default is 10 MiB; a
+/// few characters of a repeated Unicode class (`\w{60}`) already take more than this.
+const PATTERN_SIZE_LIMIT: usize = 2 * 1024 * 1024;
 
 /// One step of a rule.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -182,9 +192,21 @@ impl Step {
     }
 }
 
-/// Compiles `pattern` once to prove it can be compiled.
+/// Compiles a rule's pattern within [`PATTERN_SIZE_LIMIT`]: what validation proves is what
+/// the executor compiles again.
+pub(crate) fn compile_pattern(pattern: &str) -> Result<Regex, regex::Error> {
+    RegexBuilder::new(pattern)
+        .size_limit(PATTERN_SIZE_LIMIT)
+        .build()
+}
+
+/// Compiles `pattern` once to prove it can be compiled, refusing one longer than
+/// [`MAX_PATTERN_LENGTH`] before it is.
 pub(crate) fn check_pattern(pattern: &str) -> Result<(), RuleError> {
-    Regex::new(pattern)
+    if pattern.chars().count() > MAX_PATTERN_LENGTH {
+        return Err(RuleError::PatternLength(MAX_PATTERN_LENGTH));
+    }
+    compile_pattern(pattern)
         .map(drop)
         .map_err(|error| RuleError::Pattern {
             pattern: pattern.to_owned(),

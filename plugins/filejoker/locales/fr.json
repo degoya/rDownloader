@@ -1,5 +1,6 @@
 {
   "name": "FileJoker",
+  "description": "Résout les liens FileJoker avec les cookies d'un compte.",
   "account": {
     "secret_hint": "Importez les cookies d'une session premium connectée depuis votre navigateur."
   },

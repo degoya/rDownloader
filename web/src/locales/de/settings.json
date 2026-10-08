@@ -361,6 +361,10 @@
         "move_down": "Nach unten",
         "replacement_empty": "(entfernen)"
       }
+    },
+    "mcp_scripts_allowed": {
+      "label": "KI-Assistenten (MCP) dürfen Skripte setzen",
+      "description": "Standardmäßig aus. Ist es an, darf ein MCP-Werkzeug einem Paket, einer Kategorie oder einer Automatisierung ein Skript aus dem Skriptordner zuweisen und das Abschluss- und Reconnect-Skript wählen. Nur du schaltest das hier um, kein Werkzeug."
     }
   },
   "appearance": {
@@ -1147,5 +1151,16 @@
         "failed": "Das System hat die Anmeldung der Kürzel abgelehnt."
       }
     }
+  },
+  "account_traffic": {
+    "label": "Wenn der Traffic eines Kontos aufgebraucht ist",
+    "description": "Meldet ein Hoster das Kontingent eines Kontos als aufgebraucht, warten dessen Dateien. rDownloader prüft das Konto alle 15 Minuten und macht von selbst weiter, sobald wieder Traffic da ist oder die Wartezeit des Hosters endet. Eine Pause, die du selbst gesetzt hast, bleibt bestehen.",
+    "nothing": "Nichts tun – nur die betroffenen Dateien warten",
+    "pause_account": "Downloads dieses Kontos anhalten",
+    "pause_queue": "Ganze Warteschlange pausieren",
+    "overrides_label": "Abweichend je Konto",
+    "overrides_description": "Ein Konto kann etwas anderes tun als die Vorgabe oben.",
+    "inherit": "Wie die Vorgabe",
+    "held": "Traffic aufgebraucht · nächste Prüfung {time}"
   }
 }

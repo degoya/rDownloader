@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, FailureKind};
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CaptchaChallenge, CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest,
     ResolvedHeader, Resolver,
 };
+use rd_plugin_types::{AccountId, FailureKind};
 use url::Url;
 
 use super::TurbobitResolver;
@@ -184,7 +184,7 @@ async fn a_guest_download_resolves_to_the_one_shot_link_without_fetching_it() {
     );
     assert_eq!(resolved.file_name.as_deref(), Some("Sample File 1.pdf"));
     assert_eq!(
-        resolved.size.map(rd_core::ByteCount::get),
+        resolved.size.map(rd_plugin_types::ByteCount::get),
         Some(193_434_567)
     );
     assert_eq!(
@@ -329,11 +329,11 @@ async fn check_reports_the_measured_statuses() {
         .await
         .expect("checked");
     assert_eq!(results.len(), 4);
-    assert_eq!(results[0].status, rd_core::LinkStatus::Online);
+    assert_eq!(results[0].status, rd_plugin_types::LinkStatus::Online);
     assert_eq!(results[0].file_name.as_deref(), Some("Sample File 1.pdf"));
-    assert_eq!(results[1].status, rd_core::LinkStatus::Offline);
-    assert_eq!(results[2].status, rd_core::LinkStatus::Unknown);
-    assert_eq!(results[3].status, rd_core::LinkStatus::Online);
+    assert_eq!(results[1].status, rd_plugin_types::LinkStatus::Offline);
+    assert_eq!(results[2].status, rd_plugin_types::LinkStatus::Unknown);
+    assert_eq!(results[3].status, rd_plugin_types::LinkStatus::Online);
 }
 
 #[tokio::test]
@@ -357,7 +357,7 @@ async fn check_account_signs_in_and_reports_the_subscription_in_bytes() {
     assert!(status.valid);
     assert!(status.premium);
     assert_eq!(
-        status.traffic_left.map(rd_core::ByteCount::get),
+        status.traffic_left.map(rd_plugin_types::ByteCount::get),
         Some(12 * 1024 * 1024 * 1024 + 512 * 1024 * 1024)
     );
     let label = plugin_common::native::label_summary(&status.label);

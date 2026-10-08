@@ -77,7 +77,8 @@
     "password_login_changed": "Passwort-Anmeldung umgeschaltet",
     "password_reset_local": "Passwort auf dem Host zurückgesetzt",
     "history_cleared": "Downloadverlauf geleert",
-    "subscription_item_requeued": "Abo-Eintrag erneut eingereiht"
+    "subscription_item_requeued": "Abo-Eintrag erneut eingereiht",
+    "object_storage_profile_changed": "Object-Storage-Profil geändert"
   },
   "list": {
     "title": "Einträge",

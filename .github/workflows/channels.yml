@@ -214,12 +214,19 @@ jobs:
       EXPECT: ${{ needs.gate.outputs.expect }}
       FROM: ${{ needs.gate.outputs.from }}
       BUCKET_URL: https://github.com/${{ github.repository_owner }}/scoop-rdownloader
+      # The Scoop installer at a commit and its SHA-256 (PIPE-06), as scripts/ci-platform-smoke.ps1.
+      SCOOP_INSTALLER_COMMIT: 1e2f334083d609986d8c8bc9e31ae8e87c39fab4
+      SCOOP_INSTALLER_SHA256: 94f983b190438311e006b957db7c8422709e0ba62a6c2ac04e278164108f2512
     steps:
       - name: Install from the bucket, update, keep the data
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
+          $installer = Join-Path $env:RUNNER_TEMP 'scoop-install.ps1'
+          Invoke-WebRequest "https://raw.githubusercontent.com/ScoopInstaller/Install/$($env:SCOOP_INSTALLER_COMMIT)/install.ps1" -OutFile $installer
+          $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          if ($hash -ne $env:SCOOP_INSTALLER_SHA256) { throw "the Scoop installer's SHA-256 is $hash" }
+          & $installer -RunAsAdmin
           $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
           scoop bucket add rdownloader $env:BUCKET_URL
           if ($LASTEXITCODE -ne 0) { throw "scoop bucket add failed" }

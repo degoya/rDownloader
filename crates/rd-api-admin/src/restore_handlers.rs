@@ -1,5 +1,8 @@
 //! The restore's REST surface (RD-160-03): preview, test restore, restore, and where a restore
 //! stands. Every route costs `api:admin` (`scope_policy`); the uploads are `restore_uploads`.
+//! The restore itself replaces the password hash, the passkeys and the tokens at the next start,
+//! so it takes a signed-in session and the password again as well (RD-1190-19,
+//! `rd_api_core::step_up::require_confirmed`); a bearer token is refused whatever its areas.
 //!
 //! Not offered through MCP: every step takes the passphrase in, which the owner's line of
 //! 2026-09-23 keeps out of the toolbox (`mcp_coverage`), and the restore itself replaces the
@@ -255,6 +258,7 @@ fn status_of(state: &AppState) -> Result<RestoreStatusResponse, ApiError> {
 }
 
 /// Checks the archive like a test restore and stages it; the next start switches to it.
+/// Requires a signed-in session and the password.
 #[utoipa::path(
     post,
     path = "/api/v1/backups/restore",
@@ -263,7 +267,8 @@ fn status_of(state: &AppState) -> Result<RestoreStatusResponse, ApiError> {
     responses(
         (status = 202, body = RestoreStagedResponse),
         (status = 400, body = crate::error::ErrorBody),
-        (status = 403, body = crate::error::ErrorBody),
+        (status = 401, description = "The password did not match", body = crate::error::ErrorBody),
+        (status = 403, description = "Not a signed-in session, or a wrong passphrase", body = crate::error::ErrorBody),
         (status = 409, body = crate::error::ErrorBody),
         (status = 422, body = crate::error::ErrorBody)
     )
@@ -271,8 +276,19 @@ fn status_of(state: &AppState) -> Result<RestoreStatusResponse, ApiError> {
 pub async fn start_restore(
     State(state): State<AppState>,
     audit: AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
+    client: crate::client::ClientAddress,
     Json(request): Json<RestoreRequest>,
 ) -> Result<(StatusCode, Json<RestoreStagedResponse>), ApiError> {
+    rd_api_core::step_up::require_confirmed(
+        &state,
+        &audit,
+        this_machine,
+        client.0,
+        request.password.as_deref(),
+        AuditAction::BackupRestored,
+    )
+    .await?;
     let _busy = Busy::take()?;
     if cutover::read_marker(&layout(&state))?.is_some() {
         return Err(ApiError::conflict(

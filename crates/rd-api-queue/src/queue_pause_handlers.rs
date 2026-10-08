@@ -2,7 +2,8 @@
 //!
 //! The pause itself is the scheduler's (`rd_scheduler::QueuePause`): the files it stops, the
 //! hold that keeps new ones back, the end that survives a restart. These routes set it, read it
-//! and end it early.
+//! and end it early. Reading it also names the accounts whose traffic is used up (RD-1190-14),
+//! the other thing that holds downloads back without anybody pressing pause.
 
 use axum::{Json, extract::State};
 use chrono::{DateTime, Duration, Utc};
@@ -32,6 +33,25 @@ pub struct QueuePauseResponse {
     pub until: Option<DateTime<Utc>>,
     /// The files it stopped; its end resumes those still paused.
     pub files: u32,
+    /// The accounts whose traffic their hoster reports used up, the soonest to end first
+    /// (RD-1190-14); empty while none is.
+    pub account_traffic: Vec<AccountTrafficHoldResponse>,
+}
+
+/// An account whose traffic is used up, and what that holds back.
+#[derive(Serialize, ToSchema)]
+pub struct AccountTrafficHoldResponse {
+    pub account_id: rd_core::AccountId,
+    /// The account's own name, as the account list shows it.
+    pub account_label: String,
+    /// The provider slug, such as `ddownload`.
+    pub provider: String,
+    /// What the setting makes of it: `nothing`, `pause_account` or `pause_queue`.
+    pub action: rd_core::AccountTrafficAction,
+    /// When the hoster's wait ends and the waiting files try again.
+    pub until: DateTime<Utc>,
+    /// When the account is next checked for traffic; traffic above zero continues at once.
+    pub next_check_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -43,7 +63,7 @@ pub struct QueueResumeResponse {
 /// The timed pause in force, if any.
 #[utoipa::path(get, path = "/api/v1/queue/pause", tag = "downloads", responses((status = 200, body = QueuePauseResponse)))]
 pub async fn get_queue_pause(State(state): State<AppState>) -> Json<QueuePauseResponse> {
-    Json(response(state.scheduler.queue_pause().await))
+    Json(response(&state, state.scheduler.queue_pause().await).await)
 }
 
 /// Pauses every waiting and running file until the end, and holds back new ones until then.
@@ -55,28 +75,64 @@ pub async fn pause_queue(
 ) -> Result<Json<QueuePauseResponse>, ApiError> {
     let until = pause_end(&request, Utc::now())?;
     let pause = state.scheduler.pause_queue_until(until).await?;
-    Ok(Json(response(Some(pause))))
+    Ok(Json(response(&state, Some(pause)).await))
 }
 
-/// Ends the timed pause now: the files it stopped are queued again, and the hold goes.
+/// Ends the timed pause now: the files it stopped are queued again, and the hold goes. The
+/// accounts held for their used-up traffic are let go too (RD-1190-14): a start by hand
+/// outranks the automatic hold, and their waiting files keep their own due times.
 #[utoipa::path(delete, path = "/api/v1/queue/pause", tag = "downloads", responses((status = 200, body = QueueResumeResponse)))]
 pub async fn resume_queue(
     State(state): State<AppState>,
 ) -> Result<Json<QueueResumeResponse>, ApiError> {
+    state.scheduler.release_account_traffic().await;
     let resumed = state.scheduler.resume_queue().await?;
     Ok(Json(QueueResumeResponse {
         resumed: u32::try_from(resumed).unwrap_or(u32::MAX),
     }))
 }
 
-fn response(pause: Option<rd_scheduler::QueuePause>) -> QueuePauseResponse {
+async fn response(state: &AppState, pause: Option<rd_scheduler::QueuePause>) -> QueuePauseResponse {
     QueuePauseResponse {
         paused: pause.is_some(),
         until: pause.as_ref().map(|pause| pause.until),
         files: pause.map_or(0, |pause| {
             u32::try_from(pause.files.len()).unwrap_or(u32::MAX)
         }),
+        account_traffic: account_traffic(state).await,
     }
+}
+
+/// The accounts held for their traffic, named. One the database cannot name — deleted a moment
+/// ago — is left out rather than shown nameless; a read that fails names none and says so.
+async fn account_traffic(state: &AppState) -> Vec<AccountTrafficHoldResponse> {
+    let holds = state.scheduler.account_traffic();
+    if holds.is_empty() {
+        return Vec::new();
+    }
+    let accounts = match state.database.list_accounts().await {
+        Ok(accounts) => accounts,
+        Err(error) => {
+            tracing::warn!(%error, "the accounts waiting for traffic could not be named");
+            return Vec::new();
+        }
+    };
+    holds
+        .into_iter()
+        .filter_map(|hold| {
+            let account = accounts
+                .iter()
+                .find(|account| account.id == hold.account_id)?;
+            Some(AccountTrafficHoldResponse {
+                account_id: hold.account_id,
+                account_label: account.label.clone(),
+                provider: account.provider.clone(),
+                action: hold.action,
+                until: hold.until,
+                next_check_at: hold.next_check_at,
+            })
+        })
+        .collect()
 }
 
 /// Exactly one of `minutes` and `until`, ending at least a minute and at most thirty days ahead.

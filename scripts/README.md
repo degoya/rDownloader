@@ -33,8 +33,8 @@ and taken WSL down more than once.
 | `package-msi.sh` | Per-user Windows MSI from the unpacked release zip, with WiX 5 and `packaging/msi/rdownloader.wxs`, in one of the four languages (`en` by default, `de`, `es`, `fr`, each with its `packaging/msi/<culture>.wxl`, RD-1120-20) (Windows only; `--sources-only` writes the generated plugin fragment, licence page and `wix` arguments anywhere) (RD-180-05) |
 | `update-schema-change.sh` | `<tag> [<repo>]` prints `true` or `false` for the update manifest's `schema_change`: whether `crates/rd-db/migrations/` differs from the previous plain tag (the previous beta for a beta); `true` whenever it cannot tell; `release.yml` passes it to `update manifest build --schema-change` (RD-180-02) |
 | `self-update-smoke.sh` | The self-update with real binaries (RD-180-02): `<old> <old-version> <new> <new-version>`, the old one run as a portable installation and handed three updates the way the service does (backup through the local control token, journal, `apply-update` from a copy) — the new version (exit 0, with a signed-in web and a capture event stream held open across the stop, which must neither hold it up nor need the updater's stop by force), a program that ends at once and, with `RD_SMOKE_DEBUG_BUILD=1`, one declared unhealthy (both rolled back, exit 2); Linux and Git Bash on Windows; `.github/workflows/self-update.yml` runs it |
-| `build-plugins.sh` | Build, sign and package the bundled plugins → `dist/plugins`, with the packager `rd-pack` in `release-test` rather than the service in `release`; refuses changed content under a signed version; `--components-only [names]` builds and stamps for the tests, unsigned; `--list-packageable` / `--list-examples` name the bundle and the examples, which are built but not bundled (RD-150-20); the stamps and the staleness rule are `lib/plugin-stamp.sh`, the same-version comparison `lib/plugin-drift.sh` (RD-1101-04) |
-| `plugin-release-notes.sh` | The release notes of one plugin version: its `## <version>` section in `plugins/<plugin>/CHANGES.md`, as one line of plain text; the release workflow hands it to `plugin index build --notes` (RD-160-09, RD-1140-03). `--check`: every bundled plugin has a section for its manifest's version, each at most 300 characters, English, without job numbers, paths, Rust identifiers or lists of other plugins; exit 1 while any finding is left (`check.sh`'s file checks, the preflight, the release's docs gate) |
+| `build-plugins.sh` | Build, sign and package the bundled plugins → `dist/plugins`, with the packager `rd-pack` in `release-test` rather than the service in `release`; refuses changed content under a signed version; `--components-only [names]` builds and stamps for the tests, unsigned; `--list-packageable` / `--list-examples` name the bundle and the examples, which are built but not bundled (RD-150-20); the stamps, the staleness rule, the missing components and the cache key are `lib/plugin-stamp.sh`, the same-version comparison and `--list-unbumped` `lib/plugin-drift.sh` (RD-1101-04, PIPE-02) |
+| `plugin-release-notes.sh` | The release notes of one plugin version: its `## <version>` section in `plugins/<plugin>/CHANGES.md`, as one line of plain text; the release workflow hands it to `plugin index build --notes` (RD-160-09, RD-1140-03). `--check`: every bundled plugin and every example (`--list-examples`, RD-1190-10) has a section for its manifest's version, each at most 300 characters, English, without job numbers, paths, Rust identifiers or lists of other plugins; exit 1 while any finding is left (`check.sh`'s file checks, the preflight, the release's docs gate) |
 | `release-notes.sh` | The application's release notes for users: the version's `## X.Y.Z` section in `RELEASE-NOTES.md` as `- point` lines of plain text (a beta falls back to its release); `--anchor <version>`: GitHub's anchor of the version's `CHANGELOG.md` heading. The release's `app-release` text and `rd-pack update manifest build --release-notes` read the same section (RD-1150-02). `--check`: every section one to eight points of at most 200 characters, or the maintenance sentence, English, without job numbers, paths or code; a section with a `draft` comment passes; `--check --version X.Y.Z` (the docs gate) also wants that version's section, finished (`check.sh`'s file checks, the preflight) |
 | `release-assets.sh` | The files of a tag's two GitHub releases, for `release.yml`'s `publish` job: `split <assets> <plugins>` drops the intermediate archives, the packager, the legs' `web-dist.tar` and docker's `*.dockerbuild` record from the downloaded artifacts and moves every `.rdplug` into the plugin release `plugins-vX.Y.Z` (exit 1 when there is none); `sums <dir>...` writes one `SHA256SUMS` per release over its own files; `fetch-plugins <repository> <dir>` downloads the newest release's plugins for `installers.yml` |
 | `check-plugin-imports.sh` | Verify a built component imports nothing outside `rdownloader:plugin` |
@@ -42,7 +42,7 @@ and taken WSL down more than once.
 | `web-dist-stale.sh` | Is `web/dist` current? Exit 0 yes, 1 missing or behind a source |
 | `docker.sh` | Build and run the container image (`build`, `run --port N`, `stop`) |
 | `docker-smoke.sh` | Start an image on fresh volumes and check `--version`, `/api/v1/health` and `yt-dlp`, `streamlink`, `gallery-dl` and `apprise` as the service user; CI and the release run it before any push (RD-140-25, RD-1120-07) |
-| `docker-tools.sh` | The container image's Python tools, hash-pinned (RD-191-09): without arguments, check that `docker/requirements.txt` is the compile of `docker/requirements.in`; `--lock` compiles it with uv for every platform, `--bump` moves every tool to its newest release first |
+| `docker-tools.sh` | The container image's Python tools, hash-pinned (RD-191-09): without arguments, check that `docker/requirements.txt` is the compile of `docker/requirements.in`; `--lock` compiles it with uv for every platform, `--bump` moves every tool to its newest release first; the check is one of `check.sh`'s file checks, so every run and the preflight hold it (PIPE-05) |
 | `set-version.sh` | Read, set or `--check` the release version: `Cargo.toml` is the source, `web/package.json`, `extension/manifest.base.json`, `web/openapi.json` (`info.version`), the SDK workflows' `RDOWNLOADER_VERSION` (`sdk/ci/*.yml`, audit K2) and the lock are its copies; a copy whose content does not change is not rewritten (RD-1130-01) |
 | `tag-release.sh` | Annotated `vX.Y.Z` tag for the current commit; refuses a tree without a `--full` green; never pushes |
 | `release.sh` | The manual variant of the chain, kept beside `release-pipeline.sh` (RD-191-09): version, checks, packages — no commit, no tag; a release is cut with the pipeline |
@@ -58,10 +58,11 @@ and taken WSL down more than once.
 | `api-contract.sh` | Regenerate `web/openapi.json` and the TS types (`--check` to verify) |
 | `web-declarations.sh` | Regenerate `web/components.d.ts` and `web/auto-imports.d.ts` with a vite build into a directory of its own, never `web/dist`; among `integrate.sh`'s generators, because a worktree's `--full` builds no frontend |
 | `build-extension.sh` | Test, build and verify Chrome/Firefox → `artifacts/browser-extensions` (`--skip-tests`, `--test-only`) |
+| `generate-icons.sh` | After `web/public/favicon.svg` changed: the extension PNGs (16–128 px), the web app's install icons (192 and 512 px, also the deb/rpm menu entry) and `resources/rdownloader.ico`, rasterised with `sharp` through `npx` (needs network on the first run) and assembled into the `.ico` with ImageMagick's `magick`; the results are committed (RD-090-08, RD-1120-20) |
 | `firefox-amo.sh` | `lint <dir>`: AMO's validator (`web-ext lint`, pinned) on the Firefox build, in CI (RD-160-07); `submit <dir>`: uploads it to the AMO listing for review (`--channel listed`, the review not waited for), nothing when AMO has that version already; credentials only from `AMO_JWT_ISSUER`/`AMO_JWT_SECRET`, without them or when AMO refuses a warning and exit 0 (RD-170-10) |
 | `chrome-webstore.sh` | `upload <zip>`: the Chrome build as the Web Store item's draft; `publish <zip>`: uploaded and submitted for review — Web Store API v2, nothing when the store has that version already; credentials only from `CWS_CLIENT_ID`/`CWS_CLIENT_SECRET`/`CWS_REFRESH_TOKEN` and `CWS_PUBLISHER_ID`, none of them in a command line, without them or when the store refuses a warning and exit 0 (RD-170-10) |
 | `edge-addons.sh` | `upload <zip>`: the Chrome build as the Edge Add-ons product's draft; `publish <zip>`: uploaded and submitted for certification — Edge Add-ons API v1.1, a version the store has already ends in nothing to do, an operation answered HTTP 202 is waited for like `InProgress` (RD-1120-07); credentials only from `EDGE_CLIENT_ID`/`EDGE_API_KEY` and `EDGE_PRODUCT_ID`, none of them in a command line, without them or when the store refuses a warning and exit 0 (RD-190-11) |
-| `package-managers.sh` | `<version> <SHA256SUMS> <outdir>`: the Homebrew formula and the Scoop manifest of a release from `packaging/homebrew/rdownloader.rb.in` and `packaging/scoop/rdownloader.json.in`, and the tap's and the bucket's README from the `README.md.in` beside each, with every archive's SHA-256 from the release's `SHA256SUMS`; `--repository OWNER/NAME` (tap and bucket are `<owner>/homebrew-rdownloader`, `<owner>/scoop-rdownloader`), `--base-url` for a local fixture; the winget manifests (`<outdir>/winget/`, RD-180-07) and the AUR repository (`<outdir>/aur/`: `PKGBUILD`, `.SRCINFO` from `SRCINFO.in`, the systemd user units; `pkgver` with `-` as `_`, RD-180-08) from `packaging/winget/` and `packaging/aur/`; the release workflow pushes or submits the result, `ci.yml` and `package-channels.yml` install it (RD-180-06); `--check-aur <outdir>` refuses a rendered `PKGBUILD` with the maintainer placeholder or none, run before the AUR push (RD-190-10) |
+| `package-managers.sh` | `<version> <SHA256SUMS> <outdir>`: the Homebrew formula and the Scoop manifest of a release from `packaging/homebrew/rdownloader.rb.in` and `packaging/scoop/rdownloader.json.in`, and the tap's and the bucket's README from the `README.md.in` beside each, with every archive's SHA-256 from the release's `SHA256SUMS`; `--repository OWNER/NAME` (tap and bucket are `<owner>/homebrew-rdownloader`, `<owner>/scoop-rdownloader`), `--base-url` for a local fixture; the winget manifests (`<outdir>/winget/`, RD-180-07) and the AUR repository (`<outdir>/aur/`: `PKGBUILD`, `.SRCINFO` from `SRCINFO.in`, the systemd user units; `pkgver` with `-` as `_`, RD-180-08, today RD-190-10) from `packaging/winget/` and `packaging/aur/`; the release workflow pushes or submits the result, `ci.yml` and `package-channels.yml` install it (RD-180-06); `--check-aur <outdir>` refuses a rendered `PKGBUILD` with the maintainer placeholder or none, run before the AUR push (RD-190-10) |
 | `package-repo.sh` | `<incoming> <site>`: files a release's `.deb` and `.rpm` packages into the apt and dnf repository tree `<site>` (pool, per-architecture `Packages`, `Release`/`InRelease`/`Release.gpg`; rpms signed with `rpmsign`, `createrepo_c` metadata with `repomd.xml.asc`), keeps the newest `--keep` (2) versions per package and architecture, and renders `rdownloader.sources`, `rdownloader.repo`, the public key and the README from `packaging/repository/`; signs with the only secret key in `$GNUPGHOME` or `--key`; `--base-url` for the address, `--refresh` to sign again; the release workflow pushes the result to `<owner>/rdownloader-packages`, `packages-repo.yml` installs from it (RD-180-10) |
 | `release-build-env.sh` | `--target TRIPLE [--release-tag vX.Y.Z] [--source DIR] [--cargo-home DIR]`: the environment a release binary is built in, as `KEY=VALUE` lines for `$GITHUB_ENV` — `SOURCE_DATE_EPOCH`, `RD_VERSION`, `RD_BUILD_TIME` and `RD_BUILD_COMMIT` from the commit (with `--release-tag` through `rd_build_stamp`: `Release-Build X.Y.Z (Basis <sha>)`, refused when the tag is not `Cargo.toml`'s version), and for a Linux target the checkout, cargo and rustup homes remapped through `CARGO_TARGET_<TRIPLE>_RUSTFLAGS` and `CFLAGS_<triple>`, never `RUSTFLAGS`; release.yml's binary jobs and repro.yml's rebuilds both run it (RD-180-12, `docs/reproducible-builds.md`) |
 | `worktree.sh` | Create, check and finish a feature worktree without the symlink traps; `new --own-target` gives it a check lane of its own (RD-140-06) |
@@ -208,7 +209,8 @@ the apt and dnf repositories (`package-repo.sh`) on fixture packages and a throw
 the release build environment (`release-build-env.sh`) on a scratch repository, the workflows'
 shape — no file over 500 lines, every called workflow's secrets declared and passed, the jobs
 `ci-tree-greens.sh` names kept in `ci.yml`, every rust-cache step saying whether it saves and the
-linker variables in `rust-tests-cache` alone (`workflow-shape.sh`, RD-1101-07, RD-1120-07), the
+linker variables in `rust-tests-cache` alone (`workflow-shape.sh`, RD-1101-07, RD-1120-07), every
+script at most 500 lines, a ratchet with its baseline (`file-length.sh`, RD-1190-07), the
 `gate` job's outputs (`ci-gate.sh`) and the `rust` job's test groups (`ci-rust-tests.sh`) against
 stubs,
 the soak budgets (`soak.sh`) on recorded samples, the update manifest's schema-change flag
@@ -227,7 +229,8 @@ finds it by itself.
 are seconds.
 
 **The preflight (RD-1110-15).** `check.sh --preflight` runs, alone, what compiles nothing:
-`git diff --check`, the job layout, the version copies, the action pins, `cargo fmt --check`, the
+`git diff --check`, the job layout, the version copies, the action pins, both release-note
+checks, the container's Python tools (`docker-tools.sh`, PIPE-05), `cargo fmt --check`, the
 `rd-api` test map and the Rust test inputs map, gitleaks over the tree the public export would
 publish (tracked and new files minus `public-exclude.txt`, `.gitleaks.toml` applied; also under
 `--full`), `bash -n`, shellcheck, actionlint and every script test — about two minutes, most of it
@@ -235,7 +238,9 @@ publish (tracked and new files minus `public-exclude.txt`, `.gitleaks.toml` appl
 finding is in `failures` at once. A green preflight records its tree as the line `preflight <tree>`
 in `<target>/.rd-verified-full/<checkout>`, beside `rust`, `web`, `clippy` and `windows` (RD-1120-06,
 audit C2): a `--full` of a tree that differs from it only in documentation and the generated files
-(`RD_GENERATED_FILES`, `lib/inert-paths.sh`) skips bash -n, shellcheck, actionlint and the script
+(`RD_GENERATED_FILES`, `lib/inert-paths.sh`) — not the documentation the preflight's own checks read,
+`RD_PREFLIGHT_DOCS_PATTERN` (job files, release notes, `AGENTS.md` and the documents that name the
+wasm-tools version; PIPE-04) — skips bash -n, shellcheck, actionlint and the script
 tests, which integrate.sh's preflight ran minutes before; the file checks, `cargo fmt`, the maps
 and gitleaks still run, they are seconds. A `--full` that ran them records `preflight` itself. The stages are `check.sh`'s own functions (`lib/preflight.sh`, `lib/script-checks.sh`),
 so `--full` runs the same. A wave agent runs it before its report — it compiles nothing, so the
@@ -484,8 +489,8 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   signing, printing `<name> <version> <member> <package>`; `check.sh` asks it right after the
   staleness check, for the plugins the change touches (all of them for `--full`, a shared plugin
   library, the WIT contract, or a workspace crate the plugins link — `rd_plugin_linked_crates` in
-  `lib/scope.sh` reads that set from the manifests' path dependencies: today `rd-core`,
-  `rd-plugin-api` and `rd-provider-registry`). An absent `dist/plugins/` has nothing to compare against and is
+  `lib/scope.sh` reads that set from the manifests' path dependencies: today `rd-plugin-api` and
+  `rd-plugin-types`; `rd-core` no longer, since RD-1190-08). An absent `dist/plugins/` has nothing to compare against and is
   not an error; `RD_PLUGIN_PACKAGES` points the query elsewhere, which
   `crates/rdownloader/tests/plugin_version_guard.rs` uses. The honest limit: `target/` is shared
   between worktrees, so a component another checkout built can differ for that reason alone —
@@ -558,6 +563,13 @@ tag, `evidence-gate` reads that log back and refuses unless every earlier step h
 - a green read out of a log left behind by an earlier attempt — markers from another nonce do not
   count;
 - a step that exited zero silently — no output is treated as missing evidence, not as a pass.
+
+Each marker also carries `tree=`, the working state the step left (PIPE-09). A `--resume` compares
+it with the tree it finds: the same tree keeps every green step; a different one — a fix between
+the stop and the resume — writes `##RD-TREE-CHANGED`, and every step after `preflight` runs again,
+`sign-plugins` and both packages included, so `artifacts/` never holds packages of a tree before
+the fix. `preflight`, the start gate, stands: it wants a committed tree, and its checks run again
+inside `test`'s `check.sh --rust --full`.
 
 With two lanes (`RD_LANES`, default 2) `build-linux` and `build-windows` run at once, Windows in
 `target/lanes/windows` under a lane of its own, both with `--skip-web` on the `web/dist` the

@@ -106,18 +106,26 @@ pub(crate) enum StateFilter {
 
 impl StateFilter {
     pub(crate) fn matches(self, state: rd_core::DownloadState) -> bool {
+        self.states().contains(&state)
+    }
+
+    /// The states behind the group; `control_downloads` acts on exactly these (RD-1190-15).
+    pub(crate) fn states(self) -> &'static [rd_core::DownloadState] {
         use rd_core::DownloadState as S;
         match self {
-            Self::Queued => matches!(state, S::Queued | S::RetryWait),
-            Self::Active => matches!(
-                state,
-                S::Resolving | S::Downloading | S::Verifying | S::Repairing | S::Extracting
-            ),
-            Self::Paused => state == S::Paused,
-            Self::Blocked => state == S::Blocked,
-            Self::Failed => matches!(state, S::Failed | S::Cancelled),
-            Self::Seeding => state == S::Seeding,
-            Self::Completed => state == S::Completed,
+            Self::Queued => &[S::Queued, S::RetryWait],
+            Self::Active => &[
+                S::Resolving,
+                S::Downloading,
+                S::Verifying,
+                S::Repairing,
+                S::Extracting,
+            ],
+            Self::Paused => &[S::Paused],
+            Self::Blocked => &[S::Blocked],
+            Self::Failed => &[S::Failed, S::Cancelled],
+            Self::Seeding => &[S::Seeding],
+            Self::Completed => &[S::Completed],
         }
     }
 }
@@ -171,7 +179,15 @@ pub(crate) struct GetDownloadParams {
 pub(crate) struct ControlDownloadsParams {
     pub action: DownloadActionParam,
     /// Download ids to act on (1-500). `remove` on active files can take a few seconds each.
+    /// Leave empty when `states` names the files instead.
+    #[serde(default)]
     pub ids: Vec<String>,
+    /// Instead of ids: every download in one of these state groups (the groups of
+    /// list_downloads' state filter), without the 500 limit (RD-1190-15).
+    #[serde(default)]
+    pub states: Vec<StateFilter>,
+    /// With `states`: only the downloads of this package.
+    pub package_id: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]

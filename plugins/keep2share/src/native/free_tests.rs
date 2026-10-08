@@ -4,8 +4,8 @@
 //! which requests, in which order, with which bodies, which captcha and which wait — not only what
 //! it returned. The flow itself and its JD provenance are documented in `crate::api::free`.
 
-use rd_core::FailureKind;
 use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver, ResolverHost};
+use rd_plugin_types::FailureKind;
 
 use std::sync::Arc;
 

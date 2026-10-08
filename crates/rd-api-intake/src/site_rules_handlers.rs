@@ -362,6 +362,9 @@ pub async fn test_site_rule(
     let media = state.media_settings.read().await.clone();
     let gallery = state.gallery_settings.read().await.clone();
     let deadline = std::time::Instant::now() + crate::collector_crawl_verdict::PROBE_BUDGET;
+    // A rule's find keeps to the public internet, as in a real paste (RD-1190-18); the trial
+    // probed it without the rule (RD-1190-22).
+    let internet = state.scheduler.remote_address_policy(false);
     let mut links = Vec::with_capacity(crawl.links.len());
     for link in &crawl.links {
         let Ok(url) = Url::parse(link) else {
@@ -372,9 +375,15 @@ pub async fn test_site_rule(
             });
             continue;
         };
-        let verdict =
-            crate::collector_crawl_verdict::verdict(&state, &url, &media, &gallery, deadline, None)
-                .await;
+        let verdict = crate::collector_crawl_verdict::verdict(
+            &state,
+            &url,
+            &media,
+            &gallery,
+            deadline,
+            Some(&internet),
+        )
+        .await;
         links.push(TestedLinkResponse {
             url: link.clone(),
             verdict: verdict.as_str().to_owned(),

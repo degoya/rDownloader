@@ -78,6 +78,8 @@ const emit = defineEmits<{
   resumePackage: [id: string]
   /** The NZB behind the package to that account's provider (RD-191-13). */
   handOver: [id: string, accountId: string]
+  /** Every failed and blocked file of the package back to the queue (RD-1190-15). */
+  resetFailed: [id: string]
 }>()
 /** What the handle announces: the drag, and the keys that do the same without a mouse. */
 const dragTitle = computed(() => `${t('downloads.package.drag_title')} — ${t('common.a11y.reorder_keys')}`)
@@ -136,6 +138,8 @@ const finished = computed(() =>
 const activeCount = computed(() => props.downloads.filter(item => ['resolving', 'downloading', 'verifying', 'repairing', 'extracting'].includes(item.state)).length)
 const errorCount = computed(() => props.downloads.filter(
   item => ['failed', 'blocked'].includes(item.state) && !dismissedIds.value.has(item.id)).length)
+/** What "reset failed and blocked" would take, recovery volumes nobody needs included (RD-1190-15). */
+const stuckCount = computed(() => props.downloads.filter(item => ['failed', 'blocked'].includes(item.state)).length)
 /**
  * A mirror standing down is not work left to do: its bytes arrive through the link that is
  * running, so counting them would keep the package short of 100% for good. A recovery volume
@@ -148,6 +152,16 @@ const committed = computed(() => counted.value.reduce((sum, item) => sum + BigIn
 const total = computed(() => counted.value.reduce((sum, item) => sum + BigInt(item.total_bytes ?? '0'), 0n))
 const downloadProgress = computed(() => total.value > 0n ? Number(committed.value * 100n / total.value) : 0)
 const postprocessing = computed(() => props.package.state === 'postprocessing')
+/**
+ * Some files arrived, the rest wait, failed or are blocked, and nothing runs: post-processing
+ * holds back until every file is there (RD-1190-13), and says so instead of looking stuck.
+ * Usenet starts over a failed file, which PAR2 may rebuild, so the hint is not for it.
+ */
+const waitingForParts = computed(() => {
+  const missing = props.downloads.filter(item => !['completed', 'skipped', 'cancelled', 'seeding'].includes(item.state))
+  return !usenet.value && finished.value > 0 && missing.length > 0
+    && missing.every(item => ['retry_wait', 'failed', 'blocked', 'paused'].includes(item.state))
+})
 const postprocessFailed = computed(() => props.package.state === 'failed')
 /** Persisted unpack outcome of the last pipeline run; survives completion. */
 const extraction = computed(() => props.package.extraction_result ?? null)
@@ -250,6 +264,14 @@ const actions = computed(() => [[
         description: t('downloads.package.force_extract_title'),
         onSelect: () => emit('forceExtract', props.package.id)
       }]
+    : []),
+  ...(stuckCount.value
+    ? [{
+        label: t('downloads.package.reset_failed'),
+        icon: 'i-lucide-rotate-ccw',
+        description: t('downloads.package.reset_failed_hint', { count: stuckCount.value }, stuckCount.value),
+        onSelect: () => emit('resetFailed', props.package.id)
+      }]
     : [])
 ], [
   { label: t('common.actions.copy_links'), icon: 'i-lucide-link', onSelect: () => emit('copyLinks', props.package.id) },
@@ -333,6 +355,7 @@ function controlPackage(): void {
         <!-- Finished and unpacked are unambiguous enough to be glyphs; the word each dropped
              stays on the badge as its accessible name (RD-109-30). -->
         <UBadge v-else-if="props.complete" color="success" variant="subtle" size="sm" icon="i-lucide-circle-check" class="shrink-0" :aria-label="t('downloads.package.complete')" :title="t('downloads.package.complete_title')" />
+        <UBadge v-else-if="waitingForParts" color="neutral" variant="subtle" size="sm" icon="i-lucide-hourglass" class="shrink-0" :label="t('downloads.package.waiting_for_parts')" :title="t('downloads.package.waiting_for_parts_title')" data-testid="waiting-for-parts" />
         <UBadge v-if="!postprocessing && extraction === 'success'" color="success" variant="outline" size="sm" icon="i-lucide-package-open" class="shrink-0" :aria-label="t('downloads.package.extracted')" :title="t('downloads.package.extracted_title')" />
         <!-- Handed to a provider (RD-191-13), as an NZB row in the LinkGrabber says it; the badge
              leads to where the job can be watched. -->

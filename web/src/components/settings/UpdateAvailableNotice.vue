@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { InstallKind, UpdateOffer } from '@/api/updates'
+import { type InstallKind, offerLinks, type UpdateOffer } from '@/api/updates'
 import CopyField from '@/components/CopyField.vue'
 import { useUpdateActions } from '@/composables/useUpdateActions'
 import { formatBytes, formatLongMoment } from '@/utils/format'
@@ -27,6 +27,7 @@ const {
 } = useUpdateActions(() => props.offer)
 
 const highlights = computed(() => updateHighlights(props.offer))
+const links = computed(() => offerLinks(props.offer))
 const kindLabel = computed(() => t(`system.updates.kind.${props.kind}`))
 
 async function installAndFollow(): Promise<void> {
@@ -95,10 +96,10 @@ async function installAndFollow(): Promise<void> {
           />
         </template>
         <UButton
-          v-else-if="offer.action === 'download'"
+          v-else-if="offer.action === 'download' && links.get"
           icon="i-lucide-download"
           :label="t('system.updates.modal.download')"
-          :to="offer.download_url ?? offer.release_url"
+          :to="links.get"
           target="_blank"
           rel="noopener"
           data-testid="update-notice-download"

@@ -1,8 +1,8 @@
 //! `resolve` on the scripted host: the captcha forms, all synthetic — the file page carried
 //! none on 2026-09-21. A form is answered once and once only, and never worked around.
 
-use rd_core::FailureKind;
 use rd_plugin_api::Resolver;
+use rd_plugin_types::FailureKind;
 
 use super::{
     CAPTCHA_CHECKBOX, CAPTCHA_RECAPTCHA, DIRECT_URL, FILE_PAGE, FILE_URL, GET_INFO, MockHost, html,

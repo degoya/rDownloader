@@ -8,14 +8,24 @@ impl AuthFlowService {
     ///
     /// Without this the first `GET /api/v1/providers` loaded a registry of its own —
     /// re-verifying every installed package and compiling it — and the accounts page waited
-    /// 25 s for a list the start had just had in hand. A set that is already there stays.
+    /// 25 s for a list the start had just had in hand. A set that is already there stays; the
+    /// start hands them over once, before anything has asked, so a second set is a wiring
+    /// mistake (API-06).
     pub fn preload(
         &self,
         providers: rd_plugin_ext::AuthProviders,
         oauth: rd_plugin_ext::OAuthProviders,
     ) {
-        let _ = self.inner.providers.set(RwLock::new(Arc::new(providers)));
-        let _ = self.inner.oauth.set(RwLock::new(Arc::new(oauth)));
+        let providers_first = self
+            .inner
+            .providers
+            .set(RwLock::new(Arc::new(providers)))
+            .is_ok();
+        let oauth_first = self.inner.oauth.set(RwLock::new(Arc::new(oauth))).is_ok();
+        debug_assert!(
+            providers_first && oauth_first,
+            "the auth providers are preloaded once, before the first lookup"
+        );
     }
 
     async fn auth_cell(&self) -> &RwLock<Arc<rd_plugin_ext::AuthProviders>> {

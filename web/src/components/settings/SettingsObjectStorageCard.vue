@@ -21,8 +21,10 @@ import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 import {
   PROVIDERS,
   type ObjectStorageForm,
+  ambientAtEndpoint,
   bucketLink,
   credentialSources,
+  dropsSecretForHost,
   emptyForm,
   endpointLabel,
   formComplete,
@@ -69,6 +71,18 @@ const secretLabel = computed(() => {
     return t(form.credential_source === 'shared_access_signature' ? 'remote.object_storage.sas' : 'remote.object_storage.account_key')
   }
   return t('remote.object_storage.secret_access_key')
+})
+/** A stored secret goes to no other host: a changed endpoint or account asks for it again. */
+const secretHint = computed(() => {
+  if (keepsSecret(form, editing.value)) return t('remote.object_storage.secret_keep')
+  if (dropsSecretForHost(form, editing.value)) return t('remote.object_storage.secret_host_changed')
+  return t('remote.object_storage.secrets_note')
+})
+const sessionTokenHint = computed(() => {
+  if (!editing.value?.has_session_token) return t('remote.object_storage.session_token_description')
+  return keepsSecret(form, editing.value)
+    ? t('remote.object_storage.session_token_keep')
+    : t('remote.object_storage.session_token_host_changed')
 })
 const endpointHint = computed(() => ({
   s3: t('remote.object_storage.endpoint_description'),
@@ -182,6 +196,13 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
           <UFormField :label="t('remote.object_storage.endpoint')" :description="endpointHint">
             <UInput v-model="form.endpoint" type="url" :placeholder="endpointPlaceholder" icon="i-lucide-globe" class="w-full font-mono" />
           </UFormField>
+          <USwitch
+            v-if="ambientAtEndpoint(form)"
+            v-model="form.ambient_custom_endpoint"
+            :label="t('remote.object_storage.ambient_custom_endpoint')"
+            :description="t('remote.object_storage.ambient_custom_endpoint_description')"
+            data-testid="object-storage-ambient-endpoint"
+          />
           <UFormField v-if="isS3" :label="t('remote.object_storage.region')" :description="t('remote.object_storage.region_description')">
             <UInput v-model="form.region" placeholder="eu-central-1" class="w-full font-mono" />
           </UFormField>
@@ -201,19 +222,20 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
           <UFormField
             v-if="signsWithSecret"
             :label="secretLabel"
-            :description="keepsSecret(form, editing) ? t('remote.object_storage.secret_keep') : t('remote.object_storage.secrets_note')"
+            :description="secretHint"
+            data-testid="object-storage-secret"
           >
             <UInput v-model="form.secret_access_key" type="password" autocomplete="new-password" class="w-full font-mono" />
           </UFormField>
           <template v-if="isS3 && form.credential_source === 'static'">
             <UFormField
               :label="t('remote.object_storage.session_token')"
-              :description="editing?.has_session_token ? t('remote.object_storage.session_token_keep') : t('remote.object_storage.session_token_description')"
+              :description="sessionTokenHint"
             >
               <UInput v-model="form.session_token" type="password" autocomplete="new-password" class="w-full font-mono" />
             </UFormField>
             <UCheckbox
-              v-if="editing?.has_session_token"
+              v-if="editing?.has_session_token && keepsSecret(form, editing)"
               v-model="form.clear_session_token"
               :label="t('remote.object_storage.clear_session_token')"
             />

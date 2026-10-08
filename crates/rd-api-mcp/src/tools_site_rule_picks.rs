@@ -38,7 +38,7 @@ pub(crate) struct ResolveEntriesParams {
 #[tool_router(router = site_rule_picks_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List the entries of a page a two-stage site rule claims (a rule whose `groups` carries `pick`, such as serienjunkies.org's): runs the rule's own steps only, so nothing is resolved and no captcha is asked. Answers the list's `id` and its `entries`, each with `index`, `label` (the release name) and `attributes` -- season, episode, resolution, language, hoster, as the rule reads them; a season pack has no episode. Choose by those and call resolve_page_entries. A page pasted with collect_links lands on the same board by itself, answering the code site_rules.pick_waiting with the list's id."
+        description = "List the entries of a page a two-stage site rule claims (a rule whose `groups` carries `pick`, such as serienjunkies.org's or warez.cx's): runs the rule's own steps only, so nothing is resolved and no captcha is asked. Answers the list's `id` and its `entries`, each with `index`, `label` (the release name) and `attributes` -- season, episode, resolution, language, hoster, as the rule reads them; a season pack has no episode. Choose by those and call resolve_page_entries. A page pasted with collect_links -- or handed in by the clipboard, the browser extension or Click'n'Load -- lands on the same board by itself, answering the code site_rules.pick_waiting with the list's id; that is not a failure. Listing the same page again keeps its list and id."
     )]
     pub async fn list_page_entries(
         &self,
@@ -66,7 +66,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "One listed page with its entries and progress (id from list_page_entries or list_page_picks); poll this while entries resolve."
+        description = "One listed page with its entries and progress (id from list_page_entries or list_page_picks); poll this while entries resolve. A list the board no longer holds answers site_rules.pick_not_found with `reason` -- discarded, evicted (the board keeps 20 pages) or unknown (never listed, or the service restarted); list_page_entries on its address lists it again without a captcha."
     )]
     pub async fn get_page_pick(&self, Parameters(params): Parameters<IdParams>) -> McpToolResult {
         respond(
@@ -77,7 +77,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Resolve the chosen entries of a listed page, one after the other; answers at once with the queue. Each entry of a rule with a captcha step asks one captcha, which a person solves in the captcha broker (web interface or browser extension) -- no tool solves it. While an entry waits, its state is `captcha` and `waiting_for_captcha` is true: tell the user a captcha is waiting, and poll get_page_pick. A resolved entry's links land in the LinkGrabber as one package named after the release (`done`, with `links`); an unanswered captcha puts the entry back to `pending` with code site_rules.captcha_failed, and it can be resolved again; `failed` carries the page's refusal. Entries already done or underway are left alone."
+        description = "Resolve the chosen entries of a listed page, one after the other; answers at once with the queue. Each entry of a rule with a captcha step asks one captcha, which a person solves in the captcha broker (web interface or browser extension) -- no tool solves it. While an entry waits, its state is `captcha` and `waiting_for_captcha` is true: tell the user a captcha is waiting, and poll get_page_pick. A resolved entry's links land in the LinkGrabber as one package named after the release (`done`, with `links`); an unanswered captcha puts the entry back to `pending` with code site_rules.captcha_failed, and it can be resolved again; `failed` carries the page's refusal. Entries already done or underway are left alone. A rule without a captcha step (warez.cx) resolves at once: passing every pending index takes the whole page."
     )]
     pub async fn resolve_page_entries(
         &self,

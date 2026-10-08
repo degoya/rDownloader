@@ -53,6 +53,13 @@ pub(crate) struct Summary {
     /// `default` because a service without the field offers no such thing.
     #[serde(default)]
     pub queue_control: bool,
+    /// Accounts whose used-up traffic holds downloads back (RD-1190-14); a count, because a
+    /// capture token sees no account names.
+    #[serde(default)]
+    pub traffic_held_accounts: u32,
+    /// The soonest next traffic check of those accounts.
+    #[serde(default)]
+    pub traffic_next_check: Option<DateTime<Utc>>,
 }
 
 /// The queue entries the tray menu offers (RD-1100-06, RD-1101-06).
@@ -140,6 +147,7 @@ pub(crate) fn describe(summary: Summary) -> Activity {
         && summary.failed == 0
         && summary.paused == 0
         && summary.paused_until.is_none()
+        && summary.traffic_held_accounts == 0
     {
         return Activity {
             running: false,
@@ -154,6 +162,10 @@ pub(crate) fn describe(summary: Summary) -> Activity {
             "paused until {}",
             pause_end(until, &chrono::Local::now())
         ));
+    }
+    // Next to it, for the same reason: what holds downloads back that nobody paused.
+    if summary.traffic_held_accounts > 0 {
+        parts.push(traffic_hold(summary, &chrono::Local::now()));
     }
     if summary.active > 0 {
         parts.push(format!("{} active", summary.active));
@@ -215,6 +227,22 @@ where
         local.format("%H:%M").to_string()
     } else {
         local.format("%b %-d %H:%M").to_string()
+    }
+}
+
+/// "account traffic used up, next check 18:30" — "2 accounts'" when more than one is held.
+fn traffic_hold<Tz: TimeZone>(summary: Summary, now: &DateTime<Tz>) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let whose = if summary.traffic_held_accounts == 1 {
+        "account".to_owned()
+    } else {
+        format!("{} accounts'", summary.traffic_held_accounts)
+    };
+    match summary.traffic_next_check {
+        Some(at) => format!("{whose} traffic used up, next check {}", pause_end(at, now)),
+        None => format!("{whose} traffic used up"),
     }
 }
 

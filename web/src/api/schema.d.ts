@@ -891,7 +891,10 @@ export interface paths {
         };
         get: operations["get_restore_status"];
         put?: never;
-        /** Checks the archive like a test restore and stages it; the next start switches to it. */
+        /**
+         * Checks the archive like a test restore and stages it; the next start switches to it.
+         *     Requires a signed-in session and the password.
+         */
         post: operations["start_restore"];
         /**
          * Drops a restore that has not switched yet, with the credentials it put into the secret
@@ -1442,7 +1445,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** The tray's "Pause clipboard watching" and `rdownloader-capture pause|resume`. */
+        /**
+         * The tray's "Pause clipboard watching" and `rdownloader-capture pause|resume`.
+         * @description Audited like the settings page's switch (audit 2026-10-08, API-02): the same row changes,
+         *     and the record names the capture token that changed it.
+         */
         post: operations["set_capture_clipboard"];
         delete?: never;
         options?: never;
@@ -4770,7 +4777,11 @@ export interface paths {
          */
         put: operations["pause_queue"];
         post?: never;
-        /** Ends the timed pause now: the files it stopped are queued again, and the hold goes. */
+        /**
+         * Ends the timed pause now: the files it stopped are queued again, and the hold goes. The
+         *     accounts held for their used-up traffic are let go too (RD-1190-14): a start by hand
+         *     outranks the automatic hold, and their waiting files keep their own due times.
+         */
         delete: operations["resume_queue"];
         options?: never;
         head?: never;
@@ -5132,6 +5143,8 @@ export interface paths {
          * Replaces all configuration tables atomically after validation. Secret-store writes made before
          *     the database swap are removed on failure. A process crash after the swap but before settings
          *     persistence can temporarily leave new tables with old settings; the next settings save heals it.
+         * @description Requires a signed-in session and the password (RD-1190-19): the bundle replaces the accounts,
+         *     the hot folders and the settings the sign-in reads.
          */
         post: operations["import_settings"];
         delete?: never;
@@ -6450,6 +6463,31 @@ export interface components {
             valid: boolean;
         };
         /**
+         * @description What the queue does while an account's traffic is used up.
+         * @enum {string}
+         */
+        AccountTrafficAction: "nothing" | "pause_account" | "pause_queue";
+        /** @description An account whose traffic is used up, and what that holds back. */
+        AccountTrafficHoldResponse: {
+            account_id: components["schemas"]["AccountId"];
+            /** @description The account's own name, as the account list shows it. */
+            account_label: string;
+            /** @description What the setting makes of it: `nothing`, `pause_account` or `pause_queue`. */
+            action: components["schemas"]["AccountTrafficAction"];
+            /**
+             * Format: date-time
+             * @description When the account is next checked for traffic; traffic above zero continues at once.
+             */
+            next_check_at: string;
+            /** @description The provider slug, such as `ddownload`. */
+            provider: string;
+            /**
+             * Format: date-time
+             * @description When the hoster's wait ends and the waiting files try again.
+             */
+            until: string;
+        };
+        /**
          * @description What an automation does when it fires.
          *
          *     Every variant names its effect exactly. There is no "run this command" action: a script
@@ -6591,7 +6629,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -8020,6 +8058,17 @@ export interface components {
             /** Format: int32 */
             queued: number;
             total_bytes: components["schemas"]["ByteCount"];
+            /**
+             * Format: int32
+             * @description Accounts whose used-up traffic holds downloads back (RD-1190-14): their own files, or
+             *     the whole queue, as the setting says. A count, not names: this token sees no accounts.
+             */
+            traffic_held_accounts: number;
+            /**
+             * Format: date-time
+             * @description The soonest of those accounts' next traffic checks; the tray says "next check" with it.
+             */
+            traffic_next_check?: string | null;
         };
         /** @description Revocable token metadata; the bearer secret is never persisted in plaintext. */
         CaptureToken: {
@@ -8810,6 +8859,12 @@ export interface components {
             /** @description The Azure storage account; required for Azure, ignored otherwise. */
             account?: string | null;
             addressing?: components["schemas"]["ObjectAddressing"] | null;
+            /**
+             * @description The explicit yes an `ambient` profile with an `endpoint` needs: the machine's own
+             *     credentials (instance role, managed identity, Google token) then go to that endpoint.
+             *     Without it such a profile is refused with `object_storage.ambient_endpoint_unconfirmed`.
+             */
+            ambient_custom_endpoint?: boolean;
             /** @description Binds the profile to one bucket (an Azure container): links into it use this profile. */
             bucket?: string | null;
             checksums?: boolean;
@@ -9049,9 +9104,17 @@ export interface components {
          * @enum {string}
          */
         DownloadBulkAction: "pause" | "resume" | "cancel" | "remove" | "reset" | "reset_delete_files";
+        /** @description Which files a filtered bulk action takes; read when the action starts. */
+        DownloadBulkFilter: {
+            package_id?: components["schemas"]["PackageId"] | null;
+            /** @description At least one state; a file in any of them is taken. */
+            states: components["schemas"]["DownloadState"][];
+        };
         DownloadBulkRequest: {
             action: components["schemas"]["DownloadBulkAction"];
-            ids: components["schemas"]["DownloadId"][];
+            filter?: components["schemas"]["DownloadBulkFilter"] | null;
+            /** @description The files to act on, 1-500. Empty when `filter` names them instead; one of the two. */
+            ids?: components["schemas"]["DownloadId"][];
         };
         DownloadBulkResponse: {
             /** Format: int32 */
@@ -9710,6 +9773,8 @@ export interface components {
         ImportSettingsRequest: {
             bundle: components["schemas"]["SettingsBundle"];
             passphrase?: string | null;
+            /** @description The administrator password, typed again from a signed-in session (RD-1190-19). */
+            password?: string | null;
         };
         /** @description The result of an import: every rule, and how many were stored switched off. */
         ImportSiteRulesResponse: {
@@ -11388,6 +11453,12 @@ export interface components {
             account?: string | null;
             /** @description S3 only; the other providers have one addressing style. */
             addressing: components["schemas"]["ObjectAddressing"];
+            /**
+             * @description The explicit yes that lets an `ambient` profile send the machine's own credentials —
+             *     an instance role, a managed identity, a Google token — to its custom endpoint
+             *     (RD-1190-20). Without it such a profile is refused before any request.
+             */
+            ambient_custom_endpoint: boolean;
             /** @description A bucket this profile is bound to: links into it use this profile. */
             bucket?: string | null;
             /**
@@ -12361,6 +12432,11 @@ export interface components {
         };
         QueuePauseResponse: {
             /**
+             * @description The accounts whose traffic their hoster reports used up, the soonest to end first
+             *     (RD-1190-14); empty while none is.
+             */
+            account_traffic: components["schemas"]["AccountTrafficHoldResponse"][];
+            /**
              * Format: int32
              * @description The files it stopped; its end resumes those still paused.
              */
@@ -13005,6 +13081,11 @@ export interface components {
         RestoreRequest: {
             mappings?: components["schemas"]["RestoreMappingRequest"][];
             passphrase: string;
+            /**
+             * @description The administrator password, typed again: the restore itself asks for it from a signed-in
+             *     session (RD-1190-19); the test restore does not read it.
+             */
+            password?: string | null;
             source: components["schemas"]["RestoreSourceRequest"];
         };
         /** @description A storage root and where the restore puts it. */
@@ -13472,6 +13553,20 @@ export interface components {
         /** @description Mutable local service settings exposed in version one. */
         SettingsResponse: {
             /**
+             * @description What an account whose traffic its hoster reports used up does to the queue
+             *     (RD-1190-14): `nothing` (only its failed files wait), `pause_account` (its other files
+             *     wait too; default) or `pause_queue` (the whole queue holds new starts).
+             * @default pause_account
+             */
+            account_traffic_action: components["schemas"]["AccountTrafficAction"];
+            /**
+             * @description The same per account id, where an account differs from `account_traffic_action`.
+             * @default {}
+             */
+            account_traffic_overrides: {
+                [key: string]: components["schemas"]["AccountTrafficAction"];
+            };
+            /**
              * @description Switches the administrator login off (only sensible on a trusted loopback/LAN setup).
              * @default false
              */
@@ -13811,6 +13906,13 @@ export interface components {
              * @default 8
              */
             max_retries: number;
+            /**
+             * @description Whether MCP tools may name a script: a package's, a category's, an automation's script
+             *     action, the completion and the reconnect script (RD-1190-21). Off by default; changed
+             *     in the web interface or the config only, never through a tool.
+             * @default false
+             */
+            mcp_scripts_allowed: boolean;
             /**
              * Format: int32
              * @description Timeout of one metadata probe in seconds (5–600).
@@ -16312,12 +16414,15 @@ export interface components {
         };
         /**
          * @description Editable profile fields. An empty secret or session token keeps the stored one while the
-         *     provider and the credential source stay what they were.
+         *     provider, the credential source and the host — the endpoint, and the Azure account — stay
+         *     what they were; a changed host needs the secret typed again (RD-1190-20).
          */
         UpdateObjectStorageProfileRequest: {
             access_key_id?: string | null;
             account?: string | null;
             addressing?: components["schemas"]["ObjectAddressing"] | null;
+            /** @description See [`CreateObjectStorageProfileRequest::ambient_custom_endpoint`]. */
+            ambient_custom_endpoint?: boolean;
             bucket?: string | null;
             checksums?: boolean;
             /** @description Drops a stored session token without replacing it. */
@@ -18856,7 +18961,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description Forbidden */
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session, or a wrong passphrase */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -28275,6 +28389,24 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a signed-in session */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

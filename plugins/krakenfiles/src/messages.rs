@@ -89,5 +89,5 @@ pub(crate) fn page_layout_changed(diagnosis: &str) -> String {
 }
 
 pub(crate) fn http_error(status: u16) -> String {
-    format!("KrakenFiles HTTP status {status}")
+    plugin_common::messages::http_error("KrakenFiles", status)
 }

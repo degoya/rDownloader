@@ -1,4 +1,4 @@
-use super::{PluginLimits, SandboxEngine, allowed_imports, timeout_ticks};
+use super::{MAX_TABLE_ELEMENTS, PluginLimits, SandboxEngine, allowed_imports, timeout_ticks};
 
 fn manifest(plugin_type: &str) -> crate::PluginManifest {
     toml::from_str(&format!(
@@ -106,6 +106,47 @@ fn response_budget_is_cumulative() {
         .account_response_bytes(5)
         .expect("first response");
     assert!(store.data_mut().account_response_bytes(4).is_err());
+}
+
+/// A core module with a one-element funcref table and `grow(n)`, which runs
+/// `table.grow 0 (ref.null func) n` and returns the old size (-1 on a refused grow).
+const TABLE_GROWER: &[u8] = &[
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // magic, version
+    0x01, 0x06, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f, // type: (i32) -> i32
+    0x03, 0x02, 0x01, 0x00, // function 0 has type 0
+    0x04, 0x04, 0x01, 0x70, 0x00, 0x01, // table 0: funcref, min 1, no max
+    0x07, 0x08, 0x01, 0x04, b'g', b'r', b'o', b'w', 0x00, 0x00, // export "grow"
+    0x0a, 0x0b, 0x01, 0x09, 0x00, // code: one body, no locals
+    0xd0, 0x70, 0x20, 0x00, 0xfc, 0x0f, 0x00,
+    0x0b, // ref.null func, local.get 0, table.grow 0
+];
+
+/// PL-01: table storage does not count against `memory_bytes`, so a plugin's tables are
+/// capped on their own. Up to the cap a grow succeeds; one element past it traps instead of
+/// taking host memory (without the cap the second grow returned the old size).
+#[tokio::test]
+async fn a_table_cannot_grow_past_its_element_cap() {
+    let sandbox = SandboxEngine::new(PluginLimits::default()).expect("sandbox");
+    let module = wasmtime::Module::new(sandbox.engine(), TABLE_GROWER).expect("module");
+    let mut store = sandbox.create_store(Vec::new()).expect("store");
+    let instance = wasmtime::Instance::new_async(&mut store, &module, &[])
+        .await
+        .expect("instance");
+    let grow = instance
+        .get_typed_func::<i32, i32>(&mut store, "grow")
+        .expect("grow export");
+    let to_cap = i32::try_from(MAX_TABLE_ELEMENTS - 1).expect("cap fits i32");
+
+    assert_eq!(
+        grow.call_async(&mut store, to_cap)
+            .await
+            .expect("grow to the cap"),
+        1
+    );
+    assert!(
+        grow.call_async(&mut store, 1).await.is_err(),
+        "growing past the cap must trap"
+    );
 }
 
 /// Time spent inside a host call is waiting, not computing. A resolver's HTTP request was

@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::{Resolver, ResolverHost};
+use rd_plugin_types::AccountId;
 
 use super::super::KatfileResolver;
 use super::{
@@ -40,7 +40,7 @@ async fn an_api_key_account_with_an_expired_cookie_session_reports_it() {
         .check_account(AccountId::new())
         .await
         .expect_err("an expired session must not read as a working account");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("katfile.download_session_expired")
@@ -113,7 +113,10 @@ async fn a_cookie_only_account_is_refused_on_the_guest_page_a_200_carries() {
         .check_account(AccountId::new())
         .await
         .expect_err("a guest page is not a session");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(
         failure.code.as_deref(),
         Some("katfile.cookie_session_invalid")
@@ -149,7 +152,7 @@ async fn a_cookie_only_account_is_not_condemned_by_a_page_it_cannot_read() {
         .expect_err("an unreadable page confirms nothing");
     assert_eq!(
         failure.category,
-        rd_core::FailureKind::Transient {
+        rd_plugin_types::FailureKind::Transient {
             retry_after_seconds: None
         }
     );

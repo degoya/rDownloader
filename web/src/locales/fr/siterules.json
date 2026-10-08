@@ -128,7 +128,8 @@
     "mirror": "Miroir {set}",
     "mirror_hint": "Les liens d’un paquet portant le même numéro de miroir sont des copies d’un fichier.",
     "entries": "aucune entrée à choisir | {count} entrée à choisir | {count} entrées à choisir",
-    "entries_hint": "L’essai ne fait que lister ; liens et captchas viennent quand quelqu’un choisit dans le LinkGrabber."
+    "entries_hint": "L’essai ne fait que lister ; liens et captchas viennent quand quelqu’un choisit dans le LinkGrabber.",
+    "address_hint": "Vide : l'adresse de contrôle de la règle."
   },
   "transfer": {
     "export": "Exporter les règles",

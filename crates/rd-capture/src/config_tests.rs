@@ -220,3 +220,48 @@ fn a_foreign_scheme_reaches_neither_the_tray_nor_the_client() {
     );
     std::fs::remove_dir_all(&directory).expect("clean up");
 }
+
+/// RD-1190-22: `--service` at `run` used to warn about plain http and send the token anyway.
+#[test]
+fn an_explicit_plain_http_service_is_refused_at_start() {
+    let directory = scratch("explicit-http");
+    let error = load_from(
+        &directory,
+        Some(service("http://192.168.0.5:8710")),
+        Some("t".repeat(32)),
+    )
+    .err()
+    .expect("plain http off this machine is refused");
+    assert!(
+        format!("{error:#}").contains("--allow-insecure-service"),
+        "{error:#}"
+    );
+    for address in ["http://127.0.0.1:8710", "https://192.168.0.5:8710"] {
+        load_from(&directory, Some(service(address)), Some("t".repeat(32)))
+            .unwrap_or_else(|error| panic!("{address} should be accepted: {error:#}"));
+    }
+    std::fs::remove_dir_all(&directory).expect("clean up");
+}
+
+/// RD-1190-22: the fallback file is the token in plain text; only its owner may read it, also
+/// when an earlier, wider file was already there.
+#[cfg(unix)]
+#[test]
+fn the_fallback_token_file_is_private() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = scratch("fallback-mode");
+    let path = directory.join("capture.token");
+    std::fs::write(&path, "an-older-token").expect("write the old token");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("widen it");
+    store_token(&directory, &"n".repeat(32), |_| {
+        Err(anyhow::anyhow!("no secret service on this host"))
+    })
+    .expect("the Unix fallback writes the file");
+    let mode = std::fs::metadata(&path)
+        .expect("metadata")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o600, "{mode:o}");
+    std::fs::remove_dir_all(&directory).expect("clean up");
+}

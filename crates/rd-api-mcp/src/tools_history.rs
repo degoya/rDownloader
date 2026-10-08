@@ -133,12 +133,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the download history. Irreversible, and `confirmed` must be true. Only the history's entries go: the queue, the files, the statistics and the logs are untouched."
+        description = "Empty the download history. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. Only the history's entries go: the queue, the files, the statistics and the logs are untouched."
     )]
     pub async fn clear_download_history(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clear_download_history",
+            params.confirmation.as_deref(),
+            "Empty the download history.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::clear_download_history(
                 State(self.state.clone()),

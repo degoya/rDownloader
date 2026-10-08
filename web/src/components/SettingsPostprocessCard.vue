@@ -208,6 +208,10 @@ const archiveMaxGiB = byteModel(
     <UFormField :label="t('settings.postprocess.script_timeout.label')" :description="t('settings.postprocess.script_timeout.description')">
       <NumberWithUnit v-model="settings.script_timeout_seconds" unit="s" required :min="10" :max="86400" :format-options="WHOLE" class="w-full" />
     </UFormField>
+    <!-- RD-1190-21: whether an AI assistant (MCP) may name a script; off by default, never set by a tool. -->
+    <UFormField data-settings-anchor="postprocess.mcp_scripts_allowed" :label="t('settings.postprocess.mcp_scripts_allowed.label')" :description="t('settings.postprocess.mcp_scripts_allowed.description')" orientation="horizontal">
+      <USwitch v-model="settings.mcp_scripts_allowed" data-testid="mcp-scripts-allowed" />
+    </UFormField>
     <div class="grid gap-3 sm:grid-cols-2">
       <UFormField :label="t('settings.postprocess.max_files')">
         <UInputNumber v-model="settings.archive_max_files" required :min="1" :max="1000000" :format-options="WHOLE" class="w-full" />

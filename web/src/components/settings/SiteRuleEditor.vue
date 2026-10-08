@@ -189,11 +189,13 @@ function runTest(): void {
         level="sub"
       />
       <div class="mt-2 flex flex-wrap items-end gap-2">
-        <UFormField class="min-w-64 flex-1" :label="t('siterules.test.address')">
+        <UFormField class="min-w-64 flex-1" :label="t('siterules.test.address')" :description="t('siterules.test.address_hint')">
+          <!-- A neutral example, never the probe: that names a real release (RD-1190-17), and
+               the probe stands in for an empty field anyway, as the hint says. -->
           <UInput
             v-model="address"
             class="w-full font-mono text-xs"
-            :placeholder="draft.probe || 'https://example.org/release/1'"
+            placeholder="https://example.org/release/1"
             @keydown.enter.prevent="runTest"
           />
         </UFormField>

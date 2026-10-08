@@ -16,6 +16,7 @@ use super::{
         CreateCategoryParams, CreateCategoryRuleParams, IdParams, UpdateCategoryParams,
         UpdateCategoryRuleParams, clearing, merged,
     },
+    script_gate,
 };
 use crate::{
     ApiError, AppState,
@@ -23,7 +24,7 @@ use crate::{
 };
 
 /// The category this id names, or the same 404 the REST layer returns.
-async fn category(
+pub(super) async fn category(
     state: &AppState,
     id: rd_core::CategoryId,
 ) -> Result<rd_core::Category, ApiError> {
@@ -39,13 +40,14 @@ async fn category(
 #[tool_router(router = routing_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Create a download category: a name, a colour, a storage root and a folder below it, plus optional post-processing defaults (among them unwrap_package_folder: dissolve a single folder named like the package). Names are unique: a name another category has is refused with category.name_taken."
+        description = "Create a download category: a name, a colour, a storage root and a folder below it, plus optional post-processing defaults (among them unwrap_package_folder: dissolve a single folder named like the package). Names are unique: a name another category has is refused with category.name_taken. A script is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn create_category(
         &self,
         Parameters(params): Parameters<CreateCategoryParams>,
     ) -> McpToolResult {
         let result = async {
+            script_gate::check(&self.state, "script", params.script.as_deref(), None).await?;
             let request = CreateCategoryRequest {
                 name: params.name,
                 color: params.color,
@@ -78,7 +80,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one category. Only the fields you pass are changed; list nullable fields in `clear` to reset them to the global default. A name another category has is refused with category.name_taken."
+        description = "Change one category. Only the fields you pass are changed; list nullable fields in `clear` to reset them to the global default. A name another category has is refused with category.name_taken. Naming a script the category does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_category(
         &self,
@@ -87,6 +89,13 @@ impl RdMcpServer {
         let result = async {
             let id: rd_core::CategoryId = parse_id(&params.id)?;
             let current = category(&self.state, id).await?;
+            script_gate::check(
+                &self.state,
+                "script",
+                params.script.as_deref(),
+                current.script.as_deref(),
+            )
+            .await?;
             let cleared = clearing(
                 params.clear.as_ref(),
                 &[

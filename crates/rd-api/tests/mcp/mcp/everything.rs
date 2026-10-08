@@ -442,3 +442,6 @@ mod notify_executable;
 
 #[path = "everything_superseded.rs"]
 mod superseded;
+
+#[path = "everything_hardening.rs"]
+mod hardening;

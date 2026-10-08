@@ -97,7 +97,7 @@ pub fn hands_over(failure: &Failure, retry_at: Option<chrono::DateTime<chrono::U
 /// A collision the policy answered with `skip` is one of these: another mirror of the same
 /// file would meet the same name and the same answer.
 #[must_use]
-pub fn is_local(failure: &Failure) -> bool {
+pub(crate) fn is_local(failure: &Failure) -> bool {
     matches!(
         failure.code.as_deref(),
         Some(rd_http::LOCAL_IO_CODE | LOCAL_PROMOTE_CODE | rd_core::CODE_COLLISION_SKIPPED)

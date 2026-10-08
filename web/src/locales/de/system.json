@@ -92,7 +92,9 @@
       "confirm": "Konfiguration ersetzen",
       "button": "Importieren und ersetzen",
       "success": "Einstellungen wiederhergestellt",
-      "success_description": "{count} Konfigurationseinträge importiert."
+      "success_description": "{count} Konfigurationseinträge importiert.",
+      "password": "Administrator-Passwort",
+      "password_hint": "Das Ersetzen der Konfiguration verlangt das Passwort noch einmal."
     },
     "full": {
       "eyebrow": "Voll-Backup",
@@ -179,7 +181,16 @@
           "interrupted": "Unterbrochen"
         },
         "verifications": "Prüfungen",
-        "digest_only": "nur Prüfsumme (frühere Passphrase)"
+        "digest_only": "nur Prüfsumme (frühere Passphrase)",
+        "stored_key": "mit dem gespeicherten Schlüssel geprüft, nicht mit der Passphrase",
+        "passphrase_check": {
+          "action": "Mit Passphrase prüfen",
+          "title": "Mit Passphrase prüfen",
+          "description": "„Neuestes prüfen“ verwendet den für den Zeitplan gespeicherten Schlüssel. Eine Wiederherstellung fragt nur nach der Passphrase, und eine verlorene Passphrase lässt sich nicht wiederherstellen. Hier wird das neueste Archiv mit der Passphrase geöffnet.",
+          "hint": "Das Archiv wird ganz gelesen; nichts wird geschrieben.",
+          "submit": "Archiv öffnen",
+          "ok": "Die Passphrase öffnet {name} (erstellt {date})."
+        }
       },
       "run": {
         "button": "Jetzt sichern",
@@ -281,6 +292,10 @@
         "label": "Mir ist klar: Beim nächsten Start ersetzt dieses Backup die ganze Installation. Der jetzige Stand bleibt erhalten, bis der wiederhergestellte einmal gestartet ist.",
         "action": "Beim nächsten Start wiederherstellen",
         "staged": "Wiederherstellung vorbereitet. Starte rDownloader neu, um zu wechseln."
+      },
+      "password": {
+        "label": "Administrator-Passwort",
+        "hint": "Die Wiederherstellung ersetzt beim nächsten Start Passwort, Passkeys und Tokens; deshalb verlangt sie das Passwort noch einmal."
       }
     }
   },

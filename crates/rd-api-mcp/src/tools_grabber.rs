@@ -19,6 +19,7 @@ use super::{
         EnqueueNzbParams, EntryKindParam, EntryRefParam, IdBodyParams, PageParams,
         ReorderCollectorParams, body, public,
     },
+    script_gate,
 };
 use crate::{ApiError, collector_handlers as collector, dto::PageQuery, nzb_handlers};
 
@@ -35,7 +36,7 @@ fn entry(reference: &EntryRefParam) -> serde_json::Value {
 #[tool_router(router = grabber_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Change one LinkGrabber package before it is enqueued (id from list_collector). `body` is the REST body of PATCH /api/v1/collector/packages/{id}: name, category_id or clear_category, priority (low|normal|high), postprocess_level (none|repair|unpack|delete) or clear_postprocess_level, script or clear_script, clear_password. An archive password is set with collect_links, not here."
+        description = "Change one LinkGrabber package before it is enqueued (id from list_collector). `body` is the REST body of PATCH /api/v1/collector/packages/{id}: name, category_id or clear_category, priority (low|normal|high), postprocess_level (none|repair|unpack|delete) or clear_postprocess_level, script or clear_script, clear_password. An archive password is set with collect_links, not here. Naming a script the package does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_collector_package(
         &self,
@@ -43,6 +44,14 @@ impl RdMcpServer {
     ) -> McpToolResult {
         let result = async {
             let id = parse_id(&params.id)?;
+            let stored = self.state.database.get_collector_package(id).await?;
+            script_gate::check(
+                &self.state,
+                "script",
+                script_gate::body_script(&params.body),
+                stored.and_then(|package| package.script).as_deref(),
+            )
+            .await?;
             let request = body(serde_json::Value::Object(params.body))?;
             let Json(package) = collector::update_collector_package(
                 State(self.state.clone()),
@@ -57,13 +66,15 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change several LinkGrabber packages at once. `definition` is the REST body of POST /api/v1/collector/packages/bulk: ids, plus category_id or clear_category, priority, postprocess_level or clear_postprocess_level, script or clear_script."
+        description = "Change several LinkGrabber packages at once. `definition` is the REST body of POST /api/v1/collector/packages/bulk: ids, plus category_id or clear_category, priority, postprocess_level or clear_postprocess_level, script or clear_script. Naming a script is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_collector_packages(
         &self,
         Parameters(params): Parameters<super::params_delivery::DefinitionParams>,
     ) -> McpToolResult {
         let result = async {
+            let named = script_gate::body_script(&params.definition);
+            script_gate::check(&self.state, "script", named, None).await?;
             let request = body(serde_json::Value::Object(params.definition))?;
             let Json(packages) =
                 collector::bulk_update_collector_packages(State(self.state.clone()), Json(request))

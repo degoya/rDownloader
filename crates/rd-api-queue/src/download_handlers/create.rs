@@ -8,13 +8,28 @@ pub async fn create_download(
     State(state): State<AppState>,
     Json(request): Json<CreateDownloadRequest>,
 ) -> Result<(StatusCode, Json<rd_core::DownloadFile>), ApiError> {
-    let file = create_download_inner(&state, request).await?;
+    let file = create_download_as(&state, request, None).await?;
     Ok((StatusCode::CREATED, Json(file)))
 }
 
 pub async fn create_download_inner(
     state: &AppState,
     request: CreateDownloadRequest,
+) -> Result<rd_core::DownloadFile, ApiError> {
+    create_download_as(state, request, None).await
+}
+
+/// Creates a direct download. `address_reach` is `None` for the person's own request; `Some(false)`
+/// for one whose address somebody other than the person chose — an agent through `add_downloads`
+/// (RD-1190-18): it keeps to the address rule a stranger's link keeps to (RD-150-03), so a literal
+/// address on this machine or in the person's network is refused here with
+/// `mirror.internal_address`, and every other one is written with its address as its one source
+/// row, so the transfer refuses a name that resolves there too. The REST handler and the MCP tool
+/// both call this, which `mcp_handler_tests` holds.
+pub async fn create_download_as(
+    state: &AppState,
+    request: CreateDownloadRequest,
+    address_reach: Option<bool>,
 ) -> Result<rd_core::DownloadFile, ApiError> {
     let url = Url::parse(&request.url)
         .map(rd_collector::canonical_url)
@@ -56,6 +71,18 @@ pub async fn create_download_inner(
             "Only HTTP(S) or magnet URLs are supported for direct downloads",
         ));
     }
+    if let Some(local_network) = address_reach
+        && state
+            .scheduler
+            .remote_address_policy(local_network)
+            .hop_refusal(&url)
+            .is_some()
+    {
+        return Err(ApiError::bad_request(
+            rd_core::CODE_INTERNAL_ADDRESS,
+            "The address points at this machine or into the local network",
+        ));
+    }
     let inferred = url
         .path_segments()
         .and_then(Iterator::last)
@@ -90,6 +117,7 @@ pub async fn create_download_inner(
         category_id: request.category_id,
         priority: request.priority.unwrap_or_default(),
         paused: request.paused,
+        address_reach,
     };
     let file = if let Some(destination) = destination {
         state

@@ -16,12 +16,12 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, FailureKind, LinkStatus};
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest,
     ResolvedHeader, Resolver, ResolverHost,
 };
+use rd_plugin_types::{AccountId, FailureKind, LinkStatus};
 
 use super::RealDebridResolver;
 

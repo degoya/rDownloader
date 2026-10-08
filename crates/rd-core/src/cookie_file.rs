@@ -69,7 +69,7 @@ impl CookieRow {
 
     /// The row in Netscape form, without a trailing newline.
     #[must_use]
-    pub fn to_netscape(&self) -> String {
+    pub(crate) fn to_netscape(&self) -> String {
         let domain = if self.include_subdomains {
             format!(".{}", self.domain)
         } else {

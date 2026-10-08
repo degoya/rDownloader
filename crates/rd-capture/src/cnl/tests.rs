@@ -5,7 +5,7 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use super::jk::{JK_SLOTS, MAX_CONCURRENT_JK, extract_static_key, resolve_key, resolve_key_within};
-use super::{CnlState, MAX_ADDCRYPTED_BODY_BYTES, NO_LINK_DETAIL, code, router};
+use super::{CnlState, MAX_ADDCRYPTED_BODY_BYTES, NO_LINK_DETAIL, Pace, code, router};
 use crate::client::CaptureClient;
 
 /// For tests that expect an evaluation to finish. The production budget of 250 ms was
@@ -22,6 +22,11 @@ async fn resolve_patiently(source: &str) -> anyhow::Result<[u8; 16]> {
 /// is refused before anything is handed over, and a hand-over that did happen would fail
 /// loudly rather than reach a real service.
 async fn spawn() -> (SocketAddr, CancellationToken) {
+    spawn_paced(Pace::new(super::pace::MAX_HAND_OVERS, super::pace::WINDOW)).await
+}
+
+/// [`spawn`] with a pace of the test's own.
+async fn spawn_paced(pace: Pace) -> (SocketAddr, CancellationToken) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind an ephemeral port");
@@ -33,6 +38,7 @@ async fn spawn() -> (SocketAddr, CancellationToken) {
             "x".repeat(32),
         )
         .expect("build a capture client"),
+        pace: std::sync::Arc::new(pace),
     };
     let shutdown = cancellation.clone();
     tokio::spawn(async move {
@@ -391,4 +397,30 @@ fn the_link_free_refusal_names_the_schemes_that_are_really_accepted() {
             "the refusal names {scheme}, so the collector has to take it: {sample}"
         );
     }
+}
+
+/// RD-1190-22: a page could send hand-overs as fast as the loopback carries them, each a
+/// LinkGrabber batch with its online checks. Past the allowance the answer is `429` and a code,
+/// and nothing is handed over.
+#[tokio::test]
+async fn hand_overs_past_the_allowance_are_refused() {
+    let (address, cancellation) = spawn_paced(Pace::new(1, Duration::from_secs(60))).await;
+    let mut codes = Vec::new();
+    for _ in 0..2 {
+        let response = client()
+            .post(format!("http://{address}/flash/add"))
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body("urls=https%3A%2F%2Fexample.com%2Ffile.bin")
+            .send()
+            .await
+            .expect("the listener answers");
+        codes.push((response.status(), response.text().await.expect("a body")));
+    }
+    // The first one was admitted and failed only at the unreachable service.
+    assert_eq!(codes[0].1, code::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        codes[1],
+        (StatusCode::TOO_MANY_REQUESTS, code::RATE_LIMITED.to_owned())
+    );
+    cancellation.cancel();
 }

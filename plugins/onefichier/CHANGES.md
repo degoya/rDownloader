@@ -1,5 +1,9 @@
 # Changes
 
+## 0.7.15
+
+The plugin's description now appears in German, Spanish and French as well.
+
 ## 0.7.14
 
 A server error without a stated wait now pauses five minutes before the next try instead of none. A

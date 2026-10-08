@@ -48,6 +48,40 @@ tokio::task_local! {
     static RESPONSE_ALLOWANCE: usize;
     /// Whether the running invocation may reach the person's own network (RA-HOST-01).
     static OWN_NETWORK: bool;
+    /// The credential values the running request was expanded with (PL-02).
+    static EXPANDED_CREDENTIALS: Arc<std::sync::Mutex<Vec<String>>>;
+}
+
+/// Runs one plugin request and returns, beside its answer, every secret and user name the host
+/// expanded into it (PL-02).
+///
+/// The plugin never sees those values, but a provider that echoes them in its answer hands them
+/// to the plugin all the same — and from there through `host::log` into the log. The store
+/// remembers them for the log redaction, as it does a cookie the plugin read. A task-local,
+/// like [`with_response_allowance`], so the request type the plugins share stays unchanged.
+pub(crate) async fn with_expanded_credentials<F: std::future::Future>(
+    request: F,
+) -> (F::Output, Vec<String>) {
+    let collected = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let output = EXPANDED_CREDENTIALS
+        .scope(Arc::clone(&collected), request)
+        .await;
+    let values = collected
+        .lock()
+        .map(|mut values| std::mem::take(&mut *values))
+        .unwrap_or_default();
+    (output, values)
+}
+
+/// Records credential values a request is expanded with. Outside
+/// [`with_expanded_credentials`] — a request the host makes on its own behalf — there is no
+/// plugin log to mask, so nothing is kept.
+fn note_expanded_credentials<'a>(values: impl IntoIterator<Item = &'a str>) {
+    let _ = EXPANDED_CREDENTIALS.try_with(|collected| {
+        if let Ok(mut collected) = collected.lock() {
+            collected.extend(values.into_iter().map(str::to_owned));
+        }
+    });
 }
 
 /// Runs one plugin request with the address rule of its invocation: the person's own network

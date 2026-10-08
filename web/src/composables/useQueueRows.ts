@@ -24,9 +24,15 @@ const FILE_ROW_SIZE = 40
 
 /**
  * The Downloads view's packages and rows from the filtered files, and every file of a package
- * whatever the filter hides — split out of `DownloadsView` (WEB-13).
+ * whatever the filter hides — split out of `DownloadsView` (WEB-13). `arrange` puts the packages
+ * and their files in the order the view shows them: a sort for the eye (RD-1190-16), the queue
+ * order without one.
  */
-export function useQueueRows(visible: Ref<Download[]>, isOpen: (id: string) => boolean) {
+export function useQueueRows(
+  visible: Ref<Download[]>,
+  isOpen: (id: string) => boolean,
+  arrange: (groups: QueueGroup[]) => QueueGroup[] = groups => groups
+) {
   const transfers = useTransfersStore()
 
   // Bucketed in one pass rather than filtering the whole list once per package: that was
@@ -39,9 +45,9 @@ export function useQueueRows(visible: Ref<Download[]>, isOpen: (id: string) => b
       if (bucket) bucket.push(item)
       else byPackage.set(item.package_id, [item])
     }
-    return transfers.packages
+    return arrange(transfers.packages
       .map(pkg => ({ package: pkg, downloads: byPackage.get(pkg.id) ?? [] }))
-      .filter(group => group.downloads.length > 0)
+      .filter(group => group.downloads.length > 0))
   })
 
   const rows = computed<QueueRow[]>(() => {

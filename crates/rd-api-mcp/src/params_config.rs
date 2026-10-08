@@ -217,7 +217,8 @@ pub(crate) struct CreateCategoryParams {
     pub safe_postproc: Option<bool>,
     pub delete_par2: Option<bool>,
     pub upload_enabled: Option<bool>,
-    /// rclone target in `remote:path` form.
+    /// rclone target in `remote:path` form, or `object-storage:<profile id>/<bucket>/<prefix>`:
+    /// the profile has to exist, and one bound to a bucket takes only that bucket.
     pub upload_remote: Option<String>,
     /// Whether a single folder named like the package is dissolved into the package folder
     /// after post-processing (per archive folder too with `unpack_to_subfolder`).
@@ -247,6 +248,8 @@ pub(crate) struct UpdateCategoryParams {
     pub safe_postproc: Option<bool>,
     pub delete_par2: Option<bool>,
     pub upload_enabled: Option<bool>,
+    /// rclone target in `remote:path` form, or `object-storage:<profile id>/<bucket>/<prefix>`:
+    /// the profile has to exist, and one bound to a bucket takes only that bucket.
     pub upload_remote: Option<String>,
     /// Whether a single folder named like the package is dissolved into the package folder
     /// after post-processing (per archive folder too with `unpack_to_subfolder`).

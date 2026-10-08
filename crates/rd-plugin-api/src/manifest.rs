@@ -1,6 +1,6 @@
 //! A plugin's own bundled `manifest.toml`, read into its resolver metadata.
 
-use rd_core::PluginId;
+use rd_plugin_types::PluginId;
 use serde::Deserialize;
 
 use super::ResolverMetadata;

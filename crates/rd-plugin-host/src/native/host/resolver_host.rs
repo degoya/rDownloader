@@ -22,7 +22,8 @@ use super::super::expand::{
 };
 use super::{
     EXCHANGE_TIMEOUT, Limits, MAX_SINGLE_WAIT, NO_AUTH_PROFILE, NativeHost, SEND_TIMEOUT,
-    address_policy, check_reach, exchange, response_limit, token_expiry, upload_allowance,
+    address_policy, check_reach, exchange, note_expanded_credentials, response_limit, token_expiry,
+    upload_allowance,
 };
 
 #[async_trait]
@@ -41,6 +42,7 @@ impl ResolverHost for NativeHost {
         let secrets = self.request_secrets(identity, &request).await?;
         let (username, username_optional) = self.request_username(identity, &request).await?;
         let client_id = self.request_client_id(identity, &request).await?;
+        note_expanded_credentials(secrets.values().chain(username.as_deref()));
         let carries_credential = expand_request(
             &mut request,
             &secrets,

@@ -402,6 +402,41 @@ async fn a_config_token_cannot_change_the_reconnect_or_the_files_the_service_rea
     }
 }
 
+/// The addresses the service fetches from on its own cost `api:admin` like the reconnect's
+/// address check (audit 2026-10-08, API-01): the signed tool manifest and the unsigned torrent
+/// blocklist.
+#[tokio::test]
+async fn a_config_token_cannot_change_where_the_service_fetches_from() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = bearer_holding(&harness.database, "config-only", &[Scope::Config.as_str()]).await;
+
+    let (status, settings) = get_with_bearer(&harness.router, "/api/v1/settings", &bearer).await;
+    assert_eq!(status, StatusCode::OK, "reading settings costs api:config");
+
+    for (field, value) in [
+        (
+            "managed_tools_manifest_url",
+            "https://tools.example.test/manifest.json",
+        ),
+        (
+            "torrent_ip_blocklist_url",
+            "https://blocklist.example.test/level1.p2p",
+        ),
+    ] {
+        assert_ne!(
+            settings[field], value,
+            "{field} already holds the probe value"
+        );
+        let mut changed = settings.clone();
+        changed[field] = serde_json::json!(value);
+        let (status, body) = put_settings(&harness.router, &bearer, &changed).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{field}: {body}");
+        assert_eq!(body["code"], "auth.scope_insufficient", "{field}");
+        assert_eq!(body["params"]["setting"], field, "{field}");
+    }
+}
+
 async fn put_settings(
     router: &axum::Router,
     bearer: &str,

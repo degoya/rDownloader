@@ -59,7 +59,7 @@ pub async fn verify_at(
     key: &BackupKey,
     scratch: &Path,
 ) -> Result<Verified, BackupError> {
-    tokio::fs::create_dir_all(scratch)
+    crate::private_folder(scratch)
         .await
         .map_err(|error| failure("backup.verify_failed", error.to_string()))?;
     let copy = scratch.join(format!("verify-{}", uuid::Uuid::now_v7()));

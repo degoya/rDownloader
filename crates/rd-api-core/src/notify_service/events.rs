@@ -5,16 +5,18 @@ use super::*;
 impl NotificationService {
     /// Turns matching bus events into queued deliveries.
     pub(super) async fn watch_events(self) {
-        let mut events = self.inner.database.subscribe();
+        // A follower takes what a burst pushed past the live channel from the bus's buffer
+        // (CORE-01); `Lagged` is left for what fell out of the buffer as well.
+        let mut events = self.inner.database.follow();
         loop {
             let event = tokio::select! {
                 () = self.inner.shutdown.cancelled() => return,
                 event = events.recv() => match event {
                     Ok(event) => event,
-                    // Not silent any more (audit 1.9.1, INTAKE-04): the skipped events are
+                    // Not silent any more (audit 1.9.1, INTAKE-04): the lost events are
                     // notifications nobody gets, and the log is where that shows.
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
-                        tracing::warn!(missed, "event bus lagged; notifications for the skipped events were not queued");
+                        tracing::warn!(missed, "event bus lagged beyond its buffer; notifications for the lost events were not queued");
                         continue;
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => return,

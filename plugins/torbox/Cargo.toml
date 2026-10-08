@@ -15,13 +15,16 @@ url.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-trait.workspace = true
-rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api" }
+rd-plugin-types = { path = "../../crates/rd-plugin-types" }
 
 [lib]
 crate-type = ["rlib"]
 
 [dev-dependencies]
+# The service's redaction (`is_signed_url`), which a test holds a resolved link to. Tests only:
+# the plugin itself links `rd-plugin-types`, not `rd-core` (RD-1190-08).
+rd-core = { path = "../../crates/rd-core" }
 rd-plugin-api = { path = "../../crates/rd-plugin-api", features = ["test-support"] }
 tokio.workspace = true
 

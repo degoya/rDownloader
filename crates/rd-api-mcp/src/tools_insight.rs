@@ -128,12 +128,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the service log so a test run starts from nothing. Irreversible, and `confirmed` must be true. Downloads, packages and settings are untouched; the audit log and the statistics are left alone."
+        description = "Empty the service log so a test run starts from nothing. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. Downloads, packages and settings are untouched; the audit log and the statistics are left alone."
     )]
     pub async fn clear_log_records(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clear_log_records",
+            params.confirmation.as_deref(),
+            "Empty the service log.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::clear_log_records(
                 State(self.state.clone()),
@@ -148,12 +155,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the audit log. Irreversible, and `confirmed` must be true. The clear writes itself into the emptied log as its first entry -- when, by which credential, and how many records went -- so the log is never empty with nothing saying why. The service log and the statistics are left alone."
+        description = "Empty the audit log. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. The clear writes itself into the emptied log as its first entry -- when, by which credential, and how many records went -- so the log is never empty with nothing saying why. The service log and the statistics are left alone."
     )]
     pub async fn clear_audit_records(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clear_audit_records",
+            params.confirmation.as_deref(),
+            "Empty the audit log.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::clear_audit_records(
                 State(self.state.clone()),
@@ -168,12 +182,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the transfer statistics: the per-bucket history behind the charts, the all-time totals and the traffic per Usenet server (a server's quota figure stays). Irreversible, and `confirmed` must be true. The queue itself is untouched, as are the service log and the audit log."
+        description = "Empty the transfer statistics: the per-bucket history behind the charts, the all-time totals and the traffic per Usenet server (a server's quota figure stays). Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. The queue itself is untouched, as are the service log and the audit log."
     )]
     pub async fn clear_transfer_stats(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clear_transfer_stats",
+            params.confirmation.as_deref(),
+            "Empty the transfer statistics.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::clear_transfer_stats(
                 State(self.state.clone()),
@@ -188,12 +209,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the notification history: every delivered or failed delivery. Deliveries still queued or retrying stay, because they are notifications not yet sent. Irreversible, and `confirmed` must be true. Destinations, rules, the logs and the statistics are untouched."
+        description = "Empty the notification history: every delivered or failed delivery. Deliveries still queued or retrying stay, because they are notifications not yet sent. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. Destinations, rules, the logs and the statistics are untouched."
     )]
     pub async fn clear_notification_deliveries(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clear_notification_deliveries",
+            params.confirmation.as_deref(),
+            "Empty the notification history.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::clear_notification_deliveries(
                 State(self.state.clone()),
@@ -208,12 +236,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Discard the notifications not yet sent: every delivery still queued or retrying is deleted, so it is never sent. Irreversible, and `confirmed` must be true. Delivered and failed deliveries stay in the history, as do destinations, rules, the logs and the statistics."
+        description = "Discard the notifications not yet sent: every delivery still queued or retrying is deleted, so it is never sent. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. Delivered and failed deliveries stay in the history, as do destinations, rules, the logs and the statistics."
     )]
     pub async fn discard_pending_notification_deliveries(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "discard_pending_notification_deliveries",
+            params.confirmation.as_deref(),
+            "Discard the notifications not yet sent.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::discard_pending_notification_deliveries(
                 State(self.state.clone()),
@@ -228,12 +263,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the storage history: the recorded verified moves and duplicate links. Rows of an operation still running stay, because it will record how it ended. Irreversible, and `confirmed` must be true. No file is moved or deleted, and an interrupted move is still carried on at the next start."
+        description = "Empty the storage history: the recorded verified moves and duplicate links. Rows of an operation still running stay, because it will record how it ended. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. No file is moved or deleted, and an interrupted move is still carried on at the next start."
     )]
     pub async fn clear_storage_operations(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clear_storage_operations",
+            params.confirmation.as_deref(),
+            "Empty the storage history.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::clear_storage_operations(
                 State(self.state.clone()),
@@ -248,12 +290,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Empty the content index, so duplicate detection by content starts from nothing. Irreversible, and `confirmed` must be true. No file and no download is touched, but until a file is indexed again it is neither reported as a content duplicate nor accepted as the original of a dedupe link. check_content_index (also run at every start) re-indexes the finished downloads still in the queue whose SHA-256 is known and whose file is still in place; anything else comes back only when downloaded again."
+        description = "Empty the content index, so duplicate detection by content starts from nothing. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. No file and no download is touched, but until a file is indexed again it is neither reported as a content duplicate nor accepted as the original of a dedupe link. check_content_index (also run at every start) re-indexes the finished downloads still in the queue whose SHA-256 is known and whose file is still in place; anything else comes back only when downloaded again."
     )]
     pub async fn clear_content_index(
         &self,
         Parameters(params): Parameters<DataClearToolParams>,
     ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clear_content_index",
+            params.confirmation.as_deref(),
+            "Empty the content index.",
+        ) {
+            return question;
+        }
         respond(
             crate::data_reset_handlers::clear_content_index(
                 State(self.state.clone()),

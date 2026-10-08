@@ -169,6 +169,7 @@ async fn a_run_kept_only_in_a_bucket_restores_by_its_id() {
             session_token_ref: None,
             checksums: false,
             enabled: true,
+            ambient_custom_endpoint: false,
         })
         .await
         .expect("profile");

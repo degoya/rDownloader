@@ -1,5 +1,6 @@
 {
   "name": "LinkSnappy",
+  "description": "Löst Links anderer Hoster über ein LinkSnappy-Konto auf.",
   "account": {
     "secret_label": "Kontopasswort",
     "secret_hint": "Gib deinen Kontobenutzernamen und dein Passwort als Secret ein."

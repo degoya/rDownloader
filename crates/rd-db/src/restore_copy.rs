@@ -452,6 +452,11 @@ pub async fn unfinished_destinations(copy: &Path) -> Result<Vec<String>> {
     Ok(rows)
 }
 
+#[path = "restore_copy_schema.rs"]
+mod schema;
+
+pub use schema::foreign_schema_objects;
+
 #[cfg(test)]
 #[path = "restore_copy_tests.rs"]
 mod tests;

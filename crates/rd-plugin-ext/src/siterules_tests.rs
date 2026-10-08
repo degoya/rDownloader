@@ -298,3 +298,21 @@ fn asking_only_whether_a_rule_claims_an_address_costs_no_request() {
     rules.set_dead(["mine".to_owned()].into_iter().collect());
     assert!(!rules.claims(&"https://gone.example.org/a/b".parse().expect("url")));
 }
+
+/// RD-1190-22: every active rule received the installation's one value, which linked the
+/// installation across every site a rule reads. Each rule now sees a value of its own, always
+/// the same, and never the installation's own.
+#[test]
+fn each_rule_sees_a_device_value_of_its_own() {
+    let installation = "0123456789abcdef0123456789abcdef";
+    let board = super::device_for(installation, &rule("board", "board.test"));
+    let other = super::device_for(installation, &rule("other", "other.test"));
+    assert_eq!(board.len(), 32);
+    assert!(board.chars().all(|digit| digit.is_ascii_hexdigit()));
+    assert_ne!(board, other);
+    assert_ne!(board, installation);
+    assert_eq!(
+        board,
+        super::device_for(installation, &rule("board", "board.test"))
+    );
+}

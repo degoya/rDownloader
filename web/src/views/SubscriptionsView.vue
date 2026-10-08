@@ -9,8 +9,8 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api } from '@/api/client'
-import type { Category, Subscription, SubscriptionRequest } from '@/api/types'
+import type { Subscription, SubscriptionRequest } from '@/api/types'
+import { useCategories } from '@/stores/categories'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 import DataState from '@/components/DataState.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
@@ -30,7 +30,7 @@ const { t } = useI18n()
 const store = useSubscriptionsStore()
 const confirm = useConfirm()
 const copyName = useCopyName()
-const categories = ref<Category[]>([])
+const { categories, fetchCategories } = useCategories()
 const editing = ref<string | null>(null)
 const subscriptionForm = ref<InstanceType<typeof SubscriptionForm> | null>(null)
 /** A subscription typed into the form is not lost to a leave without a question (RD-1120-15). */
@@ -43,9 +43,7 @@ onMounted(async () => {
   store.connectEvents()
   await Promise.all([
     store.refresh(),
-    api.GET('/api/v1/categories').then(response => {
-      categories.value = response.data ?? []
-    })
+    fetchCategories()
   ])
 })
 

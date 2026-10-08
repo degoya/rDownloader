@@ -16,12 +16,19 @@
 #   * rd_paths_read_by — which of the paths on stdin a recorded green's half reads, so a green
 #     still covers a tree that differs from its own only in what that half never looks at (audit
 #     C1): the lints and the Rust tests read the Rust inputs, the web half web/ and extension/,
-#     the preflight everything but the generators' output.
+#     the preflight everything but the generators' output, plus the documentation its checks read.
 #
 # Sourced by verified.sh, scope.sh and lib/integrate.sh; defines functions and constants only.
 
 RD_INERT_PATTERN='^docs/|\.md$|^\.github/readme/'
 RD_NOT_INERT_PATTERN='^crates/rd-core/recovery-matrix\.md$|^crates/rd-api/mcp-coverage\.md$'
+
+# The documentation the preflight reads all the same (PIPE-04), so a preflight green does not cover
+# a change to it: the job layout check reads the job files, the two release-note checks
+# RELEASE-NOTES.md and every plugin's CHANGES.md, scripts/tests/workflow-shape.sh the documents
+# that name the wasm-tools version. No build and no Rust or web test reads them, so for every other
+# half they stay inert, and they are listed here rather than in RD_NOT_INERT_PATTERN.
+RD_PREFLIGHT_DOCS_PATTERN='^docs/roadmap/jobs/|^RELEASE-NOTES\.md$|^plugins/[^/]+/CHANGES\.md$|^AGENTS\.md$|^docs/(development|architecture)\.md$|^sdk/README\.md$'
 
 # What the Rust build and its tests read: the sources, the manifests and lock file, the toolchain,
 # cargo's, nextest's and cargo-deny's configuration, the migrations — and every path
@@ -80,11 +87,17 @@ rd_rust_input_touched() {
 #   clippy, windows, rust  the Rust inputs (rd_rust_input_pattern)
 #   web                    web/, extension/ and scripts/build-extension.sh
 #   preflight              everything but the generated files, which the generators write after
-#                          integrate.sh's preflight and check.sh --full checks once more
+#                          integrate.sh's preflight and check.sh --full checks once more, and the
+#                          documentation RD_PREFLIGHT_DOCS_PATTERN names (PIPE-04)
 # Any other half reads every path that is not inert.
 rd_paths_read_by() {
-    local paths
-    paths="$(rd_non_inert_paths)"
+    local all paths
+    all="$(cat)"
+    paths="$(rd_non_inert_paths <<< "$all")"
+    if [[ "$1" == preflight ]]; then
+        paths="$(printf '%s\n' "$paths"; grep -E "$RD_PREFLIGHT_DOCS_PATTERN" <<< "$all" || true)"
+        paths="$(sed '/^$/d' <<< "$paths")"
+    fi
     [[ -n "$paths" ]] || return 0
     case "$1" in
         clippy|windows|rust) grep -E "$(rd_rust_input_pattern)" <<< "$paths" || true ;;

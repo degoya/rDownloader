@@ -40,8 +40,10 @@ use tower_http::limit::RequestBodyLimitLayer;
 use crate::client::CaptureClient;
 
 mod jk;
+mod pace;
 
 use jk::resolve_key;
+use pace::Pace;
 
 const MAX_CRYPTED_BYTES: usize = 8 * 1024 * 1024;
 
@@ -92,11 +94,14 @@ pub(crate) mod code {
     pub(crate) const SERVICE_UNAVAILABLE: &str = "cnl_service_unavailable";
     /// A browser tried to reach one of rDownloader's own routes.
     pub(crate) const FOREIGN_ORIGIN: &str = "cnl_foreign_origin";
+    /// More hand-overs than the agent accepts per minute (RD-1190-22).
+    pub(crate) const RATE_LIMITED: &str = "cnl_rate_limited";
 }
 
 #[derive(Clone)]
 struct CnlState {
     client: CaptureClient,
+    pace: std::sync::Arc<Pace>,
 }
 
 pub(crate) async fn serve(
@@ -105,7 +110,11 @@ pub(crate) async fn serve(
     client: CaptureClient,
     cancellation: CancellationToken,
 ) -> Result<()> {
-    axum::serve(listener, router(CnlState { client }))
+    let state = CnlState {
+        client,
+        pace: std::sync::Arc::clone(&pace::SHARED),
+    };
+    axum::serve(listener, router(state))
         .with_graceful_shutdown(cancellation.cancelled_owned())
         .await
         .with_context(|| format!("Click'n'Load listener on {address} stopped"))
@@ -161,7 +170,7 @@ async fn add_query(
     State(state): State<CnlState>,
     Query(fields): Query<HashMap<String, String>>,
 ) -> Result<&'static str, CnlError> {
-    add_fields(&state.client, &fields).await
+    add_fields(&state, &fields).await
 }
 
 async fn agent_nzb(
@@ -220,11 +229,11 @@ async fn add(
     State(state): State<CnlState>,
     Form(fields): Form<HashMap<String, String>>,
 ) -> Result<&'static str, CnlError> {
-    add_fields(&state.client, &fields).await
+    add_fields(&state, &fields).await
 }
 
 async fn add_fields(
-    client: &CaptureClient,
+    state: &CnlState,
     fields: &HashMap<String, String>,
 ) -> Result<&'static str, CnlError> {
     let text = fields
@@ -236,7 +245,7 @@ async fn add_fields(
                 anyhow::anyhow!("CNL request contains no URLs"),
             )
         })?;
-    submit(client, text, fields).await?;
+    submit(state, text, fields).await?;
     Ok("success")
 }
 
@@ -288,13 +297,14 @@ async fn add_crypted(
         })?;
     let text = std::str::from_utf8(decrypted)
         .map_err(|error| CnlError::new(code::INVALID_PAYLOAD, error))?;
-    submit(&state.client, text, &fields).await?;
+    submit(&state, text, &fields).await?;
     Ok("success")
 }
 
-/// Forwards the CNL `package` name and the first line of `passwords` with the links.
+/// Forwards the CNL `package` name and the first line of `passwords` with the links, within
+/// the pace and the field lengths of [`pace`].
 async fn submit(
-    client: &CaptureClient,
+    state: &CnlState,
     text: &str,
     fields: &HashMap<String, String>,
 ) -> Result<(), CnlError> {
@@ -305,17 +315,32 @@ async fn submit(
             anyhow::anyhow!(NO_LINK_DETAIL),
         ));
     }
-    let package = fields
-        .get("package")
-        .map(|value| value.trim())
-        .filter(|value| !value.is_empty());
-    let password = fields
-        .get("passwords")
-        .and_then(|value| value.lines().map(str::trim).find(|line| !line.is_empty()));
-    client
-        .submit_links(urls, "click_and_load", package, password)
+    let package = pace::package_name(fields.get("package").map(String::as_str));
+    let password =
+        pace::password(fields.get("passwords").map(String::as_str)).map_err(|length| {
+            CnlError::new(
+                code::TOO_LARGE,
+                anyhow::anyhow!("CNL password of {length} characters exceeds its limit"),
+            )
+        })?;
+    if !state.pace.admit(std::time::Instant::now()) {
+        return Err(CnlError::new(
+            code::RATE_LIMITED,
+            anyhow::anyhow!("more Click'n'Load hand-overs than the agent accepts per minute"),
+        )
+        .with_status(StatusCode::TOO_MANY_REQUESTS));
+    }
+    let submitted = state
+        .client
+        .submit_links(urls, "click_and_load", package.as_deref(), password)
         .await
-        .map_err(|error| CnlError::new(code::SERVICE_UNAVAILABLE, error))
+        .map_err(|error| CnlError::new(code::SERVICE_UNAVAILABLE, error))?;
+    // A page whose releases wait for a choice (RD-1190-17) is a success the page that sent the
+    // links hears as one; the person hears where to choose.
+    if let Some(notice) = submitted.notice() {
+        crate::notify::toast(notice).await;
+    }
+    Ok(())
 }
 
 /// Puts the permissive headers on the JDownloader-compatible routes, and only on those.

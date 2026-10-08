@@ -91,3 +91,44 @@ describe('QueuePauseControl', () => {
     await vi.waitFor(() => expect(transfers.error).toBe('refused'))
   })
 })
+
+/**
+ * RD-1190-14: an account whose traffic is used up holds downloads back without anybody pausing
+ * them; the control says whose and when it is checked next, and starting by hand lets it go.
+ */
+describe('QueuePauseControl account traffic', () => {
+  const hold = {
+    account_id: 'account-1', account_label: 'DDownload premium', provider: 'ddownload', action: 'pause_queue',
+    until: '2026-10-02T13:00:00Z', next_check_at: '2026-10-02T12:15:00Z'
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+    vi.mocked(api.DELETE).mockReset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('names the account and lets a start by hand go past the hold', async () => {
+    const { queuePause } = mount()
+    queuePause.accountTraffic = [hold] as never
+    await Promise.resolve()
+
+    const notice = screen.getByTestId('account-traffic-notice')
+    expect(notice.innerHTML).toContain('DDownload premium')
+    vi.mocked(api.DELETE).mockResolvedValue({ data: { resumed: 0 } } as never)
+
+    await fireEvent.click(screen.getByTestId('account-traffic-continue'))
+
+    expect(vi.mocked(api.DELETE)).toHaveBeenCalledWith('/api/v1/queue/pause')
+    expect(queuePause.accountTraffic).toEqual([])
+  })
+
+  it('shows nothing while no account is held', () => {
+    mount()
+    expect(screen.queryByTestId('account-traffic-notice')).toBeNull()
+  })
+})

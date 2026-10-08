@@ -6,10 +6,9 @@
 //! engines, and a server's or a plugin's `Retry-After` went into `now + delay` unchecked —
 //! where a large enough value panicked the task holding a download slot.
 
-/// The longest wait a server, an indexer or a plugin may ask for. A day: long enough for any
-/// quota that resets daily, short enough that a mistaken or hostile value cannot park a
-/// download for years (or overflow the clock arithmetic that turns it into a due time).
-pub const MAX_RETRY_AFTER_SECONDS: u64 = 24 * 60 * 60;
+// The ceiling itself is part of the plugin contract and lives in `rd-plugin-types` (RD-1190-08);
+// `rd-core` re-exports it.
+use rd_plugin_types::MAX_RETRY_AFTER_SECONDS;
 
 /// `Retry-After` and similar waits chosen outside rDownloader, capped at
 /// [`MAX_RETRY_AFTER_SECONDS`].

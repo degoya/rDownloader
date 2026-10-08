@@ -5,11 +5,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use pcloud_common::address::Region;
-use rd_core::{AccountId, Failure};
 use rd_plugin_api::{
     CheckRequest, ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, Resolver,
     ResolverHost,
 };
+use rd_plugin_types::{AccountId, Failure};
 
 use super::super::PCloudResolver;
 use super::{MockPCloud, OWN_FILE_US, client};
@@ -68,8 +68,14 @@ async fn a_check_tells_a_present_file_from_one_pcloud_will_not_open() {
         .expect("checks");
     assert_eq!(checks.len(), 2);
     assert_eq!(checks[0].file_name.as_deref(), Some("release.bin"));
-    assert!(matches!(checks[0].status, rd_core::LinkStatus::Online));
-    assert!(matches!(checks[1].status, rd_core::LinkStatus::Unknown));
+    assert!(matches!(
+        checks[0].status,
+        rd_plugin_types::LinkStatus::Online
+    ));
+    assert!(matches!(
+        checks[1].status,
+        rd_plugin_types::LinkStatus::Unknown
+    ));
 
     let gone = PCloudResolver::new(MockPCloud::refusing(2009) as Arc<dyn ResolverHost>)
         .check(CheckRequest {
@@ -78,7 +84,10 @@ async fn a_check_tells_a_present_file_from_one_pcloud_will_not_open() {
         })
         .await
         .expect("checks");
-    assert!(matches!(gone[0].status, rd_core::LinkStatus::Offline));
+    assert!(matches!(
+        gone[0].status,
+        rd_plugin_types::LinkStatus::Offline
+    ));
 }
 
 /// A download host pCloud names that is not pCloud's own never becomes an address.

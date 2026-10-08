@@ -237,6 +237,17 @@ describe('SettingsPostprocessCard switch rows', () => {
     expect(model.unwrap_package_folder).toBe(true)
   })
 
+  /** RD-1190-21: off by default, and only this switch -- no MCP tool -- turns it on. */
+  it('lets the person allow scripts for MCP tools', async () => {
+    serve([], [])
+    const model = { ...SETTINGS, mcp_scripts_allowed: false } as Settings
+    mount(model)
+
+    await fireEvent.click(screen.getByRole('switch', { name: settings.postprocess.mcp_scripts_allowed.label }))
+
+    expect(model.mcp_scripts_allowed).toBe(true)
+  })
+
   /** RD-1100-07: opt-in, and the switch is what writes the setting. */
   it('switches unpacking while downloading on', async () => {
     serve([], [])

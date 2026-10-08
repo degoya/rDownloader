@@ -155,3 +155,48 @@ async fn every_listed_column_exists_in_the_current_schema() {
             .is_empty()
     );
 }
+
+#[tokio::test]
+async fn a_migrated_older_copy_holds_exactly_the_schema_of_this_build() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let copy = copy_with(directory.path(), Some(100)).await;
+    migrate_copy(&copy).await.expect("migrate");
+    assert_eq!(
+        foreign_schema_objects(&copy).await.expect("compare"),
+        Vec::<String>::new()
+    );
+}
+
+/// RD-1190-19: a trigger or a view of a crafted archive would run in the live database after
+/// the switch; the copy is refused instead.
+#[tokio::test]
+async fn a_trigger_and_a_changed_index_of_a_crafted_copy_are_named() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let copy = copy_with(directory.path(), None).await;
+    let mut connection = open_writable(&copy).await.expect("open");
+    let index: String = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL \
+         AND tbl_name = 'downloads' ORDER BY name LIMIT 1",
+    )
+    .fetch_one(&mut connection)
+    .await
+    .expect("an index of the queue");
+    for statement in [
+        "CREATE TRIGGER planted AFTER INSERT ON downloads BEGIN DELETE FROM downloads; END"
+            .to_owned(),
+        format!("DROP INDEX {index}"),
+        format!("CREATE INDEX {index} ON downloads (id)"),
+    ] {
+        sqlx::query(sqlx::AssertSqlSafe(statement))
+            .execute(&mut connection)
+            .await
+            .expect("tamper");
+    }
+    connection.close().await.expect("close");
+    let foreign = foreign_schema_objects(&copy).await.expect("compare");
+    assert!(
+        foreign.contains(&"trigger planted".to_owned()),
+        "{foreign:?}"
+    );
+    assert!(foreign.contains(&format!("index {index}")), "{foreign:?}");
+}

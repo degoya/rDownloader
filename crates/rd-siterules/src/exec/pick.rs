@@ -17,7 +17,6 @@
 
 use std::collections::BTreeMap;
 
-use regex::Regex;
 use url::Url;
 
 use super::{
@@ -31,7 +30,7 @@ use super::{
 use crate::{
     format::Rule,
     groups::{Groups, Pick},
-    step::LINKS_VARIABLE,
+    step::{LINKS_VARIABLE, compile_pattern},
 };
 
 /// Longest attribute value kept; a pattern that caught half a page is not an attribute.
@@ -82,7 +81,7 @@ impl Run<'_> {
             .attributes
             .iter()
             .map(|(name, pattern)| {
-                Regex::new(pattern)
+                compile_pattern(pattern)
                     .map(|regex| (name.clone(), regex))
                     .map_err(|error| RunError::Structure {
                         step: first,

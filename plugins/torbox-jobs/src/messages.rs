@@ -144,5 +144,5 @@ pub fn api_error(api_code: &str) -> String {
 
 #[must_use]
 pub fn http_error(status: u16) -> String {
-    format!("TorBox HTTP status {status}")
+    plugin_common::messages::http_error("TorBox", status)
 }

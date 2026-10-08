@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::input_checks::optional_text;
+use crate::object_upload_target::check_object_upload_target;
 use crate::{
     ApiError, AppState,
     dto::{
@@ -278,6 +279,7 @@ pub async fn update_category_postprocess(
         .map(normalize_cleanup_extensions)
         .transpose()?;
     let upload_remote = crate::dto::normalize_upload_remote(request.upload_remote)?;
+    check_object_upload_target(&state.database, upload_remote.as_deref()).await?;
     let sorting = validate_sorting(request.sorting)?;
     let package_name_regex = request
         .package_name_regex

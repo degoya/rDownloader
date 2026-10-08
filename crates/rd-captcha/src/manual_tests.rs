@@ -5,7 +5,9 @@ use rd_plugin_api::{
     WidgetChallenge,
 };
 
-use super::{AnswerSource, CaptchaKind, ManualQueue, Reply, SubmitOutcome, image_mime};
+use super::{
+    AnswerSource, CaptchaKind, MAX_WAITING, ManualQueue, Reply, SubmitOutcome, image_mime,
+};
 
 /// The spot a person clicked, as the broker delivers it.
 fn resolve_point(queue: &ManualQueue, id: rd_core::CaptchaId, point: ClickPoint) -> SubmitOutcome {
@@ -334,4 +336,18 @@ fn only_a_widget_can_be_reported_missing_from_its_page() {
         SubmitOutcome::WrongAnswerShape
     );
     assert_eq!(queue.pending().len(), 1, "the image captcha keeps waiting");
+}
+
+/// RD-1190-22: the queue had no ceiling; past it a challenge is refused instead of queued, and
+/// an expired one makes room again.
+#[test]
+fn the_queue_holds_a_bounded_number_of_waiting_challenges() {
+    let queue = ManualQueue::default();
+    let _expired = queue.enqueue(&widget(), std::time::Duration::ZERO);
+    let _waiting: Vec<_> = (0..MAX_WAITING - 1)
+        .map(|_| queue.enqueue(&widget(), std::time::Duration::from_secs(60)))
+        .collect();
+    assert!(!queue.is_full(), "the expired one does not count");
+    let _last = queue.enqueue(&widget(), std::time::Duration::from_secs(60));
+    assert!(queue.is_full());
 }

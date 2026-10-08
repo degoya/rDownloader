@@ -152,11 +152,15 @@ pub enum AuditAction {
     /// handed to the LinkGrabber again (RD-1150-04); `previous_state` names what it was, and
     /// `duplicate` whether its address was still there and queued anyway.
     SubscriptionItemRequeued,
+    /// An object storage profile was created, changed or deleted (RD-1190-20): where a stored
+    /// bucket credential is sent. The `change` detail names which, `fields` the names of the
+    /// fields an update changed, `endpoint` where the profile now sends its requests.
+    ObjectStorageProfileChanged,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 52] = [
+    pub const ALL: [Self; 53] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -209,6 +213,7 @@ impl AuditAction {
         Self::PasswordResetLocal,
         Self::HistoryCleared,
         Self::SubscriptionItemRequeued,
+        Self::ObjectStorageProfileChanged,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -267,6 +272,7 @@ impl AuditAction {
             Self::PasswordResetLocal => "password_reset_local",
             Self::HistoryCleared => "history_cleared",
             Self::SubscriptionItemRequeued => "subscription_item_requeued",
+            Self::ObjectStorageProfileChanged => "object_storage_profile_changed",
         }
     }
 

@@ -35,7 +35,7 @@ struct AddDownloadsResult {
 #[tool_router(router = downloads_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Add direct HTTP(S) or magnet downloads to the queue. With start_paused they are created paused -- the scheduler never starts them -- and wait for control_downloads resume. For hoster/one-click links (rapidgator, keep2share, ...) use collect_links + enqueue_collector instead, so accounts and link checks apply."
+        description = "Add direct HTTP(S) or magnet downloads to the queue. With start_paused they are created paused -- the scheduler never starts them -- and wait for control_downloads resume. For hoster/one-click links (rapidgator, keep2share, ...) use collect_links + enqueue_collector instead, so accounts and link checks apply. An address an agent hands in never reaches this machine or the local network: a literal loopback, private or link-local address fails with mirror.internal_address, and a name that resolves there fails the same way when the transfer starts."
     )]
     pub async fn add_downloads(
         &self,
@@ -68,7 +68,9 @@ impl RdMcpServer {
                 // a moment to start the file first (API-09).
                 paused: start_paused,
             };
-            match crate::download_handlers::create_download_inner(&self.state, request).await {
+            match crate::download_handlers::create_download_as(&self.state, request, Some(false))
+                .await
+            {
                 Ok(file) => created.push(AddedDownload {
                     url,
                     download: file.into(),
@@ -182,7 +184,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Pause, resume, cancel or remove downloads by id (bulk, 1-500 ids). remove deletes the list entry; active files are cancelled first."
+        description = "Pause, resume, cancel, remove or reset downloads, by id (bulk, 1-500 ids) or by state: with states instead of ids it acts on every download in those state groups, optionally only of package_id -- e.g. action reset, states [failed, blocked] starts every stuck file over. remove deletes the list entry; active files are cancelled first."
     )]
     pub async fn control_downloads(
         &self,
@@ -192,9 +194,18 @@ impl RdMcpServer {
             Ok(ids) => ids,
             Err(error) => return Ok(api_error(error)),
         };
+        let filter = match control_filter(&params) {
+            Ok(filter) => filter,
+            Err(error) => return Ok(api_error(error)),
+        };
         respond(
-            crate::download_handlers::apply_download_action(&self.state, params.action.into(), ids)
-                .await,
+            crate::download_handlers::apply_download_action_to(
+                &self.state,
+                params.action.into(),
+                ids,
+                filter,
+            )
+            .await,
         )
     }
 
@@ -249,4 +260,19 @@ impl RdMcpServer {
         .await;
         respond(result)
     }
+}
+
+/// The state filter of `control_downloads`, or `None` when it names its files by id.
+fn control_filter(
+    params: &ControlDownloadsParams,
+) -> Result<Option<crate::dto::DownloadBulkFilter>, crate::ApiError> {
+    if params.states.is_empty() && params.package_id.is_none() {
+        return Ok(None);
+    }
+    let package_id = params.package_id.as_deref().map(parse_id).transpose()?;
+    let mut states = Vec::new();
+    for group in &params.states {
+        states.extend_from_slice(group.states());
+    }
+    Ok(Some(crate::dto::DownloadBulkFilter { states, package_id }))
 }

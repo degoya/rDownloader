@@ -28,6 +28,7 @@ pub mod html;
 pub mod http;
 pub mod json;
 pub mod label;
+pub mod messages;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;
 /// PKCE and the small JSON reader every OAuth plugin needs.

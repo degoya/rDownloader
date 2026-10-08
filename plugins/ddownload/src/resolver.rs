@@ -314,13 +314,22 @@ pub(crate) async fn resolve<H: PluginHost>(
     // because the session lapsed or the process has not signed in yet. Sign in and try once
     // more, the way `XFileSharingProBasic.loginWebsite` re-authenticates on a failed cookie
     // check. Exactly once: a second failure is a real one, and this must not become a loop
-    // that hammers the site's login form.
-    if signs_in && no_file_delivered(&transfer) {
+    // that hammers the site's login form. A used-up quota is no lapsed session, and signing in
+    // again would only fetch the same answer (RD-1190-13).
+    if signs_in && no_file_delivered(&transfer) && page::traffic_limit(&transfer.text()).is_none() {
         sign_in(host).await?;
         transfer = premium_transfer(host, &request.url, &code, url_name.as_deref()).await?;
     }
     let disposition = transfer.header("content-disposition").map(str::to_owned);
     if disposition.is_none() && is_html(&transfer) {
+        if let Some(limit) = page::traffic_limit(&transfer.text()) {
+            return Err(Failure::coded(
+                FailureKind::RateLimited(Some(messages::TRAFFIC_EXHAUSTED_WAIT_SECONDS)),
+                messages::TRAFFIC_EXHAUSTED,
+                messages::traffic_exhausted(&limit),
+            )
+            .with_param("limit", limit));
+        }
         let diagnosis = page::diagnose(&transfer.text());
         return Err(Failure::coded(
             FailureKind::AccountInvalid,

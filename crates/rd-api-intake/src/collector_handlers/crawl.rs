@@ -1,7 +1,7 @@
 //! The crawl pass of an intake: folder addresses replaced by the files behind them, and the
 //! login a protected share needs (RD-104-03, RD-108-07).
 
-use super::links::CapturedLink;
+use super::links::{CapturedLink, LinkOrigin};
 use crate::{ApiError, AppState};
 
 /// Replaces every link an installed crawler claims with the files behind it (RD-104-03).
@@ -27,11 +27,13 @@ use crate::{ApiError, AppState};
 ///   with a page (RD-110-07). A rule whose pattern reached one element too far used to put
 ///   the board page itself into the list, and the queue then stored that page under the name
 ///   of an episode. An address the probe could not reach at all is **kept** -- see that
-///   module, and RD-101-06.
+///   module, and RD-101-06. The probe keeps to the address rule of the find itself
+///   ([`LinkOrigin::reach`], RD-150-03): `own_hand` is whether the person handed the intake
+///   over themselves.
 pub(super) async fn expand_crawled_links(
     state: &AppState,
     links: Vec<CapturedLink>,
-    guard: Option<&rd_http::AddressPolicy>,
+    own_hand: bool,
 ) -> Result<Crawled, ApiError> {
     if state.crawlers.is_empty() {
         return Ok(Crawled::untouched(links));
@@ -49,8 +51,14 @@ pub(super) async fn expand_crawled_links(
     // request, and the per-address timeout alone would let a folder of five hundred stalled
     // links hold it open for hours. What the budget does not reach is kept unproven.
     let probe_deadline = std::time::Instant::now() + crate::collector_crawl_verdict::PROBE_BUDGET;
+    // The two rules a find may keep to, built once: listing this machine's addresses is not free.
+    let internet = state.scheduler.remote_address_policy(false);
+    let local_network = state.scheduler.remote_address_policy(true);
     for link in links {
-        if link.request.is_some() || link.body_ref.is_some() {
+        if link.request.is_some()
+            || link.body_ref.is_some()
+            || matches!(link.origin, LinkOrigin::Crawled { .. })
+        {
             expanded.push(link);
             continue;
         }
@@ -73,6 +81,11 @@ pub(super) async fn expand_crawled_links(
                     if expanded.iter().any(|kept| kept.url == crawled.url) {
                         continue;
                     }
+                    let guard = LinkOrigin::Crawled {
+                        by_rule: crawled.by_rule,
+                    }
+                    .reach(own_hand)
+                    .map(|local| if local { &local_network } else { &internet });
                     let verdict = crate::collector_crawl_verdict::verdict(
                         state,
                         &crawled.url,
@@ -127,6 +140,9 @@ pub(super) async fn expand_crawled_links(
     };
     // A list waiting for a choice is not a failure, but there is no batch to answer with
     // either: the answer names the list instead (RD-1170-03).
+    if let Some((rule, page)) = &listed {
+        announce_listed(state, rule, page);
+    }
     if crawled.links.is_empty()
         && let Some((rule, page)) = listed
     {
@@ -163,6 +179,20 @@ pub(super) async fn expand_crawled_links(
         );
     }
     Ok(crawled)
+}
+
+/// Tells the interface that a page waits for a choice (RD-1190-17), whichever way it came in:
+/// a paste in the LinkGrabber hears it from its own answer, but a clipboard copy, the browser
+/// extension or Click'n'Load reach the intake through the capture surface, and the interface
+/// learnt of their list only at the next paste of its own. Live only, like a captcha signal:
+/// the list itself lives in memory and a replay after a restart would name a list that is gone.
+fn announce_listed(state: &AppState, rule: &str, page: &rd_plugin_ext::PickSummary) {
+    state.database.broadcast(rd_core::EventEnvelope::new(
+        rd_core::EventKind::CollectorChanged,
+        serde_json::json!({
+            "pick_listed": { "list": page.id, "entries": page.entries, "rule": rule }
+        }),
+    ));
 }
 
 /// What the crawl pass produced: the links that survived it, and the count it owes the caller.

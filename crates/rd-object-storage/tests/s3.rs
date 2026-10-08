@@ -313,6 +313,7 @@ impl Harness {
                 session_token_ref: None,
                 checksums: false,
                 enabled: true,
+                ambient_custom_endpoint: false,
             })
             .await
             .expect("profile");
@@ -638,6 +639,7 @@ async fn a_live_service_serves_a_download() {
             session_token_ref: None,
             checksums: true,
             enabled: true,
+            ambient_custom_endpoint: false,
         })
         .await
         .expect("profile");

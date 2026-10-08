@@ -14,10 +14,10 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use pcloud_common::address::Region;
-use rd_core::{AccountId, Failure, FailureKind};
 use rd_plugin_api::{
     ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, Resolver, ResolverHost,
 };
+use rd_plugin_types::{AccountId, Failure, FailureKind};
 
 use super::PCloudResolver;
 
@@ -234,7 +234,10 @@ async fn an_own_file_is_resolved_through_stat_checksumfile_and_getfilelink() {
     // Europe answers `sha256`, the United States `md5`; both answer `sha1`. The strongest on
     // offer is what travels to the verifier.
     let checksum = resolved.checksum.expect("a checksum");
-    assert_eq!(checksum.algorithm, rd_core::ChecksumAlgorithm::Sha256);
+    assert_eq!(
+        checksum.algorithm,
+        rd_plugin_types::ChecksumAlgorithm::Sha256
+    );
     assert_eq!(
         checksum.value,
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

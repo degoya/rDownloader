@@ -4,8 +4,6 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
-import { api } from '@/api/client'
-import type { Category } from '@/api/types'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import CollectorCandidateRow from '@/components/CollectorCandidateRow.vue'
 import CollectorHosterFilter from '@/components/CollectorHosterFilter.vue'
@@ -37,6 +35,7 @@ import { usePackageOpenState } from '@/composables/usePackageOpenState'
 import { useQueueColumns } from '@/composables/useQueueColumns'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
+import { useCategories } from '@/stores/categories'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { usePublishedSelection } from '@/stores/selection'
@@ -50,7 +49,7 @@ const toast = useToast()
 const copyLinks = useCopyLinks()
 const { t } = useI18n()
 
-const categories = ref<Category[]>([])
+const { categories, fetchCategories } = useCategories()
 const { importing: importingFiles, importFiles } = useFileImport(categories)
 const bulkBusy = ref(false)
 const sort = ref<CollectorSort>('manual')
@@ -176,7 +175,7 @@ onMounted(() => {
   void handleSharedLinks()
   // A pending import request (cross-route drop handoff, `n` shortcut) must wait for categories
   // to load first, otherwise openNzbImport() snapshots an empty list into the open modal.
-  void loadCategories().finally(handlePendingImportRequest)
+  void fetchCategories().finally(handlePendingImportRequest)
 })
 
 // The queue's copies of these links (RD-150-01), asked again whenever the address list changes.
@@ -220,11 +219,6 @@ async function handleSharedLinks(): Promise<void> {
 function handlePendingImportRequest(): void {
   const request = consumeFileImportRequest()
   if (request) void importFiles(request.files)
-}
-
-async function loadCategories(): Promise<void> {
-  const response = await api.GET('/api/v1/categories')
-  if (response.data) categories.value = response.data
 }
 
 async function addLinks(): Promise<void> {

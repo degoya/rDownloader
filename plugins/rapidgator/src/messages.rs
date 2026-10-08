@@ -203,5 +203,5 @@ pub(crate) fn api_error(status: i64, message: &str) -> String {
 }
 
 pub(crate) fn http_error(status: u16) -> String {
-    format!("Rapidgator HTTP status {status}")
+    plugin_common::messages::http_error("Rapidgator", status)
 }

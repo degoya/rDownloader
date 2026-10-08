@@ -1,5 +1,6 @@
 {
   "name": "Rapidgator",
+  "description": "Löst Rapidgator-Links mit einem Premium-Konto auf, oder ohne eines über den kostenlosen Ablauf.",
   "account": {
     "secret_label": "Kontopasswort",
     "secret_hint": "Gib deine Konto-E-Mail als Benutzer und dein Passwort als Secret ein."

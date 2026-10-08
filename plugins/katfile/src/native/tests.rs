@@ -14,11 +14,11 @@
 
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
 };
+use rd_plugin_types::AccountId;
 use url::Url;
 
 use super::KatfileResolver;
@@ -256,7 +256,7 @@ async fn check_account_reports_premium_with_traffic_and_the_exact_request() {
     // `is_some()` is what let this go unnoticed until an account with 112 GiB left was shown
     // as "112 KiB", so the expected value is spelled out.
     assert_eq!(
-        status.traffic_left.map(rd_core::ByteCount::get),
+        status.traffic_left.map(rd_plugin_types::ByteCount::get),
         Some(1_048_576 * 1024 * 1024)
     );
 
@@ -352,7 +352,10 @@ async fn check_account_reports_account_invalid_for_401() {
         .check_account(AccountId::new())
         .await
         .expect_err("401 must fail");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(failure.code.as_deref(), Some("katfile.http_error"));
 }
 
@@ -366,7 +369,7 @@ async fn check_account_reports_rate_limited_for_429() {
         .expect_err("429 must fail");
     assert_eq!(
         failure.category,
-        rd_core::FailureKind::RateLimited {
+        rd_plugin_types::FailureKind::RateLimited {
             retry_after_seconds: None
         }
     );
@@ -436,7 +439,7 @@ async fn check_account_without_secret_or_cookies_makes_no_requests() {
         .check_account(AccountId::new())
         .await
         .expect_err("missing credentials must fail");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("katfile.cookie_session_required")

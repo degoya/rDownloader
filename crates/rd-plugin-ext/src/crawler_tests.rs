@@ -131,7 +131,7 @@ async fn a_crawler_that_disclaims_an_address_passes_it_on() {
     ]);
     let outcome = crawlers.expand(&address(), &HashMap::new()).await;
     assert!(
-        matches!(outcome, CrawlOutcome::Links(ref links) if links.len() == 1),
+        matches!(outcome, CrawlOutcome::Links(ref links) if links.len() == 1 && !links[0].by_rule),
         "the second crawler's files, not the first one's refusal: {outcome:?}"
     );
     assert_eq!(
@@ -234,6 +234,7 @@ fn found(url: &str) -> CrawledLink {
         package_hint: None,
         mirror: None,
         login,
+        by_rule: false,
     }
 }
 
@@ -392,8 +393,8 @@ async fn a_rule_answers_before_the_generic_crawlers_and_names_the_package() {
     assert!(
         links
             .iter()
-            .all(|link| link.package_hint.as_deref() == Some("Show S01")),
-        "every link carries the rule's package name: {links:?}"
+            .all(|link| link.package_hint.as_deref() == Some("Show S01") && link.by_rule),
+        "every link carries the rule's package name and its origin: {links:?}"
     );
     assert_eq!(*asked.lock().expect("asked"), vec!["the-rule".to_owned()]);
     assert!(

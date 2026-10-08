@@ -2,7 +2,7 @@ use chrono::{DateTime, TimeZone, Utc};
 
 use super::{
     Activity, QueueEntries, QueueMenu, Summary, TOOLTIP_LIMIT, describe, format_duration,
-    format_rate, pause_end, status_line, tooltip,
+    format_rate, pause_end, status_line, tooltip, traffic_hold,
 };
 
 fn summary(active: u32, queued: u32, failed: u32, committed: u64, total: u64) -> Summary {
@@ -17,6 +17,8 @@ fn summary(active: u32, queued: u32, failed: u32, committed: u64, total: u64) ->
         paused: 0,
         paused_until: None,
         queue_control: false,
+        traffic_held_accounts: 0,
+        traffic_next_check: None,
     }
 }
 
@@ -347,6 +349,8 @@ fn the_longest_line_the_agent_can_build_still_fits_the_windows_tooltip() {
         paused: u32::MAX,
         paused_until: Some(at(23, 59) + chrono::Duration::days(20)),
         queue_control: true,
+        traffic_held_accounts: u32::MAX,
+        traffic_next_check: Some(at(23, 59) + chrono::Duration::days(20)),
     })
     .detail;
     let host = "a".repeat(253);
@@ -390,4 +394,32 @@ fn a_byte_count_that_is_not_a_number_is_reported_rather_than_zero() {
     )
     .expect("a JSON number is a byte count too");
     assert_eq!(number.total_bytes, 8192);
+}
+
+/// RD-1190-14: an account whose traffic is used up holds downloads back without anybody
+/// pressing pause, so the line says so and when the account is checked next — without its
+/// name, which a capture token does not see.
+#[test]
+fn the_line_names_used_up_account_traffic_and_its_next_check() {
+    let now = at(12, 0);
+    let mut figures = summary(0, 3, 0, 0, 0);
+    figures.traffic_held_accounts = 1;
+    figures.traffic_next_check = Some(at(12, 15));
+    assert_eq!(
+        traffic_hold(figures, &now),
+        "account traffic used up, next check 12:15"
+    );
+    figures.traffic_held_accounts = 2;
+    figures.traffic_next_check = None;
+    assert_eq!(traffic_hold(figures, &now), "2 accounts' traffic used up");
+
+    let idle = Summary {
+        traffic_held_accounts: 1,
+        ..summary(0, 0, 0, 0, 0)
+    };
+    assert_ne!(
+        describe(idle).detail,
+        "no transfers",
+        "a held account is something to say"
+    );
 }

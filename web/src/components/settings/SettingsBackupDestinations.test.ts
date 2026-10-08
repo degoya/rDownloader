@@ -1,7 +1,8 @@
 /**
  * The full backup's destinations (RD-160-02): each kind sends only its own fields, the
  * retention preview asks with the rules being typed and deletes nothing, "verify newest" checks
- * the newest archive of that destination, and a failed verification says why in words.
+ * the newest archive of that destination, and a failed verification says why in words; a passed
+ * one says it used the stored key.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -156,5 +157,13 @@ describe('SettingsBackupDestinations', () => {
       params: { path: { id: 'a9' } }
     }))
     await waitFor(() => expect(screen.getByTestId('backup-verifications').querySelectorAll('li')).toHaveLength(2))
+  })
+
+  it('says a passed check used the stored key, and offers the passphrase (RD-1190-19)', async () => {
+    answer([{ ...FAILED_CHECK, state: 'passed', content_checked: true, error_code: null, error_detail: null }])
+    mounted()
+    const history = await screen.findByTestId('backup-verifications')
+    expect(history.textContent).toContain(en.stored_key)
+    expect(screen.getByText(en.passphrase_check.action)).toBeTruthy()
   })
 })

@@ -17,6 +17,7 @@
 #![warn(unreachable_pub)]
 
 mod connect;
+mod endpoint;
 pub mod error;
 mod folder;
 mod listing;
@@ -28,6 +29,7 @@ mod upload;
 use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
+use futures_util::StreamExt;
 use object_store::{GetOptions, path::Path};
 use rd_core::{
     ByteCount, Failure, FailureKind, ObjectAddress, ObjectCredentialSource, ObjectStorageProfile,
@@ -37,6 +39,7 @@ use rd_db::Database;
 use rd_secrets::SecretStore;
 use secrecy::SecretString;
 
+pub use endpoint::ENDPOINT_REFUSED;
 pub use folder::{
     FOLDER_BUCKET_INVALID, FOLDER_NAME_INVALID, FOLDER_PROFILE_MISSING, FolderObject, ObjectFolder,
 };
@@ -60,6 +63,9 @@ pub const ACCOUNT_KEY_INVALID: &str = "object_storage.account_key_invalid";
 pub const SAS_INVALID: &str = "object_storage.sas_invalid";
 /// Stable code of a Google service account key that is not the console's JSON key file.
 pub const SERVICE_ACCOUNT_INVALID: &str = "object_storage.service_account_invalid";
+/// Stable code of a profile that would send the machine's own credentials to a custom endpoint
+/// nobody confirmed (RD-1190-20).
+pub const AMBIENT_ENDPOINT_UNCONFIRMED: &str = "object_storage.ambient_endpoint_unconfirmed";
 
 /// Why a secret typed on the settings page cannot sign for its provider, as a stable code.
 ///
@@ -167,6 +173,11 @@ impl ObjectStorageService {
         if let Some(store) = &self.fixture {
             return Ok(Ok(store.clone()));
         }
+        // Before a secret is read: an endpoint the address rule refuses gets nothing.
+        let dns = match endpoint::guard(profile).await {
+            Ok(dns) => dns,
+            Err(failure) => return Ok(Err(failure)),
+        };
         let secret = self.secret(profile.secret_ref.as_deref()).await?;
         let session_token = self.secret(profile.session_token_ref.as_deref()).await?;
         let (proxy, custom_ca_pem) = self.network_settings().await?;
@@ -178,6 +189,7 @@ impl ObjectStorageService {
             proxy,
             custom_ca_pem: &custom_ca_pem,
             timeout: self.timeout(),
+            dns,
         });
         Ok(opened.map_err(|error| match error {
             OpenError::Endpoint => Failure::coded(
@@ -201,6 +213,11 @@ impl ObjectStorageService {
                 "This build has no connector for the profile's provider",
             )
             .with_param("provider", profile.provider.as_str()),
+            OpenError::AmbientEndpoint => Failure::coded(
+                FailureKind::AuthRequired,
+                AMBIENT_ENDPOINT_UNCONFIRMED,
+                "The machine's credentials go to a custom endpoint only when the profile allows it",
+            ),
             OpenError::Other => Failure::coded(
                 FailureKind::Permanent,
                 error::REQUEST_FAILED,
@@ -314,9 +331,10 @@ impl ObjectStorageService {
 
     /// Checks that a profile reaches its bucket and signs acceptably, for the settings page.
     ///
-    /// Lists one page of the bound bucket, the cheapest request that needs both. A profile
-    /// bound to no bucket has nothing to test against; saying so beats testing a bucket
-    /// somebody else owns.
+    /// Asks for the first page of the bound bucket's listing, the cheapest request that needs
+    /// both, and reads no further: a bucket of millions of keys costs one request, not all of
+    /// its pages (RD-1190-20). A profile bound to no bucket has nothing to test against; saying
+    /// so beats testing a bucket somebody else owns.
     pub async fn test_profile(&self, profile: &ObjectStorageProfile) -> Result<Option<Failure>> {
         let Some(bucket) = profile.bucket.as_deref() else {
             return Ok(Some(Failure::coded(
@@ -329,11 +347,9 @@ impl ObjectStorageService {
             Ok(store) => store,
             Err(failure) => return Ok(Some(failure)),
         };
-        Ok(store
-            .objects
-            .list_with_delimiter(None)
-            .await
-            .err()
+        let first = store.objects.list(None).next().await;
+        Ok(first
+            .and_then(Result::err)
             .map(|error| error::classify(&error, bucket)))
     }
 }

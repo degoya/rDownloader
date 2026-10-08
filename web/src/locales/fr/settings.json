@@ -361,6 +361,10 @@
         "move_down": "Descendre",
         "replacement_empty": "(supprimer)"
       }
+    },
+    "mcp_scripts_allowed": {
+      "label": "Les assistants IA (MCP) peuvent définir des scripts",
+      "description": "Désactivé par défaut. Activé, un outil MCP peut attribuer à un paquet, une catégorie ou une automatisation un script du dossier des scripts et choisir le script de fin et de reconnexion. Seul ce réglage le permet ; aucun outil ne peut le modifier."
     }
   },
   "appearance": {
@@ -1147,5 +1151,16 @@
         "failed": "Le système a refusé d'enregistrer les raccourcis."
       }
     }
+  },
+  "account_traffic": {
+    "label": "Quand le trafic d’un compte est épuisé",
+    "description": "Quand un hébergeur signale que le quota d’un compte est épuisé, ses fichiers attendent. rDownloader vérifie le compte toutes les 15 minutes et reprend de lui-même dès qu’il y a de nouveau du trafic ou que l’attente de l’hébergeur se termine. Une pause que vous avez définie vous-même reste en place.",
+    "nothing": "Ne rien faire – seuls les fichiers concernés attendent",
+    "pause_account": "Suspendre les téléchargements de ce compte",
+    "pause_queue": "Mettre toute la file d’attente en pause",
+    "overrides_label": "Par compte",
+    "overrides_description": "Un compte peut faire autre chose que la valeur par défaut ci-dessus.",
+    "inherit": "Comme par défaut",
+    "held": "Trafic épuisé · prochaine vérification {time}"
   }
 }

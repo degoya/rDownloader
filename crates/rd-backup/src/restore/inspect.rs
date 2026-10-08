@@ -189,6 +189,8 @@ pub async fn unpack(archive: &Path, key: BackupKey, into: &Path) -> Result<Manif
     let into = into.to_path_buf();
     tokio::task::spawn_blocking(move || -> anyhow::Result<Manifest> {
         std::fs::create_dir(&into)?;
+        // The unpacked database is a plain copy; the owner's alone (RD-1190-22).
+        rd_files::restrict_to_owner(&into)?;
         archive::extract_archive(&archive, &key, &into)
     })
     .await

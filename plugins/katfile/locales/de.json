@@ -1,5 +1,6 @@
 {
   "name": "KatFile",
+  "description": "Löst KatFile-Links über alle Mirror-Domains auf.",
   "account": {
     "secret_label": "API-Key",
     "secret_hint": "Gib deinen API-Key als Secret ein oder importiere stattdessen die Cookies einer angemeldeten Premium-Session."

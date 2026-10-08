@@ -5,6 +5,248 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-10-08
+
+### Added
+
+- **Threat models for the surfaces since 1.5 (RD-1190-12, DOC-05).** `docs/security/` gains
+  `capture-agent.md` (clipboard, tray, shortcuts, the agent's token, the `X-Referer` preflight),
+  `mcp.md`, `backup.md`, `object-storage.md` and `site-rules.md`, each with assets, actors, entry
+  points, trust boundaries, threats with the code and the tests that prove them, and the open
+  findings of the review of 2026-10-08 with a proposed job each; `capture.md` points to the agent
+  model, `docs/README.md` indexes the five.
+
+- **Used-up account traffic holds the account or the queue and continues by itself
+  (RD-1190-14).** A `rate-limited` failure coded `*.traffic_exhausted` (DDownload, Keep2Share,
+  Nitroflare) holds its account (`rd_scheduler::account_traffic`): settings
+  `account_traffic_action` (`nothing` | `pause_account`, default | `pause_queue`) and
+  `account_traffic_overrides` per account. The hold ends with the hoster's wait or when an
+  account check (every 15 min, or *Test*) reports traffic; a pause somebody set is never lifted,
+  a start by hand lets go. `GET /queue/pause` and `get_queue_pause` name the held accounts, the
+  capture summary counts them for the tray; the web shows it at the pause control, the account
+  list and *Settings → General*.
+
+- **Reset failed and blocked files in one click (RD-1190-15).** `POST /api/v1/downloads/bulk`
+  takes `filter: { states, package_id? }` in place of `ids` (one of the two; a filter is not bound
+  by the 500 ids, an unknown package is `404`, ids beside a filter or a filter without a state
+  `400 request.bulk_filter`); MCP `control_downloads` takes `states` and `package_id`. The
+  Downloads header has *Reset failed* (failed / blocked / both over the filtered list, asking by
+  state unless a name search narrows it), and a package's menu resets its failed and blocked files.
+
+- **View-only sort of the download list (RD-1190-16).** The column labels sort packages and files
+  by name, state, progress, size or category (asc, desc, off), kept per browser
+  (`rdownloader-queue-sort-downloads`); a notice says the queue is unchanged and leads back, and
+  the drag handles are hidden and the moves refused while sorted. Web only.
+- **Series pick after the owner's 1.18.0 test (RD-1190-17).** A pick list no longer vanishes:
+  the capture agent took the intake's `site_rules.pick_waiting` for a failure and handed the
+  clipboard over again with backoff, every repeat listed the page anew, and `PickBoard::add`
+  replaced the list under a new id. The agent (`client::Submitted::PickWaiting`, clipboard and
+  Click'n'Load) and the extension (`submitCapture`) now take it as a success with a notification;
+  the board keeps one list per page and its id when the page is listed again (progress carried
+  per identical entry), and remembers why a list left (`PickGone`: `discarded`, `evicted`), which
+  `site_rules.pick_not_found` names as `params.reason`. A listing from any intake is broadcast as
+  `collector.changed` with `pick_listed`: the LinkGrabber opens its drawer, elsewhere a toast
+  leads there. *Fetch* on a vanished list lists the page again and fetches the same releases;
+  *Stop*/*Discard* of one close quietly; the drawer sits outside the header and closes with the
+  last list instead of being unmounted while open. The captcha dialog lies above every drawer
+  (`z-[60]`). The rule editor's trial field shows a neutral example, never the probe. The shipped
+  `warez-cx` rule (version 2, pack sequence 9) offers the choice too, with *Take all*; a picked
+  entry keeps the rule's mirror sets (`FolderCrawlers::picked_links`, `collector_intake_crawled`).
+
+### Changed
+
+- **Web hygiene (RD-1190-09: WEB-1, WEB-3, WEB-4, WEB-6; WEB-5 checked, no code).** The update
+  offer's changelog, release and download links go through `safeHttpUrl` (`offerLinks` in
+  `api/updates.ts`), like every other external link. Categories, accounts, proxy profiles and the
+  settings document are read through shared Pinia stores (`stores/sharedRead.ts`; `useCategories`,
+  `useAccounts`, `useProxyProfiles`, `useSettingsStore`): components that open together share one
+  request, and a list a component shows is re-read on `category.changed`, `account.changed` or
+  `proxy.changed` while it is mounted; the read-modify-writes of the settings document and the
+  wizard's default category keep their own fresh read. Ten exports used only in their own file
+  lost `export`; the audit export button carries `:to` alone.
+
+- **Plugins: translations, notes, one HTTP text, counts (RD-1190-10, audit PL-05/06/07/11).** The
+  eleven plugins whose `description` was English only carry it in de/es/fr, and
+  `bundled_locales.rs` asserts `name` and `description` in every required language;
+  `plugin-release-notes.sh --check` covers the three examples too, which now have their
+  `CHANGES.md`; `plugin_common::messages::http_error` writes the "<provider> HTTP status <n>" text
+  that 22 plugins each formatted themselves (`HttpWords` was already used wherever a plugin names
+  the refusal classes); `docs/architecture.md` says 72 packaged, 69 bundled. `ddownload`'s
+  translations ride on RD-1190-13's version: `alldebrid`, `debridlink`, `linksnappy`,
+  `nitroflare` and `rapidgator` 0.7.14, `filejoker` 0.7.17, `katfile` 0.9.17, `keep2share` 0.7.14,
+  `onefichier` 0.7.15, `premiumize` 0.7.16, `krakenfiles`, `putio`, `putio-transfers`, `seedr`
+  and `torbox` 0.1.13, `seedr-jobs` 0.1.12, `mediafire` and `mediafire-crawler` 0.1.12,
+  `realdebrid`, `premiumize-transfers` and `torbox-jobs` 0.2.10, `realdebrid-torrents` 0.2.9.
+
+- **The developer documentation matches the tree again (RD-1190-11).** `docs/architecture.md` has
+  a section for each of the 51 crates — new ones for `rdownloader`, `rd-plugin-ext`,
+  `rd-plugin-transfer`, `rd-provider-registry`, `rd-transfer-file` and `rd-webdav` — a sentence
+  for each module the 2026-10-08 audit found missing in `rd-core`, `rd-scheduler`,
+  `rd-api-intake` and `rd-api-mcp`, the archive password on the tool's command line as a named
+  trade-off, the renumbered ids beside the old ones, and the post-processing paragraph a merge had
+  left twice as one; the roadmap's head names 1.18.0, `AGENTS.md` names the `handoff` skill, the
+  docs index lists `extension-store.md` and `audit-2026-10-08.md`, `scripts/README.md`
+  `generate-icons.sh`, the 1.18.0 section the `doc-facts` fix, and RD-1120-18's head what is
+  still open.
+
+- **At most 500 lines per file, held by three ratchets (RD-1190-07: DOC-13, CORE-05, CORE-08,
+  CORE-09, WEB-2; TR-06 done by RD-1190-04).** `repo_lints/file_length.rs` (Rust),
+  `web/src/fileLength.test.ts` (web and extension) and `scripts/tests/file-length.sh` (scripts)
+  list the 74, 10 and 0 test files over the limit with their counts, which may only shrink, and
+  the three production tables that stay whole with their reasons (the settings DTO, the scope
+  table, the MCP coverage table); `AGENTS.md` and `docs/development.md` state the rule. Pure moves:
+  rd-core's shortcut grammar to `capture_shortcut.rs` (`capture_agent.rs` 587 → 268 lines),
+  rd-extract's `UnpackTarget` to `unpack_target.rs` (`unpack_job.rs` 502 → 447), the site rule
+  draft to `web/src/utils/siteRuleDraft.ts` (`useSiteRules.ts` 539 → 186), each re-exported from
+  the old path. The recount of unreferenced `pub fn` outside rd-core found one dead,
+  `PersistenceProbe::containerized`, removed; `rd_scheduler::mirrors::is_local` and
+  `Database::set_download_transform_key_ref`, used only in their own file, are `pub(crate)`.
+
+- **The plugin contract's types have a crate of their own (RD-1190-08, CORE-06; CORE-09's rd-core
+  half).** `rd-plugin-types` holds what a plugin names — `Failure`, `FailureKind`,
+  `MessageParams`, `AccountId`, `PluginId`, `ProxyProfileId`, `ByteCount`, `ChecksumAlgorithm`,
+  `LinkStatus`, `MAX_RETRY_AFTER_SECONDS` and `PluginLinkCheck`, the media-less answer of
+  `Resolver::check` that `rd-core` turns into a `LinkCheckResult` — moved unchanged and
+  re-exported from `rd-core`; `rd-plugin-api` and the 28 plugin crates that named `rd-core`
+  depend on it instead, so a change to the service's own types rebuilds no plugin crate and no
+  longer sends the component check after every plugin. `no_plugin_links_rd_core` in
+  `repo_lints/plugin_crate_versions.rs` keeps it so. No WIT change, no component change expected.
+  In rd-core, `is_noop` is `#[cfg(test)]`, `to_netscape` and `SeedTimeLimit::from_minutes` are
+  `pub(crate)`, and `failpoint::arm_after`/`disarm` are private to `FailpointGuard`.
+
+### Fixed
+
+- **The smaller open findings of the five threat models (RD-1190-22).** An API token on
+  `/api/v1/collector/batches` can no longer claim `manual` (recorded like the capture door).
+  Capture agent: no `--token` on the connecting commands, a plain-http `--service` refused,
+  Click'n'Load at most 30 hand-overs a minute (`cnl_rate_limited`) with the package name cut to
+  200 and a password over 1024 refused, the fallback token file narrowed before the write. `/mcp`
+  refuses a foreign `Origin` on every method; a revoked token's MCP session is tested. Backup:
+  staging, verification and restore folders private (`rd_backup::private_folder`), a 1 GiB
+  free-space reserve for restore uploads and the unpack (`backup.restore_no_space`), member names
+  without Windows device names or a trailing dot or space, hostile-archive tests. Site rules: the
+  captcha page held to the rule's hosts, package names cut to 200, the trial run's probes under
+  the address rule, `device_id` derived per rule, at most 64 waiting manual captchas
+  (`captcha.queue_full`). The rest is recorded in `docs/security/*.md` as a residual risk or a
+  proposed job.
+- **Resume correctness: length, validator, mirror chunks (RD-1190-01, TR-01 … TR-04).** A
+  `Content-Range` total other than the planned length is `RemoteChanged` (`206` and a described
+  `200`), and a resume without `ETag`/`Last-Modified` continues only when that total confirms the
+  same length. Without a whole-file or piece hash an FTP/SFTP mirror serves only chunks read from
+  byte 0 (`MultiSourceRequest::whole_file_hash`, code `mirror.offset_unverified`; the scheduler
+  plans a set led by one as a single chunk), since a server that acknowledges `REST` and sends
+  from 0 wrote the head at the chunk's offset unnoticed. A failed `MDTM` is logged, and a
+  recorded timestamp the server no longer reports refuses the FTP/SFTP resume. New
+  `rd-http/tests/resume_refusals.rs` pins 412, 416, `200` after `If-Range` and a foreign
+  `Content-Range`; `rd-ftp`'s harness moved to `tests/transfer/harness.rs`.
+- **Event bus and silent error paths (RD-1190-02).** A consumer that falls behind a burst no
+  longer loses what is still buffered: `Database::follow` hands out a `Follower` that replays by
+  sequence number after `Lagged` (the notification hub uses it), and the link check keeps its
+  last 1024 finished batches so the subscription auto-queue catches up the same way
+  (`follow_completed`); `Lagged` now means only what fell out of the buffer as well (CORE-01).
+  A third-party repository's withdrawals wait for the next refresh with a warning when the
+  delivery record cannot be read, instead of each being dropped as "not delivered here" (PL-03).
+  Warnings for an intake parser whose `mirror-sets` export does not type (PL-04), an unreadable
+  stored shortcut report (API-03) and an archive volume that does not move to its unpack state
+  (TR-09); the reconnect logs how many downloads it resumed (API-05); a second preload of the
+  auth providers or attach of the cache checkers trips a `debug_assert!` (API-06); a multipart
+  upload with a part lacking its id fails instead of completing with an empty ETag (TR-10).
+- **Plugin sandbox and redaction (RD-1190-03, PL-01/02/09/10).** A plugin store caps every table
+  at 10 000 elements (`MAX_TABLE_ELEMENTS`; table storage is outside `memory_bytes`), so a
+  `table.grow` loop traps instead of taking host memory. Every secret and user name the host
+  expands into a plugin request is remembered for the log redaction (task-local
+  `with_expanded_credentials`), so a provider echoing it no longer reaches the log through
+  `host::log`; remembered values are kept once. Site rules take at most 32 steps (and 32 in
+  `groups`) and patterns of at most 1024 characters, compiled within 2 MiB instead of 10 MiB.
+  Conformance replaces the always-passing `locales` check with `locales_required` (a shipped
+  de/es/fr catalogue carries every English code) and asks crawlers about foreign links
+  (`claims_url`), and its module text no longer promises a check it does not make.
+- **Paths and processes (RD-1190-04, audit 2026-10-08).** `collision_free_path` treats a dangling
+  symlink as taken (`symlink_metadata`, not `exists()`); a nameless package's folder is `package`,
+  no longer `Paket`, and `repo_lints/no_german` also catches a short list of German words without
+  an umlaut. yt-dlp and gallery-dl run under `rd_tools::SILENCE_LIMIT` (30 minutes without a
+  stdout line → killed, the retryable time-limit failure). `activation::read` refuses a pointer
+  whose version fails `validate_segment`. Script interpreters from `PATH` are a named exception to
+  the vendor-folder rule. `names.rs` and `process.rs` tests moved to `*_tests.rs`.
+- **API hardening and tests (RD-1190-05).** `managed_tools_manifest_url` and
+  `torrent_ip_blocklist_url` cost `api:admin` like the other addresses the service fetches from
+  on its own (`privileged_change`, 26 fields; the MCP `update_settings` description names them).
+  The capture agent's clipboard switch (`POST /api/v1/capture/clipboard`) leaves a
+  `settings_changed` record under its capture token, as the settings page's switch does. New
+  tests: the `intake` suite `collector_picks` for the six `/api/v1/collector/picks` routes,
+  `scope_matrix::a_config_token_cannot_change_where_the_service_fetches_from`,
+  `capture_agent_settings::the_trays_switch_is_audited_under_its_capture_token`, Vitest for the
+  stores `history`, `indexers`, `postprocess`, `sitePicks`, `subscriptionsItems` and `torrents`,
+  and `extension/test/sender.test.mjs` for the extension's sender check.
+- **Pipeline and release chain (RD-1190-06).** The release evidence markers carry `tree=`; a
+  `--resume` over a tree that changed since the stop runs every step after `preflight` again, so
+  `sign-plugins` and the packages are never kept from before a fix (PIPE-09). A preflight green no
+  longer covers the documentation its own checks read (`RD_PREFLIGHT_DOCS_PATTERN`, PIPE-04);
+  `docker-tools.sh`'s check is one of `check.sh`'s file checks (PIPE-05); the Scoop installer in CI
+  is fetched at a pinned commit and SHA-256 (PIPE-06); the release counts cargo processes by name
+  instead of `pgrep` over command lines (PIPE-01); `build-plugins.sh` back under 500 lines
+  (PIPE-02); `generate-icons.sh` runs under bash with `pipefail` (PIPE-03).
+- **The address rule on every way a stranger chooses an address (RD-1190-18, SSRF).** One
+  decision, `LinkOrigin::reach`: a link is the person's own only from `manual` or a hot folder;
+  from Click'n'Load, the clipboard (no longer the person's own hand), the extension or a tool it
+  keeps to RD-150-03 through check and transfer. `/api/v1/capture/batches` pins the source by the
+  way in (`manual` and the service-only sources become `api`). A site rule's find
+  (`CrawledLink::by_rule`, pick results too) keeps to the public internet whoever pasted the page;
+  a crawler plugin's find never reaches this machine. MCP `add_downloads` refuses a literal
+  inward address with `mirror.internal_address` and writes a source row for the rest
+  (`PackageOptions::address_reach`). An object storage endpoint keeps to
+  `entered_address_policy` at save, at open and at connect time (`object_storage.endpoint_refused`);
+  *Test* tells only the person and `api:admin` why it failed (`object_storage.test_failed`).
+  Tests in `intake::address_rule`, `mcp::address_rule`, `rd-object-storage` and the crates' units.
+- **Restore and settings import only with a fresh sign-in; the restore checks its archive
+  (RD-1190-19, backup review R1–R6).** `POST /backups/restore` and `POST /settings/import` take a
+  signed-in session and the password again (`password` in the body; `rd_api_core::step_up`, moved
+  down from `rd-api-access`, `require_confirmed`): a bearer token gets `403
+  auth.step_up_session_required`, a wrong password `401` through the sign-in limiter; with the
+  login off for this machine nothing is asked. A restore from a run compares the run's size and
+  SHA-256 (`backup.restore_archive_changed`); the unpacked database passes `PRAGMA
+  integrity_check` (`backup.restore_database_damaged`) and, after its migrations, must hold
+  exactly this build's schema objects (`restore_copy::foreign_schema_objects`,
+  `backup.restore_schema_foreign`); hot folders and package folders of the copy, and the import's
+  daemon hot folders, are held to the protected directories (`backup.restore_path_protected`,
+  `hotfolder.protected_directory`). `copy_verified` writes its temporary copy with `create_new`
+  instead of `tokio::fs::copy`, which followed a link planted under the predictable name. The
+  verification list says it used the stored key; *Verify with passphrase* opens the newest
+  archive with the passphrase. MCP stays omitted. Tests:
+  `restore_step_up::{a_restore_and_an_import_take_a_session_and_the_password,
+  an_older_archive_under_a_runs_name_is_refused,
+  a_damaged_database_copy_is_refused_before_anything_is_staged}`, `restore_copy::tests`,
+  `verified_move::tests::a_link_under_the_temporary_name_is_not_written_through`.
+- **Object storage credentials bound to their endpoint (RD-1190-20, `docs/security/object-storage.md`
+  findings 2–7).** An update that changes a profile's endpoint or Azure account keeps no stored
+  secret or session token (`object_storage.secret_required`; the form says so and asks again). An
+  `ambient` profile with an endpoint needs `ambient_custom_endpoint` (migration 0132), refused
+  without it on save and before any connect (`object_storage.ambient_endpoint_unconfirmed`). A
+  profile bound to a bucket serves that bucket only — as a link hint `s3://<profile>@<other>`,
+  as upload target and as backup folder — and an `object-storage:` target is checked against the
+  profiles when settings or a category are saved (`object_storage.upload_target_*`). The prefix
+  walk counts every object seen, skipped keys included; *Test* reads one listing page. Profile
+  create/update/delete is audited (`object_storage_profile_changed`). Canaries plant an Azure SAS
+  and a Google service account key; new suite `admin::object_storage_profiles`.
+- **MCP: script tools, third parties' text, webhook masks (RD-1190-21).** No tool names a script
+  (package, LinkGrabber package, category, automation action, completion and reconnect script) that
+  its target does not carry unless the new setting `mcp_scripts_allowed` (default off; REST needs
+  `api:admin`, `update_settings` refuses it with `mcp.setting_outside_mcp`) allows it, else
+  `mcp.script_not_allowed`. The answers of 45 tools that quote third parties end with an
+  `[untrusted content]` block, said in their descriptions and the server instructions. The eight
+  clearing tools ask first and act only on the single-use, per-session `confirmation` code their
+  question handed out. Webhook keys in a path are masked (`webhook_mask.rs`), destination
+  addresses are answered without path and query; rmcp's body limit is the outer 65 MiB instead of
+  4 MiB; `rd-api/src/mcp_handler_tests.rs` holds each tool to its priced route's handler.
+
+- **A used-up DDownload premium quota waits instead of blocking; packages with missing files are
+  neither finished nor unpacked (RD-1190-13).** The limit page ("You have reached the
+  download-limit: … for last 1 days") is `rate-limited` (1 h) with `ddownload.traffic_exhausted`
+  instead of `account-invalid` (ddownload 0.10.21). Post-processing of a non-Usenet package starts
+  only when every file is completed, skipped or cancelled (`rd_extract::completion`), a run with a
+  missing file never ends `Completed`, `packageComplete` reads the files, and the package row says
+  it waits for missing files.
+
 ## [1.18.0] - 2026-10-08
 
 1.17 was not released on its own (owner, 2026-10-08): its work ships here with 1.18.
@@ -75,6 +317,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   1.16.1; each request now times out after 30 s, an attempt after 3 minutes, and three attempts
   end the step with an error. The shared `rust-tests-cache` action installs `mold` the same way,
   after the same stall held a CI job for 45 minutes.
+- **The documented MCP tool count is right again.** `scripts/lib/doc-facts.py` counted only
+  `TOOL_POLICY` entries with the name on the `tool(` line, so entries wrapped over two lines were
+  missed and `docs/development.md` and `docs/feature-list.md` said 232 tools; it now counts
+  every entry, and both documents say 234.
 
 ## [1.16.1] - 2026-10-07
 

@@ -61,7 +61,8 @@
     "credential_mode_oauth": "Se connecter avec un code",
     "no_providers": "Aucun plugin de comptes n'est actif. Activez les plugins d'hébergeur dans Paramètres → Plugins.",
     "connect_polling": "rDownloader continue d'interroger {provider} en arrière-plan jusqu'à ce que vous confirmiez ou que le code expire.",
-    "connect_expires": "Le code est valable jusqu'à {time}."
+    "connect_expires": "Le code est valable jusqu'à {time}.",
+    "traffic_held": "Trafic épuisé · prochaine vérification {time}"
   },
   "hosters": {
     "toggle": "Hébergeurs pris en charge",

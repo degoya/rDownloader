@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, FailureKind};
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     CaptchaChallenge, CheckRequest, ClientIdentity, HostHttpResponse, ResolveRequest,
     ResolvedHeader, Resolver,
 };
+use rd_plugin_types::{AccountId, FailureKind};
 use url::Url;
 
 use super::HitfileResolver;
@@ -149,7 +149,7 @@ async fn a_guest_download_resolves_with_hitfiles_own_key_and_countdown() {
     );
     assert_eq!(resolved.file_name.as_deref(), Some("free-sample.zip"));
     assert_eq!(
-        resolved.size.map(rd_core::ByteCount::get),
+        resolved.size.map(rd_plugin_types::ByteCount::get),
         Some(946_055_308)
     );
     let requests = host.requests.lock().expect("lock");
@@ -299,13 +299,13 @@ async fn check_sends_the_html_less_canonical_link_and_maps_the_measured_answer()
         .await
         .expect("checked");
     assert_eq!(results.len(), 5);
-    assert_eq!(results[0].status, rd_core::LinkStatus::Online);
+    assert_eq!(results[0].status, rd_plugin_types::LinkStatus::Online);
     assert_eq!(
         results[0].file_name.as_deref(),
         Some("premium-only-sample.rar")
     );
-    assert_eq!(results[2].status, rd_core::LinkStatus::Offline);
-    assert_eq!(results[4].status, rd_core::LinkStatus::Online);
+    assert_eq!(results[2].status, rd_plugin_types::LinkStatus::Offline);
+    assert_eq!(results[4].status, rd_plugin_types::LinkStatus::Online);
     let body = String::from_utf8_lossy(&host.requests.lock().expect("lock")[0].body).into_owned();
     assert!(!body.contains(".html"), "{body}");
     assert!(!body.contains("hil.to"), "{body}");

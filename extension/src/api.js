@@ -68,7 +68,8 @@ async function readBody(response) {
  * passed. Answers `{ ok, status, code, message, payload }`: on a refusal `code` is the server's,
  * `auth.unauthorized` for a bare 401 and `http` otherwise, `network` when no answer came at all,
  * and `message` the server's text; on a success `code` is whatever the body carries and `payload`
- * the parsed body. A refusal carries no payload, and nothing returned carries the token.
+ * the parsed body. A refusal carries no payload, only the server's `params` when it sent any, and
+ * nothing returned carries the token.
  */
 export async function request(config, path, init = {}, fetchImpl = fetch) {
   const headers = { authorization: `Bearer ${config.token ?? ''}` }
@@ -90,15 +91,29 @@ export async function request(config, path, init = {}, fetchImpl = fetch) {
       status: response.status,
       code: payload?.code ?? (response.status === 401 ? 'auth.unauthorized' : 'http'),
       message: payload?.error ?? `HTTP ${response.status}`,
-      payload: null
+      payload: null,
+      ...(payload?.params ? { params: payload.params } : {})
     }
   }
   return { ok: true, status: response.status, code: payload?.code ?? null, message: null, payload }
 }
 
-/** Posts a prepared intake body. Result shape: { ok, status, code, message, links }. */
+/**
+ * What the intake answers when the links named a page whose releases wait for a choice in the
+ * LinkGrabber (RD-1170-03). Not a failure (RD-1190-17): the list is on the board, and the person
+ * is told where to choose.
+ */
+export const PICK_WAITING = 'site_rules.pick_waiting'
+
+/**
+ * Posts a prepared intake body. Result shape: { ok, status, code, message, links }; a page waiting
+ * for a choice is `ok` with `code` PICK_WAITING and `entries`, the number of releases it lists.
+ */
 export async function submitCapture(config, body, fetchImpl = fetch) {
   const result = await request(config, '/api/v1/capture/batches', { method: 'POST', body: JSON.stringify(body) }, fetchImpl)
+  if (!result.ok && result.code === PICK_WAITING) {
+    return { ok: true, status: result.status, code: PICK_WAITING, message: null, links: 0, entries: Number(result.params?.entries ?? 0) || 0 }
+  }
   if (!result.ok) return { ok: false, status: result.status, code: result.code, message: result.message, links: 0 }
   return { ok: true, status: result.status, code: null, message: null, links: result.payload?.candidates?.length ?? 0 }
 }

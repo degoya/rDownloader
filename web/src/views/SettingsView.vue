@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import { api, responseError } from '@/api/client'
-import type { ProxyProfile, Settings } from '@/api/types'
+import type { Settings } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import SettingsAboutTab from '@/components/settings/SettingsAboutTab.vue'
 import SettingsAccountsTab from '@/components/settings/SettingsAccountsTab.vue'
@@ -39,6 +39,8 @@ import { useSettingsSubTab } from '@/composables/useSettingsSubTab'
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
 import { SETTINGS_SECTIONS, settingsSection } from '@/settingsSections'
+import { useProxyProfiles } from '@/stores/proxyProfiles'
+import { useSettingsStore } from '@/stores/settings'
 import { useTransfersStore } from '@/stores/transfers'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
@@ -51,7 +53,8 @@ const { t } = useI18n()
 const transfers = useTransfersStore()
 /** One shared settings object: the PUT replaces the whole document, so saving is global. */
 const settings = reactive<Settings>(defaultSettings())
-const proxies = ref<ProxyProfile[]>([])
+const { proxies, fetchProxies } = useProxyProfiles()
+const { fetchSettings } = useSettingsStore()
 const speedMiB = ref<number | null>(null)
 const pending = ref(false)
 /**
@@ -178,7 +181,7 @@ onUnmounted(onServiceReconnected(() => {
 
 async function load(): Promise<void> {
   if (!loaded.value) loadError.value = null
-  const response = await api.GET('/api/v1/settings')
+  const response = await fetchSettings()
   if (!response.data) {
     // Before the first successful load the failure stands in place of the pages; afterwards the
     // form holds the stored document and the failure is one more message beside it.
@@ -217,10 +220,8 @@ function applyLoadedSettings(value: Settings): void {
  */
 async function loadProxies(): Promise<void> {
   await trackProxies(async () => {
-    const response = await api.GET('/api/v1/proxy-profiles')
-    if (!response.data) return responseError(response)
-    proxies.value = response.data
-    return null
+    const response = await fetchProxies()
+    return response.data ? null : responseError(response)
   })
 }
 

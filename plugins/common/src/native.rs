@@ -7,8 +7,8 @@
 use std::sync::Arc;
 
 use rand::Rng;
-use rd_core::AccountId;
 use rd_plugin_api::{ClientIdentity, ResolverHost};
+use rd_plugin_types::AccountId;
 
 use crate::PluginHost;
 use crate::types::{
@@ -227,7 +227,7 @@ fn to_native_challenge(challenge: CaptchaChallenge) -> rd_plugin_api::CaptchaCha
 }
 
 /// A failure the host produced, in this crate's vocabulary.
-fn from_native_failure(failure: rd_core::Failure) -> Failure {
+fn from_native_failure(failure: rd_plugin_types::Failure) -> Failure {
     Failure {
         kind: from_native_kind(failure.category),
         message: failure.message,
@@ -236,24 +236,24 @@ fn from_native_failure(failure: rd_core::Failure) -> Failure {
     }
 }
 
-fn from_native_kind(kind: rd_core::FailureKind) -> FailureKind {
+fn from_native_kind(kind: rd_plugin_types::FailureKind) -> FailureKind {
     match kind {
-        rd_core::FailureKind::Transient {
+        rd_plugin_types::FailureKind::Transient {
             retry_after_seconds,
         } => FailureKind::Transient(retry_after_seconds),
-        rd_core::FailureKind::Permanent => FailureKind::Permanent,
-        rd_core::FailureKind::Offline => FailureKind::Offline,
-        rd_core::FailureKind::AuthRequired => FailureKind::AuthRequired,
-        rd_core::FailureKind::AccountInvalid => FailureKind::AccountInvalid,
-        rd_core::FailureKind::RateLimited {
+        rd_plugin_types::FailureKind::Permanent => FailureKind::Permanent,
+        rd_plugin_types::FailureKind::Offline => FailureKind::Offline,
+        rd_plugin_types::FailureKind::AuthRequired => FailureKind::AuthRequired,
+        rd_plugin_types::FailureKind::AccountInvalid => FailureKind::AccountInvalid,
+        rd_plugin_types::FailureKind::RateLimited {
             retry_after_seconds,
         } => FailureKind::RateLimited(retry_after_seconds),
-        rd_core::FailureKind::NeedsCaptcha => FailureKind::NeedsCaptcha,
-        rd_core::FailureKind::Unsupported => FailureKind::Unsupported,
-        rd_core::FailureKind::IpBlocked {
+        rd_plugin_types::FailureKind::NeedsCaptcha => FailureKind::NeedsCaptcha,
+        rd_plugin_types::FailureKind::Unsupported => FailureKind::Unsupported,
+        rd_plugin_types::FailureKind::IpBlocked {
             retry_after_seconds,
         } => FailureKind::IpBlocked(retry_after_seconds),
-        rd_core::FailureKind::CaptchaFailed => FailureKind::CaptchaFailed,
+        rd_plugin_types::FailureKind::CaptchaFailed => FailureKind::CaptchaFailed,
     }
 }
 
@@ -293,7 +293,7 @@ pub fn label_summary(parts: &[rd_plugin_api::LabelPart]) -> String {
 ///
 /// The invoking crate supplies `crate::MANIFEST`, a `crate::resolver` module with `matches`,
 /// `check_account`, `resolve`, `check` and `hosters`, and the native-target dependencies every
-/// plugin already has: `async-trait`, `rd-core`, `rd-plugin-api` and `url`.
+/// plugin already has: `async-trait`, `rd-plugin-types`, `rd-plugin-api` and `url`.
 // `crate::MANIFEST` is meant to name the calling plugin's manifest, not this crate's.
 #[allow(clippy::crate_in_macro_def)]
 #[macro_export]
@@ -314,7 +314,7 @@ macro_rules! native_resolver {
                 }
             }
 
-            fn for_account(&self, account_id: ::rd_core::AccountId) -> $crate::native::NativeHost {
+            fn for_account(&self, account_id: ::rd_plugin_types::AccountId) -> $crate::native::NativeHost {
                 $crate::native::NativeHost::for_account(
                     ::std::sync::Arc::clone(&self.host),
                     account_id,
@@ -341,8 +341,8 @@ macro_rules! native_resolver {
 
             async fn check_account(
                 &self,
-                account_id: ::rd_core::AccountId,
-            ) -> ::std::result::Result<::rd_plugin_api::AccountStatus, ::rd_core::Failure> {
+                account_id: ::rd_plugin_types::AccountId,
+            ) -> ::std::result::Result<::rd_plugin_api::AccountStatus, ::rd_plugin_types::Failure> {
                 let host = self.for_account(account_id);
                 crate::resolver::check_account(&host, &account_id.to_string())
                     .await
@@ -353,7 +353,7 @@ macro_rules! native_resolver {
             async fn resolve(
                 &self,
                 request: ::rd_plugin_api::ResolveRequest,
-            ) -> ::std::result::Result<::rd_plugin_api::ResolvedDownload, ::rd_core::Failure> {
+            ) -> ::std::result::Result<::rd_plugin_api::ResolvedDownload, ::rd_plugin_types::Failure> {
                 let input = $crate::native::to_resolve_input(&request);
                 let host = self.for_client(request.client.clone());
                 let resolved = crate::resolver::resolve(&host, &input)
@@ -365,7 +365,7 @@ macro_rules! native_resolver {
             async fn check(
                 &self,
                 request: ::rd_plugin_api::CheckRequest,
-            ) -> ::std::result::Result<::std::vec::Vec<::rd_core::LinkCheckResult>, ::rd_core::Failure>
+            ) -> ::std::result::Result<::std::vec::Vec<::rd_plugin_types::PluginLinkCheck>, ::rd_plugin_types::Failure>
             {
                 let input = $crate::native::to_check_input(&request);
                 let host = self.for_client(request.client);
@@ -377,8 +377,8 @@ macro_rules! native_resolver {
 
             async fn hosters(
                 &self,
-                account_id: ::rd_core::AccountId,
-            ) -> ::std::result::Result<::std::vec::Vec<::std::string::String>, ::rd_core::Failure>
+                account_id: ::rd_plugin_types::AccountId,
+            ) -> ::std::result::Result<::std::vec::Vec<::std::string::String>, ::rd_plugin_types::Failure>
             {
                 let host = self.for_account(account_id);
                 crate::resolver::hosters(&host, &account_id.to_string())

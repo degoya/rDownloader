@@ -76,7 +76,8 @@ impl HostRuleRunner {
     }
 
     /// Gives rule runs this installation's stable value, the variable `device_id`
-    /// (RD-1170-03). Without it a rule that reads `${device_id}` refuses as a changed page.
+    /// (RD-1170-03), as each rule sees it ([`device_for`]). Without it a rule that reads
+    /// `${device_id}` refuses as a changed page.
     #[must_use]
     pub fn with_device_id(mut self, device_id: String) -> Self {
         self.device_id = Some(device_id);
@@ -99,9 +100,19 @@ impl RuleRunner for HostRuleRunner {
         let resolver = rd_plugin_host::RuleResolver;
         let clock = SystemClock::new();
         let captcha = self.captcha();
-        self.executor(&fetcher, &resolver, &clock, captcha.as_ref())
-            .run(rule, address)
-            .await
+        let device = self
+            .device_id
+            .as_deref()
+            .map(|device| device_for(device, rule));
+        self.executor(
+            &fetcher,
+            &resolver,
+            &clock,
+            captcha.as_ref(),
+            device.as_deref(),
+        )
+        .run(rule, address)
+        .await
     }
 
     async fn resolve(
@@ -115,9 +126,19 @@ impl RuleRunner for HostRuleRunner {
         let resolver = rd_plugin_host::RuleResolver;
         let clock = SystemClock::new();
         let captcha = self.captcha();
-        self.executor(&fetcher, &resolver, &clock, captcha.as_ref())
-            .resolve(rule, address, list, index)
-            .await
+        let device = self
+            .device_id
+            .as_deref()
+            .map(|device| device_for(device, rule));
+        self.executor(
+            &fetcher,
+            &resolver,
+            &clock,
+            captcha.as_ref(),
+            device.as_deref(),
+        )
+        .resolve(rule, address, list, index)
+        .await
     }
 }
 
@@ -135,17 +156,36 @@ impl HostRuleRunner {
         resolver: &'a rd_plugin_host::RuleResolver,
         clock: &'a SystemClock,
         captcha: Option<&'a rd_plugin_host::RuleCaptcha>,
+        device: Option<&'a str>,
     ) -> Executor<'a> {
         let executor = Executor::new(fetcher, resolver, clock);
         let executor = match captcha {
             Some(captcha) => executor.with_captcha(captcha),
             None => executor,
         };
-        match &self.device_id {
-            Some(device_id) => executor.with_device_id(device_id),
+        match device {
+            Some(device) => executor.with_device_id(device),
             None => executor,
         }
     }
+}
+
+/// This installation's value as one rule sees it (RD-1190-22): 32 hexadecimal digits of the
+/// SHA-256 of the installation's value and the rule's id. One rule always receives the same
+/// value, which is what a page that wants a stable device needs; two rules -- two sites --
+/// never receive the same one, so the value no longer links the installation across sites.
+fn device_for(installation: &str, rule: &Rule) -> String {
+    use sha2::{Digest, Sha256};
+
+    Sha256::new()
+        .chain_update(installation.as_bytes())
+        .chain_update([0_u8])
+        .chain_update(rule.id.as_bytes())
+        .finalize()
+        .iter()
+        .take(16)
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 /// What the rules had to say about one address.

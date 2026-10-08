@@ -1,6 +1,6 @@
 //! The repository's own rules, read off its files: English-only Rust sources, the address forms of
 //! the plugin catalogues, plugin paths read at run time, the `no-components` profile, plugin crate
-//! versions.
+//! versions, at most 500 lines per Rust source.
 //!
 //! One test binary, each rule a module of it (RD-1120-08): every one was a binary of its own that
 //! linked for a test reading a few files.
@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
+mod file_length;
 mod french_spanish_address;
 mod german_address;
 mod no_components_profile;

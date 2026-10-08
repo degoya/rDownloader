@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::{Resolver, ResolverHost};
+use rd_plugin_types::AccountId;
 
 use super::super::DdownloadResolver;
 use super::{
@@ -83,7 +83,10 @@ async fn a_sign_in_answered_with_a_guest_page_is_not_believed() {
         .check_account(AccountId::new())
         .await
         .expect_err("a guest page is not a session");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(failure.code.as_deref(), Some("ddownload.login_unavailable"));
     assert!(
         failure.message.contains("guest header"),
@@ -125,7 +128,10 @@ async fn wrong_credentials_invalidate_the_account_rather_than_being_retried() {
         .resolve(resolve_request())
         .await
         .expect_err("wrong credentials");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(failure.code.as_deref(), Some("ddownload.login_failed"));
 }
 
@@ -147,7 +153,7 @@ async fn a_blocked_ip_is_transient_and_leaves_the_account_valid() {
         .expect_err("blocked IP");
     assert!(matches!(
         failure.category,
-        rd_core::FailureKind::Transient { .. }
+        rd_plugin_types::FailureKind::Transient { .. }
     ));
     assert_eq!(failure.code.as_deref(), Some("ddownload.login_blocked"));
 }
@@ -237,7 +243,7 @@ async fn an_account_with_no_credential_at_all_is_told_what_it_needs() {
         .resolve(resolve_request())
         .await
         .expect_err("no credential");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("ddownload.login_credentials_required")

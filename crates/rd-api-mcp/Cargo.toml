@@ -9,6 +9,7 @@ license.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 chrono.workspace = true
+rand.workspace = true
 rd-api-access = { path = "../rd-api-access" }
 rd-api-admin = { path = "../rd-api-admin" }
 rd-api-core = { path = "../rd-api-core" }

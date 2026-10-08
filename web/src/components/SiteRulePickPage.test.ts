@@ -42,6 +42,15 @@ function mount(current: CollectorPick) {
 }
 
 describe('SiteRulePickPage', () => {
+  it('takes every release that can still be fetched in one click (RD-1190-17)', async () => {
+    const { getByTestId, emitted } = mount(page(releases))
+    const take = getByTestId('pick-take-all')
+    // Four open, the one already done is left alone.
+    expect(take.textContent).toContain('Take all 4')
+    await fireEvent.click(take)
+    expect(emitted('resolve')).toEqual([[[0, 1, 2, 3]]])
+  })
+
   it('groups the releases by season and fetches only what was picked', async () => {
     const { getByRole, getByTestId, emitted } = mount(page(releases))
     const season1 = getByRole('list', { name: 'Season 1' })

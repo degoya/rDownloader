@@ -33,7 +33,7 @@ pub use notifier::{DestinationInfo, NotifierPlugins};
 pub use oauth::OAuthProviders;
 pub use picks::{
     EntryOutcome, EntryProgress, EntryState, MAX_PAGES, PickBoard, PickDelivery, PickError,
-    PickJob, PickPage, PickSummary,
+    PickGone, PickJob, PickPage, PickSummary,
 };
 pub use plugin_set::{ClaimedPlugins, ClaimingPlugin, ExtensionPlugin, PluginSet};
 pub use postprocess::{PluginSteps, StepInfo};

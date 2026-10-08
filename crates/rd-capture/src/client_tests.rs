@@ -229,3 +229,96 @@ fn a_refusal_from_any_call_still_carries_its_stable_code() {
         );
     }
 }
+
+/// Answers one request with `status` and `body` after reading the whole request.
+async fn answer_once(status: &'static str, body: &'static str) -> std::net::SocketAddr {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind an ephemeral port");
+    let address = listener.local_addr().expect("the bound address");
+    tokio::spawn(async move {
+        let Ok((mut stream, _)) = listener.accept().await else {
+            return;
+        };
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 4096];
+        loop {
+            let text = String::from_utf8_lossy(&request).to_lowercase();
+            if let Some(end) = text.find("\r\n\r\n") {
+                let length = text
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or(0);
+                if request.len() >= end + 4 + length {
+                    break;
+                }
+            }
+            match stream.read(&mut chunk).await {
+                Ok(0) | Err(_) => break,
+                Ok(read) => request.extend_from_slice(&chunk[..read]),
+            }
+        }
+        let answer = format!(
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        let _ = stream.write_all(answer.as_bytes()).await;
+    });
+    address
+}
+
+/// The cause of the vanishing pick list (RD-1190-17): the intake answers a series page with
+/// `site_rules.pick_waiting`, and the agent took that for a failure and handed the clipboard
+/// over again and again -- each time listing the page anew. It is a success now.
+#[tokio::test]
+async fn a_page_waiting_for_a_choice_is_a_success_of_the_hand_over() {
+    let address = answer_once(
+        "400 Bad Request",
+        r#"{"error":"series.example listed 30 entries; choose which of them to resolve","code":"site_rules.pick_waiting","params":{"entries":"30","list":"19a-0","rule":"series.example"}}"#,
+    )
+    .await;
+    let client = super::CaptureClient::new(
+        format!("http://{address}/").parse().expect("url"),
+        "token".to_owned(),
+    )
+    .expect("a client");
+    let submitted = client
+        .submit_links(
+            vec!["https://series.example/serie/show/".parse().expect("url")],
+            "clipboard",
+            None,
+            None,
+        )
+        .await
+        .expect("a page waiting for a choice is not a failure");
+    assert_eq!(submitted, super::Submitted::PickWaiting(30));
+    assert_eq!(
+        submitted.notice().as_deref(),
+        Some("A page lists 30 releases; choose them in rDownloader's LinkGrabber")
+    );
+
+    // Any other refusal stays one.
+    let address = answer_once(
+        "400 Bad Request",
+        r#"{"error":"nothing was a link","code":"collector.no_links_found"}"#,
+    )
+    .await;
+    let client = super::CaptureClient::new(
+        format!("http://{address}/").parse().expect("url"),
+        "token".to_owned(),
+    )
+    .expect("a client");
+    let refused = client
+        .submit_links(
+            vec!["https://example.org/".parse().expect("url")],
+            "clipboard",
+            None,
+            None,
+        )
+        .await
+        .expect_err("refused");
+    assert_eq!(super::pick_waiting(&refused), None);
+}

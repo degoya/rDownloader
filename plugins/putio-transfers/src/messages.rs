@@ -104,5 +104,5 @@ pub const HTTP_ERROR: (&str, &str) = ("putio_transfers.http_error", "Put.io HTTP
 
 #[must_use]
 pub fn http_error(status: u16) -> String {
-    format!("Put.io HTTP status {status}")
+    plugin_common::messages::http_error("Put.io", status)
 }

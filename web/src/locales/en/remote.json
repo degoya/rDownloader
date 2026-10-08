@@ -167,6 +167,10 @@
     "endpoint_description_gcs": "Empty for storage.googleapis.com. An address of its own only for an emulator or a service in front of it. TLS certificates are always validated.",
     "account_key": "Account key",
     "sas": "Shared access signature",
-    "service_account_key": "Service account key (JSON)"
+    "service_account_key": "Service account key (JSON)",
+    "secret_host_changed": "The endpoint or the account changed: the stored secret is not sent to the new host. Enter it again.",
+    "session_token_host_changed": "The stored token stays with the old host. Enter it again if the new one needs one.",
+    "ambient_custom_endpoint": "Send this machine's credentials to the endpoint",
+    "ambient_custom_endpoint_description": "This machine's instance role, managed identity or Google token goes to the endpoint above. Allow it only for a service you run yourself or trust."
   }
 }

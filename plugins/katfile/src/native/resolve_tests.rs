@@ -3,10 +3,10 @@
 
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::{
     ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
 };
+use rd_plugin_types::AccountId;
 
 use super::super::KatfileResolver;
 use super::{
@@ -99,7 +99,7 @@ async fn captcha_challenge_on_file_page_is_reported_and_form_is_not_posted() {
         .resolve(resolve_request())
         .await
         .expect_err("captcha challenge must fail");
-    assert_eq!(failure.category, rd_core::FailureKind::NeedsCaptcha);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::NeedsCaptcha);
     assert_eq!(failure.code.as_deref(), Some("katfile.captcha_required"));
     // Only the initial GET was made; the form was never posted.
     assert_eq!(host.requests.lock().expect("mock lock").len(), 1);
@@ -142,7 +142,7 @@ async fn premium_only_page_reports_auth_required_and_form_is_not_posted() {
         .resolve(resolve_request())
         .await
         .expect_err("premium-only page must fail");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(failure.code.as_deref(), Some("katfile.premium_only"));
     assert_eq!(host.requests.lock().expect("mock lock").len(), 1);
 }
@@ -163,7 +163,7 @@ async fn wait_page_reports_transient_with_retry_after_seconds() {
         .expect_err("wait page must fail");
     assert_eq!(
         failure.category,
-        rd_core::FailureKind::Transient {
+        rd_plugin_types::FailureKind::Transient {
             retry_after_seconds: Some(45)
         }
     );
@@ -182,7 +182,10 @@ async fn guest_page_after_post_reports_missing_premium_session() {
         .resolve(resolve_request())
         .await
         .expect_err("guest session");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(failure.code.as_deref(), Some("katfile.no_premium_file"));
     assert!(
         failure
@@ -201,7 +204,7 @@ async fn resolve_without_secret_or_cookies_makes_no_requests() {
         .resolve(resolve_request())
         .await
         .expect_err("missing credentials must fail");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("katfile.cookie_session_required_for_download")
@@ -217,7 +220,7 @@ async fn api_key_without_cookie_session_cannot_download() {
         .resolve(resolve_request())
         .await
         .expect_err("cookies required");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("katfile.cookie_session_required_for_download")
@@ -291,7 +294,7 @@ async fn file_info_reports_file_unavailable_for_non_200_item_status() {
         .resolve(resolve_request())
         .await
         .expect_err("offline file must fail");
-    assert_eq!(failure.category, rd_core::FailureKind::Permanent);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::Permanent);
     assert_eq!(failure.code.as_deref(), Some("katfile.file_unavailable"));
     assert_eq!(host.requests.lock().expect("mock lock").len(), 2);
 }

@@ -20,8 +20,8 @@
 
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::{HostHttpResponse, ResolvedHeader, Resolver, ResolverHost};
+use rd_plugin_types::AccountId;
 
 use super::super::DdownloadResolver;
 use super::{LOGIN_PAGE_2026_09_20, MockHost, SessionHost, html, json};
@@ -71,7 +71,7 @@ async fn an_api_key_account_with_an_expired_cookie_session_reports_it() {
         .check_account(AccountId::new())
         .await
         .expect_err("an expired session must not read as a working account");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("ddownload.download_session_expired")
@@ -129,7 +129,7 @@ async fn a_proven_key_passes_when_the_account_page_settles_nothing() {
         assert!(status.valid);
         assert!(status.premium, "premium comes from the API");
         assert_eq!(
-            status.traffic_left.map(rd_core::ByteCount::get),
+            status.traffic_left.map(rd_plugin_types::ByteCount::get),
             Some(204_800 * 1024 * 1024),
             "the volume comes from the API"
         );
@@ -156,7 +156,7 @@ async fn the_redirect_to_the_login_page_is_an_expired_session() {
         .check_account(AccountId::new())
         .await
         .expect_err("the login page is not a session");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(
         failure.code.as_deref(),
         Some("ddownload.download_session_expired")
@@ -220,7 +220,10 @@ async fn a_cookie_only_account_redirected_to_the_login_page_is_refused() {
         .check_account(AccountId::new())
         .await
         .expect_err("the login page is not a session");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(
         failure.code.as_deref(),
         Some("ddownload.cookie_session_invalid")
@@ -239,7 +242,7 @@ async fn a_cookie_only_account_on_an_unrecognized_page_is_reported_unconfirmed()
         .expect_err("an unrecognized page proves no cookie-only account");
     assert_eq!(
         failure.category,
-        rd_core::FailureKind::Transient {
+        rd_plugin_types::FailureKind::Transient {
             retry_after_seconds: None
         }
     );

@@ -24,8 +24,9 @@
 #
 #   scripts/plugin-release-notes.sh --check [plugin...]
 #
-# The rules, over the plugins the bundle ships (`build-plugins.sh --list-packageable`) or the ones
-# named: every plugin has its CHANGES.md and a section for the version its manifest declares, so
+# The rules, over the plugins the bundle ships (`build-plugins.sh --list-packageable`) and the
+# examples beside them (`--list-examples`; never bundled, but the reference an author copies,
+# RD-1190-10), or the ones named: every plugin has its CHANGES.md and a section for the version its manifest declares, so
 # a raised version without notes fails here; and every section of the file is at most 300
 # characters, ends a sentence, is English (no umlauts), and names no job (`RD-…`, `PL-…`), no
 # path, no Rust identifier (code spans, `::`, snake_case) and no list of other plugins (two or
@@ -140,7 +141,8 @@ def check(root, names, packageable):
 if sys.argv[1] == "--check":
     root = sys.argv[2]
     packageable = sys.argv[3].split()
-    sys.exit(check(root, sys.argv[4:] or packageable, packageable))
+    examples = sys.argv[4].split()
+    sys.exit(check(root, sys.argv[5:] or packageable + examples, packageable))
 print_notes(sys.argv[2], sys.argv[3])
 PY
 )"
@@ -148,7 +150,8 @@ PY
 if [[ "${1:-}" == "--check" ]]; then
     shift
     packageable="$("$ROOT/scripts/build-plugins.sh" --list-packageable | tr '\n' ' ')"
-    if python3 -c "$NOTES_PY" --check "$ROOT" "$packageable" "$@"; then
+    examples="$("$ROOT/scripts/build-plugins.sh" --list-examples | tr '\n' ' ')"
+    if python3 -c "$NOTES_PY" --check "$ROOT" "$packageable" "$examples" "$@"; then
         echo "plugin-release-notes: every plugin version has its notes, short and for users" >&2
         exit 0
     fi

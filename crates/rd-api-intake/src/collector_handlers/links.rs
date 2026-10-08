@@ -35,27 +35,37 @@ pub(super) struct CapturedLink {
     pub(super) origin: LinkOrigin,
 }
 
-/// Who put a link into an intake (RD-150-03).
+/// Who put a link into an intake (RD-150-03, RD-1190-18).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum LinkOrigin {
-    /// Typed, pasted or sent by the person: checked as it always was.
+    /// Sent in as a link: typed or pasted by the person — or handed over by Click'n'Load, the
+    /// clipboard watcher, the browser extension or a tool, where a page or a program chose it.
     Person,
     /// Proposed by an intake parser out of a document — a Metalink's link among them.
     Proposed,
-    /// Found by a crawler on a page.
-    Crawled,
+    /// Found on a page: by a crawler plugin in a folder, or by a site rule (`by_rule`) on a
+    /// release page.
+    Crawled { by_rule: bool },
 }
 
 impl LinkOrigin {
-    /// Whether the online check of such a link is held to an address rule. A parser's
-    /// proposal always is: the document was written by somebody else even when the person
-    /// pasted it. A crawler's find only when the page did not come from the person's own hand:
-    /// a folder they pointed the crawler at themselves is their own network use.
-    pub(super) fn guarded(self, own_hand: bool) -> bool {
+    /// How far the online check and the transfer of such a link may reach (RD-150-03): `None`
+    /// for an address the person chose themselves, which is checked as it always was, and
+    /// otherwise `Some(local_network)` — never this machine, and the person's own network only
+    /// when they named it.
+    ///
+    /// The one decision every way in shares (RD-1190-18). A link is the person's own only when
+    /// the intake came from their own hand: Click'n'Load and the clipboard are filled by any
+    /// web page, the extension and a tool pass on what a page or a program chose. A parser's
+    /// proposal and a crawler plugin's find reach the person's network only when they handed
+    /// the document or the folder over themselves — a folder they pointed the crawler at is
+    /// their own network use. A site rule's find never does: the release page's operator chose
+    /// that address, not the person who pasted the page.
+    pub(super) fn reach(self, own_hand: bool) -> Option<bool> {
         match self {
-            Self::Person => false,
-            Self::Proposed => true,
-            Self::Crawled => !own_hand,
+            Self::Person => (!own_hand).then_some(false),
+            Self::Proposed | Self::Crawled { by_rule: false } => Some(own_hand),
+            Self::Crawled { by_rule: true } => Some(false),
         }
     }
 }
@@ -107,7 +117,9 @@ impl CapturedLink {
             mirror: link.mirror,
             request: None,
             body_ref: None,
-            origin: LinkOrigin::Crawled,
+            origin: LinkOrigin::Crawled {
+                by_rule: link.by_rule,
+            },
         }
     }
 
@@ -160,14 +172,20 @@ mod tests {
     use super::LinkOrigin;
 
     /// RD-150-03: what a document or a stranger's page proposed is checked under the address
-    /// rule; what the person gave, and a folder they pointed the crawler at, is not.
+    /// rule; what the person gave, and a folder they pointed the crawler at, may reach their
+    /// own network. RD-1190-18: a link from any other hand — Click'n'Load, the clipboard, the
+    /// extension, a tool — and a site rule's find, whoever pasted the page, reach neither this
+    /// machine nor that network.
     #[test]
-    fn only_links_somebody_else_proposed_are_checked_under_the_address_rule() {
+    fn only_the_persons_own_links_skip_the_address_rule() {
+        let folder = LinkOrigin::Crawled { by_rule: false };
+        let rule = LinkOrigin::Crawled { by_rule: true };
+        assert_eq!(LinkOrigin::Person.reach(true), None);
+        assert_eq!(LinkOrigin::Person.reach(false), Some(false));
         for own_hand in [true, false] {
-            assert!(!LinkOrigin::Person.guarded(own_hand));
-            assert!(LinkOrigin::Proposed.guarded(own_hand));
+            assert_eq!(LinkOrigin::Proposed.reach(own_hand), Some(own_hand));
+            assert_eq!(folder.reach(own_hand), Some(own_hand));
+            assert_eq!(rule.reach(own_hand), Some(false));
         }
-        assert!(!LinkOrigin::Crawled.guarded(true));
-        assert!(LinkOrigin::Crawled.guarded(false));
     }
 }

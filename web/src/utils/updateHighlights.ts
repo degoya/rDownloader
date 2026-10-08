@@ -1,7 +1,7 @@
 import type { UpdateOffer } from '@/api/updates'
 
 /** How many points of the notes the notice on the update page shows (RD-1150-01). */
-export const HIGHLIGHT_COUNT = 3
+const HIGHLIGHT_COUNT = 3
 
 /**
  * The first points of an offered version's notes, for the notice above the update card

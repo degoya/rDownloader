@@ -267,6 +267,12 @@ describe('UpdateDetailsModal: downloading ahead of the install', () => {
     expect(screen.getByTestId('update-download-start').getAttribute('to')).toBeNull()
   })
 
+  it('offers no browser download for an address that is not http(s) (WEB-1)', () => {
+    mount({ ...offer, download_url: 'javascript:alert(1)' })
+    expect(screen.getByTestId('update-download-start')).toBeTruthy()
+    expect(screen.queryByTestId('update-download-manual')).toBeNull()
+  })
+
   it('downloads in the background with its progress until the file is ready to install', async () => {
     downloadUpdate.mockResolvedValue({ ok: true, data: downloaded('downloading', 0) })
     fetchUpdateStatus
@@ -347,5 +353,11 @@ describe('UpdateDetailsModal: what is new', () => {
     const release = screen.getByTestId('update-release-page')
     expect(release.getAttribute('to')).toBe('https://github.com/degoya/rDownloader/releases/tag/v1.8.0')
     expect(release.textContent).toContain(system.updates.modal.release_page)
+  })
+
+  it('links no address of the offer that is not http(s) (WEB-1)', () => {
+    mount({ ...offer, changelog_url: 'javascript:alert(1)', release_url: 'javascript:alert(2)', download_url: 'javascript:alert(3)' })
+    expect(screen.queryByTestId('update-changelog')).toBeNull()
+    expect(screen.queryByTestId('update-release-page')).toBeNull()
   })
 })

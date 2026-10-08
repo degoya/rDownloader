@@ -49,18 +49,37 @@ pub async fn export_settings(
 /// Replaces all configuration tables atomically after validation. Secret-store writes made before
 /// the database swap are removed on failure. A process crash after the swap but before settings
 /// persistence can temporarily leave new tables with old settings; the next settings save heals it.
+///
+/// Requires a signed-in session and the password (RD-1190-19): the bundle replaces the accounts,
+/// the hot folders and the settings the sign-in reads.
 #[utoipa::path(
     post,
     path = "/api/v1/settings/import",
     tag = "system",
     request_body = ImportSettingsRequest,
-    responses((status = 200, body = ImportSummaryResponse), (status = 400, body = crate::error::ErrorBody))
+    responses(
+        (status = 200, body = ImportSummaryResponse),
+        (status = 400, body = crate::error::ErrorBody),
+        (status = 401, description = "The password did not match", body = crate::error::ErrorBody),
+        (status = 403, description = "Not a signed-in session", body = crate::error::ErrorBody)
+    )
 )]
 pub async fn import_settings(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
+    crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
+    client: crate::client::ClientAddress,
     Json(request): Json<ImportSettingsRequest>,
 ) -> Result<Json<ImportSummaryResponse>, ApiError> {
+    rd_api_core::step_up::require_confirmed(
+        &state,
+        &audit,
+        this_machine,
+        client.0,
+        request.password.as_deref(),
+        rd_core::AuditAction::BackupRestored,
+    )
+    .await?;
     let mut bundle = request.bundle;
     validate_header(&bundle)?;
     validate_references(&bundle)?;
@@ -71,6 +90,22 @@ pub async fn import_settings(
         crate::protected_roots::protected_directories(&state, Some(&bundle.settings)).await;
     for root in &bundle.storage_roots {
         crate::protected_roots::refuse_protected(std::path::Path::new(&root.path), &protected)?;
+    }
+    for path in bundle
+        .hotfolders
+        .iter()
+        .filter(|hotfolder| matches!(hotfolder.executor, rd_core::HotFolderExecutor::Daemon))
+        .flat_map(|hotfolder| {
+            [
+                &hotfolder.path,
+                &hotfolder.processed_path,
+                &hotfolder.failed_path,
+            ]
+        })
+        .map(std::path::Path::new)
+        .filter(|path| path.is_absolute())
+    {
+        crate::protected_roots::refuse_protected_hotfolder(path, &protected)?;
     }
 
     let secrets_included = bundle.secrets.is_some();

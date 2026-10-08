@@ -205,12 +205,19 @@ async fn plan_chunks(
     parallel: usize,
     pieces: Option<&PieceHashes>,
 ) -> Result<Vec<ChunkSpec>> {
-    let budget = endpoints
-        .iter()
-        .take(parallel)
-        .map(|endpoint| scheduler.chunk_budget(&endpoint.url))
-        .sum::<usize>()
-        .clamp(1, MAX_CHUNKS);
+    // Without a hash an FTP or SFTP mirror serves only from the first byte (TR-02), so a set
+    // led by one is fetched as one chunk that mirror can serve.
+    let unproven = pieces.is_none() && file.expected_checksum.is_none();
+    let budget = if unproven && endpoints.first().is_some_and(|first| first.via.is_some()) {
+        1
+    } else {
+        endpoints
+            .iter()
+            .take(parallel)
+            .map(|endpoint| scheduler.chunk_budget(&endpoint.url))
+            .sum::<usize>()
+            .clamp(1, MAX_CHUNKS)
+    };
     let align = pieces.map_or(1, |pieces| pieces.length);
     let planned = plan_aligned_chunks(total, budget, align);
     scheduler
@@ -259,6 +266,7 @@ async fn transfer(
                 parallel_sources: plan.parallel,
                 pieces: plan.pieces,
                 unverified: plan.unverified,
+                whole_file_hash: file.expected_checksum.is_some(),
             },
             Arc::new(DatabaseLedger {
                 database: scheduler.database.clone(),

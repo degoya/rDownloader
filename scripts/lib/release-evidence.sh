@@ -5,15 +5,54 @@
 # evidence log, and run_step / run_steps_parallel, which run a step and write its marker. The
 # properties it keeps are named at the top of release-pipeline.sh.
 #
-# Expects from scripts/release-pipeline.sh, which sources it: VERSION, LOG, NONCE, RESUME,
+# Expects from scripts/release-pipeline.sh, which sources it: ROOT, VERSION, LOG, NONCE, RESUME,
 # PRERELEASE, RELEASE_BRANCH, MAIN_BRANCH, JOBS, LANES, WINDOWS_LANE, GATE_REQUIRES and
-# step_command, and the working directory at the checkout root.
+# step_command, rd_worktree_tree (scripts/lib/verified.sh), and the working directory at the
+# checkout root.
 
 marker_field() { sed -n "s/.* $2=\([^ ]*\).*/\1/p" <<< "$1"; }
 
-# The last recorded attempt at a step, for this run only. Empty when there is none.
+# The last recorded attempt at a step, for this run only and, but for preflight, since the tree
+# last changed under it (resume_tree_check). Empty when there is none.
 last_marker() {
-    grep -h "^##RD-STEP id=$1 nonce=$NONCE " "$LOG" 2>/dev/null | tail -1 || true
+    awk -v id="id=$1" -v nonce="nonce=$NONCE" '
+        $1 == "##RD-TREE-CHANGED" && $2 == nonce && id != "id=preflight" { marker = "" }
+        $1 == "##RD-STEP" && $2 == id && $3 == nonce { marker = $0 }
+        END { if (marker != "") print marker }' "$LOG" 2> /dev/null || true
+}
+
+# The tree of the working state a step leaves behind, for its marker (PIPE-09); `none` when git
+# cannot say, which no later tree equals.
+step_tree() {
+    local tree; tree="$(rd_worktree_tree "$ROOT" || true)"
+    printf '%s\n' "${tree:-none}"
+}
+
+# On --resume (PIPE-09): the working tree is compared with the one this run's last step left
+# behind. The same tree means nothing changed between the stop and the resume, and every green
+# step stands. Any other — a fix between the stop and the resume — writes a ##RD-TREE-CHANGED line,
+# behind which last_marker sees no record: every step after preflight runs again, sign-plugins and
+# the packages among them, and the evidence gate wants the new records. Per step it cannot be
+# decided: the chain changes the tree itself (version-bump, doc-facts, archive-jobs), and the
+# packages carry README.md, so even a documentation fix leaves them stale. preflight stands: it is
+# the start gate and wants a committed tree, which the version bump no longer is, and its checks
+# of the content run again inside test's `check.sh --rust --full`.
+resume_tree_check() {
+    local recorded current
+    recorded="$(awk -v nonce="nonce=$NONCE" '
+        ($1 == "##RD-STEP" && $3 == nonce) || ($1 == "##RD-TREE-CHANGED" && $2 == nonce) { line = $0 }
+        END { print line }' "$LOG" 2> /dev/null || true)"
+    [[ -n "$recorded" ]] || return 0
+    recorded="$(marker_field "$recorded" tree)"
+    current="$(step_tree)"
+    if [[ -n "$recorded" && "$recorded" == "$current" && "$current" != none ]]; then
+        echo "==> the tree is the one the last step left (${current:0:12}); its green steps stand"
+        return 0
+    fi
+    printf '##RD-TREE-CHANGED nonce=%s was=%s tree=%s at=%s\n' \
+        "$NONCE" "${recorded:-none}" "$current" "$(date -Is)" >> "$LOG"
+    echo "==> the tree changed since the last step (${recorded:-none} -> ${current:0:12}):"
+    echo "    every step after preflight runs again"
 }
 
 step_is_green() {
@@ -52,8 +91,8 @@ run_step() {
     after="$(stat -c %s "$LOG")"
     bytes="$(( after - before ))"
     ended="$(date -Is)"
-    printf '##RD-STEP id=%s nonce=%s version=%s exit=%s bytes=%s started=%s ended=%s\n' \
-        "$id" "$NONCE" "$VERSION" "$status" "$bytes" "$started" "$ended" >> "$LOG"
+    printf '##RD-STEP id=%s nonce=%s version=%s exit=%s bytes=%s started=%s ended=%s tree=%s\n' \
+        "$id" "$NONCE" "$VERSION" "$status" "$bytes" "$started" "$ended" "$(step_tree)" >> "$LOG"
 
     if [[ "$status" -ne 0 ]]; then
         echo >&2
@@ -77,7 +116,7 @@ run_step() {
 # builds interleaved line by line help nobody; the part logs are named for `tail -f`.
 run_steps_parallel() {
     local -a ids=() pids=()
-    local id part pid status started ended bytes failed=0 first_status=0
+    local id part pid status started ended bytes tree failed=0 first_status=0
     for id in "$@"; do
         if [[ "$RESUME" -eq 1 ]] && step_is_green "$id"; then
             echo "==> [$id] already green in this run — skipped"
@@ -106,6 +145,7 @@ run_steps_parallel() {
         pids+=("$!")
     done
     for pid in "${pids[@]}"; do wait "$pid" || true; done
+    tree="$(step_tree)"
 
     for id in "${ids[@]}"; do
         part="$LOG.$id.part"
@@ -115,8 +155,8 @@ run_steps_parallel() {
         printf '\n===== STEP %s (%s) =====\n' "$id" "$started" >> "$LOG"
         cat "$part" >> "$LOG" 2> /dev/null || true
         bytes="$(stat -c %s "$part" 2> /dev/null || echo 0)"
-        printf '##RD-STEP id=%s nonce=%s version=%s exit=%s bytes=%s started=%s ended=%s\n' \
-            "$id" "$NONCE" "$VERSION" "$status" "$bytes" "$started" "$ended" >> "$LOG"
+        printf '##RD-STEP id=%s nonce=%s version=%s exit=%s bytes=%s started=%s ended=%s tree=%s\n' \
+            "$id" "$NONCE" "$VERSION" "$status" "$bytes" "$started" "$ended" "$tree" >> "$LOG"
         rm -f "$part" "$part.status"
         echo "==> [$id] exit $status, $bytes bytes of output ($started → $ended)"
         if [[ "$status" -ne 0 ]]; then

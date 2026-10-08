@@ -194,6 +194,28 @@ pub struct ObjectStorageProfile {
     pub enabled: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// The explicit yes that lets an `ambient` profile send the machine's own credentials —
+    /// an instance role, a managed identity, a Google token — to its custom endpoint
+    /// (RD-1190-20). Without it such a profile is refused before any request.
+    pub ambient_custom_endpoint: bool,
+}
+
+impl ObjectStorageProfile {
+    /// Whether the profile would hand the machine's own credentials to a host nobody
+    /// confirmed: an `ambient` source, a custom endpoint and no opt-in (RD-1190-20).
+    #[must_use]
+    pub fn ambient_endpoint_unconfirmed(&self) -> bool {
+        self.credential_source == ObjectCredentialSource::Ambient
+            && self.endpoint.is_some()
+            && !self.ambient_custom_endpoint
+    }
+
+    /// Whether this profile may sign for `bucket`: a profile bound to one bucket serves that
+    /// bucket only, whether a link names the profile or an upload target does (RD-1190-20).
+    #[must_use]
+    pub fn serves_bucket(&self, bucket: &str) -> bool {
+        self.bucket.as_deref().is_none_or(|bound| bound == bucket)
+    }
 }
 
 /// Why no profile could be chosen for a link.
@@ -212,7 +234,8 @@ pub enum ProfileChoiceError {
 /// In this order: the profile the link names in its user part (by id or by name); the
 /// enabled profile bound to the link's bucket; the one enabled profile bound to no bucket.
 /// Two candidates at the same step are refused rather than decided by order, because the
-/// wrong choice sends one account's credentials to another account's endpoint.
+/// wrong choice sends one account's credentials to another account's endpoint. A named
+/// profile bound to another bucket serves nothing: a link cannot widen a binding.
 pub fn select_profile<'a>(
     profiles: &'a [ObjectStorageProfile],
     address: &ObjectAddress,
@@ -226,6 +249,7 @@ pub fn select_profile<'a>(
         let named = same_provider()
             .find(|profile| profile.id.to_string() == hint)
             .or_else(|| same_provider().find(|profile| profile.name == hint))
+            .filter(|profile| profile.serves_bucket(&address.bucket))
             .ok_or(ProfileChoiceError::None)?;
         return if named.enabled {
             Ok(named)

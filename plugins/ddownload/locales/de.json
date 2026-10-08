@@ -1,5 +1,6 @@
 {
   "name": "DDownload",
+  "description": "Löst DDownload-Links per Anmeldung mit den Kontodaten oder mit einem API-Key auf.",
   "account": {
     "secret_hint": "Wähle, wie sich dieses Konto anmeldet. Zugangsdaten ist der einfache Weg: DDownload-Benutzernamen oder E-Mail und Passwort eintragen, rDownloader meldet sich an und hält die Session selbst. API-Key ist für ein Konto, das kein Passwort speichern soll – den Key aus Konto → API einfügen; er liefert Kontostatus und Dateimetadaten, Downloads brauchen dann zusätzlich eine unten eingefügte Cookie-Session.",
     "secret_hint_api_key": "Der Key aus Konto → API. Er liefert Kontostatus und Dateimetadaten; Downloads laufen über die Cookie-Session unten, weil die DDownload-API keine Direktlinks anbietet.",
@@ -34,6 +35,7 @@
     "ddownload.no_free_link": "Der DDownload-Free-Download hat keinen Dateilink ergeben: {diagnosis}",
     "ddownload.no_premium_file": "Die DDownload-Cookie-Session lieferte keine Premiumdatei: {diagnosis}",
     "ddownload.session_unconfirmed": "Cookie-Sitzung nicht bestätigt – die Kontoseite war weder angemeldet noch eine Gastseite",
+    "ddownload.traffic_exhausted": "Das Traffic-Kontingent des DDownload-Kontos ist vorerst aufgebraucht; der Download wartet und versucht es später erneut",
     "ddownload.unsupported_link": "Kein unterstützter DDownload-Link"
   }
 }

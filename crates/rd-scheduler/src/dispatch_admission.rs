@@ -53,6 +53,11 @@ impl SchedulerHandle {
         {
             return Ok(false);
         }
+        // An account whose traffic is used up holds back its other files the same way, when
+        // the setting says so (RD-1190-14).
+        if self.held_for_account_traffic(file, now) {
+            return Ok(false);
+        }
         if file.mirror_group.is_some() && self.mirror_stands_down(file, groups).await? {
             return Ok(false);
         }

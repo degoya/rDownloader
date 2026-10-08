@@ -10,10 +10,10 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind};
 use rd_plugin_api::{
     ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, Resolver, ResolverHost,
 };
+use rd_plugin_types::{AccountId, Failure, FailureKind};
 
 use super::GoogleDriveResolver;
 

@@ -3,7 +3,8 @@
 //! The secret — an S3 secret key, an Azure account key or shared access signature, a Google
 //! service account key — and the S3 session token enter through write-only request fields,
 //! are validated and go straight to the secret store. Nothing here returns a stored value or
-//! its `vault://` reference; a profile shows only whether one is stored.
+//! its `vault://` reference; a profile shows only whether one is stored. A stored secret is
+//! bound to the host it was typed for, and every change to a profile is audited (RD-1190-20).
 
 use axum::{
     Json,
@@ -18,12 +19,17 @@ use rd_db::StoreErrorKind;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{ApiError, AppState, config_fields::cleanup_secrets, dto::MessageResponse};
+use crate::{
+    ApiError, AppState,
+    audit::{AuditContext, AuditEvent},
+    config_fields::cleanup_secrets,
+    dto::MessageResponse,
+};
 
 #[path = "object_storage_fields.rs"]
 mod fields;
 
-use fields::{Draft, Fields, secret_required, validate_secrets};
+use fields::{Draft, Fields, changed_fields, secret_required, validate_secrets};
 use rd_api_core::input_checks::optional_text;
 
 /// A new object storage profile. The key fields are write-only.
@@ -58,10 +64,16 @@ pub struct CreateObjectStorageProfileRequest {
     pub checksums: bool,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// The explicit yes an `ambient` profile with an `endpoint` needs: the machine's own
+    /// credentials (instance role, managed identity, Google token) then go to that endpoint.
+    /// Without it such a profile is refused with `object_storage.ambient_endpoint_unconfirmed`.
+    #[serde(default)]
+    pub ambient_custom_endpoint: bool,
 }
 
 /// Editable profile fields. An empty secret or session token keeps the stored one while the
-/// provider and the credential source stay what they were.
+/// provider, the credential source and the host — the endpoint, and the Azure account — stay
+/// what they were; a changed host needs the secret typed again (RD-1190-20).
 #[derive(Deserialize, ToSchema)]
 pub struct UpdateObjectStorageProfileRequest {
     pub name: String,
@@ -85,6 +97,9 @@ pub struct UpdateObjectStorageProfileRequest {
     pub checksums: bool,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// See [`CreateObjectStorageProfileRequest::ambient_custom_endpoint`].
+    #[serde(default)]
+    pub ambient_custom_endpoint: bool,
 }
 
 const fn default_true() -> bool {
@@ -112,6 +127,7 @@ pub async fn list_object_storage_profiles(
 #[utoipa::path(post, path = "/api/v1/object-storage/profiles", tag = "configuration", request_body = CreateObjectStorageProfileRequest, responses((status = 201, body = rd_core::ObjectStorageProfile), (status = 400), (status = 409)))]
 pub async fn create_object_storage_profile(
     State(state): State<AppState>,
+    audit: AuditContext,
     Json(request): Json<CreateObjectStorageProfileRequest>,
 ) -> Result<(StatusCode, Json<ObjectStorageProfile>), ApiError> {
     let fields = Fields::validate(Draft {
@@ -124,6 +140,7 @@ pub async fn create_object_storage_profile(
         source: request.credential_source,
         access_key_id: request.access_key_id,
         account: request.account,
+        ambient_custom_endpoint: request.ambient_custom_endpoint,
     })?;
     let secret = optional_text(request.secret_access_key);
     let token = optional_text(request.session_token);
@@ -149,7 +166,10 @@ pub async fn create_object_storage_profile(
         ))
         .await;
     match result {
-        Ok(profile) => Ok((StatusCode::CREATED, Json(profile))),
+        Ok(profile) => {
+            record(&state, &audit, &profile, "created", None).await;
+            Ok((StatusCode::CREATED, Json(profile)))
+        }
         Err(error) => {
             cleanup_secrets(&state.secrets, [secret_ref, token_ref]).await;
             Err(map_store_error(&error))
@@ -161,6 +181,7 @@ pub async fn create_object_storage_profile(
 pub async fn update_object_storage_profile(
     State(state): State<AppState>,
     Path(id): Path<ObjectStorageProfileId>,
+    audit: AuditContext,
     Json(request): Json<UpdateObjectStorageProfileRequest>,
 ) -> Result<Json<ObjectStorageProfile>, ApiError> {
     let stored = state
@@ -178,16 +199,17 @@ pub async fn update_object_storage_profile(
         source: request.credential_source,
         access_key_id: request.access_key_id,
         account: request.account,
+        ambient_custom_endpoint: request.ambient_custom_endpoint,
     })?;
     let secret = optional_text(request.secret_access_key);
     let token = optional_text(request.session_token);
     validate_secrets(&fields, secret.as_deref(), token.as_deref())?;
 
     let signs = fields.source.stores_secret();
-    // An omitted secret keeps the stored one only while the profile keeps signing with it:
-    // an S3 key is no Google key, and an Azure account key is no shared access signature.
-    let keeps =
-        signs && stored.credential_source == fields.source && stored.provider == fields.provider;
+    // An omitted secret keeps the stored one only while the profile keeps signing with it for
+    // the same host: an S3 key is no Google key, an Azure account key is no shared access
+    // signature, and a token that cannot read a secret must not point it at a host of its own.
+    let keeps = signs && fields.keeps_secret_of(&stored);
     if signs && secret.is_none() && !(keeps && stored.secret_ref.is_some()) {
         return Err(secret_required());
     }
@@ -219,6 +241,8 @@ pub async fn update_object_storage_profile(
     match result {
         Ok((profile, orphaned)) => {
             cleanup_secrets(&state.secrets, orphaned.into_iter().map(Some)).await;
+            let changed = changed_fields(&stored, &profile);
+            record(&state, &audit, &profile, "updated", Some(&changed)).await;
             Ok(Json(profile))
         }
         Err(error) => {
@@ -237,6 +261,7 @@ pub async fn update_object_storage_profile(
 pub async fn delete_object_storage_profile(
     State(state): State<AppState>,
     Path(id): Path<ObjectStorageProfileId>,
+    audit: AuditContext,
 ) -> Result<Json<MessageResponse>, ApiError> {
     let profile = state
         .database
@@ -254,6 +279,7 @@ pub async fn delete_object_storage_profile(
         .await
         .map_err(|_| not_found())?;
     cleanup_secrets(&state.secrets, orphaned.into_iter().map(Some)).await;
+    record(&state, &audit, &profile, "deleted", None).await;
     Ok(Json(MessageResponse::new(
         "object_storage.profile_deleted",
         "Object storage profile deleted",
@@ -263,6 +289,7 @@ pub async fn delete_object_storage_profile(
 #[utoipa::path(post, path = "/api/v1/object-storage/profiles/{id}/test", tag = "configuration", params(("id" = rd_core::ObjectStorageProfileId, Path)), responses((status = 200, body = ObjectStorageTestResponse), (status = 404)))]
 pub async fn test_object_storage_profile(
     State(state): State<AppState>,
+    granted: Option<axum::Extension<crate::auth::Granted>>,
     Path(id): Path<ObjectStorageProfileId>,
 ) -> Result<Json<ObjectStorageTestResponse>, ApiError> {
     let profile = state
@@ -271,28 +298,73 @@ pub async fn test_object_storage_profile(
         .await?
         .ok_or_else(not_found)?;
     let failure = state.object_storage.test_profile(&profile).await?;
-    Ok(Json(match failure {
-        None => ObjectStorageTestResponse {
+    let holds_admin =
+        granted.is_some_and(|axum::Extension(granted)| granted.holds(rd_core::Scope::Admin));
+    Ok(Json(test_answer(failure, holds_admin)))
+}
+
+/// The answer to a profile test, for the caller who asked (RD-1190-18).
+///
+/// Why a test failed — nothing listens, something else listens, the credentials were refused —
+/// tells a closed port from an open one, and a token that may edit profiles chooses the
+/// endpoint. So only the person and a token with the administration scope learn it; any other
+/// token reads one answer for every failure, `object_storage.test_failed`.
+fn test_answer(failure: Option<rd_core::Failure>, holds_admin: bool) -> ObjectStorageTestResponse {
+    let Some(failure) = failure else {
+        return ObjectStorageTestResponse {
             reachable: true,
             authenticated: true,
             code: None,
             params: rd_core::MessageParams::new(),
-        },
-        Some(failure) => ObjectStorageTestResponse {
-            reachable: !matches!(
-                failure.code.as_deref(),
-                Some(
-                    rd_object_storage::error::CONNECT_FAILED
-                        | rd_object_storage::ENDPOINT_INVALID
-                        | rd_object_storage::TEST_NEEDS_BUCKET
-                        | rd_object_storage::PROVIDER_UNSUPPORTED
-                )
-            ),
+        };
+    };
+    if !holds_admin {
+        return ObjectStorageTestResponse {
+            reachable: false,
             authenticated: false,
-            code: failure.code,
-            params: failure.params,
-        },
-    }))
+            code: Some(TEST_FAILED.to_owned()),
+            params: rd_core::MessageParams::new(),
+        };
+    }
+    ObjectStorageTestResponse {
+        reachable: !matches!(
+            failure.code.as_deref(),
+            Some(
+                rd_object_storage::error::CONNECT_FAILED
+                    | rd_object_storage::ENDPOINT_INVALID
+                    | rd_object_storage::ENDPOINT_REFUSED
+                    | rd_object_storage::TEST_NEEDS_BUCKET
+                    | rd_object_storage::PROVIDER_UNSUPPORTED
+            )
+        ),
+        authenticated: false,
+        code: failure.code,
+        params: failure.params,
+    }
+}
+
+/// Stable code of a failed test, for a caller who may not learn why (RD-1190-18).
+const TEST_FAILED: &str = "object_storage.test_failed";
+
+/// One audit record per profile change: who, which profile, what kind of change, the names of
+/// the fields an update changed, and where the profile now sends its requests. Never a secret.
+async fn record(
+    state: &AppState,
+    audit: &AuditContext,
+    profile: &ObjectStorageProfile,
+    change: &str,
+    fields: Option<&str>,
+) {
+    let mut event = AuditEvent::success(rd_core::AuditAction::ObjectStorageProfileChanged)
+        .by(audit)
+        .target("object_storage_profile", profile.id)
+        .named(profile.name.clone())
+        .detail("change", change)
+        .detail("endpoint", profile.endpoint.as_deref().unwrap_or("default"));
+    if let Some(fields) = fields {
+        event = event.detail("fields", fields);
+    }
+    crate::audit::record(state, event).await;
 }
 
 async fn store(state: &AppState, value: Option<String>) -> Result<Option<String>, ApiError> {
@@ -323,3 +395,46 @@ fn map_store_error(error: &anyhow::Error) -> ApiError {
 #[cfg(test)]
 #[path = "object_storage_handlers_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod address_tests {
+    use super::{TEST_FAILED, test_answer};
+
+    /// RD-1190-18: a token without the administration scope reads one answer for every failed
+    /// test, so a closed port and a port where something else listens look the same to it.
+    #[test]
+    fn only_an_administrator_learns_why_a_test_failed() {
+        let closed = || {
+            rd_core::Failure::coded(
+                rd_core::FailureKind::Permanent,
+                rd_object_storage::error::CONNECT_FAILED,
+                "closed",
+            )
+        };
+        let answered = || {
+            rd_core::Failure::coded(
+                rd_core::FailureKind::AuthRequired,
+                rd_object_storage::error::ACCESS_DENIED,
+                "something listens",
+            )
+        };
+        let (closed_token, answered_token) = (
+            test_answer(Some(closed()), false),
+            test_answer(Some(answered()), false),
+        );
+        for answer in [&closed_token, &answered_token] {
+            assert!(!answer.reachable && !answer.authenticated);
+            assert_eq!(answer.code.as_deref(), Some(TEST_FAILED));
+        }
+        let (closed_admin, answered_admin) = (
+            test_answer(Some(closed()), true),
+            test_answer(Some(answered()), true),
+        );
+        assert!(!closed_admin.reachable && answered_admin.reachable);
+        assert_eq!(
+            answered_admin.code.as_deref(),
+            Some(rd_object_storage::error::ACCESS_DENIED)
+        );
+        assert!(test_answer(None, false).authenticated);
+    }
+}

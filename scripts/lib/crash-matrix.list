@@ -1,4 +1,4 @@
-# The crash and restart matrix (RD-140-04, axis A): which crates' `failpoints` feature it turns on
+# The crash and restart matrix (RD-140-04, today RD-170-07; axis A): which crates' `failpoints` feature it turns on
 # and what it runs. Read by scripts/lib/crash-matrix.sh for scripts/check.sh and the
 # `crash-matrix` job of .github/workflows/ci.yml; AGENTS.md points here (RD-191-09: the list was
 # kept by hand in four places).

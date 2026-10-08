@@ -51,22 +51,50 @@ pub(super) struct Pool {
     pub(super) parallel: usize,
     pub(super) busy: HashMap<u32, usize>,
     pub(super) out: HashSet<u32>,
+    /// Whether a hash proves the bytes, so that a mirror reached through a range source may
+    /// start inside the file (TR-02).
+    pub(super) hash_basis: bool,
 }
 
 impl Pool {
-    /// The source for the next chunk: among the first `parallel` sources still in, the one
-    /// with the fewest chunks in flight, earlier ones first on a tie. That is what spreads
-    /// consecutive chunks over two mirrors instead of stacking them on the first.
-    pub(super) fn pick(&mut self) -> Option<SourceEndpoint> {
+    /// The source for a chunk read from `offset`: among the first `parallel` sources still in
+    /// that may serve it, the one with the fewest chunks in flight, earlier ones first on a
+    /// tie. That is what spreads consecutive chunks over two mirrors instead of stacking them
+    /// on the first.
+    pub(super) fn pick(&mut self, offset: u64) -> Option<SourceEndpoint> {
         let chosen = self
             .sources
             .iter()
             .filter(|source| !self.out.contains(&source.position))
+            .filter(|source| self.may_serve(source, offset))
             .take(self.parallel)
             .min_by_key(|source| self.busy.get(&source.position).copied().unwrap_or(0))?
             .clone();
         *self.busy.entry(chosen.position).or_default() += 1;
         Some(chosen)
+    }
+
+    /// Whether `source` may serve a chunk from `offset`.
+    ///
+    /// An FTP or SFTP mirror says nothing about where the bytes it sends begin: a server that
+    /// acknowledges `REST` and sends from the first byte anyway delivers exactly as many
+    /// bytes as were asked for, the head of the file, and the chunk engine writes them at the
+    /// chunk's offset. The single-file transfer notices by the length; a chunk, read only to
+    /// its end, cannot. Without a piece or whole-file hash to catch it, such a mirror serves
+    /// only from the first byte. HTTP describes its range in `Content-Range` and is checked
+    /// on every response.
+    fn may_serve(&self, source: &SourceEndpoint, offset: u64) -> bool {
+        self.hash_basis || offset == 0 || source.via.is_none()
+    }
+
+    /// Whether a source is still in that only the rule of [`Self::may_serve`] keeps from a
+    /// chunk: what is left once nothing runs and a chunk still waits.
+    pub(super) fn held_back(&self) -> bool {
+        !self.hash_basis
+            && self
+                .sources
+                .iter()
+                .any(|source| !self.out.contains(&source.position))
     }
 
     pub(super) fn release(&mut self, position: u32) {
@@ -151,6 +179,21 @@ pub(super) fn piece_mismatch(offset: u64) -> HttpDownloadError {
         format!("a mirror delivered a piece at byte {offset} that does not match its hash"),
     )
     .with_param("offset", offset)
+    .into()
+}
+
+/// Only mirrors that cannot prove where their bytes begin are left for a chunk inside the
+/// file, and nothing proves the bytes (TR-02). Retryable like [`no_usable_source`]: an HTTP
+/// source that waits out a backoff can continue the chunk later.
+pub(super) fn mirror_offset_unverified() -> HttpDownloadError {
+    Failure::coded(
+        FailureKind::Transient {
+            retry_after_seconds: None,
+        },
+        "mirror.offset_unverified",
+        "without a checksum, the FTP and SFTP mirrors of this file can only serve it from its \
+         first byte, and no other source is ready to continue it",
+    )
     .into()
 }
 

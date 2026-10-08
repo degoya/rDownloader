@@ -276,7 +276,11 @@ impl PluginStoreState {
         // Which addresses the request may reach is the store's to say, like the allowance: the
         // person's own network only where they supplied the address (RA-HOST-01).
         let request = crate::native::with_own_network(self.own_network(), request);
-        let response = rd_http::with_redirect_gate(gate, request).await;
+        let (response, expanded) =
+            crate::native::with_expanded_credentials(rd_http::with_redirect_gate(gate, request))
+                .await;
+        // Remembered whatever the answer: the values were in the request either way (PL-02).
+        self.remember_redactions(expanded);
         // Credited on the failure path too: a request that timed out still spent that time
         // waiting on the network rather than computing.
         self.credit_host_time(started.elapsed());

@@ -17,7 +17,6 @@ import type {
   AutomationAction,
   AutomationCondition,
   AutomationDryRun,
-  Category,
   DownloadPackage,
   NotificationTarget
 } from '@/api/types'
@@ -35,6 +34,7 @@ import { useFormBaseline } from '@/composables/useFormBaseline'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import { useAutomationsStore } from '@/stores/automations'
+import { useCategories } from '@/stores/categories'
 import { usePostprocessStore } from '@/stores/postprocess'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
@@ -47,7 +47,7 @@ const store = useAutomationsStore()
 const postprocess = usePostprocessStore()
 const confirm = useConfirm()
 const versionsModal = useOverlay().create(AutomationVersionsModal)
-const categories = ref<Category[]>([])
+const { categories, fetchCategories } = useCategories()
 const packages = ref<DownloadPackage[]>([])
 const targets = ref<NotificationTarget[]>([])
 const editing = ref<string | null>(null)
@@ -87,12 +87,11 @@ onMounted(() => store.connectEvents())
 onUnmounted(() => store.disconnectEvents())
 
 async function loadReferences(): Promise<void> {
-  const [categoryResponse, packageResponse, targetResponse] = await Promise.all([
-    api.GET('/api/v1/categories'),
+  const [, packageResponse, targetResponse] = await Promise.all([
+    fetchCategories(),
     api.GET('/api/v1/packages'),
     api.GET('/api/v1/notifications/targets')
   ])
-  if (categoryResponse.data) categories.value = categoryResponse.data
   if (packageResponse.data) packages.value = packageResponse.data
   if (targetResponse.data) targets.value = targetResponse.data
 }

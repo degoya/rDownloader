@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, LinkStatus};
 use rd_plugin_api::{CheckRequest, ClientIdentity, Resolver, ResolverHost};
+use rd_plugin_types::{AccountId, LinkStatus};
 
 use super::super::KatfileResolver;
 use super::{MockHost, SessionHost, json};
@@ -63,7 +63,7 @@ async fn check_without_secret_reports_api_key_required_and_makes_no_requests() {
         })
         .await
         .expect_err("missing API key must fail");
-    assert_eq!(failure.category, rd_core::FailureKind::AuthRequired);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::AuthRequired);
     assert_eq!(failure.code.as_deref(), Some("katfile.api_key_required"));
     assert_eq!(host.requests.lock().expect("mock lock").len(), 0);
 }

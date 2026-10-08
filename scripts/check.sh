@@ -275,8 +275,9 @@ source "$ROOT/scripts/lib/crate-graph.sh"
 source "$ROOT/scripts/lib/check-reuse-crates.sh"
 rd_check_reuse_crates
 
-# git diff --check, the job layout, the version copies, the action pins and the plugin release notes
-# (scripts/lib/preflight.sh): files only, well under a second, whatever the change touched.
+# git diff --check, the job layout, the version copies, the action pins, the release notes and the
+# container's Python tools (scripts/lib/preflight.sh): files only, well under a second, whatever
+# the change touched.
 rd_file_checks "$boundary"
 
 # The scripts themselves: bash -n, shellcheck and every test under scripts/tests/ (RD-140-22),

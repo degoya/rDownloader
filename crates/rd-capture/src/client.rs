@@ -209,6 +209,54 @@ impl fmt::Display for ServiceRefusal {
 
 impl std::error::Error for ServiceRefusal {}
 
+/// The code with which the intake says that the links named a page whose releases wait for a
+/// choice in the LinkGrabber (RD-1170-03).
+const PICK_WAITING: &str = "site_rules.pick_waiting";
+
+/// What the service made of links handed to it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Submitted {
+    /// They are in the LinkGrabber.
+    Added,
+    /// They named a page whose releases -- this many -- wait for a choice in the LinkGrabber
+    /// (RD-1190-17). A success: the list is on the board, and repeating the hand-over only
+    /// lists the page again.
+    PickWaiting(u32),
+}
+
+impl Submitted {
+    /// The notification a page waiting for a choice gets; `None` for links that were added,
+    /// which the intake event announces.
+    pub(crate) fn notice(self) -> Option<String> {
+        match self {
+            Self::Added => None,
+            Self::PickWaiting(1) => {
+                Some("A page lists 1 release; choose it in rDownloader's LinkGrabber".to_owned())
+            }
+            Self::PickWaiting(count) => Some(format!(
+                "A page lists {count} releases; choose them in rDownloader's LinkGrabber"
+            )),
+        }
+    }
+}
+
+/// How many releases wait for a choice, when the refusal is the intake's `pick_waiting`
+/// (RD-1190-17). The status must be a client error and the code exactly that one; the count
+/// is read from the answer's `params` and is 0 when it cannot be.
+pub(crate) fn pick_waiting(error: &anyhow::Error) -> Option<u32> {
+    let refusal = error.downcast_ref::<ServiceRefusal>()?;
+    if !refusal.status().is_client_error() || refusal.code() != Some(PICK_WAITING) {
+        return None;
+    }
+    let Detail::Text(body) = refusal.detail() else {
+        return Some(0);
+    };
+    let entries = serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|body| body.get("params")?.get("entries")?.as_str()?.parse().ok());
+    Some(entries.unwrap_or(0))
+}
+
 #[derive(Clone)]
 pub(crate) struct CaptureClient {
     service: Url,
@@ -236,7 +284,7 @@ impl CaptureClient {
         source: &str,
         package_name: Option<&str>,
         password: Option<&str>,
-    ) -> Result<()> {
+    ) -> Result<Submitted> {
         let source = match source {
             "clipboard" => IngressSource::Clipboard,
             "click_and_load" => IngressSource::ClickAndLoad,
@@ -256,8 +304,12 @@ impl CaptureClient {
             }))
             .send()
             .await?;
-        ensure_success(response, "collector").await?;
-        Ok(())
+        match ensure_success(response, "collector").await {
+            Ok(_) => Ok(Submitted::Added),
+            Err(error) => pick_waiting(&error)
+                .map(Submitted::PickWaiting)
+                .ok_or(error),
+        }
     }
 
     /// Figures for the tray: how much is running, and how far along.

@@ -1,5 +1,6 @@
 {
   "name": "Premiumize.me",
+  "description": "Resuelve enlaces de otros hosts mediante una cuenta de Premiumize.me.",
   "account": {
     "secret_label": "Clave API de Premiumize",
     "secret_hint": "Premiumize necesita la clave API en el campo secreto. Normalmente no se requiere una sesión de cookies para Premiumize."

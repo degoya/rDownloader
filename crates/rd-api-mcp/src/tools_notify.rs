@@ -1,7 +1,10 @@
 //! MCP tools for notification destinations and the rules that route events to them.
 //!
 //! A destination's webhook secret, SMTP password or apprise URL stays in the vault: no tool
-//! here takes one, and an update carries the stored one over untouched.
+//! here takes one, and an update carries the stored one over untouched. A destination's address
+//! is answered without its path and query (RD-1190-21), where Slack, Discord, Teams and most
+//! self-hosted webhooks keep the key that lets anybody post; passed back unchanged, the masked
+//! address keeps the stored one.
 
 use axum::{
     Json,
@@ -26,13 +29,13 @@ use crate::{
 #[tool_router(router = notify_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List the notification destinations (webhook, SMTP, apprise, plugin). Stored secrets are never included."
+        description = "List the notification destinations (webhook, SMTP, apprise, plugin). Stored secrets are never included, and an address shows only its scheme and host: its path and query are [redacted], because a webhook keeps its key there. The full address is in the web UI."
     )]
     pub async fn list_notification_targets(&self) -> McpToolResult {
         respond(
             crate::notify_handlers::list_targets(State(self.state.clone()))
                 .await
-                .map(|targets| targets.0),
+                .map(|targets| targets.0.into_iter().map(shown).collect::<Vec<_>>()),
         )
     }
 
@@ -64,11 +67,11 @@ impl RdMcpServer {
             crate::notify_handlers::save_target(&self.state, None, holds_admin(), request).await
         }
         .await;
-        respond(result)
+        respond(result.map(shown))
     }
 
     #[tool(
-        description = "Change one notification destination. The stored secret is kept; only the fields you pass are changed. Setting or changing `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); a path an administrator stored may be passed back unchanged. A name another target has is refused with notification.name_taken."
+        description = "Change one notification destination. The stored secret is kept; only the fields you pass are changed, and an endpoint passed back as list_notification_targets showed it ([redacted] path) keeps the stored address. Setting or changing `config.executable`, the program an apprise destination runs, needs the administration permission (api:admin); a path an administrator stored may be passed back unchanged. A name another target has is refused with notification.name_taken."
     )]
     pub async fn update_notification_target(
         &self,
@@ -93,7 +96,11 @@ impl RdMcpServer {
                 name: params.name.unwrap_or(current.name),
                 kind: params.kind.map_or(current.kind, Into::into),
                 enabled: params.enabled.unwrap_or(current.enabled),
-                endpoint: params.endpoint.unwrap_or(current.endpoint),
+                // The address this tool answered with stands for the stored one.
+                endpoint: match params.endpoint {
+                    Some(endpoint) if endpoint != shown_endpoint(&current.endpoint) => endpoint,
+                    _ => current.endpoint,
+                },
                 config: params
                     .config
                     .map(without_credentials)
@@ -105,7 +112,7 @@ impl RdMcpServer {
             crate::notify_handlers::save_target(&self.state, Some(id), holds_admin(), request).await
         }
         .await;
-        respond(result)
+        respond(result.map(shown))
     }
 
     #[tool(
@@ -249,4 +256,42 @@ impl RdMcpServer {
 /// destination costs on top of the tools' `api:config` (audit 2026-10-05, S1).
 fn holds_admin() -> bool {
     super::granted_now().contains(&rd_core::Scope::Admin)
+}
+
+/// A destination as a tool answers with it: its address without path and query.
+fn shown(mut target: rd_notify::NotificationTarget) -> rd_notify::NotificationTarget {
+    target.endpoint = shown_endpoint(&target.endpoint);
+    target
+}
+
+/// What a tool shows of a destination's address (RD-1190-21). An address with a host loses its
+/// path and query; an SMTP `host:port` and an apprise scheme are no such address and stay.
+fn shown_endpoint(endpoint: &str) -> String {
+    url::Url::parse(endpoint)
+        .ok()
+        .filter(url::Url::has_host)
+        .and_then(|address| super::webhook_mask::mask_path(&address))
+        .unwrap_or_else(|| endpoint.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shown_endpoint;
+
+    #[test]
+    fn a_destination_address_shows_scheme_and_host_only() {
+        assert_eq!(
+            shown_endpoint("https://chat.example.org/hooks/a1b2c3"),
+            "https://chat.example.org/[redacted]"
+        );
+        assert_eq!(
+            shown_endpoint("https://ntfy.example.org"),
+            "https://ntfy.example.org"
+        );
+        assert_eq!(
+            shown_endpoint("smtp.example.org:587"),
+            "smtp.example.org:587"
+        );
+        assert_eq!(shown_endpoint("tgram"), "tgram");
+    }
 }

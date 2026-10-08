@@ -65,14 +65,33 @@ impl Worker {
         chunk: &ChunkSpec,
         response: &reqwest::Response,
     ) -> Result<(), HttpDownloadError> {
-        let start = response
-            .headers()
-            .get(header::CONTENT_RANGE)
-            .and_then(|value| value.to_str().ok())
-            .and_then(crate::probe::parse_content_range_start);
-        match start {
-            Some(start) if start == chunk.committed => Ok(()),
+        let range = header_text(response, &header::CONTENT_RANGE).unwrap_or_default();
+        match crate::probe::parse_content_range_start(&range) {
+            Some(start) if start == chunk.committed => self.check_total(chunk, &range),
             _ => Err(HttpDownloadError::RangeIgnored),
+        }
+    }
+
+    /// Refuses a described range of an entity whose length is not this transfer's (TR-01).
+    ///
+    /// The start says where the body goes, the total says which file it belongs to. Only the
+    /// start used to be compared, so a file that had changed length behind the same address
+    /// handed its tail to the bytes of the old one. A validator answers that question too,
+    /// through `If-Range`; without one, the length is the only evidence left, and bytes on disk
+    /// are continued only when it is confirmed equal.
+    fn check_total(&self, chunk: &ChunkSpec, content_range: &str) -> Result<(), HttpDownloadError> {
+        match (
+            crate::probe::parse_content_range_total(content_range),
+            self.total_bytes,
+        ) {
+            (Some(named), Some(expected)) if named != expected => {
+                Err(HttpDownloadError::RemoteChanged)
+            }
+            (Some(_), Some(_)) => Ok(()),
+            _ if self.validator.is_none() && chunk.committed > chunk.start => {
+                Err(HttpDownloadError::RemoteChanged)
+            }
+            _ => Ok(()),
         }
     }
 
@@ -90,14 +109,11 @@ impl Worker {
     ) -> Result<u64, HttpDownloadError> {
         // The header decides before the status does: a server that answers `200` while
         // describing the range it sends is serving that range.
-        if let Some(start) = response
-            .headers()
-            .get(header::CONTENT_RANGE)
-            .and_then(|value| value.to_str().ok())
-            .and_then(crate::probe::parse_content_range_start)
+        if let Some(range) = header_text(response, &header::CONTENT_RANGE)
+            && let Some(start) = crate::probe::parse_content_range_start(&range)
         {
             return if start == chunk.committed {
-                Ok(start)
+                self.check_total(chunk, &range).map(|()| start)
             } else {
                 Err(HttpDownloadError::RangeIgnored)
             };

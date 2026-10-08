@@ -67,6 +67,15 @@ pub async fn save_settings(
         .with_param("scope", rd_core::Scope::Admin.as_str())
         .with_param("setting", field));
     }
+    // Only a changed target: a stored one whose profile went since must not hold up every
+    // other setting on the page (RD-1190-20).
+    if settings.upload_remote != current.upload_remote {
+        rd_api_core::object_upload_target::check_object_upload_target(
+            &state.database,
+            settings.upload_remote.as_deref(),
+        )
+        .await?;
+    }
     let applied = apply_settings(state, settings).await?;
     // The *names* of the fields that changed, never their values: the settings document holds
     // secret references, executable paths and proxy addresses, and an audit log that quoted
@@ -119,7 +128,7 @@ fn changed_field_names(current: &SettingsResponse, next: &SettingsResponse) -> V
 /// endpoints that receive what the service holds -- the trace export, the DLC decryption
 /// service -- are the third kind: pointing one elsewhere hands somebody else the data.
 fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Option<&'static str> {
-    let fields: [(&'static str, bool); 24] = [
+    let fields: [(&'static str, bool); 27] = [
         (
             "admin_login_disabled",
             current.admin_login_disabled != next.admin_login_disabled,
@@ -227,6 +236,25 @@ fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Opt
         (
             "excluded_domains_file",
             current.excluded_domains_file != next.excluded_domains_file,
+        ),
+        // Addresses the service fetches from on its own (audit 2026-10-08, API-01), the same
+        // family as the reconnect's address check. The tool manifest is signed and its
+        // sequence only rises, so a foreign host cannot swap the tools; it still learns this
+        // installation exists and decides whether it ever sees an update. The blocklist is
+        // unsigned: whoever serves it chooses which peers the torrent engine refuses.
+        (
+            "managed_tools_manifest_url",
+            current.managed_tools_manifest_url != next.managed_tools_manifest_url,
+        ),
+        (
+            "torrent_ip_blocklist_url",
+            current.torrent_ip_blocklist_url != next.torrent_ip_blocklist_url,
+        ),
+        // Whether MCP tools may name a script (RD-1190-21): what an agent may make this service
+        // run, so as privileged as the script fields it opens. MCP refuses it outright.
+        (
+            "mcp_scripts_allowed",
+            current.mcp_scripts_allowed != next.mcp_scripts_allowed,
         ),
     ];
     fields

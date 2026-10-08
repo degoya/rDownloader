@@ -60,6 +60,14 @@ impl Secrets {
             .map(|(_, value)| value.expose_secret())
     }
 
+    /// Every value loaded, the granted one first.
+    pub(super) fn values(&self) -> impl Iterator<Item = &str> {
+        self.granted
+            .iter()
+            .chain(self.named.iter().map(|(_, value)| value))
+            .map(ExposeSecret::expose_secret)
+    }
+
     /// Whether any credential was loaded at all.
     pub(super) fn is_empty(&self) -> bool {
         self.granted.is_none() && self.named.is_empty()

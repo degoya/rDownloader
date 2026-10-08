@@ -20,6 +20,10 @@ use imports::{allowed_imports, import_matches};
 pub(crate) const EPOCH_TICK: Duration = Duration::from_millis(10);
 /// Longest plugin log line the host keeps, in characters.
 const MAX_LOG_CHARS: usize = 4096;
+/// Most elements one plugin table may hold (PL-01). Table storage is not counted against
+/// `memory_bytes`, so without this cap a `table.grow` loop took host memory at will. The
+/// largest table of a bundled component holds 116 elements (2026-10-08).
+pub(crate) const MAX_TABLE_ELEMENTS: usize = 10_000;
 
 /// Per-invocation state exposed only to explicitly linked host functions.
 pub struct PluginStoreState {
@@ -159,9 +163,14 @@ impl PluginStoreState {
         self.own_network
     }
 
+    /// Every request now adds the values it was expanded with (PL-02), so a value already
+    /// known is not kept twice: the list is scanned for every log line.
     pub(crate) fn remember_redactions(&mut self, values: impl IntoIterator<Item = String>) {
-        self.redactions
-            .extend(values.into_iter().filter(|value| value.len() >= 4));
+        for value in values {
+            if value.len() >= 4 && !self.redactions.contains(&value) {
+                self.redactions.push(value);
+            }
+        }
     }
 
     /// Masks every remembered secret in a plugin's log line, then cuts it to
@@ -301,6 +310,7 @@ impl SandboxEngine {
                 .memory_size(memory_bytes)
                 .instances(32)
                 .tables(8)
+                .table_elements(MAX_TABLE_ELEMENTS)
                 .memories(1)
                 .trap_on_grow_failure(true)
                 .build(),

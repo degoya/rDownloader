@@ -13,11 +13,47 @@ use crate::{ApiError, AppState};
 /// program. Only then may its mirrors point into the person's own network (RD-150-03): a
 /// Metalink a website serves is written by that website, and its mirrors must not be able to
 /// make the service reach the router or another machine behind the firewall.
+///
+/// The clipboard is not among them (RD-1190-18): the capture agent hands over what was copied
+/// without a click, and any web page can put an address there.
 pub(crate) fn from_own_hand(source: IngressSource) -> bool {
-    matches!(
-        source,
-        IngressSource::Manual | IngressSource::Clipboard | IngressSource::HotFolder
-    )
+    matches!(source, IngressSource::Manual | IngressSource::HotFolder)
+}
+
+/// The source a batch that came through the capture door is recorded with (RD-1190-18).
+///
+/// The door is the capture agent's and the extension's, never the person's own hand, so the
+/// source is pinned by the way in rather than taken from the body: a capture token naming
+/// `manual` — or a hot folder, a feed or an NZB, which only the service itself names — is
+/// recorded as `api`. The four a capture client really is keep their name, which routing
+/// rules match on.
+pub(crate) fn captured(claimed: IngressSource) -> IngressSource {
+    match claimed {
+        IngressSource::Clipboard
+        | IngressSource::ClickAndLoad
+        | IngressSource::BrowserExtension
+        | IngressSource::BrowserDownload => claimed,
+        IngressSource::Manual
+        | IngressSource::Api
+        | IngressSource::Nzb
+        | IngressSource::HotFolder
+        | IngressSource::Subscription => IngressSource::Api,
+    }
+}
+
+/// The source an intake on the LinkGrabber route is recorded with (RD-1190-22). A token is a
+/// program, never the person's own hand, so an API token naming `manual` is recorded the way
+/// the capture door records a capture token ([`captured`]); a session, and a caller on this
+/// machine while the login is switched off, keep the source they name.
+pub(crate) fn of_caller(
+    audit: &crate::audit::AuditContext,
+    claimed: IngressSource,
+) -> IngressSource {
+    if audit.actor.kind == rd_core::AuditActorKind::Token {
+        captured(claimed)
+    } else {
+        claimed
+    }
 }
 
 /// Keeps each checked source set on the candidate proposed under its address.
@@ -60,18 +96,16 @@ pub(crate) async fn attach(
 mod tests {
     use rd_core::IngressSource;
 
-    use super::from_own_hand;
+    use super::{captured, from_own_hand, of_caller};
+    use crate::audit::{Actor, AuditContext};
 
     #[test]
     fn only_a_document_from_the_persons_own_hand_may_reach_their_network() {
-        for own in [
-            IngressSource::Manual,
-            IngressSource::Clipboard,
-            IngressSource::HotFolder,
-        ] {
+        for own in [IngressSource::Manual, IngressSource::HotFolder] {
             assert!(from_own_hand(own), "{own:?}");
         }
         for relayed in [
+            IngressSource::Clipboard,
             IngressSource::BrowserExtension,
             IngressSource::BrowserDownload,
             IngressSource::ClickAndLoad,
@@ -81,5 +115,56 @@ mod tests {
         ] {
             assert!(!from_own_hand(relayed), "{relayed:?}");
         }
+    }
+
+    /// RD-1190-18: whatever a capture token claims, nothing that came through the capture door
+    /// counts as the person's own hand.
+    #[test]
+    fn the_capture_door_never_counts_as_the_persons_own_hand() {
+        for claimed in [
+            IngressSource::Manual,
+            IngressSource::Clipboard,
+            IngressSource::ClickAndLoad,
+            IngressSource::Api,
+            IngressSource::Nzb,
+            IngressSource::HotFolder,
+            IngressSource::BrowserExtension,
+            IngressSource::BrowserDownload,
+            IngressSource::Subscription,
+        ] {
+            assert!(!from_own_hand(captured(claimed)), "{claimed:?}");
+        }
+        assert_eq!(captured(IngressSource::Manual), IngressSource::Api);
+        assert_eq!(
+            captured(IngressSource::ClickAndLoad),
+            IngressSource::ClickAndLoad
+        );
+    }
+
+    /// RD-1190-22: on the LinkGrabber route a token is held like the capture door holds one;
+    /// a session keeps the source it names.
+    #[test]
+    fn a_token_on_the_linkgrabber_route_never_counts_as_the_persons_own_hand() {
+        let token = AuditContext {
+            actor: Actor {
+                kind: rd_core::AuditActorKind::Token,
+                id: Some("token".to_owned()),
+                label: None,
+            },
+            trace: None,
+        };
+        assert_eq!(of_caller(&token, IngressSource::Manual), IngressSource::Api);
+        assert_eq!(
+            of_caller(&token, IngressSource::Clipboard),
+            IngressSource::Clipboard
+        );
+        let session = AuditContext {
+            actor: Actor::session("session"),
+            trace: None,
+        };
+        assert_eq!(
+            of_caller(&session, IngressSource::Manual),
+            IngressSource::Manual
+        );
     }
 }

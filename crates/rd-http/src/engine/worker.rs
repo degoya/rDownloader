@@ -26,6 +26,9 @@ pub(super) struct Worker {
     pub(super) cancellation: CancellationToken,
     pub(super) url: Url,
     pub(super) validator: Option<String>,
+    /// Length of the file this transfer was planned for; a described range naming another
+    /// one is a different file (TR-01).
+    pub(super) total_bytes: Option<u64>,
     pub(super) require_range: bool,
     pub(super) headers: Arc<Vec<(String, String)>>,
     pub(super) method: rd_core::ReplayMethod,

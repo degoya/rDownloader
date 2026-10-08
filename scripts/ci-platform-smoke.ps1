@@ -11,6 +11,20 @@
 #   ./scripts/ci-platform-smoke.ps1 scoop-install   # install, run, register and remove through Scoop
 param([Parameter(Mandatory = $true)][string]$Step)
 
+# The Scoop installer at a commit of ScoopInstaller/Install and its SHA-256 (PIPE-06): get.scoop.sh
+# serves whatever that repository's master holds, and it ran through Invoke-Expression. The same
+# pins as channels.yml's `scoop` job, which scripts/tests/workflow-shape.sh holds equal.
+$ScoopInstallerCommit = '1e2f334083d609986d8c8bc9e31ae8e87c39fab4'
+$ScoopInstallerSha256 = '94f983b190438311e006b957db7c8422709e0ba62a6c2ac04e278164108f2512'
+
+function Install-PinnedScoop {
+    $installer = Join-Path $env:RUNNER_TEMP 'scoop-install.ps1'
+    Invoke-WebRequest "https://raw.githubusercontent.com/ScoopInstaller/Install/$ScoopInstallerCommit/install.ps1" -OutFile $installer
+    $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+    if ($hash -ne $ScoopInstallerSha256) { throw "the Scoop installer's SHA-256 is $hash, not $ScoopInstallerSha256" }
+    & $installer -RunAsAdmin
+}
+
 function Test-LauncherArgs {
     cmd /c scripts\windows\start-rdownloader.bat invalid-mode
     if ($LASTEXITCODE -ne 2) { throw "start script accepted an invalid mode" }
@@ -78,7 +92,7 @@ function Test-ScoopInstall {
     $fixture = Join-Path $env:RUNNER_TEMP 'scoop-fixture'
     $server = Start-Process python -ArgumentList '-m','http.server','8765','--bind','127.0.0.1' -WorkingDirectory $fixture -PassThru -WindowStyle Hidden
     try {
-        Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
+        Install-PinnedScoop
         $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
         scoop install (Join-Path $fixture 'out\rdownloader.json')
         if ($LASTEXITCODE -ne 0) { throw "scoop install failed" }

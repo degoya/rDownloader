@@ -421,7 +421,9 @@ fn header_string(headers: &header::HeaderMap, name: header::HeaderName) -> Optio
         .map(str::to_owned)
 }
 
-fn parse_content_range_total(value: &str) -> Option<u64> {
+/// Length of the whole entity a `Content-Range` names, as the `8192` in `bytes 1024-2047/8192`;
+/// `None` for an unknown length (`*`).
+pub(crate) fn parse_content_range_total(value: &str) -> Option<u64> {
     value.rsplit_once('/')?.1.parse().ok()
 }
 

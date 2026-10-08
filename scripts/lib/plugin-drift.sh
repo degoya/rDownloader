@@ -4,7 +4,8 @@
 # version a plugin declares, and which member of a signed package differs from what the plugin
 # would be packaged from now. --list-unbumped and the packaging refusal both ask it.
 #
-# Expects the working directory at the checkout root.
+# Expects from scripts/build-plugins.sh, which sources it: PACKAGES and component_path
+# (lib/plugin-stamp.sh), and the working directory at the checkout root.
 
 # The version plugin $1 declares in its own manifest.
 manifest_version() {
@@ -46,4 +47,28 @@ package_drift() {
             return
         fi
     done <<< "$packaged"
+}
+
+# The plugins whose built component, manifest or locales differ from a signed package that
+# already carries their current version: `<name> <version> <member> <package>`, one per line.
+# Without names every plugin; with names only those, which is how check.sh keeps it to the
+# change set. A plugin with no package of its version, or no built component, has nothing to
+# compare and is not named — the latter is --list-missing's question.
+list_unbumped() {
+    local -a names=("$@")
+    local manifest name version package component member
+    if [[ ${#names[@]} -eq 0 ]]; then
+        for manifest in plugins/*/manifest.toml; do
+            names+=("$(basename "$(dirname "$manifest")")")
+        done
+    fi
+    for name in "${names[@]}"; do
+        [[ -f "plugins/$name/manifest.toml" ]] || continue
+        version="$(manifest_version "$name")"
+        package="$PACKAGES/$name-$version.rdplug"
+        component="$(component_path "$name")"
+        [[ -n "$version" && -f "$package" && -f "$component" ]] || continue
+        member="$(package_drift "$package" "$name" "$component")"
+        [[ -z "$member" ]] || echo "$name $version $member $package"
+    done
 }

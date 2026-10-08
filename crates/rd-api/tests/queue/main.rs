@@ -11,6 +11,7 @@ mod common;
 mod auto_remove;
 mod bandwidth;
 mod bandwidth_manual;
+mod bulk_filter;
 mod capture_agent_settings;
 mod capture_queue;
 mod category_move_and_reset;

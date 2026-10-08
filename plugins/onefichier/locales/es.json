@@ -1,5 +1,6 @@
 {
   "name": "1fichier",
+  "description": "Resuelve enlaces de 1fichier con una clave API.",
   "account": {
     "secret_label": "Clave API (desde Parameters → API)",
     "secret_hint": "Introduce tu clave API (Parameters → API) como secreto."

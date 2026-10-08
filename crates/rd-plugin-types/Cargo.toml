@@ -1,0 +1,23 @@
+[package]
+name = "rd-plugin-types"
+version = "1.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The plugin contract's vocabulary, split out of `rd-core` (RD-1190-08, CORE-06): the plugins
+# and `rd-plugin-api` depend on this crate alone, so a change to the service's own types in
+# `rd-core` rebuilds none of them. Its own version, not the workspace's: every crate a plugin's
+# manifest reaches carries one (`crates/rdownloader/tests/repo_lints/plugin_crate_versions.rs`).
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+url.workspace = true
+utoipa.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

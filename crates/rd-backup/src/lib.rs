@@ -26,6 +26,7 @@ mod create;
 pub mod crypto;
 pub mod deliver;
 pub mod destination;
+mod folders;
 pub mod ledger;
 pub mod manifest;
 pub mod pre_update;
@@ -45,6 +46,7 @@ pub use deliver::{Delivery, RetryPolicy, deliver, deliver_all};
 pub use destination::{
     BackupDestination, DestinationError, ListedArchive, LocalFolder, StoredBackup, is_archive_name,
 };
+pub use folders::private_folder;
 pub use manifest::{FORMAT_VERSION, Manifest, ManifestPart, PartKind};
 pub use remote::{DestinationConfig, DestinationContext};
 pub use retention::{RecordedArchive, RetentionPlan, RetentionPolicy, is_own_archive};

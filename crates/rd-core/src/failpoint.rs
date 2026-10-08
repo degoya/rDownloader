@@ -110,7 +110,7 @@ mod armed {
     /// an empty file and no checkpoint behind it, which is a different and easier case than
     /// the third pass, where a resume has to land on an offset that is neither zero nor the
     /// end.
-    pub fn arm_after(name: &str, skip: u32, hits: u32) {
+    pub(super) fn arm_after(name: &str, skip: u32, hits: u32) {
         let mut plan = plan().lock().expect("failpoint plan");
         plan.armed.insert(
             name.to_owned(),
@@ -123,7 +123,7 @@ mod armed {
     }
 
     /// Disarms `name` and forgets whether it fired.
-    pub fn disarm(name: &str) {
+    pub(super) fn disarm(name: &str) {
         let mut plan = plan().lock().expect("failpoint plan");
         plan.armed.remove(name);
         plan.fired.remove(name);
@@ -181,7 +181,10 @@ mod armed {
 }
 
 #[cfg(feature = "failpoints")]
-pub use armed::{arm, arm_after, disarm, disarm_all, fired, is_armed, record};
+pub use armed::{arm, disarm_all, fired, is_armed, record};
+// What `FailpointGuard` arms and disarms with; no harness calls them directly (CORE-09).
+#[cfg(feature = "failpoints")]
+use armed::{arm_after, disarm};
 
 /// Arms a failpoint for the duration of one test and disarms it on drop.
 ///

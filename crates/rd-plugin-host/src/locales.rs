@@ -16,6 +16,10 @@ pub const MAX_LOCALE_BYTES: u64 = 256 * 1024;
 pub const MAX_LOCALE_FILES: usize = 16;
 /// Every localised plugin must at least ship English, the global fallback.
 pub(crate) const REQUIRED_LOCALE: &str = "en";
+/// The languages the interface is offered in, `required` in `web/src/locales/languages.json`
+/// (`tests/bundled_locales.rs` holds the two together). A plugin's catalogue in one of them
+/// carries every code its English one does.
+pub const REQUIRED_LANGUAGES: [&str; 4] = ["de", "en", "es", "fr"];
 
 /// One `locales/<lang>.json` document.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

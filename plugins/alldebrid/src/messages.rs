@@ -104,5 +104,5 @@ pub(crate) fn api_error(api_code: &str, message: &str) -> String {
 }
 
 pub(crate) fn http_error(status: u16) -> String {
-    format!("AllDebrid HTTP status {status}")
+    plugin_common::messages::http_error("AllDebrid", status)
 }

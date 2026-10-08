@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import NumberWithUnit from '@/components/NumberWithUnit.vue'
+import SettingsAccountTrafficCard from '@/components/settings/SettingsAccountTrafficCard.vue'
 import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
@@ -54,6 +55,8 @@ const { t } = useI18n()
           </UFormField>
         </div>
       </div>
+      <USeparator />
+      <SettingsAccountTrafficCard v-model="settings" />
       <USeparator />
       <div>
         <UFormField data-settings-anchor="general.auto_remove" :label="t('settings.auto_remove.label')" :description="t('settings.auto_remove.description')" orientation="horizontal">

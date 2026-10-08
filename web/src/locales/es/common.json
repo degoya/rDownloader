@@ -184,7 +184,10 @@
     "resize_hint": "Arrastra o usa las flechas (Mayús para pasos más grandes); doble clic o Intro la restablece",
     "menu": "Columnas",
     "reset_all": "Restablecer todos los anchos de columna",
-    "state_linkgrabber": "Estado del enlace"
+    "state_linkgrabber": "Estado del enlace",
+    "sort": "Ordenar la vista por «{column}»",
+    "sorted_asc": "Ordenado por «{column}», ascendente: haz clic para descendente",
+    "sorted_desc": "Ordenado por «{column}», descendente: haz clic para el orden de la cola"
   },
   "weekdays": {
     "mon": "Lun",

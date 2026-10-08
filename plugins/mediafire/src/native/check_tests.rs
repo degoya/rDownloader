@@ -1,7 +1,7 @@
 //! `check` on the scripted host: the batch, its mapping, and its refusals.
 
-use rd_core::{FailureKind, LinkStatus};
 use rd_plugin_api::{CheckRequest, ClientIdentity, Resolver};
+use rd_plugin_types::{FailureKind, LinkStatus};
 
 use super::{API_ERROR_261, GET_INFO_BATCH, GET_INFO_INVALID, MockHost, json, resolver};
 
@@ -41,7 +41,7 @@ async fn a_batch_maps_found_skipped_and_unparsable_links() {
     assert_eq!(results[0].status, LinkStatus::Online);
     assert_eq!(results[0].file_name.as_deref(), Some("test-10mb.bin"));
     assert_eq!(
-        results[0].size.map(rd_core::ByteCount::get),
+        results[0].size.map(rd_plugin_types::ByteCount::get),
         Some(10_485_760)
     );
     assert_eq!(results[1].status, LinkStatus::Offline);

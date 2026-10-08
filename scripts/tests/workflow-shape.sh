@@ -17,6 +17,8 @@
 # - The GitHub cache stays under its 10 GB (RD-1120-07): every Swatinem/rust-cache step says
 #   whether it saves (`save-if`), and the linker variables its key depends on are set in one place,
 #   .github/actions/rust-tests-cache, not copied into the jobs that restore `rust-tests`.
+# - The Scoop installer is fetched at a commit and checked against its SHA-256 (PIPE-06), with the
+#   same pins in channels.yml and scripts/ci-platform-smoke.ps1; nothing runs get.scoop.sh.
 #
 # Pure bash and awk over the YAML as this repository writes it (two-space indents, a block `on:`).
 # check.sh runs it when scripts/ change, and under --full.
@@ -153,5 +155,15 @@ expect "there are rust-cache steps to check" "yes" "$([[ "$caches" -gt 0 ]] && e
 expect "the linker variables are set in .github/actions/rust-tests-cache alone" \
     ".github/actions/rust-tests-cache/action.yml" \
     "$(cd "$ROOT" && grep -rlE 'fuse-ld=mold|WINDOWS_MSVC_LINKER' .github | sort -u | paste -sd' ')"
+
+expect "nothing runs the unpinned Scoop installer" "" \
+    "$(cd "$ROOT" && grep -rlF 'https://get.scoop.sh' .github scripts --exclude=workflow-shape.sh || true)"
+scoop_pin() { sed -n "s/^ *$1: *\([0-9a-f]*\)$/\1/p" "$WORKFLOWS/channels.yml"; }
+scoop_pin_ps1() { sed -n "s/^\\\$$1 = '\([0-9a-f]*\)'$/\1/p" "$ROOT/scripts/ci-platform-smoke.ps1"; }
+commit="$(scoop_pin SCOOP_INSTALLER_COMMIT)"
+sha="$(scoop_pin SCOOP_INSTALLER_SHA256)"
+expect "channels.yml pins the Scoop installer to a commit and a SHA-256" "40 64" "${#commit} ${#sha}"
+expect "ci-platform-smoke.ps1 pins the same" "$commit $sha" \
+    "$(scoop_pin_ps1 ScoopInstallerCommit) $(scoop_pin_ps1 ScoopInstallerSha256)"
 
 finish_tests "workflow-shape"

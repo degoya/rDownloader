@@ -1,5 +1,6 @@
 {
   "name": "Rapidgator",
+  "description": "Resuelve enlaces de Rapidgator con una cuenta premium, o sin ella mediante el flujo gratuito.",
   "account": {
     "secret_label": "Contraseña de la cuenta",
     "secret_hint": "Introduce el correo de tu cuenta como usuario y tu contraseña como secreto."

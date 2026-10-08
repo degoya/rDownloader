@@ -1,72 +1,7 @@
-use std::{fmt, str::FromStr};
+// The macro and the three identifiers a plugin names (`AccountId`, `PluginId`,
+// `ProxyProfileId`) live in `rd-plugin-types` (RD-1190-08).
+use rd_plugin_types::domain_id;
 
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
-use uuid::Uuid;
-
-macro_rules! domain_id {
-    ($name:ident) => {
-        #[doc = concat!("Stable UUIDv7 identifier for ", stringify!($name), ".")]
-        #[derive(
-            Clone,
-            Copy,
-            Debug,
-            Deserialize,
-            Eq,
-            Hash,
-            Ord,
-            PartialEq,
-            PartialOrd,
-            Serialize,
-            ToSchema,
-        )]
-        #[serde(transparent)]
-        #[schema(value_type = String, format = Uuid)]
-        pub struct $name(Uuid);
-
-        impl $name {
-            /// Creates a time-ordered UUIDv7 identifier.
-            #[must_use]
-            pub fn new() -> Self {
-                Self(Uuid::now_v7())
-            }
-
-            /// Wraps an existing UUID.
-            #[must_use]
-            pub const fn from_uuid(value: Uuid) -> Self {
-                Self(value)
-            }
-
-            /// Returns the underlying UUID.
-            #[must_use]
-            pub const fn into_uuid(self) -> Uuid {
-                self.0
-            }
-        }
-
-        impl Default for $name {
-            fn default() -> Self {
-                Self::new()
-            }
-        }
-
-        impl fmt::Display for $name {
-            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                self.0.fmt(formatter)
-            }
-        }
-
-        impl FromStr for $name {
-            type Err = uuid::Error;
-
-            fn from_str(value: &str) -> Result<Self, Self::Err> {
-                Uuid::parse_str(value).map(Self)
-            }
-        }
-    };
-}
-
-domain_id!(AccountId);
 domain_id!(AutomationId);
 domain_id!(AutomationRunId);
 domain_id!(AutomationVersionId);
@@ -95,8 +30,6 @@ domain_id!(NzbImportId);
 domain_id!(NzbSegmentId);
 domain_id!(ObjectStorageProfileId);
 domain_id!(PackageId);
-domain_id!(PluginId);
-domain_id!(ProxyProfileId);
 domain_id!(RemoteCredentialId);
 domain_id!(RemoteJobId);
 domain_id!(SessionId);

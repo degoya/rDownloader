@@ -135,9 +135,9 @@ impl<'a> Staging<'a> {
     /// there is nothing to continue from.
     ///
     /// Size and modification time are all that either protocol offers to recognise the file
-    /// again. When one of them moved, the partial file is kept but the transfer is refused:
-    /// continuing would write the new file's bytes behind the old file's, and nothing
-    /// downstream would notice.
+    /// again. When one of them moved, or a recorded time is no longer reported, the partial
+    /// file is kept but the transfer is refused: continuing would write the new file's bytes
+    /// behind the old file's, and nothing downstream would notice.
     pub async fn plan_resume(&self, modified: Option<String>) -> Result<Resume> {
         self.plan_resume_validated(None, modified).await
     }
@@ -161,11 +161,20 @@ impl<'a> Staging<'a> {
         }
         let stored = self.database.load_transfer(self.file.id).await?;
         let size_changed = stored.total_bytes.is_some_and(|old| old != self.size);
-        let time_changed = stored
-            .last_modified
-            .as_ref()
-            .zip(modified.as_ref())
-            .is_some_and(|(old, new)| old != new);
+        let time_changed = match (stored.last_modified.as_ref(), modified.as_ref()) {
+            (Some(old), Some(new)) => old != new,
+            // The bytes on disk were recorded with a timestamp the server no longer reports:
+            // nothing confirms them any more, so size alone does not continue them (TR-03).
+            (Some(_), None) => {
+                tracing::warn!(
+                    download = %self.file.id,
+                    "the server no longer reports the modification time recorded for this \
+                     partial file; the resume is refused"
+                );
+                true
+            }
+            (None, _) => false,
+        };
         let version_changed = stored
             .etag
             .as_ref()

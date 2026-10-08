@@ -15,7 +15,7 @@ import { PACKAGE_NAME_EXAMPLE } from '@/utils/packageNameRules'
  * answering `null` asks nothing and shows no example. Only the newest answer lands; a list the
  * service refuses shows its message instead.
  */
-export interface PackageNamePreviewInput {
+interface PackageNamePreviewInput {
   rules: PackageNameRulesOverride
   regex: PackageNameRegex[] | null
 }

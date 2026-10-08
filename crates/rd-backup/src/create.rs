@@ -173,7 +173,7 @@ pub async fn seal_backup(
     started_at: DateTime<Utc>,
 ) -> Result<SealedBackup, BackupError> {
     let staging = staging_root.join(run_id);
-    tokio::fs::create_dir_all(&staging)
+    crate::private_folder(&staging)
         .await
         .map_err(|error| BackupError::at("backup.collect_failed")(error.into()))?;
 

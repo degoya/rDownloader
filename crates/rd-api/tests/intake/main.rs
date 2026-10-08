@@ -8,11 +8,14 @@
 #[path = "../common/mod.rs"]
 mod common;
 
+mod address_rule;
 mod captcha;
 mod capture_boundary;
 mod capture_file;
 mod capture_intake;
+mod capture_pick;
 mod collector_pages;
+mod collector_picks;
 mod container_json;
 mod containers;
 mod dlc;

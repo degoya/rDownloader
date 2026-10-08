@@ -69,9 +69,14 @@ pub(crate) async fn check(
     };
     let key = open(state, audit, &archive, &request.passphrase, step).await?;
     let layout = layout(state);
-    tokio::fs::create_dir_all(layout.work())
+    rd_backup::private_folder(&layout.work())
         .await
         .map_err(anyhow::Error::from)?;
+    let archive_bytes = tokio::fs::metadata(&archive)
+        .await
+        .map_err(anyhow::Error::from)?
+        .len();
+    crate::restore_room::require_room(&layout.work(), archive_bytes).await?;
     let work = WorkFolder(Some(layout.work().join(uuid::Uuid::now_v7().to_string())));
     let folder = work.0.clone().unwrap_or_default();
     let unpack_key = BackupKey::from_stored(key.key_bytes(), &key.salt())?;
@@ -120,6 +125,10 @@ pub(crate) async fn check(
     let torrent_members = torrent_members(&manifest);
     let result = match outcome {
         Ok(()) => finish_checks(state, &copy, &torrent_members, &mut updates, &mut findings).await,
+        Err(error) => Err(error),
+    };
+    let result = match result {
+        Ok(()) => protected_paths(state, &copy, &bundle, &mut findings).await,
         Err(error) => Err(error),
     };
     if let Err(error) = result {
@@ -221,11 +230,18 @@ pub(super) async fn roots_report(
     roots
 }
 
-/// Reads the copy's schema, refuses one a newer version made, migrates it and counts it.
+/// Checks the copy is a whole SQLite file, reads its schema, refuses one a newer version made,
+/// migrates it, refuses schema objects this build would not have created (RD-1190-19) and
+/// counts it.
 async fn upgraded_copy(
     copy: &Path,
     manifest: &rd_backup::Manifest,
 ) -> Result<(restore_copy::CopySchema, restore_copy::CopyCounts), ApiError> {
+    rd_db::snapshot::check_integrity(copy)
+        .await
+        .map_err(|error| {
+            ApiError::unprocessable("backup.restore_database_damaged", format!("{error:#}"))
+        })?;
     let schema = restore_copy::copy_schema(copy)
         .await
         .map_err(|error| ApiError::bad_request("backup.restore_damaged", format!("{error:#}")))?;
@@ -239,6 +255,15 @@ async fn upgraded_copy(
     restore_copy::migrate_copy(copy).await.map_err(|error| {
         ApiError::unprocessable("backup.restore_migration_failed", format!("{error:#}"))
     })?;
+    let foreign = restore_copy::foreign_schema_objects(copy).await?;
+    if !foreign.is_empty() {
+        return Err(ApiError::unprocessable(
+            "backup.restore_schema_foreign",
+            "The backup's database holds tables, indexes, triggers or views this version does \
+             not create",
+        )
+        .with_param("objects", foreign.join(", ")));
+    }
     let counts = restore_copy::copy_counts(copy).await?;
     Ok((schema, counts))
 }
@@ -266,6 +291,54 @@ async fn checked_bundle(
         crate::protected_roots::refuse_protected(&path, &protected)?;
     }
     Ok(bundle)
+}
+
+/// The columns whose folders the service writes into or takes files out of: the hot folders and
+/// the packages' destinations.
+const WRITTEN_FOLDERS: &[restore_copy::CopyColumn] = &[
+    written_folder("packages", "destination"),
+    written_folder("hotfolders", "path"),
+    written_folder("hotfolders", "processed_path"),
+    written_folder("hotfolders", "failed_path"),
+];
+
+const fn written_folder(table: &'static str, column: &'static str) -> restore_copy::CopyColumn {
+    restore_copy::CopyColumn {
+        table,
+        column,
+        key: "rowid",
+    }
+}
+
+/// Hot folders and package destinations of the remapped copy that reach a protected directory
+/// (RD-1190-19): only the storage roots were held to them, so a crafted archive could point a
+/// hot folder at the plugin directory or a package at the scripts directory. An error finding:
+/// the restore is refused, the test restore says where.
+async fn protected_paths(
+    state: &AppState,
+    copy: &Path,
+    bundle: &SettingsBundle,
+    findings: &mut Findings,
+) -> Result<(), ApiError> {
+    let protected =
+        crate::protected_roots::protected_directories(state, Some(&bundle.settings)).await;
+    let columns = restore_copy::read_cells(copy, WRITTEN_FOLDERS).await?;
+    let mut reached = PathFindings::default();
+    for (column, cells) in WRITTEN_FOLDERS.iter().zip(columns) {
+        for cell in cells.iter().filter(|cell| native(&cell.value)) {
+            if rd_files::protected_collision(Path::new(&cell.value), &protected).is_some() {
+                reached.count += 1;
+                if reached.examples.len() < plan::EXAMPLES_KEPT {
+                    reached.examples.push(plan::PathExample {
+                        location: format!("{}.{}", column.table, column.column),
+                        value: cell.value.clone(),
+                    });
+                }
+            }
+        }
+    }
+    findings.error_paths("backup.restore_path_protected", &reached);
+    Ok(())
 }
 
 /// The torrent files the backup carries, by their names below the torrent folder.

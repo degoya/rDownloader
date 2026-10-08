@@ -17,6 +17,9 @@ pub enum HoldSource {
     /// The whole queue is paused until a set time (RD-190-20). First, so the reason shown is
     /// the one somebody chose over the ones the machine's context imposes.
     QueuePause,
+    /// An account's traffic is used up and the setting holds the whole queue for it
+    /// (RD-1190-14); released by the account, never by a pause somebody set.
+    AccountTraffic,
     /// Battery or metered connection.
     Power,
     /// A reconnect is in progress.

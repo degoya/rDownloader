@@ -4,11 +4,11 @@
 
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::test_support::ScriptedHost as MockHost;
 use rd_plugin_api::{
     ClientIdentity, HostHttpResponse, ResolveRequest, ResolvedHeader, Resolver, ResolverHost,
 };
+use rd_plugin_types::AccountId;
 use url::Url;
 
 use super::MediafireResolver;
@@ -191,7 +191,7 @@ async fn there_is_no_account_to_check_and_no_request_is_made() {
         .check_account(AccountId::new())
         .await
         .expect_err("no account");
-    assert_eq!(failure.category, rd_core::FailureKind::Unsupported);
+    assert_eq!(failure.category, rd_plugin_types::FailureKind::Unsupported);
     assert_eq!(failure.code.as_deref(), Some("mediafire.no_account"));
     assert!(host.requests().is_empty());
 }

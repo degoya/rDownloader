@@ -361,6 +361,10 @@
         "move_down": "Bajar",
         "replacement_empty": "(eliminar)"
       }
+    },
+    "mcp_scripts_allowed": {
+      "label": "Los asistentes de IA (MCP) pueden asignar scripts",
+      "description": "Desactivado por defecto. Si está activado, una herramienta MCP puede asignar a un paquete, una categoría o una automatización un script de la carpeta de scripts y elegir el script de finalización y de reconexión. Solo se cambia aquí; ninguna herramienta puede hacerlo."
     }
   },
   "appearance": {
@@ -1147,5 +1151,16 @@
         "failed": "El sistema rechazó registrar los atajos."
       }
     }
+  },
+  "account_traffic": {
+    "label": "Cuando se agota el tráfico de una cuenta",
+    "description": "Cuando un servidor informa de que la cuota de una cuenta está agotada, sus archivos esperan. rDownloader comprueba la cuenta cada 15 minutos y continúa por sí solo en cuanto vuelve a haber tráfico o termina la espera del servidor. Una pausa que hayas puesto tú se mantiene.",
+    "nothing": "No hacer nada – solo esperan los archivos afectados",
+    "pause_account": "Detener las descargas de esta cuenta",
+    "pause_queue": "Pausar toda la cola",
+    "overrides_label": "Por cuenta",
+    "overrides_description": "Una cuenta puede hacer algo distinto de lo predeterminado arriba.",
+    "inherit": "Como lo predeterminado",
+    "held": "Tráfico agotado · próxima comprobación {time}"
   }
 }

@@ -293,7 +293,7 @@ impl FolderCrawlers {
                 .find_map(|slug| accounts.get(slug).copied());
             return Some(
                 match crawler.plugin.crawl_address(url.as_str(), account).await {
-                    Ok(Ok(links)) => Self::accept(&crawler.name, url, links, EMPTY),
+                    Ok(Ok(links)) => Self::accept(&crawler.name, url, links, EMPTY, false),
                     // "Not mine after all." A crawler that recognises a share by the shape of
                     // its path cannot avoid being wrong sometimes, and being wrong once used to
                     // end the link: the first claimer's answer was the answer, refusal included.
@@ -333,7 +333,7 @@ impl FolderCrawlers {
         match self.rules.as_ref()?.consult(url).await? {
             RuleOutcome::Crawled { rule, crawl } => {
                 let links = rule_links::proposals(&rule, crawl);
-                Some(Self::accept(&rule, url, links, RULE_EMPTY))
+                Some(Self::accept(&rule, url, links, RULE_EMPTY, true))
             }
             RuleOutcome::Listed { rule, page } => Some(CrawlOutcome::Listed { rule, page }),
             // Every code but "not my page" is a statement about this page, and a statement is
@@ -353,12 +353,26 @@ impl FolderCrawlers {
         }
     }
 
+    /// The links of one entry somebody picked from a two-stage rule's list, through the same
+    /// acceptance a rule's answer goes through, with the package and the mirror sets the rule
+    /// declares (RD-1190-17). Empty when nothing usable is left.
+    #[must_use]
+    pub fn picked_links(job: &crate::PickJob, group: rd_siterules::CrawlGroup) -> Vec<CrawledLink> {
+        let name = &job.rule.name;
+        let links = rule_links::picked(name, &job.address, job.index, group, job.label.clone());
+        match Self::accept(name, &job.address, links, RULE_EMPTY, true) {
+            CrawlOutcome::Links(links) => links,
+            _ => Vec::new(),
+        }
+    }
+
     /// Turns what a source said into links the collector may act on.
     fn accept(
         source: &str,
         crawled: &url::Url,
         links: Vec<rd_plugin_host::extension::CrawledLink>,
         empty: &str,
+        by_rule: bool,
     ) -> CrawlOutcome {
         let mut accepted = Vec::new();
         for link in links.into_iter().take(MAX_LINKS) {
@@ -384,6 +398,7 @@ impl FolderCrawlers {
                 package_hint: sanitize(link.package_hint.as_deref()),
                 mirror: link.mirror_hint,
                 login,
+                by_rule,
             });
         }
         if accepted.is_empty() {
@@ -436,9 +451,10 @@ fn order(plugins: &mut [Crawler]) {
 
 /// Trims a name a stranger chose down to something safe to show and to build a path from.
 ///
-/// The separators go rather than being escaped: a file name and a package hint are both used
-/// to build a path further down, and the only guarantee worth making here is that neither can
-/// contain one.
+/// Control characters and the backslash go. `/` stays, as the separator of a subfolder a
+/// crawler may name, but every segment is trimmed of spaces and dots and an empty one is
+/// dropped, so no `.` or `..` survives and a path built from the name never climbs out of the
+/// folder it is built in; the result is cut to 255 characters.
 pub(crate) fn sanitize(value: Option<&str>) -> Option<String> {
     let cleaned: String = value?
         .chars()

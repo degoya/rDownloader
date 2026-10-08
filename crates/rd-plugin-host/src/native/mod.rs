@@ -28,7 +28,7 @@ pub use expand::{
 };
 pub(crate) use granted::GrantedHost;
 use host::NativeHost;
-pub(crate) use host::{with_own_network, with_response_allowance};
+pub(crate) use host::{with_expanded_credentials, with_own_network, with_response_allowance};
 pub use transfer_auth::{provider_download_authorization, provider_download_carries_credential};
 
 /// The resolver chain: the installed resolver components, on the application's own host.

@@ -127,5 +127,5 @@ pub const HTTP_ERROR: (&str, &str) = ("premiumize_transfers.http_error", "Premiu
 
 #[must_use]
 pub fn http_error(status: u16) -> String {
-    format!("Premiumize HTTP status {status}")
+    plugin_common::messages::http_error("Premiumize", status)
 }

@@ -63,7 +63,7 @@ fn is_settled(state: rd_core::LinkCandidateState) -> bool {
 #[tool_router(router = collector_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Paste URLs or free text into the LinkGrabber. Links are grouped into packages and checked online automatically; follow up with check_links, then enqueue_collector to start downloading. This is the right entry point for hoster/one-click links."
+        description = "Paste URLs or free text into the LinkGrabber. Links are grouped into packages and checked online automatically; follow up with check_links, then enqueue_collector to start downloading. This is the right entry point for hoster/one-click links. Links an agent hands in keep to the address rule: one that points at this machine or into the local network is never checked or downloaded and carries collector.check_internal_address."
     )]
     pub async fn collect_links(
         &self,
@@ -91,7 +91,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Trigger an online check for collector links and wait briefly for results. Pass candidate_ids or batch_id. Links still in checking state are returned as-is with settled=false; call again to poll."
+        description = "Trigger an online check for collector links and wait briefly for results. Pass candidate_ids or batch_id. Links still in checking state are returned as-is with settled=false; call again to poll. A link somebody other than the person chose (collect_links, Click'n'Load, the clipboard, the browser extension, a site rule's find) is checked under the address rule: pointing at this machine or into the local network it is not requested and carries collector.check_internal_address."
     )]
     pub async fn check_links(
         &self,

@@ -1,5 +1,6 @@
 {
   "name": "DDownload",
+  "description": "Résout les liens DDownload en se connectant avec les identifiants du compte ou avec une clé API.",
   "account": {
     "secret_hint": "Choisissez comment ce compte se connecte. Identifiants du compte est la voie simple : saisissez le nom d'utilisateur ou l'e-mail DDownload et le mot de passe, et rDownloader se connecte et conserve la session lui-même. Clé API convient à un compte qui ne doit pas stocker de mot de passe : collez la clé depuis Compte → API ; elle fournit l'état du compte et les métadonnées des fichiers, et les téléchargements nécessitent alors en plus une session cookie collée ci-dessous.",
     "secret_hint_api_key": "La clé issue de Compte → API. Elle fournit l'état du compte et les métadonnées des fichiers ; les téléchargements passent par la session cookie ci-dessous, l'API DDownload n'offrant pas de liens directs.",
@@ -34,6 +35,7 @@
     "ddownload.no_free_link": "Le téléchargement gratuit DDownload n'a produit aucun lien de fichier : {diagnosis}",
     "ddownload.no_premium_file": "La session de cookies DDownload n'a pas renvoyé de fichier premium : {diagnosis}",
     "ddownload.session_unconfirmed": "session de cookies non confirmée : la page du compte n'était ni connectée ni une page invité",
+    "ddownload.traffic_exhausted": "Le trafic du compte DDownload est épuisé pour le moment ; le téléchargement attend et réessaiera plus tard",
     "ddownload.unsupported_link": "Lien DDownload non pris en charge"
   }
 }

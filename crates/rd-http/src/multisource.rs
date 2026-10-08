@@ -8,7 +8,8 @@
 //!
 //! Mixing sources is only safe when something proves the bytes. The caller decides that
 //! ([`MultiSourceRequest::parallel_sources`] is 1 without a hash basis, so one source works at
-//! a time and the others are only failover). With piece hashes, a chunk is checked the moment
+//! a time and the others are only failover). Without one, an FTP or SFTP mirror also serves
+//! only from the file's first byte: nothing it sends says where its bytes begin (TR-02). With piece hashes, a chunk is checked the moment
 //! it is complete: a piece that does not match isolates the source that delivered it, the
 //! chunk goes back to the start of that piece, and the file cannot complete until another
 //! source delivered the piece correctly. The whole-file hash is checked by the caller before
@@ -39,7 +40,8 @@ use crate::{
 mod state;
 
 use state::{
-    Fetched, Pool, Tracked, failure_code, first_bad_piece, no_usable_source, piece_mismatch,
+    Fetched, Pool, Tracked, failure_code, first_bad_piece, mirror_offset_unverified,
+    no_usable_source, piece_mismatch,
 };
 
 /// One address of the file, ready to be fetched from.
@@ -71,6 +73,9 @@ pub struct MultiSourceRequest {
     /// Chunks that are complete but were never checked — the window between the last byte
     /// and the check, crossed by a restart — with the source that delivered them.
     pub unverified: HashMap<ChunkId, Option<u32>>,
+    /// Whether the caller checks a whole-file hash before promotion. With it or with
+    /// [`Self::pieces`], an FTP or SFTP mirror may serve a chunk from inside the file.
+    pub whole_file_hash: bool,
 }
 
 /// Where a multi-source run writes down what it learns.
@@ -112,6 +117,7 @@ impl DownloadEngine {
         cancellation: CancellationToken,
     ) -> Result<DownloadOutcome, HttpDownloadError> {
         let total = request.total_bytes;
+        let hash_basis = request.pieces.is_some() || request.whole_file_hash;
         let part = PartFile::open(request.part_path.clone(), Some(total))
             .await
             .map_err(HttpDownloadError::Local)?;
@@ -131,6 +137,7 @@ impl DownloadEngine {
                 parallel: request.parallel_sources.max(1),
                 busy: HashMap::new(),
                 out: HashSet::new(),
+                hash_basis,
             },
             last_error: None,
             pending: VecDeque::new(),
@@ -147,7 +154,10 @@ impl DownloadEngine {
                     break;
                 }
                 // Chunks are left and no source is: every one of them failed or was
-                // isolated during this run.
+                // isolated during this run, or only mirrors that may not serve them are.
+                if run.pool.held_back() {
+                    return Err(mirror_offset_unverified());
+                }
                 return Err(run.last_error.unwrap_or_else(no_usable_source));
             };
             let fetched = match joined {
@@ -234,12 +244,14 @@ impl SourceRun {
         Ok(())
     }
 
-    /// Hands every pending chunk a source while one is free.
+    /// Hands every pending chunk a source while one is free. A chunk no free source may
+    /// serve waits, in its place, without holding up the ones behind it.
     async fn dispatch(&mut self, engine: &DownloadEngine) -> Result<(), HttpDownloadError> {
+        let mut waiting = VecDeque::new();
         while let Some(chunk) = self.pending.pop_front() {
-            let Some(source) = self.pool.pick() else {
-                self.pending.push_front(chunk);
-                break;
+            let Some(source) = self.pool.pick(chunk.committed) else {
+                waiting.push_back(chunk);
+                continue;
             };
             // Named before a byte arrives, so a restart that finds the chunk complete and
             // unchecked knows whom to hold to account for it.
@@ -253,6 +265,7 @@ impl SourceRun {
             }
             self.spawn_fetch(engine, chunk, source);
         }
+        self.pending = waiting;
         Ok(())
     }
 
@@ -263,6 +276,7 @@ impl SourceRun {
         let part = self.part.clone();
         let checkpoints: Arc<dyn CheckpointSink> = self.tracked.clone();
         let cancellation = self.workers.clone();
+        let total = self.total;
         self.tasks.spawn(async move {
             let started_at = chunk.committed;
             let result = match &source.via {
@@ -281,6 +295,7 @@ impl SourceRun {
                             cancellation,
                             chunk.clone(),
                             covers_whole_file,
+                            total,
                         )
                         .await
                 }

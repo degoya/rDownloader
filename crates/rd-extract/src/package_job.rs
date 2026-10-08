@@ -86,11 +86,14 @@ pub(crate) async fn run_package(
         unpack_ok,
         ..
     } = unpacked;
+    // A package with a file missing is never completed (RD-1190-13); only a manual run gets
+    // this far with one.
     let final_state = if verification_gate
         && unpack_ok
         && handed_on.scan_clean
         && handed_on.plugin_steps_ok
         && handed_on.upload_ok
+        && !crate::completion::parts_missing(run.package.kind, &run.downloads)
     {
         PackageState::Completed
     } else {

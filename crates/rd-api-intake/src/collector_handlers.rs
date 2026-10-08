@@ -25,14 +25,17 @@ mod intake;
 mod links;
 mod mirrors;
 
+pub(crate) use intake::collector_intake_crawled;
 pub use intake::collector_intake_inner;
 pub use mirrors::*;
 
 #[utoipa::path(post, path = "/api/v1/collector/batches", tag = "collector", request_body = CollectorIntakeRequest, responses((status = 201, body = CollectorIntakeResponse)))]
 pub async fn collector_intake(
     State(state): State<AppState>,
-    Json(request): Json<CollectorIntakeRequest>,
+    audit: crate::audit::AuditContext,
+    Json(mut request): Json<CollectorIntakeRequest>,
 ) -> Result<(StatusCode, Json<CollectorIntakeResponse>), ApiError> {
+    request.source = crate::collector_source_sets::of_caller(&audit, request.source);
     let response = collector_intake_inner(&state, request).await?;
     Ok((StatusCode::CREATED, Json(response)))
 }
@@ -40,9 +43,11 @@ pub async fn collector_intake(
 #[utoipa::path(post, path = "/api/v1/capture/batches", tag = "capture", request_body = CollectorIntakeRequest, responses((status = 201, body = CollectorIntakeResponse), (status = 400, description = "Invalid links or request metadata"), (status = 401, description = "Capture token missing or revoked")))]
 pub async fn capture_intake(
     state: State<AppState>,
-    request: Json<CollectorIntakeRequest>,
+    audit: crate::audit::AuditContext,
+    Json(mut request): Json<CollectorIntakeRequest>,
 ) -> Result<(StatusCode, Json<CollectorIntakeResponse>), ApiError> {
-    collector_intake(state, request).await
+    request.source = crate::collector_source_sets::captured(request.source);
+    collector_intake(state, audit, Json(request)).await
 }
 
 /// Every LinkGrabber package in its list order; `limit`/`offset` cut a page out (API-15).

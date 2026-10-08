@@ -94,6 +94,35 @@ expect_output "said as such" "that is missing evidence, not a pass"
 run_step_case "run_step smoke echo fine; grep -c '^##RD-STEP id=smoke .* exit=0 bytes=5 ' \"\$LOG\""
 expect_status "run_step: a passing step records its exit and bytes" 0
 
+# --resume against a changed tree (PIPE-09): the marker carries the tree the step left; the same
+# tree keeps the green, a fix between the stop and the resume runs the step again. artifacts/ is
+# gitignored in the repository, as the evidence log must not change the tree it records.
+printf 'artifacts/\n' >> "$TREE/.git/info/exclude"
+run_step_case "run_step smoke echo fine > /dev/null; [[ \"\$(marker_field \"\$(last_marker smoke)\" tree)\" == \"\$(rd_worktree_tree \"\$TREE\")\" ]]"
+expect_status "run_step: the marker carries the tree the step left" 0
+run_step_case "run_step smoke echo fine > /dev/null; RESUME=1; resume_tree_check; step_is_green smoke && echo GREEN-STANDS"
+expect_status "--resume on the same tree" 0
+expect_output "keeps the green step" "GREEN-STANDS"
+expect_output "saying so" "its green steps stand"
+run_step_case "run_step preflight echo fine > /dev/null; run_step smoke echo fine > /dev/null
+    echo fix > '$TREE/pipe09-fix'; RESUME=1
+    resume_tree_check; step_is_green smoke || echo RUNS-AGAIN
+    step_is_green preflight && echo PREFLIGHT-STANDS
+    [[ -z \"\$(last_marker smoke)\" ]] && echo NO-RECORD-FOR-THE-GATE
+    resume_tree_check
+    run_step smoke echo again > /dev/null; step_is_green smoke && echo GREEN-AGAIN"
+rm -f "$TREE/pipe09-fix"
+expect_status "--resume after a fix" 0
+expect_output "says the tree changed" "the tree changed since the last step"
+expect_output "runs the green step again" "RUNS-AGAIN"
+expect_output "but not the start gate, which wants a committed tree" "PREFLIGHT-STANDS"
+expect_output "whose old record the gate no longer counts" "NO-RECORD-FOR-THE-GATE"
+expect "a second resume on the fixed tree changes nothing more" 1 "$(grep -c '^##RD-TREE-CHANGED' "$LOG")"
+expect_output "and the new attempt is green" "GREEN-AGAIN"
+run_step_case "printf '##RD-STEP id=smoke nonce=%s version=9.9.9 exit=0 bytes=5 started=x ended=y\n' \"\$NONCE\" >> \"\$LOG\"
+    RESUME=1; resume_tree_check > /dev/null; step_is_green smoke || echo RUNS-AGAIN"
+expect_output "a marker without a tree counts as changed" "RUNS-AGAIN"
+
 # The public CI with every platform green on record for this content: no run (RD-160-06). The gh
 # here refuses everything, so a step that wanted GitHub fails.
 mkdir -p "$SCRATCH/bin"
@@ -273,8 +302,19 @@ for tool in cargo cargo-nextest node pnpm python3 zip; do
     printf '#!/usr/bin/env bash\necho "%s 0.0.0"\n' "$tool" > "$SCRATCH/tools/$tool"
     chmod +x "$SCRATCH/tools/$tool"
 done
-printf '#!/usr/bin/env bash\necho 0\nexit 1\n' > "$SCRATCH/tools/pgrep"
-chmod +x "$SCRATCH/tools/pgrep"
+# pgrep and ps answer from $SCRATCH/procs, `<pid> <name> <command line>` per line: pgrep -x by the
+# name, ps -o args= -p by the pid.
+cat > "$SCRATCH/tools/pgrep" <<EOF
+#!/usr/bin/env bash
+[[ "\$1" == -x ]] || { echo "pgrep \$*: only -x" >&2; exit 2; }
+awk -v name="\$2" '\$2 == name { print \$1; found = 1 } END { exit !found }' "$SCRATCH/procs"
+EOF
+cat > "$SCRATCH/tools/ps" <<EOF
+#!/usr/bin/env bash
+awk -v pid="\$4" '\$1 == pid { \$1 = ""; \$2 = ""; sub(/^  /, ""); print; found = 1 } END { exit !found }' "$SCRATCH/procs"
+EOF
+chmod +x "$SCRATCH/tools/pgrep" "$SCRATCH/tools/ps"
+: > "$SCRATCH/procs"
 printf '#!/usr/bin/env bash\necho "check.sh $* layout-skip=${RD_SKIP_JOB_LAYOUT:-}" >> "%s/check.calls"\n[[ ! -f "%s/preflight-red" ]] || { echo "!! 1 stage(s) failed"; exit 1; }\necho "==> all requested checks passed"\n' \
     "$SCRATCH" "$SCRATCH" > "$TREE/scripts/check.sh"
 chmod +x "$TREE/scripts/check.sh"
@@ -296,5 +336,22 @@ preflight_case
 expect_status "a red preflight stops the release" 1
 expect_output "saying why" "the preflight is red; the release does not start"
 rm -f "$SCRATCH/preflight-red"
+
+# PIPE-01: only a process named cargo with a building subcommand holds the release, never a shell
+# that names one in its command line.
+cat > "$SCRATCH/procs" <<'EOF'
+11 bash bash -c cd x && cargo build -p rd-core
+12 cargo cargo metadata --format-version 1
+13 zsh zsh -c grep -c 'cargo test' log
+EOF
+preflight_case
+expect_status "a shell naming cargo build and a cargo metadata: the release starts" 0
+printf '%s\n' '14 cargo /home/u/.rustup/toolchains/1.99.0/bin/cargo build --locked' \
+    '15 cargo cargo +1.99.0 clippy --workspace' >> "$SCRATCH/procs"
+preflight_case
+expect_status "a cargo build and a cargo clippy running: refused" 1
+expect_output "counting both" "2 cargo job(s) already running; refusing to pile on"
+expect_output "naming them" "15 cargo +1.99.0 clippy --workspace"
+: > "$SCRATCH/procs"
 
 finish_tests release-evidence

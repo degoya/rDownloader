@@ -232,6 +232,10 @@ pub struct ImportSettingsRequest {
     pub bundle: SettingsBundle,
     #[schema(write_only)]
     pub passphrase: Option<String>,
+    /// The administrator password, typed again from a signed-in session (RD-1190-19).
+    #[serde(default)]
+    #[schema(write_only)]
+    pub password: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]

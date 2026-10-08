@@ -141,7 +141,11 @@
     "hand_over": "Entregar a un proveedor",
     "hand_over_hint": "El proveedor descarga el NZB de este paquete de Usenet por su cuenta; los archivos terminados vuelven al LinkGrabber como enlaces. El paquete se queda aquí.",
     "handed_over": "Entregado a {provider}",
-    "handed_over_hint": "Abrir trabajos remotos"
+    "handed_over_hint": "Abrir trabajos remotos",
+    "waiting_for_parts": "Esperando archivos que faltan",
+    "waiting_for_parts_title": "El posprocesamiento empieza solo cuando han llegado todos los archivos del paquete.",
+    "reset_failed": "Restablecer fallidos y bloqueados",
+    "reset_failed_hint": "{count} archivo de este paquete | {count} archivos de este paquete"
   },
   "transfer": {
     "actions_aria": "Acciones del archivo",
@@ -438,5 +442,30 @@
     "title": "Torrents pausados por el interruptor de corte",
     "description": "La interfaz vinculada {name} ha desaparecido. Los torrents siguen en pausa hasta que vuelva; las demás descargas continúan.",
     "open": "Estado de la red"
+  },
+  "traffic": {
+    "one": "Tráfico de {account} agotado · próxima comprobación {time}",
+    "many": "Tráfico de {count} cuentas agotado · próxima comprobación {time}",
+    "queue_paused": "Cola en pausa: tráfico de {account} agotado · próxima comprobación {time}",
+    "entry": "{account}: espera hasta las {until} como máximo",
+    "title": "El servidor informa de que la cuota de tráfico está agotada. Las descargas esperan y continúan en cuanto una comprobación encuentra tráfico de nuevo o termina la espera.",
+    "continue": "Continuar de todos modos"
+  },
+  "reset_failed": {
+    "button": "Restablecer fallidos",
+    "hint": "Reiniciar los archivos fallidos o bloqueados de la lista mostrada",
+    "failed": "Fallidos ({count})",
+    "blocked": "Bloqueados ({count})",
+    "both": "Fallidos y bloqueados ({count})",
+    "done": "{count} archivo restablecido | {count} archivos restablecidos"
+  },
+  "view_sort": {
+    "title": "Vista ordenada: la cola no cambia",
+    "description": "Por «{column}», {direction}. Las descargas siguen en el orden de la cola; arrastrar para reordenar está desactivado mientras la vista esté ordenada.",
+    "asc": "ascendente",
+    "desc": "descendente",
+    "category": "Categoría",
+    "reset": "Volver al orden de la cola",
+    "drag_off": "La vista está ordenada: restablécela para reordenar la cola."
   }
 }

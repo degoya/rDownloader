@@ -89,6 +89,10 @@ impl SchedulerHandle {
             .store(settings.auto_retry_interval_hours, Ordering::Release);
         self.auto_retry_max_rounds
             .store(settings.auto_retry_max_rounds, Ordering::Release);
+        self.traffic_holds.configure(
+            settings.account_traffic_action,
+            settings.account_traffic_overrides.clone(),
+        );
         // Re-enabling a kind has to release what disabling it blocked; otherwise switching a
         // service back on leaves its jobs sitting in `Blocked` with no way to notice.
         let released: Vec<rd_core::DownloadKind> = {

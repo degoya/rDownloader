@@ -39,6 +39,8 @@ vi.mock('@/stores/transfers', () => ({ useTransfersStore: () => ({ packages: [],
 vi.mock('@/stores/collector', () => ({ useCollectorStore: () => ({ packages: [] }) }))
 vi.mock('@/stores/nzbImports', () => ({ useNzbImportsStore: () => ({ imports: [] }) }))
 vi.mock('@/stores/streams', () => ({ useStreamsStore: () => ({ channels: [] }) }))
+// The pick notice reads a store of its own (RD-1190-17); its toast is not what this covers.
+vi.mock('@/composables/useSitePickNotice', () => ({ useSitePickNotice: () => {} }))
 vi.mock('@/stores/session', () => ({
   useSessionStore: () => ({ consumeTourRequest: () => false, loginDisabled: true, pending: false, logout: vi.fn() })
 }))

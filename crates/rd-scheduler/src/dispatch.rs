@@ -58,6 +58,7 @@ impl SchedulerHandle {
                     if let Err(error) = self.supervise_queue_pause().await {
                         tracing::error!(%error, "the timed queue pause could not be ended");
                     }
+                    self.supervise_account_traffic().await;
                     if let Err(error) = self.schedule_runnable().await {
                         tracing::error!(%error, "queue supervision failed");
                     }

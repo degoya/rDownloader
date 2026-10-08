@@ -12,7 +12,8 @@
 //! string goes through `rd_core::redact_text`, which finds addresses, `Authorization` lines and
 //! `Bearer` values inside prose. Both keep the parameter's name and replace only its value, and
 //! both leave a string with nothing to hide byte-for-byte, so ids and every other value a later
-//! tool takes as its input come out exactly as they went in.
+//! tool takes as its input come out exactly as they went in. A webhook address of a service that
+//! keeps its secret in the path loses that path too (`super::webhook_mask`, RD-1190-21).
 
 use rmcp::model::{CallToolResponse, CallToolResult, ContentBlock};
 use serde_json::Value;
@@ -110,12 +111,15 @@ fn mask_string(text: &str) -> Option<String> {
         Ok(address) if address.has_host() => {
             let masked = rd_core::redact_url(&address);
             if masked == address.as_str() {
-                return None;
+                // Nothing in the user info or the query; a webhook's path may still be a key.
+                return super::webhook_mask::mask_known(&address);
             }
             masked
         }
         _ => rd_core::redact_text(text),
     };
+    // A Slack, Discord or Teams webhook keeps its secret in the path (RD-1190-21).
+    let masked = super::webhook_mask::mask_in_text(&masked).unwrap_or(masked);
     (masked != text).then_some(masked)
 }
 
@@ -162,6 +166,19 @@ mod tests {
         let text = r#"{"id":"abc","url":"https://Example.COM"}"#;
         let answer = Ok(CallToolResult::success(vec![ContentBlock::text(text)]).into());
         assert_eq!(text_of(mask_response(answer)), text);
+    }
+
+    #[test]
+    fn a_webhook_s_path_secret_is_masked_as_a_value_and_inside_prose() {
+        let hook = format!("https://hooks.slack.com/services/T0/B0/{KEY}");
+        let mut answer = serde_json::json!({
+            "endpoint": hook,
+            "detail": format!("POST {hook} failed: 404"),
+        });
+        assert!(mask_value(&mut answer));
+        let rendered = answer.to_string();
+        assert!(!rendered.contains(KEY), "{rendered}");
+        assert_eq!(answer["endpoint"], "https://hooks.slack.com/[redacted]");
     }
 
     #[test]

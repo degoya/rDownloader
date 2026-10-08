@@ -92,7 +92,9 @@
       "confirm": "Replace configuration",
       "button": "Import and replace",
       "success": "Settings restored",
-      "success_description": "Imported {count} configuration entries."
+      "success_description": "Imported {count} configuration entries.",
+      "password": "Administrator password",
+      "password_hint": "Replacing the configuration asks for the password again."
     },
     "full": {
       "eyebrow": "Full backup",
@@ -179,7 +181,16 @@
           "interrupted": "Interrupted"
         },
         "verifications": "Verifications",
-        "digest_only": "digest only (earlier passphrase)"
+        "digest_only": "digest only (earlier passphrase)",
+        "stored_key": "checked with the stored key, not the passphrase",
+        "passphrase_check": {
+          "action": "Verify with passphrase",
+          "title": "Verify with passphrase",
+          "description": "“Verify newest” uses the key kept for the schedule. A restore asks only for the passphrase, and a lost passphrase cannot be recovered. This opens the newest archive with the passphrase.",
+          "hint": "The archive is read in full; nothing is written.",
+          "submit": "Open the archive",
+          "ok": "The passphrase opens {name} (made {date})."
+        }
       },
       "run": {
         "button": "Back up now",
@@ -281,6 +292,10 @@
         "label": "I understand: at the next start this backup replaces the whole installation. The current state is kept until the restored one has started once.",
         "action": "Restore at the next start",
         "staged": "Restore staged. Restart rDownloader to switch to it."
+      },
+      "password": {
+        "label": "Administrator password",
+        "hint": "The restore replaces the password, passkeys and tokens at the next start, so it asks for the password again."
       }
     }
   },

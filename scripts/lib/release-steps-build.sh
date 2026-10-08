@@ -9,6 +9,17 @@
 # PRERELEASE, RELEASE_BRANCH, MAIN_BRANCH, JOBS, LANES, WINDOWS_LANE, GATE_REQUIRES and
 # step_command, and the working directory at the checkout root.
 
+# The cargo jobs that build, one `<pid> <command line>` each (PIPE-01): processes named exactly
+# `cargo` whose subcommand builds. pgrep with -f over the pattern also counted every shell whose
+# command line merely named one, another agent's `bash -c '... cargo test ...'` among them.
+heavy_cargo_jobs() {
+    local pid args pattern='(^|/)cargo( \+[^ ]+)? (build|test|clippy|nextest|xwin)( |$)'
+    for pid in $(pgrep -x cargo || true); do
+        args="$(ps -o args= -p "$pid" 2> /dev/null)" || continue
+        if [[ "$args" =~ $pattern ]]; then printf '%s %s\n' "$pid" "$args"; fi
+    done
+}
+
 step_preflight() {
     if [[ "$PRERELEASE" -eq 1 ]]; then
         echo "pre-release $VERSION on $RELEASE_BRANCH; $MAIN_BRANCH stays on the last stable release"
@@ -48,10 +59,10 @@ step_preflight() {
 
     # Concurrency is the other way this machine dies. One heavy job at a time, always.
     local others
-    others="$(pgrep -c -f 'cargo (build|test|clippy|nextest|xwin)' || true)"
-    if [[ "${others:-0}" -gt 0 ]]; then
-        echo "$others cargo job(s) already running; refusing to pile on" >&2
-        pgrep -a -f 'cargo (build|test|clippy|nextest|xwin)' >&2 || true
+    others="$(heavy_cargo_jobs)"
+    if [[ -n "$others" ]]; then
+        echo "$(wc -l <<< "$others") cargo job(s) already running; refusing to pile on" >&2
+        printf '%s\n' "$others" >&2
         return 1
     fi
 

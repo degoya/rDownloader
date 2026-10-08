@@ -21,13 +21,25 @@ export function useQueueReorder(view: {
   filterActive: Ref<boolean>
   /** The list, to put focus back on a moved row. */
   list: Ref<RowFocus | null>
+  /** True while the view is sorted for the eye: its order is not the queue's (RD-1190-16). */
+  sorted?: Ref<boolean>
 }) {
   const { t } = useI18n()
   const transfers = useTransfersStore()
   const draggingId = ref<string | null>(null)
   const draggingFileId = ref<string | null>(null)
 
+  /** A sorted view has no queue position to drop on: the move is refused with the reason. */
+  function refusedWhileSorted(): boolean {
+    if (!view.sorted?.value) return false
+    draggingId.value = null
+    draggingFileId.value = null
+    transfers.notice = t('downloads.view_sort.drag_off')
+    return true
+  }
+
   async function onDrop(targetId: string): Promise<void> {
+    if (refusedWhileSorted()) return
     // A file dropped on a package header: moving files between packages is not a gesture this
     // list offers, so the drag ends here rather than doing something the user did not ask for.
     if (draggingFileId.value) {
@@ -67,6 +79,7 @@ export function useQueueReorder(view: {
 
   /** File dropped on another file: both have to sit in the same package. */
   async function onFileDrop(targetId: string): Promise<void> {
+    if (refusedWhileSorted()) return
     const sourceId = draggingFileId.value
     draggingFileId.value = null
     if (!sourceId || sourceId === targetId) return
@@ -82,6 +95,7 @@ export function useQueueReorder(view: {
 
   /** Keyboard counterpart of the file drag: one step up or down inside the package. */
   async function onFileMove(id: string, delta: -1 | 1): Promise<void> {
+    if (refusedWhileSorted()) return
     const download = transfers.downloads.find(item => item.id === id)
     if (!download?.package_id) return
     const group = view.groups.value.find(entry => entry.package.id === download.package_id)
@@ -98,6 +112,7 @@ export function useQueueReorder(view: {
 
   /** Keyboard counterpart of the package drag; the priority tier bounds it just as the drag does. */
   async function onPackageMove(id: string, delta: -1 | 1): Promise<void> {
+    if (refusedWhileSorted()) return
     const order = transfers.packages.map(item => item.id)
     const from = order.indexOf(id)
     const to = from + delta

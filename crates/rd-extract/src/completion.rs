@@ -1,7 +1,7 @@
 //! The completion listener: requests a package's pipeline once its last file settled.
 
 use anyhow::Result;
-use rd_core::{DownloadState, EventKind};
+use rd_core::{DownloadFile, DownloadKind, DownloadState, EventKind};
 
 use crate::{ExtractionService, ExtractionTrigger};
 
@@ -84,8 +84,8 @@ impl ExtractionService {
         Ok(())
     }
 
-    /// Requests the pipeline for `package` once every file reached a terminal state and at
-    /// least one completed, unless post-processing already started or ended.
+    /// Requests the pipeline for `package` once [`ready_for_postprocess`] says its files are
+    /// there, unless post-processing already started or ended.
     async fn request_if_settled(&self, package: &rd_core::DownloadPackage) -> Result<()> {
         if matches!(
             package.state,
@@ -100,27 +100,54 @@ impl ExtractionService {
             .database
             .downloads_for_package(package.id)
             .await?;
-        let all_terminal = siblings.iter().all(|item| {
-            matches!(
-                item.state,
-                DownloadState::Completed
-                    | DownloadState::Seeding
-                    | DownloadState::Failed
-                    | DownloadState::Blocked
-                    | DownloadState::Cancelled
-                    // A mirror that was never needed is as settled as one that failed.
-                    | DownloadState::Skipped
-            )
-        });
-        let any_completed = siblings.iter().any(|item| {
-            matches!(
-                item.state,
-                DownloadState::Completed | DownloadState::Seeding
-            )
-        });
-        if !all_terminal || !any_completed {
+        if !ready_for_postprocess(package.kind, &siblings) {
             return Ok(());
         }
         self.request(package.id, ExtractionTrigger::Auto).await
     }
+}
+
+/// Whether a package's files are where its post-processing can start (RD-1190-13): at least one
+/// completed, and every one completed, stood down as a mirror, or cancelled by somebody.
+///
+/// A file that waits, failed or is blocked is a part that is missing. Until 1.19 a failed or
+/// blocked one counted as settled, so a package whose account ran out of traffic was unpacked
+/// with half its volumes, failed for it, and read as finished; it now waits, and the file that
+/// completes last starts the pipeline. A Usenet set is the exception and starts once every file
+/// settled, failed ones included, as before: PAR2 rebuilds a missing file.
+pub(crate) fn ready_for_postprocess(kind: DownloadKind, files: &[DownloadFile]) -> bool {
+    let settled = |state: DownloadState| {
+        done(state) || matches!(state, DownloadState::Failed | DownloadState::Blocked)
+    };
+    let any_completed = files.iter().any(|file| {
+        matches!(
+            file.state,
+            DownloadState::Completed | DownloadState::Seeding
+        )
+    });
+    any_completed
+        && if kind == DownloadKind::Usenet {
+            files.iter().all(|file| settled(file.state))
+        } else {
+            files.iter().all(|file| done(file.state))
+        }
+}
+
+/// A file post-processing does not wait for: completed (a seeding torrent is), cancelled by
+/// somebody, or a mirror that was never needed.
+fn done(state: DownloadState) -> bool {
+    matches!(
+        state,
+        DownloadState::Completed
+            | DownloadState::Seeding
+            | DownloadState::Cancelled
+            | DownloadState::Skipped
+    )
+}
+
+/// Whether a package lacks a file it was meant to hold, outside Usenet, where PAR2 may have
+/// rebuilt it. Such a package is never `Completed` (RD-1190-13), whatever its steps made of the
+/// rest.
+pub(crate) fn parts_missing(kind: DownloadKind, files: &[DownloadFile]) -> bool {
+    kind != DownloadKind::Usenet && !files.iter().all(|file| done(file.state))
 }

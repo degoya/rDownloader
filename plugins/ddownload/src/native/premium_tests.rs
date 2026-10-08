@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use rd_core::AccountId;
 use rd_plugin_api::{CaptchaChallenge, Resolver, ResolverHost};
+use rd_plugin_types::AccountId;
 
 use super::super::DdownloadResolver;
 use super::{
@@ -120,6 +120,47 @@ async fn a_premium_answer_with_only_the_navigation_link_is_not_called_a_login_wa
     );
 }
 
+/// The owner's premium account on 2026-10-08 (RD-1190-13): the answer to the premium form was
+/// the limit page. It was reported as `account-invalid` with `no_premium_file`, which blocked
+/// every file; it is a wait, coded so the host holds the account and checks it for traffic.
+#[tokio::test]
+async fn a_used_up_premium_quota_is_a_wait_not_an_invalid_account() {
+    let host = MockHost::in_session(
+        vec![
+            html(FORM_PAGE),
+            html(
+                "<title>Download</title><div class=\"err\">You have reached the download-limit: \
+                 200000 Mb for last 1 days</div>",
+            ),
+        ],
+        false,
+    );
+    let resolver = DdownloadResolver::new(Arc::clone(&host) as Arc<dyn ResolverHost>);
+
+    let failure = resolver
+        .resolve(resolve_request())
+        .await
+        .expect_err("no file came back");
+
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::RateLimited {
+            retry_after_seconds: Some(3600)
+        }
+    );
+    assert_eq!(failure.code.as_deref(), Some("ddownload.traffic_exhausted"));
+    assert!(rd_core::is_account_traffic_exhausted(&failure));
+    assert_eq!(
+        failure.params.get("limit").map(String::as_str),
+        Some("200000 Mb for last 1 days")
+    );
+    assert_eq!(
+        host.requests.lock().expect("mock lock").len(),
+        2,
+        "page and form, nothing more"
+    );
+}
+
 // --- the cookie-only account check ---------------------------------------------------------
 
 /// A cookie-only account is verified against the site: only a page offering the sign-out link
@@ -155,7 +196,10 @@ async fn a_lapsed_cookie_session_is_reported_before_any_download_spends_a_captch
         .check_account(AccountId::new())
         .await
         .expect_err("a guest page is not a session");
-    assert_eq!(failure.category, rd_core::FailureKind::AccountInvalid);
+    assert_eq!(
+        failure.category,
+        rd_plugin_types::FailureKind::AccountInvalid
+    );
     assert_eq!(
         failure.code.as_deref(),
         Some("ddownload.cookie_session_invalid")
@@ -188,7 +232,7 @@ async fn an_unreadable_page_is_retried_and_does_not_condemn_the_account() {
             .expect_err("an unreadable page confirms nothing either way");
         assert_eq!(
             failure.category,
-            rd_core::FailureKind::Transient {
+            rd_plugin_types::FailureKind::Transient {
                 retry_after_seconds: None
             },
             "{unreadable} must be retryable, not an account fault"

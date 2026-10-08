@@ -383,3 +383,51 @@ describe('PackageGroup failed post-processing', () => {
     expect(screen.queryByText(reason)).toBeNull()
   })
 })
+
+/**
+ * RD-1190-13: some files arrived and the rest wait for the account's traffic. The package is not
+ * finished and post-processing holds back; the header says so instead of looking stuck.
+ */
+describe('PackageGroup waiting for parts', () => {
+  const arrived = { id: 'd1', file_name: 'part1.rar', state: 'completed', committed_bytes: '100', total_bytes: '100' }
+
+  it('says it waits for missing files while the rest wait, failed or are blocked', () => {
+    for (const state of ['retry_wait', 'blocked', 'failed']) {
+      const { unmount } = renderGroup(group(), {
+        downloads: [arrived, { id: 'd2', file_name: 'part2.rar', state, committed_bytes: '0', total_bytes: '100' }]
+      })
+      expect(screen.getByTestId('waiting-for-parts'), state).toBeTruthy()
+      unmount()
+    }
+  })
+
+  it('says nothing while a file is still downloading, nor for Usenet', () => {
+    const { unmount } = renderGroup(group(), {
+      downloads: [arrived, { id: 'd2', file_name: 'part2.rar', state: 'downloading', committed_bytes: '10', total_bytes: '100' }]
+    })
+    expect(screen.queryByTestId('waiting-for-parts')).toBeNull()
+    unmount()
+    renderGroup(group({ kind: 'usenet' } as unknown as Partial<DownloadPackage>), {
+      downloads: [arrived, { id: 'd2', file_name: 'part2.rar', state: 'failed', committed_bytes: '0', total_bytes: '100' }]
+    })
+    expect(screen.queryByTestId('waiting-for-parts')).toBeNull()
+  })
+})
+
+describe('PackageGroup reset of stuck files', () => {
+  const stuck = (id: string, state: string) => ({ id, file_name: `${id}.bin`, state, committed_bytes: '0', total_bytes: '1', kind: 'http' })
+
+  // RD-1190-15: the blocked and failed files of one package back to the queue from its menu.
+  it('offers to reset the failed and blocked files, with their number, and hands it to the view', async () => {
+    const { emitted } = renderGroup(group(), { downloads: [stuck('a', 'failed'), stuck('b', 'blocked'), stuck('c', 'queued')] })
+    const cell = document.querySelector('.queue-cell-actions') as HTMLElement
+    ;(within(cell).getByText(downloads.package.reset_failed) as HTMLButtonElement).click()
+    await Promise.resolve()
+    expect(emitted().resetFailed?.[0]).toEqual(['package-1'])
+  })
+
+  it('offers nothing to reset in a package without a stuck file', () => {
+    renderGroup(group(), { downloads: [stuck('a', 'queued'), stuck('b', 'cancelled')] })
+    expect(screen.queryByText(downloads.package.reset_failed)).toBeNull()
+  })
+})

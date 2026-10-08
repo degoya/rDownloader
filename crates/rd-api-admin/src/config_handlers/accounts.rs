@@ -141,6 +141,15 @@ pub async fn test_account(
     for notice in rd_api_core::notify_notice::account_check_notices(&account, &status, today) {
         rd_api_core::notify_notice::announce(&state.database, notice).await;
     }
+    // Traffic again releases the downloads that waited for this account's traffic at once,
+    // rather than at the end of the hoster's wait (RD-1190-14).
+    if let Err(error) = state
+        .scheduler
+        .account_checked(id, status.traffic_left.map(rd_core::ByteCount::get))
+        .await
+    {
+        tracing::warn!(%error, account_id = %id, "the account's waiting downloads were not released");
+    }
     Ok(Json(AccountTestResponse {
         valid: status.valid,
         premium: status.premium,

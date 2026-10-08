@@ -6,10 +6,10 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use rd_core::{AccountId, Failure};
 use rd_plugin_api::{
     ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, Resolver, ResolverHost,
 };
+use rd_plugin_types::{AccountId, Failure};
 
 use super::PremiumizeResolver;
 
@@ -24,11 +24,12 @@ impl ResolverHost for MockHost {
     ) -> Result<HostHttpResponse, Failure> {
         assert_eq!(request.url.path(), "/api/transfer/directdl");
         assert!(!String::from_utf8_lossy(&request.body).contains("api-key"));
-        self.0
-            .lock()
-            .expect("mock lock")
-            .take()
-            .ok_or_else(|| Failure::new(rd_core::FailureKind::Permanent, "missing mock response"))
+        self.0.lock().expect("mock lock").take().ok_or_else(|| {
+            Failure::new(
+                rd_plugin_types::FailureKind::Permanent,
+                "missing mock response",
+            )
+        })
     }
 
     async fn secret_available(&self, _account_id: AccountId, reference: &str) -> bool {

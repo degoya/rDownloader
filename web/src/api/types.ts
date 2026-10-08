@@ -79,6 +79,9 @@ export type BandwidthCapability = components['schemas']['RunnerLimitSupport']
 export type BandwidthScopeLimit = components['schemas']['ScopeLimit']
 export type ManualProfileRequest = components['schemas']['ManualProfileRequest']
 export type QueuePause = components['schemas']['QueuePauseResponse']
+/** An account whose traffic its hoster reports used up, and what that holds back (RD-1190-14). */
+export type AccountTrafficHold = components['schemas']['AccountTrafficHoldResponse']
+export type AccountTrafficAction = components['schemas']['AccountTrafficAction']
 export type AuthFlow = components['schemas']['AuthFlow']
 /** A request for a browser's session at a provider, answered by the extension (RD-120-45). */
 export type BrowserSession = components['schemas']['BrowserSessionResponse']

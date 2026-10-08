@@ -37,6 +37,8 @@ pub(crate) struct Opening<'a> {
     pub proxy: Option<SecretString>,
     pub custom_ca_pem: &'a [Vec<u8>],
     pub timeout: Duration,
+    /// The resolver an entered endpoint is held to the address rule through (RD-1190-18).
+    pub dns: Option<Arc<dyn object_store::client::DnsResolver>>,
 }
 
 /// Why a profile could not be turned into a store. Each is a configuration fault the
@@ -49,10 +51,17 @@ pub(crate) enum OpenError {
     /// The provider's connector was left out of this build (`azure`, `gcs` features).
     #[cfg_attr(all(feature = "azure", feature = "gcs"), allow(dead_code))]
     Unsupported,
+    /// The machine's own credentials and a custom endpoint nobody confirmed (RD-1190-20).
+    AmbientEndpoint,
     Other,
 }
 
 pub(crate) fn open(opening: Opening<'_>) -> Result<Store, OpenError> {
+    // Before any builder runs: an instance role, a managed identity or a Google token goes to
+    // a host of somebody's choosing only on the profile's explicit yes.
+    if opening.profile.ambient_endpoint_unconfirmed() {
+        return Err(OpenError::AmbientEndpoint);
+    }
     match opening.profile.provider {
         rd_core::ObjectStorageProvider::S3 => s3(opening),
         rd_core::ObjectStorageProvider::Azure => azure::open(opening),
@@ -144,6 +153,9 @@ fn client_options(opening: &Opening<'_>) -> Result<ClientOptions, OpenError> {
     if let Some(proxy) = &opening.proxy {
         options = options.with_proxy_url(proxy.expose_secret());
     }
+    if let Some(dns) = &opening.dns {
+        options = options.with_dns_resolver(Arc::clone(dns));
+    }
     Ok(options)
 }
 
@@ -217,11 +229,16 @@ pub(crate) fn ambient_config(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, time::Duration};
 
+    use chrono::Utc;
     use object_store::aws::AmazonS3ConfigKey;
+    use rd_core::{
+        ObjectAddressing, ObjectCredentialSource, ObjectStorageProfile, ObjectStorageProfileId,
+        ObjectStorageProvider,
+    };
 
-    use super::{OpenError, ambient_config, bucket_endpoint};
+    use super::{OpenError, Opening, ambient_config, bucket_endpoint, open};
 
     #[test]
     fn a_virtual_host_endpoint_carries_the_bucket_in_its_host() {
@@ -241,6 +258,63 @@ mod tests {
             bucket_endpoint("not a url", "media", false),
             Err(OpenError::Endpoint)
         );
+    }
+
+    fn opening(profile: &ObjectStorageProfile) -> Opening<'_> {
+        Opening {
+            profile,
+            bucket: "media-bucket",
+            secret: None,
+            session_token: None,
+            proxy: None,
+            custom_ca_pem: &[],
+            dns: None,
+            timeout: Duration::from_secs(5),
+        }
+    }
+
+    /// RD-1190-20: without the opt-in the profile is refused before any builder reads the
+    /// machine's credentials; with it this is no longer the reason it fails.
+    #[test]
+    fn ambient_credentials_reach_a_custom_endpoint_only_on_the_profiles_yes() {
+        for provider in [
+            ObjectStorageProvider::S3,
+            ObjectStorageProvider::Azure,
+            ObjectStorageProvider::Gcs,
+        ] {
+            let mut profile = ObjectStorageProfile {
+                id: ObjectStorageProfileId::new(),
+                name: "machine".to_owned(),
+                provider,
+                endpoint: Some("http://127.0.0.1:9000".to_owned()),
+                region: None,
+                bucket: None,
+                addressing: ObjectAddressing::Path,
+                credential_source: ObjectCredentialSource::Ambient,
+                access_key_id: None,
+                account: Some("mediaarchive".to_owned()),
+                secret_ref: None,
+                session_token_ref: None,
+                has_secret: false,
+                has_session_token: false,
+                checksums: false,
+                enabled: true,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                ambient_custom_endpoint: false,
+            };
+            assert_eq!(
+                open(opening(&profile)).err(),
+                Some(OpenError::AmbientEndpoint),
+                "{provider:?}"
+            );
+            profile.ambient_custom_endpoint = true;
+            assert_ne!(
+                open(opening(&profile)).err(),
+                Some(OpenError::AmbientEndpoint),
+                "{provider:?}"
+            );
+        }
     }
 
     #[test]

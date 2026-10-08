@@ -11,10 +11,10 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind};
 use rd_plugin_api::{
     ClientIdentity, HostHttpRequest, HostHttpResponse, ResolveRequest, Resolver, ResolverHost,
 };
+use rd_plugin_types::{AccountId, Failure, FailureKind};
 
 use super::BoxResolver;
 
@@ -198,7 +198,7 @@ async fn an_own_file_resolves_to_the_stable_download_address_pinned_to_its_versi
     assert_eq!(resolved.file_name.as_deref(), Some("release.bin"));
     assert_eq!(resolved.size.map(|size| size.get()), Some(1_048_576));
     let checksum = resolved.checksum.clone().expect("a SHA-1");
-    assert_eq!(checksum.algorithm, rd_core::ChecksumAlgorithm::Sha1);
+    assert_eq!(checksum.algorithm, rd_plugin_types::ChecksumAlgorithm::Sha1);
     assert_eq!(checksum.value, "aabbccddeeff00112233445566778899aabbccdd");
     assert_eq!(resolved.client.tls_revision, 7);
     // A file in the account's own Box carries no `boxapi` header: the bearer the scheduler

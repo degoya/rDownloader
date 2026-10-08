@@ -231,6 +231,7 @@ fn request(
         sources,
         pieces,
         unverified: HashMap::new(),
+        whole_file_hash: false,
     }
 }
 

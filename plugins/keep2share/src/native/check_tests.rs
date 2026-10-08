@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use rd_core::{AccountId, LinkStatus};
 use rd_plugin_api::{CheckRequest, ClientIdentity, HostHttpRequest, Resolver, ResolverHost};
+use rd_plugin_types::{AccountId, LinkStatus};
 use url::Url;
 
 use super::super::Keep2ShareResolver;

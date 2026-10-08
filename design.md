@@ -99,6 +99,7 @@ flowchart LR
 | `rd-postprocess` | Archive formats, multipart detection, passwords, PAR2, and extraction backends |
 | `rd-files` | Safe paths, file names, part files, checksums, and storage roots |
 | `rd-plugin-api` | WIT contract `rdownloader:resolver@0.5.0` and shared plugin types |
+| `rd-plugin-types` | The plugin contract's vocabulary (failures, ids, byte counts, link status), re-exported by `rd-core` |
 | `rd-plugin-host` | Native resolvers, Wasmtime runtime, package verification, and installation |
 | `rd-provider-registry` | Central provider, domain, alias, and credential metadata |
 | `rd-secrets` | Encrypted local secret store |
@@ -379,7 +380,8 @@ The SPA has these primary sections:
 
 A collapsible, resizable sidebar contains navigation and live badges. A persistent transfer rail
 shows global queue state. The captcha dialog and file-drop overlay sit above individual routes
-because both may become active on any page. The overlay is a picture of the drop over the whole
+because both may become active on any page; the captcha dialog also lies above every drawer and
+modal (an explicit `z-[60]`, RD-1190-17), since a drawer opened later would otherwise cover it. The overlay is a picture of the drop over the whole
 page, not a field to pick a file in — that is `UFileUpload` — so it holds no control and takes no
 pointer events. The first element in the tab order on every page is a skip link to
 `#main-content` (WCAG 2.4.1, `docs/accessibility.md`): a plain `<a href>` styled by `.skip-link`,
@@ -1172,6 +1174,14 @@ recognised as drifting.
   (finished files) — and carries the second decision, partial files, as an unticked box; the
   request says it was confirmed and the server refuses it otherwise. `clearItems` in
   `DownloadsView.vue` and `ClearEverythingModal.vue` are the implementation (RD-180-21).
+- **"Reset failed" is a menu beside *Clear list*, neutral, with the number in every entry**
+  (RD-1190-15). Failed, blocked, both — over the list as the filter shows it; an entry with no
+  file is dead and the button too when there is neither. A cancelled file is not offered: it was
+  stopped on purpose. The confirmation is the reset's own (`ResetConfirmModal.vue`, the files
+  named), and the request names the files by state — `filter` on the bulk endpoint — wherever
+  that is exactly what the list shows; under a name search it sends the ids. A package's menu
+  offers the same for that package while it holds such a file. `QueueResetFailedMenu.vue` and
+  `useResetFailed.ts` are the implementation.
 - **An action that deletes nothing but cannot be undone asks once, without the destructive
   styling.** `useConfirm()` with the action's own icon and no `destructive: true` — the red
   button and the bin say "this is gone", and saying that about a grouping that leaves every link
@@ -1418,6 +1428,14 @@ recognised as drifting.
     disabled at zero; it resolves only what is ticked, one release after the other. A release
     that is done or underway cannot be ticked; one whose captcha went unanswered or that failed
     can, and its badge says why in words.
+  - **Every intake asks, not only the paste field (RD-1190-17).** A page copied to the clipboard,
+    sent by the browser extension or by Click'n'Load asked for the choice as much as a paste
+    did: on the LinkGrabber the drawer opens, on any other view a toast with *Choose* leads there
+    and the drawer opens on arrival. *Take all* fetches every release still open — for a page
+    without captchas (warez.cx) the choice is a convenience, not a cost.
+  - **A list that vanished is not an error.** *Fetch* lists the page again (the first stage
+    asks no captcha) and fetches the same releases; *Stop* and *Discard* let it go silently. The
+    drawer is not part of the header that disappears with the last list: it closes instead.
   - **The round is visible and stoppable.** The block's header counts the round ("3 of 8"), says
     *Waiting for captcha* while a person is needed, and offers *Stop*; discarding the list is the
     trash button beside it. Each finished release becomes one package in the list underneath.
@@ -1816,6 +1834,20 @@ pushes a row past its container. Each column has a floor of what its cell must s
 size's 137 px figure, a state badge, a shrunk category select) and 480 px as its ceiling. A
 windowed list reserves its scrollbar gutter, and the header then reserves the same one, so the
 edges line up with the cells under them.
+
+**A sort of the download list is the viewer's, never the queue's** (RD-1190-16). The labels of the
+download list's column header are buttons (`variant="link"`, the direction as a trailing glyph):
+a click sorts by that column — name, state, progress, size, category — the packages by their
+aggregate and the files inside each package by their own value, a second click turns the
+direction, a third goes back to the queue order; each button says what its next click does.
+Equal keys keep their queue order. Nothing reaches the server, so the view must not look like the
+queue: while a sort holds, an info `UAlert` above the list says *View sorted – queue unchanged*,
+by what and which way, that dragging is off, and carries *Back to queue order*. Dragging is off
+because a drop has no queue position in a sorted list: the handles stay in the grid but are
+hidden (`visibility`, so they leave the tab order too) and the reorder handlers refuse with the
+reason. The sort is kept per browser like the widths (`useQueueSort.ts`, every access guarded);
+the LinkGrabber's header passes no sort and keeps plain labels. `QueueSortNotice.vue` and
+`QueueColumnHeader.vue` are the implementation.
 
 **The LinkGrabber's link row is on the same grid, and the subscription rows are deliberately
 not** (RD-110-27). The link row sits in the same panel body as the queue, so the measurement

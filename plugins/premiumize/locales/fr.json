@@ -1,5 +1,6 @@
 {
   "name": "Premiumize.me",
+  "description": "Résout les liens d'autres hébergeurs via un compte Premiumize.me.",
   "account": {
     "secret_label": "Clé API Premiumize",
     "secret_hint": "Premiumize nécessite la clé API dans le champ secret. Une session cookie n'est normalement pas requise pour Premiumize."

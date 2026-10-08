@@ -13,6 +13,8 @@ mod event_stream;
 mod handlers;
 #[cfg(test)]
 mod mcp_coverage;
+#[cfg(test)]
+mod mcp_handler_tests;
 mod openapi;
 mod routes;
 #[cfg(test)]

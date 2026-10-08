@@ -288,6 +288,7 @@ async fn a_folder_of_a_bucket_meets_the_contract() {
             session_token_ref: None,
             checksums: false,
             enabled: true,
+            ambient_custom_endpoint: false,
         })
         .await
         .expect("profile");

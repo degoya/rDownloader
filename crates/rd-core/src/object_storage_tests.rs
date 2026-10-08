@@ -32,6 +32,7 @@ fn profile(name: &str, bucket: Option<&str>) -> ObjectStorageProfile {
         enabled: true,
         created_at: Utc::now(),
         updated_at: Utc::now(),
+        ambient_custom_endpoint: false,
     }
 }
 
@@ -199,6 +200,55 @@ fn two_general_profiles_are_refused_rather_than_guessed() {
     let by_id = format!("s3://{}@some-bucket/a", profiles[0].id);
     let chosen = select_profile(&profiles, &address(&by_id).expect("link")).expect("profile");
     assert_eq!(chosen.name, "aws");
+}
+
+/// RD-1190-20: naming a bound profile in the link does not widen its binding — before, the
+/// hint picked the profile whatever bucket the link named.
+#[test]
+fn a_named_profile_serves_only_its_bound_bucket() {
+    let profiles = [profile("media", Some("media-bucket"))];
+    let chosen = select_profile(
+        &profiles,
+        &address("s3://media@media-bucket/a").expect("link"),
+    )
+    .expect("profile");
+    assert_eq!(chosen.name, "media");
+    assert_eq!(
+        select_profile(
+            &profiles,
+            &address("s3://media@other-bucket/a").expect("link")
+        )
+        .err(),
+        Some(ProfileChoiceError::None)
+    );
+    let by_id = format!("s3://{}@other-bucket/a", profiles[0].id);
+    assert_eq!(
+        select_profile(&profiles, &address(&by_id).expect("link")).err(),
+        Some(ProfileChoiceError::None)
+    );
+    assert!(profile("general", None).serves_bucket("any-bucket"));
+}
+
+/// RD-1190-20: the machine's own credentials reach a custom endpoint only on an explicit yes.
+#[test]
+fn ambient_credentials_go_to_a_custom_endpoint_only_when_confirmed() {
+    let mut ambient = profile("machine", None);
+    ambient.credential_source = ObjectCredentialSource::Ambient;
+    assert!(
+        !ambient.ambient_endpoint_unconfirmed(),
+        "the provider's own service"
+    );
+    ambient.endpoint = Some("https://minio.example:9000".to_owned());
+    assert!(ambient.ambient_endpoint_unconfirmed());
+    ambient.ambient_custom_endpoint = true;
+    assert!(!ambient.ambient_endpoint_unconfirmed());
+    let mut keyed = profile("keyed", None);
+    keyed.endpoint = Some("https://minio.example:9000".to_owned());
+    keyed.credential_source = ObjectCredentialSource::Static;
+    assert!(
+        !keyed.ambient_endpoint_unconfirmed(),
+        "a stored key is the person's own"
+    );
 }
 
 #[test]

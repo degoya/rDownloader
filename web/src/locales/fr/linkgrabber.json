@@ -601,6 +601,8 @@
       "again": "Peut être choisie à nouveau"
     },
     "captcha_hint": "Chaque release demande un captcha ; résolvez-le dans la fenêtre du captcha ou l’extension du navigateur.",
-    "fetch": "Récupérer les liens | Récupérer les liens de {count} release | Récupérer les liens de {count} releases"
+    "fetch": "Récupérer les liens | Récupérer les liens de {count} release | Récupérer les liens de {count} releases",
+    "take_all": "Tout prendre | Prendre 1 release | Prendre les {count}",
+    "announced": "{rule} : une page attend votre choix"
   }
 }

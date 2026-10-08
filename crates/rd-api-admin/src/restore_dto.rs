@@ -45,6 +45,11 @@ pub struct RestoreRequest {
     pub passphrase: String,
     #[serde(default)]
     pub mappings: Vec<RestoreMappingRequest>,
+    /// The administrator password, typed again: the restore itself asks for it from a signed-in
+    /// session (RD-1190-19); the test restore does not read it.
+    #[serde(default)]
+    #[schema(write_only)]
+    pub password: Option<String>,
 }
 
 /// An upload in progress.

@@ -183,6 +183,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // update_settings' description) and one field of a category's post-processing
     // (update_category_postprocess); neither has a route of its own.
     // RD-1140-01: `unwrap_package_folder` the same way, plus create/update_category.
+    // RD-1190-14: `account_traffic_action` and `account_traffic_overrides` the same way; the
+    // accounts held for their traffic are read with get_queue_pause.
     covered(
         "The settings document",
         "Settings",
@@ -672,8 +674,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
         &[any("/api/v1/backups/passphrase")],
         OWNER_LINE,
     ),
-    // RD-160-03: preview, test restore and restore each take the passphrase in again (owner's
-    // decision, 2026-09-28), and the restore replaces the whole installation at the next start.
+    // RD-160-03: each step takes the passphrase in again (owner, 2026-09-28); the restore and the
+    // settings import also want a session and the password, which no token can give (RD-1190-19).
     omitted(
         "Restoring a full backup",
         "Settings > Backup",

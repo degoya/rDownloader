@@ -17,8 +17,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     DEFAULT_AUTO_RETRY_INTERVAL_HOURS, DEFAULT_AUTO_RETRY_MAX_ROUNDS, DEFAULT_MAX_RETRIES,
-    ExternalRunner, SchedulerConfig, SchedulerHandle, active::ActiveState, holds, hostblock, rates,
-    runner,
+    ExternalRunner, SchedulerConfig, SchedulerHandle, account_traffic, active::ActiveState, holds,
+    hostblock, rates, runner,
 };
 
 /// Marks the start's storage recovery as run when it is dropped, panic or not.
@@ -137,6 +137,7 @@ impl SchedulerHandle {
             network_hold: Arc::new(holds::Holds::default()),
             queue_pause: Arc::new(Mutex::new(None)),
             host_blocks: hostblock::HostBlocks::default(),
+            traffic_holds: account_traffic::TrafficHolds::default(),
             host_limits,
             provider_slots: Arc::new(Mutex::new(HashMap::new())),
             free_slots: Arc::new(Mutex::new(HashMap::new())),
@@ -163,6 +164,10 @@ impl SchedulerHandle {
         // Before the first dispatch, so a file the pause holds does not start in the gap.
         if let Err(error) = handle.restore_queue_pause().await {
             tracing::warn!(%error, "the timed queue pause could not be restored");
+        }
+        // The same for an account whose traffic is used up (RD-1190-14).
+        if let Err(error) = handle.restore_account_traffic().await {
+            tracing::warn!(%error, "the accounts waiting for traffic could not be restored");
         }
         // Storage work the previous run left: category moves to finish, the history to
         // settle, the content index to check against the disk (RD-150-02). In the background,

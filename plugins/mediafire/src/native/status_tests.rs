@@ -2,8 +2,8 @@
 //! are refused before any request. Split from `resolve_tests.rs` to keep both files under the
 //! crate layout's 500 lines.
 
-use rd_core::FailureKind;
 use rd_plugin_api::Resolver;
+use rd_plugin_types::FailureKind;
 
 use super::{FILE_PAGE, FILE_URL, GET_INFO, MockHost, html, json, resolve_request, resolver};
 

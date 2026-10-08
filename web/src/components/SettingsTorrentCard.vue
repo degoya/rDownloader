@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
-import type { NetworkInterface, ProxyProfile, Settings, TorrentEngineCapabilities } from '@/api/types'
+import { useProxyProfiles } from '@/stores/proxyProfiles'
+import type { NetworkInterface, Settings, TorrentEngineCapabilities } from '@/api/types'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { MIB, byteModel } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -16,7 +17,7 @@ const settings = defineModel<Settings>({ required: true })
 
 /** Interfaces the engine can bind to, plus the "all interfaces" default. */
 const interfaces = ref<NetworkInterface[]>([])
-const proxies = ref<ProxyProfile[]>([])
+const { proxies, fetchProxies } = useProxyProfiles()
 const proxyItems = computed(() => [
   { label: t('settings.torrent.proxy.none'), value: NO_SELECTION },
   ...proxies.value
@@ -58,14 +59,13 @@ const peerLimit = computed({
 })
 
 onMounted(async () => {
-  const [found, matrix, profiles] = await Promise.all([
+  const [found, matrix] = await Promise.all([
     api.GET('/api/v1/torrents/network/interfaces'),
     api.GET('/api/v1/torrents/capabilities'),
-    api.GET('/api/v1/proxy-profiles')
+    fetchProxies()
   ])
   if (found.data) interfaces.value = found.data
   if (matrix.data) capabilities.value = matrix.data
-  if (profiles.data) proxies.value = profiles.data
 })
 const { t } = useI18n()
 

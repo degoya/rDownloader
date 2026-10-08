@@ -61,7 +61,8 @@
     "credential_mode_oauth": "Connect with a code",
     "no_providers": "No plugin for accounts is active. Enable hoster plugins under Settings → Plugins.",
     "connect_polling": "rDownloader keeps checking with {provider} in the background until you confirm or the code expires.",
-    "connect_expires": "The code is valid until {time}."
+    "connect_expires": "The code is valid until {time}.",
+    "traffic_held": "Traffic used up · next check {time}"
   },
   "hosters": {
     "toggle": "Supported hosters",

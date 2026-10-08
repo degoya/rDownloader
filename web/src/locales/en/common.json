@@ -184,7 +184,10 @@
     "resize_hint": "Drag, or use the arrow keys (Shift for larger steps); double-click or Enter resets it",
     "menu": "Columns",
     "reset_all": "Reset all column widths",
-    "state_linkgrabber": "Link state"
+    "state_linkgrabber": "Link state",
+    "sort": "Sort the view by “{column}”",
+    "sorted_asc": "Sorted by “{column}”, ascending – click for descending",
+    "sorted_desc": "Sorted by “{column}”, descending – click for the queue order"
   },
   "weekdays": {
     "mon": "Mon",

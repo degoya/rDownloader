@@ -53,8 +53,8 @@ rd_component_gates() {
     # Scoped to the plugins the change touches: target/ is shared between worktrees, so the
     # component of a plugin this branch never touched may be another branch's work and differ
     # for that reason alone. A shared plugin library, the WIT contract or a workspace crate the
-    # plugins link (rd_plugin_linked_crates: rd-core, rd-plugin-api and what they pull in) can
-    # change any component, so each of them asks about all of them, and so does --full. The
+    # plugins link (rd_plugin_linked_crates: rd-plugin-api, rd-plugin-types and what they pull
+    # in) can change any component, so each of them asks about all of them, and so does --full. The
     # linked crates were missing until 1.2.3: rd-plugin-api changed in 1.2.2, 72 components
     # with it, and the branch check said "no plugin in the change set".
     step "plugin content against the signed package of the same version"

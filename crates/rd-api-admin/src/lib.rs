@@ -37,6 +37,7 @@ pub mod remote_handlers;
 mod restore_checks;
 pub mod restore_dto;
 pub mod restore_handlers;
+mod restore_room;
 pub mod restore_service;
 pub mod restore_uploads;
 pub mod routing_backup;

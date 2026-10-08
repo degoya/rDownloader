@@ -167,7 +167,10 @@ export function defaultSettings(): Settings {
   otlp_timeout_seconds: 5,
   hotfolder_poll_seconds: 30,
   history_retention_entries: 10_000,
-  history_retention_days: 365
+  history_retention_days: 365,
+  account_traffic_action: 'pause_account',
+  account_traffic_overrides: {},
+  mcp_scripts_allowed: false
   }
 }
 

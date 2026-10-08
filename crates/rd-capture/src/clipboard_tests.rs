@@ -1,4 +1,4 @@
-use crate::client::ServiceRefusal;
+use crate::client::{ServiceRefusal, Submitted};
 
 use super::{
     ClipboardState, HandOver, MAX_CLIPBOARD_BYTES, MAX_SUBMISSION_RETRY_TICKS, links_to_hand_over,
@@ -103,8 +103,24 @@ fn a_submitted_clipboard_is_not_submitted_twice() {
     let mut state = ClipboardState::default();
     let text = "https://example.com/file.bin";
     let candidate = state.candidate(text).expect("new clipboard content");
-    record_submission(&mut state, candidate.hash, Ok(()));
+    record_submission(&mut state, candidate.hash, Ok(Submitted::Added));
     assert!(state.candidate(text).is_none(), "accepted content is kept");
+}
+
+/// A copied series page lands on the pick board once (RD-1190-17): repeated, every hand-over
+/// listed the page again, and the drawer's list vanished under a new id.
+#[test]
+fn a_page_waiting_for_a_choice_is_not_handed_over_again() {
+    let mut state = ClipboardState::default();
+    let text = "https://series.example/serie/show/";
+    let candidate = state.candidate(text).expect("new clipboard content");
+    record_submission(&mut state, candidate.hash, Ok(Submitted::PickWaiting(30)));
+    state.tick();
+    assert!(state.candidate(text).is_none(), "the list is on the board");
+    assert_eq!(
+        HandOver::Listed(Submitted::PickWaiting(1)).message(),
+        "A page lists 1 release; choose it in rDownloader's LinkGrabber"
+    );
 }
 
 /// Everything the service did not decide keeps its retry, because a failure that is

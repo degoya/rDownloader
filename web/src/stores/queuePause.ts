@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import type { QueuePause } from '@/api/types'
+import type { AccountTrafficHold, QueuePause } from '@/api/types'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 /** The durations the pause menu offers, in minutes (RD-190-20). */
@@ -31,10 +31,15 @@ export function nextOccurrence(clock: string, now: Date = new Date()): Date | nu
  * this only mirrors it. The pause changes file states as it starts and ends, so `download.state`
  * events are what tell another tab about it; a clock ticking every second keeps the countdown
  * current and notices an end that passed without one.
+ *
+ * The same answer names the accounts whose traffic is used up (RD-1190-14), the other thing that
+ * holds downloads back without anybody pausing them; a file running into the limit is a
+ * `download.state` event too.
  */
 export const useQueuePauseStore = defineStore('queuePause', () => {
   const until = ref<string | null>(null)
   const files = ref(0)
+  const accountTraffic = ref<AccountTrafficHold[]>([])
   const busy = ref(false)
   const error = ref<string | null>(null)
   // A "service could not be reached" alert ends with the outage.
@@ -50,6 +55,7 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
   function apply(data: QueuePause): void {
     until.value = data.paused ? data.until ?? null : null
     files.value = data.files
+    accountTraffic.value = data.account_traffic ?? []
   }
 
   async function load(): Promise<void> {
@@ -96,6 +102,8 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
       if (response.data) {
         until.value = null
         files.value = 0
+        // A start by hand lets go of the accounts held for their traffic as well.
+        accountTraffic.value = []
         return response.data.resumed
       }
       error.value = responseError(response)
@@ -128,5 +136,5 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
     clock = null
   }
 
-  return { until, files, busy, error, active, remainingSeconds, load, pauseFor, pauseUntil, resume, connect, disconnect }
+  return { until, files, accountTraffic, busy, error, active, remainingSeconds, load, pauseFor, pauseUntil, resume, connect, disconnect }
 })

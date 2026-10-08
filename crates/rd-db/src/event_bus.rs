@@ -13,7 +13,7 @@
 
 use std::{
     collections::VecDeque,
-    sync::{Arc, Mutex, MutexGuard, PoisonError},
+    sync::{Arc, Mutex, MutexGuard, PoisonError, Weak},
 };
 
 use rd_core::{EventEnvelope, EventId};
@@ -59,11 +59,14 @@ struct Inner {
     bytes: usize,
     max_events: usize,
     max_bytes: usize,
+    /// The sequence number the next event gets: how many were ever sent.
+    next_seq: u64,
 }
 
 struct Buffered {
     event: EventEnvelope,
     bytes: usize,
+    seq: u64,
 }
 
 impl Default for EventBus {
@@ -90,6 +93,7 @@ impl EventBus {
                 bytes: 0,
                 max_events: events,
                 max_bytes: bytes,
+                next_seq: 0,
             })),
         }
     }
@@ -131,6 +135,18 @@ impl EventBus {
         (replay, live)
     }
 
+    /// A subscriber that takes what it fell behind on from the buffer (CORE-01).
+    #[must_use]
+    pub fn follow(&self) -> Follower {
+        let inner = self.lock();
+        Follower {
+            bus: Arc::downgrade(&self.inner),
+            live: inner.live.subscribe(),
+            next: inner.next_seq,
+            replayed: VecDeque::new(),
+        }
+    }
+
     /// How many events the buffer currently holds.
     #[must_use]
     pub fn buffered(&self) -> usize {
@@ -145,10 +161,32 @@ impl EventBus {
 }
 
 impl Inner {
+    /// Everything buffered from sequence number `from` on and a receiver for everything sent
+    /// from now on, taken under the one lock.
+    fn since(&self, from: u64) -> CatchUp {
+        let oldest = self
+            .buffer
+            .front()
+            .map_or(self.next_seq, |buffered| buffered.seq);
+        CatchUp {
+            events: self
+                .buffer
+                .iter()
+                .filter(|buffered| buffered.seq >= from)
+                .map(|buffered| buffered.event.clone())
+                .collect(),
+            live: self.live.subscribe(),
+            next: self.next_seq,
+            lost: oldest.saturating_sub(from),
+        }
+    }
+
     fn record(&mut self, event: EventEnvelope) {
         let bytes = serde_json::to_vec(&event.payload).map_or(0, |raw| raw.len());
         self.bytes = self.bytes.saturating_add(bytes);
-        self.buffer.push_back(Buffered { event, bytes });
+        let seq = self.next_seq;
+        self.next_seq += 1;
+        self.buffer.push_back(Buffered { event, bytes, seq });
         // The newest event always stays: a single payload over the byte bound would otherwise
         // empty the buffer, and one oversized entry is a bounded excess while an empty buffer
         // is a refused resume.
@@ -162,10 +200,74 @@ impl Inner {
     }
 }
 
+/// A subscriber that does not lose events to a burst (CORE-01).
+///
+/// The live channel holds [`LIVE_CAPACITY`] events per subscriber; one that falls further
+/// behind is told `Lagged` and the channel skips ahead. A follower then takes the skipped
+/// events from the buffer, with a fresh receiver from the same step, so it sees every event
+/// once and in order -- the resume of RD-110-23, counted by sequence number so it also works
+/// before the follower has received anything. Only what fell out of the buffer as well is
+/// lost, and that is reported as `Lagged` with the number lost.
+pub struct Follower {
+    /// Weak, so the channel still closes when the bus goes away.
+    bus: Weak<Mutex<Inner>>,
+    live: broadcast::Receiver<EventEnvelope>,
+    /// The sequence number of the next event the live receiver hands over.
+    next: u64,
+    replayed: VecDeque<EventEnvelope>,
+}
+
+impl Follower {
+    /// The next event; `Lagged(n)` only when `n` events fell out of the buffer before they
+    /// could be replayed, `Closed` when the bus is gone.
+    pub async fn recv(&mut self) -> Result<EventEnvelope, broadcast::error::RecvError> {
+        loop {
+            if let Some(event) = self.replayed.pop_front() {
+                return Ok(event);
+            }
+            match self.live.recv().await {
+                Ok(event) => {
+                    self.next += 1;
+                    return Ok(event);
+                }
+                Err(broadcast::error::RecvError::Lagged(_)) => {
+                    let Some(bus) = self.bus.upgrade() else {
+                        return Err(broadcast::error::RecvError::Closed);
+                    };
+                    let catch_up = bus
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .since(self.next);
+                    self.replayed = catch_up.events.into();
+                    self.live = catch_up.live;
+                    self.next = catch_up.next;
+                    if catch_up.lost > 0 {
+                        return Err(broadcast::error::RecvError::Lagged(catch_up.lost));
+                    }
+                }
+                Err(closed) => return Err(closed),
+            }
+        }
+    }
+}
+
+/// What a follower that fell behind takes from the buffer, and where it goes on from.
+struct CatchUp {
+    /// Every buffered event from the follower's next sequence number on, oldest first.
+    events: Vec<EventEnvelope>,
+    /// A receiver for everything sent after them.
+    live: broadcast::Receiver<EventEnvelope>,
+    /// The sequence number of the first event on `live`.
+    next: u64,
+    /// How many events the follower missed fell out of the buffer as well.
+    lost: u64,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{EventBus, Replay};
+    use super::{EventBus, LIVE_CAPACITY, Replay};
     use rd_core::{EventEnvelope, EventId, EventKind};
+    use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 
     fn event(mark: &str) -> EventEnvelope {
         EventEnvelope::new(
@@ -279,5 +381,47 @@ mod tests {
             "c"
         );
         assert!(live.try_recv().is_err());
+    }
+
+    /// A burst larger than the live channel: a plain subscriber is told it lagged and loses
+    /// the oldest events, a follower takes them from the buffer and misses none (CORE-01).
+    #[tokio::test]
+    async fn a_follower_behind_a_full_channel_misses_nothing() {
+        let bus = EventBus::new();
+        let mut plain = bus.subscribe();
+        let mut follower = bus.follow();
+        let sent = LIVE_CAPACITY + 100;
+        for n in 0..sent {
+            bus.send(event(&n.to_string()));
+        }
+
+        assert!(matches!(plain.try_recv(), Err(TryRecvError::Lagged(100))));
+        for n in 0..sent {
+            let received = follower.recv().await.expect("every event of the burst");
+            assert_eq!(received.payload["mark"], n.to_string());
+        }
+        bus.send(event("after"));
+        let next = follower.recv().await.expect("the event after the burst");
+        assert_eq!(next.payload["mark"], "after");
+    }
+
+    /// What fell out of the buffer as well is reported with its number, and the rest of the
+    /// buffer still arrives in order.
+    #[tokio::test]
+    async fn a_follower_reports_only_what_fell_out_of_the_buffer() {
+        let kept = 100;
+        let bus = EventBus::bounded(kept, usize::MAX);
+        let mut follower = bus.follow();
+        let sent = LIVE_CAPACITY + 50;
+        for n in 0..sent {
+            bus.send(event(&n.to_string()));
+        }
+
+        let lost = (sent - kept) as u64;
+        assert!(matches!(follower.recv().await, Err(RecvError::Lagged(n)) if n == lost));
+        for n in sent - kept..sent {
+            let received = follower.recv().await.expect("the buffered rest");
+            assert_eq!(received.payload["mark"], n.to_string());
+        }
     }
 }

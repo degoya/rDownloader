@@ -147,9 +147,9 @@ rd_scope_lock_crates() {
 # --- crates the plugin components are built from --------------------------------------------
 #
 # The workspace crates a plugin links, directly or through another of them, one directory per
-# line (`crates/rd-core/`). A change to any of them can change every component — in 1.2.2 a
-# change to rd-plugin-api changed 72 of them and only the release pipeline noticed, twice — so
-# the version check in lib/components.sh asks about every plugin when one is touched.
+# line (`crates/rd-plugin-types/`). A change to any of them can change every component — in
+# 1.2.2 a change to rd-plugin-api changed 72 of them and only the release pipeline noticed,
+# twice — so the version check in lib/components.sh asks about every plugin when one is touched.
 #
 # Read from the path dependencies in the manifests rather than listed, so a crate is covered
 # the day a plugin starts linking it. `[dev-dependencies]` are skipped: they never reach a

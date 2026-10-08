@@ -1,7 +1,7 @@
 {
   "format_version": 1,
-  "sequence": 8,
-  "issued_at": "2026-10-07T21:00:00Z",
+  "sequence": 9,
+  "issued_at": "2026-10-08T11:00:00Z",
   "rules": [
     {
       "id": "scnlog",
@@ -392,7 +392,7 @@
       "id": "warez-cx",
       "name": "warez.cx",
       "group": "board",
-      "version": 1,
+      "version": 2,
       "match": {
         "hosts": [
           "warez.cx",
@@ -429,6 +429,15 @@
       },
       "groups": {
         "from": "releases",
+        "pick": {
+          "attributes": {
+            "episode": "\"fulltitle\":\"[^\"]*?\\.S\\d+E0*(\\d+)",
+            "hoster": "\"links\":\\{\"([^\"]+)\"",
+            "language": "\"fulltitle\":\"[^\"]*?\\.(German|English|Multi|MULTi|French|Spanish|Italian|Japanese)\\.",
+            "resolution": "\"fulltitle\":\"[^\"]*?\\.(\\d{3,4}p)\\.",
+            "season": "\"fulltitle\":\"[^\"]*?\\.S0*(\\d+)(?:E\\d|\\.)"
+          }
+        },
         "steps": [
           {
             "kind": "regex",

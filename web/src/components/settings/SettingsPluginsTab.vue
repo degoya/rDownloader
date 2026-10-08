@@ -15,6 +15,7 @@ import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useSettingsStore } from '@/stores/settings'
 import SectionHeader from '@/components/SectionHeader.vue'
 import PluginCard from './PluginCard.vue'
 import PluginBundledList from './PluginBundledList.vue'
@@ -152,7 +153,7 @@ async function reloadFromEvent(): Promise<void> {
 async function refresh(): Promise<string | null> {
   const [inventory, settings] = await Promise.all([
     api.GET('/api/v1/plugins'),
-    api.GET('/api/v1/settings')
+    useSettingsStore().fetchSettings()
   ])
   if (inventory.data) {
     plugins.value = inventory.data.installed

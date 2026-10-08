@@ -7,6 +7,7 @@ import type { Account, DownloadPackage, NzbImport } from '@/api/types'
 import { useAccountProviders } from '@/composables/useAccountProviders'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useErrorToast } from '@/composables/useErrorToast'
+import { useAccountsStore } from '@/stores/accounts'
 import { useNzbImportsStore, type NzbHandOverResult } from '@/stores/nzbImports'
 import { showNzbHandOver, type NzbHandOverPlace } from '@/utils/nzbHandOver'
 
@@ -30,7 +31,7 @@ let loaded = false
 
 async function refresh(): Promise<void> {
   const [accountsResponse, providersResponse] = await Promise.all([
-    api.GET('/api/v1/accounts'),
+    useAccountsStore().fetchAccounts(),
     api.GET('/api/v1/remote-jobs/providers', { params: { query: { container: 'nzb' } } })
   ])
   accounts.value = accountsResponse.data ?? []

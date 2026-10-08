@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, resultMessage, responseError } from '@/api/client'
-import type { Account, CreateAccount, Provider, ProxyProfile, UpdateAccount } from '@/api/types'
+import type { Account, CreateAccount, Provider, UpdateAccount } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
@@ -18,12 +18,16 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
+import { useAccounts } from '@/stores/accounts'
+import { useProxyProfiles } from '@/stores/proxyProfiles'
 import { providerText as pluginProviderText } from '@/i18n/plugins'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
+import { useQueuePauseStore } from '@/stores/queuePause'
+import { formatPauseEnd } from '@/utils/format'
 
 /**
  * The provider accounts, the first tab of *Accounts* (RD-1120-23). The setup wizard embeds the
@@ -32,8 +36,11 @@ import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 defineProps<{ embedded?: boolean }>()
 
 const { t } = useI18n()
-const accounts = ref<Account[]>([])
-const proxies = ref<ProxyProfile[]>([])
+const { accounts, fetchAccounts } = useAccounts()
+const { proxies, fetchProxies } = useProxyProfiles()
+const queuePause = useQueuePauseStore()
+/** The account's used-up traffic, while its hoster reports it so (RD-1190-14). */
+const trafficHold = (id: string) => queuePause.accountTraffic.find(hold => hold.account_id === id)
 const providers = ref<Provider[]>([])
 /**
  * The provider catalogue's first read, apart from the account list's (RD-130-06). It is
@@ -183,14 +190,8 @@ async function refreshProviders(): Promise<void> {
  * the two it is looking at. The provider catalogue is read on its own (`providersLoading`).
  */
 async function refresh(): Promise<string | null> {
-  const [accountResponse, proxyResponse] = await Promise.all([
-    api.GET('/api/v1/accounts'),
-    api.GET('/api/v1/proxy-profiles')
-  ])
-  if (proxyResponse.data) proxies.value = proxyResponse.data
-  if (!accountResponse.data) return responseError(accountResponse)
-  accounts.value = accountResponse.data
-  return null
+  const [accountResponse] = await Promise.all([fetchAccounts(), fetchProxies()])
+  return accountResponse.data ? null : responseError(accountResponse)
 }
 
 async function createAccount(): Promise<void> {
@@ -404,6 +405,7 @@ function proxyName(id: string | null | undefined): string {
               <UBadge v-if="editingAccountId === account.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
               <UIcon v-if="account.has_secret" name="i-lucide-key-round" class="text-primary" />
               <UIcon v-if="account.has_cookies" name="i-lucide-cookie" class="text-warning" />
+              <UBadge v-if="trafficHold(account.id)" size="sm" color="warning" variant="subtle" icon="i-lucide-gauge" :label="t('network.account.traffic_held', { time: formatPauseEnd(trafficHold(account.id)!.next_check_at) })" data-testid="account-traffic-held" />
               <UBadge
                 v-if="testResults[account.id]"
                 :color="testResults[account.id]!.premium ? 'success' : 'neutral'"

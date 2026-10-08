@@ -158,7 +158,7 @@ pub use config_store::{
 };
 pub use download_sources_store::ChunkMark;
 pub use error::{StoreError, StoreErrorKind, store_kind};
-pub use event_bus::{EVENT_BUFFER_BYTES, EVENT_BUFFER_EVENTS, EventBus, Replay};
+pub use event_bus::{EVENT_BUFFER_BYTES, EVENT_BUFFER_EVENTS, EventBus, Follower, Replay};
 pub use facade_archive_password::NO_VAULT as ARCHIVE_PASSWORD_NO_VAULT;
 pub use full_backup_store::{
     BACKUP_INTERRUPTED, BACKUP_RUNS_KEPT, BackupConfig, BackupConfigUpdate,
@@ -256,6 +256,13 @@ impl Database {
     #[must_use]
     pub fn resume(&self, after: EventId) -> (Replay, broadcast::Receiver<EventEnvelope>) {
         self.events.resume(after)
+    }
+
+    /// Subscribes with a receiver that takes what it fell behind on from the buffer, so a
+    /// burst larger than the live channel loses nothing that is still buffered (CORE-01).
+    #[must_use]
+    pub fn follow(&self) -> Follower {
+        self.events.follow()
     }
 
     /// Publishes an event to live subscribers without persisting it. Only for state that

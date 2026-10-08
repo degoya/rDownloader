@@ -147,6 +147,37 @@ async fn a_different_version_refuses_the_resume() {
     ));
 }
 
+/// TR-03: a timestamp recorded for the bytes on disk that the server no longer reports — an
+/// `MDTM` that failed this time — confirms nothing. Size alone used to be enough.
+#[tokio::test]
+async fn a_recorded_timestamp_the_server_no_longer_reports_refuses_the_resume() {
+    const STAMP: &str = "2026-01-01T12:00:00+00:00";
+    let fixture = Fixture::start().await;
+    let fresh = fixture.staging(1000).await;
+    assert!(matches!(
+        fresh
+            .plan_resume(Some(STAMP.to_owned()))
+            .await
+            .expect("plan"),
+        Resume::Fresh
+    ));
+    let sink = part_with(&fixture, &[7u8; 500]).await;
+    sink.sync_all().await.expect("sync");
+
+    let staging = fixture.staging(1000).await;
+    assert!(matches!(
+        staging.plan_resume(None).await.expect("plan"),
+        Resume::Refused
+    ));
+    assert!(matches!(
+        staging
+            .plan_resume(Some(STAMP.to_owned()))
+            .await
+            .expect("plan"),
+        Resume::Continue
+    ));
+}
+
 #[tokio::test]
 async fn a_short_delivery_is_refused_and_the_partial_file_is_kept() {
     let fixture = Fixture::start().await;

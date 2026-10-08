@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.10
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.2.9
 
 When the service answers with a server error and states no wait, the plugin now pauses for five

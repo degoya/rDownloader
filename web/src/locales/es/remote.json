@@ -167,6 +167,10 @@
     "endpoint_description_gcs": "Vacío para storage.googleapis.com. Una dirección propia solo para un emulador o un servicio intermedio. Los certificados TLS siempre se validan.",
     "account_key": "Clave de cuenta",
     "sas": "Firma de acceso compartido",
-    "service_account_key": "Clave de cuenta de servicio (JSON)"
+    "service_account_key": "Clave de cuenta de servicio (JSON)",
+    "secret_host_changed": "El endpoint o la cuenta cambió: la clave guardada no se envía al nuevo host. Introdúcela de nuevo.",
+    "session_token_host_changed": "El token guardado se queda con el host anterior. Introdúcelo de nuevo si el nuevo lo necesita.",
+    "ambient_custom_endpoint": "Enviar las credenciales de esta máquina al endpoint",
+    "ambient_custom_endpoint_description": "El rol de instancia, la identidad administrada o el token de Google de esta máquina van al endpoint de arriba. Permítelo solo para un servicio que gestionas tú o en el que confías."
   }
 }

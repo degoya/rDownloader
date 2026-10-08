@@ -14,7 +14,10 @@ use rd_siterules::{
 };
 use url::Url;
 
-use super::{CANCELLED, EntryOutcome, EntryState, PickDelivery, PickError, PickJob};
+use super::{
+    CANCELLED, EntryOutcome, EntryState, MAX_PAGES, PickBoard, PickDelivery, PickError, PickGone,
+    PickJob,
+};
 use crate::siterules::{RuleOutcome, RuleRunner, SiteRules};
 
 const PAGE: &str = "https://series.example/serie/show/";
@@ -289,17 +292,47 @@ async fn the_board_refuses_what_it_does_not_hold_and_keeps_one_list_per_page() {
         rules.picks().queue(&first, &[9]).map(|_| ()),
         Err(PickError::NoEntry(9))
     );
-    // The same page listed again replaces the list rather than adding a second one.
+    rules.picks().finish(&first, 0, EntryOutcome::Done(3));
+    // The same page listed again keeps its list, its id and what became of its entries
+    // (RD-1190-17): the capture agent repeated a paste, every repeat listed the page again,
+    // and the drawer's list vanished under a new id.
     let second = list_page(&rules).await;
-    let ids: Vec<String> = rules
-        .picks()
-        .pages()
-        .into_iter()
-        .map(|page| page.id)
-        .collect();
-    assert_eq!(ids, std::slice::from_ref(&second));
-    rules.picks().finish(&second, 0, EntryOutcome::Done(3));
+    assert_eq!(second, first, "the drawer's id still names the list");
+    let pages = rules.picks().pages();
+    assert_eq!(pages.len(), 1);
+    assert_eq!(pages[0].progress[0].state, EntryState::Done);
+    assert_eq!(pages[0].progress[0].links, 3);
+    assert_eq!(pages[0].progress[1].state, EntryState::Pending);
     assert!(rules.picks().remove(&second));
     assert!(rules.picks().page(&second).is_none());
     assert!(!rules.picks().remove(&second));
+}
+
+/// A list leaves the board only by a discard or because the board was full, and says which;
+/// a list it never held -- or held before a restart -- has no reason (RD-1190-17).
+#[test]
+fn a_page_that_left_the_board_says_why() {
+    let board = PickBoard::default();
+    let rule = rule();
+    let page = |number: usize| {
+        let mut crawl = listed();
+        crawl.address = format!("{PAGE}{number}").parse().expect("url");
+        crawl
+    };
+    let first = board.add(&rule, page(0)).expect("listed").id;
+    let second = board.add(&rule, page(1)).expect("listed").id;
+    // The second is resolving, so the full board makes room with the oldest that is not.
+    let (_, round) = board.queue(&first, &[0]).expect("queued");
+    assert!(round.is_some());
+    for number in 2..=MAX_PAGES {
+        board.add(&rule, page(number)).expect("listed");
+    }
+    assert_eq!(board.pages().len(), MAX_PAGES);
+    assert!(board.page(&first).is_some(), "a resolving page stays");
+    assert!(board.page(&second).is_none());
+    assert_eq!(board.gone(&second), Some(PickGone::Evicted));
+    assert!(board.remove(&first));
+    assert_eq!(board.gone(&first), Some(PickGone::Discarded));
+    assert_eq!(board.gone("never-listed"), None);
+    assert_eq!(PickGone::Evicted.as_str(), "evicted");
 }

@@ -92,7 +92,9 @@
       "confirm": "Remplacer la configuration",
       "button": "Importer et remplacer",
       "success": "Paramètres restaurés",
-      "success_description": "{count} entrées de configuration importées."
+      "success_description": "{count} entrées de configuration importées.",
+      "password": "Mot de passe administrateur",
+      "password_hint": "Remplacer la configuration demande à nouveau le mot de passe."
     },
     "full": {
       "eyebrow": "Sauvegarde complète",
@@ -179,7 +181,16 @@
           "interrupted": "Interrompue"
         },
         "verifications": "Vérifications",
-        "digest_only": "empreinte seule (phrase secrète antérieure)"
+        "digest_only": "empreinte seule (phrase secrète antérieure)",
+        "stored_key": "vérifiée avec la clé conservée, pas avec la phrase secrète",
+        "passphrase_check": {
+          "action": "Vérifier avec la phrase secrète",
+          "title": "Vérifier avec la phrase secrète",
+          "description": "« Vérifier la plus récente » utilise la clé conservée pour la planification. Une restauration ne demande que la phrase secrète, et une phrase perdue ne peut pas être récupérée. Ici, l’archive la plus récente est ouverte avec la phrase secrète.",
+          "hint": "L’archive est lue en entier ; rien n’est écrit.",
+          "submit": "Ouvrir l’archive",
+          "ok": "La phrase secrète ouvre {name} (créée {date})."
+        }
       },
       "run": {
         "button": "Sauvegarder maintenant",
@@ -281,6 +292,10 @@
         "label": "J'ai compris : au prochain démarrage, cette sauvegarde remplace toute l'installation. L'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
         "action": "Restaurer au prochain démarrage",
         "staged": "Restauration préparée. Redémarrez rDownloader pour basculer."
+      },
+      "password": {
+        "label": "Mot de passe administrateur",
+        "hint": "La restauration remplace le mot de passe, les clés d’accès et les jetons au prochain démarrage ; elle demande donc à nouveau le mot de passe."
       }
     }
   },

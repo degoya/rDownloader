@@ -148,11 +148,10 @@ describe('saving before the settings document has loaded', () => {
     vi.mocked(api.GET).mockImplementation((async () => failed) as never)
     await mountSection(section)
 
-    await waitFor(() => expect(screen.getByTestId('settings-document-card-state')).toBeTruthy())
+    await waitFor(() => expect(within(screen.getByTestId('settings-document-card-state')).getByRole('button', { name: commonCatalogue.actions.retry })).toBeTruthy())
     expect(document.querySelector('[data-tour="settings-tabs"]')).not.toBeNull()
     expect(screen.queryByTestId('settings-document-state')).toBeNull()
     expect(button(settingsCatalogue.save)).toBeNull()
-    expect(within(screen.getByTestId('settings-document-card-state')).getByRole('button', { name: commonCatalogue.actions.retry })).toBeTruthy()
   })
 
   it('shows the moved card and the save bar once the document has loaded', async () => {

@@ -14,15 +14,19 @@ use url::Url;
 use super::{
     decode,
     error::RunError,
-    guard::{is_public, literal_address},
+    guard::{host_allowed, is_public, literal_address},
     ports::{CaptchaRequest, Method},
     run::Run,
     value::{CAPTCHA_VARIABLE, ExpandError, Expansion, PAGE_URL_VARIABLE, Value},
 };
 use crate::{
     format::PackageSource,
-    step::{LINKS_VARIABLE, PAGE_VARIABLE, Step},
+    step::{LINKS_VARIABLE, PAGE_VARIABLE, Step, compile_pattern},
 };
+
+/// The longest package name a run yields, in characters -- the length a package name may have
+/// in the queue.
+pub(crate) const MAX_PACKAGE_NAME_CHARS: usize = 200;
 
 impl Run<'_> {
     /// Runs one step of the rule.
@@ -78,7 +82,7 @@ impl Run<'_> {
             } => {
                 let source = from.as_deref().unwrap_or(PAGE_VARIABLE);
                 let value = self.read(index, "regex", source)?;
-                let regex = Regex::new(pattern).map_err(|error| RunError::Structure {
+                let regex = compile_pattern(pattern).map_err(|error| RunError::Structure {
                     step: index,
                     kind: "regex",
                     detail: format!("the pattern does not compile: {error}"),
@@ -164,6 +168,14 @@ impl Run<'_> {
                     }
                     None => self.current_page(index)?,
                 };
+                // Sent to the solver and the person's browser, so held to the rule's own hosts
+                // like every page it fetches (RD-1190-22): a rule cannot spend the person's
+                // solver credit on another site's captcha.
+                if !host_allowed(self.rule, &self.origin_host, &page_url) {
+                    return Err(RunError::TargetNotAllowed {
+                        url: page_url.to_string(),
+                    });
+                }
                 let asked = self.ports.clock.elapsed();
                 let answer = solver
                     .solve(CaptchaRequest {
@@ -261,15 +273,24 @@ impl Run<'_> {
                 let value = self
                     .variables
                     .get(source.as_deref().unwrap_or(PAGE_VARIABLE))?;
-                let regex = Regex::new(pattern).ok()?;
+                let regex = compile_pattern(pattern).ok()?;
                 value
                     .iter()
                     .find_map(|text| regex.captures(text).and_then(first_capture))?
             }
             PackageSource::Variable { name } => self.variables.get(name)?.first()?.to_owned(),
         };
-        let cleaned = found.split_whitespace().collect::<Vec<_>>().join(" ");
-        (!cleaned.is_empty()).then_some(cleaned)
+        // Cut to what a package name may be in the queue (RD-1190-22): a page returned it whole,
+        // up to the body limit, and the trial run handed that back.
+        let cleaned = found
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .chars()
+            .take(MAX_PACKAGE_NAME_CHARS)
+            .collect::<String>();
+        let cleaned = cleaned.trim_end();
+        (!cleaned.is_empty()).then(|| cleaned.to_owned())
     }
 
     fn expand(&self, index: usize, kind: &'static str, template: &str) -> Result<String, RunError> {

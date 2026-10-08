@@ -28,6 +28,7 @@ fn input(name: &str) -> NewObjectStorageProfile {
         session_token_ref: Some("vault://token-one".to_owned()),
         checksums: true,
         enabled: true,
+        ambient_custom_endpoint: false,
     }
 }
 
@@ -122,6 +123,38 @@ async fn an_azure_profile_keeps_its_account_and_its_signature_source() {
     );
     assert_eq!(stored.account.as_deref(), Some("mediaarchive"));
     assert!(stored.has_secret);
+}
+
+/// RD-1190-20: the yes to ambient credentials at a custom endpoint is stored with the profile
+/// and taken back by an update that leaves it out.
+#[tokio::test]
+async fn the_ambient_endpoint_opt_in_is_kept_until_it_is_withdrawn() {
+    let (_directory, database) = open().await;
+    let ambient = NewObjectStorageProfile {
+        credential_source: ObjectCredentialSource::Ambient,
+        access_key_id: None,
+        secret_ref: None,
+        session_token_ref: None,
+        ambient_custom_endpoint: true,
+        ..input("Machine")
+    };
+    let created = database
+        .create_object_storage_profile(ambient.clone())
+        .await
+        .expect("create");
+    assert!(created.ambient_custom_endpoint);
+    assert!(!created.ambient_endpoint_unconfirmed());
+    let (updated, _) = database
+        .update_object_storage_profile(
+            created.id,
+            NewObjectStorageProfile {
+                ambient_custom_endpoint: false,
+                ..ambient
+            },
+        )
+        .await
+        .expect("update");
+    assert!(updated.ambient_endpoint_unconfirmed());
 }
 
 #[tokio::test]

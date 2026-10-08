@@ -1,5 +1,6 @@
 //! [`super`] through the multi-source engine: in-memory mirrors standing in for the FTP and
-//! SFTP runners, one honest, one that the address guard refuses, one that breaks off early.
+//! SFTP runners, one honest, one that the address guard refuses, one that breaks off early, one
+//! that acknowledges the offset and sends from the first byte anyway.
 
 use std::{
     collections::HashMap,
@@ -26,6 +27,8 @@ enum Mirror {
     Refused,
     /// Sends `n` bytes of every range, then ends the stream.
     BreaksAfter(usize),
+    /// Acknowledges `REST` and sends the file from its first byte anyway.
+    IgnoresOffset,
 }
 
 struct InMemory {
@@ -63,6 +66,7 @@ impl RangeSource for InMemory {
             Mirror::BreaksAfter(count) => {
                 PAYLOAD[start..(start + count).min(PAYLOAD.len())].to_vec()
             }
+            Mirror::IgnoresOffset => PAYLOAD.to_vec(),
         };
         Ok(Box::new(std::io::Cursor::new(bytes)))
     }
@@ -166,10 +170,25 @@ fn two_chunks() -> Vec<ChunkSpec> {
         .collect()
 }
 
+/// Two chunks over `sources`, all fetching at once: the shape the queue gives a set whose
+/// whole-file hash proves the bytes.
 async fn fetch(
     sources: Vec<SourceEndpoint>,
     ledger: Arc<Ledger>,
 ) -> (DownloadOutcome, Vec<u8>, tempfile::TempDir) {
+    let (outcome, bytes, directory) = fetch_with(sources, ledger, true).await;
+    (outcome.expect("download"), bytes, directory)
+}
+
+async fn fetch_with(
+    sources: Vec<SourceEndpoint>,
+    ledger: Arc<Ledger>,
+    whole_file_hash: bool,
+) -> (
+    Result<DownloadOutcome, crate::HttpDownloadError>,
+    Vec<u8>,
+    tempfile::TempDir,
+) {
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("file.part");
     let parallel = sources.len();
@@ -183,12 +202,12 @@ async fn fetch(
                 parallel_sources: parallel,
                 pieces: None,
                 unverified: HashMap::new(),
+                whole_file_hash,
             },
             ledger,
             CancellationToken::new(),
         )
-        .await
-        .expect("download");
+        .await;
     let bytes = tokio::fs::read(&part_path).await.expect("part");
     (outcome, bytes, directory)
 }
@@ -236,4 +255,49 @@ async fn a_mirror_that_breaks_off_hands_on_from_the_confirmed_offset() {
     let opened = honest_source.opened.lock().expect("opened").clone();
     // The broken mirror had the first chunk and delivered five of its bytes before it ended.
     assert!(opened.contains(&5), "{opened:?}");
+}
+
+/// TR-02: a mirror that acknowledges the offset and sends the file's head anyway delivers
+/// exactly as many bytes as the chunk asked for, so nothing in the chunk notices. Without a
+/// hash to catch it, such a mirror is asked only for the chunk at the first byte; the chunk
+/// inside the file waits for a source that can prove its range, and the head is never
+/// written at its offset.
+#[tokio::test]
+async fn without_a_hash_a_mirror_is_never_asked_for_a_chunk_inside_the_file() {
+    let (ignoring, ignoring_source) = mirror(0, Mirror::IgnoresOffset);
+    let ledger = Arc::new(Ledger::default());
+
+    let (outcome, bytes, _directory) = fetch_with(vec![ignoring], ledger, false).await;
+
+    match outcome {
+        Err(crate::HttpDownloadError::Failure(failure)) => {
+            assert_eq!(failure.code.as_deref(), Some("mirror.offset_unverified"));
+        }
+        other => panic!("expected the chunk inside the file to wait, got {other:?}"),
+    }
+    assert_eq!(*ignoring_source.opened.lock().expect("opened"), vec![0]);
+    assert_eq!(bytes[..16], PAYLOAD[..16]);
+    assert!(
+        bytes[16..].iter().all(|byte| *byte == 0),
+        "the file's head was written inside it: {bytes:?}"
+    );
+}
+
+/// The same mirror with a hash basis is asked for the inner chunk; what it writes there is
+/// the hash's to refuse (the whole-file check before promotion), not this rule's.
+#[tokio::test]
+async fn with_a_hash_a_mirror_serves_a_chunk_inside_the_file() {
+    let (honest, honest_source) = mirror(0, Mirror::Honest);
+    let ledger = Arc::new(Ledger::default());
+
+    let (outcome, bytes, _directory) = fetch_with(vec![honest], ledger, true).await;
+
+    assert!(
+        matches!(outcome, Ok(DownloadOutcome::Complete)),
+        "{outcome:?}"
+    );
+    assert_eq!(bytes, PAYLOAD);
+    let mut opened = honest_source.opened.lock().expect("opened").clone();
+    opened.sort_unstable();
+    assert_eq!(opened, vec![0, 16]);
 }

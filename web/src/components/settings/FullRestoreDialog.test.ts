@@ -1,8 +1,8 @@
 /**
  * The full restore dialog (RD-160-03): the passphrase is asked for and cleared again, the
  * preview shows the storage roots with the foreign ones marked, only roots given a new folder
- * are sent as mappings, the restore stays unavailable until a test passed and was confirmed,
- * and a change after the test drops its result.
+ * are sent as mappings, the restore stays unavailable until a test passed and was confirmed
+ * with the password (RD-1190-19), and a change after the test drops its result.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import common from '@/locales/en/common.json'
 import server from '@/locales/en/server.json'
 import system from '@/locales/en/system.json'
+import { useSessionStore } from '@/stores/session'
 import { mountComponent } from '@/test/mount'
 
 import FullRestoreDialog from './FullRestoreDialog.vue'
@@ -161,11 +162,28 @@ describe('FullRestoreDialog', () => {
     // Tested but not confirmed: still unavailable.
     expect((screen.getByTestId('full-restore-start') as HTMLButtonElement).disabled).toBe(true)
     await fireEvent.click(screen.getByRole('checkbox', { name: en.confirm.label }))
+    // Confirmed, but the restore replaces the way in: the password comes first.
+    expect((screen.getByTestId('full-restore-start') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.update(screen.getByLabelText(en.password.label), 'admin password')
     expect((screen.getByTestId('full-restore-start') as HTMLButtonElement).disabled).toBe(false)
 
     calls.start.mockResolvedValue({ ok: true, data: { status: { state: 'staged' }, report: REPORT_OK } })
     await fireEvent.click(screen.getByTestId('full-restore-start'))
-    await waitFor(() => expect(calls.start).toHaveBeenCalledWith({ run_id: 'run-1' }, 'correct horse battery', mappings))
+    await waitFor(() => expect(calls.start).toHaveBeenCalledWith({ run_id: 'run-1' }, 'correct horse battery', mappings, 'admin password'))
+  })
+
+  it('asks for no password while the login is switched off', async () => {
+    await previewed()
+    useSessionStore().loginDisabled = true
+    calls.test.mockResolvedValue({ ok: true, data: REPORT_OK })
+    await fireEvent.click(screen.getByTestId('full-restore-test'))
+    await waitFor(() => expect(screen.getByTestId('full-restore-report')).toBeTruthy())
+    await fireEvent.click(screen.getByRole('checkbox', { name: en.confirm.label }))
+    expect(screen.queryByTestId('full-restore-password')).toBeNull()
+
+    calls.start.mockResolvedValue({ ok: true, data: { status: { state: 'staged' }, report: REPORT_OK } })
+    await fireEvent.click(screen.getByTestId('full-restore-start'))
+    await waitFor(() => expect(calls.start).toHaveBeenCalledWith({ run_id: 'run-1' }, 'correct horse battery', [], null))
   })
 
   it('offers no restore after a test that found an error', async () => {

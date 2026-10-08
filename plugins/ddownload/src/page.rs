@@ -182,6 +182,34 @@ pub(crate) fn diagnose(html: &str) -> String {
     xfs_common::page::diagnose(html)
 }
 
+/// What a premium session's answer says about a used-up traffic quota, when it says anything
+/// (RD-1190-13): the text after the marker, such as `200000 Mb for last 1 days`, or an empty
+/// string when nothing follows it.
+///
+/// The site words a premium account's quota the way it words a guest's free limit — "You have
+/// reached the download-limit: 200000 Mb for last 1 days" (the owner's account, 2026-10-08) —
+/// so only who asked tells the two apart. A guest's page goes to `ip_block_seconds`.
+#[must_use]
+pub(crate) fn traffic_limit(html: &str) -> Option<String> {
+    const MARKERS: [&str; 2] = [
+        "You have reached the download-limit",
+        "You have reached the download limit",
+    ];
+    let start = MARKERS
+        .iter()
+        .find_map(|marker| html.find(marker).map(|at| at + marker.len()))?;
+    let detail: String = html[start..]
+        .chars()
+        .take_while(|character| *character != '<')
+        .take(120)
+        .collect();
+    let words: Vec<&str> = detail
+        .trim_start_matches(|character: char| character == ':' || character.is_whitespace())
+        .split_whitespace()
+        .collect();
+    Some(words.join(" ").trim_end_matches('.').to_owned())
+}
+
 /// Finds the premium direct link on the page returned after submitting the form.
 #[must_use]
 pub(crate) fn direct_link(html: &str, hints: &[&str]) -> Option<String> {
@@ -192,7 +220,7 @@ pub(crate) fn direct_link(html: &str, hints: &[&str]) -> Option<String> {
 mod tests {
     use super::{
         diagnose, direct_link, download_form, encode_form, free_form, free_wait_seconds,
-        premium_form, widget_marker, with_adblock_cleared,
+        premium_form, traffic_limit, widget_marker, with_adblock_cleared,
     };
     use xfs_common::free::ip_block_seconds;
     use xfs_common::standard::download1_form;
@@ -351,6 +379,23 @@ mod tests {
             Some(0)
         );
         assert_eq!(ip_block_seconds("<p>Here is your file</p>"), None);
+    }
+
+    /// The owner's premium account on 2026-10-08 (RD-1190-13).
+    #[test]
+    fn a_premium_traffic_limit_is_read_with_its_window() {
+        assert_eq!(
+            traffic_limit(
+                "<div class=\"err\">You have reached the download-limit: 200000 Mb for last\n  1 days</div>"
+            )
+            .as_deref(),
+            Some("200000 Mb for last 1 days")
+        );
+        assert_eq!(
+            traffic_limit("<b>You have reached the download limit.</b>").as_deref(),
+            Some("")
+        );
+        assert_eq!(traffic_limit("<p>Here is your file</p>"), None);
     }
 
     #[test]

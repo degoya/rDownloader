@@ -18,6 +18,10 @@ pub struct CrawledLink {
     /// The user name the crawler asked for these files to be fetched under, when it named
     /// one (RD-108-07). Never a password: see [`split_crawled_address`].
     pub login: Option<String>,
+    /// Whether a site rule found it on a release page rather than a crawler plugin in a
+    /// folder (RD-1190-18). The page's operator chose such an address, so it never reaches
+    /// this machine or the person's network, whoever pasted the page.
+    pub by_rule: bool,
 }
 
 /// The login a crawler's whole answer asks for, and the addresses it covers.

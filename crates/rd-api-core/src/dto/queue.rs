@@ -149,6 +149,11 @@ pub struct CaptureSummaryResponse {
     /// Whether the token asking may pause and resume the queue (`capture:queue`, chosen when the
     /// agent was paired). The tray offers the two entries only when it may (RD-1100-06).
     pub queue_control: bool,
+    /// Accounts whose used-up traffic holds downloads back (RD-1190-14): their own files, or
+    /// the whole queue, as the setting says. A count, not names: this token sees no accounts.
+    pub traffic_held_accounts: u32,
+    /// The soonest of those accounts' next traffic checks; the tray says "next check" with it.
+    pub traffic_next_check: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// New name for a package **and** for the folder its files live in (RD-106-13).
@@ -305,8 +310,24 @@ pub enum DownloadBulkAction {
 
 #[derive(Deserialize, ToSchema)]
 pub struct DownloadBulkRequest {
+    /// The files to act on, 1-500. Empty when `filter` names them instead; one of the two.
+    #[serde(default)]
     pub ids: Vec<rd_core::DownloadId>,
     pub action: DownloadBulkAction,
+    /// The files to act on by what they are rather than by id (RD-1190-15): every file in one
+    /// of `states`, of one package when `package_id` is set. Not bounded by the 500 ids.
+    #[serde(default)]
+    pub filter: Option<DownloadBulkFilter>,
+}
+
+/// Which files a filtered bulk action takes; read when the action starts.
+#[derive(Deserialize, ToSchema)]
+pub struct DownloadBulkFilter {
+    /// At least one state; a file in any of them is taken.
+    pub states: Vec<rd_core::DownloadState>,
+    /// Only the files of this package.
+    #[serde(default)]
+    pub package_id: Option<rd_core::PackageId>,
 }
 
 #[derive(Serialize, ToSchema)]

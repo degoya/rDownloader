@@ -120,11 +120,20 @@ pub(super) async fn prepare(
         .await?;
     if plan.is_empty() {
         direct_unpack::discard(&direct).await;
+        // Nothing to do is no success while a file is missing (RD-1190-13): only a manual run
+        // gets here with one, and the package then reads as failed, not as finished.
+        let state = if crate::completion::parts_missing(package.kind, &downloads) {
+            PackageState::Failed
+        } else {
+            PackageState::Completed
+        };
         inner
             .database
-            .set_package_state(package_id, PackageState::Completed, None, None, None)
+            .set_package_state(package_id, state, None, None, None)
             .await?;
-        forget_import_history(inner, &package, &settings).await;
+        if state == PackageState::Completed {
+            forget_import_history(inner, &package, &settings).await;
+        }
         return Ok(None);
     }
     let category = category.map(|category| category.name.clone());

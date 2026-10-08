@@ -12,6 +12,17 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.19.0
+
+- When a premium account's daily traffic is used up, its downloads wait instead of being blocked, the account or the queue pauses as you set it, and it continues by itself.
+- A package with missing files is no longer shown as finished or unpacked with gaps.
+- Failed and blocked downloads reset in one click, and the download list sorts by any column without changing the queue order.
+- A series page from the clipboard, the browser extension or Click'n'Load opens the release choice; warez.cx pages offer it too, and the captcha window always shows in front.
+- A resumed download no longer continues a file that changed on the server, and notifications or auto-queued releases are no longer lost under load.
+- Links from Click'n'Load, the clipboard, the extension, AI tools or a site's release page can no longer make rDownloader reach your own machine or local network.
+- Restoring a backup or importing settings asks for your password again, a changed or damaged backup is refused, a restore no longer fills the disk, and a bucket key never goes to a new server.
+- AI assistants over MCP can't set scripts unless you allow it, ask before emptying lists, and never see webhook keys.
+
 ## 1.18.0
 
 - Packages in the Downloads and the LinkGrabber stay open or closed across reloads, open or close all at once, and start closed or open as you set it.

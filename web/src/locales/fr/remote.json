@@ -167,6 +167,10 @@
     "endpoint_description_gcs": "Vide pour storage.googleapis.com. Une adresse propre uniquement pour un émulateur ou un service intermédiaire. Les certificats TLS sont toujours vérifiés.",
     "account_key": "Clé du compte",
     "sas": "Signature d'accès partagé",
-    "service_account_key": "Clé de compte de service (JSON)"
+    "service_account_key": "Clé de compte de service (JSON)",
+    "secret_host_changed": "Le point de terminaison ou le compte a changé : la clé enregistrée n’est pas envoyée au nouvel hôte. Saisissez-la à nouveau.",
+    "session_token_host_changed": "Le jeton enregistré reste lié à l’ancien hôte. Saisissez-le à nouveau si le nouveau en a besoin.",
+    "ambient_custom_endpoint": "Envoyer les identifiants de cette machine au point de terminaison",
+    "ambient_custom_endpoint_description": "Le rôle d’instance, l’identité managée ou le jeton Google de cette machine est envoyé au point de terminaison ci-dessus. Ne l’autorisez que pour un service que vous exploitez ou auquel vous faites confiance."
   }
 }

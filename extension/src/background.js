@@ -1,4 +1,4 @@
-import { ping, submitCapture, submitLinks } from './api.js'
+import { PICK_WAITING, ping, submitCapture, submitLinks } from './api.js'
 import { api, loadConfig, message } from './browser.js'
 import { MESSAGE_TYPES as CAPTCHA_MESSAGES, POLL_ALARM, createCaptchaAnswerer } from './captcha.js'
 import { createInterceptor } from './downloads.js'
@@ -85,7 +85,9 @@ async function send({ text, packageName, sourceLabel }) {
   // The badge belongs to the captcha answerer, which composes this with the number of waiting
   // widgets. Painting it here cleared that number and left it cleared (RD-109-24).
   await captchas.setSendFailure(!result.ok)
-  if (result.ok) {
+  if (result.ok && result.code === PICK_WAITING) {
+    await notify(message('extName'), message('pickWaiting', [String(result.entries)]))
+  } else if (result.ok) {
     await notify(message('extName'), message('sentLinks', [String(result.links)]))
   } else {
     const reason = result.status === 401 ? message('errorUnauthorized') : result.message

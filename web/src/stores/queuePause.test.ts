@@ -100,6 +100,25 @@ describe('the queue pause store', () => {
     expect(store.until).toBeNull()
   })
 
+  // RD-1190-14: the accounts whose traffic is used up come with the pause, and a start by hand
+  // lets go of them too.
+  it('names the accounts held for their traffic and forgets them on a start by hand', async () => {
+    const hold = {
+      account_id: 'account-1', account_label: 'DDownload premium', provider: 'ddownload', action: 'pause_account',
+      until: new Date(NOW.getTime() + 3_600_000).toISOString(), next_check_at: new Date(NOW.getTime() + 900_000).toISOString()
+    }
+    vi.mocked(api.GET).mockResolvedValue({ data: { paused: false, until: null, files: 0, account_traffic: [hold] } } as never)
+    vi.mocked(api.DELETE).mockResolvedValue({ data: { resumed: 0 } } as never)
+    const store = useQueuePauseStore()
+
+    await store.load()
+    expect(store.accountTraffic).toEqual([hold])
+    expect(store.active).toBe(false)
+
+    expect(await store.resume()).toBe(0)
+    expect(store.accountTraffic).toEqual([])
+  })
+
   it('reads the pause back once its end has passed', async () => {
     const until = new Date(NOW.getTime() + 2_000).toISOString()
     vi.mocked(api.GET)

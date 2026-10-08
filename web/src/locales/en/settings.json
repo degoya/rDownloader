@@ -361,6 +361,10 @@
         "move_down": "Move down",
         "replacement_empty": "(remove)"
       }
+    },
+    "mcp_scripts_allowed": {
+      "label": "AI assistants (MCP) may set scripts",
+      "description": "Off by default. When on, an MCP tool may give a package, a category or an automation a script from the scripts folder and choose the completion and reconnect script. Only you switch this here; no tool can."
     }
   },
   "appearance": {
@@ -1147,5 +1151,16 @@
         "failed": "The system refused to set the shortcuts up."
       }
     }
+  },
+  "account_traffic": {
+    "label": "When an account's traffic is used up",
+    "description": "When a hoster reports an account's quota as used up, its files wait. rDownloader checks the account every 15 minutes and continues by itself as soon as there is traffic again or the hoster's wait ends. A pause you set yourself stays in place.",
+    "nothing": "Do nothing – only the affected files wait",
+    "pause_account": "Hold this account's downloads",
+    "pause_queue": "Pause the whole queue",
+    "overrides_label": "Per account",
+    "overrides_description": "An account can do something other than the default above.",
+    "inherit": "As the default",
+    "held": "Traffic used up · next check {time}"
   }
 }

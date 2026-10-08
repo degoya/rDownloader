@@ -92,18 +92,17 @@ pub(crate) fn guest_url(raw: &str) -> Result<Url, url::ParseError> {
 
 /// The addresses of a link check a plugin may be asked about, and an `unknown` answer for each
 /// one that [`carries_marker`] — a batch goes on without it rather than failing for it.
-pub(crate) fn checkable(urls: Vec<Url>) -> (Vec<Url>, Vec<rd_core::LinkCheckResult>) {
+pub(crate) fn checkable(urls: Vec<Url>) -> (Vec<Url>, Vec<rd_core::PluginLinkCheck>) {
     let (marked, clean): (Vec<Url>, Vec<Url>) = urls
         .into_iter()
         .partition(|url| carries_marker(url.as_str()));
     let unknown = marked
         .into_iter()
-        .map(|url| rd_core::LinkCheckResult {
+        .map(|url| rd_core::PluginLinkCheck {
             url,
             status: rd_core::LinkStatus::Unknown,
             file_name: None,
             size: None,
-            media: None,
         })
         .collect();
     (clean, unknown)

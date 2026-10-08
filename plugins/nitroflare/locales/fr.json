@@ -1,5 +1,6 @@
 {
   "name": "Nitroflare",
+  "description": "Résout les liens Nitroflare avec une clé premium, ou sans clé via le parcours gratuit.",
   "account": {
     "secret_label": "Clé premium (depuis Mon compte → API)",
     "secret_hint": "Saisissez l'e-mail de votre compte comme utilisateur et votre clé premium (Mon compte → API) comme secret."

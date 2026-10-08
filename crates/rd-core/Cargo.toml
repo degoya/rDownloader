@@ -9,6 +9,7 @@ license.workspace = true
 chrono.workspace = true
 hex.workspace = true
 percent-encoding.workspace = true
+rd-plugin-types = { path = "../rd-plugin-types" }
 rd-provider-registry = { path = "../rd-provider-registry" }
 serde.workspace = true
 serde_json.workspace = true

@@ -61,5 +61,5 @@ pub const SPACE_FREE: &str = "seedr.space_free";
 
 #[must_use]
 pub fn http_error(status: u16) -> String {
-    format!("Seedr HTTP status {status}")
+    plugin_common::messages::http_error("Seedr", status)
 }

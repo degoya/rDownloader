@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rd_core::Failure;
+use rd_plugin_types::Failure;
 use serde::{Deserialize, Serialize};
 
 use super::DEFAULT_CAPTCHA_ALLOWANCE;

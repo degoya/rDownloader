@@ -157,7 +157,7 @@ describe('SettingsAccountsCard', () => {
 
     await waitFor(() => expect(screen.getByText('Rapidgator')).toBeTruthy())
     expect(screen.queryByText(network.account.empty)).toBeNull()
-    expect(screen.queryByRole('status')).toBeNull()
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
   })
 
   it('offers device sign-in only while an API-key account has no key', async () => {

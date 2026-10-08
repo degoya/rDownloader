@@ -7,8 +7,8 @@
 //! queued mock responses and asserts what the plugin *did* (which requests, which captcha, which
 //! wait), not just what it returned.
 
-use rd_core::FailureKind;
 use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver};
+use rd_plugin_types::FailureKind;
 
 use super::super::DdownloadResolver;
 use super::{

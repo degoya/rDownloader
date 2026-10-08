@@ -40,6 +40,9 @@ let providers: Provider[] = []
  */
 async function loadComposable() {
   vi.resetModules()
+  // The accounts come from the shared store (WEB-3), which needs a Pinia of the fresh modules.
+  const { createPinia, setActivePinia } = await import('pinia')
+  setActivePinia(createPinia())
   const { useAccountProviders } = await import('./useAccountProviders')
   return useAccountProviders()
 }

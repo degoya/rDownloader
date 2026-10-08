@@ -133,7 +133,6 @@ onMounted(() => {
               variant="outline"
               icon="i-lucide-download"
               :label="t('audit.export')"
-              :href="store.exportHref"
               :to="store.exportHref"
               external
               download

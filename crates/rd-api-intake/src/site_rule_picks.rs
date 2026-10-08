@@ -27,7 +27,7 @@ use url::Url;
 
 use crate::{
     AppState,
-    dto::{CaptureLinkRequest, CollectorIntakeRequest, MessageResponse},
+    dto::{CollectorIntakeRequest, MessageResponse},
     error::ApiError,
     site_rule_picks_dto::{
         CollectorPickEntryResponse, CollectorPickResponse, CollectorPicksResponse,
@@ -78,7 +78,7 @@ pub async fn create_collector_pick(
             .picks()
             .page(&page.id)
             .map(|page| Json(page_response(&page)))
-            .ok_or_else(not_found),
+            .ok_or_else(|| gone(&rules, &page.id)),
         Some(RuleOutcome::Crawled { rule, .. }) => Err(ApiError::bad_request(
             "site_rules.no_pick",
             "The rule for this page resolves its links at once; collect it in the LinkGrabber",
@@ -107,11 +107,12 @@ pub async fn get_collector_pick(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<CollectorPickResponse>, ApiError> {
-    rules(&state)?
+    let rules = rules(&state)?;
+    rules
         .picks()
         .page(&id)
         .map(|page| Json(page_response(&page)))
-        .ok_or_else(not_found)
+        .ok_or_else(|| gone(&rules, &id))
 }
 
 #[utoipa::path(
@@ -125,8 +126,9 @@ pub async fn delete_collector_pick(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    if !rules(&state)?.picks().remove(&id) {
-        return Err(not_found());
+    let rules = rules(&state)?;
+    if !rules.picks().remove(&id) {
+        return Err(gone(&rules, &id));
     }
     Ok(Json(MessageResponse::new(
         "site_rules.pick_discarded",
@@ -151,7 +153,7 @@ pub async fn resolve_collector_pick(
     let (page, round) = rules
         .picks()
         .queue(&id, &request.entries)
-        .map_err(refusal)?;
+        .map_err(|error| refusal(&rules, &id, error))?;
     if let Some(round) = round {
         let rules = Arc::clone(&rules);
         let shutdown = state.shutdown.clone();
@@ -179,11 +181,12 @@ pub async fn cancel_collector_pick(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<CollectorPickResponse>, ApiError> {
-    rules(&state)?
+    let rules = rules(&state)?;
+    rules
         .picks()
         .cancel(&id)
         .map(|page| Json(page_response(&page)))
-        .ok_or_else(not_found)
+        .ok_or_else(|| gone(&rules, &id))
 }
 
 /// Hands a resolved entry to the ordinary intake: one package, named after the release.
@@ -194,24 +197,24 @@ struct CollectorDelivery {
 #[async_trait]
 impl PickDelivery for CollectorDelivery {
     async fn deliver(&self, job: &PickJob, group: rd_siterules::CrawlGroup) -> Result<u32, String> {
+        let package_name = group.name.clone().or_else(|| job.label.clone());
+        // With the mirror sets the rule declares (RD-1190-17): warez.cx's hosters stay copies
+        // of one file when its releases are picked rather than taken whole.
+        let links = rd_plugin_ext::FolderCrawlers::picked_links(job, group);
+        if links.is_empty() {
+            return Err("site_rules.no_links".to_owned());
+        }
         let request = CollectorIntakeRequest {
             text: None,
-            // Somebody chose these entries by hand, in the LinkGrabber or through a tool.
+            // Somebody chose these entries by hand, in the LinkGrabber or through a tool. Their
+            // addresses are still the page's, and keep to its rule (`by_rule`, RD-1190-18).
             source: rd_core::IngressSource::Manual,
             source_label: Some(job.rule.name.clone()),
-            package_name: group.name.or_else(|| job.label.clone()),
+            package_name,
             password: None,
-            links: group
-                .links
-                .into_iter()
-                .map(|link| CaptureLinkRequest {
-                    url: link.url,
-                    file_name: None,
-                    request: None,
-                })
-                .collect(),
+            links: Vec::new(),
         };
-        crate::collector_handlers::collector_intake_inner(&self.state, request)
+        crate::collector_handlers::collector_intake_crawled(&self.state, request, links)
             .await
             .map(|response| u32::try_from(response.candidates.len()).unwrap_or(u32::MAX))
             .map_err(|error| error.code().to_owned())
@@ -230,9 +233,20 @@ fn not_found() -> ApiError {
     )
 }
 
-fn refusal(error: PickError) -> ApiError {
+/// The refusal for a list the board does not hold, naming why it left (RD-1190-17):
+/// `discarded`, `evicted`, or `unknown` for one it never held or held before a restart. The
+/// interface lists the page again on *Fetch* and closes quietly on *Stop* or *Discard*.
+fn gone(rules: &SiteRules, id: &str) -> ApiError {
+    let reason = rules
+        .picks()
+        .gone(id)
+        .map_or("unknown", rd_plugin_ext::PickGone::as_str);
+    not_found().with_param("reason", reason)
+}
+
+fn refusal(rules: &SiteRules, id: &str, error: PickError) -> ApiError {
     match error {
-        PickError::NotFound => not_found(),
+        PickError::NotFound => gone(rules, id),
         PickError::NoEntry(index) => {
             ApiError::bad_request(error.code(), "The list has no entry with that index")
                 .with_param("entry", index)

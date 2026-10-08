@@ -1,5 +1,6 @@
 {
   "name": "LinkSnappy",
+  "description": "Résout les liens d'autres hébergeurs via un compte LinkSnappy.",
   "account": {
     "secret_label": "Mot de passe du compte",
     "secret_hint": "Saisissez le nom d'utilisateur de votre compte et votre mot de passe comme secret."

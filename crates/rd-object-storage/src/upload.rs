@@ -65,7 +65,9 @@ pub(crate) fn object_key(prefix: &str, package_name: &str, file: &str) -> String
     key
 }
 
-/// Splits `<bucket>/<prefix>`; an empty bucket falls back to the profile's bound one.
+/// Splits `<bucket>/<prefix>`; an empty bucket falls back to the profile's bound one, and a
+/// profile bound to one bucket reaches no other (RD-1190-20) — before, the binding only
+/// steered, and a target could name any bucket the credentials open.
 pub(crate) fn split_destination<'a>(
     provider: rd_core::ObjectStorageProvider,
     destination: &'a str,
@@ -74,6 +76,9 @@ pub(crate) fn split_destination<'a>(
     let destination = destination.trim_matches('/');
     let (bucket, prefix) = destination.split_once('/').unwrap_or((destination, ""));
     let bucket = if bucket.is_empty() { bound? } else { bucket };
+    if bound.is_some_and(|bound| bound != bucket) {
+        return None;
+    }
     provider.is_valid_bucket(bucket).then_some((bucket, prefix))
 }
 
@@ -279,12 +284,11 @@ impl FileUpload<'_> {
             sent += length;
             progress(sent);
         }
-        let ids = parts
-            .into_iter()
-            .map(|content_id| PartId {
-                content_id: content_id.unwrap_or_default(),
-            })
-            .collect();
+        let Ok(ids) = part_ids(parts) else {
+            return Ok(FileOutcome::Failed(
+                "a part of the upload has no id".to_owned(),
+            ));
+        };
         if let Err(error) = self
             .store
             .parts
@@ -393,6 +397,17 @@ impl FileUpload<'_> {
     }
 }
 
+/// The parts `complete_multipart` is handed, or the index of the first one without an id.
+/// The loop fills every slot before this, so an empty one is a bug; it fails the file rather
+/// than handing the store an empty ETag (TR-10).
+fn part_ids(parts: Vec<Option<String>>) -> std::result::Result<Vec<PartId>, usize> {
+    parts
+        .into_iter()
+        .enumerate()
+        .map(|(index, id)| id.map(|content_id| PartId { content_id }).ok_or(index))
+        .collect()
+}
+
 /// Reads one part, paced by the upload limit; `None` when the upload was stopped while it
 /// waited.
 ///
@@ -477,3 +492,7 @@ impl ObjectStorageService {
         Ok(aborted)
     }
 }
+
+#[cfg(test)]
+#[path = "upload_tests.rs"]
+mod tests;

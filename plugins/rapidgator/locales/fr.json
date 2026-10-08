@@ -1,5 +1,6 @@
 {
   "name": "Rapidgator",
+  "description": "Résout les liens Rapidgator avec un compte premium, ou sans compte via le parcours gratuit.",
   "account": {
     "secret_label": "Mot de passe du compte",
     "secret_hint": "Saisissez l'e-mail de votre compte comme utilisateur et votre mot de passe comme secret."

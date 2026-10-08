@@ -122,6 +122,16 @@ describe('the site-rule editor', () => {
     expect(emitted().test).toEqual([['https://example.org/release/1']])
   })
 
+  it('never shows the probe, a real release, as the trial field\'s example (RD-1190-17)', async () => {
+    const { model, emitted } = mount()
+    model.value.probe = 'https://board.example/detail/9IMDqgvdVQQ6/A-Real-Release'
+    const field = screen.getByLabelText('Address to try') as HTMLInputElement
+    expect(field.placeholder).toBe('https://example.org/release/1')
+    // An empty field still tries the probe, as the hint says.
+    await fireEvent.click(screen.getByText('Run the rule'))
+    expect(emitted().test).toEqual([['https://board.example/detail/9IMDqgvdVQQ6/A-Real-Release']])
+  })
+
   it('shows what the run found: the links, the package name and what was dropped', () => {
     mount({
       testResult: {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { CollectorPickEntry } from '@/api/types'
 
-import { ALL, NO_EPISODE, attributeValues, noFilters, passes, seasonGroups, selectable } from './sitePicks'
+import { ALL, NO_EPISODE, attributeValues, noFilters, passes, sameEntries, seasonGroups, selectable } from './sitePicks'
 
 function entry(index: number, attributes: Record<string, string>, state = 'pending'): CollectorPickEntry {
   return { index, label: `Show.${index}`, attributes, state, code: null, links: 0 }
@@ -44,5 +44,13 @@ describe('the choice before resolving', () => {
     expect(selectable(entries[4]!)).toBe(false)
     expect(selectable(entry(9, {}, 'failed'))).toBe(true)
     expect(selectable(entry(9, {}, 'captcha'))).toBe(false)
+  })
+
+  it('finds the chosen releases again in a list read anew, by name (RD-1190-17)', () => {
+    const fresh = [entry(0, {}), { ...entry(1, {}), label: 'Show.4' }, { ...entry(2, {}), label: 'Show.1' }]
+    // Show.1 and Show.4 moved; Show.6 is no longer listed.
+    expect(sameEntries(entries, fresh, [1, 4, 6])).toEqual([1, 2])
+    const unnamed = [{ ...entry(0, {}), label: null }, { ...entry(1, {}), label: null }]
+    expect(sameEntries(unnamed, unnamed, [1])).toEqual([1])
   })
 })

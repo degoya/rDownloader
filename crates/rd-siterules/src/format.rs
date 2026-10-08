@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{
     groups::Groups,
-    step::{Step, check_pattern, check_variable},
+    step::{MAX_STEPS, Step, check_pattern, check_variable, compile_pattern},
     text::{MAX_GROUP_LENGTH, MAX_ID_LENGTH, host_matches, is_host, is_host_pattern, is_slug},
 };
 
@@ -123,6 +123,12 @@ pub enum RuleError {
     DeadIsLive(String),
     #[error("pattern {pattern:?} does not compile: {reason}")]
     Pattern { pattern: String, reason: String },
+    #[error("a pattern is longer than {0} characters")]
+    PatternLength(usize),
+    #[error("steps has more than {0} entries")]
+    TooManySteps(usize),
+    #[error("groups.steps has more than {0} entries")]
+    TooManyGroupSteps(usize),
     #[error("steps is empty")]
     NoSteps,
     #[error("{0:?} is not a variable name")]
@@ -176,6 +182,9 @@ impl Rule {
         }
         if self.steps.is_empty() {
             return Err(RuleError::NoSteps);
+        }
+        if self.steps.len() > MAX_STEPS {
+            return Err(RuleError::TooManySteps(MAX_STEPS));
         }
         for step in &self.steps {
             step.validate()?;
@@ -257,7 +266,7 @@ impl Match {
         };
         self.paths
             .iter()
-            .any(|pattern| regex::Regex::new(pattern).is_ok_and(|regex| regex.is_match(&path)))
+            .any(|pattern| compile_pattern(pattern).is_ok_and(|regex| regex.is_match(&path)))
     }
 }
 

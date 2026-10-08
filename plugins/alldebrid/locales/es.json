@@ -1,5 +1,6 @@
 {
   "name": "AllDebrid",
+  "description": "Resuelve enlaces de otros hosts mediante una cuenta de AllDebrid.",
   "account": {
     "secret_label": "Clave API (alldebrid.com/apikeys)",
     "secret_hint": "Introduce tu clave API de alldebrid.com/apikeys como secreto."

@@ -182,9 +182,10 @@ the host. The full table is in [The account label](https://github.com/degoya/rDo
 
 `plugin conformance` answers one question: would this core run your package? It verifies the
 archive, the manifest and the signature exactly as installation does, confirms the ABI version
-is one the core supports, instantiates the component against the world its type declares, and
-— for a resolver — asks the component itself whether it claims the links its manifest says it
-claims, and whether it wrongly claims a link belonging to nobody.
+is one the core supports, checks that each of `de.json`, `es.json` and `fr.json` you ship carries
+every code your `en.json` does (`locales_required`), instantiates the component against the
+world its type declares, and — for a resolver (`match_url`) or a folder crawler (`claims_url`) —
+asks the component itself whether it wrongly claims a link on a host nobody declares.
 
 It does **not** check that your plugin resolves a real link. That needs a hoster, an account and
 a network, none of which belong in a conformance run. A package that passes every check can

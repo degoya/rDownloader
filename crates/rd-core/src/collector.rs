@@ -4,8 +4,8 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    BatchId, ByteCount, CandidateId, CategoryId, CollectorPackageId, DownloadPriority,
-    PostprocessLevel, ResolverRoute,
+    BatchId, ByteCount, CandidateId, CategoryId, CollectorPackageId, DownloadPriority, LinkStatus,
+    PluginLinkCheck, PostprocessLevel, ResolverRoute,
 };
 
 #[path = "collector_categories.rs"]
@@ -330,29 +330,6 @@ pub struct GrabberEntryRef {
     pub id: uuid::Uuid,
 }
 
-/// Availability reported by an online check.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum LinkStatus {
-    Online,
-    Offline,
-    Unknown,
-    /// The address answered and what came back is not file content (RD-110-07).
-    ///
-    /// Told apart from `Unknown` on purpose. `Unknown` is "the check reached no conclusion",
-    /// which is why it is stored as `Online` and stays queueable -- a hoster that refuses to
-    /// be checked is still worth downloading from. This is a conclusion: the response was
-    /// read and `rd_http::ProbeResult::looks_downloadable` rejected it.
-    Unresolvable,
-    /// The provider holds the file in its own cache at the moment of the check (RD-120-36).
-    ///
-    /// A stronger and shorter-lived statement than `Online`: the file exists *and* can be
-    /// handed over at once, until the provider evicts it without telling anybody. Stored as
-    /// an `Online` candidate with `cached_at` set to the time of the check, so the
-    /// interface can say when it was measured.
-    Cached,
-}
-
 /// Result of probing one link without downloading it.
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct LinkCheckResult {
@@ -364,6 +341,19 @@ pub struct LinkCheckResult {
     /// Media metadata when the link was probed by the media provider.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media: Option<crate::MediaInfo>,
+}
+
+/// A resolver's answer as the service stores it: no plugin reports media metadata.
+impl From<PluginLinkCheck> for LinkCheckResult {
+    fn from(check: PluginLinkCheck) -> Self {
+        Self {
+            url: check.url,
+            status: check.status,
+            file_name: check.file_name,
+            size: check.size,
+            media: None,
+        }
+    }
 }
 
 /// The address a link candidate is stored under: the pasted one, without its fragment.

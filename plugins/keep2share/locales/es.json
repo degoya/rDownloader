@@ -1,5 +1,6 @@
 {
   "name": "Keep2Share",
+  "description": "Resuelve enlaces de Keep2Share con una cuenta premium.",
   "account": {
     "secret_label": "Contraseña de la cuenta",
     "secret_hint": "Introduce el correo de tu cuenta como usuario y tu contraseña como secreto."

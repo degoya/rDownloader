@@ -5,9 +5,9 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use rd_core::{
-    AccountId, ByteCount, ChecksumAlgorithm, Failure, FailureKind, LinkCheckResult, MessageParams,
-    PluginId, ProxyProfileId,
+use rd_plugin_types::{
+    AccountId, ByteCount, ChecksumAlgorithm, Failure, FailureKind, MessageParams, PluginId,
+    PluginLinkCheck, ProxyProfileId,
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -230,7 +230,7 @@ pub trait Resolver: Send + Sync {
     async fn resolve(&self, request: ResolveRequest) -> Result<ResolvedDownload, Failure>;
 
     /// Reports availability, file name and size for several links (one result per URL).
-    async fn check(&self, _request: CheckRequest) -> Result<Vec<LinkCheckResult>, Failure> {
+    async fn check(&self, _request: CheckRequest) -> Result<Vec<PluginLinkCheck>, Failure> {
         Err(Failure::coded(
             FailureKind::Unsupported,
             "link.check_unsupported",
@@ -392,7 +392,7 @@ pub trait ResolverHost: Send + Sync {
 
 #[cfg(test)]
 mod tests {
-    use rd_core::FailureKind;
+    use rd_plugin_types::FailureKind;
 
     use super::WitFailureKind;
 

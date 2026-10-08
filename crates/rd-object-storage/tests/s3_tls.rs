@@ -5,6 +5,9 @@
 //! (`rd_http::NetworkDefaults::custom_ca_pem`), a signed request reaches it; without that CA, or
 //! with another one, the handshake is refused and no request arrives at all. There is no switch
 //! that turns validation off, so none is tested.
+//!
+//! The endpoint keeps to the rule of an address the person entered (RD-1190-18): one at a
+//! cloud's metadata service is refused before a store is opened.
 
 mod support;
 
@@ -160,6 +163,7 @@ async fn harness(address: SocketAddr, custom_ca_pem: Vec<Vec<u8>>) -> Harness {
             session_token_ref: None,
             checksums: false,
             enabled: true,
+            ambient_custom_endpoint: false,
         },
         Some("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"),
         "s3",
@@ -213,5 +217,45 @@ async fn an_endpoint_the_trusted_roots_do_not_vouch_for_is_refused() {
     assert!(
         lock(&endpoint.seen).is_empty(),
         "no request may pass a refused handshake"
+    );
+}
+
+/// RD-1190-18: an endpoint is an address the person entered and keeps to that rule -- a cloud's
+/// metadata endpoint is refused before a store is opened, so a token that may edit profiles
+/// cannot point one there.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_endpoint_at_the_metadata_service_is_refused_before_any_request() {
+    let harness = Harness::start(
+        NewObjectStorageProfile {
+            name: "metadata".to_owned(),
+            provider: ObjectStorageProvider::S3,
+            endpoint: Some("http://169.254.169.254".to_owned()),
+            region: Some("us-east-1".to_owned()),
+            bucket: Some(BUCKET.to_owned()),
+            addressing: ObjectAddressing::Path,
+            credential_source: ObjectCredentialSource::Anonymous,
+            access_key_id: None,
+            account: None,
+            ambient_custom_endpoint: false,
+            secret_ref: None,
+            session_token_ref: None,
+            checksums: false,
+            enabled: true,
+        },
+        None,
+        "s3",
+        BUCKET,
+    )
+    .await;
+    let failure = harness
+        .service
+        .test_profile(&harness.profile)
+        .await
+        .expect("test")
+        .expect("a refused endpoint fails the test");
+    assert_eq!(
+        failure.code.as_deref(),
+        Some(rd_object_storage::ENDPOINT_REFUSED),
+        "{failure:?}"
     );
 }

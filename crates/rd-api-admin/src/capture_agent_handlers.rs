@@ -75,13 +75,19 @@ pub async fn stored_capture_agent_settings(
     }))
 }
 
+/// The agent's last shortcut report; one that does not read is no report, with a warning
+/// like the settings above (API-03).
 async fn stored_report(
     database: &rd_db::Database,
 ) -> Result<Option<CaptureShortcutReport>, ApiError> {
-    Ok(database
-        .get_setting(SHORTCUT_REPORT_KEY)
-        .await?
-        .and_then(|value| serde_json::from_value(value).ok()))
+    let Some(value) = database.get_setting(SHORTCUT_REPORT_KEY).await? else {
+        return Ok(None);
+    };
+    Ok(serde_json::from_value(value)
+        .inspect_err(|error| {
+            tracing::warn!(%error, "the capture agent's stored shortcut report does not read; showing none");
+        })
+        .ok())
 }
 
 /// Applies a patch under the lock, stores the result and tells open pages.
@@ -189,9 +195,13 @@ pub async fn read_capture_agent_settings(
 }
 
 /// The tray's "Pause clipboard watching" and `rdownloader-capture pause|resume`.
+///
+/// Audited like the settings page's switch (audit 2026-10-08, API-02): the same row changes,
+/// and the record names the capture token that changed it.
 #[utoipa::path(post, path = "/api/v1/capture/clipboard", tag = "capture", request_body = CaptureClipboardRequest, responses((status = 200, body = CaptureAgentSettings), (status = 401, body = crate::error::ErrorBody)))]
 pub async fn set_capture_clipboard(
     State(state): State<AppState>,
+    audit: AuditContext,
     Json(request): Json<CaptureClipboardRequest>,
 ) -> Result<Json<CaptureAgentSettings>, ApiError> {
     let settings = apply_capture_agent_patch(
@@ -202,6 +212,14 @@ pub async fn set_capture_clipboard(
         },
     )
     .await?;
+    crate::audit::record(
+        &state,
+        AuditEvent::success(rd_core::AuditAction::SettingsChanged)
+            .by(&audit)
+            .target("settings", CAPTURE_AGENT_SETTINGS_KEY)
+            .detail("fields", "clipboard_paused"),
+    )
+    .await;
     Ok(Json(settings))
 }
 

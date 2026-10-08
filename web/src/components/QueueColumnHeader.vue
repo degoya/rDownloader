@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { QUEUE_COLUMN_LIMITS, QUEUE_COLUMNS, QUEUE_VIEW_COLUMNS, type QueueColumn, type QueueColumnsView } from '@/composables/useQueueColumns'
+import type { QueueSort, QueueSortColumn } from '@/composables/useQueueSort'
 
 /**
  * The column header above a list on the queue grid (RD-191-11).
@@ -28,12 +29,19 @@ const props = defineProps<{
   gutter?: boolean
   /** Any column off its default; enables "reset all". */
   customized?: boolean
+  /**
+   * The labels sort the list for the eye (RD-1190-16): `null` while the queue order is shown.
+   * Left out, the labels are plain text.
+   */
+  sort?: QueueSort | null
 }>()
 
 const emit = defineEmits<{
   resize: [column: QueueColumn, width: number]
   reset: [column: QueueColumn]
   resetAll: []
+  /** A label was clicked: sort by it, turn the direction, or go back to the queue order. */
+  sort: [column: QueueSortColumn]
 }>()
 
 const { t } = useI18n()
@@ -60,6 +68,35 @@ const labels = computed<Partial<Record<'name' | QueueColumn, string>>>(() => Obj
 ))
 
 const resizable = computed(() => new Set(QUEUE_VIEW_COLUMNS[props.view]))
+const sortable = computed(() => props.sort !== undefined)
+
+function sortIcon(column: QueueSortColumn): string {
+  if (props.sort?.column !== column) return 'i-lucide-arrow-up-down'
+  return props.sort.direction === 'asc' ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down'
+}
+
+/** What a click does next, said on the button: sort, turn, or back to the queue order. */
+function sortLabel(column: QueueSortColumn): string {
+  const name = labels.value[column] ?? ''
+  if (props.sort?.column !== column) return t('common.queue_columns.sort', { column: name })
+  return t(props.sort.direction === 'asc' ? 'common.queue_columns.sorted_asc' : 'common.queue_columns.sorted_desc', { column: name })
+}
+
+/** One label as a sort button: the label, the direction glyph, and what a click does. */
+function sortButton(column: QueueSortColumn) {
+  return {
+    label: labels.value[column],
+    trailingIcon: sortIcon(column),
+    size: 'xs' as const,
+    color: (props.sort?.column === column ? 'primary' : 'neutral') as 'primary' | 'neutral',
+    variant: 'link' as const,
+    class: 'max-w-full p-0 font-medium',
+    ui: { label: 'truncate', trailingIcon: 'size-3' },
+    'aria-label': sortLabel(column),
+    title: sortLabel(column),
+    'data-sort-column': column
+  }
+}
 
 const STEP = 8
 const BIG_STEP = 32
@@ -115,9 +152,13 @@ const menu = computed(() => [[
       <span class="queue-cell-handle" />
       <span class="queue-cell-select" />
       <span class="queue-cell-expand" />
-      <span class="queue-cell-name truncate">{{ labels.name }}</span>
+      <span class="queue-cell-name truncate">
+        <UButton v-if="sortable" v-bind="sortButton('name')" @click="emit('sort', 'name')" />
+        <template v-else>{{ labels.name }}</template>
+      </span>
       <div v-for="column in QUEUE_COLUMNS" :key="column" class="relative min-w-0 items-center" :class="[`queue-cell-${column}`, column === 'size' ? 'text-right' : '']">
-        <span v-if="labels[column]" class="block truncate">{{ labels[column] }}</span>
+        <UButton v-if="labels[column] && sortable" v-bind="sortButton(column)" @click="emit('sort', column)" />
+        <span v-else-if="labels[column]" class="block truncate">{{ labels[column] }}</span>
         <div
           v-if="resizable.has(column)"
           role="separator"

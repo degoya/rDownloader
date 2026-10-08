@@ -21,7 +21,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use rd_core::{AccountId, Failure, FailureKind};
+use rd_plugin_types::{AccountId, Failure, FailureKind};
 use url::Url;
 
 use crate::{

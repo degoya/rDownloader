@@ -44,7 +44,7 @@ pub(crate) struct SwitchProfileParams {
 #[tool_router(router = pause_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read whether the whole queue is paused for a while: until when, and how many files the pause stopped. Not paused answers `paused: false`."
+        description = "Read whether the whole queue is paused for a while: until when, and how many files the pause stopped. Not paused answers `paused: false`. `account_traffic` lists the accounts whose hoster reports their traffic used up (e.g. DDownload's daily limit): `action` is what the account_traffic_action setting makes of it (nothing, pause_account - its other downloads wait -, pause_queue - nothing new starts), `until` when the hoster's wait ends and the waiting downloads try again, `next_check_at` when the account is checked for traffic next; traffic above zero continues them at once, a pause somebody set is never lifted by it."
     )]
     pub async fn get_queue_pause(&self) -> McpToolResult {
         let Json(answer) = queue_pause_handlers::get_queue_pause(State(self.state.clone())).await;
@@ -72,7 +72,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "End a timed queue pause now: the downloads it stopped resume and new ones may start. Answers how many resumed; 0 when no pause was in force."
+        description = "End a timed queue pause now: the downloads it stopped resume and new ones may start. Also lets go of the accounts held because their traffic is used up (account_traffic in get_queue_pause); their waiting downloads keep their own next attempt. Answers how many resumed; 0 when no pause was in force."
     )]
     pub async fn resume_queue(&self) -> McpToolResult {
         respond(
