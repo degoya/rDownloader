@@ -23,6 +23,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import UsenetQuotaEditor from '@/components/settings/UsenetQuotaEditor.vue'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 /*
  * The Usenet server chain: the form, the servers in priority order and their quotas. The
@@ -325,7 +326,7 @@ function proxyName(id: string | null | undefined): string {
           </UFormField>
           <USwitch v-if="editingId" v-model="clearPassword" size="sm" :label="t('usenet.form.clear_password')" />
           <UFormField :label="t('usenet.form.proxy')" name="proxy">
-            <USelect v-model="proxySelection" :items="proxyItems" class="w-full" />
+            <SearchableSelect v-model="proxySelection" :items="proxyItems" class="w-full" />
           </UFormField>
           <USwitch v-model="form.enabled" :label="t('usenet.form.enabled')" />
           <FormActions

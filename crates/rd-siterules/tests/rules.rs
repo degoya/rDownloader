@@ -62,6 +62,9 @@ fn the_shipped_pack_carries_the_rules_that_were_measured() {
             "avaxhome",
             "cgpersia",
             "vipergirls",
+            "hide-cx",
+            "warez-cx",
+            "serienjunkies",
         ]
     );
     for rule in &pack.rules {
@@ -73,9 +76,15 @@ fn the_shipped_pack_carries_the_rules_that_were_measured() {
         );
         rule.validate().expect("a shipped rule validates");
         // RD-110-09 reads this date, and a rule without one may not ship.
+        // The eight of sequence 6 were measured together; the three added in 1.17 later.
+        let measured = if ["hide-cx", "warez-cx", "serienjunkies"].contains(&rule.id.as_str()) {
+            "2026-10-07"
+        } else {
+            "2026-09-22"
+        };
         assert_eq!(
             rule.checked.to_string(),
-            "2026-09-22",
+            measured,
             "{} carries its measurement date",
             rule.id
         );

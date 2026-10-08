@@ -227,10 +227,14 @@ fn intake_of(frame: &Frame) -> Option<Intake> {
         .map(|envelope| envelope.payload)
 }
 
-/// Shows one toast. A desktop without a notification daemon — a remote session, a bare X
-/// server — is a warning in the log, not a reason to stop watching.
 async fn show(intake: Intake) {
-    let body = summary(&intake);
+    toast(summary(&intake)).await;
+}
+
+/// Shows one toast with `body`; also the answer to "Hand over clipboard now" (RD-1180-03). A
+/// desktop without a notification daemon — a remote session, a bare X server — is a warning in
+/// the log, not a reason to stop watching.
+pub(crate) async fn toast(body: String) {
     let result = tokio::task::spawn_blocking(move || {
         let mut notification = notify_rust::Notification::new();
         notification

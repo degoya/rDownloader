@@ -14,6 +14,10 @@ pub const ADDRESS_VARIABLE: &str = "url";
 pub const PAGE_URL_VARIABLE: &str = "page_url";
 /// The variable a `captcha` step writes when it names no other.
 pub const CAPTCHA_VARIABLE: &str = "captcha";
+/// The variable a run seeds with this installation's own stable value, when the caller hands
+/// one over (RD-1170-03): 32 hexadecimal digits, the same for every run of one installation.
+/// A page whose script sends a browser fingerprint along gets this instead; it is not one.
+pub const DEVICE_VARIABLE: &str = "device_id";
 
 /// One variable's content.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -69,7 +73,7 @@ impl From<String> for Value {
 }
 
 /// The variables of one run.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Variables(BTreeMap<String, Value>);
 
 /// A template named a variable the run has not written.
@@ -105,6 +109,11 @@ impl Variables {
     /// Writes one, replacing what was there.
     pub fn set(&mut self, name: &str, value: impl Into<Value>) {
         self.0.insert(name.to_owned(), value.into());
+    }
+
+    /// Removes one, so a later read finds nothing written.
+    pub(crate) fn unset(&mut self, name: &str) {
+        self.0.remove(name);
     }
 
     /// Replaces every `${name}` with that variable's first string.

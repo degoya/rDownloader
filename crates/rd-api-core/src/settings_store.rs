@@ -350,6 +350,49 @@ mod tests {
         assert_eq!(runtime.max_retries, 7);
     }
 
+    /// RD-1170-01: the Downloads' packages start closed and the LinkGrabber's open unless
+    /// switched, each on its own; a document written before the switches existed reads as that,
+    /// and a value that does not parse is no reason to refuse a start -- display choices again.
+    #[test]
+    fn the_package_groups_keep_their_old_default_and_a_bad_value_reads_as_it() {
+        let defaults = SettingsResponse::default();
+        assert!(defaults.downloads_packages_closed_by_default);
+        assert!(!defaults.linkgrabber_packages_closed_by_default);
+        for field in [
+            "downloads_packages_closed_by_default",
+            "linkgrabber_packages_closed_by_default",
+        ] {
+            assert!(!RUNTIME_FIELDS.contains(&field), "{field}");
+        }
+
+        let (settings, _) = startup_settings_of(Some(&serde_json::json!({}))).expect("defaults");
+        assert!(settings.downloads_packages_closed_by_default);
+        assert!(!settings.linkgrabber_packages_closed_by_default);
+
+        let blob = serde_json::json!({
+            "downloads_packages_closed_by_default": false,
+            "linkgrabber_packages_closed_by_default": true,
+        });
+        let (settings, _) = startup_settings_of(Some(&blob)).expect("stored");
+        assert!(!settings.downloads_packages_closed_by_default);
+        assert!(settings.linkgrabber_packages_closed_by_default);
+        let document = serde_json::to_value(&settings).expect("serialize");
+        assert_eq!(
+            document["linkgrabber_packages_closed_by_default"],
+            serde_json::json!(true)
+        );
+
+        let blob = serde_json::json!({
+            "downloads_packages_closed_by_default": "sometimes",
+            "linkgrabber_packages_closed_by_default": true,
+            "max_retries": 7,
+        });
+        let (settings, runtime) = startup_settings_of(Some(&blob)).expect("the start goes on");
+        assert!(settings.downloads_packages_closed_by_default);
+        assert!(settings.linkgrabber_packages_closed_by_default);
+        assert_eq!(runtime.max_retries, 7);
+    }
+
     #[test]
     fn a_first_start_without_a_document_runs_on_the_defaults() {
         let (settings, _) = startup_settings_of(None).expect("defaults");

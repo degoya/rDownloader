@@ -61,13 +61,19 @@ pub enum Step {
         from: String,
         into: String,
     },
-    /// Submits a form and keeps the response.
+    /// Submits a form and keeps the response. With `json` (RD-1170-03) the fields go out as
+    /// one JSON object of strings rather than as `application/x-www-form-urlencoded`, which is
+    /// what an API behind a page's script reads.
     Form {
         url: String,
         #[serde(default)]
         fields: BTreeMap<String, String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         into: Option<String>,
+        /// Absent in every rule written before this existed, and absent in the serialized form
+        /// when false, so a signed pack stays byte-identical.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        json: bool,
     },
     /// Follows the redirect an address answers with and keeps the target.
     Redirect { from: String, into: String },
@@ -79,6 +85,14 @@ pub enum Step {
         sitekey: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         into: Option<String>,
+        /// The page the widget sits on, a template; the page in hand unless named
+        /// (RD-1170-03). A rule that read an API after the page names the page here, since the
+        /// person solves the challenge on the page and not on the API's answer.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        page: Option<String>,
+        /// Whether the widget is an invisible one, which a solver service is told.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        invisible: bool,
     },
 }
 
@@ -137,7 +151,9 @@ impl Step {
                 check_variable(from)?;
                 check_variable(into)
             }
-            Self::Form { url, fields, into } => {
+            Self::Form {
+                url, fields, into, ..
+            } => {
                 check_template(url)?;
                 for value in fields.values() {
                     check_template(value)?;
@@ -152,11 +168,14 @@ impl Step {
                 challenge,
                 sitekey,
                 into,
+                page,
+                ..
             } => {
                 if !is_slug(challenge, 32) {
                     return Err(RuleError::CaptchaKind(challenge.clone()));
                 }
                 check_optional_template(sitekey.as_deref())?;
+                check_optional_template(page.as_deref())?;
                 check_optional_variable(into.as_deref())
             }
         }
@@ -238,6 +257,24 @@ mod tests {
         step.validate().expect("valid");
         let step = parse(r#"{"kind":"captcha","challenge":"reCAPTCHA"}"#).expect("parse");
         assert!(matches!(step.validate(), Err(RuleError::CaptchaKind(_))));
+    }
+
+    #[test]
+    fn a_json_form_and_a_captcha_page_are_optional_and_left_out_when_unused() {
+        let form = r#"{"kind":"form","url":"${api}","fields":{"token":"${captcha}"}}"#;
+        let step = parse(form).expect("parse");
+        assert_eq!(serde_json::to_string(&step).expect("encode"), form);
+        let json = r#"{"kind":"form","url":"${api}","fields":{"token":"${captcha}"},"json":true}"#;
+        let step = parse(json).expect("parse");
+        assert!(matches!(step, Step::Form { json: true, .. }));
+        assert_eq!(serde_json::to_string(&step).expect("encode"), json);
+        let captcha = r#"{"kind":"captcha","challenge":"recaptcha-v2","sitekey":"${key}","page":"${url}","invisible":true}"#;
+        let step = parse(captcha).expect("parse");
+        step.validate().expect("valid");
+        assert_eq!(serde_json::to_string(&step).expect("encode"), captcha);
+        let step = parse(r#"{"kind":"captcha","challenge":"recaptcha-v2","page":"${url"}"#)
+            .expect("parse");
+        assert!(matches!(step.validate(), Err(RuleError::Template(_))));
     }
 
     #[test]

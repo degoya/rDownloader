@@ -1209,7 +1209,18 @@
     "settings.package_name_regex_too_long": "Package-name rule {index}: pattern and replacement may have at most {max} characters each.",
     "category_rule.regex_structure_limits": "The pattern is too large to draw as a diagram.",
     "subscription.item_no_source": "This subscription item has no address to fetch",
-    "subscription.item_duplicate": "This subscription item's address is still in the LinkGrabber or the download list"
+    "subscription.item_duplicate": "This subscription item's address is still in the LinkGrabber or the download list",
+    "site_rules.no_entry": "The list has no such entry.",
+    "site_rules.pick_waiting": "{rule} listed {entries} entries — choose in the LinkGrabber which of them to fetch.",
+    "site_rules.pick_not_found": "That pick list no longer exists; add the page again.",
+    "site_rules.pick_cancelled": "Stopped before its links were fetched.",
+    "site_rules.no_pick": "The rule {rule} fetches this page’s links at once; add it in the LinkGrabber directly.",
+    "site_rules.pick_discarded": "The pick list was discarded.",
+    "capture.shortcut_invalid": "This key combination cannot be read.",
+    "capture.shortcut_modifier_missing": "A combination needs two of Ctrl, Alt and Win/Cmd.",
+    "capture.shortcut_reserved": "The operating system already uses this combination.",
+    "capture.shortcut_duplicate": "Another command already has this combination.",
+    "capture.shortcut_command_unknown": "Unknown tray command: {command}"
   },
   "capabilities": {
     "media_download": "media downloads",

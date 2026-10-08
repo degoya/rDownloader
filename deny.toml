@@ -206,9 +206,12 @@ skip = [
   { crate = "winnow:0.5", reason = "toml_edit 0.19/0.20 (GTK3 via tao, tray-icon)" },
   { crate = "miniz_oxide:0.8", reason = "png 0.18 (muda via tray-icon, rd-capture's tray icon); flate2 uses 0.9" },
 
+  # global-hotkey 0.8, the newest (rd-capture, RD-1180-03), is still on keyboard-types 0.7 while
+  # muda 0.21 under tray-icon 0.26 moved to 0.8; only the Windows and macOS builds link both.
+  { crate = "keyboard-types:0.7", reason = "global-hotkey 0.8 (rd-capture); muda 0.21 (tray-icon) is on 0.8" },
   # windows-sys: one line per holder.
   { crate = "windows-sys:0.52", reason = "ring 0.17 (rustls-webpki, quinn-proto), dontfrag 1 (librqbit-utp)" },
-  { crate = "windows-sys:0.59", reason = "winreg 0.55 (embed-resource, a build dependency)" },
+  { crate = "windows-sys:0.59", reason = "winreg 0.55 (embed-resource, a build dependency), global-hotkey 0.8 (rd-capture)" },
   { crate = "windows-sys:0.60", reason = "arboard 3.6 (rd-capture), notify 8.2 (rd-hotfolder)" },
   { crate = "windows-targets:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },
   { crate = "windows_x86_64_gnu:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },

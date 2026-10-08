@@ -38,6 +38,7 @@ mod tools_pause;
 mod tools_queue;
 mod tools_remote;
 mod tools_routing;
+mod tools_site_rule_picks;
 mod tools_site_rules;
 mod tools_storage;
 mod tools_stream_schedules;
@@ -65,10 +66,11 @@ use rmcp::{
 // `crate::…` exactly as it did while the HTTP surface was one crate (RD-160-06).
 use rd_api_access::{audit_dto, audit_handlers};
 use rd_api_admin::{
-    about_page, automation_handlers, backup_destination_handlers, backup_handlers, config_handlers,
-    data_reset_handlers, diagnostics_dto, diagnostics_handlers, notify_handlers, plugin_bundled,
-    plugin_handlers, plugin_repository_handlers, plugin_update_policy, settings_handlers,
-    stats_handlers, tools_handlers, update_handlers,
+    about_page, automation_handlers, backup_destination_handlers, backup_handlers,
+    capture_agent_handlers, config_handlers, data_reset_handlers, diagnostics_dto,
+    diagnostics_handlers, notify_handlers, plugin_bundled, plugin_handlers,
+    plugin_repository_handlers, plugin_update_policy, settings_handlers, stats_handlers,
+    tools_handlers, update_handlers,
 };
 use rd_api_core::{
     ApiError, AppState, audit, auth, client, container_upload, dto, error_codes, hosters,
@@ -77,8 +79,8 @@ use rd_api_core::{
 use rd_api_intake::{
     candidate_handlers, collector_enqueue, collector_handlers, container_handlers,
     indexer_handlers, indexer_search, nzb_handlers, regex_tester, remote_listing_handlers,
-    site_rules_dto, site_rules_handlers, stream_handlers, stream_schedule_handlers,
-    subscription_handlers,
+    site_rule_picks, site_rules_dto, site_rules_handlers, stream_handlers,
+    stream_schedule_handlers, subscription_handlers,
 };
 use rd_api_queue::{
     bandwidth_handlers, bandwidth_manual_handlers, collision_handlers, download_handlers,
@@ -109,6 +111,8 @@ To find out what happened: get_transfer_stats for volume over time, list_log_rec
 list_audit_records for the service log and who did what, both with the same filters the \
 views offer. list_site_rules shows the release-page rules and which are active; \
 create_site_rule, update_site_rule, test_site_rule and delete_site_rule write them. \
+A series page whose rule lists its releases first is chosen from with list_page_entries and \
+resolve_page_entries; each resolved release asks one captcha a person solves in the broker. \
 Everything the LinkGrabber screen does is here too: list_candidates names each link, and \
 the candidate tools rename, move, reorder, enqueue, pick media variants, plan torrents and \
 directory listings, and pin mirrors; list_nzb_imports and the nzb_import tools review and \
@@ -172,6 +176,7 @@ impl RdMcpServer {
             + Self::torrent_router()
             + Self::system_router()
             + Self::site_rules_router()
+            + Self::site_rule_picks_router()
             + Self::operations_router()
             + Self::editors_router()
             + Self::subscription_review_router()

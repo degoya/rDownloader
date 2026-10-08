@@ -1209,7 +1209,18 @@
     "settings.package_name_regex_too_long": "Regla de nombre de paquete {index}: el patrón y el reemplazo pueden tener como máximo {max} caracteres cada uno.",
     "category_rule.regex_structure_limits": "El patrón es demasiado grande para dibujarlo como diagrama.",
     "subscription.item_no_source": "Esta entrada de suscripción no tiene ninguna dirección que descargar",
-    "subscription.item_duplicate": "La dirección de esta entrada de suscripción sigue en el LinkGrabber o en la lista de descargas"
+    "subscription.item_duplicate": "La dirección de esta entrada de suscripción sigue en el LinkGrabber o en la lista de descargas",
+    "site_rules.no_entry": "La lista no tiene esa entrada.",
+    "site_rules.pick_waiting": "{rule} ha listado {entries} entradas: elige en el LinkGrabber cuáles obtener.",
+    "site_rules.pick_not_found": "Esa lista de selección ya no existe; vuelve a añadir la página.",
+    "site_rules.pick_cancelled": "Detenido antes de obtener sus enlaces.",
+    "site_rules.no_pick": "La regla {rule} obtiene los enlaces de esta página de inmediato; añádela directamente en el LinkGrabber.",
+    "site_rules.pick_discarded": "La lista de selección se descartó.",
+    "capture.shortcut_invalid": "Esta combinación de teclas no se puede leer.",
+    "capture.shortcut_modifier_missing": "Una combinación necesita dos de Ctrl, Alt y Win/Cmd.",
+    "capture.shortcut_reserved": "El sistema operativo ya usa esta combinación.",
+    "capture.shortcut_duplicate": "Otra orden ya tiene esta combinación.",
+    "capture.shortcut_command_unknown": "Orden de bandeja desconocida: {command}"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

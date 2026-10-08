@@ -36,6 +36,7 @@ import type { IndexerSearchHit, IndexerSearchResponse } from '@/api/types'
 import CoverPlaceholder from '@/components/CoverPlaceholder.vue'
 import IndexerHitBadges from '@/components/IndexerHitBadges.vue'
 import IndexerSearchTypeFields from '@/components/IndexerSearchTypeFields.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { useErrorToast } from '@/composables/useErrorToast'
 import { useIndexerSearchType } from '@/composables/useIndexerSearchType'
@@ -336,7 +337,7 @@ function ageLabel(hit: IndexerSearchHit): string {
           <ULink to="/settings/usenet?tab=indexers" class="text-primary underline">{{ t('linkgrabber.search.unavailable_link') }}</ULink>
         </p>
       </div>
-      <USelect v-model="indexerChoice" :items="indexerItems" value-key="value" class="w-44" :disabled="!available" :aria-label="t('linkgrabber.search.indexer_label')" data-testid="indexer-search-indexer" />
+      <SearchableSelect v-model="indexerChoice" :items="indexerItems" class="w-44" :disabled="!available" :aria-label="t('linkgrabber.search.indexer_label')" data-testid="indexer-search-indexer" />
       <IndexerSearchTypeFields v-model="typed" :caps-list="capsList" :disabled="!available" :error="typedError" @ask="askCaps" />
       <UInputTags v-model="categories" class="w-48" :disabled="!available" :placeholder="t('linkgrabber.search.categories_placeholder')" :aria-label="t('linkgrabber.search.categories_label')" data-testid="indexer-search-categories" />
       <div class="w-48">

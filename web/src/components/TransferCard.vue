@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import type { Download, DownloadSourcesResponse, TorrentPlanRequest } from '@/api/types'
 import DragHandle from '@/components/DragHandle.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
 import TorrentMoveModal from '@/components/TorrentMoveModal.vue'
 import TorrentPeerList from '@/components/TorrentPeerList.vue'
@@ -436,7 +437,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
         <span v-if="props.download.computed_checksum" class="font-mono">{{ props.download.computed_checksum.algorithm }} {{ props.download.computed_checksum.value }}</span>
       </div>
       <UFormField v-if="props.download.kind === 'http'" :label="t('downloads.transfer.auth_profile')" orientation="horizontal" size="xs" class="flex-wrap justify-start">
-        <USelect
+        <SearchableSelect
           :model-value="authProfileValue"
           :items="authProfileItems"
           size="xs"

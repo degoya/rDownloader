@@ -81,11 +81,12 @@ def read_facts(repo):
     plugins = os.path.join(repo, "plugins")
     count = sum(os.path.isfile(os.path.join(plugins, d, "manifest.toml")) and not d.startswith("example-")
                 for d in os.listdir(plugins))
-    # One `tool("name", ...)` per line: the table is `#[rustfmt::skip]` and kept sorted by a test.
+    # One `tool("name", ...)` per entry: the table is `#[rustfmt::skip]` and kept sorted by a test,
+    # but an entry wrapped over several lines (`tool(` then the name on the next) counts too.
     policy = re.search(r"^pub const TOOL_POLICY: &\[ToolPolicy\] = &\[\n(.*?)^\];",
                        open(os.path.join(repo, MCP_POLICY), encoding="utf-8").read(),
                        re.MULTILINE | re.DOTALL)
-    tools = len(re.findall(r'^\s*tool\("', policy.group(1), re.MULTILINE)) if policy else 0
+    tools = len(re.findall(r'^\s*tool\(\s*"', policy.group(1), re.MULTILINE)) if policy else 0
     if not version or not wit:
         raise SystemExit("could not read the workspace version or the WIT package line")
     if not tools:

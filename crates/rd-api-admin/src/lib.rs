@@ -14,6 +14,7 @@ pub mod backup_destination_handlers;
 pub mod backup_handlers;
 pub mod backup_service;
 pub mod backup_verify_service;
+pub mod capture_agent_handlers;
 pub mod config_handlers;
 pub mod data_reset_handlers;
 pub mod diagnostics_checks;

@@ -22,6 +22,7 @@ import { api, responseError } from '@/api/client'
 import type { Account, RemoteJob } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { claimFileDrops } from '@/composables/nzbImportRequest'
 import { formatBytes } from '@/utils/format'
 
@@ -246,7 +247,7 @@ void loadProviders()
   <div v-else>
     <form class="grid gap-3" data-testid="remote-job-form" @submit.prevent="submit">
       <UFormField :label="t('remote_jobs.account')">
-        <USelect v-model="accountId" :items="accountItems" class="w-full" />
+        <SearchableSelect v-model="accountId" :items="accountItems" class="w-full" />
       </UFormField>
       <UFormField :label="t('remote_jobs.submit.magnet')" :description="t('remote_jobs.submit.description')">
         <UInput

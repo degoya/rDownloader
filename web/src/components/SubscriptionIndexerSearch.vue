@@ -20,6 +20,7 @@ import {
   MAX_AGE_DAYS, MAX_QUERY_CHARS, MIN_QUERY_CHARS, NO_INDEXER, maxAgeDays, queryProblem, type IndexerSearchFields
 } from '@/utils/indexerSearch'
 import { WHOLE } from '@/utils/numberInput'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 const indexerId = defineModel<string>('indexerId', { required: true })
 const search = defineModel<IndexerSearchFields>('search', { required: true })
@@ -62,7 +63,7 @@ const ageError = computed(() => search.value.maxAge != null && maxAgeDays(search
       :label="t('subscriptions.form.indexer')"
       :description="t('subscriptions.form.indexer_description')"
     >
-      <USelect v-model="indexerId" class="w-full" :items="indexerItems" value-key="value" data-testid="subscription-indexer" />
+      <SearchableSelect v-model="indexerId" class="w-full" :items="indexerItems" data-testid="subscription-indexer" />
     </UFormField>
     <UFormField :label="t('subscriptions.form.search_query')" :description="t('subscriptions.form.search_query_description')">
       <UInput

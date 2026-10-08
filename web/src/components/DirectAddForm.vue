@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Account, Category, DownloadPriority, ProxyProfile } from '@/api/types'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 
@@ -57,9 +58,9 @@ defineExpose({ reset: () => { url.value = '' } })
     <p class="eyebrow mb-3">{{ t('downloads.add.eyebrow') }}</p>
     <form class="grid gap-2 @min-[40rem]:grid-cols-2 @min-[60rem]:grid-cols-[minmax(280px,1fr)_repeat(4,minmax(130px,0.4fr))_auto]" @submit.prevent="submit">
       <UInput v-model="url" type="url" required icon="i-lucide-link" :placeholder="t('downloads.add.url_placeholder')" size="lg" class="@min-[40rem]:col-span-2 @min-[60rem]:col-span-1" />
-      <USelect v-model="categoryId" :items="categoryItems" size="lg" :aria-label="t('downloads.add.category_aria')" />
-      <USelect v-model="accountId" :items="accountItems" size="lg" :aria-label="t('downloads.add.account_aria')" />
-      <USelect v-model="proxyProfileId" :items="proxyItems" size="lg" :aria-label="t('downloads.add.proxy_aria')" />
+      <SearchableSelect v-model="categoryId" :items="categoryItems" size="lg" :aria-label="t('downloads.add.category_aria')" />
+      <SearchableSelect v-model="accountId" :items="accountItems" size="lg" :aria-label="t('downloads.add.account_aria')" />
+      <SearchableSelect v-model="proxyProfileId" :items="proxyItems" size="lg" :aria-label="t('downloads.add.proxy_aria')" />
       <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" size="lg" :aria-label="t('downloads.add.priority_aria')" />
       <UButton type="submit" icon="i-lucide-plus" :label="t('downloads.add.submit')" size="lg" :loading="props.busy" />
     </form>

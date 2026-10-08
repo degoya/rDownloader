@@ -22,6 +22,7 @@ import { providerText as pluginProviderText } from '@/i18n/plugins'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 /**
@@ -357,7 +358,7 @@ function proxyName(id: string | null | undefined): string {
             <UInput v-model="accountForm.username" :required="usernameRequired" class="w-full" :placeholder="t('network.account.username_placeholder')" />
           </UFormField>
           <UFormField :label="t('network.account.proxy_label')">
-            <USelect v-model="accountProxySelection" :items="proxyItems" class="w-full" :placeholder="t('network.account.proxy_placeholder')" />
+            <SearchableSelect v-model="accountProxySelection" :items="proxyItems" class="w-full" :placeholder="t('network.account.proxy_placeholder')" />
           </UFormField>
           <SettingsCrossLink v-if="!embedded" class="-mt-2" anchor="network.proxies" />
           <UFormField v-if="showSecretInput" :label="credentialNoun">

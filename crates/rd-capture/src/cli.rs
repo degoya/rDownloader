@@ -34,6 +34,15 @@ pub(crate) enum Command {
     Association(IntegrationArgs),
     /// Installs or removes per-user capture-agent autostart.
     Autostart(IntegrationArgs),
+    /// Pauses clipboard watching. Click'n'Load, the browser extension and rdownloader:// links
+    /// stay on; what is copied while paused is not delivered later.
+    Pause(ConnectionArgs),
+    /// Resumes clipboard watching.
+    Resume(ConnectionArgs),
+    /// Says whether clipboard watching is paused, and lists the shortcuts.
+    Status(ConnectionArgs),
+    /// Reads the clipboard once and hands its links over, also while watching is paused.
+    SendClipboard(ConnectionArgs),
 }
 
 #[derive(Args)]
@@ -199,6 +208,39 @@ mod tests {
             ])
             .is_ok()
         );
+    }
+
+    /// The tray's clipboard commands on a desktop without a tray (RD-1180-01, RD-1180-03).
+    #[test]
+    fn the_clipboard_commands_parse_with_the_connection_of_every_other_command() {
+        for (word, expected) in [
+            ("pause", "pause"),
+            ("resume", "resume"),
+            ("status", "status"),
+            ("send-clipboard", "send-clipboard"),
+        ] {
+            let cli = Cli::try_parse_from([
+                "rdownloader-capture",
+                word,
+                "--service",
+                "http://127.0.0.1:8710",
+            ])
+            .unwrap_or_else(|error| panic!("{word}: {error}"));
+            let (name, connection) = match cli.command {
+                Some(Command::Pause(connection)) => ("pause", connection),
+                Some(Command::Resume(connection)) => ("resume", connection),
+                Some(Command::Status(connection)) => ("status", connection),
+                Some(Command::SendClipboard(connection)) => ("send-clipboard", connection),
+                _ => panic!("{word}: a clipboard command expected"),
+            };
+            assert_eq!(name, expected);
+            assert_eq!(
+                connection.service.map(|service| service.to_string()),
+                Some("http://127.0.0.1:8710/".to_owned())
+            );
+        }
+        assert!(Cli::try_parse_from(["rdownloader-capture", "pause"]).is_ok());
+        assert!(Cli::try_parse_from(["rdownloader-capture", "pause", "now"]).is_err());
     }
 
     #[test]

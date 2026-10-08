@@ -385,12 +385,16 @@ pub(crate) async fn with_site_rules(
     secrets: &rd_secrets::SecretStore,
     scheduler: &SchedulerHandle,
 ) -> std::sync::Arc<rd_plugin_ext::FolderCrawlers> {
-    let rule_runner = rd_plugin_ext::HostRuleRunner::new(rd_plugin_host::RuleNetwork::new(
+    let mut rule_runner = rd_plugin_ext::HostRuleRunner::new(rd_plugin_host::RuleNetwork::new(
         database.clone(),
         secrets.clone(),
         scheduler.network_defaults(),
     ))
     .with_captcha(std::sync::Arc::new(scheduler.captcha()));
+    // The value a two-stage rule sends where a page's script sends a fingerprint (RD-1170-03).
+    if let Some(device_id) = rd_api::site_rules_service::device_id(database).await {
+        rule_runner = rule_runner.with_device_id(device_id);
+    }
     let site_rules = std::sync::Arc::new(rd_plugin_ext::SiteRules::new(
         site_rules_cli::load_catalogue(database).await,
         std::sync::Arc::new(rule_runner),

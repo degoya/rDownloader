@@ -96,7 +96,12 @@
     "fields_hint": "Ein `name=wert` pro Zeile.",
     "challenge": "Art der Aufgabe",
     "sitekey": "Site-Key",
-    "empty": "Eine Regel braucht mindestens einen Schritt."
+    "empty": "Eine Regel braucht mindestens einen Schritt.",
+    "json": "Felder als JSON senden",
+    "json_hint": "Ein JSON-Objekt statt eines Formulars – so, wie das Skript einer Seite seine API fragt.",
+    "page": "Seite des Captchas",
+    "page_hint": "Die Seite, auf der das Widget sitzt, etwa die Variable url – die Adresse, mit der die Regel begann. Leer heißt: die zuletzt geholte Seite.",
+    "invisible": "Unsichtbares Widget"
   },
   "test": {
     "heading": "Probelauf",
@@ -116,7 +121,14 @@
       "confirmed": "Als Datei bestätigt",
       "not-a-file": "Antwortet mit einer Seite, nicht mit einer Datei",
       "unconfirmed": "Keine Antwort; trotzdem behalten"
-    }
+    },
+    "groups": "keine Pakete | {count} Paket | {count} Pakete",
+    "group_links": "keine Links | {count} Link | {count} Links",
+    "group_unnamed": "Kein Paketname",
+    "mirror": "Mirror {set}",
+    "mirror_hint": "Links eines Pakets mit derselben Mirror-Nummer sind Kopien einer Datei.",
+    "entries": "keine Einträge zur Auswahl | {count} Eintrag zur Auswahl | {count} Einträge zur Auswahl",
+    "entries_hint": "Die Probe listet nur auf; Links und Captchas kommen erst, wenn im LinkGrabber ausgewählt wird."
   },
   "transfer": {
     "export": "Regeln exportieren",
@@ -132,5 +144,23 @@
     "title": "Diese Regel entfernen?",
     "description": "{name} wird aus dieser Installation entfernt. Exportiere sie vorher, wenn du sie behalten willst."
   },
-  "duplicated": "{name} wurde abgeschaltet angelegt und zum Bearbeiten geöffnet."
+  "duplicated": "{name} wurde abgeschaltet angelegt und zum Bearbeiten geöffnet.",
+  "packages": {
+    "heading": "Mehrere Pakete",
+    "description": "Für eine Seite mit mehreren Releases. Die Schritte oben legen je Release einen Eintrag in einer Variable ab; die Schritte hier machen aus jedem Eintrag ein eigenes Paket.",
+    "enabled": "Ein Paket je Eintrag",
+    "from": "Einträge aus Variable",
+    "from_hint": "Die Liste, die die Schritte oben geschrieben haben, ein Eintrag je Paket.",
+    "into": "Eintragsvariable",
+    "into_hint": "Die Schritte unten finden jeden Eintrag in dieser Variable. Leer heißt entry.",
+    "steps": "Schritte je Eintrag, sie enden mit den Links des Eintrags in links",
+    "package": "Paketname je Eintrag",
+    "mirrors": "Mirrors",
+    "mirrors_hint": "Welche Links eines Eintrags Kopien derselben Datei sind.",
+    "mirrors_none": "Keine Mirrors",
+    "mirrors_by_host": "Gleiche Position bei jedem Hoster",
+    "mirrors_all": "Jeder Link ist dieselbe Datei",
+    "pick": "Erst auswählen, dann holen",
+    "pick_hint": "Ein Merkmal je Zeile als name=Muster, etwa season, episode, resolution, language, hoster. Dann listet die Regel die Einträge nur auf; geholt wird erst, was jemand auswählt – jeder Eintrag mit eigenem Captcha."
+  }
 }

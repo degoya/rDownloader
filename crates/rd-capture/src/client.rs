@@ -301,6 +301,47 @@ impl CaptureClient {
         Ok(())
     }
 
+    /// What the service has this agent set to: the clipboard pause and the shortcuts
+    /// (RD-1180-01, RD-1180-03). Read on the same five-second cadence as the summary.
+    pub(crate) async fn agent_settings(&self) -> Result<rd_core::CaptureAgentSettings> {
+        let url = self.service.join("api/v1/capture/agent-settings")?;
+        let response = self.http.get(url).bearer_auth(&self.token).send().await?;
+        let response = ensure_success(response, "agent settings").await?;
+        Ok(response.json().await?)
+    }
+
+    /// Pauses or resumes clipboard watching at the service, which keeps it for every start.
+    pub(crate) async fn set_clipboard_paused(
+        &self,
+        paused: bool,
+    ) -> Result<rd_core::CaptureAgentSettings> {
+        let response = self
+            .http
+            .post(self.service.join("api/v1/capture/clipboard")?)
+            .bearer_auth(&self.token)
+            .json(&serde_json::json!({ "paused": paused }))
+            .send()
+            .await?;
+        let response = ensure_success(response, "clipboard pause").await?;
+        Ok(response.json().await?)
+    }
+
+    /// Tells the service which shortcuts the system refused, so the settings page can say so.
+    pub(crate) async fn report_shortcuts(
+        &self,
+        report: &rd_core::CaptureShortcutReport,
+    ) -> Result<()> {
+        let response = self
+            .http
+            .post(self.service.join("api/v1/capture/shortcut-report")?)
+            .bearer_auth(&self.token)
+            .json(report)
+            .send()
+            .await?;
+        ensure_success(response, "shortcut report").await?;
+        Ok(())
+    }
+
     /// Opens the capture-scoped event stream the agent's watchers listen on.
     ///
     /// The response is returned unread: it stays open for as long as the agent runs. The

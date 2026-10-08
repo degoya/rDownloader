@@ -5,6 +5,77 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-10-08
+
+1.17 was not released on its own (owner, 2026-10-08): its work ships here with 1.18.
+
+### Added
+
+- **Package groups remember being open, open or close all, closed by default (RD-1170-01).** The
+  Downloads and the LinkGrabber keep which packages were opened or closed per browser, the
+  LinkGrabber for the first time (`rdownloader-open-packages-linkgrabber`); `useOpenSections`
+  stores an explicit id → open map and forgets packages that are gone. A toolbar button and two
+  entries in each package row's menu open or close every package the filters show. Two settings
+  document fields on *Interface → Display*, `downloads_packages_closed_by_default` (true) and
+  `linkgrabber_packages_closed_by_default` (false), set the default; `get_settings` names both.
+
+- **Site rules with several packages per page (RD-1170-02).** A rule may carry `groups`: its
+  steps leave one entry per release, the group's steps turn each entry into a package's links and
+  name, and `mirrors: by-host` (the n-th link at each hoster) or `all` makes copies of one file a
+  declared mirror group in the LinkGrabber. Rules without it read and serialise byte for byte as
+  before; the trial run (REST and MCP) answers `groups`, the editor has a per-entry step list, and
+  the signed rule file (sequence 7, then 8) adds `hide-cx` and `warez-cx`.
+
+- **Pause clipboard watching in the capture agent (RD-1180-01).** Only the clipboard pauses;
+  Click'n'Load, the extension and `rdownloader://` stay on, and nothing copied meanwhile is
+  delivered later. A settings row of its own, `capture.agent` (`rd_api_admin::capture_agent_handlers`),
+  not a field of the settings document: GET/PATCH `/api/v1/settings/capture-agent` (`api:config`),
+  MCP `get_capture_agent_settings`/`update_capture_agent_settings`; the agent polls
+  `GET /api/v1/capture/agent-settings` and switches `POST /api/v1/capture/clipboard` (capture
+  token), keeps `agent-settings.json` beside `capture.json` and holds a local switch until the
+  service has it (`agent_settings.rs`). Tray: ticked entry, greyed mark (`icon::dim`), "capture
+  paused" on the status line; CLI `pause|resume|status`; a card in Settings → Clients & API →
+  Desktop.
+- **System-wide shortcuts for the tray commands (RD-1180-03).** `global-hotkey` 0.8 (new
+  dependency; Linux X11 only, `wayland`/`no_display` reported), registered on the tray's thread on
+  Windows/macOS and in a task on Linux, re-registered on a settings change without a restart and
+  shown as menu accelerators. Grammar and rules in `rd_core::capture_agent` (`CmdOrCtrl+Alt+V`,
+  two of Ctrl/Alt/Super, a reserved list, no duplicates per platform family; codes
+  `capture.shortcut_invalid|modifier_missing|reserved|duplicate`); refused registrations reach
+  the page through `POST /api/v1/capture/shortcut-report`. New command "Hand over clipboard now"
+  (tray, shortcut, `send-clipboard`): one read, paused or not, with a notification of the count.
+  Recording field `ShortcutField.vue` (`design.md`).
+- **Series pages: pick releases before they are fetched (RD-1170-03).** A rule's `groups` may
+  carry `pick`: the first stage lists every entry with the attributes `pick` reads (season,
+  episode, resolution, language, hoster) and resolves none; `Executor::resolve` runs the group's
+  steps for one chosen entry, its captcha's wait left out of the budget. `form` may send `json`,
+  `captcha` may name its `page` and say `invisible`, and every run carries the installation's
+  stable `device_id` (settings key `site_rules.device_id`). The pick board (`rd-plugin-ext`,
+  in memory) resolves picked entries one after the other into one LinkGrabber package each, an
+  unanswered captcha leaving the entry pending; the intake answers `site_rules.pick_waiting`.
+  REST `/api/v1/collector/picks`, MCP `list_page_entries`, `list_page_picks`, `get_page_pick`,
+  `resolve_page_entries`, `cancel_page_pick`, `discard_page_pick`; a drawer in the LinkGrabber
+  groups by season with quick filters. The signed rule file's sequence 8 adds `serienjunkies`.
+  Old rules read, write and run as before.
+
+  groups by season with quick filters. The payload's sequence 8 adds `serienjunkies` (to be
+  signed at the release). Old rules read, write and run as before.
+- **Pick lists of things you create are searchable (RD-1180-02).** `SearchableSelect`
+  (`web/src/components/SearchableSelect.vue`) is the `USelect` it replaces below eight entries and
+  Nuxt UI's `USelectMenu` with its search field from there on: a match anywhere in the label, in
+  any case ("hdd-4" finds "Serien HDD-4"), Enter picks the first, a letter typed on the closed
+  field opens it searching. 37 fields over categories, accounts, proxies, auth and cookie profiles,
+  S3 profiles, notification targets, indexers, scripts, storage roots, bandwidth profiles, stream
+  channels and a package's files use it; `ownedLists.test.ts` holds them and fails on a new
+  `USelect` whose items name such a list. UI only, no REST or MCP change.
+### Fixed
+
+- **The apt and dnf repository job no longer hangs on a stalled mirror.** `apt-get update` in
+  `release-channels.yml`'s package-repository job waited the job's whole 20 minutes twice on
+  1.16.1; each request now times out after 30 s, an attempt after 3 minutes, and three attempts
+  end the step with an error. The shared `rust-tests-cache` action installs `mold` the same way,
+  after the same stall held a CI job for 45 minutes.
+
 ## [1.16.1] - 2026-10-07
 
 ### Fixed

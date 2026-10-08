@@ -56,6 +56,8 @@ pub struct FetchRequest {
     /// Form fields for a `POST`, sent as `application/x-www-form-urlencoded`. Empty for a
     /// `GET`.
     pub form: BTreeMap<String, String>,
+    /// Send `form` as one JSON object of strings, `application/json`, instead (RD-1170-03).
+    pub json: bool,
     /// Most bytes the adapter may read of the body. Reading beyond this is pointless work
     /// and an adapter should stop there and answer [`FetchFailure::TooLarge`]; the executor
     /// checks the length it got back as well, so an adapter that ignores this is caught.
@@ -137,6 +139,8 @@ pub struct CaptchaRequest {
     pub sitekey: Option<String>,
     /// The page the challenge sits on; a widget captcha is bound to its host.
     pub page_url: Url,
+    /// Whether the widget is an invisible one (RD-1170-03); a solver service is told.
+    pub invisible: bool,
 }
 
 /// The captcha broker, as the executor needs it: a challenge in, a token out.

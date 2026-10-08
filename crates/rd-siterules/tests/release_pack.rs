@@ -51,3 +51,28 @@ fn every_rule_in_the_file_carries_a_probe_its_own_match_claims_and_a_check_date(
         );
     }
 }
+
+/// The signed payload, exactly as it was signed.
+#[derive(serde::Deserialize)]
+struct Envelope {
+    payload: Box<serde_json::value::RawValue>,
+}
+
+/// Every rule written before a field existed must still read *and write* the same bytes
+/// (RD-1170-02, as RD-110-18 before it): the signature covers the payload as it was
+/// serialised, so a new field that appeared as `null` or `false` in an old rule would make
+/// this build sign something else for the same rules. Parsed with today's types and written
+/// back, the payload of the release file is byte for byte what was signed.
+#[test]
+fn the_release_payload_reads_and_writes_back_byte_for_byte() {
+    let envelope: Envelope = serde_json::from_slice(RELEASE_PACK).expect("the envelope");
+    let signed = envelope.payload.get();
+    let pack: rd_siterules::RulePack = serde_json::from_str(signed).expect("the payload");
+    // The eight rules signed before `groups` existed carry none; the 1.17 ones may.
+    assert!(pack.rules[..8].iter().all(|rule| rule.groups.is_none()));
+    assert_eq!(
+        serde_json::to_string(&pack).expect("serialise"),
+        signed,
+        "today's types write the signed payload differently"
+    );
+}

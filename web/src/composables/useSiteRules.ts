@@ -36,8 +36,12 @@ type Encoding = typeof ENCODINGS[number]
 export const PACKAGE_SOURCES = ['title', 'regex', 'variable'] as const
 type PackageSource = typeof PACKAGE_SOURCES[number]
 
+/** How the links of one group pair up as copies (RD-1170-02); `none` is the field left out. */
+export const GROUP_MIRRORS = ['none', 'by-host', 'all'] as const
+type GroupMirrors = typeof GROUP_MIRRORS[number]
+
 /** One step as the form holds it: every field of every kind, only some of them shown. */
-interface StepDraft {
+export interface StepDraft {
   kind: StepKind
   url: string
   into: string
@@ -50,11 +54,41 @@ interface StepDraft {
   fields: string
   challenge: string
   sitekey: string
+  /** A `form` step sends its fields as one JSON object (RD-1170-03). */
+  json: boolean
+  /** The page a `captcha` step's widget sits on; empty is the page in hand. */
+  page: string
+  /** Whether a `captcha` step's widget is an invisible one. */
+  invisible: boolean
+}
+
+/** Where a package name comes from, as the form holds it: the rule's own and each group's. */
+export interface PackageFields {
+  packageFrom: PackageSource
+  packagePattern: string
+  packageSource: string
+  packageName: string
+}
+
+/**
+ * A rule's `groups` as the form holds it (RD-1170-02): the variable with one entry per package,
+ * the steps that turn one entry into that package's links, its name and its mirrors.
+ */
+export interface GroupDraft extends PackageFields {
+  from: string
+  into: string
+  /**
+   * `name=pattern` per line: the attributes each entry is listed with before anything is
+   * resolved (RD-1170-03). Empty leaves `pick` out, and every entry is resolved at once.
+   */
+  pick: string
+  steps: StepDraft[]
+  mirrors: GroupMirrors
 }
 
 /** One rule as the form holds it. Lists are newline-separated text, because that is what a
  *  textarea is; nothing else in this file treats them as strings. */
-export interface RuleDraft {
+export interface RuleDraft extends PackageFields {
   id: string
   name: string
   group: string
@@ -65,11 +99,11 @@ export interface RuleDraft {
   probe: string
   checked: string
   mirrors: boolean
-  packageFrom: PackageSource
-  packagePattern: string
-  packageSource: string
-  packageName: string
   steps: StepDraft[]
+  /** Whether the rule yields one package per entry; `groups` is kept while it is off, so
+   *  switching it back does not lose what was typed. */
+  grouped: boolean
+  groups: GroupDraft
   enabled: boolean
 }
 
@@ -85,7 +119,24 @@ export function emptyStep(kind: StepKind = 'fetch'): StepDraft {
     encoding: 'base64',
     fields: '',
     challenge: '',
-    sitekey: ''
+    sitekey: '',
+    json: false,
+    page: '',
+    invisible: false
+  }
+}
+
+export function emptyGroups(): GroupDraft {
+  return {
+    from: '',
+    into: '',
+    pick: '',
+    steps: [emptyStep('regex')],
+    packageFrom: 'regex',
+    packagePattern: '',
+    packageSource: 'entry',
+    packageName: '',
+    mirrors: 'none'
   }
 }
 
@@ -106,6 +157,8 @@ export function emptyDraft(): RuleDraft {
     packageSource: '',
     packageName: '',
     steps: [emptyStep('fetch'), emptyStep('regex')],
+    grouped: false,
+    groups: emptyGroups(),
     enabled: false
   }
 }
@@ -152,7 +205,8 @@ function stepBody(step: StepDraft): Record<string, unknown> {
         kind: 'form',
         url: step.url.trim(),
         fields: fieldMap(step.fields),
-        ...optional('into', step.into)
+        ...optional('into', step.into),
+        ...(step.json ? { json: true } : {})
       }
     case 'redirect':
       return { kind: 'redirect', from: step.from.trim(), into: step.into.trim() }
@@ -161,7 +215,9 @@ function stepBody(step: StepDraft): Record<string, unknown> {
         kind: 'captcha',
         challenge: step.challenge.trim(),
         ...optional('sitekey', step.sitekey),
-        ...optional('into', step.into)
+        ...optional('into', step.into),
+        ...optional('page', step.page),
+        ...(step.invisible ? { invisible: true } : {})
       }
   }
 }
@@ -169,9 +225,7 @@ function stepBody(step: StepDraft): Record<string, unknown> {
 function stepDraft(value: unknown): StepDraft {
   if (!isPlainRecord(value)) return emptyStep()
   const kind = STEP_KINDS.find(candidate => candidate === value.kind) ?? 'fetch'
-  const fields = isPlainRecord(value.fields)
-    ? Object.entries(value.fields).map(([name, entry]) => `${name}=${String(entry)}`).join('\n')
-    : ''
+  const fields = isPlainRecord(value.fields) ? pairLines(value.fields) : ''
   const encoding = ENCODINGS.find(candidate => candidate === value.encoding) ?? 'base64'
   return {
     kind,
@@ -184,7 +238,61 @@ function stepDraft(value: unknown): StepDraft {
     encoding,
     fields,
     challenge: text(value.challenge),
-    sitekey: text(value.sitekey)
+    sitekey: text(value.sitekey),
+    json: value.json === true,
+    page: text(value.page),
+    invisible: value.invisible === true
+  }
+}
+
+/** A map of names to text, one `name=value` per line, as a textarea holds it. */
+function pairLines(value: Record<string, unknown>): string {
+  return Object.entries(value).map(([name, entry]) => `${name}=${String(entry)}`).join('\n')
+}
+
+function packageBody(fields: PackageFields): Record<string, unknown> {
+  return fields.packageFrom === 'title'
+    ? { from: 'title' }
+    : fields.packageFrom === 'variable'
+      ? { from: 'variable', name: fields.packageName.trim() }
+      : {
+          from: 'regex',
+          pattern: fields.packagePattern,
+          ...(fields.packageSource.trim() ? { source: fields.packageSource.trim() } : {})
+        }
+}
+
+function packageDraft(value: unknown): PackageFields {
+  const pack = isPlainRecord(value) ? value : { from: 'title' }
+  return {
+    packageFrom: PACKAGE_SOURCES.find(candidate => candidate === pack.from) ?? 'title',
+    packagePattern: text(pack.pattern),
+    packageSource: text(pack.source),
+    packageName: text(pack.name)
+  }
+}
+
+function groupsBody(groups: GroupDraft): Record<string, unknown> {
+  const attributes = fieldMap(groups.pick)
+  return {
+    from: groups.from.trim(),
+    ...(groups.into.trim() ? { into: groups.into.trim() } : {}),
+    ...(Object.keys(attributes).length ? { pick: { attributes } } : {}),
+    steps: groups.steps.map(stepBody),
+    package: packageBody(groups),
+    ...(groups.mirrors === 'none' ? {} : { mirrors: groups.mirrors })
+  }
+}
+
+function groupsDraft(value: Record<string, unknown>): GroupDraft {
+  const steps = Array.isArray(value.steps) ? value.steps.map(stepDraft) : []
+  return {
+    from: text(value.from),
+    into: text(value.into),
+    pick: isPlainRecord(value.pick) && isPlainRecord(value.pick.attributes) ? pairLines(value.pick.attributes) : '',
+    steps: steps.length ? steps : [emptyStep('regex')],
+    ...packageDraft(value.package),
+    mirrors: GROUP_MIRRORS.find(candidate => candidate === value.mirrors) ?? 'none'
   }
 }
 
@@ -192,16 +300,6 @@ function stepDraft(value: unknown): StepDraft {
 export function toBody(draft: RuleDraft): Record<string, unknown> {
   const paths = lines(draft.paths)
   const dead = lines(draft.dead)
-  const packageSource =
-    draft.packageFrom === 'title'
-      ? { from: 'title' }
-      : draft.packageFrom === 'variable'
-        ? { from: 'variable', name: draft.packageName.trim() }
-        : {
-            from: 'regex',
-            pattern: draft.packagePattern,
-            ...(draft.packageSource.trim() ? { source: draft.packageSource.trim() } : {})
-          }
   return {
     id: draft.id.trim(),
     name: draft.name.trim(),
@@ -210,8 +308,10 @@ export function toBody(draft: RuleDraft): Record<string, unknown> {
     match: { hosts: lines(draft.hosts), ...(paths.length ? { paths } : {}) },
     ...(dead.length ? { dead } : {}),
     steps: draft.steps.map(stepBody),
-    package: packageSource,
-    ...(draft.mirrors ? { mirrors: true } : {}),
+    package: packageBody(draft),
+    // The service refuses both at once: with groups, mirrors are stated per group.
+    ...(draft.mirrors && !draft.grouped ? { mirrors: true } : {}),
+    ...(draft.grouped ? { groups: groupsBody(draft.groups) } : {}),
     probe: draft.probe.trim(),
     checked: draft.checked
   }
@@ -221,8 +321,6 @@ export function toBody(draft: RuleDraft): Record<string, unknown> {
 export function fromRule(rule: SiteRule): RuleDraft {
   const body = isPlainRecord(rule.rule) ? rule.rule : {}
   const match = isPlainRecord(body.match) ? body.match : {}
-  const pack = isPlainRecord(body.package) ? body.package : { from: 'title' }
-  const packageFrom = PACKAGE_SOURCES.find(candidate => candidate === pack.from) ?? 'title'
   const steps = Array.isArray(body.steps) ? body.steps.map(stepDraft) : [emptyStep()]
   return {
     id: rule.id,
@@ -235,11 +333,10 @@ export function fromRule(rule: SiteRule): RuleDraft {
     probe: rule.probe,
     checked: text(body.checked) || new Date().toISOString().slice(0, 10),
     mirrors: rule.mirrors,
-    packageFrom,
-    packagePattern: text(pack.pattern),
-    packageSource: text(pack.source),
-    packageName: text(pack.name),
+    ...packageDraft(body.package),
     steps: steps.length ? steps : [emptyStep()],
+    grouped: isPlainRecord(body.groups),
+    groups: isPlainRecord(body.groups) ? groupsDraft(body.groups) : emptyGroups(),
     enabled: rule.enabled
   }
 }
@@ -289,6 +386,7 @@ export function draftComplete(draft: RuleDraft): boolean {
     && lines(draft.hosts).length > 0
     && draft.steps.length > 0
     && draft.probe.trim().length > 0
+    && (!draft.grouped || (draft.groups.from.trim().length > 0 && draft.groups.steps.length > 0))
 }
 
 interface SiteRulesApi {

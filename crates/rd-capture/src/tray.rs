@@ -7,12 +7,13 @@
 
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
+use global_hotkey::{GlobalHotKeyEvent, HotKeyState};
+use rd_core::{CaptureAgentSettings, CaptureCommand, CaptureShortcutReport};
 use tao::{
     event::{Event, StartCause},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
 };
-use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tray_icon::{
     Icon, TrayIconEvent,
@@ -22,9 +23,12 @@ use url::Url;
 
 use crate::{
     DesktopSinks,
-    activity::{Activity, QueueRequest},
+    activity::Activity,
+    agent_settings::SettingsRequest,
     cli::RunArgs,
-    config, icon as badge,
+    config,
+    controls::{self, Action, Controls},
+    hotkeys::{self, Hotkeys},
     status::{HEALTH_INTERVAL, HealthWatch, ServerStatus, health_probe},
     supervision::AgentNotice,
     tray_state::{IconKind, TrayState, Update},
@@ -32,13 +36,11 @@ use crate::{
 
 #[path = "tray_handle.rs"]
 mod handle;
+#[path = "tray_marks.rs"]
+mod marks;
 
 use handle::TrayHandle;
-
-// The browser extension artwork doubles as the tray icon. Reaching across the
-// crate boundary with `include_bytes!` would break `cargo package`; this crate
-// is never published, so duplicating the PNG is not worth it.
-const ICON_PNG: &[u8] = include_bytes!("../../../extension/icons/icon32.png");
+use marks::Marks;
 
 /// How long "Quit" waits for the agent to wind down before exiting anyway.
 const QUIT_GRACE: Duration = Duration::from_secs(3);
@@ -55,14 +57,16 @@ enum UserEvent {
     /// The agent has something to say about itself: a task that ended, or an address it did not
     /// get. Nothing puts either right on its own, so it belongs in the status line.
     Notice(AgentNotice),
+    /// The service changed the clipboard pause or the shortcuts (RD-1180-01, RD-1180-03).
+    Settings(CaptureAgentSettings),
+    /// A system-wide shortcut was pressed; carries its registration's id.
+    Hotkey(u32),
 }
 
 /// A prepared, not yet running event loop.
 pub(crate) struct Tray {
     event_loop: EventLoop<UserEvent>,
-    icon: Icon,
-    /// The same mark with a badge, shown while something is transferring.
-    busy: Icon,
+    marks: Marks,
 }
 
 /// Creates the platform event loop and decodes the icon.
@@ -70,8 +74,6 @@ pub(crate) struct Tray {
 /// Everything that can fail before the agent starts happens here, so `main` can
 /// still fall back to the headless path.
 pub(crate) fn prepare() -> Result<Tray> {
-    let image = decode_image()?;
-    let icon = to_icon(image.clone())?;
     // `set_activation_policy` needs a mutable loop; on Windows nothing does.
     #[allow(unused_mut)]
     let mut event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
@@ -84,8 +86,7 @@ pub(crate) fn prepare() -> Result<Tray> {
     }
     Ok(Tray {
         event_loop,
-        busy: busy_icon(&image)?,
-        icon,
+        marks: Marks::prepare()?,
     })
 }
 
@@ -93,16 +94,19 @@ impl Tray {
     /// Runs the agent under the tray event loop. Never returns: the process
     /// ends through [`Agent::finish`].
     pub(crate) fn run(self, args: RunArgs) -> Result<()> {
-        let Self {
-            event_loop,
-            icon,
-            busy,
-        } = self;
+        let Self { event_loop, marks } = self;
         let proxy = event_loop.create_proxy();
         let menu_proxy = proxy.clone();
         let health_proxy = proxy.clone();
+        let hotkey_proxy = proxy.clone();
         MenuEvent::set_event_handler(Some(move |event| {
             let _ = menu_proxy.send_event(UserEvent::Menu(event));
+        }));
+        // Only the press: a shortcut held down is one command, not two.
+        GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
+            if event.state == HotKeyState::Pressed {
+                let _ = hotkey_proxy.send_event(UserEvent::Hotkey(event.id));
+            }
         }));
         // Nothing reacts to clicks on the icon itself. Without a handler the
         // events would pile up in tray-icon's unbounded channel forever.
@@ -114,8 +118,10 @@ impl Tray {
         let agent_cancellation = cancellation.clone();
         let activity_proxy = proxy.clone();
         let notice_proxy = proxy.clone();
-        // The menu names a queue request, the agent makes it: the agent holds the token.
-        let (queue_requests, queue) = mpsc::unbounded_channel();
+        let settings_proxy = proxy.clone();
+        // The menu and the shortcuts name a command, the agent carries it out: the agent holds
+        // the token.
+        let (controls, inbox) = controls::channels();
         runtime.spawn(async move {
             let desktop = DesktopSinks {
                 activity: std::sync::Arc::new(move |activity: Activity| {
@@ -124,7 +130,10 @@ impl Tray {
                 notice: std::sync::Arc::new(move |notice: AgentNotice| {
                     let _ = notice_proxy.send_event(UserEvent::Notice(notice));
                 }),
-                queue,
+                settings: std::sync::Arc::new(move |settings: CaptureAgentSettings| {
+                    let _ = settings_proxy.send_event(UserEvent::Settings(settings));
+                }),
+                inbox,
             };
             let result = crate::run(args, agent_cancellation, Some(desktop)).await;
             let _ = proxy.send_event(UserEvent::AgentExited(result.err()));
@@ -137,13 +146,13 @@ impl Tray {
             health_proxy,
         );
         let mut agent = Agent {
-            idle_icon: icon,
-            busy_icon: busy,
+            marks,
             state: TrayState::new(service.clone()),
             service: service.unwrap_or_else(config::default_service),
             tray: None,
             shown: false,
-            queue_requests,
+            controls,
+            hotkeys: None,
             cancellation,
             quit_deadline: None,
             _runtime: runtime,
@@ -157,6 +166,8 @@ impl Tray {
                 Event::UserEvent(UserEvent::Server(status)) => agent.on_server_status(status),
                 Event::UserEvent(UserEvent::Transfers(activity)) => agent.on_transfers(activity),
                 Event::UserEvent(UserEvent::Notice(notice)) => agent.on_notice(&notice),
+                Event::UserEvent(UserEvent::Settings(settings)) => agent.on_settings(&settings),
+                Event::UserEvent(UserEvent::Hotkey(id)) => agent.on_hotkey(id),
                 _ => {}
             }
             // Checked on every iteration rather than only on `ResumeTimeReached`:
@@ -173,18 +184,19 @@ impl Tray {
 /// compiles and is tested on every host, and hands back an [`Update`]; this struct owns the
 /// handles and the two icons and applies the update to them, nothing more.
 struct Agent {
-    /// The two marks, kept for the whole run: the tray is handed one or the other whenever
-    /// transfers start or stop.
-    idle_icon: Icon,
-    busy_icon: Icon,
+    marks: Marks,
     /// What the surface should show, and what each event changes on it.
     state: TrayState,
     service: Url,
     tray: Option<TrayHandle>,
     /// Set once the tray has been built or has failed to build; either way it is attempted once.
     shown: bool,
-    /// Where the queue entries' requests go: to the agent's transfer poll (RD-1100-06).
-    queue_requests: mpsc::UnboundedSender<QueueRequest>,
+    /// Where the commands of the menu and the shortcuts go: to the agent's tasks (RD-1100-06,
+    /// RD-1180-01, RD-1180-03).
+    controls: Controls,
+    /// The registered shortcuts. Set up with the tray, on this thread: on Windows and macOS the
+    /// thread that registers a shortcut is the one whose event loop receives it.
+    hotkeys: Option<Hotkeys>,
     cancellation: CancellationToken,
     /// Set once the user asked to quit; bounds the wait for the agent.
     quit_deadline: Option<Instant>,
@@ -208,6 +220,53 @@ impl Agent {
                 tracing::warn!(%error, "tray icon unavailable; the agent keeps running headless");
             }
         }
+        match Hotkeys::new() {
+            Ok(mut registered) => {
+                if let Some(report) = registered.apply(&surface.accelerators) {
+                    self.report(report);
+                }
+                self.hotkeys = Some(registered);
+            }
+            Err(reason) => self.report(hotkeys::unavailable(reason)),
+        }
+    }
+
+    /// The service changed the clipboard pause or the shortcuts; see [`TrayState::on_settings`].
+    /// Changed shortcuts are registered again here, without a restart.
+    fn on_settings(&mut self, settings: &CaptureAgentSettings) {
+        let update = self.state.on_settings(settings);
+        let report = match (&update.accelerators, self.hotkeys.as_mut()) {
+            (Some(shortcuts), Some(registered)) => registered.apply(shortcuts),
+            _ => None,
+        };
+        if let Some(report) = report {
+            self.report(report);
+        }
+        self.apply(update);
+    }
+
+    /// What registering the shortcuts came to, for the settings page.
+    fn report(&self, report: CaptureShortcutReport) {
+        if self
+            .controls
+            .settings
+            .send(SettingsRequest::Report(report))
+            .is_err()
+        {
+            tracing::debug!("the agent has stopped; the shortcut report was dropped");
+        }
+    }
+
+    fn on_hotkey(&mut self, id: u32) {
+        let Some(command) = self
+            .hotkeys
+            .as_ref()
+            .and_then(|registered| registered.command(id))
+        else {
+            return;
+        };
+        tracing::info!(?command, "shortcut pressed");
+        self.carry_out(command);
     }
 
     /// The health poll saw the service change state; see [`TrayState::on_server_status`].
@@ -252,33 +311,56 @@ impl Agent {
         if let Some(tooltip) = update.tooltip {
             let _ = tray.set_tooltip(&tooltip);
         }
+        if let Some(paused) = update.clipboard_paused {
+            tray.show_clipboard_paused(paused);
+        }
+        if let Some(shortcuts) = update.accelerators {
+            tray.show_accelerators(&shortcuts);
+        }
     }
 
     /// The icon handle for a mark the state named.
     fn mark(&self, kind: IconKind) -> Icon {
-        match kind {
-            IconKind::Idle => self.idle_icon.clone(),
-            IconKind::Busy => self.busy_icon.clone(),
-        }
+        self.marks.get(kind)
     }
 
     fn on_menu(&mut self, id: &MenuId) {
-        let Some(tray) = self.tray.as_ref() else {
+        let Some(command) = self.tray.as_ref().and_then(|tray| tray.command(id)) else {
             return;
         };
-        if *id == tray.open {
-            tracing::info!(service = %self.service, "opening rDownloader from the tray");
-            if let Err(error) = open::that_detached(self.service.as_str()) {
-                tracing::warn!(%error, "could not open the rDownloader web interface");
+        if command == CaptureCommand::ClipboardWatch
+            && let Some(tray) = self.tray.as_ref()
+        {
+            // The click ticked the entry already; the agent's settings decide, and the update
+            // that follows them sets it again.
+            tray.show_clipboard_paused(self.state.surface().clipboard_paused);
+        }
+        self.carry_out(command);
+    }
+
+    /// One command, from the menu or a shortcut: the same action either way.
+    fn carry_out(&mut self, command: CaptureCommand) {
+        match controls::action(command) {
+            Action::Open => {
+                // A shortcut obeys the same rule as the greyed-out entry: the service that is
+                // not answering would only show an error page.
+                if !self.state.surface().open_enabled {
+                    tracing::info!("rDownloader is not answering; not opening it");
+                    return;
+                }
+                tracing::info!(service = %self.service, "opening rDownloader from the tray");
+                if let Err(error) = open::that_detached(self.service.as_str()) {
+                    tracing::warn!(%error, "could not open the rDownloader web interface");
+                }
             }
-        } else if *id == tray.quit {
-            tracing::info!("shutting down on tray request");
-            self.cancellation.cancel();
-            self.quit_deadline = Some(Instant::now() + QUIT_GRACE);
-        } else if let Some(request) = tray.queue_request(id) {
-            tracing::info!(?request, "queue request from the tray");
-            if self.queue_requests.send(request).is_err() {
-                tracing::warn!("the agent has stopped; the tray's queue request was dropped");
+            Action::Quit => {
+                tracing::info!("shutting down on tray request");
+                self.cancellation.cancel();
+                self.quit_deadline = Some(Instant::now() + QUIT_GRACE);
+            }
+            action => {
+                tracing::info!(?action, "request from the tray");
+                self.controls.pass(action);
             }
         }
     }
@@ -369,55 +451,4 @@ fn spawn_health_poll(
             tokio::time::sleep(HEALTH_INTERVAL).await;
         }
     });
-}
-
-/// The decoded icon: 8-bit RGBA, row by row, as [`Icon::from_rgba`] takes it.
-#[derive(Clone)]
-struct Pixels {
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-}
-
-/// Decodes with `png` directly: the one asset is an 8-bit RGBA PNG, and `image` would add a
-/// decoder framework on top of the `png` crate it uses for exactly this (RD-140-13).
-fn decode_image() -> Result<Pixels> {
-    let mut decoder = png::Decoder::new(std::io::Cursor::new(ICON_PNG));
-    decoder.set_transformations(png::Transformations::normalize_to_color8());
-    let mut reader = decoder.read_info().context("read the tray icon header")?;
-    let size = reader
-        .output_buffer_size()
-        .context("the tray icon does not fit in memory")?;
-    let mut rgba = vec![0; size];
-    let frame = reader
-        .next_frame(&mut rgba)
-        .context("decode the tray icon")?;
-    anyhow::ensure!(
-        frame.color_type == png::ColorType::Rgba && frame.bit_depth == png::BitDepth::Eight,
-        "the tray icon is not 8-bit RGBA"
-    );
-    rgba.truncate(frame.buffer_size());
-    Ok(Pixels {
-        rgba,
-        width: frame.width,
-        height: frame.height,
-    })
-}
-
-fn to_icon(image: Pixels) -> Result<Icon> {
-    Icon::from_rgba(image.rgba, image.width, image.height).context("build the tray icon")
-}
-
-/// The idle mark with a filled corner badge, for "something is transferring".
-///
-/// Derived from the same image rather than shipped as a second file: one asset cannot drift from
-/// the other, and `web/public/favicon.svg` stays the single source every icon is generated from.
-///
-/// Where the badge sits and which pixels it covers is [`crate::icon`], which knows nothing about
-/// `png` or `tray-icon` and is measured on Linux. What is left here is the pair of conversions
-/// those two crates own.
-fn busy_icon(base: &Pixels) -> Result<Icon> {
-    let mut pixels = base.rgba.clone();
-    badge::paint_badge(&mut pixels, base.width, base.height);
-    Icon::from_rgba(pixels, base.width, base.height).context("build the busy tray icon")
 }

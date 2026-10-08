@@ -36,10 +36,19 @@ runs:
           echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS=-C link-arg=-fuse-ld=mold"
           echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld.exe"
         } >> "${GITHUB_ENV}"
+    # Bounded like release-channels.yml's repository tools: a stalled mirror held this step for
+    # the whole 45 minutes of a CI job on 2026-10-07.
     - name: Install mold
       if: runner.os == 'Linux' && runner.arch == 'X64'
       shell: bash
-      run: sudo apt-get update -q && sudo apt-get install -y -q mold
+      run: |
+        apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+        for attempt in 1 2 3; do
+          if timeout 180 sudo apt-get "${apt_opts[@]}" update -q; then break; fi
+          [[ "$attempt" -lt 3 ]] || { echo "::error::apt-get update did not finish in three attempts"; exit 1; }
+          echo "::warning::apt-get update attempt $attempt did not finish; retrying"
+        done
+        timeout 300 sudo apt-get "${apt_opts[@]}" install -y -q mold
     - uses: ./.github/actions/setup-rust
       with:
         components: ${{ inputs.components }}

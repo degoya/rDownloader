@@ -436,6 +436,15 @@ pub struct SettingsResponse {
     /// different habit from handing over before the queue.
     #[serde(default = "default_true")]
     pub nzb_hand_over_downloads_enabled: bool,
+    /// Whether a package of the Downloads view that nobody opened or closed yet starts closed
+    /// (RD-1170-01). On by default, as the queue always was; what the user opened or closed by
+    /// hand is remembered per browser and stays so either way. A display choice only.
+    #[serde(default = "default_true")]
+    pub downloads_packages_closed_by_default: bool,
+    /// The same default for the LinkGrabber's packages (RD-1170-01). Off by default, as the
+    /// LinkGrabber always showed a package's links: they are there to be reviewed.
+    #[serde(default)]
+    pub linkgrabber_packages_closed_by_default: bool,
     /// Port the web UI listens on; applied on the next start. `--listen`/`RDOWNLOADER_LISTEN`
     /// override it.
     pub ui_port: Option<u16>,

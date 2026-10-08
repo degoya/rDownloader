@@ -1087,5 +1087,65 @@
     "eyebrow": "Für alle Browser",
     "title": "Anzeige",
     "description": "Wird mit den Einstellungen im Dienst gespeichert und gilt in jedem Browser, der ihn öffnet."
+  },
+  "package_groups": {
+    "eyebrow": "Pakete",
+    "title": "Aufklappbare Pakete",
+    "description": "Ob ein Paket in der Liste auf- oder zugeklappt erscheint, solange du es nicht selbst auf- oder zugeklappt hast. Was du von Hand auf- oder zuklappst, bleibt in diesem Browser auch nach dem Neuladen so.",
+    "downloads": {
+      "label": "Pakete in den Downloads zugeklappt anzeigen",
+      "description": "Standardmäßig an: ein neues Paket zeigt nur seine Kopfzeile, bis du es aufklappst."
+    },
+    "linkgrabber": {
+      "label": "Pakete im LinkGrabber zugeklappt anzeigen",
+      "description": "Standardmäßig aus: der LinkGrabber zeigt jeden Link eines Pakets, damit du das Paket vor dem Einreihen prüfen kannst."
+    }
+  },
+  "capture_agent": {
+    "eyebrow": "Desktop-Agent",
+    "title": "Zwischenablage und Tastenkürzel",
+    "description": "Was der Capture-Agent auf deinem Rechner tut. Er übernimmt Änderungen innerhalb weniger Sekunden, ohne Neustart.",
+    "clipboard_paused": {
+      "label": "Zwischenablage-Überwachung pausieren",
+      "description": "Kopierte Links landen nicht mehr von selbst in rDownloader. Click'n'Load, die Browser-Erweiterung und rdownloader://-Links bleiben aktiv. Was du während der Pause kopierst, wird später nicht nachgeliefert."
+    },
+    "paused_badge": "Erfassung pausiert",
+    "watching_badge": "Überwacht die Zwischenablage",
+    "shortcuts": {
+      "eyebrow": "Tray-Befehle",
+      "title": "Tastenkürzel",
+      "description": "Systemweite Kürzel für die Befehle des Tray-Menüs; das Menü zeigt sie neben dem Eintrag. Eine Kombination braucht zwei von Strg, Alt und Win/Cmd. Unter Linux gibt es sie nur in einer X11-Sitzung.",
+      "record": "Aufnehmen",
+      "recording": "Drück die Kombination …",
+      "recording_hint": "Drück jetzt die Tastenkombination; Esc bricht ab.",
+      "reset": "Zurücksetzen",
+      "none": "Kein Kürzel",
+      "none_set": "Nicht belegt",
+      "save": "Kürzel speichern",
+      "saved": "Kürzel gespeichert. Der Agent übernimmt sie in wenigen Sekunden.",
+      "duplicate": "Schon für „{other}“ vergeben."
+    },
+    "commands": {
+      "open": "rDownloader öffnen",
+      "start_all": "Alle starten",
+      "pause_all": "Alle pausieren",
+      "pause_half_hour": "Für 30 Minuten pausieren",
+      "pause_hour": "Für 1 Stunde pausieren",
+      "clipboard_watch": "Zwischenablage-Überwachung pausieren",
+      "send_clipboard": "Zwischenablage jetzt übergeben",
+      "quit": "Beenden"
+    },
+    "report": {
+      "title_unavailable": "Kürzel nicht verfügbar",
+      "title_refused": "Einige Kürzel sind belegt",
+      "refused": "Ein anderes Programm belegt schon: {commands}. Wähl dafür eine andere Kombination.",
+      "reported_at": "(Gemeldet {time})",
+      "unavailable": {
+        "wayland": "Wayland kennt keine systemweiten Kürzel. Nutze eine X11-Sitzung oder die Befehle von rdownloader-capture.",
+        "no_display": "Der Agent hat keinen Bildschirm gefunden (kein DISPLAY), bei dem er Kürzel anmelden könnte.",
+        "no_tray": "Der Agent läuft ohne Tray-Symbol (--no-tray); unter Windows und macOS brauchen Kürzel es.",
+        "failed": "Das System hat die Anmeldung der Kürzel abgelehnt."
+      }
+    }
   }
 }

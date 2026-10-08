@@ -3,9 +3,9 @@
 use utoipa::OpenApi;
 
 use crate::{
-    bandwidth_handlers, bandwidth_manual_handlers, captcha_handlers, capture_queue,
-    collision_handlers, container_handlers, diagnostics_dto, download_sources, dto, duplicates,
-    error, indexer_handlers, indexer_search, media_dto, mfa_handlers, notify_handlers,
+    bandwidth_handlers, bandwidth_manual_handlers, captcha_handlers, capture_agent_handlers,
+    capture_queue, collision_handlers, container_handlers, diagnostics_dto, download_sources, dto,
+    duplicates, error, indexer_handlers, indexer_search, media_dto, mfa_handlers, notify_handlers,
     nzb_remote_job_handlers, oidc_settings_handlers, passkey_handlers, plugin_lifecycle,
     queue_pause_handlers, reconnect_service, regex_tester, remote_job_handlers, replay_dto,
     routing_backup, session_handlers, settings_backup, settings_backup_crypto, settings_backup_dto,
@@ -37,6 +37,15 @@ use crate::{
     dto::CapturePairResponse,
     capture_queue::CaptureQueuePauseRequest,
     capture_queue::CaptureQueueResponse,
+    capture_agent_handlers::CaptureAgentSettingsResponse,
+    capture_agent_handlers::CaptureAgentSettingsPatch,
+    capture_agent_handlers::CaptureClipboardRequest,
+    rd_core::CaptureAgentSettings,
+    rd_core::CaptureShortcuts,
+    rd_core::CaptureShortcutReport,
+    rd_core::CaptureCommand,
+    rd_core::CapturePlatform,
+    rd_core::ShortcutsUnavailable,
     dto::ApiTokenScopesRequest,
     dto::ScopeDescriptor,
     dto::MessageResponse,

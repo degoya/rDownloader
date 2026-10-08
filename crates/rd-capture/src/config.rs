@@ -240,7 +240,7 @@ fn stored_service_in(directory: &std::path::Path, explicit: Option<Url>) -> Opti
     }
 }
 
-fn config_directory() -> Result<PathBuf> {
+pub(crate) fn config_directory() -> Result<PathBuf> {
     project_dirs().map(|paths| paths.config_dir().to_owned())
 }
 
@@ -272,16 +272,22 @@ fn checked_service(service: Url) -> Result<Url> {
 /// parse, and the silent fallback in `load` quietly aimed the agent at whatever was listening
 /// on the default loopback port (RD-109-05).
 fn write_public_config(directory: &std::path::Path, service: &Url) -> Result<()> {
-    use std::io::Write;
-
-    let path = directory.join("capture.json");
-    let temporary = directory.join("capture.json.new");
     let body = serde_json::to_vec_pretty(&PublicConfig {
         service: service.clone(),
     })?;
+    write_atomically(directory, "capture.json", &body)
+}
+
+/// Replaces `name` in `directory` so a reader sees either the old content or the new one; the
+/// agent's settings cache (RD-1180-01) is written the same way.
+pub(crate) fn write_atomically(directory: &std::path::Path, name: &str, body: &[u8]) -> Result<()> {
+    use std::io::Write;
+
+    let path = directory.join(name);
+    let temporary = directory.join(format!("{name}.new"));
     let write = || -> std::io::Result<()> {
         let mut file = std::fs::File::create(&temporary)?;
-        file.write_all(&body)?;
+        file.write_all(body)?;
         // Before the rename, so the rename cannot publish a name whose content is still in a
         // buffer somewhere.
         file.sync_all()

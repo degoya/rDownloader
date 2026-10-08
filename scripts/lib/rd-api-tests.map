@@ -69,6 +69,8 @@
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_manual_handlers(\.rs$|/)                               bandwidth_manual
 ^crates/rd-api(-[a-z]+)?/src/queue_pause_handlers(\.rs$|/)                                    queue_pause capture_queue
 ^crates/rd-api(-[a-z]+)?/src/capture_queue(\.rs$|/)                                         capture_queue scope_matrix
+^crates/rd-api(-[a-z]+)?/src/capture_agent_handlers(\.rs$|/)                                capture_agent_settings scope_matrix mcp
+^crates/rd-core/src/capture_agent(_tests)?(\.rs$|/)                                         capture_agent_settings mcp
 ^crates/rd-api(-[a-z]+)?/src/browser_session[a-z_]*\.rs$                                  browser_session
 ^crates/rd-api(-[a-z]+)?/src/captcha_handlers(\.rs$|/)                                        captcha
 ^crates/rd-api(-[a-z]+)?/src/capture_sanitize(\.rs$|/)                                        capture_intake capture_boundary captcha event_resume browser_session auth_profiles
@@ -118,6 +120,8 @@
 ^crates/rd-api(-[a-z]+)?/src/settings_backup[a-z_]*(\.rs$|/)                             settings_backup full_backup backup_destinations protected_roots archive_password_backup
 ^crates/rd-api(-[a-z]+)?/src/protected_roots(\.rs$|/)                                         storage_roots protected_roots mcp
 ^crates/rd-api(-[a-z]+)?/src/(site_rules_[a-z_]+|routes/site_rules)(\.rs$|/)                  site_rules
+# The pick board of a two-stage rule (RD-1170-03): its routes, and the tools that drive them.
+^crates/rd-api(-[a-z]+)?/src/site_rule_picks[a-z_]*(\.rs$|/)                                 site_rules mcp
 ^crates/rd-api(-[a-z]+)?/src/storage_capacity(\.rs$|/)                                        storage_capacity
 ^crates/rd-api(-[a-z]+)?/src/(collision_handlers|duplicates|storage_handlers|routes/storage)(\.rs$|/)   collisions storage_clear
 ^crates/rd-api(-[a-z]+)?/src/stream_[a-z_]+\.rs$                                          stream_schedules area_backup

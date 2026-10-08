@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, DownloadPriority, PostprocessLevel } from '@/api/types'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { INHERIT_LEVEL, postprocessLevelItems, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 
@@ -75,10 +76,9 @@ function applyLevel(value: string): void {
   <div class="sticky top-0 z-10 flex flex-wrap items-center gap-2 border border-primary/40 bg-elevated p-3">
     <UBadge color="primary" variant="solid" class="numeric">{{ countLabel }}</UBadge>
     <div class="flex items-center gap-1">
-      <USelect
+      <SearchableSelect
         :model-value="categoryChoice"
         :items="[{ label: t('downloads.bulk.default_category'), value: NO_SELECTION }, ...props.categories.map(category => ({ label: category.name, value: category.id }))]"
-        value-key="value"
         size="sm"
         class="w-44"
         :disabled="props.packageActionsDisabled || props.busy"

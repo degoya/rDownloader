@@ -13,6 +13,7 @@ import { PLAIN, isNumber } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { EVERY_DAY } from '@/utils/weekWindows'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 const props = defineProps<{ profiles: BandwidthProfile[] }>()
@@ -120,10 +121,9 @@ async function save(): Promise<void> {
             <TimezoneSelect v-model="schedule.timezone" :aria-label="t('bandwidth.schedule.timezone_label')" />
           </UFormField>
           <UFormField :label="t('bandwidth.schedule.default_label')" :description="t('bandwidth.schedule.default_description')">
-            <USelect
+            <SearchableSelect
               v-model="defaultProfileChoice"
               :items="[{ value: NO_SELECTION, label: t('bandwidth.schedule.no_default') }, ...profileItems]"
-              value-key="value"
               class="w-full"
             />
           </UFormField>
@@ -137,7 +137,7 @@ async function save(): Promise<void> {
         <div ref="windowList" class="space-y-3">
           <WeekWindowRow v-for="(window, index) in windows" :key="index" data-window :model-value="window" @update:model-value="windows[index] = $event" @remove="removeWindow(index)">
             <template #leading>
-              <USelect v-model="window.profile_id" :items="profileItems" value-key="value" class="w-44" :aria-label="t('bandwidth.schedule.window_profile')" />
+              <SearchableSelect v-model="window.profile_id" :items="profileItems" class="w-44" :aria-label="t('bandwidth.schedule.window_profile')" />
             </template>
             <template #actions>
               <UFormField :label="t('bandwidth.schedule.priority')">

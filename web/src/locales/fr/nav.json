@@ -65,7 +65,8 @@
       "indexers": "indexeur, newznab, torznab, jackett, prowlarr, recherche nzb, recherche torrent, clé api, style de liste, couverture",
       "active_files": "téléchargements parallèles, simultanés, en même temps, file d’attente",
       "collision": "collision, conflit de noms, écraser, renommer",
-      "linkgrabber": "liste de blocage, domaines exclus, miroirs, conteneur"
+      "linkgrabber": "liste de blocage, domaines exclus, miroirs, conteneur",
+      "desktop_agent": "raccourci, touche, clavier, presse-papiers, pause, agent de capture"
     }
   },
   "connection": {

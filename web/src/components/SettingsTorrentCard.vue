@@ -8,6 +8,7 @@ import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { MIB, byteModel } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
 import NumberWithUnit from '@/components/NumberWithUnit.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { DECIMAL, PLAIN, RATIO, WHOLE } from '@/utils/numberInput'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
@@ -159,7 +160,7 @@ const uploadLimitMiB = byteModel(
       :label="t('settings.torrent.proxy.label')"
       :description="t('settings.torrent.proxy.description')"
     >
-      <USelect v-model="proxyProfile" :items="proxyItems" value-key="value" class="w-full" />
+      <SearchableSelect v-model="proxyProfile" :items="proxyItems" class="w-full" />
     </UFormField>
     <SettingsCrossLink v-if="capabilities?.socks5_peer_proxy" class="-mt-3" anchor="network.proxies" />
     <UFormField

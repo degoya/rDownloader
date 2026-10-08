@@ -53,13 +53,13 @@ use rd_api_access::{
     session_handlers, setup_handlers,
 };
 use rd_api_admin::{
-    about_page, automation_handlers, backup_destination_handlers, backup_handlers, config_handlers,
-    data_reset_handlers, diagnostics_dto, diagnostics_handlers, lifecycle_handlers,
-    notify_handlers, object_storage_handlers, plugin_bundled, plugin_handlers, plugin_lifecycle,
-    plugin_repository_handlers, plugin_update_policy, providers_handlers, remote_handlers,
-    restore_handlers, restore_uploads, routing_backup, settings_backup, settings_backup_crypto,
-    settings_backup_dto, settings_handlers, stats_handlers, stats_retention_service,
-    tools_handlers, update_handlers,
+    about_page, automation_handlers, backup_destination_handlers, backup_handlers,
+    capture_agent_handlers, config_handlers, data_reset_handlers, diagnostics_dto,
+    diagnostics_handlers, lifecycle_handlers, notify_handlers, object_storage_handlers,
+    plugin_bundled, plugin_handlers, plugin_lifecycle, plugin_repository_handlers,
+    plugin_update_policy, providers_handlers, remote_handlers, restore_handlers, restore_uploads,
+    routing_backup, settings_backup, settings_backup_crypto, settings_backup_dto,
+    settings_handlers, stats_handlers, stats_retention_service, tools_handlers, update_handlers,
 };
 use rd_api_compat as compat;
 use rd_api_core::{
@@ -69,7 +69,7 @@ use rd_api_core::{
 use rd_api_intake::{
     area_backup, candidate_handlers, captcha_handlers, capture_file, collector_handlers,
     container_handlers, indexer_handlers, indexer_search, nzb_handlers, regex_tester,
-    remote_listing_handlers, site_rules_dto, site_rules_handlers, stream_handlers,
+    remote_listing_handlers, site_rule_picks, site_rules_dto, site_rules_handlers, stream_handlers,
     stream_schedule_handlers, subscription_autoqueue, subscription_handlers,
 };
 use rd_api_mcp as mcp;
@@ -198,6 +198,20 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/capture/nzb", post(nzb_handlers::capture_nzb))
         .route("/api/v1/capture/ping", get(handlers::capture_ping))
         .route("/api/v1/capture/events", get(event_stream::capture_events))
+        // What the agent is set to from the service (RD-1180-01, RD-1180-03): it polls this,
+        // switches the clipboard pause from its tray and reports its shortcut registrations.
+        .route(
+            "/api/v1/capture/agent-settings",
+            get(capture_agent_handlers::read_capture_agent_settings),
+        )
+        .route(
+            "/api/v1/capture/clipboard",
+            post(capture_agent_handlers::set_capture_clipboard),
+        )
+        .route(
+            "/api/v1/capture/shortcut-report",
+            post(capture_agent_handlers::report_capture_shortcuts),
+        )
         .route(
             "/api/v1/capture/summary",
             get(capture_summary::capture_summary),

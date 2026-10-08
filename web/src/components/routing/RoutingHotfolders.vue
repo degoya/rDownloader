@@ -16,6 +16,7 @@ import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 type ImportMode = HotFolder['import_mode']
 
@@ -214,7 +215,7 @@ async function remove(folder: HotFolder): Promise<void> {
             <UInput v-model="form.path" required class="w-full font-mono" :placeholder="t('routing.hotfolder.path_placeholder')" icon="i-lucide-folder-search" />
           </UFormField>
           <UFormField :label="t('routing.hotfolder.category_label')" :description="t('routing.hotfolder.category_description')">
-            <USelect v-model="categorySelection" :items="categoryItems" value-key="value" class="w-full" :placeholder="t('routing.hotfolder.category_placeholder')" />
+            <SearchableSelect v-model="categorySelection" :items="categoryItems" class="w-full" :placeholder="t('routing.hotfolder.category_placeholder')" />
           </UFormField>
           <UFormField :label="t('routing.hotfolder.mode_label')" :description="t('routing.hotfolder.mode_description')">
             <USelect v-model="importMode" :items="importModeItems" value-key="value" class="w-full" />

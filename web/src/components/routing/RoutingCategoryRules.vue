@@ -17,6 +17,7 @@ import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 type IngressSource = NonNullable<CategoryRule['source']>
 type NameTarget = NonNullable<CategoryRule['name_target']>
@@ -213,7 +214,7 @@ async function remove(rule: CategoryRule): Promise<void> {
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.rule.name_placeholder')" />
           </UFormField>
           <UFormField required :label="t('routing.rule.category_label')" :description="t('routing.rule.category_description')">
-            <USelect v-model="form.category_id" required :items="categoryItems" value-key="value" class="w-full" :placeholder="t('routing.rule.category_placeholder')" />
+            <SearchableSelect v-model="form.category_id" required :items="categoryItems" class="w-full" :placeholder="t('routing.rule.category_placeholder')" />
           </UFormField>
           <UFormField required :label="t('routing.rule.priority_label')" :description="t('routing.rule.priority_description')">
             <UInputNumber v-model="form.priority" required :min="0" :format-options="PLAIN" class="w-full" :placeholder="t('routing.rule.priority_placeholder')" />

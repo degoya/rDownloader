@@ -1087,5 +1087,65 @@
     "eyebrow": "Todos los navegadores",
     "title": "Visualización",
     "description": "Se guarda con los ajustes en el servicio y se aplica en todos los navegadores que lo abran."
+  },
+  "package_groups": {
+    "eyebrow": "Paquetes",
+    "title": "Grupos de paquetes",
+    "description": "Si un paquete aparece abierto o cerrado en la lista mientras no lo abras o cierres tú. Lo que abres o cierras a mano se mantiene así en este navegador, también tras recargar.",
+    "downloads": {
+      "label": "Mostrar los paquetes cerrados en las descargas",
+      "description": "Activado por defecto: un paquete nuevo muestra solo su fila de cabecera hasta que lo abras."
+    },
+    "linkgrabber": {
+      "label": "Mostrar los paquetes cerrados en el LinkGrabber",
+      "description": "Desactivado por defecto: el LinkGrabber muestra cada enlace de un paquete para que puedas revisarlo antes de ponerlo en cola."
+    }
+  },
+  "capture_agent": {
+    "eyebrow": "Agente de escritorio",
+    "title": "Portapapeles y atajos de teclado",
+    "description": "Lo que hace el agente de captura en tu equipo. Aplica los cambios en pocos segundos, sin reiniciarse.",
+    "clipboard_paused": {
+      "label": "Pausar la vigilancia del portapapeles",
+      "description": "Los enlaces copiados ya no llegan solos a rDownloader. Click'n'Load, la extensión del navegador y los enlaces rdownloader:// siguen activos. Lo copiado durante la pausa no se entrega después."
+    },
+    "paused_badge": "Captura en pausa",
+    "watching_badge": "Vigila el portapapeles",
+    "shortcuts": {
+      "eyebrow": "Órdenes de la bandeja",
+      "title": "Atajos de teclado",
+      "description": "Atajos de todo el sistema para las órdenes del menú de la bandeja; el menú los muestra junto a cada entrada. Una combinación necesita dos de Ctrl, Alt y Win/Cmd. En Linux solo funcionan en una sesión X11.",
+      "record": "Grabar",
+      "recording": "Pulsa la combinación…",
+      "recording_hint": "Pulsa ahora la combinación de teclas; Esc cancela.",
+      "reset": "Restablecer",
+      "none": "Sin atajo",
+      "none_set": "Sin asignar",
+      "save": "Guardar atajos",
+      "saved": "Atajos guardados. El agente los aplica en pocos segundos.",
+      "duplicate": "Ya asignado a «{other}»."
+    },
+    "commands": {
+      "open": "Abrir rDownloader",
+      "start_all": "Iniciar todo",
+      "pause_all": "Pausar todo",
+      "pause_half_hour": "Pausar 30 minutos",
+      "pause_hour": "Pausar 1 hora",
+      "clipboard_watch": "Pausar la vigilancia del portapapeles",
+      "send_clipboard": "Entregar el portapapeles ahora",
+      "quit": "Salir"
+    },
+    "report": {
+      "title_unavailable": "Atajos no disponibles",
+      "title_refused": "Algunos atajos están ocupados",
+      "refused": "Otro programa ya usa: {commands}. Elige otra combinación para ellos.",
+      "reported_at": "(Informado {time})",
+      "unavailable": {
+        "wayland": "Wayland no tiene atajos de todo el sistema. Usa una sesión X11 o las órdenes de rdownloader-capture.",
+        "no_display": "El agente no encontró ninguna pantalla (sin DISPLAY) donde registrar los atajos.",
+        "no_tray": "El agente se ejecuta sin su icono de bandeja (--no-tray); en Windows y macOS los atajos lo necesitan.",
+        "failed": "El sistema rechazó registrar los atajos."
+      }
+    }
   }
 }

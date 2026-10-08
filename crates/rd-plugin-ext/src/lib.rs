@@ -14,6 +14,7 @@ mod enricher;
 mod intake;
 mod notifier;
 mod oauth;
+mod picks;
 mod plugin_set;
 mod postprocess;
 mod provider;
@@ -30,6 +31,10 @@ pub use enricher::MetadataEnrichers;
 pub use intake::{IntakeCandidate, IntakeParsers};
 pub use notifier::{DestinationInfo, NotifierPlugins};
 pub use oauth::OAuthProviders;
+pub use picks::{
+    EntryOutcome, EntryProgress, EntryState, MAX_PAGES, PickBoard, PickDelivery, PickError,
+    PickJob, PickPage, PickSummary,
+};
 pub use plugin_set::{ClaimedPlugins, ClaimingPlugin, ExtensionPlugin, PluginSet};
 pub use postprocess::{PluginSteps, StepInfo};
 pub use provider::{ProviderError, ProviderResult};

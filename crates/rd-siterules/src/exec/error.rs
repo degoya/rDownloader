@@ -47,6 +47,10 @@ pub enum RunError {
     LimitTime(u64),
     #[error("the rule matched but produced no link")]
     NoLinks,
+    /// The second stage of a two-stage rule (RD-1170-03) was asked for an entry the first
+    /// stage did not list, or the rule no longer has the groups that would resolve it.
+    #[error("the run has no entry {0} to resolve")]
+    NoEntry(usize),
 }
 
 impl RunError {
@@ -70,6 +74,7 @@ impl RunError {
             Self::LimitLinks(_) => "site_rules.limit_links",
             Self::LimitTime(_) => "site_rules.limit_time",
             Self::NoLinks => "site_rules.no_links",
+            Self::NoEntry(_) => "site_rules.no_entry",
         }
     }
 
@@ -149,6 +154,7 @@ mod tests {
             RunError::LimitLinks(1),
             RunError::LimitTime(1),
             RunError::NoLinks,
+            RunError::NoEntry(1),
         ];
         let mut codes: Vec<_> = errors.iter().map(RunError::code).collect();
         let count = codes.len();

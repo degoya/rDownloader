@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, DownloadPriority } from '@/api/types'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { filterImportFiles, importPackageNameOf } from '@/composables/nzbImportRequest'
 import type { FileImportEntry, FileImportInput } from '@/composables/useNzbImportModal'
 import { priorityItems } from '@/utils/format'
@@ -114,7 +115,7 @@ function submit(): void {
           <UInput v-model="name" maxlength="200" class="w-full" :disabled="files.length !== 1" />
         </UFormField>
         <UFormField :label="t('linkgrabber.nzb.modal.category')">
-          <USelect v-model="category" :items="categoryItems" value-key="value" class="w-full" />
+          <SearchableSelect v-model="category" :items="categoryItems" class="w-full" />
         </UFormField>
         <UFormField :label="t('linkgrabber.nzb.modal.priority')">
           <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" class="w-full" />

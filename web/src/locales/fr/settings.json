@@ -1087,5 +1087,65 @@
     "eyebrow": "Tous les navigateurs",
     "title": "Affichage",
     "description": "Enregistré avec les réglages dans le service et appliqué dans chaque navigateur qui l'ouvre."
+  },
+  "package_groups": {
+    "eyebrow": "Paquets",
+    "title": "Groupes de paquets",
+    "description": "Si un paquet apparaît ouvert ou fermé dans la liste tant que vous ne l'avez pas ouvert ou fermé vous-même. Ce que vous ouvrez ou fermez à la main le reste dans ce navigateur, même après un rechargement.",
+    "downloads": {
+      "label": "Afficher les paquets fermés dans les téléchargements",
+      "description": "Activé par défaut : un nouveau paquet n'affiche que sa ligne d'en-tête jusqu'à ce que vous l'ouvriez."
+    },
+    "linkgrabber": {
+      "label": "Afficher les paquets fermés dans le LinkGrabber",
+      "description": "Désactivé par défaut : le LinkGrabber affiche chaque lien d'un paquet pour que vous puissiez le vérifier avant de le mettre en file."
+    }
+  },
+  "capture_agent": {
+    "eyebrow": "Agent de bureau",
+    "title": "Presse-papiers et raccourcis clavier",
+    "description": "Ce que fait l'agent de capture sur votre ordinateur. Il applique les changements en quelques secondes, sans redémarrage.",
+    "clipboard_paused": {
+      "label": "Mettre en pause la surveillance du presse-papiers",
+      "description": "Les liens copiés n'arrivent plus d'eux-mêmes dans rDownloader. Click'n'Load, l'extension du navigateur et les liens rdownloader:// restent actifs. Ce qui est copié pendant la pause n'est pas transmis ensuite."
+    },
+    "paused_badge": "Capture en pause",
+    "watching_badge": "Surveille le presse-papiers",
+    "shortcuts": {
+      "eyebrow": "Commandes de la zone de notification",
+      "title": "Raccourcis clavier",
+      "description": "Raccourcis pour tout le système, pour les commandes du menu de la zone de notification ; le menu les affiche à côté de chaque entrée. Une combinaison demande deux touches parmi Ctrl, Alt et Win/Cmd. Sous Linux, ils ne fonctionnent que dans une session X11.",
+      "record": "Enregistrer",
+      "recording": "Appuyez sur la combinaison…",
+      "recording_hint": "Appuyez maintenant sur la combinaison de touches ; Échap annule.",
+      "reset": "Réinitialiser",
+      "none": "Aucun raccourci",
+      "none_set": "Non défini",
+      "save": "Enregistrer les raccourcis",
+      "saved": "Raccourcis enregistrés. L'agent les applique en quelques secondes.",
+      "duplicate": "Déjà utilisé par « {other} »."
+    },
+    "commands": {
+      "open": "Ouvrir rDownloader",
+      "start_all": "Tout démarrer",
+      "pause_all": "Tout mettre en pause",
+      "pause_half_hour": "Pause de 30 minutes",
+      "pause_hour": "Pause d'une heure",
+      "clipboard_watch": "Mettre en pause la surveillance du presse-papiers",
+      "send_clipboard": "Transmettre le presse-papiers maintenant",
+      "quit": "Quitter"
+    },
+    "report": {
+      "title_unavailable": "Raccourcis indisponibles",
+      "title_refused": "Certains raccourcis sont déjà pris",
+      "refused": "Un autre programme utilise déjà : {commands}. Choisissez une autre combinaison.",
+      "reported_at": "(Signalé {time})",
+      "unavailable": {
+        "wayland": "Wayland n'a pas de raccourcis pour tout le système. Utilisez une session X11 ou les commandes de rdownloader-capture.",
+        "no_display": "L'agent n'a trouvé aucun écran (pas de DISPLAY) auprès duquel enregistrer les raccourcis.",
+        "no_tray": "L'agent tourne sans son icône (--no-tray) ; sous Windows et macOS, les raccourcis en ont besoin.",
+        "failed": "Le système a refusé d'enregistrer les raccourcis."
+      }
+    }
   }
 }

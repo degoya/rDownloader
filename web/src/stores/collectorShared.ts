@@ -45,6 +45,11 @@ export interface IntakeOutcome {
    * one element too far otherwise looks exactly like an empty page.
    */
   crawledDropped: number
+  /**
+   * How many releases a series page listed for a choice instead of links (RD-1170-03): the paste
+   * found nothing else, and the pick board waits. Absent for every other paste.
+   */
+  listed?: number
 }
 
 /** Outcome of a batch enqueue, including partial failures and account-less files. */

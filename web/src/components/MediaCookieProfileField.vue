@@ -16,6 +16,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { AuthProfile, AuthProfileSelection, CandidateAuthProfileMode } from '@/api/types'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { isUsable, matchFor, scopeLabel } from '@/composables/useAuthProfiles'
 
 const AUTO = '__auto__'
@@ -55,7 +56,7 @@ const current = computed({
   }
 })
 
-const items = computed(() => [
+const profileItems = computed(() => [
   {
     value: AUTO,
     label: automatic.value
@@ -76,11 +77,10 @@ const items = computed(() => [
       :label="t('linkgrabber.media.cookies.title')"
       :description="t('linkgrabber.media.cookies.hint')"
     >
-      <USelect
+      <SearchableSelect
         v-model="current"
         size="xs"
-        :items="items"
-        value-key="value"
+        :items="profileItems"
         :disabled="props.busy"
         data-testid="media-cookie-select"
       />

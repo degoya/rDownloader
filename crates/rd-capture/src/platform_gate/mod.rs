@@ -69,6 +69,12 @@ const LINUX_LINKED: &[(&str, &str)] = &[
     ),
     ("clap", "command line"),
     ("directories", "per-user paths"),
+    (
+        "global-hotkey",
+        "system-wide shortcuts (RD-1180-03); on Linux an X11 protocol client through x11rb and \
+         xkeysym, the same client arboard links, no toolkit. Under Wayland or without a display \
+         the agent registers nothing and says so",
+    ),
     ("hex", "encoding"),
     (
         "keyring",

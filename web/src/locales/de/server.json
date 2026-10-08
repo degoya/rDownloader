@@ -1209,7 +1209,18 @@
     "settings.package_name_regex_too_long": "Regel {index} für Paketnamen: Suchausdruck und Ersetzung dürfen je höchstens {max} Zeichen haben.",
     "category_rule.regex_structure_limits": "Das Muster ist zu umfangreich für ein Diagramm.",
     "subscription.item_no_source": "Zu diesem Abo-Eintrag ist nichts gespeichert, das sich laden ließe",
-    "subscription.item_duplicate": "Die Adresse dieses Abo-Eintrags ist noch im LinkGrabber oder in der Download-Liste"
+    "subscription.item_duplicate": "Die Adresse dieses Abo-Eintrags ist noch im LinkGrabber oder in der Download-Liste",
+    "site_rules.no_entry": "Diese Liste hat keinen solchen Eintrag.",
+    "site_rules.pick_waiting": "{rule} hat {entries} Einträge aufgelistet – wähle im LinkGrabber aus, welche geholt werden sollen.",
+    "site_rules.pick_not_found": "Diese Auswahlliste gibt es nicht mehr; füge die Seite erneut ein.",
+    "site_rules.pick_cancelled": "Angehalten, bevor die Links geholt waren.",
+    "site_rules.no_pick": "Die Regel {rule} holt die Links dieser Seite sofort; füge sie direkt im LinkGrabber ein.",
+    "site_rules.pick_discarded": "Die Auswahlliste wurde verworfen.",
+    "capture.shortcut_invalid": "Diese Tastenkombination kann rDownloader nicht lesen.",
+    "capture.shortcut_modifier_missing": "Eine Kombination braucht zwei von Strg, Alt und Win/Cmd.",
+    "capture.shortcut_reserved": "Diese Kombination benutzt schon das Betriebssystem.",
+    "capture.shortcut_duplicate": "Ein anderer Befehl hat diese Kombination schon.",
+    "capture.shortcut_command_unknown": "Unbekannter Tray-Befehl: {command}"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

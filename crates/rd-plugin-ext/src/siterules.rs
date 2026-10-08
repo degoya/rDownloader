@@ -29,8 +29,10 @@ use std::{
 };
 
 use async_trait::async_trait;
-use rd_siterules::{Catalogue, Crawl, Executor, Rule, RunError, SystemClock};
+use rd_siterules::{Catalogue, Crawl, CrawlGroup, Executor, PickList, Rule, RunError, SystemClock};
 use url::Url;
+
+use crate::picks::{PickBoard, PickSummary};
 
 /// Runs one rule against one address.
 ///
@@ -40,6 +42,16 @@ use url::Url;
 #[async_trait]
 pub trait RuleRunner: Send + Sync {
     async fn run(&self, rule: &Rule, address: &Url) -> Result<Crawl, RunError>;
+
+    /// The second stage of a two-stage rule (RD-1170-03): entry `index` of what `run` listed
+    /// for `address`, as one package. See `rd_siterules::Executor::resolve`.
+    async fn resolve(
+        &self,
+        rule: &Rule,
+        address: &Url,
+        list: &PickList,
+        index: usize,
+    ) -> Result<CrawlGroup, RunError>;
 }
 
 /// The runner a running installation uses: `rd_siterules::Executor` over the adapters in
@@ -50,6 +62,7 @@ pub trait RuleRunner: Send + Sync {
 pub struct HostRuleRunner {
     network: rd_plugin_host::RuleNetwork,
     captcha: Option<Arc<dyn rd_plugin_api::CaptchaSolver>>,
+    device_id: Option<String>,
 }
 
 impl HostRuleRunner {
@@ -58,7 +71,16 @@ impl HostRuleRunner {
         Self {
             network,
             captcha: None,
+            device_id: None,
         }
+    }
+
+    /// Gives rule runs this installation's stable value, the variable `device_id`
+    /// (RD-1170-03). Without it a rule that reads `${device_id}` refuses as a changed page.
+    #[must_use]
+    pub fn with_device_id(mut self, device_id: String) -> Self {
+        self.device_id = Some(device_id);
+        self
     }
 
     /// Gives rule runs the captcha broker. Without it a `captcha` step refuses with
@@ -76,16 +98,53 @@ impl RuleRunner for HostRuleRunner {
         let fetcher = self.network.fetcher();
         let resolver = rd_plugin_host::RuleResolver;
         let clock = SystemClock::new();
-        let captcha = self
-            .captcha
+        let captcha = self.captcha();
+        self.executor(&fetcher, &resolver, &clock, captcha.as_ref())
+            .run(rule, address)
+            .await
+    }
+
+    async fn resolve(
+        &self,
+        rule: &Rule,
+        address: &Url,
+        list: &PickList,
+        index: usize,
+    ) -> Result<CrawlGroup, RunError> {
+        let fetcher = self.network.fetcher();
+        let resolver = rd_plugin_host::RuleResolver;
+        let clock = SystemClock::new();
+        let captcha = self.captcha();
+        self.executor(&fetcher, &resolver, &clock, captcha.as_ref())
+            .resolve(rule, address, list, index)
+            .await
+    }
+}
+
+impl HostRuleRunner {
+    fn captcha(&self) -> Option<rd_plugin_host::RuleCaptcha> {
+        self.captcha
             .as_ref()
-            .map(|solver| rd_plugin_host::RuleCaptcha::new(Arc::clone(solver)));
-        let executor = Executor::new(&fetcher, &resolver, &clock);
-        let executor = match &captcha {
+            .map(|solver| rd_plugin_host::RuleCaptcha::new(Arc::clone(solver)))
+    }
+
+    /// The executor for one run, over this run's own fetcher and clock.
+    fn executor<'a>(
+        &'a self,
+        fetcher: &'a rd_plugin_host::RuleFetcher,
+        resolver: &'a rd_plugin_host::RuleResolver,
+        clock: &'a SystemClock,
+        captcha: Option<&'a rd_plugin_host::RuleCaptcha>,
+    ) -> Executor<'a> {
+        let executor = Executor::new(fetcher, resolver, clock);
+        let executor = match captcha {
             Some(captcha) => executor.with_captcha(captcha),
             None => executor,
         };
-        executor.run(rule, address).await
+        match &self.device_id {
+            Some(device_id) => executor.with_device_id(device_id),
+            None => executor,
+        }
     }
 }
 
@@ -94,6 +153,9 @@ impl RuleRunner for HostRuleRunner {
 pub enum RuleOutcome {
     /// The links behind the address, and the package name the rule read.
     Crawled { rule: String, crawl: Crawl },
+    /// A two-stage rule listed the address's entries and resolved none (RD-1170-03); the list
+    /// waits on [`SiteRules::picks`] for somebody to choose.
+    Listed { rule: String, page: PickSummary },
     /// A rule claimed the address and then said what is wrong with the page.
     Refused { rule: String, error: RunError },
 }
@@ -107,6 +169,8 @@ pub struct SiteRules {
     /// the catalogue is: a run finishes and the next paste already profits.
     dead: RwLock<Arc<BTreeSet<String>>>,
     runner: Arc<dyn RuleRunner>,
+    /// The pages whose entries wait for a choice (RD-1170-03).
+    picks: PickBoard,
 }
 
 impl SiteRules {
@@ -116,7 +180,22 @@ impl SiteRules {
             catalogue: RwLock::new(Arc::new(catalogue)),
             dead: RwLock::new(Arc::new(BTreeSet::new())),
             runner,
+            picks: PickBoard::default(),
         }
+    }
+
+    /// The pages a two-stage rule listed, waiting for a choice (RD-1170-03).
+    #[must_use]
+    pub fn picks(&self) -> &PickBoard {
+        &self.picks
+    }
+
+    /// The runner every rule of the selection runs through, for the trial run of the rule
+    /// editor (RD-1170-02): asked through the same runner, a trial and a paste cannot
+    /// disagree about what one page yields.
+    #[must_use]
+    pub fn runner(&self) -> Arc<dyn RuleRunner> {
+        Arc::clone(&self.runner)
     }
 
     /// The rules in force. A poisoned lock yields the catalogue anyway: a panic somewhere
@@ -199,6 +278,15 @@ impl SiteRules {
                 continue;
             }
             match self.runner.run(rule, address).await {
+                // A two-stage rule's answer is a list to choose from; it is kept here, where
+                // the rule that made it is still at hand for the second stage.
+                Ok(crawl) if crawl.pick.is_some() => {
+                    let page = self.picks.add(rule, crawl)?;
+                    return Some(RuleOutcome::Listed {
+                        rule: rule.name.clone(),
+                        page,
+                    });
+                }
                 Ok(crawl) => {
                     return Some(RuleOutcome::Crawled {
                         rule: rule.name.clone(),

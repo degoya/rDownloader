@@ -73,6 +73,27 @@ pub(crate) fn paint_badge(pixels: &mut [u8], width: u32, height: u32) {
     }
 }
 
+/// Greys the mark out and halves its opacity: the icon while clipboard watching is paused
+/// (RD-1180-01).
+///
+/// Every pixel becomes its own luminance and keeps half its alpha, so the shape stays and the
+/// colour goes, on a light and a dark taskbar alike. The activity badge is painted afterwards
+/// and stays in colour: transfers still run. A buffer that is not whole pixels is left alone,
+/// for the reason `paint_badge` gives.
+pub(crate) fn dim(pixels: &mut [u8]) {
+    if !pixels.len().is_multiple_of(CHANNELS) {
+        return;
+    }
+    for pixel in pixels.as_chunks_mut::<CHANNELS>().0 {
+        let luminance =
+            (u32::from(pixel[0]) * 299 + u32::from(pixel[1]) * 587 + u32::from(pixel[2]) * 114)
+                / 1000;
+        let grey = u8::try_from(luminance).unwrap_or(u8::MAX);
+        pixel[..3].fill(grey);
+        pixel[3] /= 2;
+    }
+}
+
 /// Length in bytes of an RGBA buffer of this size, or `None` when it does not fit in a `usize`.
 fn pixel_count(width: u32, height: u32) -> Option<usize> {
     (width as usize)
@@ -82,7 +103,7 @@ fn pixel_count(width: u32, height: u32) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BADGE, CHANNELS, badge_centre, badge_covers, badge_radius, paint_badge};
+    use super::{BADGE, CHANNELS, badge_centre, badge_covers, badge_radius, dim, paint_badge};
 
     /// The size of `extension/icons/icon32.png`, which is the artwork the tray actually shows.
     const SHIPPED: u32 = 32;
@@ -226,5 +247,34 @@ mod tests {
         let before = pixels.clone();
         paint_badge(&mut pixels, SHIPPED, SHIPPED);
         assert_eq!(pixels, before, "a short buffer was painted anyway");
+    }
+
+    /// The paused mark keeps its shape and loses its colour, and the badge painted on it
+    /// afterwards is still the activity colour (RD-1180-01).
+    #[test]
+    fn the_paused_mark_is_grey_and_half_transparent() {
+        let mut pixels = vec![0x2D, 0xD4, 0xBF, 0xFF, 0xFF, 0x00, 0x00, 0x80, 0, 0, 0, 0];
+        dim(&mut pixels);
+        assert_eq!(pixels[0], pixels[1]);
+        assert_eq!(pixels[1], pixels[2]);
+        assert_eq!(pixels[3], 0x7F, "half the alpha");
+        assert_eq!(&pixels[4..8], &[76, 76, 76, 0x40]);
+        assert_eq!(&pixels[8..], &[0, 0, 0, 0], "transparent stays transparent");
+
+        let mut torn = vec![0xFF; CHANNELS + 1];
+        dim(&mut torn);
+        assert_eq!(
+            torn,
+            vec![0xFF; CHANNELS + 1],
+            "not whole pixels: left alone"
+        );
+
+        let mut icon = blank(SHIPPED, SHIPPED);
+        icon.fill(0xFF);
+        dim(&mut icon);
+        paint_badge(&mut icon, SHIPPED, SHIPPED);
+        let radius = badge_radius(SHIPPED, SHIPPED);
+        let (x, y) = badge_centre(SHIPPED, SHIPPED, radius);
+        assert!(painted(&icon, SHIPPED, x, y), "the badge stays in colour");
     }
 }

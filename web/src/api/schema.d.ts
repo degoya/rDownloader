@@ -1231,6 +1231,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capture/agent-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The agent's poll: what it is set to. */
+        get: operations["read_capture_agent_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capture/agents": {
         parameters: {
             query?: never;
@@ -1416,6 +1433,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capture/clipboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The tray's "Pause clipboard watching" and `rdownloader-capture pause|resume`. */
+        post: operations["set_capture_clipboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capture/cookies": {
         parameters: {
             query?: never;
@@ -1517,6 +1551,26 @@ export interface paths {
          *     stopped, and restarting what failed is the web interface's decision.
          */
         post: operations["resume_capture_queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/shortcut-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What the agent found when it registered the shortcuts: which the system refused, or that it
+         *     could register none. The settings page shows it beside the fields.
+         */
+        post: operations["report_capture_shortcuts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2223,6 +2277,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["enqueue_collector_package"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collector/picks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_collector_picks"];
+        put?: never;
+        post: operations["create_collector_pick"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collector/picks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_collector_pick"];
+        put?: never;
+        post?: never;
+        delete: operations["delete_collector_pick"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collector/picks/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel_collector_pick"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collector/picks/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolve_collector_pick"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4964,6 +5082,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/capture-agent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the agent watches the clipboard, its shortcuts and what it reported about them. */
+        get: operations["get_capture_agent_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Pauses or resumes clipboard watching, or replaces the shortcuts; the agent follows within
+         *     seconds, without a restart.
+         */
+        patch: operations["update_capture_agent_settings"];
+        trace?: never;
+    };
     "/api/v1/settings/export": {
         parameters: {
             query?: never;
@@ -7625,6 +7764,29 @@ export interface components {
         };
         /** Format: uuid */
         CaptureAgentId: string;
+        /** @description What the service holds for the agent. */
+        CaptureAgentSettings: {
+            /**
+             * @description Whether the agent leaves the clipboard alone (RD-1180-01). Click'n'Load, the browser
+             *     extension and the `rdownloader://` scheme stay on: they are something somebody does, the
+             *     clipboard is something that happens. What is copied while this holds is never delivered.
+             */
+            clipboard_paused?: boolean;
+            shortcuts?: components["schemas"]["CaptureShortcuts"];
+        };
+        /** @description A change to the agent's settings; a field left out stays as it is. */
+        CaptureAgentSettingsPatch: {
+            clipboard_paused?: boolean | null;
+            shortcuts?: components["schemas"]["CaptureShortcuts"] | null;
+        };
+        /** @description The agent's settings as the settings page shows them. */
+        CaptureAgentSettingsResponse: {
+            clipboard_paused: boolean;
+            /** @description The built-in shortcuts, for "Reset". */
+            default_shortcuts: components["schemas"]["CaptureShortcuts"];
+            report?: components["schemas"]["CaptureShortcutReport"] | null;
+            shortcuts: components["schemas"]["CaptureShortcuts"];
+        };
         /** @description One connected capture agent's version, measured against the service's. */
         CaptureAgentVersion: {
             /**
@@ -7663,6 +7825,16 @@ export interface components {
          * @enum {string}
          */
         CaptureCaptchaClient: "browser_extension";
+        /** @description The agent's own switch. */
+        CaptureClipboardRequest: {
+            /** @description Whether to leave the clipboard alone from now on. */
+            paused: boolean;
+        };
+        /**
+         * @description One command of the agent's tray menu, each of which a shortcut can trigger.
+         * @enum {string}
+         */
+        CaptureCommand: "open" | "start_all" | "pause_all" | "pause_half_hour" | "pause_hour" | "clipboard_watch" | "send_clipboard" | "quit";
         /** @description Cookies handed over by a capture client for one approved domain. */
         CaptureCookiesRequest: {
             cookies: string;
@@ -7738,6 +7910,11 @@ export interface components {
             bearer: string;
             token: components["schemas"]["CaptureToken"];
         };
+        /**
+         * @description The operating system an agent runs on, so a shortcut can be shown with its own key names.
+         * @enum {string}
+         */
+        CapturePlatform: "windows" | "macos" | "linux";
         CaptureQueuePauseRequest: {
             /**
              * Format: int32
@@ -7756,6 +7933,35 @@ export interface components {
              * @description When the timed pause ends, while one holds.
              */
             paused_until?: string | null;
+        };
+        /** @description What an agent last said about registering its shortcuts. */
+        CaptureShortcutReport: {
+            platform: components["schemas"]["CapturePlatform"];
+            /** @description Commands whose shortcut the system refused: another program holds the combination. */
+            refused?: components["schemas"]["CaptureCommand"][];
+            /**
+             * Format: date-time
+             * @description When the service received it; whatever the agent sends here is replaced.
+             */
+            reported_at?: string | null;
+            unavailable?: components["schemas"]["ShortcutsUnavailable"] | null;
+        };
+        /**
+         * @description The shortcut of every command; `None` is "no shortcut".
+         *
+         *     A field left out of a stored or sent document takes its default, while an explicit `null` is
+         *     "no shortcut": somebody who removed one must not get it back from the next release.
+         */
+        CaptureShortcuts: {
+            clipboard_watch?: string | null;
+            open?: string | null;
+            pause_all?: string | null;
+            pause_half_hour?: string | null;
+            pause_hour?: string | null;
+            /** @description No default: quitting by accident is the one command a stray key press should not reach. */
+            quit?: string | null;
+            send_clipboard?: string | null;
+            start_all?: string | null;
         };
         /**
          * @description Figures only, for the desktop tray.
@@ -8243,6 +8449,63 @@ export interface components {
             priority?: components["schemas"]["DownloadPriority"] | null;
             script?: string | null;
         };
+        /** @description One entry of a listed page. */
+        CollectorPickEntryResponse: {
+            /**
+             * @description What the rule's `pick` read from the entry: `season`, `episode`, `resolution`,
+             *     `language`, `hoster`, or any other name the rule gives. A name it did not match is
+             *     absent -- a season pack has no `episode`.
+             */
+            attributes: {
+                [key: string]: string;
+            };
+            /** @description Why the entry came back `pending` or ended `failed`, as a stable code. */
+            code?: string | null;
+            /** @description The entry's place in the list; what `resolve` names. */
+            index: number;
+            /** @description The release name the rule read, or the page's own when it read none. */
+            label?: string | null;
+            /**
+             * Format: int32
+             * @description How many links it put into the LinkGrabber, once `done`.
+             */
+            links: number;
+            /**
+             * @description `pending` (nothing fetched: never picked, stopped, or its captcha went unanswered --
+             *     `code` says which), `queued`, `resolving`, `captcha` (being resolved and waiting for a
+             *     person to solve its captcha in the broker), `done` or `failed`.
+             */
+            state: string;
+        };
+        /** @description A page whose entries wait for a choice. */
+        CollectorPickResponse: {
+            /** @description The address that was crawled. */
+            address: string;
+            /** @description When the page was listed, RFC 3339. */
+            created_at: string;
+            entries: components["schemas"]["CollectorPickEntryResponse"][];
+            /** Format: int32 */
+            finished: number;
+            id: string;
+            /** @description The page's own name. */
+            package_name?: string | null;
+            /** @description The name of the rule that listed it. */
+            rule: string;
+            rule_id: string;
+            /** @description Whether entries are being resolved right now. */
+            running: boolean;
+            /**
+             * Format: int32
+             * @description The entries of the current round, and how many of them have finished: "3 of 8".
+             */
+            total: number;
+            /** @description Whether the entry being resolved waits for a captcha. */
+            waiting_for_captcha: boolean;
+        };
+        /** @description Every page on the board, oldest first. */
+        CollectorPicksResponse: {
+            pages: components["schemas"]["CollectorPickResponse"][];
+        };
         /**
          * @description An answer to an `ask` prompt. `compare` and `ask` are not answers: a person who is asked
          *     decides what happens, rather than handing the question back.
@@ -8506,6 +8769,11 @@ export interface components {
             priority: number;
             protocol?: string | null;
             source?: components["schemas"]["IngressSource"] | null;
+        };
+        /** @description Lists one page's entries without resolving any. */
+        CreateCollectorPickRequest: {
+            /** @description The page, an http or https address a two-stage site rule claims. */
+            address: string;
         };
         /** @description Direct URL queue request. */
         CreateDownloadRequest: {
@@ -12566,6 +12834,14 @@ export interface components {
             trust_fingerprint?: string | null;
             version: string;
         };
+        /** @description The entries to resolve. */
+        ResolveCollectorPickRequest: {
+            /**
+             * @description Indices as the page lists them. An entry already done, queued or being resolved is
+             *     left as it is.
+             */
+            entries: number[];
+        };
         /** @description The outcome of the last resolve, carried alongside a selection for display and pinning. */
         ResolvedFormatPlan: {
             /** @default  */
@@ -13359,6 +13635,13 @@ export interface components {
              */
             dlc_service_endpoint: string | null;
             /**
+             * @description Whether a package of the Downloads view that nobody opened or closed yet starts closed
+             *     (RD-1170-01). On by default, as the queue always was; what the user opened or closed by
+             *     hand is remembered per browser and stays so either way. A display choice only.
+             * @default true
+             */
+            downloads_packages_closed_by_default: boolean;
+            /**
              * @description Download every PAR2 recovery volume of an NZB straight away. Off by default, like
              *     SABnzbd's `enable_all_par`: the main index comes down with the payload, the `vol`
              *     volumes wait, and only a repair that is short of blocks fetches as many of them as the
@@ -13453,6 +13736,12 @@ export interface components {
              * @default true
              */
             keep_import_history: boolean;
+            /**
+             * @description The same default for the LinkGrabber's packages (RD-1170-01). Off by default, as the
+             *     LinkGrabber always showed a package's links: they are there to be reviewed.
+             * @default false
+             */
+            linkgrabber_packages_closed_by_default: boolean;
             /**
              * Format: int32
              * @description Days a log record is kept at most (1-365), whatever the count.
@@ -14158,6 +14447,11 @@ export interface components {
          * @enum {string}
          */
         Severity: "info" | "warning" | "error";
+        /**
+         * @description Why the agent cannot register any shortcut at all.
+         * @enum {string}
+         */
+        ShortcutsUnavailable: "wayland" | "no_display" | "no_tray" | "failed";
         /** @description One sidecar's outcome. */
         SidecarOutcome: {
             /** @description File name beside the recording, when one was written. */
@@ -15272,8 +15566,19 @@ export interface components {
              *     revived onto when it arrived on a dead domain.
              */
             address: string;
+            /**
+             * @description The entries to choose from, for a rule with `groups.pick` (RD-1170-03): the trial runs
+             *     the first stage only, so `links` and `groups` are empty and no captcha is asked. Empty
+             *     for every other rule.
+             */
+            entries: components["schemas"]["TestedEntryResponse"][];
             /** @description The run's own refusal, when it produced nothing at all. */
             error?: string | null;
+            /**
+             * @description One package per entry, for a rule with `groups` (RD-1170-02), in the order found.
+             *     Empty for every other rule: its links are one package named `package_name`.
+             */
+            groups: components["schemas"]["TestedGroupResponse"][];
             /** @description How many of them would become candidates. */
             kept: number;
             links: components["schemas"]["TestedLinkResponse"][];
@@ -15283,6 +15588,31 @@ export interface components {
             pages_fetched: number;
             /** @description How many answered with a page rather than a file and would be dropped. */
             refused: number;
+        };
+        /** @description One entry a two-stage rule listed (RD-1170-03): what a person would choose from. */
+        TestedEntryResponse: {
+            /** @description What `groups.pick.attributes` read from the entry; a name it did not match is absent. */
+            attributes: {
+                [key: string]: string;
+            };
+            /** @description The release name the group's `package` read from the entry. */
+            label?: string | null;
+        };
+        /** @description One link of a group, with the mirror set the rule placed it in (RD-1170-02). */
+        TestedGroupLinkResponse: {
+            /**
+             * Format: int32
+             * @description The mirror set within its group, counted from 1: links of one group carrying the same
+             *     number are copies of one file. Absent when the link has no copy.
+             */
+            mirror?: number | null;
+            url: string;
+        };
+        /** @description One package a rule with `groups` produced (RD-1170-02). */
+        TestedGroupResponse: {
+            links: components["schemas"]["TestedGroupLinkResponse"][];
+            /** @description The package name: the group's own, or the rule's when the group's source read none. */
+            name?: string | null;
         };
         /** @description One address the run produced, with what this installation makes of it. */
         TestedLinkResponse: {
@@ -19399,6 +19729,35 @@ export interface operations {
             };
         };
     };
+    read_capture_agent_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureAgentSettings"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_capture_agents: {
         parameters: {
             query?: never;
@@ -19768,6 +20127,39 @@ export interface operations {
             };
         };
     };
+    set_capture_clipboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureClipboardRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureAgentSettings"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     capture_cookies: {
         parameters: {
             query?: never;
@@ -19990,6 +20382,37 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    report_capture_shortcuts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureShortcutReport"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -21685,6 +22108,146 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_collector_picks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorPicksResponse"];
+                };
+            };
+        };
+    };
+    create_collector_pick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCollectorPickRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorPickResponse"];
+                };
+            };
+        };
+    };
+    get_collector_pick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The listed page, as the board names it */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorPickResponse"];
+                };
+            };
+        };
+    };
+    delete_collector_pick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The listed page, as the board names it */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    cancel_collector_pick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The listed page, as the board names it */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorPickResponse"];
+                };
+            };
+        };
+    };
+    resolve_collector_pick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The listed page, as the board names it */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveCollectorPickRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorPickResponse"];
+                };
             };
         };
     };
@@ -27598,6 +28161,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+        };
+    };
+    get_capture_agent_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureAgentSettingsResponse"];
+                };
+            };
+        };
+    };
+    update_capture_agent_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureAgentSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureAgentSettingsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

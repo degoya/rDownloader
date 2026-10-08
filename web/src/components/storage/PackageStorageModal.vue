@@ -16,6 +16,7 @@ import { translateServerMessage } from '@/i18n/server'
 import { formatBytes } from '@/utils/format'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 /**
  * A package's collision policy and its files' duplicates (RD-150-01, RD-150-02).
@@ -153,7 +154,7 @@ onMounted(() => {
         <USeparator />
         <section class="space-y-3" data-testid="duplicates">
           <UFormField :label="t('downloads.duplicates.file')">
-            <USelect v-model="selectedDownload" :items="downloadItems" value-key="value" class="w-full" />
+            <SearchableSelect v-model="selectedDownload" :items="downloadItems" class="w-full" />
           </UFormField>
           <p v-if="reportLoading" class="text-xs text-muted">{{ t('downloads.duplicates.loading') }}</p>
           <template v-else-if="report">

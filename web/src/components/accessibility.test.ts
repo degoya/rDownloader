@@ -27,6 +27,7 @@ import PostprocessSteps from './PostprocessSteps.vue'
 import RoutingCategories from './routing/RoutingCategories.vue'
 import SubscriptionItemRow from './SubscriptionItemRow.vue'
 import SettingsServicesTab from './settings/SettingsServicesTab.vue'
+import SiteRulePickPage from './SiteRulePickPage.vue'
 
 vi.mock('@/api/client', () => ({
   api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
@@ -87,6 +88,33 @@ describe('accessibility', () => {
     })
     const headers = container.querySelectorAll('[data-accordion-item] > button')
     expect(Array.from(headers).map(header => header.getAttribute('aria-expanded'))).toEqual(['true', 'true'])
+    const found = await violations(container)
+    expect(describeViolations(found)).toBe('')
+  })
+
+  /**
+   * RD-1170-03: a series page's releases before they are fetched. Every season's checkbox, every
+   * release's checkbox and every quick filter is named; a release waiting for its captcha says so
+   * in words, not in colour alone.
+   */
+  it('the choice of a series page\'s releases names every season, release and filter', async () => {
+    const release = (index: number, attributes: Record<string, string>, state = 'pending') =>
+      ({ index, label: `The.Show.S01E0${index}.720p`, attributes, state, code: null, links: 0 })
+    const { container } = mountComponent(SiteRulePickPage, {
+      messages,
+      props: {
+        busy: false,
+        page: {
+          id: 'p1', rule: 'serienjunkies.org', rule_id: 'serienjunkies', address: 'https://serienjunkies.org/serie/the-show/',
+          package_name: 'The Show', created_at: '2026-10-07T20:00:00Z', running: true, total: 2, finished: 1, waiting_for_captcha: true,
+          entries: [
+            release(1, { season: '1', episode: '1', resolution: '720p', language: 'GERMAN', hoster: 'ddownload' }, 'done'),
+            release(2, { season: '1', episode: '2', resolution: '1080p', language: 'GERMAN', hoster: 'ddownload' }, 'captcha'),
+            release(3, { season: '2', resolution: '720p', language: 'ENGLISH', hoster: 'ddownload' })
+          ]
+        }
+      }
+    })
     const found = await violations(container)
     expect(describeViolations(found)).toBe('')
   })

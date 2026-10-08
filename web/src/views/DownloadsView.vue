@@ -22,7 +22,7 @@ import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
 import { useDownloadsActions } from '@/composables/useDownloadsActions'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
-import { useOpenSections } from '@/composables/useOpenSections'
+import { usePackageOpenState } from '@/composables/usePackageOpenState'
 import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useQueueColumns } from '@/composables/useQueueColumns'
 import { filterQueue, QUEUE_FILTERS, useQueueFilter } from '@/composables/useQueueFilter'
@@ -66,7 +66,11 @@ const clearItems = computed(() => [[
 
 const visible = computed(() => filterQueue(transfers.downloads, transfers.packages, filter.value, needle.value))
 
-const openPackages = useOpenSections({ storageKey: 'rdownloader-open-packages', defaultOpen: false })
+/** Which packages are open, remembered per browser; "all" is what the filter shows (RD-1170-01). */
+const openPackages = usePackageOpenState('downloads', {
+  known: () => transfers.packages.map(pkg => pkg.id),
+  shown: () => groups.value.map(group => group.package.id)
+})
 /** The "Show metadata" switch: the enricher chips under the package names, per browser (RD-150-19). */
 const showMetadata = useShowMetadata('downloads')
 
@@ -239,6 +243,7 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
             :ui="{ root: 'shrink-0', label: 'whitespace-nowrap' }"
             @update:model-value="selection.toggleAll()"
           />
+          <UButton :icon="openPackages.allOpen.value ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'" color="neutral" variant="ghost" :aria-label="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :title="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :disabled="!groups.length" data-testid="packages-open-toggle" @click="openPackages.toggleAll" />
         </template>
         <template #right>
           <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" :ui="{ label: 'whitespace-nowrap' }" data-testid="show-metadata" />
@@ -342,6 +347,8 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
                 :handed-over-to="nzbHandOver.packageHandedOverTo(row.group.package)"
                 @select="selection.pickPackage"
                 @toggle="openPackages.toggle"
+                @open-all="openPackages.openAll"
+                @close-all="openPackages.closeAll"
                 @category="(id, categoryId) => changePackages([id], { categoryId })"
                 @priority="(id, value) => changePackages([id], { priority: value })"
                 @rename="renamePackage"

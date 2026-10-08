@@ -7,10 +7,12 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-trait.workspace = true
 axum.workspace = true
 base64.workspace = true
 chrono.workspace = true
 percent-encoding.workspace = true
+rand.workspace = true
 rd-api-core = { path = "../rd-api-core" }
 rd-automation = { path = "../rd-automation" }
 rd-captcha = { path = "../rd-captcha" }

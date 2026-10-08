@@ -21,7 +21,9 @@ pub mod ports;
 pub mod value;
 
 mod decode;
+mod groups;
 mod guard;
+mod pick;
 mod run;
 mod steps;
 
@@ -30,6 +32,8 @@ use std::time::Duration;
 use url::Url;
 
 pub use error::RunError;
+pub use groups::{CrawlGroup, GroupLink};
+pub use pick::{PickEntry, PickList};
 pub use ports::{
     CaptchaRequest, CaptchaSolver, Clock, FetchFailure, FetchRequest, FetchResponse, Fetcher,
     HostResolver, Method, SystemClock,
@@ -84,7 +88,8 @@ pub struct Crawl {
     /// The address that was actually crawled: the one given, or the canonical host it was
     /// revived onto when it arrived on a dead domain.
     pub address: Url,
-    /// The links, absolute and deduplicated, in the order the rule found them.
+    /// The links, absolute and deduplicated, in the order the rule found them. For a rule
+    /// with `groups`, every group's links in group order.
     pub links: Vec<String>,
     /// The package name, when the rule's `package` source found one. A hint, as
     /// `crawled-link.package-hint` is: a run that found links but no title still succeeds.
@@ -95,6 +100,13 @@ pub struct Crawl {
     /// through from `Rule::mirrors`: the executor states what the rule says and decides
     /// nothing about it.
     pub mirrors: bool,
+    /// One package per entry, for a rule with `groups` (RD-1170-02); empty for every other
+    /// rule, whose answer is `links` and `package_name` alone.
+    pub groups: Vec<CrawlGroup>,
+    /// The entries to choose from, for a rule with `groups.pick` (RD-1170-03): the first stage
+    /// lists them and resolves none, so `links` and `groups` are empty. `None` for every
+    /// other rule.
+    pub pick: Option<PickList>,
 }
 
 /// The four ports one run borrows, carried together so every signature below takes one
@@ -105,6 +117,8 @@ pub(crate) struct Ports<'a> {
     pub(crate) resolver: &'a dyn HostResolver,
     pub(crate) captcha: Option<&'a dyn CaptchaSolver>,
     pub(crate) clock: &'a dyn Clock,
+    /// This installation's stable value, seeded as `device_id` (RD-1170-03).
+    pub(crate) device_id: Option<&'a str>,
 }
 
 /// Runs rules. Holds the ports and the limits; one instance serves any number of runs.
@@ -128,6 +142,7 @@ impl<'a> Executor<'a> {
                 resolver,
                 captcha: None,
                 clock,
+                device_id: None,
             },
             limits: Limits::default(),
         }
@@ -137,6 +152,14 @@ impl<'a> Executor<'a> {
     #[must_use]
     pub fn with_captcha(mut self, captcha: &'a dyn CaptchaSolver) -> Self {
         self.ports.captcha = Some(captcha);
+        self
+    }
+
+    /// Hands every run this installation's stable value as the variable `device_id`
+    /// (RD-1170-03); see [`value::DEVICE_VARIABLE`].
+    #[must_use]
+    pub fn with_device_id(mut self, device_id: &'a str) -> Self {
+        self.ports.device_id = Some(device_id);
         self
     }
 
@@ -169,13 +192,40 @@ impl<'a> Executor<'a> {
         for (index, step) in rule.steps.iter().enumerate() {
             run.step(index, step).await?;
         }
+        let package_name = run.package_name();
+        // A two-stage rule stops here: the entries are listed, none is resolved (RD-1170-03).
+        if let Some(groups) = &rule.groups
+            && let Some(pick) = &groups.pick
+        {
+            let list = run.pick_list(groups, pick, package_name.as_deref())?;
+            run.check_time()?;
+            return Ok(Crawl {
+                address: run.address.clone(),
+                links: Vec::new(),
+                package_name,
+                pages_fetched: run.pages(),
+                mirrors: false,
+                groups: Vec::new(),
+                pick: Some(list),
+            });
+        }
+        let groups = match &rule.groups {
+            Some(groups) => run.groups(groups, package_name.as_deref()).await?,
+            None => Vec::new(),
+        };
         run.check_time()?;
+        let links = match &rule.groups {
+            Some(_) => groups::flatten(&groups),
+            None => run.links()?,
+        };
         Ok(Crawl {
             address: run.address.clone(),
-            links: run.links()?,
-            package_name: run.package_name(),
+            links,
+            package_name,
             pages_fetched: run.pages(),
             mirrors: rule.mirrors,
+            groups,
+            pick: None,
         })
     }
 }
@@ -189,5 +239,11 @@ mod exec_tests;
 #[cfg(test)]
 pub(crate) mod fakes;
 #[cfg(test)]
+#[path = "groups_tests.rs"]
+mod groups_tests;
+#[cfg(test)]
 #[path = "limit_tests.rs"]
 mod limit_tests;
+#[cfg(test)]
+#[path = "pick_tests.rs"]
+mod pick_tests;

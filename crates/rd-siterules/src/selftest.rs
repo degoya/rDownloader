@@ -29,8 +29,9 @@ pub const PROBE_INVALID: &str = "site_rules.probe_invalid";
 /// How a rule fared against its own probe.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Verdict {
-    /// Reachable, the structure fits, at least one link. The executor never returns a run
-    /// with no links, so a success is always this.
+    /// Reachable, the structure fits, at least one link -- or, for a two-stage rule
+    /// (RD-1170-03), at least one entry to choose. The executor never returns a run with
+    /// neither, so a success is always this.
     Ok,
     /// Reachable, but nothing came back: the theme or the page layout changed.
     Structural,
@@ -88,6 +89,7 @@ impl Verdict {
             | RunError::FetchFailed { .. }
             | RunError::AddressNotPublic { .. } => Self::Dead,
             RunError::NoLinks
+            | RunError::NoEntry(_)
             | RunError::Structure { .. }
             | RunError::DecodeFailed { .. }
             | RunError::NotClaimed(_)
@@ -137,7 +139,14 @@ pub async fn check(executor: &Executor<'_>, rule: &Rule) -> RuleReport {
         return report(Verdict::Structural, Some(PROBE_INVALID), 0, 0);
     };
     match executor.run(rule, &probe).await {
-        Ok(crawl) => report(Verdict::Ok, None, crawl.links.len(), crawl.pages_fetched),
+        // A two-stage rule lists entries and resolves none; the entries are what it found.
+        Ok(crawl) => {
+            let found = crawl
+                .pick
+                .as_ref()
+                .map_or(crawl.links.len(), |list| list.entries.len());
+            report(Verdict::Ok, None, found, crawl.pages_fetched)
+        }
         Err(error) => report(Verdict::of(&error), Some(error.code()), 0, 0),
     }
 }

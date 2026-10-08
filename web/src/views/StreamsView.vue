@@ -21,6 +21,7 @@ import { WHOLE } from '@/utils/numberInput'
 import { editingRowClass } from '@/utils/editingRow'
 import { clockOf, timeFieldValue } from '@/utils/timeFields'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 const { t } = useI18n()
 // Shared with the nav badge, so every add/remove here keeps the sidebar count in sync.
@@ -244,7 +245,7 @@ const {
                   <USelect v-model="quality" :items="qualityItems" value-key="value" icon="i-lucide-gauge" class="w-full font-mono" />
                 </UFormField>
                 <UFormField :label="t('streams.form.category_label')" :description="t('streams.form.category_description')">
-                  <USelect v-model="category" :items="categoryItems" value-key="value" class="w-full" />
+                  <SearchableSelect v-model="category" :items="categoryItems" class="w-full" />
                 </UFormField>
                 <UFormField :label="t('streams.recording.split')" :description="t('streams.recording.split_hint')">
                   <div class="flex gap-2">
@@ -329,7 +330,7 @@ const {
               <UAlert v-if="scheduleError" class="mb-3" color="error" :description="scheduleError" />
               <form ref="scheduleForm" class="grid gap-3" @submit.prevent="submitSchedule">
                 <UFormField :label="t('streams.schedules.channel')" required>
-                  <USelect v-model="schedule.channelId" :items="channelItems" value-key="value" class="w-full" />
+                  <SearchableSelect v-model="schedule.channelId" :items="channelItems" class="w-full" />
                 </UFormField>
                 <UFormField :label="t('streams.schedules.name')" required>
                   <UInput v-model="schedule.name" required class="w-full" data-testid="schedule-name" />

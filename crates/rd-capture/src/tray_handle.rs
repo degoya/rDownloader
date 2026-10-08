@@ -1,24 +1,26 @@
 //! The live tray icon and its menu: built once from the state's surface, then only written.
 
 use anyhow::{Context, Result};
+use rd_core::{CaptureCommand, CaptureShortcuts};
 use tray_icon::{
     Icon, TrayIcon, TrayIconBuilder,
-    menu::{IsMenuItem, Menu, MenuId, MenuItem, PredefinedMenuItem},
+    menu::{
+        CheckMenuItem, IsMenuItem, Menu, MenuId, MenuItem, PredefinedMenuItem,
+        accelerator::Accelerator,
+    },
 };
 
 use crate::{
-    activity::{QueueEntries, QueueMenu, QueueRequest},
+    activity::{QueueEntries, QueueMenu},
     tray_state::Surface,
 };
 
 /// Where the queue entries go: after the status line, "Open rDownloader" and the separator
-/// below each of them, so before "Quit".
+/// below each of them, so before the clipboard entries and "Quit".
 const QUEUE_POSITION: usize = 4;
 
-/// The live tray icon together with the ids of its actionable menu entries.
+/// The live tray icon together with its actionable menu entries.
 pub(super) struct TrayHandle {
-    pub(super) open: MenuId,
-    pub(super) quit: MenuId,
     /// Kept, not just their ids: the status line is rewritten and "Open" is greyed out while
     /// the service is not answering, which needs the items themselves. What to write on them
     /// is `tray_state`'s decision; here they are only written.
@@ -36,6 +38,11 @@ pub(super) struct TrayHandle {
     pause_hour: MenuItem,
     pair_hint: MenuItem,
     queue_separator: PredefinedMenuItem,
+    /// "Pause clipboard watching", ticked while it holds (RD-1180-01), and "Hand over clipboard
+    /// now" (RD-1180-03); always in the menu, before "Quit".
+    clipboard_watch: CheckMenuItem,
+    send_clipboard: MenuItem,
+    quit: MenuItem,
     // Dropping this removes the icon from the tray. Kept named rather than `_tray` since the
     // icon and tooltip are now changed while it lives.
     tray: TrayIcon,
@@ -99,18 +106,52 @@ impl TrayHandle {
         }
     }
 
-    /// The request a queue entry stands for, or `None` for any other entry.
-    pub(super) fn queue_request(&self, id: &MenuId) -> Option<QueueRequest> {
-        if id == self.pause_now.id() {
-            Some(QueueRequest::Pause { minutes: None })
-        } else if id == self.pause_half_hour.id() {
-            Some(QueueRequest::Pause { minutes: Some(30) })
-        } else if id == self.pause_hour.id() {
-            Some(QueueRequest::Pause { minutes: Some(60) })
-        } else if id == self.start.id() {
-            Some(QueueRequest::Resume)
-        } else {
-            None
+    /// The command an entry stands for, or `None` for the status line and the hint. What each
+    /// command does is `controls::action`, the same for a click and a shortcut.
+    pub(super) fn command(&self, id: &MenuId) -> Option<CaptureCommand> {
+        CaptureCommand::ALL
+            .into_iter()
+            .find(|command| self.item_id(*command) == id)
+    }
+
+    fn item_id(&self, command: CaptureCommand) -> &MenuId {
+        match command {
+            CaptureCommand::Open => self.open_item.id(),
+            CaptureCommand::StartAll => self.start.id(),
+            CaptureCommand::PauseAll => self.pause_now.id(),
+            CaptureCommand::PauseHalfHour => self.pause_half_hour.id(),
+            CaptureCommand::PauseHour => self.pause_hour.id(),
+            CaptureCommand::ClipboardWatch => self.clipboard_watch.id(),
+            CaptureCommand::SendClipboard => self.send_clipboard.id(),
+            CaptureCommand::Quit => self.quit.id(),
+        }
+    }
+
+    /// Ticks "Pause clipboard watching" as the settings say, also after a click: the click
+    /// only asks, the agent's settings decide.
+    pub(super) fn show_clipboard_paused(&self, paused: bool) {
+        self.clipboard_watch.set_checked(paused);
+    }
+
+    /// Writes every entry's shortcut beside it (RD-1180-03).
+    pub(super) fn show_accelerators(&self, shortcuts: &CaptureShortcuts) {
+        for command in CaptureCommand::ALL {
+            let accelerator = shortcuts
+                .get(command)
+                .and_then(|text| text.parse::<Accelerator>().ok());
+            let written = match command {
+                CaptureCommand::Open => self.open_item.set_accelerator(accelerator),
+                CaptureCommand::StartAll => self.start.set_accelerator(accelerator),
+                CaptureCommand::PauseAll => self.pause_now.set_accelerator(accelerator),
+                CaptureCommand::PauseHalfHour => self.pause_half_hour.set_accelerator(accelerator),
+                CaptureCommand::PauseHour => self.pause_hour.set_accelerator(accelerator),
+                CaptureCommand::ClipboardWatch => self.clipboard_watch.set_accelerator(accelerator),
+                CaptureCommand::SendClipboard => self.send_clipboard.set_accelerator(accelerator),
+                CaptureCommand::Quit => self.quit.set_accelerator(accelerator),
+            };
+            if let Err(error) = written {
+                tracing::debug!(%error, ?command, "the menu could not show a shortcut");
+            }
         }
     }
 }
@@ -122,9 +163,19 @@ impl TrayHandle {
         let open = MenuItem::new("Open rDownloader", surface.open_enabled, None);
         let quit = MenuItem::new("Quit", true, None);
         let status_item = MenuItem::new(&surface.status_line, false, None);
+        let clipboard_watch = CheckMenuItem::new(
+            "Pause clipboard watching",
+            true,
+            surface.clipboard_paused,
+            None,
+        );
+        let send_clipboard = MenuItem::new("Hand over clipboard now", true, None);
         menu.append(&status_item)?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&open)?;
+        menu.append(&PredefinedMenuItem::separator())?;
+        menu.append(&clipboard_watch)?;
+        menu.append(&send_clipboard)?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&quit)?;
         let tray = TrayIconBuilder::new()
@@ -134,8 +185,6 @@ impl TrayHandle {
             .build()
             .context("create the tray icon")?;
         let handle = Self {
-            open: open.id().clone(),
-            quit: quit.id().clone(),
             status_item,
             open_item: open,
             menu,
@@ -147,9 +196,13 @@ impl TrayHandle {
             pause_hour: MenuItem::new("Pause for 1 hour", true, None),
             pair_hint: MenuItem::new("Pair again to control the queue", false, None),
             queue_separator: PredefinedMenuItem::separator(),
+            clipboard_watch,
+            send_clipboard,
+            quit,
             tray,
         };
         handle.show_queue(surface.queue);
+        handle.show_accelerators(&surface.accelerators);
         Ok(handle)
     }
 }

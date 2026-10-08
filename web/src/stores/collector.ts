@@ -8,6 +8,7 @@ import { useNotifications } from '@/composables/useNotifications'
 import { i18n } from '@/i18n'
 import type { CollectorPackage, LinkCandidate } from '@/api/types'
 import { useNzbImportsStore } from '@/stores/nzbImports'
+import { useSitePicksStore } from '@/stores/sitePicks'
 import { batchError, inBatches } from '@/utils/bulkBatches'
 
 import { useCandidateActions } from './collectorCandidates'
@@ -29,6 +30,11 @@ export type { CollectorPackageChange, EnqueueBatchResult, GrabberOrderEntry, Int
 const WEB_UI_SOURCE_LABEL = 'Web UI'
 /** Link deletions in flight at once; the server writes them one after another anyway. */
 const DELETE_CONCURRENCY = 4
+/**
+ * What a paste answers when all it found was a series page whose releases wait for a choice
+ * (RD-1170-03): not a failure, the pick board holds the list.
+ */
+const PICK_WAITING = 'site_rules.pick_waiting'
 
 export const useCollectorStore = defineStore('collector', () => {
   const packages = ref<CollectorPackage[]>([])
@@ -128,6 +134,13 @@ export const useCollectorStore = defineStore('collector', () => {
     })
     pending.value = false
     if (!response.data) {
+      const failure = response.error as { code?: string, params?: Record<string, string> } | undefined
+      if (failure?.code === PICK_WAITING) {
+        error.value = null
+        void useSitePicksStore().listed()
+        const listed = Number(failure.params?.entries ?? 0)
+        return { ok: true, skippedExcluded: 0, skippedDisabled: 0, crawledFound: 0, crawledDropped: 0, listed }
+      }
       error.value = responseError(response)
       return { ok: false, skippedExcluded: 0, skippedDisabled: 0, crawledFound: 0, crawledDropped: 0 }
     }

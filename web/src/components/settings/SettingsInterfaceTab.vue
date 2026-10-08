@@ -141,6 +141,22 @@ async function toggleNotifications(value: boolean): Promise<void> {
           <USwitch v-model="settings.nzb_hand_over_downloads_enabled" />
         </UFormField>
       </div>
+      <USeparator class="mt-4" />
+      <!-- The default for a package nobody has opened or closed; what was is kept per browser (RD-1170-01). -->
+      <div data-settings-anchor="interface.package_groups" class="mt-4 space-y-4">
+        <SectionHeader
+          :eyebrow="t('settings.package_groups.eyebrow')"
+          :title="t('settings.package_groups.title')"
+          :description="t('settings.package_groups.description')"
+          level="sub"
+        />
+        <UFormField :label="t('settings.package_groups.downloads.label')" :description="t('settings.package_groups.downloads.description')" orientation="horizontal">
+          <USwitch v-model="settings.downloads_packages_closed_by_default" />
+        </UFormField>
+        <UFormField :label="t('settings.package_groups.linkgrabber.label')" :description="t('settings.package_groups.linkgrabber.description')" orientation="horizontal">
+          <USwitch v-model="settings.linkgrabber_packages_closed_by_default" />
+        </UFormField>
+      </div>
     </UCard>
   </div>
 </template>

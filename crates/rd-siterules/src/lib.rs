@@ -23,6 +23,7 @@
 pub mod catalogue;
 pub mod exec;
 pub mod format;
+pub mod groups;
 pub mod pack;
 pub mod selftest;
 pub mod step;
@@ -30,13 +31,14 @@ mod text;
 
 pub use catalogue::{Catalogue, CatalogueError};
 pub use exec::{
-    Crawl, Executor, Limits, MAX_LINKS, RunError,
+    Crawl, CrawlGroup, Executor, GroupLink, Limits, MAX_LINKS, PickEntry, PickList, RunError,
     ports::{
         CaptchaRequest, CaptchaSolver, Clock, FetchFailure, FetchRequest, FetchResponse, Fetcher,
         HostResolver, Method, SystemClock,
     },
 };
 pub use format::{Match, PackageSource, Rule, RuleError};
+pub use groups::{GroupMirrors, Groups, Pick};
 pub use pack::{FORMAT_VERSION, PackError, RulePack, SITE_RULES_DOMAIN, sign, verify, verify_with};
 pub use selftest::{RuleReport, Verdict};
 pub use step::{Decoding, Step};

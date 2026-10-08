@@ -66,7 +66,8 @@
     "offline": "{count} offline",
     "unverified": "{count} nicht prüfbar",
     "enqueue_paused_hint": "Dieses Paket pausiert in die Downloadliste übernehmen",
-    "queue_name_hint": "Wird mit aufgeräumtem Namen hinzugefügt (Paketnamen aufräumen); ursprünglich: {name}"
+    "queue_name_hint": "Wird mit aufgeräumtem Namen hinzugefügt (Paketnamen aufräumen); ursprünglich: {name}",
+    "actions": "Paketaktionen"
   },
   "candidate": {
     "select": "Link auswählen",
@@ -106,7 +107,8 @@
     "submit": "In LinkGrabber übernehmen",
     "skipped_excluded": "Keine Links durch die Sperrliste übersprungen | {count} Link durch die Sperrliste übersprungen | {count} Links durch die Sperrliste übersprungen",
     "skipped_disabled": "Keine Links durch einen abgeschalteten Dienst übersprungen | {count} Link übersprungen: Sein Dienst ist abgeschaltet | {count} Links übersprungen: Ihr Dienst ist abgeschaltet",
-    "crawled_dropped": "Keine Links verworfen | {count} von {found} gefundenen Links war keine Datei und wurde verworfen | {count} von {found} gefundenen Links waren keine Dateien und wurden verworfen"
+    "crawled_dropped": "Keine Links verworfen | {count} von {found} gefundenen Links war keine Datei und wurde verworfen | {count} von {found} gefundenen Links waren keine Dateien und wurden verworfen",
+    "listed": "{count} Release wartet auf deine Auswahl | {count} Releases warten auf deine Auswahl"
   },
   "nzb": {
     "segments": "keine Segmente | {count} Segment | {count} Segmente",
@@ -561,5 +563,44 @@
     "swarm": "{seeders} Seeder, {leechers} Leecher",
     "grabbed_torrents": "Kein Torrent übernommen | Ein Torrent in den LinkGrabber übernommen | {count} Torrents in den LinkGrabber übernommen"
   },
-  "empty_title": "Noch keine Links zur Prüfung"
+  "empty_title": "Noch keine Links zur Prüfung",
+  "picks": {
+    "title": "Auswahl vor dem Holen",
+    "summary": "{count} Release wartet auf deine Auswahl | {count} Releases warten auf deine Auswahl",
+    "open": "Auswählen",
+    "hint": "Wähle die Releases aus, die du willst – nur sie werden geholt, jedes mit einem eigenen Captcha.",
+    "source": "{rule} · {count} Release | {rule} · {count} Releases",
+    "progress": "{done} von {total}",
+    "waiting_for_captcha": "Wartet auf Captcha",
+    "cancel": "Anhalten",
+    "discard": "Liste verwerfen",
+    "pick_shown": "Gezeigtes Release wählen | Alle {count} gezeigten wählen",
+    "filter": {
+      "season": "Nach Staffel filtern",
+      "episode": "Nach Folge filtern",
+      "resolution": "Nach Auflösung filtern",
+      "language": "Nach Sprache filtern",
+      "all_seasons": "Alle Staffeln",
+      "all_episodes": "Alle Folgen",
+      "all_resolutions": "Alle Auflösungen",
+      "all_languages": "Alle Sprachen"
+    },
+    "season": "Staffel {season}",
+    "no_season": "Ohne Staffel",
+    "episode": "Folge {episode}",
+    "season_pack": "Staffelpaket",
+    "releases": "{count} Release | {count} Releases",
+    "entry": "Eintrag {index}",
+    "none_shown": "Kein Release passt zu den Filtern.",
+    "state": {
+      "queued": "Wartet",
+      "resolving": "Holt Links",
+      "captcha": "Wartet auf Captcha",
+      "done": "{count} Link | {count} Links",
+      "failed": "Fehlgeschlagen",
+      "again": "Erneut wählbar"
+    },
+    "captcha_hint": "Jedes Release fragt ein Captcha ab; löse es im Captcha-Fenster oder in der Browser-Erweiterung.",
+    "fetch": "Links holen | Links für {count} Release holen | Links für {count} Releases holen"
+  }
 }

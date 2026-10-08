@@ -7,6 +7,7 @@ import DragHandle from '@/components/DragHandle.vue'
 import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { formatByteProgress, formatDuration, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
@@ -66,6 +67,9 @@ const emit = defineEmits<{
   move: [id: string, delta: -1 | 1]
   /** The chevron was used; the view decides whether the file rows are in the stream. */
   toggle: [id: string]
+  /** Every package the view shows, open or closed at once (RD-1170-01). */
+  openAll: []
+  closeAll: []
   deletePackage: [id: string]
   copyPath: [path: string]
   /** Every file's address of the package onto the clipboard; the view gathers them (RD-190-21). */
@@ -260,6 +264,9 @@ const actions = computed(() => [[
   { label: t('downloads.package.edit_aria'), icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.package.id) },
   { label: t('downloads.package.storage_aria'), icon: 'i-lucide-files', onSelect: () => emit('storage', props.package.id) }
 ], [
+  { label: t('common.package_groups.open_all'), icon: 'i-lucide-chevrons-up-down', onSelect: () => emit('openAll') },
+  { label: t('common.package_groups.close_all'), icon: 'i-lucide-chevrons-down-up', onSelect: () => emit('closeAll') }
+], [
   {
     label: t('downloads.package.delete_aria'),
     icon: 'i-lucide-trash-2',
@@ -360,7 +367,7 @@ function controlPackage(): void {
         <!-- The category stays editable after the download: changing it moves the package's
              data into the new folder. The priority is history once everything is here. The
              select may shrink with a narrowed column (RD-191-11). -->
-        <USelect v-model="categoryModel" :items="categoryItems" value-key="value" size="xs" class="w-36 min-w-0" :aria-label="t('downloads.package.category_aria')" />
+        <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36 min-w-0" :aria-label="t('downloads.package.category_aria')" />
         <UDropdownMenu v-if="!props.complete" :items="priorityActions" :content="{ align: 'end' }">
           <UButton :icon="PRIORITY_ICONS[props.package.priority]" size="xs" color="neutral" variant="ghost" :aria-label="priorityLabel" :title="priorityLabel" />
         </UDropdownMenu>

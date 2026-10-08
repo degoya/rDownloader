@@ -65,7 +65,8 @@
       "indexers": "Indexer, Newznab, Torznab, Jackett, Prowlarr, NZB-Suche, Torrent-Suche, API-Schlüssel, Listenstil, Cover",
       "active_files": "parallele Downloads, gleichzeitig, Slots, Warteschlange",
       "collision": "Kollision, Namenskonflikt, überschreiben, umbenennen",
-      "linkgrabber": "Sperrliste, ausgeschlossene Domains, Spiegel, Mirrors, Container"
+      "linkgrabber": "Sperrliste, ausgeschlossene Domains, Spiegel, Mirrors, Container",
+      "desktop_agent": "Tastenkürzel, Hotkey, Zwischenablage, pausieren, Capture-Agent"
     }
   },
   "connection": {

@@ -66,7 +66,8 @@
     "offline": "{count} fuera de línea",
     "unverified": "{count} no comprobables",
     "enqueue_paused_hint": "Añadir este paquete a la lista de descargas sin iniciarlo",
-    "queue_name_hint": "Se añade con el nombre ordenado (Ordenar nombres de paquetes); originalmente: {name}"
+    "queue_name_hint": "Se añade con el nombre ordenado (Ordenar nombres de paquetes); originalmente: {name}",
+    "actions": "Acciones del paquete"
   },
   "candidate": {
     "select": "Seleccionar enlace",
@@ -106,7 +107,8 @@
     "submit": "Añadir al LinkGrabber",
     "skipped_excluded": "Ningún enlace omitido por la lista de bloqueo | {count} enlace omitido por la lista de bloqueo | {count} enlaces omitidos por la lista de bloqueo",
     "skipped_disabled": "Ningún enlace omitido por un servicio desactivado | {count} enlace omitido: su servicio está desactivado | {count} enlaces omitidos: su servicio está desactivado",
-    "crawled_dropped": "Ningún enlace descartado | {count} de {found} enlaces encontrados no era un archivo y se descartó | {count} de {found} enlaces encontrados no eran archivos y se descartaron"
+    "crawled_dropped": "Ningún enlace descartado | {count} de {found} enlaces encontrados no era un archivo y se descartó | {count} de {found} enlaces encontrados no eran archivos y se descartaron",
+    "listed": "{count} release espera tu elección | {count} releases esperan tu elección"
   },
   "nzb": {
     "segments": "sin segmentos | {count} segmento | {count} segmentos",
@@ -561,5 +563,44 @@
     "swarm": "{seeders} semillas, {leechers} descargando",
     "grabbed_torrents": "Ningún torrent añadido | Un torrent añadido al LinkGrabber | {count} torrents añadidos al LinkGrabber"
   },
-  "empty_title": "Ningún enlace pendiente de revisión"
+  "empty_title": "Ningún enlace pendiente de revisión",
+  "picks": {
+    "title": "Elegir antes de obtener",
+    "summary": "{count} release espera tu elección | {count} releases esperan tu elección",
+    "open": "Elegir",
+    "hint": "Elige los releases que quieres: solo se obtienen esos, cada uno con su propio captcha.",
+    "source": "{rule} · {count} release | {rule} · {count} releases",
+    "progress": "{done} de {total}",
+    "waiting_for_captcha": "Esperando captcha",
+    "cancel": "Detener",
+    "discard": "Descartar lista",
+    "pick_shown": "Elegir el release mostrado | Elegir los {count} mostrados",
+    "filter": {
+      "season": "Filtrar por temporada",
+      "episode": "Filtrar por episodio",
+      "resolution": "Filtrar por resolución",
+      "language": "Filtrar por idioma",
+      "all_seasons": "Todas las temporadas",
+      "all_episodes": "Todos los episodios",
+      "all_resolutions": "Todas las resoluciones",
+      "all_languages": "Todos los idiomas"
+    },
+    "season": "Temporada {season}",
+    "no_season": "Sin temporada",
+    "episode": "Episodio {episode}",
+    "season_pack": "Temporada completa",
+    "releases": "{count} release | {count} releases",
+    "entry": "Entrada {index}",
+    "none_shown": "Ningún release coincide con los filtros.",
+    "state": {
+      "queued": "En cola",
+      "resolving": "Obteniendo enlaces",
+      "captcha": "Esperando captcha",
+      "done": "{count} enlace | {count} enlaces",
+      "failed": "Falló",
+      "again": "Se puede elegir de nuevo"
+    },
+    "captcha_hint": "Cada release pide un captcha; resuélvelo en la ventana de captcha o en la extensión del navegador.",
+    "fetch": "Obtener enlaces | Obtener enlaces de {count} release | Obtener enlaces de {count} releases"
+  }
 }

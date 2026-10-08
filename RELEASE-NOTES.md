@@ -12,6 +12,16 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.18.0
+
+- Packages in the Downloads and the LinkGrabber stay open or closed across reloads, open or close all at once, and start closed or open as you set it.
+- A site rule can now split a page with several releases into one package per release, with the same file at different hosters shown as mirrors.
+- hide.cx, warez.cx and serienjunkies.org pages are now recognised by the rules that come with rDownloader.
+- A series page such as serienjunkies.org now lists its releases by season in the LinkGrabber first: pick the seasons, episodes and qualities you want, and only those are fetched, one captcha each.
+- The capture agent can pause clipboard watching from its tray, a shortcut or the settings, so copied links stay out of rDownloader until you switch it back on.
+- Every tray command of the capture agent has a system-wide keyboard shortcut you set yourself, and a new command hands the clipboard over once, even while watching is paused.
+- Long pick lists of your own categories, accounts, proxies, profiles and the like now have a search field: type part of a name and press Enter.
+
 ## 1.16.1
 
 - Click'n'Load from hide.cx now reaches the LinkGrabber.

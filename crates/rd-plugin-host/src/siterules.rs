@@ -187,18 +187,9 @@ impl Fetcher for RuleFetcher {
         let mut builder = client
             .request(method, request.url.clone())
             .timeout(request.timeout);
-        if !request.form.is_empty() {
-            // Encoded here rather than through `RequestBuilder::form`, which this build of
-            // reqwest does not carry: the executor's contract is one shape, and it is the
-            // one every browser sends a form in.
-            let body = url::form_urlencoded::Serializer::new(String::new())
-                .extend_pairs(request.form.iter())
-                .finish();
+        if let Some((content_type, body)) = encode_body(&request.form, request.json) {
             builder = builder
-                .header(
-                    reqwest::header::CONTENT_TYPE,
-                    "application/x-www-form-urlencoded",
-                )
+                .header(reqwest::header::CONTENT_TYPE, content_type)
                 .body(body);
         }
         let mut response = builder.send().await.map_err(transport_failure)?;
@@ -230,6 +221,35 @@ impl Fetcher for RuleFetcher {
             body: String::from_utf8_lossy(&body).into_owned(),
         })
     }
+}
+
+/// The body a request's form fields travel in, with its content type; `None` for no fields.
+///
+/// Encoded here rather than through `RequestBuilder::form`, which this build of reqwest does
+/// not carry: the shape is the one every browser sends a form in, or -- for a `form` step that
+/// says `json` (RD-1170-03) -- one JSON object of strings, the shape a page's own script posts
+/// to its API.
+fn encode_body(
+    form: &std::collections::BTreeMap<String, String>,
+    json: bool,
+) -> Option<(&'static str, String)> {
+    if form.is_empty() && !json {
+        return None;
+    }
+    if json {
+        let object: serde_json::Map<String, serde_json::Value> = form
+            .iter()
+            .map(|(name, value)| (name.clone(), serde_json::Value::from(value.as_str())))
+            .collect();
+        return Some((
+            "application/json",
+            serde_json::Value::Object(object).to_string(),
+        ));
+    }
+    let body = url::form_urlencoded::Serializer::new(String::new())
+        .extend_pairs(form.iter())
+        .finish();
+    Some(("application/x-www-form-urlencoded", body))
 }
 
 /// Why nothing answered, in the terms the executor sorts its refusals by.
@@ -288,7 +308,7 @@ impl rd_siterules::CaptchaSolver for RuleCaptcha {
         let widget = WidgetChallenge {
             site_key,
             page_url: request.page_url.to_string(),
-            invisible: false,
+            invisible: request.invisible,
         };
         let challenge = match request.challenge.as_str() {
             "recaptcha-v2" => CaptchaChallenge::RecaptchaV2(widget),

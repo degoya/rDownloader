@@ -192,3 +192,57 @@ fn checked_is_a_calendar_date() {
     json["checked"] = "20.09.2026".into();
     assert!(serde_json::from_value::<Rule>(json).is_err());
 }
+
+/// RD-1170-02: a rule without `groups` serialises exactly as before -- the field is absent,
+/// not `null` -- and one with them round-trips.
+#[test]
+fn groups_are_absent_unless_written_and_round_trip_when_they_are() {
+    let rule = example();
+    assert!(rule.groups.is_none());
+    let encoded = serde_json::to_string(&rule).expect("encode");
+    assert!(!encoded.contains("groups"), "{encoded}");
+
+    let mut json = example_json();
+    json["groups"] = serde_json::json!({
+        "from": "releases",
+        "steps": [{ "kind": "regex", "from": "entry", "pattern": "(https?://\\S+)",
+                    "into": "links", "all": true }],
+        "package": { "from": "regex", "pattern": "\"name\":\"([^\"]+)\"", "source": "entry" },
+        "mirrors": "by-host"
+    });
+    let rule: Rule = serde_json::from_value(json.clone()).expect("shape");
+    rule.validate().expect("valid");
+    assert_eq!(serde_json::to_value(&rule).expect("encode"), json);
+}
+
+#[test]
+fn groups_are_checked_and_exclude_the_page_wide_mirrors() {
+    let groups = serde_json::json!({
+        "from": "releases",
+        "steps": [{ "kind": "regex", "from": "entry", "pattern": "(\\S+)", "into": "links" }],
+        "package": { "from": "title" }
+    });
+    let with = |edit: &dyn Fn(&mut serde_json::Value)| {
+        let groups = groups.clone();
+        refused(move |j| {
+            j["groups"] = groups;
+            edit(j);
+        })
+    };
+    assert_eq!(
+        with(&|j| j["mirrors"] = true.into()),
+        RuleError::MirrorsWithGroups
+    );
+    assert_eq!(
+        with(&|j| j["groups"]["steps"] = serde_json::json!([])),
+        RuleError::NoGroupSteps
+    );
+    assert!(matches!(
+        with(&|j| j["groups"]["steps"][0]["pattern"] = "(".into()),
+        RuleError::Pattern { .. }
+    ));
+    assert!(matches!(
+        with(&|j| j["groups"]["from"] = "Releases".into()),
+        RuleError::Variable(_)
+    ));
+}

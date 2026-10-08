@@ -90,6 +90,7 @@ fn request(url: &Url, addresses: Vec<std::net::IpAddr>) -> FetchRequest {
         addresses,
         method: Method::Get,
         form: BTreeMap::new(),
+        json: false,
         max_bytes: 64 * 1024,
         timeout: Duration::from_secs(10),
     }
@@ -219,7 +220,40 @@ fn challenge(kind: &str) -> CaptchaRequest {
         challenge: kind.to_owned(),
         sitekey: Some("abc".to_owned()),
         page_url: "https://example.org/page".parse().expect("url"),
+        invisible: false,
     }
+}
+
+/// A `form` step's fields go out as the browser's form encoding, or -- when the step says
+/// `json` (RD-1170-03) -- as one JSON object; a request without fields carries no body unless
+/// it is a JSON one, which is then `{}`.
+#[test]
+fn form_fields_travel_as_a_form_or_as_one_json_object() {
+    let fields: BTreeMap<String, String> = [
+        ("fphash".to_owned(), "0a1b".to_owned()),
+        ("recaptchaToken".to_owned(), "t \"1\"&x".to_owned()),
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(
+        super::encode_body(&fields, false),
+        Some((
+            "application/x-www-form-urlencoded",
+            "fphash=0a1b&recaptchaToken=t+%221%22%26x".to_owned()
+        ))
+    );
+    let (content_type, body) = super::encode_body(&fields, true).expect("a body");
+    assert_eq!(content_type, "application/json");
+    let parsed: serde_json::Value = serde_json::from_str(&body).expect("JSON");
+    assert_eq!(
+        parsed,
+        serde_json::json!({ "fphash": "0a1b", "recaptchaToken": "t \"1\"&x" })
+    );
+    assert_eq!(super::encode_body(&BTreeMap::new(), false), None);
+    assert_eq!(
+        super::encode_body(&BTreeMap::new(), true),
+        Some(("application/json", "{}".to_owned()))
+    );
 }
 
 /// A rule names a challenge kind and a site key, so only the widget kinds can cross. A kind

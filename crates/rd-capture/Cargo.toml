@@ -20,6 +20,7 @@ cbc.workspace = true
 chrono.workspace = true
 clap.workspace = true
 directories.workspace = true
+global-hotkey.workspace = true
 hex.workspace = true
 keyring.workspace = true
 notify-rust.workspace = true

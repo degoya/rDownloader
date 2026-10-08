@@ -31,6 +31,7 @@ use rd_plugin_host::{
 use crate::siterules::{RuleOutcome, SiteRules};
 
 mod links;
+mod rule_links;
 
 pub use links::{CrawledLink, ShareLogin, share_login, split_crawled_address};
 
@@ -52,6 +53,12 @@ pub enum CrawlOutcome {
     /// translate. Reported rather than swallowed: an empty or unreachable folder that says
     /// nothing is the defect this job exists to fix.
     Refused { code: String, message: String },
+    /// A two-stage site rule listed the page's entries for somebody to choose (RD-1170-03);
+    /// nothing is resolved yet, and the list waits on `SiteRules::picks`.
+    Listed {
+        rule: String,
+        page: crate::picks::PickSummary,
+    },
 }
 
 /// The stable code used when a plugin refuses without naming one of its own.
@@ -320,34 +327,15 @@ impl FolderCrawlers {
     /// The rule that produced links hands them through the same acceptance a plugin's answer
     /// goes through — no second mechanic — and the package name it read travels as the
     /// `package_hint` of every one of them, which is what `rd_collector::grouping` builds the
-    /// package from.
+    /// package from. A rule with `groups` (RD-1170-02) names one package per group, and its
+    /// mirror sets travel as declared mirror groups; see [`rule_links::proposals`].
     async fn ask_rules(&self, url: &url::Url) -> Option<CrawlOutcome> {
         match self.rules.as_ref()?.consult(url).await? {
             RuleOutcome::Crawled { rule, crawl } => {
-                let package_hint = crawl.package_name;
-                // A rule that says its page is one release makes every link it found a
-                // mirror of the others (RD-110-18). The key names the rule *and* the address
-                // it read, so two pages crawled into one package stay two groups. It names
-                // no quality and no language: the rule format carries no per-link metadata,
-                // so those are left to the release name.
-                let mirror = crawl.mirrors.then(|| rd_core::MirrorHint {
-                    group: format!("{rule}|{}", crawl.address),
-                    quality: None,
-                    language: None,
-                });
-                let links = crawl
-                    .links
-                    .into_iter()
-                    .map(|found| rd_plugin_host::extension::CrawledLink {
-                        url: found,
-                        file_name: None,
-                        size: None,
-                        package_hint: package_hint.clone(),
-                        mirror_hint: mirror.clone(),
-                    })
-                    .collect();
+                let links = rule_links::proposals(&rule, crawl);
                 Some(Self::accept(&rule, url, links, RULE_EMPTY))
             }
+            RuleOutcome::Listed { rule, page } => Some(CrawlOutcome::Listed { rule, page }),
             // Every code but "not my page" is a statement about this page, and a statement is
             // reported rather than handed to the next source, which would only produce a
             // second one.

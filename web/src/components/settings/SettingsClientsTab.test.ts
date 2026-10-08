@@ -21,6 +21,7 @@ vi.mock('@/api/client', () => ({
 /** The cards keep their own tests; here only where they stand and what they are handed. */
 const stubs = {
   CapturePairingCard: { props: { extension: Boolean }, template: '<div data-testid="pairing" :data-extension="String(Boolean(extension))" />' },
+  CaptureAgentCard: { template: '<div data-testid="capture-agent" />' },
   ExtensionPairingGuide: { template: '<div data-testid="extension-guide" />' },
   SettingsMcpAccess: { template: '<section data-settings-anchor="clients.api" />' }
 }
@@ -42,6 +43,8 @@ describe('SettingsClientsTab', () => {
 
     const desktop = container.querySelector('[data-tab="desktop"]') as HTMLElement
     expect(desktop.querySelector('[data-settings-anchor="clients.desktop"] [data-testid="pairing"]')?.getAttribute('data-extension')).toBe('false')
+    // What the agent does once it runs sits below its pairing (RD-1180-01, RD-1180-03).
+    expect(desktop.querySelector('[data-settings-anchor="clients.desktop_agent"] [data-testid="capture-agent"]')).not.toBeNull()
     const browser = container.querySelector('[data-tab="browser"]') as HTMLElement
     expect(browser.querySelector('[data-settings-anchor="clients.browser"] [data-testid="extension-guide"]')).not.toBeNull()
     expect(browser.querySelector('[data-testid="pairing"]')?.getAttribute('data-extension')).toBe('true')

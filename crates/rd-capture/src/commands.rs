@@ -5,8 +5,12 @@ use anyhow::{Context, Result};
 use reqwest::multipart;
 
 use crate::{
-    cli::{ConfigureArgs, HandleArgs, IntegrationArgs, IntegrationCommand, OpenArgs},
-    client::{self, Purpose},
+    agent_settings,
+    cli::{
+        ConfigureArgs, ConnectionArgs, HandleArgs, IntegrationArgs, IntegrationCommand, OpenArgs,
+    },
+    client::{self, CaptureClient, Purpose},
+    clipboard::{self, HandOver},
     config, os_integration, scheme,
 };
 
@@ -37,6 +41,69 @@ fn read_token_from_stdin() -> Result<String> {
         anyhow::bail!("no capture token arrived on standard input");
     }
     Ok(token)
+}
+
+/// The client of a one-shot command, connected as the running agent is.
+fn connected(args: ConnectionArgs) -> Result<CaptureClient> {
+    let connection = config::load(args.service, args.token)?;
+    CaptureClient::new(connection.service, connection.token)
+}
+
+/// `pause` and `resume` (RD-1180-01): switch clipboard watching at the service. A running agent
+/// follows within seconds, and every later start keeps it.
+pub(crate) async fn clipboard_watch(args: ConnectionArgs, paused: bool) -> Result<()> {
+    let client = connected(args)?;
+    let settings = client
+        .set_clipboard_paused(paused)
+        .await
+        .context("the service did not take the switch; nothing was changed")?;
+    agent_settings::store_cached(config::config_directory().ok().as_deref(), &settings);
+    println!("{}", clipboard_line(&settings));
+    Ok(())
+}
+
+/// `status`: the clipboard pause and the shortcuts, from the service or, while it does not
+/// answer, as this machine last knew them.
+pub(crate) async fn status(args: ConnectionArgs) -> Result<()> {
+    let client = connected(args)?;
+    let settings = match client.agent_settings().await {
+        Ok(settings) => settings,
+        Err(error) => {
+            eprintln!("The service did not answer ({error}); as last known here:");
+            agent_settings::load_cached(config::config_directory().ok().as_deref())
+        }
+    };
+    println!("{}", clipboard_line(&settings));
+    println!("Shortcuts (CmdOrCtrl is Ctrl, Cmd on a Mac):");
+    for command in rd_core::CaptureCommand::ALL {
+        println!(
+            "  {:<16} {}",
+            command.as_str(),
+            settings.shortcuts.get(command).unwrap_or("-")
+        );
+    }
+    Ok(())
+}
+
+/// `send-clipboard` (RD-1180-03): the tray's "Hand over clipboard now".
+pub(crate) async fn send_clipboard(args: ConnectionArgs) -> Result<()> {
+    let client = connected(args)?;
+    let outcome = clipboard::hand_over_once(&client).await;
+    match outcome {
+        HandOver::Delivered(_) | HandOver::NoLinks => {
+            println!("{}", outcome.message());
+            Ok(())
+        }
+        _ => anyhow::bail!("{}", outcome.message()),
+    }
+}
+
+fn clipboard_line(settings: &rd_core::CaptureAgentSettings) -> &'static str {
+    if settings.clipboard_paused {
+        "Clipboard watching: paused"
+    } else {
+        "Clipboard watching: on"
+    }
 }
 
 /// Reads a file, refusing it the moment it turns out to be bigger than `limit`.

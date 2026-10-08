@@ -14,6 +14,7 @@ import { useToast } from '@nuxt/ui/composables'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import type {
   BackupDestination,
   BackupDestinationKind,
@@ -283,7 +284,7 @@ onMounted(async () => {
       </UFormField>
       <template v-if="form.kind === 'object_storage'">
         <UFormField name="backup-destination-profile" :label="t('system.backup.full.destinations.profile')" required>
-          <USelect
+          <SearchableSelect
             v-model="form.profileId"
             :items="profileItems"
             class="w-full"

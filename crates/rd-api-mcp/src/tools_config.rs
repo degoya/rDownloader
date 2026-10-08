@@ -20,13 +20,14 @@ use super::{
         RemoveBundledServicesParams, RemoveSupersededPluginVersionsParams, SetPluginEnabledParams,
         UninstallPluginParams, UpdateDefinitionParams,
     },
+    params_remaining::UpdateCaptureAgentSettingsParams,
 };
 use crate::{ApiError, dto::SettingsResponse};
 
 #[tool_router(router = config_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read the service settings (concurrency - max_active_files 1-32, the downloads running at once, which the scheduler applies on its next pass without a restart -, speed limit, retries and the automatic retry of failed downloads - auto_retry_failed, auto_retry_interval_hours 1-24, auto_retry_max_rounds 0-100 with 0 no limit -, post-processing, fail_hopeless_jobs - whether a Usenet download that can no longer be repaired is stopped early and failed with usenet.job_hopeless, default true -, media/gallery/stream/torrent options, nzb_hand_over_linkgrabber_enabled and nzb_hand_over_downloads_enabled - whether the LinkGrabber and the Downloads view offer handing an NZB to a remote-job provider, both default true). Pass keys to project a subset; update_settings changes them."
+        description = "Read the service settings (concurrency - max_active_files 1-32, the downloads running at once, which the scheduler applies on its next pass without a restart -, speed limit, retries and the automatic retry of failed downloads - auto_retry_failed, auto_retry_interval_hours 1-24, auto_retry_max_rounds 0-100 with 0 no limit -, post-processing, fail_hopeless_jobs - whether a Usenet download that can no longer be repaired is stopped early and failed with usenet.job_hopeless, default true -, media/gallery/stream/torrent options, nzb_hand_over_linkgrabber_enabled and nzb_hand_over_downloads_enabled - whether the LinkGrabber and the Downloads view offer handing an NZB to a remote-job provider, both default true -, downloads_packages_closed_by_default (default true) and linkgrabber_packages_closed_by_default (default false) - whether a package nobody opened or closed yet starts closed in the Downloads view and in the LinkGrabber; what was opened or closed by hand is kept per browser). Pass keys to project a subset; update_settings changes them."
     )]
     pub async fn get_settings(
         &self,
@@ -88,6 +89,65 @@ impl RdMcpServer {
                 settings,
             )
             .await
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Read what the desktop capture agent is set to (Settings > Clients & API > Desktop): clipboard_paused - whether it leaves the clipboard alone; Click'n'Load, the browser extension and rdownloader:// links stay on -, shortcuts - the system-wide key combination of each tray command (open, start_all, pause_all, pause_half_hour, pause_hour, clipboard_watch, send_clipboard - read the clipboard once and hand its links over, also while watching is paused -, quit), null for none -, default_shortcuts, and report: what the agent last said when it registered them (refused: commands whose combination another program holds; unavailable: wayland, no_display, no_tray or failed, when it could register none). update_capture_agent_settings changes them."
+    )]
+    pub async fn get_capture_agent_settings(&self) -> McpToolResult {
+        respond(
+            crate::capture_agent_handlers::get_capture_agent_settings(State(self.state.clone()))
+                .await
+                .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Pause or resume the desktop capture agent's clipboard watching (clipboard_paused), or change the system-wide shortcuts of its tray commands (shortcuts: command -> combination such as \"CmdOrCtrl+Alt+V\", or null for none; commands left out keep theirs). CmdOrCtrl is Ctrl on Windows and Linux and Cmd on macOS. A combination needs two of Ctrl, Alt and Super/Cmd (Shift may come on top); one the operating system already uses is refused with capture.shortcut_reserved, one another command has with capture.shortcut_duplicate (params: command, other), an unreadable one with capture.shortcut_invalid. The agent follows within seconds, without a restart, and keeps the pause over its own restart. Linux registers shortcuts under X11 only."
+    )]
+    pub async fn update_capture_agent_settings(
+        &self,
+        Parameters(params): Parameters<UpdateCaptureAgentSettingsParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let shortcuts = match params.shortcuts {
+                None => None,
+                Some(changes) => {
+                    let mut shortcuts =
+                        crate::capture_agent_handlers::stored_capture_agent_settings(
+                            &self.state.database,
+                        )
+                        .await?
+                        .shortcuts;
+                    for (name, shortcut) in changes {
+                        let command = rd_core::CaptureCommand::ALL
+                            .into_iter()
+                            .find(|command| command.as_str() == name)
+                            .ok_or_else(|| {
+                                ApiError::bad_request(
+                                    "capture.shortcut_command_unknown",
+                                    format!("Unknown tray command: {name}"),
+                                )
+                                .with_param("command", &name)
+                            })?;
+                        shortcuts.set(command, shortcut);
+                    }
+                    Some(shortcuts)
+                }
+            };
+            crate::capture_agent_handlers::update_capture_agent_settings(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                Json(crate::capture_agent_handlers::CaptureAgentSettingsPatch {
+                    clipboard_paused: params.clipboard_paused,
+                    shortcuts,
+                }),
+            )
+            .await
+            .map(|Json(answer)| answer)
         }
         .await;
         respond(result)

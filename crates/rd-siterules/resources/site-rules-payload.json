@@ -1,7 +1,7 @@
 {
   "format_version": 1,
-  "sequence": 6,
-  "issued_at": "2026-09-25T12:00:00Z",
+  "sequence": 8,
+  "issued_at": "2026-10-07T21:00:00Z",
   "rules": [
     {
       "id": "scnlog",
@@ -339,6 +339,230 @@
       },
       "probe": "https://vipergirls.to/threads/6629687-Adult-Magazines-Mix-Collection",
       "checked": "2026-09-22"
+    },
+    {
+      "id": "hide-cx",
+      "name": "hide.cx",
+      "group": "paste",
+      "version": 1,
+      "match": {
+        "hosts": [
+          "hide.cx",
+          "*.hide.cx"
+        ],
+        "paths": [
+          "^/container/[0-9A-Za-z-]+/?$"
+        ]
+      },
+      "steps": [
+        {
+          "kind": "regex",
+          "from": "url",
+          "pattern": "/container/([0-9A-Za-z-]+)",
+          "into": "cid"
+        },
+        {
+          "kind": "fetch",
+          "url": "https://api.hide.cx/containers/${cid}",
+          "into": "container"
+        },
+        {
+          "kind": "regex",
+          "from": "container",
+          "pattern": "\\{\\s*\"id\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"host\"",
+          "into": "lid",
+          "all": true
+        },
+        {
+          "kind": "fetch-json",
+          "url": "https://api.hide.cx/containers/${cid}/links/${lid}",
+          "path": "/url",
+          "into": "links"
+        }
+      ],
+      "package": {
+        "from": "regex",
+        "pattern": "\"name\"\\s*:\\s*\"([^\"]+)\"",
+        "source": "container"
+      },
+      "probe": "https://hide.cx/container/65f714b9-b07c-4ea8-97d7-298f2809efcd",
+      "checked": "2026-10-07"
+    },
+    {
+      "id": "warez-cx",
+      "name": "warez.cx",
+      "group": "board",
+      "version": 1,
+      "match": {
+        "hosts": [
+          "warez.cx",
+          "*.warez.cx"
+        ],
+        "paths": [
+          "^/(?:v2/)?detail/[0-9A-Za-z]+(?:/[^?]*)?$"
+        ]
+      },
+      "steps": [
+        {
+          "kind": "regex",
+          "from": "url",
+          "pattern": "/detail/([0-9A-Za-z]+)",
+          "into": "uid"
+        },
+        {
+          "kind": "fetch",
+          "url": "https://api.warez.cx/start/d/${uid}",
+          "into": "api"
+        },
+        {
+          "kind": "regex",
+          "from": "api",
+          "pattern": "(\"fulltitle\":\"[^\"]*\"[^{}]*\"links\":\\{[^}]*\\})",
+          "into": "releases",
+          "all": true
+        }
+      ],
+      "package": {
+        "from": "regex",
+        "pattern": "\"title\":\"([^\"]+)\"",
+        "source": "api"
+      },
+      "groups": {
+        "from": "releases",
+        "steps": [
+          {
+            "kind": "regex",
+            "from": "entry",
+            "pattern": "(\"https?:[^\"]+\")",
+            "into": "quoted",
+            "all": true
+          },
+          {
+            "kind": "decode",
+            "encoding": "js-string",
+            "from": "quoted",
+            "into": "links"
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "\"fulltitle\":\"([^\"]+)\"",
+          "source": "entry"
+        },
+        "mirrors": "by-host"
+      },
+      "probe": "https://warez.cx/detail/9IMDqgvdVQQ6/The-Beginning-After-the-End",
+      "checked": "2026-10-07"
+    },
+    {
+      "id": "serienjunkies",
+      "name": "serienjunkies.org",
+      "group": "board",
+      "version": 1,
+      "match": {
+        "hosts": [
+          "serienjunkies.org",
+          "*.serienjunkies.org"
+        ],
+        "paths": [
+          "^/serie/[0-9A-Za-z_-]+/?$"
+        ]
+      },
+      "steps": [
+        {
+          "kind": "fetch"
+        },
+        {
+          "kind": "regex",
+          "pattern": "data-mediaid=\"([0-9a-f]+)\"",
+          "into": "media"
+        },
+        {
+          "kind": "regex",
+          "pattern": "data-captchasitekey=\"([^\"]+)\"",
+          "into": "sitekey"
+        },
+        {
+          "kind": "fetch",
+          "url": "https://serienjunkies.org/api/media/${media}/releases",
+          "into": "api"
+        },
+        {
+          "kind": "regex",
+          "pattern": "(\\{\"_id\":\"[0-9a-f]+\"[^{}]*\\})",
+          "from": "api",
+          "into": "releases",
+          "all": true
+        }
+      ],
+      "package": {
+        "from": "regex",
+        "pattern": "data-mediatitle=\"([^\"]+)\""
+      },
+      "groups": {
+        "from": "releases",
+        "pick": {
+          "attributes": {
+            "episode": "\"episode\":(\\d+)",
+            "hoster": "\"hoster\":\\[\"([^\"]+)\"",
+            "language": "\"language\":\"([^\"]+)\"",
+            "resolution": "\"resolution\":\"([^\"]+)\"",
+            "season": "\"season\":(\\d+)"
+          }
+        },
+        "steps": [
+          {
+            "kind": "regex",
+            "pattern": "\"_id\":\"([0-9a-f]+)\"",
+            "from": "entry",
+            "into": "release"
+          },
+          {
+            "kind": "regex",
+            "pattern": "\"hoster\":\\[\"([^\"]+)\"",
+            "from": "entry",
+            "into": "hoster"
+          },
+          {
+            "kind": "captcha",
+            "challenge": "recaptcha-v2",
+            "sitekey": "${sitekey}",
+            "into": "token",
+            "page": "${url}",
+            "invisible": true
+          },
+          {
+            "kind": "form",
+            "url": "https://serienjunkies.org/api/releases/${release}/downloads/${hoster}",
+            "fields": {
+              "fphash": "${device_id}",
+              "recaptchaToken": "${token}"
+            },
+            "into": "answer",
+            "json": true
+          },
+          {
+            "kind": "regex",
+            "pattern": "\"url\"\\s*:\\s*(\"[^\"]+\")",
+            "from": "answer",
+            "into": "quoted",
+            "all": true
+          },
+          {
+            "kind": "decode",
+            "encoding": "js-string",
+            "from": "quoted",
+            "into": "links"
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "\"name\":\"([^\"]+?)\\.?\"",
+          "source": "entry"
+        }
+      },
+      "probe": "https://serienjunkies.org/serie/the-varnell-hill-show/",
+      "checked": "2026-10-07"
     }
   ]
 }

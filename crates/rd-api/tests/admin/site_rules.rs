@@ -279,8 +279,11 @@ async fn the_signed_release_file_imports_the_rules_that_used_to_ship() {
             "avaxhome",
             "cgpersia",
             "vipergirls",
+            "hide-cx",
+            "warez-cx",
+            "serienjunkies",
         ],
-        "the eight rules 1.2 shipped"
+        "the eight rules 1.2 shipped and the three of 1.17"
     );
 
     // A file whose payload was altered after signing is refused whole, and stores nothing.

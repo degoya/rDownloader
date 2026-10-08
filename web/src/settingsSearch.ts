@@ -100,6 +100,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('interface.display', 'interface', 'settings.display.title', { descriptionKey: 'settings.display.description' }),
   field('interface.indexer_images', 'interface', 'settings.collector.indexer_images.title', { descriptionKey: 'settings.collector.indexer_images.description' }),
   card('interface.nzb_hand_over', 'interface', 'settings.collector.nzb_hand_over.title', { descriptionKey: 'settings.collector.nzb_hand_over.description', terms: ['NZB', 'TorBox', 'Premiumize'] }),
+  card('interface.package_groups', 'interface', 'settings.package_groups.title', { descriptionKey: 'settings.package_groups.description' }),
   // Download routing
   card('routing.roots', 'routing', 'routing.root.title', { tab: 'roots', descriptionKey: 'routing.root.description', keywordsKey: `${K}.routing` }),
   card('routing.storage_capacity', 'routing', 'settings.storage.title', { tab: 'roots', descriptionKey: 'settings.storage.description', keywordsKey: `${K}.disk_space` }),
@@ -200,6 +201,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('notifications.history', 'notifications', 'notifications.history.title', { tab: 'history' }),
   // Clients & API
   card('clients.desktop', 'clients', 'system.pairing.title', { tab: 'desktop', keywordsKey: `${K}.desktop` }),
+  card('clients.desktop_agent', 'clients', 'settings.capture_agent.title', { tab: 'desktop', descriptionKey: 'settings.capture_agent.description', keywordsKey: `${K}.desktop_agent` }),
   card('clients.browser', 'clients', 'system.extension.pair_title', { tab: 'browser', descriptionKey: 'system.extension.why', keywordsKey: `${K}.desktop` }),
   card('clients.api', 'clients', 'system.mcp.title', { tab: 'api', terms: ['MCP', 'API', 'token'] }),
   // Network

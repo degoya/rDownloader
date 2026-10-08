@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { PostprocessLevel } from '@/api/types'
 import { INHERIT_LEVEL, postprocessLevelItems } from '@/utils/format'
 import NumberWithUnit from '@/components/NumberWithUnit.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { DECIMAL, orNull } from '@/utils/numberInput'
 
 const props = defineProps<{
@@ -106,7 +107,7 @@ function submit(): void {
           <USelect v-model="level" :items="levelItems" value-key="value" class="w-full" />
         </UFormField>
         <UFormField :label="t('downloads.edit_package.script')" :description="props.scripts.length ? t('downloads.edit_package.script_hint') : t('downloads.edit_package.script_empty')">
-          <USelect v-model="script" :items="scriptItems" value-key="value" class="w-full font-mono" />
+          <SearchableSelect v-model="script" :items="scriptItems" class="w-full font-mono" />
         </UFormField>
         <UFormField
           v-if="speedLimitOffered"

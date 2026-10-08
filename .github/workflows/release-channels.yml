@@ -191,11 +191,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REF_NAME: ${{ github.ref_name }}
         run: scripts/release-repositories.sh download
+      # `apt-get update` hung for the whole 20 minutes twice on 1.16.1's release (2026-10-07): a
+      # mirror that never answers waits forever by default. Bounded per request and per attempt,
+      # three attempts, so a stalled mirror costs minutes and the job still says what failed.
       - name: Install the repository tools
         if: steps.download.outputs.found == 'true'
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends apt-utils rpm createrepo-c
+          apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          for attempt in 1 2 3; do
+            if timeout 180 sudo apt-get "${apt_opts[@]}" update -qq; then break; fi
+            [[ "$attempt" -lt 3 ]] || { echo "::error::apt-get update did not finish in three attempts"; exit 1; }
+            echo "::warning::apt-get update attempt $attempt did not finish; retrying"
+          done
+          timeout 300 sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends apt-utils rpm createrepo-c
       # GitHub's published SSH host key, pinned as actions/checkout pins it. Cloning an empty
       # repository succeeds with a warning, and the first push creates `main`.
       - name: Clone the packages repository

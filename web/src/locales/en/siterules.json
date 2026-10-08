@@ -96,7 +96,12 @@
     "fields_hint": "One `name=value` per line.",
     "challenge": "Challenge kind",
     "sitekey": "Site key",
-    "empty": "A rule needs at least one step."
+    "empty": "A rule needs at least one step.",
+    "json": "Send the fields as JSON",
+    "json_hint": "One JSON object instead of a form — the way a page's own script asks its API.",
+    "page": "Page of the captcha",
+    "page_hint": "The page the widget sits on, such as the variable url — the address the rule started from. Empty means the page fetched last.",
+    "invisible": "Invisible widget"
   },
   "test": {
     "heading": "Trial run",
@@ -116,7 +121,14 @@
       "confirmed": "Confirmed as a file",
       "not-a-file": "Answers with a page, not a file",
       "unconfirmed": "No answer; kept anyway"
-    }
+    },
+    "groups": "no packages | {count} package | {count} packages",
+    "group_links": "no links | {count} link | {count} links",
+    "group_unnamed": "No package name",
+    "mirror": "Mirror {set}",
+    "mirror_hint": "Links of one package with the same mirror number are copies of one file.",
+    "entries": "no entries to choose | {count} entry to choose | {count} entries to choose",
+    "entries_hint": "The trial only lists; links and captchas come once somebody picks in the LinkGrabber."
   },
   "transfer": {
     "export": "Export rules",
@@ -132,5 +144,23 @@
     "title": "Remove this rule?",
     "description": "{name} is removed from this installation. Export it first if you want to keep it."
   },
-  "duplicated": "{name} was created, switched off, and opened for editing."
+  "duplicated": "{name} was created, switched off, and opened for editing.",
+  "packages": {
+    "heading": "Several packages",
+    "description": "For a page that lists several releases. The steps above leave one entry per release in a variable; the steps here turn each entry into a package of its own.",
+    "enabled": "One package per entry",
+    "from": "Entries from variable",
+    "from_hint": "The list the steps above wrote, one entry per package.",
+    "into": "Entry variable",
+    "into_hint": "The steps below find each entry in this variable. Empty means entry.",
+    "steps": "Steps per entry, ending with the entry’s links in links",
+    "package": "Package name per entry",
+    "mirrors": "Mirrors",
+    "mirrors_hint": "Which links of one entry are copies of the same file.",
+    "mirrors_none": "No mirrors",
+    "mirrors_by_host": "Same position at every hoster",
+    "mirrors_all": "Every link is the same file",
+    "pick": "Choose first, then fetch",
+    "pick_hint": "One attribute per line as name=pattern, such as season, episode, resolution, language, hoster. The rule then only lists the entries; what somebody picks is fetched afterwards, each entry with a captcha of its own."
+  }
 }

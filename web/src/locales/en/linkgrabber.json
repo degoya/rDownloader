@@ -66,7 +66,8 @@
     "offline": "{count} offline",
     "unverified": "{count} not checkable",
     "enqueue_paused_hint": "Add this package to the download list without starting it",
-    "queue_name_hint": "Added with a tidied name (Tidy package names); originally: {name}"
+    "queue_name_hint": "Added with a tidied name (Tidy package names); originally: {name}",
+    "actions": "Package actions"
   },
   "candidate": {
     "select": "Select link",
@@ -106,7 +107,8 @@
     "submit": "Add to LinkGrabber",
     "skipped_excluded": "No links skipped by the blocklist | {count} link skipped by the blocklist | {count} links skipped by the blocklist",
     "skipped_disabled": "No links skipped by a switched-off service | {count} link skipped: its service is switched off | {count} links skipped: their service is switched off",
-    "crawled_dropped": "No links dropped | {count} of {found} found links was not a file and was dropped | {count} of {found} found links were not files and were dropped"
+    "crawled_dropped": "No links dropped | {count} of {found} found links was not a file and was dropped | {count} of {found} found links were not files and were dropped",
+    "listed": "{count} release waits for your choice | {count} releases wait for your choice"
   },
   "nzb": {
     "segments": "no segments | {count} segment | {count} segments",
@@ -561,5 +563,44 @@
     "swarm": "{seeders} seeders, {leechers} leechers",
     "grabbed_torrents": "No torrent added | One torrent added to the LinkGrabber | {count} torrents added to the LinkGrabber"
   },
-  "empty_title": "No links waiting for review"
+  "empty_title": "No links waiting for review",
+  "picks": {
+    "title": "Choose before fetching",
+    "summary": "{count} release waits for your choice | {count} releases wait for your choice",
+    "open": "Choose",
+    "hint": "Pick the releases you want — only those are fetched, each with a captcha of its own.",
+    "source": "{rule} · {count} release | {rule} · {count} releases",
+    "progress": "{done} of {total}",
+    "waiting_for_captcha": "Waiting for captcha",
+    "cancel": "Stop",
+    "discard": "Discard list",
+    "pick_shown": "Pick the shown release | Pick all {count} shown",
+    "filter": {
+      "season": "Filter by season",
+      "episode": "Filter by episode",
+      "resolution": "Filter by resolution",
+      "language": "Filter by language",
+      "all_seasons": "All seasons",
+      "all_episodes": "All episodes",
+      "all_resolutions": "All resolutions",
+      "all_languages": "All languages"
+    },
+    "season": "Season {season}",
+    "no_season": "No season",
+    "episode": "Episode {episode}",
+    "season_pack": "Season pack",
+    "releases": "{count} release | {count} releases",
+    "entry": "Entry {index}",
+    "none_shown": "No release matches the filters.",
+    "state": {
+      "queued": "Queued",
+      "resolving": "Fetching links",
+      "captcha": "Waiting for captcha",
+      "done": "{count} link | {count} links",
+      "failed": "Failed",
+      "again": "Can be picked again"
+    },
+    "captcha_hint": "Each release asks for one captcha; solve it in the captcha window or the browser extension.",
+    "fetch": "Fetch links | Fetch links of {count} release | Fetch links of {count} releases"
+  }
 }

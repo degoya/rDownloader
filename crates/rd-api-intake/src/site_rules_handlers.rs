@@ -39,7 +39,8 @@ use crate::{
         ImportSiteRulesResponse, ImportedSiteRuleResponse, SaveSiteRuleRequest,
         SiteRuleCheckResponse, SiteRuleDocument, SiteRuleGroupResponse, SiteRuleImportRequest,
         SiteRuleResponse, SiteRuleSwitchRequest, SiteRulesResponse, TestSiteRuleRequest,
-        TestSiteRuleResponse, TestedLinkResponse,
+        TestSiteRuleResponse, TestedEntryResponse, TestedGroupLinkResponse, TestedGroupResponse,
+        TestedLinkResponse,
     },
     site_rules_service,
 };
@@ -338,16 +339,8 @@ pub async fn test_site_rule(
             )
             .with_param("address", request.address.clone())
         })?;
-    // The broker is handed over on purpose, unlike in `rdownloader doctor site-rules`: this
-    // run is one somebody asked for, in front of the interface that can show them the
-    // challenge, so a captcha step is answered rather than reported as blocked.
-    let runner = rd_plugin_ext::HostRuleRunner::new(rd_plugin_host::RuleNetwork::new(
-        state.database.clone(),
-        state.secrets.clone(),
-        state.scheduler.network_defaults(),
-    ))
-    .with_captcha(std::sync::Arc::new(state.scheduler.captcha()));
-    let crawl = match rd_plugin_ext::RuleRunner::run(&runner, &rule, &address).await {
+    let runner = trial_runner(&state);
+    let crawl = match rd_plugin_ext::RuleRunner::run(runner.as_ref(), &rule, &address).await {
         Ok(crawl) => crawl,
         Err(error) => {
             return Ok(Json(TestSiteRuleResponse {
@@ -355,6 +348,8 @@ pub async fn test_site_rule(
                 package_name: None,
                 pages_fetched: 0,
                 mirrors: false,
+                groups: Vec::new(),
+                entries: Vec::new(),
                 links: Vec::new(),
                 kept: 0,
                 refused: 0,
@@ -392,11 +387,57 @@ pub async fn test_site_rule(
         package_name: crawl.package_name.clone(),
         pages_fetched: crawl.pages_fetched,
         mirrors: crawl.mirrors,
+        groups: crawl.groups.iter().map(group_response).collect(),
+        entries: crawl
+            .pick
+            .iter()
+            .flat_map(|list| &list.entries)
+            .map(|entry| TestedEntryResponse {
+                label: entry.label.clone(),
+                attributes: entry.attributes.clone(),
+            })
+            .collect(),
         kept: links.len() - refused,
         refused,
         links,
         error: None,
     }))
+}
+
+/// The runner a trial run uses: the one the crawler selection runs every rule through, so a
+/// trial and a paste cannot disagree about one page (RD-1170-02), and only without a
+/// selection one of its own, built the same way `serve` builds it.
+///
+/// The broker is handed over on purpose, unlike in `rdownloader doctor site-rules`: this run
+/// is one somebody asked for, in front of the interface that can show them the challenge, so
+/// a captcha step is answered rather than reported as blocked.
+fn trial_runner(state: &AppState) -> std::sync::Arc<dyn rd_plugin_ext::RuleRunner> {
+    if let Some(rules) = state.crawlers.rules() {
+        return rules.runner();
+    }
+    std::sync::Arc::new(
+        rd_plugin_ext::HostRuleRunner::new(rd_plugin_host::RuleNetwork::new(
+            state.database.clone(),
+            state.secrets.clone(),
+            state.scheduler.network_defaults(),
+        ))
+        .with_captcha(std::sync::Arc::new(state.scheduler.captcha())),
+    )
+}
+
+/// One group of a trial run, as the editor shows it.
+fn group_response(group: &rd_siterules::CrawlGroup) -> TestedGroupResponse {
+    TestedGroupResponse {
+        name: group.name.clone(),
+        links: group
+            .links
+            .iter()
+            .map(|link| TestedGroupLinkResponse {
+                url: link.url.clone(),
+                mirror: link.mirror,
+            })
+            .collect(),
+    }
 }
 
 /// Writes one of the person's own rules and puts the new catalogue into force.

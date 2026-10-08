@@ -26,6 +26,7 @@ import { useTransfersStore } from '@/stores/transfers'
 import { axeViolations } from '@/test/axe'
 import { uiStubs } from '@/test/mount'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
+import { setPackagesClosedByDefault } from '@/utils/packageGroups'
 
 import DownloadsView from './DownloadsView.vue'
 
@@ -441,6 +442,114 @@ describe('DownloadsView metadata switch', () => {
     await fireEvent.click(toggle(second.container))
     await settle()
     expect(chips(second.container)).toHaveLength(1)
+  })
+})
+
+/**
+ * RD-1170-01: a package keeps being open or closed across a reload, the toolbar button and the
+ * package menu open or close every package the filter shows, and a package nobody touched
+ * follows the Interface setting.
+ */
+describe('DownloadsView package groups', () => {
+  const menuStubs = {
+    ...stubs,
+    UDropdownMenu: {
+      props: ['items'],
+      template: '<div><slot /><div data-menu-items><button v-for="item in (items ?? []).flat()" :key="item.label" type="button" @click="item.onSelect?.()">{{ item.label }}</button></div></div>'
+    }
+  }
+  const fileRows = (container: Element) => container.querySelectorAll('[data-row-key^="file:"]').length
+  const toggleAll = (container: Element) => {
+    const button = container.querySelector<HTMLButtonElement>('[data-testid="packages-open-toggle"]')
+    if (!button) throw new Error('no open/close all button')
+    return button
+  }
+  function seedClosed(packages: number, files: number) {
+    const store = seedQueue(packages, files)
+    localStorage.clear()
+    return store
+  }
+
+  afterEach(() => setPackagesClosedByDefault({}))
+
+  it('keeps a package the user opened open across a reload', async () => {
+    seedClosed(2, 2)
+    const first = mountView()
+    await nextTick()
+    expect(fileRows(first.container)).toBe(0)
+    await fireEvent.click(first.getAllByLabelText(downloads.package.show_files)[0]!)
+    await settle()
+    expect(fileRows(first.container)).toBe(2)
+    expect(JSON.parse(localStorage.getItem('rdownloader-open-packages') ?? '{}')).toEqual({ 'pkg-0': true })
+    first.unmount()
+
+    const second = mountView()
+    await nextTick()
+    expect(fileRows(second.container)).toBe(2)
+  })
+
+  it('opens and closes every package the search leaves with one button whose name follows', async () => {
+    seedClosed(3, 1)
+    useTransfersStore().packages[2]!.name = 'Holiday Photos'
+    const { container, getByTestId } = mountView()
+    await fireEvent.update(getByTestId('downloads-search'), 'Package')
+    await new Promise(resolve => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20))
+    await nextTick()
+
+    expect(toggleAll(container).getAttribute('aria-label')).toBe(common.package_groups.open_all)
+    await fireEvent.click(toggleAll(container))
+    await settle()
+    expect(fileRows(container)).toBe(2)
+    expect(toggleAll(container).getAttribute('aria-label')).toBe(common.package_groups.close_all)
+    // What the search hides is left as it was.
+    expect(JSON.parse(localStorage.getItem('rdownloader-open-packages') ?? '{}')).toEqual({ 'pkg-0': true, 'pkg-1': true })
+
+    await fireEvent.click(toggleAll(container))
+    await settle()
+    expect(fileRows(container)).toBe(0)
+  })
+
+  it('offers both in the package menu', async () => {
+    seedClosed(2, 1)
+    const { container, getAllByText } = render(DownloadsView, { global: { plugins: [i18n], stubs: menuStubs } })
+    await nextTick()
+    await fireEvent.click(getAllByText(common.package_groups.open_all)[0]!)
+    await settle()
+    expect(fileRows(container)).toBe(2)
+    await fireEvent.click(getAllByText(common.package_groups.close_all)[1]!)
+    await settle()
+    expect(fileRows(container)).toBe(0)
+  })
+
+  it('shows the packages open when the setting says so and follows a change of it', async () => {
+    setPackagesClosedByDefault({ downloads_packages_closed_by_default: false })
+    seedClosed(2, 1)
+    const { container } = mountView()
+    await nextTick()
+    expect(fileRows(container)).toBe(2)
+
+    setPackagesClosedByDefault({ downloads_packages_closed_by_default: true })
+    await settle()
+    expect(fileRows(container)).toBe(0)
+  })
+
+  it('still opens a closed package to jump to its selected file', async () => {
+    seedClosed(2, 1)
+    const { container, getAllByLabelText, getByText } = mountView()
+    await nextTick()
+    await fireEvent.click(getAllByLabelText(downloads.package.select_aria)[1]!)
+    await settle()
+    await fireEvent.click(getByText(common.actions.reveal))
+    await settle()
+    expect(container.querySelector('[data-row-key="file:dl-1-0"]')).not.toBeNull()
+    expect(JSON.parse(localStorage.getItem('rdownloader-open-packages') ?? '{}')).toEqual({ 'pkg-1': true })
+  })
+
+  it('renders the button without an axe violation', async () => {
+    seedClosed(2, 1)
+    const { container } = mountView()
+    await settle()
+    expect(await axeViolations(container)).toBe('')
   })
 })
 

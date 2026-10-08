@@ -202,5 +202,13 @@
   },
   "date_field": {
     "open_calendar": "Choisir la date dans un calendrier"
+  },
+  "package_groups": {
+    "open_all": "Ouvrir tous les paquets",
+    "close_all": "Fermer tous les paquets"
+  },
+  "select": {
+    "search": "Rechercher…",
+    "nothing_found": "Aucun résultat"
   }
 }

@@ -37,6 +37,7 @@ import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import { useAutomationsStore } from '@/stores/automations'
 import { usePostprocessStore } from '@/stores/postprocess'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 /** Fields that hold a number; the operator list narrows on these. */
 const NUMERIC_FIELDS = ['size_bytes']
@@ -286,11 +287,10 @@ function runsOf(id: string) {
                     class="w-52"
                     @update:model-value="(value: string) => changeActionKind(index, value)"
                   />
-                  <USelect
+                  <SearchableSelect
                     v-if="action.kind === 'script' && scriptItems.length"
                     :model-value="action.name"
                     :items="scriptItems"
-                    value-key="value"
                     :aria-label="t('automation.action.script_name')"
                     class="w-56 font-mono"
                     @update:model-value="(name: string) => (draft.actions[index]!.name = name)"

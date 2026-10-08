@@ -73,10 +73,12 @@ describe('SettingsInterfaceTab browser and display', () => {
 
     const display = card('interface.display')
     expect(display.textContent).toContain(settings.display.title)
-    for (const anchor of ['interface.byte_display', 'interface.title_status', 'interface.indexer_images', 'interface.nzb_hand_over']) {
+    for (const anchor of ['interface.byte_display', 'interface.title_status', 'interface.indexer_images', 'interface.nzb_hand_over', 'interface.package_groups']) {
       expect(display.querySelector(`[data-settings-anchor="${anchor}"]`), anchor).not.toBeNull()
     }
     expect(display.textContent).toContain(settings.collector.nzb_hand_over.linkgrabber.label)
     expect(display.textContent).toContain(settings.collector.nzb_hand_over.downloads.label)
+    expect(display.textContent).toContain(settings.package_groups.downloads.label)
+    expect(display.textContent).toContain(settings.package_groups.linkgrabber.label)
   })
 })

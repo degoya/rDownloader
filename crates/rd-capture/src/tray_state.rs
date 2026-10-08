@@ -16,6 +16,7 @@
 //! Windows; and a server-state change rewrites the status item but leaves the tooltip as it was,
 //! which is what the tray did before its rules moved here and is not this module's to change.
 
+use rd_core::{CaptureAgentSettings, CaptureShortcuts};
 use url::Url;
 
 use crate::{
@@ -24,14 +25,17 @@ use crate::{
     supervision::{AgentNotice, notice_label},
 };
 
-/// Which of the two marks the tray shows.
+/// Which of the marks the tray shows.
 ///
-/// The busy mark is the idle one with the activity badge painted over it (`icon.rs`); which of
-/// the two is up is decided here, what they look like is not.
+/// The busy mark is the idle one with the activity badge painted over it, and the paused ones are
+/// the same two greyed out while clipboard watching is paused (`icon.rs`, RD-1180-01); which is
+/// up is decided here, what they look like is not.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum IconKind {
     Idle,
     Busy,
+    PausedIdle,
+    PausedBusy,
 }
 
 /// Everything the surface shows, as the state wants it now: what a tray built at this moment is
@@ -46,6 +50,10 @@ pub(crate) struct Surface {
     pub queue: QueueMenu,
     pub status_line: String,
     pub tooltip: String,
+    /// The check mark of "Pause clipboard watching" (RD-1180-01).
+    pub clipboard_paused: bool,
+    /// The shortcuts the menu shows beside its entries (RD-1180-03).
+    pub accelerators: CaptureShortcuts,
 }
 
 /// What one event changes on the surface. A field left `None` is left alone.
@@ -60,6 +68,9 @@ pub(crate) struct Update {
     pub queue: Option<QueueMenu>,
     pub status_line: Option<String>,
     pub tooltip: Option<String>,
+    pub clipboard_paused: Option<bool>,
+    /// Named only on a change: every entry's accelerator is written again.
+    pub accelerators: Option<CaptureShortcuts>,
 }
 
 impl Update {
@@ -88,6 +99,8 @@ pub(crate) struct TrayState {
     /// What the tooltip says now: the product name until the first transfer reading or notice,
     /// then the cut status line of whichever came last.
     tooltip: String,
+    /// What the service has the agent set to; the defaults until the first reading.
+    settings: CaptureAgentSettings,
 }
 
 /// The tooltip a freshly built tray carries, before anything has been read.
@@ -108,6 +121,7 @@ impl TrayState {
             configured,
             server,
             tooltip: initial_tooltip(),
+            settings: CaptureAgentSettings::default(),
         }
     }
 
@@ -119,6 +133,8 @@ impl TrayState {
             queue: self.queue,
             status_line: self.status_line(),
             tooltip: self.tooltip.clone(),
+            clipboard_paused: self.settings.clipboard_paused,
+            accelerators: self.settings.shortcuts.clone(),
         }
     }
 
@@ -164,6 +180,7 @@ impl TrayState {
             queue: queue_changed.then_some(self.queue),
             status_line: Some(line),
             tooltip: Some(self.tooltip.clone()),
+            ..Update::default()
         }
     }
 
@@ -187,11 +204,38 @@ impl TrayState {
         }
     }
 
+    /// Follows the clipboard pause and the shortcuts (RD-1180-01, RD-1180-03).
+    ///
+    /// The pause greys the mark, ticks its entry and says so on the status line and in the
+    /// tooltip, which is how a paused agent is told apart at a glance; the shortcuts are only
+    /// written again when they changed. A reading that changes nothing changes nothing: the
+    /// settings arrive on every change only, but the first one may equal the defaults.
+    pub(crate) fn on_settings(&mut self, settings: &CaptureAgentSettings) -> Update {
+        let paused_changed = self.settings.clipboard_paused != settings.clipboard_paused;
+        let shortcuts_changed = self.settings.shortcuts != settings.shortcuts;
+        let before = self.icon();
+        self.settings = settings.clone();
+        let mut update = Update {
+            accelerators: shortcuts_changed.then(|| settings.shortcuts.clone()),
+            ..Update::default()
+        };
+        if paused_changed {
+            let line = self.status_line();
+            self.tooltip = activity::tooltip(&line);
+            update.icon = (self.icon() != before).then_some(self.icon());
+            update.clipboard_paused = Some(settings.clipboard_paused);
+            update.status_line = Some(line);
+            update.tooltip = Some(self.tooltip.clone());
+        }
+        update
+    }
+
     fn icon(&self) -> IconKind {
-        if self.busy {
-            IconKind::Busy
-        } else {
-            IconKind::Idle
+        match (self.settings.clipboard_paused, self.busy) {
+            (false, false) => IconKind::Idle,
+            (false, true) => IconKind::Busy,
+            (true, false) => IconKind::PausedIdle,
+            (true, true) => IconKind::PausedBusy,
         }
     }
 
@@ -203,9 +247,19 @@ impl TrayState {
     fn status_line(&self) -> String {
         let line =
             activity::status_line(&self.status, self.transfers.as_deref().unwrap_or_default());
-        activity::status_line(&line, self.notice.as_deref().unwrap_or_default())
+        let line = activity::status_line(&line, self.notice.as_deref().unwrap_or_default());
+        let paused = if self.settings.clipboard_paused {
+            CLIPBOARD_PAUSED
+        } else {
+            ""
+        };
+        activity::status_line(&line, paused)
     }
 }
+
+/// What the status line and the tooltip add while clipboard watching is paused. English, like the
+/// rest of the menu (RD-092-05).
+pub(crate) const CLIPBOARD_PAUSED: &str = "capture paused";
 
 /// "Open rDownloader" can be chosen exactly while the service answers.
 fn open_enabled(server: ServerStatus) -> bool {

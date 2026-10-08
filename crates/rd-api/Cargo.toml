@@ -48,6 +48,7 @@ utoipa.workspace = true
 workspace = true
 
 [dev-dependencies]
+async-trait.workspace = true
 chrono.workspace = true
 dunce.workspace = true
 hex.workspace = true
@@ -64,6 +65,7 @@ rd-gallery = { path = "../rd-gallery" }
 rd-http = { path = "../rd-http" }
 rd-media = { path = "../rd-media" }
 rd-plugin-api = { path = "../rd-plugin-api" }
+rd-plugin-ext = { path = "../rd-plugin-ext" }
 rd-plugin-host = { path = "../rd-plugin-host", features = ["test-support"] }
 rd-provider-registry = { path = "../rd-provider-registry" }
 rd-scheduler = { path = "../rd-scheduler" }

@@ -164,6 +164,63 @@ describe('the site-rule editor', () => {
   })
 })
 
+describe('the editor for a page with several releases (RD-1170-02)', () => {
+  it('draws the per-entry form behind its switch, with a step list of its own', async () => {
+    const { model } = mount()
+    expect(screen.getAllByLabelText('Kind')).toHaveLength(2)
+    expect(screen.queryByLabelText(siterules.packages.from)).toBeNull()
+
+    await fireEvent.click(screen.getByRole('switch', { name: siterules.packages.enabled }))
+    expect(model.value.grouped).toBe(true)
+    // The rule's two steps and the entry's one: the same rows, a second list.
+    expect(screen.getAllByLabelText('Kind')).toHaveLength(3)
+    await fireEvent.update(screen.getByLabelText(siterules.packages.from), 'releases')
+    expect(model.value.groups.from).toBe('releases')
+    expect(screen.getByText(siterules.packages.mirrors_none)).toBeTruthy()
+    // With groups, mirrors are said per group, so the page-wide box is off limits.
+    const pageWide = screen.getByLabelText(siterules.editor.mirrors) as HTMLInputElement
+    expect(pageWide.disabled || pageWide.getAttribute('aria-disabled') === 'true' || pageWide.hasAttribute('data-disabled')).toBe(true)
+  })
+
+  it('shows one block per package the run found, each link with its mirror set', () => {
+    mount({
+      testResult: {
+        address: 'https://example.org/release/1',
+        package_name: 'Show',
+        pages_fetched: 1,
+        mirrors: false,
+        kept: 3,
+        refused: 0,
+        error: null,
+        links: [
+          { url: 'https://one.example/a1', verdict: 'claimed', code: null },
+          { url: 'https://two.example/b1', verdict: 'claimed', code: null },
+          { url: 'https://one.example/c1', verdict: 'unconfirmed', code: null }
+        ],
+        groups: [
+          {
+            name: 'Show.S01.720p',
+            links: [
+              { url: 'https://one.example/a1', mirror: 1 },
+              { url: 'https://two.example/b1', mirror: 1 }
+            ]
+          },
+          { name: null, links: [{ url: 'https://one.example/c1', mirror: null }] }
+        ]
+      }
+    })
+    expect(screen.getByText('2 packages')).toBeTruthy()
+    const first = screen.getByRole('region', { name: 'Show.S01.720p' })
+    expect(within(first).getByText('2 links')).toBeTruthy()
+    expect(within(first).getAllByText('Mirror 1')).toHaveLength(2)
+    const a1 = within(first).getByText('https://one.example/a1').parentElement as HTMLElement
+    expect(within(a1).getByText(siterules.test.verdicts.claimed)).toBeTruthy()
+    const second = screen.getByRole('region', { name: siterules.test.group_unnamed })
+    expect(within(second).getByText('1 link')).toBeTruthy()
+    expect(within(second).queryByText(/Mirror/)).toBeNull()
+  })
+})
+
 // The component does not fetch, so nothing here needs the API client.
 vi.mock('@/api/client', () => ({ api: {}, responseError: () => '', resultMessage: () => '' }))
 

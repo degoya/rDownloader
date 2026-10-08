@@ -1087,5 +1087,65 @@
     "eyebrow": "Every browser",
     "title": "Display",
     "description": "Saved with the settings in the service and applies in every browser that opens it."
+  },
+  "package_groups": {
+    "eyebrow": "Packages",
+    "title": "Package groups",
+    "description": "Whether a package appears open or closed in the list until you open or close it yourself. What you open or close by hand stays that way in this browser, across reloads.",
+    "downloads": {
+      "label": "Show packages closed in the Downloads",
+      "description": "On by default: a new package shows only its header row until you open it."
+    },
+    "linkgrabber": {
+      "label": "Show packages closed in the LinkGrabber",
+      "description": "Off by default: the LinkGrabber shows every link of a package so you can review the package before it is queued."
+    }
+  },
+  "capture_agent": {
+    "eyebrow": "Desktop agent",
+    "title": "Clipboard and shortcuts",
+    "description": "What the capture agent on your computer does. It takes changes over within a few seconds, without a restart.",
+    "clipboard_paused": {
+      "label": "Pause clipboard watching",
+      "description": "Copied links no longer reach rDownloader by themselves. Click'n'Load, the browser extension and rdownloader:// links stay active. What is copied during the pause is not delivered later."
+    },
+    "paused_badge": "Capture paused",
+    "watching_badge": "Watching the clipboard",
+    "shortcuts": {
+      "eyebrow": "Tray commands",
+      "title": "Shortcuts",
+      "description": "System-wide shortcuts for the tray menu's commands; the menu shows them beside each entry. A combination needs two of Ctrl, Alt and Win/Cmd. On Linux they work in an X11 session only.",
+      "record": "Record",
+      "recording": "Press the combination…",
+      "recording_hint": "Press the key combination now; Esc cancels.",
+      "reset": "Reset",
+      "none": "No shortcut",
+      "none_set": "Not set",
+      "save": "Save shortcuts",
+      "saved": "Shortcuts saved. The agent takes them over within a few seconds.",
+      "duplicate": "Already used by “{other}”."
+    },
+    "commands": {
+      "open": "Open rDownloader",
+      "start_all": "Start all",
+      "pause_all": "Pause all",
+      "pause_half_hour": "Pause for 30 minutes",
+      "pause_hour": "Pause for 1 hour",
+      "clipboard_watch": "Pause clipboard watching",
+      "send_clipboard": "Hand over clipboard now",
+      "quit": "Quit"
+    },
+    "report": {
+      "title_unavailable": "Shortcuts unavailable",
+      "title_refused": "Some shortcuts are taken",
+      "refused": "Another program already uses: {commands}. Choose another combination for them.",
+      "reported_at": "(Reported {time})",
+      "unavailable": {
+        "wayland": "Wayland has no system-wide shortcuts. Use an X11 session or the rdownloader-capture commands.",
+        "no_display": "The agent found no display (no DISPLAY) to register shortcuts with.",
+        "no_tray": "The agent runs without its tray icon (--no-tray); on Windows and macOS shortcuts need it.",
+        "failed": "The system refused to set the shortcuts up."
+      }
+    }
   }
 }

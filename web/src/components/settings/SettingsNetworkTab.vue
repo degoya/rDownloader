@@ -17,6 +17,7 @@ import { subTabItems } from '@/composables/useSettingsSubTab'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { editingRowClass } from '@/utils/editingRow'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
 /** Matches `validate_name` in `crates/rd-api-admin/src/config_handlers.rs`. */
@@ -288,7 +289,7 @@ defineExpose({ proxyDirty: proxyBaseline.dirty })
               level="sub"
             />
             <UFormField :label="t('settings.global_proxy.label')">
-              <USelect v-model="globalProxySelection" :items="proxyItems" class="w-full" />
+              <SearchableSelect v-model="globalProxySelection" :items="proxyItems" class="w-full" />
             </UFormField>
             <UFormField data-settings-anchor="network.custom_ca" :label="t('settings.custom_ca.label')" :description="t('settings.custom_ca.description')">
               <UTextarea v-model="settings.custom_ca_pem" :rows="7" class="w-full font-mono text-xs" placeholder="-----BEGIN CERTIFICATE-----" />

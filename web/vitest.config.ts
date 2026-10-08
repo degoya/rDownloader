@@ -18,11 +18,15 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,
-      // The Nuxt UI build modules, for the one test that mounts a real Nuxt UI component
-      // (`src/test/inputNumber.test.ts`); every other test renders the stubs of `mount.ts`.
+      // The Nuxt UI build modules, for the tests that mount a real Nuxt UI component
+      // (`src/test/inputNumber.test.ts`, `src/components/SearchableSelect.test.ts`); every other
+      // test renders the stubs of `mount.ts`.
       '#imports': new URL('./src/test/nuxtUi/imports.ts', import.meta.url).pathname,
       '#build/app.config': new URL('./src/test/nuxtUi/imports.ts', import.meta.url).pathname,
-      '#build/ui/input-number': new URL('./src/test/nuxtUi/inputNumberTheme.ts', import.meta.url).pathname
+      '#build/ui/input-number': new URL('./src/test/nuxtUi/inputNumberTheme.ts', import.meta.url).pathname,
+      // The real select menu of `SearchableSelect.test.ts` and the search field inside it (RD-1180-02).
+      '#build/ui/select-menu': new URL('./src/test/nuxtUi/selectMenuTheme.ts', import.meta.url).pathname,
+      '#build/ui/input': new URL('./src/test/nuxtUi/selectMenuTheme.ts', import.meta.url).pathname
     }
   },
   test: {

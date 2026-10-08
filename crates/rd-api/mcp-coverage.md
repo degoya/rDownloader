@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**99 capabilities, 74 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 429 REST operations, 226 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**101 capabilities, 76 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 440 REST operations, 234 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -24,6 +24,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Packages in the queue | Downloads | 2 | `delete_packages`, `list_packages` |
 | LinkGrabber: collect, check, enqueue | LinkGrabber | 5 | `check_links`, `collect_links`, `enqueue_collector`, `list_collector` |
 | The settings document | Settings | 2 | `get_settings`, `update_settings` |
+| The desktop agent's clipboard pause and shortcuts | Settings > Clients & API > Desktop | 2 | `get_capture_agent_settings`, `update_capture_agent_settings` |
 | Full backup: schedule, runs and history | Settings > Backup | 4 | `get_backup_status`, `list_backup_runs`, `run_backup`, `update_backup_schedule` |
 | Full backup: destinations, retention and verification | Settings > Backup | 7 | `create_backup_destination`, `delete_backup_destination`, `list_backup_archives`, `list_backup_verifications`, `preview_backup_retention`, `update_backup_destination`, `verify_backup_archive` |
 | Categories | Settings > Routing | 4 | `create_category`, `delete_category`, `list_configuration`, `update_category` |
@@ -74,6 +75,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | About rDownloader | Settings > About | 2 | `get_about` |
 | Application updates | Settings > System | 2 | `check_for_updates`, `get_update_status` |
 | Writing a site rule | Settings > Site rules | 4 | `create_site_rule`, `delete_site_rule`, `test_site_rule`, `update_site_rule` |
+| Choosing a series page's releases before resolving them | LinkGrabber | 6 | `cancel_page_pick`, `discard_page_pick`, `get_page_pick`, `list_page_entries`, `list_page_picks`, `resolve_page_entries` |
 | Which providers can take a remote job | Remote jobs | 1 | `list_remote_job_providers` |
 | Power actions | Settings > Power | 2 | `cancel_power_action`, `get_power_status` |
 | Plugin execution history | Settings > Plugins | 1 | `list_plugin_executions` |
@@ -116,7 +118,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Approving and fetching a diagnostic bundle | Logs | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Reconnecting on demand | Settings > Network | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Choosing a stored browser profile for queued work | Downloads, LinkGrabber | 2 | Each route names one of the stored browser profiles, and listing those is part of signing in at a provider, which the owner decided on 2026-09-23 to keep out. A tool here would take an id no tool can supply -- the gap RD-120-32 exists to close, not one to open. |
-| The desktop capture agent | the agent, not the web UI | 17 | Not a user-facing capability but the agent's own contract, priced with its own capture: scopes. No api: token reaches it, so a tool over it could not be called. The tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue already give MCP. |
+| The desktop capture agent | the agent, not the web UI | 20 | Not a user-facing capability but the agent's own contract, priced with its own capture: scopes. No api: token reaches it, so a tool over it could not be called. The tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue already give MCP, and the clipboard pause and the shortcuts the agent follows (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it. |
 | Controlling one download by its own route | Downloads | 5 | control_downloads already does all five for one id or many, over the bulk route. A second spelling of the same act is one more thing for a model to choose between and nothing it could not do before. |
 | The live rate series | Downloads chart | 1 | A chart's data series, sampled per second. get_status_summary answers how fast the queue is going in one number, and get_transfer_stats answers it over time; the queued files waiting for their host are list_downloads' waiting_for_host. |
 | Editing bandwidth profiles and the weekly schedule | Settings > Bandwidth | 6 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. Reading the status, listing the profiles and switching one on for a while are tools (RD-190-20). |

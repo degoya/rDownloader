@@ -96,6 +96,32 @@ pub struct TestedLinkResponse {
     pub code: Option<String>,
 }
 
+/// One link of a group, with the mirror set the rule placed it in (RD-1170-02).
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestedGroupLinkResponse {
+    pub url: String,
+    /// The mirror set within its group, counted from 1: links of one group carrying the same
+    /// number are copies of one file. Absent when the link has no copy.
+    pub mirror: Option<u32>,
+}
+
+/// One package a rule with `groups` produced (RD-1170-02).
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestedGroupResponse {
+    /// The package name: the group's own, or the rule's when the group's source read none.
+    pub name: Option<String>,
+    pub links: Vec<TestedGroupLinkResponse>,
+}
+
+/// One entry a two-stage rule listed (RD-1170-03): what a person would choose from.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestedEntryResponse {
+    /// The release name the group's `package` read from the entry.
+    pub label: Option<String>,
+    /// What `groups.pick.attributes` read from the entry; a name it did not match is absent.
+    pub attributes: std::collections::BTreeMap<String, String>,
+}
+
 /// What the trial run found.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct TestSiteRuleResponse {
@@ -105,6 +131,13 @@ pub struct TestSiteRuleResponse {
     pub package_name: Option<String>,
     pub pages_fetched: u32,
     pub mirrors: bool,
+    /// One package per entry, for a rule with `groups` (RD-1170-02), in the order found.
+    /// Empty for every other rule: its links are one package named `package_name`.
+    pub groups: Vec<TestedGroupResponse>,
+    /// The entries to choose from, for a rule with `groups.pick` (RD-1170-03): the trial runs
+    /// the first stage only, so `links` and `groups` are empty and no captcha is asked. Empty
+    /// for every other rule.
+    pub entries: Vec<TestedEntryResponse>,
     pub links: Vec<TestedLinkResponse>,
     /// How many of them would become candidates.
     pub kept: usize,

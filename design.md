@@ -1300,7 +1300,10 @@ recognised as drifting.
   carrying them over into a shape they do not fit; what survives is the variable the step
   writes into, which is the one field every kind has. There is **no free-text JSON box** as the
   only way in — that is the JDownloader rule editor this pattern was written against, and it is
-  where people stop (RD-110-08).
+  where people stop (RD-110-08). A second list of the same steps — the steps a site rule runs
+  once per entry (RD-1170-02) — is the same rows again, behind a `USwitch` under its own section
+  header; switching it off keeps what was typed, and a field it excludes (the page-wide
+  mirrors box) is disabled while it is on rather than hidden.
 - **Something with a shape a person is guessing at gets a trial run before it is saved.** A site
   rule, a regular expression, a connection: the control is a labelled `i-lucide-flask-conical`
   button under the form, enabled only once the form carries what the service would need, and its
@@ -1400,6 +1403,24 @@ recognised as drifting.
   Inside the drawer the older rules still hold: individual subscriptions start closed and fetch
   their first page on demand, the person's manual open/closed state wins over any event, and a
   zero total carries neither an undecided-work label nor a decorative zero badge.
+- **Choose before fetching: a page of many releases is picked from, then resolved
+  (RD-1170-03).** A series page lists thirty releases and each costs a captcha, so the LinkGrabber
+  does not fetch them on the paste; the page waits in the same one-line header and drawer as the
+  indexer hits (above), with the count of releases still open. The paste asked for the choice, so
+  that paste opens the drawer — nothing else does. Inside, one block per page:
+  - **Grouped by season, picked by season.** A row per release under a header row per season;
+    the header's checkbox takes every release of the season the filters show, and is partly
+    checked while only some are. A season pack is a release without an episode, labelled so.
+  - **Quick filters over the page's own values.** Season, episode (with "season pack"),
+    resolution and language as selects, each offered only where the page has more than one value,
+    each narrowing what is shown and what "pick all shown" takes.
+  - **One action, named by what it does.** *Fetch links* carries the count it will fetch and is
+    disabled at zero; it resolves only what is ticked, one release after the other. A release
+    that is done or underway cannot be ticked; one whose captcha went unanswered or that failed
+    can, and its badge says why in words.
+  - **The round is visible and stoppable.** The block's header counts the round ("3 of 8"), says
+    *Waiting for captcha* while a person is needed, and offers *Stop*; discarding the list is the
+    trash button beside it. Each finished release becomes one package in the list underneath.
 - **A subscription's hits may be cards instead of rows, and the subscription decides
   (RD-120-37).** The review drawer draws each group the way its own subscription asks — `list`,
   the default and what every subscription showed before the choice existed, or `cards`, a slider.
@@ -1509,6 +1530,16 @@ recognised as drifting.
   in jsdom its viewport measures zero and it renders no row, where `useVirtualRows` falls back to a
   viewport height and the component tests see every row of a short list. The own block stays
   until Nuxt UI's can be switched on and off with the length.
+- **Package groups remember being open, and open or close all at once.** The queue and the
+  LinkGrabber keep, per browser, which package the user opened or closed — an explicit id → open
+  map (`useOpenSections`), so a package someone touched stays as it was when the default changes,
+  and one nobody touched follows it. The default is a setting per list (*Interface → Display*,
+  closed in the queue, open in the LinkGrabber), because the two lists are read differently: the
+  queue is watched, the LinkGrabber reviewed. "Open all" and "close all" act on what the filters
+  show and live in two places: one icon button in the list's toolbar beside *Select all*, whose
+  icon (`i-lucide-chevrons-up-down` / `i-lucide-chevrons-down-up`) and name follow the state —
+  close all once every shown package is open — and a group of two entries in every package row's
+  menu. Jumping to a row still opens its package (RD-1170-01).
 - **A list with row checkboxes selects a range with Shift+click, like a file manager.** A plain
   or Ctrl/Cmd click toggles one row and sets the anchor; Shift+click — or Shift+Space on a
   focused checkbox — sets every row from the anchor to the clicked one to the state the clicked
@@ -1889,6 +1920,49 @@ parses and formats in the interface language — German and French type and read
   one switch is a group: all of its number fields show plus and minus, or none does. A group of
   counts shows them on every count; a group that mixes a count with a duration, a size or a port
   shows them on none, the count included.
+
+### Recording a Key Combination
+
+A keyboard shortcut is pressed, never typed (RD-1180-03, `ShortcutField.vue`): the field shows the
+combination as `UKbd` keys in the names of the platform it runs on (Ctrl/Alt/Win, Cmd/Option on a
+Mac; the agent's report says which, the browser is the guess before one arrives), and three
+buttons stand beside it.
+
+- **Record** listens on its own button for the next combination with a key that is not a
+  modifier, and takes it the moment it is complete. Esc ends the recording without a change;
+  Tab is not caught, so the keyboard never gets stuck in the field. A screen reader hears that it
+  is listening (`aria-live`), and the button is `aria-pressed` while it does.
+- **Reset** brings the built-in combination back and is disabled while it is set; **No
+  shortcut** clears the field and is disabled while it is empty. A command without a built-in
+  one (Quit) resets to none.
+- The fields of one card are saved together, because a combination is judged against the others:
+  a duplicate is pointed out before anything is sent, and a refusal of the service
+  (`capture.shortcut_*`) stands under the field whose command it names. What only the operating
+  system can refuse — another program holds the keys, a Wayland session takes none — is the
+  agent's report, shown as one alert above the fields.
+- A switch on the same card that the person expects to act at once (pausing clipboard watching)
+  saves on its own, like the tray's entry; it never waits for the shortcut save.
+
+### Pick Lists of Things You Create
+
+A field that picks one of the things the person created — categories, accounts, proxies,
+authentication and cookie profiles, remote credentials, S3 profiles, notification targets,
+indexers, scripts, storage roots, bandwidth profiles, stream channels, a package's files — is a
+`SearchableSelect` (RD-1180-02). Such a list grows with the installation: the owner's category
+list ran from *Downloads HDD-2* to *Serien HDD-4* and had to be scrolled.
+
+- **Short, it is the plain select.** Below eight entries `SearchableSelect` is the `USelect` it
+  replaced, type-ahead included; a search field over four entries is one more field to pass.
+- **Long, it searches.** From eight entries on it is a `USelectMenu` with its search field
+  (*Search…*, *Nothing found* when nothing matches): a match anywhere in the label, in any case
+  and without accents — *hdd-4* finds *Serien HDD-4* — the first match highlighted as you type,
+  Enter picks it. A letter typed on the closed field opens it with that letter already searched.
+- **The caller changes only the tag.** Size, width, placeholder, `aria-label`, `disabled` and the
+  model (the item's `value`) are those of the `USelect` it replaces.
+- **Fixed lists stay `USelect`**: priority, mode, language, unit, filter, kind — entries the code
+  names, never more than a handful. `ownedLists.test.ts` fails on a `USelect` whose items name a
+  thing you create and holds every converted place; a fixed list whose name says otherwise (a
+  *kind* of proxy, the update *channel*) is named there with its reason.
 
 ### Regex Diagram
 

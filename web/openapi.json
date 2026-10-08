@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.16.1"
+    "version": "1.18.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -3921,6 +3921,37 @@
         }
       }
     },
+    "/api/v1/capture/agent-settings": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "The agent's poll: what it is set to.",
+        "operationId": "read_capture_agent_settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAgentSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/capture/agents": {
       "get": {
         "tags": [
@@ -4358,6 +4389,47 @@
         }
       }
     },
+    "/api/v1/capture/clipboard": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "The tray's \"Pause clipboard watching\" and `rdownloader-capture pause|resume`.",
+        "operationId": "set_capture_clipboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureClipboardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAgentSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/capture/cookies": {
       "post": {
         "tags": [
@@ -4591,6 +4663,40 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capture/shortcut-report": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "What the agent found when it registered the shortcuts: which the system refused, or that it\ncould register none. The settings page shows it beside the fields.",
+        "operationId": "report_capture_shortcuts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureShortcutReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -6671,6 +6777,186 @@
           },
           "409": {
             "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/collector/picks": {
+      "get": {
+        "tags": [
+          "collector"
+        ],
+        "operationId": "list_collector_picks",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorPicksResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "collector"
+        ],
+        "operationId": "create_collector_pick",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCollectorPickRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorPickResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collector/picks/{id}": {
+      "get": {
+        "tags": [
+          "collector"
+        ],
+        "operationId": "get_collector_pick",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The listed page, as the board names it",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorPickResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "collector"
+        ],
+        "operationId": "delete_collector_pick",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The listed page, as the board names it",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collector/picks/{id}/cancel": {
+      "post": {
+        "tags": [
+          "collector"
+        ],
+        "operationId": "cancel_collector_pick",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The listed page, as the board names it",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorPickResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collector/picks/{id}/resolve": {
+      "post": {
+        "tags": [
+          "collector"
+        ],
+        "operationId": "resolve_collector_pick",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The listed page, as the board names it",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveCollectorPickRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorPickResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -13926,6 +14212,66 @@
         }
       }
     },
+    "/api/v1/settings/capture-agent": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Whether the agent watches the clipboard, its shortcuts and what it reported about them.",
+        "operationId": "get_capture_agent_settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAgentSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Pauses or resumes clipboard watching, or replaces the shortcuts; the agent follows within\nseconds, without a restart.",
+        "operationId": "update_capture_agent_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureAgentSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAgentSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/export": {
       "post": {
         "tags": [
@@ -20750,6 +21096,74 @@
         "type": "string",
         "format": "uuid"
       },
+      "CaptureAgentSettings": {
+        "type": "object",
+        "description": "What the service holds for the agent.",
+        "properties": {
+          "clipboard_paused": {
+            "type": "boolean",
+            "description": "Whether the agent leaves the clipboard alone (RD-1180-01). Click'n'Load, the browser\nextension and the `rdownloader://` scheme stay on: they are something somebody does, the\nclipboard is something that happens. What is copied while this holds is never delivered."
+          },
+          "shortcuts": {
+            "$ref": "#/components/schemas/CaptureShortcuts"
+          }
+        }
+      },
+      "CaptureAgentSettingsPatch": {
+        "type": "object",
+        "description": "A change to the agent's settings; a field left out stays as it is.",
+        "properties": {
+          "clipboard_paused": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "shortcuts": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CaptureShortcuts",
+                "description": "Replaces every shortcut; a command left out of the object takes its default, `null` is\n\"no shortcut\"."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CaptureAgentSettingsResponse": {
+        "type": "object",
+        "description": "The agent's settings as the settings page shows them.",
+        "required": [
+          "clipboard_paused",
+          "shortcuts",
+          "default_shortcuts"
+        ],
+        "properties": {
+          "clipboard_paused": {
+            "type": "boolean"
+          },
+          "default_shortcuts": {
+            "$ref": "#/components/schemas/CaptureShortcuts",
+            "description": "The built-in shortcuts, for \"Reset\"."
+          },
+          "report": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CaptureShortcutReport",
+                "description": "What an agent last said about registering the shortcuts; `None` before any did."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shortcuts": {
+            "$ref": "#/components/schemas/CaptureShortcuts"
+          }
+        }
+      },
       "CaptureAgentVersion": {
         "type": "object",
         "description": "One connected capture agent's version, measured against the service's.",
@@ -20816,6 +21230,33 @@
         "description": "Which kind of client is polling the waiting widgets.\n\nThe desktop agent and the browser extension read the same list with the same kind of\ntoken; the extension names itself so the web interface can tell a person whether one is\nconnected (RD-108-02). Not naming oneself is allowed and changes nothing — an agent older\nthan this parameter keeps working.",
         "enum": [
           "browser_extension"
+        ]
+      },
+      "CaptureClipboardRequest": {
+        "type": "object",
+        "description": "The agent's own switch.",
+        "required": [
+          "paused"
+        ],
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "description": "Whether to leave the clipboard alone from now on."
+          }
+        }
+      },
+      "CaptureCommand": {
+        "type": "string",
+        "description": "One command of the agent's tray menu, each of which a shortcut can trigger.",
+        "enum": [
+          "open",
+          "start_all",
+          "pause_all",
+          "pause_half_hour",
+          "pause_hour",
+          "clipboard_watch",
+          "send_clipboard",
+          "quit"
         ]
       },
       "CaptureCookiesRequest": {
@@ -21006,6 +21447,15 @@
           }
         }
       },
+      "CapturePlatform": {
+        "type": "string",
+        "description": "The operating system an agent runs on, so a shortcut can be shown with its own key names.",
+        "enum": [
+          "windows",
+          "macos",
+          "linux"
+        ]
+      },
       "CaptureQueuePauseRequest": {
         "type": "object",
         "properties": {
@@ -21039,6 +21489,99 @@
             ],
             "format": "date-time",
             "description": "When the timed pause ends, while one holds."
+          }
+        }
+      },
+      "CaptureShortcutReport": {
+        "type": "object",
+        "description": "What an agent last said about registering its shortcuts.",
+        "required": [
+          "platform"
+        ],
+        "properties": {
+          "platform": {
+            "$ref": "#/components/schemas/CapturePlatform"
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureCommand"
+            },
+            "description": "Commands whose shortcut the system refused: another program holds the combination."
+          },
+          "reported_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the service received it; whatever the agent sends here is replaced."
+          },
+          "unavailable": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ShortcutsUnavailable",
+                "description": "Set when no shortcut could be registered at all."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "CaptureShortcuts": {
+        "type": "object",
+        "description": "The shortcut of every command; `None` is \"no shortcut\".\n\nA field left out of a stored or sent document takes its default, while an explicit `null` is\n\"no shortcut\": somebody who removed one must not get it back from the next release.",
+        "properties": {
+          "clipboard_watch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "open": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pause_all": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pause_half_hour": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pause_hour": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "No default: quitting by accident is the one command a stray key press should not reach."
+          },
+          "send_clipboard": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start_all": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -22246,6 +22789,140 @@
           }
         }
       },
+      "CollectorPickEntryResponse": {
+        "type": "object",
+        "description": "One entry of a listed page.",
+        "required": [
+          "index",
+          "attributes",
+          "state",
+          "links"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "description": "What the rule's `pick` read from the entry: `season`, `episode`, `resolution`,\n`language`, `hoster`, or any other name the rule gives. A name it did not match is\nabsent -- a season pack has no `episode`.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the entry came back `pending` or ended `failed`, as a stable code."
+          },
+          "index": {
+            "type": "integer",
+            "description": "The entry's place in the list; what `resolve` names.",
+            "minimum": 0
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The release name the rule read, or the page's own when it read none."
+          },
+          "links": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many links it put into the LinkGrabber, once `done`.",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "description": "`pending` (nothing fetched: never picked, stopped, or its captcha went unanswered --\n`code` says which), `queued`, `resolving`, `captcha` (being resolved and waiting for a\nperson to solve its captcha in the broker), `done` or `failed`."
+          }
+        }
+      },
+      "CollectorPickResponse": {
+        "type": "object",
+        "description": "A page whose entries wait for a choice.",
+        "required": [
+          "id",
+          "rule",
+          "rule_id",
+          "address",
+          "created_at",
+          "running",
+          "total",
+          "finished",
+          "waiting_for_captcha",
+          "entries"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The address that was crawled."
+          },
+          "created_at": {
+            "type": "string",
+            "description": "When the page was listed, RFC 3339."
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectorPickEntryResponse"
+            }
+          },
+          "finished": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "package_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page's own name."
+          },
+          "rule": {
+            "type": "string",
+            "description": "The name of the rule that listed it."
+          },
+          "rule_id": {
+            "type": "string"
+          },
+          "running": {
+            "type": "boolean",
+            "description": "Whether entries are being resolved right now."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The entries of the current round, and how many of them have finished: \"3 of 8\".",
+            "minimum": 0
+          },
+          "waiting_for_captcha": {
+            "type": "boolean",
+            "description": "Whether the entry being resolved waits for a captcha."
+          }
+        }
+      },
+      "CollectorPicksResponse": {
+        "type": "object",
+        "description": "Every page on the board, oldest first.",
+        "required": [
+          "pages"
+        ],
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectorPickResponse"
+            }
+          }
+        }
+      },
       "CollisionDecision": {
         "type": "string",
         "description": "An answer to an `ask` prompt. `compare` and `ask` are not answers: a person who is asked\ndecides what happens, rather than handing the question back.",
@@ -23008,6 +23685,19 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "CreateCollectorPickRequest": {
+        "type": "object",
+        "description": "Lists one page's entries without resolving any.",
+        "required": [
+          "address"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "The page, an http or https address a two-stage site rule claims."
           }
         }
       },
@@ -33245,6 +33935,23 @@
           }
         }
       },
+      "ResolveCollectorPickRequest": {
+        "type": "object",
+        "description": "The entries to resolve.",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Indices as the page lists them. An entry already done, queued or being resolved is\nleft as it is."
+          }
+        }
+      },
       "ResolvedFormatPlan": {
         "type": "object",
         "description": "The outcome of the last resolve, carried alongside a selection for display and pinning.",
@@ -35151,6 +35858,11 @@
             "description": "`dlcrypt` service that unwraps the container key; empty = the JDownloader service.",
             "default": null
           },
+          "downloads_packages_closed_by_default": {
+            "type": "boolean",
+            "description": "Whether a package of the Downloads view that nobody opened or closed yet starts closed\n(RD-1170-01). On by default, as the queue always was; what the user opened or closed by\nhand is remembered per browser and stays so either way. A display choice only.",
+            "default": true
+          },
           "enable_all_par": {
             "type": "boolean",
             "description": "Download every PAR2 recovery volume of an NZB straight away. Off by default, like\nSABnzbd's `enable_all_par`: the main index comes down with the payload, the `vol`\nvolumes wait, and only a repair that is short of blocks fetches as many of them as the\ngap needs (RD-107-04). On restores the older behaviour of fetching all of them.",
@@ -35262,6 +35974,11 @@
             "type": "boolean",
             "description": "Keep NZB import entries and stored .torrent files after the download finishes;\noff removes them automatically on completion.",
             "default": true
+          },
+          "linkgrabber_packages_closed_by_default": {
+            "type": "boolean",
+            "description": "The same default for the LinkGrabber's packages (RD-1170-01). Off by default, as the\nLinkGrabber always showed a package's links: they are there to be reviewed.",
+            "default": false
           },
           "log_retention_days": {
             "type": "integer",
@@ -36116,6 +36833,16 @@
           "info",
           "warning",
           "error"
+        ]
+      },
+      "ShortcutsUnavailable": {
+        "type": "string",
+        "description": "Why the agent cannot register any shortcut at all.",
+        "enum": [
+          "wayland",
+          "no_display",
+          "no_tray",
+          "failed"
         ]
       },
       "SidecarOutcome": {
@@ -38602,6 +39329,8 @@
           "address",
           "pages_fetched",
           "mirrors",
+          "groups",
+          "entries",
           "links",
           "kept",
           "refused"
@@ -38611,12 +39340,26 @@
             "type": "string",
             "description": "The address that was actually crawled -- the one given, or the canonical host it was\nrevived onto when it arrived on a dead domain."
           },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestedEntryResponse"
+            },
+            "description": "The entries to choose from, for a rule with `groups.pick` (RD-1170-03): the trial runs\nthe first stage only, so `links` and `groups` are empty and no captcha is asked. Empty\nfor every other rule."
+          },
           "error": {
             "type": [
               "string",
               "null"
             ],
             "description": "The run's own refusal, when it produced nothing at all."
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestedGroupResponse"
+            },
+            "description": "One package per entry, for a rule with `groups` (RD-1170-02), in the order found.\nEmpty for every other rule: its links are one package named `package_name`."
           },
           "kept": {
             "type": "integer",
@@ -38647,6 +39390,75 @@
             "type": "integer",
             "description": "How many answered with a page rather than a file and would be dropped.",
             "minimum": 0
+          }
+        }
+      },
+      "TestedEntryResponse": {
+        "type": "object",
+        "description": "One entry a two-stage rule listed (RD-1170-03): what a person would choose from.",
+        "required": [
+          "attributes"
+        ],
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "description": "What `groups.pick.attributes` read from the entry; a name it did not match is absent.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The release name the group's `package` read from the entry."
+          }
+        }
+      },
+      "TestedGroupLinkResponse": {
+        "type": "object",
+        "description": "One link of a group, with the mirror set the rule placed it in (RD-1170-02).",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "mirror": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The mirror set within its group, counted from 1: links of one group carrying the same\nnumber are copies of one file. Absent when the link has no copy.",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "TestedGroupResponse": {
+        "type": "object",
+        "description": "One package a rule with `groups` produced (RD-1170-02).",
+        "required": [
+          "links"
+        ],
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestedGroupLinkResponse"
+            }
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The package name: the group's own, or the rule's when the group's source read none."
           }
         }
       },

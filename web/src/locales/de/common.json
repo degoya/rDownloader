@@ -202,5 +202,13 @@
   },
   "date_field": {
     "open_calendar": "Datum im Kalender wählen"
+  },
+  "package_groups": {
+    "open_all": "Alle Pakete aufklappen",
+    "close_all": "Alle Pakete zuklappen"
+  },
+  "select": {
+    "search": "Suchen …",
+    "nothing_found": "Nichts gefunden"
   }
 }

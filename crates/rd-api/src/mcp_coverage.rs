@@ -188,6 +188,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Settings",
         &[any("/api/v1/settings")],
     ),
+    // RD-1180-01, RD-1180-03: a row of its own beside the document, which the tray switches too.
+    covered(
+        "The desktop agent's clipboard pause and shortcuts",
+        "Settings > Clients & API > Desktop",
+        &[any("/api/v1/settings/capture-agent")],
+    ),
     covered(
         "Full backup: schedule, runs and history",
         "Settings > Backup",
@@ -576,6 +582,13 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/site-rules/test"),
         ],
     ),
+    // A series page's releases, chosen before they are resolved (RD-1170-03). The captchas
+    // they ask stay a person's, in the broker; the tools report them waiting.
+    covered(
+        "Choosing a series page's releases before resolving them",
+        "LinkGrabber",
+        &[any("/api/v1/collector/picks")],
+    ),
     // ---- deliberately out: the owner's decision of 2026-09-23 ----
     omitted(
         "Deleting a remote job at the provider",
@@ -762,7 +775,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Not a user-facing capability but the agent's own contract, priced with its own \
          capture: scopes. No api: token reaches it, so a tool over it could not be called. The \
          tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue \
-         already give MCP.",
+         already give MCP, and the clipboard pause and the shortcuts the agent follows \
+         (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it.",
     ),
     omitted(
         "Controlling one download by its own route",

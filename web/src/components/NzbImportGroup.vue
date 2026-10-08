@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import type { Category, DownloadPriority, NzbFileStatus, NzbImport, PostprocessStep } from '@/api/types'
 import DragHandle from '@/components/DragHandle.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { formatBytes, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
@@ -169,7 +170,7 @@ function completedSegments(file: NzbFileStatus): number {
         :title="t('linkgrabber.nzb.hand_over.badge_hint')"
         data-testid="nzb-handed-over"
       />
-      <USelect v-model="categoryModel" :items="categoryItems" value-key="value" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
+      <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
       <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
       <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" :title="enqueueHint" size="xs" color="primary" variant="soft" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueue', props.item.id)" />
       <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="enqueueHint ?? t('linkgrabber.nzb.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueuePaused', props.item.id)" />

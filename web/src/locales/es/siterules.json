@@ -96,7 +96,12 @@
     "fields_hint": "Un `nombre=valor` por línea.",
     "challenge": "Tipo de desafío",
     "sitekey": "Clave del sitio",
-    "empty": "Una regla necesita al menos un paso."
+    "empty": "Una regla necesita al menos un paso.",
+    "json": "Enviar los campos como JSON",
+    "json_hint": "Un objeto JSON en lugar de un formulario, como el propio script de una página consulta su API.",
+    "page": "Página del captcha",
+    "page_hint": "La página donde está el widget, por ejemplo la variable url: la dirección con la que empezó la regla. Vacío significa la última página obtenida.",
+    "invisible": "Widget invisible"
   },
   "test": {
     "heading": "Ejecución de prueba",
@@ -116,7 +121,14 @@
       "confirmed": "Confirmado como archivo",
       "not-a-file": "Responde con una página, no con un archivo",
       "unconfirmed": "Sin respuesta; se conserva igualmente"
-    }
+    },
+    "groups": "ningún paquete | {count} paquete | {count} paquetes",
+    "group_links": "ningún enlace | {count} enlace | {count} enlaces",
+    "group_unnamed": "Sin nombre de paquete",
+    "mirror": "Espejo {set}",
+    "mirror_hint": "Los enlaces de un paquete con el mismo número de espejo son copias de un archivo.",
+    "entries": "ninguna entrada para elegir | {count} entrada para elegir | {count} entradas para elegir",
+    "entries_hint": "La prueba solo lista; los enlaces y captchas llegan cuando alguien elige en el LinkGrabber."
   },
   "transfer": {
     "export": "Exportar reglas",
@@ -132,5 +144,23 @@
     "title": "¿Eliminar esta regla?",
     "description": "{name} se eliminará de esta instalación. Expórtala antes si quieres conservarla."
   },
-  "duplicated": "{name} se creó desactivada y se abrió para editarla."
+  "duplicated": "{name} se creó desactivada y se abrió para editarla.",
+  "packages": {
+    "heading": "Varios paquetes",
+    "description": "Para una página que lista varias publicaciones. Los pasos de arriba dejan una entrada por publicación en una variable; los pasos de aquí convierten cada entrada en un paquete propio.",
+    "enabled": "Un paquete por entrada",
+    "from": "Entradas de la variable",
+    "from_hint": "La lista que escribieron los pasos de arriba, una entrada por paquete.",
+    "into": "Variable de entrada",
+    "into_hint": "Los pasos de abajo encuentran cada entrada en esta variable. Vacío significa entry.",
+    "steps": "Pasos por entrada, que terminan con los enlaces de la entrada en links",
+    "package": "Nombre del paquete por entrada",
+    "mirrors": "Espejos",
+    "mirrors_hint": "Qué enlaces de una entrada son copias del mismo archivo.",
+    "mirrors_none": "Sin espejos",
+    "mirrors_by_host": "Misma posición en cada servidor de descarga",
+    "mirrors_all": "Cada enlace es el mismo archivo",
+    "pick": "Elegir primero, luego obtener",
+    "pick_hint": "Un atributo por línea como nombre=patrón, por ejemplo season, episode, resolution, language, hoster. La regla entonces solo lista las entradas; lo que alguien elige se obtiene después, cada entrada con su propio captcha."
+  }
 }

@@ -128,3 +128,26 @@ describe('collector store: deleting many links', () => {
     expect(store.error).toBe('busy')
   })
 })
+
+/** RD-1170-03: a paste that only listed a series page is no failure; the pick board holds it. */
+describe('collector store: a page that waits for a choice', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.mocked(api.POST).mockReset()
+    vi.mocked(api.GET).mockReset()
+    vi.mocked(api.GET).mockResolvedValue({ data: { pages: [] } } as never)
+  })
+
+  it('answers how many releases were listed and asks the board instead of showing an error', async () => {
+    vi.mocked(api.POST).mockResolvedValueOnce({
+      error: { code: 'site_rules.pick_waiting', error: 'listed', params: { list: 'p1', entries: '32', rule: 'serienjunkies.org' } }
+    } as never)
+    const store = useCollectorStore()
+
+    const outcome = await store.collect({ text: 'https://serienjunkies.org/serie/show/' })
+
+    expect(outcome).toMatchObject({ ok: true, listed: 32 })
+    expect(store.error).toBeNull()
+    expect(vi.mocked(api.GET).mock.calls.map(call => call[0])).toContain('/api/v1/collector/picks')
+  })
+})

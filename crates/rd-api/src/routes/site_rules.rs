@@ -6,7 +6,7 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, site_rules_handlers};
+use crate::{AppState, site_rule_picks, site_rules_handlers};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -40,6 +40,23 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/site-rule-groups/{group}/enabled",
             put(site_rules_handlers::set_site_rule_group_enabled),
         )
+        // A series page's entries, chosen before they are resolved (RD-1170-03).
+        .route(
+            "/api/v1/collector/picks",
+            get(site_rule_picks::list_collector_picks).post(site_rule_picks::create_collector_pick),
+        )
+        .route(
+            "/api/v1/collector/picks/{id}",
+            get(site_rule_picks::get_collector_pick).delete(site_rule_picks::delete_collector_pick),
+        )
+        .route(
+            "/api/v1/collector/picks/{id}/resolve",
+            post(site_rule_picks::resolve_collector_pick),
+        )
+        .route(
+            "/api/v1/collector/picks/{id}/cancel",
+            post(site_rule_picks::cancel_collector_pick),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -54,5 +71,11 @@ pub(crate) fn routes() -> Router<AppState> {
     site_rules_handlers::delete_site_rule,
     site_rules_handlers::set_site_rule_enabled,
     site_rules_handlers::set_site_rule_group_enabled,
+    site_rule_picks::list_collector_picks,
+    site_rule_picks::create_collector_pick,
+    site_rule_picks::get_collector_pick,
+    site_rule_picks::delete_collector_pick,
+    site_rule_picks::resolve_collector_pick,
+    site_rule_picks::cancel_collector_pick,
 ))]
 pub(crate) struct Doc;

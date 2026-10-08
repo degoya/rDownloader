@@ -1,6 +1,7 @@
+use rd_core::{CaptureAgentSettings, CaptureCommand};
 use url::Url;
 
-use super::{IconKind, Surface, TrayState, Update, initial_tooltip};
+use super::{CLIPBOARD_PAUSED, IconKind, Surface, TrayState, Update, initial_tooltip};
 use crate::{
     activity::{Activity, QueueEntries, QueueMenu, TOOLTIP_LIMIT},
     status::{ServerStatus, status_label},
@@ -71,6 +72,19 @@ fn apply(surface: &mut Surface, update: &Update) {
     }
     if let Some(tooltip) = &update.tooltip {
         surface.tooltip = tooltip.clone();
+    }
+    if let Some(paused) = update.clipboard_paused {
+        surface.clipboard_paused = paused;
+    }
+    if let Some(accelerators) = &update.accelerators {
+        surface.accelerators = accelerators.clone();
+    }
+}
+
+fn clipboard_paused(paused: bool) -> CaptureAgentSettings {
+    CaptureAgentSettings {
+        clipboard_paused: paused,
+        ..CaptureAgentSettings::default()
     }
 }
 
@@ -348,7 +362,9 @@ fn applying_every_update_in_order_reproduces_the_surface() {
         state.on_transfers(offering(QueueMenu::Locked, "1 queued")),
         state.on_server_status(ServerStatus::Unreachable),
         state.on_notice(&task_stopped("the transfer poll")),
+        state.on_settings(&clipboard_paused(true)),
         state.on_transfers(transfers(false, "1 failed")),
+        state.on_settings(&clipboard_paused(false)),
     ];
     for update in &steps {
         apply(&mut shown, update);
@@ -356,4 +372,86 @@ fn applying_every_update_in_order_reproduces_the_surface() {
     assert_eq!(shown, state.surface());
     assert_eq!(shown.icon, IconKind::Idle);
     assert!(!shown.open_enabled);
+}
+
+/// Pausing ticks the entry, greys the mark and says so on the line and in the tooltip;
+/// resuming takes all of it back (RD-1180-01).
+#[test]
+fn a_paused_clipboard_shows_on_the_mark_the_entry_the_line_and_the_tooltip() {
+    let mut state = paired();
+    state.on_transfers(transfers(false, "no transfers"));
+    assert!(!state.surface().clipboard_paused);
+
+    let update = state.on_settings(&clipboard_paused(true));
+    assert_eq!(update.clipboard_paused, Some(true));
+    assert_eq!(update.icon, Some(IconKind::PausedIdle));
+    assert!(
+        update
+            .status_line
+            .as_deref()
+            .is_some_and(|line| line.ends_with(CLIPBOARD_PAUSED)),
+        "{update:?}"
+    );
+    assert!(
+        update
+            .tooltip
+            .as_deref()
+            .is_some_and(|tooltip| tooltip.contains(CLIPBOARD_PAUSED))
+    );
+    assert_eq!(update.accelerators, None, "the shortcuts did not change");
+
+    // Transfers starting while paused keep the grey mark and add the badge.
+    let busy = state.on_transfers(transfers(true, "1 active"));
+    assert_eq!(busy.icon, Some(IconKind::PausedBusy));
+    assert!(
+        busy.status_line
+            .as_deref()
+            .is_some_and(|line| line.contains("1 active") && line.ends_with(CLIPBOARD_PAUSED))
+    );
+
+    assert!(
+        state.on_settings(&clipboard_paused(true)).is_empty(),
+        "the same settings again change nothing"
+    );
+    let resumed = state.on_settings(&clipboard_paused(false));
+    assert_eq!(resumed.icon, Some(IconKind::Busy));
+    assert_eq!(resumed.clipboard_paused, Some(false));
+    assert!(
+        !resumed
+            .status_line
+            .as_deref()
+            .unwrap_or_default()
+            .contains(CLIPBOARD_PAUSED)
+    );
+}
+
+/// The menu's accelerators follow a change made in the settings without a restart, and only a
+/// change rewrites them (RD-1180-03).
+#[test]
+fn changed_shortcuts_rewrite_the_accelerators_and_nothing_else() {
+    let mut state = paired();
+    assert_eq!(
+        state
+            .surface()
+            .accelerators
+            .get(CaptureCommand::SendClipboard),
+        Some("CmdOrCtrl+Alt+V"),
+        "the defaults until the first reading"
+    );
+    let mut settings = CaptureAgentSettings::default();
+    settings.shortcuts.set(
+        CaptureCommand::SendClipboard,
+        Some("CmdOrCtrl+Alt+B".to_owned()),
+    );
+    let update = state.on_settings(&settings);
+    assert_eq!(
+        update
+            .accelerators
+            .as_ref()
+            .and_then(|shortcuts| shortcuts.get(CaptureCommand::SendClipboard)),
+        Some("CmdOrCtrl+Alt+B")
+    );
+    assert_eq!(update.icon, None);
+    assert_eq!(update.status_line, None);
+    assert!(state.on_settings(&settings).is_empty());
 }

@@ -16,7 +16,7 @@ use super::{
     error::RunError,
     guard::{host_allowed, is_public, literal_address},
     ports::{FetchFailure, FetchRequest, FetchResponse, Method},
-    value::{ADDRESS_VARIABLE, PAGE_URL_VARIABLE, Variables},
+    value::{ADDRESS_VARIABLE, DEVICE_VARIABLE, PAGE_URL_VARIABLE, Variables},
 };
 use crate::format::Rule;
 
@@ -36,6 +36,12 @@ pub(crate) struct Run<'a> {
     /// with. The starting address is depth 0.
     pub(crate) depth: u32,
     started: std::time::Duration,
+    /// Whether the time a captcha waits for its answer is left out of the time budget. Off for
+    /// every run but the second stage of a two-stage rule (RD-1170-03), where a person solves
+    /// the challenge and may well take longer than the whole budget.
+    pub(crate) captcha_paused: bool,
+    /// How long captchas waited, when [`Self::captcha_paused`] is on.
+    waited: std::time::Duration,
 }
 
 impl<'a> Run<'a> {
@@ -49,6 +55,9 @@ impl<'a> Run<'a> {
         let mut variables = Variables::default();
         variables.set(ADDRESS_VARIABLE, address.to_string());
         variables.set(PAGE_URL_VARIABLE, address.to_string());
+        if let Some(device) = ports.device_id {
+            variables.set(DEVICE_VARIABLE, device.to_owned());
+        }
         Self {
             ports,
             limits,
@@ -60,6 +69,15 @@ impl<'a> Run<'a> {
             pages: 0,
             depth: 0,
             started: ports.clock.elapsed(),
+            captcha_paused: false,
+            waited: std::time::Duration::ZERO,
+        }
+    }
+
+    /// Counts a captcha's wait out of the budget, when this run does that.
+    pub(crate) fn captcha_waited(&mut self, waited: std::time::Duration) {
+        if self.captcha_paused {
+            self.waited = self.waited.saturating_add(waited);
         }
     }
 
@@ -71,7 +89,13 @@ impl<'a> Run<'a> {
     /// Refuses once the run has spent its budget. Checked before every request and before
     /// every step, so a rule with many cheap steps cannot outrun it either.
     pub(crate) fn check_time(&self) -> Result<(), RunError> {
-        if self.ports.clock.elapsed().saturating_sub(self.started) > self.limits.max_total_time {
+        let spent = self
+            .ports
+            .clock
+            .elapsed()
+            .saturating_sub(self.started)
+            .saturating_sub(self.waited);
+        if spent > self.limits.max_total_time {
             return Err(RunError::LimitTime(self.limits.max_total_time.as_secs()));
         }
         Ok(())
@@ -140,6 +164,7 @@ impl<'a> Run<'a> {
         url: &Url,
         method: Method,
         form: &BTreeMap<String, String>,
+        json: bool,
         depth: u32,
     ) -> Result<FetchResponse, RunError> {
         self.check_time()?;
@@ -164,6 +189,7 @@ impl<'a> Run<'a> {
                 addresses,
                 method,
                 form: form.clone(),
+                json,
                 max_bytes: self.limits.max_response_bytes,
                 timeout: self.limits.request_timeout,
             })
@@ -180,19 +206,22 @@ impl<'a> Run<'a> {
     }
 
     /// Fetches a page, following redirects itself and checking every hop against the rule.
-    /// Returns the address that finally answered together with its body.
+    /// Returns the address that finally answered together with its body. `json` sends the
+    /// form fields as one JSON object (RD-1170-03).
     pub(crate) async fn fetch_page(
         &mut self,
         url: Url,
         method: Method,
         form: BTreeMap<String, String>,
+        json: bool,
     ) -> Result<(Url, FetchResponse), RunError> {
         let mut url = url;
         let mut method = method;
         let mut form = form;
+        let mut json = json;
         let mut depth = self.depth + 1;
         loop {
-            let response = self.issue(&url, method, &form, depth).await?;
+            let response = self.issue(&url, method, &form, json, depth).await?;
             if let Some(location) = redirect_target(&response) {
                 url = url.join(location).map_err(|error| RunError::FetchFailed {
                     url: url.to_string(),
@@ -202,6 +231,7 @@ impl<'a> Run<'a> {
                 // and every HTTP client does it.
                 method = Method::Get;
                 form.clear();
+                json = false;
                 depth += 1;
                 continue;
             }
@@ -221,7 +251,7 @@ impl<'a> Run<'a> {
     ) -> Result<String, RunError> {
         let depth = self.depth + 1;
         let response = self
-            .issue(url, Method::Get, &BTreeMap::new(), depth)
+            .issue(url, Method::Get, &BTreeMap::new(), false, depth)
             .await?;
         match redirect_target(&response) {
             Some(location) => {

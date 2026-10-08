@@ -17,6 +17,10 @@ use crate::{ApiError, AppState};
 /// - **A folder that produced nothing says so.** An empty or unreachable folder ends as a
 ///   refusal carrying the plugin's stable code, so the interface can say it in the language
 ///   the person reads. Silently dropping the link is the defect this replaced.
+/// - **A page whose entries wait for a choice resolves nothing here** (RD-1170-03). A
+///   two-stage site rule lists a series page's releases on the LinkGrabber's pick board; when
+///   that list is all the intake found, it answers `site_rules.pick_waiting` naming the list,
+///   so the person -- or the agent -- chooses before a single captcha is asked.
 /// - **Nothing a crawler returns is taken on trust.** Every address it hands back passes the
 ///   verdict in [`crate::collector_crawl_verdict`] before a row exists for it: claimed by a
 ///   resolver, confirmed as file content by a probe, or refused because the probe answered
@@ -37,6 +41,7 @@ pub(super) async fn expand_crawled_links(
     let gallery_settings = state.gallery_settings.read().await.clone();
     let mut expanded: Vec<CapturedLink> = Vec::with_capacity(links.len());
     let mut refusal: Option<(String, String)> = None;
+    let mut listed: Option<(String, rd_plugin_ext::PickSummary)> = None;
     let mut found_total: usize = 0;
     let mut dropped: usize = 0;
     let mut crawled_any = false;
@@ -105,6 +110,14 @@ pub(super) async fn expand_crawled_links(
                 tracing::info!(address = %for_log(&link.url), %code, "a crawler could not open a folder");
                 refusal.get_or_insert((code, message));
             }
+            rd_plugin_ext::CrawlOutcome::Listed { rule, page } => {
+                tracing::info!(
+                    address = %for_log(&link.url),
+                    entries = page.entries,
+                    "a site rule listed a page's entries for a choice"
+                );
+                listed.get_or_insert((rule, page));
+            }
         }
     }
     let crawled = Crawled {
@@ -112,6 +125,22 @@ pub(super) async fn expand_crawled_links(
         found: u32::try_from(found_total).unwrap_or(u32::MAX),
         dropped: u32::try_from(dropped).unwrap_or(u32::MAX),
     };
+    // A list waiting for a choice is not a failure, but there is no batch to answer with
+    // either: the answer names the list instead (RD-1170-03).
+    if crawled.links.is_empty()
+        && let Some((rule, page)) = listed
+    {
+        return Err(ApiError::bad_request(
+            "site_rules.pick_waiting",
+            format!(
+                "{rule} listed {} entries; choose which of them to resolve",
+                page.entries
+            ),
+        )
+        .with_param("list", page.id)
+        .with_param("entries", page.entries)
+        .with_param("rule", rule));
+    }
     // A refusal is only fatal when nothing else survived: a batch of ten links must not fail
     // over one folder that has gone, and a single folder link that produced nothing must not
     // end as "no links found", which says nothing about what actually happened.

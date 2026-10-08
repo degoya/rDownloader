@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { BandwidthCapability, BandwidthProfile, BandwidthStatus, ManualProfileRequest } from '@/api/types'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { formatBytes, formatLongMoment, formatPauseEnd } from '@/utils/format'
 
@@ -124,7 +125,7 @@ defineExpose({ reload: load })
     </p>
     <div class="mt-4 flex flex-wrap items-end gap-2" data-testid="bandwidth-switch">
       <UFormField :label="t('bandwidth.manual.profile')">
-        <USelect v-model="chosenProfile" :items="profileItems" value-key="value" class="w-48" />
+        <SearchableSelect v-model="chosenProfile" :items="profileItems" class="w-48" />
       </UFormField>
       <UFormField :label="t('bandwidth.manual.ends')">
         <USelect v-model="chosenEnd" :items="endItems" value-key="value" class="w-64" />

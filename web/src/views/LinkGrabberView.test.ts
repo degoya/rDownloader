@@ -26,6 +26,7 @@ import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { axeViolations } from '@/test/axe'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
+import { setPackagesClosedByDefault } from '@/utils/packageGroups'
 
 import LinkGrabberView from './LinkGrabberView.vue'
 
@@ -103,6 +104,7 @@ const stubs = {
   },
   UTooltip: passthrough,
   IndexerReviewList: true,
+  SiteRulePickPanel: true,
   IndexerSearchPanel: true,
   NzbHistoryModal: true,
   BulkActionBar: { template: '<div><slot /></div>' }
@@ -611,6 +613,49 @@ describe('LinkGrabberView and mirror groups (RD-110-19)', () => {
 })
 
 /**
+ * A site rule with groups (RD-1170-02): a page listing several releases arrives as one package
+ * per release, and each file at its two hosters as one declared mirror group — the shape the
+ * warez.cx rule produces, two releases and two episodes of it here.
+ */
+describe('LinkGrabberView and a page with several releases (RD-1170-02)', () => {
+  const releases = ['Show.S01.720p.WEB-GROUP', 'Show.S01.1080p.WEB-GROUP']
+
+  function seedReleases() {
+    const store = useCollectorStore()
+    store.packages = releases.map((name, index) => ({ ...makePackage(index), name }) as unknown as CollectorPackage)
+    store.candidates = releases.flatMap((release, packageIndex) =>
+      ['ddownload.com', 'rapidgator.net'].flatMap((hoster, hosterIndex) =>
+        [1, 2].map(episode => ({
+          ...makeCandidate(packageIndex, hosterIndex * 2 + episode),
+          url: `https://${hoster}/${packageIndex}-${episode}`,
+          file_name: `${release}.E0${episode}.${hoster}.rar`,
+          // The key the crawler builds: rule, page, group and mirror set.
+          mirror: {
+            group: `warez.cx|https://warez.cx/detail/x|${packageIndex}|${episode}`,
+            source: 'declared',
+            selected: hosterIndex === 0
+          }
+        }) as unknown as LinkCandidate)))
+    return store
+  }
+
+  it('shows one package per release and one row per file, the other hoster behind it', async () => {
+    seedReleases()
+    const { container, getAllByLabelText } = mountView()
+    await nextTick()
+    for (const release of releases) {
+      expect(container.textContent).toContain(release)
+      for (const episode of [1, 2]) {
+        expect(container.textContent).toContain(`${release}.E0${episode}.ddownload.com.rar`)
+        expect(container.textContent).not.toContain(`${release}.E0${episode}.rapidgator.net.rar`)
+      }
+    }
+    // Four files, four mirror groups: one chevron each.
+    expect(getAllByLabelText(linkgrabber.mirror.expand)).toHaveLength(4)
+  })
+})
+
+/**
  * What a filter hides stays in the LinkGrabber (1.2.4).
  *
  * Reported from use: with the hoster facet on one hoster, "add to the queue" sent the links of
@@ -951,6 +996,120 @@ describe('LinkGrabberView metadata switch', () => {
     await nextTick()
     expect(toggle(second.container).checked).toBe(false)
     expect(chips(second.container)).toHaveLength(0)
+  })
+})
+
+/**
+ * RD-1170-01: the LinkGrabber remembers which packages were opened or closed (it forgot on every
+ * reload before), opens or closes every package the filters show at once, and starts a package
+ * open or closed as the Interface setting says.
+ */
+describe('LinkGrabberView package groups', () => {
+  const menuStubs = {
+    ...stubs,
+    UDropdownMenu: {
+      props: ['items'],
+      template: '<div><slot /><div data-menu-items><button v-for="item in (items ?? []).flat()" :key="item.label" type="button" @click="item.onSelect?.()">{{ item.label }}</button></div></div>'
+    }
+  }
+  const linkRows = (container: Element) => container.querySelectorAll('[data-row-key^="link:"]').length
+  const toggleAll = (container: Element) => {
+    const button = container.querySelector<HTMLButtonElement>('[data-testid="packages-open-toggle"]')
+    if (!button) throw new Error('no open/close all button')
+    return button
+  }
+  const stored = () => JSON.parse(localStorage.getItem('rdownloader-open-packages-linkgrabber') ?? '{}') as unknown
+
+  afterEach(() => setPackagesClosedByDefault({}))
+
+  it('keeps a package the user closed closed across a reload', async () => {
+    seedCollector(2, 2)
+    const first = mountView()
+    await nextTick()
+    expect(linkRows(first.container)).toBe(4)
+    await fireEvent.click(first.getAllByLabelText(linkgrabber.package.hide_links)[0]!)
+    await settle()
+    expect(linkRows(first.container)).toBe(2)
+    expect(stored()).toEqual({ 'cpkg-0': false })
+    first.unmount()
+
+    const second = mountView()
+    await nextTick()
+    expect(linkRows(second.container)).toBe(2)
+  })
+
+  it('closes and opens every package the state filter leaves with one button whose name follows', async () => {
+    const store = seedCollector(3, 1)
+    store.candidates = store.candidates.map(candidate => candidate.package_id === 'cpkg-2' ? { ...candidate, state: 'offline' } : candidate)
+    const { container, getByLabelText } = mountView()
+    await fireEvent.update(getByLabelText(linkgrabber.filter.state_label) as HTMLSelectElement, 'online')
+    await settle()
+
+    expect(toggleAll(container).getAttribute('aria-label')).toBe(common.package_groups.close_all)
+    await fireEvent.click(toggleAll(container))
+    await settle()
+    expect(linkRows(container)).toBe(0)
+    expect(stored()).toEqual({ 'cpkg-0': false, 'cpkg-1': false })
+    expect(toggleAll(container).getAttribute('aria-label')).toBe(common.package_groups.open_all)
+
+    await fireEvent.click(toggleAll(container))
+    await settle()
+    expect(linkRows(container)).toBe(2)
+  })
+
+  it('offers both in the package menu', async () => {
+    seedCollector(2, 1)
+    const { container, getAllByText } = render(LinkGrabberView, { global: { plugins: [i18n], stubs: menuStubs } })
+    await nextTick()
+    await fireEvent.click(getAllByText(common.package_groups.close_all)[0]!)
+    await settle()
+    expect(linkRows(container)).toBe(0)
+    await fireEvent.click(getAllByText(common.package_groups.open_all)[1]!)
+    await settle()
+    expect(linkRows(container)).toBe(2)
+  })
+
+  it('starts the packages closed when the setting says so', async () => {
+    setPackagesClosedByDefault({ linkgrabber_packages_closed_by_default: true })
+    seedCollector(2, 1)
+    const { container } = mountView()
+    await nextTick()
+    expect(linkRows(container)).toBe(0)
+  })
+
+  it('forgets a package once it left the list', async () => {
+    const store = seedCollector(2, 1)
+    const { getAllByLabelText } = mountView()
+    await nextTick()
+    await fireEvent.click(getAllByLabelText(linkgrabber.package.hide_links)[1]!)
+    await settle()
+    expect(stored()).toEqual({ 'cpkg-1': false })
+
+    store.packages = store.packages.slice(0, 1)
+    await settle()
+    expect(stored()).toEqual({})
+  })
+
+  /** The acceptance criterion's thousand packages: opening them all keeps the window a window. */
+  it('opens a thousand packages at once and still renders only a window of them', { timeout: 120_000 }, async () => {
+    setPackagesClosedByDefault({ linkgrabber_packages_closed_by_default: true })
+    seedCollector(1000, 3)
+    const { container } = mountView()
+    await nextTick()
+
+    const started = performance.now()
+    await fireEvent.click(toggleAll(container))
+    await settle()
+    record(`[RD-1170-01] linkgrabber open all of 1000 packages x 3 links: ${(performance.now() - started).toFixed(0)} ms`)
+    expect(container.querySelector('[role="list"]')?.getAttribute('aria-label')).toBe('Collected links, 4000 rows')
+    expect(container.querySelectorAll('[data-row-key]').length).toBeLessThan(100)
+  })
+
+  it('renders the button and the package menu without an axe violation', async () => {
+    seedCollector(2, 1)
+    const { container } = mountView()
+    await settle()
+    expect(await axeViolations(container)).toBe('')
   })
 })
 

@@ -10,6 +10,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, CategoryMapping, IndexerCaps, IndexerCategory } from '@/api/types'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 const props = defineProps<{
   categories: Category[],
@@ -91,13 +92,12 @@ function removeMapping(index: number): void {
       :key="index"
       class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]"
     >
-      <USelect
+      <SearchableSelect
         v-if="props.caps?.categories?.length"
         v-model="mapping.source_category"
         size="xs"
         class="w-full min-w-0"
         :items="mappableCategories.map(category => ({ value: category.id, label: categoryLabel(category) }))"
-        value-key="value"
       />
       <UInput
         v-else
@@ -107,12 +107,11 @@ function removeMapping(index: number): void {
         :placeholder="t('subscriptions.form.source_category')"
       />
       <span class="text-xs text-muted">→</span>
-      <USelect
+      <SearchableSelect
         v-model="mapping.category_id"
         size="xs"
         class="w-full min-w-0"
         :items="props.categories.map(category => ({ value: category.id, label: category.name }))"
-        value-key="value"
       />
       <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="removeMapping(index)" />
     </div>

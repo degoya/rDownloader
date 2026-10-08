@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
+    groups::Groups,
     step::{Step, check_pattern, check_variable},
     text::{MAX_GROUP_LENGTH, MAX_ID_LENGTH, host_matches, is_host, is_host_pattern, is_slug},
 };
@@ -47,14 +48,21 @@ pub struct Rule {
     ///
     /// True for the shape a release page has: one file, posted to five hosters, listed once
     /// each. It is a statement about the *page*, not about a link, which is why it sits on
-    /// the rule and not on a step -- the rule format carries no per-link metadata, so a page
-    /// that lists several different files each with its own mirrors cannot be described this
-    /// way and leaves this false.
+    /// the rule and not on a step. A page that lists several different files each with its
+    /// own mirrors cannot be described this way; it leaves this false and says it per group
+    /// with [`Self::groups`] instead.
     ///
     /// Absent in every rule written before this existed, and absent in the serialized form
     /// when false, so a pack signed before it stays byte-identical and keeps its signature.
     #[serde(default, skip_serializing_if = "is_false")]
     pub mirrors: bool,
+    /// One package per entry of a list, each with its own name and its own mirrors
+    /// (RD-1170-02) -- the shape `mirrors` above cannot describe. See [`crate::groups`].
+    ///
+    /// Absent in every rule written before this existed, and absent in the serialized form
+    /// when absent, so a pack signed before it stays byte-identical and keeps its signature.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub groups: Option<Groups>,
     /// A real address the self-test (RD-110-09) fetches. Must be one this rule claims.
     pub probe: String,
     /// The date the service was last measured alive.
@@ -129,6 +137,12 @@ pub enum RuleError {
     Probe(String),
     #[error("probe {0:?} is not claimed by the rule's own match")]
     ProbeUnclaimed(String),
+    #[error("groups.steps is empty")]
+    NoGroupSteps,
+    #[error("mirrors and groups exclude each other; groups.mirrors says it per group")]
+    MirrorsWithGroups,
+    #[error("groups.pick reads more than {0} attributes")]
+    PickAttributes(usize),
 }
 
 impl Rule {
@@ -167,6 +181,13 @@ impl Rule {
             step.validate()?;
         }
         self.package.validate()?;
+        if let Some(groups) = &self.groups {
+            // One statement about mirrors per rule: for the page, or per group, never both.
+            if self.mirrors {
+                return Err(RuleError::MirrorsWithGroups);
+            }
+            groups.validate()?;
+        }
         let probe =
             parse_http_url(&self.probe).ok_or_else(|| RuleError::Probe(self.probe.clone()))?;
         if !self.matches.claims(&probe) {
@@ -241,7 +262,7 @@ impl Match {
 }
 
 impl PackageSource {
-    fn validate(&self) -> Result<(), RuleError> {
+    pub(crate) fn validate(&self) -> Result<(), RuleError> {
         match self {
             Self::Title => Ok(()),
             Self::Regex { pattern, source } => {

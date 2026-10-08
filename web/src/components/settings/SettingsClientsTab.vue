@@ -6,13 +6,15 @@
  * tokens are issued here.
  *
  * Both pairings hand out a capture token, so both cards show the one list of paired clients;
- * it is read once for the page.
+ * it is read once for the page. Desktop also carries what the agent does once it runs: its
+ * clipboard pause and its shortcuts (RD-1180-01, RD-1180-03), which the card reads itself.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { CaptureToken } from '@/api/types'
+import CaptureAgentCard from '@/components/settings/CaptureAgentCard.vue'
 import CapturePairingCard from '@/components/settings/CapturePairingCard.vue'
 import ExtensionPairingGuide from '@/components/settings/ExtensionPairingGuide.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -62,6 +64,10 @@ async function loadAgents(): Promise<void> {
       <template #desktop>
         <UCard as="section" data-settings-anchor="clients.desktop">
           <CapturePairingCard v-model="agents" :loading="loading" :load-error="loadError" />
+        </UCard>
+        <!-- What the paired agent does: clipboard pause and shortcuts (RD-1180-01, RD-1180-03). -->
+        <UCard as="section" class="mt-6" data-settings-anchor="clients.desktop_agent">
+          <CaptureAgentCard />
         </UCard>
       </template>
       <template #browser>

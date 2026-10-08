@@ -9,6 +9,7 @@ mod auth_profile;
 mod backup;
 mod bandwidth;
 mod capture;
+mod capture_agent;
 mod collector;
 mod cookie_file;
 mod dedupe;
@@ -72,6 +73,11 @@ pub use capture::{
     CapturedRequest, MAX_CAPTURE_LINKS, MAX_CAPTURED_HEADER_NAME, MAX_CAPTURED_HEADERS,
     MAX_CAPTURED_VALUE, Scope, granted_scopes, is_allowed_captured_header, is_credential_header,
     scope_satisfies, scopes_grant, scopes_satisfy,
+};
+pub use capture_agent::{
+    CaptureAgentSettings, CaptureCommand, CapturePlatform, CaptureShortcutReport, CaptureShortcuts,
+    Family as ShortcutFamily, Pressed as ShortcutKeys, Shortcut, ShortcutProblem, ShortcutRefusal,
+    ShortcutsUnavailable,
 };
 pub use collector::{
     CandidateMessage, CandidateMirror, Category, CategoryRule, CategoryRuleNameTarget,

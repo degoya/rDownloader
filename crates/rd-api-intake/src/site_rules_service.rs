@@ -15,8 +15,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use rand::Rng;
 use rd_db::Database;
 use rd_siterules::{Catalogue, Rule};
+
+/// The settings key this installation's value for the rule variable `device_id` is kept under.
+const DEVICE_ID_KEY: &str = "site_rules.device_id";
 
 /// What somebody decided about the groups.
 #[derive(Clone, Debug, Default)]
@@ -101,6 +105,42 @@ pub(crate) async fn checks(database: &Database) -> BTreeMap<String, rd_db::SiteR
         Err(error) => {
             tracing::warn!(%error, "the rule self-test results could not be read");
             BTreeMap::new()
+        }
+    }
+}
+
+/// This installation's value for the rule variable `device_id` (RD-1170-03): 32 hexadecimal
+/// digits, drawn once and kept, the same for every run from then on.
+///
+/// A page whose script sends a browser fingerprint along with a request -- serienjunkies.org
+/// posts a fingerprintjs2 hash beside the captcha token -- is sent this instead. It is not a
+/// fingerprint of anything: random, stable, and naming nothing about the machine. `None` when
+/// the settings cannot be read or written, which leaves a rule reading it to refuse.
+pub async fn device_id(database: &Database) -> Option<String> {
+    let mut bytes = [0_u8; 16];
+    rand::rng().fill_bytes(&mut bytes);
+    let drawn: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    // Written only when absent, so two starts never disagree about the value.
+    if let Err(error) = database
+        .insert_setting_if_absent(DEVICE_ID_KEY.to_owned(), drawn.into())
+        .await
+    {
+        tracing::warn!(%error, "the site-rule device value could not be stored");
+        return None;
+    }
+    match database.get_setting(DEVICE_ID_KEY).await {
+        Ok(Some(serde_json::Value::String(value)))
+            if value.len() == 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit()) =>
+        {
+            Some(value)
+        }
+        Ok(_) => {
+            tracing::warn!("the stored site-rule device value is not 32 hexadecimal digits");
+            None
+        }
+        Err(error) => {
+            tracing::warn!(%error, "the site-rule device value could not be read");
+            None
         }
     }
 }

@@ -16,6 +16,9 @@
 //! the same reason as the line.
 
 use chrono::{DateTime, TimeZone, Utc};
+use tokio_util::sync::CancellationToken;
+
+use crate::{client::CaptureClient, config};
 
 /// The figures `GET /api/v1/capture/summary` answers with.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
@@ -78,12 +81,8 @@ pub(crate) struct QueueEntries {
     pub timed_pause: bool,
 }
 
-/// What the tray asks of the queue. The agent makes the request, because it holds the token
-/// and the tray never reads the keyring (`main::run`).
-///
-/// Only the tray names one, and the tray is compiled on Windows and macOS only -- so on Linux the
-/// variants are never built, which is the platform split rather than an oversight.
-#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+/// What the tray or a shortcut asks of the queue (RD-1100-06, RD-1180-03). The agent makes the
+/// request, because it holds the token and the tray never reads the keyring (`main::run`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum QueueRequest {
     /// Pause everything; for `minutes`, or until resumed when `None`.
@@ -306,6 +305,47 @@ pub(crate) fn tooltip(line: &str) -> String {
     }
     let kept: String = line.chars().take(TOOLTIP_LIMIT - 1).collect();
     format!("{kept}\u{2026}")
+}
+
+/// Polls the service's figures and reports what the tray should show.
+///
+/// The interval is `config::STATUS_POLL_INTERVAL`, the same constant the tray's health poll
+/// reads, so the two states move together and the icon never contradicts the status line. The
+/// rate comes with the summary; nothing here measures across a poll interval any more, so an
+/// outage cannot turn into a leap.
+///
+/// The tray's queue requests are made here too (RD-1100-06), and the summary is read again right
+/// after one, so the menu and the status line show its outcome without waiting for the next
+/// tick. A refused request is a log line: the summary that follows says what the agent may do,
+/// and a tray that may not pause greys its entries out (RD-1101-06).
+pub(crate) async fn watch_activity(
+    client: CaptureClient,
+    cancellation: CancellationToken,
+    sink: crate::ActivitySink,
+    mut requests: tokio::sync::mpsc::UnboundedReceiver<QueueRequest>,
+) {
+    loop {
+        match client.summary().await {
+            Ok(summary) => sink(describe(summary)),
+            // `warn`, not `debug`: since RD-109-10 a byte count the service sends in a shape
+            // this build cannot read fails here instead of quietly becoming zero, and a broken
+            // API contract is worth a line somebody sees. The tray keeps its last figures.
+            Err(error) => tracing::warn!(%error, "could not read the transfer summary"),
+        }
+        tokio::select! {
+            () = cancellation.cancelled() => return,
+            () = tokio::time::sleep(config::STATUS_POLL_INTERVAL) => {}
+            Some(request) = requests.recv() => {
+                let outcome = match request {
+                    QueueRequest::Pause { minutes } => client.pause_queue(minutes).await,
+                    QueueRequest::Resume => client.resume_queue().await,
+                };
+                if let Err(error) = outcome {
+                    tracing::warn!(%error, ?request, "the tray's queue request was not carried out");
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

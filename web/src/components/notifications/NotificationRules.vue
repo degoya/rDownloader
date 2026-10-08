@@ -7,6 +7,7 @@ import type { Category, NotificationEvent, NotificationRule, NotificationRuleReq
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
@@ -160,10 +161,10 @@ async function remove(rule: NotificationRule): Promise<void> {
             <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-filter" />
           </UFormField>
           <UFormField :label="t('notifications.rule.target_label')">
-            <USelect v-model="form.target_id" :items="targetItems" value-key="value" class="w-full" />
+            <SearchableSelect v-model="form.target_id" :items="targetItems" class="w-full" />
           </UFormField>
           <UFormField :label="t('notifications.rule.category_label')" :description="t('notifications.rule.category_description')">
-            <USelect v-model="categoryChoice" :items="categoryItems" value-key="value" class="w-full" />
+            <SearchableSelect v-model="categoryChoice" :items="categoryItems" class="w-full" />
           </UFormField>
           <UFormField :label="t('notifications.rule.severity_label')" :description="t('notifications.rule.severity_description')">
             <USelect v-model="form.min_severity" :items="severities" value-key="value" class="w-full" />

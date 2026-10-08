@@ -1209,7 +1209,18 @@
     "settings.package_name_regex_too_long": "Règle de nom de paquet {index} : le motif et le remplacement peuvent avoir au plus {max} caractères chacun.",
     "category_rule.regex_structure_limits": "Le motif est trop grand pour être dessiné en diagramme.",
     "subscription.item_no_source": "Cette entrée d’abonnement n’a aucune adresse à télécharger",
-    "subscription.item_duplicate": "L’adresse de cette entrée d’abonnement est encore dans le LinkGrabber ou dans la liste des téléchargements"
+    "subscription.item_duplicate": "L’adresse de cette entrée d’abonnement est encore dans le LinkGrabber ou dans la liste des téléchargements",
+    "site_rules.no_entry": "La liste n’a pas cette entrée.",
+    "site_rules.pick_waiting": "{rule} a listé {entries} entrées — choisissez dans le LinkGrabber celles à récupérer.",
+    "site_rules.pick_not_found": "Cette liste de sélection n’existe plus ; ajoutez à nouveau la page.",
+    "site_rules.pick_cancelled": "Arrêté avant que ses liens soient récupérés.",
+    "site_rules.no_pick": "La règle {rule} récupère les liens de cette page immédiatement ; ajoutez-la directement dans le LinkGrabber.",
+    "site_rules.pick_discarded": "La liste de sélection a été abandonnée.",
+    "capture.shortcut_invalid": "Cette combinaison de touches est illisible.",
+    "capture.shortcut_modifier_missing": "Une combinaison demande deux touches parmi Ctrl, Alt et Win/Cmd.",
+    "capture.shortcut_reserved": "Le système d'exploitation utilise déjà cette combinaison.",
+    "capture.shortcut_duplicate": "Une autre commande a déjà cette combinaison.",
+    "capture.shortcut_command_unknown": "Commande inconnue : {command}"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

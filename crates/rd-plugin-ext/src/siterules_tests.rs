@@ -56,6 +56,16 @@ impl RuleRunner for FakeRunner {
             // What the executor itself answers for an address a rule does not claim.
             .unwrap_or_else(|| Err(RunError::NotClaimed(address.to_string())))
     }
+
+    async fn resolve(
+        &self,
+        _rule: &Rule,
+        _address: &Url,
+        _list: &rd_siterules::PickList,
+        index: usize,
+    ) -> Result<rd_siterules::CrawlGroup, RunError> {
+        Err(RunError::NoEntry(index))
+    }
 }
 
 pub(crate) fn crawl(links: &[&str], package: Option<&str>) -> Crawl {
@@ -70,6 +80,8 @@ pub(crate) fn crawl_with_mirrors(links: &[&str], package: Option<&str>, mirrors:
         package_name: package.map(str::to_owned),
         pages_fetched: 1,
         mirrors,
+        groups: Vec::new(),
+        pick: None,
     }
 }
 

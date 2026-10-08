@@ -153,3 +153,17 @@ pub(crate) struct TestRegexParams {
     /// each sample's result then carries `replaced`.
     pub replacement: Option<String>,
 }
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct UpdateCaptureAgentSettingsParams {
+    /// `true` pauses the desktop agent's clipboard watching, `false` resumes it; left out, it
+    /// stays as it is. Click'n'Load, the browser extension and rdownloader:// links are not
+    /// affected, and what is copied while paused is never delivered later.
+    #[serde(default)]
+    pub clipboard_paused: Option<bool>,
+    /// Shortcuts to change, by command (open, start_all, pause_all, pause_half_hour, pause_hour,
+    /// clipboard_watch, send_clipboard, quit): a combination such as "CmdOrCtrl+Alt+V", or
+    /// `null` for none. Commands left out keep theirs.
+    #[serde(default)]
+    pub shortcuts: Option<std::collections::BTreeMap<String, Option<String>>>,
+}

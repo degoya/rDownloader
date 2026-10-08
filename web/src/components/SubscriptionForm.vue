@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Category, IndexerCaps, Subscription } from '@/api/types'
 import FormActions from '@/components/FormActions.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SubscriptionGitRelease from '@/components/SubscriptionGitRelease.vue'
 import SubscriptionIndexerCategories from '@/components/SubscriptionIndexerCategories.vue'
@@ -264,12 +265,11 @@ defineExpose({ edit, reset, dirty: baseline.dirty })
         :label="t('subscriptions.form.script')"
         :description="t('subscriptions.form.script_description')"
       >
-        <USelect
+        <SearchableSelect
           v-if="scriptItems.length"
           v-model="form.script"
           class="w-full font-mono"
           :items="scriptItems"
-          value-key="value"
           data-testid="subscription-script"
         />
         <p v-else class="text-xs text-error" data-testid="subscription-no-scripts">
@@ -329,7 +329,7 @@ defineExpose({ edit, reset, dirty: baseline.dirty })
         <USelect v-model="form.mode" class="w-full" :items="modeItems" value-key="value" />
       </UFormField>
       <UFormField :label="t('subscriptions.form.category')">
-        <USelect v-model="form.categoryId" class="w-full" :items="categoryItems" value-key="value" />
+        <SearchableSelect v-model="form.categoryId" class="w-full" :items="categoryItems" />
       </UFormField>
       <UFormField :label="t('subscriptions.form.interval')">
         <UInputNumber v-model="form.intervalMinutes" required class="w-full" :min="minimumMinutes" :step="5" :format-options="WHOLE" />

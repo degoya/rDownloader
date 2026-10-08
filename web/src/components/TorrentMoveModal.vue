@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
 import type { StorageRoot } from '@/api/types'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { useTorrentsStore } from '@/stores/torrents'
 
 /**
@@ -53,7 +54,7 @@ async function submit(): Promise<void> {
       <form id="torrent-move-form" class="grid gap-3" @submit.prevent="submit">
         <UAlert v-if="!roots.length" color="warning" icon="i-lucide-hard-drive" :description="t('torrent.move.no_roots')" />
         <UFormField :label="t('torrent.move.root')">
-          <USelect v-model="rootId" :items="rootItems" value-key="value" icon="i-lucide-hard-drive" class="w-full" />
+          <SearchableSelect v-model="rootId" :items="rootItems" icon="i-lucide-hard-drive" class="w-full" />
         </UFormField>
         <UFormField :label="t('torrent.move.path')">
           <UInput v-model="relativePath" :placeholder="t('torrent.move.path_placeholder')" icon="i-lucide-corner-down-right" class="w-full font-mono" />

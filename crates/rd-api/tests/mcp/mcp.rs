@@ -1398,6 +1398,12 @@ async fn no_tool_makes_changes_switches_on_or_runs_a_script_subscription() {
 #[path = "mcp/everything.rs"]
 mod everything;
 
+#[path = "mcp/site_rule_groups.rs"]
+mod site_rule_groups;
+
+#[path = "mcp/series_pick.rs"]
+mod series_pick;
+
 /// Queues a magnet over REST and leaves its torrent in the persisted engine session.
 async fn queued_magnet(
     router: &Router,

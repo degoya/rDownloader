@@ -72,6 +72,9 @@ fn the_capture_scope_covers_exactly_the_capture_router() {
         .map(|entry| entry.path)
         .collect();
     let expected: BTreeSet<&str> = [
+        // The agent's own settings: the clipboard pause it switches and the shortcuts it
+        // registers (RD-1180-01, RD-1180-03); nothing else of the configuration.
+        "/api/v1/capture/agent-settings",
         "/api/v1/capture/batches",
         // A browser session answers a request a person opened; it cannot start one.
         "/api/v1/capture/browser-sessions",
@@ -81,12 +84,14 @@ fn the_capture_scope_covers_exactly_the_capture_router() {
         "/api/v1/capture/captchas/{id}/no-widget",
         "/api/v1/capture/captchas/{id}/skip",
         "/api/v1/capture/captchas/{id}/token",
+        "/api/v1/capture/clipboard",
         "/api/v1/capture/cookies",
         "/api/v1/capture/events",
         // A file only the browser could load: its bytes, or its address and cookies.
         "/api/v1/capture/file",
         "/api/v1/capture/nzb",
         "/api/v1/capture/ping",
+        "/api/v1/capture/shortcut-report",
         // Figures for the tray: counts and byte totals, nothing that names a file.
         "/api/v1/capture/summary",
     ]

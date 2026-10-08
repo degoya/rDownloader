@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Category, CollectorPackage, DownloadPriority, LinkCandidate } from '@/api/types'
 import DragHandle from '@/components/DragHandle.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import { priorityItems, formatBytes } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 import { isEnqueueable, isUnverified } from '@/utils/candidateState'
@@ -46,6 +47,9 @@ const emit = defineEmits<{
   move: [id: string, delta: -1 | 1]
   /** The chevron was used; the view decides whether the link rows are in the stream. */
   toggle: [id: string]
+  /** Every package the view shows, open or closed at once (RD-1170-01). */
+  openAll: []
+  closeAll: []
 }>()
 /** What the handle announces: the drag, and the keys that do the same without a mouse. */
 const dragTitle = computed(() => `${t('linkgrabber.package.drag_hint')} — ${t('common.a11y.reorder_keys')}`)
@@ -77,6 +81,11 @@ const categoryModel = computed({
   get: () => props.package.category_id ?? NO_SELECTION,
   set: (value: string) => emit('category', props.package.id, value === NO_SELECTION ? null : value)
 })
+/** The row's menu: what acts on the list rather than on this package (RD-1170-01). */
+const listActions = computed(() => [[
+  { label: t('common.package_groups.open_all'), icon: 'i-lucide-chevrons-up-down', onSelect: () => emit('openAll') },
+  { label: t('common.package_groups.close_all'), icon: 'i-lucide-chevrons-down-up', onSelect: () => emit('closeAll') }
+]])
 const priorityModel = computed({
   get: () => props.package.priority,
   set: (value: DownloadPriority) => emit('priority', props.package.id, value)
@@ -124,12 +133,15 @@ const priorityModel = computed({
         <UIcon name="i-lucide-key-round" class="size-4" />
         <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
       </span>
-      <USelect v-model="categoryModel" :items="categoryItems" value-key="value" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
+      <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
       <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
       <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="!selectable.length" :loading="busy" @click="emit('enqueue', props.package.id)" />
       <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.package.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="!selectable.length" :loading="busy" @click="emit('enqueuePaused', props.package.id)" />
       <UButton icon="i-lucide-link" size="xs" color="neutral" variant="ghost" :aria-label="t('common.actions.copy_links')" :title="t('common.actions.copy_links')" @click="emit('copyLinks', props.package.id)" />
       <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_package')" @click="emit('remove', props.package.id)" />
+      <UDropdownMenu :items="listActions" :content="{ align: 'end' }">
+        <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('linkgrabber.package.actions')" :title="t('linkgrabber.package.actions')" />
+      </UDropdownMenu>
       </div>
     </header>
   </section>

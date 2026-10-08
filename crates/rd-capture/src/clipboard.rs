@@ -1,11 +1,18 @@
 //! The clipboard subsystem: the loop that watches what was copied, and the rule that decides
 //! which refusal is a decision and which one deserves another try.
+//!
+//! Watching can be paused from the tray, a shortcut, the settings page or MCP (RD-1180-01). Paused,
+//! the loop does not read the clipboard at all, and when it resumes, what was on the clipboard at
+//! that moment counts as seen: a link copied during the pause is never delivered later. "Hand
+//! over clipboard now" (RD-1180-03) reads it once on request, paused or not.
 
 use std::time::Duration;
 
 use anyhow::Result;
 use arboard::{Clipboard, Error as ClipboardError};
+use rd_core::CaptureAgentSettings;
 use sha2::Digest;
+use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -14,6 +21,8 @@ use crate::client::{CaptureClient, Detail, ServiceRefusal};
 pub(crate) async fn watch_clipboard(
     client: CaptureClient,
     cancellation: CancellationToken,
+    settings: watch::Receiver<CaptureAgentSettings>,
+    mut hand_overs: mpsc::UnboundedReceiver<()>,
 ) -> Result<()> {
     let mut state = ClipboardState::default();
     let mut clipboard = None;
@@ -22,67 +31,28 @@ pub(crate) async fn watch_clipboard(
     loop {
         tokio::select! {
             () = cancellation.cancelled() => return Ok(()),
+            // "Hand over clipboard now" (RD-1180-03): one read, paused or not, through the same
+            // state, so the watcher does not deliver the same text a second time.
+            Some(()) = hand_overs.recv() => {
+                let outcome =
+                    hand_over(&client, &mut clipboard, &mut unavailable_logged, &mut state).await;
+                tracing::info!(?outcome, "clipboard handed over on request");
+                crate::notify::toast(outcome.message()).await;
+            }
             _ = ticker.tick() => {
                 state.tick();
-                if clipboard.is_none() {
-                    match Clipboard::new() {
-                        Ok(value) => {
-                            clipboard = Some(value);
-                            unavailable_logged = false;
-                        }
-                        Err(error) => {
-                            if !unavailable_logged {
-                                tracing::warn!(%error, "clipboard unavailable; retrying");
-                                unavailable_logged = true;
-                            }
-                            continue;
-                        }
-                    }
-                }
-                let Some(active_clipboard) = clipboard.take() else {
+                // Not read at all while paused (RD-1180-01): the person said leave it alone.
+                if !state.watching(settings.borrow().clipboard_paused) {
                     continue;
-                };
-                // Off the runtime. `arboard` talks to the window server synchronously and waits
-                // for whichever program owns the clipboard to answer, so a frozen browser, a
-                // remote-desktop session with clipboard forwarding or a compositor under load
-                // used to take a tokio worker with it -- and a desktop agent has few enough
-                // workers that this could stall the event stream, the transfer poll and
-                // Click'n'Load along with it. `notify.rs` does the same for its equally
-                // blocking call (RD-109-08).
-                //
-                // The handle travels with the call and comes back: `arboard` only truly opens
-                // the Windows clipboard for the length of one operation, and these operations
-                // are strictly sequential -- never two at once, which is the case its
-                // documentation warns about.
-                let read = tokio::task::spawn_blocking(move || {
-                    let mut active_clipboard = active_clipboard;
-                    let text = active_clipboard.get_text();
-                    (active_clipboard, text)
-                })
-                .await;
-                let (returned, text) = match read {
-                    Ok(pair) => pair,
-                    Err(error) => {
-                        tracing::warn!(%error, "clipboard read task ended; reopening");
+                }
+                let text = match read_text(&mut clipboard, &mut unavailable_logged).await {
+                    Read::Text(text) => text,
+                    Read::Nothing => {
+                        state.saw_nothing();
                         continue;
                     }
+                    Read::Failed => continue,
                 };
-                clipboard = Some(returned);
-                let text = match text {
-                    Ok(text) => text,
-                    Err(ClipboardError::ContentNotAvailable | ClipboardError::ClipboardOccupied) => {
-                        continue;
-                    }
-                    Err(error) => {
-                        if !unavailable_logged {
-                            tracing::warn!(%error, "clipboard read failed; retrying");
-                            unavailable_logged = true;
-                        }
-                        clipboard = None;
-                        continue;
-                    }
-                };
-                unavailable_logged = false;
                 if let Some(candidate) = state.candidate(&text) {
                     if candidate.urls.is_empty() {
                         state.accept(candidate.hash);
@@ -96,6 +66,176 @@ pub(crate) async fn watch_clipboard(
             }
         }
     }
+}
+
+/// What one look at the clipboard found.
+enum Read {
+    Text(String),
+    /// The clipboard holds no text: empty, or a picture.
+    Nothing,
+    /// It could not be read this time; the next tick tries again.
+    Failed,
+}
+
+/// Reads the clipboard once, opening it first when it is not open yet.
+async fn read_text(clipboard: &mut Option<Clipboard>, unavailable_logged: &mut bool) -> Read {
+    if clipboard.is_none() {
+        match Clipboard::new() {
+            Ok(value) => {
+                *clipboard = Some(value);
+                *unavailable_logged = false;
+            }
+            Err(error) => {
+                if !*unavailable_logged {
+                    tracing::warn!(%error, "clipboard unavailable; retrying");
+                    *unavailable_logged = true;
+                }
+                return Read::Failed;
+            }
+        }
+    }
+    let Some(active_clipboard) = clipboard.take() else {
+        return Read::Failed;
+    };
+    // Off the runtime. `arboard` talks to the window server synchronously and waits for
+    // whichever program owns the clipboard to answer, so a frozen browser, a remote-desktop
+    // session with clipboard forwarding or a compositor under load used to take a tokio worker
+    // with it -- and a desktop agent has few enough workers that this could stall the event
+    // stream, the transfer poll and Click'n'Load along with it. `notify.rs` does the same for
+    // its equally blocking call (RD-109-08).
+    //
+    // The handle travels with the call and comes back: `arboard` only truly opens the Windows
+    // clipboard for the length of one operation, and these operations are strictly sequential --
+    // never two at once, which is the case its documentation warns about.
+    let read = tokio::task::spawn_blocking(move || {
+        let mut active_clipboard = active_clipboard;
+        let text = active_clipboard.get_text();
+        (active_clipboard, text)
+    })
+    .await;
+    let (returned, text) = match read {
+        Ok(pair) => pair,
+        Err(error) => {
+            tracing::warn!(%error, "clipboard read task ended; reopening");
+            return Read::Failed;
+        }
+    };
+    *clipboard = Some(returned);
+    match text {
+        Ok(text) => {
+            *unavailable_logged = false;
+            Read::Text(text)
+        }
+        Err(ClipboardError::ContentNotAvailable) => Read::Nothing,
+        Err(ClipboardError::ClipboardOccupied) => Read::Failed,
+        Err(error) => {
+            if !*unavailable_logged {
+                tracing::warn!(%error, "clipboard read failed; retrying");
+                *unavailable_logged = true;
+            }
+            *clipboard = None;
+            Read::Failed
+        }
+    }
+}
+
+/// What "Hand over clipboard now" came to, as the notification says it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum HandOver {
+    Delivered(usize),
+    /// Nothing on the clipboard is a link.
+    NoLinks,
+    /// More text than the agent reads ([`MAX_CLIPBOARD_BYTES`]).
+    TooLong,
+    /// The collector looked at the links and took none of them; carries its code.
+    Declined(String),
+    /// The clipboard could not be read.
+    Unreadable,
+    /// The service did not answer, or failed.
+    Failed,
+}
+
+impl HandOver {
+    /// The notification's text. English, like the rest of the agent (RD-092-05).
+    pub(crate) fn message(&self) -> String {
+        match self {
+            Self::Delivered(1) => "1 link from the clipboard handed over".to_owned(),
+            Self::Delivered(count) => format!("{count} links from the clipboard handed over"),
+            Self::NoLinks => "No link found on the clipboard".to_owned(),
+            Self::TooLong => "The clipboard holds more text than the agent reads".to_owned(),
+            Self::Declined(_) => "rDownloader took none of the links on the clipboard".to_owned(),
+            Self::Unreadable => "The clipboard could not be read".to_owned(),
+            Self::Failed => {
+                "The links could not be handed over; is rDownloader running?".to_owned()
+            }
+        }
+    }
+}
+
+/// The links of one clipboard text and its hash, or why there is nothing to hand over.
+fn links_to_hand_over(text: &str) -> Result<ClipboardCandidate, HandOver> {
+    if text.len() > MAX_CLIPBOARD_BYTES {
+        return Err(HandOver::TooLong);
+    }
+    let urls = rd_collector::extract_urls(text);
+    if urls.is_empty() {
+        return Err(HandOver::NoLinks);
+    }
+    Ok(ClipboardCandidate {
+        hash: sha2::Sha256::digest(text.as_bytes()).to_vec(),
+        urls,
+    })
+}
+
+/// Reads the clipboard once and delivers its links, whether watching is paused or not.
+async fn hand_over(
+    client: &CaptureClient,
+    clipboard: &mut Option<Clipboard>,
+    unavailable_logged: &mut bool,
+    state: &mut ClipboardState,
+) -> HandOver {
+    let text = match read_text(clipboard, unavailable_logged).await {
+        Read::Text(text) => text,
+        Read::Nothing => return HandOver::NoLinks,
+        Read::Failed => return HandOver::Unreadable,
+    };
+    let candidate = match links_to_hand_over(&text) {
+        Ok(candidate) => candidate,
+        Err(outcome) => return outcome,
+    };
+    let count = candidate.urls.len();
+    match client
+        .submit_links(candidate.urls, "clipboard", None, None)
+        .await
+    {
+        Ok(()) => {
+            state.accept(candidate.hash);
+            HandOver::Delivered(count)
+        }
+        Err(error) => match decided_submission_code(&error) {
+            Some(code) => {
+                state.accept(candidate.hash);
+                HandOver::Declined(code.to_owned())
+            }
+            None => {
+                tracing::warn!(%error, "the clipboard could not be handed over");
+                HandOver::Failed
+            }
+        },
+    }
+}
+
+/// `rdownloader-capture send-clipboard`: the same hand-over from a process of its own.
+pub(crate) async fn hand_over_once(client: &CaptureClient) -> HandOver {
+    let mut clipboard = None;
+    let mut unavailable_logged = false;
+    hand_over(
+        client,
+        &mut clipboard,
+        &mut unavailable_logged,
+        &mut ClipboardState::default(),
+    )
+    .await
 }
 
 /// Codes with which the service said "looked at it, no".
@@ -204,6 +344,11 @@ struct ClipboardState {
     /// Whether the oversized clipboard content has already been mentioned. A big document that
     /// is simply left on the clipboard must not write a line every second.
     oversize_reported: bool,
+    /// Watching is paused (RD-1180-01).
+    paused: bool,
+    /// Watching has just resumed: what the clipboard holds now was copied during the pause and
+    /// is taken as seen rather than delivered.
+    resumed: bool,
 }
 
 /// Clipboard content that failed and is waiting to be offered again.
@@ -216,6 +361,7 @@ struct PendingSubmission {
     ticks_remaining: u32,
 }
 
+#[derive(Debug)]
 struct ClipboardCandidate {
     hash: Vec<u8>,
     urls: Vec<Url>,
@@ -232,10 +378,34 @@ impl ClipboardState {
         }
     }
 
+    /// Whether this tick reads the clipboard, given whether watching is paused.
+    ///
+    /// Paused, nothing is read and a submission waiting for its retry is dropped: it was copied
+    /// before the pause, but the person has asked for nothing more to be delivered.
+    fn watching(&mut self, paused: bool) -> bool {
+        if paused {
+            self.paused = true;
+            self.pending = None;
+            return false;
+        }
+        if self.paused {
+            self.paused = false;
+            self.resumed = true;
+        }
+        true
+    }
+
+    /// The first read after a pause found no text, so nothing from the pause is left over.
+    fn saw_nothing(&mut self) {
+        self.resumed = false;
+    }
+
     fn candidate(&mut self, text: &str) -> Option<ClipboardCandidate> {
         // Before the hash and before the link scan, which are the two pieces of work that scale
         // with the length of the text.
         if text.len() > MAX_CLIPBOARD_BYTES {
+            // Never delivered either way, so nothing of the pause is left to take as seen.
+            self.resumed = false;
             if !self.oversize_reported {
                 tracing::debug!(
                     bytes = text.len(),
@@ -248,6 +418,11 @@ impl ClipboardState {
         }
         self.oversize_reported = false;
         let hash = sha2::Sha256::digest(text.as_bytes()).to_vec();
+        if self.resumed {
+            self.resumed = false;
+            self.accept(hash);
+            return None;
+        }
         if self.last_hash.as_ref() == Some(&hash) {
             return None;
         }
@@ -293,187 +468,5 @@ impl ClipboardState {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::client::ServiceRefusal;
-
-    use super::{
-        ClipboardState, MAX_CLIPBOARD_BYTES, MAX_SUBMISSION_RETRY_TICKS, record_submission,
-    };
-
-    /// The refusal the service really sends, as an `anyhow::Error` the loop would see.
-    fn refusal(status: u16, body: &str) -> anyhow::Error {
-        ServiceRefusal::new(
-            "collector",
-            reqwest::StatusCode::from_u16(status).expect("a real status"),
-            body,
-        )
-        .into()
-    }
-
-    /// A copied document of a few megabytes used to be hashed and scanned once a second for as
-    /// long as it sat on the clipboard, which is a laptop fan that never stops (RD-109-08).
-    #[test]
-    fn an_oversized_clipboard_text_is_left_alone_and_said_once() {
-        let link = "https://example.com/file.bin";
-        // A newline between the two, or the padding would run onto the end of the link and
-        // the collector would read one very long URL instead.
-        let padding = MAX_CLIPBOARD_BYTES - link.len() - 1;
-
-        let mut state = ClipboardState::default();
-        let just_over = format!("{link}\n{}", "x".repeat(padding + 1));
-        assert_eq!(just_over.len(), MAX_CLIPBOARD_BYTES + 1);
-        assert!(
-            state.candidate(&just_over).is_none(),
-            "a text over the limit must not be hashed or scanned, link in it or not"
-        );
-        assert!(state.oversize_reported, "and it is mentioned");
-        // Still on the clipboard on the next tick: mentioned once, not once a second.
-        state.oversize_reported = false;
-        assert!(state.candidate(&just_over).is_none());
-        assert!(state.oversize_reported);
-        let mut quiet = ClipboardState::default();
-        assert!(quiet.candidate(&just_over).is_none());
-        assert!(quiet.candidate(&just_over).is_none());
-        assert!(
-            quiet.oversize_reported,
-            "the flag stays set across ticks rather than being reset and reported again"
-        );
-
-        // Just under the limit is ordinary content and is handled as before.
-        let just_under = format!("{link}\n{}", "x".repeat(padding));
-        assert_eq!(just_under.len(), MAX_CLIPBOARD_BYTES);
-        let candidate = state
-            .candidate(&just_under)
-            .expect("a text at the limit is still read");
-        assert_eq!(candidate.urls.len(), 1);
-        assert_eq!(candidate.urls[0].as_str(), link);
-        assert!(
-            !state.oversize_reported,
-            "the next oversized text is worth mentioning again"
-        );
-    }
-
-    #[test]
-    fn clipboard_state_retries_until_accepted_and_then_deduplicates() {
-        let mut state = ClipboardState::default();
-        let text = "Download https://example.com/file.bin";
-        let first = state.candidate(text).expect("new clipboard content");
-        assert_eq!(first.urls.len(), 1);
-        assert_eq!(first.urls[0].as_str(), "https://example.com/file.bin");
-        assert!(
-            state.candidate(text).is_some(),
-            "failed submission must retry"
-        );
-        state.accept(first.hash);
-        assert!(
-            state.candidate(text).is_none(),
-            "accepted content is deduplicated"
-        );
-    }
-
-    /// The reported defect: twelve submissions in twelve seconds and no end in sight.
-    #[test]
-    fn a_declined_clipboard_is_submitted_exactly_once() {
-        let mut state = ClipboardState::default();
-        let text = "https://blocked.example/file.bin";
-        let candidate = state.candidate(text).expect("new clipboard content");
-        record_submission(
-            &mut state,
-            candidate.hash,
-            Err(refusal(
-                400,
-                r#"{"error":"All links were skipped by the domain blocklist","code":"collector.all_links_excluded"}"#,
-            )),
-        );
-        assert!(
-            state.candidate(text).is_none(),
-            "the collector looked at these addresses and said no; the next tick must not offer \
-             the same text again"
-        );
-    }
-
-    /// A success still records the content, exactly as before.
-    #[test]
-    fn a_submitted_clipboard_is_not_submitted_twice() {
-        let mut state = ClipboardState::default();
-        let text = "https://example.com/file.bin";
-        let candidate = state.candidate(text).expect("new clipboard content");
-        record_submission(&mut state, candidate.hash, Ok(()));
-        assert!(state.candidate(text).is_none(), "accepted content is kept");
-    }
-
-    /// Everything the service did not decide keeps its retry, because a failure that is
-    /// silently recorded as handled is never reported again.
-    #[test]
-    fn a_transient_failure_is_submitted_again() {
-        let text = "https://example.com/file.bin";
-        let cases: Vec<(&str, anyhow::Error)> = vec![
-            (
-                "a network error never reached the service at all",
-                anyhow::anyhow!("error sending request: connection refused"),
-            ),
-            (
-                "a 5xx is the service's own problem, not a verdict on the links",
-                refusal(500, r#"{"error":"boom","code":"internal_error"}"#),
-            ),
-            (
-                "a client error this build has never heard of is not known to be final",
-                refusal(400, r#"{"error":"nope","code":"collector.something_new"}"#),
-            ),
-            (
-                "a client error without a code decides nothing",
-                refusal(400, "Bad Request"),
-            ),
-            (
-                "an expired token is fixed by pairing again, not by forgetting the links",
-                refusal(
-                    401,
-                    r#"{"error":"token revoked","code":"auth.unauthorized"}"#,
-                ),
-            ),
-        ];
-        for (reason, error) in cases {
-            // A fresh state per case: each of these asks what *one* undecided failure does,
-            // and sharing the state would instead measure the backoff growing across five of
-            // them, which is the next test's job.
-            let mut state = ClipboardState::default();
-            let candidate = state.candidate(text).expect("new clipboard content");
-            record_submission(&mut state, candidate.hash, Err(error));
-            // The first retry is one tick away, and the loop ticks once a second, so this is
-            // the very next pass through it.
-            state.tick();
-            assert!(state.candidate(text).is_some(), "{reason}");
-        }
-    }
-
-    /// The other half of RD-107-15: an error the collector never decides must not turn into an
-    /// unbounded loop. An expired capture token is exactly that — it is nobody's transient
-    /// blink, and the agent used to re-POST the same links and log the same warning every
-    /// second for as long as the text stayed on the clipboard.
-    #[test]
-    fn a_failure_that_never_resolves_backs_off_to_a_cap() {
-        let mut state = ClipboardState::default();
-        let text = "https://example.com/file.bin";
-        let hash = state.candidate(text).expect("new clipboard content").hash;
-
-        // The first retry is still prompt, which is what the retry exists for.
-        assert_eq!(state.defer(hash.clone()), 1);
-        assert!(
-            state.candidate(text).is_none(),
-            "content that has just failed is not offered again in the same tick"
-        );
-        state.tick();
-        assert!(state.candidate(text).is_some(), "one tick later it is");
-
-        let waits: Vec<u32> = (0..12).map(|_| state.defer(hash.clone())).collect();
-        assert!(waits[0] < waits[1] && waits[1] < waits[2], "{waits:?}");
-        for wait in &waits {
-            assert!(*wait <= MAX_SUBMISSION_RETRY_TICKS, "{wait}");
-        }
-        assert_eq!(waits[11], MAX_SUBMISSION_RETRY_TICKS);
-
-        // Content that finally succeeds starts over with a clean slate.
-        state.accept(hash.clone());
-        assert_eq!(state.defer(hash), 1);
-    }
-}
+#[path = "clipboard_tests.rs"]
+mod tests;

@@ -28,6 +28,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
 import { translateServerMessage } from '@/i18n/server'
 import FormFeedback from '@/components/FormFeedback.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 /** Matches `validate_name` in `crates/rd-api-core/src/config_fields.rs`. */
 const MAX_CATEGORY_NAME = 100
@@ -340,7 +341,7 @@ async function remove(category: Category): Promise<void> {
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.category.name_placeholder')" />
           </UFormField>
           <UFormField required :label="t('routing.category.root_label')" :description="t('routing.category.root_description')">
-            <USelect v-model="form.storage_root_id" required :items="rootItems" value-key="value" class="w-full" :placeholder="t('routing.category.root_placeholder')" />
+            <SearchableSelect v-model="form.storage_root_id" required :items="rootItems" class="w-full" :placeholder="t('routing.category.root_placeholder')" />
           </UFormField>
           <UFormField :label="t('routing.category.path_label')" :description="t('routing.category.path_description')">
             <UInput v-model="form.relative_path" class="w-full font-mono" :placeholder="t('routing.category.path_placeholder')" icon="i-lucide-corner-down-right" />
@@ -350,7 +351,7 @@ async function remove(category: Category): Promise<void> {
             <USelect v-model="level" :items="levelItems" value-key="value" icon="i-lucide-workflow" class="w-full" />
           </UFormField>
           <UFormField :label="t('routing.category.script')" :description="t('routing.category.script_description')">
-            <USelect v-model="script" :items="scriptItems" value-key="value" icon="i-lucide-file-code" class="w-full font-mono" />
+            <SearchableSelect v-model="script" :items="scriptItems" icon="i-lucide-file-code" class="w-full font-mono" />
           </UFormField>
           <UFormField :label="t('routing.category.upload_label')" :description="t('routing.category.upload_description')">
             <USelect v-model="upload" :items="uploadItems" value-key="value" icon="i-lucide-cloud-upload" class="w-full" />

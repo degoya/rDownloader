@@ -3,12 +3,15 @@
 #![warn(unreachable_pub)]
 
 mod activity;
+mod agent_settings;
 mod cli;
 mod client;
 mod clipboard;
 mod cnl;
 mod commands;
 mod config;
+mod controls;
+mod hotkeys;
 // The badge the tray draws over its icon is plain arithmetic on an RGBA buffer, so it carries the
 // tray's gate plus `test` and is measured here; only the decoding and `Icon::from_rgba` around it
 // need the platform crates.
@@ -153,6 +156,10 @@ fn dispatch() -> Result<()> {
         }
         Some(Command::Scheme(args)) => commands::integration(args, os_integration::Kind::Scheme),
         Some(Command::Autostart(args)) => commands::autostart(args),
+        Some(Command::Pause(args)) => runtime()?.block_on(commands::clipboard_watch(args, true)),
+        Some(Command::Resume(args)) => runtime()?.block_on(commands::clipboard_watch(args, false)),
+        Some(Command::Status(args)) => runtime()?.block_on(commands::status(args)),
+        Some(Command::SendClipboard(args)) => runtime()?.block_on(commands::send_clipboard(args)),
     }
 }
 
@@ -210,9 +217,12 @@ pub(crate) type ActivitySink = std::sync::Arc<dyn Fn(activity::Activity) + Send 
 pub(crate) struct DesktopSinks {
     pub activity: ActivitySink,
     pub notice: NoticeSink,
-    /// What the tray menu asks of the queue (RD-1100-06). The other direction: the tray names
-    /// the request, the agent makes it, because the agent holds the token.
-    pub queue: tokio::sync::mpsc::UnboundedReceiver<activity::QueueRequest>,
+    /// The clipboard pause and the shortcuts, for the tray's check mark, icon, accelerators and
+    /// registrations (RD-1180-01, RD-1180-03).
+    pub settings: controls::SettingsSink,
+    /// What the tray menu and its shortcuts ask of the agent (RD-1100-06). The other direction:
+    /// the tray names the request, the agent makes it, because the agent holds the token.
+    pub inbox: controls::Inbox,
 }
 
 async fn run(
@@ -229,6 +239,8 @@ async fn run(
         anyhow::bail!("Click'n'Load requires at least one loopback address");
     }
     let connection = config::load(args.connection.service, args.connection.token)?;
+    // For the Linux shortcut listener, which opens the web interface itself.
+    let service = connection.service.clone();
     let client = CaptureClient::new(connection.service, connection.token)?;
     let signal = cancellation.clone();
     tokio::spawn(async move {
@@ -239,14 +251,54 @@ async fn run(
     // Every background task is held rather than spawned and forgotten, so its end is read
     // (RD-109-07) and so the error path below can give it a moment to stop.
     let mut background = tokio::task::JoinSet::new();
+    // The tray holds the senders of its own requests; a run without one has only the shortcuts.
+    let (desktop, inbox, headless) = match desktop {
+        Some(DesktopSinks {
+            activity,
+            settings,
+            inbox,
+            ..
+        }) => (Some((activity, settings)), inbox, None),
+        None => {
+            let (controls, inbox) = controls::channels();
+            (None, inbox, Some(controls))
+        }
+    };
+    let controls::Inbox {
+        queue,
+        settings: settings_requests,
+        hand_over,
+    } = inbox;
+    let settings = controls::follow_settings(
+        &mut background,
+        &client,
+        &cancellation,
+        notice.clone(),
+        settings_requests,
+        desktop.as_ref().map(|(_, sink)| sink.clone()),
+    );
     if args.clipboard {
         tracing::info!("clipboard monitoring enabled");
         background.spawn(supervised(
             "clipboard monitoring",
             cancellation.clone(),
             notice.clone(),
-            clipboard::watch_clipboard(client.clone(), cancellation.clone()),
+            clipboard::watch_clipboard(
+                client.clone(),
+                cancellation.clone(),
+                settings.clone(),
+                hand_over,
+            ),
         ));
+    }
+    if let Some(controls) = headless {
+        hotkeys::spawn_headless(
+            &mut background,
+            controls,
+            settings.clone(),
+            service,
+            &cancellation,
+        );
     }
     if args.no_notifications {
         tracing::debug!("desktop notifications disabled");
@@ -265,22 +317,23 @@ async fn run(
     // Only when something is displaying it. The polls run on the agent's side rather than
     // beside the health check because they need the capture token, and the tray deliberately
     // never reads the keyring itself — a second lookup risks a second macOS Keychain prompt.
-    if let Some(desktop) = desktop {
-        let (task_client, task_cancellation) = (client.clone(), cancellation.clone());
+    let (task_client, task_cancellation) = (client.clone(), cancellation.clone());
+    if let Some((activity, _)) = desktop {
         background.spawn(supervised(
             "the transfer poll",
             cancellation.clone(),
             notice.clone(),
             async move {
-                watch_activity(
-                    task_client,
-                    task_cancellation,
-                    desktop.activity,
-                    desktop.queue,
-                )
-                .await;
+                activity::watch_activity(task_client, task_cancellation, activity, queue).await;
                 Ok(())
             },
+        ));
+    } else {
+        // Without a tray nothing reads the summary, but a shortcut may still pause the queue.
+        background.spawn(controls::serve_queue_requests(
+            task_client,
+            task_cancellation,
+            queue,
         ));
     }
     let attempted = args.cnl_listen.clone();
@@ -351,47 +404,6 @@ async fn run(
     match program {
         Some(program) if replaced => Err(anyhow::Error::new(relaunch::Replaced { program })),
         _ => Ok(()),
-    }
-}
-
-/// Polls the service's figures and reports what the tray should show.
-///
-/// The interval is `config::STATUS_POLL_INTERVAL`, the same constant the tray's health poll
-/// reads, so the two states move together and the icon never contradicts the status line. The
-/// rate comes with the summary; nothing here measures across a poll interval any more, so an
-/// outage cannot turn into a leap.
-///
-/// The tray's queue requests are made here too (RD-1100-06), and the summary is read again right
-/// after one, so the menu and the status line show its outcome without waiting for the next
-/// tick. A refused request is a log line: the summary that follows says what the agent may do,
-/// and a tray that may not pause greys its entries out (RD-1101-06).
-async fn watch_activity(
-    client: CaptureClient,
-    cancellation: CancellationToken,
-    sink: ActivitySink,
-    mut requests: tokio::sync::mpsc::UnboundedReceiver<activity::QueueRequest>,
-) {
-    loop {
-        match client.summary().await {
-            Ok(summary) => sink(activity::describe(summary)),
-            // `warn`, not `debug`: since RD-109-10 a byte count the service sends in a shape
-            // this build cannot read fails here instead of quietly becoming zero, and a broken
-            // API contract is worth a line somebody sees. The tray keeps its last figures.
-            Err(error) => tracing::warn!(%error, "could not read the transfer summary"),
-        }
-        tokio::select! {
-            () = cancellation.cancelled() => return,
-            () = tokio::time::sleep(config::STATUS_POLL_INTERVAL) => {}
-            Some(request) = requests.recv() => {
-                let outcome = match request {
-                    activity::QueueRequest::Pause { minutes } => client.pause_queue(minutes).await,
-                    activity::QueueRequest::Resume => client.resume_queue().await,
-                };
-                if let Err(error) = outcome {
-                    tracing::warn!(%error, ?request, "the tray's queue request was not carried out");
-                }
-            }
-        }
     }
 }
 

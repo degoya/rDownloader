@@ -16,6 +16,7 @@ import IndexerSearchPanel from '@/components/IndexerSearchPanel.vue'
 import NzbHistoryModal from '@/components/NzbHistoryModal.vue'
 import NzbImportGroup from '@/components/NzbImportGroup.vue'
 import QueueColumnHeader from '@/components/QueueColumnHeader.vue'
+import SiteRulePickPanel from '@/components/SiteRulePickPanel.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
 import { setLinkGrabberActions } from '@/composables/linkGrabberActions'
 import { refreshQueuedSources } from '@/composables/useQueuedSources'
@@ -32,6 +33,7 @@ import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { useGrabberEnqueue } from '@/composables/useGrabberEnqueue'
 import { useGrabberReorder } from '@/composables/useGrabberReorder'
 import { useOpenSections } from '@/composables/useOpenSections'
+import { usePackageOpenState } from '@/composables/usePackageOpenState'
 import { useQueueColumns } from '@/composables/useQueueColumns'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
@@ -66,7 +68,8 @@ const notice = ref<string | null>(null)
 
 const sortItems = computed(() => SORT_OPTIONS.map(option => ({ label: t(option.labelKey), value: option.value })))
 
-const openPackages = useOpenSections({ defaultOpen: true })
+/** Which packages are open, remembered per browser; "all" is what the filters show (RD-1170-01). */
+const openPackages = usePackageOpenState('linkgrabber', { known: () => collector.packages.map(pkg => pkg.id), shown: () => groups.value.map(group => group.package.id) })
 /** The "Show metadata" switch: the enricher chips under the link names, per browser (RD-150-19). */
 const showMetadata = useShowMetadata('linkgrabber')
 
@@ -236,6 +239,9 @@ async function addLinks(): Promise<void> {
   }
   // Both numbers, not just the loss: "12 of 40" says a rule reached too far, while a bare
   // "12 dropped" reads like a fault in the paste (RD-110-07).
+  if (outcome.listed) {
+    toast.add({ title: t('linkgrabber.intake.listed', { count: outcome.listed }, outcome.listed), color: 'info', icon: 'i-lucide-list-checks' })
+  }
   if (outcome.crawledDropped) {
     toast.add({ title: t('linkgrabber.intake.crawled_dropped', { count: outcome.crawledDropped, found: outcome.crawledFound }, outcome.crawledDropped), color: 'warning', icon: 'i-lucide-file-x' })
   }
@@ -321,6 +327,7 @@ const navbarMenu = computed(() => [[
             :ui="{ root: 'shrink-0', label: 'whitespace-nowrap' }"
             @update:model-value="selection.toggleAll()"
           />
+          <UButton :icon="openPackages.allOpen.value ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'" color="neutral" variant="ghost" :aria-label="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :title="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :disabled="!groups.length" data-testid="packages-open-toggle" @click="openPackages.toggleAll" />
           <USelect v-model="sort" :items="sortItems" value-key="value" class="w-40" :aria-label="t('linkgrabber.sort.label')" />
           <UButton :icon="descending ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'" color="neutral" variant="ghost" :aria-label="descending ? t('linkgrabber.sort.descending') : t('linkgrabber.sort.ascending')" :disabled="sort === 'manual'" @click="descending = !descending" />
           <!-- The three facets. Inside a mirror group they choose the member the queue will
@@ -348,6 +355,7 @@ const navbarMenu = computed(() => [[
         <UAlert v-if="collector.error" color="error" :description="collector.error" />
         <UAlert v-if="nzb.error" color="error" :description="nzb.error" />
         <UAlert v-if="notice" color="info" icon="i-lucide-info" :description="notice" />
+        <SiteRulePickPanel />
         <CollectorHosterFilter
           :hosters="hiddenHosters.hosters.value"
           :hidden-links="hiddenHosters.hiddenLinks.value.length"
@@ -414,6 +422,8 @@ const navbarMenu = computed(() => [[
               :open="openPackages.isOpen(row.entry.id)"
               @select="(_ids: string[], value: boolean) => selection.pickPackage(row.entry.id, value)"
               @toggle="openPackages.toggle"
+              @open-all="openPackages.openAll"
+              @close-all="openPackages.closeAll"
               @category="(id, categoryId) => setCategory([id], categoryId)"
               @priority="(id, value) => setPriority([id], value)"
               @rename="editPackageDialog"

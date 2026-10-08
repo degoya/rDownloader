@@ -45,7 +45,7 @@ impl Run<'_> {
                     None => self.address.clone(),
                 };
                 let (_, response) = self
-                    .fetch_page(target, Method::Get, BTreeMap::new())
+                    .fetch_page(target, Method::Get, BTreeMap::new(), false)
                     .await?;
                 self.variables
                     .set(into.as_deref().unwrap_or(PAGE_VARIABLE), response.body);
@@ -65,7 +65,7 @@ impl Run<'_> {
                 };
                 let target = self.target(index, "fetch-json", &expanded)?;
                 let (_, response) = self
-                    .fetch_page(target, Method::Get, BTreeMap::new())
+                    .fetch_page(target, Method::Get, BTreeMap::new(), false)
                     .await?;
                 let value = json_at(index, &response.body, path)?;
                 self.variables.set(into, value);
@@ -117,14 +117,19 @@ impl Run<'_> {
                 }
                 self.variables.set(into, Value::list(decoded));
             }
-            Step::Form { url, fields, into } => {
+            Step::Form {
+                url,
+                fields,
+                into,
+                json,
+            } => {
                 let expanded = self.expand(index, "form", url)?;
                 let target = self.target(index, "form", &expanded)?;
                 let mut body = BTreeMap::new();
                 for (name, template) in fields {
                     body.insert(name.clone(), self.expand(index, "form", template)?);
                 }
-                let (_, response) = self.fetch_page(target, Method::Post, body).await?;
+                let (_, response) = self.fetch_page(target, Method::Post, body, *json).await?;
                 self.variables
                     .set(into.as_deref().unwrap_or(PAGE_VARIABLE), response.body);
             }
@@ -141,6 +146,8 @@ impl Run<'_> {
                 challenge,
                 sitekey,
                 into,
+                page,
+                invisible,
             } => {
                 let solver = self.ports.captcha.ok_or_else(|| RunError::CaptchaFailed {
                     step: index,
@@ -150,18 +157,27 @@ impl Run<'_> {
                     Some(template) => Some(self.expand(index, "captcha", template)?),
                     None => None,
                 };
-                let page_url = self.current_page(index)?;
-                let token = solver
+                let page_url = match page {
+                    Some(template) => {
+                        let expanded = self.expand(index, "captcha", template)?;
+                        self.target(index, "captcha", &expanded)?
+                    }
+                    None => self.current_page(index)?,
+                };
+                let asked = self.ports.clock.elapsed();
+                let answer = solver
                     .solve(CaptchaRequest {
                         challenge: challenge.clone(),
                         sitekey,
                         page_url,
+                        invisible: *invisible,
                     })
-                    .await
-                    .map_err(|reason| RunError::CaptchaFailed {
-                        step: index,
-                        reason,
-                    })?;
+                    .await;
+                self.captcha_waited(self.ports.clock.elapsed().saturating_sub(asked));
+                let token = answer.map_err(|reason| RunError::CaptchaFailed {
+                    step: index,
+                    reason,
+                })?;
                 if token.is_empty() {
                     return Err(RunError::CaptchaFailed {
                         step: index,
@@ -184,6 +200,17 @@ impl Run<'_> {
         if value.iter().count() > self.limits.max_links {
             return Err(RunError::LimitLinks(self.limits.max_links));
         }
+        let links = self.absolute_links(value);
+        if links.is_empty() {
+            return Err(RunError::NoLinks);
+        }
+        Ok(links)
+    }
+
+    /// What a link variable holds, as links: absolute against the page in hand, http(s)
+    /// only, never on a literal local address, deduplicated, in order. Empty when nothing
+    /// survives.
+    pub(crate) fn absolute_links(&self, value: &Value) -> Vec<String> {
         let base = self
             .current_page(0)
             .unwrap_or_else(|_| self.address.clone());
@@ -210,15 +237,18 @@ impl Run<'_> {
                 links.push(link);
             }
         }
-        if links.is_empty() {
-            return Err(RunError::NoLinks);
-        }
-        Ok(links)
+        links
     }
 
     /// The package name, or `None` when the source found nothing.
     pub(crate) fn package_name(&self) -> Option<String> {
-        let found = match &self.rule.package {
+        self.package_from(&self.rule.package)
+    }
+
+    /// What `source` reads from the variables in hand, whitespace collapsed; `None` when it
+    /// finds nothing. A group (RD-1170-02) reads its own source the same way.
+    pub(crate) fn package_from(&self, source: &PackageSource) -> Option<String> {
+        let found = match source {
             PackageSource::Title => {
                 let page = self.variables.get(PAGE_VARIABLE)?.first()?;
                 let title = Regex::new("(?is)<title[^>]*>(.*?)</title>").ok()?;
@@ -301,7 +331,7 @@ impl Run<'_> {
         for target in targets {
             self.depth = start;
             let (_, response) = self
-                .fetch_page(target, Method::Get, BTreeMap::new())
+                .fetch_page(target, Method::Get, BTreeMap::new(), false)
                 .await?;
             deepest = deepest.max(self.depth);
             found.extend(parse(response.body)?.iter().map(str::to_owned));
@@ -310,7 +340,12 @@ impl Run<'_> {
         Ok(Value::list(found))
     }
 
-    fn read(&self, index: usize, kind: &'static str, name: &str) -> Result<Value, RunError> {
+    pub(crate) fn read(
+        &self,
+        index: usize,
+        kind: &'static str,
+        name: &str,
+    ) -> Result<Value, RunError> {
         let value = self
             .variables
             .get(name)
@@ -360,7 +395,7 @@ impl Run<'_> {
 }
 
 /// The first capture group of a match, or the whole match when the pattern has no group.
-fn first_capture(captures: regex::Captures<'_>) -> Option<String> {
+pub(crate) fn first_capture(captures: regex::Captures<'_>) -> Option<String> {
     captures
         .get(1)
         .or_else(|| captures.get(0))
