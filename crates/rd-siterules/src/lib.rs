@@ -1,15 +1,13 @@
-//! The rules that recognise release pages, and the signed pack they travel in (RD-110-04).
+//! The rules that recognise release pages, and the file they travel in (RD-110-04).
 //!
 //! A release page is recognised because a *rule* describes it, not because somebody built a
-//! plugin for it. The project's rules are one signed document under their own trust root
-//! (`rd_sign::Role::SiteRules`), so they are as trustworthy as a plugin or the tool manifest.
-//! Since RD-130-07 that document is a release artifact rather than part of the binary: an
-//! installation starts with no rule at all, and importing the file verifies it and stores its
-//! rules in the database as the person's own, switched off. This crate is the format and the
-//! carrier. The executor that runs a rule is
-//! RD-110-05 and lives in [`exec`]; the rules themselves are RD-110-10 onwards.
+//! plugin for it. Every rule is a person's own: since RD-1230-03 rules carry no signature and
+//! travel as exchange files ([`exchange`]) that one installation exports and another imports
+//! with their switches, and the app brings only a short list of switched-off examples for
+//! sites that publish free software and freely licensed media. This crate is the format and the
+//! exchange file. The executor that runs a rule is RD-110-05 and lives in [`exec`].
 //!
-//! A leaf on purpose: `rd-sign`, `serde`, `regex`, `url` and a clock. No database, no HTTP
+//! A leaf on purpose: `serde`, `regex`, `url` and a clock. No database, no HTTP
 //! client, no captcha broker, no Wasm runtime. The database stores a user rule as JSON
 //! without reading it, and the system boundary that accepts one parses it through [`Rule`]
 //! before it is written. The executor ([`exec`], RD-110-05) keeps the same shape: it takes a
@@ -21,15 +19,16 @@
 #![warn(unreachable_pub)]
 
 pub mod catalogue;
+pub mod exchange;
 pub mod exec;
 pub mod format;
 pub mod groups;
-pub mod pack;
 pub mod selftest;
 pub mod step;
 mod text;
 
 pub use catalogue::{Catalogue, CatalogueError};
+pub use exchange::{EXCHANGE_VERSION, Exchange, ExchangeEntry, examples};
 pub use exec::{
     Crawl, CrawlGroup, Executor, GroupLink, Limits, MAX_LINKS, PickEntry, PickList, RunError,
     ports::{
@@ -39,9 +38,5 @@ pub use exec::{
 };
 pub use format::{Match, PackageSource, Rule, RuleError};
 pub use groups::{GroupMirrors, Groups, Pick};
-pub use pack::{
-    FORMAT_VERSION, PackError, RulePack, SITE_RULES_DOMAIN, SignedPack, admit_sequence, sign,
-    verify, verify_signed, verify_signed_with, verify_with,
-};
 pub use selftest::{RuleReport, Verdict};
 pub use step::{Decoding, Step};

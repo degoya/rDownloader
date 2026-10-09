@@ -204,8 +204,8 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'n', labelKeys: ['n'], descriptionKey: 'common.shortcuts.import_nzb', group: 'actions', handler: guarded(importFiles) },
   { keys: 'p', labelKeys: ['p'], descriptionKey: 'common.shortcuts.toggle_transfers', group: 'actions', handler: guarded(toggleTransfers) },
   { keys: 'k', labelKeys: ['k'], descriptionKey: 'common.shortcuts.clear_completed', group: 'actions', handler: guarded(() => clearCompleted?.()) },
-  // `f` focuses the page's search — the LinkGrabber's indexer search or the download list's name
-  // search — handed in by whichever is mounted (`indexerSearchFocus.ts`).
+  // `f` is the page's search — it opens the LinkGrabber's indexer search drawer or focuses the
+  // download list's name search — handed in by whichever is mounted (`indexerSearchFocus.ts`).
   // Ctrl/Cmd+F stays the browser's find and Shift+F does nothing: `defineShortcuts` matches
   // modifiers exactly, Shift included for a letter.
   { keys: 'f', labelKeys: ['f'], descriptionKey: 'common.shortcuts.focus_indexer_search', group: 'actions', handler: guarded(focusIndexerSearch) },

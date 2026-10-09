@@ -150,6 +150,7 @@ describe('NzbImportGroup hand-over', () => {
   it('shows no badge for an import that was not handed over', () => {
     renderGroup(nzb({ state: 'imported', error: null }), { remoteTargets: targets })
     expect(screen.queryByTestId('nzb-handed-over')).toBeNull()
-    expect(screen.getByRole('button', { name: linkgrabber.actions.enqueue }).getAttribute('title')).toBeNull()
+    // An icon now (RD-1230-02): without a hand-over its tooltip is its name.
+    expect(screen.getByRole('button', { name: linkgrabber.actions.enqueue }).getAttribute('title')).toBe(linkgrabber.actions.enqueue)
   })
 })

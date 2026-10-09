@@ -27,7 +27,7 @@ download="$SCRATCH/release-assets"
 mkdir -p "$download"
 for file in rdownloader-linux-x86_64.tar.gz rdownloader-windows-x86_64.zip \
     rdownloader-windows-x86_64.msi rdownloader_1.9.1_amd64.deb rdownloader-chrome.zip \
-    rdownloader-plugin-index.json rdownloader-site-rules.json \
+    rdownloader-plugin-index.json \
     rdownloader-linux-x86_64.unpacked.tar rdownloader-windows-x86_64.unpacked.zip rd-pack \
     web-dist.tar 'degoya~rDownloader~ABC123.dockerbuild' ddownload-0.3.1.rdplug http-1.0.0.rdplug; do
     echo "$file" > "$download/$file"
@@ -39,7 +39,7 @@ expect_status "split" 0
 expect "the plugin release holds the plugins only" \
     "ddownload-0.3.1.rdplug http-1.0.0.rdplug" "$(listing "$plugins")"
 expect "the application release keeps the index and drops the intermediates and the build record" \
-    "rdownloader-chrome.zip rdownloader-linux-x86_64.tar.gz rdownloader-plugin-index.json rdownloader-site-rules.json rdownloader-windows-x86_64.msi rdownloader-windows-x86_64.zip rdownloader_1.9.1_amd64.deb" \
+    "rdownloader-chrome.zip rdownloader-linux-x86_64.tar.gz rdownloader-plugin-index.json rdownloader-windows-x86_64.msi rdownloader-windows-x86_64.zip rdownloader_1.9.1_amd64.deb" \
     "$(listing "$download")"
 
 echo sbom > "$download/rdownloader.spdx.json"

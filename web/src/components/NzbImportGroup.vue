@@ -172,8 +172,8 @@ function completedSegments(file: NzbFileStatus): number {
       />
       <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
       <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
-      <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" :title="enqueueHint" size="xs" color="primary" variant="soft" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueue', props.item.id)" />
-      <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="enqueueHint ?? t('linkgrabber.nzb.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueuePaused', props.item.id)" />
+      <UButton icon="i-lucide-arrow-down-to-line" :aria-label="t('linkgrabber.actions.enqueue')" :title="enqueueHint ?? t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueue', props.item.id)" />
+      <UButton icon="i-lucide-pause" :aria-label="t('linkgrabber.actions.enqueue_paused')" :title="enqueueHint ?? t('linkgrabber.nzb.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="props.item.duplicate || failed" :loading="props.enqueuing" @click="emit('enqueuePaused', props.item.id)" />
       <UDropdownMenu v-if="handOverItems.length && !failed" :items="handOverItems">
         <UButton
           icon="i-lucide-cloud-upload"

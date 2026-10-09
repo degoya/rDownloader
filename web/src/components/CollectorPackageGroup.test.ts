@@ -42,8 +42,8 @@ function renderGroup(candidates: LinkCandidate[]) {
 /** The pair of buttons `design.md` requires: the primary enqueue and its paused variant. */
 function actionButtons(container: Element): { enqueue: HTMLButtonElement, paused: HTMLButtonElement } {
   const buttons = [...container.querySelectorAll('button')] as HTMLButtonElement[]
-  const enqueue = buttons.find(button => button.getAttribute('label') === en.actions.enqueue)
-  const paused = buttons.find(button => button.getAttribute('label') === en.actions.enqueue_paused)
+  const enqueue = buttons.find(button => button.getAttribute('aria-label') === en.actions.enqueue)
+  const paused = buttons.find(button => button.getAttribute('aria-label') === en.actions.enqueue_paused)
   expect(enqueue).toBeTruthy()
   expect(paused).toBeTruthy()
   return { enqueue: enqueue as HTMLButtonElement, paused: paused as HTMLButtonElement }

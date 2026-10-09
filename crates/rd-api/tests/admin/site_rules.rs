@@ -1,10 +1,10 @@
 //! RD-110-08: the rules a person can see, switch, write, try and carry.
 //!
 //! What is observable from outside, and therefore what is asserted here: a fresh installation
-//! knows no rule at all (RD-130-07), a rule can be switched off and stays off across a restart,
-//! a group switch covers every rule that carries the group, an imported rule arrives switched
-//! off no matter what the file asked for, the signed release file imports as the rules that
-//! used to ship, and a copy of a rule can be edited without touching the original.
+//! knows no rule at all (RD-130-07; the examples are `serve`'s to install, `site_rule_origin.rs`),
+//! a rule can be switched off and stays off across a restart, a group switch covers every rule
+//! that carries the group, and a copy of a rule can be edited without touching the original.
+//! The exchange file is `site_rule_exchange.rs`.
 //!
 //! The trial run is not driven against a live site here -- the executor's own suite does that
 //! without a network, and this layer adds only the address check and the crawl verdict. What
@@ -12,15 +12,9 @@
 
 use crate::common;
 
-use axum::{
-    body::Body,
-    http::{Request, StatusCode, header},
-};
-use common::{delete_json, get_json, post_json, put_json, send, test_harness};
+use axum::http::StatusCode;
+use common::{delete_json, get_json, post_json, put_json, test_harness};
 use serde_json::{Value, json};
-
-/// The signed rule file every release carries as an artifact (RD-130-07).
-const RELEASE_FILE: &[u8] = include_bytes!("../../../rd-siterules/resources/site-rules.json");
 
 /// A rule of the person's own: the smallest one `rd_siterules::Rule::validate` accepts.
 fn own_rule(id: &str) -> Value {
@@ -56,19 +50,6 @@ fn group_by_name<'a>(body: &'a Value, group: &str) -> &'a Value {
         .iter()
         .find(|entry| entry["group"] == group)
         .unwrap_or_else(|| panic!("no group {group} in {body}"))
-}
-
-/// Posts a file to the import exactly as it lies on disk. `post_json` would parse and
-/// re-serialise it, and the signature covers the bytes as they were signed.
-async fn import_bytes(router: &axum::Router, bytes: Vec<u8>) -> (StatusCode, Value) {
-    let request = Request::builder()
-        .method("POST")
-        .uri("/api/v1/site-rules/import")
-        .header(header::HOST, "127.0.0.1:8710")
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::from(bytes))
-        .expect("request");
-    send(router, request).await
 }
 
 #[tokio::test]
@@ -187,164 +168,6 @@ async fn a_group_switch_covers_every_rule_that_carries_the_group() {
     let (status, body) = delete_json(&harness.router, "/api/v1/site-rules/other-board").await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["code"], "site_rules.deleted");
-}
-
-#[tokio::test]
-async fn an_imported_rule_is_stored_switched_off_whatever_the_file_says() {
-    let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
-
-    // A file with three rules: one good, one whose body does not validate, and a repeat of
-    // the good one.
-    let mut broken = own_rule("broken");
-    broken["steps"] = json!([]);
-    let (status, body) = post_json(
-        &harness.router,
-        "/api/v1/site-rules/import",
-        json!({
-            "format_version": 1,
-            "rules": [own_rule("from-a-friend"), broken, own_rule("from-a-friend")]
-        }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body["stored"], 1);
-    assert_eq!(body["signed"], false);
-    let outcomes = body["rules"].as_array().expect("rules");
-    assert_eq!(outcomes[0]["status"], "stored");
-    assert_eq!(outcomes[1]["code"], "site_rules.invalid_rule");
-    assert_eq!(outcomes[2]["code"], "site_rules.duplicate_id");
-
-    let (_, body) = get_json(&harness.router, "/api/v1/site-rules").await;
-    let imported = rule_by_id(&body, "from-a-friend");
-    assert_eq!(
-        imported["enabled"], false,
-        "an unsigned rule is never active before somebody says so"
-    );
-    let catalogue = rd_api::site_rule_catalogue(&harness.database).await;
-    assert!(catalogue.get("from-a-friend").is_none());
-
-    // The confirmation is a request of its own, per rule.
-    let (status, body) = put_json(
-        &harness.router,
-        "/api/v1/site-rules/from-a-friend/enabled",
-        json!({ "enabled": true }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    let catalogue = rd_api::site_rule_catalogue(&harness.database).await;
-    assert!(catalogue.get("from-a-friend").is_some());
-
-    // The export carries the rules this installation holds.
-    let (status, exported) = get_json(&harness.router, "/api/v1/site-rules/export").await;
-    assert_eq!(status, StatusCode::OK, "{exported}");
-    assert_eq!(exported["format_version"], 1);
-    let rules = exported["rules"].as_array().expect("rules");
-    assert_eq!(rules.len(), 1);
-    assert_eq!(rules[0]["id"], "from-a-friend");
-
-    // A file in a format this build does not read is refused whole.
-    let (status, body) = post_json(
-        &harness.router,
-        "/api/v1/site-rules/import",
-        json!({ "format_version": 2, "rules": [own_rule("later")] }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    assert_eq!(body["code"], "site_rules.format_version_unsupported");
-
-    // And so is one that is not JSON at all.
-    let (status, body) = import_bytes(&harness.router, b"not json".to_vec()).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    assert_eq!(body["code"], "site_rules.malformed");
-}
-
-/// RD-130-07: the file that replaces the compiled-in pack delivers the same rules, as the
-/// person's own and switched off, and only while its signature holds.
-#[tokio::test]
-async fn the_signed_release_file_imports_the_rules_that_used_to_ship() {
-    let directory = tempfile::tempdir().expect("tempdir");
-    let harness = test_harness(directory.path()).await;
-    let pack = rd_siterules::verify(RELEASE_FILE, None, chrono::Utc::now())
-        .expect("the release file verifies");
-    let ids: Vec<&str> = pack.rules.iter().map(|rule| rule.id.as_str()).collect();
-    assert_eq!(
-        ids,
-        [
-            "scnlog",
-            "downmagaz",
-            "paste-generic",
-            "getcomics",
-            "scene-rls",
-            "avaxhome",
-            "cgpersia",
-            "vipergirls",
-            "hide-cx",
-            "warez-cx",
-            "serienjunkies",
-        ],
-        "the eight rules 1.2 shipped and the three of 1.17"
-    );
-
-    // A file whose payload was altered after signing is refused whole, and stores nothing.
-    let tampered = String::from_utf8(RELEASE_FILE.to_vec())
-        .expect("utf-8")
-        .replacen("scnlog.me", "scnlog.test", 1)
-        .into_bytes();
-    let (status, body) = import_bytes(&harness.router, tampered).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    assert_eq!(body["code"], "site_rules.bad_signature");
-    let (_, body) = get_json(&harness.router, "/api/v1/site-rules").await;
-    assert_eq!(
-        body["rules"],
-        json!([]),
-        "a refused file leaves nothing behind"
-    );
-
-    let (status, body) = import_bytes(&harness.router, RELEASE_FILE.to_vec()).await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body["signed"], true);
-    assert_eq!(body["stored"], pack.rules.len());
-
-    let (_, body) = get_json(&harness.router, "/api/v1/site-rules").await;
-    for rule in &pack.rules {
-        let row = rule_by_id(&body, &rule.id);
-        assert_eq!(
-            row["rule"],
-            serde_json::to_value(rule).expect("rule"),
-            "{} arrives exactly as it was signed",
-            rule.id
-        );
-        assert_eq!(row["enabled"], false, "{} arrives switched off", rule.id);
-    }
-    // The groups are the five the settings page has a name for.
-    let mut groups: Vec<&str> = body["groups"]
-        .as_array()
-        .expect("groups")
-        .iter()
-        .filter_map(|group| group["group"].as_str())
-        .collect();
-    groups.sort_unstable();
-    assert_eq!(groups, ["adult", "board", "ebooks", "graphics", "paste"]);
-    let catalogue = rd_api::site_rule_catalogue(&harness.database).await;
-    assert_eq!(
-        catalogue.rules().count(),
-        0,
-        "nothing imported is consulted yet"
-    );
-
-    // A second import meets the rules the first one stored and writes over none of them.
-    let (status, body) = import_bytes(&harness.router, RELEASE_FILE.to_vec()).await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body["stored"], 0);
-    assert!(
-        body["rules"]
-            .as_array()
-            .expect("rules")
-            .iter()
-            .all(|entry| entry["code"] == "site_rules.duplicate_id"),
-        "{body}"
-    );
 }
 
 /// RD-130-07: a copy is a rule of its own. The settings page duplicates by creating the copy

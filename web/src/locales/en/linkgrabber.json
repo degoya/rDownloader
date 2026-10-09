@@ -40,11 +40,12 @@
     "language_label": "Prefer a language",
     "all_qualities": "Any quality",
     "all_languages": "Any language",
-    "facet_hint": "Applies to the whole list and stays set for the next package: where a mirror group offers a choice it picks the matching mirror, elsewhere it hides what cannot match."
+    "facet_hint": "Applies to the whole list and stays set for the next package: where a mirror group offers a choice it picks the matching mirror, elsewhere it hides what cannot match.",
+    "more": "Filters",
+    "more_hint": "Prefer a quality, language and hoster, sort, and regroup"
   },
   "empty": "Clipboard, Click'n'Load and manual input land here first for review. Links are checked automatically and grouped into packages.",
   "selection_package": "{name} (selection)",
-  "selection_count": "{count} selected",
   "select_all_hint": "Select all entries",
   "bulk": {
     "enqueued": "Enqueued {links} links and {nzbs} NZB imports",
@@ -566,7 +567,9 @@
     "type_unsupported": "None of the chosen indexers offers this search.",
     "torrent": "Torrent",
     "swarm": "{seeders} seeders, {leechers} leechers",
-    "grabbed_torrents": "No torrent added | One torrent added to the LinkGrabber | {count} torrents added to the LinkGrabber"
+    "grabbed_torrents": "No torrent added | One torrent added to the LinkGrabber | {count} torrents added to the LinkGrabber",
+    "open": "Search indexers",
+    "drawer_hint": "One request per search; what you take lands in the LinkGrabber for review."
   },
   "empty_title": "No links waiting for review",
   "picks": {
@@ -609,5 +612,6 @@
     "fetch": "Fetch links | Fetch links of {count} release | Fetch links of {count} releases",
     "take_all": "Take all | Take 1 release | Take all {count}",
     "announced": "{rule}: a page waits for your choice"
-  }
+  },
+  "selection_nzbs": "no NZB imports | {count} NZB import | {count} NZB imports"
 }

@@ -32,8 +32,6 @@ pub enum Role {
     ToolManifest,
     /// Plugin repository indexes.
     Repository,
-    /// The site-rule pack: the rules that recognise release pages (RD-110-04).
-    SiteRules,
 }
 
 impl Role {
@@ -45,7 +43,6 @@ impl Role {
             Self::Plugin => "plugin",
             Self::ToolManifest => "tool-manifest",
             Self::Repository => "repository",
-            Self::SiteRules => "site-rules",
         }
     }
 }
@@ -69,9 +66,6 @@ pub const PLUGIN_RELEASE_KEY_ID: &str = "rdownloader-release-v1";
 /// Key id the managed external-tool manifest is signed under (RD-102-02).
 pub const TOOL_MANIFEST_KEY_ID: &str = "rdownloader-tools-v1";
 
-/// Key id the shipped site-rule pack is signed under (RD-110-04).
-pub const SITE_RULES_KEY_ID: &str = "rdownloader-siterules-v1";
-
 /// Key id the application update manifests are signed under (RD-180-01).
 pub const UPDATE_KEY_ID: &str = "rdownloader-update-v1";
 
@@ -88,10 +82,8 @@ pub const REPOSITORY_KEY_ID: &str = "rdownloader-repository-v1";
 /// the manifest compiled into `rd-tools` is signed under it, and so is any manifest served
 /// from a configured URL.
 ///
-/// The site-rules entry is the root the shipped rule pack verifies against (RD-110-04). Its
-/// own key, not the tool-manifest one: a rule pack is edited far more often than the tool
-/// manifest, and the domain separator keeps a signature from crossing over, but a shared key
-/// would still make one compromise vouch for both.
+/// Site rules carry no signature since RD-1230-03: they are exchanged as plain export files,
+/// and the import shows what a file brings before anything is stored.
 ///
 /// The release entry is the root the update manifests verify against (`rd_update::manifest`,
 /// RD-180-01); the repository entry the official plugin index (`rd_plugin_host::index`,
@@ -122,12 +114,6 @@ pub const EMBEDDED_KEYS: &[EmbeddedKey] = &[
         role: Role::Repository,
         key_id: REPOSITORY_KEY_ID,
         public_key: "NwXtTzLKcfzCuTUAMf20mqYyPvWgmuhZMEJp0UuhuVU=",
-        not_after: None,
-    },
-    EmbeddedKey {
-        role: Role::SiteRules,
-        key_id: SITE_RULES_KEY_ID,
-        public_key: "QG2IGv/2xPdmiYFHG8pSzV7gmiqh+A9DTDhJxjAjpZI=",
         not_after: None,
     },
 ];
@@ -179,8 +165,7 @@ pub struct RevokedDocument {
 ///
 /// Compiled in, like the roots, because a withdrawal has to come from the publisher and has to
 /// reach an installation the same way its keys do: a list fetched next to the documents could
-/// be withheld by whoever serves them. An update manifest, tool manifest, site-rule pack or
-/// repository index that turns out to be wrong after it was signed goes here with the next
+/// be withheld by whoever serves them. An update manifest, tool manifest or repository index that turns out to be wrong after it was signed goes here with the next
 /// release, while its key keeps vouching for everything else. Withdrawing a plugin *package* is
 /// the operator's reversible decision and lives elsewhere (`rd_plugin_host::RevokedDigests`,
 /// stored by `rd-db`).
@@ -257,25 +242,6 @@ mod tests {
         );
     }
 
-    /// The site-rule pack has a root of its own, so the shipped pack verifies against
-    /// something that is neither the plugin key nor the tool-manifest key.
-    #[test]
-    fn the_site_rules_root_is_configured_under_its_own_key() {
-        assert_eq!(Role::SiteRules.as_str(), "site-rules");
-        let keys = keys_for(Role::SiteRules, now());
-        assert_eq!(keys.len(), 1);
-        assert_eq!(keys[0].key_id, SITE_RULES_KEY_ID);
-        assert_ne!(keys[0].public_key, "");
-        for other in [Role::Plugin, Role::ToolManifest] {
-            let theirs = keys_for(other, now());
-            assert!(
-                theirs
-                    .iter()
-                    .all(|key| key.public_key != keys[0].public_key)
-            );
-        }
-    }
-
     /// An entry with no key configured is skipped rather than reported.
     #[test]
     fn an_entry_without_a_key_is_skipped() {
@@ -300,12 +266,7 @@ mod tests {
             store.key_ids().expect("ids"),
             vec![UPDATE_KEY_ID.to_owned()]
         );
-        for other in [
-            Role::Plugin,
-            Role::ToolManifest,
-            Role::Repository,
-            Role::SiteRules,
-        ] {
+        for other in [Role::Plugin, Role::ToolManifest, Role::Repository] {
             assert!(
                 keys_for(other, now())
                     .iter()
@@ -378,15 +339,15 @@ mod tests {
         );
         let public: &'static str = Box::leak(public.into_boxed_str());
         let keys = [EmbeddedKey {
-            role: Role::SiteRules,
-            key_id: "rules",
+            role: Role::Repository,
+            key_id: "index",
             public_key: public,
             not_after: None,
         }];
         let sign = |version: &str| {
             crate::sign_document(
-                "rdownloader.site-rules.v1",
-                "rules",
+                "rdownloader.plugin-index.v1",
+                "index",
                 &signing,
                 &serde_json::json!({ "version": version }),
             )
@@ -395,27 +356,27 @@ mod tests {
         let withdrawn = sign("1");
         let current = sign("2");
         let digest: String = withdrawn
-            .digest("rdownloader.site-rules.v1")
+            .digest("rdownloader.plugin-index.v1")
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect();
         let digest: &'static str = Box::leak(digest.into_boxed_str());
         let revoked = [RevokedDocument {
-            role: Role::SiteRules,
+            role: Role::Repository,
             digest,
         }];
-        let store = trust_store_in(&keys, &revoked, Role::SiteRules, now()).expect("store");
+        let store = trust_store_in(&keys, &revoked, Role::Repository, now()).expect("store");
         let refused: Result<serde_json::Value, _> =
-            withdrawn.verify("rdownloader.site-rules.v1", &store);
+            withdrawn.verify("rdownloader.plugin-index.v1", &store);
         assert!(matches!(refused, Err(crate::VerifyError::Revoked)));
         let accepted: Result<serde_json::Value, _> =
-            current.verify("rdownloader.site-rules.v1", &store);
+            current.verify("rdownloader.plugin-index.v1", &store);
         assert!(accepted.is_ok());
         // Another role's store does not carry the revocation.
         let other = trust_store_in(&keys, &revoked, Role::Release, now()).expect("store");
         assert!(
             !other
-                .is_revoked_digest(&withdrawn.digest("rdownloader.site-rules.v1"))
+                .is_revoked_digest(&withdrawn.digest("rdownloader.plugin-index.v1"))
                 .expect("read")
         );
     }

@@ -596,10 +596,6 @@
     "remote_job.choice_not_kept": "The provider asked again after the choice was made. It did not keep the answer, so the job was ended rather than asking the same question again.",
     "plugin.address_carries_marker": "The address contains a credential placeholder and was not handed to the plugin",
     "site_rules.malformed": "The file cannot be read as a rule file.",
-    "site_rules.untrusted": "The rule file is not signed by a key this version trusts.",
-    "site_rules.bad_signature": "The rule file's signature does not hold — the file was changed after signing or is damaged.",
-    "site_rules.revoked": "This rule file has been withdrawn.",
-    "site_rules.stale": "This rule file has expired or carries a date in the future.",
     "site_rules.id_taken": "A rule the project ships already uses the identifier {rule}.",
     "subscription.script_name_invalid": "The script name '{value}' is not valid: it must be a file directly inside the scripts folder (letters, digits, dot, underscore, hyphen)",
     "subscription.script_not_found": "There is no script named '{name}' in the scripts folder",
@@ -1242,7 +1238,6 @@
     "remote_job.state_invalid": "States are awaiting_choice, ready, failed or discarded",
     "api.token_rate_limited": "This token made more than {limit} calls this minute. Try again in {seconds} seconds.",
     "api.token_rate_range": "A token makes 1 to {max} calls per minute, or has no limit",
-    "site_rules.sequence_older": "This rule file is older than one already imported from the same signer (sequence {sequence}, already seen {known}) and was refused.",
     "object_storage.redirect_refused": "The object storage answered with a redirect, which is not followed. Enter the endpoint it redirects to.",
     "proxy.password_host_changed": "The proxy address changed: enter the password again, it is not sent to the new host.",
     "remote.secret_host_changed": "The server changed: enter the password or the key again, it is not sent to the new host.",
@@ -1261,7 +1256,8 @@
     "queue.stop_mark_target_finished": "That download or package is already finished",
     "export.nzb_unavailable": "The NZB behind this package is no longer kept; its history was removed",
     "export.nzb_too_large": "The NZB exceeds the {max_mib} MiB a link file carries per NZB",
-    "rdlinks.nzb_invalid": "The NZB “{name}” in the link file is not valid: {detail}"
+    "rdlinks.nzb_invalid": "The NZB “{name}” in the link file is not valid: {detail}",
+    "site_rules.not_confirmed": "Deleting every site rule must be confirmed."
   },
   "capabilities": {
     "media_download": "media downloads",

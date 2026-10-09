@@ -1,10 +1,12 @@
 /**
- * The rule list a person reads, and what they can do to each rule (RD-110-08, RD-130-07).
+ * The rule list a person reads, and what they can do to each rule (RD-110-08, RD-130-07,
+ * RD-1230-03).
  *
- * Since RD-130-07 nothing ships with the binary: every rule in the list is the person's own,
- * the ones imported from the signed release file included, so every row carries the same
- * controls — the switch, duplicate, edit and delete — and a copy is created switched off and
- * opened in the editor without the original being touched.
+ * Every rule in the list is the person's own, the examples the app brings included, so every row
+ * carries the same controls — the switch, duplicate, edit and delete — and a copy is created
+ * switched off and opened in the editor without the original being touched. Rules travel as an
+ * export without a signature: the import shows what a file would do first and replaces a stored
+ * rule only when its box is ticked, and the whole list can be deleted after a question.
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,6 +20,7 @@ const get = vi.fn()
 const put = vi.fn()
 const post = vi.fn()
 const del = vi.fn()
+const state = { confirm: false, asked: [] as { title: string, description: string }[] }
 
 vi.mock('@/api/client', () => ({
   api: {
@@ -31,37 +34,50 @@ vi.mock('@/api/client', () => ({
 }))
 vi.mock('@nuxt/ui/composables', () => ({
   useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(false) }) }), overlays: [] })
+  useOverlay: () => ({
+    create: () => ({
+      open: (options: { title: string, description: string }) => {
+        state.asked.push(options)
+        return { result: Promise.resolve(state.confirm) }
+      }
+    }),
+    overlays: []
+  })
+}))
+vi.mock('@/utils/jsonFile', async importOriginal => ({
+  ...await importOriginal<typeof import('@/utils/jsonFile')>(),
+  downloadJson: vi.fn()
 }))
 
 import SettingsSiteRulesTab from './SettingsSiteRulesTab.vue'
 
-const SCNLOG_BODY = {
-  id: 'scnlog',
-  name: 'scnlog.me',
+const BOARD_BODY = {
+  id: 'release-board',
+  name: 'Release board',
   group: 'board',
   version: 1,
-  match: { hosts: ['scnlog.me', '*.scnlog.me'] },
+  match: { hosts: ['board.example.org', '*.board.example.org'] },
   steps: [{ kind: 'fetch' }],
   package: { from: 'title' },
-  probe: 'https://scnlog.me/x/',
+  probe: 'https://board.example.org/x/',
   checked: '2026-09-22'
 }
 
 const BUNDLE = {
   rules: [
     {
-      id: 'scnlog',
-      name: 'scnlog.me',
+      id: 'release-board',
+      name: 'Release board',
+      description: null,
       group: 'board',
-      hosts: ['scnlog.me', '*.scnlog.me'],
+      hosts: ['board.example.org', '*.board.example.org'],
       version: 1,
-      probe: 'https://scnlog.me/x/',
+      probe: 'https://board.example.org/x/',
       mirrors: true,
       steps: 3,
       enabled: true,
       active: true,
-      rule: SCNLOG_BODY,
+      rule: BOARD_BODY,
       check: {
         verdict: 'structural',
         code: 'site_rules.structure',
@@ -69,11 +85,12 @@ const BUNDLE = {
         pages: 1,
         checked_at: '2026-09-21T10:00:00Z'
       },
-      origin: { kind: 'signed', signer: 'rdownloader-siterules-v1', sequence: 9 }
+      origin: { kind: 'import' }
     },
     {
       id: 'my-board',
       name: 'My board',
+      description: null,
       group: 'board',
       hosts: ['example.org'],
       version: 1,
@@ -84,83 +101,119 @@ const BUNDLE = {
       active: false,
       rule: {},
       check: null,
-      origin: { kind: 'editor', signer: null, sequence: null }
+      origin: { kind: 'editor' }
     },
     {
-      id: 'getcomics',
-      name: 'GetComics',
-      group: 'ebooks',
-      hosts: ['getcomics.org'],
+      id: 'debian-cd',
+      name: 'Debian installation images',
+      description: 'A one-stage rule for the image folders.',
+      group: 'examples',
+      hosts: ['cdimage.debian.org'],
       version: 1,
-      probe: 'https://getcomics.org/dc/x/',
-      mirrors: true,
-      steps: 3,
+      probe: 'https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/',
+      mirrors: false,
+      steps: 2,
+      enabled: false,
+      active: false,
+      // The day the rule's author says it was measured. No self-test has run here.
+      rule: { checked: '2026-10-09', description: 'A one-stage rule for the image folders.' },
+      check: null,
+      origin: { kind: 'example' }
+    },
+    {
+      id: 'ubuntu-releases',
+      name: 'Ubuntu release images',
+      description: null,
+      group: 'examples',
+      hosts: ['releases.ubuntu.com'],
+      version: 1,
+      probe: 'https://releases.ubuntu.com/24.04/',
+      mirrors: false,
+      steps: 2,
       enabled: true,
       active: true,
-      // The day the rule's author says it was measured. No self-test has run here.
-      rule: { checked: '2026-09-22' },
-      check: null,
-      origin: { kind: 'unknown', signer: null, sequence: null }
+      rule: {},
+      check: { verdict: 'ok', code: null, links: 5, pages: 1, checked_at: '2026-10-09T10:00:00Z' },
+      origin: { kind: 'unknown' }
     }
   ],
   groups: [
     { group: 'board', enabled: true, rules: 2 },
-    { group: 'ebooks', enabled: true, rules: 1 }
+    { group: 'examples', enabled: true, rules: 2 }
   ]
 }
 
+/** The import dialog's body and footer, rendered only while it is open. */
+const modal = {
+  UModal: {
+    props: ['open'],
+    template: '<div v-if="open"><slot name="body" /><slot name="footer" /></div>'
+  }
+}
+
 function mount() {
-  return mountComponent(SettingsSiteRulesTab, { messages: { common, server, siterules } })
+  return mountComponent(SettingsSiteRulesTab, { messages: { common, server, siterules }, stubs: modal })
+}
+
+function row(name: string): HTMLElement {
+  return screen.getByText(name).closest('[data-rule-row]') as HTMLElement
+}
+
+/** Picks `text` as the file of the hidden upload input. */
+async function pickFile(container: Element, text: string): Promise<void> {
+  const input = container.querySelector('input[type="file"]') as HTMLInputElement
+  expect(input.accept).toBe('.json')
+  // jsdom's `File` has no `text()`; the component reads nothing else of it.
+  const picked = { name: 'rdownloader-site-rules.json', text: () => Promise.resolve(text) }
+  Object.defineProperty(input, 'files', {
+    value: { 0: picked, length: 1, item: (index: number) => (index === 0 ? picked : null) },
+    configurable: true
+  })
+  await fireEvent.change(input)
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  state.confirm = false
+  state.asked.length = 0
   get.mockResolvedValue({ data: structuredClone(BUNDLE) })
   put.mockResolvedValue({ data: { code: 'site_rules.switched', message: '' } })
 })
 
 describe('the site-rule list', () => {
-  it('names every rule with what the self-test found', async () => {
+  it('names what the self-test found and says nothing about a rule it never checked', async () => {
     mount()
-    await screen.findByText('scnlog.me')
+    await screen.findByText('Release board')
 
-    const scnlog = screen.getByText('scnlog.me').closest('div')?.parentElement as HTMLElement
-    expect(within(scnlog).getByText('Changed')).toBeTruthy()
-    expect(within(scnlog).getByText('scnlog.me, *.scnlog.me')).toBeTruthy()
-    // No origin badge any more: there is only one origin.
-    expect(within(scnlog).queryByText('Shipped')).toBeNull()
-
-    // Nothing has checked it, and the badge says exactly that rather than guessing.
-    const own = screen.getByText('My board').closest('div')?.parentElement as HTMLElement
-    expect(within(own).getByText('Not checked')).toBeTruthy()
-  })
-
-  // RD-130-07: the day a body carries is its author's word, not a measurement of this machine.
-  it('reads a rule nobody measured here as not checked, whatever day its body names', async () => {
-    mount()
-    await screen.findByText('GetComics')
-
-    const getcomics = screen.getByText('GetComics').closest('div')?.parentElement as HTMLElement
-    expect(within(getcomics).getByText('Not checked')).toBeTruthy()
-    expect(within(getcomics).queryByText('Checked')).toBeNull()
+    const board = row('Release board')
+    expect(within(board).getByText('Changed')).toBeTruthy()
+    expect(within(board).getByText('board.example.org, *.board.example.org')).toBeTruthy()
+    // RD-1230-03: no "Not checked" badge; no result is no badge.
+    for (const name of ['My board', 'Debian installation images']) {
+      expect(within(row(name)).queryByTestId('site-rule-state')).toBeNull()
+    }
+    // "Works" is there, but quiet.
+    const working = within(row('Ubuntu release images')).getByTestId('site-rule-state')
+    expect(working.textContent?.trim()).toBe('Working')
+    // A rule's description stands under its name.
+    expect(within(row('Debian installation images')).getByText('A one-stage rule for the image folders.')).toBeTruthy()
   })
 
   it('offers every rule the switch, duplicate, edit and delete', async () => {
     mount()
-    await screen.findByText('scnlog.me')
+    await screen.findByText('Release board')
 
-    for (const name of ['scnlog.me', 'My board', 'GetComics']) {
-      const row = screen.getByText(name).closest('div')?.parentElement as HTMLElement
-      expect(within(row).getByLabelText('Switch this rule')).toBeTruthy()
-      expect(within(row).getByText('Duplicate')).toBeTruthy()
-      expect(within(row).getByLabelText('Edit')).toBeTruthy()
-      expect(within(row).getByLabelText('Delete')).toBeTruthy()
+    for (const name of ['Release board', 'My board', 'Debian installation images']) {
+      const entry = row(name)
+      expect(within(entry).getByLabelText('Switch this rule')).toBeTruthy()
+      expect(within(entry).getByText('Duplicate')).toBeTruthy()
+      expect(within(entry).getByLabelText('Edit')).toBeTruthy()
+      expect(within(entry).getByLabelText('Delete')).toBeTruthy()
     }
 
-    const scnlog = screen.getByText('scnlog.me').closest('div')?.parentElement as HTMLElement
-    await fireEvent.click(within(scnlog).getByLabelText('Switch this rule'))
+    await fireEvent.click(within(row('Release board')).getByLabelText('Switch this rule'))
     expect(put).toHaveBeenCalledWith('/api/v1/site-rules/{id}/enabled', {
-      params: { path: { id: 'scnlog' } },
+      params: { path: { id: 'release-board' } },
       body: { enabled: false }
     })
   })
@@ -168,8 +221,7 @@ describe('the site-rule list', () => {
   it('switches a whole group from the heading beside its count', async () => {
     mount()
     await screen.findByText('Boards')
-    // The merged group has its own name in every language rather than the raw word.
-    expect(screen.getByText('E-books')).toBeTruthy()
+    expect(screen.getByText('Examples')).toBeTruthy()
 
     await fireEvent.click(screen.getAllByLabelText('Switch the whole group')[0] as HTMLElement)
     expect(put).toHaveBeenCalledWith('/api/v1/site-rule-groups/{group}/enabled', {
@@ -181,103 +233,168 @@ describe('the site-rule list', () => {
   it('duplicates a rule switched off under a new id and opens the copy, leaving the original', async () => {
     const copy = {
       ...structuredClone(BUNDLE.rules[0]),
-      id: 'scnlog-copy',
-      name: 'scnlog.me (copy)',
+      id: 'release-board-copy',
+      name: 'Release board (copy)',
       enabled: false,
       active: false,
       check: null,
-      rule: { ...SCNLOG_BODY, id: 'scnlog-copy', name: 'scnlog.me (copy)' }
+      rule: { ...BOARD_BODY, id: 'release-board-copy', name: 'Release board (copy)' }
     }
     post.mockResolvedValue({ data: { code: 'site_rules.saved', message: '' } })
     mount()
-    await screen.findByText('scnlog.me')
+    await screen.findByText('Release board')
     const withCopy = structuredClone(BUNDLE)
     withCopy.rules.push(copy as never)
     get.mockResolvedValue({ data: withCopy })
 
-    const scnlog = screen.getByText('scnlog.me').closest('div')?.parentElement as HTMLElement
-    await fireEvent.click(within(scnlog).getByText('Duplicate'))
+    await fireEvent.click(within(row('Release board')).getByText('Duplicate'))
 
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
     expect(post).toHaveBeenCalledWith('/api/v1/site-rules', {
       body: {
-        rule: { ...SCNLOG_BODY, id: 'scnlog-copy', name: 'scnlog.me (copy)' },
+        rule: { ...BOARD_BODY, id: 'release-board-copy', name: 'Release board (copy)' },
         enabled: false
       }
     })
     // The original is neither written nor switched: one create, no update, no switch.
     expect(put).not.toHaveBeenCalled()
-    // And the copy is what the editor now holds.
-    await waitFor(() => expect(screen.getByDisplayValue('scnlog-copy')).toBeTruthy())
-    expect(screen.getByDisplayValue('scnlog.me (copy)')).toBeTruthy()
+    await waitFor(() => expect(screen.getByDisplayValue('release-board-copy')).toBeTruthy())
+    expect(screen.getByDisplayValue('Release board (copy)')).toBeTruthy()
+  })
+})
+
+describe('carrying rules to another installation (RD-1230-03)', () => {
+  it('exports the ticked rules, or all of them when none is ticked', async () => {
+    get.mockImplementation((path: string) => Promise.resolve(path === '/api/v1/site-rules'
+      ? { data: structuredClone(BUNDLE) }
+      : { data: { format_version: 2, rules: [] } }))
+    mount()
+    await screen.findByText('Release board')
+
+    await fireEvent.click(screen.getByRole('button', { name: siterules.transfer.export }))
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/site-rules/export', { params: { query: {} } }))
+
+    await fireEvent.click(within(row('My board')).getByRole('checkbox'))
+    await fireEvent.click(screen.getByRole('button', { name: 'Export 1 rules' }))
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/site-rules/export', {
+      params: { query: { ids: 'my-board' } }
+    }))
   })
 
-  it('sends an imported file exactly as it was read', async () => {
-    const file = '{"payload": {"format_version":1},\n "signatures": []}'
-    post.mockResolvedValue({ data: { rules: [], stored: 0, signed: true } })
+  it('shows what a file would do and replaces a stored rule only when its box is ticked', async () => {
+    const document_ = {
+      format_version: 2,
+      rules: [
+        { enabled: true, rule: { ...BOARD_BODY, name: 'Release board, theirs' } },
+        { enabled: false, rule: { id: 'fresh', name: 'Fresh rule' } }
+      ]
+    }
+    post.mockImplementation((path: string) => Promise.resolve(path === '/api/v1/site-rules/import/preview'
+      ? {
+          data: {
+            rules: [
+              { id: 'release-board', name: 'Release board, theirs', hosts: ['board.example.org'], enabled: true, status: 'replaces', code: null },
+              { id: 'fresh', name: 'Fresh rule', hosts: ['fresh.example.org'], enabled: false, status: 'new', code: null }
+            ]
+          }
+        }
+      : { data: { rules: [], stored: 1, replaced: 1 } }))
     const { container } = mount()
-    await screen.findByText('scnlog.me')
+    await screen.findByText('Release board')
 
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement
-    expect(input.accept).toBe('.json')
-    // jsdom's `File` has no `text()`; the component reads nothing else of it.
-    const picked = { name: 'rdownloader-site-rules.json', text: () => Promise.resolve(file) }
-    Object.defineProperty(input, 'files', {
-      value: { 0: picked, length: 1, item: (index: number) => (index === 0 ? picked : null) },
-      configurable: true
-    })
-    await fireEvent.change(input)
+    await pickFile(container, JSON.stringify(document_))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/site-rules/import/preview', { body: document_ }))
+    const preview = await screen.findByTestId('site-rule-import-preview')
+    expect(within(preview).getByText('Fresh rule')).toBeTruthy()
+    expect(within(preview).getByText(siterules.import_dialog.status.new)).toBeTruthy()
+    expect(within(preview).getByText(siterules.import_dialog.status.replaces)).toBeTruthy()
+    expect(within(preview).getByText(siterules.import_dialog.on)).toBeTruthy()
 
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
-    const [path, options] = post.mock.calls[0] as [string, { bodySerializer: (body: unknown) => unknown }]
-    expect(path).toBe('/api/v1/site-rules/import')
-    expect(options.bodySerializer(undefined)).toBe(file)
+    await fireEvent.click(within(preview).getByRole('checkbox'))
+    await fireEvent.click(screen.getByTestId('site-rule-import-confirm'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/site-rules/import', {
+      body: { document: document_, replace: ['release-board'] }
+    }))
+  })
+
+  it('refuses a file that is no rule export before asking the service', async () => {
+    const { container } = mount()
+    await screen.findByText('Release board')
+    await pickFile(container, '[1, 2, 3]')
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(post).not.toHaveBeenCalled()
+  })
+})
+
+describe('deleting every rule and the examples (RD-1230-03)', () => {
+  it('asks first, naming the count and advising an export, and deletes only on yes', async () => {
+    post.mockResolvedValue({ data: { removed: 4 } })
+    mount()
+    await screen.findByText('Release board')
+
+    await fireEvent.click(screen.getByTestId('site-rules-clear'))
+    await waitFor(() => expect(state.asked).toHaveLength(1))
+    expect(state.asked[0]?.description).toContain('All 4 rules')
+    expect(state.asked[0]?.description).toContain('Export them first')
+    expect(post).not.toHaveBeenCalled()
+
+    state.confirm = true
+    await fireEvent.click(screen.getByTestId('site-rules-clear'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/site-rules/clear', { body: { confirmed: true } }))
+  })
+
+  it('offers the examples, a file or a rule of one\'s own when the list is empty', async () => {
+    get.mockResolvedValue({ data: { rules: [], groups: [] } })
+    post.mockResolvedValue({ data: { restored: 4 } })
+    mount()
+    await screen.findByText(siterules.list.empty)
+
+    const restore = screen.getAllByRole('button', { name: siterules.examples.restore })
+    expect(restore.length).toBeGreaterThan(0)
+    await fireEvent.click(restore[0] as HTMLElement)
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/site-rules/examples'))
   })
 })
 
 /**
  * RD-1200-05: every row names where its rule came from, as a glyph whose word is its name and
- * whose sentence — with the signer and sequence of a signed file — is its tooltip.
+ * whose sentence is its tooltip.
  */
 describe('where a rule came from', () => {
   it('shows the origin of every rule as a glyph with its word and sentence', async () => {
     mount()
-    await screen.findByText('scnlog.me')
+    await screen.findByText('Release board')
 
-    const scnlog = screen.getByText('scnlog.me').closest('div')?.parentElement as HTMLElement
-    const signed = within(scnlog).getByLabelText(siterules.origin.signed)
-    expect(signed.getAttribute('role')).toBe('img')
-    expect(signed.textContent?.trim()).toBe('')
-    expect(signed.parentElement?.getAttribute('text')).toBe(
-      'From the signed rule file, signed by rdownloader-siterules-v1, sequence 9'
-    )
-    const own = screen.getByText('My board').closest('div')?.parentElement as HTMLElement
-    expect(within(own).getByLabelText(siterules.origin.editor)).toBeTruthy()
-    const getcomics = screen.getByText('GetComics').closest('div')?.parentElement as HTMLElement
-    expect(within(getcomics).getByLabelText(siterules.origin.unknown)).toBeTruthy()
+    const example = within(row('Debian installation images')).getByLabelText(siterules.origin.example)
+    expect(example.getAttribute('role')).toBe('img')
+    expect(example.textContent?.trim()).toBe('')
+    expect(example.parentElement?.getAttribute('text')).toBe(siterules.origin.example_detail)
+    expect(within(row('Release board')).getByLabelText(siterules.origin.import)).toBeTruthy()
+    expect(within(row('My board')).getByLabelText(siterules.origin.editor)).toBeTruthy()
+    expect(within(row('Ubuntu release images')).getByLabelText(siterules.origin.unknown)).toBeTruthy()
   })
 
-  it('names the origin in the editor and warns that a changed signed rule becomes one\'s own', async () => {
+  it('names the origin in the editor', async () => {
     mount()
-    await screen.findByText('scnlog.me')
-    const scnlog = screen.getByText('scnlog.me').closest('[data-rule-row]') as HTMLElement
-    await fireEvent.click(within(scnlog).getByLabelText('Edit'))
+    await screen.findByText('Release board')
+    await fireEvent.click(within(row('Debian installation images')).getByLabelText('Edit'))
 
     const origin = await screen.findByTestId('site-rule-editor-origin')
-    expect(origin.textContent).toContain('signed by rdownloader-siterules-v1, sequence 9')
-    expect(origin.textContent).toContain(siterules.origin.edit_hint)
+    expect(origin.textContent).toContain(siterules.origin.example_detail)
+    // The description travels into the editor with the rule.
+    expect(screen.getByDisplayValue('A one-stage rule for the image folders.')).toBeTruthy()
   })
 })
 
 describe('editing a rule in the form (RD-150-11)', () => {
   it('marks the row being edited and has no second way to a new rule', async () => {
     mount()
-    await screen.findByText('scnlog.me')
+    await screen.findByText('Release board')
     expect(screen.queryByRole('button', { name: 'New rule' })).toBeNull()
 
-    const row = screen.getByText('My board').closest('[data-rule-row]') as HTMLElement
-    await fireEvent.click(within(row).getByLabelText('Edit'))
-    expect(within(row).getByText(common.editing)).toBeTruthy()
+    const entry = row('My board')
+    await fireEvent.click(within(entry).getByLabelText('Edit'))
+    expect(within(entry).getByText(common.editing)).toBeTruthy()
     // The identifier is locked while editing, so the focus lands on the first field it can.
     await waitFor(() => expect(document.activeElement).toBe(screen.getByDisplayValue('My board')))
   })

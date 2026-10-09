@@ -3,8 +3,8 @@
 //! The body is stored as the JSON the system boundary validated and handed back unchanged;
 //! this module knows a rule's identity, its group and whether it is switched on, and nothing
 //! about what is inside. See `migrations/0076_site_rules.sql` for why. Since RD-1200-05 it
-//! also knows where a rule came from (`migrations/0132_site_rule_origin.sql`) and the highest
-//! sequence of a signed rule file accepted per signer.
+//! also knows where a rule came from (`migrations/0132_site_rule_origin.sql`); since RD-1230-03
+//! no rule carries a signature, so no signer is recorded (`migrations/0134_site_rules_unsigned.sql`).
 
 use anyhow::{Context, Result};
 use chrono::Utc;
@@ -14,19 +14,20 @@ use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::writer::insert_event;
 
-/// How a rule reached this installation (RD-1200-05).
+/// How a rule reached this installation (RD-1200-05, RD-1230-03).
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SiteRuleOriginKind {
-    /// The signed release file; the origin names the signer and the file's sequence.
-    Signed,
-    /// An unsigned file or a pasted export.
+    /// An imported exchange file.
     Import,
     /// Written or changed in the settings page.
     Editor,
     /// Written through an MCP tool.
     Mcp,
-    /// Stored by a build before RD-1200-05, or a word this build does not know.
+    /// One of the examples the app brings (RD-1230-03), installed at the first start or restored.
+    Example,
+    /// Stored by a build before RD-1200-05, or a word this build does not know -- the `signed`
+    /// of 1.20 to 1.22 among them.
     Unknown,
 }
 
@@ -35,10 +36,10 @@ impl SiteRuleOriginKind {
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Signed => "signed",
             Self::Import => "import",
             Self::Editor => "editor",
             Self::Mcp => "mcp",
+            Self::Example => "example",
             Self::Unknown => "unknown",
         }
     }
@@ -47,43 +48,11 @@ impl SiteRuleOriginKind {
     #[must_use]
     pub fn parse(word: &str) -> Self {
         match word {
-            "signed" => Self::Signed,
             "import" => Self::Import,
             "editor" => Self::Editor,
             "mcp" => Self::Mcp,
+            "example" => Self::Example,
             _ => Self::Unknown,
-        }
-    }
-}
-
-/// Where a stored rule came from: the path that wrote its current body (RD-1200-05).
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct SiteRuleOrigin {
-    pub kind: SiteRuleOriginKind,
-    /// The key whose signature held, for [`SiteRuleOriginKind::Signed`] only.
-    pub signer: Option<String>,
-    /// The signed file's sequence, for [`SiteRuleOriginKind::Signed`] only.
-    pub sequence: Option<u64>,
-}
-
-impl SiteRuleOrigin {
-    /// A rule from a signed file.
-    #[must_use]
-    pub fn signed(signer: &str, sequence: u64) -> Self {
-        Self {
-            kind: SiteRuleOriginKind::Signed,
-            signer: Some(signer.to_owned()),
-            sequence: Some(sequence),
-        }
-    }
-
-    /// A rule from any path that carries no signature.
-    #[must_use]
-    pub fn unsigned(kind: SiteRuleOriginKind) -> Self {
-        Self {
-            kind,
-            signer: None,
-            sequence: None,
         }
     }
 }
@@ -101,7 +70,7 @@ pub struct UserSiteRule {
     pub created_at: String,
     pub updated_at: String,
     /// Where the rule's current body came from (RD-1200-05).
-    pub origin: SiteRuleOrigin,
+    pub origin: SiteRuleOriginKind,
 }
 
 /// A rule about to be written; replaces an earlier one of the same id.
@@ -113,7 +82,7 @@ pub struct NewUserSiteRule {
     pub enabled: bool,
     pub rule: serde_json::Value,
     /// Where this body came from; a switch passes the stored origin on unchanged.
-    pub origin: SiteRuleOrigin,
+    pub origin: SiteRuleOriginKind,
 }
 
 #[derive(FromRow)]
@@ -126,8 +95,6 @@ struct Row {
     created_at: String,
     updated_at: String,
     origin: String,
-    origin_signer: Option<String>,
-    origin_sequence: Option<i64>,
 }
 
 impl TryFrom<Row> for UserSiteRule {
@@ -144,19 +111,12 @@ impl TryFrom<Row> for UserSiteRule {
             rule,
             created_at: row.created_at,
             updated_at: row.updated_at,
-            origin: SiteRuleOrigin {
-                kind: SiteRuleOriginKind::parse(&row.origin),
-                signer: row.origin_signer,
-                sequence: row
-                    .origin_sequence
-                    .and_then(|sequence| u64::try_from(sequence).ok()),
-            },
+            origin: SiteRuleOriginKind::parse(&row.origin),
         })
     }
 }
 
-const COLUMNS: &str = "id, name, rule_group, enabled, rule_json, created_at, updated_at, \
-                       origin, origin_signer, origin_sequence";
+const COLUMNS: &str = "id, name, rule_group, enabled, rule_json, created_at, updated_at, origin";
 
 pub(crate) async fn list_site_rules(pool: &SqlitePool) -> Result<Vec<UserSiteRule>> {
     let rows = sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(format!(
@@ -175,27 +135,18 @@ pub(crate) async fn upsert_site_rule(
 ) -> Result<(UserSiteRule, EventEnvelope)> {
     let now = Utc::now().to_rfc3339();
     let rule_json = serde_json::to_string(&input.rule)?;
-    let sequence = input
-        .origin
-        .sequence
-        .map(i64::try_from)
-        .transpose()
-        .context("a site rule's sequence is out of range")?;
     let mut transaction = connection.begin().await?;
     sqlx::query(
         "INSERT INTO site_rules \
-           (id, name, rule_group, enabled, rule_json, created_at, updated_at, \
-            origin, origin_signer, origin_sequence) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+           (id, name, rule_group, enabled, rule_json, created_at, updated_at, origin) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
          ON CONFLICT(id) DO UPDATE SET \
            name = excluded.name, \
            rule_group = excluded.rule_group, \
            enabled = excluded.enabled, \
            rule_json = excluded.rule_json, \
            updated_at = excluded.updated_at, \
-           origin = excluded.origin, \
-           origin_signer = excluded.origin_signer, \
-           origin_sequence = excluded.origin_sequence",
+           origin = excluded.origin",
     )
     .bind(&input.id)
     .bind(&input.name)
@@ -204,9 +155,7 @@ pub(crate) async fn upsert_site_rule(
     .bind(&rule_json)
     .bind(&now)
     .bind(&now)
-    .bind(input.origin.kind.as_str())
-    .bind(&input.origin.signer)
-    .bind(sequence)
+    .bind(input.origin.as_str())
     .execute(&mut *transaction)
     .await?;
     let row = sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(format!(
@@ -242,39 +191,32 @@ pub(crate) async fn delete_site_rule(
     Ok((true, Some(event)))
 }
 
-/// Records that a signed rule file of `sequence` from `signer` was accepted and answers the
-/// highest sequence accepted from that signer *before* this call (RD-1200-05).
-///
-/// Read and write are one transaction on the serialised writer, so two imports at once cannot
-/// both measure against the same old mark. The stored mark only ever rises (`MAX`): an older
-/// file leaves it alone, and the caller refuses that file on the answer.
-pub(crate) async fn record_site_rule_pack(
+/// Removes every rule and every self-test result, in one transaction (RD-1230-03), and answers
+/// how many rules went. The group switches stay: they are the person's decision about a kind of
+/// site, not part of a rule, and a rule imported later into the same group finds it again. The
+/// event is `None` when there was nothing to remove.
+pub(crate) async fn delete_all_site_rules(
     connection: &mut SqliteConnection,
-    signer: &str,
-    sequence: u64,
-) -> Result<Option<u64>> {
-    let sequence = i64::try_from(sequence).context("a rule file's sequence is out of range")?;
+) -> Result<(u64, Option<EventEnvelope>)> {
     let mut transaction = connection.begin().await?;
-    let known: Option<i64> =
-        sqlx::query_scalar("SELECT sequence FROM site_rule_pack_sequences WHERE signer = ?")
-            .bind(signer)
-            .fetch_optional(&mut *transaction)
-            .await?;
-    sqlx::query(
-        "INSERT INTO site_rule_pack_sequences (signer, sequence, accepted_at) \
-         VALUES (?, ?, ?) \
-         ON CONFLICT(signer) DO UPDATE SET \
-           sequence = MAX(sequence, excluded.sequence), \
-           accepted_at = CASE WHEN excluded.sequence > sequence \
-                              THEN excluded.accepted_at ELSE accepted_at END",
-    )
-    .bind(signer)
-    .bind(sequence)
-    .bind(Utc::now().to_rfc3339())
-    .execute(&mut *transaction)
-    .await?;
+    let removed = sqlx::query("DELETE FROM site_rules")
+        .execute(&mut *transaction)
+        .await?
+        .rows_affected();
+    sqlx::query("DELETE FROM site_rule_checks")
+        .execute(&mut *transaction)
+        .await?;
+    if removed == 0 {
+        transaction.commit().await?;
+        return Ok((0, None));
+    }
+    let event = EventEnvelope::new(
+        EventKind::SiteRuleChanged,
+        serde_json::json!({ "resource": "site_rule", "removed": removed }),
+    );
+    insert_event(&mut transaction, &event).await?;
     transaction.commit().await?;
-    Ok(known.and_then(|known| u64::try_from(known).ok()))
+    Ok((removed, Some(event)))
 }
 
 /// What a write announces: which rule, never its body. The body is configuration the

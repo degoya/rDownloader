@@ -58,18 +58,13 @@ impl Writer {
                 .await;
                 publish_unit_event(reply, result, &self.events);
             }
-            ConfigCommand::RecordSiteRulePack {
-                signer,
-                sequence,
-                reply,
-            } => {
-                let result = crate::site_rules_store::record_site_rule_pack(
-                    &mut self.connection,
-                    &signer,
-                    sequence,
-                )
-                .await;
-                send(reply, result);
+            ConfigCommand::DeleteAllSiteRules { reply } => {
+                let result =
+                    crate::site_rules_store::delete_all_site_rules(&mut self.connection).await;
+                if let Ok((_, Some(event))) = &result {
+                    let _ = self.events.send(event.clone());
+                }
+                send(reply, result.map(|(removed, _)| removed));
             }
             ConfigCommand::DeleteSiteRule { id, reply } => {
                 let result =

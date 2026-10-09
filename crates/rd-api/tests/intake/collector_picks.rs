@@ -6,7 +6,7 @@
 //! of a list as it is read, resolved, stopped and discarded. How long a list lives on the board
 //! is the board's own business (`crates/rd-plugin-ext/src/picks.rs`) and is not pinned here.
 //!
-//! The network is serienjunkies.org's recorded answer behind the runner seam, as in the MCP
+//! The network is the synthetic series site's answer behind the runner seam, as in the MCP
 //! suite (`tests/mcp/mcp/series_pick.rs`); the captcha broker never answers, so a started round
 //! stays where the test can stop it.
 
@@ -23,12 +23,11 @@ use url::Url;
 
 use crate::common::{self, delete_json, get_json, post_json};
 
-const PAYLOAD: &str = include_str!("../../../rd-siterules/resources/site-rules-payload.json");
-const PAGE: &str = include_str!("../../../rd-siterules/tests/fixtures/serienjunkies-page.html");
-const RELEASES: &str =
-    include_str!("../../../rd-siterules/tests/fixtures/serienjunkies-releases.json");
-const PROBE: &str = "https://serienjunkies.org/serie/the-varnell-hill-show/";
-const API: &str = "https://serienjunkies.org/api/media/6a96aa7cff33487fe64137e1/releases";
+const RULE: &str = include_str!("../../../rd-siterules/tests/fixtures/series-rule.json");
+const PAGE: &str = include_str!("../../../rd-siterules/tests/fixtures/series-page.html");
+const RELEASES: &str = include_str!("../../../rd-siterules/tests/fixtures/series-releases.json");
+const PROBE: &str = "https://series.example.com/serie/example-open-series/";
+const API: &str = "https://series.example.com/api/media/6a96aa7cff33487fe64137e1/releases";
 const PICKS: &str = "/api/v1/collector/picks";
 
 /// The series page and its release list, and nothing else.
@@ -94,8 +93,8 @@ impl rd_plugin_ext::RuleRunner for RecordedRunner {
     }
 }
 
-/// A router whose site rules run over the recorded site, with the serienjunkies.org rule
-/// saved and switched on through the REST route a person's editor uses.
+/// A router whose site rules run over the recorded site, with the synthetic series rule saved
+/// and switched on through the REST route a person's editor uses.
 async fn router_with_the_series_rule(directory: &std::path::Path) -> axum::Router {
     let harness = common::test_harness(directory).await;
     let rules = Arc::new(rd_plugin_ext::SiteRules::new(
@@ -105,12 +104,7 @@ async fn router_with_the_series_rule(directory: &std::path::Path) -> axum::Route
     let crawlers = Arc::new(rd_plugin_ext::FolderCrawlers::none().with_rules(rules));
     let router = rd_api::router(harness.state.clone().with_crawlers(crawlers));
 
-    let payload: Value = serde_json::from_str(PAYLOAD).expect("the payload");
-    let rule = payload["rules"]
-        .as_array()
-        .and_then(|rules| rules.iter().find(|rule| rule["id"] == "serienjunkies"))
-        .cloned()
-        .expect("the payload carries serienjunkies");
+    let rule: Value = serde_json::from_str(RULE).expect("the synthetic series rule");
     let (status, saved) = post_json(
         &router,
         "/api/v1/site-rules",
@@ -127,7 +121,7 @@ fn assert_list_shape(page: &Value) {
         page["id"].as_str().is_some_and(|id| !id.is_empty()),
         "{page}"
     );
-    assert_eq!(page["rule_id"], "serienjunkies", "{page}");
+    assert_eq!(page["rule_id"], "example-series", "{page}");
     assert!(page["rule"].is_string(), "{page}");
     assert_eq!(page["address"], PROBE, "{page}");
     assert!(page["created_at"].is_string(), "{page}");

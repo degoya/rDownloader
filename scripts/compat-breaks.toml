@@ -33,3 +33,31 @@ reason = "Starting a passkey registration takes the password again (step-up); th
 release = "1.8.0"
 finding = "rest:request-property-required:schemas.TotpEnrolRequest.password"
 reason = "TOTP enrolment takes the password again (step-up), so a token alone cannot add a factor."
+
+# Site rules without signature (RD-1230-03, 1.23.0, owner 2026-10-09): the signed rule file, its
+# signer and pack sequence are gone, and rules are exchanged as a versioned export file that
+# carries each rule's switch. No installed base, so no transition (AGENTS.md).
+[[break]]
+release = "1.23.0"
+finding = "rest:response-property-removed:schemas.ImportSiteRulesResponse.signed"
+reason = "Site rules carry no signature any more; an import is never signed."
+
+[[break]]
+release = "1.23.0"
+finding = "rest:response-property-removed:schemas.SiteRuleOriginResponse.sequence"
+reason = "The pack sequence of the signed rule file is gone with the signature."
+
+[[break]]
+release = "1.23.0"
+finding = "rest:response-property-removed:schemas.SiteRuleOriginResponse.signer"
+reason = "No rule has a signer any more; the origin names import, editor, MCP, example or unknown."
+
+[[break]]
+release = "1.23.0"
+finding = "rest:request-property-required:schemas.SiteRuleDocument.rules[].rule"
+reason = "The exchange file's entries are typed now: each carries its rule and the switch it had at export."
+
+[[break]]
+release = "1.23.0"
+finding = "rest:request-property-required:schemas.SiteRuleImportRequest.document"
+reason = "An import names the exchange file and, after the preview, the rules it may replace."

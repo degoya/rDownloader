@@ -9,6 +9,7 @@ import type { DirectAddPayload } from '@/components/DirectAddForm.vue'
 import DirectAddModal from '@/components/DirectAddModal.vue'
 import PackageGroup from '@/components/PackageGroup.vue'
 import QueueColumnHeader from '@/components/QueueColumnHeader.vue'
+import QueueListBar from '@/components/QueueListBar.vue'
 import QueueResetFailedMenu from '@/components/QueueResetFailedMenu.vue'
 import QueueSortNotice from '@/components/QueueSortNotice.vue'
 import TransferCard from '@/components/TransferCard.vue'
@@ -150,6 +151,12 @@ const stateFingerprint = computed(() => transfers.downloads.map(download => `${d
 const packageStateFingerprint = computed(() => transfers.packages.map(pkg => `${pkg.id}:${pkg.state ?? ''}`).join('|'))
 const canExtractSelection = computed(() => hasExtractable(selection.selectedDownloads.value))
 const resettableSelection = computed(() => selection.selectedDownloads.value.filter(download => RESETTABLE_STATES.includes(download.state)))
+/** "3 files in 2 packages": the tooltip of both selection counts (RD-1230-02). */
+const selectionDetail = computed(() => {
+  const files = selection.selectedDownloads.value
+  const packages = new Set(files.map(download => download.package_id)).size
+  return t('common.selection.detail', { items: t('common.units.file', { count: files.length }, files.length), packages: t('common.units.package', { count: packages }, packages) })
+})
 
 /**
  * `f` puts the keyboard in the name search, as it does in the LinkGrabber's indexer search: one
@@ -251,40 +258,6 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
           </div>
         </template>
       </UDashboardNavbar>
-      <!-- Wraps where the panel is narrow, as the LinkGrabber's toolbar does (RD-120-48). -->
-      <UDashboardToolbar :ui="{ root: 'flex-wrap gap-y-1.5 py-1.5', left: 'min-w-0 flex-auto flex-wrap', right: 'ms-auto flex-wrap' }">
-        <template #left>
-          <div ref="searchField" class="w-full sm:w-56">
-            <UInput
-              v-model="search"
-              type="search"
-              icon="i-lucide-search"
-              class="w-full"
-              autocomplete="off"
-              :placeholder="t('downloads.filters.search_placeholder')"
-              :aria-label="t('downloads.filters.search_label')"
-              data-testid="downloads-search"
-            >
-              <template #trailing><UKbd value="f" /></template>
-            </UInput>
-          </div>
-          <USelect v-model="filter" :items="filters" value-key="value" class="w-36" :aria-label="t('downloads.filters.aria')" />
-          <UCheckbox
-            :model-value="selection.state.value === 'all' ? true : selection.state.value === 'some' ? 'indeterminate' : false"
-            :disabled="!groups.length"
-            :label="selection.count.value ? t('downloads.header.selection_count', { count: selection.count.value }) : t('common.actions.select_all')"
-            :aria-label="t('downloads.header.select_all_hint')"
-            :ui="{ root: 'shrink-0', label: 'whitespace-nowrap' }"
-            @update:model-value="selection.toggleAll()"
-          />
-          <UButton :icon="openPackages.allOpen.value ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'" color="neutral" variant="ghost" :aria-label="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :title="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :disabled="!groups.length" data-testid="packages-open-toggle" @click="openPackages.toggleAll" />
-        </template>
-        <template #right>
-          <UButton icon="i-lucide-file-down" color="neutral" variant="ghost" :aria-label="t('common.export.action_all')" :title="t('common.export.action_all')" :disabled="!transfers.packages.length" data-testid="downloads-export-all" @click="exportPackages({ all: true })" />
-          <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" :ui="{ label: 'whitespace-nowrap' }" data-testid="show-metadata" />
-          <span class="numeric whitespace-nowrap text-xs text-muted">{{ t('common.units.package', { count: groups.length }, groups.length) }} · {{ t('common.units.file', { count: visible.length }, visible.length) }}</span>
-        </template>
-      </UDashboardToolbar>
     </template>
 
     <template #body>
@@ -311,12 +284,47 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
 
         <PostprocessQueue v-if="postprocess.queue.length" :entries="postprocess.queue" />
 
-        <section v-if="rows.length" class="space-y-2">
+        <!-- The row at the list (RD-1230-02): select all and its count where the ticks are, then
+             the search and the filter; the same order as the LinkGrabber's (`QueueListBar`). -->
+        <section class="space-y-2">
+          <QueueListBar
+            v-model:show-metadata="showMetadata"
+            :state="selection.state.value"
+            :count="selection.count.value"
+            :detail="selectionDetail"
+            :select-hint="t('downloads.header.select_all_hint')"
+            :empty="!groups.length"
+            :all-open="openPackages.allOpen.value"
+            :export-disabled="!transfers.packages.length"
+            :count-text="`${t('common.units.package', { count: groups.length }, groups.length)} · ${t('common.units.file', { count: visible.length }, visible.length)}`"
+            @toggle-all="selection.toggleAll()"
+            @toggle-open="openPackages.toggleAll"
+            @export-all="exportPackages({ all: true })"
+          >
+            <template #filters>
+              <div ref="searchField" class="w-full sm:w-56">
+                <UInput
+                  v-model="search"
+                  type="search"
+                  icon="i-lucide-search"
+                  class="w-full"
+                  autocomplete="off"
+                  :placeholder="t('downloads.filters.search_placeholder')"
+                  :aria-label="t('downloads.filters.search_label')"
+                  data-testid="downloads-search"
+                >
+                  <template #trailing><UKbd value="f" /></template>
+                </UInput>
+              </div>
+              <USelect v-model="filter" :items="filters" value-key="value" class="w-36" :aria-label="t('downloads.filters.aria')" />
+            </template>
+          </QueueListBar>
+          <template v-if="rows.length">
           <QueueSortNotice v-if="queueSort.sort.value" :sort="queueSort.sort.value" @reset="queueSort.reset" />
           <BulkActionBar
             v-if="selection.selectedIds.value.length"
             :count="selection.selectedIds.value.length"
-            unit-key="common.units.file"
+            :detail="selectionDetail"
             :categories="categories"
             :busy="bulkBusy"
             :package-actions-disabled="!selection.fullySelectedPackageIds.value.length"
@@ -328,19 +336,18 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
             @resume="bulkAction('resume')"
             @pause="bulkAction('pause')"
             @cancel="bulkAction('cancel')"
+            @reveal="revealSelection"
+            @export="exportPackages({ downloadIds: selection.selectedIds.value })"
             @extract="bulkExtract"
             @remove="bulkRemove"
             @clear="selection.clear()"
           >
-            <template #default="{ labelUi }">
-              <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" :aria-label="t('common.actions.reveal')" :title="t('common.actions.reveal')" :ui="labelUi" @click="revealSelection" />
-              <!-- Rename is the pencil of every row and export the icon of the toolbar's own export: icons alone (RD-1220-03). -->
-              <UButton v-if="selection.selectedIds.value.length === 1" size="sm" color="neutral" variant="outline" icon="i-lucide-pencil" :aria-label="t('common.actions.rename')" :title="t('common.actions.rename')" @click="bulkRename" />
-              <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-file-down" :aria-label="t('common.export.action')" :title="t('common.export.action')" data-testid="downloads-export" @click="exportPackages({ downloadIds: selection.selectedIds.value })" />
-              <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :label="t('downloads.reresolve.action')" :aria-label="t('downloads.reresolve.action')" :title="t('downloads.reresolve.hint')" :ui="labelUi" data-testid="downloads-reresolve" @click="reresolve({ ids: selection.selectedIds.value })" />
-              <!-- A count and a danger keep their words: "Reset 3 files" is not an icon. -->
-              <UButton v-if="resettableSelection.length" size="sm" color="error" variant="outline" icon="i-lucide-rotate-ccw" :label="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :loading="bulkBusy" @click="resetDownloads(selection.selectedIds.value)" />
-              <UButton v-if="selection.fullySelectedPackageIds.value.length" size="sm" color="error" variant="outline" icon="i-lucide-package-x" :label="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :loading="bulkBusy" @click="bulkDeletePackages" />
+            <UButton v-if="selection.selectedIds.value.length === 1" size="sm" color="neutral" variant="outline" icon="i-lucide-pencil" :aria-label="t('common.actions.rename')" :title="t('common.actions.rename')" @click="bulkRename" />
+            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :aria-label="t('downloads.reresolve.action')" :title="t('downloads.reresolve.hint')" data-testid="downloads-reresolve" @click="reresolve({ ids: selection.selectedIds.value })" />
+            <template #danger>
+              <!-- Icon and figure; the sentence ("Reset 3 files") is the name and the tooltip (RD-1230-02). -->
+              <UButton v-if="resettableSelection.length" size="sm" color="error" variant="outline" icon="i-lucide-rotate-ccw" :label="String(resettableSelection.length)" :aria-label="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :title="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :loading="bulkBusy" data-testid="downloads-bulk-reset" @click="resetDownloads(selection.selectedIds.value)" />
+              <UButton v-if="selection.fullySelectedPackageIds.value.length" size="sm" color="error" variant="outline" icon="i-lucide-package-x" :label="String(selection.fullySelectedPackageIds.value.length)" :aria-label="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :title="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :loading="bulkBusy" data-testid="downloads-bulk-delete-packages" @click="bulkDeletePackages" />
             </template>
           </BulkActionBar>
           <!--
@@ -438,34 +445,35 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
             </template>
           </VirtualRowList>
           </div>
-        </section>
+          </template>
 
-        <!-- The queue has files, the filter or the search hides all of them: say so, and offer the way back. -->
-        <UEmpty
-          v-else-if="filterActive && transfers.downloads.length"
-          as="section"
-          class="min-h-48"
-          icon="i-lucide-search-x"
-          :title="t('downloads.filters.no_match_title')"
-          :description="t('downloads.filters.no_match_hint')"
-          :actions="[{ icon: 'i-lucide-filter-x', color: 'neutral', variant: 'outline', label: t('downloads.filters.reset'), onClick: resetFilter }]"
-          data-testid="downloads-no-match"
-        />
-
-        <!--
-          "Nothing here" is only true once the queue fetch has settled. Until then the store's
-          own loading flag is what the reader sees, and a failed fetch stays visible as the
-          error alert above rather than dissolving into an empty queue (RD-104-07).
-        -->
-        <DataState v-else :loading="transfers.loading" :empty="!transfers.error" :rows="4">
+          <!-- The queue has files, the filter or the search hides all of them: say so, and offer the way back. -->
           <UEmpty
+            v-else-if="filterActive && transfers.downloads.length"
             as="section"
-            class="signal-grid min-h-72"
-            icon="i-lucide-inbox"
-            :title="t('downloads.empty.title')"
-            :description="t('downloads.empty.hint')"
+            class="min-h-48"
+            icon="i-lucide-search-x"
+            :title="t('downloads.filters.no_match_title')"
+            :description="t('downloads.filters.no_match_hint')"
+            :actions="[{ icon: 'i-lucide-filter-x', color: 'neutral', variant: 'outline', label: t('downloads.filters.reset'), onClick: resetFilter }]"
+            data-testid="downloads-no-match"
           />
-        </DataState>
+
+          <!--
+            "Nothing here" is only true once the queue fetch has settled. Until then the store's
+            own loading flag is what the reader sees, and a failed fetch stays visible as the
+            error alert above rather than dissolving into an empty queue (RD-104-07).
+          -->
+          <DataState v-else :loading="transfers.loading" :empty="!transfers.error" :rows="4">
+            <UEmpty
+              as="section"
+              class="signal-grid min-h-72"
+              icon="i-lucide-inbox"
+              :title="t('downloads.empty.title')"
+              :description="t('downloads.empty.hint')"
+            />
+          </DataState>
+        </section>
 
         <QueueSummary
           v-if="summary"

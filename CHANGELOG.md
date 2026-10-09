@@ -5,6 +5,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-10-09
+
+### Changed
+
+- **A more compact LinkGrabber, both lists in one order (RD-1230-02).** The indexer search moved
+  out of the page into a bottom `UDrawer` (`IndexerSearchDrawer`) behind a navbar button
+  (*Search indexers*, `UKbd` `f`); `f` opens it with the keyboard in the field, or on the link to
+  the indexer settings without an enabled indexer; its state lives in `useIndexerSearch`, so a
+  closed drawer keeps inputs and hits, and it stays open after a grab. The page toolbars of
+  Downloads and the LinkGrabber became one row at the list (`QueueListBar`): select all with
+  *N selected* (what is selected in the tooltip), open/close all, the list's search or filters
+  (the LinkGrabber's facets, sort and regroup behind a *Filters* popover, `CollectorListFilters`),
+  export all (new in the LinkGrabber), show metadata, the figures. `BulkActionBar` is one line of
+  icons in a shared order (`utils/listLayout.ts`, checked in both views by
+  `views/listLayout.test.ts`): start/enqueue, pause, show in list, export, the view's own, its red
+  counted actions as icon and number, remove; `LABEL_UI` and the `unitKey` prop are gone. The
+  LinkGrabber's package and NZB rows show enqueue and enqueue paused as icons. The navbar moved
+  to `LinkGrabberNavbar`, the search logic out of `IndexerSearchPanel` (both files were at the
+  500-line limit).
+
+- **Site rules without a signature (RD-1230-03).** The signed rule file, `site-rules sign|verify`,
+  the per-signer sequences (migration `0134` drops them) and the `rdownloader-siterules.key` role
+  are gone. The export writes the ticked rules or all, each with its switch (exchange format 2);
+  the import is previewed (`POST /api/v1/site-rules/import/preview`: new, replaces, same,
+  refused) and replaces a stored rule only when named in `replace`. Four switched-off examples
+  for free sites (Debian, Ubuntu, Blender releases and open movies; origin `example`, a
+  `description` each) are installed at the first start and restored by
+  `POST /api/v1/site-rules/examples` and the MCP tool `restore_site_rule_examples`;
+  `POST /api/v1/site-rules/clear` (`confirmed`, `api:admin`, audited as `site_rules_cleared`, not
+  over MCP) deletes every rule with its checks and keeps the group switches. No "Not checked"
+  badge. The owner's rules moved to `private/` (left out of the public export) with
+  `scripts/owner-site-rules.sh`; no package, CI or release step carries a rule file. serienfans.org
+  stays without a rule: a Cloudflare challenge (403) on every page, measured 2026-10-09.
+
+### Fixed
+
+- **macOS: `errSecAuthFailed` from a read without prompts is the keychain refusal (RD-1230-01).**
+  After `brew upgrade` the keychain item's access control rejects the new ad-hoc signed build
+  with `errSecAuthFailed` (-25293), not `errSecInteractionNotAllowed`; `rd-secrets`' `os_keyring`
+  now maps it to `KeyringInteractionRefused` (`keychain_interaction_refused` and the way out) when
+  the read ran with the keychain's prompts switched off, and keeps the general read error when a
+  terminal could ask. No path mints a new key. `channels.yml`'s Homebrew job starts the service
+  through the new `scripts/ci-brew-serve.sh` and takes that refusal, on macOS after an upgrade
+  only, as expected until RD-200-01: a notice, the step green, the checks that need the upgraded
+  service named as skipped; every other end stays red (`scripts/tests/ci-brew-serve.sh`,
+  `workflow-shape.sh`).
+
 ## [1.22.0] - 2026-10-09
 
 ### Changed

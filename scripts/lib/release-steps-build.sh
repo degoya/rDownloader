@@ -210,8 +210,7 @@ step_verify_artifacts() {
     local absent=0 path
     for path in artifacts/linux/rdownloader artifacts/linux/rdownloader-capture \
                 artifacts/windows/rdownloader.exe artifacts/windows/rdownloader-capture.exe \
-                artifacts/rdownloader-linux-x86_64.tar.gz artifacts/rdownloader-windows-x86_64.zip \
-                artifacts/rdownloader-site-rules.json; do
+                artifacts/rdownloader-linux-x86_64.tar.gz artifacts/rdownloader-windows-x86_64.zip; do
         if [[ -s "$path" ]]; then
             echo "ok   $path ($(stat -c %s "$path") bytes)"
         else

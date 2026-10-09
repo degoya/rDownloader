@@ -139,10 +139,11 @@ const priorityModel = computed({
       </span>
       <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
       <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
-      <UButton icon="i-lucide-arrow-down-to-line" :label="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="!selectable.length" :loading="busy" @click="emit('enqueue', props.package.id)" />
-      <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.package.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="!selectable.length" :loading="busy" @click="emit('enqueuePaused', props.package.id)" />
+      <!-- Icons, as a Downloads package row's start (RD-1230-02): the name is the `aria-label`. -->
+      <UButton icon="i-lucide-arrow-down-to-line" :aria-label="t('linkgrabber.actions.enqueue')" :title="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="!selectable.length" :loading="busy" @click="emit('enqueue', props.package.id)" />
+      <UButton icon="i-lucide-pause" :aria-label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.package.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="!selectable.length" :loading="busy" @click="emit('enqueuePaused', props.package.id)" />
       <UButton icon="i-lucide-link" size="xs" color="neutral" variant="ghost" :aria-label="t('common.actions.copy_links')" :title="t('common.actions.copy_links')" @click="emit('copyLinks', props.package.id)" />
-      <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_package')" @click="emit('remove', props.package.id)" />
+      <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_package')" :title="t('linkgrabber.actions.delete_package')" @click="emit('remove', props.package.id)" />
       <UDropdownMenu :items="listActions" :content="{ align: 'end' }">
         <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('linkgrabber.package.actions')" :title="t('linkgrabber.package.actions')" />
       </UDropdownMenu>

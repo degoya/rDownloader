@@ -1,7 +1,8 @@
 //! Shipped and user rules side by side.
 //!
-//! The database cannot know which ids the shipped pack uses, and the pack cannot know what
-//! the database holds; this is where the two meet. A user rule whose `id` a shipped rule
+//! No rule is shipped in production (RD-130-07, and since RD-1230-03 no signed pack exists at
+//! all), so the shipped side is empty there; tests and a selection built by hand still use it.
+//! Where both sides hold rules, this is where they meet. A user rule whose `id` a shipped rule
 //! already carries is refused here, never silently placed over it — the person picks another
 //! id, and the selection (RD-110-06) decides between the two rules on their own merits.
 
@@ -35,7 +36,7 @@ impl CatalogueError {
 }
 
 impl Catalogue {
-    /// Starts from the rules a verified pack delivered.
+    /// Starts from rules that rank before the person's own.
     #[must_use]
     pub fn new(shipped: Vec<Rule>) -> Self {
         Self {
@@ -57,7 +58,7 @@ impl Catalogue {
         Ok(())
     }
 
-    /// The rules the pack delivered.
+    /// The rules that rank before the person's own.
     #[must_use]
     pub fn shipped(&self) -> &[Rule] {
         &self.shipped

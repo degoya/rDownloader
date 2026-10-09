@@ -7,7 +7,6 @@
     "clear_completed": "Remove completed packages",
     "clear_failed": "Remove failed packages + files",
     "clear_all": "Remove all stopped packages",
-    "selection_count": "{count} selected",
     "select_all_hint": "Select all files",
     "clear_everything": "Clear the entire list"
   },

@@ -1,9 +1,9 @@
 //! The recorded-answer harness the rule tests share.
 //!
 //! Nothing here touches the network: a fetcher answers from a table, the resolver answers
-//! every name with one routable address, and the rule under test is the one the signed release
-//! file `resources/site-rules.json` carries (RD-130-07). A service that goes down therefore
-//! breaks the self-test (RD-110-09) rather than the build.
+//! every name with one routable address, and the rule under test is an example the app brings
+//! (`resources/examples.json`, RD-1230-03) or a synthetic one beside its fixtures. A service that
+//! goes down therefore breaks the self-test (RD-110-09) rather than the build.
 
 use std::{collections::BTreeMap, net::IpAddr};
 
@@ -74,22 +74,16 @@ impl HostResolver for PublicDns {
     }
 }
 
-/// The signed rule file every release carries as an artifact (RD-130-07).
-pub const RELEASE_PACK: &[u8] = include_bytes!("../../resources/site-rules.json");
-
-/// The release file, verified against the compiled-in site-rules root exactly as the import
-/// verifies it.
-pub fn release_pack() -> rd_siterules::RulePack {
-    rd_siterules::verify(RELEASE_PACK, None, chrono::Utc::now()).expect("the release file verifies")
-}
-
-/// The rule with this id, from the signed release file.
-pub fn shipped(id: &str) -> Rule {
-    let pack = release_pack();
-    pack.rules
+/// The example rule with this id, as the app installs it.
+#[allow(
+    dead_code,
+    reason = "each test binary uses a different subset of the harness"
+)]
+pub fn example(id: &str) -> Rule {
+    rd_siterules::examples()
         .into_iter()
         .find(|rule| rule.id == id)
-        .unwrap_or_else(|| panic!("the shipped pack carries the rule {id:?}"))
+        .unwrap_or_else(|| panic!("the example list carries the rule {id:?}"))
 }
 
 pub async fn run(rule: &Rule, fetcher: &Recorded, address: &str) -> Result<Crawl, RunError> {

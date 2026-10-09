@@ -366,8 +366,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/stats/transfers/clear"),
         ],
     ),
-    // Each listed rule carries its origin since RD-1200-05: signed file (signer, sequence),
-    // import, editor, MCP or unknown.
+    // Each listed rule carries its origin since RD-1200-05: import, editor, MCP, example
+    // (RD-1230-03) or unknown; no rule carries a signature since RD-1230-03.
     covered(
         "Site rules: read and switch",
         "Settings > Site rules",
@@ -588,6 +588,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
             only("/api/v1/site-rules/{id}", "PUT"),
             only("/api/v1/site-rules/{id}", "DELETE"),
             any("/api/v1/site-rules/test"),
+            // The switched-off examples for free sites, written again (RD-1230-03).
+            any("/api/v1/site-rules/examples"),
         ],
     ),
     // A series page's releases, chosen before they are resolved (RD-1170-03). The captchas
@@ -698,6 +700,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/settings/import"),
             any("/api/v1/settings/reset"),
             any("/api/v1/routing/"),
+            // The import's preview is claimed with it (the longer prefix of the same family).
             any("/api/v1/site-rules/export"),
             any("/api/v1/site-rules/import"),
             any("/api/v1/automations/export"),
@@ -778,6 +781,16 @@ pub(crate) static COVERAGE: &[Capability] = &[
          one to open.",
     ),
     // ---- deliberately out: redundant, or not a user-facing capability ----
+    omitted(
+        "Deleting every site rule at once",
+        "Settings > Site rules",
+        &[any("/api/v1/site-rules/clear")],
+        "Redundant and destructive (RD-1230-03): delete_site_rule removes any rule, one call \
+         per id, which an agent can repeat for every rule list_site_rules names. Wiping all of \
+         them in one call throws away what the person wrote, and the settings page asks first \
+         with the number and advises an export, which is not offered here either; the clear \
+         stays the person's own act.",
+    ),
     omitted(
         "The desktop capture agent",
         "the agent, not the web UI",

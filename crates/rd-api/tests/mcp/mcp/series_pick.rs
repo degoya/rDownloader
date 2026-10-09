@@ -1,11 +1,11 @@
-//! RD-1170-03: an agent writes the two-stage serienjunkies.org rule, tries it, saves it, lists
+//! RD-1170-03: an agent writes a two-stage rule for a series site, tries it, saves it, lists
 //! a series page's releases, picks one and starts resolving it -- with the MCP tools alone. The
 //! captcha stays a person's: the tool reports it waiting, the (fake) broker answers it, and the
 //! release lands in the LinkGrabber as one package named after it.
 //!
-//! The network is the recorded answer of serienjunkies.org (2026-10-07) behind the runner seam
-//! the service uses; the links answer of the chosen release is the assumed shape the rule's
-//! last steps read (see `crates/rd-siterules/tests/series_pick.rs`).
+//! The network is the synthetic series site of `crates/rd-siterules/tests/series_pick.rs`
+//! (RD-1230-03: the project carries no rule or page of a content site) behind the runner seam
+//! the service uses.
 
 use std::{net::IpAddr, sync::Arc, time::Duration};
 
@@ -20,19 +20,18 @@ use url::Url;
 use super::{API_BEARER, everything::ok, everything::refused_with, handshake};
 use crate::common::{self, Options};
 
-const PAYLOAD: &str = include_str!("../../../../rd-siterules/resources/site-rules-payload.json");
-const PAGE: &str = include_str!("../../../../rd-siterules/tests/fixtures/serienjunkies-page.html");
-const RELEASES: &str =
-    include_str!("../../../../rd-siterules/tests/fixtures/serienjunkies-releases.json");
+const RULE: &str = include_str!("../../../../rd-siterules/tests/fixtures/series-rule.json");
+const PAGE: &str = include_str!("../../../../rd-siterules/tests/fixtures/series-page.html");
+const RELEASES: &str = include_str!("../../../../rd-siterules/tests/fixtures/series-releases.json");
 const DOWNLOADS: &str =
-    include_str!("../../../../rd-siterules/tests/fixtures/serienjunkies-downloads.json");
-const PROBE: &str = "https://serienjunkies.org/serie/the-varnell-hill-show/";
-const API: &str = "https://serienjunkies.org/api/media/6a96aa7cff33487fe64137e1/releases";
+    include_str!("../../../../rd-siterules/tests/fixtures/series-downloads.json");
+const PROBE: &str = "https://series.example.com/serie/example-open-series/";
+const API: &str = "https://series.example.com/api/media/6a96aa7cff33487fe64137e1/releases";
 const CHOSEN: &str =
-    "https://serienjunkies.org/api/releases/6ac64b43b35595d9966c903e/downloads/ddownload";
-const RELEASE: &str = "The.Varnell.Hill.Show.2026.S01E07.German.DL.720p.WEB.h264-WvF";
+    "https://series.example.com/api/releases/6ac64b43b35595d9966c903e/downloads/ddownload";
+const RELEASE: &str = "Example.Open.Series.2026.S01E07.German.DL.720p.WEB.h264-GRP4";
 
-/// serienjunkies.org's recorded answers, and nothing else.
+/// The synthetic series site's answers, and nothing else.
 struct RecordedSite;
 
 #[async_trait]
@@ -109,14 +108,9 @@ impl rd_plugin_ext::RuleRunner for RecordedRunner {
     }
 }
 
-/// The serienjunkies.org rule document as the release file will carry it.
-fn serienjunkies_rule() -> serde_json::Value {
-    let payload: serde_json::Value = serde_json::from_str(PAYLOAD).expect("the payload");
-    payload["rules"]
-        .as_array()
-        .and_then(|rules| rules.iter().find(|rule| rule["id"] == "serienjunkies"))
-        .cloned()
-        .expect("the payload carries serienjunkies")
+/// The two-stage rule for the synthetic series site.
+fn series_rule() -> serde_json::Value {
+    serde_json::from_str(RULE).expect("the synthetic series rule")
 }
 
 /// Polls `get_page_pick` until `done` holds, or fails after five seconds.
@@ -157,7 +151,7 @@ async fn an_agent_writes_the_two_stage_rule_lists_a_series_page_and_resolves_one
     let crawlers = Arc::new(rd_plugin_ext::FolderCrawlers::none().with_rules(Arc::clone(&rules)));
     let router = rd_api::router(harness.state.clone().with_crawlers(crawlers));
     let session = handshake(&router, API_BEARER).await;
-    let rule = serienjunkies_rule();
+    let rule = series_rule();
 
     // Tried first: the trial lists the entries and asks no captcha.
     let tried = ok(

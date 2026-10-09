@@ -5,9 +5,10 @@
 //! "which rules does this installation consult", and it is the person's own rules minus what
 //! somebody switched off, with a switched-off group removing every rule that carries it.
 //!
-//! **No rule arrives with the binary** (RD-130-07). Until 1.2 a signed pack was compiled in
-//! and verified here once per process; the project's rules are now a signed release file that
-//! the import verifies and stores as the person's own, switched off. So every rule this
+//! **No rule is compiled into the catalogue** (RD-130-07). Until 1.2 a signed pack was compiled
+//! in and verified here once per process; since RD-1230-03 there is no signature at all, rules
+//! travel as exchange files, and the app brings only a few examples for free sites, which
+//! [`install_examples_once`] stores switched off at the first start. So every rule this
 //! installation knows has a row in `site_rules`, and a rule's switch is `site_rules.enabled`,
 //! where RD-110-04 put it. A group's switch sits in `site_rule_switches` (migration `0082`),
 //! because a group is not a rule; the `rule` scope of that table belonged to the rules of the
@@ -16,11 +17,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use rand::Rng;
-use rd_db::Database;
+use rd_db::{Database, NewUserSiteRule, SiteRuleOriginKind};
 use rd_siterules::{Catalogue, Rule};
 
 /// The settings key this installation's value for the rule variable `device_id` is kept under.
 const DEVICE_ID_KEY: &str = "site_rules.device_id";
+
+/// The settings key that records when the example list was installed (RD-1230-03).
+const EXAMPLES_KEY: &str = "site_rules.examples_installed";
 
 /// What somebody decided about the groups.
 #[derive(Clone, Debug, Default)]
@@ -142,5 +146,59 @@ pub async fn device_id(database: &Database) -> Option<String> {
             tracing::warn!(%error, "the site-rule device value could not be read");
             None
         }
+    }
+}
+
+/// Writes every example the app brings whose id no stored rule carries, switched off and with
+/// the origin `example`, and answers how many it wrote (RD-1230-03). An example somebody kept,
+/// switched on or changed is left as it is.
+pub async fn add_missing_examples(database: &Database) -> anyhow::Result<usize> {
+    let stored: BTreeSet<String> = database
+        .list_site_rules()
+        .await?
+        .into_iter()
+        .map(|row| row.id)
+        .collect();
+    let mut added = 0usize;
+    for rule in rd_siterules::examples() {
+        if stored.contains(&rule.id) {
+            continue;
+        }
+        database
+            .upsert_site_rule(NewUserSiteRule {
+                id: rule.id.clone(),
+                name: rule.name.clone(),
+                group: rule.group.clone(),
+                enabled: false,
+                rule: serde_json::to_value(&rule)?,
+                origin: SiteRuleOriginKind::Example,
+            })
+            .await?;
+        added += 1;
+    }
+    Ok(added)
+}
+
+/// Installs the example list once per installation, at its first start with this build
+/// (RD-1230-03): switched off, so nothing is fetched that nobody asked for.
+///
+/// The mark is set before the rules are written, on purpose: an installation whose examples
+/// somebody deleted must not find them back after the next restart, and a write that fails
+/// halfway costs examples the settings page restores with one button, never a decision the
+/// person made. `serve` calls this before it builds the catalogue.
+pub async fn install_examples_once(database: &Database) {
+    let first = database
+        .insert_setting_if_absent(
+            EXAMPLES_KEY.to_owned(),
+            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+        )
+        .await;
+    match first {
+        Ok(true) => match add_missing_examples(database).await {
+            Ok(added) => tracing::info!(rules = added, "example site rules installed"),
+            Err(error) => tracing::warn!(%error, "the example site rules could not be installed"),
+        },
+        Ok(false) => {}
+        Err(error) => tracing::warn!(%error, "the example site rules' mark could not be read"),
     }
 }

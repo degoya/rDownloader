@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds the Linux release and assembles artifacts/linux plus the distributable tarball, and
-# puts the verified site-rule file beside it as artifacts/rdownloader-site-rules.json.
+# Builds the Linux release and assembles artifacts/linux plus the distributable tarball.
 # Mirrors scripts/package-windows.sh; see the comments there for why the job count is capped
 # and why artifacts/linux/vendor is left alone. The tarball has the release layout
 # (scripts/lib/archive-layout.sh): flat, the files release.yml packs, vendor/ not among them.
@@ -75,16 +74,6 @@ else
     echo "    vendor licences: $(ls -1 "$OUT/vendor/licenses" | wc -l)"
 fi
 
-# RD-130-07: the project's site rules are not compiled in; every release carries them as a
-# signed file beside the packages. It is signed locally with the site-rules key and committed
-# (`rdownloader site-rules sign`), so this only proves the committed file verifies under the
-# root of the binary just built — the same check the import runs — and puts it next to the
-# tarball. A file that does not verify stops the package rather than reaching a person.
-SITE_RULES="$ROOT/artifacts/rdownloader-site-rules.json"
-echo "==> verifying the site-rule file"
-"$OUT/rdownloader" site-rules verify crates/rd-siterules/resources/site-rules.json
-install -m 644 crates/rd-siterules/resources/site-rules.json "$SITE_RULES"
-
 echo "==> writing $TARBALL"
 # The entries by name, not the folder: whatever else sits in artifacts/linux (vendor/, the logs
 # and data of a test run) stays out, and the archive unpacks as the published one does.
@@ -97,4 +86,4 @@ tar -czf "$TARBALL" -C "$OUT" "${entries[@]}" ./plugins
 rd_check_archive_layout "$TARBALL" linux
 
 echo "==> done"
-ls -la "$OUT/rdownloader" "$OUT/rdownloader-capture" "$TARBALL" "$SITE_RULES"
+ls -la "$OUT/rdownloader" "$OUT/rdownloader-capture" "$TARBALL"

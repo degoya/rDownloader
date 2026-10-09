@@ -596,10 +596,6 @@
     "remote_job.choice_not_kept": "Der Anbieter hat nach der Auswahl erneut gefragt. Er hat die Antwort nicht behalten, deshalb wurde der Auftrag beendet statt die Frage wieder zu öffnen.",
     "plugin.address_carries_marker": "Die Adresse enthält einen Platzhalter für Zugangsdaten und wurde dem Plugin nicht übergeben",
     "site_rules.malformed": "Die Datei lässt sich nicht als Regeldatei lesen.",
-    "site_rules.untrusted": "Die Regeldatei ist nicht mit einem Schlüssel signiert, dem diese Version vertraut.",
-    "site_rules.bad_signature": "Die Signatur der Regeldatei stimmt nicht — die Datei wurde nach dem Signieren verändert oder ist beschädigt.",
-    "site_rules.revoked": "Diese Regeldatei wurde zurückgezogen.",
-    "site_rules.stale": "Diese Regeldatei ist abgelaufen oder trägt ein Datum in der Zukunft.",
     "site_rules.id_taken": "Eine ausgelieferte Regel verwendet die Kennung {rule} bereits.",
     "subscription.script_name_invalid": "Der Skriptname '{value}' ist ungültig: erlaubt ist eine Datei direkt im Skriptordner (Buchstaben, Ziffern, Punkt, Unterstrich, Bindestrich)",
     "subscription.script_not_found": "Im Skriptordner gibt es kein Skript namens '{name}'",
@@ -1242,7 +1238,6 @@
     "remote_job.state_invalid": "Zustände sind awaiting_choice, ready, failed oder discarded",
     "api.token_rate_limited": "Dieses Token hat in dieser Minute mehr als {limit} Aufrufe gemacht. Versuch es in {seconds} Sekunden wieder.",
     "api.token_rate_range": "Ein Token macht 1 bis {max} Aufrufe pro Minute oder hat keine Grenze",
-    "site_rules.sequence_older": "Diese Regeldatei ist älter als eine, die du vom selben Signierer schon importiert hast (Sequenz {sequence}, bekannt ist {known}), und wurde abgelehnt.",
     "object_storage.redirect_refused": "Der Objektspeicher hat mit einer Umleitung geantwortet; ihr wird nicht gefolgt. Trag den Endpunkt ein, auf den er umleitet.",
     "proxy.password_host_changed": "Die Proxy-Adresse wurde geändert: Gib das Passwort erneut ein, es geht nicht an den neuen Host.",
     "remote.secret_host_changed": "Der Server wurde geändert: Gib das Passwort oder den Schlüssel erneut ein, beides geht nicht an den neuen Host.",
@@ -1261,7 +1256,8 @@
     "queue.stop_mark_target_finished": "Dieser Download bzw. dieses Paket ist schon fertig",
     "export.nzb_unavailable": "Das NZB hinter diesem Paket wird nicht mehr aufbewahrt; sein Verlauf wurde entfernt",
     "export.nzb_too_large": "Das NZB ist größer als die {max_mib} MiB, die eine Linkdatei je NZB trägt",
-    "rdlinks.nzb_invalid": "Das NZB „{name}“ in der Linkdatei ist ungültig: {detail}"
+    "rdlinks.nzb_invalid": "Das NZB „{name}“ in der Linkdatei ist ungültig: {detail}",
+    "site_rules.not_confirmed": "Alle Seitenregeln zu löschen muss bestätigt werden."
   },
   "capabilities": {
     "media_download": "Mediendownloads",

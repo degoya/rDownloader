@@ -124,7 +124,7 @@ async fn the_interface_a_script_and_a_read_still_pass() {
             origin,
             site,
             "application/json",
-            b"{\"format_version\":1,\"rules\":[]}",
+            b"{\"document\":{\"format_version\":2,\"rules\":[]}}",
         )
     };
     for (origin, site) in [
@@ -156,7 +156,9 @@ async fn a_bearer_client_without_browser_headers_passes() {
     let request = common::request_to("POST", "/api/v1/site-rules/import")
         .header(header::AUTHORIZATION, format!("Bearer {API_BEARER}"))
         .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::from("{\"format_version\":1,\"rules\":[]}"))
+        .body(Body::from(
+            "{\"document\":{\"format_version\":2,\"rules\":[]}}",
+        ))
         .expect("request");
     let (status, body) = send(&harness.router, request).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -216,7 +218,9 @@ async fn the_uri_authority_stands_in_for_a_missing_host() {
             .uri("http://127.0.0.1:8710/api/v1/site-rules/import")
             .header(header::ORIGIN, origin)
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from("{\"format_version\":1,\"rules\":[]}"))
+            .body(Body::from(
+                "{\"document\":{\"format_version\":2,\"rules\":[]}}",
+            ))
             .expect("request")
     };
     let (status, body) = send(&harness.router, request("http://127.0.0.1:8710")).await;

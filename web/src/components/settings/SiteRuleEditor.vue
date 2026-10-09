@@ -102,13 +102,11 @@ function runTest(): void {
       level="sub"
     />
 
-    <!-- Where the rule came from (RD-1200-05); a changed rule from the signed file becomes the
-         person's own on save, which the hint says before it happens. -->
+    <!-- Where the rule came from (RD-1200-05); saving a changed body makes it "written here". -->
     <div v-if="origin" class="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted" data-testid="site-rule-editor-origin">
       <span>{{ t('siterules.origin.label') }}:</span>
       <UBadge :color="origin.color" variant="subtle" size="sm" :icon="origin.icon" :label="t(origin.label)" />
-      <span>{{ t(origin.detail, origin.params) }}</span>
-      <p v-if="props.origin?.kind === 'signed'" class="w-full">{{ t('siterules.origin.edit_hint') }}</p>
+      <span>{{ t(origin.detail) }}</span>
     </div>
 
     <!-- One form for the whole rule, so Enter in any field saves it; Enter in the test address
@@ -120,6 +118,9 @@ function runTest(): void {
         </UFormField>
         <UFormField :label="t('siterules.editor.name')">
           <UInput v-model="draft.name" maxlength="120" class="w-full" />
+        </UFormField>
+        <UFormField :label="t('siterules.editor.rule_description')" :description="t('siterules.editor.rule_description_hint')">
+          <UTextarea v-model="draft.description" :rows="3" maxlength="2000" autoresize class="w-full" />
         </UFormField>
         <UFormField :label="t('siterules.editor.group')" :description="t('siterules.editor.group_hint')">
           <UInputMenu

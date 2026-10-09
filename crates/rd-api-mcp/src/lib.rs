@@ -117,7 +117,8 @@ forgotten with the remote_job tools; deleting one at the provider is not availab
 To find out what happened: get_transfer_stats for volume over time, list_log_records and \
 list_audit_records for the service log and who did what, both with the same filters the \
 views offer. list_site_rules shows the release-page rules and which are active; \
-create_site_rule, update_site_rule, test_site_rule and delete_site_rule write them. \
+create_site_rule, update_site_rule, test_site_rule and delete_site_rule write them, and \
+restore_site_rule_examples brings back the examples for free sites. \
 A series page whose rule lists its releases first is chosen from with list_page_entries and \
 resolve_page_entries; each resolved release asks one captcha a person solves in the broker. \
 Everything the LinkGrabber screen does is here too: list_candidates names each link, and \

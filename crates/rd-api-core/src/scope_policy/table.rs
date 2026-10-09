@@ -686,8 +686,14 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // patterns, so it stays where the rest of the area is.
     entry("/api/v1/site-rules", Method::GET, CONFIG),
     entry("/api/v1/site-rules", Method::POST, CONFIG),
+    // Deleting every rule at once throws away what the person wrote, like the other clears
+    // (RD-1230-03); restoring the switched-off examples and previewing an import change
+    // nothing a rule could not.
+    entry("/api/v1/site-rules/clear", Method::POST, ADMIN),
+    entry("/api/v1/site-rules/examples", Method::POST, CONFIG),
     entry("/api/v1/site-rules/export", Method::GET, CONFIG),
     entry("/api/v1/site-rules/import", Method::POST, CONFIG),
+    entry("/api/v1/site-rules/import/preview", Method::POST, CONFIG),
     // The trial run fetches a page the person named, through the rule they wrote. It reaches
     // the network, so it costs what changing the rule costs and not what reading it does.
     entry("/api/v1/site-rules/test", Method::POST, CONFIG),

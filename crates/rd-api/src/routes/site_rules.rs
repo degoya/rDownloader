@@ -24,6 +24,18 @@ pub(crate) fn routes() -> Router<AppState> {
             post(site_rules_handlers::import_site_rules),
         )
         .route(
+            "/api/v1/site-rules/import/preview",
+            post(site_rules_handlers::preview_site_rule_import),
+        )
+        .route(
+            "/api/v1/site-rules/clear",
+            post(site_rules_handlers::clear_site_rules),
+        )
+        .route(
+            "/api/v1/site-rules/examples",
+            post(site_rules_handlers::restore_site_rule_examples),
+        )
+        .route(
             "/api/v1/site-rules/test",
             post(site_rules_handlers::test_site_rule),
         )
@@ -66,6 +78,9 @@ pub(crate) fn routes() -> Router<AppState> {
     site_rules_handlers::create_site_rule,
     site_rules_handlers::export_site_rules,
     site_rules_handlers::import_site_rules,
+    site_rules_handlers::preview_site_rule_import,
+    site_rules_handlers::clear_site_rules,
+    site_rules_handlers::restore_site_rule_examples,
     site_rules_handlers::test_site_rule,
     site_rules_handlers::update_site_rule,
     site_rules_handlers::delete_site_rule,

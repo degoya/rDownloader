@@ -406,6 +406,8 @@ pub(crate) async fn with_site_rules(
     if let Some(device_id) = rd_api::site_rules_service::device_id(database).await {
         rule_runner = rule_runner.with_device_id(device_id);
     }
+    // The examples for free sites, switched off, at the first start only (RD-1230-03).
+    rd_api::site_rules_service::install_examples_once(database).await;
     let site_rules = std::sync::Arc::new(rd_plugin_ext::SiteRules::new(
         site_rules_cli::load_catalogue(database).await,
         std::sync::Arc::new(rule_runner),

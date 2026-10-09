@@ -172,11 +172,13 @@ pub enum AuditAction {
     /// stored password or key signs in. The `change` detail names which, `fields` the names of
     /// the fields an update changed, `server` the protocol, host and port it now signs in to.
     RemoteCredentialChanged,
+    /// Every site rule was deleted from the settings (RD-1230-03); `cleared` says how many.
+    SiteRulesCleared,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 57] = [
+    pub const ALL: [Self; 58] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -234,6 +236,7 @@ impl AuditAction {
         Self::TokenLimitsChanged,
         Self::ProxyProfileChanged,
         Self::RemoteCredentialChanged,
+        Self::SiteRulesCleared,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -297,6 +300,7 @@ impl AuditAction {
             Self::TokenLimitsChanged => "token_limits_changed",
             Self::ProxyProfileChanged => "proxy_profile_changed",
             Self::RemoteCredentialChanged => "remote_credential_changed",
+            Self::SiteRulesCleared => "site_rules_cleared",
         }
     }
 

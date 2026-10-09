@@ -1,0 +1,111 @@
+{
+  "id": "example-series",
+  "name": "Example series site",
+  "group": "series",
+  "version": 1,
+  "match": {
+    "hosts": [
+      "series.example.com",
+      "*.series.example.com"
+    ],
+    "paths": [
+      "^/serie/[0-9A-Za-z_-]+/?$"
+    ]
+  },
+  "steps": [
+    {
+      "kind": "fetch"
+    },
+    {
+      "kind": "regex",
+      "pattern": "data-mediaid=\"([0-9a-f]+)\"",
+      "into": "media"
+    },
+    {
+      "kind": "regex",
+      "pattern": "data-captchasitekey=\"([^\"]+)\"",
+      "into": "sitekey"
+    },
+    {
+      "kind": "fetch",
+      "url": "https://series.example.com/api/media/${media}/releases",
+      "into": "api"
+    },
+    {
+      "kind": "regex",
+      "pattern": "(\\{\"_id\":\"[0-9a-f]+\"[^{}]*\\})",
+      "from": "api",
+      "into": "releases",
+      "all": true
+    }
+  ],
+  "package": {
+    "from": "regex",
+    "pattern": "data-mediatitle=\"([^\"]+)\""
+  },
+  "groups": {
+    "from": "releases",
+    "pick": {
+      "attributes": {
+        "episode": "\"episode\":(\\d+)",
+        "hoster": "\"hoster\":\\[\"([^\"]+)\"",
+        "language": "\"language\":\"([^\"]+)\"",
+        "resolution": "\"resolution\":\"([^\"]+)\"",
+        "season": "\"season\":(\\d+)"
+      }
+    },
+    "steps": [
+      {
+        "kind": "regex",
+        "pattern": "\"_id\":\"([0-9a-f]+)\"",
+        "from": "entry",
+        "into": "release"
+      },
+      {
+        "kind": "regex",
+        "pattern": "\"hoster\":\\[\"([^\"]+)\"",
+        "from": "entry",
+        "into": "hoster"
+      },
+      {
+        "kind": "captcha",
+        "challenge": "recaptcha-v2",
+        "sitekey": "${sitekey}",
+        "into": "token",
+        "page": "${url}",
+        "invisible": true
+      },
+      {
+        "kind": "form",
+        "url": "https://series.example.com/api/releases/${release}/downloads/${hoster}",
+        "fields": {
+          "fphash": "${device_id}",
+          "recaptchaToken": "${token}"
+        },
+        "into": "answer",
+        "json": true
+      },
+      {
+        "kind": "regex",
+        "pattern": "\"url\"\\s*:\\s*(\"[^\"]+\")",
+        "from": "answer",
+        "into": "quoted",
+        "all": true
+      },
+      {
+        "kind": "decode",
+        "encoding": "js-string",
+        "from": "quoted",
+        "into": "links"
+      }
+    ],
+    "package": {
+      "from": "regex",
+      "pattern": "\"name\":\"([^\"]+?)\\.?\"",
+      "source": "entry"
+    }
+  },
+  "probe": "https://series.example.com/serie/example-open-series/",
+  "checked": "2026-10-07",
+  "description": "A synthetic two-stage rule of the shape a series page with a release API and a captcha per release has."
+}

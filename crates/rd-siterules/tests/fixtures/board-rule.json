@@ -1,0 +1,67 @@
+{
+  "id": "example-board",
+  "name": "Example release board",
+  "group": "board",
+  "version": 2,
+  "match": {
+    "hosts": [
+      "board.example.com",
+      "*.board.example.com"
+    ],
+    "paths": [
+      "^/(?:v2/)?detail/[0-9A-Za-z]+(?:/[^?]*)?$"
+    ]
+  },
+  "steps": [
+    {
+      "kind": "regex",
+      "from": "url",
+      "pattern": "/detail/([0-9A-Za-z]+)",
+      "into": "uid"
+    },
+    {
+      "kind": "fetch",
+      "url": "https://api.board.example.com/start/d/${uid}",
+      "into": "api"
+    },
+    {
+      "kind": "regex",
+      "from": "api",
+      "pattern": "(\"fulltitle\":\"[^\"]*\"[^{}]*\"links\":\\{[^}]*\\})",
+      "into": "releases",
+      "all": true
+    }
+  ],
+  "package": {
+    "from": "regex",
+    "pattern": "\"title\":\"([^\"]+)\"",
+    "source": "api"
+  },
+  "groups": {
+    "from": "releases",
+    "steps": [
+      {
+        "kind": "regex",
+        "from": "entry",
+        "pattern": "(\"https?:[^\"]+\")",
+        "into": "quoted",
+        "all": true
+      },
+      {
+        "kind": "decode",
+        "encoding": "js-string",
+        "from": "quoted",
+        "into": "links"
+      }
+    ],
+    "package": {
+      "from": "regex",
+      "pattern": "\"fulltitle\":\"([^\"]+)\"",
+      "source": "entry"
+    },
+    "mirrors": "by-host"
+  },
+  "probe": "https://board.example.com/detail/9IMDqgvdVQQ6/Example-Open-Lectures",
+  "checked": "2026-10-07",
+  "description": "A synthetic rule of the shape a release board with a JSON API has: one package per release, its hosters as mirrors by position."
+}

@@ -596,10 +596,6 @@
     "remote_job.choice_not_kept": "Le fournisseur a redemandé après la sélection. Il n'a pas conservé la réponse, le travail a donc été arrêté au lieu de rouvrir la question.",
     "plugin.address_carries_marker": "L'adresse contient un espace réservé pour des identifiants et n'a pas été transmise au plugin",
     "site_rules.malformed": "Le fichier ne peut pas être lu comme fichier de règles.",
-    "site_rules.untrusted": "Le fichier de règles n’est pas signé par une clé à laquelle cette version fait confiance.",
-    "site_rules.bad_signature": "La signature du fichier de règles n’est pas valide : le fichier a été modifié après signature ou est endommagé.",
-    "site_rules.revoked": "Ce fichier de règles a été retiré.",
-    "site_rules.stale": "Ce fichier de règles a expiré ou porte une date future.",
     "site_rules.id_taken": "Une règle livrée avec le projet utilise déjà l’identifiant {rule}.",
     "subscription.script_name_invalid": "Le nom de script « {value} » n'est pas valide : il doit désigner un fichier placé directement dans le dossier des scripts (lettres, chiffres, point, tiret bas, tiret)",
     "subscription.script_not_found": "Le dossier des scripts ne contient aucun script nommé « {name} »",
@@ -1242,7 +1238,6 @@
     "remote_job.state_invalid": "Les états sont awaiting_choice, ready, failed ou discarded",
     "api.token_rate_limited": "Ce jeton a fait plus de {limit} appels cette minute. Réessayez dans {seconds} secondes.",
     "api.token_rate_range": "Un jeton fait de 1 à {max} appels par minute, ou n’a pas de limite",
-    "site_rules.sequence_older": "Ce fichier de règles est plus ancien qu’un fichier déjà importé du même signataire (séquence {sequence}, déjà vue {known}) et a été refusé.",
     "object_storage.redirect_refused": "Le stockage objet a répondu par une redirection, qui n'est pas suivie. Saisissez le point de terminaison vers lequel il redirige.",
     "proxy.password_host_changed": "L’adresse du proxy a changé : saisissez à nouveau le mot de passe, il n’est pas envoyé au nouvel hôte.",
     "remote.secret_host_changed": "Le serveur a changé : saisissez à nouveau le mot de passe ou la clé, ils ne sont pas envoyés au nouvel hôte.",
@@ -1261,7 +1256,8 @@
     "queue.stop_mark_target_finished": "Ce téléchargement ou ce paquet est déjà terminé",
     "export.nzb_unavailable": "Le NZB de ce paquet n’est plus conservé ; son historique a été supprimé",
     "export.nzb_too_large": "Le NZB dépasse les {max_mib} Mio qu’un fichier de liens accepte par NZB",
-    "rdlinks.nzb_invalid": "Le NZB « {name} » du fichier de liens n’est pas valide : {detail}"
+    "rdlinks.nzb_invalid": "Le NZB « {name} » du fichier de liens n’est pas valide : {detail}",
+    "site_rules.not_confirmed": "La suppression de toutes les règles de site doit être confirmée."
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

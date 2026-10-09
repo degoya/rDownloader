@@ -3,7 +3,9 @@ import { computed, ref, type Ref } from 'vue'
 import { api, responseError } from '@/api/client'
 import type {
   SiteRule,
+  SiteRuleDocument,
   SiteRuleGroup,
+  SiteRuleImportPreview,
   SiteRuleImportResult,
   SiteRuleTestResult
 } from '@/api/types'
@@ -57,10 +59,16 @@ interface SiteRulesApi {
    */
   duplicate: (rule: SiteRule, copyName: ReturnType<typeof useCopyName>) => Promise<string | null>
   test: (draft: RuleDraft, address: string) => Promise<SiteRuleTestResult | null>
-  exportRules: () => Promise<unknown | null>
-  /** Sends a file's text exactly as it was read: the signed release file's signature covers
-   *  those bytes, and a parsed and re-serialised copy would no longer be what was signed. */
-  importRules: (text: string) => Promise<SiteRuleImportResult | null>
+  /** The exchange file (RD-1230-03): the rules named, or every rule when none is. */
+  exportRules: (ids?: string[]) => Promise<SiteRuleDocument | null>
+  /** What importing `document` would do, rule by rule; stores nothing. */
+  previewImport: (document: SiteRuleDocument) => Promise<SiteRuleImportPreview | null>
+  /** Imports `document`, replacing exactly the stored rules named in `replace`. */
+  importRules: (document: SiteRuleDocument, replace: string[]) => Promise<SiteRuleImportResult | null>
+  /** Deletes every rule with its check result; the group switches stay. Answers how many went. */
+  clearAll: () => Promise<number | null>
+  /** Writes the examples the app brings back, switched off; answers how many. */
+  restoreExamples: () => Promise<number | null>
 }
 
 export function useSiteRules(): SiteRulesApi {
@@ -158,22 +166,32 @@ export function useSiteRules(): SiteRulesApi {
       }
       return response.data
     },
-    async exportRules() {
+    async exportRules(ids) {
       error.value = null
-      const response = await api.GET('/api/v1/site-rules/export')
+      const response = await api.GET('/api/v1/site-rules/export', {
+        params: { query: ids?.length ? { ids: ids.join(',') } : {} }
+      })
       if (!response.data) {
         error.value = responseError(response)
         return null
       }
       return response.data
     },
-    async importRules(text) {
+    async previewImport(document) {
       pending.value = true
       error.value = null
-      const response = await api.POST('/api/v1/site-rules/import', {
-        body: text as never,
-        bodySerializer: () => text
-      })
+      const response = await api.POST('/api/v1/site-rules/import/preview', { body: document })
+      pending.value = false
+      if (!response.data) {
+        error.value = responseError(response)
+        return null
+      }
+      return response.data
+    },
+    async importRules(document, replace) {
+      pending.value = true
+      error.value = null
+      const response = await api.POST('/api/v1/site-rules/import', { body: { document, replace } })
       pending.value = false
       if (!response.data) {
         error.value = responseError(response)
@@ -181,6 +199,24 @@ export function useSiteRules(): SiteRulesApi {
       }
       await refresh()
       return response.data
+    },
+    async clearAll() {
+      let removed: number | null = null
+      const done = await write('clear', async () => {
+        const response = await api.POST('/api/v1/site-rules/clear', { body: { confirmed: true } })
+        removed = response.data?.removed ?? null
+        return response
+      })
+      return done ? removed : null
+    },
+    async restoreExamples() {
+      let restored: number | null = null
+      const done = await write('examples', async () => {
+        const response = await api.POST('/api/v1/site-rules/examples')
+        restored = response.data?.restored ?? null
+        return response
+      })
+      return done ? restored : null
     }
   }
 }

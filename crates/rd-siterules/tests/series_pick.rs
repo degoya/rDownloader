@@ -1,16 +1,12 @@
-//! The serienjunkies.org rule (RD-1170-03): a series page's releases listed with their season,
-//! episode, resolution, language and hoster, and one chosen release resolved with one captcha
-//! -- and every rule written before two-stage rules existed reading and answering as it did.
+//! A two-stage rule (RD-1170-03) on a synthetic series site: a series page's releases listed with
+//! their season, episode, resolution, language and hoster, and one chosen release resolved with
+//! one captcha.
 //!
-//! Measured on 2026-10-07: `serienjunkies-page.html` is
-//! `https://serienjunkies.org/serie/the-varnell-hill-show/` cut down to the element a rule
-//! reads, its site key replaced by an invented one; `serienjunkies-releases.json` is the
-//! unchanged answer of `GET /api/media/6a96aa7cff33487fe64137e1/releases` (32 releases, 28 in
-//! season 1 and 4 season packs, all at ddownload). `serienjunkies-downloads.json` is **not**
-//! measured: the links answer needs a solved captcha. Its shape -- a list of objects with a
-//! `url` -- is what the site's own script reads (`download.url` in its release bundle), and the
-//! two addresses are invented. The rule reads it with one `regex` step the owner or an agent
-//! adjusts if the real answer differs.
+//! The site is invented (`series.example.com`, RD-1230-03): the project carries no rule and no
+//! recorded page of a content site. Its shape is the one such a site has -- a page naming a
+//! media id and a captcha site key, a release API answering one object per release (32 of them,
+//! 28 episodes of season 1 and 4 season packs), and a links answer behind a solved captcha --
+//! and `fixtures/series-rule.json` is the two-stage rule for it.
 
 mod recorded;
 
@@ -19,31 +15,23 @@ use rd_siterules::{
     CaptchaRequest, CaptchaSolver, Executor, Rule, RunError, SystemClock,
     exec::ports::{FetchFailure, FetchRequest, FetchResponse, Fetcher, Method},
 };
-use recorded::{PublicDns, Recorded, release_pack, run, shipped};
+use recorded::{PublicDns, Recorded, example, run};
 use std::sync::Mutex;
 
-const PAYLOAD: &str = include_str!("../resources/site-rules-payload.json");
-const PAGE: &str = include_str!("fixtures/serienjunkies-page.html");
-const RELEASES: &str = include_str!("fixtures/serienjunkies-releases.json");
-const DOWNLOADS: &str = include_str!("fixtures/serienjunkies-downloads.json");
+const RULE: &str = include_str!("fixtures/series-rule.json");
+const PAGE: &str = include_str!("fixtures/series-page.html");
+const RELEASES: &str = include_str!("fixtures/series-releases.json");
+const DOWNLOADS: &str = include_str!("fixtures/series-downloads.json");
 
-const PROBE: &str = "https://serienjunkies.org/serie/the-varnell-hill-show/";
-const API: &str = "https://serienjunkies.org/api/media/6a96aa7cff33487fe64137e1/releases";
+const PROBE: &str = "https://series.example.com/serie/example-open-series/";
+const API: &str = "https://series.example.com/api/media/6a96aa7cff33487fe64137e1/releases";
 /// S01E07 in 720p, the second release of the list.
 const CHOSEN: &str =
-    "https://serienjunkies.org/api/releases/6ac64b43b35595d9966c903e/downloads/ddownload";
+    "https://series.example.com/api/releases/6ac64b43b35595d9966c903e/downloads/ddownload";
 const DEVICE: &str = "00112233445566778899aabbccddeeff";
 
-fn payload() -> rd_siterules::RulePack {
-    serde_json::from_str(PAYLOAD).expect("the payload parses")
-}
-
-fn serienjunkies() -> Rule {
-    payload()
-        .rules
-        .into_iter()
-        .find(|rule| rule.id == "serienjunkies")
-        .expect("the payload carries serienjunkies")
+fn series() -> Rule {
+    serde_json::from_str(RULE).expect("the synthetic series rule parses")
 }
 
 fn network() -> Recorded {
@@ -52,21 +40,21 @@ fn network() -> Recorded {
 
 #[tokio::test]
 async fn the_series_page_lists_its_releases_and_resolves_none() {
-    let rule = serienjunkies();
+    let rule = series();
     rule.validate().expect("valid");
     let crawl = run(&rule, &network(), PROBE).await.expect("listed");
     assert!(crawl.links.is_empty() && crawl.groups.is_empty());
     assert_eq!(crawl.pages_fetched, 2, "the page and the release list");
     assert_eq!(
         crawl.package_name.as_deref(),
-        Some("The Varnell Hill Show 2026")
+        Some("Example Open Series 2026")
     );
     let list = crawl.pick.expect("a list to choose from");
     assert_eq!(list.entries.len(), 32);
     let first = &list.entries[0];
     assert_eq!(
         first.label.as_deref(),
-        Some("The.Varnell.Hill.Show.2026.S01E07.DL.GERMAN.WEBRiP.x264-4SJ"),
+        Some("Example.Open.Series.2026.S01E07.DL.GERMAN.WEBRiP.x264-GRP1"),
         "the trailing dot of the release name is not part of the package name"
     );
     let attribute = |index: usize, name: &str| {
@@ -130,7 +118,7 @@ impl Fetcher for Site {
 
 #[tokio::test]
 async fn one_chosen_release_is_resolved_with_one_captcha_on_the_series_page() {
-    let rule = serienjunkies();
+    let rule = series();
     let site = Site {
         pages: network(),
         requests: Mutex::new(Vec::new()),
@@ -156,7 +144,7 @@ async fn one_chosen_release_is_resolved_with_one_captcha_on_the_series_page() {
         .expect("resolved");
     assert_eq!(
         group.name.as_deref(),
-        Some("The.Varnell.Hill.Show.2026.S01E07.German.DL.720p.WEB.h264-WvF")
+        Some("Example.Open.Series.2026.S01E07.German.DL.720p.WEB.h264-GRP4")
     );
     let links: Vec<&str> = group.links.iter().map(|link| link.url.as_str()).collect();
     assert_eq!(
@@ -169,7 +157,7 @@ async fn one_chosen_release_is_resolved_with_one_captcha_on_the_series_page() {
     let asked = person.0.lock().expect("asked").clone();
     assert_eq!(asked.len(), 1, "one captcha for one release");
     assert_eq!(asked[0].challenge, "recaptcha-v2");
-    assert_eq!(asked[0].sitekey.as_deref(), Some("recorded-site-key-0000"));
+    assert_eq!(asked[0].sitekey.as_deref(), Some("synthetic-site-key-0000"));
     assert_eq!(
         asked[0].page_url.as_str(),
         PROBE,
@@ -203,30 +191,23 @@ async fn one_chosen_release_is_resolved_with_one_captcha_on_the_series_page() {
     );
 }
 
-/// The owner's requirement of 2026-10-07: every rule written before two-stage rules existed is
-/// read, written and run as before. The signed file's own byte-for-byte test and the recorded
-/// runs of every shipped rule (`release_page_rules.rs`, `rule_groups.rs`) hold the answers;
-/// this holds that none of those rules carries a field of this job.
+/// The owner's requirement of 2026-10-07: a rule written before two-stage rules existed reads
+/// and runs as before. The examples the app brings include the one-stage shape, and none of
+/// those carries a field of the two-stage shape.
 #[test]
-fn no_rule_written_before_two_stage_rules_carries_any_of_their_fields() {
-    // Signed with 1.17.0: the shipped file carries the two-stage rule.
-    assert!(
-        release_pack()
-            .rules
-            .iter()
-            .any(|rule| rule.id == "serienjunkies")
-    );
-    assert!(shipped("scnlog").groups.is_none());
-    let document: serde_json::Value = serde_json::from_str(PAYLOAD).expect("the payload");
-    for rule in document["rules"].as_array().expect("rules") {
-        // The two-stage rules themselves: serienjunkies since 1.17, warez-cx (version 2, the
-        // release choice without a captcha) since 1.19 (RD-1190-17 B5).
-        if rule["id"] == "serienjunkies" || rule["id"] == "warez-cx" {
+fn no_one_stage_example_carries_a_field_of_the_two_stage_shape() {
+    assert!(example("debian-cd").groups.is_none());
+    for rule in rd_siterules::examples() {
+        if rule
+            .groups
+            .as_ref()
+            .is_some_and(|groups| groups.pick.is_some())
+        {
             continue;
         }
-        let text = rule.to_string();
+        let text = serde_json::to_string(&rule).expect("encode");
         for field in ["\"pick\"", "\"json\"", "\"page\"", "\"invisible\""] {
-            assert!(!text.contains(field), "{} carries {field}", rule["id"]);
+            assert!(!text.contains(field), "{} carries {field}", rule.id);
         }
     }
 }

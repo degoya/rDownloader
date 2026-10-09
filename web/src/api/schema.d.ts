@@ -5339,6 +5339,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/site-rules/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deletes every stored rule with its self-test result; the group switches stay.
+         * @description The confirmation is a value as well as the dialog's question, as with every clear
+         *     (`data_reset_handlers`): a client that never drew the question still has to say it. The act
+         *     goes into the audit log with the number of rules it removed.
+         */
+        post: operations["clear_site_rules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/site-rules/examples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Writes the examples the app brings again, switched off, for every one whose id no stored
+         *     rule carries; an example somebody kept and changed stays as it is.
+         */
+        post: operations["restore_site_rule_examples"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-rules/export": {
         parameters: {
             query?: never;
@@ -5365,6 +5407,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["import_site_rules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/site-rules/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview_site_rule_import"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6753,7 +6811,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed" | "remote_jobs_cleared" | "token_limits_changed" | "proxy_profile_changed" | "remote_credential_changed";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed" | "remote_jobs_cleared" | "token_limits_changed" | "proxy_profile_changed" | "remote_credential_changed" | "site_rules_cleared";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -9945,11 +10003,12 @@ export interface components {
             /** @description The administrator password, typed again from a signed-in session (RD-1190-19). */
             password?: string | null;
         };
-        /** @description The result of an import: every rule, and how many were stored switched off. */
+        /** @description The result of an import: every rule of the file, and how many were written. */
         ImportSiteRulesResponse: {
+            /** @description Stored rules the file replaced. */
+            replaced: number;
             rules: components["schemas"]["ImportedSiteRuleResponse"][];
-            /** @description Whether the file was the signed one and its signature held. */
-            signed: boolean;
+            /** @description Rules that were new here. */
             stored: number;
         };
         ImportSummaryResponse: {
@@ -9965,14 +10024,23 @@ export interface components {
             subscriptions: number;
             usenet_servers: number;
         };
-        /** @description What became of one rule in an import. */
+        /** @description What became of one rule of the file, or what would become of it. */
         ImportedSiteRuleResponse: {
             /** @description Why it was refused, as a stable code. */
             code?: string | null;
+            /** @description The switch the rule carries in the file. */
+            enabled: boolean;
+            /** @description The hosts the rule claims; empty for a body that does not read. */
+            hosts: string[];
             /** @description The rule's id, or the empty string when the body carries none this build can read. */
             id: string;
             name: string;
-            /** @description `stored` or `refused`. */
+            /**
+             * @description The preview answers `new`, `replaces` (a stored rule of the same id differs), `same` (a
+             *     stored rule is identical, switch included) or `refused`; the import `stored`,
+             *     `replaced`, `kept` (a stored rule of the same id was not to be replaced), `same` or
+             *     `refused`.
+             */
             status: string;
         };
         /** @description An installed package this build refuses to run. */
@@ -14858,19 +14926,6 @@ export interface components {
          * @enum {string}
          */
         SidecarStatus: "captured" | "not_offered" | "unsupported" | "failed";
-        /**
-         * @description The signed rule file every release carries (RD-130-07): an `rd_sign` envelope over a
-         *     rule pack.
-         *
-         *     Described here for the contract only. The import reads the request's bytes itself,
-         *     because the signature covers the payload exactly as it arrived and a parsed and
-         *     re-serialised copy would no longer be what was signed.
-         */
-        SignedSiteRuleFile: {
-            /** @description The rule pack as signed: `format_version`, `sequence`, `issued_at` and `rules`. */
-            payload: unknown;
-            signatures: components["schemas"]["SiteRuleFileSignature"][];
-        };
         /** @description What the last self-test said about one rule (RD-110-09). */
         SiteRuleCheckResponse: {
             checked_at: string;
@@ -14884,31 +14939,33 @@ export interface components {
             verdict: string;
         };
         /**
-         * @description The exchange format of the export and the unsigned import: the person's own rules and
-         *     nothing else.
-         *
-         *     Deliberately not a `RulePack`: a pack is a signed document under its own trust root, and a
-         *     file somebody was sent is not one. Calling it a pack would invite the two to be confused
-         *     at exactly the boundary where the difference matters -- which is why the import tells the
-         *     two apart by the envelope, never by what the payload claims (RD-130-07).
+         * @description The exchange file the export writes and the import reads (RD-1230-03): the person's rules,
+         *     each with its switch, and nothing else. No signature: what protects the importing side is the
+         *     preview, the question before a rule is replaced, the full rule check and the executor's own
+         *     bolts (`docs/security/site-rules.md`).
          */
         SiteRuleDocument: {
             /**
              * Format: int32
-             * @description The rule format these bodies are written in; `1` is what this build reads.
+             * @description The layout of this file; `2` is what this build writes and reads.
              */
             format_version: number;
-            /** @description The rule bodies, as `rd_siterules::Rule` serialises them. */
-            rules: unknown[];
+            rules: components["schemas"]["SiteRuleDocumentEntry"][];
         };
-        /** @description One signature of a [`SignedSiteRuleFile`], as `rd_sign::DocumentSignature` writes it. */
-        SiteRuleFileSignature: {
-            /** @description Always `ed25519`. */
-            algorithm: string;
-            /** @description The trusted key the signature claims, `rdownloader-siterules-v1` for the project's file. */
-            key_id: string;
-            /** @description Base64 of the raw 64-byte signature. */
-            signature: string;
+        /** @description One rule of the exchange file. */
+        SiteRuleDocumentEntry: {
+            /** @description The rule's switch where it was exported; the import stores it as it is. */
+            enabled?: boolean;
+            /** @description The rule body, as `rd_siterules::Rule` serialises it. */
+            rule: unknown;
+        };
+        /** @description What restoring the example list wrote. */
+        SiteRuleExamplesResponse: {
+            /**
+             * @description Examples written again, switched off; an example whose id a stored rule carries is left
+             *     as it is.
+             */
+            restored: number;
         };
         /** @description One group, with its own switch. */
         SiteRuleGroupResponse: {
@@ -14917,31 +14974,35 @@ export interface components {
             /** @description How many rules carry this group. */
             rules: number;
         };
-        /**
-         * @description What the import accepts: the signed file of a release, or an export of somebody's own
-         *     rules. A body carrying `signatures` is read as the first and nothing else.
-         */
-        SiteRuleImportRequest: components["schemas"]["SignedSiteRuleFile"] | components["schemas"]["SiteRuleDocument"];
-        /** @description Where a rule came from (RD-1200-05). */
+        /** @description What an import would do, before anything is stored. */
+        SiteRuleImportPreviewResponse: {
+            rules: components["schemas"]["ImportedSiteRuleResponse"][];
+        };
+        /** @description What the import takes: the file, and which of the stored rules it may replace. */
+        SiteRuleImportRequest: {
+            document: components["schemas"]["SiteRuleDocument"];
+            /**
+             * @description Ids of stored rules the person agreed to replace. A rule of the file whose id is stored
+             *     and not named here is left as it is (`kept`).
+             */
+            replace?: string[];
+        };
+        /** @description Where a rule came from (RD-1200-05, RD-1230-03). */
         SiteRuleOriginResponse: {
             /**
-             * @description `signed` (the signed release file), `import` (an unsigned file or a pasted export),
-             *     `editor`, `mcp`, or `unknown` for a rule stored before 1.20.
+             * @description `import` (an imported exchange file), `editor`, `mcp`, `example` (one of the examples the
+             *     app brings), or `unknown` for a rule stored before 1.20 or from the signed file of 1.20 to
+             *     1.22.
              */
             kind: string;
-            /**
-             * Format: int64
-             * @description The signed file's sequence, for `signed` only.
-             */
-            sequence?: number | null;
-            /** @description The key whose signature held, for `signed` only. */
-            signer?: string | null;
         };
         /** @description One rule as the list shows it. */
         SiteRuleResponse: {
             /** @description Whether the rule is actually consulted: its own switch **and** its group's. */
             active: boolean;
             check?: components["schemas"]["SiteRuleCheckResponse"] | null;
+            /** @description What the rule does and how it is built, as its author wrote it (RD-1230-03). */
+            description?: string | null;
             /** @description The switch on the rule itself. */
             enabled: boolean;
             group: string;
@@ -14963,6 +15024,19 @@ export interface components {
         /** @description Switching one rule or one group. */
         SiteRuleSwitchRequest: {
             enabled: boolean;
+        };
+        /** @description Deleting every site rule (RD-1230-03). */
+        SiteRulesClearRequest: {
+            /** @description `true`, or the request is refused with `site_rules.not_confirmed`. */
+            confirmed?: boolean;
+        };
+        /** @description What deleting every site rule removed. */
+        SiteRulesClearResponse: {
+            /**
+             * Format: int64
+             * @description How many rules went; their self-test results went with them.
+             */
+            removed: number;
         };
         /** @description The whole list, ordered by group and then by name. */
         SiteRulesResponse: {
@@ -29081,9 +29155,63 @@ export interface operations {
             };
         };
     };
-    export_site_rules: {
+    clear_site_rules: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteRulesClearRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRulesClearResponse"];
+                };
+            };
+            /** @description site_rules.not_confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    restore_site_rule_examples: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRuleExamplesResponse"];
+                };
+            };
+        };
+    };
+    export_site_rules: {
+        parameters: {
+            query?: {
+                /** @description Rule ids separated by commas; every rule when absent. An id no rule carries is skipped. */
+                ids?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -29121,6 +29249,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportSiteRulesResponse"];
+                };
+            };
+        };
+    };
+    preview_site_rule_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteRuleDocument"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRuleImportPreviewResponse"];
                 };
             };
         };

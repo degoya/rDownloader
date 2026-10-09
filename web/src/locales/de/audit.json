@@ -84,7 +84,8 @@
     "remote_jobs_cleared": "Liste entfernter Aufträge geleert",
     "token_limits_changed": "Token-Grenzen geändert",
     "proxy_profile_changed": "Proxyprofil geändert",
-    "remote_credential_changed": "Server-Zugang geändert"
+    "remote_credential_changed": "Server-Zugang geändert",
+    "site_rules_cleared": "Alle Seitenregeln gelöscht"
   },
   "list": {
     "title": "Einträge",

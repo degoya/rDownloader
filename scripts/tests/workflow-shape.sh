@@ -19,6 +19,9 @@
 #   .github/actions/rust-tests-cache, not copied into the jobs that restore `rust-tests`.
 # - The Scoop installer is fetched at a commit and checked against its SHA-256 (PIPE-06), with the
 #   same pins in channels.yml and scripts/ci-platform-smoke.ps1; nothing runs get.scoop.sh.
+# - channels.yml's `homebrew` job takes scripts/ci-brew-serve.sh's 3, the keychain refusal on
+#   macOS, as expected only on the upgrade path (`--upgraded`, once), and no other end
+#   (RD-1230-01).
 #
 # Pure bash and awk over the YAML as this repository writes it (two-space indents, a block `on:`).
 # check.sh runs it when scripts/ change, and under --full.
@@ -165,5 +168,12 @@ sha="$(scoop_pin SCOOP_INSTALLER_SHA256)"
 expect "channels.yml pins the Scoop installer to a commit and a SHA-256" "40 64" "${#commit} ${#sha}"
 expect "ci-platform-smoke.ps1 pins the same" "$commit $sha" \
     "$(scoop_pin_ps1 ScoopInstallerCommit) $(scoop_pin_ps1 ScoopInstallerSha256)"
+
+expect "channels.yml starts the upgraded service once, with --upgraded" "1" \
+    "$(grep -cF 'scripts/ci-brew-serve.sh "${log}" --upgraded' "$WORKFLOWS/channels.yml" || true)"
+expect "and takes 0 and 3 from it, nothing else" "0 3" \
+    "$(sed -n 's/^ *\(el\)\{0,1\}if \[\[ "${started}" == \([0-9]*\) \]\]; then$/\2/p' "$WORKFLOWS/channels.yml" | paste -sd' ')"
+expect "every other start fails the step on any end but 0" "1" \
+    "$(grep -cx ' *scripts/ci-brew-serve.sh "${log}"' "$WORKFLOWS/channels.yml" || true)"
 
 finish_tests "workflow-shape"

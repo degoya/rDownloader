@@ -62,7 +62,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # The plugin components, signed packages, index and site rules: release-plugins.yml.
+  # The plugin components, signed packages and index: release-plugins.yml.
   plugins:
     permissions:
       contents: read

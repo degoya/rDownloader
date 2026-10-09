@@ -2,24 +2,22 @@
 //!
 //! Five things happen here that are worth stating before the code says them.
 //!
-//! **Every rule is the person's own** (RD-130-07). Nothing arrives with the binary any more;
-//! the project's rules are a signed release file, and importing it stores them here like any
-//! other rule, so each can be edited, duplicated, switched and removed.
+//! **Every rule is the person's own** (RD-130-07). Nothing but the switched-off examples for
+//! free sites arrives with the binary (RD-1230-03); rules for other sites come from an exchange
+//! file somebody exported, and each can be edited, duplicated, switched and removed.
 //!
 //! **Every body is parsed and validated before it is stored**, through `rd_siterules::Rule`
-//! and `Rule::validate`, which is the same gate a rule from the pack passes. A rule from a
-//! file somebody was sent is untrusted input in the strict sense: it names hosts to fetch and
-//! patterns to run. It gets no shortcut.
+//! and `Rule::validate`. A rule from a file somebody was sent is untrusted input in the strict
+//! sense: it names hosts to fetch and patterns to run. It gets no shortcut.
 //!
-//! **An imported rule is stored switched off, always** -- the signed release file's included.
-//! The import endpoint does not read an `enabled` field and does not offer one; switching a
-//! rule on is a separate request per rule, which is the confirmation the job asks for -- and it
-//! is enforced here rather than in the interface, so a client that never drew the dialog still
-//! activates nothing. A signature proves who wrote a rule, not that this person wants it.
+//! **An import arrives as it was exported** (RD-1230-03): no signature, each rule with the
+//! switch it had at the exporter. What a person agrees to is the preview
+//! (`import/preview`): the list of rules, new or replacing or the same, before anything is
+//! stored -- and a stored rule of the same id is replaced only when the request names it in
+//! `replace`, which the dialog asks first.
 //!
-//! **Every write records where the body came from** (RD-1200-05): the signed file with its
-//! signer and sequence, an unsigned import, the editor or an MCP tool. A switch keeps the
-//! origin; an edit replaces it, because a signature covers the body it was made over.
+//! **Every write records where the body came from** (RD-1200-05): an import, the editor, an
+//! MCP tool or the example list. A switch keeps the origin; an edit replaces it.
 //!
 //! **A write takes effect without a restart.** The catalogue in force is replaced after every
 //! change, through `rd_plugin_ext::SiteRules::replace`, which exists for exactly this.
@@ -31,9 +29,9 @@ use axum::{
     body::Bytes,
     extract::{Path, State},
 };
+use rd_db::NewUserSiteRule;
 /// What a write records as the rule's origin; the MCP tools name theirs through it.
 pub use rd_db::SiteRuleOriginKind;
-use rd_db::{NewUserSiteRule, SiteRuleOrigin};
 use rd_siterules::Rule;
 use url::Url;
 
@@ -43,25 +41,26 @@ use crate::{
     error::ApiError,
     site_rules_dto::{
         ImportSiteRulesResponse, ImportedSiteRuleResponse, SaveSiteRuleRequest,
-        SiteRuleCheckResponse, SiteRuleDocument, SiteRuleGroupResponse, SiteRuleImportRequest,
-        SiteRuleOriginResponse, SiteRuleResponse, SiteRuleSwitchRequest, SiteRulesResponse,
-        TestSiteRuleRequest, TestSiteRuleResponse, TestedEntryResponse, TestedGroupLinkResponse,
-        TestedGroupResponse, TestedLinkResponse,
+        SiteRuleCheckResponse, SiteRuleDocument, SiteRuleDocumentEntry, SiteRuleExamplesResponse,
+        SiteRuleExportQuery, SiteRuleGroupResponse, SiteRuleImportPreviewResponse,
+        SiteRuleImportRequest, SiteRuleOriginResponse, SiteRuleResponse, SiteRuleSwitchRequest,
+        SiteRulesClearRequest, SiteRulesClearResponse, SiteRulesResponse, TestSiteRuleRequest,
+        TestSiteRuleResponse, TestedEntryResponse, TestedGroupLinkResponse, TestedGroupResponse,
+        TestedLinkResponse,
     },
     site_rules_service,
 };
 
+mod manage;
 mod transfer;
 mod write;
 
+pub use manage::*;
 pub use transfer::*;
 pub use write::*;
 
-/// The document version the export writes and the import reads.
-const DOCUMENT_VERSION: u32 = rd_siterules::FORMAT_VERSION;
-
 /// Reads a rule body and refuses one that could not work, with the code the interface
-/// translates. The same two steps the pack's own loader performs, in the same order.
+/// translates.
 fn parse_rule(body: &serde_json::Value) -> Result<Rule, ApiError> {
     let rule: Rule = serde_json::from_value(body.clone()).map_err(|error| {
         ApiError::bad_request("site_rules.invalid_rule", error.to_string())
@@ -94,11 +93,9 @@ fn check_response(check: &rd_db::SiteRuleCheck) -> SiteRuleCheckResponse {
     }
 }
 
-fn origin_response(origin: &SiteRuleOrigin) -> SiteRuleOriginResponse {
+fn origin_response(origin: SiteRuleOriginKind) -> SiteRuleOriginResponse {
     SiteRuleOriginResponse {
-        kind: origin.kind.as_str().to_owned(),
-        signer: origin.signer.clone(),
-        sequence: origin.sequence,
+        kind: origin.as_str().to_owned(),
     }
 }
 
@@ -112,6 +109,7 @@ fn row(
     SiteRuleResponse {
         id: rule.id.clone(),
         name: rule.name.clone(),
+        description: rule.description.clone(),
         group: rule.group.clone(),
         hosts: rule.matches.hosts.clone(),
         version: rule.version,
@@ -122,7 +120,7 @@ fn row(
         active,
         rule: serde_json::to_value(rule).unwrap_or(serde_json::Value::Null),
         check: checks.get(&rule.id).map(check_response),
-        origin: origin_response(&stored.origin),
+        origin: origin_response(stored.origin),
     }
 }
 
@@ -148,6 +146,7 @@ pub async fn list_site_rules(
             Err(_) => rules.push(SiteRuleResponse {
                 id: stored.id.clone(),
                 name: stored.name.clone(),
+                description: None,
                 group: stored.group.clone(),
                 hosts: Vec::new(),
                 version: 0,
@@ -157,7 +156,7 @@ pub async fn list_site_rules(
                 enabled: stored.enabled,
                 active: false,
                 check: checks.get(&stored.id).map(check_response),
-                origin: origin_response(&stored.origin),
+                origin: origin_response(stored.origin),
                 rule: stored.rule,
             }),
         }
@@ -411,7 +410,20 @@ async fn store(
     state: &AppState,
     rule: &Rule,
     enabled: bool,
-    origin: SiteRuleOrigin,
+    origin: SiteRuleOriginKind,
+) -> Result<(), ApiError> {
+    persist(state, rule, enabled, origin).await?;
+    reload(state).await;
+    Ok(())
+}
+
+/// [`store`] without putting the catalogue into force, for a caller that writes several rules
+/// and reloads once.
+async fn persist(
+    state: &AppState,
+    rule: &Rule,
+    enabled: bool,
+    origin: SiteRuleOriginKind,
 ) -> Result<(), ApiError> {
     state
         .database
@@ -426,7 +438,6 @@ async fn store(
             origin,
         })
         .await?;
-    reload(state).await;
     Ok(())
 }
 

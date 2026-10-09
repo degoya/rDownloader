@@ -48,9 +48,6 @@ enum Command {
     /// Signs the manifest that drives the managed external tools.
     #[command(subcommand)]
     Tools(rd_pack::tools_manifest::ToolsCommand),
-    /// Signs and verifies the rule file that recognises release pages.
-    #[command(subcommand)]
-    SiteRules(rd_pack::site_rules::SiteRulesCommand),
     /// Builds and verifies the signed application update manifest.
     #[command(subcommand)]
     Update(rd_pack::update_manifest::UpdateCommand),
@@ -182,7 +179,6 @@ async fn main() -> Result<()> {
         }
         Command::Plugin(args) => plugin_cli::run(args).await,
         Command::Tools(command) => rd_pack::tools_manifest::run(command).await,
-        Command::SiteRules(command) => rd_pack::site_rules::run(command).await,
         Command::Update(command) => rd_pack::update_manifest::run(command).await,
         Command::Autostart(args) => autostart(args),
         // Remote commands end the process themselves so a script can branch on why they

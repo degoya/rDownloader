@@ -39,6 +39,7 @@ mod routing_backup;
 mod secret_hosts;
 mod service_lifecycle;
 mod settings_backup;
+mod site_rule_exchange;
 mod site_rule_origin;
 mod site_rules;
 mod updates;

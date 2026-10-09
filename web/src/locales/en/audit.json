@@ -84,7 +84,8 @@
     "remote_jobs_cleared": "Remote jobs list cleared",
     "token_limits_changed": "Token limits changed",
     "proxy_profile_changed": "Proxy profile changed",
-    "remote_credential_changed": "Remote login changed"
+    "remote_credential_changed": "Remote login changed",
+    "site_rules_cleared": "All site rules deleted"
   },
   "list": {
     "title": "Records",

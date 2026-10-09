@@ -2,8 +2,9 @@
 //! finds it -- with the MCP tools alone, and the saved rule turns the page into one package
 //! per release with its hosters as mirrors.
 //!
-//! The network is the recorded answer of warez.cx (2026-10-07) behind the same runner seam
-//! the service uses: the trial run asks the runner of the installed rule selection, so this
+//! The network is a synthetic release board's API answer (RD-1230-03: the project carries no
+//! rule or page of a content site; the answer has the shape of one measured on 2026-10-07)
+//! behind the same runner seam the service uses: the trial run asks the runner of the installed rule selection, so this
 //! installation hands in one that runs the real executor over a recorded fetcher. The two
 //! hosters are registered as providers, the way their plugins register them, so the trial
 //! run's verdict on each link is "claimed" without a probe leaving the machine.
@@ -24,19 +25,19 @@ use url::Url;
 use super::{API_BEARER, everything::ok, handshake};
 use crate::common::{self, Options};
 
-const PAYLOAD: &str = include_str!("../../../../rd-siterules/resources/site-rules-payload.json");
-const WAREZ_API: &str = include_str!("../../../../rd-siterules/tests/fixtures/warez-cx-api.json");
-const WAREZ_API_URL: &str = "https://api.warez.cx/start/d/9IMDqgvdVQQ6";
-const PROBE: &str = "https://warez.cx/detail/9IMDqgvdVQQ6/The-Beginning-After-the-End";
+const RULE: &str = include_str!("../../../../rd-siterules/tests/fixtures/board-rule.json");
+const BOARD_API: &str = include_str!("../../../../rd-siterules/tests/fixtures/board-api.json");
+const BOARD_API_URL: &str = "https://api.board.example.com/start/d/9IMDqgvdVQQ6";
+const PROBE: &str = "https://board.example.com/detail/9IMDqgvdVQQ6/Example-Open-Lectures";
 
-/// The network a rule sees here: warez.cx's recorded answer, and nothing else.
+/// The network a rule sees here: the board's API answer, and nothing else.
 struct RecordedNetwork;
 
 #[async_trait]
 impl Fetcher for RecordedNetwork {
     async fn fetch(&self, request: FetchRequest) -> Result<FetchResponse, FetchFailure> {
-        if request.url.as_str() == WAREZ_API_URL {
-            Ok(FetchResponse::ok(WAREZ_API))
+        if request.url.as_str() == BOARD_API_URL {
+            Ok(FetchResponse::ok(BOARD_API))
         } else {
             Err(FetchFailure::Unreachable(format!(
                 "{} was not recorded",
@@ -102,20 +103,9 @@ fn hoster(slug: &str, host: &str) -> DynamicProvider {
     }
 }
 
-/// The warez.cx rule document as the release file carries it, in its one-stage form: since
-/// RD-1190-17 the shipped rule lists the releases first (`groups.pick`), and a rule without the
-/// choice -- the one an agent writes here -- still yields every release in one run.
-fn warez_rule() -> serde_json::Value {
-    let payload: serde_json::Value = serde_json::from_str(PAYLOAD).expect("the payload");
-    let mut rule = payload["rules"]
-        .as_array()
-        .and_then(|rules| rules.iter().find(|rule| rule["id"] == "warez-cx"))
-        .cloned()
-        .expect("the payload carries warez-cx");
-    if let Some(groups) = rule["groups"].as_object_mut() {
-        groups.remove("pick");
-    }
-    rule
+/// The board's rule in its one-stage form: every release in one run, no choice first.
+fn board_rule() -> serde_json::Value {
+    serde_json::from_str(RULE).expect("the synthetic board rule")
 }
 
 #[tokio::test]
@@ -134,7 +124,7 @@ async fn an_agent_writes_tests_and_saves_a_rule_with_a_package_per_release() {
     let crawlers = Arc::new(rd_plugin_ext::FolderCrawlers::none().with_rules(Arc::clone(&rules)));
     let router = rd_api::router(harness.state.clone().with_crawlers(Arc::clone(&crawlers)));
     let session = handshake(&router, API_BEARER).await;
-    let rule = warez_rule();
+    let rule = board_rule();
 
     // Tried first, as the tool description says: four packages, the hosters as mirrors.
     let tried = ok(
@@ -155,10 +145,10 @@ async fn an_agent_writes_tests_and_saves_a_rule_with_a_package_per_release() {
     assert_eq!(
         names,
         [
-            "The.Beginning.After.the.End.2025.S01.German.Subbed.ANiME.720p.AMZN.WEB.H264-WAREZCX",
-            "The.Beginning.After.the.End.2025.S01.German.Subbed.ANiME.1080p.AMZN.WEB.H264-WAREZCX",
-            "The.Beginning.After.the.End.2025.S02.German.Subbed.ANiME.720p.AMZN.WEB.H264-WAREZCX",
-            "The.Beginning.After.the.End.2025.S02.German.Subbed.ANiME.1080p.AMZN.WEB.H264-WAREZCX",
+            "Example.Open.Lectures.2025.S01.German.Subbed.DOCU.720p.WEB.H264-EXAMPLE",
+            "Example.Open.Lectures.2025.S01.German.Subbed.DOCU.1080p.WEB.H264-EXAMPLE",
+            "Example.Open.Lectures.2025.S02.German.Subbed.DOCU.720p.WEB.H264-EXAMPLE",
+            "Example.Open.Lectures.2025.S02.German.Subbed.DOCU.1080p.WEB.H264-EXAMPLE",
         ]
     );
     let first = groups[0]["links"].as_array().expect("links");
@@ -168,7 +158,7 @@ async fn an_agent_writes_tests_and_saves_a_rule_with_a_package_per_release() {
         first[12]["mirror"], 1,
         "the same episode at the other hoster"
     );
-    assert_eq!(tried["package_name"], "The Beginning After the End");
+    assert_eq!(tried["package_name"], "Example Open Lectures");
 
     // Saved, switched on, and listed with the document it was given.
     ok(
@@ -181,13 +171,16 @@ async fn an_agent_writes_tests_and_saves_a_rule_with_a_package_per_release() {
     let listed = ok(&router, &session, "list_site_rules", serde_json::json!({})).await;
     let stored = listed["rules"]
         .as_array()
-        .and_then(|rows| rows.iter().find(|row| row["id"] == "warez-cx"))
+        .and_then(|rows| rows.iter().find(|row| row["id"] == "example-board"))
         .unwrap_or_else(|| panic!("the rule is not listed: {listed}"));
     assert_eq!(stored["rule"], rule, "stored as written, groups included");
     assert_eq!(stored["active"], true);
-    // The rule says it was written through MCP, with no signer (RD-1200-05).
-    assert_eq!(stored["origin"]["kind"], "mcp", "{stored}");
-    assert!(stored["origin"]["signer"].is_null(), "{stored}");
+    // The rule says it was written through MCP (RD-1200-05).
+    assert_eq!(
+        stored["origin"],
+        serde_json::json!({ "kind": "mcp" }),
+        "{stored}"
+    );
 
     // In force for the next paste: the crawler selection turns the page into the
     // LinkGrabber's packages -- one per release -- and its mirror groups.

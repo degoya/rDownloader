@@ -40,11 +40,12 @@
     "language_label": "Sprache bevorzugen",
     "all_qualities": "Jede Qualität",
     "all_languages": "Jede Sprache",
-    "facet_hint": "Gilt für die ganze Liste und bleibt für das nächste Paket erhalten: wo eine Mirror-Gruppe die Wahl lässt, wählt sie den passenden Mirror, sonst blendet sie aus, was nicht passen kann."
+    "facet_hint": "Gilt für die ganze Liste und bleibt für das nächste Paket erhalten: wo eine Mirror-Gruppe die Wahl lässt, wählt sie den passenden Mirror, sonst blendet sie aus, was nicht passen kann.",
+    "more": "Filter",
+    "more_hint": "Qualität, Sprache und Hoster bevorzugen, sortieren und neu gruppieren"
   },
   "empty": "Zwischenablage, Click’n’Load und manuelle Eingaben landen zuerst hier zur Prüfung. Links werden automatisch geprüft und zu Paketen gruppiert.",
   "selection_package": "{name} (Auswahl)",
-  "selection_count": "{count} ausgewählt",
   "select_all_hint": "Alle Einträge auswählen",
   "bulk": {
     "enqueued": "{links} Links und {nzbs} NZB-Importe übernommen",
@@ -566,7 +567,9 @@
     "type_unsupported": "Keiner der gewählten Indexer bietet diese Suche an.",
     "torrent": "Torrent",
     "swarm": "{seeders} Seeder, {leechers} Leecher",
-    "grabbed_torrents": "Kein Torrent übernommen | Ein Torrent in den LinkGrabber übernommen | {count} Torrents in den LinkGrabber übernommen"
+    "grabbed_torrents": "Kein Torrent übernommen | Ein Torrent in den LinkGrabber übernommen | {count} Torrents in den LinkGrabber übernommen",
+    "open": "Indexer durchsuchen",
+    "drawer_hint": "Eine Anfrage pro Suche; was du übernimmst, landet zur Prüfung im LinkGrabber."
   },
   "empty_title": "Noch keine Links zur Prüfung",
   "picks": {
@@ -609,5 +612,6 @@
     "fetch": "Links holen | Links für {count} Release holen | Links für {count} Releases holen",
     "take_all": "Alle übernehmen | 1 Release übernehmen | Alle {count} übernehmen",
     "announced": "{rule}: eine Seite wartet auf deine Auswahl"
-  }
+  },
+  "selection_nzbs": "keine NZB-Importe | {count} NZB-Import | {count} NZB-Importe"
 }

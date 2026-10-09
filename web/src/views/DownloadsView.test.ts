@@ -139,7 +139,7 @@ const stubs = {
   CollisionPromptsAlert: true,
   PostprocessQueue: true,
   QueueSummary: true,
-  BulkActionBar: { template: '<div><slot /></div>' }
+  BulkActionBar: { emits: ['reveal'], template: '<div><button type="button" @click="$emit(\'reveal\')">{{ $t(\'common.actions.reveal\') }}</button><slot /></div>' }
 }
 
 /**

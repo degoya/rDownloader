@@ -9,8 +9,9 @@
 # Two questions, each answered here only:
 #
 #   * rd_inert_path — whether a path is read by no check at all: documentation (docs/, every
-#     *.md) and the README's pictures (.github/readme/, which nothing but README.md and the
-#     documentation name). crates/rd-core/recovery-matrix.md and crates/rd-api/mcp-coverage.md
+#     *.md), the README's pictures (.github/readme/, which nothing but README.md and the
+#     documentation name) and the owner's private material (private/, which no build, test or
+#     release step reads; RD-1230-03). crates/rd-core/recovery-matrix.md and crates/rd-api/mcp-coverage.md
 #     are not: a test compares the first with rd_crash_points::CRASH_POINTS, rd-api's library
 #     include_str!s the second.
 #   * rd_paths_read_by — which of the paths on stdin a recorded green's half reads, so a green
@@ -20,7 +21,7 @@
 #
 # Sourced by verified.sh, scope.sh and lib/integrate.sh; defines functions and constants only.
 
-RD_INERT_PATTERN='^docs/|\.md$|^\.github/readme/'
+RD_INERT_PATTERN='^docs/|\.md$|^\.github/readme/|^private/'
 RD_NOT_INERT_PATTERN='^crates/rd-core/recovery-matrix\.md$|^crates/rd-api/mcp-coverage\.md$'
 
 # The documentation the preflight reads all the same (PIPE-04), so a preflight green does not cover

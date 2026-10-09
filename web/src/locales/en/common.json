@@ -118,7 +118,7 @@
     "go_audit": "Go to the audit log",
     "open_search": "Open search",
     "clear_completed": "Remove completed packages (on Downloads)",
-    "focus_indexer_search": "Focus the search: indexer search in the LinkGrabber, name search in Downloads",
+    "focus_indexer_search": "Search: opens the indexer search in the LinkGrabber, focuses the name search in Downloads",
     "add_links": "Add: links in the LinkGrabber, a direct job in Downloads",
     "enqueue_all": "Enqueue all (in the LinkGrabber)",
     "enqueue_paused": "Add all paused (in the LinkGrabber)",
@@ -235,5 +235,9 @@
     "passphrase_short": "At least 8 characters.",
     "nzbs": "{count} NZB embedded. | {count} NZBs embedded.",
     "nzb_failed": "Not embedded: {list}"
+  },
+  "selection": {
+    "count": "{count} selected",
+    "detail": "{items} in {packages}"
   }
 }

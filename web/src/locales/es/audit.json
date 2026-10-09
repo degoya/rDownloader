@@ -84,7 +84,8 @@
     "remote_jobs_cleared": "Lista de trabajos remotos vaciada",
     "token_limits_changed": "Límites del token cambiados",
     "proxy_profile_changed": "Perfil de proxy modificado",
-    "remote_credential_changed": "Acceso remoto modificado"
+    "remote_credential_changed": "Acceso remoto modificado",
+    "site_rules_cleared": "Todas las reglas de sitios eliminadas"
   },
   "list": {
     "title": "Registros",

@@ -12,6 +12,12 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.23.0
+
+- On macOS, a service that the keychain stops after an upgrade now always says so in its log and tells you how to allow it, instead of an unclear password error.
+- The LinkGrabber shows more of its list: the indexer search opens in a drawer with the F key, the selection count sits at the list, and the selection bar fits one line in both lists.
+- Site rules need no signature any more: export them with their switches and import them elsewhere after a preview. The app brings examples for free sites, and one button deletes all rules.
+
 ## 1.22.0
 
 - An exported package now carries the NZBs of Usenet downloads and indexer results, so it imports anywhere without the indexer or its key; the import dialog also takes JDownloader crawljob files.

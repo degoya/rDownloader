@@ -90,8 +90,6 @@ enum KeyRole {
     ToolManifest,
     /// Plugin repository indexes.
     Repository,
-    /// The rule pack that recognises release pages (RD-110-04).
-    SiteRules,
 }
 
 impl KeyRole {
@@ -102,7 +100,6 @@ impl KeyRole {
             Self::Release => rd_sign::UPDATE_KEY_ID,
             Self::ToolManifest => "rdownloader-tools-v1",
             Self::Repository => rd_sign::REPOSITORY_KEY_ID,
-            Self::SiteRules => rd_sign::SITE_RULES_KEY_ID,
         }
     }
 
@@ -113,7 +110,6 @@ impl KeyRole {
             Self::Release => "rdownloader-update",
             Self::ToolManifest => "rdownloader-tools",
             Self::Repository => "rdownloader-repository",
-            Self::SiteRules => "rdownloader-siterules",
         }
     }
 }

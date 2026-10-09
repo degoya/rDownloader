@@ -1,7 +1,5 @@
-//! The rule pack as this installation sees it (RD-110-04).
-//!
-//! The commands that sign and verify the rule file, `rdownloader site-rules sign|verify`, live in
-//! `rd_pack::site_rules` since RD-150-20, shared with the `rd-pack` binary the release runs.
+//! The site rules as this installation sees it (RD-110-04). Since RD-1230-03 they carry no
+//! signature, so there is no `site-rules` command any more: rules travel as export files.
 
 /// Every rule this installation consults, for the crawler selection (RD-110-06) and for the
 /// self-test (RD-110-09).

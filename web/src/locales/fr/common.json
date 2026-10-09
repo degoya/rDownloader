@@ -118,7 +118,7 @@
     "go_audit": "Aller à l'audit",
     "open_search": "Ouvrir la recherche",
     "clear_completed": "Retirer les paquets terminés (dans les téléchargements)",
-    "focus_indexer_search": "Aller à la recherche : dans les indexeurs dans le LinkGrabber, par nom dans Téléchargements",
+    "focus_indexer_search": "Recherche : ouvre la recherche dans les indexeurs dans le LinkGrabber, va à la recherche par nom dans Téléchargements",
     "add_links": "Ajouter : des liens dans le LinkGrabber, une tâche directe dans Téléchargements",
     "enqueue_all": "Tout charger (dans le LinkGrabber)",
     "enqueue_paused": "Tout ajouter en pause (dans le LinkGrabber)",
@@ -235,5 +235,9 @@
     "passphrase_short": "Au moins 8 caractères.",
     "nzbs": "{count} NZB intégré. | {count} NZB intégrés.",
     "nzb_failed": "Non intégrés : {list}"
+  },
+  "selection": {
+    "count": "{count} sélectionné(s)",
+    "detail": "{items} dans {packages}"
   }
 }

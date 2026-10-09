@@ -3,9 +3,10 @@
 //! RD-120-29 covered reading the rules and switching them; writing one was out because a rule
 //! is tried against a live page until its selectors hold. `test_site_rule` is that trying, on
 //! the same route the editor calls, so a caller can do what the editor does in the same order.
-//! Since RD-130-07 every rule is the person's own, the ones imported from the signed release
-//! file included, so all of them can be written here. A rule written here records `mcp` as its
-//! origin (RD-1200-05); a changed body drops a signed file's signer and sequence.
+//! Since RD-130-07 every rule is the person's own, the imported ones and the examples the app
+//! brings included, so all of them can be written here. A rule written here records `mcp` as
+//! its origin (RD-1200-05). Since RD-1230-03 no rule carries a signature; deleting every rule
+//! at once stays in the settings page (`mcp_coverage`), restoring the examples is a tool.
 
 use axum::{
     Json,
@@ -24,7 +25,7 @@ use crate::site_rules_handlers::{self as rules, SiteRuleOriginKind};
 #[tool_router(router = site_rules_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Create a site rule: a step program that finds the links on a release page. `rule` is the rule document: {id, name, group, version, match: {hosts, paths}, steps: [{kind: fetch}, {kind: regex, pattern, into, all}, ...], package, probe, checked} — list_site_rules shows the document of every rule under `rule`. Step kinds: fetch, fetch-json, regex, decode, form, redirect, captcha; the steps end with the links in the variable `links`, and `package` ({from: title | regex | variable}) names the package. Optional `mirrors: true` says every link of the page is a copy of one file. A page that lists several releases uses `groups` instead (never both): {from: the variable holding one entry per package, into: the entry's variable (default entry), steps: the same step kinds run once per entry and ending with that entry's `links`, package: that entry's name, mirrors: by-host | all}. by-host: the n-th link at one hoster is a copy of the n-th link at every other hoster of the same entry; all: every link of the entry is one file. Example, one package per release with its hosters as mirrors: steps [{kind: fetch}, {kind: regex, pattern: '(?s)<div class=release>(.*?)</div>', into: releases, all: true}], groups {from: releases, steps: [{kind: regex, from: entry, pattern: 'href=(https?://[^ >]+)', into: links, all: true}], package: {from: regex, pattern: '<h2>(.*?)</h2>', source: entry}, mirrors: by-host}. A page whose releases each cost a captcha (a series page) adds `pick` to `groups` and becomes two-stage: the rule's steps only list the entries with the attributes pick reads, and the group's steps run later for the entries someone chose (list_page_entries, then resolve_page_entries). pick: {attributes: {name: pattern}} -- season, episode, resolution, language, hoster are the names the LinkGrabber groups and filters by; the first capture applied to the entry is the value. For such pages `form` may send `json: true` (the fields as one JSON object), `captcha` may name `page` (the page its widget sits on, e.g. '${url}') and say `invisible: true`, and the variable device_id holds this installation's stable 32-hex value where a page's script sends a fingerprint. Example, serienjunkies.org: steps [{kind: fetch}, {kind: regex, pattern: 'data-mediaid=\"([0-9a-f]+)\"', into: media}, {kind: regex, pattern: 'data-captchasitekey=\"([^\"]+)\"', into: sitekey}, {kind: fetch, url: 'https://serienjunkies.org/api/media/${media}/releases', into: api}, {kind: regex, from: api, pattern: '(\\{\"_id\":\"[0-9a-f]+\"[^{}]*\\})', into: releases, all: true}], groups {from: releases, pick: {attributes: {season: '\"season\":(\\d+)', episode: '\"episode\":(\\d+)', resolution: '\"resolution\":\"([^\"]+)\"'}}, steps: [{kind: regex, from: entry, pattern: '\"_id\":\"([0-9a-f]+)\"', into: release}, {kind: captcha, challenge: recaptcha-v2, sitekey: '${sitekey}', page: '${url}', invisible: true, into: token}, {kind: form, url: 'https://serienjunkies.org/api/releases/${release}/downloads/ddownload', fields: {recaptchaToken: '${token}', fphash: '${device_id}'}, json: true, into: answer}, {kind: regex, from: answer, pattern: '\"url\":\"([^\"]+)\"', into: links, all: true}], package: {from: regex, pattern: '\"name\":\"([^\"]+)\"', source: entry}}. Its id must be new. enabled defaults to false, as in the editor. The rule records `mcp` as its origin (list_site_rules shows it). Try it with test_site_rule first."
+        description = "Create a site rule: a step program that finds the links on a release page. `rule` is the rule document: {id, name, group, version, match: {hosts, paths}, steps: [{kind: fetch}, {kind: regex, pattern, into, all}, ...], package, probe, checked} — list_site_rules shows the document of every rule under `rule`. Step kinds: fetch, fetch-json, regex, decode, form, redirect, captcha; the steps end with the links in the variable `links`, and `package` ({from: title | regex | variable}) names the package. Optional `mirrors: true` says every link of the page is a copy of one file. A page that lists several releases uses `groups` instead (never both): {from: the variable holding one entry per package, into: the entry's variable (default entry), steps: the same step kinds run once per entry and ending with that entry's `links`, package: that entry's name, mirrors: by-host | all}. by-host: the n-th link at one hoster is a copy of the n-th link at every other hoster of the same entry; all: every link of the entry is one file. Example, one package per release with its hosters as mirrors: steps [{kind: fetch}, {kind: regex, pattern: '(?s)<div class=release>(.*?)</div>', into: releases, all: true}], groups {from: releases, steps: [{kind: regex, from: entry, pattern: 'href=(https?://[^ >]+)', into: links, all: true}], package: {from: regex, pattern: '<h2>(.*?)</h2>', source: entry}, mirrors: by-host}. A page whose releases each cost a captcha (a series page) adds `pick` to `groups` and becomes two-stage: the rule's steps only list the entries with the attributes pick reads, and the group's steps run later for the entries someone chose (list_page_entries, then resolve_page_entries). pick: {attributes: {name: pattern}} -- season, episode, resolution, language, hoster are the names the LinkGrabber groups and filters by; the first capture applied to the entry is the value. For such pages `form` may send `json: true` (the fields as one JSON object), `captcha` may name `page` (the page its widget sits on, e.g. '${url}') and say `invisible: true`, and the variable device_id holds this installation's stable 32-hex value where a page's script sends a fingerprint. Example, a series page whose script reads a release API and asks a captcha per release (example.com stands for the site): steps [{kind: fetch}, {kind: regex, pattern: 'data-mediaid=\"([0-9a-f]+)\"', into: media}, {kind: regex, pattern: 'data-captchasitekey=\"([^\"]+)\"', into: sitekey}, {kind: fetch, url: 'https://series.example.com/api/media/${media}/releases', into: api}, {kind: regex, from: api, pattern: '(\\{\"_id\":\"[0-9a-f]+\"[^{}]*\\})', into: releases, all: true}], groups {from: releases, pick: {attributes: {season: '\"season\":(\\d+)', episode: '\"episode\":(\\d+)', resolution: '\"resolution\":\"([^\"]+)\"'}}, steps: [{kind: regex, from: entry, pattern: '\"_id\":\"([0-9a-f]+)\"', into: release}, {kind: captcha, challenge: recaptcha-v2, sitekey: '${sitekey}', page: '${url}', invisible: true, into: token}, {kind: form, url: 'https://series.example.com/api/releases/${release}/downloads', fields: {recaptchaToken: '${token}', fphash: '${device_id}'}, json: true, into: answer}, {kind: regex, from: answer, pattern: '\"url\":\"([^\"]+)\"', into: links, all: true}], package: {from: regex, pattern: '\"name\":\"([^\"]+)\"', source: entry}}. The examples the app brings (group examples, list_site_rules shows them) are working rules for free sites to start from. Optional `description` explains the rule to a person. Its id must be new. enabled defaults to false, as in the editor. The rule records `mcp` as its origin (list_site_rules shows it). Try it with test_site_rule first."
     )]
     pub async fn create_site_rule(
         &self,
@@ -45,7 +46,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Replace a site rule (id as list_site_rules gives it). `rule` is the whole rule document, in the format create_site_rule describes (groups and mirrors included), and its id must equal `id`; renaming a rule is a delete and a create. A changed body records `mcp` as the rule's origin and drops the signer and sequence of a rule from the signed file; an unchanged one keeps its origin."
+        description = "Replace a site rule (id as list_site_rules gives it). `rule` is the whole rule document, in the format create_site_rule describes (groups and mirrors included), and its id must equal `id`; renaming a rule is a delete and a create. A changed body records `mcp` as the rule's origin; an unchanged one keeps its origin."
     )]
     pub async fn update_site_rule(
         &self,
@@ -70,7 +71,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Delete a site rule. To keep it but stop it being consulted, switch it off with set_site_rule_enabled instead."
+        description = "Delete a site rule. To keep it but stop it being consulted, switch it off with set_site_rule_enabled instead. Deleting every rule at once is not offered here; restore_site_rule_examples brings the examples back."
     )]
     pub async fn delete_site_rule(
         &self,
@@ -78,6 +79,17 @@ impl RdMcpServer {
     ) -> McpToolResult {
         respond(
             rules::delete_site_rule(State(self.state.clone()), Path(params.id))
+                .await
+                .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Write the examples the app brings again (rules for free sites such as the Debian and Ubuntu image folders and Blender's downloads, group examples), switched off, with the origin example; an example whose id a stored rule carries is left as it is. Answers `restored`, how many were written."
+    )]
+    pub async fn restore_site_rule_examples(&self) -> McpToolResult {
+        respond(
+            rules::restore_site_rule_examples(State(self.state.clone()))
                 .await
                 .map(|Json(answer)| answer),
         )

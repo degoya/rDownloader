@@ -207,7 +207,7 @@ pub use service_settings::{
 pub use session_store::TOUCH_INTERVAL_SECONDS as SESSION_TOUCH_INTERVAL_SECONDS;
 pub use site_rule_checks_store::{NewSiteRuleCheck, SiteRuleCheck};
 pub use site_rule_switches_store::{SCOPE_GROUP, SiteRuleSwitch};
-pub use site_rules_store::{NewUserSiteRule, SiteRuleOrigin, SiteRuleOriginKind, UserSiteRule};
+pub use site_rules_store::{NewUserSiteRule, SiteRuleOriginKind, UserSiteRule};
 pub use stats_store::{
     DIRECT_PROVIDER, PRUNE_BATCH, StatsPruneReport, StatsResolution, StatsRetention,
     TransferBucket, TransferTotal,

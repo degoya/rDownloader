@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 # The publishing half of the command line -- package, verify, conformance, scaffold, index, and
-# the site-rule file, the tool manifest -- as a library `rdownloader` calls and as the small `rd-pack` binary the
+# the tool manifest -- as a library `rdownloader` calls and as the small `rd-pack` binary the
 # build and release scripts run (RD-150-20). Nothing here may depend on rd-api or the queue:
 # the point of the binary is that signing a plugin does not build the service.
 [lib]
@@ -23,7 +23,6 @@ clap.workspace = true
 hex.workspace = true
 rd-plugin-host = { path = "../rd-plugin-host" }
 rd-sign = { path = "../rd-sign" }
-rd-siterules = { path = "../rd-siterules" }
 rd-tools = { path = "../rd-tools" }
 rd-update = { path = "../rd-update" }
 semver.workspace = true

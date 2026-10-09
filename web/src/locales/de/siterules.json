@@ -2,14 +2,15 @@
   "header": {
     "eyebrow": "Seitenerkennung",
     "title": "Seitenregeln",
-    "description": "Welche Release-Seiten rDownloader erkennt und durch welche Regel. Mit dem Programm kommt keine Regel: Importiere die signierte Regeldatei, die jedes Release mitbringt, oder schreibe eigene. Jede Regel hier kannst du schalten, bearbeiten, duplizieren und entfernen."
+    "description": "Welche Release-Seiten rDownloader erkennt und durch welche Regel. Mit dem Programm kommen nur abgeschaltete Beispiele für freie Seiten; weitere Regeln importierst du aus einem Export oder schreibst sie selbst. Jede Regel hier kannst du schalten, bearbeiten, duplizieren, exportieren und entfernen."
   },
   "groups": {
     "board": "Boards",
     "paste": "Paste-Dienste",
     "adult": "Erwachsene",
     "ebooks": "E-Books",
-    "graphics": "Grafik"
+    "graphics": "Grafik",
+    "examples": "Beispiele"
   },
   "group_switch": "Ganze Gruppe schalten",
   "rule_switch": "Diese Regel schalten",
@@ -17,12 +18,11 @@
     "ok": "Funktioniert",
     "structural": "Verändert",
     "blocked": "Blockiert",
-    "dead": "Tot",
-    "unknown": "Ungeprüft"
+    "dead": "Tot"
   },
   "list": {
     "title": "Regeln",
-    "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Importiere die signierte Regeldatei eines Releases, um mit den Regeln des Projekts zu beginnen.",
+    "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Stelle die Beispiele für freie Seiten wieder her, importiere einen Regel-Export oder schreibe eine eigene Regel.",
     "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt."
   },
   "editor": {
@@ -58,7 +58,9 @@
     "package_name": "Variable",
     "enabled": "Diese Regel sofort befragen",
     "incomplete": "Kennung, Name, Gruppe, ein Host, ein Schritt und eine Prüfadresse werden gebraucht.",
-    "create": "Regel anlegen"
+    "create": "Regel anlegen",
+    "rule_description": "Beschreibung",
+    "rule_description_hint": "Was die Regel tut und wie sie aufgebaut ist. Die Liste zeigt es unter dem Namen."
   },
   "steps": {
     "heading": "Schritte",
@@ -135,11 +137,13 @@
     "export": "Regeln exportieren",
     "export_empty": "Es gibt keine Regel zum Exportieren.",
     "import": "Regeln importieren",
-    "import_hint": "Nimmt die signierte Regeldatei eines Releases oder einen Regel-Export. Jede importierte Regel kommt abgeschaltet an, ob signiert oder nicht. Probiere sie aus und schalte sie dann selbst ein.",
-    "import_unreadable": "Diese Datei ist weder die signierte Regeldatei noch ein Regel-Export.",
-    "imported": "{stored} von {total} Regeln wurden abgeschaltet gespeichert.",
+    "import_hint": "Nimmt einen Regel-Export. Bevor etwas übernommen wird, siehst du jede Regel: neu, ersetzt eine vorhandene oder schon gleich da. Jede Regel kommt mit dem Schalter an, den sie beim Exportierenden hatte.",
+    "import_unreadable": "Diese Datei ist kein Regel-Export.",
+    "imported": "Übernommen: {stored} neu, {replaced} ersetzt, von {total} Regeln der Datei.",
     "refused_one": "{name} wurde abgelehnt",
-    "imported_signed": "Die signierte Regeldatei ist geprüft: {stored} von {total} Regeln wurden abgeschaltet gespeichert."
+    "export_selected": "{count} Regeln exportieren",
+    "export_hint": "Schreibt die angehakten Regeln in eine Datei, ohne Haken alle, jede mit ihrem Schalter. Eine andere Installation importiert die Datei ohne Nacharbeit.",
+    "select": "{name} für den Export auswählen"
   },
   "delete": {
     "title": "Diese Regel entfernen?",
@@ -166,16 +170,45 @@
   },
   "origin": {
     "label": "Herkunft",
-    "signed": "Signierte Datei",
-    "signed_detail": "Aus der signierten Regeldatei, signiert von {signer}, Sequenz {sequence}",
     "import": "Importiert",
-    "import_detail": "Aus einer unsignierten Datei oder einem Export importiert",
+    "import_detail": "Aus einem Regel-Export importiert",
     "editor": "Hier geschrieben",
     "editor_detail": "Im Regel-Editor angelegt oder geändert",
     "mcp": "Über MCP",
     "mcp_detail": "Von einem MCP-Client geschrieben oder geändert",
     "unknown": "Herkunft unbekannt",
-    "unknown_detail": "Vor 1.20 gespeichert, als die Herkunft noch nicht festgehalten wurde",
-    "edit_hint": "Speicherst du eine geänderte Regel, wird sie deine eigene: Die Signatur galt nur der Fassung aus der Datei."
+    "unknown_detail": "Vor 1.20 gespeichert oder aus der signierten Regeldatei von 1.20 bis 1.22",
+    "example": "Beispiel",
+    "example_detail": "Eine der Beispielregeln für freie Seiten, die mit dem Programm kommen"
+  },
+  "import_dialog": {
+    "title": "Regeln importieren",
+    "description": "Das bringt die Datei mit. Eine Regel mit derselben Kennung ersetzt deine nur, wenn du ihr Häkchen setzt.",
+    "unnamed": "Regel ohne Namen",
+    "on": "Eingeschaltet",
+    "off": "Abgeschaltet",
+    "status": {
+      "new": "Neu",
+      "replaces": "Ersetzt eine vorhandene",
+      "same": "Schon gleich da",
+      "refused": "Abgelehnt"
+    },
+    "replace": "Meine Regel {name} durch die aus der Datei ersetzen",
+    "confirm": "Übernehmen",
+    "invalid": "Die Regel ist unvollständig oder fehlerhaft.",
+    "repeated": "Diese Kennung steht weiter oben schon in der Datei."
+  },
+  "clear": {
+    "button": "Alle löschen",
+    "title": "Alle Seitenregeln löschen?",
+    "description": "Alle {count} Regeln werden samt ihren Prüfergebnissen aus dieser Installation gelöscht. Exportiere sie vorher, wenn du sie behalten willst. Die Gruppen-Schalter bleiben.",
+    "confirm": "Alle löschen",
+    "done": "{count} Regeln gelöscht."
+  },
+  "examples": {
+    "restore": "Beispiele wiederherstellen",
+    "restore_hint": "Legt die Beispielregeln für freie Seiten, die mit dem Programm kommen, wieder an, abgeschaltet. Eine vorhandene Beispielregel bleibt, wie sie ist.",
+    "restored": "{count} Beispielregeln wiederhergestellt, abgeschaltet.",
+    "none_missing": "Alle Beispielregeln sind schon da."
   }
 }

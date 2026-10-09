@@ -40,11 +40,12 @@
     "language_label": "Préférer une langue",
     "all_qualities": "Toute qualité",
     "all_languages": "Toute langue",
-    "facet_hint": "S'applique à toute la liste et reste en vigueur pour le paquet suivant : là où un groupe de miroirs laisse le choix, il retient le miroir correspondant ; ailleurs, il masque ce qui ne peut pas correspondre."
+    "facet_hint": "S'applique à toute la liste et reste en vigueur pour le paquet suivant : là où un groupe de miroirs laisse le choix, il retient le miroir correspondant ; ailleurs, il masque ce qui ne peut pas correspondre.",
+    "more": "Filtres",
+    "more_hint": "Préférer une qualité, une langue et un hébergeur, trier et regrouper"
   },
   "empty": "Le presse-papiers, Click’n’Load et les saisies manuelles arrivent d’abord ici pour vérification. Les liens sont vérifiés automatiquement et regroupés en paquets.",
   "selection_package": "{name} (sélection)",
-  "selection_count": "{count} sélectionné(s)",
   "select_all_hint": "Sélectionner toutes les entrées",
   "bulk": {
     "enqueued": "{links} liens et {nzbs} imports NZB ajoutés",
@@ -566,7 +567,9 @@
     "type_unsupported": "Aucun des indexeurs choisis ne propose cette recherche.",
     "torrent": "Torrent",
     "swarm": "{seeders} sources, {leechers} clients",
-    "grabbed_torrents": "Aucun torrent ajouté | Un torrent ajouté au LinkGrabber | {count} torrents ajoutés au LinkGrabber"
+    "grabbed_torrents": "Aucun torrent ajouté | Un torrent ajouté au LinkGrabber | {count} torrents ajoutés au LinkGrabber",
+    "open": "Rechercher dans les indexeurs",
+    "drawer_hint": "Une requête par recherche ; ce que vous prenez arrive dans le LinkGrabber pour vérification."
   },
   "empty_title": "Aucun lien en attente de vérification",
   "picks": {
@@ -609,5 +612,6 @@
     "fetch": "Récupérer les liens | Récupérer les liens de {count} release | Récupérer les liens de {count} releases",
     "take_all": "Tout prendre | Prendre 1 release | Prendre les {count}",
     "announced": "{rule} : une page attend votre choix"
-  }
+  },
+  "selection_nzbs": "aucun import NZB | {count} import NZB | {count} imports NZB"
 }

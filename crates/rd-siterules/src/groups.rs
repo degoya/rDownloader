@@ -16,7 +16,7 @@
 //! (RD-110-18) take as they are.
 //!
 //! Absent in every rule written before this existed, and absent in the serialized form when
-//! absent, so a signed pack and every exported rule stay byte-identical.
+//! absent, so every rule written before it stays byte-identical.
 //!
 //! **Pick before resolving** (RD-1170-03). A series page lists thirty releases, and fetching the
 //! links of one costs a captcha. With `pick` the run stops after the rule's own steps: each

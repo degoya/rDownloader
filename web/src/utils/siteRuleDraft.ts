@@ -83,6 +83,8 @@ interface GroupDraft extends PackageFields {
 export interface RuleDraft extends PackageFields {
   id: string
   name: string
+  /** What the rule does and how it is built, for whoever reads the list (RD-1230-03). */
+  description: string
   group: string
   version: number
   hosts: string
@@ -136,6 +138,7 @@ export function emptyDraft(): RuleDraft {
   return {
     id: '',
     name: '',
+    description: '',
     group: 'board',
     version: 1,
     hosts: '',
@@ -292,9 +295,11 @@ function groupsDraft(value: Record<string, unknown>): GroupDraft {
 export function toBody(draft: RuleDraft): Record<string, unknown> {
   const paths = lines(draft.paths)
   const dead = lines(draft.dead)
+  const description = draft.description.trim()
   return {
     id: draft.id.trim(),
     name: draft.name.trim(),
+    ...(description ? { description } : {}),
     group: draft.group.trim(),
     version: draft.version,
     match: { hosts: lines(draft.hosts), ...(paths.length ? { paths } : {}) },
@@ -317,6 +322,7 @@ export function fromRule(rule: SiteRule): RuleDraft {
   return {
     id: rule.id,
     name: rule.name,
+    description: text(body.description),
     group: rule.group,
     version: rule.version || 1,
     hosts: (Array.isArray(match.hosts) ? match.hosts : []).join('\n'),

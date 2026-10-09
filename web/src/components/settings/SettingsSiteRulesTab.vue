@@ -6,31 +6,35 @@
  * is not wanted; the switch beside a group heading is the caller's own flex row, as
  * `SectionHeader` requires.
  *
- * Since RD-130-07 every rule here is the person's own: nothing ships with the binary, and the
- * project's rules arrive through the import of the signed file every release carries. So every
- * row can be edited, duplicated and removed, and a copy is how somebody learns from a working
- * rule without touching it — it opens in the editor the moment it exists.
+ * Since RD-130-07 every rule here is the person's own: the app brings only a few examples for
+ * free sites, switched off (RD-1230-03), and everything else comes from an export somebody made
+ * or is written here. So every row can be edited, duplicated and removed, and a copy is how
+ * somebody learns from a working rule without touching it — it opens in the editor the moment
+ * it exists.
  *
- * Import is deliberately unfriendly in one respect: a rule from a file arrives switched off,
- * signed or not, the confirmation is the switch, and the server enforces that rather than this
- * component. The file goes out exactly as it was read, because a signature covers bytes.
+ * Rules travel without a signature (RD-1230-03): the export writes the rules ticked in the list,
+ * or all of them, each with its switch; the import shows what a file would do before anything
+ * is stored (`SiteRuleImportDialog`), and a rule replaces a stored one only when its box there
+ * is ticked. Deleting every rule asks first, naming the count and advising an export.
  *
- * Every row names where its rule came from (RD-1200-05) — the signed file with its signer and
- * sequence, an import, the editor, MCP — as a glyph, so a rule nobody vouches for stands out.
+ * Every row names where its rule came from (RD-1200-05) — an import, the editor, MCP, the
+ * example list — as a glyph. A rule the self-test never checked carries no state badge: only
+ * what it found is worth a word, and a problem more than "works".
  */
 import { useToast } from '@nuxt/ui/composables'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { SiteRule, SiteRuleTestResult } from '@/api/types'
+import type { SiteRule, SiteRuleDocument, SiteRuleImportPreview, SiteRuleTestResult } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SiteRuleEditor from '@/components/settings/SiteRuleEditor.vue'
+import SiteRuleImportDialog from '@/components/settings/SiteRuleImportDialog.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
 import { useErrorToast } from '@/composables/useErrorToast'
-import { useJsonImport } from '@/composables/useJsonImport'
+import { JsonRefusal, useJsonImport } from '@/composables/useJsonImport'
 import {
   emptyDraft,
   fromRule,
@@ -53,6 +57,12 @@ const editingId = ref<string | null>(null)
 const testResult = ref<SiteRuleTestResult | null>(null)
 const editorElement = ref<HTMLElement | null>(null)
 const ruleCount = computed(() => rules.rules.value.length)
+/** The rules ticked for the export; none ticked exports all of them. */
+const selected = ref<string[]>([])
+/** The file being imported and what the service says it would do (RD-1230-03). */
+const importDocument = ref<SiteRuleDocument | null>(null)
+const importPreview = ref<SiteRuleImportPreview | null>(null)
+const importOpen = ref(false)
 /** Where the rule open in the editor came from; a new rule has none yet. */
 const editingOrigin = computed(() =>
   rules.rules.value.find(entry => entry.id === editingId.value)?.origin ?? null)
@@ -67,28 +77,21 @@ function groupLabel(group: string): string {
 }
 
 /**
- * Which of the five states this rule is in: what the last self-test found here, or that none
- * has run. The `checked` day a rule body carries is what its author wrote, so it is not read
- * as a measurement of this installation's reach (RD-130-07 retired the `verified` state that
- * trusted it for the rules of the compiled-in pack).
+ * What the last self-test found here, or nothing: a rule no self-test has checked carries no
+ * badge (RD-1230-03). The `checked` day a rule body carries is what its author wrote, so it is
+ * not read as a measurement of this installation's reach.
  */
-function stateKey(rule: SiteRule): string {
-  return rule.check ? rule.check.verdict : 'unknown'
-}
-
-function stateColor(rule: SiteRule): 'success' | 'warning' | 'error' | 'neutral' {
-  switch (stateKey(rule)) {
+function stateColor(rule: SiteRule): 'success' | 'warning' | 'error' {
+  switch (rule.check?.verdict) {
     case 'ok': return 'success'
     case 'structural': return 'warning'
-    case 'blocked': return 'error'
-    case 'dead': return 'error'
-    default: return 'neutral'
+    default: return 'error'
   }
 }
 
 /** The sentence behind the badge: the four-way verdict, plus the refusal's own reason. */
 function stateTitle(rule: SiteRule): string {
-  if (!rule.check) return t('siterules.badge.unknown')
+  if (!rule.check) return ''
   const verdict = t(`server.codes.site_rules.state.${rule.check.verdict}`)
   return rule.check.code ? `${verdict} — ${t(`server.codes.${rule.check.code}`)}` : verdict
 }
@@ -96,7 +99,13 @@ function stateTitle(rule: SiteRule): string {
 /** Where the rule came from, as the glyph, its word and the sentence behind it (RD-1200-05). */
 function originOf(rule: SiteRule): { icon: string, color: 'success' | 'neutral', label: string, detail: string } {
   const view = originView(rule.origin)
-  return { icon: view.icon, color: view.color, label: t(view.label), detail: t(view.detail, view.params) }
+  return { icon: view.icon, color: view.color, label: t(view.label), detail: t(view.detail) }
+}
+
+function toggleSelected(id: string, checked: boolean | 'indeterminate'): void {
+  selected.value = checked === true
+    ? [...new Set([...selected.value, id])]
+    : selected.value.filter(entry => entry !== id)
 }
 
 function startNew(): void {
@@ -158,34 +167,90 @@ async function remove(rule: SiteRule): Promise<void> {
 }
 
 async function exportRules(): Promise<void> {
-  const document_ = await rules.exportRules()
+  // Only ticks that still name a rule: one deleted since must not narrow the export to nothing.
+  const ids = selected.value.filter(id => rules.rules.value.some(rule => rule.id === id))
+  const document_ = await rules.exportRules(ids)
   if (!document_) return
   downloadJson(document_, 'site-rules')
 }
 
-/** The server reads and checks the pack itself; here only that it is JSON at all. */
-const { select: selectFile } = useJsonImport<string>({
-  check: (_parsed, text) => text,
+/** The service reads and checks every rule itself; here only that the file is an object. */
+const { select: selectFile } = useJsonImport<SiteRuleDocument>({
+  check: parsed => typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+    ? parsed as SiteRuleDocument
+    : new JsonRefusal(t('siterules.transfer.import_unreadable')),
   unreadable: () => t('siterules.transfer.import_unreadable'),
   refuse: message => showError(message),
-  take: importRules
+  take: previewImport
 })
 
-async function importRules(text: string): Promise<void> {
-  const result = await rules.importRules(text)
+async function previewImport(document_: SiteRuleDocument): Promise<void> {
+  const preview = await rules.previewImport(document_)
+  if (!preview) return
+  importDocument.value = document_
+  importPreview.value = preview
+  importOpen.value = true
+}
+
+async function importRules(replace: string[]): Promise<void> {
+  if (!importDocument.value) return
+  const result = await rules.importRules(importDocument.value, replace)
   if (!result) return
+  importOpen.value = false
   const refused = result.rules
-    .filter(entry => entry.code)
+    .filter(entry => entry.status === 'refused')
     .map(entry => t('siterules.transfer.refused_one', { name: entry.name || entry.id }))
     .join(', ')
-  const imported = result.signed ? 'siterules.transfer.imported_signed' : 'siterules.transfer.imported'
   toast.add({
-    title: t(imported, { stored: result.stored, total: result.rules.length }),
+    title: t('siterules.transfer.imported', { stored: result.stored, replaced: result.replaced, total: result.rules.length }),
     ...(refused ? { description: refused } : {}),
-    color: result.stored ? 'success' : 'warning',
+    color: result.stored + result.replaced ? 'success' : 'warning',
     icon: 'i-lucide-file-input'
   })
 }
+
+async function clearAll(): Promise<void> {
+  const accepted = await confirm({
+    title: t('siterules.clear.title'),
+    description: t('siterules.clear.description', { count: ruleCount.value }),
+    confirmLabel: t('siterules.clear.confirm'),
+    confirmIcon: 'i-lucide-trash-2',
+    destructive: true
+  })
+  if (!accepted) return
+  const removed = await rules.clearAll()
+  if (removed === null) return
+  selected.value = []
+  startNew()
+  toast.add({ title: t('siterules.clear.done', { count: removed }), color: 'success', icon: 'i-lucide-trash-2' })
+}
+
+async function restoreExamples(): Promise<void> {
+  const restored = await rules.restoreExamples()
+  if (restored === null) return
+  toast.add({
+    title: restored ? t('siterules.examples.restored', { count: restored }) : t('siterules.examples.none_missing'),
+    color: 'success',
+    icon: 'i-lucide-lightbulb'
+  })
+}
+
+/** What the empty list offers: the examples back, a file, or a rule of one's own. */
+const emptyActions = computed(() => [
+  {
+    label: t('siterules.examples.restore'),
+    icon: 'i-lucide-lightbulb',
+    color: 'primary' as const,
+    onClick: (): void => { void restoreExamples() }
+  },
+  {
+    label: t('siterules.editor.title_new'),
+    icon: 'i-lucide-file-plus',
+    color: 'neutral' as const,
+    variant: 'outline' as const,
+    onClick: (): void => { void focusEditor() }
+  }
+])
 </script>
 
 <template>
@@ -227,9 +292,9 @@ async function importRules(text: string): Promise<void> {
           color="neutral"
           variant="ghost"
           icon="i-lucide-download"
-          :label="t('siterules.transfer.export')"
+          :label="selected.length ? t('siterules.transfer.export_selected', { count: selected.length }) : t('siterules.transfer.export')"
           :disabled="!ruleCount"
-          :title="ruleCount ? t('siterules.transfer.export') : t('siterules.transfer.export_empty')"
+          :title="ruleCount ? t('siterules.transfer.export_hint') : t('siterules.transfer.export_empty')"
           @click="exportRules"
         />
         <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">
@@ -240,9 +305,31 @@ async function importRules(text: string): Promise<void> {
             icon="i-lucide-upload"
             :label="t('siterules.transfer.import')"
             :title="t('siterules.transfer.import_hint')"
+            :loading="rules.pending.value && !importOpen"
             @click="open()"
           />
         </UFileUpload>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-lightbulb"
+          :label="t('siterules.examples.restore')"
+          :title="t('siterules.examples.restore_hint')"
+          :loading="rules.busyId.value === 'examples'"
+          @click="restoreExamples"
+        />
+        <UButton
+          size="xs"
+          color="error"
+          variant="soft"
+          icon="i-lucide-trash-2"
+          :label="t('siterules.clear.button')"
+          :disabled="!ruleCount"
+          :loading="rules.busyId.value === 'clear'"
+          data-testid="site-rules-clear"
+          @click="clearAll"
+        />
       </template>
 
       <template #list>
@@ -255,7 +342,7 @@ async function importRules(text: string): Promise<void> {
             :empty="!rules.rules.value.length"
             :rows="4"
           >
-            <UEmpty :description="t('siterules.list.empty')" />
+            <UEmpty icon="i-lucide-scan-search" :description="t('siterules.list.empty')" :actions="emptyActions" />
           </DataState>
 
           <section v-for="entry in rules.byGroup.value" :key="entry.group.group">
@@ -280,9 +367,15 @@ async function importRules(text: string): Promise<void> {
                 :class="editingRowClass(editingId === rule.id, 'outline')"
                 data-rule-row
               >
+                <UCheckbox
+                  :model-value="selected.includes(rule.id)"
+                  :aria-label="t('siterules.transfer.select', { name: rule.name })"
+                  @update:model-value="(checked: boolean | 'indeterminate') => toggleSelected(rule.id, checked)"
+                />
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium text-highlighted">{{ rule.name }}</p>
                   <p class="truncate font-mono text-2xs text-muted">{{ rule.hosts.join(', ') || rule.id }}</p>
+                  <p v-if="rule.description" class="mt-1 line-clamp-2 text-2xs text-muted" :title="rule.description">{{ rule.description }}</p>
                   <p v-if="!entry.group.enabled" class="mt-1 text-2xs text-muted">{{ t('siterules.list.group_off') }}</p>
                 </div>
                 <!-- One glyph per origin; the word is its name and the sentence its tooltip (RD-1200-05). -->
@@ -299,8 +392,16 @@ async function importRules(text: string): Promise<void> {
                   />
                 </UTooltip>
                 <UBadge v-if="editingId === rule.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-                <UBadge :color="stateColor(rule)" variant="subtle" :title="stateTitle(rule)">
-                  {{ t(`siterules.badge.${stateKey(rule)}`) }}
+                <!-- Only what a self-test found; "works" stays quiet beside the problems. -->
+                <UBadge
+                  v-if="rule.check"
+                  :color="stateColor(rule)"
+                  :variant="rule.check.verdict === 'ok' ? 'outline' : 'subtle'"
+                  size="sm"
+                  :title="stateTitle(rule)"
+                  data-testid="site-rule-state"
+                >
+                  {{ t(`siterules.badge.${rule.check.verdict}`) }}
                 </UBadge>
                 <USwitch
                   :model-value="rule.enabled"
@@ -343,5 +444,12 @@ async function importRules(text: string): Promise<void> {
         </UCard>
       </template>
     </FormListLayout>
+
+    <SiteRuleImportDialog
+      v-model:open="importOpen"
+      :preview="importPreview"
+      :pending="rules.pending.value"
+      @import="importRules"
+    />
   </div>
 </template>

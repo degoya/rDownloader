@@ -244,6 +244,7 @@ expect "and records no verified revision, which only --full's two halves do" "" 
 
 # --- one rule of what is documentation, and what each half reads (RD-1120-06) -----------------------
 expect_true "the README's pictures are inert" 'rd_inert_path .github/readme/x.png'
+expect_true "and so is the owner's private material" 'rd_inert_path private/site-rules/owner-rules.json'
 expect_true "documentation is" 'rd_inert_path docs/x.md && rd_inert_path crates/rd-api/README.md'
 expect_true "the two .md files a test reads are not" \
     '! rd_inert_path crates/rd-core/recovery-matrix.md && ! rd_inert_path crates/rd-api/mcp-coverage.md'

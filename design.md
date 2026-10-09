@@ -462,10 +462,11 @@ prevent columns from shifting during live updates.
   the page hands its action in while it is mounted; the key runs that action with its
   confirmation and shows as a `UKbd` hint on the menu item that offers it. Pressed again, the
   same key answers that confirmation (`ConfirmModal`'s `confirmKey`, shown as a `UKbd` on its
-  button), so the action never needs the mouse or a Tab to the button. `F` focuses the search of
-  the page the same way — the LinkGrabber's indexer search (RD-180-19), the download list's name
-  search (RD-190-21): the panel or the list hands its focus in while it is mounted, and the field
-  shows the key as a `UKbd` at its end; while the indexer field is disabled the key lands on the
+  button), so the action never needs the mouse or a Tab to the button. `F` is the search of
+  the page the same way — on the LinkGrabber it opens the indexer search drawer with the keyboard
+  in its field (RD-180-19, RD-1230-02), on Downloads it focuses the list's name search
+  (RD-190-21): the drawer or the list hands its action in while it is mounted, and the button or
+  the field shows the key as a `UKbd`; while the indexer field is disabled the key lands on the
   hint's link to the indexer settings, the one thing there is to do. The
   LinkGrabber hands in its navbar buttons the same way (`A` add links, `E` enqueue all, `W` add
   all paused, `R` delete all; RD-180-23), each with its `UKbd` on the button and doing nothing
@@ -489,10 +490,16 @@ prevent columns from shifting during live updates.
   last key; a filter that hides every row says so, with *Reset filter*, instead of the empty
   list's welcome text.
 - **A search that costs the other side something is asked, never typed into** (RD-180-19). The
-  indexer search sits at the top of the LinkGrabber, because what it finds is reviewed there,
-  and it is always there (owner, 2026-10-01) — the one exception to the absent-section rule
-  below, because the field is where somebody looks for the feature. Until an indexer is enabled
-  it is disabled, with a short hint and a link to Settings › Usenet › Indexers that says an
+  indexer search belongs to the LinkGrabber, because what it finds is reviewed there, and it is
+  always reachable (owner, 2026-10-01): since RD-1230-02 (owner, 2026-10-09) in a `UDrawer` from
+  the bottom behind the navbar's *Search indexers* button (its `UKbd` `F`), so the page shows the
+  list rather than a form used now and then. The bottom, as the indexer subscriptions' drawer,
+  because the hits are a wide table a side panel would squeeze. The drawer keeps its inputs, hits
+  and row states while it is closed (the state lives with the view, not with the drawer's
+  content), and it stays open after hits are taken, because the flow is to read, take several
+  and page on. The button stays without an indexer — the one exception to the absent-section
+  rule below, because it is where somebody looks for the feature. Until an indexer is enabled
+  the field is disabled, with a short hint and a link to Settings › Usenet › Indexers that says an
   indexer subscription alone is not searched; the hint waits for the first answer, so it does
   not flash up while the list loads. One
   press of *Search* is one request per indexer, the next page is the next press, and nothing
@@ -836,8 +843,9 @@ and then answers it, which is how the indexer box came to sit under every LinkGr
 that no indexer subscription was set up (RD-107-12). The condition is the subject's existence, not
 the emptiness of its result, and it follows the loading rule above: absent while the first fetch is
 outstanding, so the section does not appear and vanish again. The LinkGrabber's indexer search is the one
-exception (owner, 2026-10-01): its field is where the feature is looked for, so it stays, disabled
-with a hint that leads to the settings (RD-180-19).
+exception (owner, 2026-10-01): its button is where the feature is looked for, so it stays, and the
+drawer behind it shows the field disabled with a hint that leads to the settings (RD-180-19,
+RD-1230-02).
 
 Skeleton or indicator follows from whether the shape of the content is predictable. A list of rows
 gets bars in the shape of rows; a single figure or a status line that has no predictable shape gets
@@ -1113,19 +1121,36 @@ recognised as drifting.
   `i-lucide-pencil` in neutral, `i-lucide-trash-2` in `color="error"` — and each carries both an
   `aria-label` and a `title`, since an icon alone names nothing. See `docs/accessibility.md`.
 - **An action that is not self-evident gets a label beside its icon**: test, connect, enqueue,
-  duplicate. Edit and delete do not need one; a test button does.
-- **A selection bar fits one line, and its X never leaves the window** (RD-1220-03). Start,
-  pause, stop and remove are icons — what every player and file list shows — with `aria-label`
-  and `title`, and so are rename (the row's pencil) and export (the toolbar's own icon). An action
-  that is not self-evident (extract, show in list, re-resolve) keeps its label where the bar is
-  wide and drops it below `80rem` of the bar (`BulkActionBar`'s `LABEL_UI`, handed to its slot);
-  an action with a count or a danger keeps its words always (*Reset 3 files*, *Delete 1
-  package*). The actions wrap inside a group that may shrink; the X stands outside it, last in
-  the tab order, and does not shrink.
+  duplicate. Edit and delete do not need one; a test button does. The selection bar and the
+  package rows of the two queue lists are the exception below.
+- **The two queue lists are built in one order** (RD-1230-02, owner 2026-10-09). The row right
+  above the list (`QueueListBar`) starts with *Select all* — its label the count, *N selected*,
+  what is selected (*3 files in 2 packages*) in its tooltip — and open/close all; then the list's
+  own search or filters; then, at the end, *Export all*, *Show metadata* and the figures. It
+  stands at the list, after the notices, so the count is read where the ticks are. The selection
+  bar (`BulkActionBar`) follows it: the badge reads *N selected* in both lists, then category,
+  priority and post-processing, then the actions both lists offer in one order — start (the
+  LinkGrabber's enqueue), pause (its enqueue paused), show in list, export — then the list's own
+  (stop, extract, rename, re-resolve; to a new package, hand over), its red ones with a count, and
+  remove last, as a row's delete stands next to its menu. The orders are
+  `web/src/utils/listLayout.ts`, and `views/listLayout.test.ts` reads both views against them.
+  Filters only one list has may wait behind a button (the LinkGrabber's *Filters*, counting what is
+  set behind it) so the row stays one line. A package row in either list has its category first
+  among its controls, then the priority, then start (enqueue) as an icon, and its ⋯ menu last.
+- **A selection bar fits one line, and its X never leaves the window** (RD-1220-03, RD-1230-02).
+  Every action is an icon with `aria-label` and `title` — extract, show in list and re-resolve
+  too. This replaces the label rule above for the selection bar (owner, 2026-10-09): the bar
+  repeats the icons of the rows it acts on, its order is learned once for both lists, and a second
+  line cost more than the words gave; the tooltip and the accessible name still say what each
+  does. A red action with a count shows its icon and the number (*↺ 3*), the sentence (*Reset 3
+  files*, *Delete 1 package*) as its name and tooltip, so the name still contains what is seen.
+  From a 1440 px window the bar is one line; the actions wrap inside a group that may shrink, the
+  X stands outside it, last in the tab order, and does not shrink.
 - **An action with a start-mode variant offers the variant as a second button, never as a
   hidden modifier.** "Add" and "Add paused" are the pair the LinkGrabber toolbar established;
   a row and a selection bar offering the same action repeat that pair verbatim — same icons
-  (`i-lucide-arrow-down-to-line` and `i-lucide-pause`), same labels, the variant in
+  (`i-lucide-arrow-down-to-line` and `i-lucide-pause`), same names (as icons since RD-1230-02, as
+  a Downloads package row's start is), the variant in
   `color="neutral" variant="outline"` beside the primary one, and a `title` saying what the
   variant does differently. Both are enabled by exactly the same condition: a control that is
   dead for one kind of row in the list it acts on reads as a broken feature, and that is how
@@ -1567,7 +1592,7 @@ recognised as drifting.
   and one nobody touched follows it. The default is a setting per list (*Interface → Display*,
   closed in the queue, open in the LinkGrabber), because the two lists are read differently: the
   queue is watched, the LinkGrabber reviewed. "Open all" and "close all" act on what the filters
-  show and live in two places: one icon button in the list's toolbar beside *Select all*, whose
+  show and live in two places: one icon button in the row above the list after *Select all*, whose
   icon (`i-lucide-chevrons-up-down` / `i-lucide-chevrons-down-up`) and name follow the state —
   close all once every shown package is open — and a group of two entries in every package row's
   menu. Jumping to a row still opens its package (RD-1170-01).

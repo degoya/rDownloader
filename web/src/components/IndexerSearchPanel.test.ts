@@ -2,7 +2,7 @@
  * The indexer search inside the LinkGrabber (RD-180-19).
  *
  * What is held: the field is always there, disabled with a hint and a link to the indexer
- * settings until an indexer is enabled, and `f` reaches the field or, without one, that link; a
+ * settings until an indexer is enabled (`f` and the drawer: `IndexerSearchDrawer.test.ts`); a
  * term the indexer would refuse is never sent, one search is one request with the parameters as
  * chosen, and chosen hits — ticked, or one row's own button — go to the grab route unchanged.
  */
@@ -10,8 +10,6 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
-import { SHORTCUT_DEFINITIONS, setShortcutFeedback } from '@/composables/shortcutDefinitions'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent } from '@/test/mount'
@@ -37,8 +35,6 @@ vi.mock('@nuxt/ui/composables', () => ({
 }))
 
 const { default: IndexerSearchPanel } = await import('./IndexerSearchPanel.vue')
-
-const focusKey = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'f')!
 
 const ENABLED = { id: 'idx-1', name: 'Omg', url: 'https://api.example.test/api', enabled: true, has_secret: true, categories: [], created_at: '', updated_at: '' }
 const DISABLED = { ...ENABLED, id: 'idx-2', name: 'Off', enabled: false }
@@ -102,16 +98,14 @@ beforeEach(() => {
   get.mockReset()
   post.mockReset()
   toasts.mockReset()
-  setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => false })
 })
 
 afterEach(() => {
-  setIndexerSearchFocusAction(null)
   setShowItemImages(true)
 })
 
 describe('IndexerSearchPanel without an enabled indexer', () => {
-  it('shows the field disabled with a hint that leads to the indexer settings, and `f` reaches the link', async () => {
+  it('shows the field disabled with a hint that leads to the indexer settings', async () => {
     answerIndexers([])
     mount()
     const hint = await screen.findByTestId('indexer-search-unavailable')
@@ -124,9 +118,6 @@ describe('IndexerSearchPanel without an enabled indexer', () => {
     expect((screen.getByTestId('indexer-search-submit') as HTMLButtonElement).disabled).toBe(true)
     const link = within(hint).getByRole('link', { name: linkgrabber.search.unavailable_link })
     expect(link.getAttribute('href')).toBe('/settings/usenet?tab=indexers')
-
-    focusKey.handler()
-    expect(document.activeElement).toBe(link)
   })
 
   it('counts a switched-off indexer as none', async () => {
@@ -150,30 +141,11 @@ describe('IndexerSearchPanel without an enabled indexer', () => {
 describe('IndexerSearchPanel with an enabled indexer', () => {
   beforeEach(() => answerIndexers([ENABLED, DISABLED]))
 
-  it('puts the keyboard in the field on `f`, shows the key at the field, and stops once it is gone', async () => {
-    const view = mount()
-    await ready()
-    const field = screen.getByTestId('indexer-search-query')
-    expect(screen.queryByTestId('indexer-search-unavailable')).toBeNull()
-    expect(within(screen.getByTestId('indexer-search')).getByText('f').tagName).toBe('KBD')
-
-    focusKey.handler()
-    expect(document.activeElement).toBe(field)
-
-    field.blur()
-    view.unmount()
-    focusKey.handler()
-    expect(document.activeElement).toBe(document.body)
-  })
-
-  it('does not move the keyboard while a dialog is open', async () => {
+  it('shows the key at the field', async () => {
     mount()
     await ready()
-    await screen.findByTestId('indexer-search-query')
-    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
-
-    focusKey.handler()
-    expect(document.activeElement).toBe(document.body)
+    expect(screen.queryByTestId('indexer-search-unavailable')).toBeNull()
+    expect(within(screen.getByTestId('indexer-search')).getByText('f').tagName).toBe('KBD')
   })
 
   it('offers all enabled indexers or one, never a switched-off one', async () => {

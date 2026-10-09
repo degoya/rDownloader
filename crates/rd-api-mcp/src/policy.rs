@@ -215,6 +215,7 @@ pub const TOOL_POLICY: &[ToolPolicy] = &[
     tool("reresolve_downloads", "/api/v1/downloads/reresolve", Method::POST),
     tool("resolve_candidate_torrent", "/api/v1/collector/candidates/{id}/torrent/resolve", Method::POST),
     tool("resolve_page_entries", "/api/v1/collector/picks/{id}/resolve", Method::POST),
+    tool("restore_site_rule_examples", "/api/v1/site-rules/examples", Method::POST),
     tool("resume_queue", "/api/v1/queue/pause", Method::DELETE),
     tool("resume_storage_target", "/api/v1/storage/capacity/{target}/resume", Method::POST),
     tool("return_to_bandwidth_schedule", "/api/v1/bandwidth/manual", Method::DELETE),

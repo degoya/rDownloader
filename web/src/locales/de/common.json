@@ -118,7 +118,7 @@
     "go_audit": "Zum Audit-Protokoll",
     "open_search": "Suche öffnen",
     "clear_completed": "Fertige Pakete entfernen (in Downloads)",
-    "focus_indexer_search": "Suche fokussieren: Indexer-Suche im LinkGrabber, Namenssuche in Downloads",
+    "focus_indexer_search": "Suche: öffnet im LinkGrabber die Indexer-Suche, fokussiert in Downloads die Namenssuche",
     "add_links": "Hinzufügen: Links im LinkGrabber, ein direkter Auftrag in Downloads",
     "enqueue_all": "Alle laden (im LinkGrabber)",
     "enqueue_paused": "Alle pausiert übernehmen (im LinkGrabber)",
@@ -235,5 +235,9 @@
     "passphrase_short": "Mindestens 8 Zeichen.",
     "nzbs": "{count} NZB eingebettet. | {count} NZBs eingebettet.",
     "nzb_failed": "Nicht eingebettet: {list}"
+  },
+  "selection": {
+    "count": "{count} ausgewählt",
+    "detail": "{items} in {packages}"
   }
 }

@@ -103,10 +103,8 @@ const stubs = {
     template: '<label>{{ label }}<input type="checkbox" role="switch" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
   },
   UTooltip: passthrough,
-  IndexerReviewList: true,
-  SiteRulePickPanel: true,
-  IndexerSearchPanel: true,
-  NzbHistoryModal: true,
+  IndexerReviewList: true, SiteRulePickPanel: true, IndexerSearchDrawer: true, NzbHistoryModal: true,
+  UPopover: { template: '<div><slot /><slot name="content" /></div>' },
   BulkActionBar: { template: '<div><slot /></div>' }
 }
 
@@ -353,7 +351,7 @@ describe('LinkGrabberView', () => {
     await nextTick()
 
     const paused = [...container.querySelectorAll('button')]
-      .filter(button => button.textContent?.includes(linkgrabber.actions.enqueue_paused))
+      .filter(button => button.getAttribute('aria-label') === linkgrabber.actions.enqueue_paused)
     expect(paused.length).toBeGreaterThan(0)
     for (const button of paused) expect(button.disabled).toBe(false)
   })
@@ -691,7 +689,7 @@ describe('LinkGrabberView adds only what a filter shows', () => {
   }
 
   function buttonLabelled(container: Element, label: string): HTMLButtonElement {
-    const button = [...container.querySelectorAll('button')].find(item => item.textContent?.trim() === label)
+    const button = [...container.querySelectorAll('button')].find(item => (item.textContent?.trim() || item.getAttribute('aria-label')) === label)
     if (!button) throw new Error(`no button "${label}"`)
     return button
   }
@@ -733,7 +731,7 @@ describe('LinkGrabberView adds only what a filter shows', () => {
     const trigger = container.querySelector('[data-testid="linkgrabber-more"]')
     const offered = [...(trigger?.parentElement?.querySelectorAll('[data-menu-items] button') ?? [])] as HTMLButtonElement[]
     const hidden = [...container.querySelectorAll('button')].filter(button => button.className.includes('@min-[40rem]:inline-flex'))
-    expect(hidden.length).toBe(5)
+    expect(hidden.length).toBe(6)
     expect(offered.map(item => item.textContent)).toEqual(hidden.map(button => button.getAttribute('aria-label')))
     expect(offered.map(item => item.disabled)).toEqual(hidden.map(button => button.disabled))
 

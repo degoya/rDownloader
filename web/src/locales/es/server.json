@@ -596,10 +596,6 @@
     "remote_job.choice_not_kept": "El proveedor volvió a preguntar después de la selección. No conservó la respuesta, así que el trabajo se terminó en lugar de volver a abrir la pregunta.",
     "plugin.address_carries_marker": "La dirección contiene un marcador de credenciales y no se ha entregado al plugin",
     "site_rules.malformed": "El archivo no se puede leer como archivo de reglas.",
-    "site_rules.untrusted": "El archivo de reglas no está firmado con una clave en la que confíe esta versión.",
-    "site_rules.bad_signature": "La firma del archivo de reglas no es válida: el archivo se modificó después de firmarlo o está dañado.",
-    "site_rules.revoked": "Este archivo de reglas se ha retirado.",
-    "site_rules.stale": "Este archivo de reglas ha caducado o lleva una fecha futura.",
     "site_rules.id_taken": "Una regla incluida en el proyecto ya usa el identificador {rule}.",
     "subscription.script_name_invalid": "El nombre de script '{value}' no es válido: debe ser un archivo directamente dentro de la carpeta de scripts (letras, cifras, punto, guion bajo, guion)",
     "subscription.script_not_found": "No hay ningún script llamado '{name}' en la carpeta de scripts",
@@ -1242,7 +1238,6 @@
     "remote_job.state_invalid": "Los estados son awaiting_choice, ready, failed o discarded",
     "api.token_rate_limited": "Este token ha hecho más de {limit} llamadas en este minuto. Inténtalo de nuevo en {seconds} segundos.",
     "api.token_rate_range": "Un token hace de 1 a {max} llamadas por minuto, o no tiene límite",
-    "site_rules.sequence_older": "Este archivo de reglas es más antiguo que uno ya importado del mismo firmante (secuencia {sequence}, ya vista {known}) y se ha rechazado.",
     "object_storage.redirect_refused": "El almacenamiento de objetos respondió con una redirección, que no se sigue. Introduce el endpoint al que redirige.",
     "proxy.password_host_changed": "La dirección del proxy cambió: introduce la contraseña de nuevo, no se envía al nuevo host.",
     "remote.secret_host_changed": "El servidor cambió: introduce de nuevo la contraseña o la clave, no se envía al nuevo host.",
@@ -1261,7 +1256,8 @@
     "queue.stop_mark_target_finished": "Esa descarga o ese paquete ya ha terminado",
     "export.nzb_unavailable": "El NZB de este paquete ya no se conserva; su historial se eliminó",
     "export.nzb_too_large": "El NZB supera los {max_mib} MiB que un archivo de enlaces admite por NZB",
-    "rdlinks.nzb_invalid": "El NZB «{name}» del archivo de enlaces no es válido: {detail}"
+    "rdlinks.nzb_invalid": "El NZB «{name}» del archivo de enlaces no es válido: {detail}",
+    "site_rules.not_confirmed": "Eliminar todas las reglas de sitios debe confirmarse."
   },
   "capabilities": {
     "media_download": "las descargas de medios",

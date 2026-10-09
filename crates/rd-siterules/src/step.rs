@@ -81,7 +81,7 @@ pub enum Step {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         into: Option<String>,
         /// Absent in every rule written before this existed, and absent in the serialized form
-        /// when false, so a signed pack stays byte-identical.
+        /// when false, so a rule written before it stays byte-identical.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         json: bool,
     },

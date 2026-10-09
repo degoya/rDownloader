@@ -40,11 +40,12 @@
     "language_label": "Preferir un idioma",
     "all_qualities": "Cualquier calidad",
     "all_languages": "Cualquier idioma",
-    "facet_hint": "Se aplica a toda la lista y se mantiene para el siguiente paquete: donde un grupo de espejos ofrece elección, elige el espejo que coincide; en el resto, oculta lo que no puede coincidir."
+    "facet_hint": "Se aplica a toda la lista y se mantiene para el siguiente paquete: donde un grupo de espejos ofrece elección, elige el espejo que coincide; en el resto, oculta lo que no puede coincidir.",
+    "more": "Filtros",
+    "more_hint": "Preferir calidad, idioma y hoster, ordenar y reagrupar"
   },
   "empty": "El portapapeles, Click’n’Load y las entradas manuales llegan primero aquí para su revisión. Los enlaces se comprueban automáticamente y se agrupan en paquetes.",
   "selection_package": "{name} (selección)",
-  "selection_count": "{count} seleccionados",
   "select_all_hint": "Seleccionar todas las entradas",
   "bulk": {
     "enqueued": "{links} enlaces y {nzbs} importaciones NZB añadidos",
@@ -566,7 +567,9 @@
     "type_unsupported": "Ninguno de los indexadores elegidos ofrece esta búsqueda.",
     "torrent": "Torrent",
     "swarm": "{seeders} semillas, {leechers} descargando",
-    "grabbed_torrents": "Ningún torrent añadido | Un torrent añadido al LinkGrabber | {count} torrents añadidos al LinkGrabber"
+    "grabbed_torrents": "Ningún torrent añadido | Un torrent añadido al LinkGrabber | {count} torrents añadidos al LinkGrabber",
+    "open": "Buscar en indexadores",
+    "drawer_hint": "Una petición por búsqueda; lo que tomes llega al LinkGrabber para revisarlo."
   },
   "empty_title": "Ningún enlace pendiente de revisión",
   "picks": {
@@ -609,5 +612,6 @@
     "fetch": "Obtener enlaces | Obtener enlaces de {count} release | Obtener enlaces de {count} releases",
     "take_all": "Tomar todos | Tomar 1 release | Tomar los {count}",
     "announced": "{rule}: una página espera tu elección"
-  }
+  },
+  "selection_nzbs": "ninguna importación NZB | {count} importación NZB | {count} importaciones NZB"
 }

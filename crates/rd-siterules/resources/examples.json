@@ -1,0 +1,190 @@
+{
+  "format_version": 2,
+  "rules": [
+    {
+      "enabled": false,
+      "rule": {
+        "id": "debian-cd",
+        "name": "Debian installation images",
+        "group": "examples",
+        "description": "A one-stage rule. It claims the image folders of cdimage.debian.org, fetches the folder listing (fetch), takes every link that ends in .iso (regex with all: true, into links) and names the package after the first network installer it finds (package from regex). The site lists each image twice; the duplicate links collapse into one.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "cdimage.debian.org"
+          ],
+          "paths": [
+            "^/debian-cd/[^/]+/[a-z0-9]+/iso-(?:cd|dvd)/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(debian-[a-z0-9.-]+\\.iso)\"",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "href=\"(debian-[0-9.]+-[a-z0-9]+)-netinst\\.iso\""
+        },
+        "probe": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/",
+        "checked": "2026-10-09"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "ubuntu-releases",
+        "name": "Ubuntu release images",
+        "group": "examples",
+        "description": "A one-stage rule like the Debian one, for releases.ubuntu.com: one release folder (24.04/, noble/ ...) becomes one package of its .iso images. The package name is read from the page title, cut before the code name in brackets.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "releases.ubuntu.com"
+          ],
+          "paths": [
+            "^/[0-9a-z.]+/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(ubuntu-[a-z0-9.-]+\\.iso)\"",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "(?s)<title>\\s*(Ubuntu [^<(]*?)\\s*\\("
+        },
+        "probe": "https://releases.ubuntu.com/24.04/",
+        "checked": "2026-10-09"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "blender-releases",
+        "name": "Blender releases",
+        "group": "examples",
+        "description": "A two-stage rule (groups with pick). The folder of one Blender series lists every build for every platform, so the rule's own steps only collect the file names (regex with all: true, into files). groups.from turns each file into one entry, and pick reads its version, platform and format, so the LinkGrabber lists the builds to choose from before anything is fetched. Only the chosen entries run the group's steps: the entry itself is the link, joined to the folder's address, and its name without the extension is the package name.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "download.blender.org"
+          ],
+          "paths": [
+            "^/release/Blender[0-9]+\\.[0-9]+/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(blender-[0-9][a-z0-9.-]*\\.(?:zip|tar\\.xz|dmg|msi|msix))\"",
+            "into": "files",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "<title>Index of /release/(Blender[0-9.]+)/</title>"
+        },
+        "groups": {
+          "from": "files",
+          "pick": {
+            "attributes": {
+              "version": "^blender-([0-9]+\\.[0-9]+\\.[0-9]+)",
+              "platform": "-(linux|macos|windows)-",
+              "format": "\\.(zip|tar\\.xz|dmg|msi|msix)$"
+            }
+          },
+          "steps": [
+            {
+              "kind": "regex",
+              "from": "entry",
+              "pattern": "(.+)",
+              "into": "links"
+            }
+          ],
+          "package": {
+            "from": "regex",
+            "pattern": "^(.+?)\\.(?:zip|tar\\.xz|dmg|msi|msix)$",
+            "source": "entry"
+          }
+        },
+        "probe": "https://download.blender.org/release/Blender4.2/",
+        "checked": "2026-10-09"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "blender-open-movies",
+        "name": "Blender open movies",
+        "group": "examples",
+        "description": "A two-stage rule for the folders of the Blender Foundation's open movies (Big Buck Bunny, Tears of Steel, Sintel). Each video file of the folder is one entry; pick reads its resolution and format, so you choose the version you want in the LinkGrabber. The chosen entry's link is the file itself; the package is named after the file without .zip.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "download.blender.org"
+          ],
+          "paths": [
+            "^/demo/movies/[A-Za-z0-9_]+/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"([A-Za-z0-9_%.+-]+\\.(?:mp4|mov|mkv|webm|avi)(?:\\.zip)?)\"",
+            "into": "files",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "<title>Index of /demo/movies/([^/<]+)/?</title>"
+        },
+        "groups": {
+          "from": "files",
+          "pick": {
+            "attributes": {
+              "resolution": "([0-9]{3,4}p|4k)",
+              "format": "\\.(mp4|mov|mkv|webm|avi)(?:\\.zip)?$"
+            }
+          },
+          "steps": [
+            {
+              "kind": "regex",
+              "from": "entry",
+              "pattern": "(.+)",
+              "into": "links"
+            }
+          ],
+          "package": {
+            "from": "regex",
+            "pattern": "^(.+?)(?:\\.zip)?$",
+            "source": "entry"
+          }
+        },
+        "probe": "https://download.blender.org/demo/movies/BBB/",
+        "checked": "2026-10-09"
+      }
+    }
+  ]
+}

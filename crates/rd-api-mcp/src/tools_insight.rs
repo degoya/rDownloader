@@ -318,7 +318,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the release-page rules that turn a link on a page into the files behind it: every rule of this installation, with its group, whether each is switched on, and whether it is active (a rule in a switched-off group is on but not active), and its `origin`: kind signed (the signed release file, with the `signer` key id and the file's `sequence`), import (an unsigned file or export), editor, mcp, or unknown (stored before 1.20)."
+        description = "List the release-page rules that turn a link on a page into the files behind it: every rule of this installation, with its group, whether each is switched on, and whether it is active (a rule in a switched-off group is on but not active), its `description`, and its `origin`: kind import (an imported export file), editor, mcp, example (one of the examples for free sites the app brings, switched off at first), or unknown (stored before 1.20, or from the signed file of 1.20 to 1.22). Rules carry no signature; an export file brings each rule with its switch."
     )]
     pub async fn list_site_rules(&self) -> McpToolResult {
         respond(

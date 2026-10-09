@@ -84,7 +84,8 @@
     "remote_jobs_cleared": "Liste des travaux distants vidée",
     "token_limits_changed": "Limites du jeton modifiées",
     "proxy_profile_changed": "Profil de proxy modifié",
-    "remote_credential_changed": "Accès distant modifié"
+    "remote_credential_changed": "Accès distant modifié",
+    "site_rules_cleared": "Toutes les règles de site supprimées"
   },
   "list": {
     "title": "Entrées",

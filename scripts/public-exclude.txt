@@ -18,3 +18,9 @@ docs/
 AGENTS.md
 CLAUDE.md
 .claude/
+
+# The owner's own site rules and their recorded pages (RD-1230-03): the project ships no rules for
+# content sites, only the example list for free sites inside rd-siterules. The script that writes
+# the owner's rules as an export file goes with them.
+private/
+scripts/owner-site-rules.sh

@@ -7,7 +7,6 @@
     "clear_completed": "Retirer les paquets terminés",
     "clear_failed": "Supprimer les paquets en échec + fichiers",
     "clear_all": "Retirer tous les paquets arrêtés",
-    "selection_count": "{count} sélectionné(s)",
     "select_all_hint": "Sélectionner tous les fichiers",
     "clear_everything": "Vider toute la liste"
   },

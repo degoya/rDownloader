@@ -7,7 +7,6 @@
     "clear_completed": "Quitar paquetes completados",
     "clear_failed": "Eliminar paquetes fallidos + archivos",
     "clear_all": "Quitar todos los paquetes detenidos",
-    "selection_count": "{count} seleccionados",
     "select_all_hint": "Seleccionar todos los archivos",
     "clear_everything": "Vaciar la lista entera"
   },

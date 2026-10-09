@@ -15,23 +15,11 @@ impl Database {
 
     /// Writes a user rule, replacing an earlier one of the same id.
     ///
-    /// The body is stored as given: the caller has parsed it through `rd_siterules::Rule`
-    /// and checked its id against the shipped pack before it arrives here.
+    /// The body is stored as given: the caller has parsed and validated it through
+    /// `rd_siterules::Rule` before it arrives here.
     pub async fn upsert_site_rule(&self, input: NewUserSiteRule) -> Result<UserSiteRule> {
         writer::request(&self.writer, |reply| ConfigCommand::UpsertSiteRule {
             input,
-            reply,
-        })
-        .await
-    }
-
-    /// Records that a signed rule file of `sequence` from `signer` was accepted and returns
-    /// the highest sequence accepted from that signer before (RD-1200-05). The mark only rises;
-    /// the caller refuses a file whose sequence is below the answer.
-    pub async fn record_site_rule_pack(&self, signer: &str, sequence: u64) -> Result<Option<u64>> {
-        writer::request(&self.writer, |reply| ConfigCommand::RecordSiteRulePack {
-            signer: signer.to_owned(),
-            sequence,
             reply,
         })
         .await
@@ -41,6 +29,15 @@ impl Database {
     pub async fn delete_site_rule(&self, id: &str) -> Result<bool> {
         writer::request(&self.writer, |reply| ConfigCommand::DeleteSiteRule {
             id: id.to_owned(),
+            reply,
+        })
+        .await
+    }
+
+    /// Removes every user rule and every self-test result; returns how many rules went. The
+    /// group switches stay (RD-1230-03).
+    pub async fn delete_all_site_rules(&self) -> Result<u64> {
+        writer::request(&self.writer, |reply| ConfigCommand::DeleteAllSiteRules {
             reply,
         })
         .await

@@ -19,6 +19,9 @@ use crate::{
 /// Longest display name a rule may carry.
 pub const MAX_NAME_LENGTH: usize = 120;
 
+/// Longest description a rule may carry (RD-1230-03).
+pub const MAX_DESCRIPTION_LENGTH: usize = 2000;
+
 /// One rule for one service.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -27,6 +30,10 @@ pub struct Rule {
     pub id: String,
     /// What the interface shows.
     pub name: String,
+    /// What the rule does and how it is built, in the author's words (RD-1230-03): the example
+    /// rules explain their steps here. Absent when the author wrote none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     /// `board`, `paste`, `adult`, ...: what the interface groups and switches by.
     pub group: String,
     /// The rule's own revision, from 1. Bumped when the rule changes, so a user rule that
@@ -53,14 +60,14 @@ pub struct Rule {
     /// with [`Self::groups`] instead.
     ///
     /// Absent in every rule written before this existed, and absent in the serialized form
-    /// when false, so a pack signed before it stays byte-identical and keeps its signature.
+    /// when false, so a rule written before it stays byte-identical.
     #[serde(default, skip_serializing_if = "is_false")]
     pub mirrors: bool,
     /// One package per entry of a list, each with its own name and its own mirrors
     /// (RD-1170-02) -- the shape `mirrors` above cannot describe. See [`crate::groups`].
     ///
     /// Absent in every rule written before this existed, and absent in the serialized form
-    /// when absent, so a pack signed before it stays byte-identical and keeps its signature.
+    /// when absent, so a rule written before it stays byte-identical.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub groups: Option<Groups>,
     /// A real address the self-test (RD-110-09) fetches. Must be one this rule claims.
@@ -109,6 +116,8 @@ pub enum RuleError {
     Id(String),
     #[error("rule name is empty or longer than 120 characters")]
     Name,
+    #[error("rule description is longer than 2000 characters")]
+    Description,
     #[error("group {0:?} is not lowercase kebab-case of at most 32 characters")]
     Group(String),
     #[error("rule version must be at least 1")]
@@ -159,6 +168,13 @@ impl Rule {
         }
         if self.name.trim().is_empty() || self.name.chars().count() > MAX_NAME_LENGTH {
             return Err(RuleError::Name);
+        }
+        if self
+            .description
+            .as_ref()
+            .is_some_and(|text| text.chars().count() > MAX_DESCRIPTION_LENGTH)
+        {
+            return Err(RuleError::Description);
         }
         if !is_slug(&self.group, MAX_GROUP_LENGTH) {
             return Err(RuleError::Group(self.group.clone()));

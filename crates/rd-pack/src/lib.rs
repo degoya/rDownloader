@@ -1,7 +1,7 @@
-//! The publishing half of the command line: plugin packages, their index, the site-rule file, the
-//! application update manifest and the tool manifest.
+//! The publishing half of the command line: plugin packages, their index, the application update
+//! manifest and the tool manifest.
 //!
-//! `rdownloader plugin …`, `site-rules …`, `update …` and `tools …` call these commands, and so
+//! `rdownloader plugin …`, `update …` and `tools …` call these commands, and so
 //! does the `rd-pack` binary built from this crate (RD-150-20). `scripts/build-plugins.sh` used to build
 //! the whole service in the release profile — `rd-api` on one core, then one thin-LTO link —
 //! only to call `plugin package` on it; `rd-pack` depends on the plugin host and the trust
@@ -12,6 +12,5 @@
 
 pub mod plugin;
 pub mod plugin_index;
-pub mod site_rules;
 pub mod tools_manifest;
 pub mod update_manifest;

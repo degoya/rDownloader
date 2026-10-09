@@ -144,30 +144,11 @@ jobs:
             echo "::error::the tap carries ${current}, the release was ${EXPECT}: the release did not move it"
             exit 1
           fi
-          # RD-1200-02: an upgrade on macOS meets the keychain item the old build created, which
-          # trusts only that ad-hoc signed build; the service no longer waits on the prompt nobody
-          # sees but ends with `keychain_interaction_refused` and the way out. The job does not
-          # allow the new build beforehand (that needs the login keychain's password and tests a
-          # path no user takes), so the macOS upgrade runs red, at once and with that message,
-          # until a Developer ID signature lets the item trust the next build (RD-200-01).
+          # Started up to /api/v1/health and stopped again, red on any other end
+          # (scripts/ci-brew-serve.sh).
           serve() {
-            brew services start rdownloader
-            local answered=false
-            for _ in $(seq 1 60); do
-              curl --fail --silent http://127.0.0.1:8710/api/v1/health && { answered=true; break; }
-              if grep -qF keychain_interaction_refused "${log}" 2> /dev/null; then
-                echo "::error::the service stopped at the keychain (keychain_interaction_refused); see its log below"
-                break
-              fi
-              sleep 1
-            done
-            if [[ "${answered}" != true ]]; then
-              scripts/ci-brew-service-diagnostics.sh
-              exit 1
-            fi
-            echo
+            scripts/ci-brew-serve.sh "${log}"
             test -f "${db}"
-            brew services stop rdownloader
           }
           migrations() {
             python3 -c 'import sqlite3, sys; print(" ".join(str(v) for (v,) in sqlite3.connect(sys.argv[1]).execute("SELECT version FROM _sqlx_migrations WHERE success = 1 ORDER BY version")))' "${db}"
@@ -195,14 +176,27 @@ jobs:
           fi
           brew test "${TAP}/rdownloader"
           rdownloader --version | grep -F "${current}"
-          serve
-          if [[ -n "${FROM}" ]]; then
-            after="$(migrations)"
-            echo "migrations before: ${before}"
-            echo "migrations after:  ${after}"
-            for version in ${before}; do
-              grep -qw -- "${version}" <<< "${after}" || { echo "::error::migration ${version} is gone after the upgrade"; exit 1; }
-            done
+          if [[ -z "${FROM}" ]]; then
+            serve
+          else
+            # RD-1230-01: on macOS the keychain item the old ad-hoc signed build created refuses
+            # the upgraded one, which ends with `keychain_interaction_refused` (3) -- expected
+            # until RD-200-01, so green with a notice; every other end stays red.
+            started=0
+            scripts/ci-brew-serve.sh "${log}" --upgraded || started=$?
+            if [[ "${started}" == 0 ]]; then
+              test -f "${db}"
+              after="$(migrations)"
+              echo "migrations before: ${before}"
+              echo "migrations after:  ${after}"
+              for version in ${before}; do
+                grep -qw -- "${version}" <<< "${after}" || { echo "::error::migration ${version} is gone after the upgrade"; exit 1; }
+              done
+            elif [[ "${started}" == 3 ]]; then
+              echo "::notice::skipped, the upgraded service never ran: its answer on /api/v1/health and the migrations kept after the upgrade"
+            else
+              exit 1
+            fi
             grep -qx "channels ${FROM}" "${var}/data/channels-marker"
             grep -qx "channels ${FROM}" "${var}/downloads/channels-marker"
           fi

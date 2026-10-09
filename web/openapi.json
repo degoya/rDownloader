@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.22.0"
+    "version": "1.23.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -14859,12 +14859,79 @@
         }
       }
     },
+    "/api/v1/site-rules/clear": {
+      "post": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Deletes every stored rule with its self-test result; the group switches stay.",
+        "description": "The confirmation is a value as well as the dialog's question, as with every clear\n(`data_reset_handlers`): a client that never drew the question still has to say it. The act\ngoes into the audit log with the number of rules it removed.",
+        "operationId": "clear_site_rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteRulesClearRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRulesClearResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "site_rules.not_confirmed"
+          }
+        }
+      }
+    },
+    "/api/v1/site-rules/examples": {
+      "post": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Writes the examples the app brings again, switched off, for every one whose id no stored\nrule carries; an example somebody kept and changed stays as it is.",
+        "operationId": "restore_site_rule_examples",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRuleExamplesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/site-rules/export": {
       "get": {
         "tags": [
           "configuration"
         ],
         "operationId": "export_site_rules",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "description": "Rule ids separated by commas; every rule when absent. An id no rule carries is skipped.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -14902,6 +14969,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportSiteRulesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/site-rules/import/preview": {
+      "post": {
+        "tags": [
+          "configuration"
+        ],
+        "operationId": "preview_site_rule_import",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteRuleDocument"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteRuleImportPreviewResponse"
                 }
               }
             }
@@ -18246,7 +18343,8 @@
           "remote_jobs_cleared",
           "token_limits_changed",
           "proxy_profile_changed",
-          "remote_credential_changed"
+          "remote_credential_changed",
+          "site_rules_cleared"
         ]
       },
       "AuditActorKind": {
@@ -26811,25 +26909,27 @@
       },
       "ImportSiteRulesResponse": {
         "type": "object",
-        "description": "The result of an import: every rule, and how many were stored switched off.",
+        "description": "The result of an import: every rule of the file, and how many were written.",
         "required": [
           "rules",
           "stored",
-          "signed"
+          "replaced"
         ],
         "properties": {
+          "replaced": {
+            "type": "integer",
+            "description": "Stored rules the file replaced.",
+            "minimum": 0
+          },
           "rules": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ImportedSiteRuleResponse"
             }
           },
-          "signed": {
-            "type": "boolean",
-            "description": "Whether the file was the signed one and its signature held."
-          },
           "stored": {
             "type": "integer",
+            "description": "Rules that were new here.",
             "minimum": 0
           }
         }
@@ -26898,10 +26998,12 @@
       },
       "ImportedSiteRuleResponse": {
         "type": "object",
-        "description": "What became of one rule in an import.",
+        "description": "What became of one rule of the file, or what would become of it.",
         "required": [
           "id",
           "name",
+          "hosts",
+          "enabled",
           "status"
         ],
         "properties": {
@@ -26912,6 +27014,17 @@
             ],
             "description": "Why it was refused, as a stable code."
           },
+          "enabled": {
+            "type": "boolean",
+            "description": "The switch the rule carries in the file."
+          },
+          "hosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The hosts the rule claims; empty for a body that does not read."
+          },
           "id": {
             "type": "string",
             "description": "The rule's id, or the empty string when the body carries none this build can read."
@@ -26921,7 +27034,7 @@
           },
           "status": {
             "type": "string",
-            "description": "`stored` or `refused`."
+            "description": "The preview answers `new`, `replaces` (a stored rule of the same id differs), `same` (a\nstored rule is identical, switch included) or `refused`; the import `stored`,\n`replaced`, `kept` (a stored rule of the same id was not to be replaced), `same` or\n`refused`."
           }
         }
       },
@@ -37797,25 +37910,6 @@
           "failed"
         ]
       },
-      "SignedSiteRuleFile": {
-        "type": "object",
-        "description": "The signed rule file every release carries (RD-130-07): an `rd_sign` envelope over a\nrule pack.\n\nDescribed here for the contract only. The import reads the request's bytes itself,\nbecause the signature covers the payload exactly as it arrived and a parsed and\nre-serialised copy would no longer be what was signed.",
-        "required": [
-          "payload",
-          "signatures"
-        ],
-        "properties": {
-          "payload": {
-            "description": "The rule pack as signed: `format_version`, `sequence`, `issued_at` and `rules`."
-          },
-          "signatures": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SiteRuleFileSignature"
-            }
-          }
-        }
-      },
       "SiteRuleCheckResponse": {
         "type": "object",
         "description": "What the last self-test said about one rule (RD-110-09).",
@@ -37852,7 +37946,7 @@
       },
       "SiteRuleDocument": {
         "type": "object",
-        "description": "The exchange format of the export and the unsigned import: the person's own rules and\nnothing else.\n\nDeliberately not a `RulePack`: a pack is a signed document under its own trust root, and a\nfile somebody was sent is not one. Calling it a pack would invite the two to be confused\nat exactly the boundary where the difference matters -- which is why the import tells the\ntwo apart by the envelope, never by what the payload claims (RD-130-07).",
+        "description": "The exchange file the export writes and the import reads (RD-1230-03): the person's rules,\neach with its switch, and nothing else. No signature: what protects the importing side is the\npreview, the question before a rule is replaced, the full rule check and the executor's own\nbolts (`docs/security/site-rules.md`).",
         "required": [
           "format_version",
           "rules"
@@ -37861,36 +37955,44 @@
           "format_version": {
             "type": "integer",
             "format": "int32",
-            "description": "The rule format these bodies are written in; `1` is what this build reads.",
+            "description": "The layout of this file; `2` is what this build writes and reads.",
             "minimum": 0
           },
           "rules": {
             "type": "array",
-            "items": {},
-            "description": "The rule bodies, as `rd_siterules::Rule` serialises them."
+            "items": {
+              "$ref": "#/components/schemas/SiteRuleDocumentEntry"
+            }
           }
         }
       },
-      "SiteRuleFileSignature": {
+      "SiteRuleDocumentEntry": {
         "type": "object",
-        "description": "One signature of a [`SignedSiteRuleFile`], as `rd_sign::DocumentSignature` writes it.",
+        "description": "One rule of the exchange file.",
         "required": [
-          "key_id",
-          "algorithm",
-          "signature"
+          "rule"
         ],
         "properties": {
-          "algorithm": {
-            "type": "string",
-            "description": "Always `ed25519`."
+          "enabled": {
+            "type": "boolean",
+            "description": "The rule's switch where it was exported; the import stores it as it is."
           },
-          "key_id": {
-            "type": "string",
-            "description": "The trusted key the signature claims, `rdownloader-siterules-v1` for the project's file."
-          },
-          "signature": {
-            "type": "string",
-            "description": "Base64 of the raw 64-byte signature."
+          "rule": {
+            "description": "The rule body, as `rd_siterules::Rule` serialises it."
+          }
+        }
+      },
+      "SiteRuleExamplesResponse": {
+        "type": "object",
+        "description": "What restoring the example list wrote.",
+        "required": [
+          "restored"
+        ],
+        "properties": {
+          "restored": {
+            "type": "integer",
+            "description": "Examples written again, switched off; an example whose id a stored rule carries is left\nas it is.",
+            "minimum": 0
           }
         }
       },
@@ -37916,43 +38018,50 @@
           }
         }
       },
-      "SiteRuleImportRequest": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/SignedSiteRuleFile"
-          },
-          {
-            "$ref": "#/components/schemas/SiteRuleDocument"
-          }
+      "SiteRuleImportPreviewResponse": {
+        "type": "object",
+        "description": "What an import would do, before anything is stored.",
+        "required": [
+          "rules"
         ],
-        "description": "What the import accepts: the signed file of a release, or an export of somebody's own\nrules. A body carrying `signatures` is read as the first and nothing else."
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedSiteRuleResponse"
+            }
+          }
+        }
+      },
+      "SiteRuleImportRequest": {
+        "type": "object",
+        "description": "What the import takes: the file, and which of the stored rules it may replace.",
+        "required": [
+          "document"
+        ],
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/SiteRuleDocument"
+          },
+          "replace": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ids of stored rules the person agreed to replace. A rule of the file whose id is stored\nand not named here is left as it is (`kept`)."
+          }
+        }
       },
       "SiteRuleOriginResponse": {
         "type": "object",
-        "description": "Where a rule came from (RD-1200-05).",
+        "description": "Where a rule came from (RD-1200-05, RD-1230-03).",
         "required": [
           "kind"
         ],
         "properties": {
           "kind": {
             "type": "string",
-            "description": "`signed` (the signed release file), `import` (an unsigned file or a pasted export),\n`editor`, `mcp`, or `unknown` for a rule stored before 1.20."
-          },
-          "sequence": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "description": "The signed file's sequence, for `signed` only.",
-            "minimum": 0
-          },
-          "signer": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "The key whose signature held, for `signed` only."
+            "description": "`import` (an imported exchange file), `editor`, `mcp`, `example` (one of the examples the\napp brings), or `unknown` for a rule stored before 1.20 or from the signed file of 1.20 to\n1.22."
           }
         }
       },
@@ -37987,6 +38096,13 @@
                 "type": "null"
               }
             ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the rule does and how it is built, as its author wrote it (RD-1230-03)."
           },
           "enabled": {
             "type": "boolean",
@@ -38042,6 +38158,31 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          }
+        }
+      },
+      "SiteRulesClearRequest": {
+        "type": "object",
+        "description": "Deleting every site rule (RD-1230-03).",
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "description": "`true`, or the request is refused with `site_rules.not_confirmed`."
+          }
+        }
+      },
+      "SiteRulesClearResponse": {
+        "type": "object",
+        "description": "What deleting every site rule removed.",
+        "required": [
+          "removed"
+        ],
+        "properties": {
+          "removed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many rules went; their self-test results went with them.",
+            "minimum": 0
           }
         }
       },

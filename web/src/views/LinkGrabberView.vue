@@ -7,13 +7,16 @@ import { useRoute, useRouter } from 'vue-router'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import CollectorCandidateRow from '@/components/CollectorCandidateRow.vue'
 import CollectorHosterFilter from '@/components/CollectorHosterFilter.vue'
+import CollectorListFilters from '@/components/CollectorListFilters.vue'
 import CollectorPackageGroup from '@/components/CollectorPackageGroup.vue'
 import DataState from '@/components/DataState.vue'
 import IndexerReviewList from '@/components/IndexerReviewList.vue'
-import IndexerSearchPanel from '@/components/IndexerSearchPanel.vue'
+import IndexerSearchDrawer from '@/components/IndexerSearchDrawer.vue'
+import LinkGrabberNavbar from '@/components/LinkGrabberNavbar.vue'
 import NzbHistoryModal from '@/components/NzbHistoryModal.vue'
 import NzbImportGroup from '@/components/NzbImportGroup.vue'
 import QueueColumnHeader from '@/components/QueueColumnHeader.vue'
+import QueueListBar from '@/components/QueueListBar.vue'
 import SiteRulePickPanel from '@/components/SiteRulePickPanel.vue'
 import VirtualRowList from '@/components/VirtualRowList.vue'
 import { setLinkGrabberActions } from '@/composables/linkGrabberActions'
@@ -41,7 +44,7 @@ import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { usePublishedSelection } from '@/stores/selection'
 import { sharedText } from '@/utils/sharedLinks'
-import { SORT_OPTIONS, type CollectorSort } from '@/utils/collectorSort'
+import type { CollectorSort } from '@/utils/collectorSort'
 
 const collector = useCollectorStore()
 const nzb = useNzbImportsStore()
@@ -57,17 +60,13 @@ const bulkBusy = ref(false)
 const sort = ref<CollectorSort>('manual')
 const descending = ref(false)
 /** The facets, the state filter and the hidden hosters (RD-110-19, RD-130-21). */
-const {
-  hosterFilter, qualityFilter, languageFilter, stateFilter, facetBusy, hiddenHosters,
-  facetFilterActive, filterActive, hosterItems, qualityItems, languageItems, stateItems, clearFilters
-} = useGrabberFacets()
+const facets = useGrabberFacets()
+const { stateFilter, facetBusy, hiddenHosters, filterActive } = facets
 
 /** Which groups are showing their other mirrors; closed is the default, as any expansion is. */
 const openMirrors = useOpenSections({ defaultOpen: false })
 /** Why a reorder did not happen. Shown instead of the silent `return` it used to be. */
 const notice = ref<string | null>(null)
-
-const sortItems = computed(() => SORT_OPTIONS.map(option => ({ label: t(option.labelKey), value: option.value })))
 
 /** Which packages are open, remembered per browser; "all" is what the filters show (RD-1170-01). */
 const openPackages = usePackageOpenState('linkgrabber', { known: () => collector.packages.map(pkg => pkg.id), shown: () => groups.value.map(group => group.package.id) })
@@ -80,6 +79,16 @@ const { groups, visibleLinks, nzbGroups, entries, rows, orderedSelectionKeys } =
 const selection = useGrabberSelection(entries, orderedSelectionKeys)
 // How much is ticked, shown in the status bar while this view is open (RD-170-14).
 usePublishedSelection(selection.size)
+/** "4 links in 3 packages · 1 NZB import": the tooltip of both selection counts (RD-1230-02). */
+const selectionDetail = computed(() => {
+  const links = selection.collectorIds.value
+  const packages = new Set(collector.candidates.filter(candidate => selection.collectorIdSet.value.has(candidate.id)).map(candidate => candidate.package_id)).size
+  const nzbs = selection.nzbIds.value.length
+  const parts = links.length ? [t('common.selection.detail', { items: t('common.units.link', { count: links.length }, links.length), packages: t('common.units.package', { count: packages }, packages) })] : []
+  return [...parts, ...(nzbs ? [t('linkgrabber.selection_nzbs', { count: nzbs }, nzbs)] : [])].join(' · ')
+})
+/** The navbar button and `f` open the indexer search (RD-1230-02). */
+const indexerSearch = ref<{ openSearch: () => Promise<void> } | null>(null)
 
 /** The data columns' widths, set on the container of the header row and the rows (RD-191-11). */
 const columns = useQueueColumns('linkgrabber')
@@ -256,98 +265,31 @@ function openNzbHistory(): void {
   void nzb.refresh()
   nzbHistoryModal.open()
 }
-
-/*
- * The navbar measures its own width (`@container`), not the window's: beside the sidebar the
- * labelled row needs about 1200 px, and below that it ran over the title and the sidebar toggle;
- * on a phone it ran off the screen. So the key hints go first, then the labels — every button
- * keeps its name as `aria-label` and `title` — and on a phone what is neither adding nor
- * enqueuing moves into one menu, its keys shown there.
- */
-const NAV_KBD = 'hidden @min-[80rem]:inline-flex'
-const NAV_LABEL = { label: 'hidden @min-[70rem]:inline' }
-const NAV_WIDE = 'hidden @min-[40rem]:inline-flex'
-const navbarMenu = computed(() => [[
-  { label: t('linkgrabber.actions.import_files'), icon: 'i-lucide-file-up', kbds: ['n'], onSelect: () => { void importFiles() } },
-  { label: t('linkgrabber.nzb.history.title'), icon: 'i-lucide-history', onSelect: openNzbHistory },
-  { label: t('linkgrabber.actions.check_links'), icon: 'i-lucide-radar', disabled: !collector.candidates.length || (filterActive.value && !visibleLinks.value), onSelect: checkVisible },
-  { label: t('linkgrabber.actions.enqueue_paused'), icon: 'i-lucide-pause', kbds: ['w'], disabled: !entries.value.length || checking.value, onSelect: () => { void enqueueAll(true) } }
-], [
-  { label: t('linkgrabber.actions.clear_all'), icon: 'i-lucide-list-x', color: 'error' as const, kbds: ['r'], disabled: !entries.value.length, onSelect: () => { void clearAll() } }
-]])
 </script>
 
 <template>
   <UDashboardPanel id="linkgrabber">
     <template #header>
-      <UDashboardNavbar :title="t('linkgrabber.title')" :ui="{ root: '@container' }">
-        <template #leading><UDashboardSidebarCollapse /></template>
-        <template #right>
-          <div data-tour="grabber-add" class="flex items-center gap-2">
-          <UButton icon="i-lucide-plus" :label="t('linkgrabber.actions.add_links')" :aria-label="t('linkgrabber.actions.add_links')" :title="t('linkgrabber.actions.add_links')" :ui="NAV_LABEL" color="neutral" variant="outline" @click="addLinks">
-            <template #trailing><UKbd value="a" :class="NAV_KBD" /></template>
-          </UButton>
-          <UButton icon="i-lucide-file-up" :label="t('linkgrabber.actions.import_files')" :aria-label="t('linkgrabber.actions.import_files')" :title="t('linkgrabber.actions.import_files')" :ui="NAV_LABEL" :class="NAV_WIDE" color="neutral" variant="outline" :loading="importingFiles || nzb.pending" @click="() => importFiles()">
-            <template #trailing><UKbd value="n" :class="NAV_KBD" /></template>
-          </UButton>
-          <UButton icon="i-lucide-history" :class="NAV_WIDE" color="neutral" variant="outline" :aria-label="t('linkgrabber.nzb.history.title')" :title="t('linkgrabber.nzb.history.title')" @click="openNzbHistory" />
-          <UButton icon="i-lucide-radar" :label="t('linkgrabber.actions.check_links')" :aria-label="t('linkgrabber.actions.check_links')" :title="t('linkgrabber.actions.check_links')" :ui="NAV_LABEL" :class="NAV_WIDE" color="neutral" variant="outline" :loading="checking" :disabled="!collector.candidates.length || (filterActive && !visibleLinks)" @click="checkVisible" />
-          <!-- The one solid button in this bar. Getting the reviewed links into the queue is what
-               the LinkGrabber is for; adding and importing are how they arrive, and they read as
-               the neutral pair they belong to. As `soft` beside a solid "Add links" this sat
-               below the action that only fills the list it is meant to empty. -->
-          <UButton icon="i-lucide-list-end" :label="t('linkgrabber.actions.enqueue_all')" :aria-label="t('linkgrabber.actions.enqueue_all')" :title="t('linkgrabber.actions.enqueue_all')" :ui="NAV_LABEL" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(false)">
-            <template #trailing><UKbd value="e" :class="NAV_KBD" /></template>
-          </UButton>
-          <UButton icon="i-lucide-pause" :label="t('linkgrabber.actions.enqueue_paused')" :aria-label="t('linkgrabber.actions.enqueue_paused')" :ui="NAV_LABEL" :class="NAV_WIDE" color="neutral" variant="outline" :title="t('linkgrabber.actions.enqueue_paused_hint')" :disabled="!entries.length || checking" :loading="collector.pending" @click="enqueueAll(true)">
-            <template #trailing><UKbd value="w" :class="NAV_KBD" /></template>
-          </UButton>
-          <UButton icon="i-lucide-list-x" :label="t('linkgrabber.actions.clear_all')" :aria-label="t('linkgrabber.actions.clear_all')" :title="t('linkgrabber.actions.clear_all')" :ui="NAV_LABEL" :class="NAV_WIDE" color="error" variant="soft" :disabled="!entries.length" @click="clearAll">
-            <template #trailing><UKbd value="r" :class="NAV_KBD" /></template>
-          </UButton>
-          <UDropdownMenu :items="navbarMenu">
-            <UButton icon="i-lucide-ellipsis" class="@min-[40rem]:hidden" color="neutral" variant="outline" :aria-label="t('linkgrabber.actions.more')" :title="t('linkgrabber.actions.more')" data-testid="linkgrabber-more" />
-          </UDropdownMenu>
-          </div>
-        </template>
-      </UDashboardNavbar>
-      <!-- The facets wrap onto a second row where the panel is too narrow for them, rather than
-           squeezing "Select all" onto two lines or scrolling the count out of view (RD-120-48). -->
-      <UDashboardToolbar :ui="{ root: 'flex-wrap gap-y-1.5 py-1.5', left: 'min-w-0 flex-auto flex-wrap', right: 'ms-auto flex-wrap' }">
-        <template #left>
-          <UCheckbox
-            :model-value="selection.state.value === 'all' ? true : selection.state.value === 'some' ? 'indeterminate' : false"
-            :disabled="!entries.length"
-            :label="selection.count.value ? t('linkgrabber.selection_count', { count: selection.count.value }) : t('common.actions.select_all')"
-            :aria-label="t('linkgrabber.select_all_hint')"
-            :ui="{ root: 'shrink-0', label: 'whitespace-nowrap' }"
-            @update:model-value="selection.toggleAll()"
-          />
-          <UButton :icon="openPackages.allOpen.value ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'" color="neutral" variant="ghost" :aria-label="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :title="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :disabled="!groups.length" data-testid="packages-open-toggle" @click="openPackages.toggleAll" />
-          <USelect v-model="sort" :items="sortItems" value-key="value" class="w-40" :aria-label="t('linkgrabber.sort.label')" />
-          <UButton :icon="descending ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'" color="neutral" variant="ghost" :aria-label="descending ? t('linkgrabber.sort.descending') : t('linkgrabber.sort.ascending')" :disabled="sort === 'manual'" @click="descending = !descending" />
-          <!-- The three facets. Inside a mirror group they choose the member the queue will
-               fetch; outside one they hide what cannot satisfy them, and they stay set for the
-               next package (RD-110-19, `design.md`). -->
-          <USelect v-model="qualityFilter" :items="qualityItems" value-key="value" class="w-36" :disabled="facetBusy" :aria-label="t('linkgrabber.filter.quality_label')" :title="t('linkgrabber.filter.facet_hint')" />
-          <USelect v-model="languageFilter" :items="languageItems" value-key="value" class="w-36" :disabled="facetBusy" :aria-label="t('linkgrabber.filter.language_label')" :title="t('linkgrabber.filter.facet_hint')" />
-          <USelect v-model="hosterFilter" :items="hosterItems" value-key="value" class="w-44" :disabled="facetBusy" :aria-label="t('linkgrabber.filter.hoster_label')" :title="t('linkgrabber.filter.facet_hint')" />
-          <USelect v-model="stateFilter" :items="stateItems" value-key="value" class="w-36" :aria-label="t('linkgrabber.filter.state_label')" />
-          <UButton v-if="facetFilterActive" icon="i-lucide-filter-x" color="neutral" variant="ghost" size="sm" :disabled="facetBusy" :aria-label="t('linkgrabber.filter.clear')" :title="t('linkgrabber.filter.clear')" @click="clearFilters" />
-          <UButton icon="i-lucide-group" :label="t('linkgrabber.actions.regroup')" color="neutral" variant="ghost" size="sm" @click="collector.regroup()" />
-        </template>
-        <template #right>
-          <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" :ui="{ label: 'whitespace-nowrap' }" data-testid="show-metadata" />
-          <span class="numeric whitespace-nowrap text-xs text-muted">{{ t('common.units.package', { count: entries.length }, entries.length) }} · {{ filterActive ? t('linkgrabber.filter.count', { visible: visibleLinks, total: collector.candidates.length }) : t('common.units.link', { count: collector.candidates.length }, collector.candidates.length) }}</span>
-          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :aria-label="t('common.actions.refresh')" @click="collector.refresh" />
-        </template>
-      </UDashboardToolbar>
+      <LinkGrabberNavbar
+        :importing="importingFiles || nzb.pending"
+        :checking="checking"
+        :can-check="!!collector.candidates.length && !(filterActive && !visibleLinks)"
+        :has-entries="!!entries.length"
+        :enqueuing="collector.pending"
+        @add="addLinks"
+        @import="importFiles()"
+        @history="openNzbHistory"
+        @search="indexerSearch?.openSearch()"
+        @check="checkVisible"
+        @enqueue="(paused: boolean) => enqueueAll(paused)"
+        @clear-all="clearAll"
+      />
     </template>
 
     <template #body>
       <div data-tour="grabber-body" class="flex w-full flex-col gap-4">
-        <!-- Always shown, disabled with a hint until an indexer is enabled; `f` focuses it (RD-180-19). -->
-        <IndexerSearchPanel />
+        <!-- Behind the navbar button and `f` (RD-1230-02); without an indexer it says where to add one. -->
+        <IndexerSearchDrawer ref="indexerSearch" />
         <UAlert v-if="collector.error" color="error" :description="collector.error" />
         <UAlert v-if="nzb.error" color="error" :description="nzb.error" />
         <UAlert v-if="notice" color="info" icon="i-lucide-info" :description="notice" />
@@ -360,137 +302,163 @@ const navbarMenu = computed(() => [[
           @toggle="(hoster: string, hide: boolean) => void hiddenHosters.setHidden(hoster, hide)"
           @show-all="hiddenHosters.showAll()"
         />
-        <BulkActionBar
-          v-if="selection.count.value"
-          :count="selection.count.value"
-          :categories="categories"
-          :busy="bulkBusy"
-          :package-actions-disabled="!selection.count.value"
-          :level-disabled="!selection.collectorIds.value.length"
-          @category="(categoryId) => applyToSelection({ categoryId })"
-          @priority="(priority) => applyToSelection({ priority })"
-          @postprocess="(level) => setSelectionPostprocessLevel(level)"
-          @enqueue="enqueueSelected()"
-          @enqueue-paused="enqueueSelected(true)"
-          @remove="removeSelected"
-          @clear="selection.clear()"
-        >
-          <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" @click="revealSelection" />
-          <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-folder-input" :label="t('linkgrabber.actions.move_to_new_package')" :disabled="!selection.collectorIds.value.length" :loading="bulkBusy" @click="moveSelected" />
-          <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-file-down" :label="t('common.export.action')" :disabled="!selection.collectorIds.value.length" data-testid="grabber-export" @click="exportPackages({ collectorPackageIds: selection.collectorIds.value })" />
-          <UDropdownMenu v-if="selection.nzbIds.value.length && nzbHandOver.targets.value.length" :items="nzbHandOver.menuItems(handOverIds)">
-            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-cloud-upload" :label="t('linkgrabber.nzb.hand_over.action')" :title="t('linkgrabber.nzb.hand_over.hint')" :disabled="!handOverIds().length" data-testid="grabber-hand-over" />
-          </UDropdownMenu>
-          <span v-if="removeProgress" class="numeric text-xs text-muted" role="status" data-testid="grabber-remove-progress">
-            {{ t('linkgrabber.bulk.removing', { done: removeProgress.done, total: removeProgress.total }) }}
-          </span>
-        </BulkActionBar>
-        <!--
-          One flattened stream of rows through the shared list block: package headers, the links
-          of the open ones, and the reviewed NZB imports between them. The capture-phase handlers
-          read the shift key before a checkbox reports its new value (RD-106-12).
-        -->
-        <div v-if="rows.length" :style="columns.style.value">
-        <QueueColumnHeader
-          :widths="columns.widths.value"
-          view="linkgrabber"
-          :gutter="rows.length > DEFAULT_THRESHOLD"
-          :customized="columns.customized.value"
-          @resize="columns.setWidth"
-          @reset="columns.reset"
-          @reset-all="columns.resetAll"
-        />
-        <VirtualRowList
-          ref="grabberList"
-          :rows="rows"
-          :label="t('linkgrabber.list.aria', { count: rows.length })"
-          @click.capture="selection.noteModifier"
-          @keydown.capture="selection.noteModifier"
-        >
-          <template #row="{ row }">
-            <CollectorPackageGroup
-              v-if="row.kind === 'package'"
-              :package="row.entry.package"
-              :candidates="row.entry.candidates"
-              :categories="categories"
-              :selected-ids="selection.collectorIdSet.value"
-              :enqueuing-ids="collector.enqueuingIds"
-              :dragging="draggingEntry === grabberKey('collector', row.entry.id)"
-              :open="openPackages.isOpen(row.entry.id)"
-              @select="(_ids: string[], value: boolean) => selection.pickPackage(row.entry.id, value)"
-              @toggle="openPackages.toggle"
-              @open-all="openPackages.openAll"
-              @close-all="openPackages.closeAll"
-              @category="(id, categoryId) => setCategory([id], categoryId)"
-              @priority="(id, value) => setPriority([id], value)"
-              @rename="editPackageDialog"
-              @enqueue="enqueuePackage"
-              @enqueue-paused="(id: string) => enqueuePackage(id, true)"
-              @remove="removePackage"
-              @copy-links="copyPackageLinks"
-              @export="(id: string) => exportPackages({ collectorPackageIds: [id] })"
-              @dragstart="(id: string) => draggingEntry = grabberKey('collector', id)"
-              @drop="dropOnPackage"
-              @move="(id: string, delta: -1 | 1) => moveEntry('collector', id, delta)"
-            />
-            <CollectorCandidateRow
-              v-else-if="row.kind === 'candidate'"
-              :class="linkFrame(row.entry)"
-              :candidate="row.candidate"
-              :hide-metadata="!showMetadata"
-              :selected="selection.collectorIdSet.value.has(row.candidate.id)"
-              :busy="collector.enqueuingIds.has(row.candidate.id)"
-              :mirror-group="row.group ?? null"
-              :mirror-open="row.group ? openMirrors.isOpen(row.group.key) : false"
-              :mirror-member="row.member === true"
-              @toggle-mirror="openMirrors.toggle"
-              @choose-mirror="(id: string, chosen: boolean) => void collector.chooseMirror(id, chosen)"
-              @dissolve-mirror="dissolveMirror"
-              @hide-hoster="(hoster: string) => void hiddenHosters.setHidden(hoster, true)"
-              @select="selection.pickCollector"
-              @rename="renameCandidate"
-              @enqueue="enqueueCandidate"
-              @remove="removeCandidate"
-              @copy-links="copyLinks"
-              @dragstart="(id) => draggingCandidate = id"
-              @drop="dropOnCandidate"
-              @variant="(id, variantId) => void collector.setMediaVariant(id, variantId)"
-              @move="moveCandidate"
-            />
-            <NzbImportGroup
-              v-else
-              :item="row.entry.item"
-              :categories="categories"
-              :selected="selection.isNzbSelected(row.entry.id)"
-              :enqueuing="nzb.enqueuingIds.has(row.entry.id)"
-              :deleting="nzb.deletingIds.has(row.entry.id)"
-              :dragging="draggingEntry === grabberKey('nzb', row.entry.id)"
-              :remote-targets="nzbHandOver.targets.value"
-              :handed-over-to="nzbHandOver.handedOverTo(row.entry.item)"
-              :handing-over="nzb.handingOverIds.has(row.entry.id)"
-              @select="selection.pickNzb"
-              @category="setNzbCategory"
-              @priority="setNzbPriority"
-              @enqueue="enqueueNzb"
-              @enqueue-paused="(id: string) => enqueueNzb(id, true)"
-              @remove="deleteNzb"
-              @hand-over="(id: string, accountId: string) => void nzbHandOver.handOver([id], accountId)"
-              @dragstart="(id: string) => draggingEntry = grabberKey('nzb', id)"
-              @drop="dropOnNzb"
-              @move="(id: string, delta: -1 | 1) => moveEntry('nzb', id, delta)"
-            />
-          </template>
-        </VirtualRowList>
-        </div>
-        <!-- The collector's fetch, not just its result: "no links" waits for it (RD-104-07). -->
-        <DataState v-else :loading="collector.loading" :empty="!collector.error" :rows="3">
-          <UEmpty
-            class="signal-grid min-h-60"
-            icon="i-lucide-magnet"
-            :title="t('linkgrabber.empty_title')"
-            :description="t('linkgrabber.empty')"
+        <section class="space-y-2">
+          <!-- The row at the list (RD-1230-02), in the order of the Downloads one (`QueueListBar`). -->
+          <QueueListBar
+            v-model:show-metadata="showMetadata"
+            :state="selection.state.value"
+            :count="selection.count.value"
+            :detail="selectionDetail"
+            :select-hint="t('linkgrabber.select_all_hint')"
+            :empty="!entries.length"
+            :all-open="openPackages.allOpen.value"
+            :export-disabled="!collector.packages.length"
+            :count-text="`${t('common.units.package', { count: entries.length }, entries.length)} · ${filterActive ? t('linkgrabber.filter.count', { visible: visibleLinks, total: collector.candidates.length }) : t('common.units.link', { count: collector.candidates.length }, collector.candidates.length)}`"
+            @toggle-all="selection.toggleAll()"
+            @toggle-open="openPackages.toggleAll"
+            @export-all="exportPackages({ collectorPackageIds: collector.packages.map(pkg => pkg.id) })"
+          >
+            <template #filters>
+              <CollectorListFilters v-model:sort="sort" v-model:descending="descending" :facets="facets" @regroup="collector.regroup()" />
+            </template>
+            <template #end>
+              <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :aria-label="t('common.actions.refresh')" :title="t('common.actions.refresh')" @click="collector.refresh" />
+            </template>
+          </QueueListBar>
+          <BulkActionBar
+            v-if="selection.count.value"
+            :count="selection.count.value"
+            :detail="selectionDetail"
+            :categories="categories"
+            :busy="bulkBusy"
+            :package-actions-disabled="!selection.count.value"
+            :level-disabled="!selection.collectorIds.value.length"
+            :export-disabled="!selection.collectorIds.value.length"
+            @category="(categoryId) => applyToSelection({ categoryId })"
+            @priority="(priority) => applyToSelection({ priority })"
+            @postprocess="(level) => setSelectionPostprocessLevel(level)"
+            @enqueue="enqueueSelected()"
+            @enqueue-paused="enqueueSelected(true)"
+            @reveal="revealSelection"
+            @export="exportPackages({ collectorPackageIds: selection.collectorIds.value })"
+            @remove="removeSelected"
+            @clear="selection.clear()"
+          >
+            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-folder-input" :aria-label="t('linkgrabber.actions.move_to_new_package')" :title="t('linkgrabber.actions.move_to_new_package')" :disabled="!selection.collectorIds.value.length" :loading="bulkBusy" @click="moveSelected" />
+            <UDropdownMenu v-if="selection.nzbIds.value.length && nzbHandOver.targets.value.length" :items="nzbHandOver.menuItems(handOverIds)">
+              <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-cloud-upload" :aria-label="t('linkgrabber.nzb.hand_over.action')" :title="t('linkgrabber.nzb.hand_over.hint')" :disabled="!handOverIds().length" data-testid="grabber-hand-over" />
+            </UDropdownMenu>
+            <span v-if="removeProgress" class="numeric text-xs text-muted" role="status" data-testid="grabber-remove-progress">
+              {{ t('linkgrabber.bulk.removing', { done: removeProgress.done, total: removeProgress.total }) }}
+            </span>
+          </BulkActionBar>
+          <!--
+            One flattened stream of rows through the shared list block: package headers, the links
+            of the open ones, and the reviewed NZB imports between them. The capture-phase handlers
+            read the shift key before a checkbox reports its new value (RD-106-12).
+          -->
+          <div v-if="rows.length" :style="columns.style.value">
+          <QueueColumnHeader
+            :widths="columns.widths.value"
+            view="linkgrabber"
+            :gutter="rows.length > DEFAULT_THRESHOLD"
+            :customized="columns.customized.value"
+            @resize="columns.setWidth"
+            @reset="columns.reset"
+            @reset-all="columns.resetAll"
           />
-        </DataState>
+          <VirtualRowList
+            ref="grabberList"
+            :rows="rows"
+            :label="t('linkgrabber.list.aria', { count: rows.length })"
+            @click.capture="selection.noteModifier"
+            @keydown.capture="selection.noteModifier"
+          >
+            <template #row="{ row }">
+              <CollectorPackageGroup
+                v-if="row.kind === 'package'"
+                :package="row.entry.package"
+                :candidates="row.entry.candidates"
+                :categories="categories"
+                :selected-ids="selection.collectorIdSet.value"
+                :enqueuing-ids="collector.enqueuingIds"
+                :dragging="draggingEntry === grabberKey('collector', row.entry.id)"
+                :open="openPackages.isOpen(row.entry.id)"
+                @select="(_ids: string[], value: boolean) => selection.pickPackage(row.entry.id, value)"
+                @toggle="openPackages.toggle"
+                @open-all="openPackages.openAll"
+                @close-all="openPackages.closeAll"
+                @category="(id, categoryId) => setCategory([id], categoryId)"
+                @priority="(id, value) => setPriority([id], value)"
+                @rename="editPackageDialog"
+                @enqueue="enqueuePackage"
+                @enqueue-paused="(id: string) => enqueuePackage(id, true)"
+                @remove="removePackage"
+                @copy-links="copyPackageLinks"
+                @export="(id: string) => exportPackages({ collectorPackageIds: [id] })"
+                @dragstart="(id: string) => draggingEntry = grabberKey('collector', id)"
+                @drop="dropOnPackage"
+                @move="(id: string, delta: -1 | 1) => moveEntry('collector', id, delta)"
+              />
+              <CollectorCandidateRow
+                v-else-if="row.kind === 'candidate'"
+                :class="linkFrame(row.entry)"
+                :candidate="row.candidate"
+                :hide-metadata="!showMetadata"
+                :selected="selection.collectorIdSet.value.has(row.candidate.id)"
+                :busy="collector.enqueuingIds.has(row.candidate.id)"
+                :mirror-group="row.group ?? null"
+                :mirror-open="row.group ? openMirrors.isOpen(row.group.key) : false"
+                :mirror-member="row.member === true"
+                @toggle-mirror="openMirrors.toggle"
+                @choose-mirror="(id: string, chosen: boolean) => void collector.chooseMirror(id, chosen)"
+                @dissolve-mirror="dissolveMirror"
+                @hide-hoster="(hoster: string) => void hiddenHosters.setHidden(hoster, true)"
+                @select="selection.pickCollector"
+                @rename="renameCandidate"
+                @enqueue="enqueueCandidate"
+                @remove="removeCandidate"
+                @copy-links="copyLinks"
+                @dragstart="(id) => draggingCandidate = id"
+                @drop="dropOnCandidate"
+                @variant="(id, variantId) => void collector.setMediaVariant(id, variantId)"
+                @move="moveCandidate"
+              />
+              <NzbImportGroup
+                v-else
+                :item="row.entry.item"
+                :categories="categories"
+                :selected="selection.isNzbSelected(row.entry.id)"
+                :enqueuing="nzb.enqueuingIds.has(row.entry.id)"
+                :deleting="nzb.deletingIds.has(row.entry.id)"
+                :dragging="draggingEntry === grabberKey('nzb', row.entry.id)"
+                :remote-targets="nzbHandOver.targets.value"
+                :handed-over-to="nzbHandOver.handedOverTo(row.entry.item)"
+                :handing-over="nzb.handingOverIds.has(row.entry.id)"
+                @select="selection.pickNzb"
+                @category="setNzbCategory"
+                @priority="setNzbPriority"
+                @enqueue="enqueueNzb"
+                @enqueue-paused="(id: string) => enqueueNzb(id, true)"
+                @remove="deleteNzb"
+                @hand-over="(id: string, accountId: string) => void nzbHandOver.handOver([id], accountId)"
+                @dragstart="(id: string) => draggingEntry = grabberKey('nzb', id)"
+                @drop="dropOnNzb"
+                @move="(id: string, delta: -1 | 1) => moveEntry('nzb', id, delta)"
+              />
+            </template>
+          </VirtualRowList>
+          </div>
+          <!-- The collector's fetch, not just its result: "no links" waits for it (RD-104-07). -->
+          <DataState v-else :loading="collector.loading" :empty="!collector.error" :rows="3">
+            <UEmpty
+              class="signal-grid min-h-60"
+              icon="i-lucide-magnet"
+              :title="t('linkgrabber.empty_title')"
+              :description="t('linkgrabber.empty')"
+            />
+          </DataState>
+        </section>
       </div>
         <IndexerReviewList />
     </template>

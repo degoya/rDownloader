@@ -37,13 +37,7 @@ pub async fn create_site_rule_from(
         )
         .with_param("rule", rule.id));
     }
-    store(
-        state,
-        &rule,
-        request.enabled,
-        SiteRuleOrigin::unsigned(origin),
-    )
-    .await?;
+    store(state, &rule, request.enabled, origin).await?;
     Ok(Json(MessageResponse::new(
         "site_rules.saved",
         "The rule was saved",
@@ -67,7 +61,7 @@ pub async fn update_site_rule(
 }
 
 /// [`update_site_rule`] for a caller that is not the editor. A changed body takes the new
-/// origin: a signature covered the body it was made over, not the one written here.
+/// origin: whoever wrote the change is where the body now comes from.
 pub async fn update_site_rule_from(
     state: &AppState,
     id: &str,
@@ -89,7 +83,7 @@ pub async fn update_site_rule_from(
     let origin = if serde_json::to_value(&rule).ok().as_ref() == Some(&stored.rule) {
         stored.origin
     } else {
-        SiteRuleOrigin::unsigned(origin)
+        origin
     };
     store(state, &rule, request.enabled, origin).await?;
     Ok(Json(MessageResponse::new(

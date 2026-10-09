@@ -8,7 +8,7 @@
 //! anything is stored, so "opaque on the wire" is not "unchecked".
 
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 /// What the last self-test said about one rule (RD-110-09).
 #[derive(Debug, Serialize, ToSchema)]
@@ -27,6 +27,8 @@ pub struct SiteRuleCheckResponse {
 pub struct SiteRuleResponse {
     pub id: String,
     pub name: String,
+    /// What the rule does and how it is built, as its author wrote it (RD-1230-03).
+    pub description: Option<String>,
     pub group: String,
     /// The hosts the rule claims, `match.hosts` verbatim.
     pub hosts: Vec<String>,
@@ -46,16 +48,13 @@ pub struct SiteRuleResponse {
     pub origin: SiteRuleOriginResponse,
 }
 
-/// Where a rule came from (RD-1200-05).
+/// Where a rule came from (RD-1200-05, RD-1230-03).
 #[derive(Debug, Serialize, ToSchema)]
 pub struct SiteRuleOriginResponse {
-    /// `signed` (the signed release file), `import` (an unsigned file or a pasted export),
-    /// `editor`, `mcp`, or `unknown` for a rule stored before 1.20.
+    /// `import` (an imported exchange file), `editor`, `mcp`, `example` (one of the examples the
+    /// app brings), or `unknown` for a rule stored before 1.20 or from the signed file of 1.20 to
+    /// 1.22.
     pub kind: String,
-    /// The key whose signature held, for `signed` only.
-    pub signer: Option<String>,
-    /// The signed file's sequence, for `signed` only.
-    pub sequence: Option<u64>,
 }
 
 /// One group, with its own switch.
@@ -161,71 +160,99 @@ pub struct TestSiteRuleResponse {
     pub error: Option<String>,
 }
 
-/// The exchange format of the export and the unsigned import: the person's own rules and
-/// nothing else.
-///
-/// Deliberately not a `RulePack`: a pack is a signed document under its own trust root, and a
-/// file somebody was sent is not one. Calling it a pack would invite the two to be confused
-/// at exactly the boundary where the difference matters -- which is why the import tells the
-/// two apart by the envelope, never by what the payload claims (RD-130-07).
+/// The exchange file the export writes and the import reads (RD-1230-03): the person's rules,
+/// each with its switch, and nothing else. No signature: what protects the importing side is the
+/// preview, the question before a rule is replaced, the full rule check and the executor's own
+/// bolts (`docs/security/site-rules.md`).
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct SiteRuleDocument {
-    /// The rule format these bodies are written in; `1` is what this build reads.
+    /// The layout of this file; `2` is what this build writes and reads.
     pub format_version: u32,
-    /// The rule bodies, as `rd_siterules::Rule` serialises them.
-    pub rules: Vec<serde_json::Value>,
+    pub rules: Vec<SiteRuleDocumentEntry>,
 }
 
-/// One signature of a [`SignedSiteRuleFile`], as `rd_sign::DocumentSignature` writes it.
+/// One rule of the exchange file.
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct SiteRuleFileSignature {
-    /// The trusted key the signature claims, `rdownloader-siterules-v1` for the project's file.
-    pub key_id: String,
-    /// Always `ed25519`.
-    pub algorithm: String,
-    /// Base64 of the raw 64-byte signature.
-    pub signature: String,
+pub struct SiteRuleDocumentEntry {
+    /// The rule's switch where it was exported; the import stores it as it is.
+    #[serde(default)]
+    pub enabled: bool,
+    /// The rule body, as `rd_siterules::Rule` serialises it.
+    pub rule: serde_json::Value,
 }
 
-/// The signed rule file every release carries (RD-130-07): an `rd_sign` envelope over a
-/// rule pack.
-///
-/// Described here for the contract only. The import reads the request's bytes itself,
-/// because the signature covers the payload exactly as it arrived and a parsed and
-/// re-serialised copy would no longer be what was signed.
+/// Which rules the export writes.
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct SiteRuleExportQuery {
+    /// Rule ids separated by commas; every rule when absent. An id no rule carries is skipped.
+    pub ids: Option<String>,
+}
+
+/// What the import takes: the file, and which of the stored rules it may replace.
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
-pub struct SignedSiteRuleFile {
-    /// The rule pack as signed: `format_version`, `sequence`, `issued_at` and `rules`.
-    pub payload: serde_json::Value,
-    pub signatures: Vec<SiteRuleFileSignature>,
+pub struct SiteRuleImportRequest {
+    pub document: SiteRuleDocument,
+    /// Ids of stored rules the person agreed to replace. A rule of the file whose id is stored
+    /// and not named here is left as it is (`kept`).
+    #[serde(default)]
+    pub replace: Vec<String>,
 }
 
-/// What the import accepts: the signed file of a release, or an export of somebody's own
-/// rules. A body carrying `signatures` is read as the first and nothing else.
-#[derive(Debug, Deserialize, Serialize, ToSchema)]
-#[serde(untagged)]
-pub enum SiteRuleImportRequest {
-    Signed(SignedSiteRuleFile),
-    Document(SiteRuleDocument),
-}
-
-/// What became of one rule in an import.
+/// What became of one rule of the file, or what would become of it.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ImportedSiteRuleResponse {
     /// The rule's id, or the empty string when the body carries none this build can read.
     pub id: String,
     pub name: String,
-    /// `stored` or `refused`.
+    /// The hosts the rule claims; empty for a body that does not read.
+    pub hosts: Vec<String>,
+    /// The switch the rule carries in the file.
+    pub enabled: bool,
+    /// The preview answers `new`, `replaces` (a stored rule of the same id differs), `same` (a
+    /// stored rule is identical, switch included) or `refused`; the import `stored`,
+    /// `replaced`, `kept` (a stored rule of the same id was not to be replaced), `same` or
+    /// `refused`.
     pub status: String,
     /// Why it was refused, as a stable code.
     pub code: Option<String>,
 }
 
-/// The result of an import: every rule, and how many were stored switched off.
+/// What an import would do, before anything is stored.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SiteRuleImportPreviewResponse {
+    pub rules: Vec<ImportedSiteRuleResponse>,
+}
+
+/// The result of an import: every rule of the file, and how many were written.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ImportSiteRulesResponse {
     pub rules: Vec<ImportedSiteRuleResponse>,
+    /// Rules that were new here.
     pub stored: usize,
-    /// Whether the file was the signed one and its signature held.
-    pub signed: bool,
+    /// Stored rules the file replaced.
+    pub replaced: usize,
+}
+
+/// Deleting every site rule (RD-1230-03).
+#[derive(Debug, Default, Deserialize, ToSchema)]
+pub struct SiteRulesClearRequest {
+    /// `true`, or the request is refused with `site_rules.not_confirmed`.
+    #[serde(default)]
+    pub confirmed: bool,
+}
+
+/// What deleting every site rule removed.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SiteRulesClearResponse {
+    /// How many rules went; their self-test results went with them.
+    pub removed: u64,
+}
+
+/// What restoring the example list wrote.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SiteRuleExamplesResponse {
+    /// Examples written again, switched off; an example whose id a stored rule carries is left
+    /// as it is.
+    pub restored: usize,
 }

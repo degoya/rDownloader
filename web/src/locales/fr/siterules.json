@@ -2,14 +2,15 @@
   "header": {
     "eyebrow": "Reconnaissance des pages",
     "title": "Règles de sites",
-    "description": "Quelles pages de sorties rDownloader reconnaît, et par quelle règle. Aucune règle n’est fournie avec le programme : importez le fichier de règles signé que chaque version propose, ou écrivez les vôtres. Chaque règle ici peut être activée, modifiée, dupliquée et supprimée."
+    "description": "Quelles pages de sorties rDownloader reconnaît, et par quelle règle. Le programme n’apporte que des exemples désactivés pour des sites libres ; importez d’autres règles depuis un export ou écrivez les vôtres. Chaque règle ici peut être activée, modifiée, dupliquée, exportée et supprimée."
   },
   "groups": {
     "board": "Forums",
     "paste": "Services de collage",
     "adult": "Adulte",
     "ebooks": "Livres numériques",
-    "graphics": "Graphisme"
+    "graphics": "Graphisme",
+    "examples": "Exemples"
   },
   "group_switch": "Activer ou désactiver tout le groupe",
   "rule_switch": "Activer ou désactiver cette règle",
@@ -17,12 +18,11 @@
     "ok": "Fonctionne",
     "structural": "Modifiée",
     "blocked": "Bloquée",
-    "dead": "Morte",
-    "unknown": "Non vérifiée"
+    "dead": "Morte"
   },
   "list": {
     "title": "Règles",
-    "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Importez le fichier de règles signé d’une version pour partir des règles du projet.",
+    "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Restaurez les exemples pour sites libres, importez un export de règles ou écrivez votre propre règle.",
     "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée."
   },
   "editor": {
@@ -58,7 +58,9 @@
     "package_name": "Variable",
     "enabled": "Consulter cette règle immédiatement",
     "incomplete": "Il faut un identifiant, un nom, un groupe, un hôte, une étape et une adresse de contrôle.",
-    "create": "Créer la règle"
+    "create": "Créer la règle",
+    "rule_description": "Description",
+    "rule_description_hint": "Ce que fait la règle et comment elle est construite. La liste l’affiche sous le nom."
   },
   "steps": {
     "heading": "Étapes",
@@ -135,11 +137,13 @@
     "export": "Exporter les règles",
     "export_empty": "Il n’y a aucune règle à exporter.",
     "import": "Importer des règles",
-    "import_hint": "Accepte le fichier de règles signé d’une version ou un export de règles. Toute règle importée arrive désactivée, signée ou non. Essayez-la, puis activez-la vous-même.",
-    "import_unreadable": "Ce fichier n’est ni le fichier de règles signé ni un export de règles.",
-    "imported": "{stored} règles sur {total} ont été enregistrées, désactivées.",
+    "import_hint": "Accepte un export de règles. Avant tout enregistrement, vous voyez chaque règle : nouvelle, remplaçant une règle existante ou déjà présente à l’identique. Chaque règle arrive avec l’interrupteur qu’elle avait chez qui l’a exportée.",
+    "import_unreadable": "Ce fichier n’est pas un export de règles.",
+    "imported": "Importées : {stored} nouvelles, {replaced} remplacées, sur {total} règles du fichier.",
     "refused_one": "{name} a été refusée",
-    "imported_signed": "Le fichier de règles signé a été vérifié : {stored} règles sur {total} ont été enregistrées, désactivées."
+    "export_selected": "Exporter {count} règles",
+    "export_hint": "Écrit les règles cochées dans un fichier, ou toutes si aucune n’est cochée, chacune avec son interrupteur. Une autre installation importe le fichier sans retouche.",
+    "select": "Sélectionner {name} pour l’export"
   },
   "delete": {
     "title": "Supprimer cette règle ?",
@@ -166,16 +170,45 @@
   },
   "origin": {
     "label": "Origine",
-    "signed": "Fichier signé",
-    "signed_detail": "Du fichier de règles signé, signé par {signer}, séquence {sequence}",
     "import": "Importée",
-    "import_detail": "Importée depuis un fichier non signé ou un export",
+    "import_detail": "Importée depuis un export de règles",
     "editor": "Écrite ici",
     "editor_detail": "Créée ou modifiée dans l’éditeur de règles",
     "mcp": "Via MCP",
     "mcp_detail": "Écrite ou modifiée par un client MCP",
     "unknown": "Origine inconnue",
-    "unknown_detail": "Enregistrée avant la 1.20, quand l’origine n’était pas consignée",
-    "edit_hint": "Enregistrer une règle modifiée en fait la vôtre : la signature ne couvrait que la version du fichier."
+    "unknown_detail": "Enregistrée avant la 1.20, ou issue du fichier de règles signé des versions 1.20 à 1.22",
+    "example": "Exemple",
+    "example_detail": "Une des règles d’exemple pour sites libres fournies avec le programme"
+  },
+  "import_dialog": {
+    "title": "Importer des règles",
+    "description": "Voici ce qu’apporte le fichier. Une règle de même identifiant ne remplace la vôtre que si vous cochez sa case.",
+    "unnamed": "Règle sans nom",
+    "on": "Activée",
+    "off": "Désactivée",
+    "status": {
+      "new": "Nouvelle",
+      "replaces": "Remplace une règle existante",
+      "same": "Déjà présente",
+      "refused": "Refusée"
+    },
+    "replace": "Remplacer ma règle {name} par celle du fichier",
+    "confirm": "Importer",
+    "invalid": "La règle est incomplète ou défectueuse.",
+    "repeated": "Cet identifiant figure déjà plus haut dans le fichier."
+  },
+  "clear": {
+    "button": "Tout supprimer",
+    "title": "Supprimer toutes les règles de site ?",
+    "description": "Les {count} règles sont supprimées de cette installation avec leurs résultats de vérification. Exportez-les d’abord si vous souhaitez les conserver. Les interrupteurs de groupe restent.",
+    "confirm": "Tout supprimer",
+    "done": "{count} règles supprimées."
+  },
+  "examples": {
+    "restore": "Restaurer les exemples",
+    "restore_hint": "Recrée, désactivées, les règles d’exemple pour sites libres fournies avec le programme. Une règle d’exemple existante reste telle quelle.",
+    "restored": "{count} règles d’exemple restaurées, désactivées.",
+    "none_missing": "Toutes les règles d’exemple sont déjà présentes."
   }
 }

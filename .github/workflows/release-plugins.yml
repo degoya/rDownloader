@@ -2,10 +2,10 @@ name: Release plugins
 
 # The signed plugins of a release, called by release.yml's `plugins` job (RD-1101-07 split it off;
 # the job is unchanged): every bundled plugin built as a wasm component, the packager `rd-pack`,
-# the packages signed with the plugin key, the plugin index signed with the repository key, and
-# the committed site-rule file verified. Its artifacts (`packager`, `plugins`, `plugin-index`,
-# `site-rules`) belong to the release run and are what `packages`, `publish` and the container
-# jobs download.
+# the packages signed with the plugin key and the plugin index signed with the repository key.
+# Its artifacts (`packager`, `plugins`, `plugin-index`) belong to the release run and are what
+# `packages`, `publish` and the container jobs download. Since RD-1230-03 a release carries no
+# site-rule file: the app brings its examples, and nothing else is published.
 on:
   workflow_call:
     secrets:
@@ -69,8 +69,8 @@ jobs:
       - name: Reject accidental WASI capabilities
         shell: bash
         run: scripts/ci-plugins.sh imports ${{ steps.plugins.outputs.names }}
-      # The packager, `rd-pack` (RD-150-20): the `plugin` and `site-rules` commands of
-      # `rdownloader` without building the service. `release-test` because it compiles every
+      # The packager, `rd-pack` (RD-150-20): the `plugin` commands of `rdownloader` without
+      # building the service. `release-test` because it compiles every
       # component with Wasmtime; `release`'s single code unit and LTO buy a tool nothing. The
       # packages it writes are the same bytes either way, and the embedded roots are the same.
       - name: Build the packager
@@ -119,18 +119,3 @@ jobs:
           name: plugin-index
           path: dist/plugin-index/rdownloader-plugin-index.json
           if-no-files-found: ignore
-      # RD-130-07: the site rules are not compiled in; every release carries them as a signed file
-      # beside the packages. CI holds only the plugin key, so the file is signed locally with the
-      # site-rules key and committed; this step proves the committed file verifies under this
-      # build's root before `publish` attaches it.
-      - name: Verify the site-rule file
-        shell: bash
-        run: |
-          mkdir -p dist/site-rules
-          cp crates/rd-siterules/resources/site-rules.json dist/site-rules/rdownloader-site-rules.json
-          target/release-test/rd-pack site-rules verify dist/site-rules/rdownloader-site-rules.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: site-rules
-          path: dist/site-rules/rdownloader-site-rules.json
-          if-no-files-found: error

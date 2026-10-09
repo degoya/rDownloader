@@ -2,14 +2,15 @@
   "header": {
     "eyebrow": "Page recognition",
     "title": "Site rules",
-    "description": "Which release pages rDownloader recognises, and by which rule. No rule arrives with the program: import the signed rule file every release carries, or write your own. Every rule here is yours to switch, edit, duplicate and remove."
+    "description": "Which release pages rDownloader recognises, and by which rule. The program brings only switched-off examples for free sites; import other rules from an export or write your own. Every rule here is yours to switch, edit, duplicate, export and remove."
   },
   "groups": {
     "board": "Boards",
     "paste": "Paste services",
     "adult": "Adult",
     "ebooks": "E-books",
-    "graphics": "Graphics"
+    "graphics": "Graphics",
+    "examples": "Examples"
   },
   "group_switch": "Switch the whole group",
   "rule_switch": "Switch this rule",
@@ -17,12 +18,11 @@
     "ok": "Working",
     "structural": "Changed",
     "blocked": "Blocked",
-    "dead": "Dead",
-    "unknown": "Not checked"
+    "dead": "Dead"
   },
   "list": {
     "title": "Rules",
-    "empty": "No rule is installed, so no release page is recognised by rule. Import the signed rule file of a release to start from the project's rules.",
+    "empty": "No rule is installed, so no release page is recognised by rule. Restore the examples for free sites, import a rule export or write a rule of your own.",
     "group_off": "The group is switched off, so this rule is not consulted."
   },
   "editor": {
@@ -58,7 +58,9 @@
     "package_name": "Variable",
     "enabled": "Consult this rule right away",
     "incomplete": "Identifier, name, group, one host, one step and a probe address are needed.",
-    "create": "Create rule"
+    "create": "Create rule",
+    "rule_description": "Description",
+    "rule_description_hint": "What the rule does and how it is built. The list shows it below the name."
   },
   "steps": {
     "heading": "Steps",
@@ -135,11 +137,13 @@
     "export": "Export rules",
     "export_empty": "There is no rule to export.",
     "import": "Import rules",
-    "import_hint": "Takes the signed rule file of a release or a rule export. Every imported rule arrives switched off, signed or not. Try it, then switch it on yourself.",
-    "import_unreadable": "That file is neither the signed rule file nor a rule export.",
-    "imported": "{stored} of {total} rules were stored, switched off.",
+    "import_hint": "Takes a rule export. Before anything is stored you see every rule: new, replacing one you have, or already here unchanged. Each rule arrives with the switch it had where it was exported.",
+    "import_unreadable": "That file is not a rule export.",
+    "imported": "Imported: {stored} new, {replaced} replaced, of {total} rules in the file.",
     "refused_one": "{name} was refused",
-    "imported_signed": "The signed rule file verified: {stored} of {total} rules were stored, switched off."
+    "export_selected": "Export {count} rules",
+    "export_hint": "Writes the ticked rules to a file, or every rule when none is ticked, each with its switch. Another installation imports the file without rework.",
+    "select": "Select {name} for the export"
   },
   "delete": {
     "title": "Remove this rule?",
@@ -166,16 +170,45 @@
   },
   "origin": {
     "label": "Origin",
-    "signed": "Signed file",
-    "signed_detail": "From the signed rule file, signed by {signer}, sequence {sequence}",
     "import": "Imported",
-    "import_detail": "Imported from an unsigned file or an export",
+    "import_detail": "Imported from a rule export",
     "editor": "Written here",
     "editor_detail": "Created or changed in the rule editor",
     "mcp": "Through MCP",
     "mcp_detail": "Written or changed by an MCP client",
     "unknown": "Origin unknown",
-    "unknown_detail": "Stored before 1.20, when no origin was recorded",
-    "edit_hint": "Saving a changed rule makes it your own: the signature covered only the file's version."
+    "unknown_detail": "Stored before 1.20, or from the signed rule file of 1.20 to 1.22",
+    "example": "Example",
+    "example_detail": "One of the example rules for free sites that come with the program"
+  },
+  "import_dialog": {
+    "title": "Import rules",
+    "description": "This is what the file brings. A rule with the same identifier replaces yours only when you tick its box.",
+    "unnamed": "Unnamed rule",
+    "on": "Switched on",
+    "off": "Switched off",
+    "status": {
+      "new": "New",
+      "replaces": "Replaces one you have",
+      "same": "Already here",
+      "refused": "Refused"
+    },
+    "replace": "Replace my rule {name} with the one from the file",
+    "confirm": "Import",
+    "invalid": "The rule is incomplete or broken.",
+    "repeated": "This identifier already appears earlier in the file."
+  },
+  "clear": {
+    "button": "Delete all",
+    "title": "Delete every site rule?",
+    "description": "All {count} rules are deleted from this installation with their check results. Export them first if you want to keep them. The group switches stay.",
+    "confirm": "Delete all",
+    "done": "{count} rules deleted."
+  },
+  "examples": {
+    "restore": "Restore examples",
+    "restore_hint": "Writes the example rules for free sites that come with the program again, switched off. An example rule you have stays as it is.",
+    "restored": "{count} example rules restored, switched off.",
+    "none_missing": "Every example rule is already here."
   }
 }

@@ -2,14 +2,15 @@
   "header": {
     "eyebrow": "Reconocimiento de páginas",
     "title": "Reglas de sitios",
-    "description": "Qué páginas de lanzamientos reconoce rDownloader y mediante qué regla. El programa no trae ninguna regla: importa el archivo de reglas firmado que acompaña a cada versión o escribe las tuyas. Cada regla de aquí puedes activarla, editarla, duplicarla y eliminarla."
+    "description": "Qué páginas de lanzamientos reconoce rDownloader y mediante qué regla. El programa solo trae ejemplos desactivados para sitios libres; importa otras reglas desde una exportación o escribe las tuyas. Cada regla de aquí puedes activarla, editarla, duplicarla, exportarla y eliminarla."
   },
   "groups": {
     "board": "Foros",
     "paste": "Servicios de pegado",
     "adult": "Adultos",
     "ebooks": "Libros electrónicos",
-    "graphics": "Gráficos"
+    "graphics": "Gráficos",
+    "examples": "Ejemplos"
   },
   "group_switch": "Activar o desactivar todo el grupo",
   "rule_switch": "Activar o desactivar esta regla",
@@ -17,12 +18,11 @@
     "ok": "Funciona",
     "structural": "Cambiada",
     "blocked": "Bloqueada",
-    "dead": "Muerta",
-    "unknown": "Sin comprobar"
+    "dead": "Muerta"
   },
   "list": {
     "title": "Reglas",
-    "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Importa el archivo de reglas firmado de una versión para empezar con las reglas del proyecto.",
+    "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Restaura los ejemplos para sitios libres, importa una exportación de reglas o escribe una regla propia.",
     "group_off": "El grupo está desactivado, por lo que no se consulta esta regla."
   },
   "editor": {
@@ -58,7 +58,9 @@
     "package_name": "Variable",
     "enabled": "Consultar esta regla de inmediato",
     "incomplete": "Se necesitan identificador, nombre, grupo, un host, un paso y una dirección de prueba.",
-    "create": "Crear regla"
+    "create": "Crear regla",
+    "rule_description": "Descripción",
+    "rule_description_hint": "Qué hace la regla y cómo está construida. La lista lo muestra bajo el nombre."
   },
   "steps": {
     "heading": "Pasos",
@@ -135,11 +137,13 @@
     "export": "Exportar reglas",
     "export_empty": "No hay ninguna regla que exportar.",
     "import": "Importar reglas",
-    "import_hint": "Acepta el archivo de reglas firmado de una versión o una exportación de reglas. Toda regla importada llega desactivada, esté firmada o no. Pruébala y actívala tú mismo.",
-    "import_unreadable": "Ese archivo no es ni el archivo de reglas firmado ni una exportación de reglas.",
-    "imported": "Se guardaron {stored} de {total} reglas, desactivadas.",
+    "import_hint": "Acepta una exportación de reglas. Antes de guardar nada ves cada regla: nueva, sustituye a una existente o ya está igual. Cada regla llega con el interruptor que tenía en la instalación que la exportó.",
+    "import_unreadable": "Ese archivo no es una exportación de reglas.",
+    "imported": "Importadas: {stored} nuevas, {replaced} sustituidas, de {total} reglas del archivo.",
     "refused_one": "{name} fue rechazada",
-    "imported_signed": "El archivo de reglas firmado se verificó: se guardaron {stored} de {total} reglas, desactivadas."
+    "export_selected": "Exportar {count} reglas",
+    "export_hint": "Escribe en un archivo las reglas marcadas o, si no hay ninguna marcada, todas, cada una con su interruptor. Otra instalación importa el archivo sin retoques.",
+    "select": "Seleccionar {name} para la exportación"
   },
   "delete": {
     "title": "¿Eliminar esta regla?",
@@ -166,16 +170,45 @@
   },
   "origin": {
     "label": "Origen",
-    "signed": "Archivo firmado",
-    "signed_detail": "Del archivo de reglas firmado, firmado por {signer}, secuencia {sequence}",
     "import": "Importada",
-    "import_detail": "Importada de un archivo sin firmar o de una exportación",
+    "import_detail": "Importada desde una exportación de reglas",
     "editor": "Escrita aquí",
     "editor_detail": "Creada o modificada en el editor de reglas",
     "mcp": "Mediante MCP",
     "mcp_detail": "Escrita o modificada por un cliente MCP",
     "unknown": "Origen desconocido",
-    "unknown_detail": "Guardada antes de la 1.20, cuando no se registraba el origen",
-    "edit_hint": "Si guardas una regla modificada, pasa a ser tuya: la firma solo cubría la versión del archivo."
+    "unknown_detail": "Guardada antes de la 1.20 o procedente del archivo de reglas firmado de la 1.20 a la 1.22",
+    "example": "Ejemplo",
+    "example_detail": "Una de las reglas de ejemplo para sitios libres que trae el programa"
+  },
+  "import_dialog": {
+    "title": "Importar reglas",
+    "description": "Esto es lo que trae el archivo. Una regla con el mismo identificador sustituye a la tuya solo si marcas su casilla.",
+    "unnamed": "Regla sin nombre",
+    "on": "Activada",
+    "off": "Desactivada",
+    "status": {
+      "new": "Nueva",
+      "replaces": "Sustituye a una existente",
+      "same": "Ya está igual",
+      "refused": "Rechazada"
+    },
+    "replace": "Sustituir mi regla {name} por la del archivo",
+    "confirm": "Importar",
+    "invalid": "La regla está incompleta o es defectuosa.",
+    "repeated": "Este identificador ya aparece antes en el archivo."
+  },
+  "clear": {
+    "button": "Eliminar todas",
+    "title": "¿Eliminar todas las reglas de sitios?",
+    "description": "Las {count} reglas se eliminan de esta instalación junto con sus resultados de comprobación. Expórtalas antes si quieres conservarlas. Los interruptores de grupo se mantienen.",
+    "confirm": "Eliminar todas",
+    "done": "{count} reglas eliminadas."
+  },
+  "examples": {
+    "restore": "Restaurar ejemplos",
+    "restore_hint": "Vuelve a crear, desactivadas, las reglas de ejemplo para sitios libres que trae el programa. Una regla de ejemplo existente se queda como está.",
+    "restored": "{count} reglas de ejemplo restauradas, desactivadas.",
+    "none_missing": "Todas las reglas de ejemplo ya están."
   }
 }

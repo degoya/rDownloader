@@ -78,13 +78,9 @@ pub(crate) enum ConfigCommand {
     },
     /// Removes a user site rule; answers whether one was there.
     DeleteSiteRule { id: String, reply: Reply<bool> },
-    /// Records a signed rule file's sequence per signer; answers the mark before it
-    /// (RD-1200-05).
-    RecordSiteRulePack {
-        signer: String,
-        sequence: u64,
-        reply: Reply<Option<u64>>,
-    },
+    /// Removes every user site rule and every self-test result; answers how many rules went
+    /// (RD-1230-03).
+    DeleteAllSiteRules { reply: Reply<u64> },
     /// Writes the results of one rule self-test run (RD-110-09).
     /// Switches one shipped rule or one group off or on (RD-110-08).
     SetSiteRuleSwitch {

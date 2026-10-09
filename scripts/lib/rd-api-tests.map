@@ -124,7 +124,7 @@
 ^crates/rd-db/src/(session_store|capture_store)(\.rs$|/)                                      + stream_revocation token_expiry token_limits
 ^crates/rd-api(-[a-z]+)?/src/settings_backup[a-z_]*(\.rs$|/)                             settings_backup full_backup backup_destinations protected_roots archive_password_backup restore_step_up
 ^crates/rd-api(-[a-z]+)?/src/protected_roots(\.rs$|/)                                         storage_roots protected_roots mcp
-^crates/rd-api(-[a-z]+)?/src/(site_rules_[a-z_]+|routes/site_rules)(\.rs$|/)                  site_rules collector_picks site_rule_origin
+^crates/rd-api(-[a-z]+)?/src/(site_rules_[a-z_]+|routes/site_rules)(\.rs$|/)                  site_rules collector_picks site_rule_origin site_rule_exchange
 # The pick board of a two-stage rule (RD-1170-03): its routes, and the tools that drive them.
 ^crates/rd-api(-[a-z]+)?/src/site_rule_picks[a-z_]*(\.rs$|/)                                 site_rules mcp collector_picks capture_pick address_rule
 ^crates/rd-api(-[a-z]+)?/src/storage_capacity(\.rs$|/)                                        storage_capacity
