@@ -37,7 +37,7 @@ pub(super) struct CapturedLink {
 
 /// Who put a link into an intake (RD-150-03, RD-1190-18).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum LinkOrigin {
+pub(crate) enum LinkOrigin {
     /// Sent in as a link: typed or pasted by the person — or handed over by Click'n'Load, the
     /// clipboard watcher, the browser extension or a tool, where a page or a program chose it.
     Person,
@@ -61,7 +61,7 @@ impl LinkOrigin {
     /// the document or the folder over themselves — a folder they pointed the crawler at is
     /// their own network use. A site rule's find never does: the release page's operator chose
     /// that address, not the person who pasted the page.
-    pub(super) fn reach(self, own_hand: bool) -> Option<bool> {
+    pub(crate) fn reach(self, own_hand: bool) -> Option<bool> {
         match self {
             Self::Person => (!own_hand).then_some(false),
             Self::Proposed | Self::Crawled { by_rule: false } => Some(own_hand),

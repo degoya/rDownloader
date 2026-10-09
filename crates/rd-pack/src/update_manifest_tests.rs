@@ -18,12 +18,20 @@ async fn the_schema_change_flag_reaches_the_signed_manifest() {
     std::fs::create_dir_all(&assets).expect("assets");
     let archive = b"the archive";
     std::fs::write(assets.join("rdownloader-linux-x86_64.tar.gz"), archive).expect("archive");
+    // The capture agent's own archive (RD-1210-03) goes to the agent's list.
+    let agent = b"the agent's archive";
+    std::fs::write(
+        assets.join("rdownloader-capture-linux-x86_64.tar.gz"),
+        agent,
+    )
+    .expect("agent");
     let sums = directory.join("SHA256SUMS");
     std::fs::write(
         &sums,
         format!(
-            "{}  ./rdownloader-linux-x86_64.tar.gz\n",
-            hex::encode(sha2::Sha256::digest(archive))
+            "{}  ./rdownloader-linux-x86_64.tar.gz\n{}  ./rdownloader-capture-linux-x86_64.tar.gz\n",
+            hex::encode(sha2::Sha256::digest(archive)),
+            hex::encode(sha2::Sha256::digest(agent))
         ),
     )
     .expect("sums");
@@ -73,6 +81,15 @@ async fn the_schema_change_flag_reaches_the_signed_manifest() {
         let verified = manifest::verify_with(&bytes, &trust, Channel::Stable, None, Utc::now())
             .expect("verify");
         assert_eq!(verified.schema_change, expected, "{flag:?}");
+        assert_eq!(verified.artifacts.len(), 1);
+        assert_eq!(
+            verified
+                .agent_artifacts
+                .iter()
+                .map(|artifact| artifact.url.as_str())
+                .collect::<Vec<_>>(),
+            ["https://example.test/releases/v1.8.0/rdownloader-capture-linux-x86_64.tar.gz"]
+        );
         assert_eq!(verified.changes_schema(), expected.unwrap_or(true));
     }
     let _ = std::fs::remove_dir_all(&directory);
@@ -135,6 +152,37 @@ fn the_release_files_are_classified_by_name() {
     }
 }
 
+/// RD-1210-03: the capture agent's own archives are classified apart from the application's,
+/// and nothing else of the agent's is taken for one.
+#[test]
+fn the_agent_archives_are_classified_apart() {
+    for (name, expected) in [
+        (
+            "rdownloader-capture-windows-x86_64.zip",
+            ("windows", "x86_64", "archive"),
+        ),
+        (
+            "rdownloader-capture-linux-aarch64.tar.gz",
+            ("linux", "aarch64", "archive"),
+        ),
+        (
+            "rdownloader-capture-macos-aarch64.tar.gz",
+            ("macos", "aarch64", "archive"),
+        ),
+    ] {
+        assert_eq!(classify_agent(name), Some(expected), "{name}");
+        assert_eq!(classify(name), None, "not an application update: {name}");
+    }
+    for other in [
+        "rdownloader-linux-x86_64.tar.gz",
+        "rdownloader-capture-1.8.0-x86_64.msi",
+        "rdownloader-capture-linux-riscv64.tar.gz",
+        "rdownloader-capture.tar.gz",
+    ] {
+        assert_eq!(classify_agent(other), None, "{other}");
+    }
+}
+
 #[test]
 fn both_checksum_spellings_are_read() {
     let hash = "a".repeat(64);
@@ -167,12 +215,20 @@ async fn the_notes_come_from_the_release_notes_and_the_anchor_from_the_changelog
     std::fs::create_dir_all(&assets).expect("assets");
     let archive = b"the archive";
     std::fs::write(assets.join("rdownloader-linux-x86_64.tar.gz"), archive).expect("archive");
+    // The capture agent's own archive (RD-1210-03) goes to the agent's list.
+    let agent = b"the agent's archive";
+    std::fs::write(
+        assets.join("rdownloader-capture-linux-x86_64.tar.gz"),
+        agent,
+    )
+    .expect("agent");
     let sums = directory.join("SHA256SUMS");
     std::fs::write(
         &sums,
         format!(
-            "{}  ./rdownloader-linux-x86_64.tar.gz\n",
-            hex::encode(sha2::Sha256::digest(archive))
+            "{}  ./rdownloader-linux-x86_64.tar.gz\n{}  ./rdownloader-capture-linux-x86_64.tar.gz\n",
+            hex::encode(sha2::Sha256::digest(archive)),
+            hex::encode(sha2::Sha256::digest(agent))
         ),
     )
     .expect("sums");

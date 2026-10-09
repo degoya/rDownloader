@@ -146,7 +146,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Besides the queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair) there are operational ones: backup_failed, backup_verify_failed, update_available, plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached."
+        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Besides the queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair, and stop_mark_reached: the queue paused at its stop mark) there are operational ones: backup_failed, backup_verify_failed, update_available, plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached."
     )]
     pub async fn create_notification_rule(
         &self,

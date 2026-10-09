@@ -59,6 +59,11 @@ impl SchedulerHandle {
                         tracing::error!(%error, "the timed queue pause could not be ended");
                     }
                     self.supervise_account_traffic().await;
+                    // Before the dispatch below as well: once the marked file or package is
+                    // done, this tick's pass must already find the queue held (RD-1210-02).
+                    if let Err(error) = self.supervise_stop_mark().await {
+                        tracing::error!(%error, "the stop mark could not be checked");
+                    }
                     if let Err(error) = self.schedule_runnable().await {
                         tracing::error!(%error, "queue supervision failed");
                     }

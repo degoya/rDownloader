@@ -28,6 +28,8 @@ rd-collector = { path = "../rd-collector" }
 rd-autostart = { path = "../rd-autostart" }
 rd-core = { path = "../rd-core" }
 rd-files = { path = "../rd-files" }
+# The agent's own update (RD-1210-03): the service's signed manifest, check and install.
+rd-update = { path = "../rd-update" }
 regex.workspace = true
 reqwest.workspace = true
 serde.workspace = true

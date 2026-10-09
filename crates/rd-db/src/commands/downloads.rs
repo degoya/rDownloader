@@ -184,4 +184,9 @@ pub(crate) enum DownloadsCommand {
         pin: rd_core::ResolverPin,
         reply: Reply<()>,
     },
+    /// Drops the resolver pin of a download that is not running (RD-1210-01).
+    ReleaseResolverPin {
+        id: DownloadId,
+        reply: Reply<Option<rd_core::ResolverPin>>,
+    },
 }

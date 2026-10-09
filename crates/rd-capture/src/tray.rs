@@ -29,6 +29,7 @@ use crate::{
     config,
     controls::{self, Action, Controls},
     hotkeys::{self, Hotkeys},
+    self_update::OfferEntry,
     status::{HEALTH_INTERVAL, HealthWatch, ServerStatus, health_probe},
     supervision::AgentNotice,
     tray_state::{IconKind, TrayState, Update},
@@ -61,6 +62,8 @@ enum UserEvent {
     Settings(CaptureAgentSettings),
     /// A system-wide shortcut was pressed; carries its registration's id.
     Hotkey(u32),
+    /// The agent's own update entry changed (RD-1210-03): shown, relabelled, or gone.
+    SelfUpdate(Option<OfferEntry>),
 }
 
 /// A prepared, not yet running event loop.
@@ -119,6 +122,7 @@ impl Tray {
         let activity_proxy = proxy.clone();
         let notice_proxy = proxy.clone();
         let settings_proxy = proxy.clone();
+        let update_proxy = proxy.clone();
         // The menu and the shortcuts name a command, the agent carries it out: the agent holds
         // the token.
         let (controls, inbox) = controls::channels();
@@ -134,6 +138,9 @@ impl Tray {
                     let _ = settings_proxy.send_event(UserEvent::Settings(settings));
                 }),
                 inbox,
+                update: std::sync::Arc::new(move |entry: Option<OfferEntry>| {
+                    let _ = update_proxy.send_event(UserEvent::SelfUpdate(entry));
+                }),
             };
             let result = crate::run(args, agent_cancellation, Some(desktop)).await;
             let _ = proxy.send_event(UserEvent::AgentExited(result.err()));
@@ -155,6 +162,7 @@ impl Tray {
             hotkeys: None,
             cancellation,
             quit_deadline: None,
+            update_entry: None,
             _runtime: runtime,
         };
 
@@ -168,6 +176,7 @@ impl Tray {
                 Event::UserEvent(UserEvent::Notice(notice)) => agent.on_notice(&notice),
                 Event::UserEvent(UserEvent::Settings(settings)) => agent.on_settings(&settings),
                 Event::UserEvent(UserEvent::Hotkey(id)) => agent.on_hotkey(id),
+                Event::UserEvent(UserEvent::SelfUpdate(entry)) => agent.on_self_update(entry),
                 _ => {}
             }
             // Checked on every iteration rather than only on `ResumeTimeReached`:
@@ -200,6 +209,8 @@ struct Agent {
     cancellation: CancellationToken,
     /// Set once the user asked to quit; bounds the wait for the agent.
     quit_deadline: Option<Instant>,
+    /// The update entry, kept for a tray built after it arrived.
+    update_entry: Option<OfferEntry>,
     // Owned by the event loop so the agent's tasks keep running: dropping the
     // runtime would abort them.
     _runtime: tokio::runtime::Runtime,
@@ -215,7 +226,10 @@ impl Agent {
         self.shown = true;
         let surface = self.state.surface();
         match TrayHandle::build(self.mark(surface.icon), &surface) {
-            Ok(handle) => self.tray = Some(handle),
+            Ok(handle) => {
+                handle.show_update(self.update_entry.as_ref());
+                self.tray = Some(handle);
+            }
             Err(error) => {
                 tracing::warn!(%error, "tray icon unavailable; the agent keeps running headless");
             }
@@ -324,7 +338,22 @@ impl Agent {
         self.marks.get(kind)
     }
 
+    /// Shows, relabels or removes the agent's own update entry (RD-1210-03).
+    fn on_self_update(&mut self, entry: Option<OfferEntry>) {
+        if let Some(tray) = self.tray.as_ref() {
+            tray.show_update(entry.as_ref());
+        }
+        self.update_entry = entry;
+    }
+
     fn on_menu(&mut self, id: &MenuId) {
+        if self.tray.as_ref().is_some_and(|tray| tray.is_update(id)) {
+            tracing::info!("installing the agent's update from the tray");
+            if self.controls.self_update.send(()).is_err() {
+                tracing::warn!("the agent's update task has stopped; the request was dropped");
+            }
+            return;
+        }
         let Some(command) = self.tray.as_ref().and_then(|tray| tray.command(id)) else {
             return;
         };

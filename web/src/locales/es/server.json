@@ -1245,7 +1245,20 @@
     "site_rules.sequence_older": "Este archivo de reglas es más antiguo que uno ya importado del mismo firmante (secuencia {sequence}, ya vista {known}) y se ha rechazado.",
     "object_storage.redirect_refused": "El almacenamiento de objetos respondió con una redirección, que no se sigue. Introduce el endpoint al que redirige.",
     "proxy.password_host_changed": "La dirección del proxy cambió: introduce la contraseña de nuevo, no se envía al nuevo host.",
-    "remote.secret_host_changed": "El servidor cambió: introduce de nuevo la contraseña o la clave, no se envía al nuevo host."
+    "remote.secret_host_changed": "El servidor cambió: introduce de nuevo la contraseña o la clave, no se envía al nuevo host.",
+    "rdlinks.too_large": "El archivo de enlaces supera el límite de {max_mib} MiB",
+    "rdlinks.file_invalid": "El archivo de enlaces no es válido: {detail}",
+    "rdlinks.passphrase_required": "El archivo de enlaces está cifrado; introduce su frase de contraseña para importarlo",
+    "rdlinks.passphrase_invalid": "La frase de contraseña es incorrecta o el archivo de enlaces fue modificado",
+    "rdlinks.passphrase_too_short": "La frase de contraseña necesita al menos {min} caracteres",
+    "rdlinks.links_limit": "Un archivo de enlaces contiene como máximo {max} enlaces",
+    "export.nothing_selected": "Selecciona un paquete, una descarga o un paquete del LinkGrabber para exportar",
+    "export.nothing_exportable": "Ninguno de los enlaces seleccionados se puede escribir en un archivo de enlaces",
+    "export.passphrase_unsupported": "Un crawljob no se puede cifrar; exporta un archivo .rdlinks para usar una frase de contraseña",
+    "container.enqueue_invalid": "enqueue debe ser true o false",
+    "download.reresolve_running": "La descarga no se detuvo a tiempo para resolverse de nuevo; páusala e inténtalo otra vez",
+    "queue.stop_mark_target_invalid": "Indica para la marca de parada una descarga o un paquete",
+    "queue.stop_mark_target_finished": "Esa descarga o ese paquete ya ha terminado"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

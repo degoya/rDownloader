@@ -150,7 +150,11 @@
       "category": "Category",
       "priority": "Priority",
       "no_category": "No category",
-      "submit": "Import"
+      "submit": "Import",
+      "passphrase": "Link file passphrase",
+      "passphrase_hint": "Only for an encrypted .rdlinks file.",
+      "enqueue": "Add to the download list once checked",
+      "enqueue_hint": "For link files and containers: the links are checked and then added without another click."
     },
     "history": {
       "title": "NZB history",

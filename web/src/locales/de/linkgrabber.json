@@ -150,7 +150,11 @@
       "category": "Kategorie",
       "priority": "Priorität",
       "no_category": "Keine Kategorie",
-      "submit": "Importieren"
+      "submit": "Importieren",
+      "passphrase": "Passphrase der Linkdatei",
+      "passphrase_hint": "Nur für eine verschlüsselte .rdlinks-Datei.",
+      "enqueue": "Nach der Prüfung direkt in die Download-Liste",
+      "enqueue_hint": "Gilt für Linkdateien und Container: Die Links werden geprüft und dann ohne weiteren Klick übernommen."
     },
     "history": {
       "title": "NZB-Verlauf",

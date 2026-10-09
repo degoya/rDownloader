@@ -15,7 +15,9 @@ use super::{
     error::{McpToolResult, json_result, respond},
     params_handling::body,
 };
-use crate::{bandwidth_handlers, bandwidth_manual_handlers, queue_pause_handlers};
+use crate::{
+    bandwidth_handlers, bandwidth_manual_handlers, queue_pause_handlers, stop_mark_handlers,
+};
 
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct PauseQueueParams {
@@ -26,6 +28,16 @@ pub(crate) struct PauseQueueParams {
     /// `minutes`.
     #[serde(default)]
     pub until: Option<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct SetStopMarkParams {
+    /// The download to stop after (id from list_downloads); give this or `package_id`.
+    #[serde(default)]
+    pub download_id: Option<String>,
+    /// The package to stop after (id from list_packages); give this or `download_id`.
+    #[serde(default)]
+    pub package_id: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -44,7 +56,7 @@ pub(crate) struct SwitchProfileParams {
 #[tool_router(router = pause_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read whether the whole queue is paused for a while: until when, and how many files the pause stopped. Not paused answers `paused: false`. `account_traffic` lists the accounts whose hoster reports their traffic used up (e.g. DDownload's daily limit): `action` is what the account_traffic_action setting makes of it (nothing, pause_account - its other downloads wait -, pause_queue - nothing new starts), `until` when the hoster's wait ends and the waiting downloads try again, `next_check_at` when the account is checked for traffic next; traffic above zero continues them at once, a pause somebody set is never lifted by it."
+        description = "Read whether the whole queue is paused: until when (`until: null` for the pause a stop mark set, which lasts until resume_queue), and how many files the pause stopped. Not paused answers `paused: false`. `stop_mark` names the download or package the queue will pause after (set_stop_mark), null while none is set. `account_traffic` lists the accounts whose hoster reports their traffic used up (e.g. DDownload's daily limit): `action` is what the account_traffic_action setting makes of it (nothing, pause_account - its other downloads wait -, pause_queue - nothing new starts), `until` when the hoster's wait ends and the waiting downloads try again, `next_check_at` when the account is checked for traffic next; traffic above zero continues them at once, a pause somebody set is never lifted by it."
     )]
     pub async fn get_queue_pause(&self) -> McpToolResult {
         let Json(answer) = queue_pause_handlers::get_queue_pause(State(self.state.clone())).await;
@@ -134,6 +146,38 @@ impl RdMcpServer {
     pub async fn return_to_bandwidth_schedule(&self) -> McpToolResult {
         respond(
             bandwidth_manual_handlers::return_to_bandwidth_schedule(State(self.state.clone()))
+                .await
+                .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Set the queue's stop mark on one download or one package: once the download is done (completed or failed for good), or no download of the package waits or runs any more, the queue pauses until resume_queue; downloads running at that moment finish, and a notification (stop_mark_reached) goes out. One mark at most: a new one replaces the old. It follows its download or package when the queue is reordered and goes when that is removed. get_queue_pause reports it as stop_mark. Give download_id or package_id. Answers queue.stop_mark_target_invalid unless exactly one is given, download.not_found or package.not_found, and queue.stop_mark_target_finished for one that is already done."
+    )]
+    pub async fn set_stop_mark(
+        &self,
+        Parameters(params): Parameters<SetStopMarkParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let request = body(serde_json::json!({
+                "download_id": params.download_id,
+                "package_id": params.package_id,
+            }))?;
+            let Json(answer) =
+                stop_mark_handlers::set_queue_stop_mark(State(self.state.clone()), Json(request))
+                    .await?;
+            Ok(answer)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Remove the queue's stop mark, so the queue runs on past its download or package. Answers cleared: false when none was set."
+    )]
+    pub async fn clear_stop_mark(&self) -> McpToolResult {
+        respond(
+            stop_mark_handlers::clear_queue_stop_mark(State(self.state.clone()))
                 .await
                 .map(|Json(answer)| answer),
         )

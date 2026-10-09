@@ -20,7 +20,8 @@
     "backup_verify_failed": "Backup verification failed",
     "plugin_update_failed": "Automatic plugin update failed",
     "usenet_job_hopeless": "Usenet download beyond repair",
-    "usenet_quota_reached": "Usenet server quota used up"
+    "usenet_quota_reached": "Usenet server quota used up",
+    "stop_mark_reached": "Stop mark reached"
   },
   "severity": {
     "info": "Info and above",

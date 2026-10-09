@@ -12,6 +12,7 @@ use tray_icon::{
 
 use crate::{
     activity::{QueueEntries, QueueMenu},
+    self_update::OfferEntry,
     tray_state::Surface,
 };
 
@@ -42,6 +43,10 @@ pub(super) struct TrayHandle {
     /// now" (RD-1180-03); always in the menu, before "Quit".
     clipboard_watch: CheckMenuItem,
     send_clipboard: MenuItem,
+    /// "Install update to X" and the separator below it, before "Quit", while the agent offers
+    /// its own update (RD-1210-03).
+    update: MenuItem,
+    update_separator: PredefinedMenuItem,
     quit: MenuItem,
     // Dropping this removes the icon from the tray. Kept named rather than `_tray` since the
     // icon and tooltip are now changed while it lives.
@@ -104,6 +109,30 @@ impl TrayHandle {
         if let Err(error) = shown {
             tracing::warn!(%error, "the tray menu could not show its queue entries");
         }
+    }
+
+    /// Shows the agent's own update entry as the watch describes it, or takes it away.
+    pub(super) fn show_update(&self, entry: Option<&OfferEntry>) {
+        let _ = self.menu.remove(&self.update);
+        let _ = self.menu.remove(&self.update_separator);
+        let Some(entry) = entry else {
+            return;
+        };
+        self.update.set_text(&entry.label);
+        self.update.set_enabled(entry.enabled);
+        // Before "Quit", the last entry.
+        let position = self.menu.items().len().saturating_sub(1);
+        if let Err(error) = self
+            .menu
+            .insert_items(&[&self.update, &self.update_separator], position)
+        {
+            tracing::warn!(%error, "the tray menu could not show the agent's update");
+        }
+    }
+
+    /// Whether `id` is the update entry.
+    pub(super) fn is_update(&self, id: &MenuId) -> bool {
+        self.update.id() == id
     }
 
     /// The command an entry stands for, or `None` for the status line and the hint. What each
@@ -198,6 +227,8 @@ impl TrayHandle {
             queue_separator: PredefinedMenuItem::separator(),
             clipboard_watch,
             send_clipboard,
+            update: MenuItem::new("Install update", true, None),
+            update_separator: PredefinedMenuItem::separator(),
             quit,
             tray,
         };

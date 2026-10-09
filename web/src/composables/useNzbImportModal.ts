@@ -14,6 +14,10 @@ export interface FileImportInput {
   entries: FileImportEntry[]
   categoryId: string | null
   priority: DownloadPriority
+  /** Opens an encrypted `.rdlinks` file; empty when none was given (RD-1210-01). */
+  passphrase?: string
+  /** Queue a container's packages once their links are checked (RD-1210-01). */
+  enqueue?: boolean
 }
 
 export function useFileImportModal(): (categories: Category[], initialFiles?: File[]) => Promise<FileImportInput | null> {

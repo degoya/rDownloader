@@ -15,6 +15,8 @@ pub enum ContainerFormat {
     Rsdf,
     /// A plain text link list.
     Text,
+    /// rDownloader's own link list, readable or sealed with a passphrase (RD-1210-01).
+    RdLinks,
 }
 
 impl ContainerFormat {
@@ -27,6 +29,7 @@ impl ContainerFormat {
             "ccf" => Some(Self::Ccf),
             "rsdf" => Some(Self::Rsdf),
             "txt" | "text" => Some(Self::Text),
+            "rdlinks" => Some(Self::RdLinks),
             _ => None,
         }
     }
@@ -54,6 +57,7 @@ impl ContainerFormat {
             Self::Ccf => "ccf",
             Self::Rsdf => "rsdf",
             Self::Text => "text",
+            Self::RdLinks => "rdlinks",
         }
     }
 }
@@ -80,6 +84,10 @@ mod tests {
             ContainerFormat::from_file_name("bundle.ccf"),
             Some(ContainerFormat::Ccf)
         );
+        assert_eq!(
+            ContainerFormat::from_file_name("Export.RDLINKS"),
+            Some(ContainerFormat::RdLinks)
+        );
     }
 
     #[test]
@@ -95,6 +103,7 @@ mod tests {
         assert!(ContainerFormat::Ccf.needs_service());
         assert!(!ContainerFormat::Rsdf.needs_service());
         assert!(!ContainerFormat::Text.needs_service());
+        assert!(!ContainerFormat::RdLinks.needs_service());
         // CCF is unwrapped by asking the same service to read it as a CCF.
         assert_eq!(ContainerFormat::Ccf.service_source(), "ccf");
         assert_eq!(ContainerFormat::Dlc.service_source(), "dlc");

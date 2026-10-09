@@ -188,13 +188,19 @@ fn record(
 /// (security review 2026-09-30, finding 9): the signature covers every address, and the pin
 /// keeps even a signed manifest from sending an installation anywhere else. Compared in the
 /// parsed form the download requests, so `..` and its percent-encoded spelling leave nothing out.
+/// The capture agent's archives (RD-1210-03) are held to the same prefix.
 pub fn pinned(
     manifest: UpdateManifest,
     download_prefix: &str,
 ) -> Result<UpdateManifest, UpdateError> {
-    let outside = manifest.artifacts.iter().find(|artifact| {
-        !url::Url::parse(&artifact.url).is_ok_and(|url| url.as_str().starts_with(download_prefix))
-    });
+    let outside = manifest
+        .artifacts
+        .iter()
+        .chain(&manifest.agent_artifacts)
+        .find(|artifact| {
+            !url::Url::parse(&artifact.url)
+                .is_ok_and(|url| url.as_str().starts_with(download_prefix))
+        });
     match outside {
         Some(artifact) => Err(UpdateError::Invalid(format!(
             "the artifact {} is not under {download_prefix}",

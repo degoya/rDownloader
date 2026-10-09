@@ -25,6 +25,7 @@ pub(crate) const UNTRUSTED_TEXT_TOOLS: &[&str] = &[
     "collect_links",
     "dry_run_automations",
     "enqueue_collector",
+    "export_packages",
     "get_candidate_details",
     "get_download",
     "get_download_duplicates",
@@ -33,6 +34,7 @@ pub(crate) const UNTRUSTED_TEXT_TOOLS: &[&str] = &[
     "get_package_postprocess",
     "get_page_pick",
     "get_plugin_messages",
+    "get_queue_pause",
     "get_torrent_details",
     "grab_indexer_results",
     "import_container",
@@ -65,6 +67,7 @@ pub(crate) const UNTRUSTED_TEXT_TOOLS: &[&str] = &[
     "resolve_candidate_torrent",
     "resolve_page_entries",
     "search_indexers",
+    "set_stop_mark",
     "test_site_rule",
 ];
 

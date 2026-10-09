@@ -40,18 +40,34 @@ pub(crate) struct ContainerFileParams {
     pub priority: Option<String>,
 }
 
-/// The same, plus the format override only the generic container route reads.
+/// The same, plus what only the generic container route reads.
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct ImportContainerParams {
     #[serde(flatten)]
     pub file: ContainerFileParams,
-    /// `dlc`, `ccf`, `rsdf` or `txt`, overriding the file name's extension.
+    /// `dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the file name's extension.
     #[serde(default)]
     pub format: Option<String>,
+    /// The passphrase of an encrypted .rdlinks file. Never echoed back.
+    #[serde(default)]
+    pub passphrase: Option<String>,
+    /// Queue every package once its links are checked, instead of leaving them in the
+    /// LinkGrabber.
+    #[serde(default)]
+    pub enqueue: bool,
 }
 
 impl ContainerFileParams {
     fn into_body(self, format: Option<String>) -> UploadBody {
+        self.into_full_body(format, None, false)
+    }
+
+    fn into_full_body(
+        self,
+        format: Option<String>,
+        passphrase: Option<String>,
+        enqueue: bool,
+    ) -> UploadBody {
         UploadBody::Json(ContainerUpload {
             content: self.content,
             file_name: self.file_name,
@@ -59,6 +75,8 @@ impl ContainerFileParams {
             category_id: self.category_id,
             priority: self.priority,
             format,
+            passphrase: passphrase.map(rd_api_core::links_file::Passphrase::new),
+            enqueue: enqueue.then(|| "true".to_owned()),
         })
     }
 }
@@ -66,17 +84,23 @@ impl ContainerFileParams {
 #[tool_router(router = containers_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Hand a link container to the LinkGrabber: a .dlc, .ccf, .rsdf or a plain .txt link list, as base64. The format comes from file_name's extension or from `format`. A DLC or CCF is opened by the online decryption service, which has to be switched on in the settings. Answers with the LinkGrabber packages and links it produced; enqueue them with enqueue_collector."
+        description = "Hand a link container to the LinkGrabber: a .dlc, .ccf, .rsdf, a plain .txt link list or an .rdlinks file exported by rDownloader (export_packages), as base64. The format comes from file_name's extension or from `format`. A DLC or CCF is opened by the online decryption service, which has to be switched on in the settings; an encrypted .rdlinks needs its `passphrase`. The links are assigned to their hosts again and resolved by the plugins installed now. Answers with the LinkGrabber packages and links it produced; enqueue them with enqueue_collector, or pass `enqueue: true` to queue every package once its links are checked."
     )]
     pub async fn import_container(
         &self,
         Parameters(params): Parameters<ImportContainerParams>,
     ) -> McpToolResult {
-        let body = params.file.into_body(params.format);
+        let body = params
+            .file
+            .into_full_body(params.format, params.passphrase, params.enqueue);
         respond(
-            crate::container_handlers::import_container(State(self.state.clone()), body)
-                .await
-                .map(|(_, answer)| answer.0),
+            crate::container_handlers::import_container(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                body,
+            )
+            .await
+            .map(|(_, answer)| answer.0),
         )
     }
 

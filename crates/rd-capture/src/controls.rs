@@ -29,6 +29,9 @@ pub(crate) struct Controls {
     pub(crate) queue: mpsc::UnboundedSender<QueueRequest>,
     pub(crate) settings: mpsc::UnboundedSender<SettingsRequest>,
     pub(crate) hand_over: mpsc::UnboundedSender<()>,
+    /// "Install update to X" (RD-1210-03); only the tray sends it, and Linux has none.
+    #[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+    pub(crate) self_update: mpsc::UnboundedSender<()>,
 }
 
 /// The receiving half, handed to the agent's tasks.
@@ -36,22 +39,26 @@ pub(crate) struct Inbox {
     pub(crate) queue: mpsc::UnboundedReceiver<QueueRequest>,
     pub(crate) settings: mpsc::UnboundedReceiver<SettingsRequest>,
     pub(crate) hand_over: mpsc::UnboundedReceiver<()>,
+    pub(crate) self_update: mpsc::UnboundedReceiver<()>,
 }
 
 pub(crate) fn channels() -> (Controls, Inbox) {
     let (queue, queue_inbox) = mpsc::unbounded_channel();
     let (settings, settings_inbox) = mpsc::unbounded_channel();
     let (hand_over, hand_over_inbox) = mpsc::unbounded_channel();
+    let (self_update, self_update_inbox) = mpsc::unbounded_channel();
     (
         Controls {
             queue,
             settings,
             hand_over,
+            self_update,
         },
         Inbox {
             queue: queue_inbox,
             settings: settings_inbox,
             hand_over: hand_over_inbox,
+            self_update: self_update_inbox,
         },
     )
 }

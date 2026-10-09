@@ -103,7 +103,7 @@ async fn the_end_resumes_what_the_pause_stopped_and_nothing_else() {
     let until = Utc::now() + chrono::Duration::hours(1);
     let pause = scheduler.pause_queue_until(until).await.expect("pause");
 
-    assert_eq!(pause.until, until);
+    assert_eq!(pause.until, Some(until));
     assert_eq!(pause.files.len(), 2, "{pause:?}");
     assert!(!pause.files.contains(&paused_before.id));
     assert_eq!(state(&database, first.id).await, DownloadState::Paused);
@@ -140,7 +140,7 @@ async fn pausing_again_moves_the_end_and_keeps_the_files() {
     let later = Utc::now() + chrono::Duration::hours(3);
     let pause = scheduler.pause_queue_until(later).await.expect("again");
 
-    assert_eq!(pause.until, later);
+    assert_eq!(pause.until, Some(later));
     assert!(pause.files.contains(&first.id), "{pause:?}");
     assert!(pause.files.contains(&added.id), "{pause:?}");
     assert_eq!(scheduler.queue_pause().await, Some(pause));
@@ -158,7 +158,7 @@ async fn a_pause_survives_a_restart_until_its_end() {
     let restarted = start(directory.path(), &database).await;
 
     let pause = restarted.queue_pause().await.expect("the pause came back");
-    assert_eq!(pause.until, until);
+    assert_eq!(pause.until, Some(until));
     assert_eq!(restarted.network_hold().await, Some("queue_paused"));
     assert_eq!(state(&database, queued.id).await, DownloadState::Paused);
 }

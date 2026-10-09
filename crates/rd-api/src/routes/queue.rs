@@ -7,8 +7,8 @@ use axum::{
 use utoipa::OpenApi;
 
 use crate::{
-    AppState, download_handlers, download_sources, package_clear, package_handlers,
-    postprocess_handlers, queue_pause_handlers,
+    AppState, download_handlers, download_sources, package_clear, package_export, package_handlers,
+    postprocess_handlers, queue_pause_handlers, stop_mark_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -35,6 +35,12 @@ pub(crate) fn routes() -> Router<AppState> {
             get(queue_pause_handlers::get_queue_pause)
                 .put(queue_pause_handlers::pause_queue)
                 .delete(queue_pause_handlers::resume_queue),
+        )
+        .route(
+            "/api/v1/queue/stop-mark",
+            get(stop_mark_handlers::get_queue_stop_mark)
+                .put(stop_mark_handlers::set_queue_stop_mark)
+                .delete(stop_mark_handlers::clear_queue_stop_mark),
         )
         .route(
             "/api/v1/downloads/extract",
@@ -145,6 +151,14 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/downloads/{id}/sources",
             get(download_sources::list_download_sources),
         )
+        .route(
+            "/api/v1/packages/export",
+            post(package_export::export_packages),
+        )
+        .route(
+            "/api/v1/downloads/reresolve",
+            post(download_handlers::reresolve_downloads),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -164,6 +178,9 @@ pub(crate) fn routes() -> Router<AppState> {
     queue_pause_handlers::get_queue_pause,
     queue_pause_handlers::pause_queue,
     queue_pause_handlers::resume_queue,
+    stop_mark_handlers::get_queue_stop_mark,
+    stop_mark_handlers::set_queue_stop_mark,
+    stop_mark_handlers::clear_queue_stop_mark,
     download_handlers::extract_downloads,
     package_handlers::update_package,
     package_handlers::bulk_update_packages,
@@ -187,5 +204,7 @@ pub(crate) fn routes() -> Router<AppState> {
     postprocess_handlers::preview_package_name,
     download_handlers::set_download_auth_profile,
     download_sources::list_download_sources,
+    package_export::export_packages,
+    download_handlers::reresolve_downloads,
 ))]
 pub(crate) struct Doc;

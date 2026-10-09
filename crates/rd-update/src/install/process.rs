@@ -106,12 +106,34 @@ pub fn updater_file_name() -> &'static str {
 /// When the copy or the start fails; the journal then still says `handed`, and the service ends
 /// it as failed.
 pub fn launch_updater(journal: &Journal) -> Result<()> {
+    launch_copy(journal, updater_file_name())
+}
+
+/// [`launch_updater`] for the capture agent's own update (RD-1210-03), as
+/// `rdownloader-capture-updater`: the agent's `apply-update` is its own subcommand, and the copy
+/// is never taken for the agent by a name that stops it.
+///
+/// # Errors
+///
+/// As [`launch_updater`].
+pub fn launch_agent_updater(journal: &Journal) -> Result<()> {
+    launch_copy(
+        journal,
+        if cfg!(windows) {
+            "rdownloader-capture-updater.exe"
+        } else {
+            "rdownloader-capture-updater"
+        },
+    )
+}
+
+fn launch_copy(journal: &Journal, file_name: &str) -> Result<()> {
     let current = std::env::current_exe().context("locate the running executable")?;
     let update = update_dir(&journal.plan.data_dir);
     let directory = update.join(UPDATER_DIR);
     remove_any(&directory)?;
     fs::create_dir_all(&directory).with_context(|| format!("create {}", directory.display()))?;
-    let copy = directory.join(updater_file_name());
+    let copy = directory.join(file_name);
     fs::copy(&current, &copy)
         .with_context(|| format!("copy {} to {}", current.display(), copy.display()))?;
     let log = update.join(UPDATER_LOG);

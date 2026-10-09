@@ -9,6 +9,7 @@ import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
+import { useStopMark } from '@/composables/useStopMark'
 import { formatByteProgress, formatDuration, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 import { sourcePageUrl } from '@/utils/sourcePage'
@@ -80,6 +81,9 @@ const emit = defineEmits<{
   handOver: [id: string, accountId: string]
   /** Every failed and blocked file of the package back to the queue (RD-1190-15). */
   resetFailed: [id: string]
+  /** The package as a link file; resolved again with the plugin installed now (RD-1210-01). */
+  export: [id: string]
+  reresolve: [id: string]
 }>()
 /** What the handle announces: the drag, and the keys that do the same without a mouse. */
 const dragTitle = computed(() => `${t('downloads.package.drag_title')} — ${t('common.a11y.reorder_keys')}`)
@@ -242,6 +246,8 @@ const handOverActions = computed(() => props.package.nzb_import_id && props.remo
       }))
     ]]
   : [])
+/** The queue's stop mark on the whole package (RD-1210-02): its glyph and its menu entry. */
+const { marked: stopMarked, items: stopMarkItems } = useStopMark('package', () => props.package.id, () => props.complete)
 const actions = computed(() => [[
   {
     label: t('downloads.package.copy_path_aria'),
@@ -274,9 +280,14 @@ const actions = computed(() => [[
         description: t('downloads.package.reset_failed_hint', { count: stuckCount.value }, stuckCount.value),
         onSelect: () => emit('resetFailed', props.package.id)
       }]
-    : [])
+    : []),
+  ...stopMarkItems.value
 ], [
   { label: t('common.actions.copy_links'), icon: 'i-lucide-link', onSelect: () => emit('copyLinks', props.package.id) },
+  { label: t('common.export.action'), icon: 'i-lucide-file-down', onSelect: () => emit('export', props.package.id) },
+  ...(props.complete
+    ? []
+    : [{ label: t('downloads.reresolve.action'), icon: 'i-lucide-refresh-cw', description: t('downloads.reresolve.hint'), onSelect: () => emit('reresolve', props.package.id) }]),
   ...(sourcePage.value
     ? [{ label: t('common.actions.open_source_page'), icon: 'i-lucide-external-link', to: sourcePage.value, target: '_blank' }]
     : [])
@@ -336,6 +347,9 @@ function controlPackage(): void {
         <h3 class="min-w-0 truncate text-sm font-semibold text-highlighted" :title="props.package.name">{{ props.package.name }}</h3>
         <!-- The row's states are glyphs with their word in a tooltip and as the accessible name:
              a word per state pushed past the name cell into the count beside it. -->
+        <UTooltip v-if="stopMarked" :text="t('downloads.stop_mark.glyph_title')">
+          <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="shrink-0" role="img" :aria-label="t('downloads.stop_mark.glyph')" data-testid="stop-mark" />
+        </UTooltip>
         <UTooltip v-if="usenet" :text="t('downloads.package.usenet')">
           <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-newspaper" class="shrink-0" :aria-label="t('downloads.package.usenet')" data-testid="package-usenet" />
         </UTooltip>

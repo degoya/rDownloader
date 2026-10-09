@@ -1263,7 +1263,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The agent's poll: what it is set to. */
+        /**
+         * The agent's poll: what it is set to.
+         * @description It carries the agent's own update report on the way in and the service's update channel on
+         *     the way out (RD-1210-03, `rd_update::agent::report`): an agent installed without the service
+         *     reads the channel the service reads, and the update status shows what the agent offers itself.
+         */
         get: operations["read_capture_agent_settings"];
         put?: never;
         post?: never;
@@ -2613,6 +2618,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/downloads/reresolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reresolve_downloads"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/downloads/summary": {
         parameters: {
             query?: never;
@@ -3803,6 +3824,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/packages/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["export_packages"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/packages/extract": {
         parameters: {
             query?: never;
@@ -4791,7 +4828,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The timed pause in force, if any. */
+        /** The pause in force, if any, and the stop mark that will set one. */
         get: operations["get_queue_pause"];
         /**
          * Pauses every waiting and running file until the end, and holds back new ones until then.
@@ -4805,6 +4842,30 @@ export interface paths {
          *     outranks the automatic hold, and their waiting files keep their own due times.
          */
         delete: operations["resume_queue"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/queue/stop-mark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The stop mark in force, if any. */
+        get: operations["get_queue_stop_mark"];
+        /**
+         * Sets the stop mark on a file or a package, replacing the one in force. Once the file is done
+         *     (completed or failed for good), or no file of the package waits or runs any more, the queue
+         *     pauses until it is resumed; what runs at that moment finishes. A target that is already done
+         *     is refused.
+         */
+        put: operations["set_queue_stop_mark"];
+        post?: never;
+        /** Removes the stop mark; the queue then runs on past its target. */
+        delete: operations["clear_queue_stop_mark"];
         options?: never;
         head?: never;
         patch?: never;
@@ -7901,11 +7962,24 @@ export interface components {
         };
         /** @description One connected capture agent's version, measured against the service's. */
         CaptureAgentVersion: {
+            /** @description The newer version the agent offers itself, with `offered` and `installing`. */
+            offered_version?: string | null;
             /**
              * @description Whether the agent is older than the service -- it reported an older version, or none --
              *     and so still runs the program file from before the update.
              */
             outdated: boolean;
+            /**
+             * @description Whether the agent lets the service ask it to install an update; off unless its own
+             *     configuration allows it.
+             */
+            remote_update_allowed?: boolean | null;
+            /**
+             * @description Where the agent's own update stands (RD-1210-03): `with_service` (the service in its
+             *     folder updates it), `disabled`, `unchecked`, `current`, `offered`, `failed` or
+             *     `installing`. Empty for an agent that reports none (before 1.21).
+             */
+            self_update?: string | null;
             /** @description The version the agent reported; empty for an agent from before 1.9, which reports none. */
             version?: string | null;
         };
@@ -8739,18 +8813,28 @@ export interface components {
              */
             content: string;
             /**
+             * @description `true` queues every package once its links are checked, instead of leaving them in the
+             *     LinkGrabber (RD-1210-01). Read by `/api/v1/containers/import` only.
+             */
+            enqueue?: string | null;
+            /**
              * @description The file's name, as a browser upload would carry it. `/api/v1/containers/import` reads
              *     the format from its extension, and a `{{password}}` marker in it names the archive
              *     password, as it does for a dropped file.
              */
             file_name?: string | null;
             /**
-             * @description `dlc`, `ccf`, `rsdf` or `txt`, overriding the extension. Read by
+             * @description `dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the extension. Read by
              *     `/api/v1/containers/import` only; the other routes each take one format.
              */
             format?: string | null;
             /** @description The package name to use instead of the one the file suggests. */
             name?: string | null;
+            /**
+             * @description The passphrase of an encrypted `.rdlinks` file (RD-1210-01). Read by
+             *     `/api/v1/containers/import` only, never logged and never answered back.
+             */
+            passphrase?: string | null;
             /** @description `low`, `normal` or `high`. */
             priority?: string | null;
         };
@@ -11328,7 +11412,7 @@ export interface components {
          * @description What happened. Deliberately a closed set: a rule filters on it, so it has to be stable.
          * @enum {string}
          */
-        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached";
+        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached" | "stop_mark_reached";
         /** @description Which events of which packages reach which target. */
         NotificationRule: {
             category_id?: components["schemas"]["CategoryId"] | null;
@@ -11702,6 +11786,28 @@ export interface components {
             /** @description Cancels running files and removes the package anyway. */
             force?: boolean;
             ids: components["schemas"]["PackageId"][];
+        };
+        /**
+         * @description The file an export writes.
+         * @enum {string}
+         */
+        PackageExportFormat: "rdlinks" | "crawljob";
+        /**
+         * @description What to export: any mix of download-list packages, single downloads and LinkGrabber
+         *     packages, or every package of the download list.
+         */
+        PackageExportRequest: {
+            /** @description Every package of the download list, finished, running and failed alike. */
+            all?: boolean;
+            /** @description LinkGrabber packages, with every link not yet queued. */
+            collector_package_ids?: components["schemas"]["CollectorPackageId"][];
+            /** @description Single downloads; each lands in its own package's entry. */
+            download_ids?: components["schemas"]["DownloadId"][];
+            format: components["schemas"]["PackageExportFormat"];
+            /** @description Download-list packages, with every file they hold. */
+            package_ids?: components["schemas"]["PackageId"][];
+            /** @description Seals an `.rdlinks` file; at least 8 characters. Never logged, audited or answered back. */
+            passphrase?: string | null;
         };
         /** @description Packages to extract manually. */
         PackageExtractRequest: {
@@ -12521,11 +12627,13 @@ export interface components {
              * @description The files it stopped; its end resumes those still paused.
              */
             files: number;
-            /** @description Whether a timed pause is in force. */
+            /** @description Whether a pause is in force. */
             paused: boolean;
+            stop_mark?: components["schemas"]["QueueStopMarkResponse"] | null;
             /**
              * Format: date-time
-             * @description When it ends and the queue runs again.
+             * @description When it ends and the queue runs again; `null` while paused for a pause that lasts until
+             *     it is resumed — the one the stop mark sets (RD-1210-02).
              */
             until?: string | null;
         };
@@ -12535,6 +12643,26 @@ export interface components {
              * @description Files the ended pause queued again.
              */
             resumed: number;
+        };
+        QueueStopMarkClearResponse: {
+            /** @description Whether a mark was set and is gone now. */
+            cleared: boolean;
+        };
+        QueueStopMarkRequest: {
+            download_id?: components["schemas"]["DownloadId"] | null;
+            package_id?: components["schemas"]["PackageId"] | null;
+        };
+        /** @description The stop mark in force: where the queue will pause. */
+        QueueStopMarkResponse: {
+            download_id?: components["schemas"]["DownloadId"] | null;
+            /** @description The file's or the package's name, as the queue shows it. */
+            name: string;
+            package_id?: components["schemas"]["PackageId"] | null;
+            /** Format: date-time */
+            set_at: string;
+        };
+        QueueStopMarkStateResponse: {
+            stop_mark?: components["schemas"]["QueueStopMarkResponse"] | null;
         };
         /** @description The configured quiet hours. */
         QuietHours: {
@@ -13032,6 +13160,14 @@ export interface components {
             /** @description Install only: the fingerprint of the package's signing key the person confirmed. */
             trust_fingerprint?: string | null;
             version: string;
+        };
+        /**
+         * @description Downloads to resolve again with the plugin installed now: any mix of single downloads and
+         *     whole packages.
+         */
+        ReresolveRequest: {
+            ids?: components["schemas"]["DownloadId"][];
+            package_ids?: components["schemas"]["PackageId"][];
         };
         /** @description The entries to resolve. */
         ResolveCollectorPickRequest: {
@@ -20039,6 +20175,8 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description The service's update channel, stable or beta */
+                    "x-rdownloader-update-channel"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22612,7 +22750,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContainerImportResponse"];
                 };
             };
-            /** @description The format is unknown, its import is disabled, the container is invalid, or the JSON content is not base64 */
+            /** @description The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, or the JSON content is not base64 */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22999,6 +23137,44 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reresolve_downloads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReresolveRequest"];
+            };
+        };
+        responses: {
+            /** @description `affected` counts the files that resolve anew at their next start; each refusal is coded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadBulkResponse"];
+                };
+            };
+            /** @description No download or more than 500 named */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A named package does not exist */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -25859,6 +26035,49 @@ export interface operations {
             };
         };
     };
+    export_packages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackageExportRequest"];
+            };
+        };
+        responses: {
+            /** @description The file, as an attachment */
+            200: {
+                headers: {
+                    /** @description Links in the file */
+                    "x-rd-export-links"?: number;
+                    /** @description Links the format could not carry */
+                    "x-rd-export-skipped"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                    "text/plain": string;
+                };
+            };
+            /** @description Nothing selected or nothing exportable, too many links, a passphrase too short, or a passphrase for a crawljob */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A named package or download does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     extract_packages: {
         parameters: {
             query?: never;
@@ -27824,6 +28043,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueueResumeResponse"];
+                };
+            };
+        };
+    };
+    get_queue_stop_mark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueStopMarkStateResponse"];
+                };
+            };
+        };
+    };
+    set_queue_stop_mark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueueStopMarkRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueStopMarkResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    clear_queue_stop_mark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueStopMarkClearResponse"];
                 };
             };
         };

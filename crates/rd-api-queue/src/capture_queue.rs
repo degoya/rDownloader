@@ -51,7 +51,7 @@ pub async fn pause_capture_queue(
             .await?;
         return Ok(Json(CaptureQueueResponse {
             files: count(pause.files.len()),
-            paused_until: Some(pause.until),
+            paused_until: pause.until,
         }));
     }
     let mut paused = 0;
@@ -69,7 +69,11 @@ pub async fn pause_capture_queue(
     }
     Ok(Json(CaptureQueueResponse {
         files: count(paused),
-        paused_until: state.scheduler.queue_pause().await.map(|pause| pause.until),
+        paused_until: state
+            .scheduler
+            .queue_pause()
+            .await
+            .and_then(|pause| pause.until),
     }))
 }
 

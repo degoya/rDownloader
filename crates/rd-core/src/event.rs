@@ -95,6 +95,10 @@ pub enum EventKind {
     /// A user-written site rule was written or removed (`site_rule.changed`, RD-110-04).
     /// The payload names the rule id and never carries the rule body.
     SiteRuleChanged,
+    /// The queue's stop mark was set, cleared or reached (`queue.stop_mark`, RD-1210-02). The
+    /// payload names the action and the file or package by id only. Broadcast only, never
+    /// persisted: the mark itself is the stored state.
+    QueueStopMark,
     System,
 }
 

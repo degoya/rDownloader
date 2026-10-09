@@ -22,7 +22,7 @@ use rd_api_core::list_bounds::{total_header, validate_bulk};
 
 mod crawl;
 mod intake;
-mod links;
+pub(crate) mod links;
 mod mirrors;
 
 pub(crate) use intake::collector_intake_crawled;

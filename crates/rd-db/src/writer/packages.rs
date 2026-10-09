@@ -114,6 +114,16 @@ impl Writer {
                 .await;
                 send(reply, result);
             }
+            PackagesCommand::SetStopMark { target, reply } => {
+                let result =
+                    crate::stop_mark_store::set_stop_mark(&mut self.connection, target).await;
+                send(reply, result);
+            }
+            PackagesCommand::ClearStopMark { only, reply } => {
+                let result =
+                    crate::stop_mark_store::clear_stop_mark(&mut self.connection, only).await;
+                send(reply, result);
+            }
         }
     }
 }

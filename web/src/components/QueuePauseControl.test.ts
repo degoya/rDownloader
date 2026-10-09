@@ -82,6 +82,20 @@ describe('QueuePauseControl', () => {
     expect(screen.queryByTestId('queue-pause-resume')).toBeNull()
   })
 
+  it('says the queue stopped at its stop mark while that pause holds, and resumes it', async () => {
+    vi.mocked(api.GET).mockResolvedValueOnce({ data: { paused: true, until: null, files: 1, account_traffic: [] } } as never)
+    vi.mocked(api.DELETE).mockResolvedValue({ data: { resumed: 1 } } as never)
+    const { queuePause, transfers } = mount()
+    await queuePause.load()
+    await vi.waitFor(() => expect(screen.queryByTestId('queue-pause-resume')).toBeTruthy())
+
+    expect(queuePause.openEnded).toBe(true)
+    expect(screen.getByTestId('queue-pause-resume').textContent).toBe('Stopped at the stop mark')
+    await fireEvent.click(screen.getByRole('button', { name: 'Resume now' }))
+    await vi.waitFor(() => expect(transfers.notice).toBe('1 transfer was started or resumed.'))
+    expect(queuePause.active).toBe(false)
+  })
+
   it('shows a refusal where the list shows its errors', async () => {
     vi.mocked(api.PUT).mockResolvedValue({ data: undefined } as never)
     const { transfers } = mount()

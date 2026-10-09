@@ -175,6 +175,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a timed pause recorded before its files were paused holds the queue from the next start until its end, so none of its files starts early; once the end has passed, every file it paused is queued again and none stays paused for good",
     },
     CrashPoint {
+        name: "scheduler.after_stop_mark_paused",
+        owner: "rd-scheduler",
+        invariant: "a stop mark acted on before it was cleared stays set with its pause recorded and the waiting files paused; the next start holds the queue before its first dispatch, acts on the mark once more without changing the pause, clears it and reports it reached once, and nothing new starts in between",
+    },
+    CrashPoint {
         name: "scheduler.after_torrent_selection",
         owner: "rd-scheduler",
         invariant: "a torrent row whose reviewed file selection was written before it joined the queue stays paused with that selection after the next start, never queued and never started with the default selection; resuming it starts the reviewed one",

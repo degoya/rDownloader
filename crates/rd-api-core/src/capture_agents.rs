@@ -13,6 +13,11 @@
 //! reconnect that overlaps the stream it replaces counts once, with the version it came back
 //! as. No label leaves this module: the status it feeds is readable with `api:read`, and the
 //! list of paired agents needs `api:secrets`.
+//!
+//! An agent installed without the service updates itself (RD-1210-03) and says where that stands
+//! on its settings poll (`rd_update::agent::report`): [`CaptureAgents::note_report`] keeps the last
+//! report beside the version, found by the digest of the token the stream opened with, so the poll
+//! costs no lookup.
 
 use std::{
     collections::HashMap,
@@ -34,6 +39,10 @@ pub struct CaptureAgents(Arc<Mutex<HashMap<rd_core::CaptureTokenId, Connected>>>
 struct Connected {
     streams: usize,
     version: Option<String>,
+    /// The digest of its capture token, which its settings poll is matched by.
+    digest: String,
+    /// What it last said about its own update (RD-1210-03); `None` before 1.21.
+    report: Option<rd_update::agent::report::AgentReport>,
 }
 
 /// Held by an open capture event stream; dropping it ends the agent's entry once its last
@@ -44,14 +53,23 @@ pub struct Connection {
 }
 
 impl CaptureAgents {
-    /// Notes an agent's open stream and the version it reported (`None`: it reported none).
+    /// Notes an agent's open stream, the version it reported (`None`: it reported none) and the
+    /// digest of its token.
     #[must_use]
-    pub fn connect(&self, id: rd_core::CaptureTokenId, version: Option<String>) -> Connection {
+    pub fn connect(
+        &self,
+        id: rd_core::CaptureTokenId,
+        version: Option<String>,
+        digest: String,
+    ) -> Connection {
         if let Ok(mut agents) = self.0.lock() {
             let entry = agents.entry(id).or_insert(Connected {
                 streams: 0,
                 version: None,
+                digest: String::new(),
+                report: None,
             });
+            entry.digest = digest;
             entry.streams += 1;
             entry.version = version;
         }
@@ -73,10 +91,42 @@ impl CaptureAgents {
             .map(|agent| CaptureAgentVersion {
                 outdated: outdated(agent.version.as_deref(), service),
                 version: agent.version.clone(),
+                self_update: agent
+                    .report
+                    .as_ref()
+                    .map(|report| report.state.as_str().to_owned()),
+                offered_version: agent
+                    .report
+                    .as_ref()
+                    .and_then(|report| report.offered.clone()),
+                remote_update_allowed: agent.report.as_ref().map(|report| report.remote_allowed),
             })
             .collect();
         versions.sort();
         versions
+    }
+
+    /// Keeps the update report the settings poll in `headers` carries (RD-1210-03), for the
+    /// connected agent whose token it bears. A poll without a report, from a token with no open
+    /// stream, or with a report this build cannot read changes nothing.
+    pub fn note_report(&self, headers: &HeaderMap) {
+        let Some(report) = headers
+            .get(rd_update::agent::report::REPORT_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(rd_update::agent::report::AgentReport::parse)
+        else {
+            return;
+        };
+        let Some(token) = crate::auth::bearer_token(headers) else {
+            return;
+        };
+        let digest = crate::auth::digest_of(token);
+        let Ok(mut agents) = self.0.lock() else {
+            return;
+        };
+        if let Some(agent) = agents.values_mut().find(|agent| agent.digest == digest) {
+            agent.report = Some(report);
+        }
     }
 }
 
@@ -124,14 +174,13 @@ pub fn reported_version(headers: &HeaderMap) -> Option<String> {
 /// update view just does not count it.
 pub async fn connect(state: &AppState, headers: &HeaderMap) -> Option<Connection> {
     let token = crate::auth::bearer_token(headers)?;
-    match state
-        .database
-        .capture_token_identity(&crate::auth::digest_of(token))
-        .await
-    {
-        Ok(Some((id, _, _, _))) => {
-            Some(state.capture_agents.connect(id, reported_version(headers)))
-        }
+    let digest = crate::auth::digest_of(token);
+    match state.database.capture_token_identity(&digest).await {
+        Ok(Some((id, _, _, _))) => Some(state.capture_agents.connect(
+            id,
+            reported_version(headers),
+            digest,
+        )),
         Ok(None) => None,
         Err(error) => {
             tracing::warn!(%error, "could not identify the capture agent behind a stream");
@@ -195,9 +244,9 @@ mod tests {
     fn an_agent_counts_while_any_of_its_streams_is_open() {
         let agents = CaptureAgents::default();
         let id = rd_core::CaptureTokenId::new();
-        let first = agents.connect(id, None);
+        let first = agents.connect(id, None, "digest".to_owned());
         // The reconnect after a relaunch overlaps the stream it replaces.
-        let second = agents.connect(id, Some("1.9.0".to_owned()));
+        let second = agents.connect(id, Some("1.9.0".to_owned()), "digest".to_owned());
         let versions = agents.versions("1.9.0");
         assert_eq!(versions.len(), 1, "one agent, two streams");
         assert_eq!(versions[0].version.as_deref(), Some("1.9.0"));
@@ -214,13 +263,62 @@ mod tests {
     #[test]
     fn two_agents_are_listed_apart_and_in_a_stable_order() {
         let agents = CaptureAgents::default();
-        let _new = agents.connect(rd_core::CaptureTokenId::new(), Some("1.9.0".to_owned()));
-        let _old = agents.connect(rd_core::CaptureTokenId::new(), None);
+        let _new = agents.connect(
+            rd_core::CaptureTokenId::new(),
+            Some("1.9.0".to_owned()),
+            "new".to_owned(),
+        );
+        let _old = agents.connect(rd_core::CaptureTokenId::new(), None, "old".to_owned());
         let versions = agents.versions("1.9.0");
         assert_eq!(versions.len(), 2);
         assert_eq!(versions[0].version, None);
         assert!(versions[0].outdated);
         assert_eq!(versions[1].version.as_deref(), Some("1.9.0"));
         assert!(!versions[1].outdated);
+    }
+
+    /// RD-1210-03: the settings poll's report reaches the agent whose token it bears, and only
+    /// that one; an agent that sends none shows none.
+    #[test]
+    fn an_agents_update_report_is_kept_beside_its_version() {
+        let agents = CaptureAgents::default();
+        let token = "a-capture-token-of-forty-characters-0001";
+        let _reporting = agents.connect(
+            rd_core::CaptureTokenId::new(),
+            Some("1.20.0".to_owned()),
+            crate::auth::digest_of(token),
+        );
+        let _quiet = agents.connect(
+            rd_core::CaptureTokenId::new(),
+            Some("1.20.0".to_owned()),
+            crate::auth::digest_of("another-token-of-forty-characters-00002"),
+        );
+        let mut poll = HeaderMap::new();
+        poll.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {token}")).expect("header"),
+        );
+        agents.note_report(&poll);
+        assert!(
+            agents
+                .versions("1.20.0")
+                .iter()
+                .all(|agent| agent.self_update.is_none()),
+            "a poll without a report changes nothing"
+        );
+        poll.insert(
+            rd_update::agent::report::REPORT_HEADER,
+            HeaderValue::from_static("state=offered; version=1.21.0; remote=0"),
+        );
+        agents.note_report(&poll);
+        let versions = agents.versions("1.20.0");
+        let reporting: Vec<_> = versions
+            .iter()
+            .filter(|agent| agent.self_update.is_some())
+            .collect();
+        assert_eq!(reporting.len(), 1, "only the agent behind the token");
+        assert_eq!(reporting[0].self_update.as_deref(), Some("offered"));
+        assert_eq!(reporting[0].offered_version.as_deref(), Some("1.21.0"));
+        assert_eq!(reporting[0].remote_update_allowed, Some(false));
     }
 }

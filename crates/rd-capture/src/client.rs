@@ -6,6 +6,7 @@ use reqwest::{Client, StatusCode, multipart};
 use url::Url;
 
 mod identity;
+mod self_update;
 
 pub(crate) use identity::ForeignListener;
 use identity::Identity;
@@ -273,6 +274,8 @@ pub(crate) struct CaptureClient {
     stream: Client,
     /// Whether the service address answered as rDownloader since the last lost connection.
     identity: Identity,
+    /// The agent's own update report and what the service answers to it (RD-1210-03).
+    self_update: crate::self_update::Shared,
 }
 
 impl CaptureClient {
@@ -283,6 +286,7 @@ impl CaptureClient {
             http: build(Purpose::Request)?,
             stream: build(Purpose::Stream)?,
             identity: Identity::default(),
+            self_update: crate::self_update::Shared::default(),
         })
     }
 
@@ -372,10 +376,12 @@ impl CaptureClient {
 
     /// What the service has this agent set to: the clipboard pause and the shortcuts
     /// (RD-1180-01, RD-1180-03). Read on the same five-second cadence as the summary.
+    /// It carries the agent's own update report and reads the service's channel (RD-1210-03).
     pub(crate) async fn agent_settings(&self) -> Result<rd_core::CaptureAgentSettings> {
         let url = self.service.join("api/v1/capture/agent-settings")?;
-        let response = self.send(self.http.get(url)).await?;
+        let response = self.send(self.with_report(self.http.get(url))).await?;
         let response = ensure_success(response, "agent settings").await?;
+        self.self_update.learn(response.headers());
         Ok(response.json().await?)
     }
 

@@ -18,8 +18,9 @@ import { WHOLE } from '@/utils/numberInput'
  * channel it reads, what it found, and "check now". The three settings are fields of the
  * settings document and are saved with it; the check itself runs on the service. Beside the
  * running version, the versions of the running capture agents and, for one older than the
- * service, how to restart it (RD-190-07). A newer version stands at the top of the card, with its
- * actions (RD-1150-01).
+ * service, how to restart it (RD-190-07), and the update an agent installed without the service
+ * offers itself (RD-1210-03). A newer version stands at the top of the card, with its actions
+ * (RD-1150-01).
  */
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -90,7 +91,20 @@ const agentVersions = computed(() => versionsOf(status.value?.capture_agents ?? 
  * hint says how instead of offering a button.
  */
 const outdatedAgents = computed(() =>
-  versionsOf((status.value?.capture_agents ?? []).filter((agent) => agent.outdated)))
+  versionsOf((status.value?.capture_agents ?? []).filter((agent) => agent.outdated && !updatesItself(agent))))
+
+/**
+ * An agent installed without the service updates itself (RD-1210-03): a restart does not bring
+ * it the service's version, its own update does — which it reports here.
+ */
+function updatesItself(agent: CaptureAgentVersion): boolean {
+  return agent.self_update != null && agent.self_update !== 'with_service'
+}
+
+/** The versions the agents installed without the service offer themselves, each once. */
+const selfOffered = computed(() => [...new Set((status.value?.capture_agents ?? [])
+  .filter((agent) => agent.self_update === 'offered' && agent.offered_version)
+  .map((agent) => agent.offered_version as string))].join(', '))
 
 async function checkNow(): Promise<void> {
   await check()
@@ -140,6 +154,9 @@ async function checkNow(): Promise<void> {
       </p>
       <p v-if="agentVersions" class="text-muted" data-testid="update-capture-agents">
         {{ t('system.updates.agents.running', { versions: agentVersions }) }}
+      </p>
+      <p v-if="selfOffered" class="text-muted" data-testid="update-capture-self-offered">
+        {{ t('system.updates.agents.self_offered', { version: selfOffered }) }}
       </p>
       <p class="text-muted">
         {{ status.last_checked_at ? t('system.updates.last_checked', { when: formatMoment(status.last_checked_at) }) : t('system.updates.never_checked') }}

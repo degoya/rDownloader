@@ -19,6 +19,11 @@ const files = ref<File[]>([])
 const name = ref('')
 const category = ref<string>(NO_SELECTION)
 const priority = ref<DownloadPriority>('normal')
+const passphrase = ref('')
+const enqueue = ref(false)
+/** A link file may be sealed; a container may be queued once checked (RD-1210-01). */
+const hasLinkFile = computed(() => files.value.some(file => /\.rdlinks$/i.test(file.name)))
+const hasContainer = computed(() => files.value.some(file => /\.(?:dlc|ccf|rsdf|txt|text|rdlinks)$/i.test(file.name)))
 
 const categoryItems = computed(() => [
   { label: t('linkgrabber.nzb.modal.no_category'), value: NO_SELECTION },
@@ -70,7 +75,9 @@ function submit(): void {
   emit('close', {
     entries,
     categoryId: category.value === NO_SELECTION ? null : category.value,
-    priority: priority.value
+    priority: priority.value,
+    ...(hasLinkFile.value && passphrase.value ? { passphrase: passphrase.value } : {}),
+    ...(hasContainer.value && enqueue.value ? { enqueue: true } : {})
   })
 }
 </script>
@@ -87,7 +94,7 @@ function submit(): void {
         <UFileUpload
           :model-value="[]"
           multiple
-          accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt"
+          accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt,.rdlinks"
           icon="i-lucide-file-archive"
           :label="files.length ? t('linkgrabber.nzb.modal.drop_hint_multi') : t('linkgrabber.nzb.modal.drop_hint')"
           :interactive="false"
@@ -120,6 +127,10 @@ function submit(): void {
         <UFormField :label="t('linkgrabber.nzb.modal.priority')">
           <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" class="w-full" />
         </UFormField>
+        <UFormField v-if="hasLinkFile" name="import-passphrase" :label="t('linkgrabber.nzb.modal.passphrase')" :description="t('linkgrabber.nzb.modal.passphrase_hint')">
+          <UInput v-model="passphrase" type="password" autocomplete="current-password" class="w-full" data-testid="import-passphrase" />
+        </UFormField>
+        <USwitch v-if="hasContainer" v-model="enqueue" :label="t('linkgrabber.nzb.modal.enqueue')" :description="t('linkgrabber.nzb.modal.enqueue_hint')" data-testid="import-enqueue" />
       </form>
     </template>
     <template #footer>

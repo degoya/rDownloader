@@ -273,7 +273,9 @@ pub(crate) fn dunce_path(value: &str) -> Result<PathBuf> {
 /// watched folder is somewhere people also keep notes, and picking up a README to announce it
 /// holds no links — then moving it aside — is not a trade worth making for a format that is
 /// one paste away anyway.
-const CANDIDATE_EXTENSIONS: [&str; 5] = ["nzb", "torrent", "dlc", "ccf", "rsdf"];
+/// An `.rdlinks` file is rDownloader's own export (RD-1210-01); only an unencrypted one can be
+/// read here, a sealed one goes to `failed/`.
+const CANDIDATE_EXTENSIONS: [&str; 6] = ["nzb", "torrent", "dlc", "ccf", "rsdf", "rdlinks"];
 
 pub(crate) fn is_candidate(path: &Path) -> bool {
     let name = path

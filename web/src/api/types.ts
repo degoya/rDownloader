@@ -79,6 +79,8 @@ export type BandwidthCapability = components['schemas']['RunnerLimitSupport']
 export type BandwidthScopeLimit = components['schemas']['ScopeLimit']
 export type ManualProfileRequest = components['schemas']['ManualProfileRequest']
 export type QueuePause = components['schemas']['QueuePauseResponse']
+/** The queue's stop mark: the file or package the queue pauses after (RD-1210-02). */
+export type QueueStopMark = components['schemas']['QueueStopMarkResponse']
 /** An account whose traffic its hoster reports used up, and what that holds back (RD-1190-14). */
 export type AccountTrafficHold = components['schemas']['AccountTrafficHoldResponse']
 export type AccountTrafficAction = components['schemas']['AccountTrafficAction']

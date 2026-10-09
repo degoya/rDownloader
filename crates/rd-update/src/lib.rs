@@ -15,6 +15,8 @@
 //! * [`install`] — installing a downloaded artifact and taking it back (RD-180-02): the journal,
 //!   the portable switch, the processes of an update and what a start does with an interrupted
 //!   one.
+//! * [`agent`] — the capture agent's own update when it is installed without the service
+//!   (RD-1210-03): whether it updates itself, what it reports, and its install with roll-back.
 //!
 //! No database, no queue, no plugin host: the updater of RD-180-02 runs this before the new
 //! version is known to start, and the service keeps its own state (the floors, the last result)
@@ -22,6 +24,7 @@
 
 #![warn(unreachable_pub)]
 
+pub mod agent;
 pub mod check;
 pub mod download;
 pub mod fetch;
@@ -36,7 +39,7 @@ pub use download::{download_verified, download_verified_with, verified_file};
 pub use fetch::{Fetcher, HttpFetcher, MemoryFetcher};
 pub use install_kind::{INSTALL_KIND_ENV, INSTALL_KIND_FILE, InstallKind, UpdateAction};
 pub use manifest::{Artifact, Channel, UpdateError, UpdateManifest};
-pub use offer::{Offer, Target, is_newer, newest_offer, parse_version};
+pub use offer::{Offer, Target, is_newer, newest_agent_offer, newest_offer, parse_version};
 pub use settings::UpdateSettings;
 
 pub use rd_sign::{SigningKey, TrustStore};

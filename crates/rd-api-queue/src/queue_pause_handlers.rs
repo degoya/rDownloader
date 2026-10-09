@@ -27,15 +27,19 @@ pub struct QueuePauseRequest {
 
 #[derive(Serialize, ToSchema)]
 pub struct QueuePauseResponse {
-    /// Whether a timed pause is in force.
+    /// Whether a pause is in force.
     pub paused: bool,
-    /// When it ends and the queue runs again.
+    /// When it ends and the queue runs again; `null` while paused for a pause that lasts until
+    /// it is resumed — the one the stop mark sets (RD-1210-02).
     pub until: Option<DateTime<Utc>>,
     /// The files it stopped; its end resumes those still paused.
     pub files: u32,
     /// The accounts whose traffic their hoster reports used up, the soonest to end first
     /// (RD-1190-14); empty while none is.
     pub account_traffic: Vec<AccountTrafficHoldResponse>,
+    /// Where the queue will pause next: the stop mark in force (RD-1210-02), `null` while none
+    /// is set.
+    pub stop_mark: Option<crate::stop_mark_handlers::QueueStopMarkResponse>,
 }
 
 /// An account whose traffic is used up, and what that holds back.
@@ -60,7 +64,7 @@ pub struct QueueResumeResponse {
     pub resumed: u32,
 }
 
-/// The timed pause in force, if any.
+/// The pause in force, if any, and the stop mark that will set one.
 #[utoipa::path(get, path = "/api/v1/queue/pause", tag = "downloads", responses((status = 200, body = QueuePauseResponse)))]
 pub async fn get_queue_pause(State(state): State<AppState>) -> Json<QueuePauseResponse> {
     Json(response(&state, state.scheduler.queue_pause().await).await)
@@ -95,12 +99,23 @@ pub async fn resume_queue(
 async fn response(state: &AppState, pause: Option<rd_scheduler::QueuePause>) -> QueuePauseResponse {
     QueuePauseResponse {
         paused: pause.is_some(),
-        until: pause.as_ref().map(|pause| pause.until),
+        until: pause.as_ref().and_then(|pause| pause.until),
         files: pause.map_or(0, |pause| {
             u32::try_from(pause.files.len()).unwrap_or(u32::MAX)
         }),
         account_traffic: account_traffic(state).await,
+        stop_mark: stop_mark(state).await,
     }
+}
+
+/// The stop mark, named; a read that fails names none and says so, like the accounts below.
+async fn stop_mark(state: &AppState) -> Option<crate::stop_mark_handlers::QueueStopMarkResponse> {
+    crate::stop_mark_handlers::current(state)
+        .await
+        .unwrap_or_else(|error| {
+            tracing::warn!(?error, "the stop mark could not be read");
+            None
+        })
 }
 
 /// The accounts held for their traffic, named. One the database cannot name — deleted a moment

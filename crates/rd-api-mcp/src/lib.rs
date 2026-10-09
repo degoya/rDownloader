@@ -38,6 +38,7 @@ mod tools_insight;
 mod tools_intake;
 mod tools_notify;
 mod tools_operations;
+mod tools_package_export;
 mod tools_pause;
 mod tools_queue;
 mod tools_remote;
@@ -91,9 +92,9 @@ use rd_api_intake::{
 use rd_api_queue::{
     bandwidth_handlers, bandwidth_manual_handlers, collision_handlers, download_handlers,
     download_sources, duplicates, media_handlers, metrics, nzb_remote_job_handlers, package_clear,
-    package_handlers, power_handlers, queue_pause_handlers, reconnect_handlers,
-    remote_job_handlers, storage_handlers, torrent_control, torrent_handlers, torrent_trackers,
-    usenet_handlers,
+    package_export, package_handlers, power_handlers, queue_pause_handlers, reconnect_handlers,
+    remote_job_handlers, stop_mark_handlers, storage_handlers, torrent_control, torrent_handlers,
+    torrent_trackers, usenet_handlers,
 };
 
 // Public for the coverage table in `rd-api`, which holds them against the assembled document.
@@ -128,7 +129,8 @@ chosen hits into the LinkGrabber, an NZB as an NZB import and a torrent as a pac
 The queue is ordered with reorder_downloads and reorder_packages, renamed \
 with rename_download, update_package and rename_package_folder, tidied with \
 clear_finished_packages and unpacked with extract_packages. pause_queue pauses the whole \
-queue for a while and resumes it by itself (resume_queue ends it early); \
+queue for a while and resumes it by itself (resume_queue ends it early); set_stop_mark \
+pauses it once one download or package is done (clear_stop_mark removes the mark); \
 switch_bandwidth_profile puts one of list_bandwidth_profiles in front of the schedule \
 until its next change, a time or return_to_bandwidth_schedule; set_package_speed_limit \
 gives one package a download limit of its own. get_torrent_details, the \
@@ -202,7 +204,8 @@ impl RdMcpServer {
             + Self::collisions_router()
             + Self::backup_router()
             + Self::pause_router()
-            + Self::history_router();
+            + Self::history_router()
+            + Self::package_export_router();
         untrusted::describe(&mut router);
         router
     }

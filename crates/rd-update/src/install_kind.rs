@@ -185,7 +185,7 @@ impl InstallKind {
 
 /// The canonical path where it resolves, so a symlink (`/opt/homebrew/bin/rdownloader`) leads
 /// to the layout it points into; the path as given otherwise.
-fn canonical(path: &Path) -> PathBuf {
+pub(crate) fn canonical(path: &Path) -> PathBuf {
     std::fs::canonicalize(path)
         .map(|canonical| strip_verbatim(&canonical))
         .unwrap_or_else(|_| path.to_owned())

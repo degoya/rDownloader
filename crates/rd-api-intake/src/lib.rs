@@ -13,6 +13,7 @@ pub mod collector_crawl_verdict;
 pub mod collector_enqueue;
 pub mod collector_handlers;
 pub mod collector_source_sets;
+mod container_enqueue;
 pub mod container_handlers;
 pub mod history_readd_handlers;
 pub mod indexer_handlers;

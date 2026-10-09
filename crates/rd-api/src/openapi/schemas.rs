@@ -9,8 +9,9 @@ use crate::{
     nzb_remote_job_handlers, oidc_settings_handlers, passkey_handlers, plugin_lifecycle,
     queue_pause_handlers, reconnect_service, regex_tester, remote_job_handlers, replay_dto,
     routing_backup, session_handlers, settings_backup, settings_backup_crypto, settings_backup_dto,
-    site_rules_dto, storage_capacity, storage_handlers, stream_schedule_handlers,
-    subscription_handlers, torrent_control, torrent_handlers, torrent_trackers,
+    site_rules_dto, stop_mark_handlers, storage_capacity, storage_handlers,
+    stream_schedule_handlers, subscription_handlers, torrent_control, torrent_handlers,
+    torrent_trackers,
 };
 
 /// Domain and DTO schemas referenced by the operations of every area.
@@ -88,6 +89,10 @@ use crate::{
     queue_pause_handlers::QueuePauseResponse,
     queue_pause_handlers::QueueResumeResponse,
     queue_pause_handlers::AccountTrafficHoldResponse,
+    stop_mark_handlers::QueueStopMarkRequest,
+    stop_mark_handlers::QueueStopMarkResponse,
+    stop_mark_handlers::QueueStopMarkStateResponse,
+    stop_mark_handlers::QueueStopMarkClearResponse,
     rd_limits::BandwidthProfile,
     rd_limits::ManualProfile,
     rd_limits::ManualEnd,
@@ -475,5 +480,8 @@ use crate::{
     rd_core::UsenetQuotaAction,
     rd_core::ImportMode,
     rd_core::Failure,
+    dto::PackageExportRequest,
+    dto::PackageExportFormat,
+    dto::ReresolveRequest,
 )))]
 pub(crate) struct Schemas;

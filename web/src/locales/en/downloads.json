@@ -436,7 +436,9 @@
     "paused_until": "Paused until {time}",
     "remaining_title": "The queue continues in {duration}. Click to resume now.",
     "resume_now": "Resume now",
-    "notice_paused": "Queue paused until {time}"
+    "notice_paused": "Queue paused until {time}",
+    "stopped_at_mark": "Stopped at the stop mark",
+    "stopped_at_mark_title": "The queue paused at its stop mark and waits until you resume it. Click to resume now."
   },
   "kill_switch": {
     "title": "Torrents paused by the kill switch",
@@ -467,5 +469,21 @@
     "category": "Category",
     "reset": "Back to queue order",
     "drag_off": "The view is sorted – reset it to reorder the queue."
+  },
+  "reresolve": {
+    "action": "Re-resolve",
+    "hint": "Resolve again with the plugin version installed now; running files are paused briefly",
+    "done": "{count} file resolves anew at its next start | {count} files resolve anew at their next start",
+    "failed": "Re-resolving failed"
+  },
+  "stop_mark": {
+    "set": "Set stop mark here",
+    "set_hint": "Once this is done the queue pauses; what is running finishes.",
+    "clear": "Remove stop mark",
+    "glyph": "Stop mark",
+    "glyph_title": "Stop mark: once this is done, the queue pauses.",
+    "rail_title": "Stop mark after “{name}”: the queue pauses once it is done.",
+    "set_failed": "The stop mark could not be set",
+    "clear_failed": "The stop mark could not be removed"
   }
 }

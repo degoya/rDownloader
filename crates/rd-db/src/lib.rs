@@ -96,6 +96,7 @@ mod site_rule_switches_store;
 mod site_rules_store;
 pub mod snapshot;
 mod stats_store;
+mod stop_mark_store;
 mod storage_ops_store;
 mod stream_schedule_store;
 mod stream_store;
@@ -211,6 +212,7 @@ pub use stats_store::{
     DIRECT_PROVIDER, PRUNE_BATCH, StatsPruneReport, StatsResolution, StatsRetention,
     TransferBucket, TransferTotal,
 };
+pub use stop_mark_store::{StopMark, StopMarkTarget};
 pub use storage_ops_store::{
     NewStorageOperation, STORAGE_OPERATIONS_KEPT, StorageOperation, StorageOperationOutcome,
 };

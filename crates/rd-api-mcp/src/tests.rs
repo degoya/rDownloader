@@ -169,9 +169,15 @@ fn each_configuration_section_costs_what_its_route_costs() {
 /// fields is a secret. This walks every published input schema instead of trusting review.
 #[test]
 fn no_tool_accepts_a_credential() {
-    /// The one credential-shaped parameter that is not a stored credential: an archive
-    /// password travels with the links it unlocks and never reaches the vault.
-    const ALLOWED: &[(&str, &str)] = &[("collect_links", "password")];
+    /// The credential-shaped parameters that are not stored credentials: an archive password
+    /// travels with the links it unlocks and never reaches the vault, and a link file's
+    /// passphrase is chosen for that one file, goes into its key derivation and nowhere else,
+    /// and is never answered back (RD-1210-01).
+    const ALLOWED: &[(&str, &str)] = &[
+        ("collect_links", "password"),
+        ("export_packages", "passphrase"),
+        ("import_container", "passphrase"),
+    ];
 
     fn walk(tool: &str, schema: &serde_json::Value, found: &mut Vec<String>) {
         match schema {

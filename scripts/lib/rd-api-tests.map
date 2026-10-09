@@ -68,7 +68,8 @@
 ^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+(\.rs$|/)                                   full_backup backup_destinations backup_remote mcp service_lifecycle archive_password_backup
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_handlers(\.rs$|/)                                      bandwidth bandwidth_manual unique_names
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_manual_handlers(\.rs$|/)                               bandwidth_manual
-^crates/rd-api(-[a-z]+)?/src/queue_pause_handlers(\.rs$|/)                                    queue_pause capture_queue
+^crates/rd-api(-[a-z]+)?/src/queue_pause_handlers(\.rs$|/)                                    queue_pause capture_queue stop_mark
+^crates/rd-api(-[a-z]+)?/src/stop_mark_handlers(\.rs$|/)                                      stop_mark queue_pause mcp
 ^crates/rd-api(-[a-z]+)?/src/capture_queue(\.rs$|/)                                         capture_queue scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/capture_agent_handlers(\.rs$|/)                                capture_agent_settings scope_matrix mcp
 ^crates/rd-core/src/capture_agent(_tests)?(\.rs$|/)                                         capture_agent_settings mcp
@@ -79,7 +80,9 @@
 ^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)(\.rs$|/)                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets git_releases collector_pages capture_pick address_rule
 ^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr
 ^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr history
-^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file
+^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file package_export
+# Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
+^crates/rd-api(-[a-z]+)?/src/(package_export|links_file|container_enqueue|download_handlers/reresolve)(\.rs$|/)   package_export mcp scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)(\.rs$|/)   service_lifecycle oidc password_reset
 ^crates/rd-api(-[a-z]+)?/src/data_reset_handlers(\.rs$|/)                                     data_reset storage_clear history
 ^crates/rd-api(-[a-z]+)?/src/(history_handlers|history_readd_handlers|routes/history)(\.rs$|/)   history compat_sabnzbd

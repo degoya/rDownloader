@@ -6,6 +6,7 @@ import QueuePauseControl from '@/components/QueuePauseControl.vue'
 import SpeedHistoryChart from '@/components/SpeedHistoryChart.vue'
 import { serviceVersion } from '@/composables/serviceVersion'
 import { useErrorToast } from '@/composables/useErrorToast'
+import { useQueuePauseStore } from '@/stores/queuePause'
 import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
 import { MAX_ACTIVE_FILES, MIN_ACTIVE_FILES } from '@/stores/transfersSpeedLimit'
@@ -15,6 +16,15 @@ import { DECIMAL, WHOLE } from '@/utils/numberInput'
 const { t } = useI18n()
 const transfers = useTransfersStore()
 const selection = useSelectionStore()
+const queuePause = useQueuePauseStore()
+/** Where the queue pauses next (RD-1210-02): named here so the mark is visible from every page. */
+const stopMarkTitle = computed(() => queuePause.stopMark
+  ? t('downloads.stop_mark.rail_title', { name: queuePause.stopMark.name })
+  : '')
+
+async function clearStopMark(): Promise<void> {
+  if (!(await queuePause.clearStopMark())) showError(t('downloads.stop_mark.clear_failed'), queuePause.error)
+}
 const total = computed(() => formatBytes(transfers.totalCommitted))
 const remaining = computed(() => transfers.totalRemaining > 0n ? formatBytes(transfers.totalRemaining) : null)
 const volume = computed(() => remaining.value
@@ -139,6 +149,15 @@ onMounted(() => void transfers.loadRailSettings())
       </div>
     </div>
     <div class="flex min-w-0 flex-1 items-center justify-end gap-4 text-toned">
+      <!-- The name only where the rail has room; the glyph and the tooltip say it everywhere. -->
+      <span v-if="queuePause.stopMark" data-testid="rail-stop-mark" class="flex min-w-0 items-center gap-0.5">
+        <UTooltip :text="stopMarkTitle">
+          <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="min-w-0" role="img" :aria-label="stopMarkTitle">
+            <span class="hidden max-w-48 truncate @min-[48rem]:inline">{{ queuePause.stopMark.name }}</span>
+          </UBadge>
+        </UTooltip>
+        <UButton icon="i-lucide-x" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.stop_mark.clear')" :title="t('downloads.stop_mark.clear')" @click="clearStopMark" />
+      </span>
       <!-- Short on a narrow rail: the count and the size, the word only once there is room. -->
       <span v-if="selection.size" data-testid="rail-selection" class="flex min-w-0 items-center gap-1.5" :title="selectionTitle">
         <UIcon name="i-lucide-list-checks" class="size-3.5 shrink-0 text-primary" />

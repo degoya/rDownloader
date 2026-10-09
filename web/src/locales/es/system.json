@@ -702,7 +702,8 @@
       "running": "Agente de captura: {versions}",
       "unknown": "anterior a 1.9",
       "outdated_title": "Reinicia el agente de captura",
-      "outdated_description": "Un agente de captura sigue en la versión {agent} y rDownloader ya en {service}. Desde la 1.8.1, el agente se reinicia solo en menos de un minuto tras una actualización. Si no lo hace —porque es más antiguo o lo inició otro usuario—, ciérralo desde su icono de la bandeja o en el Administrador de tareas y vuelve a iniciarlo; en Linux, systemctl --user restart rdownloader-capture hace ambas cosas."
+      "outdated_description": "Un agente de captura sigue en la versión {agent} y rDownloader ya en {service}. Desde la 1.8.1, el agente se reinicia solo en menos de un minuto tras una actualización. Si no lo hace —porque es más antiguo o lo inició otro usuario—, ciérralo desde su icono de la bandeja o en el Administrador de tareas y vuelve a iniciarlo; en Linux, systemctl --user restart rdownloader-capture hace ambas cosas.",
+      "self_offered": "Un agente de captura instalado sin rDownloader se ofrece a sí mismo la versión {version}: elige «Install update to {version}» en su menú de la bandeja o ejecuta rdownloader-capture update."
     },
     "whats_new": "Novedades"
   },

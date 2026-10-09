@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.20.0"
+    "version": "1.21.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -4009,10 +4009,19 @@
           "capture"
         ],
         "summary": "The agent's poll: what it is set to.",
+        "description": "It carries the agent's own update report on the way in and the service's update channel on\nthe way out (RD-1210-03, `rd_update::agent::report`): an agent installed without the service\nreads the channel the service reads, and the update status shows what the agent offers itself.",
         "operationId": "read_capture_agent_settings",
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "x-rdownloader-update-channel": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The service's update channel, stable or beta"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -7125,7 +7134,7 @@
             }
           },
           "400": {
-            "description": "The format is unknown, its import is disabled, the container is invalid, or the JSON content is not base64"
+            "description": "The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, or the JSON content is not base64"
           },
           "413": {
             "description": "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit"
@@ -7651,6 +7660,42 @@
           },
           "400": {
             "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/downloads/reresolve": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "operationId": "reresolve_downloads",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReresolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "`affected` counts the files that resolve anew at their next start; each refusal is coded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadBulkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No download or more than 500 named"
+          },
+          "404": {
+            "description": "A named package does not exist"
           }
         }
       }
@@ -11132,6 +11177,65 @@
         }
       }
     },
+    "/api/v1/packages/export": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "operationId": "export_packages",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The file, as an attachment",
+            "headers": {
+              "x-rd-export-links": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Links in the file"
+              },
+              "x-rd-export-skipped": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "Links the format could not carry"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing selected or nothing exportable, too many links, a passphrase too short, or a passphrase for a crawljob"
+          },
+          "404": {
+            "description": "A named package or download does not exist"
+          }
+        }
+      }
+    },
     "/api/v1/packages/extract": {
       "post": {
         "tags": [
@@ -13486,7 +13590,7 @@
         "tags": [
           "downloads"
         ],
-        "summary": "The timed pause in force, if any.",
+        "summary": "The pause in force, if any, and the stop mark that will set one.",
         "operationId": "get_queue_pause",
         "responses": {
           "200": {
@@ -13553,6 +13657,105 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/QueueResumeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/queue/stop-mark": {
+      "get": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "The stop mark in force, if any.",
+        "operationId": "get_queue_stop_mark",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueStopMarkStateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Sets the stop mark on a file or a package, replacing the one in force. Once the file is done\n(completed or failed for good), or no file of the package waits or runs any more, the queue\npauses until it is resumed; what runs at that moment finishes. A target that is already done\nis refused.",
+        "operationId": "set_queue_stop_mark",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueStopMarkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueStopMarkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "downloads"
+        ],
+        "summary": "Removes the stop mark; the queue then runs on past its target.",
+        "operationId": "clear_queue_stop_mark",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueStopMarkClearResponse"
                 }
               }
             }
@@ -21403,9 +21606,30 @@
           "outdated"
         ],
         "properties": {
+          "offered_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The newer version the agent offers itself, with `offered` and `installing`."
+          },
           "outdated": {
             "type": "boolean",
             "description": "Whether the agent is older than the service -- it reported an older version, or none --\nand so still runs the program file from before the update."
+          },
+          "remote_update_allowed": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the agent lets the service ask it to install an update; off unless its own\nconfiguration allows it."
+          },
+          "self_update": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the agent's own update stands (RD-1210-03): `with_service` (the service in its\nfolder updates it), `disabled`, `unchecked`, `current`, `offered`, `failed` or\n`installing`. Empty for an agent that reports none (before 1.21)."
           },
           "version": {
             "type": [
@@ -23480,6 +23704,13 @@
             "type": "string",
             "description": "The file's bytes, base64 with the standard alphabet. Padding is optional and line breaks\nare ignored. At most 48 MiB once decoded."
           },
+          "enqueue": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`true` queues every package once its links are checked, instead of leaving them in the\nLinkGrabber (RD-1210-01). Read by `/api/v1/containers/import` only."
+          },
           "file_name": {
             "type": [
               "string",
@@ -23492,7 +23723,7 @@
               "string",
               "null"
             ],
-            "description": "`dlc`, `ccf`, `rsdf` or `txt`, overriding the extension. Read by\n`/api/v1/containers/import` only; the other routes each take one format."
+            "description": "`dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the extension. Read by\n`/api/v1/containers/import` only; the other routes each take one format."
           },
           "name": {
             "type": [
@@ -23500,6 +23731,14 @@
               "null"
             ],
             "description": "The package name to use instead of the one the file suggests."
+          },
+          "passphrase": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The passphrase of an encrypted `.rdlinks` file (RD-1210-01). Read by\n`/api/v1/containers/import` only, never logged and never answered back.",
+            "writeOnly": true
           },
           "priority": {
             "type": [
@@ -29887,7 +30126,8 @@
           "account_expiring",
           "account_invalid",
           "usenet_job_hopeless",
-          "usenet_quota_reached"
+          "usenet_quota_reached",
+          "stop_mark_reached"
         ]
       },
       "NotificationRule": {
@@ -30957,6 +31197,60 @@
             }
           }
         }
+      },
+      "PackageExportFormat": {
+        "type": "string",
+        "description": "The file an export writes.",
+        "enum": [
+          "rdlinks",
+          "crawljob"
+        ]
+      },
+      "PackageExportRequest": {
+        "type": "object",
+        "description": "What to export: any mix of download-list packages, single downloads and LinkGrabber\npackages, or every package of the download list.",
+        "required": [
+          "format"
+        ],
+        "properties": {
+          "all": {
+            "type": "boolean",
+            "description": "Every package of the download list, finished, running and failed alike."
+          },
+          "collector_package_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectorPackageId"
+            },
+            "description": "LinkGrabber packages, with every link not yet queued."
+          },
+          "download_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DownloadId"
+            },
+            "description": "Single downloads; each lands in its own package's entry."
+          },
+          "format": {
+            "$ref": "#/components/schemas/PackageExportFormat"
+          },
+          "package_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PackageId"
+            },
+            "description": "Download-list packages, with every file they hold."
+          },
+          "passphrase": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Seals an `.rdlinks` file; at least 8 characters. Never logged, audited or answered back.",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false
       },
       "PackageExtractRequest": {
         "type": "object",
@@ -33088,7 +33382,18 @@
           },
           "paused": {
             "type": "boolean",
-            "description": "Whether a timed pause is in force."
+            "description": "Whether a pause is in force."
+          },
+          "stop_mark": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/QueueStopMarkResponse",
+                "description": "Where the queue will pause next: the stop mark in force (RD-1210-02), `null` while none\nis set."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "until": {
             "type": [
@@ -33096,7 +33401,7 @@
               "null"
             ],
             "format": "date-time",
-            "description": "When it ends and the queue runs again."
+            "description": "When it ends and the queue runs again; `null` while paused for a pause that lasts until\nit is resumed — the one the stop mark sets (RD-1210-02)."
           }
         }
       },
@@ -33111,6 +33416,101 @@
             "format": "int32",
             "description": "Files the ended pause queued again.",
             "minimum": 0
+          }
+        }
+      },
+      "QueueStopMarkClearResponse": {
+        "type": "object",
+        "required": [
+          "cleared"
+        ],
+        "properties": {
+          "cleared": {
+            "type": "boolean",
+            "description": "Whether a mark was set and is gone now."
+          }
+        }
+      },
+      "QueueStopMarkRequest": {
+        "type": "object",
+        "properties": {
+          "download_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DownloadId",
+                "description": "The file to stop after; give this or `package_id`."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "package_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PackageId",
+                "description": "The package to stop after, once none of its files waits or runs; give this or\n`download_id`."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "QueueStopMarkResponse": {
+        "type": "object",
+        "description": "The stop mark in force: where the queue will pause.",
+        "required": [
+          "name",
+          "set_at"
+        ],
+        "properties": {
+          "download_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DownloadId",
+                "description": "The marked file; `null` when the mark sits on a package."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "The file's or the package's name, as the queue shows it."
+          },
+          "package_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PackageId",
+                "description": "The marked package; `null` when the mark sits on a file."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "set_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "QueueStopMarkStateResponse": {
+        "type": "object",
+        "properties": {
+          "stop_mark": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/QueueStopMarkResponse",
+                "description": "`null` while no mark is set."
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -34355,6 +34755,25 @@
             "type": "string"
           }
         }
+      },
+      "ReresolveRequest": {
+        "type": "object",
+        "description": "Downloads to resolve again with the plugin installed now: any mix of single downloads and\nwhole packages.",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DownloadId"
+            }
+          },
+          "package_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PackageId"
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "ResolveCollectorPickRequest": {
         "type": "object",

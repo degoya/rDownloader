@@ -72,15 +72,18 @@ pub enum NotificationEvent {
     UsenetJobHopeless,
     /// A Usenet server used up its traffic quota (RD-1100-05). Once per crossing of the limit.
     UsenetQuotaReached,
+    /// The queue's stop mark was reached and the queue paused after it (RD-1210-02).
+    StopMarkReached,
 }
 
 impl NotificationEvent {
     #[must_use]
     pub fn severity(self) -> Severity {
         match self {
-            Self::PackageCompleted | Self::UpdateAvailable | Self::PluginUpdateAvailable => {
-                Severity::Info
-            }
+            Self::PackageCompleted
+            | Self::UpdateAvailable
+            | Self::PluginUpdateAvailable
+            | Self::StopMarkReached => Severity::Info,
             Self::PackageFailed
             | Self::BackupFailed
             | Self::BackupVerifyFailed
@@ -115,6 +118,7 @@ impl NotificationEvent {
             Self::AccountInvalid,
             Self::UsenetJobHopeless,
             Self::UsenetQuotaReached,
+            Self::StopMarkReached,
         ]
     }
 }
@@ -299,6 +303,11 @@ mod tests {
                 NotificationEvent::UsenetQuotaReached,
                 Severity::Warning,
                 "usenet_quota_reached",
+            ),
+            (
+                NotificationEvent::StopMarkReached,
+                Severity::Info,
+                "stop_mark_reached",
             ),
         ];
         for (event, severity, name) in cases {

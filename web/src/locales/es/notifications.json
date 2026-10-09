@@ -20,7 +20,8 @@
     "backup_verify_failed": "Verificación de la copia de seguridad fallida",
     "plugin_update_failed": "Actualización automática de plugin fallida",
     "usenet_job_hopeless": "Descarga de Usenet sin remedio",
-    "usenet_quota_reached": "Cuota del servidor Usenet agotada"
+    "usenet_quota_reached": "Cuota del servidor Usenet agotada",
+    "stop_mark_reached": "Marca de parada alcanzada"
   },
   "severity": {
     "info": "Info y superior",

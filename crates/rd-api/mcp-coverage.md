@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**101 capabilities, 76 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 442 REST operations, 235 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**104 capabilities, 79 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 447 REST operations, 239 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -96,6 +96,9 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Pausing the whole queue for a while | Downloads, transfer rail | 3 | `get_queue_pause`, `pause_queue`, `resume_queue` |
 | Switching a bandwidth profile by hand, and the bandwidth status | Settings > Bandwidth | 4 | `get_bandwidth_status`, `list_bandwidth_profiles`, `return_to_bandwidth_schedule`, `switch_bandwidth_profile` |
 | A package's own speed limit | Downloads > package editor | 2 | `get_package_speed_limit`, `set_package_speed_limit` |
+| Exporting packages as a link file | Downloads and LinkGrabber, selection bar and package menu | 1 | `export_packages` |
+| Resolving downloads again with the plugin installed now | Downloads, selection bar and package menu | 1 | `reresolve_downloads` |
+| The queue's stop mark | Downloads, row menu and transfer rail | 3 | `clear_stop_mark`, `get_queue_pause`, `set_stop_mark` |
 
 ### Deliberately out
 
@@ -118,7 +121,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Approving and fetching a diagnostic bundle | Logs | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Reconnecting on demand | Settings > Network | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Choosing a stored browser profile for queued work | Downloads, LinkGrabber | 2 | Each route names one of the stored browser profiles, and listing those is part of signing in at a provider, which the owner decided on 2026-09-23 to keep out. A tool here would take an id no tool can supply -- the gap RD-120-32 exists to close, not one to open. |
-| The desktop capture agent | the agent, not the web UI | 20 | Not a user-facing capability but the agent's own contract, priced with its own capture: scopes. No api: token reaches it, so a tool over it could not be called. The tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue already give MCP, and the clipboard pause and the shortcuts the agent follows (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it. |
+| The desktop capture agent | the agent, not the web UI | 20 | Not a user-facing capability but the agent's own contract, priced with its own capture: scopes. No api: token reaches it, so a tool over it could not be called. The tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue already give MCP, and the clipboard pause and the shortcuts the agent follows (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it. What an agent says about its own update on its poll (RD-1210-03) get_update_status reads; installing it is the agent's own decision, never a tool's. |
 | Controlling one download by its own route | Downloads | 5 | control_downloads already does all five for one id or many, over the bulk route. A second spelling of the same act is one more thing for a model to choose between and nothing it could not do before. |
 | The live rate series | Downloads chart | 1 | A chart's data series, sampled per second. get_status_summary answers how fast the queue is going in one number, and get_transfer_stats answers it over time; the queued files waiting for their host are list_downloads' waiting_for_host. |
 | Editing bandwidth profiles and the weekly schedule | Settings > Bandwidth | 6 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. Reading the status, listing the profiles and switching one on for a while are tools (RD-190-20). |

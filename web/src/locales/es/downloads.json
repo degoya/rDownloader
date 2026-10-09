@@ -436,7 +436,9 @@
     "paused_until": "En pausa hasta {time}",
     "remaining_title": "La cola continúa en {duration}. Haz clic para reanudar ya.",
     "resume_now": "Reanudar ahora",
-    "notice_paused": "Cola en pausa hasta {time}"
+    "notice_paused": "Cola en pausa hasta {time}",
+    "stopped_at_mark": "Detenida en la marca de parada",
+    "stopped_at_mark_title": "La cola se ha pausado en su marca de parada y espera a que la reanudes. Haz clic para reanudar ya."
   },
   "kill_switch": {
     "title": "Torrents pausados por el interruptor de corte",
@@ -467,5 +469,21 @@
     "category": "Categoría",
     "reset": "Volver al orden de la cola",
     "drag_off": "La vista está ordenada: restablécela para reordenar la cola."
+  },
+  "reresolve": {
+    "action": "Resolver de nuevo",
+    "hint": "Resolver de nuevo con la versión del plugin instalada ahora; los archivos en curso se pausan un momento",
+    "done": "{count} archivo se resolverá de nuevo en su próximo inicio | {count} archivos se resolverán de nuevo en su próximo inicio",
+    "failed": "No se pudo resolver de nuevo"
+  },
+  "stop_mark": {
+    "set": "Poner la marca de parada aquí",
+    "set_hint": "Cuando esto termine, la cola se pausa; lo que está en curso termina.",
+    "clear": "Quitar la marca de parada",
+    "glyph": "Marca de parada",
+    "glyph_title": "Marca de parada: cuando esto termine, la cola se pausa.",
+    "rail_title": "Marca de parada tras «{name}»: la cola se pausa cuando termine.",
+    "set_failed": "No se pudo poner la marca de parada",
+    "clear_failed": "No se pudo quitar la marca de parada"
   }
 }

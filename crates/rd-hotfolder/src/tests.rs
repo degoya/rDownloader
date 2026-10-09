@@ -177,6 +177,7 @@ fn accepts_container_files_only() {
     assert!(is_candidate(std::path::Path::new("package.dlc")));
     assert!(is_candidate(std::path::Path::new("package.ccf")));
     assert!(is_candidate(std::path::Path::new("package.RSDF")));
+    assert!(is_candidate(std::path::Path::new("export.rdlinks")));
     // A watched folder is somewhere people also keep notes.
     assert!(!is_candidate(std::path::Path::new("README.txt")));
     assert!(!is_candidate(std::path::Path::new("package.zip")));

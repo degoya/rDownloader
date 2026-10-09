@@ -204,6 +204,9 @@ impl Writer {
             DownloadsCommand::PinDownloadResolver { id, pin, reply } => {
                 send(reply, self.pin_download_resolver(id, pin).await);
             }
+            DownloadsCommand::ReleaseResolverPin { id, reply } => {
+                send(reply, self.release_resolver_pin(id).await);
+            }
         }
     }
 }

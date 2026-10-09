@@ -23,6 +23,7 @@ mod notify;
 mod notify_resume;
 mod os_integration;
 mod relaunch;
+mod self_update;
 // The platform gate: what a Linux build of the agent may link, and which modules may be
 // compiled there at all. Its own file because it is a check, not a part of the agent.
 #[cfg(test)]
@@ -169,6 +170,8 @@ fn dispatch() -> Result<()> {
         Some(Command::Resume(args)) => runtime()?.block_on(commands::clipboard_watch(args, false)),
         Some(Command::Status(args)) => runtime()?.block_on(commands::status(args)),
         Some(Command::SendClipboard(args)) => runtime()?.block_on(commands::send_clipboard(args)),
+        Some(Command::Update(args)) => runtime()?.block_on(self_update::update(args)),
+        Some(Command::ApplyUpdate(args)) => self_update::apply_update(args),
     }
 }
 
@@ -179,6 +182,10 @@ fn guarded_run(args: RunArgs) -> Result<()> {
     }
     // Held until the process ends; the tray path never returns from `run_agent`.
     let _instance = instance::acquire(&config::config_directory()?, instance::RELAUNCH_WAIT)?;
+    // An update of the agent's own that a stop interrupted ends here (RD-1210-03).
+    if self_update::recover_at_start() {
+        return Ok(());
+    }
     run_agent(args)
 }
 
@@ -234,6 +241,8 @@ pub(crate) struct DesktopSinks {
     /// What the tray menu and its shortcuts ask of the agent (RD-1100-06). The other direction:
     /// the tray names the request, the agent makes it, because the agent holds the token.
     pub inbox: controls::Inbox,
+    /// The tray's entry for the agent's own update (RD-1210-03).
+    pub update: self_update::OfferSink,
 }
 
 async fn run(
@@ -259,6 +268,7 @@ async fn run(
         signal.cancel();
     });
     let notice = desktop.as_ref().map(|desktop| desktop.notice.clone());
+    let offer_sink = desktop.as_ref().map(|desktop| desktop.update.clone());
     // Every background task is held rather than spawned and forgotten, so its end is read
     // (RD-109-07) and so the error path below can give it a moment to stop.
     let mut background = tokio::task::JoinSet::new();
@@ -279,7 +289,15 @@ async fn run(
         queue,
         settings: settings_requests,
         hand_over,
+        self_update: update_requests,
     } = inbox;
+    self_update::spawn(
+        &mut background,
+        &client,
+        &cancellation,
+        offer_sink,
+        update_requests,
+    );
     let settings = controls::follow_settings(
         &mut background,
         &client,
@@ -376,6 +394,8 @@ async fn run(
             });
         }
     }
+    // The listeners are up: the proof an updater of the agent's own waits for (RD-1210-03).
+    self_update::started();
     // After a self-update the agent continues as the new program (RD-190-07); nothing to watch
     // when the system does not say which file this process runs from.
     let program = std::env::current_exe().ok();
@@ -439,55 +459,5 @@ async fn wait_for_shutdown_signal() {
 }
 
 #[cfg(test)]
-mod cli_tests {
-    use super::{NotPaired, PortBusy, config, report};
-
-    #[test]
-    fn an_unpaired_agent_reports_its_own_exit_code() {
-        let error = anyhow::Error::new(NotPaired);
-        assert_eq!(report(&error), config::EXIT_NOT_PAIRED);
-    }
-
-    #[test]
-    fn a_taken_click_n_load_port_reports_its_own_exit_code() {
-        let error = anyhow::Error::new(PortBusy {
-            addresses: vec!["127.0.0.1:9666".parse().expect("valid address")],
-        });
-        assert_eq!(report(&error), config::EXIT_PORT_BUSY);
-    }
-
-    #[test]
-    fn the_two_ordinary_states_do_not_share_a_code_with_a_real_failure() {
-        // The launchers tell these apart by number alone, so a collision would silently turn
-        // "already running" back into "could not be started".
-        assert_ne!(config::EXIT_NOT_PAIRED, config::EXIT_PORT_BUSY);
-        assert_eq!(report(&anyhow::anyhow!("disk on fire")), 1);
-        assert_ne!(config::EXIT_NOT_PAIRED, 1);
-        assert_ne!(config::EXIT_PORT_BUSY, 1);
-    }
-
-    #[test]
-    fn a_taken_port_is_still_recognised_through_added_context() {
-        // `run` is called through layers that add context; the marker has to survive that,
-        // otherwise the code silently degrades to a plain failure.
-        let error = anyhow::Error::new(PortBusy {
-            addresses: vec!["127.0.0.1:9666".parse().expect("valid address")],
-        })
-        .context("start the capture agent");
-        assert_eq!(report(&error), config::EXIT_PORT_BUSY);
-    }
-
-    #[test]
-    fn a_taken_port_names_the_addresses_it_tried() {
-        let busy = PortBusy {
-            addresses: vec![
-                "127.0.0.1:9666".parse().expect("valid address"),
-                "[::1]:9666".parse().expect("valid address"),
-            ],
-        };
-        assert_eq!(
-            busy.to_string(),
-            "Click'n'Load could not bind any of 127.0.0.1:9666, [::1]:9666"
-        );
-    }
-}
+#[path = "main_tests.rs"]
+mod cli_tests;

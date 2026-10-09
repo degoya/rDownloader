@@ -213,5 +213,25 @@
   "select": {
     "search": "Buscar…",
     "nothing_found": "No se encontró nada"
+  },
+  "export": {
+    "action": "Exportar",
+    "action_all": "Exportar todos los paquetes",
+    "title": "Exportar paquetes",
+    "description": "El archivo contiene direcciones, nombres de paquete, contraseñas, categorías y datos de archivo, nunca un plugin, una versión de plugin ni una cuenta. Al importarlo, los enlaces se asignan de nuevo a su host.",
+    "format": "Formato",
+    "format_rdlinks": "rDownloader (.rdlinks)",
+    "format_rdlinks_hint": "Todos los datos, cifrados con una frase de contraseña si quieres.",
+    "format_crawljob": "JDownloader (.crawljob)",
+    "format_crawljob_hint": "Solo direcciones, nombre de paquete y contraseña, sin cifrar.",
+    "passphrase": "Frase de contraseña (opcional)",
+    "passphrase_hint": "Al menos 8 caracteres. Sin ella, el archivo queda legible, también las contraseñas de los archivos comprimidos.",
+    "submit": "Guardar archivo",
+    "done": "{count} enlace exportado | {count} enlaces exportados",
+    "skipped": "{count} enlace no se pudo exportar (Usenet o archivo local) | {count} enlaces no se pudieron exportar (Usenet o archivos locales)",
+    "failed": "La exportación falló",
+    "passphrase_confirm": "Repite la frase de contraseña",
+    "passphrase_mismatch": "Las dos entradas no coinciden.",
+    "passphrase_short": "Al menos 8 caracteres."
   }
 }

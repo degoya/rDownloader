@@ -1,0 +1,8 @@
+text=https://ddownload.com/abc123/holiday.part1.rar https://ddownload.com/def456/holiday.part2.rar
+packageName=Holiday 2026
+extractPasswords=["se\"cret"]
+autoStart=FALSE
+
+text=http://example.com/file.bin
+packageName=Second line
+autoStart=FALSE

@@ -436,7 +436,9 @@
     "paused_until": "En pause jusqu’à {time}",
     "remaining_title": "La file reprend dans {duration}. Cliquez pour reprendre maintenant.",
     "resume_now": "Reprendre maintenant",
-    "notice_paused": "File en pause jusqu’à {time}"
+    "notice_paused": "File en pause jusqu’à {time}",
+    "stopped_at_mark": "Arrêtée à la marque d’arrêt",
+    "stopped_at_mark_title": "La file s’est mise en pause à sa marque d’arrêt et attend que vous la repreniez. Cliquez pour reprendre maintenant."
   },
   "kill_switch": {
     "title": "Torrents mis en pause par le coupe-circuit",
@@ -467,5 +469,21 @@
     "category": "Catégorie",
     "reset": "Revenir à l’ordre de la file",
     "drag_off": "L’affichage est trié – réinitialisez-le pour réordonner la file."
+  },
+  "reresolve": {
+    "action": "Résoudre à nouveau",
+    "hint": "Résoudre à nouveau avec la version du plugin installée maintenant ; les fichiers en cours sont brièvement mis en pause",
+    "done": "{count} fichier sera résolu à nouveau à son prochain démarrage | {count} fichiers seront résolus à nouveau à leur prochain démarrage",
+    "failed": "La nouvelle résolution a échoué"
+  },
+  "stop_mark": {
+    "set": "Placer la marque d’arrêt ici",
+    "set_hint": "Une fois ceci terminé, la file se met en pause ; ce qui est en cours se termine.",
+    "clear": "Retirer la marque d’arrêt",
+    "glyph": "Marque d’arrêt",
+    "glyph_title": "Marque d’arrêt : une fois ceci terminé, la file se met en pause.",
+    "rail_title": "Marque d’arrêt après « {name} » : la file se met en pause une fois terminé.",
+    "set_failed": "La marque d’arrêt n’a pas pu être placée",
+    "clear_failed": "La marque d’arrêt n’a pas pu être retirée"
   }
 }

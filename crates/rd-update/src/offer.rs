@@ -100,6 +100,37 @@ pub fn newest_offer(
     manifests: &[UpdateManifest],
     target: &Target,
 ) -> Option<Offer> {
+    newest_in(current, channel, manifests, target, application_artifacts)
+}
+
+/// [`newest_offer`] for the capture agent installed without the service (RD-1210-03): the same
+/// rules, the artifact from the release's own agent archives. A release without them is still
+/// offered, without an artifact — the agent then names the download page.
+#[must_use]
+pub fn newest_agent_offer(
+    current: &str,
+    channel: Channel,
+    manifests: &[UpdateManifest],
+    target: &Target,
+) -> Option<Offer> {
+    newest_in(current, channel, manifests, target, agent_artifacts)
+}
+
+fn application_artifacts(manifest: &UpdateManifest) -> &[Artifact] {
+    &manifest.artifacts
+}
+
+fn agent_artifacts(manifest: &UpdateManifest) -> &[Artifact] {
+    &manifest.agent_artifacts
+}
+
+fn newest_in(
+    current: &str,
+    channel: Channel,
+    manifests: &[UpdateManifest],
+    target: &Target,
+    artifacts: fn(&UpdateManifest) -> &[Artifact],
+) -> Option<Offer> {
     let current = parse_version(current)?;
     manifests
         .iter()
@@ -116,8 +147,7 @@ pub fn newest_offer(
             released_at: manifest.released_at,
             notes: manifest.notes.clone(),
             changelog_anchor: manifest.changelog_anchor.clone(),
-            artifact: manifest
-                .artifacts
+            artifact: artifacts(manifest)
                 .iter()
                 .find(|artifact| {
                     artifact.platform == target.platform
@@ -291,6 +321,38 @@ mod tests {
             Channel::Stable,
             &[manifest(Channel::Stable, "1.8.0", 1)],
             &target,
+        )
+        .expect("offer");
+        assert_eq!(offer.artifact, None);
+    }
+
+    /// RD-1210-03: the agent is offered its own archive, never the application's, and like the
+    /// service never a version that is not newer than the one it runs.
+    #[test]
+    fn the_agent_takes_its_own_archive_and_never_an_older_version() {
+        let mut release = manifest(Channel::Stable, "1.8.0", 1);
+        release.agent_artifacts = vec![crate::manifest::tests::agent_artifact("linux", "x86_64")];
+        let offer = newest_agent_offer("1.7.0", Channel::Stable, &[release.clone()], &LINUX)
+            .expect("offer");
+        assert_eq!(offer.version, "1.8.0");
+        assert_eq!(
+            offer.artifact.map(|artifact| artifact.url),
+            Some(release.agent_artifacts[0].url.clone())
+        );
+        for current in ["1.8.0", "1.9.0", "2.0.0-beta.1"] {
+            assert_eq!(
+                newest_agent_offer(current, Channel::Stable, &[release.clone()], &LINUX),
+                None,
+                "{current}"
+            );
+        }
+        // A release without agent archives is offered without one; the service's archive is
+        // never taken for it.
+        let offer = newest_agent_offer(
+            "1.7.0",
+            Channel::Stable,
+            &[manifest(Channel::Stable, "1.8.0", 1)],
+            &LINUX,
         )
         .expect("offer");
         assert_eq!(offer.artifact, None);

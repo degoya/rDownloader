@@ -786,7 +786,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
          capture: scopes. No api: token reaches it, so a tool over it could not be called. The \
          tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue \
          already give MCP, and the clipboard pause and the shortcuts the agent follows \
-         (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it.",
+         (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it. What \
+         an agent says about its own update on its poll (RD-1210-03) get_update_status reads; \
+         installing it is the agent's own decision, never a tool's.",
     ),
     omitted(
         "Controlling one download by its own route",
@@ -1003,6 +1005,24 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "A package's own speed limit",
         "Downloads > package editor",
         &[any("/api/v1/packages/{id}/speed-limit")],
+    ),
+    // ---- RD-1210-01 ----
+    covered(
+        "Exporting packages as a link file",
+        "Downloads and LinkGrabber, selection bar and package menu",
+        &[any("/api/v1/packages/export")],
+    ),
+    covered(
+        "Resolving downloads again with the plugin installed now",
+        "Downloads, selection bar and package menu",
+        &[any("/api/v1/downloads/reresolve")],
+    ),
+    // ---- RD-1210-02 ----
+    // Read with get_queue_pause, which names the mark beside the pause it will set.
+    covered(
+        "The queue's stop mark",
+        "Downloads, row menu and transfer rail",
+        &[any("/api/v1/queue/stop-mark")],
     ),
 ];
 

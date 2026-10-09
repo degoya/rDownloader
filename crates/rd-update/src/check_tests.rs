@@ -252,6 +252,18 @@ async fn an_artifact_outside_the_release_downloads_refuses_the_manifest() {
     assert!(pinned(release, PREFIX).is_ok());
 }
 
+/// The capture agent's own archives (RD-1210-03) are pinned like the application's: one outside
+/// the repository's release downloads refuses the whole manifest.
+#[test]
+fn an_agent_archive_outside_the_release_downloads_refuses_the_manifest() {
+    let mut release = manifest(Channel::Stable, "1.8.0", 10);
+    release.agent_artifacts = vec![crate::manifest::tests::agent_artifact("windows", "x86_64")];
+    assert!(pinned(release.clone(), PREFIX).is_ok());
+    release.agent_artifacts[0].url = "https://evil.example/rdownloader-capture.zip".to_owned();
+    let error = pinned(release, PREFIX).expect_err("outside the downloads");
+    assert_eq!(error.code(), "update.invalid");
+}
+
 #[test]
 fn the_beta_channel_reads_sixty_releases() {
     // Two releases per version since 1.9.1 (the application's and `plugins-vX.Y.Z`): sixty keep

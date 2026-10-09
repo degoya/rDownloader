@@ -1245,7 +1245,20 @@
     "site_rules.sequence_older": "This rule file is older than one already imported from the same signer (sequence {sequence}, already seen {known}) and was refused.",
     "object_storage.redirect_refused": "The object storage answered with a redirect, which is not followed. Enter the endpoint it redirects to.",
     "proxy.password_host_changed": "The proxy address changed: enter the password again, it is not sent to the new host.",
-    "remote.secret_host_changed": "The server changed: enter the password or the key again, it is not sent to the new host."
+    "remote.secret_host_changed": "The server changed: enter the password or the key again, it is not sent to the new host.",
+    "rdlinks.too_large": "The link file exceeds the {max_mib} MiB limit",
+    "rdlinks.file_invalid": "The link file is not valid: {detail}",
+    "rdlinks.passphrase_required": "The link file is encrypted; enter its passphrase to import it",
+    "rdlinks.passphrase_invalid": "The passphrase is wrong or the link file was changed",
+    "rdlinks.passphrase_too_short": "The passphrase needs at least {min} characters",
+    "rdlinks.links_limit": "A link file holds at most {max} links",
+    "export.nothing_selected": "Select a package, a download or a LinkGrabber package to export",
+    "export.nothing_exportable": "None of the selected links can be written to a link file",
+    "export.passphrase_unsupported": "A crawljob cannot be encrypted; export an .rdlinks file to use a passphrase",
+    "container.enqueue_invalid": "enqueue must be true or false",
+    "download.reresolve_running": "The download did not stop in time to be resolved again; pause it and try again",
+    "queue.stop_mark_target_invalid": "Give the stop mark either a download or a package",
+    "queue.stop_mark_target_finished": "That download or package is already finished"
   },
   "capabilities": {
     "media_download": "media downloads",

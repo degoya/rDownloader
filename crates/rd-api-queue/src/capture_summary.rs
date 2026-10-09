@@ -20,7 +20,11 @@ pub async fn capture_summary(
         &downloads,
         &crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads),
     );
-    figures.paused_until = state.scheduler.queue_pause().await.map(|pause| pause.until);
+    figures.paused_until = state
+        .scheduler
+        .queue_pause()
+        .await
+        .and_then(|pause| pause.until);
     let holding: Vec<_> = state
         .scheduler
         .account_traffic()

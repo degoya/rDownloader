@@ -41,6 +41,8 @@ const emit = defineEmits<{
   remove: [id: string]
   /** Every link of the package onto the clipboard; the view gathers them (RD-190-21). */
   copyLinks: [id: string]
+  /** The package as a link file (RD-1210-01). */
+  export: [id: string]
   dragstart: [id: string]
   drop: [id: string]
   /** Keyboard alternative to the drag: -1 moves the package up, 1 moves it down. */
@@ -81,8 +83,10 @@ const categoryModel = computed({
   get: () => props.package.category_id ?? NO_SELECTION,
   set: (value: string) => emit('category', props.package.id, value === NO_SELECTION ? null : value)
 })
-/** The row's menu: what acts on the list rather than on this package (RD-1170-01). */
+/** The row's menu: the export, then what acts on the list rather than on this package (RD-1170-01). */
 const listActions = computed(() => [[
+  { label: t('common.export.action'), icon: 'i-lucide-file-down', onSelect: () => emit('export', props.package.id) }
+], [
   { label: t('common.package_groups.open_all'), icon: 'i-lucide-chevrons-up-down', onSelect: () => emit('openAll') },
   { label: t('common.package_groups.close_all'), icon: 'i-lucide-chevrons-down-up', onSelect: () => emit('closeAll') }
 ]])

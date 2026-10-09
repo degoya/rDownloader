@@ -352,6 +352,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/downloads/extract", Method::POST, QUEUE),
     entry("/api/v1/downloads/rates", Method::GET, READ),
     entry("/api/v1/downloads/reorder", Method::POST, QUEUE),
+    // Dropping a download's resolver pin changes which plugin version runs it (RD-1210-01).
+    entry("/api/v1/downloads/reresolve", Method::POST, QUEUE),
     entry("/api/v1/downloads/summary", Method::GET, READ),
     entry("/api/v1/downloads/{id}", Method::DELETE, QUEUE),
     entry("/api/v1/downloads/{id}", Method::PATCH, QUEUE),
@@ -500,6 +502,9 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/packages/bulk", Method::POST, QUEUE),
     entry("/api/v1/packages/clear", Method::POST, QUEUE),
     entry("/api/v1/packages/delete", Method::POST, QUEUE),
+    // An export reads LinkGrabber packages too, whose listing costs the queue scope, and hands
+    // out archive passwords (RD-1210-01).
+    entry("/api/v1/packages/export", Method::POST, QUEUE),
     entry("/api/v1/packages/extract", Method::POST, QUEUE),
     entry("/api/v1/packages/reorder", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}", Method::DELETE, QUEUE),
@@ -610,6 +615,9 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/queue/pause", Method::DELETE, QUEUE),
     entry("/api/v1/queue/pause", Method::GET, READ),
     entry("/api/v1/queue/pause", Method::PUT, QUEUE),
+    entry("/api/v1/queue/stop-mark", Method::DELETE, QUEUE),
+    entry("/api/v1/queue/stop-mark", Method::GET, READ),
+    entry("/api/v1/queue/stop-mark", Method::PUT, QUEUE),
     entry("/api/v1/reconnect", Method::GET, ADMIN),
     entry("/api/v1/reconnect", Method::POST, ADMIN),
     entry("/api/v1/remote-credentials", Method::GET, SECRETS),

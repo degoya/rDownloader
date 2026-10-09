@@ -67,6 +67,50 @@ expect_output "naming why" "holds no .rdplug"
 run_status assets_of split "$empty"
 expect_status "split without its second directory" 2
 
+# `agent` (RD-1210-03): the capture agent's own archive beside each application archive, with
+# the agent and what it runs with, never the service or the plugins.
+agent_assets="$SCRATCH/agent-assets"
+stage="$SCRATCH/stage"
+mkdir -p "$agent_assets" "$stage/unix/plugins" "$stage/windows/plugins"
+for file in rdownloader rdownloader-capture start-capture.sh stop-capture.sh start-rdownloader.sh \
+    VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
+    echo "$file" > "$stage/unix/$file"
+done
+chmod +x "$stage/unix/rdownloader-capture"
+for file in rdownloader.exe rdownloader-capture.exe start-capture.bat stop-capture.bat \
+    VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
+    echo "$file" > "$stage/windows/$file"
+done
+tar --create --gzip --file "$agent_assets/rdownloader-linux-x86_64.tar.gz" --directory "$stage/unix" .
+(cd "$stage/windows" && zip -q -r "$agent_assets/rdownloader-windows-x86_64.zip" .)
+echo extension > "$agent_assets/rdownloader-chrome.zip"
+run_status assets_of agent "$agent_assets"
+expect_status "agent" 0
+expect "one agent archive per application archive, none for the extension" \
+    "rdownloader-capture-linux-x86_64.tar.gz rdownloader-capture-windows-x86_64.zip rdownloader-chrome.zip rdownloader-linux-x86_64.tar.gz rdownloader-windows-x86_64.zip" \
+    "$(listing "$agent_assets")"
+expect "the Linux agent archive holds the agent and what it runs with" \
+    "LICENSE README.md VERSION.txt rdownloader-capture start-capture.sh stop-capture.sh" \
+    "$(tar --list --gzip --file "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz" | sort | paste -sd' ')"
+expect "the agent keeps its executable bit" "1" \
+    "$(tar --list --verbose --gzip --file "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz" | grep -c '^-rwx.* rdownloader-capture$')"
+expect "the Windows agent archive holds the agent and its scripts" \
+    "LICENSE README.md VERSION.txt rdownloader-capture.exe start-capture.bat stop-capture.bat" \
+    "$(unzip -Z1 "$agent_assets/rdownloader-capture-windows-x86_64.zip" | sort | paste -sd' ')"
+first="$(sha256sum < "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz")"
+run_status assets_of agent "$agent_assets"
+expect "a second run writes the same agent archive" \
+    "$first" "$(sha256sum < "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz")"
+no_agent="$SCRATCH/no-agent"
+mkdir -p "$no_agent" "$stage/bare"
+echo service > "$stage/bare/rdownloader"
+tar --create --gzip --file "$no_agent/rdownloader-linux-aarch64.tar.gz" --directory "$stage/bare" .
+run_status assets_of agent "$no_agent"
+expect_status "an application archive without the agent" 1
+expect_output "naming which" "carries no rdownloader-capture"
+run_status assets_of agent "$SCRATCH/plugin-assets"
+expect_status "a directory without an application archive" 1
+
 # The push filters of one workflow as `<key><TAB><pattern>` lines (`push<TAB>` for a bare push),
 # read from its `on:` block: keys at four spaces under `  push:`, values inline (`["a", "b"]`)
 # or as a list. Enough for this repository's workflows, which all write `on:` as a block.

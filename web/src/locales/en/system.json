@@ -702,7 +702,8 @@
       "running": "Capture agent: {versions}",
       "unknown": "before 1.9",
       "outdated_title": "Restart the capture agent",
-      "outdated_description": "A capture agent still runs version {agent}, rDownloader already runs {service}. From 1.8.1 on, the agent restarts itself within a minute of an update. If it does not — because it is older, or another user started it — quit it from its tray icon or in Task Manager and start it again; on Linux, systemctl --user restart rdownloader-capture does both."
+      "outdated_description": "A capture agent still runs version {agent}, rDownloader already runs {service}. From 1.8.1 on, the agent restarts itself within a minute of an update. If it does not — because it is older, or another user started it — quit it from its tray icon or in Task Manager and start it again; on Linux, systemctl --user restart rdownloader-capture does both.",
+      "self_offered": "A capture agent installed without rDownloader offers itself version {version}: choose “Install update to {version}” in its tray menu, or run rdownloader-capture update."
     },
     "whats_new": "What’s new"
   },

@@ -177,7 +177,10 @@ impl Scope {
             // Acting on it - choosing files, discarding it at the provider - is a separate
             // call behind its own scope, so seeing it grants nothing.
             | Kind::RemoteJobChanged
-            | Kind::PowerChanged => Self::Read,
+            | Kind::PowerChanged
+            // Where the queue will pause, by id: the queue's own state, read at `Read` with
+            // `get_queue_pause` (RD-1210-02).
+            | Kind::QueueStopMark => Self::Read,
             // The LinkGrabber and what is waiting in it.
             Kind::CollectorChanged
             | Kind::CollectorIntake

@@ -329,6 +329,7 @@ fn event_name(kind: &EventKind) -> &'static str {
         EventKind::ReconnectChanged => "reconnect.changed",
         EventKind::RemoteJobChanged => "remote_job.changed",
         EventKind::SiteRuleChanged => "site_rule.changed",
+        EventKind::QueueStopMark => "queue.stop_mark",
         EventKind::System => "system",
     }
 }

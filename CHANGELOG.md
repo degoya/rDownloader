@@ -5,6 +5,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-10-09
+
+### Added
+
+- **Export packages as a link file and import them unbound; re-resolve with the current plugin
+  (RD-1210-01).** `POST /api/v1/packages/export` writes download-list packages, single downloads,
+  LinkGrabber packages or `all` as `.rdlinks` (`rdownloader-links/1`: addresses as given minus
+  userinfo and credential query values (`rd_core::is_secret_parameter`), name,
+  password, category by name, file name, size, checksum, mirror group — no plugin, version,
+  account or token; optionally sealed with the settings backup's Argon2id + XChaCha20-Poly1305,
+  `rd_api_core::links_file`) or `.crawljob` (`rd_collector::write_crawljob`, golden file read back
+  by `plugins/crawljob-intake`). `.rdlinks` is a container of `/api/v1/containers/import` and the
+  hot folder: canonical hosts, links held as `LinkOrigin::Proposed`, at most 2,000 links and
+  8 MiB; the import takes `passphrase` and `enqueue` (queue once checked, any container).
+  `POST /api/v1/downloads/reresolve` drops `download_resolver_pins` (`Database::release_resolver_pin`),
+  pausing and restarting a running file; the next attempt keeps finished bytes only when size and
+  ETag still match (otherwise `blocked (validators-changed)` as before). MCP `export_packages`,
+  `reresolve_downloads`, `import_container` `passphrase`/`enqueue`; web: export dialog, selection
+  bar and package/file menus, import modal. Suite `queue::package_export`.
+
+- **The capture agent updates itself without the service (RD-1210-03).** An agent installed alone
+  (the service on a NAS, in Docker or elsewhere) checks a minute after its start and then daily
+  (`self-update.json`, `rdownloader-capture update --auto-check on|off`), on the channel the
+  service names on the settings poll or stable, only against a manifest signed by the update key
+  and never for an older version; it offers "Install update to X" in the tray and installs with
+  `rdownloader-capture update` too: verified archive, journal in its configuration directory, an
+  updater copy (`apply-update`) that switches the files, waits for the new agent's start proof and
+  takes the switch back without it. Beside the service's executable it offers nothing
+  (`rd_update::agent::AgentSetup`). The signed manifest gains the additive `agent_artifacts`
+  (old manifests still parse), the release publishes `rdownloader-capture-<platform>-<arch>`
+  archives (`scripts/release-assets.sh agent`; no agent MSI), and `get_update_status` lists per
+  agent `self_update`, `offered_version` and `remote_update_allowed`. A service request to install
+  is refused unless the agent allows it (`--allow-remote`, off by default); the service-side
+  trigger is a follow-up.
+
+- **Stop marks in the queue (RD-1210-02).** One mark at most, on a file or a package
+  (`PUT/GET/DELETE /api/v1/queue/stop-mark`, migration `0133` `queue_stop_mark`, gone with its
+  target through the foreign keys, kept across a reorder and a restart). Once the file is done
+  (completed or failed for good) or no file of the package waits or runs, the supervise tick —
+  before that tick's dispatch — sets the existing queue pause without an end
+  (`rd_scheduler::QueuePause::until` is now `Option`, `pause_queue_until_resumed`): waiting files
+  pause, running ones finish, the mark is cleared and `queue.stop_mark` (`EventKind::QueueStopMark`,
+  scope `Read`) says `reached`, which the new notification event `stop_mark_reached` hangs off. A
+  finished target is refused with `queue.stop_mark_target_finished`. MCP `set_stop_mark`,
+  `clear_stop_mark`; `get_queue_pause` and `GET /queue/pause` name the mark (`stop_mark`). The row
+  menus of files and packages set and remove it, the marked row carries an `octagon-pause` glyph,
+  the transfer rail names it, and the pause control says "Stopped at the stop mark". Crash point
+  `scheduler.after_stop_mark_paused`; tests `crates/rd-scheduler/tests/stop_mark.rs`,
+  `crates/rd-api/tests/queue/stop_mark.rs`, `everything_pause.rs`, `StopMark.test.ts`.
+
 ## [1.20.0] - 2026-10-09
 
 ### Added

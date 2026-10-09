@@ -11,7 +11,12 @@
 //! which reaches nothing else of the configuration. The agent follows the row on its five-second
 //! poll, so a change made here reaches it without a restart.
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+};
 use rd_core::{CaptureAgentSettings, CaptureShortcutReport, CaptureShortcuts};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -187,11 +192,21 @@ pub async fn update_capture_agent_settings(
 }
 
 /// The agent's poll: what it is set to.
-#[utoipa::path(get, path = "/api/v1/capture/agent-settings", tag = "capture", responses((status = 200, body = CaptureAgentSettings), (status = 401, body = crate::error::ErrorBody)))]
+///
+/// It carries the agent's own update report on the way in and the service's update channel on
+/// the way out (RD-1210-03, `rd_update::agent::report`): an agent installed without the service
+/// reads the channel the service reads, and the update status shows what the agent offers itself.
+#[utoipa::path(get, path = "/api/v1/capture/agent-settings", tag = "capture", responses((status = 200, body = CaptureAgentSettings, headers(("x-rdownloader-update-channel" = String, description = "The service's update channel, stable or beta"))), (status = 401, body = crate::error::ErrorBody)))]
 pub async fn read_capture_agent_settings(
     State(state): State<AppState>,
-) -> Result<Json<CaptureAgentSettings>, ApiError> {
-    Ok(Json(stored_capture_agent_settings(&state.database).await?))
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, ApiError> {
+    state.capture_agents.note_report(&headers);
+    let channel = state.updates.settings().await.channel();
+    Ok((
+        [(rd_update::agent::report::CHANNEL_HEADER, channel.as_str())],
+        Json(stored_capture_agent_settings(&state.database).await?),
+    ))
 }
 
 /// The tray's "Pause clipboard watching" and `rdownloader-capture pause|resume`.

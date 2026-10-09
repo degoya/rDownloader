@@ -14,7 +14,8 @@ import { clockOf, timeFieldValue } from '@/utils/timeFields'
  *
  * Unpaused, it is the toggle it always was — pause or start everything — with a menu beside it
  * that pauses for 30 minutes, an hour, three hours or until a time. While a timed pause holds,
- * the control says until when and resumes everything at a click, which also ends the pause.
+ * the control says until when and resumes everything at a click, which also ends the pause. The
+ * pause a stop mark sets (RD-1210-02) has no end; the control says where it stopped instead.
  */
 const props = withDefaults(defineProps<{
   /** `rail`: icon-sized, the labels in the tooltip; `header`: labelled buttons. */
@@ -49,9 +50,12 @@ const items = computed(() => [
   [{ label: t('downloads.pause.until'), icon: 'i-lucide-clock', onSelect: () => openUntil() }]
 ])
 
-const endLabel = computed(() => formatPauseEnd(queuePause.until))
-const remainingTitle = computed(() =>
-  t('downloads.pause.remaining_title', { duration: formatDuration(queuePause.remainingSeconds) }))
+const pausedLabel = computed(() => queuePause.openEnded
+  ? t('downloads.pause.stopped_at_mark')
+  : t('downloads.pause.paused_until', { time: formatPauseEnd(queuePause.until) }))
+const remainingTitle = computed(() => queuePause.openEnded
+  ? t('downloads.pause.stopped_at_mark_title')
+  : t('downloads.pause.remaining_title', { duration: formatDuration(queuePause.remainingSeconds) }))
 const globalLabel = computed(() =>
   transfers.globalControl === 'pause' ? t('downloads.header.pause_all') : t('downloads.header.resume_all'))
 
@@ -96,7 +100,7 @@ async function resumeNow(): Promise<void> {
         :size="size"
         color="primary"
         :variant="compact ? 'ghost' : 'soft'"
-        :label="compact ? undefined : t('downloads.pause.paused_until', { time: endLabel })"
+        :label="compact ? undefined : pausedLabel"
         :aria-label="t('downloads.pause.resume_now')"
         :ui="labelUi"
         :title="remainingTitle"
@@ -105,7 +109,7 @@ async function resumeNow(): Promise<void> {
         @click="resumeNow"
       />
       <span v-if="compact" class="numeric whitespace-nowrap text-primary" :title="remainingTitle">
-        {{ t('downloads.pause.paused_until', { time: endLabel }) }}
+        {{ pausedLabel }}
       </span>
     </template>
     <template v-else>

@@ -17,6 +17,8 @@ argon2.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 base64.workspace = true
+# Sealing an exported link file (RD-1210-01), with the settings backup's cipher.
+chacha20poly1305.workspace = true
 chrono.workspace = true
 chrono-tz.workspace = true
 fs4.workspace = true
@@ -26,6 +28,8 @@ percent-encoding.workspace = true
 rand.workspace = true
 rd-authn = { path = "../rd-authn" }
 rd-automation = { path = "../rd-automation" }
+# The key derivation a sealed link file shares with the full backup (RD-1210-01).
+rd-backup = { path = "../rd-backup" }
 rd-collector = { path = "../rd-collector" }
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }

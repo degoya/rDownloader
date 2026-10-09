@@ -37,6 +37,23 @@ pub(crate) fn artifact(platform: &str, arch: &str, kind: &str) -> Artifact {
     }
 }
 
+/// The capture agent's own archive (RD-1210-03), as `scripts/release-assets.sh agent` names it.
+pub(crate) fn agent_artifact(platform: &str, arch: &str) -> Artifact {
+    let extension = if platform == "windows" {
+        "zip"
+    } else {
+        "tar.gz"
+    };
+    Artifact {
+        url: format!(
+            "https://github.com/degoya/rDownloader/releases/download/v1.8.0/rdownloader-capture-{platform}-{arch}.{extension}"
+        ),
+        sha256: "cd".repeat(32),
+        size: 512,
+        ..artifact(platform, arch, kind::ARCHIVE)
+    }
+}
+
 pub(crate) fn manifest(channel: Channel, version: &str, sequence: u64) -> UpdateManifest {
     UpdateManifest {
         schema_version: UPDATE_MANIFEST_SCHEMA_VERSION,
@@ -53,6 +70,7 @@ pub(crate) fn manifest(channel: Channel, version: &str, sequence: u64) -> Update
             artifact("windows", "x86_64", kind::MSI),
         ],
         schema_change: None,
+        agent_artifacts: Vec::new(),
     }
 }
 
@@ -327,4 +345,65 @@ fn the_compiled_in_root_refuses_a_foreign_key() {
     )
     .expect_err("a test key is not the release root");
     assert_eq!(error.code(), "update.bad_signature", "{error}");
+}
+
+/// RD-1210-03: a manifest as every release before the agent's own archives wrote it has no
+/// `agent_artifacts`; it verifies, reads as none, and a manifest without them is written exactly
+/// as before, so the field changes nothing for a release that does not carry them.
+#[test]
+fn a_manifest_in_the_format_before_the_agent_archives_still_verifies() {
+    let mut payload = serde_json::to_value(manifest(Channel::Stable, "1.8.0", 1)).expect("value");
+    assert!(
+        payload.get("agent_artifacts").is_none(),
+        "not written while empty"
+    );
+    payload
+        .as_object_mut()
+        .expect("object")
+        .remove("agent_artifacts");
+    let document =
+        rd_sign::sign_document(UPDATE_MANIFEST_DOMAIN, KEY_ID, &key(), &payload).expect("sign");
+    let bytes = serde_json::to_vec(&document).expect("encode");
+    let verified = verify_with(&bytes, &trust_for(&key()), Channel::Stable, None, at(1))
+        .expect("the old format verifies");
+    assert!(verified.agent_artifacts.is_empty());
+    assert_eq!(verified.artifacts.len(), 2);
+}
+
+/// The agent's archives are part of the signed payload and obey the application's rules: a
+/// changed address breaks the signature, a plain `http://` one or a second entry for the same
+/// platform is refused.
+#[test]
+fn the_agent_archives_are_signed_and_held_to_the_same_rules() {
+    let mut original = manifest(Channel::Stable, "1.8.0", 1);
+    original.agent_artifacts = vec![
+        agent_artifact("linux", "x86_64"),
+        agent_artifact("windows", "x86_64"),
+    ];
+    let bytes = signed(&original);
+    let verified =
+        verify_with(&bytes, &trust_for(&key()), Channel::Stable, None, at(1)).expect("verify");
+    assert_eq!(verified.agent_artifacts, original.agent_artifacts);
+
+    let mut document: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+    document["payload"]["agent_artifacts"][0]["url"] =
+        serde_json::Value::String("https://evil.example/rdownloader-capture.tar.gz".to_owned());
+    let tampered = serde_json::to_vec(&document).expect("encode");
+    let error = verify_with(&tampered, &trust_for(&key()), Channel::Stable, None, at(1))
+        .expect_err("tampered");
+    assert_eq!(error.code(), "update.bad_signature");
+
+    let mut plain_http = original.clone();
+    plain_http.agent_artifacts[0].url = "http://github.com/rdownloader-capture.tar.gz".to_owned();
+    assert!(plain_http.validate().is_err());
+    let mut twice = original.clone();
+    twice
+        .agent_artifacts
+        .push(agent_artifact("linux", "x86_64"));
+    assert!(twice.validate().is_err());
+    let mut too_many = original;
+    too_many.agent_artifacts = (0..MAX_ARTIFACTS)
+        .map(|index| agent_artifact("linux", &format!("arch{index}")))
+        .collect();
+    assert!(too_many.validate().is_err(), "the cap counts both lists");
 }

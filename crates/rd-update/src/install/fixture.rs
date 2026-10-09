@@ -188,7 +188,7 @@ pub(crate) fn unlock(folder: &Path) {
     fs::set_permissions(folder, fs::Permissions::from_mode(0o755)).expect("unlock");
 }
 
-fn tar_archive(path: &Path, files: &[(String, &str)]) {
+pub(crate) fn tar_archive(path: &Path, files: &[(String, &str)]) {
     let file = fs::File::create(path).expect("archive");
     let encoder = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
     let mut builder = tar::Builder::new(encoder);
@@ -209,7 +209,7 @@ fn tar_archive(path: &Path, files: &[(String, &str)]) {
         .expect("flush");
 }
 
-fn zip_archive(path: &Path, files: &[(String, &str)]) {
+pub(crate) fn zip_archive(path: &Path, files: &[(String, &str)]) {
     let file = fs::File::create(path).expect("archive");
     let mut writer = zip::ZipWriter::new(file);
     for (name, text) in files {

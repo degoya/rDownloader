@@ -38,6 +38,7 @@ pub mod input_checks;
 pub mod link_check_cache;
 pub mod link_check_probe;
 pub mod link_check_service;
+pub mod links_file;
 pub mod list_bounds;
 pub mod local_control;
 pub mod notify_notice;

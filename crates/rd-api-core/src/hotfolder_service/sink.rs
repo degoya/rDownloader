@@ -166,6 +166,9 @@ impl DatabaseSink {
         intake: HotFolderIntake,
         format: rd_collector::ContainerFormat,
     ) -> Result<()> {
+        if format == rd_collector::ContainerFormat::RdLinks {
+            return self.submit_links(intake).await;
+        }
         let document = if format.needs_service() {
             let settings = crate::settings_store::stored_settings(&self.database)
                 .await
@@ -221,6 +224,46 @@ impl DatabaseSink {
                 category_id: intake.category_id,
                 priority: None,
             },
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message().to_owned()))?;
+        Ok(())
+    }
+
+    /// Imports an `.rdlinks` file into the LinkGrabber (RD-1210-01).
+    ///
+    /// Only a readable one: a folder has nobody to ask for a passphrase, so a sealed file is
+    /// refused and moved to `failed/` like any other drop that cannot be read. The links are
+    /// proposals of a document the person dropped themselves, so they may reach the person's own
+    /// network and never this machine — `LinkOrigin::Proposed` of an intake by their own hand.
+    async fn submit_links(&self, intake: HotFolderIntake) -> Result<()> {
+        let document = crate::links_file::read_links(&intake.content, None)
+            .await
+            .map_err(|error| anyhow::anyhow!(error.message().to_owned()))?;
+        let source_label = intake
+            .source_path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .map(str::to_owned);
+        let sink = crate::dlc_import::DlcIntake {
+            database: &self.database,
+            secrets: &self.secrets,
+            link_check: &self.link_check,
+            media: self.media_settings.read().await.clone(),
+            gallery: self.gallery_settings.read().await.clone(),
+        };
+        crate::dlc_import::import_links(
+            &sink,
+            document,
+            crate::dlc_import::DlcImportOptions {
+                source: rd_core::IngressSource::HotFolder,
+                source_label,
+                fallback_name: None,
+                fallback_password: None,
+                category_id: intake.category_id,
+                priority: None,
+            },
+            Some(true),
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message().to_owned()))?;

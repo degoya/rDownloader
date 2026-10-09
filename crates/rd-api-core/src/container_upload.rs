@@ -89,10 +89,19 @@ pub struct ContainerUpload {
     /// `low`, `normal` or `high`.
     #[serde(default)]
     pub priority: Option<String>,
-    /// `dlc`, `ccf`, `rsdf` or `txt`, overriding the extension. Read by
+    /// `dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the extension. Read by
     /// `/api/v1/containers/import` only; the other routes each take one format.
     #[serde(default)]
     pub format: Option<String>,
+    /// The passphrase of an encrypted `.rdlinks` file (RD-1210-01). Read by
+    /// `/api/v1/containers/import` only, never logged and never answered back.
+    #[serde(default)]
+    #[schema(value_type = Option<String>, write_only)]
+    pub passphrase: Option<crate::links_file::Passphrase>,
+    /// `true` queues every package once its links are checked, instead of leaving them in the
+    /// LinkGrabber (RD-1210-01). Read by `/api/v1/containers/import` only.
+    #[serde(default)]
+    pub enqueue: Option<String>,
 }
 
 /// A request body before it is read: a multipart upload, or the JSON document `T` — what a
@@ -112,6 +121,8 @@ pub struct Upload {
     pub category_id: Option<String>,
     pub priority: Option<String>,
     pub format: Option<String>,
+    pub passphrase: Option<crate::links_file::Passphrase>,
+    pub enqueue: Option<String>,
     pub file: Option<UploadedFile>,
 }
 
@@ -159,6 +170,8 @@ impl UploadBody {
                 category_id: upload.category_id,
                 priority: upload.priority,
                 format: upload.format,
+                passphrase: upload.passphrase,
+                enqueue: upload.enqueue,
             }),
         }
     }
@@ -175,6 +188,13 @@ async fn read_multipart(mut multipart: Multipart) -> Result<Upload, ApiError> {
             Some("category_id") => &mut upload.category_id,
             Some("priority") => &mut upload.priority,
             Some("format") => &mut upload.format,
+            Some("enqueue") => &mut upload.enqueue,
+            // Kept apart from the other text fields: it goes into a type that never prints it.
+            Some("passphrase") => {
+                let text = field.text().await.map_err(invalid)?;
+                upload.passphrase = Some(crate::links_file::Passphrase::new(text));
+                continue;
+            }
             Some("file") => {
                 let file_name = field.file_name().map(str::to_owned);
                 let bytes = field.bytes().await.map_err(invalid)?;

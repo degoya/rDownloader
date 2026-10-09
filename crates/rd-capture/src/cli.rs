@@ -43,6 +43,12 @@ pub(crate) enum Command {
     Status(ConnectionArgs),
     /// Reads the clipboard once and hands its links over, also while watching is paused.
     SendClipboard(ConnectionArgs),
+    /// Checks for a newer agent and installs it, for an agent installed without rDownloader's
+    /// service; or switches its own check and the service's request on or off.
+    Update(crate::self_update::UpdateArgs),
+    /// The agent's updater, which the agent starts from a copy of itself.
+    #[command(hide = true)]
+    ApplyUpdate(crate::self_update::ApplyArgs),
 }
 
 #[derive(Args)]
@@ -288,6 +294,38 @@ mod tests {
                     "{word} {flag}"
                 );
             }
+        }
+    }
+
+    /// RD-1210-03: `update` checks and installs, or switches; `apply-update` is the updater's own.
+    #[test]
+    fn the_update_commands_parse() {
+        for argv in [
+            &["rdownloader-capture", "update"][..],
+            &["rdownloader-capture", "update", "--check"],
+            &["rdownloader-capture", "update", "--auto-check", "off"],
+            &["rdownloader-capture", "update", "--allow-remote", "on"],
+            &[
+                "rdownloader-capture",
+                "apply-update",
+                "--journal",
+                "/tmp/j.json",
+            ],
+        ] {
+            assert!(Cli::try_parse_from(argv).is_ok(), "{argv:?}");
+        }
+        for argv in [
+            &["rdownloader-capture", "update", "--auto-check", "maybe"][..],
+            &[
+                "rdownloader-capture",
+                "update",
+                "--check",
+                "--allow-remote",
+                "on",
+            ],
+            &["rdownloader-capture", "apply-update"],
+        ] {
+            assert!(Cli::try_parse_from(argv).is_err(), "{argv:?}");
         }
     }
 

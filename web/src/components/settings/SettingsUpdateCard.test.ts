@@ -184,6 +184,21 @@ describe('SettingsUpdateCard', () => {
     expect(hint.textContent).toContain('still runs version before 1.9, rDownloader already runs 1.8.0-beta.1')
   })
 
+  it('names the update an agent installed without the service offers itself, without a restart hint', async () => {
+    fetchUpdateStatus.mockResolvedValue({
+      ok: true,
+      data: status({
+        capture_agents: [
+          { version: '1.7.0', outdated: true, self_update: 'offered', offered_version: '1.8.0', remote_update_allowed: false }
+        ]
+      })
+    })
+    mount()
+    expect((await screen.findByTestId('update-capture-self-offered')).textContent)
+      .toContain('offers itself version 1.8.0')
+    expect(screen.queryByTestId('update-capture-outdated')).toBeNull()
+  })
+
   it('has no word about capture agents when none runs', async () => {
     fetchUpdateStatus.mockResolvedValue({ ok: true, data: status() })
     mount()

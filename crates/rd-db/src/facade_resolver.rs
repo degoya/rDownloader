@@ -138,6 +138,20 @@ impl Database {
         .await
     }
 
+    /// Drops a download's resolver pin, so its next start resolves with the plugin installed now
+    /// (RD-1210-01); answers the pin it had, `None` when it had none. Refused while the download
+    /// holds its file (`StoreErrorKind::WrongState`) and for an unknown one (`NotFound`).
+    pub async fn release_resolver_pin(
+        &self,
+        id: DownloadId,
+    ) -> Result<Option<rd_core::ResolverPin>> {
+        writer::request(&self.writer, |reply| DownloadsCommand::ReleaseResolverPin {
+            id,
+            reply,
+        })
+        .await
+    }
+
     /// Drops resolver pins that name a version this build can no longer provide.
     ///
     /// Returns how many jobs were freed. See the writer implementation for why an

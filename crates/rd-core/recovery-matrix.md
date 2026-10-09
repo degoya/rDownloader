@@ -132,6 +132,7 @@ row for a point that does not exist.
 | `restore.after_live_set_aside` | rd-backup | a switch to a restored state stopped after a live item was set aside and before the restored one took its place is finished by the next start, which then opens the restored database; the previous installation stays in restore-previous until that start completes |
 | `scheduler.after_package_row` | rd-scheduler | a package row written before any of its files is dropped by the next start, never left in the queue as an empty one |
 | `scheduler.after_queue_pause_recorded` | rd-scheduler | a timed pause recorded before its files were paused holds the queue from the next start until its end, so none of its files starts early; once the end has passed, every file it paused is queued again and none stays paused for good |
+| `scheduler.after_stop_mark_paused` | rd-scheduler | a stop mark acted on before it was cleared stays set with its pause recorded and the waiting files paused; the next start holds the queue before its first dispatch, acts on the mark once more without changing the pause, clears it and reports it reached once, and nothing new starts in between |
 | `scheduler.after_torrent_selection` | rd-scheduler | a torrent row whose reviewed file selection was written before it joined the queue stays paused with that selection after the next start, never queued and never started with the default selection; resuming it starts the reviewed one |
 | `scheduler.before_auto_retry_requeued` | rd-scheduler | a failed download whose automatic retry came due before it was put back into the queue stays failed with its due time and its round uncounted; the pass after the next start puts it back exactly once and counts one round, with its attempts and limit waits starting from zero |
 | `scheduler.before_mirror_promoted` | rd-scheduler | a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming |
@@ -377,6 +378,16 @@ the queue again before its first dispatch, so none of those files starts before 
 pause whose end passed while the service was down queues its files again on the first tick
 rather than leaving them paused for good. The order is the point: the other way round, a stop
 after the files and before the record would leave them paused with no end anybody remembers.
+
+`scheduler.after_stop_mark_paused` is the queue's stop mark (RD-1210-02,
+`crates/rd-scheduler/src/stop_mark.rs`). Once the marked file or package is done the scheduler
+records the open-ended pause, pauses the waiting files and only then clears the mark, each a write
+of its own. A stop between the pause and the clearing leaves both. The case
+(`crates/rd-scheduler/tests/stop_mark.rs`) asserts the queue-level form of invariant 4: the start
+that follows holds the queue again before its first dispatch, finds the mark on a finished target
+and acts on it once more — the pause keeps its files and stays open-ended — then clears it, and
+`queue.stop_mark` reports it reached exactly once. The other order would lose the stop: a mark
+cleared before its pause is recorded leaves a queue that runs on past it.
 
 `postprocess.before_unpack_recorded` is the pipeline's step between an archive being unpacked
 and its step being recorded (RD-180-12, `rd_extract::unpack_job`). A stop there leaves the payload

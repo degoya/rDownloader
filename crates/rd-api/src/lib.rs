@@ -78,10 +78,10 @@ use rd_api_mcp as mcp;
 use rd_api_queue::{
     auto_remove_service, bandwidth_handlers, bandwidth_manual_handlers, capture_queue,
     capture_summary, collision_handlers, download_handlers, download_sources, duplicates,
-    media_dto, media_handlers, metrics, nzb_remote_job_handlers, package_clear, package_handlers,
-    power_handlers, queue_pause_handlers, reconnect_handlers, remote_job_handlers, replay_dto,
-    replay_handlers, storage_handlers, torrent_control, torrent_handlers, torrent_trackers,
-    usenet_handlers,
+    media_dto, media_handlers, metrics, nzb_remote_job_handlers, package_clear, package_export,
+    package_handlers, power_handlers, queue_pause_handlers, reconnect_handlers,
+    remote_job_handlers, replay_dto, replay_handlers, stop_mark_handlers, storage_handlers,
+    torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
 };
 
 pub use rd_api_core::container_upload::PUBLIC_BODY_LIMIT_BYTES;

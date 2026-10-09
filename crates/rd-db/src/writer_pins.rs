@@ -56,6 +56,42 @@ impl Writer {
         Ok(())
     }
 
+    /// Drops a download's resolver pin so its next start resolves with the plugin installed
+    /// now (RD-1210-01); answers the pin it had. Refused while the download holds its file, for
+    /// the reason [`Self::pin_download_resolver`] is: a running job keeps its version.
+    ///
+    /// The transfer's chunks, ETag and size stay as they are. Whether the bytes already on disk
+    /// may be kept is decided where it always is, when the next attempt plans its transfer: the
+    /// new resolution's size and validators against the recorded ones.
+    pub(crate) async fn release_resolver_pin(
+        &mut self,
+        id: DownloadId,
+    ) -> Result<Option<rd_core::ResolverPin>> {
+        let current = crate::models::get_download_from_connection(&mut self.connection, id)
+            .await?
+            .context(StoreError::not_found("download not found"))?;
+        if current.state.holds_the_file() {
+            bail!(StoreError::wrong_state(
+                "a running download keeps the version it started with; pause it first"
+            ));
+        }
+        let previous = sqlx::query(
+            "DELETE FROM download_resolver_pins WHERE download_id = ? \
+             RETURNING plugin_id, plugin_version",
+        )
+        .bind(id.to_string())
+        .fetch_optional(&mut self.connection)
+        .await?;
+        previous
+            .map(|row| {
+                Ok(rd_core::ResolverPin {
+                    plugin_id: crate::parse_id(row.get::<String, _>("plugin_id").as_str())?,
+                    version: row.get("plugin_version"),
+                })
+            })
+            .transpose()
+    }
+
     /// Drops pins naming a resolver version this build can no longer provide.
     ///
     /// A pin keeps a *running* job on one exact resolver version, which is what makes a

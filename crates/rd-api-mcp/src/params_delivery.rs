@@ -83,6 +83,8 @@ pub(crate) enum NotificationEventParam {
     UsenetJobHopeless,
     /// A Usenet server used up its traffic quota; once per crossing of the limit.
     UsenetQuotaReached,
+    /// The queue's stop mark was reached and the queue paused after it.
+    StopMarkReached,
 }
 
 impl From<NotificationEventParam> for rd_notify::NotificationEvent {
@@ -103,6 +105,7 @@ impl From<NotificationEventParam> for rd_notify::NotificationEvent {
             NotificationEventParam::AccountInvalid => Self::AccountInvalid,
             NotificationEventParam::UsenetJobHopeless => Self::UsenetJobHopeless,
             NotificationEventParam::UsenetQuotaReached => Self::UsenetQuotaReached,
+            NotificationEventParam::StopMarkReached => Self::StopMarkReached,
         }
     }
 }

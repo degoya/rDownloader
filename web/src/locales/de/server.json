@@ -1245,7 +1245,20 @@
     "site_rules.sequence_older": "Diese Regeldatei ist älter als eine, die du vom selben Signierer schon importiert hast (Sequenz {sequence}, bekannt ist {known}), und wurde abgelehnt.",
     "object_storage.redirect_refused": "Der Objektspeicher hat mit einer Umleitung geantwortet; ihr wird nicht gefolgt. Trag den Endpunkt ein, auf den er umleitet.",
     "proxy.password_host_changed": "Die Proxy-Adresse wurde geändert: Gib das Passwort erneut ein, es geht nicht an den neuen Host.",
-    "remote.secret_host_changed": "Der Server wurde geändert: Gib das Passwort oder den Schlüssel erneut ein, beides geht nicht an den neuen Host."
+    "remote.secret_host_changed": "Der Server wurde geändert: Gib das Passwort oder den Schlüssel erneut ein, beides geht nicht an den neuen Host.",
+    "rdlinks.too_large": "Die Linkdatei ist größer als {max_mib} MiB",
+    "rdlinks.file_invalid": "Die Linkdatei ist ungültig: {detail}",
+    "rdlinks.passphrase_required": "Die Linkdatei ist verschlüsselt; gib ihre Passphrase ein, um sie zu importieren",
+    "rdlinks.passphrase_invalid": "Die Passphrase ist falsch oder die Linkdatei wurde verändert",
+    "rdlinks.passphrase_too_short": "Die Passphrase braucht mindestens {min} Zeichen",
+    "rdlinks.links_limit": "Eine Linkdatei trägt höchstens {max} Links",
+    "export.nothing_selected": "Wähle ein Paket, einen Download oder ein LinkGrabber-Paket zum Exportieren",
+    "export.nothing_exportable": "Keiner der gewählten Links lässt sich in eine Linkdatei schreiben",
+    "export.passphrase_unsupported": "Ein Crawljob lässt sich nicht verschlüsseln; exportiere eine .rdlinks-Datei, um eine Passphrase zu nutzen",
+    "container.enqueue_invalid": "enqueue muss true oder false sein",
+    "download.reresolve_running": "Der Download hat nicht rechtzeitig angehalten, um neu aufgelöst zu werden; pausiere ihn und versuch es noch einmal",
+    "queue.stop_mark_target_invalid": "Gib der Stoppmarke entweder einen Download oder ein Paket",
+    "queue.stop_mark_target_finished": "Dieser Download bzw. dieses Paket ist schon fertig"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

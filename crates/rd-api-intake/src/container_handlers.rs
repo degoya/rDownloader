@@ -8,6 +8,10 @@
 //! The file arrives as a multipart upload or, for a caller without one, as base64 in a JSON
 //! body (RD-120-31); [`crate::container_upload`] reads both into one shape before any of this
 //! runs.
+//!
+//! An `.rdlinks` file (RD-1210-01) is rDownloader's own export: its links are proposals of a
+//! document, held to the address rule of `LinkOrigin::Proposed`, and assigned to their hosts
+//! again. Any container may be queued once its check has finished (`enqueue`).
 
 use axum::{Json, extract::State, http::StatusCode};
 use serde::Serialize;
@@ -18,9 +22,13 @@ use rd_collector::ContainerFormat;
 
 use crate::{
     ApiError, AppState,
+    audit::AuditContext,
+    collector_handlers::links::LinkOrigin,
+    collector_source_sets::{from_own_hand, of_caller},
     container_upload::{ContainerUpload, UploadBody},
     dlc_import::{DlcImportOptions, DlcIntake},
 };
+use rd_api_core::links_file::{Passphrase, read_links};
 
 /// A container may hold several packages, so the import answers with all of them at once.
 #[derive(Debug, Serialize, ToSchema)]
@@ -33,31 +41,36 @@ pub struct ContainerImportResponse {
     pub skipped_excluded: u32,
 }
 
-#[utoipa::path(post, path = "/api/v1/containers/import", tag = "collector", request_body(content((Vec<u8> = "multipart/form-data"), (ContainerUpload = "application/json"))), responses((status = 201, body = ContainerImportResponse), (status = 400, description = "The format is unknown, its import is disabled, the container is invalid, or the JSON content is not base64"), (status = 413, description = "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit"), (status = 502, description = "The decryption service did not answer")))]
+#[utoipa::path(post, path = "/api/v1/containers/import", tag = "collector", request_body(content((Vec<u8> = "multipart/form-data"), (ContainerUpload = "application/json"))), responses((status = 201, body = ContainerImportResponse), (status = 400, description = "The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, or the JSON content is not base64"), (status = 413, description = "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit"), (status = 502, description = "The decryption service did not answer")))]
 pub async fn import_container(
     State(state): State<AppState>,
+    audit: AuditContext,
     body: UploadBody,
 ) -> Result<(StatusCode, Json<ContainerImportResponse>), ApiError> {
-    import(state, body, None).await
+    import(state, &audit, body, None).await
 }
 
 /// The original DLC route, kept so an existing client and the browser extension keep working.
 #[utoipa::path(post, path = "/api/v1/dlc/import", tag = "collector", request_body(content((Vec<u8> = "multipart/form-data"), (ContainerUpload = "application/json"))), responses((status = 201, body = ContainerImportResponse), (status = 400, description = "DLC import is disabled, the container is invalid, or the JSON content is not base64"), (status = 413, description = "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit"), (status = 502, description = "The decryption service did not answer")))]
 pub async fn import_dlc(
     State(state): State<AppState>,
+    audit: AuditContext,
     body: UploadBody,
 ) -> Result<(StatusCode, Json<ContainerImportResponse>), ApiError> {
-    import(state, body, Some(ContainerFormat::Dlc)).await
+    import(state, &audit, body, Some(ContainerFormat::Dlc)).await
 }
 
 /// Both bodies arrive here as the same [`crate::container_upload::Upload`]; nothing below
 /// knows which one it was.
 async fn import(
     state: AppState,
+    audit: &AuditContext,
     body: UploadBody,
     forced: Option<ContainerFormat>,
 ) -> Result<(StatusCode, Json<ContainerImportResponse>), ApiError> {
     let upload = body.read().await?;
+    let enqueue = enqueue_flag(upload.enqueue.as_deref())?;
+    let passphrase = Passphrase::given(upload.passphrase);
     let package_name = optional_text(upload.name);
     let category_id = match upload.category_id.as_deref().map(str::trim) {
         None | Some("") => None,
@@ -108,7 +121,6 @@ async fn import(
                 "The file name does not name a container format this build reads",
             )
         })?;
-    let document = decode(&state, format, &content).await?;
     let fallback_name = package_name.or_else(|| {
         let stem = stem
             .rsplit_once('.')
@@ -123,19 +135,34 @@ async fn import(
         media: state.media_settings.read().await.clone(),
         gallery: state.gallery_settings.read().await.clone(),
     };
-    let outcome = crate::dlc_import::import_document(
-        &intake,
-        document,
-        DlcImportOptions {
-            source: rd_core::IngressSource::Manual,
-            source_label,
-            fallback_name,
-            fallback_password: password,
-            category_id,
-            priority,
-        },
-    )
-    .await?;
+    let options = DlcImportOptions {
+        source: rd_core::IngressSource::Manual,
+        source_label,
+        fallback_name,
+        fallback_password: password,
+        category_id,
+        priority,
+    };
+    // Followed before the import starts the check, so a check that is over at once is heard.
+    let completed = enqueue.then(|| state.link_check.follow_completed());
+    let outcome = if format == ContainerFormat::RdLinks {
+        let document = read_links(&content, passphrase.as_ref()).await?;
+        // A file a token hands in is a program's choice, never the person's own hand.
+        let own_hand = from_own_hand(of_caller(audit, rd_core::IngressSource::Manual));
+        crate::dlc_import::import_links(
+            &intake,
+            document,
+            options,
+            LinkOrigin::Proposed.reach(own_hand),
+        )
+        .await?
+    } else {
+        let document = decode(&state, format, &content).await?;
+        crate::dlc_import::import_document(&intake, document, options).await?
+    };
+    if let Some(completed) = completed {
+        crate::container_enqueue::after_check(state.clone(), completed, &outcome.packages);
+    }
     Ok((
         StatusCode::CREATED,
         Json(ContainerImportResponse {
@@ -145,6 +172,18 @@ async fn import(
             skipped_excluded: outcome.skipped_excluded,
         }),
     ))
+}
+
+/// The `enqueue` field: absent or empty is `false`, like an unticked box.
+fn enqueue_flag(value: Option<&str>) -> Result<bool, ApiError> {
+    match value.map(str::trim) {
+        None | Some("" | "false") => Ok(false),
+        Some("true") => Ok(true),
+        Some(_) => Err(ApiError::bad_request(
+            "container.enqueue_invalid",
+            "enqueue must be true or false",
+        )),
+    }
 }
 
 /// Gets the links out, which is the only step that differs between the formats.

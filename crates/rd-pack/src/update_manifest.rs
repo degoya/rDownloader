@@ -12,8 +12,10 @@
 //! `rdownloader-<linux|windows|macos>-<x86_64|aarch64>.<tar.gz|zip>` is the portable archive, and
 //! a `.msi`, `.deb` or `.rpm` whose name starts with `rdownloader` and carries an architecture
 //! (`x86_64`/`amd64`/`x64`, `aarch64`/`arm64`) is that installer — the MSI only in English, the
-//! other languages' `…-de.msi` are not updates. The capture agent's files, the extensions, the
-//! plugins and everything else are not application updates and are left out.
+//! other languages' `…-de.msi` are not updates. The capture agent's own archives,
+//! `rdownloader-capture-<platform>-<arch>.<tar.gz|zip>` (`scripts/release-assets.sh agent`), are
+//! the manifest's `agent_artifacts` (RD-1210-03). The extensions, the plugins and everything else
+//! are not updates and are left out.
 
 use std::path::{Path, PathBuf};
 
@@ -140,10 +142,12 @@ async fn build(args: &BuildArgs) -> Result<()> {
     let sums = tokio::fs::read_to_string(&args.checksums)
         .await
         .with_context(|| format!("read {}", args.checksums.display()))?;
-    let mut artifacts = Vec::new();
+    let (mut artifacts, mut agent_artifacts) = (Vec::new(), Vec::new());
     for (sha256, name) in parse_checksums(&sums) {
-        let Some((platform, arch, kind)) = classify(&name) else {
-            continue;
+        let (list, (platform, arch, kind)) = match (classify(&name), classify_agent(&name)) {
+            (Some(entry), _) => (&mut artifacts, entry),
+            (None, Some(entry)) => (&mut agent_artifacts, entry),
+            (None, None) => continue,
         };
         let path = args.assets.join(&name);
         let size = tokio::fs::metadata(&path)
@@ -156,7 +160,7 @@ async fn build(args: &BuildArgs) -> Result<()> {
                 )
             })?
             .len();
-        artifacts.push(Artifact {
+        list.push(Artifact {
             platform: platform.to_owned(),
             arch: arch.to_owned(),
             kind: kind.to_owned(),
@@ -170,9 +174,15 @@ async fn build(args: &BuildArgs) -> Result<()> {
         "{} names no application archive or installer",
         args.checksums.display()
     );
-    artifacts.sort_by(|left, right| {
-        (&left.platform, &left.arch, &left.kind).cmp(&(&right.platform, &right.arch, &right.kind))
-    });
+    for list in [&mut artifacts, &mut agent_artifacts] {
+        list.sort_by(|left, right| {
+            (&left.platform, &left.arch, &left.kind).cmp(&(
+                &right.platform,
+                &right.arch,
+                &right.kind,
+            ))
+        });
+    }
     let notes = match &args.release_notes {
         Some(path) => notes::user_notes(&read_text(path).await?, &version)?.unwrap_or_else(|| {
             eprintln!(
@@ -214,6 +224,7 @@ async fn build(args: &BuildArgs) -> Result<()> {
         changelog_anchor,
         artifacts,
         schema_change: args.schema_change,
+        agent_artifacts,
     };
     let signed = manifest::sign(&args.key_id, &key, &update)?;
     // Round trip under the signing key itself; `verify` is the check against the root.
@@ -231,10 +242,11 @@ async fn build(args: &BuildArgs) -> Result<()> {
         .await
         .with_context(|| format!("write {}", out.display()))?;
     println!(
-        "signed {} {} with {} artifacts as sequence {} into {} (valid until {}, schema change: {})",
+        "signed {} {} with {} artifacts and {} agent archives as sequence {} into {} (valid until {}, schema change: {})",
         channel.as_str(),
         update.version,
         update.artifacts.len(),
+        update.agent_artifacts.len(),
         update.sequence,
         out.display(),
         update.not_after.to_rfc3339(),
@@ -333,9 +345,20 @@ fn is_language_variant(lower: &str) -> bool {
         })
 }
 
+/// `(platform, arch, kind)` of the capture agent's own archive (RD-1210-03),
+/// `rdownloader-capture-<platform>-<arch>.<tar.gz|zip>`; `None` for every other file.
+fn classify_agent(name: &str) -> Option<(&'static str, &'static str, &'static str)> {
+    let lower = name.to_ascii_lowercase();
+    archive_of(lower.strip_prefix("rdownloader-capture-")?)
+}
+
 /// `rdownloader-<platform>-<arch>.<tar.gz|zip>`, the portable archive.
 fn portable_archive(lower: &str) -> Option<(&'static str, &'static str, &'static str)> {
-    let stem = lower.strip_prefix("rdownloader-")?;
+    archive_of(lower.strip_prefix("rdownloader-")?)
+}
+
+/// `<platform>-<arch>.<tar.gz|zip>`, the rest of an archive's name.
+fn archive_of(stem: &str) -> Option<(&'static str, &'static str, &'static str)> {
     let stem = stem
         .strip_suffix(".tar.gz")
         .or_else(|| stem.strip_suffix(".zip"))?;
@@ -386,11 +409,12 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
         )
     })?;
     println!(
-        "{} verifies: {} {} with {} artifacts, sequence {}, valid until {}",
+        "{} verifies: {} {} with {} artifacts and {} agent archives, sequence {}, valid until {}",
         args.file.display(),
         channel.as_str(),
         verified.version,
         verified.artifacts.len(),
+        verified.agent_artifacts.len(),
         verified.sequence,
         verified.not_after.to_rfc3339()
     );
@@ -403,7 +427,7 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
 /// Every listed artifact present in `directory` has its size and SHA-256.
 fn check_assets(verified: &UpdateManifest, directory: &Path) -> Result<()> {
     use sha2::{Digest, Sha256};
-    for artifact in &verified.artifacts {
+    for artifact in verified.artifacts.iter().chain(&verified.agent_artifacts) {
         let name = artifact.url.rsplit('/').next().unwrap_or(&artifact.url);
         let path = directory.join(name);
         let bytes = std::fs::read(&path).with_context(|| format!("read {}", path.display()))?;

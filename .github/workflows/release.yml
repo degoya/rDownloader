@@ -294,6 +294,8 @@ jobs:
       # to plugin-assets/, the plugin release's files.
       - name: Separate the plugins and drop the intermediate files
         run: scripts/release-assets.sh split release-assets plugin-assets
+      - name: Write the capture agent's own archives (RD-1210-03), covered by SHA256SUMS below
+        run: scripts/release-assets.sh agent release-assets
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:

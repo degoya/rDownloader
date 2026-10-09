@@ -93,6 +93,7 @@ fn a_read_only_subscriber_sees_queue_events_only() {
         EventKind::PostprocessProgress,
         EventKind::StorageCapacity,
         EventKind::TorrentStats,
+        EventKind::QueueStopMark,
     ] {
         assert!(
             read_only().may_observe(&kind),

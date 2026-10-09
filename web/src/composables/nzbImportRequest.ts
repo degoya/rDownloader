@@ -67,7 +67,7 @@ export function fileDropClaim(): ((files: File[]) => void) | null {
  * file list and its package-name suggestion all read from here, so a new format cannot be added
  * to one of them and silently forgotten in the others.
  */
-const IMPORT_SUFFIX = /\.(?:nzb|torrent|dlc|ccf|rsdf|txt|text)$/i
+const IMPORT_SUFFIX = /\.(?:nzb|torrent|dlc|ccf|rsdf|txt|text|rdlinks)$/i
 
 /** Keeps supported LinkGrabber metadata files. Filenames are only readable at drop time. */
 export function filterImportFiles(files: FileList | File[]): File[] {

@@ -244,3 +244,63 @@ async fn the_trays_switch_is_audited_under_its_capture_token() {
     assert_eq!(record["target_kind"], "settings", "{record}");
     assert_eq!(record["details"]["fields"], "clipboard_paused", "{record}");
 }
+
+/// RD-1210-03: the agent's poll carries where its own update stands and is answered with the
+/// service's update channel; the update status shows the report beside the agent's version.
+#[tokio::test]
+async fn the_agents_update_report_reaches_the_update_status() {
+    use tower::ServiceExt as _;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let request = |uri: &str| {
+        axum::http::Request::builder()
+            .uri(uri)
+            .header(axum::http::header::HOST, "127.0.0.1:8710")
+            .header(
+                axum::http::header::AUTHORIZATION,
+                format!("Bearer {CAPTURE_BEARER}"),
+            )
+            .header(axum::http::header::USER_AGENT, "rdownloader-capture/1.20.0")
+    };
+    let stream = harness
+        .router
+        .clone()
+        .oneshot(
+            request("/api/v1/capture/events")
+                .body(axum::body::Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("stream");
+    assert_eq!(stream.status(), StatusCode::OK);
+    let poll = harness
+        .router
+        .clone()
+        .oneshot(
+            request(AGENT)
+                .header(
+                    rd_update::agent::report::REPORT_HEADER,
+                    "state=offered; version=1.21.0; remote=0",
+                )
+                .body(axum::body::Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("poll");
+    assert_eq!(poll.status(), StatusCode::OK);
+    assert_eq!(
+        poll.headers()
+            .get(rd_update::agent::report::CHANNEL_HEADER)
+            .and_then(|value| value.to_str().ok()),
+        Some(rd_update::settings::default_channel(env!("CARGO_PKG_VERSION")).as_str()),
+        "the agent reads the service's channel"
+    );
+    let (_, status) = common::get_json(&harness.router, "/api/v1/system/update").await;
+    let agent = &status["capture_agents"][0];
+    assert_eq!(agent["version"], "1.20.0", "{status}");
+    assert_eq!(agent["self_update"], "offered", "{status}");
+    assert_eq!(agent["offered_version"], "1.21.0", "{status}");
+    assert_eq!(agent["remote_update_allowed"], false, "{status}");
+    drop(stream);
+}

@@ -1744,8 +1744,11 @@ underneath, or from a glyph. Concretely (RD-109-30):
   post-processing (`i-lucide-triangle-alert` in the error colour, still the button that opens the
   steps) and *handed to <provider>* (`i-lucide-cloud`, still the link to the remote jobs): the
   word is the accessible name and the `UTooltip`, because each word pushed the name cell into the
-  count beside it (owner, 2026-10-08). Only a state whose value changes while you watch
-  (`Post-processing 40%`) keeps its text.
+  count beside it (owner, 2026-10-08). The stop mark (RD-1210-02) is one more: an
+  `i-lucide-octagon-pause` badge in the warning colour with `role="img"`, *Stop mark* as its name
+  and the sentence as its `UTooltip`, on the marked file or package row; the transfer rail repeats
+  it with the marked row's name once the rail has room, and a ghost `x` beside it removes it. Only a
+  state whose value changes while you watch (`Post-processing 40%`) keeps its text.
 - **An ordered set of three or fewer levels is a glyph too.** Priority is an arrow up, a dash and
   an arrow down on a `size="xs" variant="ghost"` button whose name reads `Priority: <level>`; the
   levels live in a dropdown beside it and each keeps its own label. A select that spells out

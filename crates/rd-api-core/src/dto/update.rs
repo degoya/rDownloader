@@ -52,6 +52,18 @@ pub struct CaptureAgentVersion {
     /// Whether the agent is older than the service -- it reported an older version, or none --
     /// and so still runs the program file from before the update.
     pub outdated: bool,
+    /// Where the agent's own update stands (RD-1210-03): `with_service` (the service in its
+    /// folder updates it), `disabled`, `unchecked`, `current`, `offered`, `failed` or
+    /// `installing`. Empty for an agent that reports none (before 1.21).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub self_update: Option<String>,
+    /// The newer version the agent offers itself, with `offered` and `installing`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offered_version: Option<String>,
+    /// Whether the agent lets the service ask it to install an update; off unless its own
+    /// configuration allows it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_update_allowed: Option<bool>,
 }
 
 /// The offered version's artifact, downloaded and verified in the background, which "Install and

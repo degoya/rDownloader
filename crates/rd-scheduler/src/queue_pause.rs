@@ -1,4 +1,5 @@
-//! Pausing the whole queue until a set time (RD-190-20).
+//! Pausing the whole queue until a set time (RD-190-20), or until somebody resumes it (the stop
+//! mark's pause, RD-1210-02).
 //!
 //! The same pause "pause all" has always been — every file that is waiting or moving is paused
 //! one by one — with an end attached. Two things come with the end. The files this pause
@@ -28,7 +29,9 @@ const HOLD_REASON: &str = "queue_paused";
 /// A pause of the whole queue with the time it ends.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct QueuePause {
-    pub until: DateTime<Utc>,
+    /// When it ends; `None` for a pause that lasts until somebody resumes the queue — the one a
+    /// stop mark sets (RD-1210-02).
+    pub until: Option<DateTime<Utc>>,
     /// The files this pause stopped; its end resumes those still paused, and no others.
     pub files: Vec<DownloadId>,
 }
@@ -45,6 +48,22 @@ impl SchedulerHandle {
     /// A pause that is already in force is moved to the new end and keeps the files it holds,
     /// so pausing "for one more hour" never forgets what the first pause stopped.
     pub async fn pause_queue_until(&self, until: DateTime<Utc>) -> Result<QueuePause> {
+        self.pause_queue(Some(until), pausable).await
+    }
+
+    /// Holds the queue until somebody resumes it, the pause a stop mark sets (RD-1210-02): the
+    /// waiting files are paused, the moving ones finish. A pause already in force loses its end
+    /// and keeps the files it holds.
+    pub async fn pause_queue_until_resumed(&self) -> Result<QueuePause> {
+        self.pause_queue(None, |state| pausable(state) && !state.is_working())
+            .await
+    }
+
+    async fn pause_queue(
+        &self,
+        until: Option<DateTime<Utc>>,
+        stops: fn(DownloadState) -> bool,
+    ) -> Result<QueuePause> {
         let mut current = self.queue_pause.lock().await;
         let mut files = current
             .as_ref()
@@ -55,7 +74,7 @@ impl SchedulerHandle {
             .list_downloads()
             .await?
             .into_iter()
-            .filter(|file| pausable(file.state))
+            .filter(|file| stops(file.state))
             .map(|file| file.id)
             .collect();
         for id in &stopping {
@@ -147,7 +166,8 @@ impl SchedulerHandle {
             .lock()
             .await
             .as_ref()
-            .is_some_and(|pause| pause.until <= Utc::now());
+            .and_then(|pause| pause.until)
+            .is_some_and(|until| until <= Utc::now());
         if due {
             let resumed = self.resume_queue().await?;
             tracing::info!(resumed, "the timed queue pause ended");

@@ -38,7 +38,7 @@ export function useFileImport(categories: Ref<Category[]>) {
     if (!input) return
     importing.value = true
     try {
-      const options = { categoryId: input.categoryId, priority: input.priority }
+      const options = { categoryId: input.categoryId, priority: input.priority, passphrase: input.passphrase, enqueue: input.enqueue }
       if (input.entries.length === 1) {
         const entry = input.entries[0]!
         if (isContainer(entry.file)) {
@@ -94,7 +94,7 @@ export function useFileImport(categories: Ref<Category[]>) {
    * endpoints, so they are deliberately absent here.
    */
   function isContainer(file: File): boolean {
-    return /\.(?:dlc|ccf|rsdf|txt|text)$/i.test(file.name)
+    return /\.(?:dlc|ccf|rsdf|txt|text|rdlinks)$/i.test(file.name)
   }
 
   /** Outcome of one uploaded container, torrent or DLC alike. */
@@ -152,13 +152,16 @@ export function useFileImport(categories: Ref<Category[]>) {
    */
   async function importContainer(
     entry: FileImportEntry,
-    options: { categoryId: string | null, priority: DownloadPriority }
+    options: { categoryId: string | null, priority: DownloadPriority, passphrase?: string | undefined, enqueue?: boolean | undefined }
   ): Promise<ContainerImportResult> {
     const body = new FormData()
     body.append('file', entry.file)
     if (entry.name.trim()) body.append('name', entry.name.trim())
     if (options.categoryId) body.append('category_id', options.categoryId)
     body.append('priority', options.priority)
+    // An exported link file (RD-1210-01): its passphrase, and whether to queue once checked.
+    if (options.passphrase) body.append('passphrase', options.passphrase)
+    if (options.enqueue) body.append('enqueue', 'true')
     const response = await api.POST('/api/v1/containers/import', { body: body as never })
     const name = entry.name.trim() || entry.file.name.replace(/\.[^.]+$/, '')
     if (!response.data) {

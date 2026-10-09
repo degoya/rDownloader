@@ -40,6 +40,7 @@ mod run_guard_tests;
 mod runner;
 mod settings;
 mod start;
+mod stop_mark;
 mod worker;
 
 pub use account_traffic::{AccountTrafficHold, TRAFFIC_CHECK_INTERVAL_MINUTES};

@@ -90,6 +90,11 @@ const LINUX_LINKED: &[(&str, &str)] = &[
     ("rd-autostart", "workspace crate, headless"),
     ("rd-core", "workspace crate, headless"),
     ("rd-files", "workspace crate, headless"),
+    (
+        "rd-update",
+        "workspace crate, headless: the signed update manifest, the verified download and the \
+         portable switch of the agent's own update (RD-1210-03)",
+    ),
     ("regex", "text"),
     ("reqwest", "HTTP client"),
     ("serde", "serialization"),

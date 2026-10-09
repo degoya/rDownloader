@@ -164,21 +164,131 @@ pub async fn import_document(
             rd_core::MAX_CAPTURE_LINKS,
         ));
     }
+    let packages = document
+        .packages
+        .into_iter()
+        .map(|package| {
+            let DlcPackage {
+                name,
+                password,
+                files,
+                ..
+            } = package;
+            IncomingPackage {
+                name,
+                password,
+                category_id: options.category_id,
+                links: files
+                    .into_iter()
+                    .map(|file| IncomingLink {
+                        url: file.url,
+                        file_name: file.file_name,
+                        size: file.size,
+                        mirror_group: None,
+                    })
+                    .collect(),
+            }
+        })
+        .collect();
+    import_packages(intake, packages, &options, None).await
+}
+
+/// Takes an `.rdlinks` document into the LinkGrabber (RD-1210-01): one batch per package, the
+/// category found again by its name, the mirror groups kept, and every address a proposal held
+/// to `reach` (`LinkOrigin::Proposed` of the intake that handed the file over).
+///
+/// Nothing in the document binds a link to a plugin: each one is assigned to its host again,
+/// with an alias host turned into the hoster's own domain, and resolved by the plugin installed
+/// now. An explicit `options.category_id` wins over the category the file names.
+pub async fn import_links(
+    intake: &DlcIntake<'_>,
+    document: rd_collector::LinksDocument,
+    options: DlcImportOptions,
+    reach: Option<bool>,
+) -> Result<DlcImportOutcome, ApiError> {
+    let total = rd_collector::link_count(&document);
+    if total == 0 {
+        return Err(ApiError::bad_request(
+            "dlc.no_links",
+            "The DLC contains no links",
+        ));
+    }
+    if total > rd_collector::MAX_RDLINKS_LINKS {
+        return Err(links_limit());
+    }
+    let categories = intake.database.list_categories().await?;
+    let packages = document
+        .packages
+        .into_iter()
+        .map(|package| IncomingPackage {
+            category_id: options.category_id.or_else(|| {
+                let wanted = package.category.as_deref()?.trim();
+                categories
+                    .iter()
+                    .find(|category| category.name.eq_ignore_ascii_case(wanted))
+                    .map(|category| category.id)
+            }),
+            name: package.name,
+            password: package.password,
+            links: package
+                .links
+                .into_iter()
+                .map(|link| IncomingLink {
+                    url: rd_collector::canonical_url(link.url),
+                    file_name: link.file_name,
+                    size: link.size,
+                    mirror_group: link.mirror_group,
+                })
+                .collect(),
+        })
+        .collect();
+    import_packages(intake, packages, &options, reach).await
+}
+
+/// `400` for a link file or an export over [`rd_collector::MAX_RDLINKS_LINKS`].
+#[must_use]
+pub fn links_limit() -> ApiError {
+    ApiError::bad_request(
+        "rdlinks.links_limit",
+        format!(
+            "A link file holds at most {} links",
+            rd_collector::MAX_RDLINKS_LINKS
+        ),
+    )
+    .with_param("max", rd_collector::MAX_RDLINKS_LINKS)
+}
+
+/// One package on its way into the LinkGrabber, whatever file it came from.
+struct IncomingPackage {
+    name: Option<String>,
+    password: Option<String>,
+    category_id: Option<rd_core::CategoryId>,
+    links: Vec<IncomingLink>,
+}
+
+struct IncomingLink {
+    url: url::Url,
+    file_name: Option<String>,
+    size: Option<u64>,
+    mirror_group: Option<String>,
+}
+
+async fn import_packages(
+    intake: &DlcIntake<'_>,
+    packages: Vec<IncomingPackage>,
+    options: &DlcImportOptions,
+    reach: Option<bool>,
+) -> Result<DlcImportOutcome, ApiError> {
     let excluded = crate::collector_exclusions::blocklist(intake.database).await?;
     let mut outcome = DlcImportOutcome {
         packages: Vec::new(),
         candidates: Vec::new(),
         skipped_excluded: 0,
     };
-    for package in document.packages {
-        let DlcPackage {
-            name,
-            password,
-            files: declared,
-            ..
-        } = package;
-        let before = declared.len();
-        let files: Vec<_> = declared
+    for package in packages {
+        let before = package.links.len();
+        let files: Vec<IncomingLink> = package
+            .links
             .into_iter()
             .filter(|file| {
                 !file
@@ -218,17 +328,36 @@ pub async fn import_document(
                     .and_then(|size| rd_core::ByteCount::new(size).ok())
             })
             .collect();
+        let mirror_hints = if files.iter().any(|file| file.mirror_group.is_some()) {
+            files
+                .iter()
+                .map(|file| {
+                    file.mirror_group.clone().map(|group| rd_core::MirrorHint {
+                        group,
+                        quality: None,
+                        language: None,
+                    })
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         let (batch, packages, candidates) = intake
             .database
             .add_collector_batch(NewCollectorBatch {
                 package_hints: Vec::new(),
-                mirror_hints: Vec::new(),
+                mirror_hints,
                 source: options.source,
                 source_label: options.source_label.clone(),
-                package_name: package_name(name.as_deref(), options.fallback_name.as_deref()),
-                password: password.or_else(|| options.fallback_password.clone()),
+                package_name: package_name(
+                    package.name.as_deref(),
+                    options.fallback_name.as_deref(),
+                ),
+                password: package
+                    .password
+                    .or_else(|| options.fallback_password.clone()),
                 passwords: Vec::new(),
-                category_id: options.category_id,
+                category_id: package.category_id,
                 priority: options.priority,
                 providers,
                 urls,
@@ -240,6 +369,15 @@ pub async fn import_document(
                 source_attributes: Vec::new(),
             })
             .await?;
+        // Before the check starts: the online check of an address somebody else chose keeps to
+        // the same address rule as the transfer (RD-150-03).
+        if let Some(local_network) = reach {
+            let ids = candidates.iter().map(|candidate| candidate.id).collect();
+            intake
+                .database
+                .set_candidates_remote_reach(ids, local_network)
+                .await?;
+        }
         intake.link_check.check_batch(batch.id).await;
         outcome.packages.extend(packages);
         outcome.candidates.extend(candidates);

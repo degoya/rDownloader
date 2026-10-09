@@ -702,7 +702,8 @@
       "running": "Agent de capture : {versions}",
       "unknown": "antérieur à 1.9",
       "outdated_title": "Redémarrez l'agent de capture",
-      "outdated_description": "Un agent de capture tourne encore en version {agent}, rDownloader déjà en {service}. Depuis la 1.8.1, l'agent redémarre de lui-même dans la minute qui suit une mise à jour. S'il ne le fait pas — parce qu'il est plus ancien ou qu'un autre utilisateur l'a lancé —, quittez-le depuis son icône dans la zone de notification ou le Gestionnaire des tâches, puis relancez-le ; sous Linux, systemctl --user restart rdownloader-capture fait les deux."
+      "outdated_description": "Un agent de capture tourne encore en version {agent}, rDownloader déjà en {service}. Depuis la 1.8.1, l'agent redémarre de lui-même dans la minute qui suit une mise à jour. S'il ne le fait pas — parce qu'il est plus ancien ou qu'un autre utilisateur l'a lancé —, quittez-le depuis son icône dans la zone de notification ou le Gestionnaire des tâches, puis relancez-le ; sous Linux, systemctl --user restart rdownloader-capture fait les deux.",
+      "self_offered": "Un agent de capture installé sans rDownloader se propose lui-même la version {version} : choisissez « Install update to {version} » dans le menu de son icône, ou lancez rdownloader-capture update."
     },
     "whats_new": "Nouveautés"
   },

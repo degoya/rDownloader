@@ -16,6 +16,9 @@ rd-core = { path = "../rd-core" }
 rd-files = { path = "../rd-files" }
 rd-provider-registry = { path = "../rd-provider-registry" }
 regex.workspace = true
+# The `.rdlinks` document (RD-1210-01).
+serde.workspace = true
+serde_json.workspace = true
 url.workspace = true
 
 [lints]

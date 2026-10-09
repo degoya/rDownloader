@@ -702,7 +702,8 @@
       "running": "Capture-Agent: {versions}",
       "unknown": "vor 1.9",
       "outdated_title": "Capture-Agent neu starten",
-      "outdated_description": "Ein Capture-Agent läuft noch in Version {agent}, rDownloader schon in {service}. Ab 1.8.1 startet er sich nach einem Update innerhalb einer Minute selbst neu. Tut er das nicht – etwa weil er älter ist oder ein anderer Nutzer ihn gestartet hat –, beende ihn über sein Tray-Symbol oder den Task-Manager und starte ihn wieder; unter Linux erledigt systemctl --user restart rdownloader-capture beides."
+      "outdated_description": "Ein Capture-Agent läuft noch in Version {agent}, rDownloader schon in {service}. Ab 1.8.1 startet er sich nach einem Update innerhalb einer Minute selbst neu. Tut er das nicht – etwa weil er älter ist oder ein anderer Nutzer ihn gestartet hat –, beende ihn über sein Tray-Symbol oder den Task-Manager und starte ihn wieder; unter Linux erledigt systemctl --user restart rdownloader-capture beides.",
+      "self_offered": "Ein Capture-Agent, der ohne rDownloader installiert ist, bietet sich selbst Version {version} an: wähle in seinem Tray-Menü „Install update to {version}“ oder führe rdownloader-capture update aus."
     },
     "whats_new": "Was ist neu"
   },

@@ -16,6 +16,7 @@ import TransferSourceList from '@/components/TransferSourceList.vue'
 import { scopeLabel, useAuthProfileSelector } from '@/composables/useAuthProfiles'
 import { useErrorToast } from '@/composables/useErrorToast'
 import { useStagedResolvers } from '@/composables/useStagedResolvers'
+import { STOP_MARK_DONE_STATES, useStopMark } from '@/composables/useStopMark'
 import { useTorrentsStore } from '@/stores/torrents'
 import { RESETTABLE_STATES } from '@/stores/transfers'
 import { translateServerMessage } from '@/i18n/server'
@@ -35,6 +36,8 @@ const emit = defineEmits<{
   copyPath: [path: string]
   /** The row's address onto the clipboard; the view copies and says so (RD-190-21). */
   copyLinks: [links: string[]]
+  /** Resolved again with the plugin version installed now (RD-1210-01). */
+  reresolve: [id: string]
   dragstart: [id: string]
   drop: [id: string]
   /** Keyboard alternative to the drag: -1 moves the file up, 1 moves it down. */
@@ -92,6 +95,8 @@ const recording = computed(() => props.download.kind === 'record')
 const resettable = computed(() => RESETTABLE_STATES.includes(props.download.state))
 /** The page a media file was extracted from — the only source page a queued file knows. */
 const sourcePage = computed(() => sourcePageUrl(props.download.media?.page_url))
+/** The queue's stop mark on this file (RD-1210-02): its glyph and its menu entry. */
+const { marked: stopMarked, items: stopMarkItems } = useStopMark('download', () => props.download.id, () => STOP_MARK_DONE_STATES.includes(props.download.state))
 
 /** Torrent detail: the file tree and the tracker list, both loaded when first opened. */
 const torrents = useTorrentsStore()
@@ -250,9 +255,13 @@ const actions = computed(() => [[
     : []),
   ...(renamable.value
     ? [{ label: t('common.actions.rename'), icon: 'i-lucide-pencil', onSelect: () => emit('rename', props.download.id) }]
-    : [])
+    : []),
+  ...stopMarkItems.value
 ], [
   { label: t('common.actions.copy_link'), icon: 'i-lucide-link', onSelect: () => emit('copyLinks', [props.download.source]) },
+  ...(props.download.kind !== 'usenet' && !['completed', 'seeding'].includes(props.download.state)
+    ? [{ label: t('downloads.reresolve.action'), icon: 'i-lucide-refresh-cw', description: t('downloads.reresolve.hint'), onSelect: () => emit('reresolve', props.download.id) }]
+    : []),
   ...(sourcePage.value
     ? [{ label: t('common.actions.open_source_page'), icon: 'i-lucide-external-link', to: sourcePage.value, target: '_blank' }]
     : [])
@@ -310,6 +319,9 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
       <span class="queue-cell-name flex min-w-0 items-center gap-1.5">
         <UIcon :name="kindIcon" class="size-4 shrink-0 text-primary" />
         <span class="min-w-0 truncate text-sm text-highlighted" :title="props.download.file_name">{{ props.download.file_name }}</span>
+        <UTooltip v-if="stopMarked" :text="t('downloads.stop_mark.glyph_title')">
+          <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="shrink-0" role="img" :aria-label="t('downloads.stop_mark.glyph')" data-testid="stop-mark" />
+        </UTooltip>
       </span>
       <span class="queue-cell-state min-w-0"><UBadge :color="stateColor(props.download.state)" variant="subtle" size="sm" class="max-w-full truncate">{{ stateLabel(props.download.state, props.download) }}</UBadge></span>
       <!-- A full bar already says 100%; the number beside it is the same statement twice. -->

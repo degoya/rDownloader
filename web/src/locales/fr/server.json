@@ -1245,7 +1245,20 @@
     "site_rules.sequence_older": "Ce fichier de règles est plus ancien qu’un fichier déjà importé du même signataire (séquence {sequence}, déjà vue {known}) et a été refusé.",
     "object_storage.redirect_refused": "Le stockage objet a répondu par une redirection, qui n'est pas suivie. Saisissez le point de terminaison vers lequel il redirige.",
     "proxy.password_host_changed": "L’adresse du proxy a changé : saisissez à nouveau le mot de passe, il n’est pas envoyé au nouvel hôte.",
-    "remote.secret_host_changed": "Le serveur a changé : saisissez à nouveau le mot de passe ou la clé, ils ne sont pas envoyés au nouvel hôte."
+    "remote.secret_host_changed": "Le serveur a changé : saisissez à nouveau le mot de passe ou la clé, ils ne sont pas envoyés au nouvel hôte.",
+    "rdlinks.too_large": "Le fichier de liens dépasse la limite de {max_mib} Mio",
+    "rdlinks.file_invalid": "Le fichier de liens n’est pas valide : {detail}",
+    "rdlinks.passphrase_required": "Le fichier de liens est chiffré ; saisissez sa phrase secrète pour l’importer",
+    "rdlinks.passphrase_invalid": "La phrase secrète est incorrecte ou le fichier de liens a été modifié",
+    "rdlinks.passphrase_too_short": "La phrase secrète doit comporter au moins {min} caractères",
+    "rdlinks.links_limit": "Un fichier de liens contient au plus {max} liens",
+    "export.nothing_selected": "Sélectionnez un paquet, un téléchargement ou un paquet du LinkGrabber à exporter",
+    "export.nothing_exportable": "Aucun des liens sélectionnés ne peut être écrit dans un fichier de liens",
+    "export.passphrase_unsupported": "Un crawljob ne peut pas être chiffré ; exportez un fichier .rdlinks pour utiliser une phrase secrète",
+    "container.enqueue_invalid": "enqueue doit valoir true ou false",
+    "download.reresolve_running": "Le téléchargement ne s’est pas arrêté à temps pour être résolu à nouveau ; mettez-le en pause et réessayez",
+    "queue.stop_mark_target_invalid": "Indiquez pour la marque d’arrêt un téléchargement ou un paquet",
+    "queue.stop_mark_target_finished": "Ce téléchargement ou ce paquet est déjà terminé"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

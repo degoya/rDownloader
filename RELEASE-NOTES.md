@@ -12,6 +12,12 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.21.0
+
+- Packages can be exported as a link file, encrypted if you like, and imported again with the plugins installed now; a download can also be re-resolved with the current plugin.
+- Set a stop mark on a download or a package and the queue pauses once it is done, as in JDownloader; downloads already running finish.
+- A desktop agent installed without rDownloader on the same computer updates itself: it offers new versions in its tray menu and goes back if the new one does not start.
+
 ## 1.20.0
 
 - Links from a series or release page on a short hoster address, such as ddl.to, now use your DDownload account instead of stopping as needing one.

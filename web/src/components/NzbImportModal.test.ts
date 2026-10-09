@@ -33,7 +33,7 @@ describe('NzbImportModal file field', () => {
   it('takes dropped and chosen files, leaves out what it cannot import, and imports them', async () => {
     const view = mountModal()
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    expect(input.accept).toBe('.nzb,.torrent,.dlc,.ccf,.rsdf,.txt')
+    expect(input.accept).toBe('.nzb,.torrent,.dlc,.ccf,.rsdf,.txt,.rdlinks')
     expect(input.multiple).toBe(true)
 
     const release = new File(['<nzb/>'], 'Release {{secret}}.nzb')
@@ -52,5 +52,24 @@ describe('NzbImportModal file field', () => {
     const [result] = view.emitted('close')?.[0] as [{ entries: { file: File, name: string }[] }]
     expect(result.entries.map(entry => entry.name)).toEqual(['Release{{secret}}', 'show'])
     expect(screen.getByText(en.choose_file)).toBeTruthy()
+  })
+
+  /** An exported link file may be sealed and may go straight on into the queue (RD-1210-01). */
+  it('asks a link file for its passphrase and passes it on with the enqueue choice', async () => {
+    const view = mountModal()
+    expect(screen.queryByTestId('import-passphrase')).toBeNull()
+    expect(screen.queryByTestId('import-enqueue')).toBeNull()
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [new File(['{}'], 'holiday.rdlinks')], configurable: true })
+    await fireEvent.change(input)
+    await waitFor(() => expect(screen.getByText('holiday.rdlinks')).toBeTruthy())
+    await fireEvent.update(screen.getByTestId('import-passphrase'), 'correct horse')
+    await fireEvent.click(screen.getByTestId('import-enqueue'))
+
+    await fireEvent.submit(document.querySelector('#nzb-import-form') as HTMLFormElement)
+    const [result] = view.emitted('close')?.[0] as [{ passphrase?: string, enqueue?: boolean }]
+    expect(result.passphrase).toBe('correct horse')
+    expect(result.enqueue).toBe(true)
   })
 })

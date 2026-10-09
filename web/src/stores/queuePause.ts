@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import type { AccountTrafficHold, QueuePause } from '@/api/types'
+import type { AccountTrafficHold, QueuePause, QueueStopMark } from '@/api/types'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 /** The durations the pause menu offers, in minutes (RD-190-20). */
@@ -35,10 +35,18 @@ export function nextOccurrence(clock: string, now: Date = new Date()): Date | nu
  * The same answer names the accounts whose traffic is used up (RD-1190-14), the other thing that
  * holds downloads back without anybody pausing them; a file running into the limit is a
  * `download.state` event too.
+ *
+ * And it names the stop mark (RD-1210-02): the file or package after which the queue pauses. That
+ * pause has no end — `until` is `null` while `paused` holds — and only a resume ends it. Setting,
+ * clearing and reaching the mark are `queue.stop_mark` events.
  */
 export const useQueuePauseStore = defineStore('queuePause', () => {
   const until = ref<string | null>(null)
+  /** A pause is in force; with `until` at `null` it is the stop mark's, which lasts until resumed. */
+  const paused = ref(false)
   const files = ref(0)
+  /** Where the queue pauses next: the stop mark in force, if any. */
+  const stopMark = ref<QueueStopMark | null>(null)
   const accountTraffic = ref<AccountTrafficHold[]>([])
   const busy = ref(false)
   const error = ref<string | null>(null)
@@ -47,15 +55,19 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
   const now = ref(Date.now())
   let clock: number | null = null
 
-  const active = computed(() => until.value !== null && Date.parse(until.value) > now.value)
+  const active = computed(() => paused.value && (until.value === null || Date.parse(until.value) > now.value))
+  /** Paused at the stop mark: no end, only a resume lets the queue go on. */
+  const openEnded = computed(() => paused.value && until.value === null)
   /** Seconds until the queue runs again; `0` while it is not paused. */
   const remainingSeconds = computed(() =>
     active.value && until.value ? Math.max(0, Math.round((Date.parse(until.value) - now.value) / 1000)) : 0)
 
   function apply(data: QueuePause): void {
+    paused.value = data.paused
     until.value = data.paused ? data.until ?? null : null
     files.value = data.files
     accountTraffic.value = data.account_traffic ?? []
+    stopMark.value = data.stop_mark ?? null
   }
 
   async function load(): Promise<void> {
@@ -100,6 +112,7 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
     try {
       const response = await api.DELETE('/api/v1/queue/pause')
       if (response.data) {
+        paused.value = false
         until.value = null
         files.value = 0
         // A start by hand lets go of the accounts held for their traffic as well.
@@ -113,7 +126,38 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
     }
   }
 
-  const events = debouncedEventRefresh(['download.state'], load, { delayMs: 400 })
+  /** Puts the stop mark on a file or a package, replacing the one in force; `false` when refused. */
+  async function setStopMark(target: { download_id: string } | { package_id: string }): Promise<boolean> {
+    error.value = null
+    const response = await api.PUT('/api/v1/queue/stop-mark', { body: target })
+    if (response.data) {
+      stopMark.value = response.data
+      return true
+    }
+    error.value = responseError(response)
+    return false
+  }
+
+  /** Removes the stop mark; `false` when refused. */
+  async function clearStopMark(): Promise<boolean> {
+    error.value = null
+    const response = await api.DELETE('/api/v1/queue/stop-mark')
+    if (response.data) {
+      stopMark.value = null
+      return true
+    }
+    error.value = responseError(response)
+    return false
+  }
+
+  /** Whether the stop mark sits on this file or package. */
+  function marks(kind: 'download' | 'package', id: string): boolean {
+    const mark = stopMark.value
+    if (!mark) return false
+    return kind === 'download' ? mark.download_id === id : mark.package_id === id
+  }
+
+  const events = debouncedEventRefresh(['download.state', 'queue.stop_mark'], load, { delayMs: 400 })
 
   function tick(): void {
     const wasActive = active.value
@@ -136,5 +180,8 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
     clock = null
   }
 
-  return { until, files, accountTraffic, busy, error, active, remainingSeconds, load, pauseFor, pauseUntil, resume, connect, disconnect }
+  return {
+    until, paused, files, accountTraffic, stopMark, busy, error, active, openEnded, remainingSeconds,
+    load, pauseFor, pauseUntil, resume, setStopMark, clearStopMark, marks, connect, disconnect
+  }
 })

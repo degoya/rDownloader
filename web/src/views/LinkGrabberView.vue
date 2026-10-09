@@ -28,6 +28,7 @@ import { grabberKey, useGrabberSelection } from '@/composables/useGrabberSelecti
 import type { CollectorEntry } from '@/composables/useGrabberSelection'
 import { useIntakeModal } from '@/composables/useIntakeModal'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
+import { usePackageExport } from '@/composables/usePackageExport'
 import { useGrabberEnqueue } from '@/composables/useGrabberEnqueue'
 import { useGrabberReorder } from '@/composables/useGrabberReorder'
 import { useOpenSections } from '@/composables/useOpenSections'
@@ -47,6 +48,7 @@ const nzb = useNzbImportsStore()
 const openIntake = useIntakeModal()
 const toast = useToast()
 const copyLinks = useCopyLinks()
+const { exportPackages } = usePackageExport()
 const { t } = useI18n()
 
 const { categories, fetchCategories } = useCategories()
@@ -375,6 +377,7 @@ const navbarMenu = computed(() => [[
         >
           <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" @click="revealSelection" />
           <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-folder-input" :label="t('linkgrabber.actions.move_to_new_package')" :disabled="!selection.collectorIds.value.length" :loading="bulkBusy" @click="moveSelected" />
+          <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-file-down" :label="t('common.export.action')" :disabled="!selection.collectorIds.value.length" data-testid="grabber-export" @click="exportPackages({ collectorPackageIds: selection.collectorIds.value })" />
           <UDropdownMenu v-if="selection.nzbIds.value.length && nzbHandOver.targets.value.length" :items="nzbHandOver.menuItems(handOverIds)">
             <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-cloud-upload" :label="t('linkgrabber.nzb.hand_over.action')" :title="t('linkgrabber.nzb.hand_over.hint')" :disabled="!handOverIds().length" data-testid="grabber-hand-over" />
           </UDropdownMenu>
@@ -425,6 +428,7 @@ const navbarMenu = computed(() => [[
               @enqueue-paused="(id: string) => enqueuePackage(id, true)"
               @remove="removePackage"
               @copy-links="copyPackageLinks"
+              @export="(id: string) => exportPackages({ collectorPackageIds: [id] })"
               @dragstart="(id: string) => draggingEntry = grabberKey('collector', id)"
               @drop="dropOnPackage"
               @move="(id: string, delta: -1 | 1) => moveEntry('collector', id, delta)"

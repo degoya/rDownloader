@@ -21,10 +21,12 @@ use rd_api_core::list_bounds::{total_header, validate_bulk};
 mod bulk_filter;
 mod bulk_removal;
 mod create;
+mod reresolve;
 mod summary;
 
 pub use bulk_filter::apply_download_action_to;
 pub use create::*;
+pub use reresolve::*;
 pub use summary::*;
 
 /// Every download in queue order; `limit`/`offset` cut a page out of that order (API-15), and

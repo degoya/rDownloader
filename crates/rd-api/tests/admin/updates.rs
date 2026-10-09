@@ -52,6 +52,7 @@ fn manifest(version: &str, sequence: u64) -> UpdateManifest {
             size: 4096,
         }],
         schema_change: None,
+        agent_artifacts: Vec::new(),
     }
 }
 
@@ -694,14 +695,8 @@ async fn the_status_names_the_running_capture_agents_version() {
     let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
     assert_eq!(body["capture_agents"], json!([]), "{body}");
 
-    let current = capture_stream(
-        &harness.router,
-        Some(&format!(
-            "rdownloader-capture/{}",
-            env!("CARGO_PKG_VERSION")
-        )),
-    )
-    .await;
+    let running = concat!("rdownloader-capture/", env!("CARGO_PKG_VERSION"));
+    let current = capture_stream(&harness.router, Some(running)).await;
     let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
     assert_eq!(
         body["capture_agents"],

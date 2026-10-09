@@ -152,8 +152,58 @@ impl NotificationService {
                 Some(quota) => Ok(Some(quota)),
                 None => self.usenet_job_hopeless(&event.payload).await,
             },
+            rd_core::EventKind::QueueStopMark => self.stop_mark_reached(&event.payload).await,
             _ => Ok(None),
         }
+    }
+
+    /// The queue paused at its stop mark (RD-1210-02), in the marked package's category. A mark
+    /// set or cleared by hand is nobody's news.
+    #[allow(clippy::type_complexity)]
+    async fn stop_mark_reached(
+        &self,
+        payload: &serde_json::Value,
+    ) -> anyhow::Result<
+        Option<(
+            NotificationEvent,
+            Option<rd_core::CategoryId>,
+            String,
+            String,
+        )>,
+    > {
+        if payload.get("action").and_then(|value| value.as_str()) != Some("reached") {
+            return Ok(None);
+        }
+        let id = |key: &str| payload.get(key).and_then(|value| value.as_str());
+        let database = &self.inner.database;
+        let (name, package) = if let Some(id) =
+            id("download_id").and_then(|id| id.parse::<rd_core::DownloadId>().ok())
+        {
+            match database.get_download(id).await? {
+                Some(file) => (
+                    Some(file.file_name),
+                    database.get_package(file.package_id).await?,
+                ),
+                None => (None, None),
+            }
+        } else if let Some(id) =
+            id("package_id").and_then(|id| id.parse::<rd_core::PackageId>().ok())
+        {
+            let package = database.get_package(id).await?;
+            (
+                package.as_ref().map(|package| package.name.clone()),
+                package,
+            )
+        } else {
+            (None, None)
+        };
+        let name = name.unwrap_or_else(|| "the marked download".to_owned());
+        Ok(Some((
+            NotificationEvent::StopMarkReached,
+            package.and_then(|package| package.category_id),
+            format!("Stop mark reached: {name}"),
+            format!("The queue paused after {name}. Resume it to go on."),
+        )))
     }
 
     /// A Usenet set given up as beyond repair (RD-1100-02), in its package's category.

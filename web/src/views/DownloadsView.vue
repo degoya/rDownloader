@@ -24,6 +24,8 @@ import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
 import { useDownloadsActions } from '@/composables/useDownloadsActions'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
+import { usePackageExport } from '@/composables/usePackageExport'
+import { useReresolve } from '@/composables/useReresolve'
 import { usePackageOpenState } from '@/composables/usePackageOpenState'
 import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useQueueColumns } from '@/composables/useQueueColumns'
@@ -47,6 +49,9 @@ const transfers = useTransfersStore()
 const postprocess = usePostprocessStore()
 // The NZB behind a package to a remote-job provider, in any state of the package (RD-191-13).
 const nzbHandOver = useNzbHandOver('downloads')
+// The package as a link file, and resolving again with the plugin installed now (RD-1210-01).
+const { exportPackages } = usePackageExport()
+const { reresolve } = useReresolve()
 provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 
 /** The state filter and the name search, both in the address (RD-190-21). */
@@ -251,6 +256,7 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
           <UButton :icon="openPackages.allOpen.value ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'" color="neutral" variant="ghost" :aria-label="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :title="t(openPackages.allOpen.value ? 'common.package_groups.close_all' : 'common.package_groups.open_all')" :disabled="!groups.length" data-testid="packages-open-toggle" @click="openPackages.toggleAll" />
         </template>
         <template #right>
+          <UButton icon="i-lucide-file-down" color="neutral" variant="ghost" :aria-label="t('common.export.action_all')" :title="t('common.export.action_all')" :disabled="!transfers.packages.length" data-testid="downloads-export-all" @click="exportPackages({ all: true })" />
           <USwitch v-model="showMetadata" size="sm" :label="t('common.enrichment.show')" :title="t('common.enrichment.show_hint')" :ui="{ label: 'whitespace-nowrap' }" data-testid="show-metadata" />
           <span class="numeric whitespace-nowrap text-xs text-muted">{{ t('common.units.package', { count: groups.length }, groups.length) }} · {{ t('common.units.file', { count: visible.length }, visible.length) }}</span>
         </template>
@@ -307,6 +313,8 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
           >
             <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" @click="revealSelection" />
             <UButton v-if="selection.selectedIds.value.length === 1" size="sm" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('common.actions.rename')" @click="bulkRename" />
+            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-file-down" :label="t('common.export.action')" data-testid="downloads-export" @click="exportPackages({ downloadIds: selection.selectedIds.value })" />
+            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :label="t('downloads.reresolve.action')" :title="t('downloads.reresolve.hint')" data-testid="downloads-reresolve" @click="reresolve({ ids: selection.selectedIds.value })" />
             <UButton v-if="resettableSelection.length" size="sm" color="error" variant="outline" icon="i-lucide-rotate-ccw" :label="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :loading="bulkBusy" @click="resetDownloads(selection.selectedIds.value)" />
             <UButton v-if="selection.fullySelectedPackageIds.value.length" size="sm" color="error" variant="outline" icon="i-lucide-package-x" :label="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :loading="bulkBusy" @click="bulkDeletePackages" />
           </BulkActionBar>
@@ -373,6 +381,8 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
                 @copy-path="copyPath"
                 @copy-links="copyPackageLinks"
                 @reset-failed="resetFailed.resetPackage"
+                @export="(id: string) => exportPackages({ packageIds: [id] })"
+                @reresolve="(id: string) => reresolve({ packageIds: [id] })"
                 @hand-over="(_id: string, accountId: string) => void nzbHandOver.handOverPackage(row.group.package, accountId)"
               />
               <TransferCard
@@ -395,6 +405,7 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
                 @rename="renameFile"
                 @copy-path="copyPath"
                 @copy-links="copyLinks"
+                @reresolve="(id: string) => reresolve({ ids: [id] })"
                 @dragstart="(id) => draggingFileId = id"
                 @drop="onFileDrop"
                 @move="onFileMove"

@@ -213,5 +213,25 @@
   "select": {
     "search": "Suchen …",
     "nothing_found": "Nichts gefunden"
+  },
+  "export": {
+    "action": "Exportieren",
+    "action_all": "Alle Pakete exportieren",
+    "title": "Pakete exportieren",
+    "description": "Die Datei trägt Adressen, Paketnamen, Passwörter, Kategorien und Dateiangaben – nie ein Plugin, eine Pluginversion oder ein Konto. Beim Import werden die Links ihrem Host neu zugeordnet.",
+    "format": "Format",
+    "format_rdlinks": "rDownloader (.rdlinks)",
+    "format_rdlinks_hint": "Alle Angaben, auf Wunsch mit einer Passphrase verschlüsselt.",
+    "format_crawljob": "JDownloader (.crawljob)",
+    "format_crawljob_hint": "Nur Adressen, Paketname und Passwort, ohne Verschlüsselung.",
+    "passphrase": "Passphrase (optional)",
+    "passphrase_hint": "Mindestens 8 Zeichen. Ohne Passphrase bleibt die Datei lesbar, auch die Archivpasswörter darin.",
+    "submit": "Datei speichern",
+    "done": "{count} Link exportiert | {count} Links exportiert",
+    "skipped": "{count} Link ließ sich nicht exportieren (Usenet oder lokale Datei) | {count} Links ließen sich nicht exportieren (Usenet oder lokale Dateien)",
+    "failed": "Export fehlgeschlagen",
+    "passphrase_confirm": "Passphrase wiederholen",
+    "passphrase_mismatch": "Die beiden Eingaben stimmen nicht überein.",
+    "passphrase_short": "Mindestens 8 Zeichen."
   }
 }

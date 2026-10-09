@@ -436,7 +436,9 @@
     "paused_until": "Pausiert bis {time}",
     "remaining_title": "Die Warteschlange läuft in {duration} weiter. Klicke, um sofort fortzusetzen.",
     "resume_now": "Jetzt fortsetzen",
-    "notice_paused": "Warteschlange pausiert bis {time}"
+    "notice_paused": "Warteschlange pausiert bis {time}",
+    "stopped_at_mark": "An der Stoppmarke angehalten",
+    "stopped_at_mark_title": "Die Warteschlange hat an der Stoppmarke pausiert und wartet, bis du sie fortsetzt. Klicke, um jetzt fortzusetzen."
   },
   "kill_switch": {
     "title": "Torrents vom Kill-Switch angehalten",
@@ -467,5 +469,21 @@
     "category": "Kategorie",
     "reset": "Zurück zur Warteschlange",
     "drag_off": "Die Ansicht ist sortiert – setze sie zurück, um die Warteschlange umzuordnen."
+  },
+  "reresolve": {
+    "action": "Neu auflösen",
+    "hint": "Mit der jetzt installierten Pluginversion neu auflösen; laufende Dateien werden kurz pausiert",
+    "done": "{count} Datei wird beim nächsten Start neu aufgelöst | {count} Dateien werden beim nächsten Start neu aufgelöst",
+    "failed": "Neu auflösen fehlgeschlagen"
+  },
+  "stop_mark": {
+    "set": "Stoppmarke hierhin",
+    "set_hint": "Ist das hier fertig, pausiert die Warteschlange; was läuft, läuft zu Ende.",
+    "clear": "Stoppmarke entfernen",
+    "glyph": "Stoppmarke",
+    "glyph_title": "Stoppmarke: Ist das hier fertig, pausiert die Warteschlange.",
+    "rail_title": "Stoppmarke nach „{name}“: Danach pausiert die Warteschlange.",
+    "set_failed": "Die Stoppmarke konnte nicht gesetzt werden",
+    "clear_failed": "Die Stoppmarke konnte nicht entfernt werden"
   }
 }

@@ -64,4 +64,14 @@ pub(crate) enum PackagesCommand {
         bytes_per_second: Option<u64>,
         reply: Reply<()>,
     },
+    /// Sets the queue's stop mark, replacing the one in force (RD-1210-02).
+    SetStopMark {
+        target: crate::StopMarkTarget,
+        reply: Reply<crate::StopMark>,
+    },
+    /// Removes the stop mark; with `only`, only while it sits on that target (RD-1210-02).
+    ClearStopMark {
+        only: Option<crate::StopMarkTarget>,
+        reply: Reply<bool>,
+    },
 }

@@ -79,6 +79,7 @@ declare module 'vue' {
     NzbImportGroup: typeof import('./src/components/NzbImportGroup.vue')['default']
     NzbImportModal: typeof import('./src/components/NzbImportModal.vue')['default']
     PackageEditModal: typeof import('./src/components/PackageEditModal.vue')['default']
+    PackageExportModal: typeof import('./src/components/PackageExportModal.vue')['default']
     PackageGroup: typeof import('./src/components/PackageGroup.vue')['default']
     PackageNameRegexList: typeof import('./src/components/PackageNameRegexList.vue')['default']
     PackageStorageModal: typeof import('./src/components/storage/PackageStorageModal.vue')['default']

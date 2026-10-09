@@ -266,7 +266,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Read the application update status: the running version, the channel (stable or beta), how this installation was installed, when the last check ran and what it found, and the newer version on offer with its notes for users (one point per line), the links to its full changes (changelog_url) and its release page, and what to do about it (a download, or the package manager's command). Read-only; check_for_updates asks GitHub again."
+        description = "Read the application update status: the running version, the channel (stable or beta), how this installation was installed, when the last check ran and what it found, and the newer version on offer with its notes for users (one point per line), the links to its full changes (changelog_url) and its release page, and what to do about it (a download, or the package manager's command), and per connected capture agent its version, whether it is older than the service (outdated) and where its own update stands (self_update: with_service, disabled, unchecked, current, offered, failed or installing; offered_version; remote_update_allowed). An agent installed without the service installs its own update from its tray or with rdownloader-capture update; no tool here installs software on the agent's machine. Read-only; check_for_updates asks GitHub again."
     )]
     pub async fn get_update_status(&self) -> McpToolResult {
         let Json(answer) = updates::get_update_status(State(self.state.clone())).await;
