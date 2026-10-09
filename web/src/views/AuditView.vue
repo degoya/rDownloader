@@ -8,7 +8,7 @@
  * diagnostics page. Row conventions follow `design.md`: filters above the list, "full page"
  * said out loud, details behind the chevron pair.
  */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { AuditOutcome, AuditRecord } from '@/api/types'
@@ -22,6 +22,12 @@ const store = useAuditStore()
 const expanded = ref<Set<number>>(new Set())
 
 const ACTOR_KINDS = ['session', 'token', 'anonymous', 'system'] as const
+/** The doors an action comes through (RD-1200-04): whether a token acted over REST or MCP. */
+const CHANNELS = ['rest', 'mcp', 'capture', 'compat', 'internal'] as const
+const channelItems = computed(() => [
+  { value: 'all', label: t('audit.filters.any_via') },
+  ...CHANNELS.map(channel => ({ value: channel, label: t(`audit.channels.${channel}`) }))
+])
 
 function outcomeColor(outcome: AuditOutcome): 'success' | 'error' {
   return outcome === 'success' ? 'success' : 'error'
@@ -74,7 +80,7 @@ onMounted(() => {
       <p class="mb-4 text-sm leading-6 text-muted">{{ t('audit.intro') }}</p>
 
       <UCard class="mb-4">
-        <form class="grid gap-3 md:grid-cols-6" @submit.prevent="store.refresh()">
+        <form class="grid gap-3 md:grid-cols-4 xl:grid-cols-7" @submit.prevent="store.refresh()">
           <UFormField :label="t('audit.filters.action')">
             <USelect
               v-model="store.filters.action"
@@ -106,6 +112,15 @@ onMounted(() => {
               data-testid="audit-actor-kind"
             />
           </UFormField>
+          <UFormField :label="t('audit.filters.via')">
+            <USelect
+              v-model="store.filters.via"
+              :items="channelItems"
+              value-key="value"
+              class="w-full"
+              data-testid="audit-via"
+            />
+          </UFormField>
           <UFormField :label="t('audit.filters.target_kind')">
             <UInput v-model="store.filters.targetKind" :placeholder="t('audit.filters.target_placeholder')" class="w-full" data-testid="audit-target-kind" />
           </UFormField>
@@ -115,7 +130,7 @@ onMounted(() => {
           <UFormField :label="t('audit.filters.trace')">
             <UInput v-model="store.filters.traceId" class="w-full" data-testid="audit-trace" />
           </UFormField>
-          <div class="flex flex-wrap gap-2 md:col-span-6">
+          <div class="flex flex-wrap gap-2 md:col-span-4 xl:col-span-7">
             <UButton type="submit" icon="i-lucide-filter" :label="t('common.actions.apply')" :loading="store.fetching" />
             <UButton
               type="button"
@@ -166,7 +181,7 @@ onMounted(() => {
               <UBadge :color="outcomeColor(record.outcome)" variant="subtle" size="sm">{{ t(`audit.outcomes.${record.outcome}`) }}</UBadge>
               <span class="min-w-0 flex-1 break-words text-sm text-highlighted">{{ actionLabel(record.action) }}</span>
               <span class="shrink-0 text-xs text-muted">
-                {{ t(`audit.actors.${record.actor_kind}`) }}<template v-if="record.actor_label"> · {{ record.actor_label }}</template>
+                {{ t(`audit.actors.${record.actor_kind}`) }}<template v-if="record.actor_label"> · {{ record.actor_label }}</template><template v-if="record.via !== 'internal'"> · {{ t('audit.list.via', { channel: t(`audit.channels.${record.via}`) }) }}</template>
               </span>
               <span v-if="targetOf(record)" class="numeric shrink-0 text-xs text-muted">{{ targetOf(record) }}</span>
               <span v-if="record.client_address" class="numeric shrink-0 text-xs text-muted">{{ record.client_address }}</span>

@@ -335,6 +335,10 @@ pub(crate) static COVERAGE: &[Capability] = &[
             // And the NZB behind a queued package, from the Downloads view; the longer prefix
             // takes it from the packages row.
             any("/api/v1/packages/{id}/remote-job"),
+            // Clearing the list (RD-1200-01), behind the question every clearing tool asks
+            // first. The tool clears here only: the route's `at_provider` variant stays in the
+            // web UI, like the single-job discard below (owner line, confirmed 2026-10-08).
+            any("/api/v1/remote-jobs/clear"),
         ],
     ),
     covered(
@@ -362,6 +366,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/stats/transfers/clear"),
         ],
     ),
+    // Each listed rule carries its origin since RD-1200-05: signed file (signer, sequence),
+    // import, editor, MCP or unknown.
     covered(
         "Site rules: read and switch",
         "Settings > Site rules",
@@ -605,6 +611,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/auth/"),
             any("/api/v1/sessions"),
             any("/api/v1/mfa"),
+            // A token's call limit (`/api-tokens/{id}/limits`, RD-1200-04) with it: an agent
+            // must not be able to lift the limit it runs under.
             any("/api/v1/api-tokens"),
             any("/api/v1/setup/"),
         ],

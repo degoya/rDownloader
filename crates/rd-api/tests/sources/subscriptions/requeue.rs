@@ -199,6 +199,8 @@ async fn an_address_still_in_the_linkgrabber_is_refused_unless_duplicates_are_al
     )
     .await;
     assert_eq!(answer["requeued"], json!([item_id]), "{answer}");
+    // The duplicate mark comes with the online check; read the states once it has settled.
+    common::wait_for_candidates_ready(&harness.router).await;
     let states: Vec<String> = candidates_at(&harness, url)
         .await
         .into_iter()

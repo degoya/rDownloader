@@ -65,6 +65,7 @@ pub(crate) fn open(opening: Opening<'_>) -> Result<Store, OpenError> {
         .with_bucket_name(opening.bucket)
         .with_base_url(&base_url)
         .with_client_options(super::client_options(&opening)?)
+        .with_http_connector(super::connector(&opening))
         .with_retry(super::retry(opening.timeout));
     builder = match profile.credential_source {
         ObjectCredentialSource::Static => {

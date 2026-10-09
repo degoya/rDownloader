@@ -32,7 +32,8 @@
     "form_new": "Neuer Zugang",
     "create_action": "Zugang anlegen",
     "created": "Zugang angelegt",
-    "saved": "Zugang gespeichert"
+    "saved": "Zugang gespeichert",
+    "secret_host_changed": "Protokoll, Host oder Port geändert: Das gespeicherte Passwort oder der Schlüssel geht nicht an den neuen Server. Gib es erneut ein."
   },
   "protocols": {
     "ftp": "FTP (unverschlüsselt)",

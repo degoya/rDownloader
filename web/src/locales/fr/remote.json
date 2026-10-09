@@ -32,7 +32,8 @@
     "form_new": "Nouvel accès",
     "create_action": "Créer l'accès",
     "created": "Accès créé",
-    "saved": "Accès enregistré"
+    "saved": "Accès enregistré",
+    "secret_host_changed": "Le protocole, l’hôte ou le port a changé : le mot de passe ou la clé enregistrés ne sont pas envoyés au nouveau serveur. Saisissez-les à nouveau."
   },
   "protocols": {
     "ftp": "FTP (sans chiffrement)",

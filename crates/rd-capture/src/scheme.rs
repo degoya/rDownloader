@@ -26,7 +26,7 @@ const ALLOWED_LINK_SCHEMES: &[&str] = &["http", "https", "ftp", "ftps", "sftp", 
 ///
 /// `.nzb` only. `.torrent` used to be listed here and in the two doc comments below, but
 /// `Action::OpenFile` ends in `open()`, which uploads the content as `application/x-nzb` to the
-/// agent's NZB endpoint -- so a `.torrent` parsed cleanly and then broke at the endpoint. An
+/// service's NZB endpoint -- so a `.torrent` parsed cleanly and then broke at the endpoint. An
 /// honest refusal is better than a promise that does not hold; a real torrent import path is its
 /// own piece of work with its own acceptance, not a side effect of this one (RD-109-03).
 const ALLOWED_FILE_EXTENSIONS: &[&str] = &["nzb"];

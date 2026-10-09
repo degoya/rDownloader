@@ -10,11 +10,17 @@ pub(crate) enum SessionsCommand {
         token_sha256: String,
         scopes: Vec<String>,
         expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        calls_per_minute: Option<u32>,
         reply: Reply<rd_core::CaptureToken>,
     },
     UpdateCaptureTokenScopes {
         id: rd_core::CaptureTokenId,
         scopes: Vec<String>,
+        reply: Reply<rd_core::CaptureToken>,
+    },
+    UpdateCaptureTokenLimits {
+        id: rd_core::CaptureTokenId,
+        calls_per_minute: Option<u32>,
         reply: Reply<rd_core::CaptureToken>,
     },
     RevokeCaptureToken {

@@ -14,7 +14,8 @@
 //! behind it, so the headless agent does link X11 and Wayland *client* libraries. A clipboard
 //! client is not a window toolkit — it needs no GTK, and with no display server reachable it
 //! returns an error instead of taking the process down. That is the line, and it is the right
-//! one; `crates/rd-capture/Cargo.toml` says the same next to the gate.
+//! one; `crates/rd-capture/Cargo.toml` says the same next to the gate. Since RD-1200-03 the agent
+//! names the two clients itself as well, to ask the clipboard for a password manager's marks.
 //!
 //! What this does not catch: a window stack pulled in *transitively*, by a dependency that
 //! looks innocent — a new dependency of `rd-core`, a feature flipped on somewhere in the
@@ -100,6 +101,16 @@ const LINUX_LINKED: &[(&str, &str)] = &[
     ("tracing", "logging"),
     ("tracing-subscriber", "logging"),
     ("url", "parsing"),
+    (
+        "wl-clipboard-rs",
+        "the clipboard's concealment mark under Wayland (RD-1200-03); the protocol client arboard \
+         already links, asked directly for what arboard does not read. No toolkit",
+    ),
+    (
+        "x11rb",
+        "the clipboard's concealment mark under X11 (RD-1200-03); the pure-Rust protocol client \
+         arboard and global-hotkey already link, no toolkit",
+    ),
 ];
 
 /// The same, for what only builds or tests the agent on Linux.

@@ -8,10 +8,9 @@
 //! named decision rather than an accident, and the README states the attack picture that comes
 //! with it.
 //!
-//! `/rdownloader/nzb` is rDownloader's own route. Its only caller is this binary's `open`
-//! subcommand behind the file association, which is not a browser and sends neither `Origin`
-//! nor `Referer`. It therefore carries no `Access-Control-Allow-*` header at all and refuses a
-//! request that carries either of those two headers.
+//! rDownloader's own route `/rdownloader/nzb` is gone (RD-1200-03): it took an NZB from anyone
+//! who reached the port and handed it over with the agent's token, and its one caller, `open`,
+//! now hands the file to the service itself, with the pairing token.
 //!
 //! A refused request answers with a stable code and nothing else. The prose used to be the
 //! response body, which handed a cross-origin caller a padding oracle against the AES path and
@@ -23,7 +22,7 @@ use aes::Aes128;
 use anyhow::{Context, Result};
 use axum::{
     Form, Router,
-    extract::{Multipart, Query, State},
+    extract::{Query, State},
     http::{HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -61,9 +60,6 @@ const MAX_ADDCRYPTED_BODY_BYTES: usize = 20 * 1024 * 1024;
 /// Largest request body `/flash/add` accepts. A plain list of links; a megabyte is thousands.
 const MAX_ADD_BODY_BYTES: usize = 1024 * 1024;
 
-/// Largest request body `/rdownloader/nzb` accepts: the NZB itself plus multipart framing.
-const MAX_NZB_BODY_BYTES: usize = rd_collector::MAX_NZB_BYTES + 64 * 1024;
-
 /// Largest request body the bodiless routes accept, so nothing on this port is unbounded.
 const MAX_PROBE_BODY_BYTES: usize = 4 * 1024;
 
@@ -92,8 +88,6 @@ pub(crate) mod code {
     pub(crate) const TOO_LARGE: &str = "cnl_payload_too_large";
     /// The service refused the hand-over, or could not be reached.
     pub(crate) const SERVICE_UNAVAILABLE: &str = "cnl_service_unavailable";
-    /// A browser tried to reach one of rDownloader's own routes.
-    pub(crate) const FOREIGN_ORIGIN: &str = "cnl_foreign_origin";
     /// More hand-overs than the agent accepts per minute (RD-1190-22).
     pub(crate) const RATE_LIMITED: &str = "cnl_rate_limited";
 }
@@ -156,14 +150,7 @@ fn router(state: CnlState) -> Router {
                 .layer(RequestBodyLimitLayer::new(MAX_ADDCRYPTED_BODY_BYTES)),
         )
         .layer(middleware::from_fn(flash_cors_headers));
-    // rDownloader's own route: no CORS headers, and no browser may reach it.
-    let own = Router::new()
-        .route(
-            "/rdownloader/nzb",
-            post(agent_nzb).layer(RequestBodyLimitLayer::new(MAX_NZB_BODY_BYTES)),
-        )
-        .layer(middleware::from_fn(refuse_browser_callers));
-    flash.merge(own).with_state(state)
+    flash.with_state(state)
 }
 
 async fn add_query(
@@ -171,42 +158,6 @@ async fn add_query(
     Query(fields): Query<HashMap<String, String>>,
 ) -> Result<&'static str, CnlError> {
     add_fields(&state, &fields).await
-}
-
-async fn agent_nzb(
-    State(state): State<CnlState>,
-    mut multipart: Multipart,
-) -> Result<&'static str, CnlError> {
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|error| CnlError::new(code::INVALID_PAYLOAD, error))?
-    {
-        if field.name() != Some("file") {
-            continue;
-        }
-        let name = field.file_name().unwrap_or("association.nzb").to_owned();
-        let content = field
-            .bytes()
-            .await
-            .map_err(|error| CnlError::new(code::INVALID_PAYLOAD, error))?;
-        if content.len() > rd_collector::MAX_NZB_BYTES {
-            return Err(CnlError::new(
-                code::TOO_LARGE,
-                anyhow::anyhow!("NZB exceeds 64 MiB"),
-            ));
-        }
-        state
-            .client
-            .upload_nzb_bytes(name, content.to_vec())
-            .await
-            .map_err(|error| CnlError::new(code::SERVICE_UNAVAILABLE, error))?;
-        return Ok("success");
-    }
-    Err(CnlError::new(
-        code::INVALID_PAYLOAD,
-        anyhow::anyhow!("multipart field 'file' is missing"),
-    ))
 }
 
 async fn check() -> &'static str {
@@ -366,29 +317,6 @@ async fn flash_cors_headers(request: axum::extract::Request, next: Next) -> Resp
         HeaderValue::from_static("true"),
     );
     response
-}
-
-/// Refuses a request to rDownloader's own routes that came from a page.
-///
-/// `Origin` and `Referer` are set by a browser and by nothing else the agent talks to: the only
-/// caller of this route is the `open` subcommand in this same binary, which sends neither. So
-/// the presence of either header is enough to know the request is not the one this route exists
-/// for, and it is refused before the body is touched.
-async fn refuse_browser_callers(request: axum::extract::Request, next: Next) -> Response {
-    let headers = request.headers();
-    if headers.contains_key(header::ORIGIN) || headers.contains_key(header::REFERER) {
-        tracing::warn!(
-            path = %request.uri().path(),
-            "refused a cross-origin call to an agent-only Click'n'Load route"
-        );
-        return CnlError::new(
-            code::FOREIGN_ORIGIN,
-            anyhow::anyhow!("agent-only route is not reachable from a page"),
-        )
-        .with_status(StatusCode::FORBIDDEN)
-        .into_response();
-    }
-    next.run(request).await
 }
 
 /// A refused Click'n'Load request.

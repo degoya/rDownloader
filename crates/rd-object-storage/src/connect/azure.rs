@@ -49,6 +49,7 @@ pub(crate) fn open(opening: Opening<'_>) -> Result<Store, OpenError> {
         .with_account(account)
         .with_container_name(opening.bucket)
         .with_client_options(super::client_options(&opening)?)
+        .with_http_connector(super::connector(&opening))
         .with_retry(super::retry(opening.timeout));
     // Not `with_use_emulator`: that reads `AZURITE_BLOB_STORAGE_URL` from the environment, and
     // the address requests go to is the profile's, nobody else's.

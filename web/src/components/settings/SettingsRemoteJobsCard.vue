@@ -12,6 +12,9 @@
  * the confirmation, so the dialog is not decoration. **Remove from this list** forgets the row
  * and sends nothing anywhere. Both go through `useConfirm()` with `destructive: true` and
  * `confirmIcon: 'i-lucide-trash-2'`, which is what `design.md` asks of a destructive action.
+ *
+ * The list narrows by provider and state, and *Clear list* acts on what it shows, in the same two
+ * ways (RD-1200-01, `RemoteJobsClearMenu.vue`).
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -21,6 +24,10 @@ import type { Account, RemoteJob, RemoteJobState } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import RemoteJobSubmitForm from '@/components/settings/RemoteJobSubmitForm.vue'
+import RemoteJobsClearMenu from '@/components/settings/RemoteJobsClearMenu.vue'
+import { filterJobs, jobProviders } from '@/components/settings/remoteJobsFilter'
+import { useAccountProviders } from '@/composables/useAccountProviders'
+import { useRemoteJobsFilter } from '@/composables/useRemoteJobsFilter'
 import { useConfirm } from '@/composables/useConfirm'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useFetchState } from '@/composables/useFetchState'
@@ -36,6 +43,7 @@ const { t } = useI18n()
 const confirm = useConfirm()
 const collector = useCollectorStore()
 const { loading, loadError, load } = useFetchState()
+const { providerName } = useAccountProviders()
 
 const jobs = ref<RemoteJob[]>([])
 const busyId = ref<string | null>(null)
@@ -53,6 +61,25 @@ const STATE_COLORS: Record<RemoteJobState, 'neutral' | 'primary' | 'warning' | '
   failed: 'error',
   discarded: 'neutral'
 }
+
+/** What the two selects above the list hold, kept in the address; *Clear list* acts on the rows they leave (RD-1200-01). */
+const filter = useRemoteJobsFilter()
+const visible = computed(() => filterJobs(jobs.value, props.accounts, filter.value))
+const filtered = computed(() => filter.value.provider !== 'all' || filter.value.state !== 'all')
+function resetFilter(): void {
+  filter.value = { provider: 'all', state: 'all' }
+}
+const providerItems = computed(() => [
+  { label: t('remote_jobs.filter.all_providers'), value: 'all' },
+  // A provider from the address stays offered while its jobs are still loading or gone.
+  ...[...new Set([...jobProviders(jobs.value, props.accounts), ...(filter.value.provider === 'all' ? [] : [filter.value.provider])])]
+    .sort()
+    .map(slug => ({ label: providerName(slug), value: slug }))
+])
+const stateItems = computed(() => [
+  { label: t('remote_jobs.filter.all_states'), value: 'all' },
+  ...(Object.keys(STATE_COLORS) as RemoteJobState[]).map(state => ({ label: t(`remote_jobs.states.${state}`), value: state }))
+])
 
 function accountLabel(job: RemoteJob): string {
   return props.accounts.find(account => account.id === job.account_id)?.label
@@ -243,7 +270,17 @@ onUnmounted(() => releaseEvents?.())
         :description="t('remote_jobs.description')"
         level="sub"
       />
-      <UBadge color="neutral" variant="outline">{{ jobs.length }}</UBadge>
+      <div class="flex shrink-0 items-center gap-2">
+        <UBadge color="neutral" variant="outline">{{ filtered ? `${visible.length} / ${jobs.length}` : jobs.length }}</UBadge>
+        <RemoteJobsClearMenu
+          :visible="visible"
+          :accounts="props.accounts"
+          :filter="filter"
+          @cleared="refresh"
+          @message="(text: string) => emit('message', text)"
+          @error="(text: string) => emit('error', text)"
+        />
+      </div>
     </div>
 
     <RemoteJobSubmitForm
@@ -254,8 +291,13 @@ onUnmounted(() => releaseEvents?.())
       @error="(text: string) => emit('error', text)"
     />
 
+    <div v-if="jobs.length" class="mt-4 flex flex-wrap items-center gap-2">
+      <USelect v-model="filter.provider" :items="providerItems" value-key="value" class="w-44" :aria-label="t('remote_jobs.filter.provider')" />
+      <USelect v-model="filter.state" :items="stateItems" value-key="value" class="w-52" :aria-label="t('remote_jobs.filter.state')" />
+    </div>
+
     <div class="mt-4 divide-y divide-muted border border-muted">
-      <div v-for="job in jobs" :key="job.id" class="p-3">
+      <div v-for="job in visible" :key="job.id" class="p-3">
         <div class="flex flex-wrap items-center gap-3">
           <UAvatar icon="i-lucide-cloud-cog" color="primary" />
           <div class="min-w-0 flex-1">
@@ -371,6 +413,12 @@ onUnmounted(() => releaseEvents?.())
       <DataState :loading="loading" :error="loadError" :empty="!jobs.length" variant="inline">
         <UEmpty :description="t('remote_jobs.empty')" />
       </DataState>
+      <!-- A filter that hides every row says so, with the way back (`design.md`). -->
+      <UEmpty
+        v-if="jobs.length && !visible.length"
+        :description="t('remote_jobs.filter.none')"
+        :actions="[{ icon: 'i-lucide-filter-x', color: 'neutral', variant: 'outline', label: t('remote_jobs.filter.reset'), onClick: resetFilter }]"
+      />
     </div>
   </UCard>
 </template>

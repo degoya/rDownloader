@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**101 capabilities, 76 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 440 REST operations, 234 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**101 capabilities, 76 covered by a tool, 25 deliberately out (16 of them on the owner's line of 2026-09-23).** 442 REST operations, 235 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -41,7 +41,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
 | Installed plugins: switch and uninstall | Settings > Plugins | 5 | `list_configuration`, `remove_superseded_plugin_versions`, `set_plugin_enabled`, `uninstall_plugin_version` |
 | Choosing the bundled services | Setup wizard, Settings > Plugins | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
-| Remote jobs | Remote jobs | 6 | `choose_remote_job_entries`, `forget_remote_job`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
+| Remote jobs | Remote jobs | 7 | `choose_remote_job_entries`, `clear_remote_jobs`, `forget_remote_job`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
 | Traffic per Usenet server and its quota | Statistics, Settings > Usenet | 2 | `get_usenet_server_traffic`, `set_usenet_server_quota` |
 | The log store | Logs | 1 | `list_log_records` |
@@ -102,7 +102,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Capability | Surface | REST ops | Why not |
 | --- | --- | --: | --- |
 | Deleting a remote job at the provider | Remote jobs | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
-| Signing in, sessions, second factor and API tokens | Login, Settings > Security | 34 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Signing in, sessions, second factor and API tokens | Login, Settings > Security | 35 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Signing in at a provider | Settings > Accounts | 13 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Trying a stored credential or destination | several forms | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Remote logins and trusted host keys | Settings > Remote | 7 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |

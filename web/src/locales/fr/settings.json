@@ -196,7 +196,8 @@
       "description": "Le profil proxy « {name} » et son mot de passe chiffré seront supprimés définitivement. Tant qu’un compte, un serveur Usenet, un téléchargement en cours, la connexion globale ou le proxy de pairs torrent l’utilise, le service refuse.",
       "in_use_here": "Il est choisi ici comme connexion globale ou comme proxy de pairs torrent — choisissez-en un autre d’abord et enregistrez.",
       "confirm": "Supprimer le profil"
-    }
+    },
+    "password_host_changed": "L’adresse a changé : le mot de passe enregistré n’est pas envoyé au nouveau proxy. Saisissez-le à nouveau."
   },
   "global_proxy": {
     "eyebrow": "Repli réseau",

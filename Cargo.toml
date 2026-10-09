@@ -159,7 +159,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.19.0"
+version = "1.20.0"
 authors = ["Alexander Herling"]
 edition = "2024"
 rust-version = "1.99"
@@ -184,6 +184,9 @@ chacha20poly1305 = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = { version = "0.10", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
+# The capture agent's concealment marks on the Windows clipboard (RD-1200-03): the crate `arboard`
+# reads the text with, asked through its safe calls for the two formats `arboard` does not read.
+clipboard-win = { version = "5.4", features = ["std"] }
 crc32fast = "1"
 # Cron expressions for scheduled subscriptions (RD-130-19): POSIX weekdays and five-field
 # patterns, which is what people copy out of a crontab.
@@ -232,6 +235,10 @@ notify-rust = { version = "4", default-features = false, features = ["z"] }
 # and the code exchange. Without its own HTTP stack — `rd_api_core::oidc_client` hands it the
 # workspace's reqwest.
 openidconnect = { version = "4", default-features = false }
+# The capture agent's concealment marks on the macOS pasteboard (RD-1200-03): the AppKit bindings
+# `arboard` and the tray link already, for the pasteboard types `arboard` does not read.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSPasteboard"] }
 object_store = { version = "0.14", default-features = false, features = ["aws"] }
 open = "5.4.2"
 percent-encoding = "2.3"
@@ -259,6 +266,7 @@ rust-par2 = "0.1.3"
 russh = "0.63"
 russh-sftp = "3"
 secrecy = { version = "0.10", features = ["serde"] }
+security-framework = "3.7.0"
 subtle = "2.6"
 zeroize = "1.9"
 semver = "1"
@@ -306,6 +314,10 @@ webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
 # behind a safe call. Already in the tree through `walkdir`/`same-file`, so it adds no crate.
 winapi-util = "0.1.11"
 wit-bindgen = "0.62"
+# The capture agent's concealment mark under Wayland and X11 (RD-1200-03): the protocol clients
+# `arboard` reads the text with, asked for the `x-kde-passwordManagerHint` it does not read.
+wl-clipboard-rs = "0.9.4"
+x11rb = "0.13"
 zip = { version = "8", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]

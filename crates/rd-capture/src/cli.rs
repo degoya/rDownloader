@@ -113,17 +113,20 @@ pub(crate) struct RunArgs {
     pub(crate) no_tray: bool,
 }
 
+/// `open` and `handle` hand over to the service themselves, with the pairing token, rather than
+/// through the Click'n'Load port, which another account can hold while the agent is not running
+/// (RD-1200-03).
 #[derive(Args)]
 pub(crate) struct OpenArgs {
-    #[arg(long, default_value = "http://127.0.0.1:9666")]
-    pub(crate) agent: Url,
+    #[command(flatten)]
+    pub(crate) connection: ConnectionArgs,
     pub(crate) path: PathBuf,
 }
 
 #[derive(Args)]
 pub(crate) struct HandleArgs {
-    #[arg(long, default_value = "http://127.0.0.1:9666")]
-    pub(crate) agent: Url,
+    #[command(flatten)]
+    pub(crate) connection: ConnectionArgs,
     /// The `rdownloader://` address.
     pub(crate) url: String,
 }
@@ -255,6 +258,36 @@ mod tests {
                 Cli::try_parse_from(["rdownloader-capture", word, "--token", "x"]).is_err(),
                 "{word}"
             );
+        }
+    }
+
+    /// `open` and `handle` hand over to the service themselves (RD-1200-03): they take the
+    /// connection of every other command, and no address on the Click'n'Load port any more.
+    #[test]
+    fn open_and_handle_connect_to_the_service_rather_than_to_the_port() {
+        let cli = Cli::try_parse_from([
+            "rdownloader-capture",
+            "open",
+            "--service",
+            "http://127.0.0.1:8710",
+            "release.nzb",
+        ])
+        .expect("open parses");
+        let Some(Command::Open(args)) = cli.command else {
+            panic!("open command expected");
+        };
+        assert_eq!(
+            args.connection.service.map(|service| service.to_string()),
+            Some("http://127.0.0.1:8710/".to_owned())
+        );
+        assert!(Cli::try_parse_from(["rdownloader-capture", "handle", "rdownloader://x"]).is_ok());
+        for word in ["open", "handle"] {
+            for flag in ["--agent", "--token"] {
+                assert!(
+                    Cli::try_parse_from(["rdownloader-capture", word, flag, "x", "y"]).is_err(),
+                    "{word} {flag}"
+                );
+            }
         }
     }
 

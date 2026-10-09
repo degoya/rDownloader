@@ -14,6 +14,9 @@
  * Import is deliberately unfriendly in one respect: a rule from a file arrives switched off,
  * signed or not, the confirmation is the switch, and the server enforces that rather than this
  * component. The file goes out exactly as it was read, because a signature covers bytes.
+ *
+ * Every row names where its rule came from (RD-1200-05) — the signed file with its signer and
+ * sequence, an import, the editor, MCP — as a glyph, so a rule nobody vouches for stands out.
  */
 import { useToast } from '@nuxt/ui/composables'
 import { computed, nextTick, onMounted, ref } from 'vue'
@@ -36,6 +39,7 @@ import {
 } from '@/composables/useSiteRules'
 import { downloadJson } from '@/utils/jsonFile'
 import { editingRowClass } from '@/utils/editingRow'
+import { originView } from '@/utils/siteRuleOrigin'
 
 const { t, te } = useI18n()
 const toast = useToast()
@@ -49,6 +53,9 @@ const editingId = ref<string | null>(null)
 const testResult = ref<SiteRuleTestResult | null>(null)
 const editorElement = ref<HTMLElement | null>(null)
 const ruleCount = computed(() => rules.rules.value.length)
+/** Where the rule open in the editor came from; a new rule has none yet. */
+const editingOrigin = computed(() =>
+  rules.rules.value.find(entry => entry.id === editingId.value)?.origin ?? null)
 
 onMounted(() => void rules.refresh())
 
@@ -84,6 +91,12 @@ function stateTitle(rule: SiteRule): string {
   if (!rule.check) return t('siterules.badge.unknown')
   const verdict = t(`server.codes.site_rules.state.${rule.check.verdict}`)
   return rule.check.code ? `${verdict} — ${t(`server.codes.${rule.check.code}`)}` : verdict
+}
+
+/** Where the rule came from, as the glyph, its word and the sentence behind it (RD-1200-05). */
+function originOf(rule: SiteRule): { icon: string, color: 'success' | 'neutral', label: string, detail: string } {
+  const view = originView(rule.origin)
+  return { icon: view.icon, color: view.color, label: t(view.label), detail: t(view.detail, view.params) }
 }
 
 function startNew(): void {
@@ -197,6 +210,7 @@ async function importRules(text: string): Promise<void> {
           <SiteRuleEditor
             v-model="draft"
             :editing-id="editingId"
+            :origin="editingOrigin"
             :pending="rules.pending.value"
             :groups="rules.groups.value.map(entry => entry.group)"
             :test-result="testResult"
@@ -271,6 +285,19 @@ async function importRules(text: string): Promise<void> {
                   <p class="truncate font-mono text-2xs text-muted">{{ rule.hosts.join(', ') || rule.id }}</p>
                   <p v-if="!entry.group.enabled" class="mt-1 text-2xs text-muted">{{ t('siterules.list.group_off') }}</p>
                 </div>
+                <!-- One glyph per origin; the word is its name and the sentence its tooltip (RD-1200-05). -->
+                <UTooltip :text="originOf(rule).detail">
+                  <UBadge
+                    :color="originOf(rule).color"
+                    variant="subtle"
+                    size="sm"
+                    :icon="originOf(rule).icon"
+                    class="shrink-0"
+                    role="img"
+                    :aria-label="originOf(rule).label"
+                    data-testid="site-rule-origin"
+                  />
+                </UTooltip>
                 <UBadge v-if="editingId === rule.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
                 <UBadge :color="stateColor(rule)" variant="subtle" :title="stateTitle(rule)">
                   {{ t(`siterules.badge.${stateKey(rule)}`) }}

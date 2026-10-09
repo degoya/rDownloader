@@ -4,9 +4,10 @@
 # channels.yml's `homebrew` job found it not answering (RD-1130-05): on macos-15 and
 # macos-15-intel the 1.12.0 service upgraded from 1.11.0 was "Successfully started" and wrote
 # nothing. Prints only, one group per probe, and never fails — a probe the image lacks says so.
-# Last, the service binary started in the foreground from the service's working folder for up
-# to 20 s, its output shown: one that answers there points at the service manager, not the
-# binary.
+# Last, the service stopped and its binary started in the foreground from the service's working
+# folder for up to 20 s, its output shown: one that answers there points at the service manager,
+# not the binary. Stopped first, because a service still running holds the data folder's lock
+# and the foreground start only said "another rDownloader service already runs" (RD-1200-02).
 #
 #   scripts/ci-brew-service-diagnostics.sh
 #
@@ -47,6 +48,7 @@ else
         journalctl --user --unit "*rdownloader*" --lines 100 --no-pager'
 fi
 
+probe "stop the service" 'brew services stop rdownloader'
 echo "::group::foreground start from ${var}"
 output="$(mktemp)"
 (cd "${var}" && exec "${binary}" serve) > "${output}" 2>&1 &

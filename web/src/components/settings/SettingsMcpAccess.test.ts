@@ -27,6 +27,8 @@ vi.mock('@/api/client', () => ({
   api: {
     GET: vi.fn(async (path: string) => ({ data: path.endsWith('/scopes') ? AREAS : [] })),
     POST: (...args: unknown[]) => post(...(args as [])),
+    PATCH: vi.fn(async () => ({ data: { id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z', calls_per_minute: 30 } })),
+    PUT: vi.fn(async () => ({ data: { id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z', calls_per_minute: 60 } })),
     DELETE: vi.fn(async () => ({ data: { message: 'gone' } }))
   },
   responseError: () => 'failed'
@@ -85,6 +87,23 @@ describe('SettingsMcpAccess', () => {
     expect(options.body.expires_in_days).toBeNull()
   })
 
+  /** RD-1200-04: no limit unless one is typed, and a typed one travels with the request. */
+  it('mints without a call limit unless one is typed', async () => {
+    post.mockClear()
+    mount()
+    await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))
+    await fireEvent.submit(document.querySelector('form') as HTMLFormElement)
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    const [, first] = post.mock.calls[0] as unknown as [string, { body: { calls_per_minute?: number | null } }]
+    expect(first.body.calls_per_minute).toBeNull()
+
+    await fireEvent.update(screen.getByTestId('token-rate'), '30')
+    await fireEvent.submit(document.querySelector('form') as HTMLFormElement)
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
+    const [, second] = post.mock.calls[1] as unknown as [string, { body: { calls_per_minute?: number | null } }]
+    expect(second.body.calls_per_minute).toBe(30)
+  })
+
   it('shows no token at all before one has been minted', async () => {
     mount()
     await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))
@@ -132,5 +151,30 @@ describe('SettingsMcpAccess areas as a group', () => {
     expect(screen.getAllByRole('group', { name: en.mcp.scopes_label })).toHaveLength(2)
     await fireEvent.click(screen.getByRole('button', { name: common.actions.cancel_edit }))
     expect(screen.getAllByRole('group', { name: en.mcp.scopes_label })).toHaveLength(1)
+  })
+})
+
+/** RD-1200-04: a token's limit is shown on its row and changed in its editor. */
+describe('SettingsMcpAccess call limits', () => {
+  it('shows a limit on the row and saves a changed one through its own route', async () => {
+    const { api } = await import('@/api/client')
+    vi.mocked(api.GET).mockImplementation(async (path: string) => ({
+      data: path.endsWith('/scopes')
+        ? AREAS
+        : [{ id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z', calls_per_minute: 30 }]
+    }) as never)
+    mount()
+    expect(await screen.findByText('At most 30 calls per minute')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: en.mcp.edit.label }))
+    const field = screen.getByTestId('token-edit-rate') as HTMLInputElement
+    expect(field.value).toBe('30')
+
+    await fireEvent.update(field, '60')
+    await fireEvent.submit(field.closest('form') as HTMLFormElement)
+    await waitFor(() => expect(api.PUT).toHaveBeenCalledWith('/api/v1/api-tokens/{id}/limits', {
+      params: { path: { id: 't1' } },
+      body: { calls_per_minute: 60 }
+    }))
+    expect(await screen.findByText('At most 60 calls per minute')).toBeTruthy()
   })
 })

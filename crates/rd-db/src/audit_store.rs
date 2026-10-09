@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use rd_core::{AuditAction, AuditActorKind, AuditOutcome};
+use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, QueryBuilder, Sqlite, SqliteConnection, SqlitePool};
 
@@ -27,6 +27,9 @@ pub struct NewAuditRecord {
     pub actor_id: Option<String>,
     /// What a person called the actor, when there is such a name — a token's label.
     pub actor_label: Option<String>,
+    /// Which door the action came through (RD-1200-04, migration `0131`).
+    #[serde(default)]
+    pub via: AuditChannel,
     pub client_address: Option<String>,
     /// The family of the thing acted on: `download`, `package`, `category`, `storage_root`,
     /// `plugin`, `token`, `settings`, `backup`.
@@ -48,6 +51,7 @@ impl NewAuditRecord {
             actor_kind: AuditActorKind::System,
             actor_id: None,
             actor_label: None,
+            via: AuditChannel::Internal,
             client_address: None,
             target_kind: None,
             target_id: None,
@@ -68,6 +72,8 @@ pub struct AuditRecord {
     pub actor_kind: AuditActorKind,
     pub actor_id: Option<String>,
     pub actor_label: Option<String>,
+    #[serde(default)]
+    pub via: AuditChannel,
     pub client_address: Option<String>,
     pub target_kind: Option<String>,
     pub target_id: Option<String>,
@@ -83,6 +89,8 @@ pub struct AuditQuery {
     pub outcome: Option<AuditOutcome>,
     pub actor_kind: Option<AuditActorKind>,
     pub actor_id: Option<String>,
+    /// Only records that came through this door (RD-1200-04).
+    pub via: Option<AuditChannel>,
     pub target_kind: Option<String>,
     pub target_id: Option<String>,
     pub trace_id: Option<String>,
@@ -105,6 +113,7 @@ struct Row {
     actor_kind: String,
     actor_id: Option<String>,
     actor_label: Option<String>,
+    via: String,
     client_address: Option<String>,
     target_kind: Option<String>,
     target_id: Option<String>,
@@ -126,6 +135,8 @@ impl TryFrom<Row> for AuditRecord {
             .with_context(|| format!("audit record {} names outcome {:?}", row.id, row.outcome))?;
         let actor_kind = AuditActorKind::parse(&row.actor_kind)
             .with_context(|| format!("audit record {} names actor {:?}", row.id, row.actor_kind))?;
+        let via = AuditChannel::parse(&row.via)
+            .with_context(|| format!("audit record {} names channel {:?}", row.id, row.via))?;
         let details = match row.details_json {
             Some(json) => serde_json::from_str(&json)
                 .with_context(|| format!("audit record {} holds invalid details", row.id))?,
@@ -139,6 +150,7 @@ impl TryFrom<Row> for AuditRecord {
             actor_kind,
             actor_id: row.actor_id,
             actor_label: row.actor_label,
+            via,
             client_address: row.client_address,
             target_kind: row.target_kind,
             target_id: row.target_id,
@@ -149,7 +161,7 @@ impl TryFrom<Row> for AuditRecord {
     }
 }
 
-const COLUMNS: &str = "id, recorded_at, action, outcome, actor_kind, actor_id, actor_label, \
+const COLUMNS: &str = "id, recorded_at, action, outcome, actor_kind, actor_id, actor_label, via, \
      client_address, target_kind, target_id, target_name, trace_id, details_json";
 
 /// One timestamp shape for every row, so a lexical comparison in SQL is a chronological one.
@@ -170,9 +182,9 @@ pub(crate) async fn append_audit_records(
         };
         sqlx::query(
             "INSERT INTO audit_records \
-               (recorded_at, action, outcome, actor_kind, actor_id, actor_label, \
+               (recorded_at, action, outcome, actor_kind, actor_id, actor_label, via, \
                 client_address, target_kind, target_id, target_name, trace_id, details_json) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(timestamp(&record.recorded_at))
         .bind(record.action.as_str())
@@ -180,6 +192,7 @@ pub(crate) async fn append_audit_records(
         .bind(record.actor_kind.as_str())
         .bind(&record.actor_id)
         .bind(&record.actor_label)
+        .bind(record.via.as_str())
         .bind(&record.client_address)
         .bind(&record.target_kind)
         .bind(&record.target_id)
@@ -219,9 +232,9 @@ pub(crate) async fn clear_audit_records(
     let details = serde_json::to_string(&record.details)?;
     sqlx::query(
         "INSERT INTO audit_records \
-           (recorded_at, action, outcome, actor_kind, actor_id, actor_label, \
+           (recorded_at, action, outcome, actor_kind, actor_id, actor_label, via, \
             client_address, target_kind, target_id, target_name, trace_id, details_json) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(timestamp(&record.recorded_at))
     .bind(record.action.as_str())
@@ -229,6 +242,7 @@ pub(crate) async fn clear_audit_records(
     .bind(record.actor_kind.as_str())
     .bind(&record.actor_id)
     .bind(&record.actor_label)
+    .bind(record.via.as_str())
     .bind(&record.client_address)
     .bind(&record.target_kind)
     .bind(&record.target_id)
@@ -270,6 +284,11 @@ pub(crate) async fn query_audit_records(
         builder
             .push(" AND actor_kind = ")
             .push_bind(kind.as_str().to_owned());
+    }
+    if let Some(via) = query.via {
+        builder
+            .push(" AND via = ")
+            .push_bind(via.as_str().to_owned());
     }
     for (column, value) in [
         ("actor_id", query.actor_id.as_deref()),

@@ -34,7 +34,8 @@ const OWNED = /categor|account|prox|profile|credential|target|indexer|subscripti
 const FIXED: { file: string, items: string, reason: string }[] = [
   { file: 'components/settings/SettingsNetworkTab.vue', items: 'proxyKindItems', reason: 'the kinds of proxy the engine speaks' },
   { file: 'components/routing/RoutingCategoryRules.vue', items: 'nameTargetItems', reason: 'what a name rule matches against' },
-  { file: 'components/settings/SettingsUpdateCard.vue', items: 'channelItems', reason: 'the update channels: stable, beta' }
+  { file: 'components/settings/SettingsUpdateCard.vue', items: 'channelItems', reason: 'the update channels: stable, beta' },
+  { file: 'views/AuditView.vue', items: 'channelItems', reason: 'the ways an action reaches the service: web, MCP, capture, download clients, internal' }
 ]
 
 /** Every place converted by RD-1180-02, with a word from its `:items`; one entry per field. */

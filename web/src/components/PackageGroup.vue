@@ -218,6 +218,8 @@ const downloadsDone = computed(() =>
   counted.value.length > 0 && counted.value.every(item => item.state === 'completed'))
 const showPassword = computed(() =>
   props.package.has_password && !(downloadsDone.value && extraction.value === 'success'))
+const failedLabel = computed(() =>
+  extraction.value === 'failed' ? t('downloads.package.extract_failed') : t('downloads.package.postprocess_failed'))
 /**
  * Everything but the package's own start/stop control, which is the one action that is worth a
  * row's width: it acts on every file at once and it is the one somebody reaches for while the
@@ -330,9 +332,13 @@ function controlPackage(): void {
       />
       <UCheckbox class="queue-cell-select justify-self-center" :model-value="props.selection === 'all' ? true : props.selection === 'some' ? 'indeterminate' : false" :aria-label="t('downloads.package.select_aria')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.package.id, value === true)" />
       <UButton class="queue-cell-expand" :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('downloads.package.hide_files') : t('downloads.package.show_files')" @click="emit('toggle', props.package.id)" />
-      <div class="queue-cell-name flex min-w-0 items-center gap-2">
+      <div class="queue-cell-name flex min-w-0 items-center gap-2 overflow-hidden">
         <h3 class="min-w-0 truncate text-sm font-semibold text-highlighted" :title="props.package.name">{{ props.package.name }}</h3>
-        <UBadge v-if="usenet" color="neutral" variant="outline" size="sm" class="shrink-0">{{ t('downloads.package.usenet') }}</UBadge>
+        <!-- The row's states are glyphs with their word in a tooltip and as the accessible name:
+             a word per state pushed past the name cell into the count beside it. -->
+        <UTooltip v-if="usenet" :text="t('downloads.package.usenet')">
+          <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-newspaper" class="shrink-0" :aria-label="t('downloads.package.usenet')" data-testid="package-usenet" />
+        </UTooltip>
         <span v-if="showPassword" class="flex shrink-0 items-center gap-1 text-warning" :title="t('downloads.package.password_stored')">
           <UIcon name="i-lucide-key-round" class="size-4" />
           <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
@@ -340,37 +346,40 @@ function controlPackage(): void {
         <UBadge v-if="postprocessing" color="primary" variant="subtle" size="sm" class="numeric shrink-0" :title="props.package.postprocess?.current ?? undefined">{{ stageBadge || t('downloads.postprocess.queue.pending') }}</UBadge>
         <!-- A failure is where the reader wants the reason, so the badge opens the steps that
              carry it — the same panel as the menu's entry (RD-191-11). -->
-        <UButton
-          v-else-if="postprocessFailed"
-          color="error"
-          variant="subtle"
-          size="xs"
-          class="shrink-0"
-          :label="extraction === 'failed' ? t('downloads.package.extract_failed') : t('downloads.package.postprocess_failed')"
-          :title="t('downloads.package.postprocess_aria')"
-          :aria-expanded="showSteps"
-          data-testid="postprocess-failed"
-          @click="toggleSteps"
-        />
+        <UTooltip v-else-if="postprocessFailed" :text="failedLabel">
+          <UButton
+            color="error"
+            variant="subtle"
+            size="xs"
+            icon="i-lucide-triangle-alert"
+            class="shrink-0"
+            :aria-label="failedLabel"
+            :aria-expanded="showSteps"
+            data-testid="postprocess-failed"
+            @click="toggleSteps"
+          />
+        </UTooltip>
         <!-- Finished and unpacked are unambiguous enough to be glyphs; the word each dropped
              stays on the badge as its accessible name (RD-109-30). -->
         <UBadge v-else-if="props.complete" color="success" variant="subtle" size="sm" icon="i-lucide-circle-check" class="shrink-0" :aria-label="t('downloads.package.complete')" :title="t('downloads.package.complete_title')" />
-        <UBadge v-else-if="waitingForParts" color="neutral" variant="subtle" size="sm" icon="i-lucide-hourglass" class="shrink-0" :label="t('downloads.package.waiting_for_parts')" :title="t('downloads.package.waiting_for_parts_title')" data-testid="waiting-for-parts" />
+        <UTooltip v-else-if="waitingForParts" :text="t('downloads.package.waiting_for_parts_title')">
+          <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-hourglass" class="shrink-0" :aria-label="t('downloads.package.waiting_for_parts')" data-testid="waiting-for-parts" />
+        </UTooltip>
         <UBadge v-if="!postprocessing && extraction === 'success'" color="success" variant="outline" size="sm" icon="i-lucide-package-open" class="shrink-0" :aria-label="t('downloads.package.extracted')" :title="t('downloads.package.extracted_title')" />
         <!-- Handed to a provider (RD-191-13), as an NZB row in the LinkGrabber says it; the badge
              leads to where the job can be watched. -->
-        <UButton
-          v-if="props.handedOverTo"
-          :to="{ name: 'remote-jobs' }"
-          icon="i-lucide-cloud"
-          color="info"
-          variant="subtle"
-          size="xs"
-          class="shrink-0"
-          :label="t('downloads.package.handed_over', { provider: props.handedOverTo })"
-          :title="t('downloads.package.handed_over_hint')"
-          data-testid="package-handed-over"
-        />
+        <UTooltip v-if="props.handedOverTo" :text="`${t('downloads.package.handed_over', { provider: props.handedOverTo })} — ${t('downloads.package.handed_over_hint')}`">
+          <UButton
+            :to="{ name: 'remote-jobs' }"
+            icon="i-lucide-cloud"
+            color="info"
+            variant="subtle"
+            size="xs"
+            class="shrink-0"
+            :aria-label="t('downloads.package.handed_over', { provider: props.handedOverTo })"
+            data-testid="package-handed-over"
+          />
+        </UTooltip>
       </div>
       <span class="queue-cell-state numeric truncate text-xs text-muted" :title="t('downloads.package.finished_title', { finished, total: props.downloads.length })">
         {{ finished }}/{{ props.downloads.length }}

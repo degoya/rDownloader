@@ -79,6 +79,7 @@ impl Writer {
                 token_sha256,
                 scopes,
                 expires_at,
+                calls_per_minute,
                 reply,
             } => {
                 let result = crate::capture_store::create_token(
@@ -88,6 +89,20 @@ impl Writer {
                     token_sha256,
                     scopes,
                     expires_at,
+                    calls_per_minute,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
+            }
+            SessionsCommand::UpdateCaptureTokenLimits {
+                id,
+                calls_per_minute,
+                reply,
+            } => {
+                let result = crate::capture_store::update_token_limits(
+                    &mut self.connection,
+                    id,
+                    calls_per_minute,
                 )
                 .await;
                 publish_config(reply, result, &self.events);

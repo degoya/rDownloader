@@ -2,14 +2,13 @@
 //! here belongs to the long-lived agent.
 
 use anyhow::{Context, Result};
-use reqwest::multipart;
 
 use crate::{
     agent_settings,
     cli::{
         ConfigureArgs, ConnectionArgs, HandleArgs, IntegrationArgs, IntegrationCommand, OpenArgs,
     },
-    client::{self, CaptureClient, Purpose},
+    client::{CaptureClient, ForeignListener},
     clipboard::{self, HandOver},
     config, os_integration, scheme,
 };
@@ -90,7 +89,7 @@ pub(crate) async fn send_clipboard(args: ConnectionArgs) -> Result<()> {
     let client = connected(args)?;
     let outcome = clipboard::hand_over_once(&client).await;
     match outcome {
-        HandOver::Delivered(_) | HandOver::Listed(_) | HandOver::NoLinks => {
+        HandOver::Delivered(_) | HandOver::Listed(_) | HandOver::NoLinks | HandOver::Concealed => {
             println!("{}", outcome.message());
             Ok(())
         }
@@ -132,6 +131,9 @@ async fn read_at_most(path: &std::path::Path, limit: usize) -> Result<Vec<u8>> {
     Ok(content)
 }
 
+/// Imports one `.nzb` file: straight to the service, with the pairing token, once the service
+/// address has answered as rDownloader (RD-1200-03). It used to go to the Click'n'Load port
+/// without any credential, to whoever listened there.
 pub(crate) async fn open(args: OpenArgs) -> Result<()> {
     let content = read_at_most(&args.path, rd_collector::MAX_NZB_BYTES).await?;
     let name = args
@@ -140,50 +142,39 @@ pub(crate) async fn open(args: OpenArgs) -> Result<()> {
         .and_then(|value| value.to_str())
         .context("NZB filename is not Unicode")?
         .to_owned();
-    let form = multipart::Form::new().part(
-        "file",
-        multipart::Part::bytes(content)
-            .file_name(name)
-            .mime_str("application/x-nzb")?,
-    );
-    let response = client::build(Purpose::Request)?
-        .post(args.agent.join("rdownloader/nzb")?)
-        .multipart(form)
-        .send()
-        .await?;
-    if !response.status().is_success() {
-        anyhow::bail!("Capture-Agent returned HTTP {}", response.status());
-    }
+    let client = connected(args.connection)?;
+    told(client.upload_nzb_bytes(name, content).await).await?;
     println!("NZB handed to the LinkGrabber: {}", args.path.display());
     Ok(())
 }
 
 /// Acts on one `rdownloader://` address.
 ///
-/// Everything the address is allowed to mean is decided in `scheme::parse`; this only
-/// forwards the result to the agent that is already running, using the same endpoints the
-/// clipboard and file association use. No new way into the service is opened here.
+/// Everything the address is allowed to mean is decided in `scheme::parse`; this only hands the
+/// result to the service, through the same capture routes the running agent uses. No new way
+/// into the service is opened here.
 pub(crate) async fn handle(args: HandleArgs) -> Result<()> {
     match scheme::parse(&args.url)? {
         scheme::Action::Links(links) => {
-            let response = client::build(Purpose::Request)?
-                .post(args.agent.join("flash/add")?)
-                .body(links_form_body(&links))
-                .header(
-                    reqwest::header::CONTENT_TYPE,
-                    "application/x-www-form-urlencoded",
-                )
-                .send()
-                .await?;
-            if !response.status().is_success() {
-                anyhow::bail!("capture agent returned HTTP {}", response.status());
+            let urls = rd_collector::extract_urls(&links.join("\n"));
+            if urls.is_empty() {
+                anyhow::bail!("the address names no link the collector accepts");
             }
-            println!("{} link(s) handed to the LinkGrabber", links.len());
+            let count = urls.len();
+            let client = connected(args.connection)?;
+            told(
+                client
+                    .submit_links(urls, "click_and_load", None, None)
+                    .await
+                    .map(|_| ()),
+            )
+            .await?;
+            println!("{count} link(s) handed to the LinkGrabber");
             Ok(())
         }
         scheme::Action::OpenFile(path) => {
             open(OpenArgs {
-                agent: args.agent,
+                connection: args.connection,
                 path,
             })
             .await
@@ -191,25 +182,18 @@ pub(crate) async fn handle(args: HandleArgs) -> Result<()> {
     }
 }
 
-/// The `application/x-www-form-urlencoded` body the scheme handler posts to `flash/add`.
-///
-/// Built with `url`, which this crate already depends on for `Url::join`, rather than with a
-/// hand-written percent-encoder beside it. The comment that used to justify writing one out --
-/// "a dependency for one function is not worth the supply chain" -- was simply not true: no
-/// dependency was being avoided, only a second and less-tested implementation of the same
-/// algorithm was being kept (RD-109-16).
-///
-/// `form_urlencoded::Serializer` and not `byte_serialize`: the former is the encoding that goes
-/// with the declared content type, and it is what the receiver decodes. The one visible
-/// difference is that a space becomes `+` rather than `%20`; the receiver is `flash/add` in this
-/// same binary, which takes the body through `axum::Form` and therefore through
-/// `form_urlencoded::parse`, and that resolves `+` back to a space. The test below checks that
-/// round trip rather than the bytes on the wire, because what has to be unchanged is what the
-/// receiver ends up with.
-fn links_form_body(links: &[String]) -> String {
-    url::form_urlencoded::Serializer::new(String::new())
-        .append_pair("urls", &links.join("\n"))
-        .finish()
+/// Passes `outcome` on, and a foreign listener at the service address as a notification too:
+/// `open` and `handle` are started by the desktop, where nobody reads standard error.
+async fn told(outcome: Result<()>) -> Result<()> {
+    if let Err(error) = &outcome
+        && error.is::<ForeignListener>()
+    {
+        crate::notify::toast(
+            "Not handed over: the program at the service address is not rDownloader".to_owned(),
+        )
+        .await;
+    }
+    outcome
 }
 
 pub(crate) fn integration(args: IntegrationArgs, kind: os_integration::Kind) -> Result<()> {
@@ -251,7 +235,7 @@ pub(crate) fn autostart(args: IntegrationArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{links_form_body, read_at_most};
+    use super::read_at_most;
 
     /// The size cap has to hold against the file that is actually read, not against the one
     /// `metadata()` happened to see a moment earlier (RD-109-03).
@@ -285,46 +269,5 @@ mod tests {
         );
 
         std::fs::remove_file(&path).expect("clean up the sample");
-    }
-
-    /// What has to be unchanged is what the receiver ends up with, not the bytes on the wire:
-    /// `form_urlencoded` writes a space as `+` where the hand-written encoder wrote `%20`, and
-    /// both are valid in this content type (RD-109-16).
-    #[test]
-    fn the_scheme_handler_body_survives_decoding_unchanged() {
-        let links = vec![
-            "https://example.com/a file.bin".to_owned(),
-            "https://example.com/?q=a+b&r=c=d".to_owned(),
-            "https://example.com/Gr\u{fc}\u{df}e/\u{4e2d}\u{6587}.bin".to_owned(),
-            "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=a b".to_owned(),
-        ];
-        let body = links_form_body(&links);
-
-        // The primitive `axum::Form` decodes with, through `serde_urlencoded`.
-        let decoded: Vec<(String, String)> = url::form_urlencoded::parse(body.as_bytes())
-            .map(|(key, value)| (key.into_owned(), value.into_owned()))
-            .collect();
-        assert_eq!(
-            decoded.len(),
-            1,
-            "one field, whatever is in it: {decoded:?}"
-        );
-        assert_eq!(decoded[0].0, "urls");
-        assert_eq!(
-            decoded[0].1,
-            links.join("\n"),
-            "every link has to arrive exactly as it went in"
-        );
-
-        // Each character the encoding could have eaten, named so a failure says which one.
-        for character in [' ', '+', '&', '=', '\u{fc}'] {
-            assert!(
-                decoded[0].1.contains(character),
-                "{character:?} did not survive the round trip: {}",
-                decoded[0].1
-            );
-        }
-        // And the separator the receiver splits on is still a separator.
-        assert_eq!(decoded[0].1.lines().count(), links.len());
     }
 }

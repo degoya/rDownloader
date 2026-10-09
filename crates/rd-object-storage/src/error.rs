@@ -34,6 +34,8 @@ pub const REQUEST_FAILED: &str = "object_storage.request_failed";
 pub const UPLOAD_FAILED: &str = "object_storage.upload_failed";
 /// The service throttled the request or the account ran out of quota; retried later.
 pub const RATE_LIMITED: &str = "object_storage.rate_limited";
+/// The endpoint answered with a redirect, which is never followed (RD-1200-06).
+pub const REDIRECT_REFUSED: &str = "object_storage.redirect_refused";
 
 const fn transient() -> FailureKind {
     FailureKind::Transient {
@@ -128,6 +130,8 @@ pub fn classify(error: &object_store::Error, bucket: &str) -> Failure {
                 Some(403) => access_denied(bucket),
                 Some(404) => not_found(bucket),
                 Some(412) => object_changed(),
+                // The transport follows no redirect, so `object_store` reports the 3xx itself.
+                Some(300..=399) => redirect_refused(),
                 None if is_transport(&text) => Failure::coded(
                     transient(),
                     CONNECT_FAILED,
@@ -163,6 +167,14 @@ fn request_failed() -> Failure {
         transient(),
         REQUEST_FAILED,
         "The object storage service refused the request",
+    )
+}
+
+fn redirect_refused() -> Failure {
+    Failure::coded(
+        FailureKind::Permanent,
+        REDIRECT_REFUSED,
+        "The object storage endpoint answered with a redirect, which is not followed",
     )
 }
 
@@ -302,6 +314,14 @@ mod tests {
             classify(&refused, "b").code.as_deref(),
             Some(super::REQUEST_FAILED)
         );
+        // RD-1200-06: the transport follows no redirect; the 3xx is named, not retried.
+        let moved = generic(
+            "Error performing GET http://127.0.0.1/b?list-type=2 in 1ms - Server returned \
+             non-2xx status code: 307 Temporary Redirect: ",
+        );
+        let failure = classify(&moved, "b");
+        assert_eq!(failure.code.as_deref(), Some(super::REDIRECT_REFUSED));
+        assert_eq!(failure.category, FailureKind::Permanent);
         let down =
             generic("Error performing GET http://127.0.0.1/ - HTTP error: error sending request");
         assert_eq!(

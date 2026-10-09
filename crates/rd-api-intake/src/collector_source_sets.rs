@@ -150,6 +150,7 @@ mod tests {
                 kind: rd_core::AuditActorKind::Token,
                 id: Some("token".to_owned()),
                 label: None,
+                via: rd_core::AuditChannel::Rest,
             },
             trace: None,
         };

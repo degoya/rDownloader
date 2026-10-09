@@ -104,6 +104,7 @@ declare module 'vue' {
     RegexDiagramNode: typeof import('./src/components/routing/RegexDiagramNode.vue')['default']
     RegexEditorModal: typeof import('./src/components/routing/RegexEditorModal.vue')['default']
     RemoteFileTree: typeof import('./src/components/RemoteFileTree.vue')['default']
+    RemoteJobsClearMenu: typeof import('./src/components/settings/RemoteJobsClearMenu.vue')['default']
     RemoteJobSubmitForm: typeof import('./src/components/settings/RemoteJobSubmitForm.vue')['default']
     RenameModal: typeof import('./src/components/RenameModal.vue')['default']
     ResetConfirmModal: typeof import('./src/components/ResetConfirmModal.vue')['default']

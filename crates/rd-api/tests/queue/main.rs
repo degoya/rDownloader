@@ -22,6 +22,7 @@ mod history;
 mod power;
 mod queue_pause;
 mod reconnect;
+mod remote_jobs_clear;
 mod reorder;
 mod service_switches;
 mod storage_capacity;

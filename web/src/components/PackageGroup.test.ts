@@ -414,6 +414,29 @@ describe('PackageGroup waiting for parts', () => {
   })
 })
 
+/**
+ * The row's states are glyphs: a word per state pushed past the name cell into the count beside
+ * it. The word stays as the accessible name and in the tooltip.
+ */
+describe('PackageGroup state glyphs', () => {
+  it('shows Usenet, waiting and a failed unpack as icons with their word as the name', () => {
+    renderGroup(group({ kind: 'usenet', state: 'failed', extraction_result: 'failed' } as unknown as Partial<DownloadPackage>))
+    const usenet = screen.getByTestId('package-usenet')
+    expect(usenet.getAttribute('aria-label')).toBe(downloads.package.usenet)
+    expect(usenet.textContent?.trim()).toBe('')
+    const failed = screen.getByRole('button', { name: downloads.package.extract_failed })
+    expect(failed.textContent?.trim()).toBe('')
+  })
+
+  it('shows waiting for parts as an icon', () => {
+    const arrived = { id: 'd1', file_name: 'part1.rar', state: 'completed', committed_bytes: '100', total_bytes: '100' }
+    renderGroup(group(), { downloads: [arrived, { id: 'd2', file_name: 'part2.rar', state: 'blocked', committed_bytes: '0', total_bytes: '100' }] })
+    const waiting = screen.getByTestId('waiting-for-parts')
+    expect(waiting.getAttribute('aria-label')).toBe(downloads.package.waiting_for_parts)
+    expect(waiting.textContent?.trim()).toBe('')
+  })
+})
+
 describe('PackageGroup reset of stuck files', () => {
   const stuck = (id: string, state: string) => ({ id, file_name: `${id}.bin`, state, committed_bytes: '0', total_bytes: '1', kind: 'http' })
 
@@ -429,5 +452,20 @@ describe('PackageGroup reset of stuck files', () => {
   it('offers nothing to reset in a package without a stuck file', () => {
     renderGroup(group(), { downloads: [stuck('a', 'queued'), stuck('b', 'cancelled')] })
     expect(screen.queryByText(downloads.package.reset_failed)).toBeNull()
+  })
+})
+
+/**
+ * Owner, 2026-10-08: the words of the state badges ran past the name cell into the count beside
+ * it. The states are glyphs; the word is the accessible name and the tooltip.
+ */
+describe('PackageGroup state glyphs', () => {
+  it('names Usenet and a failed unpack without words in the row', () => {
+    renderGroup(group({ kind: 'usenet', state: 'failed', extraction_result: 'failed' } as unknown as Partial<DownloadPackage>))
+    const usenet = screen.getByTestId('package-usenet')
+    expect(usenet.getAttribute('aria-label')).toBe(downloads.package.usenet)
+    expect(usenet.textContent?.trim()).toBe('')
+    const failed = screen.getByRole('button', { name: downloads.package.extract_failed })
+    expect(failed.textContent?.trim()).toBe('')
   })
 })

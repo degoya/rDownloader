@@ -19,6 +19,7 @@ pub(crate) async fn create_token(
     token_sha256: String,
     scopes: Vec<String>,
     expires_at: Option<DateTime<Utc>>,
+    calls_per_minute: Option<u32>,
 ) -> Result<(CaptureToken, EventEnvelope)> {
     let token = CaptureToken {
         id,
@@ -28,6 +29,7 @@ pub(crate) async fn create_token(
         last_used_at: None,
         revoked_at: None,
         expires_at,
+        calls_per_minute,
     };
     let event = EventEnvelope::new(
         EventKind::CaptureChanged,
@@ -36,12 +38,14 @@ pub(crate) async fn create_token(
             "issued": true,
             "scopes": token.scopes,
             "expires_at": token.expires_at,
+            "calls_per_minute": token.calls_per_minute,
         }),
     );
     let mut transaction = connection.begin().await?;
     sqlx::query(
-        "INSERT INTO capture_tokens (id, label, token_sha256, scopes_json, created_at, expires_at) \
-         VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO capture_tokens \
+           (id, label, token_sha256, scopes_json, created_at, expires_at, calls_per_minute) \
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(token.id.to_string())
     .bind(&token.label)
@@ -49,6 +53,7 @@ pub(crate) async fn create_token(
     .bind(serde_json::to_string(&token.scopes)?)
     .bind(token.created_at)
     .bind(token.expires_at)
+    .bind(token.calls_per_minute.map(i64::from))
     .execute(&mut *transaction)
     .await?;
     insert_event(&mut transaction, &event).await?;
@@ -70,7 +75,8 @@ pub(crate) async fn update_token_scopes(
 ) -> Result<(CaptureToken, EventEnvelope)> {
     let mut transaction = connection.begin().await?;
     let previous: CaptureToken = sqlx::query_as::<_, CaptureTokenRow>(
-        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at, expires_at \
+        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at, expires_at, \
+         calls_per_minute \
          FROM capture_tokens WHERE id = ? AND revoked_at IS NULL",
     )
     .bind(id.to_string())
@@ -151,23 +157,70 @@ pub(crate) async fn token_scopes(
 pub(crate) async fn token_identity(
     pool: &SqlitePool,
     token_sha256: &str,
-) -> Result<Option<(CaptureTokenId, String, Vec<String>)>> {
+) -> Result<Option<(CaptureTokenId, String, Vec<String>, Option<u32>)>> {
     // The same liveness as [`token_scopes`]: an expired token has no identity either.
-    let row = sqlx::query_as::<_, (String, String, String)>(
-        "SELECT id, label, scopes_json FROM capture_tokens WHERE token_sha256 = ? \
-         AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
+    let row = sqlx::query_as::<_, (String, String, String, Option<i64>)>(
+        "SELECT id, label, scopes_json, calls_per_minute FROM capture_tokens \
+         WHERE token_sha256 = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
     )
     .bind(token_sha256)
     .bind(Utc::now())
     .fetch_optional(pool)
     .await?;
-    let Some((id, label, scopes_json)) = row else {
+    let Some((id, label, scopes_json, calls_per_minute)) = row else {
         return Ok(None);
     };
     let Ok(id) = id.parse::<CaptureTokenId>() else {
         return Ok(None);
     };
-    Ok(Some((id, label, serde_json::from_str(&scopes_json)?)))
+    Ok(Some((
+        id,
+        label,
+        serde_json::from_str(&scopes_json)?,
+        stored_limit(calls_per_minute),
+    )))
+}
+
+/// Sets or clears a live token's call limit without touching its digest or scopes
+/// (RD-1200-04). The previous limit rides along in the event, as the previous scopes do.
+pub(crate) async fn update_token_limits(
+    connection: &mut SqliteConnection,
+    id: CaptureTokenId,
+    calls_per_minute: Option<u32>,
+) -> Result<(CaptureToken, EventEnvelope)> {
+    let mut transaction = connection.begin().await?;
+    let previous: CaptureToken = sqlx::query_as::<_, CaptureTokenRow>(
+        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at, expires_at, \
+         calls_per_minute FROM capture_tokens WHERE id = ? AND revoked_at IS NULL",
+    )
+    .bind(id.to_string())
+    .fetch_optional(&mut *transaction)
+    .await?
+    .context(StoreError::not_found("capture token not found"))?
+    .try_into()?;
+    let token = CaptureToken {
+        calls_per_minute,
+        ..previous.clone()
+    };
+    sqlx::query(
+        "UPDATE capture_tokens SET calls_per_minute = ? WHERE id = ? AND revoked_at IS NULL",
+    )
+    .bind(calls_per_minute.map(i64::from))
+    .bind(id.to_string())
+    .execute(&mut *transaction)
+    .await?;
+    let event = EventEnvelope::new(
+        EventKind::CaptureChanged,
+        serde_json::json!({
+            "capture_token_id": id,
+            "limits_changed": true,
+            "calls_per_minute": calls_per_minute,
+            "previous_calls_per_minute": previous.calls_per_minute,
+        }),
+    );
+    insert_event(&mut transaction, &event).await?;
+    transaction.commit().await?;
+    Ok((token, event))
 }
 
 pub(crate) async fn revoke_token(
@@ -200,7 +253,8 @@ pub(crate) async fn revoke_token(
 /// side without a read-only token also appearing under capture agents.
 pub(crate) async fn list_tokens(pool: &SqlitePool, scopes: &[&str]) -> Result<Vec<CaptureToken>> {
     let tokens: Vec<CaptureToken> = sqlx::query_as::<_, CaptureTokenRow>(
-        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at, expires_at \
+        "SELECT id, label, scopes_json, created_at, last_used_at, revoked_at, expires_at, \
+         calls_per_minute \
          FROM capture_tokens WHERE revoked_at IS NULL ORDER BY created_at DESC",
     )
     .fetch_all(pool)
@@ -228,6 +282,7 @@ struct CaptureTokenRow {
     last_used_at: Option<DateTime<Utc>>,
     revoked_at: Option<DateTime<Utc>>,
     expires_at: Option<DateTime<Utc>>,
+    calls_per_minute: Option<i64>,
 }
 
 impl TryFrom<CaptureTokenRow> for CaptureToken {
@@ -242,6 +297,12 @@ impl TryFrom<CaptureTokenRow> for CaptureToken {
             last_used_at: row.last_used_at,
             revoked_at: row.revoked_at,
             expires_at: row.expires_at,
+            calls_per_minute: stored_limit(row.calls_per_minute),
         })
     }
+}
+
+/// A stored call limit; a value no `u32` holds reads as none rather than as a number it is not.
+fn stored_limit(value: Option<i64>) -> Option<u32> {
+    value.and_then(|value| u32::try_from(value).ok())
 }

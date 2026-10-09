@@ -156,11 +156,27 @@ pub enum AuditAction {
     /// bucket credential is sent. The `change` detail names which, `fields` the names of the
     /// fields an update changed, `endpoint` where the profile now sends its requests.
     ObjectStorageProfileChanged,
+    /// The remote jobs list was cleared in one go (RD-1200-01): `at_provider` says whether the
+    /// jobs were also discarded at their provider, `provider` and `states` the filter it acted
+    /// on, `removed`, `failed` and `skipped` how many rows went, stayed after a refusal, and were
+    /// left out because they were still running.
+    RemoteJobsCleared,
+    /// A token's call limit per minute was set, changed or cleared (RD-1200-04); the details
+    /// name the limit before and after.
+    TokenLimitsChanged,
+    /// A proxy profile was created, changed or deleted (RD-1200-06): where a stored proxy
+    /// password is sent. The `change` detail names which, `fields` the names of the fields an
+    /// update changed, `endpoint` the proxy the profile now names.
+    ProxyProfileChanged,
+    /// A remote login (FTP, FTPS, SFTP) was created, changed or deleted (RD-1200-06): where a
+    /// stored password or key signs in. The `change` detail names which, `fields` the names of
+    /// the fields an update changed, `server` the protocol, host and port it now signs in to.
+    RemoteCredentialChanged,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 53] = [
+    pub const ALL: [Self; 57] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -214,6 +230,10 @@ impl AuditAction {
         Self::HistoryCleared,
         Self::SubscriptionItemRequeued,
         Self::ObjectStorageProfileChanged,
+        Self::RemoteJobsCleared,
+        Self::TokenLimitsChanged,
+        Self::ProxyProfileChanged,
+        Self::RemoteCredentialChanged,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -273,6 +293,10 @@ impl AuditAction {
             Self::HistoryCleared => "history_cleared",
             Self::SubscriptionItemRequeued => "subscription_item_requeued",
             Self::ObjectStorageProfileChanged => "object_storage_profile_changed",
+            Self::RemoteJobsCleared => "remote_jobs_cleared",
+            Self::TokenLimitsChanged => "token_limits_changed",
+            Self::ProxyProfileChanged => "proxy_profile_changed",
+            Self::RemoteCredentialChanged => "remote_credential_changed",
         }
     }
 

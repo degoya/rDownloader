@@ -331,6 +331,9 @@ impl RdMcpServer {
                 crate::auth::credential(&self.state, &parts.headers, from_this_machine).await
             }
         };
+        // Through MCP, whichever path resolved it: the gate already says so, the fallback does
+        // not (RD-1200-04).
+        let actor = actor.through(rd_core::AuditChannel::Mcp);
         (scopes, crate::audit::AuditContext { actor, trace })
     }
 

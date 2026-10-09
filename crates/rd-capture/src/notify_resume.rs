@@ -126,7 +126,7 @@ fn watch(
     CancellationToken,
     tokio::task::JoinHandle<()>,
 ) {
-    let client = CaptureClient::new(
+    let client = CaptureClient::confirmed(
         format!("http://{}/", service.address)
             .parse()
             .expect("a service address"),

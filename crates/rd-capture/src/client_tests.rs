@@ -280,7 +280,7 @@ async fn a_page_waiting_for_a_choice_is_a_success_of_the_hand_over() {
         r#"{"error":"series.example listed 30 entries; choose which of them to resolve","code":"site_rules.pick_waiting","params":{"entries":"30","list":"19a-0","rule":"series.example"}}"#,
     )
     .await;
-    let client = super::CaptureClient::new(
+    let client = super::CaptureClient::confirmed(
         format!("http://{address}/").parse().expect("url"),
         "token".to_owned(),
     )
@@ -306,7 +306,7 @@ async fn a_page_waiting_for_a_choice_is_a_success_of_the_hand_over() {
         r#"{"error":"nothing was a link","code":"collector.no_links_found"}"#,
     )
     .await;
-    let client = super::CaptureClient::new(
+    let client = super::CaptureClient::confirmed(
         format!("http://{address}/").parse().expect("url"),
         "token".to_owned(),
     )

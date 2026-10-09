@@ -163,5 +163,19 @@
     "mirrors_all": "Cada enlace es el mismo archivo",
     "pick": "Elegir primero, luego obtener",
     "pick_hint": "Un atributo por línea como nombre=patrón, por ejemplo season, episode, resolution, language, hoster. La regla entonces solo lista las entradas; lo que alguien elige se obtiene después, cada entrada con su propio captcha."
+  },
+  "origin": {
+    "label": "Origen",
+    "signed": "Archivo firmado",
+    "signed_detail": "Del archivo de reglas firmado, firmado por {signer}, secuencia {sequence}",
+    "import": "Importada",
+    "import_detail": "Importada de un archivo sin firmar o de una exportación",
+    "editor": "Escrita aquí",
+    "editor_detail": "Creada o modificada en el editor de reglas",
+    "mcp": "Mediante MCP",
+    "mcp_detail": "Escrita o modificada por un cliente MCP",
+    "unknown": "Origen desconocido",
+    "unknown_detail": "Guardada antes de la 1.20, cuando no se registraba el origen",
+    "edit_hint": "Si guardas una regla modificada, pasa a ser tuya: la firma solo cubría la versión del archivo."
   }
 }

@@ -1137,7 +1137,10 @@ recognised as drifting.
   afterwards; the local one says in one line that whatever the provider holds is untouched. The
   confirmation is also a value the request carries, not only a dialog — the server refuses an
   unconfirmed one — so a client that never drew the dialog still deletes nothing.
-  `SettingsRemoteJobsCard.vue` is the implementation (RD-108-04).
+  `SettingsRemoteJobsCard.vue` is the implementation (RD-108-04). For the whole list the pair is
+  one *Clear list* menu over what the provider and state filters show — the local entry neutral,
+  the provider one red and in a group of its own, each question naming the count, the providers
+  and the jobs left running — in `RemoteJobsClearMenu.vue` (RD-1200-01).
 - **What the interface calls a proposal carries the way out of itself, and only a proposal
   does.** A mirror group built on a shared file name alone already reads differently from one a
   page declared — `5 possible mirrors` rather than `5 mirrors`, a warning colour, a dashed edge,
@@ -1736,9 +1739,13 @@ underneath, or from a glyph. Concretely (RD-109-30):
   accessible name.** `Complete` and `Extracted` are each one idea with one icon, so the badge
   carries `i-lucide-circle-check` / `i-lucide-package-open` with the word as `aria-label` and the
   fuller sentence as `title`. This does not weaken "state is named, not implied by colour alone"
-  above — the name is still there, it is simply not rendered. A state that needs a qualifier
-  (`Post-processing 40%`, `Extraction failed`) keeps its text, because there is no one glyph for
-  it.
+  above — the name is still there, it is simply not rendered. The same holds for `Usenet`
+  (`i-lucide-newspaper`), *waiting for missing files* (`i-lucide-hourglass`), a failed unpack or
+  post-processing (`i-lucide-triangle-alert` in the error colour, still the button that opens the
+  steps) and *handed to <provider>* (`i-lucide-cloud`, still the link to the remote jobs): the
+  word is the accessible name and the `UTooltip`, because each word pushed the name cell into the
+  count beside it (owner, 2026-10-08). Only a state whose value changes while you watch
+  (`Post-processing 40%`) keeps its text.
 - **An ordered set of three or fewer levels is a glyph too.** Priority is an arrow up, a dash and
   an arrow down on a `size="xs" variant="ghost"` button whose name reads `Priority: <level>`; the
   levels live in a dropdown beside it and each keeps its own label. A select that spells out

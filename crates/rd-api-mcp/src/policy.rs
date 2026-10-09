@@ -47,6 +47,7 @@ pub const TOOL_POLICY: &[ToolPolicy] = &[
     tool("clear_linkgrabber", "/api/v1/collector/candidates", Method::DELETE),
     tool("clear_log_records", "/api/v1/diagnostics/logs/clear", Method::POST),
     tool("clear_notification_deliveries", "/api/v1/notifications/deliveries/clear", Method::POST),
+    tool("clear_remote_jobs", "/api/v1/remote-jobs/clear", Method::POST),
     tool("clear_storage_operations", "/api/v1/storage/operations/clear", Method::POST),
     tool("clear_subscription_history", "/api/v1/subscriptions/{id}/history", Method::DELETE),
     tool("clear_transfer_stats", "/api/v1/stats/transfers/clear", Method::POST),

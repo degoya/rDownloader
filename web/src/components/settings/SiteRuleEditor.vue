@@ -12,11 +12,14 @@
  * A page that lists several releases is one switch away (RD-1170-02): the rule's steps leave
  * one entry per release in a variable, and a second step list turns each entry into a package
  * of its own, with its own name and its hosters as mirrors.
+ *
+ * A rule being edited shows where it came from (RD-1200-05), in words: the editor has the room
+ * the list row does not.
  */
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { SiteRuleTestResult as TestResult } from '@/api/types'
+import type { SiteRule, SiteRuleTestResult as TestResult } from '@/api/types'
 import DateField from '@/components/DateField.vue'
 import FormActions from '@/components/FormActions.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -25,6 +28,7 @@ import SiteRuleSteps from '@/components/settings/SiteRuleSteps.vue'
 import SiteRuleTestResult from '@/components/settings/SiteRuleTestResult.vue'
 import { GROUP_MIRRORS, draftComplete, type RuleDraft } from '@/composables/useSiteRules'
 import { PLAIN } from '@/utils/numberInput'
+import { originView } from '@/utils/siteRuleOrigin'
 
 const props = withDefaults(defineProps<{
   editingId: string | null
@@ -32,7 +36,9 @@ const props = withDefaults(defineProps<{
   testResult: TestResult | null
   /** The groups this installation already has, so the field can offer them (RD-120-21). */
   groups?: string[]
-}>(), { groups: () => [] })
+  /** Where the rule being edited came from (RD-1200-05); none for a new rule. */
+  origin?: SiteRule['origin'] | null
+}>(), { groups: () => [], origin: null })
 const draft = defineModel<RuleDraft>({ required: true })
 const emit = defineEmits<{ save: [], cancel: [], test: [string] }>()
 
@@ -60,6 +66,8 @@ const groupItems = computed(() => {
     .filter(group => group.length > 0)
   return [...new Set(named)].sort((left, right) => left.localeCompare(right))
 })
+/** The origin of the rule being edited, as the glyph and its sentence. */
+const origin = computed(() => props.origin ? originView(props.origin) : null)
 const complete = computed(() => draftComplete(draft.value))
 /** The trial run needs an address of its own; the probe is the obvious one to start from. */
 const testAddress = computed(() => address.value.trim() || draft.value.probe.trim())
@@ -93,6 +101,15 @@ function runTest(): void {
       :description="t('siterules.editor.description')"
       level="sub"
     />
+
+    <!-- Where the rule came from (RD-1200-05); a changed rule from the signed file becomes the
+         person's own on save, which the hint says before it happens. -->
+    <div v-if="origin" class="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted" data-testid="site-rule-editor-origin">
+      <span>{{ t('siterules.origin.label') }}:</span>
+      <UBadge :color="origin.color" variant="subtle" size="sm" :icon="origin.icon" :label="t(origin.label)" />
+      <span>{{ t(origin.detail, origin.params) }}</span>
+      <p v-if="props.origin?.kind === 'signed'" class="w-full">{{ t('siterules.origin.edit_hint') }}</p>
+    </div>
 
     <!-- One form for the whole rule, so Enter in any field saves it; Enter in the test address
          runs the test instead, because that is what the reader typed the address for. -->

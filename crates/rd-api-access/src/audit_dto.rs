@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use rd_core::{AuditAction, AuditActorKind, AuditOutcome};
+use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -27,6 +27,8 @@ pub struct AuditQueryParams {
     pub actor_kind: Option<String>,
     /// An actor id, exactly.
     pub actor_id: Option<String>,
+    /// How the action came: `rest`, `mcp`, `capture`, `compat` or `internal`.
+    pub via: Option<String>,
     /// A target family, such as `download`.
     pub target_kind: Option<String>,
     /// A target id, exactly.
@@ -54,6 +56,9 @@ pub struct AuditRecordResponse {
     pub actor_kind: AuditActorKind,
     pub actor_id: Option<String>,
     pub actor_label: Option<String>,
+    /// Which door the action came through (RD-1200-04); `rest` for a record written before the
+    /// channel was kept.
+    pub via: AuditChannel,
     pub client_address: Option<String>,
     pub target_kind: Option<String>,
     pub target_id: Option<String>,

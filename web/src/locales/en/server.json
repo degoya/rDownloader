@@ -1236,7 +1236,16 @@
     "mcp.script_not_allowed": "A tool (MCP) may not set a script unless this is allowed in the settings",
     "mcp.setting_outside_mcp": "This setting is changed in the web interface, not through a tool (MCP)",
     "backup.restore_no_space": "The data directory has not enough free space for the restore (needed: {needed} bytes, free: {available} bytes).",
-    "captcha.queue_full": "Too many captchas are already waiting for an answer."
+    "captcha.queue_full": "Too many captchas are already waiting for an answer.",
+    "remote_job.clear_unconfirmed": "Clearing the remote jobs list has to be confirmed explicitly",
+    "remote_job.clear_failed": "This job could not be removed; it stayed in the list",
+    "remote_job.state_invalid": "States are awaiting_choice, ready, failed or discarded",
+    "api.token_rate_limited": "This token made more than {limit} calls this minute. Try again in {seconds} seconds.",
+    "api.token_rate_range": "A token makes 1 to {max} calls per minute, or has no limit",
+    "site_rules.sequence_older": "This rule file is older than one already imported from the same signer (sequence {sequence}, already seen {known}) and was refused.",
+    "object_storage.redirect_refused": "The object storage answered with a redirect, which is not followed. Enter the endpoint it redirects to.",
+    "proxy.password_host_changed": "The proxy address changed: enter the password again, it is not sent to the new host.",
+    "remote.secret_host_changed": "The server changed: enter the password or the key again, it is not sent to the new host."
   },
   "capabilities": {
     "media_download": "media downloads",

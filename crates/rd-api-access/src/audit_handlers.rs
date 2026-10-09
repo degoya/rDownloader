@@ -19,7 +19,7 @@ use axum::{
 };
 use chrono::{DateTime, SecondsFormat, Utc};
 use rd_api_core::input_checks::optional_text;
-use rd_core::{AuditAction, AuditActorKind, AuditOutcome, AuditRetentionSettings};
+use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome, AuditRetentionSettings};
 use rd_db::AuditQuery;
 
 use crate::{
@@ -67,6 +67,12 @@ fn to_query(params: &AuditQueryParams, ceiling: u32) -> Result<AuditQuery, ApiEr
         ),
         None => None,
     };
+    let via = match optional_text(params.via.as_ref()) {
+        Some(word) => {
+            Some(AuditChannel::parse(&word).ok_or_else(|| invalid("via", "Unknown channel"))?)
+        }
+        None => None,
+    };
     let limit = params.limit.unwrap_or(DEFAULT_AUDIT_PAGE);
     if limit == 0 || limit > ceiling {
         return Err(invalid(
@@ -79,6 +85,7 @@ fn to_query(params: &AuditQueryParams, ceiling: u32) -> Result<AuditQuery, ApiEr
         outcome,
         actor_kind,
         actor_id: optional_text(params.actor_id.as_ref()),
+        via,
         target_kind: optional_text(params.target_kind.as_ref()),
         target_id: optional_text(params.target_id.as_ref()),
         trace_id: optional_text(params.trace_id.as_ref()),
@@ -100,6 +107,7 @@ fn to_response(record: rd_db::AuditRecord) -> AuditRecordResponse {
         actor_kind: record.actor_kind,
         actor_id: record.actor_id,
         actor_label: record.actor_label,
+        via: record.via,
         client_address: record.client_address,
         target_kind: record.target_kind,
         target_id: record.target_id,
@@ -202,15 +210,25 @@ mod tests {
             ("action", params()),
             ("outcome", params()),
             ("actor_kind", params()),
+            ("via", params()),
         ] {
             match field {
                 "action" => given.action = Some("deleted_everything".to_owned()),
                 "outcome" => given.outcome = Some("maybe".to_owned()),
+                "via" => given.via = Some("carrier_pigeon".to_owned()),
                 _ => given.actor_kind = Some("root".to_owned()),
             }
             let error = to_query(&given, MAX_AUDIT_PAGE).expect_err("refused");
             assert_eq!(error.code(), "audit.invalid_query", "for {field}");
         }
+    }
+
+    #[test]
+    fn a_channel_word_becomes_the_channel_filter() {
+        let mut given = params();
+        given.via = Some(" mcp ".to_owned());
+        let query = to_query(&given, MAX_AUDIT_PAGE).expect("accepted");
+        assert_eq!(query.via, Some(rd_core::AuditChannel::Mcp));
     }
 
     #[test]

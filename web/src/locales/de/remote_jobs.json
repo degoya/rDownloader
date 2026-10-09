@@ -88,5 +88,32 @@
   "package": {
     "linkgrabber": "Paket „{name}“ im LinkGrabber",
     "downloads": "Das Paket hat den LinkGrabber verlassen – zur Downloadliste"
+  },
+  "clear": {
+    "menu": "Liste leeren",
+    "local": {
+      "action": "Liste leeren, nur hier ({count})",
+      "confirm_title": "Liste nur hier leeren?",
+      "confirm_description": "{count} Auftrag bei {providers} wird aus dieser Liste entfernt. Was der Anbieter hält, bleibt unberührt in deinem Konto. | {count} Aufträge bei {providers} werden aus dieser Liste entfernt. Was die Anbieter halten, bleibt unberührt in deinen Konten.",
+      "confirm_label": "Nur hier leeren"
+    },
+    "provider": {
+      "action": "Beim Anbieter verwerfen und leeren ({count})",
+      "confirm_title": "Beim Anbieter verwerfen und Liste leeren?",
+      "confirm_description": "{count} Auftrag wird in deinem Konto bei {providers} gelöscht, soweit er dort noch besteht, und danach aus dieser Liste entfernt. Das geschieht außerhalb dieses Rechners und lässt sich nicht rückgängig machen. Kann der Anbieter ihn nicht löschen, bleibt er in der Liste und nennt den Grund. | {count} Aufträge werden in deinen Konten bei {providers} gelöscht, soweit sie dort noch bestehen, und danach aus dieser Liste entfernt. Das geschieht außerhalb dieses Rechners und lässt sich nicht rückgängig machen. Ein Auftrag, den sein Anbieter nicht löschen kann, bleibt in der Liste und nennt den Grund.",
+      "confirm_label": "Beim Anbieter löschen und leeren"
+    },
+    "running_left": "{count} Auftrag läuft noch und bleibt stehen. | {count} Aufträge laufen noch und bleiben stehen.",
+    "no_provider": "einem unbekannten Anbieter",
+    "done": "{count} Auftrag entfernt. | {count} Aufträge entfernt.",
+    "partial": "{removed} entfernt; {failed} Auftrag ist geblieben, weil sein Anbieter ihn nicht löschen konnte. | {removed} entfernt; {failed} Aufträge sind geblieben, weil ihr Anbieter sie nicht löschen konnte."
+  },
+  "filter": {
+    "provider": "Anbieter",
+    "state": "Zustand",
+    "all_providers": "Alle Anbieter",
+    "all_states": "Alle Zustände",
+    "none": "Kein Auftrag passt zu diesem Filter.",
+    "reset": "Filter zurücksetzen"
   }
 }

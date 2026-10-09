@@ -51,6 +51,9 @@ const ASKING = {
   ]
 }
 
+/** A state's word on a row, not the same word among the state filter's options (RD-1200-01). */
+const ROWS = { ignore: 'script, style, option' }
+
 const jobs = vi.hoisted(() => ({ value: [] as unknown[] }))
 /** The LinkGrabber's packages, as `/api/v1/collector/packages` answers them. */
 const collectorPackages = vi.hoisted(() => ({ value: [] as unknown[] }))
@@ -76,6 +79,8 @@ vi.mock('@/api/client', () => ({
       }
       if (path === '/api/v1/collector/packages') return { data: collectorPackages.value }
       if (path === '/api/v1/collector/candidates' || path === '/api/v1/nzb/imports') return { data: [] }
+      // The provider names the filter and *Clear list* show (`useAccountProviders`, RD-1200-01).
+      if (path === '/api/v1/providers' || path === '/api/v1/accounts') return { data: [] }
       return { data: jobs.value }
     }),
     POST: vi.fn(async (path: string, init: unknown) => {
@@ -96,6 +101,19 @@ vi.mock('@/api/client', () => ({
   responseError: (response: { error?: { code?: string } }) => response.error?.code ?? 'failed'
 }))
 vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+/** The route the filter reads and writes (`useRemoteJobsFilter`, RD-1200-01), reactive like the real one. */
+const router = vi.hoisted(() => ({
+  route: null as unknown as { path: string, hash: string, query: Record<string, string | undefined> },
+  replace: null as unknown as ReturnType<typeof vi.fn>
+}))
+vi.mock('vue-router', async () => {
+  const { reactive } = await import('vue')
+  router.route = reactive({ path: '/remote-jobs', hash: '', query: {} })
+  router.replace = vi.fn(async ({ query }: { query: Record<string, string | undefined> }) => {
+    router.route.query = { ...query }
+  })
+  return { useRoute: () => router.route, useRouter: () => ({ replace: router.replace }) }
+})
 vi.mock('@nuxt/ui/composables', () => ({
   useToast: () => ({ add: vi.fn() }),
   useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(confirmResult.value) }) }) })
@@ -106,6 +124,7 @@ function mount(accounts: Account[] = [ACCOUNT], installed: string[] | null = ['r
   deletes.length = 0
   submitAnswers.length = 0
   providers.value = installed
+  router.route.query = {}
   return mountComponent(SettingsRemoteJobsCard, {
     messages: { remote_jobs: en, server },
     props: { accounts }
@@ -116,7 +135,7 @@ describe('SettingsRemoteJobsCard', () => {
   it('shows a running job with the stage it is in and the progress the provider measured', async () => {
     jobs.value = [WORKING]
     mount()
-    await waitFor(() => expect(screen.getByText(en.states.working)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(en.states.working, ROWS)).toBeTruthy())
     expect(screen.getByText('42%')).toBeTruthy()
     expect(screen.getByText('REMOTE01')).toBeTruthy()
   })
@@ -193,7 +212,7 @@ describe('SettingsRemoteJobsCard', () => {
     mount()
     const button = await waitFor(() => screen.getByRole('button', { name: en.discard.action }))
     await fireEvent.click(button)
-    await waitFor(() => expect(screen.getByText(en.states.working)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(en.states.working, ROWS)).toBeTruthy())
     expect(posts).toEqual([])
     confirmResult.value = true
   })
@@ -394,14 +413,14 @@ describe('SettingsRemoteJobsCard', () => {
     expect(posts.map(post => (post.init as { params: { path: { id: string } } }).params.path.id)).toEqual(['a1', 'a1', 'a1'])
     await waitFor(() => expect(screen.getByText(en.files.states.already_running)).toBeTruthy())
     expect(screen.getByText(en.files.states.started)).toBeTruthy()
-    expect(screen.getByText(en.files.states.failed)).toBeTruthy()
+    expect(screen.getByText(en.files.states.failed, ROWS)).toBeTruthy()
     expect(screen.getByText('container.unrecognised')).toBeTruthy()
     expect(screen.getByText(en.files.states.refused)).toBeTruthy()
     expect(view.emitted('error')?.[0]).toEqual([
       en.files.summary_failed.replace('{failed}', '1').replace('{total}', '3')
     ])
     // Both jobs the server answered with are in the list.
-    await waitFor(() => expect(screen.getAllByText(en.states.working).length).toBe(2))
+    await waitFor(() => expect(screen.getAllByText(en.states.working, ROWS).length).toBe(2))
   })
 
   it('takes files dropped on the form like chosen ones', async () => {

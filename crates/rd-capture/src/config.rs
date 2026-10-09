@@ -137,7 +137,8 @@ pub(crate) const EXIT_NOT_PAIRED: u8 = 10;
 /// Same reasoning as [`EXIT_NOT_PAIRED`], for the other state that is not a fault: nothing but
 /// a capture agent binds 9666, so a busy port means a Click'n'Load listener is already there —
 /// a second agent from autostart, or JDownloader. Reporting that as a failed start sends people
-/// to the logs for a crash that never happened.
+/// to the logs for a crash that never happened. An agent of the same account that still holds
+/// the single-instance lock after the wait ends the start with this code too (RD-1200-03).
 pub(crate) const EXIT_PORT_BUSY: u8 = 11;
 
 /// Whether a capture token is available at all, without reading one out of the keyring twice.

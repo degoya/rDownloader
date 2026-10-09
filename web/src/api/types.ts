@@ -233,6 +233,8 @@ export type BundleCreated = components['schemas']['BundleCreatedResponse']
 export type AuditAction = components['schemas']['AuditAction']
 export type AuditOutcome = components['schemas']['AuditOutcome']
 export type AuditActorKind = components['schemas']['AuditActorKind']
+/** Which door an audited action came through (RD-1200-04). */
+export type AuditChannel = components['schemas']['AuditChannel']
 export type AuditRecord = components['schemas']['AuditRecordResponse']
 export type AuditRecordsPage = components['schemas']['AuditRecordsResponse']
 

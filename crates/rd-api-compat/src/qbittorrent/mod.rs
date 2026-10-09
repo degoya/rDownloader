@@ -192,6 +192,9 @@ async fn require_api_token(
         rd_api_core::auth::CompatAccess::Unavailable => {
             StatusCode::SERVICE_UNAVAILABLE.into_response()
         }
+        rd_api_core::auth::CompatAccess::RateLimited {
+            retry_after_seconds,
+        } => crate::rate_limited(retry_after_seconds),
     }
 }
 
@@ -238,6 +241,10 @@ async fn login(
         rd_api_core::auth::CompatAccess::Unavailable => {
             return StatusCode::SERVICE_UNAVAILABLE.into_response();
         }
+        // The key was right; it only has to wait (RD-1200-04).
+        rd_api_core::auth::CompatAccess::RateLimited {
+            retry_after_seconds,
+        } => return crate::rate_limited(retry_after_seconds),
     }
     (
         [(header::SET_COOKIE, session_cookie(&state, &password).await)],

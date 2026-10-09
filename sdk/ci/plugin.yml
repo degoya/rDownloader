@@ -21,7 +21,7 @@ env:
   # (`scripts/set-version.sh` writes it). Bump it when you build against a newer contract; the
   # version must be one that supports the `api_version` in your manifest, or conformance refuses
   # the package.
-  RDOWNLOADER_VERSION: 1.19.0
+  RDOWNLOADER_VERSION: 1.20.0
 
 jobs:
   plugin:

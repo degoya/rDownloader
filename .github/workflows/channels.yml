@@ -144,10 +144,24 @@ jobs:
             echo "::error::the tap carries ${current}, the release was ${EXPECT}: the release did not move it"
             exit 1
           fi
+          # RD-1200-02: an upgrade on macOS meets the keychain item the old build created, which
+          # trusts only that ad-hoc signed build; the service no longer waits on the prompt nobody
+          # sees but ends with `keychain_interaction_refused` and the way out. The job does not
+          # allow the new build beforehand (that needs the login keychain's password and tests a
+          # path no user takes), so the macOS upgrade runs red, at once and with that message,
+          # until a Developer ID signature lets the item trust the next build (RD-200-01).
           serve() {
             brew services start rdownloader
-            if ! curl --fail --silent --show-error --retry 60 --retry-delay 1 --retry-connrefused \
-              http://127.0.0.1:8710/api/v1/health; then
+            local answered=false
+            for _ in $(seq 1 60); do
+              curl --fail --silent http://127.0.0.1:8710/api/v1/health && { answered=true; break; }
+              if grep -qF keychain_interaction_refused "${log}" 2> /dev/null; then
+                echo "::error::the service stopped at the keychain (keychain_interaction_refused); see its log below"
+                break
+              fi
+              sleep 1
+            done
+            if [[ "${answered}" != true ]]; then
               scripts/ci-brew-service-diagnostics.sh
               exit 1
             fi

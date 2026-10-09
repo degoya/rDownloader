@@ -88,5 +88,32 @@
   "package": {
     "linkgrabber": "Paquete «{name}» en el LinkGrabber",
     "downloads": "El paquete ha salido del LinkGrabber – ir a la lista de descargas"
+  },
+  "clear": {
+    "menu": "Vaciar la lista",
+    "local": {
+      "action": "Vaciar la lista solo aquí ({count})",
+      "confirm_title": "¿Vaciar la lista solo aquí?",
+      "confirm_description": "{count} trabajo en {providers} se quita de esta lista. Lo que tenga el proveedor sigue intacto en tu cuenta. | {count} trabajos en {providers} se quitan de esta lista. Lo que tengan los proveedores sigue intacto en tus cuentas.",
+      "confirm_label": "Vaciar solo aquí"
+    },
+    "provider": {
+      "action": "Descartar en el proveedor y vaciar ({count})",
+      "confirm_title": "¿Descartar en el proveedor y vaciar la lista?",
+      "confirm_description": "{count} trabajo se elimina en tu cuenta de {providers}, si aún existe allí, y después se quita de esta lista. Ocurre fuera de esta máquina y no se puede deshacer. Si el proveedor no puede eliminarlo, permanece en la lista e indica el motivo. | {count} trabajos se eliminan en tus cuentas de {providers}, si aún existen allí, y después se quitan de esta lista. Ocurre fuera de esta máquina y no se puede deshacer. Un trabajo que su proveedor no puede eliminar permanece en la lista e indica el motivo.",
+      "confirm_label": "Eliminar en el proveedor y vaciar"
+    },
+    "running_left": "{count} trabajo sigue en curso y se queda. | {count} trabajos siguen en curso y se quedan.",
+    "no_provider": "un proveedor desconocido",
+    "done": "{count} trabajo quitado. | {count} trabajos quitados.",
+    "partial": "{removed} quitados; {failed} trabajo se quedó porque su proveedor no pudo eliminarlo. | {removed} quitados; {failed} trabajos se quedaron porque su proveedor no pudo eliminarlos."
+  },
+  "filter": {
+    "provider": "Proveedor",
+    "state": "Estado",
+    "all_providers": "Todos los proveedores",
+    "all_states": "Todos los estados",
+    "none": "Ningún trabajo coincide con este filtro.",
+    "reset": "Restablecer filtro"
   }
 }

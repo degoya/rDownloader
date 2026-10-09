@@ -5,7 +5,7 @@ import { api } from '@/api/client'
 import { usePagedRecords } from '@/composables/usePagedRecords'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { BASE_PATH } from '@/basePath'
-import type { AuditAction, AuditActorKind, AuditOutcome, AuditRecord, AuditRecordsPage } from '@/api/types'
+import type { AuditAction, AuditActorKind, AuditChannel, AuditOutcome, AuditRecord, AuditRecordsPage } from '@/api/types'
 
 /** Records one read asks for; the server caps a page at 500. */
 const AUDIT_PAGE_SIZE = 200
@@ -18,6 +18,8 @@ interface AuditFilters {
   action: AuditAction | 'all'
   outcome: AuditOutcome | 'all'
   actorKind: AuditActorKind | 'all'
+  /** How the action came: REST, MCP, the capture door, a compatibility client (RD-1200-04). */
+  via: AuditChannel | 'all'
   actorId: string
   targetKind: string
   targetId: string
@@ -30,6 +32,7 @@ interface AuditQuery {
   action?: AuditAction
   outcome?: AuditOutcome
   actor_kind?: AuditActorKind
+  via?: AuditChannel
   actor_id?: string
   target_kind?: string
   target_id?: string
@@ -38,7 +41,7 @@ interface AuditQuery {
 }
 
 function emptyFilters(): AuditFilters {
-  return { action: 'all', outcome: 'all', actorKind: 'all', actorId: '', targetKind: '', targetId: '', traceId: '' }
+  return { action: 'all', outcome: 'all', actorKind: 'all', via: 'all', actorId: '', targetKind: '', targetId: '', traceId: '' }
 }
 
 /**
@@ -63,6 +66,7 @@ export const useAuditStore = defineStore('audit', () => {
     if (filters.action !== 'all') params.action = filters.action
     if (filters.outcome !== 'all') params.outcome = filters.outcome
     if (filters.actorKind !== 'all') params.actor_kind = filters.actorKind
+    if (filters.via !== 'all') params.via = filters.via
     if (filters.actorId.trim()) params.actor_id = filters.actorId.trim()
     if (filters.targetKind.trim()) params.target_kind = filters.targetKind.trim()
     if (filters.targetId.trim()) params.target_id = filters.targetId.trim()

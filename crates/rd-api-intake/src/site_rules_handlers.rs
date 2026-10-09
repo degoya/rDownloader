@@ -1,6 +1,6 @@
 //! The site-rule settings page over REST (RD-110-08).
 //!
-//! Four things happen here that are worth stating before the code says them.
+//! Five things happen here that are worth stating before the code says them.
 //!
 //! **Every rule is the person's own** (RD-130-07). Nothing arrives with the binary any more;
 //! the project's rules are a signed release file, and importing it stores them here like any
@@ -17,6 +17,10 @@
 //! is enforced here rather than in the interface, so a client that never drew the dialog still
 //! activates nothing. A signature proves who wrote a rule, not that this person wants it.
 //!
+//! **Every write records where the body came from** (RD-1200-05): the signed file with its
+//! signer and sequence, an unsigned import, the editor or an MCP tool. A switch keeps the
+//! origin; an edit replaces it, because a signature covers the body it was made over.
+//!
 //! **A write takes effect without a restart.** The catalogue in force is replaced after every
 //! change, through `rd_plugin_ext::SiteRules::replace`, which exists for exactly this.
 
@@ -27,7 +31,9 @@ use axum::{
     body::Bytes,
     extract::{Path, State},
 };
-use rd_db::NewUserSiteRule;
+/// What a write records as the rule's origin; the MCP tools name theirs through it.
+pub use rd_db::SiteRuleOriginKind;
+use rd_db::{NewUserSiteRule, SiteRuleOrigin};
 use rd_siterules::Rule;
 use url::Url;
 
@@ -38,16 +44,18 @@ use crate::{
     site_rules_dto::{
         ImportSiteRulesResponse, ImportedSiteRuleResponse, SaveSiteRuleRequest,
         SiteRuleCheckResponse, SiteRuleDocument, SiteRuleGroupResponse, SiteRuleImportRequest,
-        SiteRuleResponse, SiteRuleSwitchRequest, SiteRulesResponse, TestSiteRuleRequest,
-        TestSiteRuleResponse, TestedEntryResponse, TestedGroupLinkResponse, TestedGroupResponse,
-        TestedLinkResponse,
+        SiteRuleOriginResponse, SiteRuleResponse, SiteRuleSwitchRequest, SiteRulesResponse,
+        TestSiteRuleRequest, TestSiteRuleResponse, TestedEntryResponse, TestedGroupLinkResponse,
+        TestedGroupResponse, TestedLinkResponse,
     },
     site_rules_service,
 };
 
 mod transfer;
+mod write;
 
 pub use transfer::*;
+pub use write::*;
 
 /// The document version the export writes and the import reads.
 const DOCUMENT_VERSION: u32 = rd_siterules::FORMAT_VERSION;
@@ -86,10 +94,18 @@ fn check_response(check: &rd_db::SiteRuleCheck) -> SiteRuleCheckResponse {
     }
 }
 
+fn origin_response(origin: &SiteRuleOrigin) -> SiteRuleOriginResponse {
+    SiteRuleOriginResponse {
+        kind: origin.kind.as_str().to_owned(),
+        signer: origin.signer.clone(),
+        sequence: origin.sequence,
+    }
+}
+
 /// One row built from a parsed rule.
 fn row(
     rule: &Rule,
-    enabled: bool,
+    stored: &rd_db::UserSiteRule,
     active: bool,
     checks: &BTreeMap<String, rd_db::SiteRuleCheck>,
 ) -> SiteRuleResponse {
@@ -102,10 +118,11 @@ fn row(
         probe: rule.probe.clone(),
         mirrors: rule.mirrors,
         steps: rule.steps.len(),
-        enabled,
+        enabled: stored.enabled,
         active,
         rule: serde_json::to_value(rule).unwrap_or(serde_json::Value::Null),
         check: checks.get(&rule.id).map(check_response),
+        origin: origin_response(&stored.origin),
     }
 }
 
@@ -127,7 +144,7 @@ pub async fn list_site_rules(
         // and delete it, and a list that silently drops what it cannot parse is how a rule
         // becomes a ghost. What it does not get is the fields only a parsed rule has.
         match serde_json::from_value::<Rule>(stored.rule.clone()) {
-            Ok(rule) => rules.push(row(&rule, stored.enabled, active, &checks)),
+            Ok(rule) => rules.push(row(&rule, &stored, active, &checks)),
             Err(_) => rules.push(SiteRuleResponse {
                 id: stored.id.clone(),
                 name: stored.name.clone(),
@@ -139,8 +156,9 @@ pub async fn list_site_rules(
                 steps: 0,
                 enabled: stored.enabled,
                 active: false,
-                rule: stored.rule,
                 check: checks.get(&stored.id).map(check_response),
+                origin: origin_response(&stored.origin),
+                rule: stored.rule,
             }),
         }
     }
@@ -162,69 +180,6 @@ pub async fn list_site_rules(
         })
         .collect();
     Ok(Json(SiteRulesResponse { rules, groups }))
-}
-
-#[utoipa::path(
-    post,
-    path = "/api/v1/site-rules",
-    tag = "configuration",
-    request_body = SaveSiteRuleRequest,
-    responses((status = 200, body = MessageResponse))
-)]
-pub async fn create_site_rule(
-    State(state): State<AppState>,
-    Json(request): Json<SaveSiteRuleRequest>,
-) -> Result<Json<MessageResponse>, ApiError> {
-    let rule = parse_rule(&request.rule)?;
-    if state
-        .database
-        .list_site_rules()
-        .await?
-        .iter()
-        .any(|stored| stored.id == rule.id)
-    {
-        return Err(ApiError::conflict(
-            "site_rules.duplicate_id",
-            "A rule with this id already exists",
-        )
-        .with_param("rule", rule.id));
-    }
-    store(&state, &rule, request.enabled).await?;
-    Ok(Json(MessageResponse::new(
-        "site_rules.saved",
-        "The rule was saved",
-    )))
-}
-
-#[utoipa::path(
-    put,
-    path = "/api/v1/site-rules/{id}",
-    tag = "configuration",
-    request_body = SaveSiteRuleRequest,
-    params(("id" = String, Path, description = "The rule's own identifier")),
-    responses((status = 200, body = MessageResponse))
-)]
-pub async fn update_site_rule(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-    Json(request): Json<SaveSiteRuleRequest>,
-) -> Result<Json<MessageResponse>, ApiError> {
-    let rule = parse_rule(&request.rule)?;
-    if rule.id != id {
-        // Renaming a rule is a delete and a create, because the id is what the switch, the
-        // self-test row and every reference to it are keyed by.
-        return Err(ApiError::bad_request(
-            "site_rules.id_mismatch",
-            "The rule's id does not match the address it was sent to",
-        )
-        .with_param("rule", rule.id));
-    }
-    user_rule(&state, &id).await?;
-    store(&state, &rule, request.enabled).await?;
-    Ok(Json(MessageResponse::new(
-        "site_rules.saved",
-        "The rule was saved",
-    )))
 }
 
 #[utoipa::path(
@@ -271,6 +226,7 @@ pub async fn set_site_rule_enabled(
             group: stored.group,
             enabled: request.enabled,
             rule: stored.rule,
+            origin: stored.origin,
         })
         .await?;
     reload(&state).await;
@@ -449,8 +405,14 @@ fn group_response(group: &rd_siterules::CrawlGroup) -> TestedGroupResponse {
     }
 }
 
-/// Writes one of the person's own rules and puts the new catalogue into force.
-async fn store(state: &AppState, rule: &Rule, enabled: bool) -> Result<(), ApiError> {
+/// Writes one of the person's own rules with where it came from and puts the new catalogue
+/// into force.
+async fn store(
+    state: &AppState,
+    rule: &Rule,
+    enabled: bool,
+    origin: SiteRuleOrigin,
+) -> Result<(), ApiError> {
     state
         .database
         .upsert_site_rule(NewUserSiteRule {
@@ -461,6 +423,7 @@ async fn store(state: &AppState, rule: &Rule, enabled: bool) -> Result<(), ApiEr
             rule: serde_json::to_value(rule).map_err(|error| {
                 ApiError::bad_request("site_rules.invalid_rule", error.to_string())
             })?,
+            origin,
         })
         .await?;
     reload(state).await;

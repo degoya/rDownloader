@@ -23,6 +23,10 @@ pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+mod os_keyring;
+
+pub use os_keyring::{KEYRING_INTERACTION_REFUSED, KeyringInteractionRefused};
+
 const KEYRING_SERVICE: &str = "rDownloader";
 const KEYRING_USER: &str = "master-key";
 const REFERENCE_PREFIX: &str = "vault://";
@@ -311,8 +315,23 @@ fn parse_reference(reference: &str) -> Result<Uuid> {
     Ok(id)
 }
 
+/// Reads the master key from the OS keyring: `None` when it holds none yet.
+type KeyringRead = fn() -> Result<Option<[u8; 32]>>;
+
 async fn load_or_create_master_key(root: &std::path::Path, os_keyring: bool) -> Result<[u8; 32]> {
-    if os_keyring && let Some(key) = load_keyring_key()? {
+    master_key_from(root, os_keyring.then_some(load_keyring_key as KeyringRead)).await
+}
+
+/// The master key from `read_keyring` when given, else from the file beside the vault; a new one
+/// only when neither holds one. Any failure of the keyring read ends here, before a key is
+/// minted (RD-1200-02).
+async fn master_key_from(
+    root: &std::path::Path,
+    read_keyring: Option<KeyringRead>,
+) -> Result<[u8; 32]> {
+    if let Some(read) = read_keyring
+        && let Some(key) = read()?
+    {
         return Ok(key);
     }
     let fallback = root.join("master.key");
@@ -324,7 +343,7 @@ async fn load_or_create_master_key(root: &std::path::Path, os_keyring: bool) -> 
     let mut key = [0_u8; 32];
     rand::rng().fill_bytes(&mut key);
     let encoded = STANDARD.encode(key);
-    let stored_in_keyring = os_keyring
+    let stored_in_keyring = read_keyring.is_some()
         && keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
             .and_then(|entry| entry.set_password(&encoded))
             .is_ok();
@@ -349,20 +368,12 @@ fn load_keyring_key() -> Result<Option<[u8; 32]>> {
     // Constructing the entry fails when the platform has no credential store at all -- a
     // headless Linux install with no session D-Bus is the common case -- and such an install
     // has to keep starting, so it falls through to the file fallback. Reading the entry is
-    // deliberately not treated the same way: see below.
+    // deliberately not treated the same way: see `os_keyring::classify`.
     let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER) else {
         return Ok(None);
     };
-    let encoded = match entry.get_password() {
-        Ok(encoded) => encoded,
-        // The one error that really means "never set, or deleted".
-        Err(keyring::Error::NoEntry) => return Ok(None),
-        // A locked login session, or a keyring daemon that is not up yet, reports a readable
-        // entry as unreadable. Treating that as "no key stored yet" would make the caller mint
-        // a fresh master key and overwrite the stored one, leaving every account password,
-        // NNTP credential and TOTP seed in the vault permanently undecryptable. Fail startup
-        // instead.
-        Err(error) => return Err(error).context("read vault master key from the OS keyring"),
+    let Some(encoded) = os_keyring::read_master_key(&entry)? else {
+        return Ok(None);
     };
     let bytes = STANDARD
         .decode(encoded)

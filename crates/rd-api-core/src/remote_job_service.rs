@@ -37,10 +37,12 @@ use tokio_util::sync::CancellationToken;
 
 use crate::link_check_service::LinkCheckService;
 
+mod clear;
 mod naming;
 mod requests;
 mod sweep;
 
+pub use clear::{ClearedRemoteJob, RemoteJobClearFilter, RemoteJobClearReport};
 pub use naming::source_name;
 
 /// Largest container a remote job may carry: 16 MiB.
@@ -396,3 +398,7 @@ mod provider_tests;
 #[cfg(test)]
 #[path = "remote_job_service/package_tests.rs"]
 mod package_tests;
+
+#[cfg(test)]
+#[path = "remote_job_service/clear_tests.rs"]
+mod clear_tests;

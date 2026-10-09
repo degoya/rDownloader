@@ -13,7 +13,9 @@
     "target_placeholder": "download",
     "target_id": "Target id",
     "trace": "Trace id",
-    "clear": "Clear filters"
+    "clear": "Clear filters",
+    "via": "Channel",
+    "any_via": "Any channel"
   },
   "outcomes": {
     "success": "Succeeded",
@@ -78,7 +80,11 @@
     "password_reset_local": "Password reset on the host",
     "history_cleared": "Download history cleared",
     "subscription_item_requeued": "Subscription item queued again",
-    "object_storage_profile_changed": "Object storage profile changed"
+    "object_storage_profile_changed": "Object storage profile changed",
+    "remote_jobs_cleared": "Remote jobs list cleared",
+    "token_limits_changed": "Token limits changed",
+    "proxy_profile_changed": "Proxy profile changed",
+    "remote_credential_changed": "Remote login changed"
   },
   "list": {
     "title": "Records",
@@ -89,11 +95,19 @@
     "expand": "Show details",
     "collapse": "Hide details",
     "actor_id": "Actor id",
-    "retention": "Kept for {days} days or {records} records, whichever runs out first."
+    "retention": "Kept for {days} days or {records} records, whichever runs out first.",
+    "via": "via {channel}"
   },
   "append_only": {
     "eyebrow": "Guarantee",
     "title": "Append-only",
     "description": "There is no route that edits or deletes a record, and the database refuses an update to this table outright. Deleting a download, a package, a category or a storage root leaves its record behind, and restoring a configuration backup does not touch the log. This is a record of what happened, not a protection against someone with access to the file itself."
+  },
+  "channels": {
+    "rest": "REST",
+    "mcp": "MCP",
+    "capture": "Browser extension or desktop agent",
+    "compat": "SABnzbd or qBittorrent client",
+    "internal": "The service itself"
   }
 }

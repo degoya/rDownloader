@@ -764,5 +764,12 @@
     "days": "Nach {count} Tagen",
     "expires_on": "Läuft ab am {date}",
     "expired": "Abgelaufen"
+  },
+  "token_rate": {
+    "label": "Aufrufe pro Minute",
+    "hint": "REST und MCP zusammen. Leer heißt keine Grenze; ein Aufruf darüber wird bis zum Ende der Minute abgelehnt.",
+    "unit": "/min",
+    "none": "Keine Grenze",
+    "row": "Höchstens {count} Aufrufe pro Minute"
   }
 }

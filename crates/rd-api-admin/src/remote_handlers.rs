@@ -3,7 +3,9 @@
 //!
 //! Credential values enter through write-only request fields, are validated, and are then
 //! handed straight to the secret store. Nothing here ever returns a stored value or its
-//! `vault://` reference.
+//! `vault://` reference. A stored credential belongs to the server it was typed for: a changed
+//! protocol, host or port asks for it again, and every change to a login is audited
+//! (RD-1200-06, `remote_audit.rs`).
 
 use axum::{
     Json,
@@ -19,6 +21,7 @@ use rd_db::StoreErrorKind;
 
 use crate::{
     ApiError, AppState,
+    audit::AuditContext,
     config_fields::{cleanup_secrets, store_optional, validate_name, validate_secret_value},
     dto::{
         CreateRemoteCredentialRequest, MessageResponse, RemoteCredentialTestResponse,
@@ -36,6 +39,7 @@ pub async fn list_remote_credentials(
 #[utoipa::path(post, path = "/api/v1/remote-credentials", tag = "configuration", request_body = CreateRemoteCredentialRequest, responses((status = 201, body = rd_core::RemoteCredential), (status = 400), (status = 409)))]
 pub async fn create_remote_credential(
     State(state): State<AppState>,
+    audit: AuditContext,
     Json(request): Json<CreateRemoteCredentialRequest>,
 ) -> Result<(StatusCode, Json<RemoteCredential>), ApiError> {
     validate_name(&request.name)?;
@@ -82,7 +86,10 @@ pub async fn create_remote_credential(
         })
         .await;
     match result {
-        Ok(credential) => Ok((StatusCode::CREATED, Json(credential))),
+        Ok(credential) => {
+            remote_audit::record(&state, &audit, &credential, "created", None).await;
+            Ok((StatusCode::CREATED, Json(credential)))
+        }
         Err(error) => {
             cleanup_secrets(&state.secrets, [secret_ref, key_ref, passphrase_ref]).await;
             Err(map_store_error(&error))
@@ -94,6 +101,7 @@ pub async fn create_remote_credential(
 pub async fn update_remote_credential(
     State(state): State<AppState>,
     Path(id): Path<RemoteCredentialId>,
+    audit: AuditContext,
     Json(request): Json<UpdateRemoteCredentialRequest>,
 ) -> Result<Json<RemoteCredential>, ApiError> {
     validate_name(&request.name)?;
@@ -119,10 +127,24 @@ pub async fn update_remote_credential(
 
     // An omitted credential keeps the stored one, but only while the mode still uses the
     // same kind of credential; switching mode invalidates it rather than, say, offering a
-    // password where a key is expected.
+    // password where a key is expected. And only for the same server: a token that can never
+    // read the password must not point the login at a host of its own and receive it there
+    // (RD-1200-06).
+    let same_server = remote_audit::same_server(&stored, request.protocol, &host, port);
     let same_mode = stored.auth_mode == request.auth_mode;
-    let keeps_secret = secret.is_none() && same_mode;
-    let keeps_key = private_key.is_none() && same_mode && !request.clear_private_key;
+    let keeps = same_mode && same_server;
+    let keeps_secret = secret.is_none() && keeps;
+    let keeps_key = private_key.is_none() && keeps && !request.clear_private_key;
+    if same_mode
+        && !same_server
+        && remote_audit::drops_credential(
+            &stored,
+            secret.is_some(),
+            private_key.is_some() || request.clear_private_key,
+        )
+    {
+        return Err(remote_audit::secret_host_changed());
+    }
     validate_auth(
         request.protocol,
         request.auth_mode,
@@ -171,6 +193,8 @@ pub async fn update_remote_credential(
     match result {
         Ok((credential, orphaned)) => {
             cleanup_secrets(&state.secrets, orphaned.into_iter().map(Some)).await;
+            let fields = remote_audit::changed_fields(&stored, &credential);
+            remote_audit::record(&state, &audit, &credential, "updated", Some(&fields)).await;
             Ok(Json(credential))
         }
         Err(error) => {
@@ -191,13 +215,20 @@ pub async fn update_remote_credential(
 pub async fn delete_remote_credential(
     State(state): State<AppState>,
     Path(id): Path<RemoteCredentialId>,
+    audit: AuditContext,
 ) -> Result<Json<MessageResponse>, ApiError> {
+    let stored = state
+        .database
+        .remote_credential(id)
+        .await?
+        .ok_or_else(not_found)?;
     let orphaned = state
         .database
         .delete_remote_credential(id)
         .await
         .map_err(|_| not_found())?;
     cleanup_secrets(&state.secrets, orphaned.into_iter().map(Some)).await;
+    remote_audit::record(&state, &audit, &stored, "deleted", None).await;
     Ok(Json(MessageResponse::new(
         "remote.credential_deleted",
         "Remote login deleted",
@@ -434,6 +465,9 @@ fn map_store_error(error: &anyhow::Error) -> ApiError {
     }
     ApiError::from(anyhow::anyhow!(error.to_string()))
 }
+
+#[path = "remote_audit.rs"]
+mod remote_audit;
 
 #[cfg(test)]
 #[path = "remote_handlers_tests.rs"]

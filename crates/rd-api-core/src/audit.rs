@@ -20,7 +20,7 @@
 use std::collections::BTreeMap;
 
 use axum::http::request::Parts;
-use rd_core::{AuditAction, AuditActorKind, AuditOutcome, TraceContext, redact_text};
+use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome, TraceContext, redact_text};
 use rd_db::NewAuditRecord;
 
 use crate::AppState;
@@ -37,6 +37,9 @@ pub struct Actor {
     pub id: Option<String>,
     /// What a person called it, when there is such a name.
     pub label: Option<String>,
+    /// Which door the action came through (RD-1200-04): one token is one actor whether it
+    /// called a REST route or an MCP tool, and this is what tells the two apart.
+    pub via: AuditChannel,
 }
 
 impl Actor {
@@ -45,6 +48,7 @@ impl Actor {
             kind: AuditActorKind::Anonymous,
             id: None,
             label: None,
+            via: AuditChannel::Rest,
         }
     }
 
@@ -53,6 +57,7 @@ impl Actor {
             kind: AuditActorKind::System,
             id: None,
             label: None,
+            via: AuditChannel::Internal,
         }
     }
 
@@ -61,6 +66,7 @@ impl Actor {
             kind: AuditActorKind::Session,
             id: Some(id.into()),
             label: None,
+            via: AuditChannel::Rest,
         }
     }
 
@@ -72,6 +78,7 @@ impl Actor {
             kind: AuditActorKind::System,
             id: None,
             label: Some("local_control".to_owned()),
+            via: AuditChannel::Rest,
         }
     }
 
@@ -82,6 +89,7 @@ impl Actor {
             kind: AuditActorKind::System,
             id: None,
             label: Some("cli".to_owned()),
+            via: AuditChannel::Internal,
         }
     }
 
@@ -90,7 +98,16 @@ impl Actor {
             kind: AuditActorKind::Token,
             id: Some(id.into()),
             label: Some(label.into()),
+            via: AuditChannel::Rest,
         }
+    }
+
+    /// The same actor, come through `via` (RD-1200-04). Set by the door that knows it: the
+    /// `/mcp` gate, the capture door, the compatibility adapters.
+    #[must_use]
+    pub fn through(mut self, via: AuditChannel) -> Self {
+        self.via = via;
+        self
     }
 }
 
@@ -263,6 +280,7 @@ pub fn to_record(event: AuditEvent) -> NewAuditRecord {
         actor_kind: event.actor.kind,
         actor_id: clean_option(event.actor.id),
         actor_label: clean_option(event.actor.label),
+        via: event.actor.via,
         client_address: clean_option(event.client_address),
         target_kind: clean_option(event.target_kind),
         target_id: clean_option(event.target_id),
@@ -335,5 +353,20 @@ mod tests {
         let record = to_record(AuditEvent::success(AuditAction::SettingsReset));
         assert_eq!(record.actor_kind, AuditActorKind::System);
         assert!(record.actor_id.is_none());
+        assert_eq!(record.via, rd_core::AuditChannel::Internal);
+    }
+
+    #[test]
+    fn the_door_an_actor_came_through_reaches_the_record() {
+        let through_mcp = to_record(
+            AuditEvent::success(AuditAction::DownloadDeleted)
+                .actor(Actor::token("tok-1", "agent").through(rd_core::AuditChannel::Mcp)),
+        );
+        assert_eq!(through_mcp.via, rd_core::AuditChannel::Mcp);
+        let through_rest = to_record(
+            AuditEvent::success(AuditAction::DownloadDeleted).actor(Actor::token("tok-1", "agent")),
+        );
+        assert_eq!(through_rest.via, rd_core::AuditChannel::Rest);
+        assert_eq!(Actor::cli().via, rd_core::AuditChannel::Internal);
     }
 }

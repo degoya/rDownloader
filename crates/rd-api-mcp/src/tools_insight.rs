@@ -88,7 +88,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Read the audit log: who did what, when, and whether it succeeded. Every argument is an optional filter -- action, outcome (success|failure), actor_kind, actor_id, target_kind, target_id, trace_id, since/until as RFC 3339, limit (1-500). The answer lists every action word it knows, so an unfamiliar one can be looked up there."
+        description = "Read the audit log: who did what, when, and whether it succeeded. Every argument is an optional filter -- action, outcome (success|failure), actor_kind, actor_id, via (how the action came: rest|mcp|capture|compat|internal; every record shows it, a call through this server is mcp), target_kind, target_id, trace_id, since/until as RFC 3339, limit (1-500). The answer lists every action word it knows, so an unfamiliar one can be looked up there."
     )]
     pub async fn list_audit_records(
         &self,
@@ -102,6 +102,7 @@ impl RdMcpServer {
                     outcome: params.outcome,
                     actor_kind: params.actor_kind,
                     actor_id: params.actor_id,
+                    via: params.via,
                     target_kind: params.target_kind,
                     target_id: params.target_id,
                     trace_id: params.trace_id,
@@ -317,7 +318,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the release-page rules that turn a link on a page into the files behind it: every rule of this installation, with its group, whether each is switched on, and whether it is active (a rule in a switched-off group is on but not active)."
+        description = "List the release-page rules that turn a link on a page into the files behind it: every rule of this installation, with its group, whether each is switched on, and whether it is active (a rule in a switched-off group is on but not active), and its `origin`: kind signed (the signed release file, with the `signer` key id and the file's `sequence`), import (an unsigned file or export), editor, mcp, or unknown (stored before 1.20)."
     )]
     pub async fn list_site_rules(&self) -> McpToolResult {
         respond(

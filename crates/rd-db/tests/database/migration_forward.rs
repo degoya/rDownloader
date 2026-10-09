@@ -37,6 +37,7 @@
 mod baselines;
 mod fixture;
 mod per_migration;
+mod site_rule_origin;
 
 use std::borrow::Cow;
 

@@ -5,7 +5,7 @@
 //! on, so a list can be drawn without parsing every body.
 
 use rd_core::EventKind;
-use rd_db::{Database, NewUserSiteRule};
+use rd_db::{Database, NewUserSiteRule, SiteRuleOrigin, SiteRuleOriginKind};
 use tempfile::TempDir;
 
 async fn database(directory: &TempDir) -> Database {
@@ -21,6 +21,7 @@ fn rule(id: &str) -> NewUserSiteRule {
         group: "board".to_owned(),
         enabled: true,
         rule: serde_json::json!({ "id": id, "steps": [{ "kind": "fetch" }] }),
+        origin: SiteRuleOrigin::unsigned(SiteRuleOriginKind::Editor),
     }
 }
 
@@ -123,4 +124,88 @@ async fn every_write_announces_exactly_one_change() {
     assert_eq!(drain(&mut events).len(), 1);
     database.delete_site_rule("mine").await.expect("delete");
     assert!(drain(&mut events).is_empty());
+}
+
+/// The origin is stored with the body and replaced with it (RD-1200-05): a signed rule keeps
+/// its signer and sequence across a restart, and an edit that writes another origin drops them.
+#[tokio::test]
+async fn a_rule_keeps_where_it_came_from_until_its_body_is_replaced() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    {
+        let database = database(&directory).await;
+        let mut signed = rule("from-the-file");
+        signed.origin = SiteRuleOrigin::signed("rdownloader-siterules-v1", 9);
+        database.upsert_site_rule(signed).await.expect("upsert");
+    }
+    let database = database(&directory).await;
+    let stored = database.list_site_rules().await.expect("list");
+    assert_eq!(
+        stored[0].origin,
+        SiteRuleOrigin::signed("rdownloader-siterules-v1", 9)
+    );
+    let mut edited = rule("from-the-file");
+    edited.origin = SiteRuleOrigin::unsigned(SiteRuleOriginKind::Mcp);
+    let edited = database.upsert_site_rule(edited).await.expect("upsert");
+    assert_eq!(edited.origin.kind, SiteRuleOriginKind::Mcp);
+    assert_eq!(edited.origin.signer, None);
+    assert_eq!(edited.origin.sequence, None);
+}
+
+/// The mark per signer only rises, and each call answers the mark before it (RD-1200-05).
+#[tokio::test]
+async fn the_highest_sequence_per_signer_only_rises() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = database(&directory).await;
+    let signer = "rdownloader-siterules-v1";
+    assert_eq!(
+        database
+            .record_site_rule_pack(signer, 9)
+            .await
+            .expect("first"),
+        None
+    );
+    assert_eq!(
+        database
+            .record_site_rule_pack(signer, 9)
+            .await
+            .expect("same"),
+        Some(9)
+    );
+    assert_eq!(
+        database
+            .record_site_rule_pack(signer, 7)
+            .await
+            .expect("older"),
+        Some(9)
+    );
+    // The older file did not lower the mark.
+    assert_eq!(
+        database
+            .record_site_rule_pack(signer, 9)
+            .await
+            .expect("again"),
+        Some(9)
+    );
+    assert_eq!(
+        database
+            .record_site_rule_pack(signer, 10)
+            .await
+            .expect("newer"),
+        Some(9)
+    );
+    assert_eq!(
+        database
+            .record_site_rule_pack(signer, 10)
+            .await
+            .expect("now"),
+        Some(10)
+    );
+    // Another signer has a mark of its own.
+    assert_eq!(
+        database
+            .record_site_rule_pack("other", 1)
+            .await
+            .expect("other"),
+        None
+    );
 }

@@ -53,6 +53,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // Re-scoping is the one route that can *widen* a credential, so it costs the area that
     // already covers handing one out in the first place.
     entry("/api/v1/api-tokens/{id}", Method::PATCH, SECRETS),
+    // A token's call limit (RD-1200-04) is managed where its scopes are, at the same price.
+    entry("/api/v1/api-tokens/{id}/limits", Method::PUT, SECRETS),
     // The audit log names who acted, from where, on what. It is the most concentrated
     // description of an installation this service holds, so it costs what diagnostics
     // costs and one step sharper: an `api:read` token on a status page must not read it
@@ -633,6 +635,9 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // The same area as the accounts they run on: the list says which accounts hold work at
     // which provider, and `discard` deletes at that provider on a confirmed request.
     entry("/api/v1/remote-jobs", Method::GET, SECRETS),
+    // Clearing the list, here only or at the provider too (RD-1200-01): the same rows the
+    // single-job `DELETE` and `discard` act on, so the same price.
+    entry("/api/v1/remote-jobs/clear", Method::POST, SECRETS),
     // Which providers can take a job at all (RD-120-23). `CONFIG`, not `SECRETS` like the four
     // routes around it, and the difference is what the answer is *about*. Those act on one
     // account's jobs; this one names no account, reads no credential and touches no row -- it

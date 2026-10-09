@@ -13,7 +13,9 @@
     "target_placeholder": "download",
     "target_id": "Id de la cible",
     "trace": "Id de trace",
-    "clear": "Effacer les filtres"
+    "clear": "Effacer les filtres",
+    "via": "Canal",
+    "any_via": "Tout canal"
   },
   "outcomes": {
     "success": "Réussi",
@@ -78,7 +80,11 @@
     "password_reset_local": "Mot de passe réinitialisé sur la machine",
     "history_cleared": "Historique des téléchargements vidé",
     "subscription_item_requeued": "Entrée d’abonnement remise en file",
-    "object_storage_profile_changed": "Profil de stockage objet modifié"
+    "object_storage_profile_changed": "Profil de stockage objet modifié",
+    "remote_jobs_cleared": "Liste des travaux distants vidée",
+    "token_limits_changed": "Limites du jeton modifiées",
+    "proxy_profile_changed": "Profil de proxy modifié",
+    "remote_credential_changed": "Accès distant modifié"
   },
   "list": {
     "title": "Entrées",
@@ -89,11 +95,19 @@
     "expand": "Afficher les détails",
     "collapse": "Masquer les détails",
     "actor_id": "Id de l'acteur",
-    "retention": "Conservées {days} jours ou {records} entrées, selon ce qui arrive en premier."
+    "retention": "Conservées {days} jours ou {records} entrées, selon ce qui arrive en premier.",
+    "via": "via {channel}"
   },
   "append_only": {
     "eyebrow": "Garantie",
     "title": "Ajout seul",
     "description": "Aucune route ne modifie ni ne supprime une entrée, et la base de données refuse catégoriquement une mise à jour de cette table. Supprimer un téléchargement, un paquet, une catégorie ou une racine de stockage laisse son entrée, et restaurer une sauvegarde ne touche pas au journal. C'est une trace de ce qui s'est passé, pas une protection contre quelqu'un qui aurait accès au fichier lui-même."
+  },
+  "channels": {
+    "rest": "REST",
+    "mcp": "MCP",
+    "capture": "Extension de navigateur ou agent de bureau",
+    "compat": "Client SABnzbd ou qBittorrent",
+    "internal": "Le service lui-même"
   }
 }

@@ -127,6 +127,7 @@ async fn a_clearing_tool_acts_only_on_the_code_its_own_question_handed_out() {
         "clear_storage_operations",
         "clear_content_index",
         "clear_download_history",
+        "clear_remote_jobs",
     ] {
         // `confirmed` alone is the model's own word: the tool asks instead of acting.
         let asked = ok(&router, &session, tool, json!({ "confirmed": true })).await;
@@ -308,4 +309,85 @@ async fn a_revoked_token_ends_its_mcp_session() {
     )
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "{answer}");
+}
+
+/// RD-1200-01, owner 2026-10-08: `clear_remote_jobs` clears this installation's list and never
+/// deletes at a provider, whatever the call asks. The job names a plugin nothing installs, so a
+/// discard would fail and keep its row; the row going with nothing failed is the proof that no
+/// discard was attempted.
+#[tokio::test]
+async fn clearing_remote_jobs_over_mcp_never_reaches_a_provider() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (router, database) = super::installation_parts(directory.path()).await;
+    let account = database
+        .create_account(rd_db::NewAccount {
+            provider: "torbox".to_owned(),
+            label: "torbox mcp clear".to_owned(),
+            username: None,
+            credential_mode: None,
+            secret_ref: None,
+            cookie_ref: None,
+            proxy_profile_id: None,
+            enabled: true,
+        })
+        .await
+        .expect("account");
+    let id = rd_core::RemoteJobId::new();
+    database
+        .claim_remote_job(rd_db::ClaimRemoteJob {
+            id,
+            account_id: account.id,
+            plugin_id: "019d0000-0000-7000-8000-0000000012c1".to_owned(),
+            content_key: format!("mcp-clear-{id}"),
+            source_kind: rd_core::RemoteJobSourceKind::Magnet,
+            source: b"magnet:?xt=urn:btih:mcp-clear".to_vec(),
+            source_name: None,
+            package_id: None,
+        })
+        .await
+        .expect("claim");
+    database
+        .advance_remote_job(
+            id,
+            rd_db::AdvanceRemoteJob {
+                state: Some(rd_core::RemoteJobState::Ready),
+                remote_id: Some("TB-MCP".to_owned()),
+                next_poll_at: Some(Some(chrono::Utc::now() + chrono::Duration::days(1))),
+                ..rd_db::AdvanceRemoteJob::default()
+            },
+        )
+        .await
+        .expect("advance");
+    let session = handshake(&router, API_BEARER).await;
+
+    let asking = json!({ "confirmed": true, "at_provider": true });
+    let asked = ok(&router, &session, "clear_remote_jobs", asking).await;
+    assert!(
+        asked["question"]
+            .as_str()
+            .is_some_and(|text| text.contains("nothing is deleted at the provider")),
+        "{asked}"
+    );
+    let code = asked["confirmation"].as_str().expect("a code").to_owned();
+    let answered = json!({ "confirmed": true, "at_provider": true, "confirmation": code });
+    let done = ok(&router, &session, "clear_remote_jobs", answered).await;
+    assert_eq!(done["removed"], 1, "{done}");
+    assert_eq!(done["failed"], 0, "{done}");
+    assert!(database.remote_job(id).await.expect("read").is_none());
+
+    let records = database
+        .query_audit_records(&rd_db::AuditQuery {
+            action: Some(rd_core::AuditAction::RemoteJobsCleared),
+            limit: 50,
+            ..rd_db::AuditQuery::default()
+        })
+        .await
+        .expect("audit");
+    assert_eq!(
+        records
+            .first()
+            .and_then(|record| record.details.get("at_provider"))
+            .map(String::as_str),
+        Some("false")
+    );
 }

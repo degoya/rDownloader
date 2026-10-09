@@ -9,6 +9,12 @@
 //! installation's own list, and it says so in its own answer. `submit_nzb_import_remote_job`
 //! hands an NZB import from the LinkGrabber to a provider the same way, and
 //! `submit_package_remote_job` the NZB behind a queued package (RD-191-13).
+//!
+//! `clear_remote_jobs` clears the list, or the part a provider and state filter selects
+//! (RD-1200-01), here only, behind the question every clearing tool asks first since RD-1190-21.
+//! The REST route's `at_provider` variant stays web-only by the owner's line of 2026-09-23 --
+//! no tool changes something irreversibly outside this machine -- which the owner confirmed for
+//! this tool on 2026-10-08: the tool always sends `at_provider: false`.
 
 use axum::{
     Json,
@@ -21,11 +27,13 @@ use super::{
     error::{McpToolResult, parse_id, respond},
     params_config::IdParams,
     params_insight::{
-        RemoteJobChoiceParams, SubmitNzbImportRemoteJobParams, SubmitPackageRemoteJobParams,
-        SubmitRemoteJobParams,
+        ClearRemoteJobsParams, RemoteJobChoiceParams, SubmitNzbImportRemoteJobParams,
+        SubmitPackageRemoteJobParams, SubmitRemoteJobParams,
     },
 };
-use crate::remote_job_handlers::{RemoteJobChoiceRequest, SubmitRemoteJobRequest};
+use crate::remote_job_handlers::{
+    RemoteJobChoiceRequest, RemoteJobClearRequest, SubmitRemoteJobRequest,
+};
 
 #[tool_router(router = remote_router, vis = "pub(crate)")]
 impl RdMcpServer {
@@ -147,6 +155,53 @@ impl RdMcpServer {
             Ok(crate::remote_job_handlers::forget_remote_job(
                 State(self.state.clone()),
                 AxumPath(id),
+            )
+            .await?
+            .0)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Remove remote jobs from this installation's list, all of them or the part one provider and a set of states select (`provider` a slug, `states` from awaiting_choice, ready, failed, discarded). Nothing is sent to any provider and nothing is deleted there; the jobs stay in the provider accounts. Deleting at the provider is not available here and is done in the web UI. Jobs still running at their provider (submitting, preparing, working) are always left out and listed under `skipped`. Irreversible for the list, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. The answer counts `removed` and lists every job with its provider."
+    )]
+    pub async fn clear_remote_jobs(
+        &self,
+        Parameters(params): Parameters<ClearRemoteJobsParams>,
+    ) -> McpToolResult {
+        if let Some(question) =
+            self.ask_first(
+            "clear_remote_jobs",
+            params.confirmation.as_deref(),
+            "Remove the selected remote jobs from this installation's list (nothing is deleted at the provider).",
+        )
+        {
+            return question;
+        }
+        let result = async {
+            let states = params
+                .states
+                .iter()
+                .map(|state| {
+                    rd_core::RemoteJobState::from_str_value(state.trim()).ok_or_else(|| {
+                        crate::ApiError::bad_request(
+                            "remote_job.state_invalid",
+                            "states are awaiting_choice, ready, failed or discarded",
+                        )
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(crate::remote_job_handlers::clear_remote_jobs(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                Json(RemoteJobClearRequest {
+                    confirmed: params.confirmed,
+                    // Never at the provider over MCP (owner, 2026-09-23 and 2026-10-08).
+                    at_provider: false,
+                    provider: params.provider,
+                    states,
+                }),
             )
             .await?
             .0)

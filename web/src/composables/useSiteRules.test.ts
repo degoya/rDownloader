@@ -106,7 +106,8 @@ describe('the rule body a draft describes', () => {
       enabled: true,
       active: true,
       rule: toBody(draft) as never,
-      check: null
+      check: null,
+      origin: { kind: 'editor', signer: null, sequence: null }
     }
     const reopened = fromRule(rule)
     expect(toBody(reopened)).toEqual(toBody(draft))
@@ -183,7 +184,8 @@ describe('a rule with one package per entry (RD-1170-02)', () => {
       enabled: false,
       active: false,
       rule: toBody(draft) as never,
-      check: null
+      check: null,
+      origin: { kind: 'editor', signer: null, sequence: null }
     }
     const reopened = fromRule(rule)
     expect(reopened.grouped).toBe(true)
@@ -237,7 +239,8 @@ describe('a copy of a rule (RD-130-07)', () => {
       enabled: true,
       active: true,
       rule: body as never,
-      check: null
+      check: null,
+      origin: { kind: 'editor', signer: null, sequence: null }
     }
     // The shared copy name, as `useCopyName()` builds it with the English suffix.
     const copyName = (original: string, existing: Iterable<string>, maxLength: number) =>
@@ -280,7 +283,8 @@ describe('a two-stage rule (RD-1170-03)', () => {
   it('opens and writes back the pick, the JSON form and the captcha page unchanged', () => {
     const rule: SiteRule = {
       id: body.id, name: body.name, group: body.group, hosts: body.match.hosts, version: 1, probe: body.probe,
-      mirrors: false, steps: 2, enabled: false, active: false, rule: body as never, check: null
+      mirrors: false, steps: 2, enabled: false, active: false, rule: body as never, check: null,
+      origin: { kind: 'editor', signer: null, sequence: null }
     }
     const draft = fromRule(rule)
     expect(draft.groups.pick).toBe('episode="episode":(\\d+)\nseason="season":(\\d+)')

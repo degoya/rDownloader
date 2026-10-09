@@ -163,5 +163,19 @@
     "mirrors_all": "Chaque lien est le même fichier",
     "pick": "Choisir d’abord, puis récupérer",
     "pick_hint": "Un attribut par ligne sous la forme nom=motif, par exemple season, episode, resolution, language, hoster. La règle ne fait alors que lister les entrées ; ce que quelqu’un choisit est récupéré ensuite, chaque entrée avec son propre captcha."
+  },
+  "origin": {
+    "label": "Origine",
+    "signed": "Fichier signé",
+    "signed_detail": "Du fichier de règles signé, signé par {signer}, séquence {sequence}",
+    "import": "Importée",
+    "import_detail": "Importée depuis un fichier non signé ou un export",
+    "editor": "Écrite ici",
+    "editor_detail": "Créée ou modifiée dans l’éditeur de règles",
+    "mcp": "Via MCP",
+    "mcp_detail": "Écrite ou modifiée par un client MCP",
+    "unknown": "Origine inconnue",
+    "unknown_detail": "Enregistrée avant la 1.20, quand l’origine n’était pas consignée",
+    "edit_hint": "Enregistrer une règle modifiée en fait la vôtre : la signature ne couvrait que la version du fichier."
   }
 }

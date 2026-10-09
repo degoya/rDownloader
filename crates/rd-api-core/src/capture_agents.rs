@@ -129,7 +129,9 @@ pub async fn connect(state: &AppState, headers: &HeaderMap) -> Option<Connection
         .capture_token_identity(&crate::auth::digest_of(token))
         .await
     {
-        Ok(Some((id, _, _))) => Some(state.capture_agents.connect(id, reported_version(headers))),
+        Ok(Some((id, _, _, _))) => {
+            Some(state.capture_agents.connect(id, reported_version(headers)))
+        }
         Ok(None) => None,
         Err(error) => {
             tracing::warn!(%error, "could not identify the capture agent behind a stream");

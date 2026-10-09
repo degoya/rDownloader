@@ -764,5 +764,12 @@
     "days": "Après {count} jours",
     "expires_on": "Expire le {date}",
     "expired": "Expiré"
+  },
+  "token_rate": {
+    "label": "Appels par minute",
+    "hint": "REST et MCP ensemble. Vide signifie aucune limite ; un appel au-delà est refusé jusqu’à la fin de la minute.",
+    "unit": "/min",
+    "none": "Aucune limite",
+    "row": "Au plus {count} appels par minute"
   }
 }

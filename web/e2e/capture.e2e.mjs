@@ -147,7 +147,9 @@ test('the agent pairs, starts and takes links over both of its doors', { timeout
   await t.test('an rdownloader:// address reaches the LinkGrabber', async () => {
     const id = marker('scheme')
     const link = `${fileHost.origin}/${id}.bin`
-    captureOk(['handle', '--agent', agentOrigin, `rdownloader://add?url=${encodeURIComponent(link)}`])
+    // Straight to the service with the pairing token `configure` stored (RD-1200-03): the agent's
+    // own hand-over route and its `--agent` flag are gone.
+    captureOk(['handle', `rdownloader://add?url=${encodeURIComponent(link)}`])
     const { value, elapsedMs: arrival } = await session.awaitCandidate(id)
     assert.equal(value.url, link)
     console.log(`scheme link in the LinkGrabber after ${arrival} ms`)

@@ -80,6 +80,11 @@ async fn handle(
         rd_api_core::auth::CompatAccess::Unavailable => {
             return error("Service temporarily unavailable, try again later");
         }
+        // A real `429`, unlike the errors above: the key is right and only has to wait, and a
+        // client backs off on the status, not on a message (RD-1200-04).
+        rd_api_core::auth::CompatAccess::RateLimited {
+            retry_after_seconds,
+        } => return crate::rate_limited(retry_after_seconds),
     }
     match query.mode.as_str() {
         "version" => config::version(),

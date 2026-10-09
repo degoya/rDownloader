@@ -28,3 +28,18 @@ use rd_api_queue::{download_handlers, package_handlers, torrent_control};
 pub fn routes(state: &AppState) -> Router<AppState> {
     sabnzbd::routes().merge(qbittorrent::routes(state))
 }
+
+/// The answer to a key over its call limit (RD-1200-04), the same on both adapters: a plain
+/// `429` with `Retry-After`, which SABnzbd and qBittorrent clients both back off on.
+pub(crate) fn rate_limited(retry_after_seconds: u64) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    (
+        axum::http::StatusCode::TOO_MANY_REQUESTS,
+        [(
+            axum::http::header::RETRY_AFTER,
+            retry_after_seconds.to_string(),
+        )],
+        "Too many calls for this API key; try again later.",
+    )
+        .into_response()
+}

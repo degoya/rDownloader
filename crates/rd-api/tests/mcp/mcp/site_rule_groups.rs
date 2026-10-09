@@ -185,6 +185,9 @@ async fn an_agent_writes_tests_and_saves_a_rule_with_a_package_per_release() {
         .unwrap_or_else(|| panic!("the rule is not listed: {listed}"));
     assert_eq!(stored["rule"], rule, "stored as written, groups included");
     assert_eq!(stored["active"], true);
+    // The rule says it was written through MCP, with no signer (RD-1200-05).
+    assert_eq!(stored["origin"]["kind"], "mcp", "{stored}");
+    assert!(stored["origin"]["signer"].is_null(), "{stored}");
 
     // In force for the next paste: the crawler selection turns the page into the
     // LinkGrabber's packages -- one per release -- and its mirror groups.

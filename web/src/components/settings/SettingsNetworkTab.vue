@@ -16,6 +16,7 @@ import { useFormFocus } from '@/composables/useFormFocus'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { editingRowClass } from '@/utils/editingRow'
+import { sameProxyAddress } from '@/utils/proxyAddress'
 import FormFeedback from '@/components/FormFeedback.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
@@ -103,6 +104,21 @@ const list = useEditableList<ProxyProfile, CreateProxyProfile>({
 })
 const { editingId, pending, error } = list
 
+/**
+ * A stored password goes to no other proxy (RD-1200-06): an edit that changes the scheme, the
+ * host or the port asks for it again, and the server refuses the save without it.
+ */
+const passwordMoved = computed(() => {
+  const editing = proxies.value.find(proxy => proxy.id === editingId.value)
+  return Boolean(editing?.has_credentials && proxyForm.username && !sameProxyAddress(editing.endpoint, proxyForm.endpoint))
+})
+const passwordRequired = computed(() => Boolean((copiedFrom.value || passwordMoved.value) && proxyForm.username))
+const passwordDescription = computed(() => {
+  if (passwordMoved.value) return t('settings.proxy.password_host_changed')
+  if (copiedFrom.value && proxyForm.username) return t('settings.proxy.password_copy', { name: copiedFrom.value })
+  return t('settings.proxy.password_description')
+})
+
 const proxyItems = computed(() => [
   { label: t('settings.proxy.direct'), value: NO_SELECTION },
   ...proxies.value.map(proxy => ({ label: `${proxy.name} · ${proxy.kind}`, value: proxy.id }))
@@ -118,7 +134,7 @@ function chosenHere(id: string): boolean {
 }
 
 async function saveProxy(): Promise<void> {
-  if (!proxyForm.name || !proxyForm.endpoint) return
+  if (!proxyForm.name || !proxyForm.endpoint || (passwordMoved.value && !proxyForm.password)) return
   proxyMessage.value = null
   const updating = editingId.value !== null
   const saved = await list.submit({
@@ -220,13 +236,13 @@ defineExpose({ proxyDirty: proxyBaseline.dirty })
                   </UFormField>
                   <UFormField
                     :label="t('settings.proxy.password_label')"
-                    :description="copiedFrom && proxyForm.username ? t('settings.proxy.password_copy', { name: copiedFrom }) : t('settings.proxy.password_description')"
-                    :required="Boolean(copiedFrom && proxyForm.username)"
+                    :description="passwordDescription"
+                    :required="passwordRequired"
                   >
                     <UInput
                       v-model="proxyForm.password"
                       type="password"
-                      :placeholder="editingId ? t('settings.proxy.password_keep') : t('settings.proxy.password_placeholder')"
+                      :placeholder="editingId && !passwordMoved ? t('settings.proxy.password_keep') : t('settings.proxy.password_placeholder')"
                       autocomplete="new-password"
                       class="w-full"
                     />
@@ -236,7 +252,7 @@ defineExpose({ proxyDirty: proxyBaseline.dirty })
                     :cancellable="editingId !== null || copiedFrom !== null"
                     :create-label="t('settings.proxy.create')"
                     :save-label="t('settings.proxy.save')"
-                    :disabled="!proxyForm.name || !proxyForm.endpoint"
+                    :disabled="!proxyForm.name || !proxyForm.endpoint || (passwordMoved && !proxyForm.password)"
                     :loading="pending"
                     @cancel="list.reset"
                   />

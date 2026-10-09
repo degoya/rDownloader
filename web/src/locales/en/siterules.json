@@ -163,5 +163,19 @@
     "mirrors_all": "Every link is the same file",
     "pick": "Choose first, then fetch",
     "pick_hint": "One attribute per line as name=pattern, such as season, episode, resolution, language, hoster. The rule then only lists the entries; what somebody picks is fetched afterwards, each entry with a captcha of its own."
+  },
+  "origin": {
+    "label": "Origin",
+    "signed": "Signed file",
+    "signed_detail": "From the signed rule file, signed by {signer}, sequence {sequence}",
+    "import": "Imported",
+    "import_detail": "Imported from an unsigned file or an export",
+    "editor": "Written here",
+    "editor_detail": "Created or changed in the rule editor",
+    "mcp": "Through MCP",
+    "mcp_detail": "Written or changed by an MCP client",
+    "unknown": "Origin unknown",
+    "unknown_detail": "Stored before 1.20, when no origin was recorded",
+    "edit_hint": "Saving a changed rule makes it your own: the signature covered only the file's version."
   }
 }

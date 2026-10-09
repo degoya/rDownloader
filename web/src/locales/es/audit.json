@@ -13,7 +13,9 @@
     "target_placeholder": "download",
     "target_id": "Id del objetivo",
     "trace": "Id de traza",
-    "clear": "Limpiar filtros"
+    "clear": "Limpiar filtros",
+    "via": "Canal",
+    "any_via": "Cualquier canal"
   },
   "outcomes": {
     "success": "Correcto",
@@ -78,7 +80,11 @@
     "password_reset_local": "Contraseña restablecida en el equipo",
     "history_cleared": "Historial de descargas vaciado",
     "subscription_item_requeued": "Entrada de suscripción vuelta a poner en cola",
-    "object_storage_profile_changed": "Perfil de almacenamiento de objetos modificado"
+    "object_storage_profile_changed": "Perfil de almacenamiento de objetos modificado",
+    "remote_jobs_cleared": "Lista de trabajos remotos vaciada",
+    "token_limits_changed": "Límites del token cambiados",
+    "proxy_profile_changed": "Perfil de proxy modificado",
+    "remote_credential_changed": "Acceso remoto modificado"
   },
   "list": {
     "title": "Registros",
@@ -89,11 +95,19 @@
     "expand": "Mostrar detalles",
     "collapse": "Ocultar detalles",
     "actor_id": "Id del actor",
-    "retention": "Se conservan {days} días o {records} registros, lo que termine antes."
+    "retention": "Se conservan {days} días o {records} registros, lo que termine antes.",
+    "via": "vía {channel}"
   },
   "append_only": {
     "eyebrow": "Garantía",
     "title": "Solo añadir",
     "description": "No existe ninguna ruta que edite o elimine un registro, y la base de datos rechaza de plano una actualización de esta tabla. Eliminar una descarga, un paquete, una categoría o una raíz de almacenamiento deja su registro, y restaurar una copia de seguridad no toca el registro. Esto es una constancia de lo ocurrido, no una protección frente a quien tenga acceso al propio archivo."
+  },
+  "channels": {
+    "rest": "REST",
+    "mcp": "MCP",
+    "capture": "Extensión del navegador o agente de escritorio",
+    "compat": "Cliente SABnzbd o qBittorrent",
+    "internal": "El propio servicio"
   }
 }

@@ -36,7 +36,11 @@ pub async fn import_site_rules(
     body: Bytes,
 ) -> Result<Json<ImportSiteRulesResponse>, ApiError> {
     rd_api_core::input_checks::require_media_type(&headers, "application/json")?;
-    let (bodies, signed) = import_bodies(&body)?;
+    let (bodies, signature) = import_bodies(&body)?;
+    let origin = match &signature {
+        Some(signature) => admit(&state, signature).await?,
+        None => SiteRuleOrigin::unsigned(SiteRuleOriginKind::Import),
+    };
     let mut existing: Vec<String> = state
         .database
         .list_site_rules()
@@ -82,7 +86,7 @@ pub async fn import_site_rules(
         }
         // Switched off, without asking and without an option to ask otherwise: nothing a file
         // brings starts active here, signed or not.
-        store(&state, &rule, false).await?;
+        store(&state, &rule, false, origin.clone()).await?;
         existing.push(rule.id.clone());
         stored_count += 1;
         results.push(ImportedSiteRuleResponse {
@@ -95,31 +99,67 @@ pub async fn import_site_rules(
     Ok(Json(ImportSiteRulesResponse {
         rules: results,
         stored: stored_count,
-        signed,
+        signed: signature.is_some(),
     }))
 }
 
-/// The rule bodies an imported file carries, and whether they came under a signature that
-/// held (RD-130-07).
+/// Who signed an imported file and its sequence (RD-1200-05).
+pub(super) struct Signature {
+    signer: String,
+    sequence: u64,
+}
+
+/// Measures a signed file's sequence against the highest one accepted from its signer and
+/// records it, or refuses an older file whole with `site_rules.sequence_older` -- before a
+/// single rule of it is stored. The same sequence again passes: a second import of one file
+/// restores a rule deleted since, and its rules already stored are reported as duplicates.
+async fn admit(state: &AppState, signature: &Signature) -> Result<SiteRuleOrigin, ApiError> {
+    let known = state
+        .database
+        .record_site_rule_pack(&signature.signer, signature.sequence)
+        .await?;
+    rd_siterules::admit_sequence(signature.sequence, known).map_err(|error| {
+        ApiError::conflict(error.code(), error.to_string())
+            .with_param("signer", &signature.signer)
+            .with_param("sequence", signature.sequence)
+            .with_param("known", known.unwrap_or_default())
+    })?;
+    Ok(SiteRuleOrigin::signed(
+        &signature.signer,
+        signature.sequence,
+    ))
+}
+
+/// The rule bodies an imported file carries, and who signed them when they came under a
+/// signature that held (RD-130-07, RD-1200-05).
 ///
 /// A file with `signatures` is the signed release file and is verified as one, against the
 /// compiled-in site-rules root and from the bytes exactly as they arrived -- the signature
 /// covers those bytes, not a parsed copy of them. One that does not verify is refused whole,
 /// with the pack's own code, and is never read a second time as an unsigned export: a release
 /// file that fails its signature is a damaged or altered one, not somebody's own rules.
-pub(super) fn import_bodies(bytes: &[u8]) -> Result<(Vec<serde_json::Value>, bool), ApiError> {
+pub(super) fn import_bodies(
+    bytes: &[u8],
+) -> Result<(Vec<serde_json::Value>, Option<Signature>), ApiError> {
     let value: serde_json::Value = serde_json::from_slice(bytes)
         .map_err(|error| ApiError::bad_request("site_rules.malformed", error.to_string()))?;
     if value.get("signatures").is_some() {
-        let pack = rd_siterules::verify(bytes, None, chrono::Utc::now())
-            .map_err(|error| ApiError::bad_request(error.code(), error.to_string()))?;
+        let rd_siterules::SignedPack { pack, signer } =
+            rd_siterules::verify_signed(bytes, chrono::Utc::now())
+                .map_err(|error| ApiError::bad_request(error.code(), error.to_string()))?;
         let bodies = pack
             .rules
             .iter()
             .map(serde_json::to_value)
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| ApiError::bad_request("site_rules.invalid_rule", error.to_string()))?;
-        return Ok((bodies, true));
+        return Ok((
+            bodies,
+            Some(Signature {
+                signer,
+                sequence: pack.sequence,
+            }),
+        ));
     }
     let document: SiteRuleDocument = serde_json::from_value(value)
         .map_err(|error| ApiError::bad_request("site_rules.malformed", error.to_string()))?;
@@ -130,5 +170,5 @@ pub(super) fn import_bodies(bytes: &[u8]) -> Result<(Vec<serde_json::Value>, boo
         )
         .with_param("format_version", document.format_version));
     }
-    Ok((document.rules, false))
+    Ok((document.rules, None))
 }

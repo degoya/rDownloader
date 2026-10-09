@@ -10,7 +10,9 @@ use rd_update::{
     install::{self, Journal, Phase},
 };
 
-use super::{Installation, Launcher, Progress, UpdateService};
+#[cfg(any(test, feature = "test-support"))]
+use super::{Installation, Launcher};
+use super::{Progress, UpdateService};
 use crate::dto::UpdateInstallStatus;
 
 /// How long a handed-over update may wait for its updater to take the lock before the status

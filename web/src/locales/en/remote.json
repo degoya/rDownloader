@@ -32,7 +32,8 @@
     "form_new": "New login",
     "create_action": "Create login",
     "created": "Login created",
-    "saved": "Login saved"
+    "saved": "Login saved",
+    "secret_host_changed": "The protocol, host or port changed: the stored password or key is not sent to the new server. Enter it again."
   },
   "protocols": {
     "ftp": "FTP (no encryption)",

@@ -95,6 +95,17 @@ impl SignedDocument {
         domain: &str,
         trust: &TrustStore,
     ) -> Result<T, VerifyError> {
+        self.verify_signer(domain, trust)
+            .map(|(payload, _)| payload)
+    }
+
+    /// [`verify`](Self::verify), also naming the trusted key whose signature held: what a
+    /// caller records as the document's signer (RD-1200-05).
+    pub fn verify_signer<T: DeserializeOwned>(
+        &self,
+        domain: &str,
+        trust: &TrustStore,
+    ) -> Result<(T, String), VerifyError> {
         let digest = self.digest(domain);
         if trust.is_revoked_digest(&digest)? {
             return Err(VerifyError::Revoked);
@@ -111,6 +122,7 @@ impl SignedDocument {
             if verify_detached(&key, &digest, &entry.signature).is_ok() {
                 return serde_json::from_str(self.payload.get())
                     .context("parse signed document payload")
+                    .map(|payload| (payload, entry.key_id.clone()))
                     .map_err(VerifyError::Other);
             }
         }
@@ -221,6 +233,25 @@ mod tests {
         let parsed = SignedDocument::parse(&encoded).expect("parse");
         let read: Payload = parsed.verify(DOMAIN, &trust).expect("verify");
         assert_eq!(read, payload());
+    }
+
+    /// The signer a caller records is the key whose signature held, not the first one named.
+    #[test]
+    fn the_signer_is_the_key_whose_signature_held() {
+        let key = SigningKey::from_bytes(&[5; 32]);
+        let (document, trust) = signed(&key, "release");
+        let mut encoded: serde_json::Value =
+            serde_json::from_slice(&serde_json::to_vec(&document).expect("encode")).expect("json");
+        let genuine = encoded["signatures"][0].clone();
+        let mut stranger = genuine.clone();
+        stranger["key_id"] = serde_json::Value::String("stranger".to_owned());
+        encoded["signatures"] = serde_json::json!([stranger, genuine]);
+        let parsed =
+            SignedDocument::parse(&serde_json::to_vec(&encoded).expect("encode")).expect("parse");
+        let (read, signer): (Payload, String) =
+            parsed.verify_signer(DOMAIN, &trust).expect("verify");
+        assert_eq!(read, payload());
+        assert_eq!(signer, "release");
     }
 
     /// The whole point of the length-prefixed domain field.

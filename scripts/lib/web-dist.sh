@@ -32,11 +32,29 @@ rd_web_dist_trap() {
     [[ "$(rd_target_dir "$root")" == "$(rd_target_dir "$main")" ]]
 }
 
+# Whether linked worktree $1 has no web/dist at all — neither the link nor a folder (2026-10-08).
+# check.sh's web half then builds a folder of its own (check-web.sh builds where there is no
+# link) while the Rust half already compiles rd-api against a missing folder: the run fails on
+# rust-embed, and the next one is refused as the trap above.
+rd_web_dist_missing() {
+    local root="$1" main
+    main="$(rd_main_root "$root")"
+    [[ "$main" != "$root" && ! -e "$root/web/dist" && ! -L "$root/web/dist" ]] || return 1
+    [[ "$(rd_target_dir "$root")" == "$(rd_target_dir "$main")" ]]
+}
+
 # Refuses checkout $1 when it is in the trap, saying why and how out; $2 names the caller.
 rd_web_dist_guard() {
     local root="$1" label="${2:-this run}" main
-    rd_web_dist_trap "$root" || return 0
     main="$(rd_main_root "$root")"
+    if rd_web_dist_missing "$root"; then
+        echo "!! $label is refused: $root/web/dist is missing — neither the link to the main" >&2
+        echo "   checkout's web/dist nor a folder. The web half would build a folder of its own while" >&2
+        echo "   rd-api compiles against none (scripts/lib/web-dist.sh)." >&2
+        echo "   Restore the link: ln -s '$main/web/dist' '$root/web/dist'" >&2
+        return 1
+    fi
+    rd_web_dist_trap "$root" || return 0
     echo "!! $label is refused: $root/web/dist is a directory of its own, and this worktree" >&2
     echo "   builds in the main checkout's target ($(rd_target_dir "$root"))." >&2
     echo "   rust-embed keeps serving the web/dist it was first compiled against — the main" >&2

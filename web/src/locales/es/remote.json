@@ -32,7 +32,8 @@
     "form_new": "Nuevo acceso",
     "create_action": "Crear acceso",
     "created": "Acceso creado",
-    "saved": "Acceso guardado"
+    "saved": "Acceso guardado",
+    "secret_host_changed": "El protocolo, el host o el puerto cambió: la contraseña o la clave guardada no se envía al nuevo servidor. Introdúcela de nuevo."
   },
   "protocols": {
     "ftp": "FTP (sin cifrado)",

@@ -5,6 +5,11 @@ use rd_core::IngressSource;
 use reqwest::{Client, StatusCode, multipart};
 use url::Url;
 
+mod identity;
+
+pub(crate) use identity::ForeignListener;
+use identity::Identity;
+
 /// What a client of this crate is going to be used for.
 ///
 /// One `timeout` number does not fit every call this agent makes, which is why the agent used to
@@ -266,6 +271,8 @@ pub(crate) struct CaptureClient {
     /// The event stream, which has none. Two clients rather than one, because the two kinds of
     /// call want opposite policies and a single client could only ever be wrong for one of them.
     stream: Client,
+    /// Whether the service address answered as rDownloader since the last lost connection.
+    identity: Identity,
 }
 
 impl CaptureClient {
@@ -275,7 +282,30 @@ impl CaptureClient {
             token,
             http: build(Purpose::Request)?,
             stream: build(Purpose::Stream)?,
+            identity: Identity::default(),
         })
+    }
+
+    /// A client whose service counts as confirmed, for the tests whose scripted service answers
+    /// only the request under test.
+    #[cfg(test)]
+    pub(crate) fn confirmed(service: Url, token: String) -> Result<Self> {
+        let client = Self::new(service, token)?;
+        client.identity.assume_confirmed();
+        Ok(client)
+    }
+
+    /// Sends `request` with the capture token — once the service address has answered as
+    /// rDownloader ([`identity`], RD-1200-03). Every request that carries the token goes through
+    /// here, so none reaches a listener that did not.
+    async fn send(&self, request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
+        self.identity.confirm(&self.http, &self.service).await?;
+        let sent = request.bearer_auth(&self.token).send().await;
+        // Whoever listens there once the service is back is asked again.
+        if sent.as_ref().is_err_and(reqwest::Error::is_connect) {
+            self.identity.forget();
+        }
+        Ok(sent?)
     }
 
     pub(crate) async fn submit_links(
@@ -291,19 +321,14 @@ impl CaptureClient {
             _ => IngressSource::Api,
         };
         let endpoint = self.service.join("api/v1/capture/batches")?;
-        let response = self
-            .http
-            .post(endpoint)
-            .bearer_auth(&self.token)
-            .json(&serde_json::json!({
-                "text": urls.iter().map(Url::as_str).collect::<Vec<_>>().join("\n"),
-                "source": source,
-                "source_label": "Capture-Agent",
-                "package_name": package_name,
-                "password": password
-            }))
-            .send()
-            .await?;
+        let body = serde_json::json!({
+            "text": urls.iter().map(Url::as_str).collect::<Vec<_>>().join("\n"),
+            "source": source,
+            "source_label": "Capture-Agent",
+            "package_name": package_name,
+            "password": password
+        });
+        let response = self.send(self.http.post(endpoint).json(&body)).await?;
         match ensure_success(response, "collector").await {
             Ok(_) => Ok(Submitted::Added),
             Err(error) => pick_waiting(&error)
@@ -319,7 +344,7 @@ impl CaptureClient {
     /// account.
     pub(crate) async fn summary(&self) -> anyhow::Result<crate::activity::Summary> {
         let url = self.service.join("api/v1/capture/summary")?;
-        let response = self.http.get(url).bearer_auth(&self.token).send().await?;
+        let response = self.send(self.http.get(url)).await?;
         let response = ensure_success(response, "transfer summary").await?;
         Ok(response.json().await?)
     }
@@ -329,26 +354,18 @@ impl CaptureClient {
     /// Refused with `auth.scope_insufficient` unless the agent was paired with queue control;
     /// the summary says which, so the tray only offers what the service will do.
     pub(crate) async fn pause_queue(&self, minutes: Option<u32>) -> Result<()> {
-        let response = self
-            .http
-            .post(self.service.join("api/v1/capture/queue/pause")?)
-            .bearer_auth(&self.token)
-            .json(&serde_json::json!({ "minutes": minutes }))
-            .send()
-            .await?;
+        let endpoint = self.service.join("api/v1/capture/queue/pause")?;
+        let body = serde_json::json!({ "minutes": minutes });
+        let response = self.send(self.http.post(endpoint).json(&body)).await?;
         ensure_success(response, "queue pause").await?;
         Ok(())
     }
 
     /// Resumes what a pause stopped: ends a timed pause, or queues the paused files again.
     pub(crate) async fn resume_queue(&self) -> Result<()> {
-        let response = self
-            .http
-            .post(self.service.join("api/v1/capture/queue/resume")?)
-            .bearer_auth(&self.token)
-            .json(&serde_json::json!({}))
-            .send()
-            .await?;
+        let endpoint = self.service.join("api/v1/capture/queue/resume")?;
+        let body = serde_json::json!({});
+        let response = self.send(self.http.post(endpoint).json(&body)).await?;
         ensure_success(response, "queue resume").await?;
         Ok(())
     }
@@ -357,7 +374,7 @@ impl CaptureClient {
     /// (RD-1180-01, RD-1180-03). Read on the same five-second cadence as the summary.
     pub(crate) async fn agent_settings(&self) -> Result<rd_core::CaptureAgentSettings> {
         let url = self.service.join("api/v1/capture/agent-settings")?;
-        let response = self.http.get(url).bearer_auth(&self.token).send().await?;
+        let response = self.send(self.http.get(url)).await?;
         let response = ensure_success(response, "agent settings").await?;
         Ok(response.json().await?)
     }
@@ -367,13 +384,9 @@ impl CaptureClient {
         &self,
         paused: bool,
     ) -> Result<rd_core::CaptureAgentSettings> {
-        let response = self
-            .http
-            .post(self.service.join("api/v1/capture/clipboard")?)
-            .bearer_auth(&self.token)
-            .json(&serde_json::json!({ "paused": paused }))
-            .send()
-            .await?;
+        let endpoint = self.service.join("api/v1/capture/clipboard")?;
+        let body = serde_json::json!({ "paused": paused });
+        let response = self.send(self.http.post(endpoint).json(&body)).await?;
         let response = ensure_success(response, "clipboard pause").await?;
         Ok(response.json().await?)
     }
@@ -383,13 +396,8 @@ impl CaptureClient {
         &self,
         report: &rd_core::CaptureShortcutReport,
     ) -> Result<()> {
-        let response = self
-            .http
-            .post(self.service.join("api/v1/capture/shortcut-report")?)
-            .bearer_auth(&self.token)
-            .json(report)
-            .send()
-            .await?;
+        let endpoint = self.service.join("api/v1/capture/shortcut-report")?;
+        let response = self.send(self.http.post(endpoint).json(report)).await?;
         ensure_success(response, "shortcut report").await?;
         Ok(())
     }
@@ -411,12 +419,11 @@ impl CaptureClient {
         let mut request = self
             .stream
             .get(endpoint)
-            .bearer_auth(&self.token)
             .header(reqwest::header::ACCEPT, "text/event-stream");
         if let Some(id) = last_event_id {
             request = request.header("Last-Event-ID", id);
         }
-        let response = request.send().await?;
+        let response = self.send(request).await?;
         ensure_success(response, "event stream").await
     }
 
@@ -427,13 +434,8 @@ impl CaptureClient {
                 .file_name(name)
                 .mime_str("application/x-nzb")?,
         );
-        let response = self
-            .http
-            .post(self.service.join("api/v1/capture/nzb")?)
-            .bearer_auth(&self.token)
-            .multipart(form)
-            .send()
-            .await?;
+        let endpoint = self.service.join("api/v1/capture/nzb")?;
+        let response = self.send(self.http.post(endpoint).multipart(form)).await?;
         ensure_success(response, "NZB import").await?;
         Ok(())
     }

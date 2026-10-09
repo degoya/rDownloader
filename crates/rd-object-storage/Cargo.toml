@@ -38,6 +38,9 @@ rd-plugin-host = { path = "../rd-plugin-host" }
 rd-scheduler = { path = "../rd-scheduler" }
 rd-secrets = { path = "../rd-secrets" }
 rd-transfer-file = { path = "../rd-transfer-file" }
+# The client `object_store` sends through, built here with no redirect policy (RD-1200-06,
+# `connect/transport.rs`): the workspace's reqwest, the one `object_store` links.
+reqwest.workspace = true
 secrecy.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

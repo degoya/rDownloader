@@ -13,7 +13,9 @@
     "target_placeholder": "download",
     "target_id": "Ziel-ID",
     "trace": "Trace-ID",
-    "clear": "Filter zurücksetzen"
+    "clear": "Filter zurücksetzen",
+    "via": "Weg",
+    "any_via": "Jeder Weg"
   },
   "outcomes": {
     "success": "Erfolgreich",
@@ -78,7 +80,11 @@
     "password_reset_local": "Passwort auf dem Host zurückgesetzt",
     "history_cleared": "Downloadverlauf geleert",
     "subscription_item_requeued": "Abo-Eintrag erneut eingereiht",
-    "object_storage_profile_changed": "Object-Storage-Profil geändert"
+    "object_storage_profile_changed": "Object-Storage-Profil geändert",
+    "remote_jobs_cleared": "Liste entfernter Aufträge geleert",
+    "token_limits_changed": "Token-Grenzen geändert",
+    "proxy_profile_changed": "Proxyprofil geändert",
+    "remote_credential_changed": "Server-Zugang geändert"
   },
   "list": {
     "title": "Einträge",
@@ -89,11 +95,19 @@
     "expand": "Details anzeigen",
     "collapse": "Details ausblenden",
     "actor_id": "Akteur-ID",
-    "retention": "Aufbewahrt {days} Tage oder {records} Einträge, je nachdem was zuerst endet."
+    "retention": "Aufbewahrt {days} Tage oder {records} Einträge, je nachdem was zuerst endet.",
+    "via": "über {channel}"
   },
   "append_only": {
     "eyebrow": "Zusicherung",
     "title": "Nur anhängen",
     "description": "Es gibt keine Route, die einen Eintrag ändert oder löscht, und die Datenbank verweigert ein Update auf diese Tabelle rundheraus. Das Löschen eines Downloads, eines Pakets, einer Kategorie oder eines Speicherorts lässt den zugehörigen Eintrag stehen, und das Wiederherstellen eines Backups rührt das Protokoll nicht an. Das ist eine Aufzeichnung des Geschehenen, kein Schutz gegen jemanden mit Zugriff auf die Datei selbst."
+  },
+  "channels": {
+    "rest": "REST",
+    "mcp": "MCP",
+    "capture": "Browser-Erweiterung oder Desktop-Agent",
+    "compat": "SABnzbd- oder qBittorrent-Client",
+    "internal": "Dienst selbst"
   }
 }

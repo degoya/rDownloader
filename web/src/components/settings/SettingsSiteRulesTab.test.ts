@@ -68,7 +68,8 @@ const BUNDLE = {
         links: 0,
         pages: 1,
         checked_at: '2026-09-21T10:00:00Z'
-      }
+      },
+      origin: { kind: 'signed', signer: 'rdownloader-siterules-v1', sequence: 9 }
     },
     {
       id: 'my-board',
@@ -82,7 +83,8 @@ const BUNDLE = {
       enabled: false,
       active: false,
       rule: {},
-      check: null
+      check: null,
+      origin: { kind: 'editor', signer: null, sequence: null }
     },
     {
       id: 'getcomics',
@@ -97,7 +99,8 @@ const BUNDLE = {
       active: true,
       // The day the rule's author says it was measured. No self-test has run here.
       rule: { checked: '2026-09-22' },
-      check: null
+      check: null,
+      origin: { kind: 'unknown', signer: null, sequence: null }
     }
   ],
   groups: [
@@ -229,6 +232,40 @@ describe('the site-rule list', () => {
     const [path, options] = post.mock.calls[0] as [string, { bodySerializer: (body: unknown) => unknown }]
     expect(path).toBe('/api/v1/site-rules/import')
     expect(options.bodySerializer(undefined)).toBe(file)
+  })
+})
+
+/**
+ * RD-1200-05: every row names where its rule came from, as a glyph whose word is its name and
+ * whose sentence — with the signer and sequence of a signed file — is its tooltip.
+ */
+describe('where a rule came from', () => {
+  it('shows the origin of every rule as a glyph with its word and sentence', async () => {
+    mount()
+    await screen.findByText('scnlog.me')
+
+    const scnlog = screen.getByText('scnlog.me').closest('div')?.parentElement as HTMLElement
+    const signed = within(scnlog).getByLabelText(siterules.origin.signed)
+    expect(signed.getAttribute('role')).toBe('img')
+    expect(signed.textContent?.trim()).toBe('')
+    expect(signed.parentElement?.getAttribute('text')).toBe(
+      'From the signed rule file, signed by rdownloader-siterules-v1, sequence 9'
+    )
+    const own = screen.getByText('My board').closest('div')?.parentElement as HTMLElement
+    expect(within(own).getByLabelText(siterules.origin.editor)).toBeTruthy()
+    const getcomics = screen.getByText('GetComics').closest('div')?.parentElement as HTMLElement
+    expect(within(getcomics).getByLabelText(siterules.origin.unknown)).toBeTruthy()
+  })
+
+  it('names the origin in the editor and warns that a changed signed rule becomes one\'s own', async () => {
+    mount()
+    await screen.findByText('scnlog.me')
+    const scnlog = screen.getByText('scnlog.me').closest('[data-rule-row]') as HTMLElement
+    await fireEvent.click(within(scnlog).getByLabelText('Edit'))
+
+    const origin = await screen.findByTestId('site-rule-editor-origin')
+    expect(origin.textContent).toContain('signed by rdownloader-siterules-v1, sequence 9')
+    expect(origin.textContent).toContain(siterules.origin.edit_hint)
   })
 })
 

@@ -4,10 +4,12 @@ import type { RemoteCredential } from '@/api/types'
 import {
   DEFAULT_PORTS,
   authModesFor,
+  dropsCredentialForServer,
   emptyForm,
   endpointLabel,
   formFor,
   hostKeyId,
+  sameServer,
   toCreateBody,
   toUpdateBody
 } from './useRemoteCredentials'
@@ -122,5 +124,35 @@ describe('labels', () => {
     expect(hostKeyId(key)).toBe('box.example:22:ssh-ed25519')
     // A second key type for the same server is a separate entry, not a replacement.
     expect(hostKeyId({ ...key, algorithm: 'rsa-sha2-512' })).not.toBe(hostKeyId(key))
+  })
+})
+
+describe('a stored credential stays with its server (RD-1200-06)', () => {
+  it('keeps it for the same protocol, host and port', () => {
+    const stored = credential()
+    const form = formFor(stored)
+    expect(sameServer(form, stored)).toBe(true)
+    expect(sameServer({ ...form, host: ' Files.Example.com. ' }, stored)).toBe(true)
+    expect(sameServer({ ...form, port: 21 }, stored)).toBe(true)
+    expect(dropsCredentialForServer(form, stored)).toBe(false)
+  })
+
+  it('asks for it again on another protocol, host or port', () => {
+    const stored = credential()
+    const form = formFor(stored)
+    for (const moved of [
+      { ...form, host: 'collector.example' },
+      { ...form, port: 2121 },
+      { ...form, protocol: 'ftps' as const }
+    ]) {
+      expect(dropsCredentialForServer(moved, stored)).toBe(true)
+    }
+  })
+
+  it('has nothing to drop without a stored credential or after a mode change', () => {
+    const form = { ...formFor(credential()), host: 'collector.example' }
+    expect(dropsCredentialForServer(form, credential({ has_secret: false }))).toBe(false)
+    expect(dropsCredentialForServer({ ...form, auth_mode: 'anonymous' }, credential())).toBe(false)
+    expect(dropsCredentialForServer(form, null)).toBe(false)
   })
 })

@@ -196,7 +196,8 @@
       "description": "Das Proxyprofil „{name}“ und sein verschlüsseltes Passwort werden dauerhaft gelöscht. Solange ein Konto, ein Usenet-Server, ein laufender Download, die globale Verbindung oder der Torrent-Peer-Proxy es nutzt, lehnt der Dienst das ab.",
       "in_use_here": "Es ist hier als globale Verbindung oder als Torrent-Peer-Proxy gewählt — wähle zuerst ein anderes und speichere.",
       "confirm": "Profil löschen"
-    }
+    },
+    "password_host_changed": "Adresse geändert: Das gespeicherte Passwort geht nicht an den neuen Proxy. Gib es erneut ein."
   },
   "global_proxy": {
     "eyebrow": "Netzwerk-Fallback",

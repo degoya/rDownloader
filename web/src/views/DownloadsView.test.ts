@@ -886,7 +886,7 @@ describe('DownloadsView NZB hand-over', () => {
     await announceAccounts([torbox])
 
     await waitFor(() => expect(getAllByRole('button', { name: 'Main · TorBox' })).toHaveLength(1))
-    expect(getByTestId('package-handed-over').textContent).toBe('Handed to TorBox')
+    expect(getByTestId('package-handed-over').getAttribute('aria-label')).toBe('Handed to TorBox')
 
     vi.mocked(api.POST).mockResolvedValueOnce({ data: undefined, error: { code: 'remote_job.not_claimed' } } as never)
     await fireEvent.click(getAllByRole('button', { name: 'Main · TorBox' })[0]!)
@@ -906,7 +906,7 @@ describe('DownloadsView NZB hand-over', () => {
     await nextTick()
 
     expect(queryByRole('button', { name: 'Main · TorBox' })).toBeNull()
-    expect(getByTestId('package-handed-over').textContent).toBe('Handed to TorBox')
+    expect(getByTestId('package-handed-over').getAttribute('aria-label')).toBe('Handed to TorBox')
   })
 
   it('offers nothing while no account takes NZBs', async () => {

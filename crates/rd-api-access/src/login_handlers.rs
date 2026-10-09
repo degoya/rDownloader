@@ -252,6 +252,7 @@ pub async fn pair_capture(
         &request.label,
         scopes,
         request.expires_in_days,
+        None,
         "capture.label_length",
     )
     .await?;

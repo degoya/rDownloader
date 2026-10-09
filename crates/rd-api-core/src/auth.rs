@@ -18,6 +18,7 @@ use crate::{ApiError, AppState, scope_policy};
 mod middleware;
 mod password;
 mod service;
+mod token_rate;
 mod tokens;
 
 pub use middleware::*;

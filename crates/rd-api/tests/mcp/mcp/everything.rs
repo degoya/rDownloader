@@ -445,3 +445,6 @@ mod superseded;
 
 #[path = "everything_hardening.rs"]
 mod hardening;
+
+#[path = "everything_audit_channel.rs"]
+mod audit_channel;

@@ -78,7 +78,7 @@ describe('audit store', () => {
     vi.mocked(api.GET).mockResolvedValue({ data: PAGE } as never)
     const store = useAuditStore()
     // `'all'`, not `''`: the select refuses an item with an empty value (1.8.1).
-    expect([store.filters.action, store.filters.outcome, store.filters.actorKind]).toEqual(['all', 'all', 'all'])
+    expect([store.filters.action, store.filters.outcome, store.filters.actorKind, store.filters.via]).toEqual(['all', 'all', 'all', 'all'])
 
     await store.refresh()
 
@@ -86,8 +86,22 @@ describe('audit store', () => {
 
     store.filters.outcome = 'failure'
     store.filters.actorKind = 'token'
+    store.filters.via = 'mcp'
     store.clearFilters()
-    expect([store.filters.outcome, store.filters.actorKind]).toEqual(['all', 'all'])
+    expect([store.filters.outcome, store.filters.actorKind, store.filters.via]).toEqual(['all', 'all', 'all'])
+  })
+
+  it('asks for the channel a record came through, and exports by it (RD-1200-04)', async () => {
+    vi.mocked(api.GET).mockResolvedValue({ data: PAGE } as never)
+    const store = useAuditStore()
+    store.filters.via = 'mcp'
+
+    await store.refresh()
+
+    expect(api.GET).toHaveBeenCalledWith('/api/v1/audit/records', {
+      params: { query: { limit: 200, via: 'mcp' } }
+    })
+    expect(store.exportHref).toBe('/api/v1/audit/export?via=mcp')
   })
 
   it('exports exactly the filter the list is showing', async () => {

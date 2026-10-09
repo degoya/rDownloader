@@ -1,7 +1,7 @@
 //! The minting rules of `api_tokens.rs`: which scope strings a request may name, and the
 //! expiry a token may be given.
 
-use super::{MAX_EXPIRY_DAYS, expiry, requested_scopes};
+use super::{MAX_CALLS_PER_MINUTE, MAX_EXPIRY_DAYS, call_limit, expiry, requested_scopes};
 use crate::dto::ApiTokenRequest;
 
 fn request(scopes: &[&str]) -> ApiTokenRequest {
@@ -9,6 +9,7 @@ fn request(scopes: &[&str]) -> ApiTokenRequest {
         label: "test".to_owned(),
         scopes: scopes.iter().map(|scope| (*scope).to_owned()).collect(),
         expires_in_days: None,
+        calls_per_minute: None,
     }
 }
 
@@ -79,6 +80,7 @@ fn re_scoping_resolves_by_exactly_the_same_rules_as_minting() {
                 label: "test".to_owned(),
                 scopes: named.clone(),
                 expires_in_days: None,
+                calls_per_minute: None,
             })
             .expect("real areas"),
             "{named:?}"
@@ -158,5 +160,19 @@ fn an_expiry_is_optional_and_bounded() {
     for refused in [0, MAX_EXPIRY_DAYS + 1, u32::MAX] {
         let error = expiry(Some(refused)).expect_err("out of range");
         assert_eq!(error.code(), "api.token_expiry_range", "{refused}");
+    }
+}
+
+#[test]
+fn a_call_limit_is_optional_and_bounded() {
+    assert_eq!(call_limit(None).expect("no limit"), None);
+    assert_eq!(call_limit(Some(1)).expect("lowest"), Some(1));
+    assert_eq!(
+        call_limit(Some(MAX_CALLS_PER_MINUTE)).expect("highest"),
+        Some(MAX_CALLS_PER_MINUTE)
+    );
+    for refused in [0, MAX_CALLS_PER_MINUTE + 1] {
+        let error = call_limit(Some(refused)).expect_err("out of range");
+        assert_eq!(error.code(), "api.token_rate_range", "{refused}");
     }
 }

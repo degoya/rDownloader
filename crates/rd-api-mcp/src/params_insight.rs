@@ -69,6 +69,8 @@ pub(crate) struct AuditQueryToolParams {
     pub actor_kind: Option<String>,
     /// An actor id, exactly.
     pub actor_id: Option<String>,
+    /// How the action came: `rest`, `mcp`, `capture`, `compat` or `internal`.
+    pub via: Option<String>,
     /// A target family, such as `download`.
     pub target_kind: Option<String>,
     /// A target id, exactly.
@@ -177,4 +179,27 @@ pub(crate) struct DataClearToolParams {
     /// changes nothing and answers with the question.
     #[serde(default)]
     pub confirmation: Option<String>,
+}
+
+/// Clearing the remote jobs list (RD-1200-01), with the question every clearing tool asks first.
+///
+/// Local only: there is no `at_provider` here. Deleting at a provider changes something outside
+/// this machine irreversibly, which no tool does (owner, 2026-09-23, confirmed for this tool on
+/// 2026-10-08); the web interface offers it.
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct ClearRemoteJobsParams {
+    /// Must be `true`. Anything else is refused with `remote_job.clear_unconfirmed`.
+    pub confirmed: bool,
+    /// The code from this tool's own question, once the person agreed. Without it the call
+    /// changes nothing and answers with the question.
+    #[serde(default)]
+    pub confirmation: Option<String>,
+    /// Only the jobs of accounts at this provider (its slug, as list_remote_job_providers
+    /// names it). Absent: every provider.
+    #[serde(default)]
+    pub provider: Option<String>,
+    /// Only jobs in these states: awaiting_choice, ready, failed, discarded (submitting,
+    /// preparing and working are still running and always left out). Empty: every state.
+    #[serde(default)]
+    pub states: Vec<String>,
 }

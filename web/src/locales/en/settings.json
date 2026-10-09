@@ -196,7 +196,8 @@
       "description": "The proxy profile “{name}” and its encrypted password will be deleted permanently. While an account, a Usenet server, an unfinished download, the global connection route or the torrent peer proxy uses it, the service refuses.",
       "in_use_here": "It is chosen here as the global connection route or the torrent peer proxy — choose another one first and save.",
       "confirm": "Delete profile"
-    }
+    },
+    "password_host_changed": "The address changed: the stored password is not sent to the new proxy. Enter it again."
   },
   "global_proxy": {
     "eyebrow": "Network fallback",

@@ -156,14 +156,18 @@ impl RdMcpServer {
             password: None,
         };
         respond(
-            crate::config_handlers::create_proxy_profile(State(self.state.clone()), Json(request))
-                .await
-                .map(|created| created.1.0),
+            crate::config_handlers::create_proxy_profile(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                Json(request),
+            )
+            .await
+            .map(|created| created.1.0),
         )
     }
 
     #[tool(
-        description = "Change one proxy profile's name, type or address. A stored login is kept; only the fields you pass are changed."
+        description = "Change one proxy profile's name, type or address; only the fields you pass are changed. A stored login is kept only while the address keeps its scheme, host and port: a new address for a profile with a login is refused (proxy.password_host_changed), because the password is never sent to another host; set that one in the web UI. Every change is audited."
     )]
     pub async fn update_proxy_profile(
         &self,
@@ -191,6 +195,7 @@ impl RdMcpServer {
             Ok(crate::config_handlers::update_proxy_profile(
                 State(self.state.clone()),
                 AxumPath(id),
+                crate::audit::AuditContext::current(),
                 Json(request),
             )
             .await?
@@ -212,6 +217,7 @@ impl RdMcpServer {
             Ok(crate::config_handlers::delete_proxy_profile(
                 State(self.state.clone()),
                 AxumPath(id),
+                crate::audit::AuditContext::current(),
             )
             .await?
             .0)

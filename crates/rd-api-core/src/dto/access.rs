@@ -132,6 +132,10 @@ pub struct ApiTokenRequest {
     /// token is refused like a revoked one.
     #[serde(default)]
     pub expires_in_days: Option<u32>,
+    /// Calls the token may make per minute, 1 to 6000, REST and MCP together (RD-1200-04).
+    /// Absent is no limit; a call above it is refused with `429 api.token_rate_limited`.
+    #[serde(default)]
+    pub calls_per_minute: Option<u32>,
 }
 
 /// The new set of areas for a token that already exists.
@@ -147,6 +151,17 @@ pub struct ApiTokenScopesRequest {
     /// intentions. Empty is refused: it has no legacy meaning here, and "no access at all" is
     /// spelled by revoking the token.
     pub scopes: Vec<String>,
+}
+
+/// The limits of a token that already exists (RD-1200-04).
+///
+/// The complete set, like [`ApiTokenScopesRequest`]: what the form shows is what the token
+/// keeps, so an absent or `null` limit is no limit, not "unchanged".
+#[derive(Deserialize, ToSchema)]
+pub struct ApiTokenLimitsRequest {
+    /// Calls per minute, 1 to 6000, REST and MCP together; absent or `null` is no limit.
+    #[serde(default)]
+    pub calls_per_minute: Option<u32>,
 }
 
 /// One area a token can be granted, with what it costs and what it reaches.

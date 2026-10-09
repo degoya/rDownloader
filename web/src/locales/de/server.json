@@ -1236,7 +1236,16 @@
     "mcp.script_not_allowed": "Ein Werkzeug (MCP) darf kein Skript setzen, solange das in den Einstellungen nicht erlaubt ist",
     "mcp.setting_outside_mcp": "Diese Einstellung änderst du in der Weboberfläche, nicht über ein Werkzeug (MCP)",
     "backup.restore_no_space": "Im Datenordner ist nicht genug Platz frei für die Wiederherstellung (nötig: {needed} Bytes, frei: {available} Bytes).",
-    "captcha.queue_full": "Es warten schon zu viele Captchas auf eine Antwort."
+    "captcha.queue_full": "Es warten schon zu viele Captchas auf eine Antwort.",
+    "remote_job.clear_unconfirmed": "Das Leeren der Liste entfernter Aufträge muss ausdrücklich bestätigt werden",
+    "remote_job.clear_failed": "Dieser Auftrag ließ sich nicht entfernen; er ist in der Liste geblieben",
+    "remote_job.state_invalid": "Zustände sind awaiting_choice, ready, failed oder discarded",
+    "api.token_rate_limited": "Dieses Token hat in dieser Minute mehr als {limit} Aufrufe gemacht. Versuch es in {seconds} Sekunden wieder.",
+    "api.token_rate_range": "Ein Token macht 1 bis {max} Aufrufe pro Minute oder hat keine Grenze",
+    "site_rules.sequence_older": "Diese Regeldatei ist älter als eine, die du vom selben Signierer schon importiert hast (Sequenz {sequence}, bekannt ist {known}), und wurde abgelehnt.",
+    "object_storage.redirect_refused": "Der Objektspeicher hat mit einer Umleitung geantwortet; ihr wird nicht gefolgt. Trag den Endpunkt ein, auf den er umleitet.",
+    "proxy.password_host_changed": "Die Proxy-Adresse wurde geändert: Gib das Passwort erneut ein, es geht nicht an den neuen Host.",
+    "remote.secret_host_changed": "Der Server wurde geändert: Gib das Passwort oder den Schlüssel erneut ein, beides geht nicht an den neuen Host."
   },
   "capabilities": {
     "media_download": "Mediendownloads",

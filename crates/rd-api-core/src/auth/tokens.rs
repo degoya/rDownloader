@@ -1,5 +1,7 @@
 //! Bearers: session and API tokens, the compatibility adapters' access and the capture token.
 
+use rd_core::AuditChannel;
+
 use super::*;
 
 /// What opening a session produced: the bearer to hand back, and the id to audit under.
@@ -110,6 +112,9 @@ pub enum CompatAccess {
     Refused,
     /// The token store could not be read: a fault of this service, not of the key.
     Unavailable,
+    /// The key is fine but made more calls this minute than its limit allows (RD-1200-04):
+    /// the adapter answers `429` with this `Retry-After`, in seconds.
+    RateLimited { retry_after_seconds: u64 },
 }
 
 /// The one credential check of the SABnzbd and qBittorrent adapters (API-04, API-11).
@@ -129,13 +134,18 @@ pub async fn compat_access(state: &AppState, key: &str) -> CompatAccess {
     }
     let digest = digest_of(key);
     match state.database.capture_token_identity(&digest).await {
-        Ok(Some((id, label, scopes))) => {
+        Ok(Some((id, label, scopes, calls_per_minute))) => {
             let granted = rd_core::granted_scopes(scopes.iter().map(String::as_str));
             if !COMPAT_SCOPES.iter().all(|scope| granted.contains(scope)) {
                 return CompatAccess::Refused;
             }
             note_token_use(state, digest);
-            note_token_audit(state, id, label, scopes);
+            note_token_audit(state, id, label, scopes, AuditChannel::Compat);
+            if let Err(refused) = super::token_rate::admit(id, calls_per_minute) {
+                return CompatAccess::RateLimited {
+                    retry_after_seconds: refused.seconds(),
+                };
+            }
             CompatAccess::Granted
         }
         Ok(None) => CompatAccess::Refused,
@@ -175,7 +185,22 @@ pub async fn require_api_token(
     // At least one *API* scope, not merely a non-empty set: a browser-capture token carries
     // `capture:*` and must not reach this endpoint through a check that only counts. With the
     // login switched off for this machine the credential is every scope, as before.
-    let (granted, actor) = credential(&state, request.headers(), from_this_machine).await;
+    let resolved = super::middleware::resolve(
+        &state,
+        request.headers(),
+        from_this_machine,
+        AuditChannel::Mcp,
+    )
+    .await;
+    // The token's call limit, MCP messages counted like REST requests (RD-1200-04).
+    if let Err(refused) = resolved.admit() {
+        return Ok(refused.into_response());
+    }
+    let super::middleware::Resolved {
+        scopes: granted,
+        actor,
+        ..
+    } = resolved;
     // `api:metrics` is an API scope for the token editor's purposes, but it opens nothing
     // here: a scrape token must not be able to open an MCP session either (RD-110-01).
     if !granted
@@ -296,14 +321,18 @@ pub async fn require_capture(
     // token that did it (audit 2026-10-08, API-02), as `require_api_token` hands it on.
     let identity = match digest {
         Some(digest) => match state.database.capture_token_identity(&digest).await {
-            Ok(Some((id, label, scopes)))
+            Ok(Some((id, label, scopes, _)))
                 if rd_core::scopes_satisfy(
                     scopes.iter().map(String::as_str),
                     rd_core::CAPTURE_SCOPE,
                 ) =>
             {
                 note_token_use(&state, digest);
-                Some((crate::audit::Actor::token(id.to_string(), label), scopes))
+                Some((
+                    crate::audit::Actor::token(id.to_string(), label)
+                        .through(AuditChannel::Capture),
+                    scopes,
+                ))
             }
             Ok(_) => None,
             // A token nobody can look up grants nothing, as before.

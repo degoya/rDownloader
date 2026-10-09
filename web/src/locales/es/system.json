@@ -764,5 +764,12 @@
     "days": "Tras {count} días",
     "expires_on": "Caduca el {date}",
     "expired": "Caducado"
+  },
+  "token_rate": {
+    "label": "Llamadas por minuto",
+    "hint": "REST y MCP juntos. Vacío significa sin límite; una llamada por encima se rechaza hasta que termine el minuto.",
+    "unit": "/min",
+    "none": "Sin límite",
+    "row": "Como máximo {count} llamadas por minuto"
   }
 }

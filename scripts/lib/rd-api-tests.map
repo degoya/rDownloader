@@ -55,9 +55,9 @@
 # --- rd-api, by area -------------------------------------------------------------------------
 ^crates/rd-api(-[a-z]+)?/src/(about|about_page|build_info)(\.rs$|/)                           api_tokens scope_matrix mcp
 ^crates/rd-api/licenses/                                                                  api_tokens
-^crates/rd-api(-[a-z]+)?/src/api_tokens(\.rs$|/)                                              api_tokens grant_ceiling audit token_expiry
+^crates/rd-api(-[a-z]+)?/src/api_tokens(\.rs$|/)                                              api_tokens grant_ceiling audit token_expiry token_limits
 ^crates/rd-api(-[a-z]+)?/src/area_backup(\.rs$|/)                                             area_backup
-^crates/rd-api(-[a-z]+)?/src/(audit|audit_dto|audit_handlers|routes/audit)(\.rs$|/)           audit data_reset api_tokens
+^crates/rd-api(-[a-z]+)?/src/(audit|audit_dto|audit_handlers|routes/audit)(\.rs$|/)           audit data_reset api_tokens token_limits mcp
 ^crates/rd-api(-[a-z]+)?/src/(auth_flow_handlers|auth_flow_service|auth_flow_guard|auth_profile_handlers)(\.rs$|/)   auth_profiles media_cookie_profile browser_session capture_intake oauth_callback
 ^crates/rd-db/src/auth_flow_store(\.rs$|/)                                                     + oauth_callback
 ^crates/rd-db/src/(config_store|usenet_store|bandwidth_store|notify_store)(\.rs$|/)          + unique_names notifications
@@ -110,17 +110,17 @@
 ^crates/rd-api(-[a-z]+)?/src/(replay_dto|replay_handlers)(\.rs$|/)                            replay_consent replay_restart
 ^crates/rd-api(-[a-z]+)?/src/(restore_[a-z_]+|routes/restore)(\.rs$|/)                    full_restore backup_remote protected_roots mcp archive_password_backup restore_step_up
 ^crates/rd-api(-[a-z]+)?/src/routing_backup(\.rs$|/)                                          routing_backup
-^crates/rd-api(-[a-z]+)?/src/routes/security(\.rs$|/)                                         auth mfa passkeys sessions api_tokens reverse_proxy oidc
+^crates/rd-api(-[a-z]+)?/src/routes/security(\.rs$|/)                                         auth mfa passkeys sessions api_tokens reverse_proxy oidc token_limits
 # The host allowlist and the proxy contract it lives in (security review 2026-09-28, finding 3).
 ^crates/rd-authn/src/(host|proxy)(\.rs$|/)                                                     + host_check reverse_proxy
 # Whether a state-changing request came from another site's page (audit 1.9.1, API-01).
 ^crates/rd-authn/src/origin(\.rs$|/)                                                          + cross_site
 ^crates/rd-api(-[a-z]+)?/src/session_handlers(\.rs$|/)                                        sessions auth reverse_proxy oidc
 ^crates/rd-api(-[a-z]+)?/src/stream_standing(\.rs$|/)                                         stream_revocation event_resume
-^crates/rd-db/src/(session_store|capture_store)(\.rs$|/)                                      + stream_revocation token_expiry
+^crates/rd-db/src/(session_store|capture_store)(\.rs$|/)                                      + stream_revocation token_expiry token_limits
 ^crates/rd-api(-[a-z]+)?/src/settings_backup[a-z_]*(\.rs$|/)                             settings_backup full_backup backup_destinations protected_roots archive_password_backup restore_step_up
 ^crates/rd-api(-[a-z]+)?/src/protected_roots(\.rs$|/)                                         storage_roots protected_roots mcp
-^crates/rd-api(-[a-z]+)?/src/(site_rules_[a-z_]+|routes/site_rules)(\.rs$|/)                  site_rules collector_picks
+^crates/rd-api(-[a-z]+)?/src/(site_rules_[a-z_]+|routes/site_rules)(\.rs$|/)                  site_rules collector_picks site_rule_origin
 # The pick board of a two-stage rule (RD-1170-03): its routes, and the tools that drive them.
 ^crates/rd-api(-[a-z]+)?/src/site_rule_picks[a-z_]*(\.rs$|/)                                 site_rules mcp collector_picks capture_pick address_rule
 ^crates/rd-api(-[a-z]+)?/src/storage_capacity(\.rs$|/)                                        storage_capacity
@@ -140,14 +140,14 @@
 # without a row on purpose: every handler reaches them, so every suite is the honest answer.
 ^crates/rd-api(-[a-z]+)?/src/object_storage_(fields|handlers)(\.rs$|/)                        backup_destinations backup_remote canaries address_rule object_storage_profiles
 ^crates/rd-api(-[a-z]+)?/src/object_upload_target(\.rs$|/)                                    object_storage_profiles
-^crates/rd-api(-[a-z]+)?/src/remote_handlers(\.rs$|/)                                         canaries
+^crates/rd-api(-[a-z]+)?/src/remote_(handlers|audit)(\.rs$|/)                                 canaries secret_hosts
 ^crates/rd-api(-[a-z]+)?/src/plugin_live(\.rs$|/)                                             plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_repositories plugin_auto_updates
 ^crates/rd-api(-[a-z]+)?/src/destination(\.rs$|/)                                             storage_roots storage_capacity protected_roots category_move_and_reset unique_names capture_intake compat_sabnzbd torrent hotfolder_poll automations stream_schedules
 ^crates/rd-api(-[a-z]+)?/src/hosters(\.rs$|/)                                                 canaries mirrors mcp
 ^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule
 ^crates/rd-api(-[a-z]+)?/src/notify_notice(\.rs$|/)                                           notifications updates plugin_repositories full_backup
 ^crates/rd-api(-[a-z]+)?/src/postprocess_handlers(\.rs$|/)                                    api_tokens
-^crates/rd-api(-[a-z]+)?/src/(remote_job_service|remote_job_handlers)(\.rs$|/)                 nzb_remote_job container_json mcp
+^crates/rd-api(-[a-z]+)?/src/(remote_job_service|remote_job_handlers)(\.rs$|/)                 nzb_remote_job container_json mcp remote_jobs_clear
 ^crates/rd-api(-[a-z]+)?/src/regex_tester(\.rs$|/)                                            scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/remote_listing_handlers(\.rs$|/)                                 capture_intake
 ^crates/rd-api/src/security_headers(\.rs$|/)                                                  cross_site
@@ -163,7 +163,7 @@
 ^crates/rd-core/src/failpoint(\.rs$|/)                                                        -
 ^crates/rd-core/recovery-matrix\.md$                                                      -
 ^crates/rd-core/tests/                                                                    -
-^crates/rd-core/src/audit(\.rs$|/)                                                            audit data_reset api_tokens public_surface step_up mcp
+^crates/rd-core/src/audit(_channel)?(\.rs$|/)                                                  audit data_reset api_tokens public_surface step_up mcp token_limits
 ^crates/rd-core/src/(auth_flow|auth_profile|cookie_file)(\.rs$|/)                             auth_profiles media_cookie_profile browser_session capture_intake mcp
 ^crates/rd-core/src/session(\.rs$|/)                                                          sessions auth mfa passkeys browser_session
 ^crates/rd-core/src/backup(\.rs$|/)                                                           full_backup backup_destinations mcp

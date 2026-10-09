@@ -121,6 +121,12 @@ fn remote_job_routes() -> Router<AppState> {
             "/api/v1/remote-jobs/providers",
             get(remote_job_handlers::list_remote_job_providers),
         )
+        // The whole (filtered) list at once (RD-1200-01): a static segment beside `{id}`,
+        // like `providers`, and a POST because it carries the filter and the confirmation.
+        .route(
+            "/api/v1/remote-jobs/clear",
+            post(remote_job_handlers::clear_remote_jobs),
+        )
         .route(
             "/api/v1/remote-jobs/{id}",
             axum::routing::delete(remote_job_handlers::forget_remote_job),
@@ -280,5 +286,6 @@ fn setup_and_backup_routes() -> Router<AppState> {
     remote_job_handlers::choose_remote_job_entries,
     remote_job_handlers::discard_remote_job,
     remote_job_handlers::forget_remote_job,
+    remote_job_handlers::clear_remote_jobs,
 ))]
 pub(crate) struct Doc;

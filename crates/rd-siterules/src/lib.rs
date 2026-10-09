@@ -39,6 +39,9 @@ pub use exec::{
 };
 pub use format::{Match, PackageSource, Rule, RuleError};
 pub use groups::{GroupMirrors, Groups, Pick};
-pub use pack::{FORMAT_VERSION, PackError, RulePack, SITE_RULES_DOMAIN, sign, verify, verify_with};
+pub use pack::{
+    FORMAT_VERSION, PackError, RulePack, SITE_RULES_DOMAIN, SignedPack, admit_sequence, sign,
+    verify, verify_signed, verify_signed_with, verify_with,
+};
 pub use selftest::{RuleReport, Verdict};
 pub use step::{Decoding, Step};

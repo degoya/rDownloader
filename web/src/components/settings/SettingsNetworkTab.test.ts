@@ -104,6 +104,28 @@ describe('SettingsNetworkTab proxy rows (RD-190-22)', () => {
     expect(screen.getByText('Tor relay')).not.toBeNull()
   })
 
+  it('asks for the password again once the address names another proxy (RD-1200-06)', async () => {
+    put.mockReset()
+    put.mockResolvedValue({ data: { ...TOR, endpoint: 'socks5h://10.0.0.9:9050' } })
+    mount([TOR])
+    await fireEvent.click(screen.getByRole('button', { name: settings.proxy.edit_title }))
+    await fireEvent.update(screen.getByLabelText(settings.proxy.endpoint_label), 'socks5h://10.0.0.9:9050')
+
+    const password = screen.getByLabelText(settings.proxy.password_label) as HTMLInputElement
+    // The test mount renders UFormField as a stub, which carries its description as an attribute.
+    expect(password.closest('[description]')?.getAttribute('description')).toBe(settings.proxy.password_host_changed)
+    expect(password.placeholder).toBe(settings.proxy.password_placeholder)
+    await fireEvent.submit(proxyForm())
+    expect(put).not.toHaveBeenCalled()
+
+    await fireEvent.update(password, 'secret')
+    await fireEvent.submit(proxyForm())
+    await waitFor(() => expect(put).toHaveBeenCalledWith('/api/v1/proxy-profiles/{id}', {
+      params: { path: { id: 'p1' } },
+      body: { name: 'Tor', kind: 'socks5', endpoint: 'socks5h://10.0.0.9:9050', username: 'relay', password: 'secret' }
+    }))
+  })
+
   it('duplicates into the form unsaved, asking for the password again', async () => {
     post.mockResolvedValue({ data: { ...TOR, id: 'p2', name: 'Tor (copy)' } })
     mount([TOR])

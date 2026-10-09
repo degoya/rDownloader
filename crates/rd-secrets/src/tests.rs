@@ -1,6 +1,8 @@
 //! The vault's own tests: references, envelopes, the master key file.
 
-use super::{SecretStore, references_in, write_private};
+use super::{
+    KeyringInteractionRefused, SecretStore, master_key_from, references_in, write_private,
+};
 
 #[test]
 fn references_are_found_in_columns_and_documents() {
@@ -287,4 +289,20 @@ fn an_unknown_envelope_version_is_refused() {
         super::associated_data(2, uuid::Uuid::now_v7()).expect("v2"),
         "the associated data differs per reference"
     );
+}
+
+/// RD-1200-02: a keyring that refuses to hand out the master key without asking ends the open
+/// with its own error, and no key is minted -- neither a fallback file nor a keyring entry
+/// replaces the one the vault was written under.
+#[tokio::test]
+async fn a_refused_keyring_read_mints_no_new_master_key() {
+    fn refused() -> anyhow::Result<Option<[u8; 32]>> {
+        Err(anyhow::Error::new(KeyringInteractionRefused))
+    }
+    let directory = tempfile::tempdir().expect("tempdir");
+    let error = master_key_from(directory.path(), Some(refused))
+        .await
+        .expect_err("the open fails");
+    assert!(error.downcast_ref::<KeyringInteractionRefused>().is_some());
+    assert!(!directory.path().join("master.key").exists());
 }

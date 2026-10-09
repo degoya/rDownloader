@@ -88,5 +88,32 @@
   "package": {
     "linkgrabber": "Paquet « {name} » dans le LinkGrabber",
     "downloads": "Le paquet a quitté le LinkGrabber – vers la liste des téléchargements"
+  },
+  "clear": {
+    "menu": "Vider la liste",
+    "local": {
+      "action": "Vider la liste ici seulement ({count})",
+      "confirm_title": "Vider la liste ici seulement ?",
+      "confirm_description": "{count} travail chez {providers} est retiré de cette liste. Ce que le fournisseur détient reste intact dans votre compte. | {count} travaux chez {providers} sont retirés de cette liste. Ce que les fournisseurs détiennent reste intact dans vos comptes.",
+      "confirm_label": "Vider ici seulement"
+    },
+    "provider": {
+      "action": "Supprimer chez le fournisseur et vider ({count})",
+      "confirm_title": "Supprimer chez le fournisseur et vider la liste ?",
+      "confirm_description": "{count} travail est supprimé dans votre compte chez {providers}, s’il y existe encore, puis retiré de cette liste. Cela se passe en dehors de cette machine et ne peut pas être annulé. Si le fournisseur ne peut pas le supprimer, il reste dans la liste et en indique la raison. | {count} travaux sont supprimés dans vos comptes chez {providers}, s’ils y existent encore, puis retirés de cette liste. Cela se passe en dehors de cette machine et ne peut pas être annulé. Un travail que son fournisseur ne peut pas supprimer reste dans la liste et en indique la raison.",
+      "confirm_label": "Supprimer chez le fournisseur et vider"
+    },
+    "running_left": "{count} travail est encore en cours et reste. | {count} travaux sont encore en cours et restent.",
+    "no_provider": "un fournisseur inconnu",
+    "done": "{count} travail retiré. | {count} travaux retirés.",
+    "partial": "{removed} retirés ; {failed} travail est resté parce que son fournisseur n’a pas pu le supprimer. | {removed} retirés ; {failed} travaux sont restés parce que leur fournisseur n’a pas pu les supprimer."
+  },
+  "filter": {
+    "provider": "Fournisseur",
+    "state": "État",
+    "all_providers": "Tous les fournisseurs",
+    "all_states": "Tous les états",
+    "none": "Aucun travail ne correspond à ce filtre.",
+    "reset": "Réinitialiser le filtre"
   }
 }

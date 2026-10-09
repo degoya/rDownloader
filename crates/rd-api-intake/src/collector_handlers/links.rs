@@ -105,10 +105,12 @@ impl CapturedLink {
     /// It carries what the folder listing stated — a name, a size and the folder it sat in —
     /// and nothing else. Everything below this point treats it exactly as a pasted link:
     /// the blocklist, the disabled-service refusal, the review and the routing rules all
-    /// apply, so a crawler queues nothing by itself.
+    /// apply, so a crawler queues nothing by itself. Like a pasted link it gets the canonical
+    /// host of an alias (`ddl.to` → `ddownload.com`): a release page lists the short form, and
+    /// the account lookup by domain only knows the hoster's own.
     pub(super) fn crawled(link: rd_plugin_ext::CrawledLink) -> Self {
         Self {
-            url: link.url,
+            url: rd_collector::canonical_url(link.url),
             file_name: link.file_name,
             size: link
                 .size
@@ -169,7 +171,49 @@ impl CapturedLink {
 
 #[cfg(test)]
 mod tests {
-    use super::LinkOrigin;
+    use super::{CapturedLink, LinkOrigin};
+
+    /// A site rule's find on an alias host (`ddl.to` on serienjunkies) reaches the collector
+    /// under the hoster's own domain, as a pasted link does, so the account lookup finds it.
+    #[test]
+    fn a_crawled_link_on_an_alias_host_takes_the_hosters_domain() {
+        rd_provider_registry::replace_dynamic(vec![rd_provider_registry::DynamicProvider {
+            plugin_id: "plugin-fixture".to_owned(),
+            spec: rd_provider_registry::ProviderSpec {
+                slug: "fixture".to_owned(),
+                display_name: "Fixture".to_owned(),
+                kind: rd_provider_registry::ProviderKind::Hoster,
+                credentials: rd_provider_registry::CredentialKind::ApiKey,
+                username_required: false,
+                transfer_auth: rd_provider_registry::TransferAuth::None,
+                secrets: Vec::new(),
+                request_domains: vec!["fixture.test".to_owned()],
+                cookie_scope: None,
+                match_hosts: vec!["fixture.test".to_owned()],
+                host_aliases: vec![("alias.test".to_owned(), "fixture.test".to_owned())],
+                source: rd_provider_registry::ProviderSource::Plugin,
+                plugin_id: Some("plugin-fixture".to_owned()),
+                plugin_version: Some("1.0.0".to_owned()),
+            },
+        }]);
+        let found = |address: &str| rd_plugin_ext::CrawledLink {
+            url: address.parse().expect("url"),
+            file_name: None,
+            size: None,
+            package_hint: None,
+            mirror: None,
+            login: None,
+            by_rule: true,
+        };
+        let link = CapturedLink::crawled(found("https://alias.test/9e4fj991ogww/S01E01.rar"));
+        assert_eq!(
+            link.url.as_str(),
+            "https://fixture.test/9e4fj991ogww/S01E01.rar"
+        );
+        // A folder crawler's own server is never an alias and stays as found.
+        let ftp = CapturedLink::crawled(found("ftp://alias.test/pub/S01E01.rar"));
+        assert_eq!(ftp.url.as_str(), "ftp://alias.test/pub/S01E01.rar");
+    }
 
     /// RD-150-03: what a document or a stranger's page proposed is checked under the address
     /// rule; what the person gave, and a folder they pointed the crawler at, may reach their

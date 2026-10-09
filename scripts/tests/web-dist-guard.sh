@@ -41,6 +41,14 @@ expect_true "a worktree with the link: not in the trap" '! rd_web_dist_trap "$WO
 expect_true "the main checkout with its own web/dist: not in the trap" '! rd_web_dist_trap "$MAIN"'
 
 rm "$WORKTREE/web/dist"
+expect_true "a worktree without any web/dist: missing, not the trap" \
+    'rd_web_dist_missing "$WORKTREE" && ! rd_web_dist_trap "$WORKTREE"'
+run_status rd_web_dist_guard "$WORKTREE" "the test"
+expect_status "the guard refuses a missing web/dist" 1
+expect_output "saying it is missing" "web/dist is missing"
+expect_output "and how to restore the link" "ln -s '$MAIN/web/dist' '$WORKTREE/web/dist'"
+expect_true "the main checkout is never missing its link" '! rd_web_dist_missing "$MAIN"'
+
 mkdir -p "$WORKTREE/web/dist"
 echo '<html>this branch</html>' > "$WORKTREE/web/dist/index.html"
 expect_true "a worktree with a web/dist of its own in the shared target: in the trap" 'rd_web_dist_trap "$WORKTREE"'

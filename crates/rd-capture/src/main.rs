@@ -17,6 +17,7 @@ mod hotkeys;
 // need the platform crates.
 #[cfg(any(windows, target_os = "macos", test))]
 mod icon;
+mod instance;
 mod notify;
 #[cfg(test)]
 mod notify_resume;
@@ -104,6 +105,14 @@ pub(crate) fn report(error: &anyhow::Error) -> u8 {
         );
         return config::EXIT_PORT_BUSY;
     }
+    // The other "already running", told apart by the lock rather than the port (RD-1200-03).
+    if error.is::<instance::AlreadyRunning>() {
+        eprintln!(
+            "{}. This agent is not needed while that one is running.",
+            instance::AlreadyRunning
+        );
+        return config::EXIT_PORT_BUSY;
+    }
     eprintln!("Error: {error:?}");
     1
 }
@@ -168,6 +177,8 @@ fn guarded_run(args: RunArgs) -> Result<()> {
     if !config::is_paired(args.connection.token.as_deref()) {
         return Err(anyhow::Error::new(NotPaired));
     }
+    // Held until the process ends; the tray path never returns from `run_agent`.
+    let _instance = instance::acquire(&config::config_directory()?, instance::RELAUNCH_WAIT)?;
     run_agent(args)
 }
 

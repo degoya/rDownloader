@@ -461,6 +461,10 @@ pub struct CaptureToken {
     /// vanish from the list the moment its client starts failing.
     #[serde(default)]
     pub expires_at: Option<DateTime<Utc>>,
+    /// Calls the token may make per minute, REST and MCP together (RD-1200-04); `None` is no
+    /// limit. A call above it is refused with `429` and `api.token_rate_limited`.
+    #[serde(default)]
+    pub calls_per_minute: Option<u32>,
 }
 
 #[cfg(test)]

@@ -9,8 +9,9 @@
 //! resolves to, and again when a connection is made: the store's client resolves through
 //! [`GuardedDns`], so a name that answers differently the second time is refused there.
 //!
-//! What stays open: through a proxy the proxy resolves the name, and `object_store` follows a
-//! redirect to a literal address without asking the resolver.
+//! A redirect, which could name a literal address and so pass the resolver by, is never
+//! followed (RD-1200-06, `connect/transport.rs`). What stays open: through a proxy the proxy
+//! resolves the name.
 
 use std::sync::Arc;
 

@@ -46,6 +46,10 @@ fn account_security_routes() -> Router<AppState> {
             "/api/v1/api-tokens/{id}",
             delete(api_tokens::revoke_api_token).patch(api_tokens::update_api_token_scopes),
         )
+        .route(
+            "/api/v1/api-tokens/{id}/limits",
+            axum::routing::put(api_tokens::update_api_token_limits),
+        )
         .route("/api/v1/mfa", get(mfa_handlers::mfa_status))
         .route("/api/v1/mfa/totp", post(mfa_handlers::enrol_totp))
         .route(
@@ -194,6 +198,7 @@ fn credential_routes() -> Router<AppState> {
     api_tokens::list_api_tokens,
     api_tokens::revoke_api_token,
     api_tokens::update_api_token_scopes,
+    api_tokens::update_api_token_limits,
     api_tokens::list_token_scopes,
     mfa_handlers::mfa_status,
     mfa_handlers::enrol_totp,

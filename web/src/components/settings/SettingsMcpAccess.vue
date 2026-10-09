@@ -10,10 +10,12 @@ import CopyField from '@/components/CopyField.vue'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
+import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
 import { serviceUrl } from '@/basePath'
 import { formatDay } from '@/utils/format'
+import { WHOLE, orNull } from '@/utils/numberInput'
 import { expiresInDays, tokenExpired, tokenExpiryItems, tokenExpiryLabel } from '@/utils/tokenExpiry'
 import SectionHeader from '@/components/SectionHeader.vue'
 
@@ -34,6 +36,8 @@ const chosen = ref<string[]>(['api:read'])
 /// Days until the new token expires; `0`, never, is the default (RD-1110-07).
 const expiryDays = ref(0)
 const expiryItems = computed(() => tokenExpiryItems(t))
+/// Calls per minute of the new token, REST and MCP together; empty is no limit (RD-1200-04).
+const rateLimit = ref<number | null>(null)
 const bearer = ref<string | null>(null)
 const bearerTokenId = ref<string | null>(null)
 /// Areas of the token currently shown, so the hint describes what was actually minted rather
@@ -47,6 +51,8 @@ const revokingId = ref<string | null>(null)
 /// server has, not what was typed.
 const editingId = ref<string | null>(null)
 const editScopes = ref<string[]>([])
+/// The call limit in that editor, saved beside the areas when it changed.
+const editRate = ref<number | null>(null)
 const savingId = ref<string | null>(null)
 const editError = ref<string | null>(null)
 const confirm = useConfirm()
@@ -128,7 +134,12 @@ async function pair(): Promise<void> {
   pairing.value = true
   pairError.value = null
   const response = await api.POST('/api/v1/api-tokens', {
-    body: { label: pairLabel.value, scopes: chosen.value, expires_in_days: expiresInDays(expiryDays.value) }
+    body: {
+      label: pairLabel.value,
+      scopes: chosen.value,
+      expires_in_days: expiresInDays(expiryDays.value),
+      calls_per_minute: orNull(rateLimit.value)
+    }
   })
   pairing.value = false
   if (response.data) {
@@ -148,12 +159,14 @@ function startEdit(token: CaptureToken): void {
   editScopes.value = token.scopes.includes('api:*')
     ? areas.value.map((area) => area.scope)
     : token.scopes.filter((scope) => areas.value.some((area) => area.scope === scope))
+  editRate.value = token.calls_per_minute ?? null
   editError.value = null
 }
 
 function cancelEdit(): void {
   editingId.value = null
   editScopes.value = []
+  editRate.value = null
   editError.value = null
 }
 
@@ -164,12 +177,29 @@ async function saveScopes(token: CaptureToken): Promise<void> {
     params: { path: { id: token.id } },
     body: { scopes: editScopes.value }
   })
-  savingId.value = null
   if (!response.data) {
+    savingId.value = null
     editError.value = responseError(response)
     return
   }
-  tokens.value = tokens.value.map(item => (item.id === token.id ? response.data! : item))
+  let saved = response.data
+  // The limit has a route of its own (RD-1200-04), asked only when it changed.
+  const limit = orNull(editRate.value)
+  if (limit !== (token.calls_per_minute ?? null)) {
+    const limited = await api.PUT('/api/v1/api-tokens/{id}/limits', {
+      params: { path: { id: token.id } },
+      body: { calls_per_minute: limit }
+    })
+    if (!limited.data) {
+      savingId.value = null
+      tokens.value = tokens.value.map(item => (item.id === token.id ? saved : item))
+      editError.value = responseError(limited)
+      return
+    }
+    saved = limited.data
+  }
+  savingId.value = null
+  tokens.value = tokens.value.map(item => (item.id === token.id ? saved : item))
   cancelEdit()
   toast.add({ title: t('system.mcp.edit.done'), color: 'success', icon: 'i-lucide-shield-check' })
 }
@@ -263,6 +293,18 @@ function scopeLabel(token: CaptureToken): string {
           <UFormField :label="t('system.token_expiry.label')" :description="t('system.token_expiry.hint')">
             <USelect v-model="expiryDays" :items="expiryItems" icon="i-lucide-calendar-clock" class="w-full" data-testid="token-expiry" />
           </UFormField>
+          <UFormField :label="t('system.token_rate.label')" :description="t('system.token_rate.hint')">
+            <NumberWithUnit
+              v-model="rateLimit"
+              :unit="t('system.token_rate.unit')"
+              :min="1"
+              :max="6000"
+              :format-options="WHOLE"
+              :placeholder="t('system.token_rate.none')"
+              class="w-full"
+              data-testid="token-rate"
+            />
+          </UFormField>
           <FormActions :create-label="t('system.mcp.submit')" create-icon="i-lucide-key-round" :loading="pairing" :disabled="!chosen.length" />
         </form>
         <UAlert v-if="bearer" class="mt-3" color="warning" :title="t('system.mcp.copy_hint')">
@@ -291,6 +333,7 @@ function scopeLabel(token: CaptureToken): string {
                 <p class="truncate text-sm font-medium text-highlighted">{{ token.label }}</p>
                 <p class="text-2xs text-muted">{{ scopeLabel(token) }} · <span class="font-mono">{{ token.scopes.join(', ') }}</span></p>
                 <p v-if="token.expires_at" class="text-2xs" :class="tokenExpired(token.expires_at) ? 'text-error' : 'text-muted'">{{ tokenExpiryLabel(token.expires_at, t) }}</p>
+                <p v-if="token.calls_per_minute" class="numeric text-2xs text-muted">{{ t('system.token_rate.row', { count: token.calls_per_minute }) }}</p>
               </div>
               <span class="numeric text-2xs text-muted">{{ formatDay(token.created_at) }}</span>
               <UButton
@@ -342,6 +385,18 @@ function scopeLabel(token: CaptureToken): string {
                 :description="t('system.mcp.sensitive_warning')"
               />
               <p v-if="!editScopes.length" class="mt-2 text-xs text-warning">{{ t('system.mcp.edit.empty') }}</p>
+              <UFormField class="mt-3" :label="t('system.token_rate.label')" :description="t('system.token_rate.hint')">
+                <NumberWithUnit
+                  v-model="editRate"
+                  :unit="t('system.token_rate.unit')"
+                  :min="1"
+                  :max="6000"
+                  :format-options="WHOLE"
+                  :placeholder="t('system.token_rate.none')"
+                  class="w-full"
+                  data-testid="token-edit-rate"
+                />
+              </UFormField>
               <UAlert v-if="editError" class="mt-2" color="error" :description="editError" />
               <FormActions
                 class="mt-3"

@@ -110,6 +110,40 @@ export function toUpdateBody(
   return { ...toCreateBody(form), clear_private_key: clearPrivateKey }
 }
 
+/** The host as the server stores it: lowercase, without a trailing dot, a URL's host part. */
+function normalizedHost(value: string): string {
+  const host = value.trim()
+  if (host.includes('://')) {
+    try {
+      return new URL(host).hostname.replace(/\.$/, '').toLowerCase()
+    } catch {
+      return host.toLowerCase()
+    }
+  }
+  return host.replace(/\.$/, '').toLowerCase()
+}
+
+/**
+ * Whether the form still names the server the stored credentials were typed for: protocol,
+ * host and port, as the server's `same_server` compares them (RD-1200-06).
+ */
+export function sameServer(form: RemoteCredentialForm, stored: RemoteCredential): boolean {
+  return stored.protocol === form.protocol
+    && stored.host === normalizedHost(form.host)
+    && stored.port === (portOf(form) ?? DEFAULT_PORTS[form.protocol])
+}
+
+/**
+ * A stored password or key the form's new server drops: the page says so and asks for it again,
+ * as the server refuses the save without it (`remote.secret_host_changed`).
+ */
+export function dropsCredentialForServer(form: RemoteCredentialForm, stored: RemoteCredential | null): boolean {
+  if (!stored || stored.auth_mode !== form.auth_mode || sameServer(form, stored)) return false
+  if (form.auth_mode === 'password') return stored.has_secret
+  if (form.auth_mode === 'private_key') return stored.has_key
+  return false
+}
+
 /** Human-readable endpoint, matching how a link is matched against it. */
 export function endpointLabel(credential: RemoteCredential): string {
   const port = credential.port === DEFAULT_PORTS[credential.protocol] ? '' : `:${credential.port}`

@@ -196,7 +196,8 @@
       "description": "El perfil proxy «{name}» y su contraseña cifrada se eliminarán de forma permanente. Mientras lo use una cuenta, un servidor Usenet, una descarga sin terminar, la ruta de conexión global o el proxy de pares de torrent, el servicio lo rechaza.",
       "in_use_here": "Aquí está elegido como ruta de conexión global o como proxy de pares de torrent: elige otro primero y guarda.",
       "confirm": "Eliminar perfil"
-    }
+    },
+    "password_host_changed": "La dirección cambió: la contraseña guardada no se envía al nuevo proxy. Introdúcela de nuevo."
   },
   "global_proxy": {
     "eyebrow": "Respaldo de red",

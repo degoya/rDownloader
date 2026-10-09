@@ -31,8 +31,8 @@ use crate::{
     ApiError, AppState,
     auth::Granted,
     dto::{
-        ApiTokenRequest, ApiTokenScopesRequest, CapturePairResponse, MessageResponse,
-        ScopeDescriptor,
+        ApiTokenLimitsRequest, ApiTokenRequest, ApiTokenScopesRequest, CapturePairResponse,
+        MessageResponse, ScopeDescriptor,
     },
 };
 
@@ -40,14 +40,20 @@ use crate::{
 /// who would rather not say so.
 const MAX_EXPIRY_DAYS: u32 = 3650;
 
+/// The highest call limit per minute a token can be given (RD-1200-04): a hundred a second,
+/// beyond which a limit no longer limits anything a person would notice.
+const MAX_CALLS_PER_MINUTE: u32 = 6000;
+
 /// Validates the label, mints a one-time bearer holding `scopes` and persists only its digest.
 ///
 /// `expires_in_days` is the optional expiry (RD-1110-07); `None` never expires.
+/// `calls_per_minute` is the optional call limit (RD-1200-04); `None` is no limit.
 pub(crate) async fn pair_with_scopes(
     state: &AppState,
     label: &str,
     scopes: Vec<String>,
     expires_in_days: Option<u32>,
+    calls_per_minute: Option<u32>,
     label_error_code: &'static str,
 ) -> Result<CapturePairResponse, ApiError> {
     let label = required_text(
@@ -57,17 +63,19 @@ pub(crate) async fn pair_with_scopes(
         "Token label must be between 1 and 100 characters",
     )?;
     let expires_at = expiry(expires_in_days)?;
+    let calls_per_minute = call_limit(calls_per_minute)?;
     let mut random = [0_u8; 32];
     rand::rng().fill_bytes(&mut random);
     let bearer = URL_SAFE_NO_PAD.encode(random);
     let token = state
         .database
-        .create_expiring_capture_token(
+        .create_limited_capture_token(
             rd_core::CaptureTokenId::new(),
             label,
             rd_authn::sha256_hex(&bearer),
             scopes,
             expires_at,
+            calls_per_minute,
         )
         .await?;
     Ok(CapturePairResponse { bearer, token })
@@ -92,6 +100,19 @@ fn expiry(days: Option<u32>) -> Result<Option<chrono::DateTime<chrono::Utc>>, Ap
     ))
 }
 
+/// A call limit inside the range, or none. Out of range is refused, not clamped, like the
+/// expiry: a limit other than the one asked for is a surprise either way.
+fn call_limit(calls_per_minute: Option<u32>) -> Result<Option<u32>, ApiError> {
+    match calls_per_minute {
+        Some(limit) if !(1..=MAX_CALLS_PER_MINUTE).contains(&limit) => Err(ApiError::bad_request(
+            "api.token_rate_range",
+            "A token makes 1 to 6000 calls per minute, or has no limit",
+        )
+        .with_param("max", MAX_CALLS_PER_MINUTE)),
+        limit => Ok(limit),
+    }
+}
+
 #[utoipa::path(post, path = "/api/v1/api-tokens", tag = "api-tokens", request_body = ApiTokenRequest, responses((status = 201, body = CapturePairResponse)))]
 pub async fn pair_api_token(
     State(state): State<AppState>,
@@ -106,6 +127,7 @@ pub async fn pair_api_token(
         &request.label,
         scopes.clone(),
         request.expires_in_days,
+        request.calls_per_minute,
         "api.label_length",
     )
     .await?;
@@ -119,6 +141,9 @@ pub async fn pair_api_token(
         .detail("scopes", scopes.join(" "));
     if let Some(expires_at) = response.token.expires_at {
         event = event.detail("expires_at", expires_at.to_rfc3339());
+    }
+    if let Some(limit) = response.token.calls_per_minute {
+        event = event.detail("calls_per_minute", limit);
     }
     crate::audit::record(&state, event).await;
     Ok((StatusCode::CREATED, Json(response)))
@@ -321,6 +346,63 @@ pub async fn update_api_token_scopes(
             .named(token.label.clone())
             .detail("scopes_before", previous)
             .detail("scopes_after", token.scopes.join(" ")),
+    )
+    .await;
+    Ok(Json(token))
+}
+
+/// Sets or clears an existing token's call limit per minute (RD-1200-04), keeping its bearer
+/// value and its areas.
+///
+/// Only a token the API token list shows, as for re-scoping, and recorded with both sides of
+/// the change: lifting a limit is the kind of change the audit log is asked about afterwards.
+#[utoipa::path(
+    put,
+    path = "/api/v1/api-tokens/{id}/limits",
+    tag = "api-tokens",
+    request_body = ApiTokenLimitsRequest,
+    params(("id" = rd_core::CaptureTokenId, Path)),
+    responses((status = 200, body = rd_core::CaptureToken), (status = 400), (status = 404))
+)]
+pub async fn update_api_token_limits(
+    State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    Path(id): Path<rd_core::CaptureTokenId>,
+    Json(request): Json<ApiTokenLimitsRequest>,
+) -> Result<Json<rd_core::CaptureToken>, ApiError> {
+    let calls_per_minute = call_limit(request.calls_per_minute)?;
+    let tokens = state
+        .database
+        .list_capture_tokens(&api_token_scopes())
+        .await?;
+    let Some(previous) = tokens.iter().find(|token| token.id == id) else {
+        return Err(ApiError::not_found(
+            "api.token_not_found",
+            "API token not found",
+        ));
+    };
+    let before = previous.calls_per_minute;
+    let token = state
+        .database
+        .update_capture_token_limits(id, calls_per_minute)
+        .await
+        .map_err(|error| {
+            crate::error_codes::store_not_found(
+                &error,
+                "api.token_not_found",
+                "API token not found",
+            )
+        })?;
+    let spelled =
+        |limit: Option<u32>| limit.map_or_else(|| "none".to_owned(), |limit| limit.to_string());
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::TokenLimitsChanged)
+            .by(&audit)
+            .target("token", id)
+            .named(token.label.clone())
+            .detail("calls_per_minute_before", spelled(before))
+            .detail("calls_per_minute_after", spelled(token.calls_per_minute)),
     )
     .await;
     Ok(Json(token))

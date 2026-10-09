@@ -55,6 +55,19 @@ png.workspace = true
 tao.workspace = true
 tray-icon.workspace = true
 
+# The clipboard's concealment marks (RD-1200-03, `src/clipboard/marks/`), per platform: the
+# crates `arboard` already links there, asked for what it does not read.
+[target.'cfg(windows)'.dependencies]
+clipboard-win.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-app-kit.workspace = true
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+wl-clipboard-rs.workspace = true
+x11rb.workspace = true
+
 [dev-dependencies]
 # Read by src/platform_gate/, which judges this manifest as TOML rather than as text.
 toml.workspace = true

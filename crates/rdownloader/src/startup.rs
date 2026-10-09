@@ -82,8 +82,19 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
         database.clone(),
         env!("CARGO_PKG_VERSION").to_owned(),
     );
+    // A keychain that would hand the master key out only after a prompt nobody sees ends the
+    // start, said in the log with the way out, instead of waiting for ever (RD-1200-02).
     let secrets =
-        rd_secrets::SecretStore::open_with_os_keyring(data_directory.join("secrets")).await?;
+        match rd_secrets::SecretStore::open_with_os_keyring(data_directory.join("secrets")).await {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                if let Some(refused) = error.downcast_ref::<rd_secrets::KeyringInteractionRefused>()
+                {
+                    tracing::error!(code = rd_secrets::KEYRING_INTERACTION_REFUSED, "{refused}");
+                }
+                return Err(error);
+            }
+        };
     // A link fragment that is key material goes into this vault at intake instead of being
     // dropped (RD-110-38). Installed rather than passed to `Database::open`, because the
     // store has to exist before the vault's master key is fetched from the keyring.

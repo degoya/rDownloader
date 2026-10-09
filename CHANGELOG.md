@@ -5,6 +5,91 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-10-09
+
+### Added
+
+- **Clear the remote jobs list, here only or at the provider too (RD-1200-01).**
+  `POST /api/v1/remote-jobs/clear` takes `confirmed` (required), `at_provider`, `provider` and
+  `states` -- a filter, not ids -- and per job does what `DELETE /remote-jobs/{id}` and a confirmed
+  `discard` do (`RemoteJobService::clear`); jobs still `submitting`, `preparing` or `working` are
+  left out and listed under `skipped`, a provider refusal keeps that job's row and is reported per
+  job without stopping the rest, and one `remote_jobs_cleared` audit record holds the filter and
+  the counts. The remote jobs card gains a provider and a state filter (`?provider=`, `?state=` in the address)
+  and a *Clear list* menu
+  over what they show (local neutral, provider red), each question naming the count, the
+  providers and the jobs left running. MCP `clear_remote_jobs` clears here only (no `at_provider`;
+  owner, 2026-10-08), behind the RD-1190-21 question.
+- **macOS: the service no longer hangs at a keychain prompt after an upgrade (RD-1200-02).**
+  `rd-secrets` reads the vault master key with the keychain's user interaction switched off
+  (`SecKeychain::disable_user_interaction`, `security-framework` as a macOS-only dependency at the
+  version `keyring` already pulls in) unless a terminal is attached; `errSecInteractionNotAllowed`
+  is its own error (`KeyringInteractionRefused`, code `keychain_interaction_refused`), never "no
+  entry", so no new key is minted. `serve` logs it with the way out (a foreground start and
+  *Always Allow*, or Keychain Access) and exits non-zero. Linux and Windows read as before.
+  `channels.yml`'s Homebrew upgrade now fails at once with that code instead of after the
+  timeout, and `scripts/ci-brew-service-diagnostics.sh` stops the service before its foreground
+  start (script test `ci-brew-service-diagnostics.sh`).
+- **Capture agent hardening II (RD-1200-03).** Clipboard watching leaves alone what a password
+  manager marks as concealed — Windows `ExcludeClipboardContentFromMonitorProcessing` /
+  `CanIncludeInClipboardHistory` = 0, macOS `org.nspasteboard.ConcealedType`/`TransientType`,
+  X11/Wayland `x-kde-passwordManagerHint` = `secret`, asked before and after each read
+  (`rd-capture/src/clipboard/marks/`; new direct dependencies `clipboard-win`, `objc2`,
+  `objc2-app-kit`, `wl-clipboard-rs`, `x11rb`, all already in the lockfile through `arboard`).
+  Every token-bearing request first asks the service address's `/api/v1/health` who answers and
+  sends the token only to rDownloader (`client/identity.rs`); `open` and `handle` hand over to the
+  service with the pairing token (`--agent` is gone) and the agent-only `/rdownloader/nzb` route
+  on 9666 is removed. One agent per account: a lock on `agent.lock` waits up to 10 s for the agent
+  a relaunch replaces, then exits with the "already running" code. Model
+  `docs/security/capture-agent.md` findings 3, 4 and 9 closed.
+
+- **The audit log says how an action came, and an API token can carry a call limit
+  (RD-1200-04).** Every audit record keeps `via` (`rd_core::AuditChannel`: `rest`, `mcp`,
+  `capture`, `compat`, `internal`; migration `0131`, older rows read `rest`), set by the door the
+  request came through — the `/mcp` gate, the capture door, the SABnzbd/qBittorrent adapters;
+  `GET /audit/records`, the export and `list_audit_records` filter by it, the audit view shows it.
+  A token's optional `calls_per_minute` (1–6000, REST and MCP together; `POST /api-tokens`, new
+  `PUT /api-tokens/{id}/limits`, audited as `token_limits_changed`) refuses the call above it
+  with `429 api.token_rate_limited` and `Retry-After`, a compatibility client with a bare `429`;
+  the token dialog sets it. Closes `docs/security/mcp.md` findings 6 and 8; per-token tool groups
+  stay open (no grouping table exists, scopes are the lever).
+
+- **Site rules record where they came from (RD-1200-05, finding O-5 of the site-rules model).**
+  Migration `0132` gives every rule an origin — `signed` (signer key id and file sequence),
+  `import`, `editor`, `mcp`, `unknown` for rules stored before — and keeps the highest sequence
+  accepted per signer; a signed file with a lower one is refused whole with
+  `site_rules.sequence_older`, the same one again is accepted. The list, its glyph per row, the
+  editor and the `list_site_rules` tool show it; `rd_sign::SignedDocument::verify_signer` names
+  the key whose signature held.
+- **Object storage follows no redirect; proxy profiles and remote logins keep their secrets to
+  their host (RD-1200-06).** The store's HTTP client is built by `rd-object-storage`
+  (`connect/transport.rs`, an `object_store` `HttpConnector` with reqwest's redirect policy off),
+  so a redirect to a literal address no longer passes the guarded resolver; a 3xx is
+  `object_storage.redirect_refused`. A proxy profile whose scheme, host or port changes, and a
+  remote login whose protocol, host or port changes, drop the stored password or key
+  (`proxy.password_host_changed`, `remote.secret_host_changed`; the forms say so), and every
+  create, update and delete is audited (`proxy_profile_changed`, `remote_credential_changed`).
+
+### Fixed
+
+- **`check.sh` refuses a worktree whose `web/dist` link is missing.** The web/dist guard of
+  RD-1120-06 knew a worktree with a folder of its own; one with no `web/dist` at all ran on: the web
+  half built a folder of its own while rd-api compiled against none, the run failed on rust-embed
+  and the next one was refused as the trap. `rd_web_dist_missing` in `scripts/lib/web-dist.sh`,
+  refused with the `ln -s` that restores it; `scripts/tests/web-dist-guard.sh` (17 → 22 cases).
+- **A site rule's links on an alias host get the hoster's own domain.** A season picked on
+  serienjunkies listed `ddl.to` links; they reached the collector as `ddl.to`, the account lookup by
+  domain found no DDownload account and every file stopped as "needs an account". Crawled and
+  site-rule links now go through `rd_collector::canonical_url` like pasted text
+  (`CapturedLink::crawled`). Test
+  `collector_handlers::links::tests::a_crawled_link_on_an_alias_host_takes_the_hosters_domain`.
+- **The package row's state badges are icons with a tooltip.** `Usenet`, *waiting for missing
+  files*, *post-processing / extraction failed* and *handed to <provider>* each spent a word and
+  pushed the name cell over the file count; each is now a glyph whose word is its accessible name
+  and its `UTooltip` (`PackageGroup.vue`; `design.md` glyph rule). The failed glyph still opens the
+  steps, the handed-over one still leads to the remote jobs. Tests in `PackageGroup.test.ts`
+  (`state glyphs`) and `DownloadsView.test.ts`.
+
 ## [1.19.0] - 2026-10-08
 
 ### Added

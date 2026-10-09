@@ -26,6 +26,10 @@ use crate::{
     remote_job_service::{self, ChoiceOutcome, DiscardOutcome, RemoteJobRefused, SubmitOutcome},
 };
 
+mod clear;
+
+pub use clear::*;
+
 /// Longest address accepted for a remote job. A magnet is a few hundred characters; anything
 /// past this is not one, and the check belongs here rather than in a plugin's fuel budget.
 const MAX_SOURCE: usize = 8 * 1024;

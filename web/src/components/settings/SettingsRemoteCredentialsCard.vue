@@ -12,6 +12,7 @@ import {
   DEFAULT_PORTS,
   type RemoteCredentialForm,
   authModesFor,
+  dropsCredentialForServer,
   emptyForm,
   endpointLabel,
   formFor,
@@ -77,6 +78,12 @@ const isFtp = computed(() => form.protocol !== 'sftp')
 const usesPassword = computed(() => form.auth_mode === 'password')
 const usesKey = computed(() => form.auth_mode === 'private_key')
 const needsUsername = computed(() => form.auth_mode !== 'anonymous')
+/** A stored credential goes to no other server: a changed protocol, host or port asks again. */
+const credentialMoved = computed(() =>
+  dropsCredentialForServer(form, credentials.value.find(credential => credential.id === editingId.value) ?? null)
+)
+/** Whether the credential field must be filled: always for a new login, for an edit once it moved. */
+const credentialRequired = computed(() => !editingId.value || credentialMoved.value)
 
 /**
  * A new login needs the credential its mode uses; an edit may keep the stored one.
@@ -85,11 +92,17 @@ const needsUsername = computed(() => form.auth_mode !== 'anonymous')
 const canSubmit = computed(() => {
   if (!form.name.trim() || !form.host.trim()) return false
   if (needsUsername.value && !form.username.trim()) return false
-  if (editingId.value) return true
+  if (editingId.value && !credentialMoved.value) return true
   if (usesPassword.value) return form.secret.trim().length > 0
   if (usesKey.value) return form.private_key.trim().length > 0
   return true
 })
+
+/** What the credential field says: keep it, type it again for the new server, or how it is stored. */
+function credentialHint(keep: 'password_keep' | 'private_key_keep'): string {
+  if (credentialMoved.value) return t('remote.credentials.secret_host_changed')
+  return editingId.value ? t(`remote.credentials.${keep}`) : t('remote.credentials.secrets_note')
+}
 
 onMounted(() => void refresh())
 
@@ -257,16 +270,16 @@ async function confirmForget(key: SshHostKey): Promise<void> {
           <UFormField
             v-if="usesPassword"
             :label="t('remote.credentials.password')"
-            :description="editingId ? t('remote.credentials.password_keep') : t('remote.credentials.secrets_note')"
-            :required="!editingId"
+            :description="credentialHint('password_keep')"
+            :required="credentialRequired"
           >
             <UInput v-model="form.secret" type="password" class="w-full" />
           </UFormField>
           <UFormField
             v-if="usesKey"
             :label="t('remote.credentials.private_key')"
-            :description="editingId ? t('remote.credentials.private_key_keep') : t('remote.credentials.secrets_note')"
-            :required="!editingId"
+            :description="credentialHint('private_key_keep')"
+            :required="credentialRequired"
           >
             <UTextarea v-model="form.private_key" :rows="4" class="w-full font-mono text-xs" :placeholder="t('remote.credentials.private_key_placeholder')" />
           </UFormField>

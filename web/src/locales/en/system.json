@@ -764,5 +764,12 @@
     "days": "After {count} days",
     "expires_on": "Expires on {date}",
     "expired": "Expired"
+  },
+  "token_rate": {
+    "label": "Calls per minute",
+    "hint": "REST and MCP together. Empty means no limit; a call above it is refused until the minute is over.",
+    "unit": "/min",
+    "none": "No limit",
+    "row": "At most {count} calls per minute"
   }
 }

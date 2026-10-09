@@ -12,6 +12,17 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.20.0
+
+- Links from a series or release page on a short hoster address, such as ddl.to, now use your DDownload account instead of stopping as needing one.
+- The labels beside a package name in the download list are now small icons with a tooltip, so the name and the file count stay readable.
+- The remote jobs list filters by provider and state and clears in one go, either only here or also in your accounts at the provider.
+- On macOS the service no longer hangs silently after an update when the keychain wants your approval; it stops and its log tells you how to allow it.
+- The desktop agent no longer picks up passwords a password manager copies, and sends nothing to another program listening where rDownloader should be.
+- The audit log shows whether an action came through the web, an AI assistant over MCP, the browser extension or a download client, and an API token can be limited to a number of calls per minute.
+- Every site rule now shows where it came from, and an older signed rule file can no longer replace a newer one.
+- A changed proxy or server address asks for its password again instead of sending it to the new host, and bucket storage never follows a redirect.
+
 ## 1.19.0
 
 - When a premium account's daily traffic is used up, its downloads wait instead of being blocked, the account or the queue pauses as you set it, and it continues by itself.

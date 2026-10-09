@@ -84,56 +84,21 @@ async fn rejects_unbounded_javascript_loops() {
     assert!(resolve_key(script).await.is_err());
 }
 
-/// The agent's own NZB route is not a browser route. A page that finds the port must not be
-/// able to push a 64 MiB NZB of its choosing into the LinkGrabber.
+/// The agent's own NZB route is gone (RD-1200-03): `open` hands an NZB to the service itself,
+/// with the pairing token. A program of another account that finds the port can push no NZB
+/// through the agent's credential, with a page's headers or without.
 #[tokio::test]
-async fn the_agent_nzb_route_refuses_a_foreign_origin_and_offers_no_cors() {
+async fn the_port_takes_no_nzb_for_the_agent_to_hand_over() {
     let (address, cancellation) = spawn().await;
     let endpoint = format!("http://{address}/rdownloader/nzb");
-
-    for (name, value) in [
-        (header::ORIGIN, "https://evil.test"),
-        (header::REFERER, "https://evil.test/page"),
-    ] {
-        let response = client()
-            .post(&endpoint)
-            .header(name.clone(), value)
-            .body("whatever")
-            .send()
-            .await
-            .expect("the listener answers");
-        assert_eq!(
-            response.status(),
-            StatusCode::FORBIDDEN,
-            "a request carrying {name} must not reach the route"
-        );
-        assert!(
-            response
-                .headers()
-                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
-                .is_none(),
-            "the agent's own route must not advertise cross-origin access"
-        );
-        assert_eq!(response.text().await.expect("a body"), code::FOREIGN_ORIGIN);
+    for origin in [None, Some("https://evil.test")] {
+        let mut request = client().post(&endpoint).body("<nzb/>");
+        if let Some(origin) = origin {
+            request = request.header(header::ORIGIN, origin);
+        }
+        let response = request.send().await.expect("the listener answers");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{origin:?}");
     }
-
-    // Without those headers the route is reachable again — the refusal is about the caller,
-    // not about the route being switched off. The multipart body is missing, so this ends
-    // in the payload refusal rather than in a hand-over.
-    let response = client()
-        .post(&endpoint)
-        .body("not multipart")
-        .send()
-        .await
-        .expect("the listener answers");
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert!(
-        response
-            .headers()
-            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
-            .is_none(),
-        "no answer from this route carries a CORS header"
-    );
     cancellation.cancel();
 }
 

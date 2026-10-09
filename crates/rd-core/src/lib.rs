@@ -5,6 +5,7 @@
 mod account_traffic;
 mod address;
 mod audit;
+mod audit_channel;
 mod auth_flow;
 mod auth_profile;
 mod backup;
@@ -69,6 +70,7 @@ pub use audit::{
     AuditAction, AuditActorKind, AuditOutcome, AuditRetentionSettings,
     DEFAULT_AUDIT_RETENTION_DAYS, DEFAULT_AUDIT_RETENTION_RECORDS,
 };
+pub use audit_channel::AuditChannel;
 pub use auth_flow::{AuthFlow, AuthFlowState};
 pub use auth_profile::{
     AuthMethod, AuthOrigin, AuthProfile, AuthProfileSelection, AuthScope, MAX_AUTH_CERTIFICATE,

@@ -21,6 +21,7 @@ use rmcp::{
 /// The tools whose answers carry text a third party chose. Kept sorted.
 pub(crate) const UNTRUSTED_TEXT_TOOLS: &[&str] = &[
     "check_links",
+    "clear_remote_jobs",
     "collect_links",
     "dry_run_automations",
     "enqueue_collector",

@@ -42,6 +42,20 @@ pub struct SiteRuleResponse {
     /// The rule body, as `rd_siterules::Rule` serialises it, so the editor can open it.
     pub rule: serde_json::Value,
     pub check: Option<SiteRuleCheckResponse>,
+    /// Where the rule's current body came from (RD-1200-05).
+    pub origin: SiteRuleOriginResponse,
+}
+
+/// Where a rule came from (RD-1200-05).
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SiteRuleOriginResponse {
+    /// `signed` (the signed release file), `import` (an unsigned file or a pasted export),
+    /// `editor`, `mcp`, or `unknown` for a rule stored before 1.20.
+    pub kind: String,
+    /// The key whose signature held, for `signed` only.
+    pub signer: Option<String>,
+    /// The signed file's sequence, for `signed` only.
+    pub sequence: Option<u64>,
 }
 
 /// One group, with its own switch.

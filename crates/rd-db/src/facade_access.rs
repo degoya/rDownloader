@@ -31,12 +31,28 @@ impl Database {
         scopes: Vec<String>,
         expires_at: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<rd_core::CaptureToken> {
+        self.create_limited_capture_token(id, label, token_sha256, scopes, expires_at, None)
+            .await
+    }
+
+    /// [`Self::create_expiring_capture_token`] with an optional call limit per minute
+    /// (RD-1200-04); `None` is no limit.
+    pub async fn create_limited_capture_token(
+        &self,
+        id: rd_core::CaptureTokenId,
+        label: String,
+        token_sha256: String,
+        scopes: Vec<String>,
+        expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        calls_per_minute: Option<u32>,
+    ) -> Result<rd_core::CaptureToken> {
         writer::request(&self.writer, |reply| SessionsCommand::CreateCaptureToken {
             id,
             label,
             token_sha256,
             scopes,
             expires_at,
+            calls_per_minute,
             reply,
         })
         .await
@@ -58,6 +74,23 @@ impl Database {
         .await
     }
 
+    /// Sets or clears a live token's call limit per minute (RD-1200-04); its bearer value and
+    /// scopes are untouched.
+    pub async fn update_capture_token_limits(
+        &self,
+        id: rd_core::CaptureTokenId,
+        calls_per_minute: Option<u32>,
+    ) -> Result<rd_core::CaptureToken> {
+        writer::request(&self.writer, |reply| {
+            SessionsCommand::UpdateCaptureTokenLimits {
+                id,
+                calls_per_minute,
+                reply,
+            }
+        })
+        .await
+    }
+
     /// Checks a token digest for the given scope without exposing the stored value.
     pub async fn capture_token_valid(&self, token_sha256: &str, scope: &str) -> Result<bool> {
         capture_store::token_valid_with_scope(&self.readers, token_sha256, scope).await
@@ -68,12 +101,13 @@ impl Database {
         capture_store::token_scopes(&self.readers, token_sha256).await
     }
 
-    /// The id, label and scopes of the live token with this digest, for the policy check and
-    /// the audit log in one read. `None` when no live token has that digest.
+    /// The id, label, scopes and calls per minute (`None`: no limit, RD-1200-04) of the live
+    /// token with this digest, for the policy check, the rate and the audit log in one read.
+    /// `None` when no live token has that digest.
     pub async fn capture_token_identity(
         &self,
         token_sha256: &str,
-    ) -> Result<Option<(rd_core::CaptureTokenId, String, Vec<String>)>> {
+    ) -> Result<Option<(rd_core::CaptureTokenId, String, Vec<String>, Option<u32>)>> {
         capture_store::token_identity(&self.readers, token_sha256).await
     }
 

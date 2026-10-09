@@ -1,5 +1,7 @@
 //! The request guards: what a request carries, whether it may reach a route, and the refusals.
 
+use rd_core::AuditChannel;
+
 use super::*;
 
 /// An owned snapshot of what a request is, taken before anything is awaited.
@@ -62,34 +64,76 @@ pub async fn credential(
     headers: &HeaderMap,
     from_this_machine: bool,
 ) -> (Vec<rd_core::Scope>, crate::audit::Actor) {
+    let resolved = resolve(state, headers, from_this_machine, AuditChannel::Rest).await;
+    (resolved.scopes, resolved.actor)
+}
+
+/// What a request's credential resolved to: [`credential`]'s answer, and the call limit of
+/// the token behind it (RD-1200-04).
+pub(super) struct Resolved {
+    pub(super) scopes: Vec<rd_core::Scope>,
+    pub(super) actor: crate::audit::Actor,
+    limit: Option<(rd_core::CaptureTokenId, u32)>,
+}
+
+impl Resolved {
+    fn of(scopes: Vec<rd_core::Scope>, actor: crate::audit::Actor) -> Self {
+        Self {
+            scopes,
+            actor,
+            limit: None,
+        }
+    }
+
+    /// Counts this call against the token's limit, or the `429` it earns.
+    pub(super) fn admit(&self) -> Result<(), super::token_rate::Refused> {
+        match self.limit {
+            Some((token, limit)) => super::token_rate::admit(token, Some(limit)),
+            None => Ok(()),
+        }
+    }
+}
+
+/// [`credential`], with the door the request came through (RD-1200-04): the actor carries
+/// it, and so does the throttled `token_used` record.
+pub(super) async fn resolve(
+    state: &AppState,
+    headers: &HeaderMap,
+    from_this_machine: bool,
+    via: AuditChannel,
+) -> Resolved {
     let full = rd_core::Scope::API.to_vec();
     if state.auth.disabled_for(from_this_machine) {
         // Nobody signed in, and every caller on this machine is an administrator. "Anonymous"
         // is the honest word for that, and it is worth being able to filter an audit log by it.
-        return (full, crate::audit::Actor::anonymous());
+        return Resolved::of(full, crate::audit::Actor::anonymous().through(via));
     }
     if let Some(session) = state.auth.current_session(state, headers).await {
-        return (full, crate::audit::Actor::session(session.id.to_string()));
+        return Resolved::of(
+            full,
+            crate::audit::Actor::session(session.id.to_string()).through(via),
+        );
     }
     let Some(token) = bearer_token(headers) else {
-        return (Vec::new(), crate::audit::Actor::anonymous());
+        return Resolved::of(Vec::new(), crate::audit::Actor::anonymous().through(via));
     };
     let digest = digest_of(token);
     match state.database.capture_token_identity(&digest).await {
-        Ok(Some((id, label, scopes))) => {
+        Ok(Some((id, label, scopes, calls_per_minute))) => {
             note_token_use(state, digest.clone());
-            note_token_audit(state, id, label.clone(), scopes.clone());
-            (
-                rd_core::granted_scopes(scopes.iter().map(String::as_str)),
-                crate::audit::Actor::token(id.to_string(), label),
-            )
+            note_token_audit(state, id, label.clone(), scopes.clone(), via);
+            Resolved {
+                scopes: rd_core::granted_scopes(scopes.iter().map(String::as_str)),
+                actor: crate::audit::Actor::token(id.to_string(), label).through(via),
+                limit: calls_per_minute.map(|limit| (id, limit)),
+            }
         }
         // A token nobody can look up grants nothing; a database error must not grant more
         // than a missing token does.
-        Ok(None) => (Vec::new(), crate::audit::Actor::anonymous()),
+        Ok(None) => Resolved::of(Vec::new(), crate::audit::Actor::anonymous().through(via)),
         Err(error) => {
             tracing::warn!(error = %error, "could not read token scopes for the policy check");
-            (Vec::new(), crate::audit::Actor::anonymous())
+            Resolved::of(Vec::new(), crate::audit::Actor::anonymous().through(via))
         }
     }
 }
@@ -117,6 +161,7 @@ pub(super) fn note_token_audit(
     id: rd_core::CaptureTokenId,
     label: String,
     scopes: Vec<String>,
+    via: AuditChannel,
 ) {
     let now = chrono::Utc::now();
     {
@@ -135,7 +180,7 @@ pub(super) fn note_token_audit(
         crate::audit::record(
             &state,
             crate::audit::AuditEvent::success(rd_core::AuditAction::TokenUsed)
-                .actor(crate::audit::Actor::token(id.to_string(), label))
+                .actor(crate::audit::Actor::token(id.to_string(), label).through(via))
                 .target("token", id)
                 .detail("scopes", scopes.join(" ")),
         )
@@ -166,7 +211,21 @@ pub async fn require_session(
     let (granted, actor) = match facts.as_ref() {
         Some(facts) => match local_control_grant(&state, facts) {
             Some(grant) => grant,
-            None => credential(&state, &facts.headers, facts.from_this_machine).await,
+            None => {
+                let resolved = resolve(
+                    &state,
+                    &facts.headers,
+                    facts.from_this_machine,
+                    AuditChannel::Rest,
+                )
+                .await;
+                // Before the scope check: a call over the limit is refused whatever it asks
+                // for (RD-1200-04).
+                if let Err(refused) = resolved.admit() {
+                    return Ok(refused.into_response());
+                }
+                (resolved.scopes, resolved.actor)
+            }
         },
         None => (Vec::new(), crate::audit::Actor::anonymous()),
     };

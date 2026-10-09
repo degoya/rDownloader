@@ -176,3 +176,27 @@ fn garbage_is_malformed() {
     let refused = verify_with(b"not json", &trust(), None, now()).expect_err("refused");
     assert_eq!(refused.code(), "site_rules.malformed");
 }
+
+/// The import records who signed a pack (RD-1200-05): the key whose signature held.
+#[test]
+fn a_signed_pack_names_its_signer() {
+    let verified = verify_signed_with(&signed(&pack()), &trust(), now()).expect("verify");
+    assert_eq!(verified.signer, KEY_ID);
+    assert_eq!(verified.pack.sequence, 3);
+}
+
+/// Sequence never goes backwards per signer (RD-1200-05, finding O-5 of the site-rules model):
+/// an older pack is refused with its own code, the same one again changes nothing, a newer one
+/// is recorded.
+#[test]
+fn an_older_sequence_is_refused_and_the_same_one_is_no_change() {
+    let older = admit_sequence(8, Some(9)).expect_err("older");
+    assert_eq!(older.code(), "site_rules.sequence_older");
+    assert!(matches!(
+        older,
+        PackError::OlderSequence { saw: 8, known: 9 }
+    ));
+    assert!(!admit_sequence(9, Some(9)).expect("same"));
+    assert!(admit_sequence(10, Some(9)).expect("newer"));
+    assert!(admit_sequence(1, None).expect("first"));
+}

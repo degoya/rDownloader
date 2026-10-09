@@ -129,3 +129,56 @@ async fn a_capture_cannot_choose_a_script_a_category_or_a_destination() {
         );
     }
 }
+
+/// The two halves of the capture agent's NZB hand-over (RD-1200-03): the service answers its
+/// health route without a credential and names itself there — the agent sends its token only to
+/// a listener that does — and the NZB route takes the capture token and nothing less.
+#[tokio::test]
+async fn the_agents_nzb_hand_over_needs_the_capture_token_and_the_service_names_itself() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = test_router(directory.path()).await;
+
+    let health = request_to("GET", "/api/v1/health")
+        .body(Body::empty())
+        .expect("request");
+    let (status, _, body) = send_raw(&router, health).await;
+    assert_eq!(status, StatusCode::OK);
+    let health: serde_json::Value = serde_json::from_slice(&body).expect("JSON");
+    assert_eq!(health["service"], "rDownloader", "{health}");
+
+    let nzb = |bearer: Option<&str>| {
+        let boundary = "rdcapturenzb";
+        let body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; \
+             filename=\"release.nzb\"\r\nContent-Type: application/x-nzb\r\n\r\n\
+             <nzb xmlns=\"http://www.newzbin.com/DTD/2003/nzb\"><file poster=\"p\" \
+             subject=\"release.bin\"><groups><group>alt.binaries.test</group></groups>\
+             <segments><segment bytes=\"42\" number=\"1\">release@example</segment>\
+             </segments></file></nzb>\r\n--{boundary}--\r\n"
+        );
+        let mut request = request_to("POST", "/api/v1/capture/nzb").header(
+            header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={boundary}"),
+        );
+        if let Some(bearer) = bearer {
+            request = request.header(header::AUTHORIZATION, format!("Bearer {bearer}"));
+        }
+        request.body(Body::from(body)).expect("request")
+    };
+    for (bearer, label) in [(None, "no credential"), (Some(API_BEARER), "an API token")] {
+        let (status, _, body) = send_raw(&router, nzb(bearer)).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{label}");
+        let refusal: serde_json::Value = serde_json::from_slice(&body).expect("JSON");
+        assert_eq!(
+            refusal["code"], "capture.token_required",
+            "{label}: {refusal}"
+        );
+    }
+    let (status, _, body) = send_raw(&router, nzb(Some(CAPTURE_BEARER))).await;
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "{}",
+        String::from_utf8_lossy(&body)
+    );
+}

@@ -1,11 +1,11 @@
 //! The audit log store (RD-110-03): rows survive a restart, the table refuses an update, the
-//! filters answer what the viewer asks, retention deletes whole rows in bounded batches, and
+//! filters answer what the viewer asks (the channel among them), retention deletes whole rows in bounded batches, and
 //! restoring a configuration backup leaves the log alone.
 
 use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
-use rd_core::{AuditAction, AuditActorKind, AuditOutcome};
+use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome};
 use rd_db::{AuditQuery, Database, NewAuditRecord};
 use tempfile::TempDir;
 
@@ -149,6 +149,45 @@ async fn the_filters_answer_what_the_viewer_asks() {
         .await
         .expect("query");
     assert_eq!(by_target.len(), 1);
+}
+
+/// RD-1200-04: the door an action came through is stored and filtered on; the service's own
+/// record is `internal` unless a caller says otherwise.
+#[tokio::test]
+async fn the_channel_is_stored_and_filtered_on() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = database(&directory).await;
+    let own = record(AuditAction::SettingsReset, AuditOutcome::Success);
+    assert_eq!(own.via, AuditChannel::Internal);
+    let mut through_mcp = record(AuditAction::SettingsChanged, AuditOutcome::Success);
+    through_mcp.actor_kind = AuditActorKind::Token;
+    through_mcp.via = AuditChannel::Mcp;
+    let mut through_rest = through_mcp.clone();
+    through_rest.via = AuditChannel::Rest;
+    database
+        .append_audit_records(vec![own, through_mcp, through_rest])
+        .await
+        .expect("append");
+
+    let all = database.query_audit_records(&query()).await.expect("query");
+    let channels: Vec<AuditChannel> = all.iter().map(|record| record.via).collect();
+    assert_eq!(
+        channels,
+        [
+            AuditChannel::Rest,
+            AuditChannel::Mcp,
+            AuditChannel::Internal
+        ]
+    );
+    let by_channel = database
+        .query_audit_records(&AuditQuery {
+            via: Some(AuditChannel::Mcp),
+            ..query()
+        })
+        .await
+        .expect("query");
+    assert_eq!(by_channel.len(), 1);
+    assert_eq!(by_channel[0].action, AuditAction::SettingsChanged);
 }
 
 #[tokio::test]

@@ -25,6 +25,18 @@ impl Database {
         .await
     }
 
+    /// Records that a signed rule file of `sequence` from `signer` was accepted and returns
+    /// the highest sequence accepted from that signer before (RD-1200-05). The mark only rises;
+    /// the caller refuses a file whose sequence is below the answer.
+    pub async fn record_site_rule_pack(&self, signer: &str, sequence: u64) -> Result<Option<u64>> {
+        writer::request(&self.writer, |reply| ConfigCommand::RecordSiteRulePack {
+            signer: signer.to_owned(),
+            sequence,
+            reply,
+        })
+        .await
+    }
+
     /// Removes a user rule; returns whether one was there.
     pub async fn delete_site_rule(&self, id: &str) -> Result<bool> {
         writer::request(&self.writer, |reply| ConfigCommand::DeleteSiteRule {

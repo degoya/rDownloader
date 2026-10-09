@@ -215,6 +215,28 @@ export interface paths {
         patch: operations["update_api_token_scopes"];
         trace?: never;
     };
+    "/api/v1/api-tokens/{id}/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets or clears an existing token's call limit per minute (RD-1200-04), keeping its bearer
+         *     value and its areas.
+         * @description Only a token the API token list shows, as for re-scoping, and recorded with both sides of
+         *     the change: lifting a limit is the kind of change the audit log is asked about afterwards.
+         */
+        put: operations["update_api_token_limits"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit/export": {
         parameters: {
             query?: never;
@@ -4907,6 +4929,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/remote-jobs/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clears the remote jobs list, or the part a provider and state filter selects.
+         * @description Jobs still running at the provider are left out and listed. With `at_provider` each job is
+         *     deleted at its provider first; a provider that refuses keeps that job's row, and every other
+         *     job is cleared all the same. One audit record says what was asked and how it ended.
+         */
+        post: operations["clear_remote_jobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/remote-jobs/providers": {
         parameters: {
             query?: never;
@@ -6534,12 +6578,31 @@ export interface components {
             token: string;
         };
         /**
+         * @description The limits of a token that already exists (RD-1200-04).
+         *
+         *     The complete set, like [`ApiTokenScopesRequest`]: what the form shows is what the token
+         *     keeps, so an absent or `null` limit is no limit, not "unchanged".
+         */
+        ApiTokenLimitsRequest: {
+            /**
+             * Format: int32
+             * @description Calls per minute, 1 to 6000, REST and MCP together; absent or `null` is no limit.
+             */
+            calls_per_minute?: number | null;
+        };
+        /**
          * @description Pairing request for a machine API token.
          *
          *     Separate from [`CapturePairRequest`] because a capture agent has no choice of API areas: it
          *     always gets `capture:*`, and `capture:queue` on request, while an API client picks its areas.
          */
         ApiTokenRequest: {
+            /**
+             * Format: int32
+             * @description Calls the token may make per minute, 1 to 6000, REST and MCP together (RD-1200-04).
+             *     Absent is no limit; a call above it is refused with `429 api.token_rate_limited`.
+             */
+            calls_per_minute?: number | null;
             /**
              * Format: int32
              * @description Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires; an expired
@@ -6629,12 +6692,18 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed" | "remote_jobs_cleared" | "token_limits_changed" | "proxy_profile_changed" | "remote_credential_changed";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
          */
         AuditActorKind: "session" | "token" | "anonymous" | "system";
+        /**
+         * @description How an action reached the service. A closed set with a stable word each, so a filter can be
+         *     written against it and the store can keep it as text.
+         * @enum {string}
+         */
+        AuditChannel: "rest" | "mcp" | "capture" | "compat" | "internal";
         /**
          * @description How the action ended. Two values: an audit log that records intent without outcome cannot
          *     answer the only question anybody asks of it.
@@ -6660,6 +6729,11 @@ export interface components {
             target_kind?: string | null;
             target_name?: string | null;
             trace_id?: string | null;
+            /**
+             * @description Which door the action came through (RD-1200-04); `rest` for a record written before the
+             *     channel was kept.
+             */
+            via: components["schemas"]["AuditChannel"];
         };
         /** @description A page of the audit log, newest first. */
         AuditRecordsResponse: {
@@ -8072,6 +8146,12 @@ export interface components {
         };
         /** @description Revocable token metadata; the bearer secret is never persisted in plaintext. */
         CaptureToken: {
+            /**
+             * Format: int32
+             * @description Calls the token may make per minute, REST and MCP together (RD-1200-04); `None` is no
+             *     limit. A call above it is refused with `429` and `api.token_rate_limited`.
+             */
+            calls_per_minute?: number | null;
             /** Format: date-time */
             created_at: string;
             /**
@@ -12739,6 +12819,49 @@ export interface components {
             /** @description Entry ids the job offered. Anything else is dropped rather than forwarded. */
             entries: number[];
         };
+        /** @description What became of one remote job. */
+        RemoteJobClearItem: {
+            /** @description Why the row stayed: the provider's own code, or `remote_job.clear_failed`. */
+            code?: string | null;
+            id: components["schemas"]["RemoteJobId"];
+            /** @description The English fallback for `code`. */
+            message?: string | null;
+            /** @description The provider of the job's account; absent when the account is gone. */
+            provider?: string | null;
+            /** @description Whether the row went. `false` with `code` and `message` when it stayed. */
+            removed: boolean;
+        };
+        /** @description Which remote jobs to clear, and whether at their provider too. */
+        RemoteJobClearRequest: {
+            /**
+             * @description `true` deletes each job at its provider before its row goes (a job that names nothing
+             *     there only loses its row); `false` removes the rows and sends nothing anywhere.
+             */
+            at_provider?: boolean;
+            /**
+             * @description Has to be `true`. Absent or `false`, nothing happens and the request is refused under
+             *     `remote_job.clear_unconfirmed`.
+             */
+            confirmed?: boolean;
+            /** @description Only the jobs of accounts at this provider (its slug). Absent: every provider. */
+            provider?: string | null;
+            /**
+             * @description Only jobs in these states. Empty: every state. A job still running (`submitting`,
+             *     `preparing`, `working`) is left out either way and listed under `skipped`.
+             */
+            states?: components["schemas"]["RemoteJobState"][];
+        };
+        /** @description What a clear did, job by job. */
+        RemoteJobClearResponse: {
+            /** @description How many rows stayed because their provider refused or could not be reached. */
+            failed: number;
+            /** @description How many rows went. */
+            removed: number;
+            /** @description Every job the filter reached that was not still running, in list order. */
+            results: components["schemas"]["RemoteJobClearItem"][];
+            /** @description The jobs the filter reached that were still running and were left alone. */
+            skipped: components["schemas"]["RemoteJobClearItem"][];
+        };
         /** @description One entry inside a remote job, as a person is shown it. */
         RemoteJobFile: {
             /**
@@ -14658,6 +14781,21 @@ export interface components {
          *     rules. A body carrying `signatures` is read as the first and nothing else.
          */
         SiteRuleImportRequest: components["schemas"]["SignedSiteRuleFile"] | components["schemas"]["SiteRuleDocument"];
+        /** @description Where a rule came from (RD-1200-05). */
+        SiteRuleOriginResponse: {
+            /**
+             * @description `signed` (the signed release file), `import` (an unsigned file or a pasted export),
+             *     `editor`, `mcp`, or `unknown` for a rule stored before 1.20.
+             */
+            kind: string;
+            /**
+             * Format: int64
+             * @description The signed file's sequence, for `signed` only.
+             */
+            sequence?: number | null;
+            /** @description The key whose signature held, for `signed` only. */
+            signer?: string | null;
+        };
         /** @description One rule as the list shows it. */
         SiteRuleResponse: {
             /** @description Whether the rule is actually consulted: its own switch **and** its group's. */
@@ -14671,6 +14809,8 @@ export interface components {
             id: string;
             mirrors: boolean;
             name: string;
+            /** @description Where the rule's current body came from (RD-1200-05). */
+            origin: components["schemas"]["SiteRuleOriginResponse"];
             probe: string;
             /** @description The rule body, as `rd_siterules::Rule` serialises it, so the editor can open it. */
             rule: unknown;
@@ -17245,6 +17385,46 @@ export interface operations {
             };
         };
     };
+    update_api_token_limits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["CaptureTokenId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiTokenLimitsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureToken"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     export_audit_records: {
         parameters: {
             query?: {
@@ -17256,6 +17436,8 @@ export interface operations {
                 actor_kind?: string | null;
                 /** @description An actor id, exactly. */
                 actor_id?: string | null;
+                /** @description How the action came: `rest`, `mcp`, `capture`, `compat` or `internal`. */
+                via?: string | null;
                 /** @description A target family, such as `download`. */
                 target_kind?: string | null;
                 /** @description A target id, exactly. */
@@ -17306,6 +17488,8 @@ export interface operations {
                 actor_kind?: string | null;
                 /** @description An actor id, exactly. */
                 actor_id?: string | null;
+                /** @description How the action came: `rest`, `mcp`, `capture`, `compat` or `internal`. */
+                via?: string | null;
                 /** @description A target family, such as `download`. */
                 target_kind?: string | null;
                 /** @description A target id, exactly. */
@@ -27957,6 +28141,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RemoteJob"][];
                 };
+            };
+        };
+    };
+    clear_remote_jobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoteJobClearRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoteJobClearResponse"];
+                };
+            };
+            /** @description remote_job.clear_unconfirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

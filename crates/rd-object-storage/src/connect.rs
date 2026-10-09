@@ -3,10 +3,12 @@
 //! The only provider-specific part of the crate: everything else talks to the `object_store`
 //! traits, which Azure Blob and Google Cloud Storage implement too. [`s3`] is here, the other
 //! two are in [`azure`] and [`gcs`] (RD-150-05), each behind its cargo feature; all three
-//! share [`client_options`], so the proxy, the custom CA and the timeouts reach every one.
+//! share [`client_options`], so the proxy, the custom CA and the timeouts reach every one, and
+//! [`transport`]'s client, which follows no redirect (RD-1200-06).
 
 pub(crate) mod azure;
 pub(crate) mod gcs;
+mod transport;
 
 use std::{sync::Arc, time::Duration};
 
@@ -85,6 +87,7 @@ fn s3(opening: Opening<'_>) -> Result<Store, OpenError> {
         .with_bucket_name(opening.bucket)
         .with_region(profile.region.as_deref().unwrap_or("us-east-1"))
         .with_client_options(client_options(&opening)?)
+        .with_http_connector(connector(&opening))
         .with_retry(retry(opening.timeout));
     let virtual_host = profile.addressing == ObjectAddressing::VirtualHost;
     builder = builder.with_virtual_hosted_style_request(virtual_host);
@@ -122,6 +125,14 @@ fn s3(opening: Opening<'_>) -> Result<Store, OpenError> {
         objects: store.clone(),
         parts: store,
     })
+}
+
+/// The client every store sends through: [`client_options`] applied, no redirect followed.
+fn connector(opening: &Opening<'_>) -> transport::NoRedirects {
+    transport::NoRedirects {
+        custom_ca_pem: opening.custom_ca_pem.to_vec(),
+        timeout: opening.timeout,
+    }
 }
 
 fn client_options(opening: &Opening<'_>) -> Result<ClientOptions, OpenError> {

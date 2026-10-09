@@ -88,5 +88,32 @@
   "package": {
     "linkgrabber": "Package “{name}” in the LinkGrabber",
     "downloads": "The package has left the LinkGrabber – go to the download list"
+  },
+  "clear": {
+    "menu": "Clear list",
+    "local": {
+      "action": "Clear the list here only ({count})",
+      "confirm_title": "Clear the list here only?",
+      "confirm_description": "{count} job at {providers} is removed from this list. Whatever the provider holds stays untouched in your account. | {count} jobs at {providers} are removed from this list. Whatever the providers hold stays untouched in your accounts.",
+      "confirm_label": "Clear here only"
+    },
+    "provider": {
+      "action": "Discard at the provider and clear ({count})",
+      "confirm_title": "Discard at the provider and clear the list?",
+      "confirm_description": "{count} job is deleted in your account at {providers}, if it still exists there, and then removed from this list. This happens outside this machine and cannot be undone. If the provider cannot delete it, it stays in the list and says why. | {count} jobs are deleted in your accounts at {providers}, if they still exist there, and then removed from this list. This happens outside this machine and cannot be undone. A job its provider cannot delete stays in the list and says why.",
+      "confirm_label": "Delete at the provider and clear"
+    },
+    "running_left": "{count} job is still running and stays. | {count} jobs are still running and stay.",
+    "no_provider": "an unknown provider",
+    "done": "{count} job removed. | {count} jobs removed.",
+    "partial": "{removed} removed; {failed} job stayed because its provider could not delete it. | {removed} removed; {failed} jobs stayed because their provider could not delete them."
+  },
+  "filter": {
+    "provider": "Provider",
+    "state": "State",
+    "all_providers": "All providers",
+    "all_states": "All states",
+    "none": "No job matches this filter.",
+    "reset": "Reset filter"
   }
 }

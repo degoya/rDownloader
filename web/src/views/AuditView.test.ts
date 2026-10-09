@@ -30,6 +30,7 @@ const PAGE = {
       action: 'login_failed',
       outcome: 'failure',
       actor_kind: 'anonymous',
+      via: 'mcp',
       actor_id: null,
       actor_label: null,
       client_address: '203.0.113.9',
@@ -45,6 +46,7 @@ const PAGE = {
       action: 'token_created',
       outcome: 'success',
       actor_kind: 'session',
+      via: 'rest',
       actor_id: 'session-1',
       actor_label: null,
       client_address: null,
@@ -84,6 +86,9 @@ describe('AuditView', () => {
     expect(within(list).getByText(audit.outcomes.failure)).toBeTruthy()
     expect(within(list).getByText('203.0.113.9')).toBeTruthy()
     expect(within(list).getByText('token · scraper')).toBeTruthy()
+    // How each action came, beside who took it (RD-1200-04).
+    expect(within(list).getByText(`${audit.actors.anonymous} · via ${audit.channels.mcp}`)).toBeTruthy()
+    expect(within(list).getByText(`${audit.actors.session} · via ${audit.channels.rest}`)).toBeTruthy()
     expect(screen.getByText('2 of 40 records')).toBeTruthy()
     expect(screen.getByText(audit.list.full_page)).toBeTruthy()
     expect(screen.getByRole('button', { name: audit.list.older })).toBeTruthy()
@@ -139,7 +144,7 @@ describe('AuditView', () => {
   it('offers "any" as a value of its own, never an empty one the select refuses', async () => {
     await mountView()
     await screen.findByTestId('audit-list')
-    for (const id of ['audit-action', 'audit-outcome', 'audit-actor-kind']) {
+    for (const id of ['audit-action', 'audit-outcome', 'audit-actor-kind', 'audit-via']) {
       const select = screen.getByTestId(id) as HTMLSelectElement
       const values = [...select.options].map(option => option.value)
       expect(values.length).toBeGreaterThan(1)
