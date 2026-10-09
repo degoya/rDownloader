@@ -69,11 +69,7 @@ pub async fn read_links(
     passphrase: Option<&Passphrase>,
 ) -> Result<LinksDocument, ApiError> {
     if content.len() > rd_collector::MAX_RDLINKS_BYTES {
-        return Err(ApiError::bad_request(
-            "rdlinks.too_large",
-            "The link file exceeds the 8 MiB limit",
-        )
-        .with_param("max_mib", rd_collector::MAX_RDLINKS_BYTES >> 20));
+        return Err(too_large());
     }
     match rd_collector::read_links_file(content).map_err(file_invalid)? {
         LinksFile::Plain(document) => Ok(document),
@@ -172,6 +168,17 @@ async fn open(sealed: &SealedLinks, passphrase: &Passphrase) -> Result<LinksDocu
             )
         })?;
     rd_collector::read_sealed_plaintext(&plaintext).map_err(file_invalid)
+}
+
+/// `400` for a link file over [`rd_collector::MAX_RDLINKS_BYTES`], read or about to be written.
+#[must_use]
+pub fn too_large() -> ApiError {
+    let max_mib = rd_collector::MAX_RDLINKS_BYTES >> 20;
+    ApiError::bad_request(
+        "rdlinks.too_large",
+        format!("The link file exceeds the {max_mib} MiB limit"),
+    )
+    .with_param("max_mib", max_mib)
 }
 
 fn decode(value: &str) -> Result<Vec<u8>, ApiError> {

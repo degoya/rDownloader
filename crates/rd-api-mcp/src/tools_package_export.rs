@@ -4,7 +4,9 @@
 //! `export_packages` answers with the file itself, as text: an `.rdlinks` document (sealed when a
 //! passphrase is given) or a `.crawljob`. The passphrase is the file's own, chosen for it, not a
 //! stored credential; it goes into the key derivation and nowhere else, and the answer never
-//! repeats it. The file goes back in through `import_container`.
+//! repeats it. The file goes back in through `import_container`. An `.rdlinks` file carries the
+//! NZB documents of Usenet downloads and indexer hits (RD-1220-02); the ones the export could
+//! not fetch are listed in `failed`, each with its coded reason.
 
 use axum::{Json, extract::State};
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
@@ -62,7 +64,10 @@ struct ExportedFileAnswer {
     content_type: &'static str,
     packages: usize,
     links: usize,
+    nzbs: usize,
     skipped: usize,
+    /// The NZBs among `skipped` the export could not fetch or no longer holds, with the reason.
+    failed: Vec<crate::package_export::ExportFailure>,
     /// The file as text; hand it to import_container as base64 to take it back in.
     content: String,
 }
@@ -70,7 +75,7 @@ struct ExportedFileAnswer {
 #[tool_router(router = package_export_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Export packages as a link file: download-list packages, single downloads, LinkGrabber packages or `all`, as rdlinks (rDownloader's format: addresses, package name, password, category name, file names, sizes, checksums, mirror groups) or crawljob (JDownloader: addresses, package name, password). Never a plugin, plugin version, account, cookie or token, so import_container brings the links back assigned to their hosts again and resolved by the plugins installed then. A passphrase encrypts an rdlinks file and is never echoed back. Answers with the file name and the file as text."
+        description = "Export packages as a link file: download-list packages, single downloads, LinkGrabber packages or `all`, as rdlinks (rDownloader's format: addresses, package name, password, category name, file names, sizes, checksums, mirror groups, and the NZB documents of Usenet downloads and indexer hits) or crawljob (JDownloader: addresses, package name, password; no NZBs). Never a plugin, plugin version, account, cookie or token, and never an indexer's address or API key: an indexer hit is fetched now and its NZB embedded, so import_container brings everything back on any installation, links assigned to their hosts again and NZBs imported like a dropped NZB. An NZB that cannot be fetched is skipped and listed in `failed` with its reason. A passphrase encrypts an rdlinks file, NZBs included, and is never echoed back. Answers with the file name, the counts and the file as text."
     )]
     pub async fn export_packages(
         &self,
@@ -89,7 +94,9 @@ impl RdMcpServer {
             content_type: file.content_type,
             packages: file.packages,
             links: file.links,
+            nzbs: file.nzbs,
             skipped: file.skipped,
+            failed: file.failed,
             content: String::from_utf8_lossy(&file.bytes).into_owned(),
         })
     }

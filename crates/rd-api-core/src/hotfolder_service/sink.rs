@@ -182,6 +182,8 @@ impl DatabaseSink {
             .map_err(|error| anyhow::anyhow!(error.message().to_owned()))?
         } else if format == rd_collector::ContainerFormat::Rsdf {
             rd_collector::decode_rsdf(&intake.content)?
+        } else if format == rd_collector::ContainerFormat::CrawlJob {
+            rd_collector::read_crawljob(&intake.content)?
         } else {
             rd_collector::parse_link_list(&intake.content)
         };
@@ -236,6 +238,7 @@ impl DatabaseSink {
     /// refused and moved to `failed/` like any other drop that cannot be read. The links are
     /// proposals of a document the person dropped themselves, so they may reach the person's own
     /// network and never this machine — `LinkOrigin::Proposed` of an intake by their own hand.
+    /// The NZBs it carries land as a dropped NZB does, in the folder's mode (RD-1220-02).
     async fn submit_links(&self, intake: HotFolderIntake) -> Result<()> {
         let document = crate::links_file::read_links(&intake.content, None)
             .await
@@ -264,6 +267,11 @@ impl DatabaseSink {
                 priority: None,
             },
             Some(true),
+            if intake.mode == rd_core::ImportMode::Enqueue {
+                crate::links_nzb::NzbLanding::Enqueue(&self.scheduler)
+            } else {
+                crate::links_nzb::NzbLanding::Review
+            },
         )
         .await
         .map_err(|error| anyhow::anyhow!(error.message().to_owned()))?;

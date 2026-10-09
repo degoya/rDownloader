@@ -19,11 +19,12 @@ vi.mock('@/components/PackageExportModal.vue', () => ({ default: {} }))
 vi.mock('@/utils/jsonFile', () => ({ downloadBlob: (blob: Blob, name: string) => saved.push({ blob, name }) }))
 vi.mock('@/api/client', () => ({
   api: { POST: vi.fn() },
-  errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed'
+  errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed',
+  resultMessage: (body: { code?: string }) => `translated ${body.code ?? ''}`
 }))
 
 const { api } = await import('@/api/client')
-const { exportFileName, usePackageExport } = await import('./usePackageExport')
+const { exportFailures, exportFileName, usePackageExport } = await import('./usePackageExport')
 
 function answer(headers: Record<string, string>, data: Blob | undefined, error?: unknown) {
   return { data, error, response: new Response(null, { headers }) }
@@ -64,6 +65,34 @@ describe('exporting packages', () => {
     expect(toast.title).toContain('"count":3')
     expect(toast.description).toContain('"count":1')
     expect(toast.color).toBe('warning')
+  })
+
+  it('counts the embedded NZBs and names the ones it could not fetch, with the reason', async () => {
+    open.mockReturnValue({ result: Promise.resolve({ format: 'rdlinks', passphrase: '' }) })
+    const failed = [{ name: 'Show.S01E01', message: 'limit', code: 'collector.nzb_rejected', params: { reason: 'limit' } }]
+    vi.mocked(api.POST).mockResolvedValue(answer({
+      'x-rd-export-links': '0',
+      'x-rd-export-nzbs': '2',
+      'x-rd-export-skipped': '1',
+      'x-rd-export-failed': encodeURIComponent(JSON.stringify(failed))
+    }, new Blob(['{}'])) as never)
+
+    await usePackageExport().exportPackages({ collectorPackageIds: ['c1'] })
+
+    const toast = add.mock.calls[0]?.[0] as { description: string, color: string }
+    expect(toast.description).toContain('common.export.nzbs {"count":2}')
+    expect(toast.description).toContain('common.export.nzb_failed')
+    expect(toast.description).toContain('Show.S01E01 (translated collector.nzb_rejected)')
+    expect(toast.color).toBe('warning')
+  })
+
+  it('reads the failure header defensively', () => {
+    expect(exportFailures(null)).toEqual([])
+    expect(exportFailures('')).toEqual([])
+    expect(exportFailures('%E0%A4%A')).toEqual([])
+    expect(exportFailures(encodeURIComponent('{"name":"x"}'))).toEqual([])
+    expect(exportFailures(encodeURIComponent('[{"name":"\u00dc","code":"export.nzb_unavailable","message":"m"},{"bogus":1}]')))
+      .toEqual([{ name: '\u00dc', code: 'export.nzb_unavailable', message: 'm' }])
   })
 
   it('sends no passphrase it was not given and does nothing when the dialog is closed', async () => {

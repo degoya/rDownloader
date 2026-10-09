@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { filterImportFiles, importPackageNameOf } from './nzbImportRequest'
+import { filterImportFiles, IMPORT_ACCEPT, importPackageNameOf, isContainerFile } from './nzbImportRequest'
 
 function file(name: string): File {
   return new File(['x'], name)
@@ -15,7 +15,9 @@ describe('filterImportFiles', () => {
       file('D.DLC'),
       file('e.ccf'),
       file('f.rsdf'),
-      file('g.txt')
+      file('g.txt'),
+      file('h.rdlinks'),
+      file('i.CRAWLJOB')
     ])
     expect(kept.map(entry => entry.name)).toEqual([
       'a.nzb',
@@ -24,12 +26,30 @@ describe('filterImportFiles', () => {
       'D.DLC',
       'e.ccf',
       'f.rsdf',
-      'g.txt'
+      'g.txt',
+      'h.rdlinks',
+      'i.CRAWLJOB'
     ])
   })
 
   it('drops unrelated files', () => {
     expect(filterImportFiles([file('notes.md'), file('archive.rar')])).toEqual([])
+  })
+})
+
+/** Every format the dialog takes is named once, for the picker, the drop zone and the dispatch (RD-1220-02). */
+describe('the accepted formats', () => {
+  it('offers every format in the file picker', () => {
+    expect(IMPORT_ACCEPT).toBe('.nzb,.torrent,.dlc,.ccf,.rsdf,.txt,.rdlinks,.crawljob')
+  })
+
+  it('sends containers, link files and crawljobs to the container import, NZBs and torrents not', () => {
+    for (const name of ['a.dlc', 'b.ccf', 'c.rsdf', 'd.txt', 'e.text', 'f.rdlinks', 'g.crawljob', 'H.CRAWLJOB']) {
+      expect(isContainerFile(name), name).toBe(true)
+    }
+    for (const name of ['a.nzb', 'b.torrent', 'c.crawljob.bak']) {
+      expect(isContainerFile(name), name).toBe(false)
+    }
   })
 })
 
@@ -41,6 +61,8 @@ describe('importPackageNameOf', () => {
     expect(importPackageNameOf('Season.DLC')).toBe('Season')
     expect(importPackageNameOf('Season.rsdf')).toBe('Season')
     expect(importPackageNameOf('Season.txt')).toBe('Season')
+    expect(importPackageNameOf('Season.rdlinks')).toBe('Season')
+    expect(importPackageNameOf('Season.crawljob')).toBe('Season')
   })
 
   it('strips the password marker and keeps the bare name', () => {

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { api, errorMessage } from '@/api/client'
 import type { Category, DownloadPriority, PostprocessLevel } from '@/api/types'
 import { useErrorToast } from '@/composables/useErrorToast'
+import { isContainerFile } from '@/composables/nzbImportRequest'
 import { useFileImportModal, type FileImportEntry } from '@/composables/useNzbImportModal'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore, type NzbBatchResult, type NzbImportResult } from '@/stores/nzbImports'
@@ -89,12 +90,9 @@ export function useFileImport(categories: Ref<Category[]>) {
     return /\.torrent$/i.test(file.name)
   }
 
-  /**
-   * The container formats the server opens for us. Torrents and NZBs are handled by their own
-   * endpoints, so they are deliberately absent here.
-   */
+  /** The container formats the server opens for us; NZBs and torrents have their own endpoints. */
   function isContainer(file: File): boolean {
-    return /\.(?:dlc|ccf|rsdf|txt|text|rdlinks)$/i.test(file.name)
+    return isContainerFile(file.name)
   }
 
   /** Outcome of one uploaded container, torrent or DLC alike. */
@@ -104,6 +102,8 @@ export function useFileImport(categories: Ref<Category[]>) {
     message?: string
     /** Links a DLC brought in; a torrent reports none. */
     links?: number
+    /** NZBs an `.rdlinks` file carried, imported like a dropped NZB (RD-1220-02). */
+    nzbs?: number
   }
 
   /** A torrent import creates a reviewable collector package; it does not start a download. */
@@ -167,14 +167,15 @@ export function useFileImport(categories: Ref<Category[]>) {
     if (!response.data) {
       return { status: 'error', name: entry.file.name, message: errorMessage(response.error) }
     }
-    await collector.refresh()
-    return { status: 'created', name, links: dlcLinkCount(response.data) }
+    const nzbs = listLength(response.data, 'nzb_imports')
+    await Promise.all([collector.refresh(), ...(nzbs ? [nzb.refresh()] : [])])
+    return { status: 'created', name, links: listLength(response.data, 'candidates'), nzbs }
   }
 
-  function dlcLinkCount(value: unknown): number {
-    if (typeof value !== 'object' || value === null || !('candidates' in value)) return 0
-    const candidates = (value as { candidates?: unknown }).candidates
-    return Array.isArray(candidates) ? candidates.length : 0
+  function listLength(value: unknown, key: 'candidates' | 'nzb_imports'): number {
+    if (typeof value !== 'object' || value === null || !(key in value)) return 0
+    const list = (value as Record<string, unknown>)[key]
+    return Array.isArray(list) ? list.length : 0
   }
 
   function reportSingleDlc(result: ContainerImportResult): void {
@@ -182,9 +183,11 @@ export function useFileImport(categories: Ref<Category[]>) {
       showError(t('linkgrabber.files.container_failed'), result.message)
       return
     }
+    const links = t('linkgrabber.files.container_imported_description', { name: result.name, count: result.links ?? 0 }, result.links ?? 0)
+    const nzbs = result.nzbs ? ` ${t('linkgrabber.files.container_nzbs', { count: result.nzbs }, result.nzbs)}` : ''
     toast.add({
       title: t('linkgrabber.files.container_imported'),
-      description: t('linkgrabber.files.container_imported_description', { name: result.name, count: result.links ?? 0 }, result.links ?? 0),
+      description: `${links}${nzbs}`,
       color: 'success',
       icon: 'i-lucide-package-open'
     })

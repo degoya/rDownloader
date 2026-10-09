@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Category, DownloadPriority } from '@/api/types'
 import SearchableSelect from '@/components/SearchableSelect.vue'
-import { filterImportFiles, importPackageNameOf } from '@/composables/nzbImportRequest'
+import { filterImportFiles, IMPORT_ACCEPT, importPackageNameOf, isContainerFile } from '@/composables/nzbImportRequest'
 import type { FileImportEntry, FileImportInput } from '@/composables/useNzbImportModal'
 import { priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
@@ -23,7 +23,7 @@ const passphrase = ref('')
 const enqueue = ref(false)
 /** A link file may be sealed; a container may be queued once checked (RD-1210-01). */
 const hasLinkFile = computed(() => files.value.some(file => /\.rdlinks$/i.test(file.name)))
-const hasContainer = computed(() => files.value.some(file => /\.(?:dlc|ccf|rsdf|txt|text|rdlinks)$/i.test(file.name)))
+const hasContainer = computed(() => files.value.some(file => isContainerFile(file.name)))
 
 const categoryItems = computed(() => [
   { label: t('linkgrabber.nzb.modal.no_category'), value: NO_SELECTION },
@@ -94,7 +94,7 @@ function submit(): void {
         <UFileUpload
           :model-value="[]"
           multiple
-          accept=".nzb,.torrent,.dlc,.ccf,.rsdf,.txt,.rdlinks"
+          :accept="IMPORT_ACCEPT"
           icon="i-lucide-file-archive"
           :label="files.length ? t('linkgrabber.nzb.modal.drop_hint_multi') : t('linkgrabber.nzb.modal.drop_hint')"
           :interactive="false"

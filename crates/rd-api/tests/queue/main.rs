@@ -20,6 +20,7 @@ mod collisions;
 mod download_list;
 mod history;
 mod package_export;
+mod package_export_nzb;
 mod power;
 mod queue_pause;
 mod reconnect;

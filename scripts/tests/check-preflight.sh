@@ -52,6 +52,7 @@ stand_in "$TREE/scripts/set-version.sh" set-version.sh
 stand_in "$TREE/scripts/check-actions-pinned.sh" check-actions-pinned.sh
 stand_in "$TREE/scripts/plugin-release-notes.sh" plugin-release-notes.sh
 stand_in "$TREE/scripts/release-notes.sh" release-notes.sh
+stand_in "$TREE/scripts/release-sections.sh" release-sections.sh
 stand_in "$TREE/scripts/docker-tools.sh" docker-tools.sh
 stand_in "$TREE/scripts/tests/a.sh" a.sh
 stand_in "$TREE/scripts/tests/b.sh" b.sh
@@ -69,7 +70,7 @@ preflight() {
 }
 
 # --- every stage red at once ------------------------------------------------------------------
-for name in archive-jobs.sh plugin-release-notes.sh release-notes.sh docker-tools.sh cargo shellcheck a.sh; do touch "$FAKE/$name-red"; done
+for name in archive-jobs.sh plugin-release-notes.sh release-notes.sh release-sections.sh docker-tools.sh cargo shellcheck a.sh; do touch "$FAKE/$name-red"; done
 touch "$FAKE/inputs-red"
 mkdir -p "$TREE/crates/rd-api/tests"
 echo "fn main() {}" > "$TREE/crates/rd-api/tests/stray.rs"
@@ -82,7 +83,7 @@ expect_output "after every stage ran, the last script test too" "==> script test
 expect_true "without the closing line" '! grep -q "all requested checks passed" <<< "$output"'
 expect_output "and records no green" "No green was recorded."
 expect "every red stage in the failure list, in one run" \
-    "git diff --check|the job layout: finished jobs archived, open ones not|the plugin release notes: every version has its section, short and for users|the release notes: every section short and for users|the container's Python tools: requirements.txt is the compile of requirements.in|cargo fmt --all --check|the rd-api test map against the test suites|the Rust test inputs map against the sources|gitleaks over the tree the public export would publish|shellcheck 0.0.0 over N shell scripts (severity warning)|script test: scripts/tests/a.sh" \
+    "git diff --check|the job layout: finished jobs archived, open ones not|the plugin release notes: every version has its section, short and for users|the release notes: every section short and for users|the released sections: CHANGELOG and release notes as their tag left them|the container's Python tools: requirements.txt is the compile of requirements.in|cargo fmt --all --check|the rd-api test map against the test suites|the Rust test inputs map against the sources|gitleaks over the tree the public export would publish|shellcheck 0.0.0 over N shell scripts (severity warning)|script test: scripts/tests/a.sh" \
     "$(sed -n '/ — exit /{s/ — exit .*//; s/ over [0-9]* shell/ over N shell/; p}' "$FAILURES" | paste -sd'|' -)"
 expect "the green ones are not in it" "0" "$(grep -cE '^(the version|the workflows|bash -n|actionlint|script test: scripts/tests/b)' "$FAILURES" || true)"
 expect "cargo formats and builds nothing" "cargo fmt --all --check" "$(grep '^cargo' "$FAKE/calls")"
@@ -103,6 +104,7 @@ expect "and no revision" "" "$(cat "$SCRATCH/target/.rd-verified/"* 2> /dev/null
 expect_true "the job layout was checked" 'grep -qx "archive-jobs.sh --check" "$FAKE/calls"'
 expect_true "and the plugin release notes" 'grep -qx "plugin-release-notes.sh --check" "$FAKE/calls"'
 expect_true "and the application's release notes" 'grep -qx "release-notes.sh --check" "$FAKE/calls"'
+expect_true "and the released sections (RD-1220-01)" 'grep -qx "release-sections.sh " "$FAKE/calls"'
 expect_true "and the container's Python tools (PIPE-05)" 'grep -qx "docker-tools.sh " "$FAKE/calls"'
 
 rm -f "$FAKE/calls"

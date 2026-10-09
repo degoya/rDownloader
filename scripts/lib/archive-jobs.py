@@ -26,13 +26,16 @@ Left alone on purpose: docs/ideas_and_infos.md (the owner's notepad), crates/rd-
 (sqlx checksums every byte) and plugins/ (a changed plugin source needs a version bump and a
 rebuild, which a documentation step must not cause).
 
-With nothing due it only recounts the Job Inventory when that table disagrees with the two
-catalogs (RD-140-24), and otherwise writes nothing; it exits 0 either way. --check writes nothing:
-it names what is due, every file in archive/ whose status is open again (`Open`, `In progress`,
-`Partial` — moving such a job back is left to a person, with its row), every Job Inventory row
-whose numbers the catalogs do not bear out and every job file, here or in archive/, whose status
-line is missing or starts with a word that is not one of STATUS_WORDS (RD-120-14: `Done` is not
-one), and exits 1 when there is any of the four. A working file `<NNN>-00-*.md` and README.md
+Before anything else a run keeps one row per job in each index, where its file lies
+(RD-1220-01, archive_jobs_rows.py): a doubled row and a row of a job whose file and row are in the
+other directory leave, which a merge across an archive run brings. With nothing due it then only
+recounts the Job Inventory when that table disagrees with the two catalogs (RD-140-24), and
+otherwise writes nothing; it exits 0 either way. --check writes nothing: it names what is due,
+every file in archive/ whose status is open again (`Open`, `In progress`, `Partial` — moving such
+a job back is left to a person, with its row), every row listed twice or in the wrong index, every
+Job Inventory row whose numbers the catalogs do not bear out and every job file, here or in
+archive/, whose status line is missing or starts with a word that is not one of STATUS_WORDS
+(RD-120-14: `Done` is not one), and exits 1 when there is any of the five. A working file `<NNN>-00-*.md` and README.md
 need no status line; one that has a line is checked all the same. scripts/check.sh runs it that
 way on every run, so neither the layout, the counts nor the words can drift. The word check was
 the Rust test crates/rdownloader/tests/job_status_words.rs until RD-191-09: a branch run skips
@@ -50,6 +53,7 @@ import sys
 # The two modules beside this one would otherwise leave a __pycache__ in the checkout.
 sys.dont_write_bytecode = True
 from archive_jobs_links import rewrite_references  # noqa: E402
+from archive_jobs_rows import row_problems, row_target  # noqa: E402
 from archive_jobs_status import (  # noqa: E402
     ARCHIVE, JOBS, bad_status_files, due_files, git, misplaced_files, status_line, status_word,
 )
@@ -162,7 +166,12 @@ def update_indexes(repo, moved):
         archive = open(archive_path, encoding="utf-8").read().rstrip("\n").split("\n")
     else:
         archive = ARCHIVE_HEADER.rstrip("\n").split("\n")
+    # A row the archive already has (a merge brought it there too) is not added a second time.
+    listed = {row_target(l) for l in archive}
+    rows = {k: (h, [r for r in rs if row_target(r) not in listed]) for k, (h, rs) in rows.items()}
     for key, (heading, new_rows) in sorted(rows.items(), key=lambda kv: milestone_order(kv[0])):
+        if not new_rows:
+            continue
         at = next((i for i, l in enumerate(archive)
                    if l.startswith("### ") and milestone_key(l) == key), None)
         if at is not None:
@@ -224,7 +233,8 @@ def recount(lines, archive):
     if len(table) < 3 or "Open" not in lines[table[0]]:
         return lines
     areas = [lines[i].strip("|").split("|")[0].strip() for i in table[2:]]
-    areas = [a for a in areas if a != "**Total**"]
+    # A merge that kept both sides of the table names an area twice (RD-1220-01); it counts once.
+    areas = list({milestone_key(a): a for a in reversed(areas) if a != "**Total**"}.values())[::-1]
     known = {milestone_key(a) for a in areas}
     areas += [k for k in sorted(set(open_rows) | set(archived_rows), key=milestone_order)
               if k not in known]
@@ -285,6 +295,22 @@ def main(argv):
     for name, word in misplaced:
         print(f"open again: {ARCHIVE}/{name} ({word}) — move it and its row back to {JOBS}/ by hand",
               file=sys.stdout if check else sys.stderr)
+    if due and not check:
+        dirty = git(repo, "status", "--porcelain", "--", JOBS)
+        if dirty.strip():
+            print(f"refusing: uncommitted changes under {JOBS}/ — commit or set them aside first",
+                  file=sys.stderr)
+            print(dirty.rstrip("\n"), file=sys.stderr)
+            return 2
+    # One row per job, where its file lies (RD-1220-01): a run mends what the files decide before
+    # it counts or moves anything; --check names it all.
+    listed = row_problems(repo, write=not check)
+    for problem, mended in listed:
+        if check:
+            print(problem + (" — run scripts/archive-jobs.sh" if mended else " — fix by hand"))
+        else:
+            print(problem + ("; mended" if mended else "; left for a person"),
+                  file=sys.stdout if mended else sys.stderr)
     stale = stale_inventory(repo)
     if check:
         bad = bad_status_files(repo)
@@ -296,7 +322,7 @@ def main(argv):
             print(f"miscounted: {JOBS}/README.md Job Inventory has `{line[0]}`, the catalogs say "
                   f"`{line[1]}` — run scripts/archive-jobs.sh")
         print(f"{len(due)} job file(s) due for {ARCHIVE}/" if due else "nothing to archive")
-        return 1 if due or misplaced or stale or bad else 0
+        return 1 if due or misplaced or stale or bad or listed else 0
     if not due:
         if stale:
             index_path = os.path.join(repo, JOBS, "README.md")
@@ -306,13 +332,6 @@ def main(argv):
             return 0
         print("nothing to archive")
         return 0
-
-    dirty = git(repo, "status", "--porcelain", "--", JOBS)
-    if dirty.strip():
-        print(f"refusing: uncommitted changes under {JOBS}/ — commit or set them aside first",
-              file=sys.stderr)
-        print(dirty.rstrip("\n"), file=sys.stderr)
-        return 2
 
     os.makedirs(os.path.join(repo, ARCHIVE), exist_ok=True)
     moved = [name for name, _ in due]

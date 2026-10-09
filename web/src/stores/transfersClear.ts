@@ -9,14 +9,15 @@ import { payloadError, t, type ClearResult, type ClearScope, type ClearSkip } fr
 interface ClearContext {
   error: Ref<string | null>
   notice: Ref<string | null>
+  warning: Ref<string | null>
   refresh: () => Promise<void>
 }
 
 /**
  * The transfers store's "clear the list": one server-side decision over whole packages, and what
- * it refused to touch put into words. Shares the store's `error` and `notice` (WEB-13).
+ * it refused to touch put into words. Shares the store's `error`, `notice` and `warning` (WEB-13).
  */
-export function useClearList({ error, notice, refresh }: ClearContext) {
+export function useClearList({ error, notice, warning, refresh }: ClearContext) {
   const clearing = ref(false)
 
   /**
@@ -62,10 +63,13 @@ export function useClearList({ error, notice, refresh }: ClearContext) {
       notice.value = t('downloads.notices.nothing_to_clear')
       return
     }
-    notice.value = [
+    // A package left alone is a warning that stays: its name is what somebody acts on (RD-1220-03).
+    const sentence = [
       t('downloads.notices.cleared_packages', { count: removed }, removed),
       ...skipReasons(skipped)
     ].join(' ')
+    if (skipped.length) warning.value = sentence
+    else notice.value = sentence
   }
 
   /**

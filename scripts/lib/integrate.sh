@@ -14,16 +14,22 @@ source "$(dirname "${BASH_SOURCE[0]}")/inert-paths.sh"
 # The merge drivers .gitattributes names (RD-1100-13), registered in the repository's config, which
 # every worktree shares, so the merges resolve the files whose conflicts have one right answer
 # without a person: crates/rd-db/migrations.sha384 as the sorted union of both sides
-# (`rd-pins`), the locale catalogues key by key (`rd-json`). CHANGELOG.md needs no registration:
-# .gitattributes gives it git's built-in `union`. A clone without the config merges those files
-# as text, as before. The drivers are the ones of checkout $2, by absolute path — the checkout
-# integrate.sh runs from — and every run registers them again.
+# (`rd-pins`), the locale catalogues key by key (`rd-json`), CHANGELOG.md by section, new entries
+# under [Unreleased] even across a release (`rd-changelog`, RD-1220-01), and the two job indexes
+# with conflicts of table rows only taken from both sides (`rd-jobindex`), which archive-jobs.sh
+# after the last merge reduces to one row per job. A clone without the config merges those files
+# as text. The drivers are the ones of checkout $2, by absolute path — the checkout integrate.sh
+# runs from — and every run registers them again.
 rd_integrate_merge_drivers() {
     local tree="$1" drivers="$2/scripts/lib/merge-drivers"
     git -C "$tree" config merge.rd-pins.name "migration pins: the sorted union of both sides"
     git -C "$tree" config merge.rd-pins.driver "'$drivers/migration-pins.sh' %O %A %B %P"
     git -C "$tree" config merge.rd-json.name "JSON catalogues: a three-way merge key by key"
     git -C "$tree" config merge.rd-json.driver "python3 '$drivers/json-merge.py' %O %A %B %P"
+    git -C "$tree" config merge.rd-changelog.name "CHANGELOG: by section, new entries under [Unreleased]"
+    git -C "$tree" config merge.rd-changelog.driver "python3 '$drivers/changelog-merge.py' %O %A %B %P"
+    git -C "$tree" config merge.rd-jobindex.name "job indexes: conflicts of table rows take both sides"
+    git -C "$tree" config merge.rd-jobindex.driver "python3 '$drivers/job-index-merge.py' %O %A %B %P"
 }
 
 rd_is_generated() {

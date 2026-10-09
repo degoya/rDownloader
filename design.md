@@ -469,7 +469,9 @@ prevent columns from shifting during live updates.
   hint's link to the indexer settings, the one thing there is to do. The
   LinkGrabber hands in its navbar buttons the same way (`A` add links, `E` enqueue all, `W` add
   all paused, `R` delete all; RD-180-23), each with its `UKbd` on the button and doing nothing
-  while that button is disabled.
+  while that button is disabled. `A` is "add" on Downloads too: there it opens the *Direct job*
+  dialog behind the navbar button that shows the key (RD-1220-03), the way `F` is the search of
+  whichever page is open.
 - **The key that opens a question confirms it; `X` closes every dialog** (owner, 2026-10-02).
   Every confirmation a key can start carries that key as its `confirmKey` — always, not only when
   the key started it, because a click user is not disturbed by a hint. `X` is the one plain key
@@ -1112,6 +1114,14 @@ recognised as drifting.
   `aria-label` and a `title`, since an icon alone names nothing. See `docs/accessibility.md`.
 - **An action that is not self-evident gets a label beside its icon**: test, connect, enqueue,
   duplicate. Edit and delete do not need one; a test button does.
+- **A selection bar fits one line, and its X never leaves the window** (RD-1220-03). Start,
+  pause, stop and remove are icons — what every player and file list shows — with `aria-label`
+  and `title`, and so are rename (the row's pencil) and export (the toolbar's own icon). An action
+  that is not self-evident (extract, show in list, re-resolve) keeps its label where the bar is
+  wide and drops it below `80rem` of the bar (`BulkActionBar`'s `LABEL_UI`, handed to its slot);
+  an action with a count or a danger keeps its words always (*Reset 3 files*, *Delete 1
+  package*). The actions wrap inside a group that may shrink; the X stands outside it, last in
+  the tab order, and does not shrink.
 - **An action with a start-mode variant offers the variant as a second button, never as a
   hidden modifier.** "Add" and "Add paused" are the pair the LinkGrabber toolbar established;
   a row and a selection bar offering the same action repeat that pair verbatim — same icons
@@ -1611,9 +1621,13 @@ recognised as drifting.
   reachable at all for part of the audience; see `docs/accessibility.md`.
 - **A refused drag says why, where the list already speaks.** Reordering is refused when the
   visible list is not the whole list — a filter is active — or when the target is out of bounds,
-  such as another priority tier in the download queue. The answer is the view's notice line
-  (`transfers.notice`, the LinkGrabber's `notice`), not a toast and never a silent `return`:
-  a gesture that visibly does nothing reads as a broken feature.
+  such as another priority tier in the download queue. The answer is never a silent `return`:
+  a gesture that visibly does nothing reads as a broken feature. In the LinkGrabber it is the
+  view's notice line (`notice`). In the download list it is a warning toast that stays until it is
+  closed (`transfers.warning`, RD-1220-03): the list keeps no card above it, and the row the
+  refusal is about carries its own state, so the toast only has to say why. What went through
+  (`transfers.notice`) is an info toast that leaves by itself; `useQueueNoticeToasts` shows both
+  and takes them from the store. A failure stays a closable red `UAlert` (`transfers.error`).
 - **Pictures from a third party are a switch, and the row works without them.** An address that
   came from an indexer or a hoster is loaded by the browser, which tells that server what is on
   somebody's screen. That is a decision worth being able to reverse, so it hangs off a setting;

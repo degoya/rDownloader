@@ -17,6 +17,9 @@ pub enum ContainerFormat {
     Text,
     /// rDownloader's own link list, readable or sealed with a passphrase (RD-1210-01).
     RdLinks,
+    /// JDownloader's `.crawljob`, read by the host for the import dialog (RD-1220-02). A watched
+    /// folder does not pick it up; `plugins/crawljob-intake` reads it from pasted text.
+    CrawlJob,
 }
 
 impl ContainerFormat {
@@ -30,6 +33,7 @@ impl ContainerFormat {
             "rsdf" => Some(Self::Rsdf),
             "txt" | "text" => Some(Self::Text),
             "rdlinks" => Some(Self::RdLinks),
+            "crawljob" => Some(Self::CrawlJob),
             _ => None,
         }
     }
@@ -58,6 +62,7 @@ impl ContainerFormat {
             Self::Rsdf => "rsdf",
             Self::Text => "text",
             Self::RdLinks => "rdlinks",
+            Self::CrawlJob => "crawljob",
         }
     }
 }
@@ -88,6 +93,10 @@ mod tests {
             ContainerFormat::from_file_name("Export.RDLINKS"),
             Some(ContainerFormat::RdLinks)
         );
+        assert_eq!(
+            ContainerFormat::from_file_name("rdownloader-20261009.crawljob"),
+            Some(ContainerFormat::CrawlJob)
+        );
     }
 
     #[test]
@@ -104,6 +113,7 @@ mod tests {
         assert!(!ContainerFormat::Rsdf.needs_service());
         assert!(!ContainerFormat::Text.needs_service());
         assert!(!ContainerFormat::RdLinks.needs_service());
+        assert!(!ContainerFormat::CrawlJob.needs_service());
         // CCF is unwrapped by asking the same service to read it as a CCF.
         assert_eq!(ContainerFormat::Ccf.service_source(), "ccf");
         assert_eq!(ContainerFormat::Dlc.service_source(), "dlc");

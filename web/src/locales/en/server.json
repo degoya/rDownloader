@@ -1258,7 +1258,10 @@
     "container.enqueue_invalid": "enqueue must be true or false",
     "download.reresolve_running": "The download did not stop in time to be resolved again; pause it and try again",
     "queue.stop_mark_target_invalid": "Give the stop mark either a download or a package",
-    "queue.stop_mark_target_finished": "That download or package is already finished"
+    "queue.stop_mark_target_finished": "That download or package is already finished",
+    "export.nzb_unavailable": "The NZB behind this package is no longer kept; its history was removed",
+    "export.nzb_too_large": "The NZB exceeds the {max_mib} MiB a link file carries per NZB",
+    "rdlinks.nzb_invalid": "The NZB “{name}” in the link file is not valid: {detail}"
   },
   "capabilities": {
     "media_download": "media downloads",

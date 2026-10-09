@@ -213,7 +213,7 @@
     "used": "{percent} % usado de {total}"
   },
   "add": {
-    "eyebrow": "Tarea directa",
+    "title": "Tarea directa",
     "url_placeholder": "https://host/archivo.zip",
     "default_category": "Automático",
     "auto_resolver": "Elección automática del resolutor",
@@ -222,7 +222,9 @@
     "account_aria": "Cuenta",
     "proxy_aria": "Proxy de la tarea",
     "priority_aria": "Prioridad",
-    "submit": "Encolar"
+    "submit": "Encolar",
+    "description": "Pone un enlace directamente en la cola, sin pasar por el LinkGrabber.",
+    "url_label": "Dirección"
   },
   "edit_package": {
     "title": "Editar paquete",

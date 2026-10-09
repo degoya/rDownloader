@@ -11,7 +11,10 @@
 //!
 //! An `.rdlinks` file (RD-1210-01) is rDownloader's own export: its links are proposals of a
 //! document, held to the address rule of `LinkOrigin::Proposed`, and assigned to their hosts
-//! again. Any container may be queued once its check has finished (`enqueue`).
+//! again. Any container may be queued once its check has finished (`enqueue`). The NZBs such a
+//! file carries (RD-1220-02) become NZB imports like a dropped NZB: in the LinkGrabber, or with
+//! `enqueue` straight in the download list. A `.crawljob` is read by the host with the
+//! `crawljob-intake` plugin's rules — no folder, no start of its own.
 
 use axum::{Json, extract::State, http::StatusCode};
 use serde::Serialize;
@@ -28,7 +31,10 @@ use crate::{
     container_upload::{ContainerUpload, UploadBody},
     dlc_import::{DlcImportOptions, DlcIntake},
 };
-use rd_api_core::links_file::{Passphrase, read_links};
+use rd_api_core::{
+    links_file::{Passphrase, read_links},
+    links_nzb::NzbLanding,
+};
 
 /// A container may hold several packages, so the import answers with all of them at once.
 #[derive(Debug, Serialize, ToSchema)]
@@ -39,9 +45,12 @@ pub struct ContainerImportResponse {
     pub candidates: Vec<rd_core::LinkCandidate>,
     /// Links the domain blocklist dropped before they reached the LinkGrabber.
     pub skipped_excluded: u32,
+    /// The NZBs an `.rdlinks` file carried, as NZB imports: in review, or already queued when
+    /// `enqueue` was set (RD-1220-02). Empty for every other format.
+    pub nzb_imports: Vec<rd_core::NzbImport>,
 }
 
-#[utoipa::path(post, path = "/api/v1/containers/import", tag = "collector", request_body(content((Vec<u8> = "multipart/form-data"), (ContainerUpload = "application/json"))), responses((status = 201, body = ContainerImportResponse), (status = 400, description = "The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, or the JSON content is not base64"), (status = 413, description = "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit"), (status = 502, description = "The decryption service did not answer")))]
+#[utoipa::path(post, path = "/api/v1/containers/import", tag = "collector", request_body(content((Vec<u8> = "multipart/form-data"), (ContainerUpload = "application/json"))), responses((status = 201, body = ContainerImportResponse), (status = 400, description = "The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, an NZB it carries is invalid, or the JSON content is not base64"), (status = 413, description = "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit"), (status = 502, description = "The decryption service did not answer")))]
 pub async fn import_container(
     State(state): State<AppState>,
     audit: AuditContext,
@@ -149,11 +158,17 @@ async fn import(
         let document = read_links(&content, passphrase.as_ref()).await?;
         // A file a token hands in is a program's choice, never the person's own hand.
         let own_hand = from_own_hand(of_caller(audit, rd_core::IngressSource::Manual));
+        let nzbs = if enqueue {
+            NzbLanding::Enqueue(&state.scheduler)
+        } else {
+            NzbLanding::Review
+        };
         crate::dlc_import::import_links(
             &intake,
             document,
             options,
             LinkOrigin::Proposed.reach(own_hand),
+            nzbs,
         )
         .await?
     } else {
@@ -170,6 +185,7 @@ async fn import(
             packages: outcome.packages,
             candidates: outcome.candidates,
             skipped_excluded: outcome.skipped_excluded,
+            nzb_imports: outcome.nzb_imports,
         }),
     ))
 }
@@ -199,6 +215,9 @@ async fn decode(
     }
     match format {
         ContainerFormat::Rsdf => rd_collector::decode_rsdf(content)
+            .map_err(|error| ApiError::bad_request("container.file_invalid", format!("{error:#}"))),
+        // Read by the host with the plugin's rules: no folder, no start of its own (RD-1220-02).
+        ContainerFormat::CrawlJob => rd_collector::read_crawljob(content)
             .map_err(|error| ApiError::bad_request("container.file_invalid", format!("{error:#}"))),
         // A text list cannot fail to parse; it can only turn out to hold nothing, which
         // `import_document` reports as `dlc.no_links` like every other empty container.

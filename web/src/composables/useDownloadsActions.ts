@@ -62,10 +62,9 @@ export function useDownloadsActions(view: {
   }
 
   async function copyPath(path: string): Promise<void> {
-    // No toast on failure: the notice names the path, which can be copied from there by hand.
-    transfers.notice = await copyText(path)
-      ? t('downloads.notices.path_copied', { path })
-      : t('downloads.notices.destination', { path })
+    // A failed copy is a warning that stays: it names the path, which can be copied from there by hand.
+    if (await copyText(path)) transfers.notice = t('downloads.notices.path_copied', { path })
+    else transfers.warning = t('downloads.notices.destination', { path })
   }
 
   function busyPackageCount(ids: string[]): number {

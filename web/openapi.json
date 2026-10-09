@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.21.0"
+    "version": "1.22.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -7134,7 +7134,7 @@
             }
           },
           "400": {
-            "description": "The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, or the JSON content is not base64"
+            "description": "The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, an NZB it carries is invalid, or the JSON content is not base64"
           },
           "413": {
             "description": "The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit"
@@ -11197,6 +11197,12 @@
           "200": {
             "description": "The file, as an attachment",
             "headers": {
+              "x-rd-export-failed": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The NZBs that could not be had, at most ten: a percent-encoded JSON array of `{name, message, code, params}`"
+              },
               "x-rd-export-links": {
                 "schema": {
                   "type": "integer",
@@ -11205,13 +11211,21 @@
                 },
                 "description": "Links in the file"
               },
+              "x-rd-export-nzbs": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "description": "NZB documents in the file"
+              },
               "x-rd-export-skipped": {
                 "schema": {
                   "type": "integer",
                   "format": "int32",
                   "minimum": 0
                 },
-                "description": "Links the format could not carry"
+                "description": "Links and NZBs the format could not carry or the export could not fetch"
               }
             },
             "content": {
@@ -11228,7 +11242,7 @@
             }
           },
           "400": {
-            "description": "Nothing selected or nothing exportable, too many links, a passphrase too short, or a passphrase for a crawljob"
+            "description": "Nothing selected or nothing exportable, too many links, a file over 48 MiB, a passphrase too short, or a passphrase for a crawljob"
           },
           "404": {
             "description": "A named package or download does not exist"
@@ -23659,7 +23673,8 @@
           "format",
           "packages",
           "candidates",
-          "skipped_excluded"
+          "skipped_excluded",
+          "nzb_imports"
         ],
         "properties": {
           "candidates": {
@@ -23671,6 +23686,13 @@
           "format": {
             "type": "string",
             "description": "Which format the upload turned out to be."
+          },
+          "nzb_imports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NzbImport"
+            },
+            "description": "The NZBs an `.rdlinks` file carried, as NZB imports: in review, or already queued when\n`enqueue` was set (RD-1220-02). Empty for every other format."
           },
           "packages": {
             "type": "array",
@@ -23723,7 +23745,7 @@
               "string",
               "null"
             ],
-            "description": "`dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the extension. Read by\n`/api/v1/containers/import` only; the other routes each take one format."
+            "description": "`dlc`, `ccf`, `rsdf`, `txt`, `rdlinks` or `crawljob`, overriding the extension. Read by\n`/api/v1/containers/import` only; the other routes each take one format."
           },
           "name": {
             "type": [

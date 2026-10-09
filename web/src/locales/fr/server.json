@@ -1258,7 +1258,10 @@
     "container.enqueue_invalid": "enqueue doit valoir true ou false",
     "download.reresolve_running": "Le téléchargement ne s’est pas arrêté à temps pour être résolu à nouveau ; mettez-le en pause et réessayez",
     "queue.stop_mark_target_invalid": "Indiquez pour la marque d’arrêt un téléchargement ou un paquet",
-    "queue.stop_mark_target_finished": "Ce téléchargement ou ce paquet est déjà terminé"
+    "queue.stop_mark_target_finished": "Ce téléchargement ou ce paquet est déjà terminé",
+    "export.nzb_unavailable": "Le NZB de ce paquet n’est plus conservé ; son historique a été supprimé",
+    "export.nzb_too_large": "Le NZB dépasse les {max_mib} Mio qu’un fichier de liens accepte par NZB",
+    "rdlinks.nzb_invalid": "Le NZB « {name} » du fichier de liens n’est pas valide : {detail}"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

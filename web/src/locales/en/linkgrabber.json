@@ -136,10 +136,10 @@
       "duplicate_enqueued_description": "“{name}” was imported before and has already been enqueued. Delete that download to import the file again."
     },
     "modal": {
-      "title": "Import NZB, torrent or DLC",
-      "description": "Files land in the LinkGrabber for review; for NZBs, a {'{{'}password{'}}'} in the file name is used for extraction.",
-      "drop_hint": "Drop an NZB, torrent or DLC here, or choose files",
-      "drop_hint_multi": "Drop more NZB, torrent or DLC files here",
+      "title": "Import NZB, torrent, container or link file",
+      "description": "Takes NZB, torrent, DLC, CCF, RSDF, link lists (.txt), .rdlinks and .crawljob. Files land in the LinkGrabber for review; for NZBs, a {'{{'}password{'}}'} in the file name is used for extraction.",
+      "drop_hint": "Drop an NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks or .crawljob file here, or choose files",
+      "drop_hint_multi": "Drop more NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks or .crawljob files here",
       "detected_password": "Detected password:",
       "choose_file": "Choose file",
       "files_selected": "no files selected | {count} file selected | {count} files selected",
@@ -165,8 +165,8 @@
     },
     "drop": {
       "title": "Drop to import",
-      "hint": "Release NZB, torrent and DLC files anywhere to add them to the LinkGrabber.",
-      "none_matched": "No .nzb, .torrent or .dlc files found in the dropped items."
+      "hint": "Release NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks and .crawljob files anywhere to add them to the LinkGrabber.",
+      "none_matched": "No .nzb, .torrent, .dlc, .ccf, .rsdf, .txt, .rdlinks or .crawljob files found in the dropped items."
     },
     "drag_hint": "Drag to change the order in the list",
     "failed_no_reason": "The import failed without a reported reason. Delete it and import the file again.",
@@ -194,7 +194,8 @@
     "batch_description": "{created} imported, {duplicates} duplicates, {errors} errors.",
     "container_imported": "Container imported",
     "container_imported_description": "“{name}” added {count} link to the LinkGrabber. | “{name}” added {count} links to the LinkGrabber.",
-    "container_failed": "Container import failed"
+    "container_failed": "Container import failed",
+    "container_nzbs": "{count} NZB came along and is in the LinkGrabber. | {count} NZBs came along and are in the LinkGrabber."
   },
   "confirm": {
     "duplicates_title": "Duplicates included",

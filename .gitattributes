@@ -26,11 +26,15 @@
 *.torrent binary
 *.dlc binary
 
-# Merge drivers (RD-1100-13). CHANGELOG.md: both sides' lines, which is what two branches adding
-# entries under [Unreleased] mean — git's built-in union, nothing to register. The other two are
-# scripts/lib/merge-drivers/, registered by scripts/integrate.sh; without that registration git
-# merges them as text.
-CHANGELOG.md merge=union
+# Merge drivers (RD-1100-13): the rd-* ones are scripts/lib/merge-drivers/, registered by
+# scripts/integrate.sh; without that registration git merges them as text. CHANGELOG.md by
+# section (RD-1220-01): git's union put a branch's new entries into the section a release had made
+# of [Unreleased] meanwhile; the driver keeps them under [Unreleased].
+CHANGELOG.md merge=rd-changelog
+# The job indexes: conflicts of table rows from both sides, then archive-jobs.sh keeps one row per
+# job where its file lies (RD-1220-01).
+docs/roadmap/jobs/README.md merge=rd-jobindex
+docs/roadmap/jobs/archive/README.md merge=rd-jobindex
 # A plugin's release notes the same way: two branches raising one plugin to the same version both
 # add its section, and plugin-release-notes.sh --check names the second one to fold in.
 plugins/*/CHANGES.md merge=union

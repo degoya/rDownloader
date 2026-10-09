@@ -136,10 +136,10 @@
       "duplicate_enqueued_description": "« {name} » a déjà été importé et mis en file. Supprimez ce téléchargement pour importer à nouveau le fichier."
     },
     "modal": {
-      "title": "Importer un NZB, torrent ou DLC",
-      "description": "Les fichiers arrivent dans le LinkGrabber pour vérification ; pour les NZB, un {'{{'}motdepasse{'}}'} dans le nom est utilisé pour l’extraction.",
-      "drop_hint": "Déposez un NZB, torrent ou DLC ici, ou choisissez des fichiers",
-      "drop_hint_multi": "Déposez d’autres fichiers NZB, torrent ou DLC ici",
+      "title": "Importer un NZB, torrent, conteneur ou fichier de liens",
+      "description": "Accepte NZB, torrent, DLC, CCF, RSDF, listes de liens (.txt), .rdlinks et .crawljob. Les fichiers arrivent dans le LinkGrabber pour vérification ; pour les NZB, un {'{{'}motdepasse{'}}'} dans le nom est utilisé pour l’extraction.",
+      "drop_hint": "Déposez un NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks ou .crawljob ici, ou choisissez des fichiers",
+      "drop_hint_multi": "Déposez d’autres fichiers NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks ou .crawljob ici",
       "detected_password": "Mot de passe détecté :",
       "choose_file": "Choisir un fichier",
       "files_selected": "aucun fichier sélectionné | {count} fichier sélectionné | {count} fichiers sélectionnés",
@@ -165,8 +165,8 @@
     },
     "drop": {
       "title": "Déposer pour importer",
-      "hint": "Déposez des fichiers NZB, torrent et DLC n'importe où pour les ajouter au LinkGrabber.",
-      "none_matched": "Aucun fichier .nzb, .torrent ou .dlc trouvé parmi les éléments déposés."
+      "hint": "Déposez des fichiers NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks et .crawljob n'importe où pour les ajouter au LinkGrabber.",
+      "none_matched": "Aucun fichier .nzb, .torrent, .dlc, .ccf, .rsdf, .txt, .rdlinks ou .crawljob trouvé parmi les éléments déposés."
     },
     "drag_hint": "Glisser pour modifier l’ordre de la liste",
     "failed_no_reason": "L’import a échoué sans motif signalé. Supprimez-le et importez de nouveau le fichier.",
@@ -194,7 +194,8 @@
     "batch_description": "{created} importés, {duplicates} doublons, {errors} erreurs.",
     "container_imported": "Conteneur importé",
     "container_imported_description": "« {name} » a ajouté {count} lien au LinkGrabber. | « {name} » a ajouté {count} liens au LinkGrabber.",
-    "container_failed": "Échec de l'import du conteneur"
+    "container_failed": "Échec de l'import du conteneur",
+    "container_nzbs": "{count} NZB est arrivé avec le fichier et se trouve dans le LinkGrabber. | {count} NZB sont arrivés avec le fichier et se trouvent dans le LinkGrabber."
   },
   "confirm": {
     "duplicates_title": "Doublons présents",

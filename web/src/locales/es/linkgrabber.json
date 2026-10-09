@@ -136,10 +136,10 @@
       "duplicate_enqueued_description": "«{name}» ya se importó antes y ya se añadió a las descargas. Elimina esa descarga para volver a importar el archivo."
     },
     "modal": {
-      "title": "Importar NZB, torrent o DLC",
-      "description": "Los archivos llegan al LinkGrabber para su revisión; en los NZB, una {'{{'}contraseña{'}}'} en el nombre se usará para la extracción.",
-      "drop_hint": "Arrastra un NZB, torrent o DLC aquí, o selecciona archivos",
-      "drop_hint_multi": "Arrastra más archivos NZB, torrent o DLC aquí",
+      "title": "Importar NZB, torrent, contenedor o archivo de enlaces",
+      "description": "Acepta NZB, torrent, DLC, CCF, RSDF, listas de enlaces (.txt), .rdlinks y .crawljob. Los archivos llegan al LinkGrabber para su revisión; en los NZB, una {'{{'}contraseña{'}}'} en el nombre se usará para la extracción.",
+      "drop_hint": "Arrastra un NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks o .crawljob aquí, o selecciona archivos",
+      "drop_hint_multi": "Arrastra más archivos NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks o .crawljob aquí",
       "detected_password": "Contraseña detectada:",
       "choose_file": "Seleccionar archivo",
       "files_selected": "ningún archivo seleccionado | {count} archivo seleccionado | {count} archivos seleccionados",
@@ -165,8 +165,8 @@
     },
     "drop": {
       "title": "Suelta para importar",
-      "hint": "Suelta archivos NZB, torrent y DLC en cualquier parte para añadirlos al LinkGrabber.",
-      "none_matched": "No se encontraron archivos .nzb, .torrent o .dlc entre los elementos soltados."
+      "hint": "Suelta archivos NZB, torrent, DLC, CCF, RSDF, .txt, .rdlinks y .crawljob en cualquier parte para añadirlos al LinkGrabber.",
+      "none_matched": "No se encontraron archivos .nzb, .torrent, .dlc, .ccf, .rsdf, .txt, .rdlinks o .crawljob entre los elementos soltados."
     },
     "drag_hint": "Arrastra para cambiar el orden de la lista",
     "failed_no_reason": "La importación falló sin indicar un motivo. Elimínala e importa el archivo de nuevo.",
@@ -194,7 +194,8 @@
     "batch_description": "{created} importados, {duplicates} duplicados, {errors} errores.",
     "container_imported": "Contenedor importado",
     "container_imported_description": "«{name}» añadió {count} enlace al LinkGrabber. | «{name}» añadió {count} enlaces al LinkGrabber.",
-    "container_failed": "Error al importar el contenedor"
+    "container_failed": "Error al importar el contenedor",
+    "container_nzbs": "{count} NZB llegó con el archivo y está en el LinkGrabber. | {count} NZB llegaron con el archivo y están en el LinkGrabber."
   },
   "confirm": {
     "duplicates_title": "Contiene duplicados",

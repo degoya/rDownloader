@@ -5,7 +5,7 @@
 # branch merged once, a duplicate migration number or plugin id stops the run naming the files,
 # a conflict only in generated files takes our side, and any other conflict stops the run with
 # the merge left for a person — and a second run refuses until it is committed. The merge drivers
-# (RD-1100-13): CHANGELOG.md as the union of both sides, the migration pins as their sorted union,
+# (RD-1100-13): CHANGELOG.md with both entries, the migration pins as their sorted union,
 # a locale catalogue key by key, and a real conflict in either still stops the run.
 #
 # Past the merges, with stand-ins for check.sh, the generators and build-plugins.sh that log

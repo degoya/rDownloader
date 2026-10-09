@@ -1,3 +1,4 @@
+import { openDirectAdd } from '@/composables/directAddAction'
 import { focusIndexerSearch } from '@/composables/indexerSearchFocus'
 import { runLinkGrabberAction } from '@/composables/linkGrabberActions'
 import { requestFileImport } from '@/composables/nzbImportRequest'
@@ -210,7 +211,8 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'f', labelKeys: ['f'], descriptionKey: 'common.shortcuts.focus_indexer_search', group: 'actions', handler: guarded(focusIndexerSearch) },
   // The LinkGrabber's own keys, handed in by the view (`linkGrabberActions.ts`). The ones that
   // ask first are answered by the same key again (`ConfirmModal`'s `confirmKey`), as `k` is.
-  { keys: 'a', labelKeys: ['a'], descriptionKey: 'common.shortcuts.add_links', group: 'actions', handler: guarded(() => runLinkGrabberAction('addLinks')) },
+  // `a` adds on Downloads too: there it opens the direct job (`directAddAction.ts`, RD-1220-03).
+  { keys: 'a', labelKeys: ['a'], descriptionKey: 'common.shortcuts.add_links', group: 'actions', handler: guarded(() => { if (!openDirectAdd()) runLinkGrabberAction('addLinks') }) },
   { keys: 'e', labelKeys: ['e'], descriptionKey: 'common.shortcuts.enqueue_all', group: 'actions', handler: guarded(() => runLinkGrabberAction('enqueueAll')) },
   { keys: 'w', labelKeys: ['w'], descriptionKey: 'common.shortcuts.enqueue_paused', group: 'actions', handler: guarded(() => runLinkGrabberAction('enqueuePaused')) },
   { keys: 'r', labelKeys: ['r'], descriptionKey: 'common.shortcuts.clear_linkgrabber', group: 'actions', handler: guarded(() => runLinkGrabberAction('clearAll')) },

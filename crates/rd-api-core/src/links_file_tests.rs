@@ -19,6 +19,7 @@ fn document() -> LinksDocument {
                 checksum: None,
                 mirror_group: None,
             }],
+            nzbs: Vec::new(),
         }],
     }
 }
@@ -109,4 +110,14 @@ async fn a_readable_file_needs_no_passphrase_and_a_file_too_large_is_refused_fir
     let oversized = vec![b' '; rd_collector::MAX_RDLINKS_BYTES + 1];
     let error = read_links(&oversized, None).await.expect_err("refused");
     assert_eq!(error.code(), "rdlinks.too_large");
+}
+
+/// What the export writes must come back through a JSON body as well as a multipart one
+/// (RD-1220-02): the link file's limit is the JSON body's file limit.
+#[test]
+fn a_link_file_fits_the_json_upload() {
+    assert_eq!(
+        rd_collector::MAX_RDLINKS_BYTES,
+        crate::container_upload::MAX_JSON_CONTAINER_BYTES
+    );
 }

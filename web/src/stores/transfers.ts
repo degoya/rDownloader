@@ -47,6 +47,8 @@ export const useTransfersStore = defineStore('transfers', () => {
   // A "service could not be reached" alert ends with the outage.
   clearWhenReconnected(error)
   const notice = ref<string | null>(null)
+  /** What was left untouched or refused; the view keeps it until it is closed (RD-1220-03). */
+  const warning = ref<string | null>(null)
   const downloadRates = ref<Record<string, number>>({})
   /** Seconds left per file, as the server measured them. Absent means "nothing to say". */
   const downloadEtas = ref<Record<string, number>>({})
@@ -288,7 +290,7 @@ export const useTransfersStore = defineStore('transfers', () => {
 
   const { extractPackages, forceExtractPackage, loadPostprocess, updatePackages, renamePackageFolder, deletePackages, reorderPackages, reorderDownloads } =
     usePackageActions({ error, notice, refresh })
-  const { clear, clearing } = useClearList({ error, notice, refresh })
+  const { clear, clearing } = useClearList({ error, notice, warning, refresh })
   const {
     applyRailSettings, loadRailSettings, setSpeedLimit, speedLimitBusy, speedLimitMiB,
     maxActiveFiles, maxActiveFilesBusy, setMaxActiveFiles, loadPackageSpeedLimit, setPackageSpeedLimit
@@ -396,6 +398,7 @@ export const useTransfersStore = defineStore('transfers', () => {
     downloads,
     error,
     notice,
+    warning,
     packages,
     packageComplete,
     packageRates,

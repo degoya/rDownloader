@@ -8,6 +8,13 @@
 //! registered `dlcrypt` identity, so this is the format rDownloader writes; `.crawljob` (see
 //! [`crate::write_crawljob`]) is the one JDownloader reads.
 //!
+//! A Usenet download or an indexer hit has no address that works anywhere else — an indexer's
+//! needs its API key, which never goes into a file — so a package carries those as the NZB
+//! document itself (`nzbs`, RD-1220-02): its name and the XML, written out from its files, groups
+//! and articles. The member is additive in `rdownloader-links/1`: there is no installed base to
+//! keep a reader of the older shape working for (AGENTS.md), and a sealed file seals the NZBs
+//! with the links because they are part of the same packages document.
+//!
 //! The document is JSON with a `format` marker. It is either readable (`packages`) or sealed
 //! (`encryption`); the sealing itself — Argon2id and XChaCha20-Poly1305, the settings backup's
 //! primitives — lives with the service, which holds the key derivation. This module reads and
@@ -21,9 +28,12 @@ use url::Url;
 
 /// The value of `format` in every document this build writes and the only one it reads.
 pub const RDLINKS_FORMAT: &str = "rdownloader-links/1";
-/// The largest `.rdlinks` file read: a link list, never payload.
-pub const MAX_RDLINKS_BYTES: usize = 8 * 1024 * 1024;
-/// The most links one document carries, on the way out and on the way back in.
+/// The largest `.rdlinks` file read or written: 48 MiB, the largest file an import's JSON body
+/// carries (`rd_api_core::container_upload::MAX_JSON_CONTAINER_BYTES`), so whatever the export
+/// writes comes back through either body. Links alone stay far below it; the embedded NZBs are
+/// what needs the room (RD-1220-02).
+pub const MAX_RDLINKS_BYTES: usize = 48 * 1024 * 1024;
+/// The most links and NZBs one document carries together, on the way out and on the way back in.
 pub const MAX_RDLINKS_LINKS: usize = 2_000;
 /// The longest name, password, category, comment, file name or mirror group kept.
 const MAX_TEXT_CHARS: usize = 1_024;
@@ -51,7 +61,21 @@ pub struct LinksPackage {
     pub category: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    /// May be empty when the package carries only NZBs.
     pub links: Vec<LinksEntry>,
+    /// The NZB documents of the package's Usenet downloads and indexer hits (RD-1220-02).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nzbs: Vec<LinksNzb>,
+}
+
+/// One NZB document carried whole: what an indexer hit or a Usenet download is made of, without
+/// the address and the key it was fetched with.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct LinksNzb {
+    /// The release name, without `.nzb`.
+    pub name: String,
+    /// The NZB's XML, at most [`crate::MAX_NZB_BYTES`].
+    pub content: String,
 }
 
 /// One link: the address a person gave, not the direct address a resolver once answered with.
@@ -195,17 +219,28 @@ pub fn link_count(document: &LinksDocument) -> usize {
         .sum()
 }
 
+/// How many NZB documents a document carries.
+#[must_use]
+pub fn nzb_count(document: &LinksDocument) -> usize {
+    document
+        .packages
+        .iter()
+        .map(|package| package.nzbs.len())
+        .sum()
+}
+
 /// Whether this format carries a link with this address's scheme.
 #[must_use]
 pub fn carries_scheme(url: &Url) -> bool {
     SCHEMES.contains(&url.scheme())
 }
 
-/// Everything a document must hold to be written or read: at least one link, at most
-/// [`MAX_RDLINKS_LINKS`], only schemes the application downloads, and no field of a length no
-/// person writes.
+/// Everything a document must hold to be written or read: at least one link or NZB, at most
+/// [`MAX_RDLINKS_LINKS`] of both, only schemes the application downloads, NZBs with a name and of
+/// at most [`crate::MAX_NZB_BYTES`], and no field of a length no person writes. Whether an NZB's
+/// XML is an NZB is the importer's question: it parses every one before it creates anything.
 fn check_document(document: &LinksDocument) -> Result<()> {
-    let total = link_count(document);
+    let total = link_count(document) + nzb_count(document);
     if total == 0 {
         bail!("the document holds no links");
     }
@@ -220,6 +255,18 @@ fn check_document(document: &LinksDocument) -> Result<()> {
             &package.comment,
         ] {
             check_text(text.as_deref())?;
+        }
+        for nzb in &package.nzbs {
+            if nzb.name.trim().is_empty() {
+                bail!("an NZB has no name");
+            }
+            check_text(Some(&nzb.name))?;
+            if nzb.content.len() > crate::MAX_NZB_BYTES {
+                bail!(
+                    "an NZB exceeds the {} MiB limit",
+                    crate::MAX_NZB_BYTES >> 20
+                );
+            }
         }
         for link in &package.links {
             if !carries_scheme(&link.url) {

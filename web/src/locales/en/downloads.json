@@ -213,7 +213,7 @@
     "used": "{percent} % used of {total}"
   },
   "add": {
-    "eyebrow": "Direct job",
+    "title": "Direct job",
     "url_placeholder": "https://host/file.zip",
     "default_category": "Automatic",
     "auto_resolver": "Automatic resolver choice",
@@ -222,7 +222,9 @@
     "account_aria": "Account",
     "proxy_aria": "Job proxy",
     "priority_aria": "Priority",
-    "submit": "Enqueue"
+    "submit": "Enqueue",
+    "description": "Queues one link straight away, without the detour through the LinkGrabber.",
+    "url_label": "Address"
   },
   "edit_package": {
     "title": "Edit package",

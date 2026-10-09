@@ -136,10 +136,10 @@
       "duplicate_enqueued_description": "„{name}“ wurde schon einmal importiert und bereits in die Downloads übernommen. Lösche den Download, um die Datei erneut zu importieren."
     },
     "modal": {
-      "title": "NZB, Torrent oder DLC importieren",
-      "description": "Die Dateien landen zur Prüfung im LinkGrabber; bei NZBs wird ein {'{{'}passwort{'}}'} im Dateinamen fürs Entpacken übernommen.",
-      "drop_hint": "NZB, Torrent oder DLC hierher ziehen oder auswählen",
-      "drop_hint_multi": "Weitere NZB-, Torrent- oder DLC-Dateien hierher ziehen",
+      "title": "NZB, Torrent, Container oder Linkdatei importieren",
+      "description": "Nimmt NZB, Torrent, DLC, CCF, RSDF, Linklisten (.txt), .rdlinks und .crawljob. Die Dateien landen zur Prüfung im LinkGrabber; bei NZBs wird ein {'{{'}passwort{'}}'} im Dateinamen fürs Entpacken übernommen.",
+      "drop_hint": "NZB, Torrent, DLC, CCF, RSDF, .txt, .rdlinks oder .crawljob hierher ziehen oder auswählen",
+      "drop_hint_multi": "Weitere NZB-, Torrent-, DLC-, CCF-, RSDF-, .txt-, .rdlinks- oder .crawljob-Dateien hierher ziehen",
       "detected_password": "Erkanntes Passwort:",
       "choose_file": "Datei auswählen",
       "files_selected": "keine Dateien ausgewählt | {count} Datei ausgewählt | {count} Dateien ausgewählt",
@@ -165,8 +165,8 @@
     },
     "drop": {
       "title": "Zum Importieren ablegen",
-      "hint": "NZB-, Torrent- und DLC-Dateien überall im Fenster loslassen, um sie zum LinkGrabber hinzuzufügen.",
-      "none_matched": "Keine .nzb-, .torrent- oder .dlc-Dateien in den abgelegten Elementen gefunden."
+      "hint": "NZB-, Torrent-, DLC-, CCF-, RSDF-, .txt-, .rdlinks- und .crawljob-Dateien überall im Fenster loslassen, um sie zum LinkGrabber hinzuzufügen.",
+      "none_matched": "Keine .nzb-, .torrent-, .dlc-, .ccf-, .rsdf-, .txt-, .rdlinks- oder .crawljob-Dateien in den abgelegten Elementen gefunden."
     },
     "drag_hint": "Ziehen, um die Reihenfolge in der Liste zu ändern",
     "failed_no_reason": "Der Import ist fehlgeschlagen, ohne dass ein Grund gemeldet wurde. Lösche ihn und importiere die Datei erneut.",
@@ -194,7 +194,8 @@
     "batch_description": "{created} importiert, {duplicates} Duplikate, {errors} Fehler.",
     "container_imported": "Container importiert",
     "container_imported_description": "„{name}“ hat {count} Link in den LinkGrabber gelegt. | „{name}“ hat {count} Links in den LinkGrabber gelegt.",
-    "container_failed": "Container-Import fehlgeschlagen"
+    "container_failed": "Container-Import fehlgeschlagen",
+    "container_nzbs": "{count} NZB kam mit und liegt im LinkGrabber. | {count} NZBs kamen mit und liegen im LinkGrabber."
   },
   "confirm": {
     "duplicates_title": "Duplikate enthalten",

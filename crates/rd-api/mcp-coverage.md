@@ -48,7 +48,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | The audit log | Audit | 1 | `list_audit_records` |
 | Clearing logs, audit records and statistics | Settings > System | 4 | `clear_audit_records`, `clear_log_records`, `clear_transfer_stats`, `get_data_reset_preview` |
 | Site rules: read and switch | Settings > Site rules | 3 | `list_site_rules`, `set_site_rule_enabled`, `set_site_rule_group_enabled` |
-| Handing in a container file | .torrent / .nzb / .dlc drop | 4 | `import_container`, `import_nzb`, `import_torrent` |
+| Handing in a container file | .torrent / .nzb / .dlc / .rdlinks / .crawljob drop | 4 | `import_container`, `import_nzb`, `import_torrent` |
 | LinkGrabber: candidate-level handling | LinkGrabber | 17 | `clear_linkgrabber`, `delete_candidates`, `enqueue_candidate`, `get_candidate_details`, `list_candidates`, `move_candidates`, `preview_candidate_media`, `reorder_candidates`, `reorder_collector`, `resolve_candidate_torrent`, `set_candidate_plan`, `update_candidate` |
 | Mirror groups | LinkGrabber | 5 | `get_mirror_preference`, `set_candidate_mirror`, `set_mirror_preference` |
 | Reviewing an NZB before it is queued | NZB import | 1 | `list_nzb_imports` |

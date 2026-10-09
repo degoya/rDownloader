@@ -48,6 +48,7 @@ declare module 'vue' {
     DateField: typeof import('./src/components/DateField.vue')['default']
     DiagnosticBundlePanel: typeof import('./src/components/logs/DiagnosticBundlePanel.vue')['default']
     DirectAddForm: typeof import('./src/components/DirectAddForm.vue')['default']
+    DirectAddModal: typeof import('./src/components/DirectAddModal.vue')['default']
     DragHandle: typeof import('./src/components/DragHandle.vue')['default']
     EnrichmentChips: typeof import('./src/components/EnrichmentChips.vue')['default']
     ExtensionPairingGuide: typeof import('./src/components/settings/ExtensionPairingGuide.vue')['default']

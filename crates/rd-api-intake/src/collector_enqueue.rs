@@ -11,8 +11,8 @@ mod replay;
 mod selection;
 mod sources;
 
-pub(crate) use nzb::indexer_refusal;
 use nzb::*;
+pub(crate) use rd_api_core::nzb_candidate::indexer_refusal;
 use replay::*;
 use selection::*;
 use sources::*;

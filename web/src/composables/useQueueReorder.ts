@@ -34,7 +34,7 @@ export function useQueueReorder(view: {
     if (!view.sorted?.value) return false
     draggingId.value = null
     draggingFileId.value = null
-    transfers.notice = t('downloads.view_sort.drag_off')
+    transfers.warning = t('downloads.view_sort.drag_off')
     return true
   }
 
@@ -53,7 +53,7 @@ export function useQueueReorder(view: {
     const target = transfers.packages.find(item => item.id === targetId)
     if (!source || !target) return
     if (source.priority !== target.priority) {
-      transfers.notice = t('downloads.notices.reorder_same_priority')
+      transfers.warning = t('downloads.notices.reorder_same_priority')
       return
     }
     const order = transfers.packages.map(item => item.id).filter(id => id !== sourceId)
@@ -69,10 +69,10 @@ export function useQueueReorder(view: {
    */
   async function persistFileOrder(packageId: string, order: string[]): Promise<boolean> {
     if (view.filterActive.value) {
-      transfers.notice = t('downloads.notices.reorder_filter_active')
+      transfers.warning = t('downloads.notices.reorder_filter_active')
       return false
     }
-    transfers.notice = null
+    transfers.warning = null
     await transfers.reorderDownloads(packageId, order)
     return true
   }
@@ -121,10 +121,10 @@ export function useQueueReorder(view: {
     const neighbour = transfers.packages[to]
     if (!source || !neighbour) return
     if (source.priority !== neighbour.priority) {
-      transfers.notice = t('downloads.notices.reorder_same_priority')
+      transfers.warning = t('downloads.notices.reorder_same_priority')
       return
     }
-    transfers.notice = null
+    transfers.warning = null
     order.splice(to, 0, ...order.splice(from, 1))
     await transfers.reorderPackages(order)
     await view.list.value?.focusRow(`package:${id}`)

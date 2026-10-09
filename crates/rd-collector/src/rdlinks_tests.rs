@@ -1,7 +1,7 @@
 use super::{
-    LinksDocument, LinksEntry, LinksFile, LinksKdf, LinksPackage, MAX_RDLINKS_BYTES,
-    MAX_RDLINKS_LINKS, RDLINKS_FORMAT, SealedLinks, read_links_file, read_sealed_plaintext,
-    sealed_plaintext, write_links_file, write_sealed_file,
+    LinksDocument, LinksEntry, LinksFile, LinksKdf, LinksNzb, LinksPackage, MAX_RDLINKS_BYTES,
+    MAX_RDLINKS_LINKS, RDLINKS_FORMAT, SealedLinks, nzb_count, read_links_file,
+    read_sealed_plaintext, sealed_plaintext, write_links_file, write_sealed_file,
 };
 
 fn entry(address: &str) -> LinksEntry {
@@ -28,6 +28,7 @@ fn document() -> LinksDocument {
                 entry("https://ddownload.com/abc123/holiday.part1.rar"),
                 entry("https://rapidgator.net/file/abc/holiday.part1.rar.html"),
             ],
+            nzbs: Vec::new(),
         }],
     }
 }
@@ -161,4 +162,65 @@ fn the_limits_hold_on_both_sides() {
     let oversized = vec![b' '; MAX_RDLINKS_BYTES + 1];
     let error = read_links_file(&oversized).expect_err("refused");
     assert!(format!("{error:#}").contains("MiB"));
+}
+
+fn nzb(name: &str) -> LinksNzb {
+    let document = crate::NzbDocument {
+        password: None,
+        files: vec![crate::NzbFile {
+            subject: "\"holiday.part1.rar\" yEnc (1/1)".to_owned(),
+            poster: "poster@example.com".to_owned(),
+            groups: vec!["alt.binaries.test".to_owned()],
+            segments: vec![crate::NzbSegment {
+                number: 1,
+                bytes: 512,
+                message_id: "part1@example.com".to_owned(),
+            }],
+        }],
+    };
+    LinksNzb {
+        name: name.to_owned(),
+        content: String::from_utf8(crate::render_nzb(&document, Some(name), 0)).expect("UTF-8"),
+    }
+}
+
+/// An indexer hit or a Usenet download travels as its NZB (RD-1220-02), readable and sealed,
+/// and a package may carry nothing else.
+#[test]
+fn a_package_carries_its_nzbs_and_may_carry_only_those() {
+    let mut mixed = document();
+    mixed.packages[0].nzbs.push(nzb("Holiday.S01E01"));
+    mixed.packages.push(LinksPackage {
+        name: Some("Only Usenet".to_owned()),
+        nzbs: vec![nzb("Release.One"), nzb("Release.Two")],
+        ..LinksPackage::default()
+    });
+    let written = write_links_file(&mixed).expect("written");
+    let LinksFile::Plain(read) = read_links_file(&written).expect("read") else {
+        panic!("a readable file");
+    };
+    assert_eq!(read, mixed);
+    assert_eq!(nzb_count(&read), 3);
+    let parsed = crate::parse_nzb(read.packages[1].nzbs[0].content.as_bytes()).expect("an NZB");
+    assert_eq!(parsed.files[0].segments[0].message_id, "part1@example.com");
+    let plaintext = sealed_plaintext(&mixed).expect("plaintext");
+    assert_eq!(read_sealed_plaintext(&plaintext).expect("opened"), mixed);
+    // A package without NZBs is written as before: no empty member.
+    let plain = String::from_utf8(write_links_file(&document()).expect("written")).expect("UTF-8");
+    assert!(!plain.contains("nzbs"));
+}
+
+#[test]
+fn an_nzb_without_a_name_or_past_the_nzb_limit_is_refused() {
+    let mut unnamed = document();
+    unnamed.packages[0].nzbs.push(nzb(" "));
+    assert!(write_links_file(&unnamed).is_err());
+    let text = serde_json::json!({ "format": RDLINKS_FORMAT, "packages": unnamed.packages });
+    assert!(read_links_file(text.to_string().as_bytes()).is_err());
+    let mut oversized = document();
+    oversized.packages[0].nzbs.push(LinksNzb {
+        name: "Huge".to_owned(),
+        content: " ".repeat(crate::MAX_NZB_BYTES + 1),
+    });
+    assert!(write_links_file(&oversized).is_err());
 }

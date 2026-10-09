@@ -214,7 +214,7 @@ async fn hand_over(
 }
 
 /// The stored files of an import as the document they were parsed from.
-fn document(
+pub(crate) fn document(
     password: Option<String>,
     files: Vec<rd_core::NzbFileStatus>,
 ) -> rd_collector::NzbDocument {

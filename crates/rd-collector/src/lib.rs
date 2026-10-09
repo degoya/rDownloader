@@ -17,7 +17,7 @@ mod textlist;
 
 pub use categories::{CategoryContext, CategoryRules, select_category};
 pub use container::ContainerFormat;
-pub use crawljob::{Crawljob, write_crawljob};
+pub use crawljob::{Crawljob, MAX_CRAWLJOB_BYTES, read_crawljob, write_crawljob};
 pub use dlc::{
     DLCRYPT_DEST_TYPE, DlcContainer, DlcDocument, DlcFile, DlcPackage, MAX_DLC_BYTES, decrypt_dlc,
     split_dlc_container,
@@ -31,9 +31,9 @@ pub use nzb::{
     subject_file_name,
 };
 pub use rdlinks::{
-    LinksDocument, LinksEntry, LinksFile, LinksKdf, LinksPackage, MAX_RDLINKS_BYTES,
-    MAX_RDLINKS_LINKS, RDLINKS_FORMAT, SealedLinks, carries_scheme, link_count, read_links_file,
-    read_sealed_plaintext, sealed_plaintext, write_links_file, write_sealed_file,
+    LinksDocument, LinksEntry, LinksFile, LinksKdf, LinksNzb, LinksPackage, MAX_RDLINKS_BYTES,
+    MAX_RDLINKS_LINKS, RDLINKS_FORMAT, SealedLinks, carries_scheme, link_count, nzb_count,
+    read_links_file, read_sealed_plaintext, sealed_plaintext, write_links_file, write_sealed_file,
 };
 pub use rsdf::{MAX_RSDF_BYTES, decode_rsdf};
 pub use textlist::{MAX_TEXT_LIST_BYTES, parse_link_list};

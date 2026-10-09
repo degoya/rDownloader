@@ -63,11 +63,35 @@ export function fileDropClaim(): ((files: File[]) => void) | null {
 }
 
 /**
- * The metadata formats the LinkGrabber accepts, in one place: the drop zone, the import modal's
- * file list and its package-name suggestion all read from here, so a new format cannot be added
- * to one of them and silently forgotten in the others.
+ * The container formats the server opens on `/containers/import`: link lists, encrypted
+ * containers, rDownloader's own `.rdlinks` and JDownloader's `.crawljob` (RD-1220-02). NZBs and
+ * torrents have endpoints of their own.
  */
-const IMPORT_SUFFIX = /\.(?:nzb|torrent|dlc|ccf|rsdf|txt|text|rdlinks)$/i
+const CONTAINER_EXTENSIONS = ['dlc', 'ccf', 'rsdf', 'txt', 'text', 'rdlinks', 'crawljob'] as const
+
+/**
+ * The metadata formats the LinkGrabber accepts, in one place: the drop zone, the import modal's
+ * file field and file list, its package-name suggestion and the dispatch to an endpoint all read
+ * from here, so a new format cannot be added to one of them and silently forgotten in the others.
+ */
+const IMPORT_EXTENSIONS = ['nzb', 'torrent', ...CONTAINER_EXTENSIONS] as const
+
+function suffixOf(extensions: readonly string[]): RegExp {
+  return new RegExp(`\\.(?:${extensions.join('|')})$`, 'i')
+}
+
+const IMPORT_SUFFIX = suffixOf(IMPORT_EXTENSIONS)
+const CONTAINER_SUFFIX = suffixOf(CONTAINER_EXTENSIONS)
+
+/** The file field's `accept`: every extension the LinkGrabber takes, `.text` aside. */
+export const IMPORT_ACCEPT = IMPORT_EXTENSIONS.filter(extension => extension !== 'text')
+  .map(extension => `.${extension}`)
+  .join(',')
+
+/** Whether the server opens this file as a container rather than as an NZB or a torrent. */
+export function isContainerFile(fileName: string): boolean {
+  return CONTAINER_SUFFIX.test(fileName)
+}
 
 /** Keeps supported LinkGrabber metadata files. Filenames are only readable at drop time. */
 export function filterImportFiles(files: FileList | File[]): File[] {

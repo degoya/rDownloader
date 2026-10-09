@@ -3,9 +3,10 @@ import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
-import type { DownloadPriority, DownloadSummary } from '@/api/types'
+import type { DownloadSummary } from '@/api/types'
 import BulkActionBar from '@/components/BulkActionBar.vue'
-import DirectAddForm from '@/components/DirectAddForm.vue'
+import type { DirectAddPayload } from '@/components/DirectAddForm.vue'
+import DirectAddModal from '@/components/DirectAddModal.vue'
 import PackageGroup from '@/components/PackageGroup.vue'
 import QueueColumnHeader from '@/components/QueueColumnHeader.vue'
 import QueueResetFailedMenu from '@/components/QueueResetFailedMenu.vue'
@@ -20,6 +21,7 @@ import PowerCountdownAlert from '@/components/power/PowerCountdownAlert.vue'
 import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
+import { setDirectAddAction } from '@/composables/directAddAction'
 import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
 import { useDownloadsActions } from '@/composables/useDownloadsActions'
@@ -30,6 +32,7 @@ import { usePackageOpenState } from '@/composables/usePackageOpenState'
 import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useQueueColumns } from '@/composables/useQueueColumns'
 import { filterQueue, QUEUE_FILTERS, useQueueFilter } from '@/composables/useQueueFilter'
+import { useQueueNoticeToasts } from '@/composables/useQueueNoticeToasts'
 import { useQueueReorder } from '@/composables/useQueueReorder'
 import { useQueueRows } from '@/composables/useQueueRows'
 import { useQueueSort } from '@/composables/useQueueSort'
@@ -58,13 +61,17 @@ provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 const { filter, search, needle, active: filterActive, reset: resetFilter } = useQueueFilter()
 const searchField = ref<HTMLElement | null>(null)
 const adding = ref(false)
+/** The direct job's dialog, and the refusal it keeps until the next attempt (RD-1220-03). */
+const addOpen = ref(false)
+const addError = ref<string | null>(null)
 const { categories, fetchCategories } = useCategories()
 const { accounts, fetchAccounts } = useAccounts()
 const { proxies, fetchProxies } = useProxyProfiles()
 const summary = ref<DownloadSummary | null>(null)
 let summaryTimer: ReturnType<typeof setInterval> | null = null
 let postprocessTimer: ReturnType<typeof setInterval> | null = null
-const addForm = ref<{ reset: () => void } | null>(null)
+// Results go as toasts, so the list stands right under the toolbar (RD-1220-03).
+useQueueNoticeToasts()
 
 const filters = computed(() => QUEUE_FILTERS.map(value => ({ label: t(`downloads.filters.${value}`), value })))
 // One red entry, apart from the rest: the only one that stops work in progress (RD-180-21).
@@ -156,6 +163,7 @@ onMounted(() => {
   // `k` (RD-180-17): the same action as the menu item below, confirmation included.
   setClearCompletedAction(() => void clearDownloads('completed'))
   setIndexerSearchFocusAction(focusSearch)
+  setDirectAddAction(openDirectAdd)
   void loadSelections()
   void loadSummary()
   void postprocess.refresh()
@@ -172,6 +180,7 @@ onUnmounted(() => {
   if (postprocessTimer) clearInterval(postprocessTimer)
   setClearCompletedAction(null)
   setIndexerSearchFocusAction(null)
+  setDirectAddAction(null)
 })
 // `download.state` / `package.state` events feed the store's debounced refresh (400 ms);
 // both fingerprints change with it, which keeps the summary reactive without a manual button.
@@ -196,16 +205,28 @@ function accountLabel(id: string | null | undefined): string | null {
   return account ? `${account.label} (${account.provider})` : null
 }
 
-async function addDownload(payload: { url: string, categoryId?: string, accountId?: string, proxyProfileId?: string, priority: DownloadPriority }): Promise<void> {
+function openDirectAdd(): void {
+  addError.value = null
+  addOpen.value = true
+}
+
+/** A queued link closes the dialog; a refusal stays in it, not in the alert behind it. */
+async function addDownload(payload: DirectAddPayload): Promise<void> {
   adding.value = true
+  addError.value = null
   const ok = await transfers.add(payload.url, undefined, undefined, {
     ...(payload.categoryId ? { categoryId: payload.categoryId } : {}),
     ...(payload.accountId ? { accountId: payload.accountId } : {}),
     ...(payload.proxyProfileId ? { proxyProfileId: payload.proxyProfileId } : {}),
     priority: payload.priority
   })
-  if (ok) addForm.value?.reset()
   adding.value = false
+  if (ok) {
+    addOpen.value = false
+    return
+  }
+  addError.value = transfers.error
+  transfers.error = null
 }
 </script>
 
@@ -215,6 +236,9 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
       <UDashboardNavbar :title="t('downloads.title')">
         <template #leading><UDashboardSidebarCollapse /></template>
         <template #right>
+          <UButton icon="i-lucide-plus" :label="t('downloads.add.title')" :aria-label="t('downloads.add.title')" :title="t('downloads.add.title')" :ui="{ label: 'max-sm:hidden' }" color="neutral" variant="outline" data-tour="downloads-add" data-testid="downloads-add" @click="openDirectAdd">
+            <template #trailing><UKbd value="a" class="max-sm:hidden" /></template>
+          </UButton>
           <div data-tour="downloads-controls" class="flex items-center gap-2">
           <!-- On a phone the count goes (the toolbar repeats it) and the buttons keep only their
                icons, so the row fits beside the title and never covers the sidebar toggle. -->
@@ -265,9 +289,7 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
 
     <template #body>
       <div class="flex w-full flex-col gap-6">
-        <div data-tour="downloads-add">
-          <DirectAddForm ref="addForm" :categories="categories" :accounts="accounts" :proxies="proxies" :busy="adding" @submit="addDownload" />
-        </div>
+        <DirectAddModal v-model:open="addOpen" :categories="categories" :accounts="accounts" :proxies="proxies" :busy="adding" :error="addError" @submit="addDownload" />
 
         <PowerCountdownAlert />
 
@@ -286,7 +308,6 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
           close
           @update:open="transfers.error = null"
         />
-        <UAlert v-if="transfers.notice" color="info" icon="i-lucide-info" :description="transfers.notice" />
 
         <PostprocessQueue v-if="postprocess.queue.length" :entries="postprocess.queue" />
 
@@ -311,12 +332,16 @@ async function addDownload(payload: { url: string, categoryId?: string, accountI
             @remove="bulkRemove"
             @clear="selection.clear()"
           >
-            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" @click="revealSelection" />
-            <UButton v-if="selection.selectedIds.value.length === 1" size="sm" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('common.actions.rename')" @click="bulkRename" />
-            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-file-down" :label="t('common.export.action')" data-testid="downloads-export" @click="exportPackages({ downloadIds: selection.selectedIds.value })" />
-            <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :label="t('downloads.reresolve.action')" :title="t('downloads.reresolve.hint')" data-testid="downloads-reresolve" @click="reresolve({ ids: selection.selectedIds.value })" />
-            <UButton v-if="resettableSelection.length" size="sm" color="error" variant="outline" icon="i-lucide-rotate-ccw" :label="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :loading="bulkBusy" @click="resetDownloads(selection.selectedIds.value)" />
-            <UButton v-if="selection.fullySelectedPackageIds.value.length" size="sm" color="error" variant="outline" icon="i-lucide-package-x" :label="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :loading="bulkBusy" @click="bulkDeletePackages" />
+            <template #default="{ labelUi }">
+              <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-crosshair" :label="t('common.actions.reveal')" :aria-label="t('common.actions.reveal')" :title="t('common.actions.reveal')" :ui="labelUi" @click="revealSelection" />
+              <!-- Rename is the pencil of every row and export the icon of the toolbar's own export: icons alone (RD-1220-03). -->
+              <UButton v-if="selection.selectedIds.value.length === 1" size="sm" color="neutral" variant="outline" icon="i-lucide-pencil" :aria-label="t('common.actions.rename')" :title="t('common.actions.rename')" @click="bulkRename" />
+              <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-file-down" :aria-label="t('common.export.action')" :title="t('common.export.action')" data-testid="downloads-export" @click="exportPackages({ downloadIds: selection.selectedIds.value })" />
+              <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :label="t('downloads.reresolve.action')" :aria-label="t('downloads.reresolve.action')" :title="t('downloads.reresolve.hint')" :ui="labelUi" data-testid="downloads-reresolve" @click="reresolve({ ids: selection.selectedIds.value })" />
+              <!-- A count and a danger keep their words: "Reset 3 files" is not an icon. -->
+              <UButton v-if="resettableSelection.length" size="sm" color="error" variant="outline" icon="i-lucide-rotate-ccw" :label="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :loading="bulkBusy" @click="resetDownloads(selection.selectedIds.value)" />
+              <UButton v-if="selection.fullySelectedPackageIds.value.length" size="sm" color="error" variant="outline" icon="i-lucide-package-x" :label="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :loading="bulkBusy" @click="bulkDeletePackages" />
+            </template>
           </BulkActionBar>
           <!--
             One flattened stream of rows through the shared list block: package headers and the

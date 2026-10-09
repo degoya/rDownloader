@@ -213,7 +213,7 @@
     "used": "{percent} % utilisés sur {total}"
   },
   "add": {
-    "eyebrow": "Tâche directe",
+    "title": "Tâche directe",
     "url_placeholder": "https://hote/fichier.zip",
     "default_category": "Automatique",
     "auto_resolver": "Choix automatique du résolveur",
@@ -222,7 +222,9 @@
     "account_aria": "Compte",
     "proxy_aria": "Proxy de la tâche",
     "priority_aria": "Priorité",
-    "submit": "Ajouter à la file"
+    "submit": "Ajouter à la file",
+    "description": "Met un lien directement dans la file, sans passer par le LinkGrabber.",
+    "url_label": "Adresse"
   },
   "edit_package": {
     "title": "Modifier le paquet",

@@ -8,9 +8,10 @@
 #   2. Each branch merged with --no-ff. After every merge: duplicate migration numbers and
 #      plugin ids, which two branches can each get right and still get wrong together. A
 #      conflict only in generated files takes our side; any other conflict stops the run. The
-#      merge drivers of .gitattributes are registered first (RD-1100-13): CHANGELOG.md merges
-#      as the union of both sides, the migration pins as their sorted union, the locale
-#      catalogues key by key (scripts/lib/merge-drivers/).
+#      merge drivers of .gitattributes are registered first (RD-1100-13): CHANGELOG.md by
+#      section, new entries under [Unreleased] across a release too (RD-1220-01), the migration
+#      pins as their sorted union, the locale catalogues key by key, the job indexes with
+#      conflicts of table rows from both sides (scripts/lib/merge-drivers/).
 #   3. The preflight (RD-1110-15): scripts/check.sh --preflight, every check that compiles
 #      nothing — script tests, lints, formatting, the test maps, the secret scan — into
 #      preflight.log, minutes, each finding collected. Red stops the run with all of them in

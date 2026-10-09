@@ -383,7 +383,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // are priced by the same `scope_policy` entries the browser upload is.
     covered(
         "Handing in a container file",
-        ".torrent / .nzb / .dlc drop",
+        ".torrent / .nzb / .dlc / .rdlinks / .crawljob drop",
         &[
             any("/api/v1/containers/import"),
             any("/api/v1/dlc/import"),

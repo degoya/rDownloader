@@ -44,6 +44,8 @@ pub struct DlcImportOutcome {
     pub packages: Vec<rd_core::CollectorPackage>,
     pub candidates: Vec<rd_core::LinkCandidate>,
     pub skipped_excluded: u32,
+    /// The NZBs an `.rdlinks` file carried (RD-1220-02); empty for every other container.
+    pub nzb_imports: Vec<rd_core::NzbImport>,
 }
 
 /// Metadata the container itself does not carry.
@@ -190,7 +192,11 @@ pub async fn import_document(
             }
         })
         .collect();
-    import_packages(intake, packages, &options, None).await
+    let outcome = import_packages(intake, packages, &options, None).await?;
+    if outcome.packages.is_empty() {
+        return Err(all_links_excluded());
+    }
+    Ok(outcome)
 }
 
 /// Takes an `.rdlinks` document into the LinkGrabber (RD-1210-01): one batch per package, the
@@ -200,13 +206,17 @@ pub async fn import_document(
 /// Nothing in the document binds a link to a plugin: each one is assigned to its host again,
 /// with an alias host turned into the hoster's own domain, and resolved by the plugin installed
 /// now. An explicit `options.category_id` wins over the category the file names.
+///
+/// The NZBs the file carries become NZB imports like a dropped NZB (RD-1220-02), landing as
+/// `nzbs` says; every one is parsed before anything is created, so a broken one refuses the file.
 pub async fn import_links(
     intake: &DlcIntake<'_>,
     document: rd_collector::LinksDocument,
     options: DlcImportOptions,
     reach: Option<bool>,
+    nzbs: crate::links_nzb::NzbLanding<'_>,
 ) -> Result<DlcImportOutcome, ApiError> {
-    let total = rd_collector::link_count(&document);
+    let total = rd_collector::link_count(&document) + rd_collector::nzb_count(&document);
     if total == 0 {
         return Err(ApiError::bad_request(
             "dlc.no_links",
@@ -217,17 +227,22 @@ pub async fn import_links(
         return Err(links_limit());
     }
     let categories = intake.database.list_categories().await?;
+    let category_of = |named: Option<&str>| {
+        options.category_id.or_else(|| {
+            let wanted = named?.trim();
+            categories
+                .iter()
+                .find(|category| category.name.eq_ignore_ascii_case(wanted))
+                .map(|category| category.id)
+        })
+    };
+    let embedded = crate::links_nzb::parse_embedded(&document, category_of)?;
     let packages = document
         .packages
         .into_iter()
+        .filter(|package| !package.links.is_empty())
         .map(|package| IncomingPackage {
-            category_id: options.category_id.or_else(|| {
-                let wanted = package.category.as_deref()?.trim();
-                categories
-                    .iter()
-                    .find(|category| category.name.eq_ignore_ascii_case(wanted))
-                    .map(|category| category.id)
-            }),
+            category_id: category_of(package.category.as_deref()),
             name: package.name,
             password: package.password,
             links: package
@@ -242,7 +257,13 @@ pub async fn import_links(
                 .collect(),
         })
         .collect();
-    import_packages(intake, packages, &options, reach).await
+    let mut outcome = import_packages(intake, packages, &options, reach).await?;
+    outcome.nzb_imports =
+        crate::links_nzb::store_embedded(intake.database, embedded, &options, nzbs).await?;
+    if outcome.packages.is_empty() && outcome.nzb_imports.is_empty() {
+        return Err(all_links_excluded());
+    }
+    Ok(outcome)
 }
 
 /// `400` for a link file or an export over [`rd_collector::MAX_RDLINKS_LINKS`].
@@ -284,6 +305,7 @@ async fn import_packages(
         packages: Vec::new(),
         candidates: Vec::new(),
         skipped_excluded: 0,
+        nzb_imports: Vec::new(),
     };
     for package in packages {
         let before = package.links.len();
@@ -382,13 +404,14 @@ async fn import_packages(
         outcome.packages.extend(packages);
         outcome.candidates.extend(candidates);
     }
-    if outcome.packages.is_empty() {
-        return Err(ApiError::bad_request(
-            "collector.all_links_excluded",
-            "All links were skipped by the domain blocklist",
-        ));
-    }
     Ok(outcome)
+}
+
+fn all_links_excluded() -> ApiError {
+    ApiError::bad_request(
+        "collector.all_links_excluded",
+        "All links were skipped by the domain blocklist",
+    )
 }
 
 /// The container's own package name wins; without one the file name keeps the packages of a

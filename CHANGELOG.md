@@ -5,6 +5,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-10-09
+
+### Changed
+
+- **A more compact download list (RD-1220-03).** The selection bar (`BulkActionBar`) shows start,
+  pause, stop (now `i-lucide-square`, no longer the X of the close button) and remove, rename and
+  export as icons with `aria-label` and `title`; extract, show in list and re-resolve drop their
+  label below `80rem` of the bar; reset and delete packages keep their counted label. The actions
+  wrap in a group that may shrink and the close X stands outside it, so it stays in the window.
+  The *Direct job* card is a dialog (`DirectAddModal`) behind a navbar button with `UKbd` `a`
+  (`directAddAction.ts`; `a` adds links in the LinkGrabber as before); a queued link closes it, a
+  refusal stays in it. `transfers.notice` is an info toast that leaves by itself, the new
+  `transfers.warning` a warning toast that stays (a clear that left packages untouched, a refused
+  drag, a failed path copy; `useQueueNoticeToasts`), so the list stands right under the toolbar.
+
+### Fixed
+
+- **A wave merged after a release keeps the CHANGELOG and the job index right (RD-1220-01).**
+  `CHANGELOG.md` has its own merge driver, `rd-changelog` (`scripts/lib/merge-drivers/changelog-merge.py`):
+  released sections come from the side that changed them and `[Unreleased]` merges by entry, so a
+  branch that forked before a release brings its entries under `[Unreleased]` instead of into the
+  released section (git's `union` put three 1.21 entries inside `[1.20.0]`); an entry released on
+  one side and edited on the other stays a conflict. The two job indexes get `rd-jobindex`
+  (`job-index-merge.py`), which takes both sides of a conflict made only of table rows, and
+  `archive-jobs.sh` keeps one row per job where its file lies, the copy with its file's status,
+  before it counts (`scripts/lib/archive_jobs_rows.py`); `--check` names a doubled or misplaced
+  row. `integrate.sh` registers both drivers. New `scripts/release-sections.sh` in the file checks
+  and the preflight: every released section of `CHANGELOG.md` and `RELEASE-NOTES.md` equals the
+  file at its tag (four older `CHANGELOG.md` sections that already differed are pinned by
+  digest). Test `scripts/tests/merge-after-release.sh` replays the 1.21 merge.
+
+- **A package export carries its NZBs; `.crawljob` in the import dialog (RD-1220-02).** An
+  `.rdlinks` package has `nzbs` (`rd_collector::LinksNzb`, additive in `rdownloader-links/1`;
+  links + NZBs ≤ 2,000, each ≤ `MAX_NZB_BYTES`, file ≤ 48 MiB = `MAX_JSON_CONTAINER_BYTES`, was
+  8 MiB; sealed with the packages). The export writes a queued Usenet package's NZB from its
+  stored articles (`render_nzb`, no migration) and fetches a LinkGrabber indexer hit through
+  `rd_api_core::nzb_candidate` — the enqueue's fetch, `reach` rule and indexer refusal, moved
+  there from `collector_enqueue/nzb.rs` — so no indexer address or key reaches the file; one that
+  cannot be had is skipped with its code (`x-rd-export-nzbs`, `x-rd-export-failed`, MCP `nzbs` /
+  `failed`; `export.nzb_unavailable`, `export.nzb_too_large`). The import parses every NZB first
+  (`rdlinks.nzb_invalid`) and stores them like a dropped NZB (`rd_api_core::links_nzb`; review,
+  or queued with `enqueue`; `ContainerImportResponse.nzb_imports`). `ContainerFormat::CrawlJob`
+  with `rd_collector::read_crawljob` (the plugin's rules plus `extractPasswords`, checked against
+  its golden file); the import dialog's title, hint and drop zone name every format, kept in one
+  list (`nzbImportRequest.ts`).
+
 ## [1.21.0] - 2026-10-09
 
 ### Added

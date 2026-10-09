@@ -80,9 +80,10 @@
 ^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)(\.rs$|/)                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets git_releases collector_pages capture_pick address_rule
 ^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr
 ^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr history
-^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file package_export
+^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file package_export package_export_nzb
 # Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
-^crates/rd-api(-[a-z]+)?/src/(package_export|links_file|container_enqueue|download_handlers/reresolve)(\.rs$|/)   package_export mcp scope_matrix
+^crates/rd-api(-[a-z]+)?/src/(package_export|package_export_nzb|links_file|links_nzb|container_enqueue|download_handlers/reresolve)(\.rs$|/)   package_export package_export_nzb mcp scope_matrix
+^crates/rd-api(-[a-z]+)?/src/nzb_candidate(\.rs$|/)                                          nzb_paused package_export_nzb indexers
 ^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)(\.rs$|/)   service_lifecycle oidc password_reset
 ^crates/rd-api(-[a-z]+)?/src/data_reset_handlers(\.rs$|/)                                     data_reset storage_clear history
 ^crates/rd-api(-[a-z]+)?/src/(history_handlers|history_readd_handlers|routes/history)(\.rs$|/)   history compat_sabnzbd

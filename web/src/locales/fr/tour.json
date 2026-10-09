@@ -12,7 +12,7 @@
     },
     "downloads_add": {
       "title": "Ajouter un téléchargement",
-      "description": "Collez un lien ici pour le mettre en file immédiatement — catégorie, compte et proxy se choisissent par téléchargement."
+      "description": "Ici (ou avec A) s'ouvre la tâche directe : collez un lien pour le mettre en file immédiatement — catégorie, compte et proxy se choisissent par téléchargement."
     },
     "downloads_controls": {
       "title": "Piloter la file",

@@ -213,7 +213,7 @@
     "used": "{percent} % belegt von {total}"
   },
   "add": {
-    "eyebrow": "Direkter Auftrag",
+    "title": "Direkter Auftrag",
     "url_placeholder": "https://host/datei.zip",
     "default_category": "Automatisch",
     "auto_resolver": "Automatische Resolverwahl",
@@ -222,7 +222,9 @@
     "account_aria": "Konto",
     "proxy_aria": "Job-Proxy",
     "priority_aria": "Priorität",
-    "submit": "Einreihen"
+    "submit": "Einreihen",
+    "description": "Reiht einen Link direkt ein, ohne den Umweg über den LinkGrabber.",
+    "url_label": "Adresse"
   },
   "edit_package": {
     "title": "Paket bearbeiten",

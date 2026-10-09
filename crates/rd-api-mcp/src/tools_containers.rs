@@ -45,14 +45,15 @@ pub(crate) struct ContainerFileParams {
 pub(crate) struct ImportContainerParams {
     #[serde(flatten)]
     pub file: ContainerFileParams,
-    /// `dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the file name's extension.
+    /// `dlc`, `ccf`, `rsdf`, `txt`, `rdlinks` or `crawljob`, overriding the file name's
+    /// extension.
     #[serde(default)]
     pub format: Option<String>,
     /// The passphrase of an encrypted .rdlinks file. Never echoed back.
     #[serde(default)]
     pub passphrase: Option<String>,
-    /// Queue every package once its links are checked, instead of leaving them in the
-    /// LinkGrabber.
+    /// Queue every package once its links are checked, and an .rdlinks file's NZBs at once,
+    /// instead of leaving them in the LinkGrabber.
     #[serde(default)]
     pub enqueue: bool,
 }
@@ -84,7 +85,7 @@ impl ContainerFileParams {
 #[tool_router(router = containers_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Hand a link container to the LinkGrabber: a .dlc, .ccf, .rsdf, a plain .txt link list or an .rdlinks file exported by rDownloader (export_packages), as base64. The format comes from file_name's extension or from `format`. A DLC or CCF is opened by the online decryption service, which has to be switched on in the settings; an encrypted .rdlinks needs its `passphrase`. The links are assigned to their hosts again and resolved by the plugins installed now. Answers with the LinkGrabber packages and links it produced; enqueue them with enqueue_collector, or pass `enqueue: true` to queue every package once its links are checked."
+        description = "Hand a link container to the LinkGrabber: a .dlc, .ccf, .rsdf, a plain .txt link list, a JDownloader .crawljob or an .rdlinks file exported by rDownloader (export_packages), as base64. The format comes from file_name's extension or from `format`. A DLC or CCF is opened by the online decryption service, which has to be switched on in the settings; an encrypted .rdlinks needs its `passphrase`. A .crawljob gives links, package names and archive passwords; its download folder and auto-start are ignored. The links are assigned to their hosts again and resolved by the plugins installed now. The NZB documents an .rdlinks file carries (Usenet downloads, indexer hits) become NZB imports like a dropped NZB, without any indexer or API key, answered in `nzb_imports`. Answers with the LinkGrabber packages and links it produced; enqueue them with enqueue_collector, or pass `enqueue: true` to queue every package once its links are checked and the NZBs at once."
     )]
     pub async fn import_container(
         &self,

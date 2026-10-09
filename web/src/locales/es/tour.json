@@ -12,7 +12,7 @@
     },
     "downloads_add": {
       "title": "Añadir una descarga",
-      "description": "Pega un enlace aquí para ponerlo en cola de inmediato: categoría, cuenta y proxy se eligen por descarga."
+      "description": "Aquí (o con A) se abre la tarea directa: pega un enlace para ponerlo en cola de inmediato; categoría, cuenta y proxy se eligen por descarga."
     },
     "downloads_controls": {
       "title": "Controlar la cola",

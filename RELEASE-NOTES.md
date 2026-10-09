@@ -12,6 +12,11 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.22.0
+
+- An exported package now carries the NZBs of Usenet downloads and indexer results, so it imports anywhere without the indexer or its key; the import dialog also takes JDownloader crawljob files.
+- The download list is more compact: the selection bar shows start, stop and remove as icons, a direct download opens in a dialog with the A key, and results appear as short notices.
+
 ## 1.21.0
 
 - Packages can be exported as a link file, encrypted if you like, and imported again with the plugins installed now; a download can also be re-resolved with the current plugin.

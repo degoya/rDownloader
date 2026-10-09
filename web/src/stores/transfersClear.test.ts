@@ -70,7 +70,9 @@ describe('transfers store: clearing the download list', () => {
 
     await store.clear('completed')
 
-    expect(store.notice).toContain('Season 2')
+    // Something left alone is a warning, which the view keeps until it is closed (RD-1220-03).
+    expect(store.warning).toContain('Season 2')
+    expect(store.notice).toBeNull()
     expect(store.error).toBeNull()
   })
 
@@ -87,7 +89,7 @@ describe('transfers store: clearing the download list', () => {
 
     await store.clear('all')
 
-    const notice = String(store.notice)
+    const notice = String(store.warning)
     expect(notice).toContain('One')
     expect(notice).toContain('Two')
     expect(notice).toContain('Three')

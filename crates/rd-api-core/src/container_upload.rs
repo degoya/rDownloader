@@ -89,7 +89,7 @@ pub struct ContainerUpload {
     /// `low`, `normal` or `high`.
     #[serde(default)]
     pub priority: Option<String>,
-    /// `dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the extension. Read by
+    /// `dlc`, `ccf`, `rsdf`, `txt`, `rdlinks` or `crawljob`, overriding the extension. Read by
     /// `/api/v1/containers/import` only; the other routes each take one format.
     #[serde(default)]
     pub format: Option<String>,

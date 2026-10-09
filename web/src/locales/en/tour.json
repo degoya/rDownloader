@@ -12,7 +12,7 @@
     },
     "downloads_add": {
       "title": "Add a download",
-      "description": "Paste a link here to queue it straight away — category, account and proxy can be chosen per download."
+      "description": "This (or A) opens the direct job: paste a link to queue it straight away — category, account and proxy can be chosen per download."
     },
     "downloads_controls": {
       "title": "Control the queue",

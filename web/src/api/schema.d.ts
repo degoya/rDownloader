@@ -8790,6 +8790,11 @@ export interface components {
             candidates: components["schemas"]["LinkCandidate"][];
             /** @description Which format the upload turned out to be. */
             format: string;
+            /**
+             * @description The NZBs an `.rdlinks` file carried, as NZB imports: in review, or already queued when
+             *     `enqueue` was set (RD-1220-02). Empty for every other format.
+             */
+            nzb_imports: components["schemas"]["NzbImport"][];
             packages: components["schemas"]["CollectorPackage"][];
             /**
              * Format: int32
@@ -8824,7 +8829,7 @@ export interface components {
              */
             file_name?: string | null;
             /**
-             * @description `dlc`, `ccf`, `rsdf`, `txt` or `rdlinks`, overriding the extension. Read by
+             * @description `dlc`, `ccf`, `rsdf`, `txt`, `rdlinks` or `crawljob`, overriding the extension. Read by
              *     `/api/v1/containers/import` only; the other routes each take one format.
              */
             format?: string | null;
@@ -22750,7 +22755,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContainerImportResponse"];
                 };
             };
-            /** @description The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, or the JSON content is not base64 */
+            /** @description The format is unknown, its import is disabled, the container is invalid, an encrypted link file's passphrase is missing or wrong, an NZB it carries is invalid, or the JSON content is not base64 */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -26051,9 +26056,13 @@ export interface operations {
             /** @description The file, as an attachment */
             200: {
                 headers: {
+                    /** @description The NZBs that could not be had, at most ten: a percent-encoded JSON array of `{name, message, code, params}` */
+                    "x-rd-export-failed"?: string;
                     /** @description Links in the file */
                     "x-rd-export-links"?: number;
-                    /** @description Links the format could not carry */
+                    /** @description NZB documents in the file */
+                    "x-rd-export-nzbs"?: number;
+                    /** @description Links and NZBs the format could not carry or the export could not fetch */
                     "x-rd-export-skipped"?: number;
                     [name: string]: unknown;
                 };
@@ -26062,7 +26071,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Nothing selected or nothing exportable, too many links, a passphrase too short, or a passphrase for a crawljob */
+            /** @description Nothing selected or nothing exportable, too many links, a file over 48 MiB, a passphrase too short, or a passphrase for a crawljob */
             400: {
                 headers: {
                     [name: string]: unknown;

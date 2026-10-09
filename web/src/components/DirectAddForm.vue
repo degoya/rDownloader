@@ -10,10 +10,10 @@ import { NO_SELECTION } from '@/utils/select'
 const PRIORITY_ITEMS = computed(() => priorityItems())
 const { t } = useI18n()
 
-const props = defineProps<{ categories: Category[], accounts: Account[], proxies: ProxyProfile[], busy: boolean }>()
-const emit = defineEmits<{
-  submit: [payload: { url: string, categoryId?: string, accountId?: string, proxyProfileId?: string, priority: DownloadPriority }]
-}>()
+export interface DirectAddPayload { url: string, categoryId?: string, accountId?: string, proxyProfileId?: string, priority: DownloadPriority }
+
+const props = defineProps<{ categories: Category[], accounts: Account[], proxies: ProxyProfile[] }>()
+const emit = defineEmits<{ submit: [payload: DirectAddPayload] }>()
 
 const url = ref('')
 const categoryId = ref(NO_SELECTION)
@@ -45,24 +45,29 @@ function submit(): void {
   })
 }
 
-defineExpose({ reset: () => { url.value = '' } })
 </script>
 
 <template>
   <!--
-    The form measures its own width (`@container`): the one-line grid needs about 950 px, and
-    beside an open sidebar a window of 1024–1230 px is "lg" while the form is not, so the last
-    fields ran off the edge. Between, the address takes a line and the rest go two by two.
+    The fields of the direct job; `DirectAddModal` around it carries the title, the feedback and
+    the submit in its footer (`form="direct-add-form"`), so Enter in any field still submits
+    (RD-1220-03). The address takes the focus when the dialog opens.
   -->
-  <UCard as="section" class="@container">
-    <p class="eyebrow mb-3">{{ t('downloads.add.eyebrow') }}</p>
-    <form class="grid gap-2 @min-[40rem]:grid-cols-2 @min-[60rem]:grid-cols-[minmax(280px,1fr)_repeat(4,minmax(130px,0.4fr))_auto]" @submit.prevent="submit">
-      <UInput v-model="url" type="url" required icon="i-lucide-link" :placeholder="t('downloads.add.url_placeholder')" size="lg" class="@min-[40rem]:col-span-2 @min-[60rem]:col-span-1" />
-      <SearchableSelect v-model="categoryId" :items="categoryItems" size="lg" :aria-label="t('downloads.add.category_aria')" />
-      <SearchableSelect v-model="accountId" :items="accountItems" size="lg" :aria-label="t('downloads.add.account_aria')" />
-      <SearchableSelect v-model="proxyProfileId" :items="proxyItems" size="lg" :aria-label="t('downloads.add.proxy_aria')" />
-      <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" size="lg" :aria-label="t('downloads.add.priority_aria')" />
-      <UButton type="submit" icon="i-lucide-plus" :label="t('downloads.add.submit')" size="lg" :loading="props.busy" />
-    </form>
-  </UCard>
+  <form id="direct-add-form" class="space-y-3" @submit.prevent="submit">
+    <UFormField :label="t('downloads.add.url_label')" required>
+      <UInput v-model="url" type="url" required autofocus icon="i-lucide-link" :placeholder="t('downloads.add.url_placeholder')" class="w-full" data-testid="direct-add-url" />
+    </UFormField>
+    <UFormField :label="t('downloads.add.category_aria')">
+      <SearchableSelect v-model="categoryId" :items="categoryItems" class="w-full" :aria-label="t('downloads.add.category_aria')" />
+    </UFormField>
+    <UFormField :label="t('downloads.add.account_aria')">
+      <SearchableSelect v-model="accountId" :items="accountItems" class="w-full" :aria-label="t('downloads.add.account_aria')" />
+    </UFormField>
+    <UFormField :label="t('downloads.add.proxy_aria')">
+      <SearchableSelect v-model="proxyProfileId" :items="proxyItems" class="w-full" :aria-label="t('downloads.add.proxy_aria')" />
+    </UFormField>
+    <UFormField :label="t('downloads.add.priority_aria')">
+      <USelect v-model="priority" :items="PRIORITY_ITEMS" value-key="value" class="w-full" :aria-label="t('downloads.add.priority_aria')" />
+    </UFormField>
+  </form>
 </template>

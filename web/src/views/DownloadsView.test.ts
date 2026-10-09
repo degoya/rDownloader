@@ -3,7 +3,7 @@
  *
  * The queue is a tree — packages with files under them — and it used to render every node of
  * it. These cases hold the two halves of that change apart: what the list must keep doing
- * (keyboard reorder past the edge of the window, the notice line, the announced length) and
+ * (keyboard reorder past the edge of the window, the refusal toast, the announced length) and
  * what it must stop doing (putting the thousand rows nobody is looking at in the document).
  */
 import { appendFileSync } from 'node:fs'
@@ -44,7 +44,7 @@ vi.mock('@/api/client', () => ({
 }))
 // The dialogs run through Nuxt UI's overlay, which only exists inside the app shell. What was
 // asked is kept, and the answer is `false` unless a case says otherwise.
-const dialogs = vi.hoisted(() => ({ opened: [] as unknown[], answer: false as unknown }))
+const dialogs = vi.hoisted(() => ({ opened: [] as unknown[], answer: false as unknown, toasts: [] as { title?: string, color?: string }[] }))
 vi.mock('@nuxt/ui/composables', () => ({
   useOverlay: () => ({
     create: () => ({
@@ -54,7 +54,7 @@ vi.mock('@nuxt/ui/composables', () => ({
       }
     })
   }),
-  useToast: () => ({ add: vi.fn() })
+  useToast: () => ({ add: (toast: { title?: string, color?: string }) => dialogs.toasts.push(toast) })
 }))
 // The filter and the search live in the address (RD-190-21); `useQueueFilter.test.ts` holds that
 // half, here the address only has to exist.
@@ -132,7 +132,7 @@ const stubs = {
   },
   UTooltip: passthrough,
   // Everything on the page that is not the list; none of it is what these cases are about.
-  DirectAddForm: true,
+  DirectAddModal: true,
   PowerCountdownAlert: true,
   StorageCapacityAlert: true,
   TorrentKillSwitchAlert: true,
@@ -210,8 +210,7 @@ function handleOf(container: Element, key: string): HTMLElement {
 beforeEach(() => {
   setActivePinia(createPinia())
   localStorage.clear()
-  dialogs.opened = []
-  dialogs.answer = false
+  Object.assign(dialogs, { opened: [], answer: false, toasts: [] })
   copied.links = []
 })
 
@@ -309,8 +308,8 @@ describe('DownloadsView', () => {
   })
 
   /**
-   * A refused reorder still says why (RD-104-05): the view's notice line, never a toast and
-   * never a silent `return`. Virtualization must not swallow that on the way.
+   * A refused reorder still says why (RD-104-05): a warning toast that stays (RD-1220-03), never a
+   * silent `return`. Virtualization must not swallow that on the way.
    */
   it('says why a reorder was refused while a filter is active', async () => {
     const store = seedQueue(1, 4, 'downloading')
@@ -323,8 +322,8 @@ describe('DownloadsView', () => {
     await fireEvent.keyDown(handleOf(container, 'file:dl-0-1'), { key: 'ArrowDown' })
     await settle()
 
-    expect(store.notice).toBe(downloads.notices.reorder_filter_active)
-    expect(container.textContent).toContain(downloads.notices.reorder_filter_active)
+    expect(dialogs.toasts).toContainEqual(expect.objectContaining({ title: downloads.notices.reorder_filter_active, color: 'warning', duration: 0 }))
+    expect(store.warning).toBeNull()
   })
 
   /** Shift picks a range in the order the rows are on screen in, not in the store's order. */
@@ -769,7 +768,8 @@ describe('DownloadsView search and filter', () => {
 
     await fireEvent.keyDown(handleOf(container, 'file:dl-0-1'), { key: 'ArrowDown' })
     await settle()
-    expect(store.notice).toBe(downloads.notices.reorder_filter_active)
+    expect(store.warning).toBeNull()
+    expect(dialogs.toasts.at(-1)).toMatchObject({ title: downloads.notices.reorder_filter_active, color: 'warning' })
   })
 
   describe('the `f` key', () => {

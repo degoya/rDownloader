@@ -12,7 +12,7 @@
     },
     "downloads_add": {
       "title": "Download hinzufügen",
-      "description": "Hier einen Link einfügen, um ihn direkt einzureihen — Kategorie, Konto und Proxy lassen sich pro Download wählen."
+      "description": "Hier (oder mit A) öffnest du den direkten Auftrag: einen Link einfügen und gleich einreihen — Kategorie, Konto und Proxy lassen sich pro Download wählen."
     },
     "downloads_controls": {
       "title": "Warteschlange steuern",

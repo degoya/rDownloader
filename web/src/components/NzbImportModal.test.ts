@@ -33,7 +33,7 @@ describe('NzbImportModal file field', () => {
   it('takes dropped and chosen files, leaves out what it cannot import, and imports them', async () => {
     const view = mountModal()
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    expect(input.accept).toBe('.nzb,.torrent,.dlc,.ccf,.rsdf,.txt,.rdlinks')
+    expect(input.accept).toBe('.nzb,.torrent,.dlc,.ccf,.rsdf,.txt,.rdlinks,.crawljob')
     expect(input.multiple).toBe(true)
 
     const release = new File(['<nzb/>'], 'Release {{secret}}.nzb')
