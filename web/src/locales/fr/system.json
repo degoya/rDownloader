@@ -48,8 +48,8 @@
     "extension_steps": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez ce jeton puis cliquez sur « Tester la connexion ». Installation : voir extension/README.md.",
     "token_copied_description": "Le jeton de capture est dans le presse-papiers.",
     "label": "Nom de la connexion",
-    "queue_control": "Peut mettre la file en pause",
-    "queue_control_help": "Autorise « Pause all » et « Resume all » dans le menu de la zone de notification de l'agent, rien de plus. Sans ce choix, l'agent ne transmet que des liens."
+    "queue_control": "Peut piloter la file",
+    "queue_control_help": "Autorise « Start all », « Pause all » et « Add all from LinkGrabber » dans le menu de la zone de notification de l'agent, rien de plus. Sans ce choix, l'agent ne transmet que des liens."
   },
   "agents": {
     "eyebrow": "Connexions appairées",

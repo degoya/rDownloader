@@ -1,17 +1,19 @@
 /**
  * The indexer search in a drawer (RD-1230-02).
  *
- * What is held: `f` opens the drawer from anywhere in the view and puts the keyboard in the search
- * field — without an enabled indexer on the hint's link to where one is set up; what was typed is
+ * What is held: `f` opens the drawer from anywhere in the view — from any other page after going
+ * to the LinkGrabber — and puts the keyboard in the search field — without an enabled indexer on the hint's link to where one is set up; what was typed is
  * still there when it opens again; and the navbar button that opens it shows the key.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
+import type { NavigationFailure } from 'vue-router'
 
 import { setShortcutFeedback, SHORTCUT_DEFINITIONS } from '@/composables/shortcutDefinitions'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
+import { router } from '@/router'
 import { createTestI18n, mountComponent, uiStubs } from '@/test/mount'
 
 import LinkGrabberNavbar from './LinkGrabberNavbar.vue'
@@ -129,19 +131,36 @@ describe('IndexerSearchDrawer', () => {
     await waitFor(() => expect(document.activeElement).toBe(field()))
   })
 
-  it('does nothing while a dialog is open, and nothing once the view is gone', async () => {
+  it('does nothing while a dialog is open', async () => {
     answerIndexers([ENABLED])
-    const view = mount()
+    mount()
     await settle()
     setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => true })
     focusKey.handler()
     await settle()
     expect(screen.queryByTestId('indexer-search')).toBeNull()
+  })
 
-    setShortcutFeedback({ toast: () => {}, openHelp: () => {}, isOverlayOpen: () => false })
-    view.unmount()
-    expect(() => focusKey.handler()).not.toThrow()
-    expect(document.activeElement).toBe(document.body)
+  it('from any other page goes to the LinkGrabber and opens there with the keyboard in the field', async () => {
+    answerIndexers([ENABLED])
+    const push = vi.spyOn(router, 'push').mockResolvedValue(undefined)
+    focusKey.handler()
+    expect(push).toHaveBeenCalledWith('/linkgrabber')
+    await settle()
+    mount()
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+    push.mockRestore()
+  })
+
+  it('forgets the request when the way to the LinkGrabber is refused', async () => {
+    answerIndexers([ENABLED])
+    const push = vi.spyOn(router, 'push').mockResolvedValue({} as NavigationFailure)
+    focusKey.handler()
+    await settle()
+    mount()
+    await settle()
+    expect(screen.queryByTestId('indexer-search')).toBeNull()
+    push.mockRestore()
   })
 })
 

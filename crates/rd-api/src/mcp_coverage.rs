@@ -798,8 +798,10 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Not a user-facing capability but the agent's own contract, priced with its own \
          capture: scopes. No api: token reaches it, so a tool over it could not be called. The \
          tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue \
-         already give MCP, and the clipboard pause and the shortcuts the agent follows \
-         (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it. What \
+         already give MCP, its \"Add all from LinkGrabber\" (RD-1240-07) the one \
+         enqueue_collector and enqueue_nzb_import give it, and the clipboard pause and the \
+         shortcuts the agent follows (RD-1180-01, RD-1180-03) the one get_ and \
+         update_capture_agent_settings give it. What \
          an agent says about its own update on its poll (RD-1210-03) get_update_status reads; \
          installing it is the agent's own decision, never a tool's.",
     ),

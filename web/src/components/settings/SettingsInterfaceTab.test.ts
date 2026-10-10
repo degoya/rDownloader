@@ -38,10 +38,10 @@ describe('SettingsInterfaceTab layout', () => {
     expect(sideBySideClasses(container)).toEqual([])
   })
 
-  it('still renders all four appearance selects, one per row', () => {
+  it('still renders all five appearance selects, one per row', () => {
     const { container } = mount()
 
-    expect(container.querySelectorAll('select')).toHaveLength(4)
+    expect(container.querySelectorAll('select')).toHaveLength(5)
   })
 })
 

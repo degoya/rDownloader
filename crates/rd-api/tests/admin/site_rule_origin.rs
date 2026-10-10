@@ -114,14 +114,20 @@ async fn the_examples_arrive_once_switched_off_and_the_button_restores_them() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = test_harness(directory.path()).await;
     let ids = example_ids();
-    assert!((3..=6).contains(&ids.len()));
+    assert!((10..=16).contains(&ids.len()));
 
     rd_api::site_rules_service::install_examples_once(&harness.database).await;
     let (_, body) = get_json(&harness.router, "/api/v1/site-rules").await;
     for id in &ids {
         let rule = row(&body, id);
         assert_eq!(rule["enabled"], false, "{id} arrives switched off");
-        assert_eq!(rule["group"], "examples");
+        assert!(
+            matches!(
+                rule["group"].as_str(),
+                Some("blender" | "linux" | "software" | "archive" | "paste")
+            ),
+            "{id}"
+        );
         assert!(
             rule["description"]
                 .as_str()

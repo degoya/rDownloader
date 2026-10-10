@@ -48,8 +48,8 @@
     "extension_steps": "Trage in den Erweiterungsoptionen {origin} als Server-URL ein, füge dieses Token ein und drücke „Verbindung testen“. Installation siehe extension/README.md.",
     "token_copied_description": "Das Capture-Token liegt in der Zwischenablage.",
     "label": "Name der Verbindung",
-    "queue_control": "Darf die Warteschlange pausieren",
-    "queue_control_help": "Erlaubt „Pause all“ und „Resume all“ im Tray-Menü des Agenten – sonst nichts. Ohne diese Wahl übergibt der Agent nur Links."
+    "queue_control": "Darf die Warteschlange steuern",
+    "queue_control_help": "Erlaubt „Start all“, „Pause all“ und „Add all from LinkGrabber“ im Tray-Menü des Agenten – sonst nichts. Ohne diese Wahl übergibt der Agent nur Links."
   },
   "agents": {
     "eyebrow": "Gekoppelte Verbindungen",

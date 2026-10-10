@@ -4,7 +4,7 @@ use url::Url;
 use super::{CLIPBOARD_PAUSED, IconKind, Surface, TrayState, Update, initial_tooltip};
 use crate::{
     activity::{Activity, QueueEntries, QueueMenu, TOOLTIP_LIMIT},
-    status::{ServerStatus, status_label},
+    status::{ServerStatus, agent_label, status_label},
     supervision::AgentNotice,
 };
 
@@ -70,6 +70,9 @@ fn apply(surface: &mut Surface, update: &Update) {
     if let Some(line) = &update.status_line {
         surface.status_line = line.clone();
     }
+    if let Some(line) = &update.server_line {
+        surface.server_line = line.clone();
+    }
     if let Some(tooltip) = &update.tooltip {
         surface.tooltip = tooltip.clone();
     }
@@ -95,10 +98,8 @@ fn a_fresh_tray_shows_the_idle_mark_with_open_disabled_and_the_starting_line() {
     let surface = paired().surface();
     assert_eq!(surface.icon, IconKind::Idle);
     assert!(!surface.open_enabled, "the service has not answered yet");
-    assert_eq!(
-        surface.status_line,
-        status_label(Some(&service()), ServerStatus::Starting)
-    );
+    assert_eq!(surface.status_line, agent_label(Some(&service())));
+    assert_eq!(surface.server_line, "Server \u{2014} starting");
     assert_eq!(surface.tooltip, initial_tooltip());
     assert_eq!(
         surface.queue,
@@ -143,18 +144,20 @@ fn an_unpaired_agent_says_so_on_its_status_line() {
     assert!(!state.surface().open_enabled);
 }
 
-/// The service answering is what turns "Open" on, and it rewrites the status line with it.
+/// The service answering is what turns "Open" on, and it rewrites the server line with it.
 ///
-/// The icon and the tooltip are not named: neither has anything to do with the service.
+/// The icon, the agent's line and the tooltip are not named: none of them follows the service
+/// (RD-1240-06).
 #[test]
-fn the_service_answering_enables_open_and_rewrites_the_status_line() {
+fn the_service_answering_enables_open_and_rewrites_the_server_line() {
     let mut state = paired();
-    let update = state.on_server_status(ServerStatus::Running);
+    let update = state.on_server_status(ServerStatus::Running, None);
     assert_eq!(update.open_enabled, Some(true));
     assert_eq!(
-        update.status_line.as_deref(),
-        Some(status_label(Some(&service()), ServerStatus::Running).as_str())
+        update.server_line.as_deref(),
+        Some("Server \u{2014} running")
     );
+    assert_eq!(update.status_line, None);
     assert_eq!(
         update.icon, None,
         "the mark does not follow the server state"
@@ -167,14 +170,12 @@ fn the_service_answering_enables_open_and_rewrites_the_status_line() {
 #[test]
 fn the_service_going_away_disables_open_again() {
     let mut state = paired();
-    state.on_server_status(ServerStatus::Running);
-    let update = state.on_server_status(ServerStatus::Unreachable);
+    state.on_server_status(ServerStatus::Running, None);
+    let update = state.on_server_status(ServerStatus::Unreachable, None);
     assert_eq!(update.open_enabled, Some(false));
-    assert!(
-        update
-            .status_line
-            .as_deref()
-            .is_some_and(|line| line.ends_with("server not reachable"))
+    assert_eq!(
+        update.server_line.as_deref(),
+        Some("Server \u{2014} not reachable")
     );
     assert!(!state.surface().open_enabled);
 }
@@ -185,11 +186,17 @@ fn the_service_going_away_disables_open_again() {
 fn the_same_server_status_again_changes_nothing() {
     let mut state = paired();
     assert!(
-        state.on_server_status(ServerStatus::Starting).is_empty(),
+        state
+            .on_server_status(ServerStatus::Starting, None)
+            .is_empty(),
         "the initial state repeated is not a change"
     );
-    state.on_server_status(ServerStatus::Running);
-    assert!(state.on_server_status(ServerStatus::Running).is_empty());
+    state.on_server_status(ServerStatus::Running, None);
+    assert!(
+        state
+            .on_server_status(ServerStatus::Running, None)
+            .is_empty()
+    );
 }
 
 /// Of the three server states exactly one lets the browser be opened.
@@ -201,7 +208,7 @@ fn open_is_enabled_in_exactly_one_server_state() {
         (ServerStatus::Unreachable, false),
     ] {
         let mut state = paired();
-        state.on_server_status(status);
+        state.on_server_status(status, None);
         assert_eq!(
             state.surface().open_enabled,
             expected,
@@ -224,8 +231,12 @@ fn transfers_starting_swap_the_mark_for_the_busy_one() {
             .is_some_and(|line| line.ends_with("1 active"))
     );
     assert_eq!(
-        update.tooltip, update.status_line,
-        "a short line fits whole"
+        update.tooltip,
+        Some(format!(
+            "{} \u{2014} 1 active",
+            status_label(Some(&service()), ServerStatus::Starting)
+        )),
+        "a short line fits whole, and the tooltip still names the server"
     );
     assert_eq!(
         update.open_enabled, None,
@@ -268,15 +279,16 @@ fn transfers_stopping_swap_the_idle_mark_back() {
     );
 }
 
-/// The line is server, then transfers, then notice, and each part survives the others
-/// changing.
+/// The agent's line is the agent, then transfers, then notice; a server change leaves it
+/// alone and only rewrites the server's line (RD-1240-06).
 #[test]
 fn the_transfer_line_survives_a_server_status_change() {
     let mut state = paired();
     state.on_transfers(transfers(true, "1 active"));
-    let update = state.on_server_status(ServerStatus::Running);
-    let line = update.status_line.expect("the line is rewritten");
-    assert!(line.contains("server running"), "{line}");
+    let update = state.on_server_status(ServerStatus::Running, None);
+    assert_eq!(update.status_line, None);
+    let line = state.surface().status_line;
+    assert!(!line.contains("server"), "{line}");
     assert!(line.ends_with("1 active"), "{line}");
 }
 
@@ -291,7 +303,12 @@ fn a_notice_is_appended_to_the_status_line_and_the_tooltip() {
         line.ends_with("1 active \u{2014} clipboard monitoring stopped"),
         "{line}"
     );
-    assert_eq!(update.tooltip.as_deref(), Some(line.as_str()));
+    let tooltip = update.tooltip.expect("the tooltip is rewritten");
+    assert!(tooltip.contains("server starting"), "{tooltip}");
+    assert!(
+        tooltip.ends_with("clipboard monitoring stopped"),
+        "{tooltip}"
+    );
     assert_eq!(update.icon, None);
     assert_eq!(update.open_enabled, None);
 }
@@ -327,7 +344,7 @@ fn a_server_status_change_leaves_the_tooltip_as_it_was() {
     let mut state = paired();
     state.on_transfers(transfers(true, "1 active"));
     let before = state.surface().tooltip;
-    let update = state.on_server_status(ServerStatus::Running);
+    let update = state.on_server_status(ServerStatus::Running, None);
     assert_eq!(update.tooltip, None);
     assert_eq!(state.surface().tooltip, before);
 }
@@ -351,16 +368,16 @@ fn applying_every_update_in_order_reproduces_the_surface() {
     let mut state = paired();
     let mut shown = state.surface();
     let steps: Vec<Update> = vec![
-        state.on_server_status(ServerStatus::Starting),
+        state.on_server_status(ServerStatus::Starting, None),
         state.on_transfers(transfers(false, "")),
-        state.on_server_status(ServerStatus::Running),
+        state.on_server_status(ServerStatus::Running, Some("1.24.0".to_owned())),
         state.on_transfers(transfers(true, "1 active")),
         state.on_notice(&task_stopped("the transfer poll")),
         state.on_transfers(transfers(true, "2 active")),
         state.on_transfers(offering(pausable(), "1 queued")),
         state.on_transfers(offering(timed_pause_holds(), "paused until 18:30")),
         state.on_transfers(offering(QueueMenu::Locked, "1 queued")),
-        state.on_server_status(ServerStatus::Unreachable),
+        state.on_server_status(ServerStatus::Unreachable, None),
         state.on_notice(&task_stopped("the transfer poll")),
         state.on_settings(&clipboard_paused(true)),
         state.on_transfers(transfers(false, "1 failed")),

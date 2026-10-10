@@ -23,24 +23,27 @@ use url::Url;
 
 use crate::{
     DesktopSinks,
-    activity::Activity,
+    activity::{Activity, QueueRequest},
     agent_settings::SettingsRequest,
     cli::RunArgs,
     config,
     controls::{self, Action, Controls},
     hotkeys::{self, Hotkeys},
     self_update::OfferEntry,
-    status::{HEALTH_INTERVAL, HealthWatch, ServerStatus, health_probe},
+    status::ServerStatus,
     supervision::AgentNotice,
     tray_state::{IconKind, TrayState, Update},
 };
 
 #[path = "tray_handle.rs"]
 mod handle;
+#[path = "tray_health.rs"]
+mod health;
 #[path = "tray_marks.rs"]
 mod marks;
 
 use handle::TrayHandle;
+use health::spawn_health_poll;
 use marks::Marks;
 
 /// How long "Quit" waits for the agent to wind down before exiting anyway.
@@ -51,8 +54,8 @@ enum UserEvent {
     Menu(MenuEvent),
     /// The agent future finished, carrying the error it failed with, if any.
     AgentExited(Option<anyhow::Error>),
-    /// The health poll saw the service change state.
-    Server(ServerStatus),
+    /// The health poll's reading: the service's state, and its version while it names one.
+    Server(ServerStatus, Option<String>),
     /// The transfer summary changed.
     Transfers(Activity),
     /// The agent has something to say about itself: a task that ended, or an address it did not
@@ -171,7 +174,9 @@ impl Tray {
                 Event::NewEvents(StartCause::Init) => agent.show_tray(),
                 Event::UserEvent(UserEvent::Menu(event)) => agent.on_menu(&event.id),
                 Event::UserEvent(UserEvent::AgentExited(error)) => agent.finish(error),
-                Event::UserEvent(UserEvent::Server(status)) => agent.on_server_status(status),
+                Event::UserEvent(UserEvent::Server(status, version)) => {
+                    agent.on_server_status(status, version);
+                }
                 Event::UserEvent(UserEvent::Transfers(activity)) => agent.on_transfers(activity),
                 Event::UserEvent(UserEvent::Notice(notice)) => agent.on_notice(&notice),
                 Event::UserEvent(UserEvent::Settings(settings)) => agent.on_settings(&settings),
@@ -284,8 +289,8 @@ impl Agent {
     }
 
     /// The health poll saw the service change state; see [`TrayState::on_server_status`].
-    fn on_server_status(&mut self, status: ServerStatus) {
-        let update = self.state.on_server_status(status);
+    fn on_server_status(&mut self, status: ServerStatus, version: Option<String>) {
+        let update = self.state.on_server_status(status, version);
         self.apply(update);
     }
 
@@ -322,6 +327,9 @@ impl Agent {
         if let Some(line) = update.status_line {
             tray.status_item.set_text(line);
         }
+        if let Some(line) = update.server_line {
+            tray.server_item.set_text(line);
+        }
         if let Some(tooltip) = update.tooltip {
             let _ = tray.set_tooltip(&tooltip);
         }
@@ -352,6 +360,15 @@ impl Agent {
             if self.controls.self_update.send(()).is_err() {
                 tracing::warn!("the agent's update task has stopped; the request was dropped");
             }
+            return;
+        }
+        if let Some(paused) = self.tray.as_ref().and_then(|tray| tray.linkgrabber(id)) {
+            tracing::info!(
+                paused,
+                "adding everything from the LinkGrabber from the tray"
+            );
+            self.controls
+                .pass(Action::Queue(QueueRequest::AddLinkGrabber { paused }));
             return;
         }
         let Some(command) = self.tray.as_ref().and_then(|tray| tray.command(id)) else {
@@ -425,59 +442,4 @@ impl Agent {
         };
         std::process::exit(i32::from(crate::conclude(&error)));
     }
-}
-
-/// Reports the service's reachability to the event loop.
-///
-/// `/api/v1/health` needs no authentication, so this works before the agent is paired and says
-/// nothing about the installation beyond whether it answers. A silence right after launch reads
-/// as "starting" rather than "not reachable": both are launched together at login, and the
-/// service takes far longer to come up than the tray does.
-///
-/// Nothing here decides anything: the request is made, its outcome is handed to `health_probe`,
-/// and what a run of probes means is [`HealthWatch`]. Both live in `status`, which compiles and
-/// is tested on every host — this function is only the part that cannot exist without an event
-/// loop to send the result to.
-fn spawn_health_poll(
-    runtime: &tokio::runtime::Runtime,
-    service: Url,
-    proxy: tao::event_loop::EventLoopProxy<UserEvent>,
-) {
-    runtime.spawn(async move {
-        let Ok(health) = service.join("api/v1/health") else {
-            let _ = proxy.send_event(UserEvent::Server(ServerStatus::Unreachable));
-            return;
-        };
-        // Not `unwrap_or_default()`: that produced a client *without* the deadline it was
-        // written for, so the poll hung on its first request, the status line froze on whatever
-        // it last said, and no line explained it. A client that cannot be built is a fault, and
-        // the state it leaves behind is "not reachable" (RD-109-06).
-        let client = match crate::client::build(crate::client::Purpose::Health) {
-            Ok(client) => client,
-            Err(error) => {
-                tracing::error!(
-                    %error,
-                    "the tray cannot build an HTTP client; the service state stays unknown"
-                );
-                let _ = proxy.send_event(UserEvent::Server(ServerStatus::Unreachable));
-                return;
-            }
-        };
-        let started = Instant::now();
-        let mut watch = HealthWatch::default();
-        loop {
-            // The status is the whole of what the rule reads; a transport failure has no status
-            // at all, and that absence is what "silence" means one line further down.
-            let answer = client
-                .get(health.clone())
-                .send()
-                .await
-                .ok()
-                .map(|response| response.status());
-            let status = watch.observe(health_probe(answer), started.elapsed());
-            // Sending on every tick is fine: the agent ignores a status it already holds.
-            let _ = proxy.send_event(UserEvent::Server(status));
-            tokio::time::sleep(HEALTH_INTERVAL).await;
-        }
-    });
 }

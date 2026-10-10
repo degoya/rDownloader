@@ -48,8 +48,8 @@
     "extension_steps": "In the extension options set the server URL to {origin} and paste this token, then press “Test connection”. See extension/README.md for installation.",
     "token_copied_description": "The capture token is in your clipboard.",
     "label": "Connection name",
-    "queue_control": "May pause the queue",
-    "queue_control_help": "Allows “Pause all” and “Resume all” in the agent's tray menu – nothing more. Without it the agent only hands links in."
+    "queue_control": "May control the queue",
+    "queue_control_help": "Allows “Start all”, “Pause all” and “Add all from LinkGrabber” in the agent's tray menu – nothing more. Without it the agent only hands links in."
   },
   "agents": {
     "eyebrow": "Paired connections",

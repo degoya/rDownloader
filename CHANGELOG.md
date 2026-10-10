@@ -5,6 +5,78 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Colour themes (RD-1240-05, owner 2026-10-10).** Settings › Interface › *Colour theme*, per
+  browser beside light/dark: Signal (default), Ocean, Violet, Forest, Rose, Amber.
+  `web/src/composables/useColorPalette.ts` writes a palette's two Tailwind scales over
+  `--ui-color-primary-*`/`--ui-color-neutral-*` on `<html>` before the first paint (`main.ts`),
+  the default writes none; `main.css` takes the light accent from `--ui-color-primary-700`
+  instead of `signal-700` by name. Every palette passes 4.5:1 in both modes
+  (`useColorPalette.test.ts`). `tailwindcss` moved to `dependencies`, its colours now imported at
+  run time.
+
+- **Nine more bundled site rules (RD-1240-01, owner 2026-10-10).** `rd-siterules/resources/examples.json`
+  brings, switched off: `fedora-releases` (kernel.org's mirror; `dl.fedoraproject.org` answers
+  with a bot check), `archlinux-iso` and `linuxmint-releases` in `linux`; the two-stage
+  `libreoffice-stable` and `vlc-releases` in the new group `software`; `archive-org-items` (an
+  item's original files from `<item>_files.xml`, linked below `archive.org/download/<item>/`) in
+  the new group `archive`; `pastebin`, `rentry` and `sourcehut-paste` in `paste`. Each was
+  measured live with a Chrome user agent and has a recorded page and a test
+  (`tests/bundled_{linux,software,archive,paste}.rs`); the paste services left out, with their
+  measurements, are in the job and `docs/site-rules.md`. Group names *Free software* and
+  *Internet Archive* in all four catalogues; `restore_site_rule_examples` names the groups.
+
+- **Tray: "Add all from LinkGrabber", started or paused (RD-1240-07, owner 2026-10-10).** Two
+  entries beside the queue controls do what `E`/`W` do in the web interface. A capture token
+  reaches no API route and may not read the LinkGrabber, so the web's
+  `/api/v1/collector/packages/enqueue` (which wants package ids) is not reusable; the new
+  `POST /api/v1/capture/linkgrabber/enqueue` (`rd_api_intake::capture_linkgrabber`, behind
+  `require_capture_queue`, scope `capture:queue` — no new scope) selects on the server: packages
+  with an online link, imported NZBs, minus what holds a duplicate (the web asks about those, the
+  tray cannot), and answers with counts and the first error code. The agent sends it on the queue
+  channel (`QueueRequest::AddLinkGrabber`, `activity::carry_out`) and answers with a desktop
+  notification (`linkgrabber.rs`); without the right the entries are greyed with the pairing hint.
+  The pairing checkbox reads "May control the queue" and names the three tray actions.
+
+### Changed
+
+- **Roadmap: RD-1240-08 … RD-1240-20 from the feature review of 2026-10-10.** Proxy profiles
+  for the media tools, LinkFilter, automation time triggers and actions, an aria2 JSON-RPC
+  adapter, media-library refresh, Web Push, six polish jobs and the feature-list drift, all in
+  milestone 1.24 (owner, 2026-10-10).
+
+- **`F` opens the indexer search from every page (RD-1240-02, owner 2026-10-10).** Pressed outside the
+  LinkGrabber, `F` goes there and opens the search drawer with the keyboard in its field; the
+  download list's name search has no key any more. That also ends a dead `F`: Downloads took its
+  handler back on unmount *after* the LinkGrabber's drawer had handed its own in, so the key did
+  nothing on a LinkGrabber reached from Downloads. `indexerSearchFocus.ts` keeps a request the
+  drawer answers once mounted, dropped when the navigation is refused.
+
+- **Site rules: the bundled rules in the groups `blender` and `linux`, and a list header that
+  fits (RD-1240-03, owner 2026-10-10).** The four rules of `rd-siterules/resources/examples.json` leave the
+  group `examples`; their origin reads *Bundled* / "Comes with rDownloader", without the "examples
+  for free sites" wording, here and in the header, the empty list and the restore button. The list
+  header carries *Export* and *Import* as `AreaBackupButtons` does on Subscriptions and
+  Automation (outline, `sm`); *Restore bundled rules* and *Delete all* moved behind a dots menu.
+  `FormListLayout`'s list header wraps instead of pushing the count out of the column.
+  The import explanation above the list and on the *Import* button is gone, its key with it.
+
+- **Result toasts say only what happened, and long names wrap (RD-1240-04, owner 2026-10-10).** "Clear the
+  list" answers with the count it removed (or that there was nothing to clear); the sentence per
+  reason naming up to three packages it left alone (`downloads.notices.clear_skipped`) is
+  removed. Nuxt UI's toast clips its overflow and a package name without a space never wrapped;
+  `uiTheme.ts` gives the toast's title and description `wrap-anywhere`.
+
+- **Tray: a second status line with the server's version and state (RD-1240-06, owner
+  2026-10-10).** The agent's line keeps its version, address, transfers and notices and loses the
+  server state; a disabled item under it reads "Server v1.24.0 — running", or "Server — starting"/
+  "not reachable" without a version. The health poll (`tray_health.rs`, split out of `tray.rs`)
+  reads the version from the answer it already gets, bounded like the identity check and only
+  from one that names rDownloader (`client::health_version`: at most 32 of `[A-Za-z0-9.+-]`).
+  `TrayState::on_server_status` takes the version and names `server_line` instead of
+  `status_line`; the tooltip keeps the combined line, server state in front, within 127 chars.
+
 ## [1.23.0] - 2026-10-09
 
 ### Changed

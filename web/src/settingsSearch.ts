@@ -95,6 +95,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('interface.appearance', 'interface', 'settings.appearance.title', { descriptionKey: 'settings.appearance.description' }),
   field('interface.language', 'interface', 'common.preferences.language', { descriptionKey: 'settings.appearance.language_description', terms: ['Deutsch', 'English', 'Español', 'Français'] }),
   field('interface.theme', 'interface', 'common.preferences.theme', { descriptionKey: 'settings.appearance.theme_description', keywordsKey: `${K}.theme` }),
+  field('interface.palette', 'interface', 'settings.appearance.palette.label', { descriptionKey: 'settings.appearance.palette.description' }),
   field('interface.byte_display', 'interface', 'settings.appearance.byte_display.label', { descriptionKey: 'settings.appearance.byte_display.description' }),
   field('interface.title_status', 'interface', 'settings.appearance.title_status.label', { descriptionKey: 'settings.appearance.title_status.description' }),
   field('interface.browser_notifications', 'interface', 'settings.notifications.label', { descriptionKey: 'settings.notifications.description' }),

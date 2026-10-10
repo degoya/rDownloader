@@ -18,6 +18,7 @@ mod hotkeys;
 #[cfg(any(windows, target_os = "macos", test))]
 mod icon;
 mod instance;
+mod linkgrabber;
 mod notify;
 #[cfg(test)]
 mod notify_resume;

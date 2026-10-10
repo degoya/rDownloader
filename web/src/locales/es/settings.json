@@ -394,6 +394,16 @@
     "title_status": {
       "label": "Estado en la pestaña del navegador",
       "description": "Mientras algo está en curso, la pestaña muestra la velocidad total y el número de transferencias activas; en reposo, solo el nombre de la aplicación. Desactívalo si un título que cambia constantemente te molesta."
+    },
+    "palette": {
+      "label": "Tema de color",
+      "description": "Los tonos de acento y grises de la interfaz, solo en este navegador; claro y oscuro se eligen arriba.",
+      "signal": "Signal (predeterminado)",
+      "ocean": "Océano",
+      "violet": "Violeta",
+      "forest": "Bosque",
+      "rose": "Rosa",
+      "amber": "Ámbar"
     }
   },
   "messages": {

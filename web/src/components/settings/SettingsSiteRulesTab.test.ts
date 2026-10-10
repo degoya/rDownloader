@@ -107,7 +107,7 @@ const BUNDLE = {
       id: 'debian-cd',
       name: 'Debian installation images',
       description: 'A one-stage rule for the image folders.',
-      group: 'examples',
+      group: 'linux',
       hosts: ['cdimage.debian.org'],
       version: 1,
       probe: 'https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/',
@@ -124,7 +124,7 @@ const BUNDLE = {
       id: 'ubuntu-releases',
       name: 'Ubuntu release images',
       description: null,
-      group: 'examples',
+      group: 'linux',
       hosts: ['releases.ubuntu.com'],
       version: 1,
       probe: 'https://releases.ubuntu.com/24.04/',
@@ -139,7 +139,7 @@ const BUNDLE = {
   ],
   groups: [
     { group: 'board', enabled: true, rules: 2 },
-    { group: 'examples', enabled: true, rules: 2 }
+    { group: 'linux', enabled: true, rules: 2 }
   ]
 }
 
@@ -221,7 +221,7 @@ describe('the site-rule list', () => {
   it('switches a whole group from the heading beside its count', async () => {
     mount()
     await screen.findByText('Boards')
-    expect(screen.getByText('Examples')).toBeTruthy()
+    expect(screen.getByText('Linux')).toBeTruthy()
 
     await fireEvent.click(screen.getAllByLabelText('Switch the whole group')[0] as HTMLElement)
     expect(put).toHaveBeenCalledWith('/api/v1/site-rule-groups/{group}/enabled', {
@@ -271,7 +271,7 @@ describe('carrying rules to another installation (RD-1230-03)', () => {
     mount()
     await screen.findByText('Release board')
 
-    await fireEvent.click(screen.getByRole('button', { name: siterules.transfer.export }))
+    await fireEvent.click(screen.getByRole('button', { name: common.backup.export }))
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/site-rules/export', { params: { query: {} } }))
 
     await fireEvent.click(within(row('My board')).getByRole('checkbox'))
@@ -332,14 +332,14 @@ describe('deleting every rule and the examples (RD-1230-03)', () => {
     mount()
     await screen.findByText('Release board')
 
-    await fireEvent.click(screen.getByTestId('site-rules-clear'))
+    await fireEvent.click(screen.getByRole('button', { name: siterules.clear.button }))
     await waitFor(() => expect(state.asked).toHaveLength(1))
     expect(state.asked[0]?.description).toContain('All 4 rules')
     expect(state.asked[0]?.description).toContain('Export them first')
     expect(post).not.toHaveBeenCalled()
 
     state.confirm = true
-    await fireEvent.click(screen.getByTestId('site-rules-clear'))
+    await fireEvent.click(screen.getByRole('button', { name: siterules.clear.button }))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/site-rules/clear', { body: { confirmed: true } }))
   })
 

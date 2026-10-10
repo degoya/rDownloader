@@ -394,6 +394,16 @@
     "title_status": {
       "label": "State in the browser tab",
       "description": "While something is running the tab shows the overall rate and the number of active transfers, and the application name alone otherwise. Off if a title that keeps changing is a distraction."
+    },
+    "palette": {
+      "label": "Colour theme",
+      "description": "The interface's accent and greys, in this browser only; light and dark are set above.",
+      "signal": "Signal (default)",
+      "ocean": "Ocean",
+      "violet": "Violet",
+      "forest": "Forest",
+      "rose": "Rose",
+      "amber": "Amber"
     }
   },
   "messages": {

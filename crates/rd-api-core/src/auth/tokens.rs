@@ -358,7 +358,8 @@ pub async fn require_capture(
     Ok(next.run(request).await)
 }
 
-/// The tray's queue control (RD-1100-06): a capture token that was paired with `capture:queue`.
+/// The tray's queue control (RD-1100-06, RD-1240-07): a capture token that was paired with
+/// `capture:queue`.
 ///
 /// Runs inside [`require_capture`], which established the token and left its scopes on the
 /// request. A capture token without the right is refused with the `403` the scope policy gives

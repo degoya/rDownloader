@@ -103,9 +103,10 @@ pub struct PasswordResetRequest {
 #[derive(Deserialize, ToSchema)]
 pub struct CapturePairRequest {
     pub label: String,
-    /// Whether the agent may also pause and resume the whole queue from its tray
-    /// (`capture:queue`, RD-1100-06). Asked for explicitly or not at all: absent means `false`,
-    /// so an agent paired without it can do no more than one paired before the choice existed.
+    /// Whether the agent may also pause and resume the whole queue from its tray and add
+    /// everything from the LinkGrabber to it (`capture:queue`, RD-1100-06, RD-1240-07). Asked
+    /// for explicitly or not at all: absent means `false`, so an agent paired without it can do
+    /// no more than one paired before the choice existed.
     #[serde(default)]
     pub queue_control: bool,
     /// Days until the token expires, 1 to 3650 (RD-1110-07). Absent never expires, which is

@@ -66,8 +66,8 @@ pub enum Scope {
     Metrics,
     /// Browser-capture intake. Isolated from every API scope in both directions.
     Capture,
-    /// Pausing and resuming the whole queue from the capture agent's tray (RD-1100-06). Off the
-    /// ladder like [`Capture`](Self::Capture): it confers nothing, and nothing confers it, not
+    /// Pausing and resuming the whole queue from the capture agent's tray (RD-1100-06), and
+    /// adding everything from the LinkGrabber to it (RD-1240-07). Off the ladder like [`Capture`](Self::Capture): it confers nothing, and nothing confers it, not
     /// even `api:*` or `capture:*`.
     CaptureQueue,
 }

@@ -235,6 +235,12 @@ async function restoreExamples(): Promise<void> {
   })
 }
 
+/** Behind the list's dots: the bundled rules back, and every rule gone after a question. */
+const listMenu = computed(() => [
+  { label: t('siterules.examples.restore'), icon: 'i-lucide-lightbulb', onSelect: (): void => { void restoreExamples() } },
+  { label: t('siterules.clear.button'), icon: 'i-lucide-trash-2', color: 'error' as const, disabled: !ruleCount.value, onSelect: (): void => { void clearAll() } }
+])
+
 /** What the empty list offers: the examples back, a file, or a rule of one's own. */
 const emptyActions = computed(() => [
   {
@@ -286,54 +292,44 @@ const emptyActions = computed(() => [
         </div>
       </template>
 
+      <!-- Export and import as on the other form-and-list pages (`AreaBackupButtons`); the two
+           list-wide actions behind the dots, so the row never pushes the count out (owner, 2026-10-10). -->
       <template #list-actions>
         <UButton
-          size="xs"
+          size="sm"
           color="neutral"
-          variant="ghost"
+          variant="outline"
           icon="i-lucide-download"
-          :label="selected.length ? t('siterules.transfer.export_selected', { count: selected.length }) : t('siterules.transfer.export')"
+          :label="selected.length ? t('siterules.transfer.export_selected', { count: selected.length }) : t('common.backup.export')"
           :disabled="!ruleCount"
           :title="ruleCount ? t('siterules.transfer.export_hint') : t('siterules.transfer.export_empty')"
           @click="exportRules"
         />
         <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">
           <UButton
-            size="xs"
+            size="sm"
             color="neutral"
-            variant="ghost"
-            icon="i-lucide-upload"
-            :label="t('siterules.transfer.import')"
-            :title="t('siterules.transfer.import_hint')"
+            variant="outline"
+            icon="i-lucide-file-up"
+            :label="t('common.backup.import')"
             :loading="rules.pending.value && !importOpen"
             @click="open()"
           />
         </UFileUpload>
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-lightbulb"
-          :label="t('siterules.examples.restore')"
-          :title="t('siterules.examples.restore_hint')"
-          :loading="rules.busyId.value === 'examples'"
-          @click="restoreExamples"
-        />
-        <UButton
-          size="xs"
-          color="error"
-          variant="soft"
-          icon="i-lucide-trash-2"
-          :label="t('siterules.clear.button')"
-          :disabled="!ruleCount"
-          :loading="rules.busyId.value === 'clear'"
-          data-testid="site-rules-clear"
-          @click="clearAll"
-        />
+        <UDropdownMenu :items="listMenu">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-ellipsis-vertical"
+            :aria-label="t('siterules.list.more')"
+            :title="t('siterules.list.more')"
+            :loading="rules.busyId.value === 'examples' || rules.busyId.value === 'clear'"
+          />
+        </UDropdownMenu>
       </template>
 
       <template #list>
-        <p class="mb-3 text-xs leading-5 text-muted">{{ t('siterules.transfer.import_hint') }}</p>
         <!-- The groups in a card, like the editor beside it and the subscriptions list (RD-1110-17). -->
         <UCard as="section" :ui="{ body: 'space-y-4' }">
           <DataState

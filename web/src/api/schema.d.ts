@@ -1516,6 +1516,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capture/linkgrabber/enqueue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves everything the LinkGrabber holds into the queue, started or paused, as the web
+         *     interface's `E` and `W` do; what holds a duplicate stays behind.
+         */
+        post: operations["enqueue_capture_linkgrabber"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capture/pair": {
         parameters: {
             query?: never;
@@ -8126,6 +8146,35 @@ export interface components {
             nzb_imports: components["schemas"]["NzbImport"][];
             torrent?: components["schemas"]["CollectorIntakeResponse"] | null;
         };
+        CaptureLinkGrabberRequest: {
+            /** @description Create the downloads paused, as `W` does; absent or `false` starts them, as `E` does. */
+            paused?: boolean;
+        };
+        CaptureLinkGrabberResponse: {
+            /**
+             * Format: int32
+             * @description Packages and NZB imports left in the LinkGrabber because they hold something that was
+             *     already added; the web interface asks about those.
+             */
+            duplicates: number;
+            /**
+             * Format: int32
+             * @description Packages and NZB imports that could not be queued.
+             */
+            failed: number;
+            /** @description The stable code of the first failure, when one failed. */
+            first_error?: string | null;
+            /**
+             * Format: int32
+             * @description Links of the packages that went to the queue.
+             */
+            links: number;
+            /**
+             * Format: int32
+             * @description NZB imports that went to the queue.
+             */
+            nzbs: number;
+        };
         /** @description One structured link of a capture batch, optionally with the request that produced it. */
         CaptureLinkRequest: {
             file_name?: string | null;
@@ -8143,9 +8192,10 @@ export interface components {
             expires_in_days?: number | null;
             label: string;
             /**
-             * @description Whether the agent may also pause and resume the whole queue from its tray
-             *     (`capture:queue`, RD-1100-06). Asked for explicitly or not at all: absent means `false`,
-             *     so an agent paired without it can do no more than one paired before the choice existed.
+             * @description Whether the agent may also pause and resume the whole queue from its tray and add
+             *     everything from the LinkGrabber to it (`capture:queue`, RD-1100-06, RD-1240-07). Asked
+             *     for explicitly or not at all: absent means `false`, so an agent paired without it can do
+             *     no more than one paired before the choice existed.
              */
             queue_control?: boolean;
         };
@@ -8257,8 +8307,9 @@ export interface components {
              */
             paused_until?: string | null;
             /**
-             * @description Whether the token asking may pause and resume the queue (`capture:queue`, chosen when the
-             *     agent was paired). The tray offers the two entries only when it may (RD-1100-06).
+             * @description Whether the token asking may control the queue (`capture:queue`, chosen when the agent was
+             *     paired). The tray offers its queue and LinkGrabber entries only when it may (RD-1100-06,
+             *     RD-1240-07).
              */
             queue_control: boolean;
             /** Format: int32 */
@@ -20763,6 +20814,48 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    enqueue_capture_linkgrabber: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureLinkGrabberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkGrabberResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

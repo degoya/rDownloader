@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { paletteSwatch, useColorPalette } from '@/composables/useColorPalette'
 import { useNotifications } from '@/composables/useNotifications'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { languageItems, setLocale, type AppLocale } from '@/i18n'
@@ -32,6 +33,13 @@ const byteUnitItems = computed(() => ['auto', ...BYTE_UNIT_STEPS].map(value => (
 })))
 const { t, locale } = useI18n()
 const { theme } = useTheme()
+const { palette, palettes } = useColorPalette()
+/** The colour themes, each with its accent as a swatch; light/dark stays the field above (RD-1240-05). */
+const paletteItems = computed(() => palettes.map(value => ({
+  label: t(`settings.appearance.palette.${value}`),
+  value,
+  swatch: paletteSwatch(value)
+})))
 const notifications = useNotifications()
 const notificationsDenied = ref(false)
 
@@ -83,6 +91,13 @@ async function toggleNotifications(value: boolean): Promise<void> {
         </UFormField>
         <UFormField data-settings-anchor="interface.theme" :label="t('common.preferences.theme')" :description="t('settings.appearance.theme_description')">
           <USelect v-model="theme" :items="themeItems" value-key="value" icon="i-lucide-sun-moon" class="w-full" />
+        </UFormField>
+        <UFormField data-settings-anchor="interface.palette" :label="t('settings.appearance.palette.label')" :description="t('settings.appearance.palette.description')">
+          <USelect v-model="palette" :items="paletteItems" value-key="value" icon="i-lucide-palette" class="w-full" data-testid="interface-palette">
+            <template #item-leading="{ item }">
+              <span class="size-3 shrink-0 rounded-full" :style="{ background: item.swatch }" aria-hidden="true" />
+            </template>
+          </USelect>
         </UFormField>
       </div>
       <UFormField data-settings-anchor="interface.browser_notifications" :label="t('settings.notifications.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">

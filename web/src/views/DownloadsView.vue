@@ -23,7 +23,6 @@ import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { setDirectAddAction } from '@/composables/directAddAction'
-import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
 import { useDownloadsActions } from '@/composables/useDownloadsActions'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
@@ -60,7 +59,6 @@ provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 
 /** The state filter and the name search, both in the address (RD-190-21). */
 const { filter, search, needle, active: filterActive, reset: resetFilter } = useQueueFilter()
-const searchField = ref<HTMLElement | null>(null)
 const adding = ref(false)
 /** The direct job's dialog, and the refusal it keeps until the next attempt (RD-1220-03). */
 const addOpen = ref(false)
@@ -158,18 +156,9 @@ const selectionDetail = computed(() => {
   return t('common.selection.detail', { items: t('common.units.file', { count: files.length }, files.length), packages: t('common.units.package', { count: packages }, packages) })
 })
 
-/**
- * `f` puts the keyboard in the name search, as it does in the LinkGrabber's indexer search: one
- * key for "the search of this page", handed in while the list is mounted (RD-190-21).
- */
-function focusSearch(): void {
-  searchField.value?.querySelector('input')?.focus()
-}
-
 onMounted(() => {
   // `k` (RD-180-17): the same action as the menu item below, confirmation included.
   setClearCompletedAction(() => void clearDownloads('completed'))
-  setIndexerSearchFocusAction(focusSearch)
   setDirectAddAction(openDirectAdd)
   void loadSelections()
   void loadSummary()
@@ -186,7 +175,6 @@ onUnmounted(() => {
   if (summaryTimer) clearInterval(summaryTimer)
   if (postprocessTimer) clearInterval(postprocessTimer)
   setClearCompletedAction(null)
-  setIndexerSearchFocusAction(null)
   setDirectAddAction(null)
 })
 // `download.state` / `package.state` events feed the store's debounced refresh (400 ms);
@@ -302,7 +290,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
             @export-all="exportPackages({ all: true })"
           >
             <template #filters>
-              <div ref="searchField" class="w-full sm:w-56">
+              <div class="w-full sm:w-56">
                 <UInput
                   v-model="search"
                   type="search"
@@ -312,9 +300,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
                   :placeholder="t('downloads.filters.search_placeholder')"
                   :aria-label="t('downloads.filters.search_label')"
                   data-testid="downloads-search"
-                >
-                  <template #trailing><UKbd value="f" /></template>
-                </UInput>
+                />
               </div>
               <USelect v-model="filter" :items="filters" value-key="value" class="w-36" :aria-label="t('downloads.filters.aria')" />
             </template>

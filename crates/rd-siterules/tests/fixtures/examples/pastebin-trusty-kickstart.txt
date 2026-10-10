@@ -1,0 +1,87 @@
+# System language
+lang en_US
+
+# Language modules to install
+langsupport en_US
+
+# System keyboard
+keyboard us
+
+# System mouse
+mouse
+
+# System timezone
+timezone America/New_York
+
+# Root password
+rootpw --disabled
+
+# Initial user (will have sudo so no need for root)
+preseed user-setup/allow-password-weak boolean true
+user ubuntu --fullname "Ubuntu User" --password ubuntu
+
+# Shutdown after installation
+poweroff
+
+# Use text mode install
+text
+
+# Install OS instead of upgrade
+install
+
+# Installation media
+url --url http://mirror.yandex.ru/ubuntu/
+
+# System bootloader configuration
+bootloader --location=mbr
+
+# Clear the Master Boot Record
+zerombr yes
+
+# Partition clearing information
+clearpart --all --initlabel
+
+# Basic disk partition
+part / --fstype ext4 --size 1 --grow --asprimary
+part swap --size 1024
+
+# Make minimalistic install
+preseed tasksel/first multiselect
+preseed tasksel/skip-tasks multiselect server
+preseed pkgsel/ubuntu-standard boolean false
+preseed base-installer/install-recommends boolean false
+preseed base-installer/kernel/override-image string linux-virtual
+preseed pkgsel/install-language-support boolean false
+
+# System authorization infomation
+# The enablemd5 has to be there although it will still use salted sha256
+auth  --useshadow  --enablemd5
+
+# Network information
+network --bootproto=dhcp --device=eth0
+
+# Firewall configuration
+firewall --disabled --trust=eth0 --ssh
+
+# Policy for applying updates. May be "none" (no automatic updates),
+# "unattended-upgrades" (install security updates automatically), or
+# "landscape" (manage system with Landscape).
+preseed pkgsel/update-policy select unattended-upgrades
+
+# Do not configure the X Window System
+skipx
+
+%packages
+# Since I don't install recommended it leaves out some things that should
+# probably be installed like openssl and python 2.7
+ca-certificates
+openssl
+openssh-server
+
+
+%post --nochroot
+# Clean up
+rm -f /target/var/cache/apt/*
+rm -f /target/var/lib/apt/lists/*
+# Set passwordless sudo
+sed -i -e '/%sudo/s/ALL$/NOPASSWD:ALL/' /target/etc/sudoers

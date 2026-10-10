@@ -51,8 +51,7 @@
     "remove_failed": "The entry could not be removed.",
     "nothing_to_reset": "Nothing in the selection can be reset right now – active transfers have to be paused first",
     "reorder_filter_active": "The order can only be changed in the unfiltered list – the hidden files would otherwise be sorted wrongly.",
-    "cleared_packages": "No packages were removed. | {count} package was removed. | {count} packages were removed.",
-    "clear_skipped": "No packages were left untouched. | {count} package was left untouched – {reason}: {names}. | {count} packages were left untouched – {reason}: {names}."
+    "cleared_packages": "No packages were removed. | {count} package was removed. | {count} packages were removed."
   },
   "notifications": {
     "failed_title": "Download failed",

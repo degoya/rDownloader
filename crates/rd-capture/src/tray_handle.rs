@@ -16,9 +16,9 @@ use crate::{
     tray_state::Surface,
 };
 
-/// Where the queue entries go: after the status line, "Open rDownloader" and the separator
-/// below each of them, so before the clipboard entries and "Quit".
-const QUEUE_POSITION: usize = 4;
+/// Where the queue entries go: after the two status lines, "Open rDownloader" and the separator
+/// below each, so before the clipboard entries and "Quit".
+const QUEUE_POSITION: usize = 5;
 
 /// The live tray icon together with its actionable menu entries.
 pub(super) struct TrayHandle {
@@ -26,6 +26,8 @@ pub(super) struct TrayHandle {
     /// the service is not answering, which needs the items themselves. What to write on them
     /// is `tray_state`'s decision; here they are only written.
     pub(super) status_item: MenuItem,
+    /// The server's line under the agent's, with its version and state (RD-1240-06).
+    pub(super) server_item: MenuItem,
     pub(super) open_item: MenuItem,
     /// The menu itself, for the queue entries that come and go (RD-1100-06). A handle onto the
     /// same menu the icon shows: muda's menus are shared, not copied.
@@ -37,6 +39,10 @@ pub(super) struct TrayHandle {
     pause_now: MenuItem,
     pause_half_hour: MenuItem,
     pause_hour: MenuItem,
+    /// "Add all from LinkGrabber", started and paused (RD-1240-07): shown, enabled and greyed out
+    /// with the queue entries, since the same right covers them.
+    add_all: MenuItem,
+    add_all_paused: MenuItem,
     pair_hint: MenuItem,
     queue_separator: PredefinedMenuItem,
     /// "Pause clipboard watching", ticked while it holds (RD-1180-01), and "Hand over clipboard
@@ -70,11 +76,13 @@ impl TrayHandle {
     /// hint below them for an agent that may not control the queue, none at all before the
     /// service has said which it is.
     pub(super) fn show_queue(&self, queue: QueueMenu) {
-        let every: [&dyn IsMenuItem; 6] = [
+        let every: [&dyn IsMenuItem; 8] = [
             &self.start,
             &self.pause_now,
             &self.pause_half_hour,
             &self.pause_hour,
+            &self.add_all,
+            &self.add_all_paused,
             &self.pair_hint,
             &self.queue_separator,
         ];
@@ -92,6 +100,10 @@ impl TrayHandle {
         self.pause_now.set_enabled(entries.pause);
         self.pause_half_hour.set_enabled(entries.timed_pause);
         self.pause_hour.set_enabled(entries.timed_pause);
+        // Enabled whenever the queue may be controlled: the summary does not say whether the
+        // LinkGrabber holds anything, and an empty one is answered by the notification.
+        self.add_all.set_enabled(!locked);
+        self.add_all_paused.set_enabled(!locked);
         let shown = if locked {
             self.menu.insert_items(&every, QUEUE_POSITION)
         } else {
@@ -101,6 +113,8 @@ impl TrayHandle {
                     &self.pause_now,
                     &self.pause_half_hour,
                     &self.pause_hour,
+                    &self.add_all,
+                    &self.add_all_paused,
                     &self.queue_separator,
                 ],
                 QUEUE_POSITION,
@@ -133,6 +147,17 @@ impl TrayHandle {
     /// Whether `id` is the update entry.
     pub(super) fn is_update(&self, id: &MenuId) -> bool {
         self.update.id() == id
+    }
+
+    /// Whether `id` is one of the LinkGrabber entries, and if so whether it adds paused.
+    pub(super) fn linkgrabber(&self, id: &MenuId) -> Option<bool> {
+        if self.add_all.id() == id {
+            Some(false)
+        } else if self.add_all_paused.id() == id {
+            Some(true)
+        } else {
+            None
+        }
     }
 
     /// The command an entry stands for, or `None` for the status line and the hint. What each
@@ -192,6 +217,7 @@ impl TrayHandle {
         let open = MenuItem::new("Open rDownloader", surface.open_enabled, None);
         let quit = MenuItem::new("Quit", true, None);
         let status_item = MenuItem::new(&surface.status_line, false, None);
+        let server_item = MenuItem::new(&surface.server_line, false, None);
         let clipboard_watch = CheckMenuItem::new(
             "Pause clipboard watching",
             true,
@@ -200,6 +226,7 @@ impl TrayHandle {
         );
         let send_clipboard = MenuItem::new("Hand over clipboard now", true, None);
         menu.append(&status_item)?;
+        menu.append(&server_item)?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&open)?;
         menu.append(&PredefinedMenuItem::separator())?;
@@ -215,6 +242,7 @@ impl TrayHandle {
             .context("create the tray icon")?;
         let handle = Self {
             status_item,
+            server_item,
             open_item: open,
             menu,
             // Untranslated, like the rest of the menu (RD-092-05); the labels are the web
@@ -223,6 +251,8 @@ impl TrayHandle {
             pause_now: MenuItem::new("Pause all", true, None),
             pause_half_hour: MenuItem::new("Pause for 30 minutes", true, None),
             pause_hour: MenuItem::new("Pause for 1 hour", true, None),
+            add_all: MenuItem::new("Add all from LinkGrabber", true, None),
+            add_all_paused: MenuItem::new("Add all from LinkGrabber paused", true, None),
             pair_hint: MenuItem::new("Pair again to control the queue", false, None),
             queue_separator: PredefinedMenuItem::separator(),
             clipboard_watch,

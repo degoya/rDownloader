@@ -51,8 +51,7 @@
     "remove_failed": "Der Eintrag konnte nicht entfernt werden.",
     "nothing_to_reset": "In der Auswahl lässt sich derzeit nichts zurücksetzen – laufende Übertragungen müssen zuerst pausiert werden",
     "reorder_filter_active": "Die Reihenfolge lässt sich nur in der ungefilterten Liste ändern – die verborgenen Dateien würden sonst falsch einsortiert.",
-    "cleared_packages": "Es wurde kein Paket entfernt. | {count} Paket wurde entfernt. | {count} Pakete wurden entfernt.",
-    "clear_skipped": "Es blieb kein Paket unberührt. | {count} Paket blieb unberührt – {reason}: {names}. | {count} Pakete blieben unberührt – {reason}: {names}."
+    "cleared_packages": "Es wurde kein Paket entfernt. | {count} Paket wurde entfernt. | {count} Pakete wurden entfernt."
   },
   "notifications": {
     "failed_title": "Download fehlgeschlagen",

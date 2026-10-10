@@ -4610,6 +4610,57 @@
         }
       }
     },
+    "/api/v1/capture/linkgrabber/enqueue": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Moves everything the LinkGrabber holds into the queue, started or paused, as the web\ninterface's `E` and `W` do; what holds a duplicate stays behind.",
+        "operationId": "enqueue_capture_linkgrabber",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureLinkGrabberRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureLinkGrabberResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/capture/pair": {
       "post": {
         "tags": [
@@ -21944,6 +21995,57 @@
           }
         }
       },
+      "CaptureLinkGrabberRequest": {
+        "type": "object",
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "description": "Create the downloads paused, as `W` does; absent or `false` starts them, as `E` does."
+          }
+        }
+      },
+      "CaptureLinkGrabberResponse": {
+        "type": "object",
+        "required": [
+          "links",
+          "nzbs",
+          "duplicates",
+          "failed"
+        ],
+        "properties": {
+          "duplicates": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Packages and NZB imports left in the LinkGrabber because they hold something that was\nalready added; the web interface asks about those.",
+            "minimum": 0
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Packages and NZB imports that could not be queued.",
+            "minimum": 0
+          },
+          "first_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The stable code of the first failure, when one failed."
+          },
+          "links": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Links of the packages that went to the queue.",
+            "minimum": 0
+          },
+          "nzbs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "NZB imports that went to the queue.",
+            "minimum": 0
+          }
+        }
+      },
       "CaptureLinkRequest": {
         "type": "object",
         "description": "One structured link of a capture batch, optionally with the request that produced it.",
@@ -21995,7 +22097,7 @@
           },
           "queue_control": {
             "type": "boolean",
-            "description": "Whether the agent may also pause and resume the whole queue from its tray\n(`capture:queue`, RD-1100-06). Asked for explicitly or not at all: absent means `false`,\nso an agent paired without it can do no more than one paired before the choice existed."
+            "description": "Whether the agent may also pause and resume the whole queue from its tray and add\neverything from the LinkGrabber to it (`capture:queue`, RD-1100-06, RD-1240-07). Asked\nfor explicitly or not at all: absent means `false`, so an agent paired without it can do\nno more than one paired before the choice existed."
           }
         }
       },
@@ -22213,7 +22315,7 @@
           },
           "queue_control": {
             "type": "boolean",
-            "description": "Whether the token asking may pause and resume the queue (`capture:queue`, chosen when the\nagent was paired). The tray offers the two entries only when it may (RD-1100-06)."
+            "description": "Whether the token asking may control the queue (`capture:queue`, chosen when the agent was\npaired). The tray offers its queue and LinkGrabber entries only when it may (RD-1100-06,\nRD-1240-07)."
           },
           "queued": {
             "type": "integer",

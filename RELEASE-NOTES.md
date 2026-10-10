@@ -12,6 +12,18 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.24.0
+
+<!-- draft: the notes of the version in the making -->
+
+- The F key opens the indexer search from every page and takes you to the LinkGrabber; the download list's search no longer takes F.
+- The site rules that come with rDownloader are grouped by project instead of called examples, and the list header shows export, import and the rule count without cutting them off.
+- Notices say only what an action did, and long package names wrap instead of being cut off.
+- Pick a colour theme for the interface in the settings, alongside light and dark; the current look stays the default.
+- More site rules come with rDownloader, switched off: Fedora, Arch Linux, Linux Mint, LibreOffice, VLC, Internet Archive items and public pastes on Pastebin, Rentry and sourcehut.
+- The desktop agent's tray menu shows the server on a line of its own, with its version and whether it is running, which keeps the first line short.
+- The desktop agent's tray menu can add everything from the LinkGrabber to the downloads, started or paused, and tells you in a notification how many links went.
+
 ## 1.23.0
 
 - On macOS, a service that the keychain stops after an upgrade now always says so in its log and tells you how to allow it, instead of an unclear password error.

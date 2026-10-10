@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Page recognition",
     "title": "Site rules",
-    "description": "Which release pages rDownloader recognises, and by which rule. The program brings only switched-off examples for free sites; import other rules from an export or write your own. Every rule here is yours to switch, edit, duplicate, export and remove."
+    "description": "Which release pages rDownloader recognises, and by which rule. The program brings only a few rules of its own, switched off; import other rules from an export or write your own. Every rule here is yours to switch, edit, duplicate, export and remove."
   },
   "groups": {
     "board": "Boards",
@@ -10,7 +10,10 @@
     "adult": "Adult",
     "ebooks": "E-books",
     "graphics": "Graphics",
-    "examples": "Examples"
+    "blender": "Blender",
+    "linux": "Linux",
+    "software": "Free software",
+    "archive": "Internet Archive"
   },
   "group_switch": "Switch the whole group",
   "rule_switch": "Switch this rule",
@@ -22,8 +25,9 @@
   },
   "list": {
     "title": "Rules",
-    "empty": "No rule is installed, so no release page is recognised by rule. Restore the examples for free sites, import a rule export or write a rule of your own.",
-    "group_off": "The group is switched off, so this rule is not consulted."
+    "empty": "No rule is installed, so no release page is recognised by rule. Restore the rules that come with rDownloader, import a rule export or write a rule of your own.",
+    "group_off": "The group is switched off, so this rule is not consulted.",
+    "more": "More actions"
   },
   "editor": {
     "eyebrow": "Own rule",
@@ -134,10 +138,7 @@
     "address_hint": "Empty: the rule's probe address."
   },
   "transfer": {
-    "export": "Export rules",
     "export_empty": "There is no rule to export.",
-    "import": "Import rules",
-    "import_hint": "Takes a rule export. Before anything is stored you see every rule: new, replacing one you have, or already here unchanged. Each rule arrives with the switch it had where it was exported.",
     "import_unreadable": "That file is not a rule export.",
     "imported": "Imported: {stored} new, {replaced} replaced, of {total} rules in the file.",
     "refused_one": "{name} was refused",
@@ -178,8 +179,8 @@
     "mcp_detail": "Written or changed by an MCP client",
     "unknown": "Origin unknown",
     "unknown_detail": "Stored before 1.20, or from the signed rule file of 1.20 to 1.22",
-    "example": "Example",
-    "example_detail": "One of the example rules for free sites that come with the program"
+    "example": "Bundled",
+    "example_detail": "Comes with rDownloader"
   },
   "import_dialog": {
     "title": "Import rules",
@@ -206,9 +207,9 @@
     "done": "{count} rules deleted."
   },
   "examples": {
-    "restore": "Restore examples",
-    "restore_hint": "Writes the example rules for free sites that come with the program again, switched off. An example rule you have stays as it is.",
-    "restored": "{count} example rules restored, switched off.",
-    "none_missing": "Every example rule is already here."
+    "restore": "Restore bundled rules",
+    "restore_hint": "Writes the rules that come with rDownloader again, switched off. One you have stays as it is.",
+    "restored": "{count} bundled rules restored, switched off.",
+    "none_missing": "Every bundled rule is already here."
   }
 }

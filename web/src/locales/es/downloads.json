@@ -51,8 +51,7 @@
     "remove_failed": "No se pudo quitar la entrada.",
     "nothing_to_reset": "Ahora mismo no se puede restablecer nada de la selección: las transferencias activas deben pausarse primero",
     "reorder_filter_active": "El orden solo se puede cambiar en la lista sin filtrar; de lo contrario, los archivos ocultos quedarían mal ordenados.",
-    "cleared_packages": "No se quitó ningún paquete. | Se quitó {count} paquete. | Se quitaron {count} paquetes.",
-    "clear_skipped": "No quedó ningún paquete intacto. | {count} paquete quedó intacto – {reason}: {names}. | {count} paquetes quedaron intactos – {reason}: {names}."
+    "cleared_packages": "No se quitó ningún paquete. | Se quitó {count} paquete. | Se quitaron {count} paquetes."
   },
   "notifications": {
     "failed_title": "Descarga fallida",

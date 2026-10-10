@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Reconnaissance des pages",
     "title": "Règles de sites",
-    "description": "Quelles pages de sorties rDownloader reconnaît, et par quelle règle. Le programme n’apporte que des exemples désactivés pour des sites libres ; importez d’autres règles depuis un export ou écrivez les vôtres. Chaque règle ici peut être activée, modifiée, dupliquée, exportée et supprimée."
+    "description": "Quelles pages de sorties rDownloader reconnaît, et par quelle règle. Le programme n’apporte que quelques règles à lui, désactivées ; importez d’autres règles depuis un export ou écrivez les vôtres. Chaque règle ici peut être activée, modifiée, dupliquée, exportée et supprimée."
   },
   "groups": {
     "board": "Forums",
@@ -10,7 +10,10 @@
     "adult": "Adulte",
     "ebooks": "Livres numériques",
     "graphics": "Graphisme",
-    "examples": "Exemples"
+    "blender": "Blender",
+    "linux": "Linux",
+    "software": "Logiciels libres",
+    "archive": "Internet Archive"
   },
   "group_switch": "Activer ou désactiver tout le groupe",
   "rule_switch": "Activer ou désactiver cette règle",
@@ -22,8 +25,9 @@
   },
   "list": {
     "title": "Règles",
-    "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Restaurez les exemples pour sites libres, importez un export de règles ou écrivez votre propre règle.",
-    "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée."
+    "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Restaurez les règles fournies avec rDownloader, importez un export de règles ou écrivez votre propre règle.",
+    "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée.",
+    "more": "Plus d’actions"
   },
   "editor": {
     "eyebrow": "Règle personnelle",
@@ -134,10 +138,7 @@
     "address_hint": "Vide : l'adresse de contrôle de la règle."
   },
   "transfer": {
-    "export": "Exporter les règles",
     "export_empty": "Il n’y a aucune règle à exporter.",
-    "import": "Importer des règles",
-    "import_hint": "Accepte un export de règles. Avant tout enregistrement, vous voyez chaque règle : nouvelle, remplaçant une règle existante ou déjà présente à l’identique. Chaque règle arrive avec l’interrupteur qu’elle avait chez qui l’a exportée.",
     "import_unreadable": "Ce fichier n’est pas un export de règles.",
     "imported": "Importées : {stored} nouvelles, {replaced} remplacées, sur {total} règles du fichier.",
     "refused_one": "{name} a été refusée",
@@ -178,8 +179,8 @@
     "mcp_detail": "Écrite ou modifiée par un client MCP",
     "unknown": "Origine inconnue",
     "unknown_detail": "Enregistrée avant la 1.20, ou issue du fichier de règles signé des versions 1.20 à 1.22",
-    "example": "Exemple",
-    "example_detail": "Une des règles d’exemple pour sites libres fournies avec le programme"
+    "example": "Fournie",
+    "example_detail": "Fournie avec rDownloader"
   },
   "import_dialog": {
     "title": "Importer des règles",
@@ -206,9 +207,9 @@
     "done": "{count} règles supprimées."
   },
   "examples": {
-    "restore": "Restaurer les exemples",
-    "restore_hint": "Recrée, désactivées, les règles d’exemple pour sites libres fournies avec le programme. Une règle d’exemple existante reste telle quelle.",
-    "restored": "{count} règles d’exemple restaurées, désactivées.",
-    "none_missing": "Toutes les règles d’exemple sont déjà présentes."
+    "restore": "Restaurer les règles fournies",
+    "restore_hint": "Recrée, désactivées, les règles fournies avec rDownloader. Une règle déjà présente reste telle quelle.",
+    "restored": "{count} règles fournies restaurées, désactivées.",
+    "none_missing": "Toutes les règles fournies sont déjà présentes."
   }
 }

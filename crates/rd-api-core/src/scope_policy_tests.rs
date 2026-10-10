@@ -100,12 +100,12 @@ fn the_capture_scope_covers_exactly_the_capture_router() {
     assert_eq!(capture, expected);
 }
 
-/// The tray's queue control is two routes on the capture surface, and no capture scope reaches
-/// a queue route of the API (RD-1100-06).
+/// The tray's queue control is three routes on the capture surface, and no capture scope reaches
+/// a queue route of the API (RD-1100-06, RD-1240-07).
 ///
 /// `capture:queue` is chosen when an agent is paired; what it buys has to stay exactly "pause
-/// everything, resume everything", so an agent that may pause cannot reorder, delete or read
-/// the queue through it.
+/// everything, resume everything, add everything from the LinkGrabber", so an agent that may
+/// pause cannot reorder, delete or read the queue or the LinkGrabber through it.
 #[test]
 fn the_capture_queue_scope_covers_exactly_the_tray_controls() {
     let controls: BTreeSet<(&str, &str)> = ROUTE_POLICY
@@ -114,6 +114,7 @@ fn the_capture_queue_scope_covers_exactly_the_tray_controls() {
         .map(|entry| (entry.path, entry.method.as_str()))
         .collect();
     let expected: BTreeSet<(&str, &str)> = [
+        ("/api/v1/capture/linkgrabber/enqueue", "POST"),
         ("/api/v1/capture/queue/pause", "POST"),
         ("/api/v1/capture/queue/resume", "POST"),
     ]

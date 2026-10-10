@@ -51,8 +51,7 @@
     "remove_failed": "L’entrée n’a pas pu être retirée.",
     "nothing_to_reset": "Rien dans la sélection ne peut être réinitialisé pour l'instant – les transferts actifs doivent d'abord être mis en pause",
     "reorder_filter_active": "L’ordre ne peut être modifié que dans la liste non filtrée : les fichiers masqués seraient sinon mal classés.",
-    "cleared_packages": "Aucun paquet n'a été retiré. | {count} paquet a été retiré. | {count} paquets ont été retirés.",
-    "clear_skipped": "Aucun paquet n'est resté intact. | {count} paquet est resté intact – {reason} : {names}. | {count} paquets sont restés intacts – {reason} : {names}."
+    "cleared_packages": "Aucun paquet n'a été retiré. | {count} paquet a été retiré. | {count} paquets ont été retirés."
   },
   "notifications": {
     "failed_title": "Téléchargement échoué",

@@ -85,7 +85,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Write the examples the app brings again (rules for free sites such as the Debian and Ubuntu image folders and Blender's downloads, group examples), switched off, with the origin example; an example whose id a stored rule carries is left as it is. Answers `restored`, how many were written."
+        description = "Write the examples the app brings again (rules for free sources, by group: blender -- Blender's releases and open movies; linux -- the image folders of Debian, Ubuntu, Fedora, Arch Linux and Linux Mint; software -- LibreOffice and VLC; archive -- Internet Archive items; paste -- public pastes on Pastebin, Rentry and paste.sr.ht), switched off, with the origin example; an example whose id a stored rule carries is left as it is. Answers `restored`, how many were written."
     )]
     pub async fn restore_site_rule_examples(&self) -> McpToolResult {
         respond(

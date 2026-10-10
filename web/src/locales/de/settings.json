@@ -394,6 +394,16 @@
     "title_status": {
       "label": "Zustand im Browser-Tab",
       "description": "Der Tab zeigt die Gesamtrate und die Anzahl laufender Übertragungen, solange etwas läuft, und sonst nur den Anwendungsnamen. Aus, wenn ein sich ständig ändernder Titel stört."
+    },
+    "palette": {
+      "label": "Farbschema",
+      "description": "Akzent- und Grautöne der Oberfläche, nur in diesem Browser; Hell und Dunkel stellst du oben ein.",
+      "signal": "Signal (Standard)",
+      "rose": "Rosé",
+      "ocean": "Ozean",
+      "violet": "Violett",
+      "forest": "Wald",
+      "amber": "Bernstein"
     }
   },
   "messages": {

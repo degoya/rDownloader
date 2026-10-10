@@ -4,12 +4,12 @@ use utoipa::OpenApi;
 
 use crate::{
     bandwidth_handlers, bandwidth_manual_handlers, captcha_handlers, capture_agent_handlers,
-    capture_queue, collision_handlers, container_handlers, download_sources, dto, duplicates,
-    error, indexer_handlers, indexer_search, media_dto, mfa_handlers, notify_handlers,
-    nzb_remote_job_handlers, oidc_settings_handlers, passkey_handlers, plugin_lifecycle,
-    queue_pause_handlers, reconnect_service, regex_tester, remote_job_handlers, replay_dto,
-    routing_backup, session_handlers, settings_backup, settings_backup_crypto, settings_backup_dto,
-    site_rules_dto, stop_mark_handlers, storage_capacity, storage_handlers,
+    capture_linkgrabber, capture_queue, collision_handlers, container_handlers, download_sources,
+    dto, duplicates, error, indexer_handlers, indexer_search, media_dto, mfa_handlers,
+    notify_handlers, nzb_remote_job_handlers, oidc_settings_handlers, passkey_handlers,
+    plugin_lifecycle, queue_pause_handlers, reconnect_service, regex_tester, remote_job_handlers,
+    replay_dto, routing_backup, session_handlers, settings_backup, settings_backup_crypto,
+    settings_backup_dto, site_rules_dto, stop_mark_handlers, storage_capacity, storage_handlers,
     stream_schedule_handlers, subscription_handlers, torrent_control, torrent_handlers,
     torrent_trackers,
 };
@@ -38,6 +38,8 @@ use crate::{
     dto::CapturePairResponse,
     capture_queue::CaptureQueuePauseRequest,
     capture_queue::CaptureQueueResponse,
+    capture_linkgrabber::CaptureLinkGrabberRequest,
+    capture_linkgrabber::CaptureLinkGrabberResponse,
     capture_agent_handlers::CaptureAgentSettingsResponse,
     capture_agent_handlers::CaptureAgentSettingsPatch,
     capture_agent_handlers::CaptureClipboardRequest,

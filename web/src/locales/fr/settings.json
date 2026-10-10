@@ -394,6 +394,16 @@
     "title_status": {
       "label": "État dans l'onglet du navigateur",
       "description": "Tant que quelque chose est en cours, l'onglet affiche le débit global et le nombre de transferts actifs, sinon le seul nom de l'application. À désactiver si un titre qui change sans cesse vous dérange."
+    },
+    "palette": {
+      "label": "Thème de couleurs",
+      "description": "Les tons d’accent et de gris de l’interface, dans ce navigateur seulement ; clair et sombre se règlent au-dessus.",
+      "signal": "Signal (par défaut)",
+      "ocean": "Océan",
+      "violet": "Violet",
+      "forest": "Forêt",
+      "rose": "Rose",
+      "amber": "Ambre"
     }
   },
   "messages": {

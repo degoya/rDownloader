@@ -1,7 +1,7 @@
 //! The state the tray shows, without the tray.
 //!
 //! Which mark the icon carries, whether "Open rDownloader" can be chosen, which queue entries the
-//! menu offers, what the status item and the tooltip say: all of that is decided here, from the service state, the transfer poll
+//! menu offers, what the two status items and the tooltip say: all of that is decided here, from the service state, the transfer poll
 //! and the agent's notices about itself. Nothing in this module names a type from `png`, `tao`
 //! or `tray-icon` -- those crates are Windows- and macOS-only, and the Linux agent must link
 //! none of them -- so the rules compile and are tested on every host. `tray.rs` holds the
@@ -13,15 +13,19 @@
 //!
 //! Two rules a description of the whole surface would hide are stated as updates instead: the
 //! icon is only named when it actually changes, because redrawing it on every poll flickers on
-//! Windows; and a server-state change rewrites the status item but leaves the tooltip as it was,
+//! Windows; and a server-state change rewrites the server item but leaves the tooltip as it was,
 //! which is what the tray did before its rules moved here and is not this module's to change.
+//!
+//! The menu has two status items since RD-1240-06: the agent's, with its address, the transfers
+//! and its notices, and the server's, with its version and state. The tooltip has room for one
+//! line only, so it keeps the combined line it always had and still names the server's state.
 
 use rd_core::{CaptureAgentSettings, CaptureShortcuts};
 use url::Url;
 
 use crate::{
     activity::{self, Activity, QueueMenu},
-    status::{ServerStatus, status_label},
+    status::{ServerStatus, agent_label, server_label, status_label},
     supervision::{AgentNotice, notice_label},
 };
 
@@ -48,7 +52,10 @@ pub(crate) struct Surface {
     /// The queue entries: none, greyed out with the pairing hint, or which of them can be chosen
     /// (RD-1100-06, RD-1101-06).
     pub queue: QueueMenu,
+    /// The agent's line: version, address, transfers, notices.
     pub status_line: String,
+    /// The server's line under it: version and state (RD-1240-06).
+    pub server_line: String,
     pub tooltip: String,
     /// The check mark of "Pause clipboard watching" (RD-1180-01).
     pub clipboard_paused: bool,
@@ -67,6 +74,7 @@ pub(crate) struct Update {
     /// Named only on a change: swapping the entries rebuilds that part of the menu.
     pub queue: Option<QueueMenu>,
     pub status_line: Option<String>,
+    pub server_line: Option<String>,
     pub tooltip: Option<String>,
     pub clipboard_paused: Option<bool>,
     /// Named only on a change: every entry's accelerator is written again.
@@ -91,11 +99,15 @@ pub(crate) struct TrayState {
     /// What the agent has to say about itself, appended after the transfers; `None` while there
     /// is nothing wrong. Only the latest is kept: the status item is one line.
     notice: Option<String>,
-    /// The server line, as `status_label` renders it for the current state.
+    /// The head of the agent's line: product, version, address.
+    agent: String,
+    /// The head of the tooltip, as `status_label` renders it for the current state.
     status: String,
     /// The configured service, or `None` when the agent is not paired; only used for relabelling.
     configured: Option<Url>,
     server: ServerStatus,
+    /// The version the service's health answer named, while it is running.
+    server_version: Option<String>,
     /// What the tooltip says now: the product name until the first transfer reading or notice,
     /// then the cut status line of whichever came last.
     tooltip: String,
@@ -117,9 +129,11 @@ impl TrayState {
             queue: QueueMenu::Hidden,
             transfers: None,
             notice: None,
+            agent: agent_label(configured.as_ref()),
             status: status_label(configured.as_ref(), server),
             configured,
             server,
+            server_version: None,
             tooltip: initial_tooltip(),
             settings: CaptureAgentSettings::default(),
         }
@@ -132,26 +146,35 @@ impl TrayState {
             open_enabled: open_enabled(self.server),
             queue: self.queue,
             status_line: self.status_line(),
+            server_line: self.server_line(),
             tooltip: self.tooltip.clone(),
             clipboard_paused: self.settings.clipboard_paused,
             accelerators: self.settings.shortcuts.clone(),
         }
     }
 
-    /// Rewrites the status line and gates "Open rDownloader" on the service answering.
+    /// Rewrites the server line and gates "Open rDownloader" on the service answering.
     ///
     /// Opening the browser while the service is still starting lands on an error page, and the
     /// user has no way to tell that from the service being down. A status the tray already
-    /// holds changes nothing: the health poll sends on every tick.
-    pub(crate) fn on_server_status(&mut self, status: ServerStatus) -> Update {
-        if self.server == status {
+    /// holds changes nothing: the health poll sends on every tick. `version` is what the
+    /// health answer named; it is shown only while the service runs, since a service that does
+    /// not answer has no version to report (RD-1240-06).
+    pub(crate) fn on_server_status(
+        &mut self,
+        status: ServerStatus,
+        version: Option<String>,
+    ) -> Update {
+        let version = version.filter(|_| status == ServerStatus::Running);
+        if self.server == status && self.server_version == version {
             return Update::default();
         }
         self.server = status;
+        self.server_version = version;
         self.status = status_label(self.configured.as_ref(), status);
         Update {
             open_enabled: Some(open_enabled(status)),
-            status_line: Some(self.status_line()),
+            server_line: Some(self.server_line()),
             ..Update::default()
         }
     }
@@ -173,7 +196,7 @@ impl TrayState {
         let line = self.status_line();
         // The menu item takes the line whole; Windows keeps a tooltip in a fixed buffer and
         // silently loses whatever runs past it, so that one is cut to fit.
-        self.tooltip = activity::tooltip(&line);
+        self.tooltip = self.tooltip_text();
         Update {
             icon: changed.then_some(self.icon()),
             open_enabled: None,
@@ -196,7 +219,7 @@ impl TrayState {
         }
         self.notice = Some(label);
         let line = self.status_line();
-        self.tooltip = activity::tooltip(&line);
+        self.tooltip = self.tooltip_text();
         Update {
             status_line: Some(line),
             tooltip: Some(self.tooltip.clone()),
@@ -221,7 +244,7 @@ impl TrayState {
         };
         if paused_changed {
             let line = self.status_line();
-            self.tooltip = activity::tooltip(&line);
+            self.tooltip = self.tooltip_text();
             update.icon = (self.icon() != before).then_some(self.icon());
             update.clipboard_paused = Some(settings.clipboard_paused);
             update.status_line = Some(line);
@@ -239,14 +262,29 @@ impl TrayState {
         }
     }
 
-    /// The status item's text: the server line, the transfers when there are any, and whatever
-    /// the agent has to say about itself.
+    /// The agent's status item: the agent and its address, the transfers when there are any,
+    /// and whatever the agent has to say about itself.
     ///
     /// Composed in `activity`, which compiles everywhere, so the length this can reach is
     /// measured by tests that also run on the Linux hosts where no tray exists.
     fn status_line(&self) -> String {
-        let line =
-            activity::status_line(&self.status, self.transfers.as_deref().unwrap_or_default());
+        self.with_details(&self.agent)
+    }
+
+    /// The server's status item under it (RD-1240-06).
+    fn server_line(&self) -> String {
+        server_label(self.server, self.server_version.as_deref())
+    }
+
+    /// The tooltip: the one line naming the agent, the server's state and the details, cut to
+    /// what Windows can carry.
+    fn tooltip_text(&self) -> String {
+        activity::tooltip(&self.with_details(&self.status))
+    }
+
+    /// `head`, then the transfers, the notice and the clipboard pause, each when there is one.
+    fn with_details(&self, head: &str) -> String {
+        let line = activity::status_line(head, self.transfers.as_deref().unwrap_or_default());
         let line = activity::status_line(&line, self.notice.as_deref().unwrap_or_default());
         let paused = if self.settings.clipboard_paused {
             CLIPBOARD_PAUSED
@@ -269,3 +307,7 @@ fn open_enabled(server: ServerStatus) -> bool {
 #[cfg(test)]
 #[path = "tray_state_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tray_state_server_tests.rs"]
+mod server_tests;

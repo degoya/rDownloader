@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Seitenerkennung",
     "title": "Seitenregeln",
-    "description": "Welche Release-Seiten rDownloader erkennt und durch welche Regel. Mit dem Programm kommen nur abgeschaltete Beispiele für freie Seiten; weitere Regeln importierst du aus einem Export oder schreibst sie selbst. Jede Regel hier kannst du schalten, bearbeiten, duplizieren, exportieren und entfernen."
+    "description": "Welche Release-Seiten rDownloader erkennt und durch welche Regel. Mit dem Programm kommen nur wenige eigene Regeln, abgeschaltet; weitere Regeln importierst du aus einem Export oder schreibst sie selbst. Jede Regel hier kannst du schalten, bearbeiten, duplizieren, exportieren und entfernen."
   },
   "groups": {
     "board": "Boards",
@@ -10,7 +10,10 @@
     "adult": "Erwachsene",
     "ebooks": "E-Books",
     "graphics": "Grafik",
-    "examples": "Beispiele"
+    "blender": "Blender",
+    "linux": "Linux",
+    "software": "Freie Software",
+    "archive": "Internet Archive"
   },
   "group_switch": "Ganze Gruppe schalten",
   "rule_switch": "Diese Regel schalten",
@@ -22,8 +25,9 @@
   },
   "list": {
     "title": "Regeln",
-    "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Stelle die Beispiele für freie Seiten wieder her, importiere einen Regel-Export oder schreibe eine eigene Regel.",
-    "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt."
+    "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Stelle die mit rDownloader ausgelieferten Regeln wieder her, importiere einen Regel-Export oder schreibe eine eigene Regel.",
+    "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt.",
+    "more": "Weitere Aktionen"
   },
   "editor": {
     "eyebrow": "Eigene Regel",
@@ -134,10 +138,7 @@
     "address_hint": "Leer: die Prüfadresse der Regel."
   },
   "transfer": {
-    "export": "Regeln exportieren",
     "export_empty": "Es gibt keine Regel zum Exportieren.",
-    "import": "Regeln importieren",
-    "import_hint": "Nimmt einen Regel-Export. Bevor etwas übernommen wird, siehst du jede Regel: neu, ersetzt eine vorhandene oder schon gleich da. Jede Regel kommt mit dem Schalter an, den sie beim Exportierenden hatte.",
     "import_unreadable": "Diese Datei ist kein Regel-Export.",
     "imported": "Übernommen: {stored} neu, {replaced} ersetzt, von {total} Regeln der Datei.",
     "refused_one": "{name} wurde abgelehnt",
@@ -178,8 +179,8 @@
     "mcp_detail": "Von einem MCP-Client geschrieben oder geändert",
     "unknown": "Herkunft unbekannt",
     "unknown_detail": "Vor 1.20 gespeichert oder aus der signierten Regeldatei von 1.20 bis 1.22",
-    "example": "Beispiel",
-    "example_detail": "Eine der Beispielregeln für freie Seiten, die mit dem Programm kommen"
+    "example": "Mitgeliefert",
+    "example_detail": "Mit rDownloader ausgeliefert"
   },
   "import_dialog": {
     "title": "Regeln importieren",
@@ -206,9 +207,9 @@
     "done": "{count} Regeln gelöscht."
   },
   "examples": {
-    "restore": "Beispiele wiederherstellen",
-    "restore_hint": "Legt die Beispielregeln für freie Seiten, die mit dem Programm kommen, wieder an, abgeschaltet. Eine vorhandene Beispielregel bleibt, wie sie ist.",
-    "restored": "{count} Beispielregeln wiederhergestellt, abgeschaltet.",
-    "none_missing": "Alle Beispielregeln sind schon da."
+    "restore": "Mitgelieferte wiederherstellen",
+    "restore_hint": "Legt die mit rDownloader ausgelieferten Regeln wieder an, abgeschaltet. Eine vorhandene bleibt, wie sie ist.",
+    "restored": "{count} mitgelieferte Regeln wiederhergestellt, abgeschaltet.",
+    "none_missing": "Alle mitgelieferten Regeln sind schon da."
   }
 }

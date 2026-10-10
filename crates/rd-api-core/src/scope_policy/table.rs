@@ -191,6 +191,12 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/capture/cookies", Method::POST, CAPTURE),
     entry("/api/v1/capture/events", Method::GET, CAPTURE),
     entry("/api/v1/capture/file", Method::POST, CAPTURE),
+    // The tray's "Add all from LinkGrabber" (RD-1240-07): queue control, like pause and resume.
+    entry(
+        "/api/v1/capture/linkgrabber/enqueue",
+        Method::POST,
+        CAPTURE_QUEUE,
+    ),
     entry("/api/v1/capture/nzb", Method::POST, CAPTURE),
     entry("/api/v1/capture/pair", Method::POST, SECRETS),
     entry("/api/v1/capture/ping", Method::GET, CAPTURE),

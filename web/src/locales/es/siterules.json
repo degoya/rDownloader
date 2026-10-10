@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Reconocimiento de páginas",
     "title": "Reglas de sitios",
-    "description": "Qué páginas de lanzamientos reconoce rDownloader y mediante qué regla. El programa solo trae ejemplos desactivados para sitios libres; importa otras reglas desde una exportación o escribe las tuyas. Cada regla de aquí puedes activarla, editarla, duplicarla, exportarla y eliminarla."
+    "description": "Qué páginas de lanzamientos reconoce rDownloader y mediante qué regla. El programa solo trae unas pocas reglas propias, desactivadas; importa otras reglas desde una exportación o escribe las tuyas. Cada regla de aquí puedes activarla, editarla, duplicarla, exportarla y eliminarla."
   },
   "groups": {
     "board": "Foros",
@@ -10,7 +10,10 @@
     "adult": "Adultos",
     "ebooks": "Libros electrónicos",
     "graphics": "Gráficos",
-    "examples": "Ejemplos"
+    "blender": "Blender",
+    "linux": "Linux",
+    "software": "Software libre",
+    "archive": "Internet Archive"
   },
   "group_switch": "Activar o desactivar todo el grupo",
   "rule_switch": "Activar o desactivar esta regla",
@@ -22,8 +25,9 @@
   },
   "list": {
     "title": "Reglas",
-    "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Restaura los ejemplos para sitios libres, importa una exportación de reglas o escribe una regla propia.",
-    "group_off": "El grupo está desactivado, por lo que no se consulta esta regla."
+    "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Restaura las reglas incluidas con rDownloader, importa una exportación de reglas o escribe una regla propia.",
+    "group_off": "El grupo está desactivado, por lo que no se consulta esta regla.",
+    "more": "Más acciones"
   },
   "editor": {
     "eyebrow": "Regla propia",
@@ -134,10 +138,7 @@
     "address_hint": "Vacío: la dirección de prueba de la regla."
   },
   "transfer": {
-    "export": "Exportar reglas",
     "export_empty": "No hay ninguna regla que exportar.",
-    "import": "Importar reglas",
-    "import_hint": "Acepta una exportación de reglas. Antes de guardar nada ves cada regla: nueva, sustituye a una existente o ya está igual. Cada regla llega con el interruptor que tenía en la instalación que la exportó.",
     "import_unreadable": "Ese archivo no es una exportación de reglas.",
     "imported": "Importadas: {stored} nuevas, {replaced} sustituidas, de {total} reglas del archivo.",
     "refused_one": "{name} fue rechazada",
@@ -178,8 +179,8 @@
     "mcp_detail": "Escrita o modificada por un cliente MCP",
     "unknown": "Origen desconocido",
     "unknown_detail": "Guardada antes de la 1.20 o procedente del archivo de reglas firmado de la 1.20 a la 1.22",
-    "example": "Ejemplo",
-    "example_detail": "Una de las reglas de ejemplo para sitios libres que trae el programa"
+    "example": "Incluida",
+    "example_detail": "Incluida con rDownloader"
   },
   "import_dialog": {
     "title": "Importar reglas",
@@ -206,9 +207,9 @@
     "done": "{count} reglas eliminadas."
   },
   "examples": {
-    "restore": "Restaurar ejemplos",
-    "restore_hint": "Vuelve a crear, desactivadas, las reglas de ejemplo para sitios libres que trae el programa. Una regla de ejemplo existente se queda como está.",
-    "restored": "{count} reglas de ejemplo restauradas, desactivadas.",
-    "none_missing": "Todas las reglas de ejemplo ya están."
+    "restore": "Restaurar reglas incluidas",
+    "restore_hint": "Vuelve a crear, desactivadas, las reglas incluidas con rDownloader. Una que ya tengas se queda como está.",
+    "restored": "{count} reglas incluidas restauradas, desactivadas.",
+    "none_missing": "Todas las reglas incluidas ya están."
   }
 }

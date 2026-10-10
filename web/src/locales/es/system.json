@@ -48,8 +48,8 @@
     "extension_steps": "En las opciones de la extensión, introduce {origin} como URL del servidor, pega este token y pulsa «Probar conexión». Instalación: consulta extension/README.md.",
     "token_copied_description": "El token de captura está en el portapapeles.",
     "label": "Nombre de la conexión",
-    "queue_control": "Puede pausar la cola",
-    "queue_control_help": "Permite «Pause all» y «Resume all» en el menú de la bandeja del agente, nada más. Sin esta opción el agente solo entrega enlaces."
+    "queue_control": "Puede controlar la cola",
+    "queue_control_help": "Permite «Start all», «Pause all» y «Add all from LinkGrabber» en el menú de la bandeja del agente, nada más. Sin esta opción el agente solo entrega enlaces."
   },
   "agents": {
     "eyebrow": "Conexiones emparejadas",

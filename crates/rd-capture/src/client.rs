@@ -6,10 +6,16 @@ use reqwest::{Client, StatusCode, multipart};
 use url::Url;
 
 mod identity;
+mod linkgrabber;
 mod self_update;
 
 pub(crate) use identity::ForeignListener;
+// The tray's server line reads the version from the health answer (RD-1240-06).
 use identity::Identity;
+#[cfg(any(windows, target_os = "macos", test))]
+pub(crate) use identity::health_version;
+#[cfg(any(windows, target_os = "macos"))]
+pub(crate) use identity::read_health_answer;
 
 /// What a client of this crate is going to be used for.
 ///

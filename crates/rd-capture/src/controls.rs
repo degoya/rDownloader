@@ -169,11 +169,7 @@ pub(crate) async fn serve_queue_requests(
                 None => return,
             },
         };
-        let outcome = match request {
-            QueueRequest::Pause { minutes } => client.pause_queue(minutes).await,
-            QueueRequest::Resume => client.resume_queue().await,
-        };
-        if let Err(error) = outcome {
+        if let Err(error) = crate::activity::carry_out(&client, request).await {
             tracing::warn!(%error, ?request, "the shortcut's queue request was not carried out");
         }
     }
@@ -231,5 +227,17 @@ mod tests {
         );
         assert_eq!(inbox.hand_over.try_recv().ok(), Some(()));
         assert!(inbox.queue.try_recv().is_err(), "Open is the caller's own");
+    }
+
+    /// The tray's "Add all from LinkGrabber" travels with the queue requests, to the task that
+    /// holds the token (RD-1240-07).
+    #[test]
+    fn adding_from_the_linkgrabber_reaches_the_queue_task() {
+        let (controls, mut inbox) = channels();
+        controls.pass(Action::Queue(QueueRequest::AddLinkGrabber { paused: true }));
+        assert_eq!(
+            inbox.queue.try_recv().ok(),
+            Some(QueueRequest::AddLinkGrabber { paused: true })
+        );
     }
 }

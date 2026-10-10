@@ -69,10 +69,10 @@ use rd_api_core::{
     postprocess_handlers, reconnect_service, storage_capacity, trace_context,
 };
 use rd_api_intake::{
-    area_backup, candidate_handlers, captcha_handlers, capture_file, collector_handlers,
-    container_handlers, indexer_handlers, indexer_search, nzb_handlers, regex_tester,
-    remote_listing_handlers, site_rule_picks, site_rules_dto, site_rules_handlers, stream_handlers,
-    stream_schedule_handlers, subscription_autoqueue, subscription_handlers,
+    area_backup, candidate_handlers, captcha_handlers, capture_file, capture_linkgrabber,
+    collector_handlers, container_handlers, indexer_handlers, indexer_search, nzb_handlers,
+    regex_tester, remote_listing_handlers, site_rule_picks, site_rules_dto, site_rules_handlers,
+    stream_handlers, stream_schedule_handlers, subscription_autoqueue, subscription_handlers,
 };
 use rd_api_mcp as mcp;
 use rd_api_queue::{
@@ -228,6 +228,12 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/capture/queue/resume",
             post(capture_queue::resume_capture_queue)
+                .route_layer(middleware::from_fn(auth::require_capture_queue)),
+        )
+        // The tray's "Add all from LinkGrabber" (RD-1240-07), behind the same right.
+        .route(
+            "/api/v1/capture/linkgrabber/enqueue",
+            post(capture_linkgrabber::enqueue_capture_linkgrabber)
                 .route_layer(middleware::from_fn(auth::require_capture_queue)),
         )
         .route_layer(middleware::from_fn_with_state(

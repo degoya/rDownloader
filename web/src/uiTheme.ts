@@ -31,6 +31,9 @@ export const uiTheme = {
   alert: { defaultVariants: { variant: 'subtle' } },
   // A dialog footer ends right-aligned (`design.md`, *Forms*), named before at all 17 modals.
   modal: { slots: { footer: 'justify-end' } },
+  // A toast breaks a long word — a package name without a space — instead of running past its
+  // clipped edge (owner, 2026-10-10).
+  toast: { slots: { title: 'wrap-anywhere', description: 'wrap-anywhere' } },
   // A tab's content stands off its tab bar; a bar with `:content="false"` renders none.
   tabs: { slots: { content: 'pt-4' } },
   // A choice row — one value of a handful, the counts beside it — is a wrapping row of cards

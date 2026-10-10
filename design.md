@@ -397,7 +397,8 @@ and other initial data are loaded once.
   addresses, status details, and eyebrow labels. Below `text-xs` there is one size, `text-2xs`
   (11 px, the `--text-2xs` token in `web/src/assets/main.css`), for metadata lines and small
   badges; no template writes a pixel size of its own (RD-1120-14).
-- **Primary color:** `signal`, a custom teal scale from `#edfffd` to `#052f30`.
+- **Primary color:** `signal`, a custom teal scale from `#edfffd` to `#052f30` — the default colour
+  theme.
 - **Secondary color:** cyan; **neutral:** slate; **warning:** amber; **error:** a custom `coral`
   scale from `#fff2f1` to `#41110f`.
 - **Shape:** A small global radius of `0.3rem`; functional, compact surfaces rather than large
@@ -426,6 +427,13 @@ and other initial data are loaded once.
   indicate activity without replacing text.
 - **Themes:** Light, dark, and system. Components use semantic Nuxt UI tokens so that contrast and
   state meaning survive across themes.
+- **Colour themes** (RD-1240-05, owner 2026-10-10): beside light/dark, never instead of it, a
+  browser picks the accent and the greys — Signal (the default above), Ocean (blue/slate), Violet
+  (violet/zinc), Forest (emerald/stone), Rose (rose/zinc), Amber (amber/stone). A palette is a
+  pair of Tailwind scales written over `--ui-color-primary-*` and `--ui-color-neutral-*` on
+  `<html>` (`useColorPalette.ts`); the default writes nothing. Light mode takes shade 700 of
+  whichever primary is in use, dark mode Nuxt UI's 400, and a new palette joins only when both
+  pass 4.5:1 (`useColorPalette.test.ts`). Warning and error keep their colours in every palette.
 
 Queue rows and the LinkGrabber's link rows share one responsive grid of nine named cells. Below
 560 px the row is two lines, with the name on the first and the state on the second; from 560 px
@@ -462,17 +470,17 @@ prevent columns from shifting during live updates.
   the page hands its action in while it is mounted; the key runs that action with its
   confirmation and shows as a `UKbd` hint on the menu item that offers it. Pressed again, the
   same key answers that confirmation (`ConfirmModal`'s `confirmKey`, shown as a `UKbd` on its
-  button), so the action never needs the mouse or a Tab to the button. `F` is the search of
-  the page the same way — on the LinkGrabber it opens the indexer search drawer with the keyboard
-  in its field (RD-180-19, RD-1230-02), on Downloads it focuses the list's name search
-  (RD-190-21): the drawer or the list hands its action in while it is mounted, and the button or
-  the field shows the key as a `UKbd`; while the indexer field is disabled the key lands on the
+  button), so the action never needs the mouse or a Tab to the button. `F` is the indexer
+  search from every page: it opens the LinkGrabber's search drawer with the keyboard in its field
+  (RD-180-19, RD-1230-02), going to the LinkGrabber first when another page is open (owner,
+  2026-10-10; the download list's name search has no key of its own). The drawer hands its action
+  in while it is mounted and answers a request left on the way there; the navbar button shows the
+  key as a `UKbd`; while the indexer field is disabled the key lands on the
   hint's link to the indexer settings, the one thing there is to do. The
   LinkGrabber hands in its navbar buttons the same way (`A` add links, `E` enqueue all, `W` add
   all paused, `R` delete all; RD-180-23), each with its `UKbd` on the button and doing nothing
   while that button is disabled. `A` is "add" on Downloads too: there it opens the *Direct job*
-  dialog behind the navbar button that shows the key (RD-1220-03), the way `F` is the search of
-  whichever page is open.
+  dialog behind the navbar button that shows the key (RD-1220-03).
 - **The key that opens a question confirms it; `X` closes every dialog** (owner, 2026-10-02).
   Every confirmation a key can start carries that key as its `confirmKey` — always, not only when
   the key started it, because a click user is not disturbed by a hint. `X` is the one plain key
@@ -632,8 +640,8 @@ prevent columns from shifting during live updates.
   the global storage capacity beside the storage roots, the NNTP limits under the Usenet servers,
   the speed and upload limits on *Bandwidth* before the profiles that overlay them — and its
   search anchor stays an alias, so an old link still lands on it. A heading that says where a value
-  is kept stands only over what is kept there: *This browser only* covers language, theme and
-  browser notifications, not the display settings every browser shares, which are a card of
+  is kept stands only over what is kept there: *This browser only* covers language, theme, colour
+  theme and browser notifications, not the display settings every browser shares, which are a card of
   their own. A new setting first asks which of the six it belongs to;
   a setting that fits none is a sign the rubric is missing, not that one should be stretched.
 - **Settings that work together point at each other** (RD-1120-23). Where a setting on one page
@@ -1653,6 +1661,9 @@ recognised as drifting.
   refusal is about carries its own state, so the toast only has to say why. What went through
   (`transfers.notice`) is an info toast that leaves by itself; `useQueueNoticeToasts` shows both
   and takes them from the store. A failure stays a closable red `UAlert` (`transfers.error`).
+  A result toast says what happened and nothing else (owner, 2026-10-10): "3 packages were
+  removed", never the packages an action left alone; and a toast breaks a long word — a package
+  name without a space — rather than clipping it (`uiTheme.ts`, `wrap-anywhere`).
 - **Pictures from a third party are a switch, and the row works without them.** An address that
   came from an indexer or a hoster is loaded by the browser, which tells that server what is on
   somebody's screen. That is a decision worth being able to reverse, so it hangs off a setting;

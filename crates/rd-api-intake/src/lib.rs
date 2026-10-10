@@ -9,6 +9,7 @@ pub mod candidate_handlers;
 pub mod captcha_handlers;
 pub mod capture_fetch;
 pub mod capture_file;
+pub mod capture_linkgrabber;
 pub mod collector_crawl_verdict;
 pub mod collector_enqueue;
 pub mod collector_handlers;
