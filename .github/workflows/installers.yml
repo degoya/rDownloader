@@ -327,7 +327,7 @@ jobs:
           if (-not (Test-Path "$menu\rDownloader beenden.lnk")) { throw "the German MSI has no entry 'rDownloader beenden'" }
           Msi '/x installers\de\rdownloader-windows-x86_64-de.msi' de-remove.log
           if (Test-Path $menu) { throw "the German uninstall left the Start menu folder behind" }
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: installers-msi-logs

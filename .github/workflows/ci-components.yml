@@ -38,12 +38,12 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+      - uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
         with:
           tool: nextest@0.9.146
       # Makes each core module a component (RD-1110-08) and reads its imports; the version
       # scripts/build-plugins.sh requires (WASM_TOOLS_VERSION in scripts/lib/plugin-stamp.sh).
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+      - uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
         with:
           tool: wasm-tools@1.261.0
       # Components are built only when their content changed (RD-150-10). The key is what goes
