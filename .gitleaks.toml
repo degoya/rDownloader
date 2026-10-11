@@ -65,6 +65,18 @@ paths = ['''(^|/)plugins/(mediafire-common|mediafire-crawler)/src/''']
 regexes = ['''ipnyzofjcwri357|x67lis2zygml5''']
 
 [[allowlists]]
+description = "The authentication secret of RFC 8291's published Web Push example, in push tests (RD-1240-13)"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+    '''(^|/)crates/rd-notify/src/delivery/web_push_tests\.rs$''',
+    '''(^|/)crates/rd-api-core/src/web_push_tests\.rs$''',
+    '''(^|/)crates/rd-db/src/web_push_store_tests\.rs$''',
+    '''(^|/)crates/rd-api/tests/admin/web_push\.rs$''',
+]
+regexes = ['''BTBZMqHH6r4Tts7J_aSIgg''']
+
+[[allowlists]]
 description = "A made-up passkey in a link-check test"
 targetRules = ["generic-api-key"]
 condition = "AND"

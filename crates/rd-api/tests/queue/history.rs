@@ -195,3 +195,139 @@ async fn the_clear_needs_its_confirmation_and_empties_only_the_history() {
         "the queue is untouched"
     );
 }
+
+/// Reads `uri` raw: its status, its content type and its body as text.
+async fn file(harness: &common::Harness, uri: &str) -> (StatusCode, String, String) {
+    let (status, headers, bytes) = common::send_raw(
+        &harness.router,
+        common::request_to("GET", uri)
+            .body(axum::body::Body::empty())
+            .expect("request"),
+    )
+    .await;
+    let content_type = headers
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_owned();
+    (
+        status,
+        content_type,
+        String::from_utf8(bytes.to_vec()).expect("utf-8"),
+    )
+}
+
+#[tokio::test]
+async fn the_export_holds_what_the_filters_match_as_csv_or_ndjson() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    completed_and_removed(
+        &harness,
+        "Holiday, Pictures",
+        "https://example.invalid/holiday.zip",
+    )
+    .await;
+    completed_and_removed(&harness, "Other", "https://example.invalid/other.zip").await;
+
+    let (status, content_type, csv) = file(&harness, "/api/v1/history/export?q=holiday").await;
+    assert_eq!(status, StatusCode::OK, "{csv}");
+    assert!(content_type.starts_with("text/csv"), "{content_type}");
+    let lines = csv
+        .trim_start_matches('\u{feff}')
+        .lines()
+        .collect::<Vec<_>>();
+    assert_eq!(lines.len(), 2, "{csv}");
+    assert!(lines[0].starts_with("id,name,outcome,kind,"), "{csv}");
+    assert!(
+        lines[1].contains(",\"Holiday, Pictures\",completed,http,"),
+        "{csv}"
+    );
+
+    let (status, content_type, ndjson) =
+        file(&harness, "/api/v1/history/export?format=ndjson").await;
+    assert_eq!(status, StatusCode::OK, "{ndjson}");
+    assert_eq!(content_type, "application/x-ndjson");
+    let mut names = ndjson
+        .lines()
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line).expect("json")["name"]
+                .as_str()
+                .expect("name")
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    names.sort();
+    assert_eq!(names, ["Holiday, Pictures", "Other"]);
+
+    for (uri, code) in [
+        (
+            "/api/v1/history/export?format=xlsx",
+            "history.export_format_invalid",
+        ),
+        (
+            "/api/v1/history/export?outcome=maybe",
+            "history.filter_invalid",
+        ),
+    ] {
+        let (status, body) = common::get_json(&harness.router, uri).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{uri}");
+        assert_eq!(body["code"], code, "{uri}");
+    }
+}
+
+/// The history entries `lookup` names for one address.
+async fn history_matches(harness: &common::Harness, url: &str) -> serde_json::Value {
+    let (status, found) = common::post_json(
+        &harness.router,
+        "/api/v1/duplicates/lookup",
+        json!({ "urls": [url] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    found[0]["history"].clone()
+}
+
+#[tokio::test]
+async fn the_duplicate_lookup_names_the_history_only_when_asked_to() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    completed_and_removed(
+        &harness,
+        "Holiday Pictures",
+        "https://example.invalid/holiday.zip",
+    )
+    .await;
+    assert_eq!(
+        history_matches(&harness, "https://example.invalid/holiday.zip").await,
+        json!([])
+    );
+
+    let (_, settings) = common::get_json(&harness.router, "/api/v1/settings").await;
+    let mut on = settings.clone();
+    on["admin_login_disabled"] = json!(true);
+    on["duplicates_include_history"] = json!(true);
+    let (status, saved) = common::put_json(&harness.router, "/api/v1/settings", on).await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+
+    // The `http` spelling of the same address is the same source.
+    let found = history_matches(&harness, "http://example.invalid/holiday.zip").await;
+    assert_eq!(found.as_array().map(Vec::len), Some(1), "{found}");
+    assert_eq!(found[0]["name"], "Holiday Pictures");
+    assert_eq!(found[0]["outcome"], "completed");
+    assert_eq!(
+        history_matches(&harness, "https://example.invalid/other.zip").await,
+        json!([])
+    );
+
+    // A package still in the queue is matched there, not a second time in the history.
+    let (_, queued_package) = queued(&harness, "Again", "https://example.invalid/again.zip").await;
+    harness
+        .database
+        .set_package_state(queued_package, PackageState::Completed, None, None, None)
+        .await
+        .expect("completed");
+    assert_eq!(
+        history_matches(&harness, "https://example.invalid/again.zip").await,
+        json!([])
+    );
+}

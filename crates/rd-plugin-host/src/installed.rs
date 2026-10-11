@@ -197,6 +197,31 @@ impl PluginInstaller {
         .await?
     }
 
+    /// The hex SHA-256 of every installed component that verifies, switched-off plugins and
+    /// every kept version included: what the compile cache keeps entries for (RD-1240-34).
+    ///
+    /// # Errors
+    ///
+    /// When the plugin folder cannot be read.
+    pub async fn installed_component_digests(&self) -> Result<std::collections::BTreeSet<String>> {
+        let root = self.root.clone();
+        let verifier = self.verifier.clone();
+        let choices = self.version_choices();
+        tokio::task::spawn_blocking(move || {
+            let packages = load_verified_sync(
+                &root,
+                &verifier,
+                &std::collections::HashSet::new(),
+                &choices,
+            )?;
+            Ok(packages
+                .iter()
+                .map(|(package, _)| crate::compile_cache::hex_digest(&package.component))
+                .collect::<std::collections::BTreeSet<_>>())
+        })
+        .await?
+    }
+
     /// Verifies one installed version in full, as the next start would load it (RD-140-02).
     ///
     /// The health check before a version is made active or put under test: signature, content

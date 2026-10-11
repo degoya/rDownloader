@@ -1,4 +1,5 @@
 import { i18n } from '@/i18n'
+import { messageResolver } from '@/i18n/resolver'
 
 /** Shape shared by API errors (`error`), action results (`message`) and download failures. */
 export interface ServerMessage {
@@ -20,10 +21,27 @@ function lookupLocales(): string[] {
 }
 
 /**
+ * Whether `key`'s line in `locale` names a parameter `params` does not carry.
+ *
+ * vue-i18n renders a missing parameter as nothing, so such a line has a hole where the cause
+ * belongs. A LinkGrabber row stores a failure's code and English text but not its parameters,
+ * and a yt-dlp failure read "yt-dlp fehlgeschlagen: " with nothing after the colon
+ * (RD-1240-37).
+ */
+function lacksParams(key: string, locale: string, params: Record<string, string>, counted: boolean): boolean {
+  const line = messageResolver(i18n.global.getLocaleMessage(locale as never), key)
+  if (typeof line !== 'string') return false
+  return [...line.matchAll(/\{\s*([A-Za-z_]\w*)\s*\}/g)]
+    .map(match => match[1] ?? '')
+    .some(name => params[name] === undefined && !(counted && name === 'n'))
+}
+
+/**
  * Translates a coded server message: known codes come from `server.codes.<code>` in the
  * active language, then in English (with the flat `params` interpolated); unknown codes
  * fall back to the English text the server sent, and a missing text falls back to a
- * generic error.
+ * generic error. A known code whose line needs a parameter the message did not bring also
+ * shows the server's text, which carries it, rather than a sentence with a hole.
  */
 export function translateServerMessage(value: ServerMessage | string | null | undefined): string {
   const { t, te } = i18n.global
@@ -40,7 +58,11 @@ export function translateServerMessage(value: ServerMessage | string | null | un
       const capability = params.capability ? `server.capabilities.${params.capability}` : null
       if (capability && te(capability)) params.capability = t(capability)
       const count = Number(params.count)
-      return Number.isFinite(count) && params.count !== undefined
+      const counted = Number.isFinite(count) && params.count !== undefined
+      if (value.message && value.message !== value.code && lacksParams(key, locale, params, counted)) {
+        return value.message
+      }
+      return counted
         ? t(key, count, { named: params, locale })
         : t(key, params, { locale })
     }

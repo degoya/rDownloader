@@ -295,13 +295,15 @@ rd_crate_code_mentions() {
     fi
     strings=("$@")
     [[ ${#directories[@]} -gt 0 && ${#strings[@]} -gt 0 ]] || return 0
+    # The strings reach awk as a file, the first of its two: in the environment, a few hundred
+    # changed paths were one value over the kernel's limit and awk did not start (E2BIG).
     grep -rHF --include='*.rs' -f <(printf '%s\n' "${strings[@]}") "${directories[@]}" 2> /dev/null \
-        | RD_MENTION_STRINGS="$(printf '%s\n' "${strings[@]}")" awk '
-            BEGIN { count = split(ENVIRON["RD_MENTION_STRINGS"], wanted, "\n") }
+        | awk '
+            NR == FNR { wanted[++count] = $0; next }
             {
                 file = $0; sub(/:.*/, "", file)
                 line = substr($0, length(file) + 2)
                 if (line ~ /^[[:space:]]*\/\//) next
                 for (i = 1; i <= count; i++) if (wanted[i] != "" && index(line, wanted[i])) print file ":" wanted[i]
-            }' || true
+            }' <(printf '%s\n' "${strings[@]}") - || true
 }

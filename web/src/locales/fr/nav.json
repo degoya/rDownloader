@@ -15,13 +15,15 @@
   "audit": "Audit",
   "search": {
     "button": "Rechercher",
-    "placeholder": "Rechercher des paramètres et des vues…",
+    "placeholder": "Rechercher des paramètres, des vues et la file…",
     "title": "Recherche",
-    "description": "Trouver n'importe quel paramètre et ouvrir n'importe quelle vue.",
+    "description": "Trouver n’importe quel paramètre, ouvrir n’importe quelle vue et trouver des paquets et des fichiers de la file.",
     "groups": {
       "views": "Aller à",
       "pages": "Pages de paramètres",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "packages": "Paquets",
+      "downloads": "Téléchargements"
     },
     "keywords": {
       "desktop": "barre des tâches, agent de bureau, extension du navigateur, appairer",
@@ -66,7 +68,9 @@
       "active_files": "téléchargements parallèles, simultanés, en même temps, file d’attente",
       "collision": "collision, conflit de noms, écraser, renommer",
       "linkgrabber": "liste de blocage, domaines exclus, miroirs, conteneur",
-      "desktop_agent": "raccourci, touche, clavier, presse-papiers, pause, agent de capture"
+      "desktop_agent": "raccourci, touche, clavier, presse-papiers, pause, agent de capture",
+      "link_filters": "filtre, filtre de liens, masquer, règles",
+      "download_window": "plage de téléchargement, plage horaire, télécharger la nuit, heure de début, mettre les téléchargements en pause, pause en journée"
     }
   },
   "connection": {

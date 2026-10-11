@@ -9,8 +9,10 @@ import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
+import { usePackageDownloadWindow } from '@/composables/usePackageDownloadWindow'
+import { usePackageStartAfter } from '@/composables/usePackageStartAfter'
 import { useStopMark } from '@/composables/useStopMark'
-import { formatByteProgress, formatDuration, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
+import { formatByteProgress, formatDuration, formatMoment, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
@@ -229,7 +231,8 @@ const failedLabel = computed(() =>
  * row's width: it acts on every file at once and it is the one somebody reaches for while the
  * package is running. The rest are deliberate acts that can afford a menu, and they keep the
  * labels they carried as `aria-label`s. The file rows below have worked this way since RD-106-12
- * — one dropdown, no loose icons — so the header now reads like its own children.
+ * — one dropdown, no loose icons — so the header now reads like its own children. A right-click
+ * on the header opens the same entries (`UContextMenu`, RD-1240-14).
  */
 /**
  * The accounts the package's NZB can go to, under a heading of their own (RD-191-13): offered in
@@ -248,6 +251,10 @@ const handOverActions = computed(() => props.package.nzb_import_id && props.remo
   : [])
 /** The queue's stop mark on the whole package (RD-1210-02): its glyph and its menu entry. */
 const { marked: stopMarked, items: stopMarkItems } = useStopMark('package', () => props.package.id, () => props.complete)
+/** The package's "not before" (RD-1240-14): its glyph while it lies ahead, and its menu entries. */
+const { pending: startAfter, items: startAfterItems } = usePackageStartAfter(() => props.package, () => props.complete)
+/** Its download window (RD-1240-30): a glyph while one applies, and its menu entry. */
+const { glyph: windowGlyph, items: windowItems } = usePackageDownloadWindow(() => props.package, () => props.categories, () => props.complete)
 const actions = computed(() => [[
   {
     label: t('downloads.package.copy_path_aria'),
@@ -281,7 +288,9 @@ const actions = computed(() => [[
         onSelect: () => emit('resetFailed', props.package.id)
       }]
     : []),
-  ...stopMarkItems.value
+  ...stopMarkItems.value,
+  ...startAfterItems.value,
+  ...windowItems.value
 ], [
   { label: t('common.actions.copy_links'), icon: 'i-lucide-link', onSelect: () => emit('copyLinks', props.package.id) },
   { label: t('common.export.action'), icon: 'i-lucide-file-down', onSelect: () => emit('export', props.package.id) },
@@ -334,97 +343,105 @@ function controlPackage(): void {
     @dragover.prevent
     @drop.prevent="emit('drop', props.package.id)"
   >
-    <header class="queue-row px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
-      <DragHandle
-        class="queue-cell-handle grid place-items-center"
-        :label="dragTitle"
-        @dragstart="emit('dragstart', props.package.id)"
-        @move="(delta: -1 | 1) => emit('move', props.package.id, delta)"
-      />
-      <UCheckbox class="queue-cell-select justify-self-center" :model-value="props.selection === 'all' ? true : props.selection === 'some' ? 'indeterminate' : false" :aria-label="t('downloads.package.select_aria')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.package.id, value === true)" />
-      <UButton class="queue-cell-expand" :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('downloads.package.hide_files') : t('downloads.package.show_files')" @click="emit('toggle', props.package.id)" />
-      <div class="queue-cell-name flex min-w-0 items-center gap-2 overflow-hidden">
-        <h3 class="min-w-0 truncate text-sm font-semibold text-highlighted" :title="props.package.name">{{ props.package.name }}</h3>
-        <!-- The row's states are glyphs with their word in a tooltip and as the accessible name:
-             a word per state pushed past the name cell into the count beside it. -->
-        <UTooltip v-if="stopMarked" :text="t('downloads.stop_mark.glyph_title')">
-          <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="shrink-0" role="img" :aria-label="t('downloads.stop_mark.glyph')" data-testid="stop-mark" />
-        </UTooltip>
-        <UTooltip v-if="usenet" :text="t('downloads.package.usenet')">
-          <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-newspaper" class="shrink-0" :aria-label="t('downloads.package.usenet')" data-testid="package-usenet" />
-        </UTooltip>
-        <span v-if="showPassword" class="flex shrink-0 items-center gap-1 text-warning" :title="t('downloads.package.password_stored')">
-          <UIcon name="i-lucide-key-round" class="size-4" />
-          <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
+    <UContextMenu :items="actions">
+      <header class="queue-row px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
+        <DragHandle
+          class="queue-cell-handle grid place-items-center"
+          :label="dragTitle"
+          @dragstart="emit('dragstart', props.package.id)"
+          @move="(delta: -1 | 1) => emit('move', props.package.id, delta)"
+        />
+        <UCheckbox class="queue-cell-select justify-self-center" :model-value="props.selection === 'all' ? true : props.selection === 'some' ? 'indeterminate' : false" :aria-label="t('downloads.package.select_aria')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.package.id, value === true)" />
+        <UButton class="queue-cell-expand" :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('downloads.package.hide_files') : t('downloads.package.show_files')" @click="emit('toggle', props.package.id)" />
+        <div class="queue-cell-name flex min-w-0 items-center gap-2 overflow-hidden">
+          <h3 class="min-w-0 truncate text-sm font-semibold text-highlighted" :title="props.package.name">{{ props.package.name }}</h3>
+          <!-- The row's states are glyphs with their word in a tooltip and as the accessible name:
+               a word per state pushed past the name cell into the count beside it. -->
+          <UTooltip v-if="stopMarked" :text="t('downloads.stop_mark.glyph_title')">
+            <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="shrink-0" role="img" :aria-label="t('downloads.stop_mark.glyph')" data-testid="stop-mark" />
+          </UTooltip>
+          <UTooltip v-if="startAfter" :text="t('downloads.start_after.glyph_title', { time: formatMoment(startAfter) })">
+            <UBadge color="info" variant="subtle" size="sm" icon="i-lucide-alarm-clock" class="shrink-0" role="img" :aria-label="t('downloads.start_after.glyph')" data-testid="start-after" />
+          </UTooltip>
+          <UTooltip v-if="windowGlyph" :text="windowGlyph.title">
+            <UBadge :color="windowGlyph.closed ? 'warning' : 'neutral'" variant="subtle" size="sm" icon="i-lucide-calendar-clock" class="shrink-0" role="img" :aria-label="t('downloads.window.glyph')" data-testid="download-window" />
+          </UTooltip>
+          <UTooltip v-if="usenet" :text="t('downloads.package.usenet')">
+            <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-newspaper" class="shrink-0" :aria-label="t('downloads.package.usenet')" data-testid="package-usenet" />
+          </UTooltip>
+          <span v-if="showPassword" class="flex shrink-0 items-center gap-1 text-warning" :title="t('downloads.package.password_stored')">
+            <UIcon name="i-lucide-key-round" class="size-4" />
+            <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
+          </span>
+          <UBadge v-if="postprocessing" color="primary" variant="subtle" size="sm" class="numeric shrink-0" :title="props.package.postprocess?.current ?? undefined">{{ stageBadge || t('downloads.postprocess.queue.pending') }}</UBadge>
+          <!-- A failure is where the reader wants the reason, so the badge opens the steps that
+               carry it — the same panel as the menu's entry (RD-191-11). -->
+          <UTooltip v-else-if="postprocessFailed" :text="failedLabel">
+            <UButton
+              color="error"
+              variant="subtle"
+              size="xs"
+              icon="i-lucide-triangle-alert"
+              class="shrink-0"
+              :aria-label="failedLabel"
+              :aria-expanded="showSteps"
+              data-testid="postprocess-failed"
+              @click="toggleSteps"
+            />
+          </UTooltip>
+          <!-- Finished and unpacked are unambiguous enough to be glyphs; the word each dropped
+               stays on the badge as its accessible name (RD-109-30). -->
+          <UBadge v-else-if="props.complete" color="success" variant="subtle" size="sm" icon="i-lucide-circle-check" class="shrink-0" :aria-label="t('downloads.package.complete')" :title="t('downloads.package.complete_title')" />
+          <UTooltip v-else-if="waitingForParts" :text="t('downloads.package.waiting_for_parts_title')">
+            <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-hourglass" class="shrink-0" :aria-label="t('downloads.package.waiting_for_parts')" data-testid="waiting-for-parts" />
+          </UTooltip>
+          <UBadge v-if="!postprocessing && extraction === 'success'" color="success" variant="outline" size="sm" icon="i-lucide-package-open" class="shrink-0" :aria-label="t('downloads.package.extracted')" :title="t('downloads.package.extracted_title')" />
+          <!-- Handed to a provider (RD-191-13), as an NZB row in the LinkGrabber says it; the badge
+               leads to where the job can be watched. -->
+          <UTooltip v-if="props.handedOverTo" :text="`${t('downloads.package.handed_over', { provider: props.handedOverTo })} — ${t('downloads.package.handed_over_hint')}`">
+            <UButton
+              :to="{ name: 'remote-jobs' }"
+              icon="i-lucide-cloud"
+              color="info"
+              variant="subtle"
+              size="xs"
+              class="shrink-0"
+              :aria-label="t('downloads.package.handed_over', { provider: props.handedOverTo })"
+              data-testid="package-handed-over"
+            />
+          </UTooltip>
+        </div>
+        <span class="queue-cell-state numeric truncate text-xs text-muted" :title="t('downloads.package.finished_title', { finished, total: props.downloads.length })">
+          {{ finished }}/{{ props.downloads.length }}
+          <span v-if="activeCount" class="text-primary"> · {{ t('downloads.package.active_count', { count: activeCount }) }}</span>
+          <span v-if="errorCount" class="text-error"> · {{ t('downloads.package.error_count', { count: errorCount }, errorCount) }}</span>
         </span>
-        <UBadge v-if="postprocessing" color="primary" variant="subtle" size="sm" class="numeric shrink-0" :title="props.package.postprocess?.current ?? undefined">{{ stageBadge || t('downloads.postprocess.queue.pending') }}</UBadge>
-        <!-- A failure is where the reader wants the reason, so the badge opens the steps that
-             carry it — the same panel as the menu's entry (RD-191-11). -->
-        <UTooltip v-else-if="postprocessFailed" :text="failedLabel">
-          <UButton
-            color="error"
-            variant="subtle"
-            size="xs"
-            icon="i-lucide-triangle-alert"
-            class="shrink-0"
-            :aria-label="failedLabel"
-            :aria-expanded="showSteps"
-            data-testid="postprocess-failed"
-            @click="toggleSteps"
-          />
-        </UTooltip>
-        <!-- Finished and unpacked are unambiguous enough to be glyphs; the word each dropped
-             stays on the badge as its accessible name (RD-109-30). -->
-        <UBadge v-else-if="props.complete" color="success" variant="subtle" size="sm" icon="i-lucide-circle-check" class="shrink-0" :aria-label="t('downloads.package.complete')" :title="t('downloads.package.complete_title')" />
-        <UTooltip v-else-if="waitingForParts" :text="t('downloads.package.waiting_for_parts_title')">
-          <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-hourglass" class="shrink-0" :aria-label="t('downloads.package.waiting_for_parts')" data-testid="waiting-for-parts" />
-        </UTooltip>
-        <UBadge v-if="!postprocessing && extraction === 'success'" color="success" variant="outline" size="sm" icon="i-lucide-package-open" class="shrink-0" :aria-label="t('downloads.package.extracted')" :title="t('downloads.package.extracted_title')" />
-        <!-- Handed to a provider (RD-191-13), as an NZB row in the LinkGrabber says it; the badge
-             leads to where the job can be watched. -->
-        <UTooltip v-if="props.handedOverTo" :text="`${t('downloads.package.handed_over', { provider: props.handedOverTo })} — ${t('downloads.package.handed_over_hint')}`">
-          <UButton
-            :to="{ name: 'remote-jobs' }"
-            icon="i-lucide-cloud"
-            color="info"
-            variant="subtle"
-            size="xs"
-            class="shrink-0"
-            :aria-label="t('downloads.package.handed_over', { provider: props.handedOverTo })"
-            data-testid="package-handed-over"
-          />
-        </UTooltip>
-      </div>
-      <span class="queue-cell-state numeric truncate text-xs text-muted" :title="t('downloads.package.finished_title', { finished, total: props.downloads.length })">
-        {{ finished }}/{{ props.downloads.length }}
-        <span v-if="activeCount" class="text-primary"> · {{ t('downloads.package.active_count', { count: activeCount }) }}</span>
-        <span v-if="errorCount" class="text-error"> · {{ t('downloads.package.error_count', { count: errorCount }, errorCount) }}</span>
-      </span>
-      <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
-      <div class="queue-cell-progress items-center gap-2">
-        <UProgress :model-value="progress" size="xs" class="flex-1" :color="postprocessFailed ? 'error' : 'primary'" />
-        <span v-if="progress < 100" class="numeric w-9 text-right text-2xs text-toned">{{ progress }}%</span>
-      </div>
-      <span class="queue-cell-size min-w-0 text-right">
-        <span class="numeric block truncate text-xs text-muted">{{ formatByteProgress(committed, total) }}</span>
-        <span v-if="props.packageRate > 0" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.package.rate_aria', { rate: formatRate(props.packageRate) })">{{ formatRate(props.packageRate) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.package.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
-      </span>
-      <div class="queue-cell-meta min-w-0 items-center gap-1">
-        <!-- The category stays editable after the download: changing it moves the package's
-             data into the new folder. The priority is history once everything is here. The
-             select may shrink with a narrowed column (RD-191-11). -->
-        <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36 min-w-0" :aria-label="t('downloads.package.category_aria')" />
-        <UDropdownMenu v-if="!props.complete" :items="priorityActions" :content="{ align: 'end' }">
-          <UButton :icon="PRIORITY_ICONS[props.package.priority]" size="xs" color="neutral" variant="ghost" :aria-label="priorityLabel" :title="priorityLabel" />
-        </UDropdownMenu>
-      </div>
-      <div class="queue-cell-actions flex items-center justify-end">
-        <UButton v-if="packageControl" :icon="packageControl === 'pause' ? 'i-lucide-pause' : 'i-lucide-play'" size="xs" :color="packageControl === 'resume' ? 'primary' : 'neutral'" variant="ghost" :aria-label="packageControl === 'pause' ? t('downloads.package.pause_all_aria') : t('downloads.package.resume_all_aria')" :title="packageControl === 'pause' ? t('downloads.package.pause_title') : t('downloads.package.resume_title')" :disabled="props.controlBusy !== null" :loading="props.controlBusy !== null" @click="controlPackage" />
-        <UDropdownMenu :items="actions" :content="{ align: 'end' }">
-          <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.package.actions_aria')" :title="t('downloads.package.actions_aria')" />
-        </UDropdownMenu>
-      </div>
-    </header>
+        <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
+        <div class="queue-cell-progress items-center gap-2">
+          <UProgress :model-value="progress" size="xs" class="flex-1" :color="postprocessFailed ? 'error' : 'primary'" />
+          <span v-if="progress < 100" class="numeric w-9 text-right text-2xs text-toned">{{ progress }}%</span>
+        </div>
+        <span class="queue-cell-size min-w-0 text-right">
+          <span class="numeric block truncate text-xs text-muted">{{ formatByteProgress(committed, total) }}</span>
+          <span v-if="props.packageRate > 0" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.package.rate_aria', { rate: formatRate(props.packageRate) })">{{ formatRate(props.packageRate) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.package.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
+        </span>
+        <div class="queue-cell-meta min-w-0 items-center gap-1">
+          <!-- The category stays editable after the download: changing it moves the package's
+               data into the new folder. The priority is history once everything is here. The
+               select may shrink with a narrowed column (RD-191-11). -->
+          <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36 min-w-0" :aria-label="t('downloads.package.category_aria')" />
+          <UDropdownMenu v-if="!props.complete" :items="priorityActions" :content="{ align: 'end' }">
+            <UButton :icon="PRIORITY_ICONS[props.package.priority]" size="xs" color="neutral" variant="ghost" :aria-label="priorityLabel" :title="priorityLabel" />
+          </UDropdownMenu>
+        </div>
+        <div class="queue-cell-actions flex items-center justify-end">
+          <UButton v-if="packageControl" :icon="packageControl === 'pause' ? 'i-lucide-pause' : 'i-lucide-play'" size="xs" :color="packageControl === 'resume' ? 'primary' : 'neutral'" variant="ghost" :aria-label="packageControl === 'pause' ? t('downloads.package.pause_all_aria') : t('downloads.package.resume_all_aria')" :title="packageControl === 'pause' ? t('downloads.package.pause_title') : t('downloads.package.resume_title')" :disabled="props.controlBusy !== null" :loading="props.controlBusy !== null" @click="controlPackage" />
+          <UDropdownMenu :items="actions" :content="{ align: 'end' }">
+            <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.package.actions_aria')" :title="t('downloads.package.actions_aria')" />
+          </UDropdownMenu>
+        </div>
+      </header>
+    </UContextMenu>
     <div v-if="enrichment.length && !props.hideMetadata" class="flex flex-wrap items-center gap-2 border-b border-muted px-3 py-1.5">
       <EnrichmentChips :fields="enrichment" />
     </div>

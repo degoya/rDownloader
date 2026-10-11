@@ -6,6 +6,7 @@ import { api, resultMessage, responseError } from '@/api/client'
 import { listCollisionPolicies, setCategoryCollisionPolicy, type CollisionPolicy } from '@/api/storage'
 import type { Category, CreateCategory, PackageNameRegex, PackageNameRulesOverride, SortTemplates, StorageRoot } from '@/api/types'
 import DataState from '@/components/DataState.vue'
+import DownloadWindowEditor from '@/components/DownloadWindowEditor.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import RoutingCategoryColor from '@/components/routing/RoutingCategoryColor.vue'
@@ -16,6 +17,7 @@ import RoutingCategorySorting from '@/components/routing/RoutingCategorySorting.
 import {
   categoryPostprocessBody, sortingBody, sortingForm, useCategoryForm, type SortingForm
 } from '@/composables/useCategoryForm'
+import { useCategoryDownloadWindow } from '@/composables/useCategoryDownloadWindow'
 import { useCategoryGroups } from '@/composables/useCategoryGroups'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
@@ -85,6 +87,8 @@ const packageNamesStored = ref<PackageNameRulesOverride | null>(null)
 /** The category's own regex pairs; `null` inherits the global list, as stored for both. */
 const packageRegex = ref<PackageNameRegex[] | null>(null)
 const packageRegexStored = ref<PackageNameRegex[] | null>(null)
+/** The download window of the category's packages (RD-1240-30), on its own route. */
+const { draft: windowDraft, reset: resetWindow, fill: fillWindow, change: windowChange, save: saveWindow } = useCategoryDownloadWindow()
 
 async function loadCollisionPolicies(): Promise<void> {
   const answer = await listCollisionPolicies()
@@ -171,6 +175,7 @@ const list = useEditableList<Category, CreateCategory>({
     packageNamesStored.value = null
     packageRegex.value = null
     packageRegexStored.value = null
+    resetWindow()
   },
   confirmDelete: category => ({
     title: t('routing.category.delete_title'),
@@ -222,6 +227,7 @@ async function submit(): Promise<void> {
     regex: packageRegex.value,
     stored: packageNamesStored.value !== null || packageRegexStored.value !== null
   }
+  const windowWanted = windowChange()
   const saved = await list.submit({
     ...form,
     cleanup_extensions: cleanupOverride.value ? [...cleanupExtensions.value] : null
@@ -240,6 +246,8 @@ async function submit(): Promise<void> {
     ? categories.value.map(item => (item.id === current.id ? current : item))
     : categories.value
   categories.value = applyDefault(rows, current)
+  const windowFailure = await saveWindow(current.id, windowWanted, categories)
+  if (windowFailure) error.value = windowFailure
   openRootOf(current)
   message.value = updating ? t('routing.category.updated') : t('routing.category.created')
 }
@@ -259,6 +267,7 @@ function edit(category: Category): void {
   packageNamesStored.value = category.package_name_rules ?? null
   packageRegex.value = category.package_name_regex ? [...category.package_name_regex] : null
   packageRegexStored.value = category.package_name_regex ?? null
+  fillWindow(category)
   openRootOf(category)
   collisionPolicy.value = collisionPolicies.value[category.id] ?? null
   void focusForm()
@@ -307,6 +316,8 @@ async function duplicate(category: Category): Promise<void> {
   }
   duplicatingId.value = null
   categories.value = [...categories.value, copy]
+  error.value = await saveWindow(copy.id, { window: category.download_window ?? null, before: null }, categories) ?? error.value
+  copy = categories.value.find(item => item.id === copy.id) ?? copy
   const failure = error.value
   edit(copy)
   // `edit` clears the message and the error; a step that did not carry over must stay said.
@@ -336,7 +347,9 @@ async function remove(category: Category): Promise<void> {
           class="mb-4"
         />
         <FormFeedback class="mb-3" :error="error" :message="message" />
-        <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
+        <!-- One track that may shrink below its content: a long storage-root path otherwise sets the
+             form's width and cuts the fields off on a phone (RD-1240-33). -->
+        <form ref="formElement" class="grid grid-cols-[minmax(0,1fr)] gap-3" @submit.prevent="submit">
           <UFormField required :label="t('routing.category.name_label')" :description="t('routing.category.name_description')">
             <UInput v-model="form.name" required maxlength="100" class="w-full" :placeholder="t('routing.category.name_placeholder')" />
           </UFormField>
@@ -410,6 +423,7 @@ async function remove(category: Category): Promise<void> {
           <RoutingCategorySorting v-if="sortingOn" v-model="sorting" />
           <RoutingCategoryPackageNames v-model="packageNames" v-model:regex="packageRegex" />
           <RoutingCategoryPluginSteps v-model:override="pluginStepsOverride" v-model:step-ids="pluginStepIds" />
+          <DownloadWindowEditor v-model="windowDraft" data-settings-anchor="routing.category_download_window" :label="t('routing.category.download_window_label')" :description="t('routing.category.download_window_description')" />
           <FormActions
             :editing="editingId !== null"
             :create-label="t('routing.category.create')"

@@ -14,7 +14,8 @@ import type { QueueSort, QueueSortColumn } from '@/composables/useQueueSort'
  * `UTable`, so the handle is a small element of its own with the separator semantics a screen
  * reader and a keyboard need: the arrow keys move the edge (left widens, as a drag to the left
  * does), Shift moves it further, Enter and a double click put the column back. The widths
- * themselves belong to `useQueueColumns`; this only reports what was asked for.
+ * themselves belong to `useQueueColumns`; this only reports what was asked for. The same menu
+ * switches each column the list fills on or off (RD-1240-14), as checkbox items that keep it open.
  *
  * The two lists share the grid, not what is in it, so each names its own cells: a LinkGrabber
  * link has its link state where a download has its state, the hoster or variant where a
@@ -29,6 +30,8 @@ const props = defineProps<{
   gutter?: boolean
   /** Any column off its default; enables "reset all". */
   customized?: boolean
+  /** The columns switched off; their cells are hidden by the container (`useQueueColumns`). */
+  hidden?: readonly QueueColumn[]
   /**
    * The labels sort the list for the eye (RD-1190-16): `null` while the queue order is shown.
    * Left out, the labels are plain text.
@@ -40,6 +43,8 @@ const emit = defineEmits<{
   resize: [column: QueueColumn, width: number]
   reset: [column: QueueColumn]
   resetAll: []
+  /** A column was switched on or off in the menu. */
+  visibility: [column: QueueColumn, visible: boolean]
   /** A label was clicked: sort by it, turn the direction, or go back to the queue order. */
   sort: [column: QueueSortColumn]
 }>()
@@ -142,6 +147,17 @@ function onKeydown(column: QueueColumn, event: KeyboardEvent): void {
 }
 
 const menu = computed(() => [[
+  { type: 'label' as const, label: t('common.queue_columns.shown') },
+  ...QUEUE_VIEW_COLUMNS[props.view].map(column => ({
+    type: 'checkbox' as const,
+    label: labels.value[column],
+    checked: !props.hidden?.includes(column),
+    'data-column-toggle': column,
+    onUpdateChecked: (checked: boolean) => emit('visibility', column, checked),
+    // The menu stays open, so several columns can be switched in one go.
+    onSelect: (event?: Event) => event?.preventDefault()
+  }))
+], [
   { label: t('common.queue_columns.reset_all'), icon: 'i-lucide-rotate-ccw', disabled: !props.customized, onSelect: () => emit('resetAll') }
 ]])
 </script>

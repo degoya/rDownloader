@@ -8,13 +8,18 @@
 
 mod condition;
 mod model;
+mod schedule;
 
 pub use condition::{ConditionError, ConditionNode, EventContext, Field, Operator, Predicate};
 pub use model::{
-    Action, Automation, AutomationVersion, DefinitionError, MAX_ACTIONS, MAX_CONDITION_DEPTH, Run,
-    RunState, Trigger, is_script_name, validate, validate_condition,
+    Action, Automation, AutomationVersion, DefinitionError, LinkDestination, MAX_ACTION_LINKS,
+    MAX_ACTIONS, MAX_CONDITION_DEPTH, MAX_LINK_LEN, MAX_NOTIFY_MESSAGE, Run, RunState, Trigger,
+    is_script_name, validate, validate_condition, validate_trigger,
 };
 pub use rd_notify::{MAX_ATTEMPTS, backoff, next_attempt_at};
+pub use schedule::{
+    GRACE_SECONDS, MAX_CRON_LEN, MAX_INTERVAL_MINUTES, Schedule, ScheduleError, Slot,
+};
 
 /// Builds the idempotency key of a run.
 ///
@@ -28,6 +33,16 @@ pub fn idempotency_key(
     event_id: &rd_core::EventId,
 ) -> String {
     format!("{version_id}:{event_id}")
+}
+
+/// Builds the idempotency key of a scheduled run (RD-1240-10).
+///
+/// Keyed on the *automation* and the slot's wall-clock name rather than the version: a slot
+/// runs once, whether the service restarted inside its window or the automation was saved
+/// again in the same minute. The key is in the run table, so it holds across a restart.
+#[must_use]
+pub fn schedule_key(automation_id: rd_core::AutomationId, slot: &Slot) -> String {
+    format!("{automation_id}:schedule:{}", slot.label())
 }
 
 #[cfg(test)]
@@ -256,6 +271,152 @@ mod tests {
                 name: "notify.sh".to_owned()
             }
         );
+    }
+
+    #[test]
+    fn a_time_trigger_needs_a_schedule_and_no_package_action() {
+        use super::{Schedule, validate_trigger};
+        let now = chrono::Utc::now();
+        let hourly = Schedule::Interval { minutes: 60 };
+        let start = [Action::StartQueue];
+        assert!(
+            validate_trigger(Trigger::Schedule, Some(&hourly), &start, now, &chrono::Utc).is_ok()
+        );
+        let refused = |schedule: Option<&Schedule>, actions: &[Action]| {
+            validate_trigger(Trigger::Schedule, schedule, actions, now, &chrono::Utc)
+                .map_err(|error| error.code())
+        };
+        assert_eq!(refused(None, &start), Err("automation.schedule_invalid"));
+        let never = Schedule::Cron {
+            expression: "0 0 30 2 *".to_owned(),
+        };
+        assert_eq!(
+            refused(Some(&never), &start),
+            Err("automation.schedule_invalid")
+        );
+        // A clock names no package, so an action on "the package" has nothing to act on.
+        assert_eq!(
+            refused(Some(&hourly), &[Action::ExtractPackage]),
+            Err("automation.action_needs_package")
+        );
+        // Links into the LinkGrabber on its own intake would fire again on every batch.
+        let grab = [Action::AddLinks {
+            links: vec!["https://example.com/".to_owned()],
+            destination: super::LinkDestination::LinkGrabber,
+        }];
+        assert_eq!(
+            validate_trigger(Trigger::IntakeReceived, None, &grab, now, &chrono::Utc)
+                .map_err(|error| error.code()),
+            Err("automation.links_loop")
+        );
+        // Every other trigger ignores the schedule question altogether.
+        assert!(
+            validate_trigger(
+                Trigger::PackageCompleted,
+                None,
+                &[Action::ExtractPackage],
+                now,
+                &chrono::Utc
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn the_new_actions_are_checked_before_they_are_stored() {
+        use super::{LinkDestination, MAX_ACTION_LINKS};
+        let target = rd_core::NotificationTargetId::new();
+        let code = |action: Action| {
+            validate("Name", &ConditionNode::Always, &[action]).map_err(|error| error.code())
+        };
+        let notify = |message: &str| Action::Notify {
+            target_id: target,
+            message: message.to_owned(),
+        };
+        assert!(code(notify("Night queue started")).is_ok());
+        assert_eq!(code(notify("  ")), Err("automation.notify_message_invalid"));
+        assert_eq!(
+            code(notify(&"x".repeat(501))),
+            Err("automation.notify_message_invalid")
+        );
+        let links = |links: &[&str], destination| Action::AddLinks {
+            links: links.iter().map(|link| (*link).to_owned()).collect(),
+            destination,
+        };
+        assert!(
+            code(links(
+                &["https://example.com/a.zip"],
+                LinkDestination::Downloads
+            ))
+            .is_ok()
+        );
+        assert!(
+            code(links(
+                &["magnet:?xt=urn:btih:abc"],
+                LinkDestination::LinkGrabber
+            ))
+            .is_ok()
+        );
+        // The downloads take HTTP(S) directly; anything else goes through the LinkGrabber.
+        assert_eq!(
+            code(links(
+                &["magnet:?xt=urn:btih:abc"],
+                LinkDestination::Downloads
+            )),
+            Err("automation.links_invalid")
+        );
+        assert_eq!(
+            code(links(&["not a link"], LinkDestination::LinkGrabber)),
+            Err("automation.links_invalid")
+        );
+        assert_eq!(
+            code(links(&[], LinkDestination::LinkGrabber)),
+            Err("automation.links_invalid")
+        );
+        let many = vec!["https://example.com/"; MAX_ACTION_LINKS + 1];
+        assert_eq!(
+            code(links(&many, LinkDestination::LinkGrabber)),
+            Err("automation.links_invalid")
+        );
+    }
+
+    #[test]
+    fn the_vocabulary_names_every_action_kind() {
+        let target = rd_core::NotificationTargetId::new();
+        let every = [
+            Action::Webhook { target_id: target },
+            Action::Script {
+                name: "x.sh".to_owned(),
+            },
+            Action::SetCategory {
+                category_id: rd_core::CategoryId::new(),
+            },
+            Action::PausePackage,
+            Action::ResumePackage,
+            Action::SetPriority {
+                priority: rd_core::DownloadPriority::High,
+            },
+            Action::PauseQueue,
+            Action::StartQueue,
+            Action::ExtractPackage,
+            Action::Notify {
+                target_id: target,
+                message: "m".to_owned(),
+            },
+            Action::AddLinks {
+                links: Vec::new(),
+                destination: super::LinkDestination::Downloads,
+            },
+        ];
+        let kinds: Vec<&str> = every.iter().map(Action::kind).collect();
+        assert_eq!(kinds, Action::KINDS);
+        for action in &every {
+            // The kind is the wire tag, so an export carries the variant a re-import reads.
+            let value = serde_json::to_value(action).expect("serialize");
+            assert_eq!(value["kind"], action.kind());
+            let back: Action = serde_json::from_value(value).expect("deserialize");
+            assert_eq!(&back, action);
+        }
     }
 
     #[test]

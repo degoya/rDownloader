@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { BASE_PATH } from '@/basePath'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { useLatestFetch } from '@/composables/useLatestFetch'
 import type { components } from '@/api/schema'
@@ -16,6 +17,10 @@ const HISTORY_PAGE_SIZE = 50
 export const HISTORY_KINDS: readonly DownloadKind[] = [
   'http', 'usenet', 'torrent', 'media', 'gallery', 'record', 'ftp', 'sftp', 'plugin', 'object_storage'
 ]
+
+/** The two file formats of the export (RD-1240-14). */
+export const HISTORY_EXPORT_FORMATS = ['csv', 'ndjson'] as const
+export type HistoryExportFormat = typeof HISTORY_EXPORT_FORMATS[number]
 
 /** The time ranges the filter offers, counted back from now. */
 export const HISTORY_PERIODS = ['day', 'week', 'month', 'year'] as const
@@ -134,6 +139,16 @@ export const useHistoryStore = defineStore('history', () => {
     Object.assign(filters, emptyFilters())
   }
 
+  /** The export link for the filter currently set, so the file matches the list (RD-1240-14). */
+  function exportHref(format: HistoryExportFormat): string {
+    const params = new URLSearchParams({ format })
+    for (const [key, value] of Object.entries(query(0))) {
+      if (key === 'limit' || key === 'offset' || value === undefined) continue
+      params.set(key, String(value))
+    }
+    return `${BASE_PATH}/api/v1/history/export?${params.toString()}`
+  }
+
   return {
     filters,
     entries,
@@ -146,6 +161,7 @@ export const useHistoryStore = defineStore('history', () => {
     refresh,
     loadMore,
     readd,
-    clearFilters
+    clearFilters,
+    exportHref
   }
 })

@@ -94,10 +94,30 @@ fn an_update_is_keyed_by_its_version_and_a_plugin_update_by_plugin_and_version()
         update.key,
         "the version that checks does not make it a new notice"
     );
+    // RD-1240-27: before, after and failed are three notices of one version.
+    let installing = Notice::update_installing("1.9.1", "1.9.0");
+    assert_eq!(installing.event, NotificationEvent::UpdateAvailable);
+    assert_eq!(installing.key, "update_installing:1.9.1");
+    let installed = Notice::update_installed("1.9.1", "1.9.0");
+    assert_eq!(installed.event, NotificationEvent::UpdateInstalled);
+    assert_eq!(installed.key, "update_installed:1.9.1");
+    let failed = Notice::update_failed("1.9.1", "1.9.0", "update.health_timeout");
+    assert_eq!(failed.event, NotificationEvent::UpdateFailed);
+    assert_eq!(failed.key, "update_failed:1.9.1");
+    assert!(failed.body.contains("update.health_timeout") && failed.body.contains("1.9.0"));
     let plugin = Notice::plugin_update_available("rapidgator", "Rapidgator", "1.2.0", "1.3.0");
     assert_eq!(plugin.event, NotificationEvent::PluginUpdateAvailable);
     assert_eq!(plugin.key, "plugin_update_available:rapidgator:1.3.0");
     assert!(plugin.body.contains("1.2.0"));
+    // RD-1240-32: once per restart, by the moment it began.
+    let restarting =
+        Notice::service_restarting("2026-10-10T03:00:00+00:00", "Rapidgator 1.3.0", true);
+    assert_eq!(restarting.event, NotificationEvent::ServiceRestarting);
+    assert_eq!(
+        restarting.key,
+        "service_restarting:2026-10-10T03:00:00+00:00"
+    );
+    assert!(restarting.body.contains("Rapidgator 1.3.0") && restarting.body.contains("by itself"));
 }
 
 #[test]

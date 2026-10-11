@@ -172,6 +172,11 @@ pub(super) const PASSED_THROUGH_CHECK_CODES: &[&str] = &[
 ];
 
 pub(super) fn account_check_failed(failure: rd_core::Failure) -> ApiError {
+    // The account's stored password or token is there but the vault master key cannot open it:
+    // the same answer as every other route that met such an entry (RD-1240-36).
+    if failure.code.as_deref() == Some(rd_secrets::SECRET_UNREADABLE) {
+        return crate::error_codes::secret_unreadable();
+    }
     if let Some(code) = failure.code.as_deref().and_then(|code| {
         PASSED_THROUGH_CHECK_CODES
             .iter()

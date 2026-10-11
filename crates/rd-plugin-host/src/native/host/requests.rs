@@ -42,7 +42,12 @@ impl NativeHost {
             let Some(granted) = request.granted_secret.as_deref() else {
                 return Err(secret_target_not_allowed());
             };
-            secrets.set_granted(self.secrets.get(granted).await.map_err(super::permanent)?);
+            secrets.set_granted(
+                self.secrets
+                    .get(granted)
+                    .await
+                    .map_err(super::vault_failure)?,
+            );
         }
         for reference in references {
             let value = self.named_secret(identity, request, reference).await?;
@@ -100,7 +105,11 @@ impl NativeHost {
                     "Provider secret is missing",
                 )
             })?;
-            return self.secrets.get(&stored).await.map_err(super::permanent);
+            return self
+                .secrets
+                .get(&stored)
+                .await
+                .map_err(super::vault_failure);
         }
         // The renewal material of this account's own sign-in (RD-106-03).
         //
@@ -119,7 +128,11 @@ impl NativeHost {
             if !username_domain_allowed(&provider, mode, &request.url) {
                 return Err(secret_target_not_allowed());
             }
-            return self.secrets.get(&renewal).await.map_err(super::permanent);
+            return self
+                .secrets
+                .get(&renewal)
+                .await
+                .map_err(super::vault_failure);
         }
         if !reference_active_for_account(&provider, reference, mode)
             || !secret_domain_allowed(reference, &request.url)
@@ -144,7 +157,10 @@ impl NativeHost {
                 "Provider secret is missing",
             )
         })?;
-        self.secrets.get(&stored).await.map_err(super::permanent)
+        self.secrets
+            .get(&stored)
+            .await
+            .map_err(super::vault_failure)
     }
 
     /// This account's stored renewal reference, when `reference` is exactly it.
@@ -283,7 +299,11 @@ impl NativeHost {
                         "Proxy secret is missing",
                     )
                 })?;
-                let password = self.secrets.get(stored).await.map_err(super::permanent)?;
+                let password = self
+                    .secrets
+                    .get(stored)
+                    .await
+                    .map_err(super::vault_failure)?;
                 let username = proxy.username.clone().ok_or_else(|| {
                     Failure::coded(
                         FailureKind::Permanent,

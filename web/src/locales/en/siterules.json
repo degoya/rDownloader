@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Page recognition",
     "title": "Site rules",
-    "description": "Which release pages rDownloader recognises, and by which rule. The program brings only switched-off examples for free sites; import other rules from an export or write your own. Every rule here is yours to switch, edit, duplicate, export and remove."
+    "description": "Which release pages rDownloader recognises, and by which rule. The program brings only a few rules of its own, switched off; import other rules from an export or write your own. Every rule here is yours to switch, edit, duplicate, export and remove."
   },
   "groups": {
     "board": "Boards",
@@ -10,7 +10,10 @@
     "adult": "Adult",
     "ebooks": "E-books",
     "graphics": "Graphics",
-    "examples": "Examples"
+    "blender": "Blender",
+    "linux": "Linux",
+    "software": "Free software",
+    "archive": "Internet Archive"
   },
   "group_switch": "Switch the whole group",
   "rule_switch": "Switch this rule",
@@ -22,8 +25,9 @@
   },
   "list": {
     "title": "Rules",
-    "empty": "No rule is installed, so no release page is recognised by rule. Restore the examples for free sites, import a rule export or write a rule of your own.",
-    "group_off": "The group is switched off, so this rule is not consulted."
+    "empty": "No rule is installed, so no release page is recognised by rule. Restore the rules that come with rDownloader, import a rule export or write a rule of your own.",
+    "group_off": "The group is switched off, so this rule is not consulted.",
+    "more": "More actions"
   },
   "editor": {
     "eyebrow": "Own rule",
@@ -134,10 +138,7 @@
     "address_hint": "Empty: the rule's probe address."
   },
   "transfer": {
-    "export": "Export rules",
     "export_empty": "There is no rule to export.",
-    "import": "Import rules",
-    "import_hint": "Takes a rule export. Before anything is stored you see every rule: new, replacing one you have, or already here unchanged. Each rule arrives with the switch it had where it was exported.",
     "import_unreadable": "That file is not a rule export.",
     "imported": "Imported: {stored} new, {replaced} replaced, of {total} rules in the file.",
     "refused_one": "{name} was refused",
@@ -178,8 +179,8 @@
     "mcp_detail": "Written or changed by an MCP client",
     "unknown": "Origin unknown",
     "unknown_detail": "Stored before 1.20, or from the signed rule file of 1.20 to 1.22",
-    "example": "Example",
-    "example_detail": "One of the example rules for free sites that come with the program"
+    "example": "Bundled",
+    "example_detail": "Comes with rDownloader"
   },
   "import_dialog": {
     "title": "Import rules",
@@ -206,9 +207,24 @@
     "done": "{count} rules deleted."
   },
   "examples": {
-    "restore": "Restore examples",
-    "restore_hint": "Writes the example rules for free sites that come with the program again, switched off. An example rule you have stays as it is.",
-    "restored": "{count} example rules restored, switched off.",
-    "none_missing": "Every example rule is already here."
+    "restore": "Restore bundled rules",
+    "restore_hint": "Writes the rules that come with rDownloader again, switched off. One you have stays as it is.",
+    "restored": "{count} bundled rules restored, switched off.",
+    "none_missing": "Every bundled rule is already here."
+  },
+  "bundled": {
+    "debian-cd": "A one-stage rule. It claims the image folders of cdimage.debian.org, fetches the folder listing (fetch), takes every link that ends in .iso (regex with all: true, into links) and names the package after the first network installer it finds (package from regex). The site lists each image twice; the duplicate links collapse into one.",
+    "ubuntu-releases": "A one-stage rule like the Debian one, for releases.ubuntu.com: one release folder (24.04/, noble/ ...) becomes one package of its .iso images. The package name is read from the page title, cut before the code name in brackets.",
+    "blender-releases": "A two-stage rule (groups with pick). The folder of one Blender series lists every build for every platform, so the rule's own steps only collect the file names (regex with all: true, into files). groups.from turns each file into one entry, and pick reads its version, platform and format, so the LinkGrabber lists the builds to choose from before anything is fetched. Only the chosen entries run the group's steps: the entry itself is the link, joined to the folder's address, and its name without the extension is the package name.",
+    "blender-open-movies": "A two-stage rule for the folders of the Blender Foundation's open movies (Big Buck Bunny, Tears of Steel, Sintel). Each video file of the folder is one entry; pick reads its resolution and format, so you choose the version you want in the LinkGrabber. The chosen entry's link is the file itself; the package is named after the file without .zip.",
+    "fedora-releases": "A one-stage rule for the image folders of one Fedora release on the kernel.org mirror (dl.fedoraproject.org itself answers automated requests with a bot check). It fetches the folder listing, takes every link that ends in .iso (regex with all: true, into links), so the .manifest and CHECKSUM files stay out, and names the package after the CHECKSUM file: edition, release and architecture.",
+    "archlinux-iso": "A one-stage rule for Arch Linux's ISO folders on its own geo mirror, latest/ or one dated release. The folder lists the image twice, once dated and once as archlinux-x86_64.iso, so the pattern takes only the dated name (regex with all: true, into links) and the package is named after it; signatures, torrents and the bootstrap archives stay out.",
+    "linuxmint-releases": "A one-stage rule like the Debian one, for the release folders on pub.linuxmint.io: one version folder (22.3/ ...) becomes one package of its .iso images, Cinnamon, MATE and Xfce, and the checksum files stay out. The package is named after the first image, cut after the version.",
+    "libreoffice-stable": "A two-stage rule (groups with pick) for one platform folder of a stable LibreOffice release (win/x86_64/, deb/x86_64/, mac/aarch64/ ...). The folder holds the installer next to a help pack or language pack per language and the SDK, so the rule's steps only collect the file names (regex with all: true, into files), leaving the signatures and mirror lists out. pick reads version, part (helppack, langpack, sdk; none for the installer), language and format, so you choose in the LinkGrabber; the chosen entry is the link, and its name without the extension is the package name.",
+    "vlc-releases": "A two-stage rule for one platform folder of a VLC release on VideoLAN's download server (last/ or a version, then win64/, win32/, winarm64/ or macosx/). The folder offers the same build as installer, MSI, zip and 7z, so the rule's steps collect the file names (regex with all: true, into files), leaving the checksums, signatures and debug symbols out, and pick reads version, platform and format. The chosen entry is the link; its name without the extension is the package name.",
+    "archive-org-items": "A one-stage rule that turns an item page (archive.org/details/<item>) into one package of the item's files. It reads the item's name from the address (regex from url, into item), fetches the item page for its title, then the item's file list <item>_files.xml (it redirects to a storage node, hence *.archive.org) and takes every file the uploader put in (source=\"original\"; regex with all: true, into links). The archive's own derivatives, thumbnails and names starting with an underscore stay out; small item metadata files the archive lists as original come along. Last it fetches the item's download folder, so the file names become links below archive.org/download/<item>/. The package is named after the item's title. Items are anybody's uploads and an address says nothing about their licence: check it on the item page.",
+    "pastebin": "A one-stage rule for public pastes on pastebin.com, the paste page or its /raw/ form. It reads the paste's id from the address (regex from url, into id), fetches the paste page for its title, then the paste as plain text from /raw/<id> (into text), and takes every http or https address in the text (regex with all: true, into links); brackets, quotes and a trailing full stop or comma are not part of a link. The package is named after the paste's title.",
+    "rentry": "A one-stage rule for public pages on rentry.co and rentry.org. The raw text asks for an access code, so the rule reads the rendered page: it fetches it, cuts out the entry itself, the first <article> (regex, into text), and takes every http or https link in it (regex with all: true, into links), so the site's own navigation stays out. The package is named after the page title.",
+    "sourcehut-paste": "A one-stage rule for public pastes on paste.sr.ht. A paste may hold several files, each with a View raw link, so the rule fetches the paste page, collects those links (regex with all: true, into blobs), fetches every file raw (fetch over the list, into text) and takes every http or https address in the text (regex with all: true, into links); brackets, quotes and a trailing full stop or comma are not part of a link. The package is named after the paste's title, the name of its first file."
   }
 }

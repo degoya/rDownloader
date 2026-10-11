@@ -15,13 +15,15 @@
   "audit": "Audit log",
   "search": {
     "button": "Search",
-    "placeholder": "Search settings and views…",
+    "placeholder": "Search settings, views and the queue…",
     "title": "Search",
-    "description": "Find any setting and jump to any view.",
+    "description": "Find any setting, jump to any view, and find packages and files in the queue.",
     "groups": {
       "views": "Go to",
       "pages": "Settings pages",
-      "settings": "Settings"
+      "settings": "Settings",
+      "packages": "Packages",
+      "downloads": "Downloads"
     },
     "keywords": {
       "desktop": "tray, desktop agent, browser extension, pair",
@@ -66,7 +68,9 @@
       "active_files": "parallel downloads, at once, simultaneous, slots, queue",
       "collision": "collision, name clash, overwrite, rename",
       "linkgrabber": "blocklist, excluded domains, mirrors, container",
-      "desktop_agent": "shortcut, hotkey, keyboard, clipboard, pause, capture agent"
+      "desktop_agent": "shortcut, hotkey, keyboard, clipboard, pause, capture agent",
+      "link_filters": "filter, link filter, hide, rules",
+      "download_window": "download window, time window, download at night, start time, pause downloads, pause during the day"
     }
   },
   "connection": {

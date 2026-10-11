@@ -1,0 +1,28 @@
+# rDownloader on TrueNAS SCALE 24.10 or newer (RD-1240-18): Apps > Discover Apps > the menu >
+# Install via YAML, then paste this file. docker/README.md describes every setting.
+#
+# Before the first start:
+# - Create the datasets you mount (Datasets > Add Dataset), here `apps/rdownloader` for the
+#   state and `media` for the downloads, and replace `tank` with the name of your pool.
+# - Give the `apps` user (568) write access to them (Datasets > the dataset > Permissions), or
+#   set PUID/PGID to the user and group that own them.
+# - Every storage root you create in the application must lie below a path mounted here, such
+#   as /media/movies; a path that is not mounted is lost with the next image update.
+#
+# The port is published on every interface of the NAS. Open the interface by its IP address,
+# or add the name you use under Settings > Security > Allowed host names first.
+services:
+  rdownloader:
+    image: ghcr.io/degoya/rdownloader:latest
+    container_name: rdownloader
+    restart: unless-stopped
+    ports:
+      - "8710:8710"
+    volumes:
+      - /mnt/tank/apps/rdownloader/config:/config
+      - /mnt/tank/apps/rdownloader/downloads:/downloads
+      - /mnt/tank/media:/media
+    environment:
+      PUID: "568"
+      PGID: "568"
+      TZ: "Europe/Berlin"

@@ -59,6 +59,13 @@ impl SchedulerHandle {
             .await
     }
 
+    /// Pauses every waiting and moving file, as "pause all" does, until somebody resumes the
+    /// queue — the automation action `pause_queue` (RD-1240-30); its `start_queue` ends it. A
+    /// pause already in force loses its end and keeps the files it holds.
+    pub async fn pause_queue_until_started(&self) -> Result<QueuePause> {
+        self.pause_queue(None, pausable).await
+    }
+
     async fn pause_queue(
         &self,
         until: Option<DateTime<Utc>>,

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import type { AccountTrafficHold, QueuePause, QueueStopMark } from '@/api/types'
+import type { AccountTrafficHold, QueuePause, QueueStopMark, SchedulePause } from '@/api/types'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 /** The durations the pause menu offers, in minutes (RD-190-20). */
@@ -39,6 +39,9 @@ export function nextOccurrence(clock: string, now: Date = new Date()): Date | nu
  * And it names the stop mark (RD-1210-02): the file or package after which the queue pauses. That
  * pause has no end — `until` is `null` while `paused` holds — and only a resume ends it. Setting,
  * clearing and reaching the mark are `queue.stop_mark` events.
+ *
+ * And it names a bandwidth profile that pauses downloads (RD-1240-30), with the timezone the
+ * download windows are read in; a profile switch is a `bandwidth.changed` event.
  */
 export const useQueuePauseStore = defineStore('queuePause', () => {
   const until = ref<string | null>(null)
@@ -48,6 +51,9 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
   /** Where the queue pauses next: the stop mark in force, if any. */
   const stopMark = ref<QueueStopMark | null>(null)
   const accountTraffic = ref<AccountTrafficHold[]>([])
+  /** The profile in force while it pauses downloads (RD-1240-30), and the windows' timezone. */
+  const schedulePause = ref<SchedulePause | null>(null)
+  const scheduleTimezone = ref<string>(Intl.DateTimeFormat().resolvedOptions().timeZone)
   const busy = ref(false)
   const error = ref<string | null>(null)
   // A "service could not be reached" alert ends with the outage.
@@ -68,6 +74,8 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
     files.value = data.files
     accountTraffic.value = data.account_traffic ?? []
     stopMark.value = data.stop_mark ?? null
+    schedulePause.value = data.schedule_pause ?? null
+    if (data.schedule_timezone) scheduleTimezone.value = data.schedule_timezone
   }
 
   async function load(): Promise<void> {
@@ -157,7 +165,7 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
     return kind === 'download' ? mark.download_id === id : mark.package_id === id
   }
 
-  const events = debouncedEventRefresh(['download.state', 'queue.stop_mark'], load, { delayMs: 400 })
+  const events = debouncedEventRefresh(['download.state', 'queue.stop_mark', 'bandwidth.changed'], load, { delayMs: 400 })
 
   function tick(): void {
     const wasActive = active.value
@@ -181,7 +189,7 @@ export const useQueuePauseStore = defineStore('queuePause', () => {
   }
 
   return {
-    until, paused, files, accountTraffic, stopMark, busy, error, active, openEnded, remainingSeconds,
-    load, pauseFor, pauseUntil, resume, setStopMark, clearStopMark, marks, connect, disconnect
+    until, paused, files, accountTraffic, stopMark, schedulePause, scheduleTimezone, now, busy, error, active,
+    openEnded, remainingSeconds, load, pauseFor, pauseUntil, resume, setStopMark, clearStopMark, marks, connect, disconnect
   }
 })

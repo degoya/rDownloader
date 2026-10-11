@@ -1,43 +1,10 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use rd_automation::{Action, RunState};
 use tokio_util::sync::CancellationToken;
 
 use super::{AutomationService, Inner};
-use crate::automation_actions::ActionContext;
-
-/// What the actions may reach; nothing here dispatches a download.
-async fn context(database: &rd_db::Database, directory: &std::path::Path) -> ActionContext {
-    let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
-        .await
-        .expect("secrets");
-    let scheduler = rd_scheduler::SchedulerHandle::start(
-        database.clone(),
-        rd_scheduler::SchedulerConfig::for_directory(directory.join("downloads")),
-        secrets.clone(),
-        None,
-        Vec::new(),
-    )
-    .await
-    .expect("scheduler");
-    let extraction = rd_extract::ExtractionService::start(
-        database.clone(),
-        rd_extract::ExtractionConfig {
-            default_passwords_file: directory.join("passwords.txt"),
-            rar_timeout: Duration::from_secs(5),
-            default_scripts_directory: directory.join("scripts"),
-            hold: rd_core::PostprocessHold::new(),
-            quiet_hold: rd_core::PostprocessHold::new(),
-            upload_limit: None,
-        },
-    );
-    ActionContext {
-        database: database.clone(),
-        secrets,
-        scheduler,
-        extraction,
-    }
-}
+use crate::{automation_actions::ActionContext, automation_test_support::context};
 
 /// The engine without its two loops, so the test decides when a run advances.
 fn engine(context: &ActionContext) -> AutomationService {
@@ -75,6 +42,7 @@ async fn a_run_stopped_after_its_action_is_queued_again_at_that_action_and_compl
                 name: "Pause twice".to_owned(),
                 enabled: true,
                 trigger: rd_automation::Trigger::PackageCompleted,
+                schedule: None,
                 condition: rd_automation::ConditionNode::Always,
                 actions: vec![Action::PausePackage, Action::PausePackage],
             },

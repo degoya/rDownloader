@@ -1,5 +1,6 @@
 //! `rdownloader-capture update` (RD-1210-03): the agent's own update from a terminal — check,
-//! install and wait for the outcome, or switch the agent's own check and the service's request.
+//! install and wait for the outcome, or switch the agent's own check, the service's request and
+//! the automatic install (RD-1240-27).
 
 use std::time::Duration;
 
@@ -24,6 +25,10 @@ pub(crate) struct UpdateArgs {
     /// Lets the service ask this agent to install an update (off by default).
     #[arg(long, value_name = "on|off", conflicts_with = "check")]
     pub(crate) allow_remote: Option<Switch>,
+    /// Installs an update the agent's own check finds by itself (off by default). Only an agent
+    /// from the portable archive installed without the service installs itself.
+    #[arg(long, value_name = "on|off", conflicts_with = "check")]
+    pub(crate) auto_install: Option<Switch>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
@@ -34,7 +39,7 @@ pub(crate) enum Switch {
 
 pub(crate) async fn update(args: UpdateArgs) -> Result<()> {
     let directory = config::config_directory()?;
-    if args.auto_check.is_some() || args.allow_remote.is_some() {
+    if args.auto_check.is_some() || args.allow_remote.is_some() || args.auto_install.is_some() {
         let mut settings = Config::load(&directory);
         if let Some(switch) = args.auto_check {
             settings.check = switch == Switch::On;
@@ -42,14 +47,24 @@ pub(crate) async fn update(args: UpdateArgs) -> Result<()> {
         if let Some(switch) = args.allow_remote {
             settings.allow_remote = switch == Switch::On;
         }
+        if let Some(switch) = args.auto_install {
+            settings.auto_install = switch == Switch::On;
+        }
         settings.store(&directory)?;
         let word = |on: bool| if on { "on" } else { "off" };
         println!(
-            "Own update check: {}. Installing at the service's request: {}. A running agent \
-             applies this at its next start.",
+            "Own update check: {}. Installing at the service's request: {}. Installing updates \
+             automatically: {}. A running agent applies this at its next start.",
             word(settings.check),
-            word(settings.allow_remote)
+            word(settings.allow_remote),
+            word(settings.auto_install)
         );
+        if settings.auto_install && AgentSetup::detect() == AgentSetup::WithService {
+            println!(
+                "This agent sits beside rDownloader's service, which updates both programs; its \
+                 own setting decides."
+            );
+        }
         return Ok(());
     }
     let running = env!("CARGO_PKG_VERSION");

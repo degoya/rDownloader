@@ -92,7 +92,12 @@ pub(super) async fn grab_one(
         return take_magnet(state, &indexer, magnet_url(raw)?, item, category_id).await;
     }
     let fetched = match fetch_download(state, &indexer, raw, named).await {
-        Ok(fetched) => fetched,
+        Ok(Downloaded::Document(fetched)) => fetched,
+        // Prowlarr answers a magnet-only hit's download with `301 Location: magnet:…` and its
+        // feed names no magnet beside it (RD-1240-33): the redirect's target is the torrent.
+        Ok(Downloaded::Magnet(magnet)) => {
+            return take_magnet(state, &indexer, magnet, item, category_id).await;
+        }
         // Prowlarr answers some downloads with a redirect to a magnet, which no HTTP client
         // follows; the magnet the hit carried is the same torrent.
         Err(error) if item.magnet.is_some() => {
@@ -148,6 +153,12 @@ fn invalid_download() -> ApiError {
     )
 }
 
+/// What a hit's download answered: the file, or the magnet it redirected to.
+enum Downloaded {
+    Document(rd_http::FetchedDocument),
+    Magnet(url::Url),
+}
+
 /// Fetches a hit's download: with the key on the indexer's own server, under the address guard
 /// anywhere else.
 async fn fetch_download(
@@ -155,7 +166,7 @@ async fn fetch_download(
     indexer: &Indexer,
     raw: &str,
     named: url::Url,
-) -> Result<rd_http::FetchedDocument, ApiError> {
+) -> Result<Downloaded, ApiError> {
     if !matches!(named.scheme(), "http" | "https") || named.host_str().is_none() {
         return Err(invalid_download());
     }
@@ -197,20 +208,44 @@ async fn fetch_download(
         ApiError::bad_gateway("indexer.unreachable", error.to_string())
             .with_param("reason", "client")
     })?;
-    rd_http::fetch_document(
+    match rd_http::fetch_document(
         &network.client,
         url.clone(),
         &network.headers,
         rd_collector::MAX_NZB_BYTES,
     )
     .await
-    .map_err(|error| {
-        ApiError::bad_gateway(
-            "indexer.nzb_fetch_failed",
-            format!("{error} ({})", rd_core::redact_url(&url)),
-        )
-        .with_param("indexer", indexer.name.clone())
-    })
+    {
+        Ok(document) => Ok(Downloaded::Document(document)),
+        Err(error) => match error.downcast_ref::<rd_http::UnfollowedRedirect>() {
+            // Only a magnet: no client follows one, and any other scheme is nothing to take.
+            Some(redirect) if redirect.location.starts_with("magnet:") => {
+                redirected_magnet(&redirect.location).map(Downloaded::Magnet)
+            }
+            _ => Err(ApiError::bad_gateway(
+                "indexer.nzb_fetch_failed",
+                format!("{error} ({})", rd_core::redact_url(&url)),
+            )
+            .with_param("indexer", indexer.name.clone())),
+        },
+    }
+}
+
+/// The magnet a download redirected to, held to more than a hit's own: it names a BitTorrent
+/// info hash (`xt=urn:btih:`), because nothing else stands behind it.
+fn redirected_magnet(location: &str) -> Result<url::Url, ApiError> {
+    let magnet = magnet_url(location)?;
+    if magnet
+        .query_pairs()
+        .any(|(key, value)| key == "xt" && value.starts_with("urn:btih:"))
+    {
+        Ok(magnet)
+    } else {
+        Err(ApiError::bad_request(
+            "indexer.magnet_invalid",
+            "Not a magnet link",
+        ))
+    }
 }
 
 /// A magnet a hit named: the scheme and an `xt` topic, nothing else is checked -- the swarm is

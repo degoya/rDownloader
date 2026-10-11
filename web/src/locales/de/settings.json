@@ -394,6 +394,16 @@
     "title_status": {
       "label": "Zustand im Browser-Tab",
       "description": "Der Tab zeigt die Gesamtrate und die Anzahl laufender Übertragungen, solange etwas läuft, und sonst nur den Anwendungsnamen. Aus, wenn ein sich ständig ändernder Titel stört."
+    },
+    "palette": {
+      "label": "Farbschema",
+      "description": "Akzent- und Grautöne der Oberfläche, nur in diesem Browser; Hell und Dunkel stellst du oben ein.",
+      "signal": "Signal (Standard)",
+      "rose": "Rosé",
+      "ocean": "Ozean",
+      "violet": "Violett",
+      "forest": "Wald",
+      "amber": "Bernstein"
     }
   },
   "messages": {
@@ -463,6 +473,14 @@
       "description": "Ordnet Mediendownloads innerhalb des Paketordners an. Ordner werden mit / getrennt. Leer behält den einfachen Dateinamen. Jeder Link kann das überschreiben.",
       "placeholder": "{uploader}/{upload_year}/{title}",
       "fields": "Verfügbare Felder: {fields}"
+    },
+    "sleep_requests": {
+      "label": "Pause zwischen Anfragen",
+      "description": "Sekunden, die yt-dlp zwischen seinen Anfragen beim Lesen einer Seite wartet, damit eine Seite nicht zu schnell gefragt wird (0–600, 0 = keine Pause). Jeder Link kann das überschreiben."
+    },
+    "sleep_interval": {
+      "label": "Pause vor jedem Download",
+      "description": "Sekunden, die yt-dlp wartet, bevor ein Medien-Download beginnt (0–600, 0 = keine Pause). Jeder Link kann das überschreiben."
     }
   },
   "groups": {
@@ -731,6 +749,27 @@
       "peer_proxy_off": "keiner",
       "rebuild_failed": "Der letzte Neuaufbau der Sitzung ist fehlgeschlagen; die bisherige Sitzung läuft weiter.",
       "proxy_failed": "Der Peer-Proxy lässt sich nicht auflösen; ohne ihn startet die Sitzung nicht."
+    },
+    "max_active_downloads": {
+      "label": "Aktive Torrent-Downloads",
+      "description": "Wie viele Torrents gleichzeitig laden; die übrigen warten in der Warteschlange. Die allgemeine Grenze aktiver Downloads gilt weiterhin."
+    },
+    "max_active_seeds": {
+      "label": "Aktive Seeds",
+      "description": "Wie viele fertige Torrents gleichzeitig seeden; leer heißt ohne Grenze. Darüber hinaus enden zuerst die Torrents, die am längsten geseedet haben."
+    },
+    "port_test": {
+      "label": "Port-Test",
+      "description": "Prüft den eingehenden Port allein von diesem Rechner aus, mit den gespeicherten Einstellungen; kein fremder Dienst wird gefragt.",
+      "action": "Port prüfen",
+      "verdict": {
+        "reachable": "Erreichbar: Ein Peer hat sich über Port {port} hereinverbunden.",
+        "listening": "Port {port} lauscht, aber noch kein Peer hat sich hereinverbunden. Ob das Internet ihn erreicht, ist unbewiesen: Prüfe die Weiterleitung im Router oder UPnP und teste erneut, während ein Torrent läuft.",
+        "not_listening": "Die Engine nimmt keine eingehenden Peers an.",
+        "unavailable": "Die Torrent-Engine konnte nicht starten: {error}"
+      },
+      "details": "Laufende Torrents: {torrents} · hereinverbundene Peers: {peers}",
+      "proxy_hint": "Ein Peer-Proxy trägt nur ausgehende Verbindungen; eingehende Peers kommen immer direkt an."
     }
   },
   "auth_profiles": {
@@ -1049,6 +1088,28 @@
       "media": "Medien",
       "galleries": "Galerien",
       "streams": "Streams"
+    },
+    "linkgrabber": {
+      "general": "Allgemein",
+      "blocklist": "Sperrliste",
+      "containers": "Container",
+      "filters": "LinkFilter"
+    },
+    "interface": {
+      "browser": "Dieser Browser",
+      "display": "Anzeige"
+    },
+    "postprocess": {
+      "unpack": "Entpacken",
+      "repair": "Reparatur & Aufräumen",
+      "names": "Paketnamen",
+      "malware": "Schadsoftware (ClamAV)",
+      "delivery": "Skripte & Upload"
+    },
+    "tools": {
+      "status": "Status",
+      "paths": "Pfade",
+      "managed": "Verwaltete Werkzeuge"
     }
   },
   "auto_retry": {
@@ -1138,7 +1199,14 @@
       "pause_hour": "Für 1 Stunde pausieren",
       "clipboard_watch": "Zwischenablage-Überwachung pausieren",
       "send_clipboard": "Zwischenablage jetzt übergeben",
-      "quit": "Beenden"
+      "quit": "Beenden",
+      "game_mode": "Beim Spielen pausieren",
+      "install_server_update": "Server-Update installieren",
+      "auto_install": "Updates automatisch installieren",
+      "add_all_from_linkgrabber": "Alles aus dem LinkGrabber hinzufügen",
+      "add_all_from_linkgrabber_paused": "Alles aus dem LinkGrabber pausiert hinzufügen",
+      "install_update": "Update des Agenten installieren",
+      "restart_server": "Server neu starten"
     },
     "report": {
       "title_unavailable": "Kürzel nicht verfügbar",
@@ -1150,6 +1218,39 @@
         "no_display": "Der Agent hat keinen Bildschirm gefunden (kein DISPLAY), bei dem er Kürzel anmelden könnte.",
         "no_tray": "Der Agent läuft ohne Tray-Symbol (--no-tray); unter Windows und macOS brauchen Kürzel es.",
         "failed": "Das System hat die Anmeldung der Kürzel abgelehnt."
+      }
+    },
+    "game_mode": {
+      "eyebrow": "Spielmodus",
+      "title": "Pause beim Spielen",
+      "description": "Solange ein Vollbildprogramm im Vordergrund ist oder eines der Programme unten läuft, pausiert der Agent die Warteschlange oder schaltet ein Bandbreitenprofil ein und hebt das danach wieder auf. Er hebt nur auf, was er selbst gesetzt hat: Setzt du die Pause zwischendurch fort, bleibt es dabei. Windows und macOS.",
+      "full_screen": {
+        "label": "Bei Vollbildprogrammen",
+        "description": "Spiele, Videos und Präsentationen im Vollbild. Nur unter Windows: macOS kann das ohne die Berechtigung zur Bildschirmaufnahme nicht erkennen."
+      },
+      "processes": {
+        "label": "Bei diesen Programmen",
+        "description": "Prozessnamen wie game.exe oder obs64, ohne Pfad; Groß- und Kleinschreibung und die Endung .exe spielen keine Rolle.",
+        "placeholder": "game.exe"
+      },
+      "action": {
+        "legend": "Was der Agent dann tut",
+        "pause": "Warteschlange pausieren",
+        "pause_description": "Laufende und wartende Downloads halten an und starten danach wieder.",
+        "profile": "Bandbreitenprofil einschalten",
+        "profile_description": "Downloads laufen mit den Grenzen des Profils weiter; danach entscheidet wieder der Zeitplan."
+      },
+      "profile": {
+        "label": "Profil",
+        "placeholder": "Profil wählen",
+        "none": "Noch kein Bandbreitenprofil; lege eines unter Bandbreite an."
+      },
+      "profile_required": "Wähle das Profil, das eingeschaltet werden soll.",
+      "save": "Spielmodus speichern",
+      "saved": "Spielmodus gespeichert. Der Agent übernimmt ihn innerhalb weniger Sekunden.",
+      "enabled": {
+        "label": "Spielmodus eingeschaltet",
+        "description": "Auch im Tray-Menü des Agenten unter „Pause while gaming“. Ausgeschaltet bleiben die Programme unten erhalten, und eine laufende Pause des Agenten endet sofort."
       }
     }
   },
@@ -1163,5 +1264,110 @@
     "overrides_description": "Ein Konto kann etwas anderes tun als die Vorgabe oben.",
     "inherit": "Wie die Vorgabe",
     "held": "Traffic aufgebraucht · nächste Prüfung {time}"
+  },
+  "link_filters": {
+    "eyebrow": "LinkFilter",
+    "list_title": "LinkFilter-Regeln",
+    "form_new": "Neue Regel",
+    "form_edit": "Regel bearbeiten",
+    "description": "Entscheidet beim Eingang eines Links: ausblenden, behalten oder in ein Paket bzw. eine Kategorie legen. Die erste passende aktive Regel der Liste gilt; ausgeblendete Links bleiben erhalten.",
+    "create": "Regel anlegen",
+    "created": "Regel angelegt",
+    "updated": "Regel gespeichert",
+    "duplicated": "Regel kopiert",
+    "delete_title": "Regel löschen?",
+    "delete_description": "„{name}“ wird gelöscht. Die Links, die sie ausgeblendet hat, werden wieder angezeigt.",
+    "empty": "Noch keine Regeln. Ohne Regel landet jeder Link sichtbar im LinkGrabber.",
+    "matches_everything": "jeder Link",
+    "apply": "Auf LinkGrabber anwenden",
+    "name_label": "Name",
+    "name_placeholder": "z. B. Info-Dateien ausblenden",
+    "action_label": "Aktion",
+    "actions": {
+      "hide": "Ausblenden",
+      "accept": "Annehmen",
+      "route": "Einsortieren"
+    },
+    "action_descriptions": {
+      "hide": "Der Link bleibt im LinkGrabber, wird aber nur mit „Ausgeblendete zeigen“ angezeigt und beim Übernehmen seines Pakets nicht mitgenommen.",
+      "accept": "Der Link bleibt, wie er ist, und keine spätere Regel wird gefragt – eine Ausnahme über einer breiteren Regel.",
+      "route": "Der Link kommt in das Paket mit diesem Namen und/oder sein Paket bekommt diese Kategorie."
+    },
+    "package_label": "Paket",
+    "package_description": "Name des Pakets; leer lässt das Paket, wie die Gruppierung es bildet.",
+    "category_label": "Kategorie",
+    "category_none": "Keine",
+    "enabled_label": "Aktiv",
+    "conditions": "Bedingungen",
+    "pattern_label": "Dateiname",
+    "pattern_descriptions": {
+      "glob": "* steht für beliebig viele Zeichen, ? für eines; der ganze Name, Groß-/Kleinschreibung egal. Leer passt auf jeden Namen.",
+      "regex": "Regulärer Ausdruck, im Namen gesucht, wie geschrieben; (?i) ignoriert Groß-/Kleinschreibung."
+    },
+    "syntax_label": "Musterart",
+    "syntax": {
+      "glob": "Platzhalter",
+      "regex": "Regex"
+    },
+    "extensions_label": "Dateitypen",
+    "extensions_description": "Endungen ohne Punkt, z. B. nfo oder part1.rar; eine passende genügt.",
+    "size_label": "Größe (MiB)",
+    "size_description": "Von–bis, jeweils einschließlich. Ein Link, dessen Größe noch unbekannt ist, passt auf keine Grenze – nach der Onlineprüfung erneut anwenden.",
+    "size_min": "ab",
+    "size_max": "bis",
+    "hoster_label": "Hoster",
+    "hoster_description": "Hostname ohne Schema; Subdomains passen mit.",
+    "source_label": "Quelle",
+    "move_up": "Nach oben",
+    "move_down": "Nach unten"
+  },
+  "aria2": {
+    "eyebrow": "aria2-Schnittstelle",
+    "title": "aria2-kompatible Clients",
+    "description": "AriaNg, Motrix-Oberflächen, Browser-Erweiterungen und Android-Apps übergeben Links über aria2s JSON-RPC und zeigen die Warteschlange an.",
+    "enabled": {
+      "label": "aria2-JSON-RPC beantworten",
+      "description": "Standardmäßig aus. Ausgeschaltet gibt es den Pfad /jsonrpc nicht."
+    },
+    "endpoint": "Trag diese Adresse als RPC-Adresse im Client ein:",
+    "copy_endpoint": "RPC-Adresse kopieren",
+    "secret": "Als RPC-Geheimnis (Secret Token) dient ein API-Token mit den Bereichen Hinzufügen, Warteschlange und Lesen (api:intake, api:queue, api:read); leg es oben an."
+  },
+  "web_push": {
+    "label": "Push auf diesem Gerät",
+    "description": "Benachrichtigungen kommen auch ohne offenen Tab an, solange dieser Browser läuft – am besten in der installierten App. Gilt nur für diesen Browser.",
+    "insecure": "Push braucht einen sicheren Kontext: Öffne rDownloader über https oder auf diesem Rechner über localhost.",
+    "unsupported": "Dieser Browser unterstützt kein Web Push.",
+    "events_label": "Ereignisse",
+    "events_description": "Welche Ereignisse dieses Gerät erreichen; ohne Auswahl alle."
+  },
+  "duplicates_history": {
+    "label": "Duplikate auch im Verlauf suchen",
+    "description": "Ein Link, dessen Quelle schon in einem Paket des Download-Verlaufs steckt – fertig oder gescheitert und aus der Warteschlange entfernt –, bekommt im LinkGrabber eine Markierung. Gegen die Warteschlange wird immer geprüft."
+  },
+  "cleanup": {
+    "eyebrow": "Datenordner",
+    "title": "Update-Sicherungen, Plugin-Cache und Datenbank",
+    "description": "Jedes Update behält eine Kopie der Datenbank für den Weg zurück, und kompilierte Plugins landen im Cache. Sobald ein Update bestätigt ist, bleibt nur die neueste Kopie; im Cache bleibt nur, was installierte Plugins nutzen. Alte übersprungene Abo-Einträge behalten nur, woran das Abo sie wiedererkennt, und die Datenbankdatei gibt freien Platz zurück. Das läuft zehn Minuten nach jedem Start und täglich von selbst.",
+    "days_label": "Neueste Kopie behalten",
+    "days_description": "Tage, die die neueste Kopie nach einem bestätigten Update bleibt; 0 behält sie dauerhaft (0-3650).",
+    "pre_update": "Vor Updates",
+    "pre_migration": "Vor Datenbank-Upgrades",
+    "plugin_cache": "Plugin-Cache",
+    "removable": "davon {size} entfernbar",
+    "unproven": "Das letzte Update ist noch nicht bestätigt, darum bleiben alle Kopien davor.",
+    "button": "Jetzt aufräumen",
+    "confirm_title": "Datenordner aufräumen?",
+    "confirm_description": "Etwa {size} alte Update-Sicherungen, ungenutzter kompilierter Plugin-Code und freier Platz der Datenbank werden endgültig freigegeben; alte übersprungene Abo-Einträge verlieren Titel und Link. Plugins werden bei Bedarf neu kompiliert; Downloads, Einstellungen und offene Abo-Einträge bleiben.",
+    "confirm": "Aufräumen",
+    "done": "{size} freigegeben",
+    "events": "Ereignisse",
+    "rows": "{count} Einträge der letzten 30 Tage",
+    "items": "Abo-Archiv",
+    "compactable": "{count} alte Einträge zum Verdichten",
+    "database_file": "Datenbankdatei",
+    "items_days_label": "Übersprungene Abo-Einträge vollständig behalten",
+    "items_days_description": "Tage, die ein übersprungener oder verworfener Abo-Eintrag Titel und Link behält; danach bleibt nur, woran das Abo ihn wiedererkennt, damit er nicht zurückkommt. 0 behält alles (0-3650).",
+    "rewrite": "Die Datenbank stammt aus einer Version vor 1.24: „Jetzt aufräumen“ schreibt sie einmal neu, danach gibt sie freien Platz von selbst zurück. Dafür braucht der Datenordner Platz für eine zweite Kopie, und es darf nichts laufen."
   }
 }

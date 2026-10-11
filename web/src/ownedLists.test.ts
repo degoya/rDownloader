@@ -52,6 +52,7 @@ const CONVERTED: [file: string, items: string][] = [
   ['components/PackageEditModal.vue', 'scriptItems'],
   ['components/PackageGroup.vue', 'categoryItems'],
   ['components/SettingsTorrentCard.vue', 'proxyItems'],
+  ['components/automation/AutomationActionCard.vue', 'props.scriptItems'],
   ['components/SubscriptionForm.vue', 'scriptItems'],
   ['components/SubscriptionForm.vue', 'categoryItems'],
   ['components/SubscriptionIndexerCategories.vue', 'mappableCategories'],
@@ -74,7 +75,6 @@ const CONVERTED: [file: string, items: string][] = [
   ['components/settings/SettingsNetworkTab.vue', 'proxyItems'],
   ['components/settings/UsenetServerChain.vue', 'proxyItems'],
   ['components/storage/PackageStorageModal.vue', 'downloadItems'],
-  ['views/AutomationView.vue', 'scriptItems'],
   ['views/StreamsView.vue', 'categoryItems'],
   ['views/StreamsView.vue', 'channelItems']
 ]

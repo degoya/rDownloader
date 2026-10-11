@@ -397,7 +397,8 @@ and other initial data are loaded once.
   addresses, status details, and eyebrow labels. Below `text-xs` there is one size, `text-2xs`
   (11 px, the `--text-2xs` token in `web/src/assets/main.css`), for metadata lines and small
   badges; no template writes a pixel size of its own (RD-1120-14).
-- **Primary color:** `signal`, a custom teal scale from `#edfffd` to `#052f30`.
+- **Primary color:** `signal`, a custom teal scale from `#edfffd` to `#052f30` — the default colour
+  theme.
 - **Secondary color:** cyan; **neutral:** slate; **warning:** amber; **error:** a custom `coral`
   scale from `#fff2f1` to `#41110f`.
 - **Shape:** A small global radius of `0.3rem`; functional, compact surfaces rather than large
@@ -426,6 +427,13 @@ and other initial data are loaded once.
   indicate activity without replacing text.
 - **Themes:** Light, dark, and system. Components use semantic Nuxt UI tokens so that contrast and
   state meaning survive across themes.
+- **Colour themes** (RD-1240-05, owner 2026-10-10): beside light/dark, never instead of it, a
+  browser picks the accent and the greys — Signal (the default above), Ocean (blue/slate), Violet
+  (violet/zinc), Forest (emerald/stone), Rose (rose/zinc), Amber (amber/stone). A palette is a
+  pair of Tailwind scales written over `--ui-color-primary-*` and `--ui-color-neutral-*` on
+  `<html>` (`useColorPalette.ts`); the default writes nothing. Light mode takes shade 700 of
+  whichever primary is in use, dark mode Nuxt UI's 400, and a new palette joins only when both
+  pass 4.5:1 (`useColorPalette.test.ts`). Warning and error keep their colours in every palette.
 
 Queue rows and the LinkGrabber's link rows share one responsive grid of nine named cells. Below
 560 px the row is two lines, with the name on the first and the state on the second; from 560 px
@@ -462,17 +470,17 @@ prevent columns from shifting during live updates.
   the page hands its action in while it is mounted; the key runs that action with its
   confirmation and shows as a `UKbd` hint on the menu item that offers it. Pressed again, the
   same key answers that confirmation (`ConfirmModal`'s `confirmKey`, shown as a `UKbd` on its
-  button), so the action never needs the mouse or a Tab to the button. `F` is the search of
-  the page the same way — on the LinkGrabber it opens the indexer search drawer with the keyboard
-  in its field (RD-180-19, RD-1230-02), on Downloads it focuses the list's name search
-  (RD-190-21): the drawer or the list hands its action in while it is mounted, and the button or
-  the field shows the key as a `UKbd`; while the indexer field is disabled the key lands on the
+  button), so the action never needs the mouse or a Tab to the button. `F` is the indexer
+  search from every page: it opens the LinkGrabber's search drawer with the keyboard in its field
+  (RD-180-19, RD-1230-02), going to the LinkGrabber first when another page is open (owner,
+  2026-10-10; the download list's name search has no key of its own). The drawer hands its action
+  in while it is mounted and answers a request left on the way there; the navbar button shows the
+  key as a `UKbd`; while the indexer field is disabled the key lands on the
   hint's link to the indexer settings, the one thing there is to do. The
   LinkGrabber hands in its navbar buttons the same way (`A` add links, `E` enqueue all, `W` add
   all paused, `R` delete all; RD-180-23), each with its `UKbd` on the button and doing nothing
   while that button is disabled. `A` is "add" on Downloads too: there it opens the *Direct job*
-  dialog behind the navbar button that shows the key (RD-1220-03), the way `F` is the search of
-  whichever page is open.
+  dialog behind the navbar button that shows the key (RD-1220-03).
 - **The key that opens a question confirms it; `X` closes every dialog** (owner, 2026-10-02).
   Every confirmation a key can start carries that key as its `confirmKey` — always, not only when
   the key started it, because a click user is not disturbed by a hint. `X` is the one plain key
@@ -534,6 +542,13 @@ prevent columns from shifting during live updates.
   settings sections (`web/src/settingsSearch.ts`) and a `data-settings-anchor` on the element,
   never a scrape of the rendered page: a page not mounted has nothing to scrape. A new settings
   page fails a test until it has its row; a new card is found once it has an anchor and a row.
+  The queue is the exception that cannot be a table (RD-1240-14): from two characters on, a moment
+  after the last key, the server is asked for the packages and files whose name holds the text, at
+  most eight of each, and they follow *Go to* as *Packages* and *Downloads* — a file with its
+  package as the suffix, both groups exempt from the palette's own fuzzy filter, because the server
+  matched them already. Choosing one opens the download list with `?reveal=package:<id>` or
+  `file:<id>` (`useQueueReveal.ts`): the file's package opens, a filter or search that hides the
+  row is lifted, the row takes the keyboard, and the address forgets `reveal`.
 - **A settings page with more than five cards is split into sub-tabs** (RD-180-15; the owner:
   "put its parts into separate tabs so it's clearer … so everything stays clear even as settings
   grow"). Count what a reader scrolls past: every card once, cards side by side each
@@ -551,7 +566,10 @@ prevent columns from shifting during live updates.
   shape is the routing page's since RD-170-15: `UTabs` in `pill` variant, `:unmount-on-hide="false"`
   so every tab's data loads once and the search's anchors exist, the tab's name in the address as
   `?tab=` (none for the first tab, so the plain address stays plain; an unknown name shows the
-  first tab), a push per change so back and forward walk the tabs. A count that should not wait
+  first tab), a push per change so back and forward walk the tabs. A bar wider than its page
+  scrolls sideways with every tab at its full name (RD-1240-33, the `tabs` entry of
+  `web/src/uiTheme.ts`, so every pill bar does it): squeezed to share a phone's width the names
+  became "E", "Re…" and "Status & Li…", which tell nobody where a tab leads. A count that should not wait
   unseen — installed plugins, waiting updates, the routing lists — goes into the tab's badge.
   The save bar shows only under a tab that edits the settings document — and under every such
   tab: System had none until RD-180-15, and its fields were saved only by another page's button.
@@ -570,6 +588,18 @@ prevent columns from shifting during live updates.
   Below six cards, a page whose cards are separate services is split by service too (RD-1160-01;
   owner, 2026-10-07): *FTP, SFTP, WebDAV & S3* (*FTP, SFTP & WebDAV*, *S3*) and *Media, galleries
   & streams* (*Media*, *Galleries*, *Streams*), each service's *off* notice on its own tab.
+  And a page of a few cards each a subject of its own splits by subject (RD-1240-26; owner,
+  2026-10-10): *LinkGrabber* (*General* with the two switches for every link — mirrors and
+  duplicates in the history —, *Blocklist*, *Containers*, *LinkFilter*; the general switches first
+  because they apply to every link, the rule's one exception to the kept order), *Interface*
+  (*This browser* | *Display*), *Post-processing* (*Unpacking* | *Repair & cleanup* | *Package
+  names* | *Malware scan (ClamAV)* | *Scripts & upload*: the malware scan and the package names
+  each a tab, as the owner asked; the rest in the order a package meets it, scripts and upload
+  sharing the end of the chain to stay at five) and *Tools* (*Status* | *Paths* | *Managed tools*: see what was found, say where to look,
+  let the service install). A card that mixed two subjects is split along them (the pipeline card
+  into one per tab, the vendor folder from the managed-tools switches). A tab without a field of
+  the document — *This browser*, which saves as it is chosen, the self-saving *LinkFilter*, the
+  tool *Status* — has no save bar and does not wait for it.
 - **Unsaved settings are not lost without a question** (RD-180-16; owner, 2026-09-30). A view
   with a save bar knows when what is on screen differs from what was last loaded or saved, and
   `useUnsavedGuard` asks before that is lost: leaving the route asks in the app's confirmation —
@@ -632,9 +662,13 @@ prevent columns from shifting during live updates.
   the global storage capacity beside the storage roots, the NNTP limits under the Usenet servers,
   the speed and upload limits on *Bandwidth* before the profiles that overlay them — and its
   search anchor stays an alias, so an old link still lands on it. A heading that says where a value
-  is kept stands only over what is kept there: *This browser only* covers language, theme and
-  browser notifications, not the display settings every browser shares, which are a card of
-  their own. A new setting first asks which of the six it belongs to;
+  is kept stands only over what is kept there: *This browser only* covers language, theme, colour
+  theme, browser notifications and *Push on this device* (RD-1240-13), not the display settings
+  every browser shares, which are a card of their own. A per-browser switch that this browser
+  cannot honour — push off a secure context, or in a browser without it — stays visible, off and
+  disabled, and says why in its description (*open rDownloader over https*): the reader learns
+  what to change, where a missing switch would leave them looking for the feature. Its choice of
+  events appears only while it is on. A new setting first asks which of the six it belongs to;
   a setting that fits none is a sign the rubric is missing, not that one should be stretched.
 - **Settings that work together point at each other** (RD-1120-23). Where a setting on one page
   only makes sense with one on another — the torrent upload limit and the global one, a proxy
@@ -731,7 +765,15 @@ prevent columns from shifting during live updates.
   *Install and restart* uses that file, and the browser's download is a small *Download manually*
   link; a failed install shows its reason with *Try again*, and a service that never comes back
   ends the wait with what to do — the dialog never waits without an end (RD-180-02, owner
-  2026-10-01). The open sidebar is a share of
+  2026-10-01). **A pending restart** (RD-1240-32) — a plugin change that runs only from the next
+  start — is a soft warning button *Restart pending* in the same footer below the update notice
+  (an icon on the rail), leading to the update page, where a warning `UAlert` at the top of the
+  card lists the reasons in words, says how this installation comes back (by itself, by systemd,
+  by the container's restart policy — or by hand) and carries *Restart now*; a plugin message that
+  says "restart to apply" carries the same action. Running downloads are one confirmation, never a
+  silent stop. A restart the page asked for shows *Restarting …* in both places and reloads the
+  page once another process answers — the person asked for exactly that, unlike the version toast
+  above, which never reloads by itself — and ends the wait after five minutes with what to do. The open sidebar is a share of
   the window (15 %, dragged between 14 and 21 %) with a floor of 15rem, 240 px: at 15 % of
   1280 px it was 192 px and cut the application's name, "Téléchargements" and "Entfernte
   Aufträge". Its header carries the logo and the name and nothing under them; the tagline that
@@ -1653,6 +1695,9 @@ recognised as drifting.
   refusal is about carries its own state, so the toast only has to say why. What went through
   (`transfers.notice`) is an info toast that leaves by itself; `useQueueNoticeToasts` shows both
   and takes them from the store. A failure stays a closable red `UAlert` (`transfers.error`).
+  A result toast says what happened and nothing else (owner, 2026-10-10): "3 packages were
+  removed", never the packages an action left alone; and a toast breaks a long word — a package
+  name without a space — rather than clipping it (`uiTheme.ts`, `wrap-anywhere`).
 - **Pictures from a third party are a switch, and the row works without them.** An address that
   came from an indexer or a hoster is loaded by the browser, which tells that server what is on
   somebody's screen. That is a decision worth being able to reverse, so it hangs off a setting;
@@ -1716,6 +1761,17 @@ recognised as drifting.
   while any member is at a shown hoster, its hidden members are its fallbacks and go to the queue
   with it, and the chosen mirror is never a hidden one while a shown one exists. What is hidden is
   neither queued nor checked, and "Clear filters" leaves it alone — it has its own way back.
+- **What a LinkFilter rule hid is kept, and shown behind a switch rather than a page of its
+  own** (RD-1240-09). A rule decides at intake; the link stays in its package with an outlined
+  `i-lucide-filter` badge whose title says why, and the list draws it only while *Show hidden*
+  — a switch in the *Filters* popover with the count in its label — is on. While one exists the
+  list counts as filtered ("x of y links"), an enqueue names the links it shows, and a hidden one
+  goes to the queue only when it is selected. Its menu offers *Show again*, which lasts until the
+  rules are applied anew; *Apply LinkFilter* sits beside *Regroup* and answers with one toast of
+  what it hid, showed and sorted in. The rules are a form-and-list card whose order is the
+  evaluation order, moved with up/down arrows (no drag: the order is a decision, not a layout),
+  a switch per row, and the card's *Apply to LinkGrabber* with the area export/import in the list
+  heading.
 - **A form that creates entries stands beside the list it feeds, never above it.** Until 1.0.6
   every settings area stacked the two, and pressing a row's pencil filled a form whose heading
   had already scrolled away — the list looked unchanged and the edit went unnoticed. The form is
@@ -1786,8 +1842,19 @@ underneath, or from a glyph. Concretely (RD-109-30):
   count beside it (owner, 2026-10-08). The stop mark (RD-1210-02) is one more: an
   `i-lucide-octagon-pause` badge in the warning colour with `role="img"`, *Stop mark* as its name
   and the sentence as its `UTooltip`, on the marked file or package row; the transfer rail repeats
-  it with the marked row's name once the rail has room, and a ghost `x` beside it removes it. Only a
-  state whose value changes while you watch (`Post-processing 40%`) keeps its text.
+  it with the marked row's name once the rail has room, and a ghost `x` beside it removes it. A
+  package's "not before" (RD-1240-14) is another: an `i-lucide-alarm-clock` badge in the info
+  colour, *Starts later* as its name and *Starts not before <time>* as its tooltip, drawn only
+  while the moment lies ahead; *Start not before…* in the package's menu opens a dialog with the
+  day (`DateField`) and the time (`UInputTime`), whose *Save* stays off until the moment is in the
+  future. A package's download window (RD-1240-30) is the third of that family: an
+  `i-lucide-calendar-clock` badge, *Download window* as its name and the window's spans as its
+  tooltip, drawn while a window — the package's own or its category's — applies, neutral while it
+  is open and in the warning colour while it is closed and the files wait; *Download window…* in
+  the package's menu opens a dialog whose switch says what the package follows without one. The
+  schedule's pause itself sits beside the queue's pause control as a warning badge, *Paused by
+  schedule until <time>*, as the used-up account traffic does.
+  Only a state whose value changes while you watch (`Post-processing 40%`) keeps its text.
 - **An ordered set of three or fewer levels is a glyph too.** Priority is an arrow up, a dash and
   an arrow down on a `size="xs" variant="ghost"` button whose name reads `Priority: <level>`; the
   levels live in a dropdown beside it and each keeps its own label. A select that spells out
@@ -1802,6 +1869,13 @@ underneath, or from a glyph. Concretely (RD-109-30):
   post-processing, edit and delete are deliberate acts that can afford a menu, and they keep the
   labels they carried as `aria-label`s. A menu item that had a tooltip keeps it as the item's
   `description`, which is what `UDropdownMenu`'s `descriptionKey` is for.
+- **A right-click on a row opens its dots** (RD-1240-14). The package headers and file rows of
+  the download list and the package headers and link rows of the LinkGrabber sit in a
+  `UContextMenu` handed the very items of the row's dots — the same groups, the same order, the
+  same labels — so the right-click is a shortcut to the menu, never a second menu that drifts
+  from it (`rowContextMenu.test.ts` holds that). A row whose dots are empty has its context menu
+  switched off, so the browser's own menu is not swallowed for nothing. The buttons beside the
+  dots stay where they are; the keyboard reaches everything through the dots.
 - **A panel above a list of rows may only show what the rows cannot.** The Usenet segment panel
   listed every NZB file's subject, segment tally and size, directly above the download rows for
   the same files — and the rows are the better copy, because they carry state and progress. It is
@@ -1883,6 +1957,14 @@ pushes a row past its container. Each column has a floor of what its cell must s
 size's 137 px figure, a state badge, a shrunk category select) and 480 px as its ceiling. A
 windowed list reserves its scrollbar gutter, and the header then reserves the same one, so the
 edges line up with the cells under them.
+
+**A column the viewer does not want can be switched off** (RD-1240-14). The header's menu lists the
+data columns its list fills as checkbox items under *Shown columns*, above *Reset all column
+widths*; a switch keeps the menu open, so several go in one visit. A column switched off keeps its
+width for when it comes back: its property becomes `0px`, so its track gives everything to the
+name, and `data-hidden-columns` on the same container hides its cells in the header and in every
+row (`main.css`). The name cannot be switched off — it is what a row is — and the choice is kept
+per list in this browser like the widths (`useQueueColumns.ts`, every access guarded).
 
 **A sort of the download list is the viewer's, never the queue's** (RD-1190-16). The labels of the
 download list's column header are buttons (`variant="link"`, the direction as a trailing glyph):
@@ -2023,6 +2105,12 @@ buttons stand beside it.
   agent's report, shown as one alert above the fields.
 - A switch on the same card that the person expects to act at once (pausing clipboard watching)
   saves on its own, like the tray's entry; it never waits for the shortcut save.
+- **Every tray function is shortcut-capable** (owner, 2026-10-10, RD-1240-24): a new entry in the
+  desktop agent's tray menu that a click can choose comes with its `CaptureCommand`, its field on
+  this card and its name in the MCP description, and has no shortcut by default. A pressed
+  shortcut obeys the entry: where the entry would be greyed out or refused, the shortcut does
+  nothing and says why. Only the read-only lines (status, server, the pairing hint) have none;
+  `crates/rd-capture/src/tray_menu.rs` lists the entries and its test holds the rule.
 
 ### Pick Lists of Things You Create
 

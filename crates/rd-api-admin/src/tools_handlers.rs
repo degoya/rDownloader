@@ -39,7 +39,8 @@ fn to_api_error(error: rd_tools::ToolError) -> ApiError {
         }
         ToolError::NotManaged(_) => ApiError::bad_request(code, message),
         ToolError::NoRelease { .. } => ApiError::unprocessable(code, message),
-        ToolError::Disabled => ApiError::conflict(code, message),
+        // A setting to fill in first, like a switched-off service (RD-1240-28).
+        ToolError::Disabled | ToolError::ManifestUrlMissing => ApiError::conflict(code, message),
         ToolError::InUse { .. } => ApiError::conflict(code, message),
         ToolError::Other(other) => other.into(),
     }
@@ -78,7 +79,7 @@ pub async fn list_managed_tools(
     }))
 }
 
-#[utoipa::path(post, path = "/api/v1/system/tools/manifest/refresh", tag = "system", responses((status = 200, body = crate::dto::ManagedToolsResponse)))]
+#[utoipa::path(post, path = "/api/v1/system/tools/manifest/refresh", tag = "system", responses((status = 200, body = crate::dto::ManagedToolsResponse), (status = 409, description = "Managed tools are off (`tools.disabled`) or no manifest URL is set (`tools.manifest_url_missing`)")))]
 pub async fn refresh_tool_manifest(
     State(state): State<AppState>,
 ) -> Result<Json<crate::dto::ManagedToolsResponse>, ApiError> {

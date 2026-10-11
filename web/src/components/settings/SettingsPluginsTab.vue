@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError, resultMessage } from '@/api/client'
@@ -13,6 +13,7 @@ import { usePluginGroups } from '@/composables/usePluginGroups'
 import { usePluginSupersededRemoval } from '@/composables/usePluginSupersededRemoval'
 import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
+import { useRestartAction, useRestartStatus } from '@/composables/useRestartStatus'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useSettingsStore } from '@/stores/settings'
@@ -73,6 +74,14 @@ const previewSource = ref<PreviewSource | null>(null)
 const message = ref<string | null>(null)
 const error = ref<string | null>(null)
 const confirm = useConfirm()
+/**
+ * Most plugin changes run only from the next start (RD-1240-32): after any answer the restart
+ * status is read again, and while one is pending the answer offers "Restart now".
+ */
+const { status: restartStatus, load: loadRestart } = useRestartStatus()
+const { action: restartAction } = useRestartAction()
+const messageActions = computed(() => (restartStatus.value?.pending ? [restartAction()] : undefined))
+watch(message, (text) => { if (text) void loadRestart() })
 /** Ids the user switched off; read from the settings document, which is where they are stored. */
 const disabledIds = ref<string[]>([])
 const isDisabled = (plugin: InstalledPlugin): boolean => disabledIds.value.includes(plugin.id)
@@ -302,7 +311,7 @@ async function revokeKey(keyId: string): Promise<void> {
     </header>
 
     <!-- Above the tabs: removing, switching off and withdrawing answer here, whichever tab they came from. -->
-    <UAlert v-if="message" color="success" :description="message" />
+    <UAlert v-if="message" color="success" :description="message" :actions="messageActions" data-testid="plugins-message" />
     <UAlert v-if="error" color="error" :description="error" />
 
     <UTabs

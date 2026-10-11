@@ -141,6 +141,8 @@ pub async fn remove_plugin_version(
     Path((id, version)): Path<(String, String)>,
 ) -> Result<Json<MessageResponse>, ApiError> {
     refuse_version_in_use(&state, &id, &version).await?;
+    // Named before it goes: the last version removed takes the name with it.
+    let name = crate::restart_service::plugin_name(&state, &id).await;
     let removed = state
         .plugins
         .remove_version(&id, &version)
@@ -162,6 +164,13 @@ pub async fn remove_plugin_version(
     // row immediately; removing simply never took it back.
     state.plugins.refresh_providers().await;
     crate::plugin_lifecycle::forget_version(&state, &id, &version).await?;
+    // It runs until the next start (RD-1240-32).
+    state.restart.record(crate::dto::RestartReason::plugin(
+        "plugin_removed",
+        &id,
+        name.as_deref(),
+        Some(&version),
+    ));
     announce_plugin(&state, &id, "removed");
     crate::audit::record(
         &state,
@@ -332,6 +341,18 @@ pub async fn set_plugin_enabled(
     // it here too means the accounts list stops offering it at once instead of at the next
     // start — and switching it back on brings it straight back.
     state.plugins.refresh_providers().await;
+    // Loaded or left out at the next start (RD-1240-32).
+    crate::restart_service::record_plugin(
+        &state,
+        if request.enabled {
+            "plugin_enabled"
+        } else {
+            "plugin_disabled"
+        },
+        &id,
+        None,
+    )
+    .await;
     announce_plugin(
         &state,
         &id,

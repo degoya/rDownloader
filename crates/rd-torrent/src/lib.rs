@@ -7,13 +7,16 @@
 
 #![warn(unreachable_pub)]
 
+mod adding;
 mod bencode;
 mod error;
 mod forget;
 mod kill_switch;
+mod limits;
 mod metadata;
 mod network;
 mod plan;
+mod port_test;
 mod prefetch;
 mod priority;
 mod proxy;
@@ -39,6 +42,7 @@ pub use error::{TorrentError, TorrentErrorKind, torrent_kind};
 pub use forget::TorrentLocation;
 pub use metadata::{ParsedTorrent, parse_torrent};
 pub use network::{INTERFACE_CHECK_INTERVAL, NetworkInterface, TorrentNetworkStatus, interfaces};
+pub use port_test::{TorrentPortTest, TorrentPortVerdict};
 pub use prefetch::PREFETCH_TTL;
 pub use runner::TorrentRunner;
 pub use session::CAPABILITIES;
@@ -79,6 +83,8 @@ pub(crate) struct ServiceInner {
     session: RwLock<Option<session::SessionSlot>>,
     /// Incarnation counter handed to every session build.
     generation: std::sync::atomic::AtomicU64,
+    /// The lowest torrent id not handed out yet (`adding`).
+    next_torrent_id: std::sync::Mutex<usize>,
     /// Which queue row maps to which torrent, for downloading and seeding rows alike.
     pub registry: RwLock<registry::Registry>,
     /// Wakes the seeding supervisor when a policy changes, so a lowered limit takes effect
@@ -127,6 +133,7 @@ impl TorrentService {
                 default_output,
                 session: RwLock::new(None),
                 generation: std::sync::atomic::AtomicU64::new(0),
+                next_torrent_id: std::sync::Mutex::new(0),
                 registry: RwLock::new(registry::Registry::default()),
                 seeding_nudge: tokio::sync::Notify::new(),
                 kill_switch_engaged: std::sync::atomic::AtomicBool::new(false),

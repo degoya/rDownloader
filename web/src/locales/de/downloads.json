@@ -51,8 +51,7 @@
     "remove_failed": "Der Eintrag konnte nicht entfernt werden.",
     "nothing_to_reset": "In der Auswahl lässt sich derzeit nichts zurücksetzen – laufende Übertragungen müssen zuerst pausiert werden",
     "reorder_filter_active": "Die Reihenfolge lässt sich nur in der ungefilterten Liste ändern – die verborgenen Dateien würden sonst falsch einsortiert.",
-    "cleared_packages": "Es wurde kein Paket entfernt. | {count} Paket wurde entfernt. | {count} Pakete wurden entfernt.",
-    "clear_skipped": "Es blieb kein Paket unberührt. | {count} Paket blieb unberührt – {reason}: {names}. | {count} Pakete blieben unberührt – {reason}: {names}."
+    "cleared_packages": "Es wurde kein Paket entfernt. | {count} Paket wurde entfernt. | {count} Pakete wurden entfernt."
   },
   "notifications": {
     "failed_title": "Download fehlgeschlagen",
@@ -486,5 +485,47 @@
     "rail_title": "Stoppmarke nach „{name}“: Danach pausiert die Warteschlange.",
     "set_failed": "Die Stoppmarke konnte nicht gesetzt werden",
     "clear_failed": "Die Stoppmarke konnte nicht entfernt werden"
+  },
+  "start_after": {
+    "set": "Nicht vor … starten",
+    "set_hint": "Die wartenden Dateien des Pakets starten erst ab einem gewählten Zeitpunkt",
+    "clear": "Startzeit entfernen",
+    "glyph": "Startet später",
+    "glyph_title": "Startet nicht vor {time}",
+    "title": "Paket später starten",
+    "description": "Die wartenden Dateien von „{name}“ starten nicht vor diesem Zeitpunkt. Was schon läuft, läuft weiter.",
+    "day": "Tag",
+    "time": "Uhrzeit",
+    "not_ahead": "Wähle einen Zeitpunkt in der Zukunft.",
+    "set_done": "Startet nicht vor {time}",
+    "cleared": "Startzeit entfernt",
+    "failed": "Die Startzeit konnte nicht gespeichert werden"
+  },
+  "window": {
+    "menu": "Download-Zeitfenster …",
+    "menu_hint": "Wann dieses Paket laden darf",
+    "title": "Download-Zeitfenster",
+    "description": "Wann „{name}“ laden darf. Die Zeiten gelten in der Zeitzone des Bandbreiten-Zeitplans ({zone}).",
+    "own_label": "Eigenes Zeitfenster",
+    "own_off_category": "Aus: Das Paket folgt dem Zeitfenster seiner Kategorie ({window}).",
+    "own_off_schedule": "Aus: Das Paket folgt nur dem Bandbreiten-Zeitplan.",
+    "add": "Zeitspanne hinzufügen",
+    "anytime": "Keine Zeitspanne: lädt zu jeder Zeit, nur der Schalter unten zählt.",
+    "ignore_label": "Zeitplan-Pause ignorieren",
+    "ignore_description": "Lädt auch, solange ein Bandbreitenprofil Downloads pausiert – etwa ein dringender Download tagsüber.",
+    "rates_hint": "Schneller als die globale, die Profil- oder die von Hand gesetzte Grenze wird ein Paket nie: Die strengste Grenze gilt immer.",
+    "saved": "Download-Zeitfenster gespeichert",
+    "cleared": "Das Paket folgt wieder seiner Kategorie und dem Zeitplan",
+    "failed": "Download-Zeitfenster nicht gespeichert",
+    "glyph": "Download-Zeitfenster",
+    "glyph_closed": "Außerhalb des Download-Zeitfensters, wartet: {window}",
+    "glyph_open": "Lädt nur im Zeitfenster: {window}",
+    "glyph_bypass": "Ignoriert die Zeitplan-Pause"
+  },
+  "schedule_pause": {
+    "label": "Pausiert nach Zeitplan bis {time}",
+    "label_open": "Pausiert nach Zeitplan",
+    "title": "Das Bandbreitenprofil „{profile}“ pausiert Downloads. Pakete, die die Zeitplan-Pause ignorieren, laden weiter; unter Einstellungen › Bandbreite lässt sich auf ein anderes Profil umschalten.",
+    "open_settings": "Profil wechseln"
   }
 }

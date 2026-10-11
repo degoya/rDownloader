@@ -48,8 +48,10 @@
     "extension_steps": "In the extension options set the server URL to {origin} and paste this token, then press “Test connection”. See extension/README.md for installation.",
     "token_copied_description": "The capture token is in your clipboard.",
     "label": "Connection name",
-    "queue_control": "May pause the queue",
-    "queue_control_help": "Allows “Pause all” and “Resume all” in the agent's tray menu – nothing more. Without it the agent only hands links in."
+    "queue_control": "May control the queue",
+    "queue_control_help": "Allows “Start all”, “Pause all” and “Add all from LinkGrabber” in the agent's tray menu – nothing more. Without it the agent only hands links in.",
+    "server_update": "May install server updates",
+    "server_update_help": "Allows “Install server update” in the agent's tray menu: it installs rDownloader's offered update, and the service restarts. Without it the entry opens the update page in the browser. The same right allows “Restart server” in the tray menu, which restarts rDownloader."
   },
   "agents": {
     "eyebrow": "Paired connections",
@@ -705,7 +707,21 @@
       "outdated_description": "A capture agent still runs version {agent}, rDownloader already runs {service}. From 1.8.1 on, the agent restarts itself within a minute of an update. If it does not — because it is older, or another user started it — quit it from its tray icon or in Task Manager and start it again; on Linux, systemctl --user restart rdownloader-capture does both.",
       "self_offered": "A capture agent installed without rDownloader offers itself version {version}: choose “Install update to {version}” in its tray menu, or run rdownloader-capture update."
     },
-    "whats_new": "What’s new"
+    "whats_new": "What’s new",
+    "auto_install": {
+      "label": "Install updates automatically",
+      "description": "Installs a new version it found by itself once nothing has downloaded, post-processed or recorded for five minutes – with a backup before and a roll-back if it does not start.",
+      "locked": "Not available: this installation ({kind}) does not update itself; its package manager or container does.",
+      "window_label": "Install and restart only within a time window",
+      "window_description": "Applies to the automatic install and the automatic restart; without a window at any time. The times are in the bandwidth schedule's time zone.",
+      "from": "From",
+      "until": "Until",
+      "window_empty": "Start and end must differ."
+    },
+    "auto_restart": {
+      "label": "Restart automatically when needed",
+      "description": "Restarts rDownloader by itself after a plugin change once nothing has downloaded, post-processed or recorded for five minutes – inside the time window if one is set. With automatic plugin updates on, this switch is what makes them take effect. Transfers resume after the restart."
+    }
   },
   "oidc": {
     "eyebrow": "Identity provider",
@@ -772,5 +788,39 @@
     "unit": "/min",
     "none": "No limit",
     "row": "At most {count} calls per minute"
+  },
+  "restart": {
+    "title": "Restart pending",
+    "intro": "These changes take effect after a restart:",
+    "now": "Restart now",
+    "anyway": "Restart anyway",
+    "confirm_title": "Restart rDownloader?",
+    "failed_title": "Restart not possible",
+    "restarting_title": "rDownloader is restarting …",
+    "restarting_hint": "This page reloads as soon as the service answers again.",
+    "lost_title": "rDownloader has not come back",
+    "lost": "After five minutes the service still does not answer. It may need starting by hand.",
+    "automatic_hint": "“Restart automatically when needed” is on: rDownloader restarts by itself once nothing has run for five minutes.",
+    "how": {
+      "self": "rDownloader starts itself again.",
+      "systemd": "rDownloader stops, and systemd starts the service again.",
+      "container": "rDownloader stops, and the container's restart policy starts it again; without one (docker run without --restart) you have to start it yourself.",
+      "supervisor": "rDownloader stops, and its service manager starts it again.",
+      "manual": "rDownloader stops; start it again yourself afterwards."
+    },
+    "reason": {
+      "plugin_installed": "{plugin} installed",
+      "plugin_updated": "{name} updated: {from} → {version}",
+      "plugin_staged": "{plugin} staged for trying out",
+      "plugin_unstaged": "Staged version of {plugin} discarded",
+      "plugin_enabled": "{name} switched on",
+      "plugin_disabled": "{name} switched off",
+      "plugin_removed": "{plugin} removed",
+      "plugin_key_revoked": "Signing key {name} revoked",
+      "plugin_digest_revoked": "Package {plugin} withdrawn",
+      "plugin_digest_unrevoked": "Withdrawal of {plugin} lifted",
+      "other": "A change to the plugins",
+      "unnamed": "A plugin"
+    }
   }
 }

@@ -62,6 +62,17 @@ impl Writer {
                     crate::subscription_store::clear_history(&mut self.connection, id).await;
                 publish_config(reply, result, &self.events);
             }
+            SubscriptionsCommand::CompactSubscriptionItems { before, reply } => {
+                let result = crate::subscription_store::compact_items(&mut self.connection, before)
+                    .await
+                    .map(|(removed, event)| {
+                        if let Some(event) = event {
+                            let _ = self.events.send(event);
+                        }
+                        removed
+                    });
+                send(reply, result);
+            }
             SubscriptionsCommand::ArmSubscription {
                 id,
                 next_run_at,

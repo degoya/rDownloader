@@ -56,7 +56,7 @@ pub(crate) struct SwitchProfileParams {
 #[tool_router(router = pause_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read whether the whole queue is paused: until when (`until: null` for the pause a stop mark set, which lasts until resume_queue), and how many files the pause stopped. Not paused answers `paused: false`. `stop_mark` names the download or package the queue will pause after (set_stop_mark), null while none is set. `account_traffic` lists the accounts whose hoster reports their traffic used up (e.g. DDownload's daily limit): `action` is what the account_traffic_action setting makes of it (nothing, pause_account - its other downloads wait -, pause_queue - nothing new starts), `until` when the hoster's wait ends and the waiting downloads try again, `next_check_at` when the account is checked for traffic next; traffic above zero continues them at once, a pause somebody set is never lifted by it."
+        description = "Read whether the whole queue is paused: until when (`until: null` for the pause a stop mark set, which lasts until resume_queue), and how many files the pause stopped. Not paused answers `paused: false`. `stop_mark` names the download or package the queue will pause after (set_stop_mark), null while none is set. `account_traffic` lists the accounts whose hoster reports their traffic used up (e.g. DDownload's daily limit): `action` is what the account_traffic_action setting makes of it (nothing, pause_account - its other downloads wait -, pause_queue - nothing new starts), `until` when the hoster's wait ends and the waiting downloads try again, `next_check_at` when the account is checked for traffic next; traffic above zero continues them at once, a pause somebody set is never lifted by it. `schedule_pause` names the bandwidth profile in force while it pauses downloads (pause_downloads) and `until` when it ends; null otherwise. `schedule_timezone` is the zone download windows are read in."
     )]
     pub async fn get_queue_pause(&self) -> McpToolResult {
         let Json(answer) = queue_pause_handlers::get_queue_pause(State(self.state.clone())).await;
@@ -95,7 +95,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Read the bandwidth state: the active profile and whether the schedule or a switch by hand chose it (`source`, and `manual` with its end), the next change, the limits in force and the traffic budgets used today and this month."
+        description = "Read the bandwidth state: the active profile and whether the schedule or a switch by hand chose it (`source`, and `manual` with its end), the next change, the limits in force and the traffic budgets used today and this month. An active profile with pause_downloads true pauses downloads until next_switch_at: nothing new starts and running transfers that can resume pause; a package may ignore it (set_package_download_window), and switch_bandwidth_profile to another profile or to no limits downloads anyway."
     )]
     pub async fn get_bandwidth_status(&self) -> McpToolResult {
         respond(
@@ -106,7 +106,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the bandwidth profiles with their ids, limits and budgets, for switch_bandwidth_profile. Profiles and the weekly schedule are edited in the interface."
+        description = "List the bandwidth profiles with their ids, limits, budgets and pause_downloads (true: while the profile is in force no download starts and running transfers that can resume pause until it ends; uploads, seeding and post-processing go on), for switch_bandwidth_profile. Profiles and the weekly schedule are edited in the interface."
     )]
     pub async fn list_bandwidth_profiles(&self) -> McpToolResult {
         respond(

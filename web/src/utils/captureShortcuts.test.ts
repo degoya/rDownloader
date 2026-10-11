@@ -60,10 +60,17 @@ describe('captureShortcuts', () => {
     expect(duplicateCommands({ open: 'CmdOrCtrl+Alt+O', quit: null }).size).toBe(0)
   })
 
-  it('lists the commands in the order of the tray menu', () => {
+  it('lists every tray command, in the order of the service', () => {
     expect(CAPTURE_COMMANDS[0]).toBe('open')
-    expect(CAPTURE_COMMANDS.at(-1)).toBe('quit')
-    expect(CAPTURE_COMMANDS).toHaveLength(8)
+    expect(CAPTURE_COMMANDS.indexOf('quit')).toBe(10)
+    expect(CAPTURE_COMMANDS.slice(11)).toEqual([
+      'add_all_from_linkgrabber',
+      'add_all_from_linkgrabber_paused',
+      'install_update',
+      'restart_server'
+    ])
+    expect(new Set(CAPTURE_COMMANDS).size).toBe(15)
+    expect(CAPTURE_COMMANDS).toHaveLength(15)
   })
 
   it('guesses the platform of a browser whose agent has not reported yet', () => {

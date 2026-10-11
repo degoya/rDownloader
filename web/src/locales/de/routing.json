@@ -181,7 +181,9 @@
     "package_names_on": "An",
     "package_names_off": "Aus",
     "package_names_regex_override": "Eigene Regex-Regeln",
-    "package_names_regex_override_description": "Aus: die globalen Regeln gelten. An: diese Liste ersetzt sie – auch leer, dann gilt keine."
+    "package_names_regex_override_description": "Aus: die globalen Regeln gelten. An: diese Liste ersetzt sie – auch leer, dann gilt keine.",
+    "download_window_label": "Download-Zeitfenster",
+    "download_window_description": "Wann die Pakete dieser Kategorie laden dürfen; ein eigenes Zeitfenster eines Pakets gewinnt. Aus: Die Pakete folgen nur dem Bandbreiten-Zeitplan."
   },
   "rule": {
     "eyebrow": "Klassifizierer",
@@ -210,7 +212,8 @@
       "nzb": "NZB-Import",
       "hot_folder": "Hotfolder",
       "browser_extension": "Browser-Erweiterung",
-      "browser_download": "Browser-Download"
+      "browser_download": "Browser-Download",
+      "subscription": "Abonnement"
     },
     "protocol_label": "Protokoll",
     "protocol_description": "Wird mit dem URL-Schema verglichen, ohne Groß-/Kleinschreibung und ohne „://“.",

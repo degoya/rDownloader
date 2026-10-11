@@ -37,12 +37,12 @@ pub use hostlimit::{DEFAULT_CONNECTIONS_PER_HOST, HostLimits, MAX_CONNECTIONS_PE
 pub use multisource::{MultiSourceRequest, SourceEndpoint, SourceLedger};
 pub use plan::{ChunkSpec, chunks_aligned, plan_aligned_chunks, plan_chunks};
 pub use probe::{
-    ConditionalBody, FetchedDocument, ProbeResult, VerbatimBody, contradicts_announced_size,
-    fetch_bytes, fetch_conditional, fetch_document, fetch_text_verbatim, peek_body_text, probe,
-    probe_with_headers,
+    ConditionalBody, FetchedDocument, ProbeResult, UnfollowedRedirect, VerbatimBody,
+    contradicts_announced_size, fetch_bytes, fetch_conditional, fetch_document,
+    fetch_text_verbatim, peek_body_text, probe, probe_with_headers,
 };
 pub use range_source::{RangeReader, RangeSource, RangeTransport};
 pub use redirect::{RedirectGate, ReplayScope, is_approved, origin_of, with_redirect_gate};
 pub use sniff::{SniffedBody, fetch_sniffed};
-pub use tls::client_config as tls_client_config;
+pub use tls::{client_config as tls_client_config, tool_trust_bundle};
 pub use transform::{MacWalker, ResumePlan, StreamTransform, TransformCheckpoint, plan_resume};

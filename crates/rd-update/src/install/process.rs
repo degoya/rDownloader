@@ -1,5 +1,6 @@
 //! The processes of an update (RD-180-02): the updater the service starts, the service the
-//! updater starts, and the Windows installer.
+//! updater starts, and the Windows installer. A restart of the same version (RD-1240-32) starts
+//! its relauncher and the service the same way.
 
 use std::ffi::OsStr;
 use std::fs;
@@ -128,8 +129,31 @@ pub fn launch_agent_updater(journal: &Journal) -> Result<()> {
 }
 
 fn launch_copy(journal: &Journal, file_name: &str) -> Result<()> {
+    let journal_path = Journal::path(&journal.plan.data_dir);
+    let args = [
+        OsStr::new(APPLY_COMMAND),
+        OsStr::new("--journal"),
+        journal_path.as_os_str(),
+    ];
+    launch_copy_with(
+        &journal.plan.data_dir,
+        &journal.plan.service_cwd,
+        file_name,
+        &args,
+    )
+}
+
+/// Copies the running executable to `<data>/update/updater/<file_name>` and starts the copy in
+/// `cwd` with `args`, detached, its output appended to [`UPDATER_LOG`]: the updater's way
+/// ([`launch_updater`]), and the relauncher's of a restart (RD-1240-32,
+/// `crate::restart::launch_relauncher`), which must outlive the service it stops as well.
+///
+/// # Errors
+///
+/// When the copy or the start fails.
+pub fn launch_copy_with(data: &Path, cwd: &Path, file_name: &str, args: &[&OsStr]) -> Result<()> {
     let current = std::env::current_exe().context("locate the running executable")?;
-    let update = update_dir(&journal.plan.data_dir);
+    let update = update_dir(data);
     let directory = update.join(UPDATER_DIR);
     remove_any(&directory)?;
     fs::create_dir_all(&directory).with_context(|| format!("create {}", directory.display()))?;
@@ -137,13 +161,7 @@ fn launch_copy(journal: &Journal, file_name: &str) -> Result<()> {
     fs::copy(&current, &copy)
         .with_context(|| format!("copy {} to {}", current.display(), copy.display()))?;
     let log = update.join(UPDATER_LOG);
-    let journal_path = Journal::path(&journal.plan.data_dir);
-    let args = [
-        OsStr::new(APPLY_COMMAND),
-        OsStr::new("--journal"),
-        journal_path.as_os_str(),
-    ];
-    spawn_detached(&copy, &args[..], &journal.plan.service_cwd, &log, &log)?;
+    spawn_detached(&copy, args, cwd, &log, &log)?;
     Ok(())
 }
 
@@ -156,12 +174,25 @@ fn launch_copy(journal: &Journal, file_name: &str) -> Result<()> {
 ///
 /// When the log folder cannot be created or the program cannot be started.
 pub fn start_service(journal: &Journal, executable: &Path) -> Result<Child> {
-    let cwd = &journal.plan.service_cwd;
+    start_program(
+        executable,
+        &journal.plan.service_args,
+        &journal.plan.service_cwd,
+    )
+}
+
+/// [`start_service`] from the arguments and the folder alone: what the relauncher of a restart
+/// (RD-1240-32) starts the same version with.
+///
+/// # Errors
+///
+/// As [`start_service`].
+pub fn start_program(executable: &Path, args: &[String], cwd: &Path) -> Result<Child> {
     let logs = cwd.join("logs");
     fs::create_dir_all(&logs).with_context(|| format!("create {}", logs.display()))?;
     let child = spawn_detached(
         executable,
-        journal.plan.service_args.as_slice(),
+        args,
         cwd,
         &logs.join("rdownloader.log"),
         &logs.join("rdownloader.err.log"),

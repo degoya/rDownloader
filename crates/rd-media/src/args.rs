@@ -12,7 +12,11 @@
 
 use std::{ffi::OsString, path::Path};
 
-use rd_core::{MediaEmbedPolicy, MediaFormatCriteria, MediaOutput, TrackSelection};
+use rd_core::{
+    MediaEmbedPolicy, MediaFormatCriteria, MediaOutput, MediaPauses, MediaSection, TrackSelection,
+};
+use rd_files::NoConsoleWindow as _;
+use rd_scheduler::ToolNetwork;
 
 use crate::tracks::sub_langs;
 
@@ -49,6 +53,10 @@ pub struct DownloadPlan<'a> {
     /// the tools actually allow by [`rd_core::effective_policy`], so this builder only
     /// translates it into flags.
     pub embed: &'a MediaEmbedPolicy,
+    /// Only this part of the video (RD-1240-15), already sanitised with the criteria.
+    pub section: Option<MediaSection>,
+    /// Pauses between requests and before the download (RD-1240-15); see `crate::pacing`.
+    pub pauses: MediaPauses,
     /// The page to download.
     pub page_url: &'a str,
 }
@@ -111,6 +119,7 @@ impl DownloadPlan<'_> {
         }
         self.push_track_args(&mut args);
         self.push_embed_args(&mut args);
+        self.push_pacing_args(&mut args);
         args.push(OsString::from("--"));
         args.push(OsString::from(self.page_url));
         args
@@ -207,6 +216,35 @@ pub fn output_mode(criteria: Option<&MediaFormatCriteria>, audio: bool) -> Media
             container: "mp4".to_owned(),
         },
     }
+}
+
+/// The network options of one yt-dlp invocation (RD-1240-08).
+///
+/// The proxy as yt-dlp's own `--proxy` when it carries no credentials; one with credentials
+/// reaches yt-dlp through its environment only ([`ToolNetwork::apply`]), because an argument
+/// list is readable by every process on the machine. With a custom CA, yt-dlp is told to use
+/// the system trust, which reads the bundle in `SSL_CERT_FILE`, instead of its own certifi.
+#[must_use]
+pub(crate) fn network_args(network: &ToolNetwork) -> Vec<OsString> {
+    let mut args = Vec::new();
+    if let Some(proxy) = network.proxy_argument() {
+        args.push(OsString::from("--proxy"));
+        args.push(OsString::from(proxy));
+    }
+    if network.trust_bundle().is_some() {
+        args.push(OsString::from("--compat-options"));
+        args.push(OsString::from("no-certifi"));
+    }
+    args
+}
+
+/// A yt-dlp command with `network`'s environment and options set; the caller adds the rest.
+pub(crate) fn ytdlp_command(ytdlp: &Path, network: &ToolNetwork) -> tokio::process::Command {
+    let mut command = tokio::process::Command::new(ytdlp);
+    command.no_console_window();
+    network.apply(&mut command);
+    command.args(network_args(network));
+    command
 }
 
 #[cfg(test)]

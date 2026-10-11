@@ -12,11 +12,13 @@ mod backup;
 mod bandwidth;
 mod capture;
 mod capture_agent;
+mod capture_game_mode;
 mod collector;
 mod cookie_file;
 mod dedupe;
 mod diagnostics;
 mod download;
+mod download_window;
 mod event;
 pub mod failpoint;
 mod gallery;
@@ -81,15 +83,20 @@ pub use bandwidth::{BandwidthSettings, DEFAULT_BANDWIDTH_TIMEZONE};
 pub use capture::{
     API_ADMIN_SCOPE, API_CONFIG_SCOPE, API_INTAKE_SCOPE, API_METRICS_SCOPE, API_QUEUE_SCOPE,
     API_READ_SCOPE, API_SCOPE, API_SECRETS_SCOPE, CAPTURE_AGENT_PRODUCT, CAPTURE_CONTRACT_VERSION,
-    CAPTURE_QUEUE_SCOPE, CAPTURE_SCOPE, CAPTURED_HEADER_ALLOWLIST, CaptureToken, CapturedHeader,
-    CapturedRequest, MAX_CAPTURE_LINKS, MAX_CAPTURED_HEADER_NAME, MAX_CAPTURED_HEADERS,
-    MAX_CAPTURED_VALUE, Scope, granted_scopes, is_allowed_captured_header, is_credential_header,
-    scope_satisfies, scopes_grant, scopes_satisfy,
+    CAPTURE_QUEUE_SCOPE, CAPTURE_SCOPE, CAPTURE_SERVER_UPDATE_SCOPE, CAPTURED_HEADER_ALLOWLIST,
+    CaptureToken, CapturedHeader, CapturedRequest, MAX_CAPTURE_LINKS, MAX_CAPTURED_HEADER_NAME,
+    MAX_CAPTURED_HEADERS, MAX_CAPTURED_VALUE, Scope, granted_scopes, is_allowed_captured_header,
+    is_credential_header, scope_satisfies, scopes_grant, scopes_satisfy,
 };
 pub use capture_agent::{
     CaptureAgentSettings, CaptureCommand, CapturePlatform, CaptureShortcutReport, CaptureShortcuts,
     Family as ShortcutFamily, Pressed as ShortcutKeys, Shortcut, ShortcutProblem, ShortcutRefusal,
     ShortcutsUnavailable,
+};
+pub use capture_game_mode::{
+    CaptureGameMode, GameModeAction, GameModeProblem, HOLD_MINUTES as GAME_MODE_HOLD_MINUTES,
+    InForce as GameModeInForce, MAX_GAME_MODE_PROCESSES,
+    RENEW_BEFORE_MINUTES as GAME_MODE_RENEW_BEFORE_MINUTES, process_key as game_mode_process_key,
 };
 pub use collector::{
     CandidateMessage, CandidateMirror, Category, CategoryRule, CategoryRuleNameTarget,
@@ -98,6 +105,7 @@ pub use collector::{
     LinkCandidateState, LinkCheckResult, MirrorFacet, MirrorHint, MirrorPreference, MirrorSource,
     StorageRootConfig, candidate_url, split_candidate_url,
 };
+pub use collector::{LinkFilterAction, LinkFilterNameSyntax, LinkFilterRule, LinkFilterRuleId};
 pub use cookie_file::{
     CookieFileError, CookieRow, MAX_COOKIE_FILE, earliest_expiry as cookie_earliest_expiry,
     parse as parse_cookie_file, to_netscape_file,
@@ -115,6 +123,7 @@ pub use download::{
     DownloadFile, DownloadKind, DownloadPackage, DownloadPriority, DownloadState, ExpectedChecksum,
     is_recovery_volume,
 };
+pub use download_window::{DownloadWindow, MAX_DOWNLOAD_WINDOW_SPANS, WeeklyWindow};
 pub use event::{EventEnvelope, EventKind};
 pub use gallery::{GALLERY_PROVIDER, GallerySettings};
 pub use git_release::{
@@ -146,16 +155,16 @@ pub use media::{
     AudioCodecFamily, AudioTrack, AudioTrackPolicy, CONTAINERS, ContainerCapabilities,
     CriteriaError, CriterionKind, CriterionMatch, DynamicRange, EmbedWarning, LEGACY_PRESETS,
     MAX_CRITERIA_TOKEN, MAX_CRITERIA_VALUES, MAX_MEDIA_FORMATS, MAX_MEDIA_TRACKS,
-    MEDIA_CONTRACT_VERSION, MEDIA_PROVIDER, MediaCandidate, MediaCandidateState,
-    MediaCompatibilityWarning, MediaEmbedPolicy, MediaFormat, MediaFormatCriteria,
-    MediaFormatInventory, MediaFormatKind, MediaInfo, MediaKind, MediaOutput, MediaResolution,
-    MediaSelection, MediaSelectionError, MediaSelectionUpdate, MediaSettings, MediaStrictness,
-    MediaTarget, MediaVariant, RELAXATION_ORDER, ResolvedFormatPlan, SponsorBlockPolicy,
-    SponsorCategory, SponsorMode, SubtitleMode, SubtitlePolicy, SubtitleSource, SubtitleTrack,
-    TrackSelection, TrackWarning, VideoCodecFamily, capabilities, effective_policy, embed_warnings,
-    is_audio_only, is_criteria_token, supports_audio_codec, supports_chapters,
-    supports_multiple_audio, supports_subtitles, supports_thumbnail, supports_video_codec,
-    track_warnings,
+    MAX_PAUSE_SECONDS, MAX_SECTION_SECONDS, MEDIA_CONTRACT_VERSION, MEDIA_PROVIDER, MediaCandidate,
+    MediaCandidateState, MediaCompatibilityWarning, MediaEmbedPolicy, MediaFormat,
+    MediaFormatCriteria, MediaFormatInventory, MediaFormatKind, MediaInfo, MediaKind, MediaOutput,
+    MediaPauses, MediaResolution, MediaSection, MediaSelection, MediaSelectionError,
+    MediaSelectionUpdate, MediaSettings, MediaStrictness, MediaTarget, MediaVariant,
+    RELAXATION_ORDER, ResolvedFormatPlan, SponsorBlockPolicy, SponsorCategory, SponsorMode,
+    SubtitleMode, SubtitlePolicy, SubtitleSource, SubtitleTrack, TrackSelection, TrackWarning,
+    VideoCodecFamily, capabilities, effective_policy, embed_warnings, is_audio_only,
+    is_criteria_token, supports_audio_codec, supports_chapters, supports_multiple_audio,
+    supports_subtitles, supports_thumbnail, supports_video_codec, track_warnings,
 };
 pub use mfa::{MfaCredential, MfaKind, MfaStatus};
 pub use network::{Account, ProxyKind, ProxyProfile, ResolverPin, ResolverRoute};
@@ -250,8 +259,9 @@ pub use toolpath::{
     set_data_directory, set_managed_tool_resolver, vendor_directories,
 };
 pub use torrent::{
-    DEFAULT_PEER_PAGE, EffectiveSeedingPolicy, MAX_EXCLUSION_PATTERN_LENGTH,
-    MAX_EXCLUSION_PATTERNS, MAX_PEER_PAGE, MAX_SEED_RATIO, MAX_SEED_TIME_MINUTES,
+    DEFAULT_PEER_PAGE, DEFAULT_TORRENT_ACTIVE_DOWNLOADS, EffectiveSeedingPolicy,
+    MAX_EXCLUSION_PATTERN_LENGTH, MAX_EXCLUSION_PATTERNS, MAX_PEER_PAGE, MAX_SEED_RATIO,
+    MAX_SEED_TIME_MINUTES, MAX_TORRENT_ACTIVE_DOWNLOADS, MAX_TORRENT_ACTIVE_SEEDS,
     MAX_TORRENT_TRACKERS, MAX_TRACKER_URL, MIN_SEED_RATIO, PIECE_BUCKETS, PolicySource,
     ResolvedTorrentPlan, SeedAccounting, SeedTimeLimit, SeedingPolicyOverride,
     TORRENT_CONTENT_TYPES, TORRENT_CONTRACT_VERSION, TORRENT_PROVIDER,

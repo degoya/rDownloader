@@ -101,6 +101,32 @@ pub(crate) fn answers_as_rdownloader(status: StatusCode, body: &[u8]) -> bool {
             })
 }
 
+/// The service's version from one health answer, for the tray's server line (RD-1240-06).
+///
+/// Only from an answer that names rDownloader, and only a version that looks like one: up to 32
+/// letters, digits, dots, dashes and plus signs. Whatever else the listener sends never reaches
+/// the menu.
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+pub(crate) fn health_version(body: &[u8]) -> Option<String> {
+    let answer = serde_json::from_slice::<serde_json::Value>(body).ok()?;
+    if answer.get("service").and_then(serde_json::Value::as_str) != Some(SERVICE_NAME) {
+        return None;
+    }
+    let version = answer.get("version")?.as_str()?;
+    let plausible = !version.is_empty()
+        && version.len() <= 32
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+'));
+    plausible.then(|| version.to_owned())
+}
+
+/// A health answer's body, read no further than this module reads it for the identity check.
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
+pub(crate) async fn read_health_answer(response: reqwest::Response) -> Vec<u8> {
+    read_at_most(response, MAX_ANSWER_BYTES).await
+}
+
 /// The body, cut off past `limit`: a foreign listener decides how much it sends.
 async fn read_at_most(mut response: reqwest::Response, limit: usize) -> Vec<u8> {
     let mut body = Vec::new();

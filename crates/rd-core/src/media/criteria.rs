@@ -12,6 +12,7 @@ use utoipa::ToSchema;
 
 use super::embed::MediaEmbedPolicy;
 use super::format::{AudioCodecFamily, DynamicRange, VideoCodecFamily};
+use super::section::{MediaPauses, MediaSection};
 use super::tracks::TrackSelection;
 
 /// Longest free-form token (container, codec name, language tag) accepted.
@@ -113,6 +114,12 @@ pub struct MediaFormatCriteria {
     /// if a stored template turns out not to expand.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_template: Option<String>,
+    /// Only this part of the video (RD-1240-15); `None` downloads all of it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<MediaSection>,
+    /// Pauses for this job (RD-1240-15); `None` keeps the configured ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pauses: Option<MediaPauses>,
     /// The preset these criteria came from (`best`, `1080p`, `audio_mp3`), or `None` for a
     /// hand-built selection. Display only — the criteria are the contract.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -223,6 +230,12 @@ impl MediaFormatCriteria {
         }
         self.tracks = self.tracks.sanitized()?;
         self.embed = self.embed.sanitized()?;
+        self.section = self
+            .section
+            .map(MediaSection::sanitized)
+            .transpose()?
+            .flatten();
+        self.pauses = self.pauses.map(MediaPauses::sanitized).transpose()?;
         if let Some(preset) = &self.preset {
             let preset = normalize_token(preset, "preset")?;
             if !LEGACY_PRESETS.contains(&preset.as_str()) && preset != "custom" {
@@ -388,5 +401,31 @@ mod tests {
             ..MediaFormatCriteria::default()
         };
         assert!(criteria.sanitized().is_err());
+    }
+
+    #[test]
+    fn a_whole_video_section_is_dropped_and_a_bad_one_refused() {
+        use crate::media::{MediaPauses, MediaSection};
+        let criteria = MediaFormatCriteria {
+            section: Some(MediaSection::default()),
+            pauses: Some(MediaPauses::NONE),
+            ..MediaFormatCriteria::default()
+        }
+        .sanitized()
+        .expect("valid");
+        assert_eq!(criteria.section, None);
+        assert_eq!(criteria.pauses, Some(MediaPauses::NONE));
+
+        let criteria = MediaFormatCriteria {
+            section: Some(MediaSection {
+                start_seconds: Some(30),
+                end_seconds: Some(10),
+            }),
+            ..MediaFormatCriteria::default()
+        };
+        assert_eq!(
+            criteria.sanitized(),
+            Err(CriteriaError::Range { field: "section" })
+        );
     }
 }

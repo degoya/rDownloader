@@ -46,6 +46,11 @@ pub fn configure_compile_cache(directory: &Path) -> Result<()> {
     })
 }
 
+/// The engine the service configured with its compile cache, if it did; never builds one.
+pub(crate) fn configured() -> Option<Arc<SharedEngine>> {
+    SHARED.get().map(Arc::clone)
+}
+
 /// The process's engine, built on first use when `configure_compile_cache` was not called.
 pub(crate) fn shared() -> Result<Arc<SharedEngine>> {
     if let Some(shared) = SHARED.get() {
@@ -112,6 +117,12 @@ impl SharedEngine {
         if let Some(component) = self.lock()?.get(&digest) {
             return Ok(component.clone());
         }
+        // Marked until its entry is recorded, so the entry is known to be this component's
+        // (RD-1240-34).
+        let _compiling = self
+            .disk
+            .as_ref()
+            .map(|disk| disk.begin(&crate::compile_cache::hex(&digest)));
         let component = Component::from_binary(&self.engine, bytes)
             .map_err(|error| anyhow::anyhow!("compile WebAssembly component: {error}"))?;
         self.compilations.fetch_add(1, Ordering::Relaxed);
@@ -136,7 +147,6 @@ impl SharedEngine {
         self.compilations.load(Ordering::Relaxed)
     }
 
-    #[cfg(test)]
     pub(crate) fn disk(&self) -> Option<&CompileCache> {
         self.disk.as_ref()
     }

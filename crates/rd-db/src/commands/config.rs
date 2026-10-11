@@ -13,6 +13,13 @@ pub(crate) enum ConfigCommand {
         policy: Option<rd_core::SeedingPolicyOverride>,
         reply: Reply<()>,
     },
+    /// Sets or removes (`None`) the download window of a category's packages (RD-1240-30);
+    /// `false` when there is no such category.
+    SetCategoryDownloadWindow {
+        id: rd_core::CategoryId,
+        window: Option<rd_core::DownloadWindow>,
+        reply: Reply<bool>,
+    },
     UpdateCategoryPostprocess {
         id: rd_core::CategoryId,
         postprocess: crate::CategoryPostprocess,
@@ -60,6 +67,26 @@ pub(crate) enum ConfigCommand {
     },
     DeleteCategoryRule {
         id: rd_core::CategoryRuleId,
+        reply: Reply<()>,
+    },
+    /// Appends a LinkFilter rule at the end of the evaluation order (RD-1240-09).
+    CreateLinkFilterRule {
+        input: crate::NewLinkFilterRule,
+        reply: Reply<rd_core::LinkFilterRule>,
+    },
+    UpdateLinkFilterRule {
+        id: rd_core::LinkFilterRuleId,
+        input: crate::NewLinkFilterRule,
+        reply: Reply<rd_core::LinkFilterRule>,
+    },
+    /// Removes a LinkFilter rule; the links it hid are shown again.
+    DeleteLinkFilterRule {
+        id: rd_core::LinkFilterRuleId,
+        reply: Reply<()>,
+    },
+    /// Numbers the listed rules first, in that order.
+    ReorderLinkFilterRules {
+        ids: Vec<rd_core::LinkFilterRuleId>,
         reply: Reply<()>,
     },
     UpdateHotFolder {

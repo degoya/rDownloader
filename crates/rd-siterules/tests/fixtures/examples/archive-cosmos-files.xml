@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files>
+  <file name="Cosmos Laundromat - First Cycle (1080p).gif" source="derivative">
+    <format>Animated GIF</format>
+    <original>Cosmos Laundromat - First Cycle (1080p).mp4</original>
+    <mtime>1441467406</mtime>
+    <size>223580</size>
+    <md5>2b7f137b01ca1d0769178302d3e0e83b</md5>
+    <crc32>0667fbfe</crc32>
+    <sha1>cf383f8d727996668ce2fd8d53164c150b5a58bf</sha1>
+  </file>
+  <file name="Cosmos Laundromat - First Cycle (1080p).mp4" source="original">
+    <mtime>1441467072</mtime>
+    <size>220087570</size>
+    <md5>f22bb01a114965a0ded9574ee6792214</md5>
+    <crc32>8e7aaaa8</crc32>
+    <sha1>25c14461f067643515e93f1b89558c8aa78a74c1</sha1>
+    <format>MPEG4</format>
+    <length>730.62</length>
+    <height>804</height>
+    <width>1920</width>
+  </file>
+  <file name="Cosmos Laundromat - First Cycle (1080p).ogv" source="derivative">
+    <format>Ogg Video</format>
+    <original>Cosmos Laundromat - First Cycle (1080p).mp4</original>
+    <mtime>1441471591</mtime>
+    <size>56832560</size>
+    <md5>c5a6d561c575eba8f6360eb6fd23f2ec</md5>
+    <crc32>99959b03</crc32>
+    <sha1>d7aabf2a806feb08ab2b14090dc9ac599be56387</sha1>
+    <length>730.62</length>
+    <height>300</height>
+    <width>716</width>
+  </file>
+  <file name="CosmosLaundromat-FirstCycle1080p.en.srt" source="original">
+    <format>SubRip</format>
+    <title>Cosmos Laundromat - First Cycle (1080p).en</title>
+    <mtime>1441467617</mtime>
+    <size>3949</size>
+    <md5>a26edcf72fdc4fe0ba6b160be7706b25</md5>
+    <crc32>b3d2f5de</crc32>
+    <sha1>712c22942e6ef6d5b614d3603e67405f848cfebf</sha1>
+  </file>
+  <file name="CosmosLaundromat-FirstCycle1080p.es.srt" source="original">
+    <format>SubRip</format>
+    <title>Cosmos Laundromat - First Cycle (1080p).es</title>
+    <mtime>1441467618</mtime>
+    <size>3907</size>
+    <md5>055b78b005ea1b96769de34393bdb332</md5>
+    <crc32>5514a3b4</crc32>
+    <sha1>cfce9456fd61fd07f1a28fa0dc90ab020e96127f</sha1>
+  </file>
+  <file name="CosmosLaundromat-FirstCycle1080p.fr.srt" source="original">
+    <format>SubRip</format>
+    <title>Cosmos Laundromat - First Cycle (1080p).fr</title>
+    <mtime>1441467619</mtime>
+    <size>4119</size>
+    <md5>9fcc724ce680eb733edcd8d129c72b6b</md5>
+    <crc32>dea0e236</crc32>
+    <sha1>91693d43850fa7adcbf6a6b62e1b04e54668521b</sha1>
+  </file>
+  <file name="CosmosLaundromat-FirstCycle1080p.it.srt" source="original">
+    <format>SubRip</format>
+    <title>Cosmos Laundromat - First Cycle (1080p).it</title>
+    <mtime>1441467620</mtime>
+    <size>3941</size>
+    <md5>de5a3cdece98881c160ed2753f295f30</md5>
+    <crc32>836e37f3</crc32>
+    <sha1>040a49012948abd66f8480980d847c59e51e18ae</sha1>
+  </file>
+  <file name="CosmosLaundromatFirstCycle.thumbs/Cosmos Laundromat - First Cycle (1080p)_000001.jpg" source="derivative">
+    <format>Thumbnail</format>
+    <original>Cosmos Laundromat - First Cycle (1080p).mp4</original>
+    <mtime>1441468917</mtime>
+    <size>1633</size>
+    <md5>2566cccf25781613e605917f262f3238</md5>
+    <crc32>3c3afc33</crc32>
+    <sha1>48e546181773f539c8b38d0a76ed14829ee9f3d2</sha1>
+  </file>
+  <!-- cut: the thumbnails 000045 to 000705 -->
+  <file name="CosmosLaundromatFirstCycle_archive.torrent" source="metadata">
+    <btih>6cba809be374cc98a0964b458fc198df2dcf3987</btih>
+    <mtime>1658347883</mtime>
+    <size>13673</size>
+    <md5>ae63b5b5d42dbbf992f58f6ad90f8c2d</md5>
+    <crc32>d7e46ea0</crc32>
+    <sha1>870f77bca8d2abd89c18024d947b641697305261</sha1>
+    <format>Archive BitTorrent</format>
+  </file>
+  <file name="CosmosLaundromatFirstCycle_files.xml" source="original">
+    <format>Metadata</format>
+    <md5>102c76a6a6f24d3a838d6fdac18a0fa4</md5>
+    <summation>md5</summation>
+  </file>
+  <file name="CosmosLaundromatFirstCycle_meta.sqlite" source="original">
+    <mtime>1441467105</mtime>
+    <size>11264</size>
+    <md5>cf29976c5bed0b389a900bf4f25e12eb</md5>
+    <crc32>805562e8</crc32>
+    <sha1>f8674a3f5985dd4ceefc46391efda2e27bc30994</sha1>
+    <format>Metadata</format>
+  </file>
+  <file name="CosmosLaundromatFirstCycle_meta.xml" source="original">
+    <mtime>1613280880</mtime>
+    <size>1290</size>
+    <format>Metadata</format>
+    <md5>bbe7917c51bc6ec342fff0a8afe12b93</md5>
+    <crc32>d6662e32</crc32>
+    <sha1>b08ebd3c1fcd1647fc80448ff61044e70abf8ea8</sha1>
+  </file>
+  <file name="__ia_thumb.jpg" source="original">
+    <mtime>1657813144</mtime>
+    <size>5703</size>
+    <md5>3aed72eccbdcd75aa3c7464f25dff99d</md5>
+    <crc32>0d255dce</crc32>
+    <sha1>3b9e1ad1d05c9a857b4fa92e35338447b8590e7d</sha1>
+    <format>Item Tile</format>
+    <rotation>0</rotation>
+  </file>
+</files>

@@ -211,6 +211,8 @@ pub(crate) mod tests {
             postprocess: rd_core::PostprocessStatus::default(),
             extraction_result: None,
             enrichment: Vec::new(),
+            start_after: None,
+            download_window: None,
         }
     }
 

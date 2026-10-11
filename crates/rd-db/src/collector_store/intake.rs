@@ -9,7 +9,10 @@ use rd_core::{
 use sqlx::{Connection, Sqlite, SqliteConnection, Transaction};
 use url::Url;
 
-use super::{BatchPasswords, NewCollectorBatch, insert_event, provider_for, reread_candidates};
+use super::{
+    BatchPasswords, NewCollectorBatch, filter_decision::FilterDecision, insert_event, provider_for,
+    reread_candidates,
+};
 use crate::enum_string;
 
 /// Whether an address is still here, bound twice: in the LinkGrabber (a candidate that is not
@@ -53,11 +56,15 @@ pub(crate) async fn add_batch(
     let (rules, default_category) = crate::config_store::routing_config(connection).await?;
     // Prepared once for the whole batch: every link is routed against the same rules.
     let routing = rd_collector::CategoryRules::new(&rules);
+    // The LinkFilter decides before the grouping: a rule's package is where the link is grouped
+    // (RD-1240-09).
+    let filter_rules = crate::link_filter_store::link_filter_rules(connection).await?;
+    let filters = rd_collector::LinkFilters::new(&filter_rules);
     let source_value = enum_string(intake.source)?;
     let mut transaction = connection.begin().await?;
     insert_batch_row(&mut transaction, &batch, source_value).await?;
 
-    let links = LinkFacts::of(&intake);
+    let links = LinkFacts::of(&intake, &filters);
     let groups = links.groups(&intake);
     let write = BatchWrite {
         intake: &intake,
@@ -108,24 +115,26 @@ async fn insert_batch_row(
     Ok(())
 }
 
-/// What each link of the batch is before it is grouped: file name, host and provider, parallel
-/// to `urls`.
+/// What each link of the batch is before it is grouped: file name, host, provider and what the
+/// LinkFilter decided, parallel to `urls`.
 struct LinkFacts {
     file_names: Vec<Option<String>>,
     hosts: Vec<String>,
     providers: Vec<String>,
+    filtered: Vec<FilterDecision>,
 }
 
 impl LinkFacts {
-    fn of(intake: &NewCollectorBatch) -> Self {
+    fn of(intake: &NewCollectorBatch, filters: &rd_collector::LinkFilters<'_>) -> Self {
         let derived_file_names: Vec<Option<String>> = intake
             .urls
             .iter()
             .map(|url| {
+                // Decoded, as the name a person reads (RD-1240-33).
                 url.path_segments()
                     .and_then(Iterator::last)
                     .filter(|name| !name.is_empty())
-                    .map(str::to_owned)
+                    .map(rd_files::decode_path_segment)
             })
             .collect();
         let file_names: Vec<Option<String>> = intake
@@ -161,10 +170,12 @@ impl LinkFacts {
                     .unwrap_or_else(|| provider_for(url))
             })
             .collect();
+        let filtered = FilterDecision::batch(intake, filters, &file_names);
         Self {
             file_names,
             hosts,
             providers,
+            filtered,
         }
     }
 
@@ -184,7 +195,10 @@ impl LinkFacts {
                         self.providers[index].as_str(),
                         rd_core::NZB_PROVIDER | rd_core::TORRENT_PROVIDER
                     ),
-                package_hint: intake.package_hints.get(index).and_then(Option::as_deref),
+                package_hint: self.filtered[index]
+                    .package
+                    .as_deref()
+                    .or_else(|| intake.package_hints.get(index).and_then(Option::as_deref)),
             })
             .collect();
         rd_collector::group_links(&inputs, intake.package_name.as_deref(), "Links")
@@ -218,10 +232,16 @@ impl BatchWrite<'_> {
             .or(self.intake.password.as_deref());
         let mut package_id = None;
         let mut package_category = None;
+        // A `route` rule's category is the package's, whichever of its links the rule matched;
+        // the submission's own category still comes first, as it does over the routing rules.
+        let filter_category = group
+            .members
+            .iter()
+            .find_map(|index| self.links.filtered[*index].category);
         for (position, index) in group.members.iter().enumerate() {
             let url = &self.intake.urls[*index];
             let state = self.candidate_state(transaction, url).await?;
-            let category_id = self.intake.category_id.or_else(|| {
+            let category_id = self.intake.category_id.or(filter_category).or_else(|| {
                 self.routing.select(
                     &rd_collector::CategoryContext {
                         source: self.intake.source,
@@ -346,6 +366,7 @@ impl BatchWrite<'_> {
             // sees always comes from what was actually written.
             secret_fragment: false,
             sources: Vec::new(),
+            hidden_by_filter: self.links.filtered[index].hidden_by,
         })
     }
 
@@ -379,8 +400,8 @@ impl BatchWrite<'_> {
             .transpose()?;
         let mirror = self.intake.mirror_hints.get(index).cloned().flatten();
         sqlx::query(
-            "INSERT INTO link_candidates (id, batch_id, url, state, file_name, file_name_declared, size, provider, category_id, priority, package_id, position, created_at, request_json, replay_body_ref, source_attributes_json, mirror_declared, mirror_quality, mirror_language, secret_fragment_ref) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO link_candidates (id, batch_id, url, state, file_name, file_name_declared, size, provider, category_id, priority, package_id, position, created_at, request_json, replay_body_ref, source_attributes_json, mirror_declared, mirror_quality, mirror_language, secret_fragment_ref, hidden_by_filter) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(candidate.id.to_string())
         .bind(candidate.batch_id.to_string())
@@ -407,6 +428,7 @@ impl BatchWrite<'_> {
         .bind(mirror.as_ref().and_then(|hint| hint.quality.clone()))
         .bind(mirror.as_ref().and_then(|hint| hint.language.clone()))
         .bind(stored_fragment_ref)
+        .bind(candidate.hidden_by_filter.map(|id| id.to_string()))
         .execute(&mut *transaction)
         .await?;
         Ok(())

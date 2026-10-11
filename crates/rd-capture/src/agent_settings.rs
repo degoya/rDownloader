@@ -1,5 +1,5 @@
-//! Following what the service has this agent set to: the clipboard pause (RD-1180-01) and the
-//! shortcuts (RD-1180-03).
+//! Following what the service has this agent set to: the clipboard pause (RD-1180-01), the
+//! shortcuts (RD-1180-03) and the game mode and its switch (RD-1240-19, RD-1240-23).
 //!
 //! The service holds the settings, so the settings page, MCP, the tray and the `pause`/`resume`
 //! commands all switch the same thing. The agent reads them on the five-second cadence of its
@@ -12,7 +12,8 @@
 //!
 //! A switch made here (the tray, a shortcut) is in force at once and sent until the service
 //! takes it: a poll that answers in between must not switch it back, so while one is waiting the
-//! poll is that request instead.
+//! poll is that request instead. Only a refusal ends the wait: the game mode switch needs queue
+//! control, which an agent paired without it does not have.
 
 use std::path::{Path, PathBuf};
 
@@ -20,7 +21,10 @@ use rd_core::{CaptureAgentSettings, CaptureShortcutReport};
 use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
-use crate::{client::CaptureClient, config};
+use crate::{
+    client::{CaptureClient, ServiceRefusal},
+    config,
+};
 
 /// The cache's file name, beside `capture.json`.
 const CACHE_FILE: &str = "agent-settings.json";
@@ -30,6 +34,8 @@ const CACHE_FILE: &str = "agent-settings.json";
 pub(crate) enum SettingsRequest {
     /// "Pause clipboard watching": switch it to the other state.
     ToggleClipboard,
+    /// "Pause while gaming": switch game mode on or off (RD-1240-23).
+    ToggleGameMode,
     /// What registering the shortcuts came to, for the settings page.
     Report(CaptureShortcutReport),
 }
@@ -72,34 +78,53 @@ pub(crate) fn store_cached(directory: Option<&Path>, settings: &CaptureAgentSett
 }
 
 /// The next call the loop makes.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Call {
     /// Read the settings.
     Read,
-    /// Send the switch that is waiting; its answer is the settings.
-    Send(bool),
+    /// Send the clipboard pause that is waiting; its answer is the settings.
+    SendClipboard(bool),
+    /// Send the game mode switch that is waiting; its answer is the settings.
+    SendGameMode(bool),
 }
 
 /// The one rule of the loop: a switch made here waits to be sent, and until the service has it,
 /// no reading switches it back.
 #[derive(Debug, Default)]
 pub(crate) struct Follower {
-    waiting: Option<bool>,
+    clipboard: Option<bool>,
+    game_mode: Option<bool>,
 }
 
 impl Follower {
     /// Switches the pause here, now, and queues it for the service. Returns the new settings.
-    pub(crate) fn toggle(&mut self, current: &CaptureAgentSettings) -> CaptureAgentSettings {
+    pub(crate) fn toggle_clipboard(
+        &mut self,
+        current: &CaptureAgentSettings,
+    ) -> CaptureAgentSettings {
         let mut next = current.clone();
         next.clipboard_paused = !current.clipboard_paused;
-        self.waiting = Some(next.clipboard_paused);
+        self.clipboard = Some(next.clipboard_paused);
+        next
+    }
+
+    /// Switches game mode here, now, and queues it for the service; switched off, the game mode
+    /// task lifts its hold at once. Returns the new settings.
+    pub(crate) fn toggle_game_mode(
+        &mut self,
+        current: &CaptureAgentSettings,
+    ) -> CaptureAgentSettings {
+        let mut next = current.clone();
+        next.game_mode.enabled = !current.game_mode.enabled;
+        self.game_mode = Some(next.game_mode.enabled);
         next
     }
 
     pub(crate) fn next_call(&self) -> Call {
-        match self.waiting {
-            Some(paused) => Call::Send(paused),
-            None => Call::Read,
+        match (self.clipboard, self.game_mode) {
+            (Some(paused), _) => Call::SendClipboard(paused),
+            (None, Some(enabled)) => Call::SendGameMode(enabled),
+            (None, None) => Call::Read,
         }
     }
 
@@ -109,16 +134,41 @@ impl Follower {
     /// second toggle while the first was on its way is sent next.
     pub(crate) fn answered(
         &mut self,
-        call: &Call,
+        call: Call,
         mut answer: CaptureAgentSettings,
     ) -> CaptureAgentSettings {
-        match (call, self.waiting) {
-            (Call::Send(sent), Some(waiting)) if *sent == waiting => self.waiting = None,
-            (_, Some(waiting)) => answer.clipboard_paused = waiting,
-            (_, None) => {}
+        self.sent(call);
+        if let Some(paused) = self.clipboard {
+            answer.clipboard_paused = paused;
+        }
+        if let Some(enabled) = self.game_mode {
+            answer.game_mode.enabled = enabled;
         }
         answer
     }
+
+    /// The service refused `call`: the switch it carried is not sent again, and the next reading
+    /// shows what the service holds.
+    pub(crate) fn refused(&mut self, call: Call) {
+        self.sent(call);
+    }
+
+    /// Clears the switch `call` carried, while it is still the one waiting.
+    fn sent(&mut self, call: Call) {
+        match call {
+            Call::SendClipboard(sent) if self.clipboard == Some(sent) => self.clipboard = None,
+            Call::SendGameMode(sent) if self.game_mode == Some(sent) => self.game_mode = None,
+            _ => {}
+        }
+    }
+}
+
+/// Whether the service turned a switch down for good, rather than not being reachable: an agent
+/// paired without queue control may not switch game mode.
+fn turned_down(error: &anyhow::Error) -> bool {
+    error
+        .downcast_ref::<ServiceRefusal>()
+        .is_some_and(|refusal| refusal.status() == reqwest::StatusCode::FORBIDDEN)
 }
 
 /// Keeps `settings` in step with the service until the agent stops.
@@ -136,13 +186,18 @@ pub(crate) async fn follow(
         let call = follower.next_call();
         let answer = match call {
             Call::Read => client.agent_settings().await,
-            Call::Send(paused) => client.set_clipboard_paused(paused).await,
+            Call::SendClipboard(paused) => client.set_clipboard_paused(paused).await,
+            Call::SendGameMode(enabled) => client.set_game_mode_enabled(enabled).await,
         };
         match answer {
             Ok(answer) => {
                 unreachable_logged = false;
-                let next = follower.answered(&call, answer);
+                let next = follower.answered(call, answer);
                 adopt(&settings, next, cache.as_deref());
+            }
+            Err(error) if call != Call::Read && turned_down(&error) => {
+                tracing::warn!(%error, ?call, "the service turned the switch down; following its settings again");
+                follower.refused(call);
             }
             // Once per outage: the agent keeps what it holds and asks again on the next tick.
             Err(error) if !unreachable_logged => {
@@ -162,8 +217,13 @@ pub(crate) async fn follow(
             () = tokio::time::sleep(config::STATUS_POLL_INTERVAL) => {}
             Some(request) = requests.recv() => match request {
                 SettingsRequest::ToggleClipboard => {
-                    let next = follower.toggle(&settings.borrow());
+                    let next = follower.toggle_clipboard(&settings.borrow());
                     tracing::info!(paused = next.clipboard_paused, "clipboard watching switched here");
+                    adopt(&settings, next, cache.as_deref());
+                }
+                SettingsRequest::ToggleGameMode => {
+                    let next = follower.toggle_game_mode(&settings.borrow());
+                    tracing::info!(enabled = next.game_mode.enabled, "game mode switched here");
                     adopt(&settings, next, cache.as_deref());
                 }
                 // Only the newest one is worth sending.
@@ -240,41 +300,106 @@ mod tests {
     fn a_switch_made_here_is_not_undone_by_the_next_reading() {
         let mut follower = Follower::default();
         assert_eq!(follower.next_call(), Call::Read);
-        let held = follower.toggle(&paused(false));
+        let held = follower.toggle_clipboard(&paused(false));
         assert!(held.clipboard_paused, "in force at once");
         assert_eq!(
             follower.next_call(),
-            Call::Send(true),
+            Call::SendClipboard(true),
             "sent before anything is read"
         );
 
         // A reading that crossed the switch on its way still says "watching".
-        let crossed = follower.answered(&Call::Read, paused(false));
+        let crossed = follower.answered(Call::Read, paused(false));
         assert!(
             crossed.clipboard_paused,
             "a reading does not switch it back"
         );
-        assert_eq!(follower.next_call(), Call::Send(true));
+        assert_eq!(follower.next_call(), Call::SendClipboard(true));
 
         // The service took it.
-        let taken = follower.answered(&Call::Send(true), paused(true));
+        let taken = follower.answered(Call::SendClipboard(true), paused(true));
         assert!(taken.clipboard_paused);
         assert_eq!(follower.next_call(), Call::Read);
 
         // From now on the service decides again: the settings page resumed it.
-        let resumed = follower.answered(&Call::Read, paused(false));
+        let resumed = follower.answered(Call::Read, paused(false));
         assert!(!resumed.clipboard_paused);
     }
 
     #[test]
     fn a_second_switch_while_the_first_is_on_its_way_is_sent_next() {
         let mut follower = Follower::default();
-        let first = follower.toggle(&paused(false));
-        let second = follower.toggle(&first);
+        let first = follower.toggle_clipboard(&paused(false));
+        let second = follower.toggle_clipboard(&first);
         assert!(!second.clipboard_paused);
         // The answer to the first send arrives after the second switch.
-        let answer = follower.answered(&Call::Send(true), paused(true));
+        let answer = follower.answered(Call::SendClipboard(true), paused(true));
         assert!(!answer.clipboard_paused, "the newer switch holds");
-        assert_eq!(follower.next_call(), Call::Send(false));
+        assert_eq!(follower.next_call(), Call::SendClipboard(false));
+    }
+
+    fn game_mode(enabled: bool) -> CaptureAgentSettings {
+        let mut settings = CaptureAgentSettings::default();
+        settings.game_mode.processes = vec!["game.exe".to_owned()];
+        settings.game_mode.enabled = enabled;
+        settings
+    }
+
+    /// The tray's "Pause while gaming" (RD-1240-23) follows the same rule as the clipboard pause,
+    /// and the clipboard switch waiting beside it goes out first without losing it.
+    #[test]
+    fn the_game_mode_switch_holds_until_the_service_has_it() {
+        let mut follower = Follower::default();
+        let off = follower.toggle_game_mode(&game_mode(true));
+        assert!(!off.game_mode.enabled, "in force at once");
+        assert_eq!(off.game_mode.processes, ["game.exe"], "the programs stay");
+        let both = follower.toggle_clipboard(&off);
+        assert_eq!(follower.next_call(), Call::SendClipboard(true));
+
+        let mut answer = game_mode(true);
+        answer.clipboard_paused = true;
+        let held = follower.answered(Call::SendClipboard(true), answer);
+        assert_eq!(
+            held, both,
+            "the clipboard answer does not switch game mode back on"
+        );
+        assert_eq!(follower.next_call(), Call::SendGameMode(false));
+
+        let crossed = follower.answered(Call::Read, game_mode(true));
+        assert!(
+            !crossed.game_mode.enabled,
+            "a reading does not switch it back"
+        );
+        let taken = follower.answered(Call::SendGameMode(false), game_mode(false));
+        assert!(!taken.game_mode.enabled);
+        assert_eq!(follower.next_call(), Call::Read);
+    }
+
+    /// An agent paired without queue control may not switch game mode: the refusal ends the
+    /// wait, and the next reading shows the service's state again.
+    #[test]
+    fn a_refused_switch_is_not_sent_again() {
+        let mut follower = Follower::default();
+        follower.toggle_game_mode(&game_mode(true));
+        follower.refused(Call::SendGameMode(false));
+        assert_eq!(follower.next_call(), Call::Read);
+        let read = follower.answered(Call::Read, game_mode(true));
+        assert!(read.game_mode.enabled, "the service's state again");
+    }
+
+    #[test]
+    fn only_a_forbidden_answer_turns_a_switch_down() {
+        let refusal = |status| {
+            anyhow::Error::from(crate::client::ServiceRefusal::new(
+                "game mode switch",
+                status,
+                r#"{"code":"auth.scope_insufficient"}"#,
+            ))
+        };
+        assert!(super::turned_down(&refusal(reqwest::StatusCode::FORBIDDEN)));
+        assert!(!super::turned_down(&refusal(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE
+        )));
+        assert!(!super::turned_down(&anyhow::anyhow!("connection refused")));
     }
 }

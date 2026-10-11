@@ -23,7 +23,10 @@ pub use policy::{
     EffectiveSeedingPolicy, MAX_SEED_RATIO, MAX_SEED_TIME_MINUTES, MIN_SEED_RATIO, PolicySource,
     SeedTimeLimit, SeedingPolicyOverride, resolve_seeding_policy,
 };
-pub use settings::{TORRENT_CONTENT_TYPES, TORRENT_PROVIDER, TorrentListenMode, TorrentSettings};
+pub use settings::{
+    DEFAULT_TORRENT_ACTIVE_DOWNLOADS, MAX_TORRENT_ACTIVE_DOWNLOADS, MAX_TORRENT_ACTIVE_SEEDS,
+    TORRENT_CONTENT_TYPES, TORRENT_PROVIDER, TorrentListenMode, TorrentSettings,
+};
 pub use state::{
     SeedAccounting, TORRENT_CONTRACT_VERSION, TorrentCandidateState, TorrentCandidateSummary,
     TorrentJobState, TorrentMetadataState, TorrentRecheck, TorrentRelocation,

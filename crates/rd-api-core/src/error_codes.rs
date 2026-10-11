@@ -35,6 +35,32 @@ pub fn account_not_found() -> ApiError {
     ApiError::not_found("account.not_found", "Provider account not found")
 }
 
+/// `409` for a stored credential the vault master key cannot open (RD-1240-36): the data
+/// folder came from another machine or user account, so the credential has to be entered again
+/// -- or a full backup restored with its passphrase, which carries the key.
+#[must_use]
+pub fn secret_unreadable() -> ApiError {
+    ApiError::conflict(
+        rd_secrets::SECRET_UNREADABLE,
+        "A stored credential cannot be read on this installation; enter it again",
+    )
+}
+
+/// A route's own refusal for "no usable credential" -- unless the vault holds the entry but
+/// cannot open it, which stays [`secret_unreadable`]: a key sealed under another master key is
+/// not a missing key, and entering it again is the way out (RD-1240-36).
+#[must_use]
+pub fn unless_secret_unreadable(
+    error: &anyhow::Error,
+    otherwise: impl FnOnce() -> ApiError,
+) -> ApiError {
+    if rd_secrets::is_unreadable(error) {
+        secret_unreadable()
+    } else {
+        otherwise()
+    }
+}
+
 /// `401` for wrong credentials.
 #[must_use]
 pub fn invalid_credentials() -> ApiError {
@@ -347,6 +373,7 @@ mod tests {
             super::usenet_server_not_found(),
             super::account_not_found(),
             super::invalid_credentials(),
+            super::secret_unreadable(),
             super::bulk_range(500),
             super::reorder_ids_mismatch(3, 2),
             super::parse_id::<rd_core::DownloadId>("not-a-uuid").expect_err("rejected"),

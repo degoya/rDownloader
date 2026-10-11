@@ -55,6 +55,11 @@ pub(crate) enum SubscriptionsCommand {
         next_run_at: chrono::DateTime<chrono::Utc>,
         reply: Reply<bool>,
     },
+    /// One batch of the archive's compaction (RD-1240-35); replies how many items went.
+    CompactSubscriptionItems {
+        before: chrono::DateTime<chrono::Utc>,
+        reply: Reply<u64>,
+    },
     FinishSubscriptionRun {
         subscription_id: rd_core::SubscriptionId,
         started_at: chrono::DateTime<chrono::Utc>,

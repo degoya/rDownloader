@@ -91,6 +91,68 @@ impl Notice {
         }
     }
 
+    /// The automatic install of `version` begins (RD-1240-27): the service stops and comes back
+    /// as the new version. Under `update_available`, the event a rule about new versions names.
+    #[must_use]
+    pub fn update_installing(version: &str, current: &str) -> Self {
+        Self {
+            event: NotificationEvent::UpdateAvailable,
+            key: format!("update_installing:{version}"),
+            title: format!("Installing rDownloader {version}"),
+            body: format!(
+                "Nothing has run for a while, so rDownloader {version} is being installed \
+                 automatically over {current}. The service stops and starts again as the new \
+                 version; a version that does not start is taken back."
+            ),
+        }
+    }
+
+    /// The running version came from an update (RD-1240-27).
+    #[must_use]
+    pub fn update_installed(version: &str, from: &str) -> Self {
+        Self {
+            event: NotificationEvent::UpdateInstalled,
+            key: format!("update_installed:{version}"),
+            title: format!("rDownloader {version} is installed"),
+            body: format!("rDownloader was updated from {from} to {version} and runs again."),
+        }
+    }
+
+    /// An update of rDownloader to `version` did not go ahead, or was taken back (RD-1240-27).
+    #[must_use]
+    pub fn update_failed(version: &str, current: &str, code: &str) -> Self {
+        Self {
+            event: NotificationEvent::UpdateFailed,
+            key: format!("update_failed:{version}"),
+            title: format!("Update to rDownloader {version} failed"),
+            body: format!(
+                "The update to {version} did not go ahead ({code}); rDownloader {current} keeps \
+                 running. Settings -> System -> Updates shows what happened."
+            ),
+        }
+    }
+
+    /// The service restarts to apply what waits for the next start (RD-1240-32): `why` names it
+    /// in words, `automatic` says the service decided it. Keyed by the moment the restart began,
+    /// so each restart is announced once.
+    #[must_use]
+    pub fn service_restarting(started: &str, why: &str, automatic: bool) -> Self {
+        let decided = if automatic {
+            "Nothing has run for a while, so rDownloader restarts by itself"
+        } else {
+            "rDownloader restarts on request"
+        };
+        Self {
+            event: NotificationEvent::ServiceRestarting,
+            key: format!("service_restarting:{started}"),
+            title: "rDownloader restarts".to_owned(),
+            body: format!(
+                "{decided} to apply {why}. Running downloads are saved by the stop and continue \
+                 once it is back."
+            ),
+        }
+    }
+
     /// A newer version of an installed plugin waits for a click.
     #[must_use]
     pub fn plugin_update_available(

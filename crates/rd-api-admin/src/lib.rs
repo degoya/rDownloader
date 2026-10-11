@@ -3,7 +3,9 @@
 //! destinations, retention and verification (RD-160-02) and its restore (RD-160-03), plugins and
 //! their repositories, managed tools, notifications and automations, remote and object storage
 //! profiles, diagnostics, statistics and the head of the About page; stopping the service and
-//! the backup before an update (RD-180-02, RD-180-03).
+//! the backup before an update (RD-180-02, RD-180-03); a pending restart and the restart itself
+//! (RD-1240-32); and cleaning up what updates and the plugin compile cache leave behind
+//! (RD-1240-34).
 
 #![warn(unreachable_pub)]
 
@@ -15,6 +17,8 @@ pub mod backup_handlers;
 pub mod backup_service;
 pub mod backup_verify_service;
 pub mod capture_agent_handlers;
+pub mod capture_game_mode;
+pub mod capture_server_update;
 pub mod config_handlers;
 pub mod data_reset_handlers;
 pub mod diagnostics_checks;
@@ -34,6 +38,9 @@ pub mod pre_update_service;
 mod protected_roots;
 pub mod providers_handlers;
 pub mod remote_handlers;
+pub mod restart_auto;
+pub mod restart_handlers;
+pub mod restart_service;
 mod restore_checks;
 pub mod restore_dto;
 pub mod restore_handlers;
@@ -50,9 +57,12 @@ pub mod settings_backup_secrets;
 pub mod settings_handlers;
 pub mod stats_handlers;
 pub mod stats_retention_service;
+pub mod system_cleanup;
 pub mod tools_handlers;
+pub mod update_auto_install;
 pub mod update_handlers;
 pub mod update_install_service;
+pub mod web_push_handlers;
 
 // The modules of the crates below, at this crate's root, so that a module here names them as
 // `crate::…` exactly as it did while the HTTP surface was one crate (RD-160-06).

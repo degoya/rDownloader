@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use rd_core::{
-    AudioTrackPolicy, MediaEmbedPolicy, MediaOutput, SponsorBlockPolicy, SponsorCategory,
-    SponsorMode, SubtitleMode, SubtitlePolicy, TrackSelection,
+    AudioTrackPolicy, MediaEmbedPolicy, MediaOutput, MediaPauses, SponsorBlockPolicy,
+    SponsorCategory, SponsorMode, SubtitleMode, SubtitlePolicy, TrackSelection,
 };
 
-use super::{DownloadPlan, output_mode};
+use super::{DownloadPlan, output_mode, ytdlp_command};
 
 fn strings(plan: &DownloadPlan) -> Vec<String> {
     plan.build()
@@ -28,6 +28,8 @@ fn a_video_download_remuxes_and_ends_with_the_url() {
         },
         tracks: &TrackSelection::default(),
         embed: &MediaEmbedPolicy::default(),
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/watch?v=1",
     };
     assert_eq!(
@@ -70,6 +72,8 @@ fn audio_extraction_and_a_rate_limit_are_expressed_as_flags() {
         },
         tracks: &TrackSelection::default(),
         embed: &MediaEmbedPolicy::default(),
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/song",
     };
     let args = strings(&plan);
@@ -107,6 +111,8 @@ fn passthrough_adds_no_conversion_flags() {
         output_mode: &MediaOutput::Passthrough,
         tracks: &TrackSelection::default(),
         embed: &MediaEmbedPolicy::default(),
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/raw",
     };
     let args = strings(&plan);
@@ -126,6 +132,8 @@ fn subtitles_are_only_requested_when_asked_for() {
         output_mode: &MediaOutput::Passthrough,
         tracks: &TrackSelection::default(),
         embed: &MediaEmbedPolicy::default(),
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/clip",
     };
     let args = strings(&plain);
@@ -187,6 +195,8 @@ fn automatic_captions_need_the_explicit_opt_in() {
         output_mode: &MediaOutput::Passthrough,
         tracks: &tracks,
         embed: &MediaEmbedPolicy::default(),
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/clip",
     });
     assert!(args.iter().any(|arg| arg == "--write-auto-subs"));
@@ -211,6 +221,8 @@ fn plan_with<'a>(
         output_mode: &MediaOutput::Passthrough,
         tracks,
         embed,
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/clip",
     }
 }
@@ -292,6 +304,8 @@ fn a_cookie_file_is_passed_by_path_and_never_by_value() {
         output_mode: &MediaOutput::Passthrough,
         tracks: &TrackSelection::default(),
         embed: &MediaEmbedPolicy::default(),
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/watch?v=1",
     };
     let args = strings(&plan);
@@ -320,6 +334,8 @@ fn no_cookie_selection_emits_no_cookie_flag() {
         output_mode: &MediaOutput::Passthrough,
         tracks: &TrackSelection::default(),
         embed: &MediaEmbedPolicy::default(),
+        section: None,
+        pauses: MediaPauses::NONE,
         page_url: "https://example.test/watch?v=1",
     };
     assert!(!strings(&plan).iter().any(|arg| arg == "--cookies"));
@@ -340,4 +356,48 @@ fn a_legacy_row_without_criteria_keeps_doing_what_it_always_did() {
             quality: 0
         }
     );
+}
+
+/// RD-1240-08: the download's proxy is yt-dlp's own `--proxy`; its credentials reach yt-dlp
+/// through the environment and never the command line; without a proxy there is none.
+#[test]
+fn the_proxy_is_on_the_command_line_and_its_credentials_are_not() {
+    use rd_scheduler::{ToolNetwork, ToolProxy};
+    use secrecy::SecretString;
+
+    let command_line = |network: &ToolNetwork| -> Vec<String> {
+        ytdlp_command(Path::new("yt-dlp"), network)
+            .as_std()
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
+    };
+    let proxy = |password: Option<&str>| {
+        let password = password.map(|password| SecretString::from(password.to_owned()));
+        ToolNetwork::with_proxy(
+            ToolProxy::new(
+                rd_core::ProxyKind::Socks5,
+                "socks5h://proxy.example:1080".parse().expect("endpoint"),
+                password.as_ref().map(|_| "alice"),
+                password.as_ref(),
+            )
+            .expect("proxy"),
+        )
+    };
+    assert_eq!(
+        command_line(&proxy(None)),
+        ["--proxy", "socks5h://proxy.example:1080"]
+    );
+    let network = proxy(Some("pr0xy-secret"));
+    assert!(command_line(&network).is_empty());
+    let command = ytdlp_command(Path::new("yt-dlp"), &network);
+    let environment: Vec<_> = command.as_std().get_envs().collect();
+    assert!(
+        environment.iter().any(|(name, value)| {
+            name.eq_ignore_ascii_case("HTTPS_PROXY")
+                && value.is_some_and(|value| value.to_string_lossy().contains("pr0xy-secret"))
+        }),
+        "{environment:?}"
+    );
+    assert!(command_line(&ToolNetwork::direct()).is_empty());
 }

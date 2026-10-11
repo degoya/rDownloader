@@ -33,7 +33,7 @@ line to wait for is `rDownloader listening`.
 ## Running the published image
 
 ```bash
-docker run -d --name rdownloader \
+docker run -d --name rdownloader --restart unless-stopped \
   -p 127.0.0.1:8710:8710 \
   -v rdownloader-config:/config \
   -v /srv/media/movies:/media/movies \
@@ -48,6 +48,16 @@ cosign verify ghcr.io/<owner>/rdownloader:latest \
   --certificate-identity-regexp 'https://github.com/<owner>/rdownloader/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+## Restarting from the interface
+
+A plugin installed or updated runs from the next start, and rDownloader offers *Restart now*
+(Settings → System → Updates, or by itself with *Restart when needed*). In a container it does not
+start itself again: it stops gracefully and ends with **exit code 75**, and the container's
+restart policy starts it again — `restart: unless-stopped` in `compose.yml`, `--restart
+unless-stopped` above. A container started without a restart policy stays stopped after such a
+restart; start it with `docker start rdownloader`. Exit code 75 is only ever this restart; a stop
+you ask for (`docker stop`) ends with 0 and stays stopped.
 
 ## Volumes and paths
 
@@ -277,6 +287,47 @@ Then enter that hostname as the external URL under *Settings → Security*
   *Settings → Backup* instead.
 - **The capture agent does not run on the NAS.** Use the browser extension for link capture and
   pair it with a capture token from *Settings → System*.
+
+## Unraid and TrueNAS
+
+**Unraid.** [`packaging/unraid/rdownloader.xml`](../packaging/unraid/rdownloader.xml) is a
+template for *Docker → Add Container*: copy it to `/boot/config/plugins/dockerMan/templates-user/`
+on the flash drive (or add its raw address as a template repository) and pick *rdownloader* from
+the template list. It maps `/config` to `/mnt/user/appdata/rdownloader`, `/downloads` and a
+`/media` share, and sets `PUID=99`/`PGID=100`, Unraid's `nobody:users`, which own the shares.
+Create the storage roots at `/media/…` inside the application, and add one more path to the
+container for every further share you download into — the [rule above](#mount-every-path-you-use-as-a-storage-root)
+holds here as everywhere.
+
+**TrueNAS SCALE** 24.10 or newer runs plain compose files: *Apps → Discover Apps → ⋮ → Install
+via YAML*, and paste [`packaging/truenas/compose.yml`](../packaging/truenas/compose.yml) after
+replacing the pool name `tank`. Create the datasets first and give the `apps` user (568, the
+file's `PUID`/`PGID`) write access to them, or set the ids to the owner of datasets you already
+have. Older TrueNAS releases with the Kubernetes apps need a *Custom App* with the same image,
+port, mounts and variables.
+
+On both, open the interface by the NAS's IP address the first time; a host name needs to be
+added under *Settings → Security* first, see [Host names](#host-names).
+
+## Monitoring with Prometheus and Grafana
+
+The service exposes Prometheus metrics at `/api/v1/metrics`, behind a token that holds the
+*Metrics* area alone. [`packaging/grafana/rdownloader-dashboard.json`](../packaging/grafana/rdownloader-dashboard.json)
+is a dashboard for them: in Grafana, *Dashboards → New → Import*, upload the file and choose the
+Prometheus data source that scrapes rDownloader. The scrape configuration:
+
+```yaml
+scrape_configs:
+  - job_name: rdownloader
+    metrics_path: /api/v1/metrics
+    authorization:
+      credentials: <a token with only the Metrics area>
+    static_configs:
+      - targets: ['rdownloader:8710']
+```
+
+Scraping by the Compose service name is a host name like any other: add `rdownloader` under
+*Allowed host names* first, or scrape by IP address.
 
 ## Host names
 

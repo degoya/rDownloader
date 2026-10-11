@@ -1,0 +1,7 @@
+{
+  "name": "Emby",
+  "description": "Aktualisiert die Emby-Bibliotheken, wenn ein Paket fertig ist.",
+  "codes": {
+    "emby_notifier.rejected": "Emby hat die Aktualisierung der Bibliothek abgelehnt."
+  }
+}

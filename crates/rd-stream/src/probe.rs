@@ -3,6 +3,7 @@
 use std::{path::Path, time::Duration};
 
 use anyhow::{Context, Result};
+use rd_scheduler::ToolNetwork;
 use rd_tools::process::run_to_output;
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(15);
@@ -66,9 +67,9 @@ pub fn parse_replay_capability(output: &str) -> bool {
 }
 
 /// Probes one channel URL; `Ok(true)` = live now. Errors mean the probe itself failed
-/// (missing tool, timeout), not that the channel is offline.
-pub async fn probe_live(streamlink: &Path, url: &str) -> Result<bool> {
-    Ok(probe_stream(streamlink, url).await?.live)
+/// (missing tool, timeout, a proxy streamlink cannot use), not that the channel is offline.
+pub async fn probe_live(streamlink: &Path, url: &str, network: &ToolNetwork) -> Result<bool> {
+    Ok(probe_stream(streamlink, url, network).await?.live)
 }
 
 /// Runs `streamlink --json <url>` and hands back what it printed to stdout.
@@ -81,8 +82,8 @@ pub async fn probe_live(streamlink: &Path, url: &str) -> Result<bool> {
 /// `error` field when a channel is simply offline, which is an answer and not a failure; the
 /// parsers below decide what the text means. An `Err` here is the probe itself failing —
 /// a missing binary or a timeout — and that is what the callers must not read as "offline".
-async fn probe_output(streamlink: &Path, url: &str) -> Result<String> {
-    let mut command = tokio::process::Command::new(streamlink);
+async fn probe_output(streamlink: &Path, url: &str, network: &ToolNetwork) -> Result<String> {
+    let mut command = crate::segments::streamlink_command(streamlink, network);
     command.args(["--json", "--"]).arg(url);
     let output = run_to_output(&mut command, PROBE_TIMEOUT)
         .await
@@ -91,18 +92,48 @@ async fn probe_output(streamlink: &Path, url: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-/// The raw `streamlink --json` output, for the sidecar capture (RD-080-09).
-pub(crate) async fn probe_json(streamlink: &Path, url: &str) -> Result<String> {
-    probe_output(streamlink, url).await
+/// The raw `streamlink --json` output, for the sidecar capture (RD-080-09), through the
+/// recording's proxy (RD-1240-08).
+pub(crate) async fn probe_json(
+    streamlink: &Path,
+    url: &str,
+    network: &ToolNetwork,
+) -> Result<String> {
+    probe_output(streamlink, url, network).await
 }
 
-/// Probes one channel URL and reports both liveness and replay capability.
-pub async fn probe_stream(streamlink: &Path, url: &str) -> Result<StreamProbe> {
-    let text = probe_output(streamlink, url).await?;
+/// Probes one channel URL through `network` and reports both liveness and replay capability.
+///
+/// The channel monitor hands in the global proxy profile (RD-1240-22). A streamlink that cannot
+/// speak that proxy says so in the `error` field an offline channel uses too; read as
+/// "offline", the channel would never be recorded and nobody would learn why. A proxy that
+/// refuses the profile's password is the same silence (RD-1240-29).
+pub async fn probe_stream(
+    streamlink: &Path,
+    url: &str,
+    network: &ToolNetwork,
+) -> Result<StreamProbe> {
+    let text = probe_output(streamlink, url, network).await?;
+    if let Some(failure) = probe_error(&text).and_then(|error| {
+        network
+            .unsupported_proxy("streamlink", &error)
+            .or_else(|| rd_scheduler::proxy_auth_failed(&error))
+    }) {
+        anyhow::bail!(failure.message);
+    }
     Ok(StreamProbe {
         live: parse_probe_output(&text),
         replay_available: parse_replay_capability(&text),
     })
+}
+
+/// The `error` field of streamlink's JSON answer, when it has one.
+fn probe_error(output: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(output.trim())
+        .ok()?
+        .get("error")?
+        .as_str()
+        .map(str::to_owned)
 }
 
 #[cfg(test)]
@@ -148,5 +179,103 @@ mod tests {
         ));
         assert!(!parse_replay_capability("not json"));
         assert!(!parse_replay_capability(""));
+    }
+}
+
+/// RD-1240-22 — the channel monitor's probe goes through the proxy it is handed.
+#[cfg(all(test, unix))]
+mod network_tests {
+    use std::{
+        os::unix::fs::PermissionsExt,
+        path::{Path, PathBuf},
+    };
+
+    use rd_core::ProxyKind;
+    use rd_scheduler::{ToolNetwork, ToolProxy};
+
+    use super::probe_stream;
+
+    const CHANNEL: &str = "https://live.example/channel";
+
+    /// A streamlink that writes its argument list to `args.log` beside it and prints `answer`.
+    fn fake_streamlink(directory: &Path, answer: &str) -> PathBuf {
+        let script = directory.join("streamlink");
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' \"$*\" > '{}'\nprintf '%s' '{answer}'\n",
+                directory.join("args.log").display()
+            ),
+        )
+        .expect("script");
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        script
+    }
+
+    fn proxied(kind: ProxyKind, endpoint: &str) -> ToolNetwork {
+        ToolNetwork::with_proxy(
+            ToolProxy::new(kind, endpoint.parse().expect("endpoint"), None, None).expect("proxy"),
+        )
+    }
+
+    #[tokio::test]
+    async fn the_probe_carries_the_proxy_it_is_handed() {
+        let directory = tempfile::tempdir().expect("directory");
+        let streamlink = fake_streamlink(
+            directory.path(),
+            r#"{"plugin":"twitch","streams":{"best":{"type":"hls"}}}"#,
+        );
+        let network = proxied(ProxyKind::Http, "http://proxy.example:3128");
+
+        let probe = probe_stream(&streamlink, CHANNEL, &network)
+            .await
+            .expect("probe");
+        assert!(probe.live);
+        let args = std::fs::read_to_string(directory.path().join("args.log")).expect("args");
+        assert!(
+            args.starts_with("--http-proxy http://proxy.example:3128/ --json -- "),
+            "{args}"
+        );
+    }
+
+    /// A streamlink that cannot speak the proxy answers in the field an offline channel uses;
+    /// through a proxy that is a failure of the probe, never "offline".
+    #[tokio::test]
+    async fn a_proxy_streamlink_cannot_use_is_not_taken_for_offline() {
+        let directory = tempfile::tempdir().expect("directory");
+        let streamlink = fake_streamlink(
+            directory.path(),
+            r#"{"error":"Unable to open URL: https://live.example/channel (Missing dependencies for SOCKS support.)"}"#,
+        );
+
+        let network = proxied(ProxyKind::Socks5, "socks5h://proxy.example:1080");
+        let error = probe_stream(&streamlink, CHANNEL, &network)
+            .await
+            .expect_err("no answer through the proxy");
+        assert!(error.to_string().contains("SOCKS5"), "{error}");
+
+        // Without a proxy the same answer stays what it was: not live.
+        let probe = probe_stream(&streamlink, CHANNEL, &ToolNetwork::direct())
+            .await
+            .expect("probe");
+        assert!(!probe.live);
+    }
+
+    /// RD-1240-29: a proxy that refuses the profile's password answers in the same field; it is
+    /// the proxy's failure, never "offline". (The real line quotes `ProxyError('…')`, which the
+    /// fake's single-quoted `printf` cannot carry.)
+    #[tokio::test]
+    async fn a_proxy_refusing_its_password_is_not_taken_for_offline() {
+        let directory = tempfile::tempdir().expect("directory");
+        let streamlink = fake_streamlink(
+            directory.path(),
+            r#"{"error":"Unable to open URL: https://live.example/channel (Tunnel connection failed: 407 Proxy Authentication Required)"}"#,
+        );
+
+        let network = proxied(ProxyKind::Http, "http://proxy.example:3128");
+        let error = probe_stream(&streamlink, CHANNEL, &network)
+            .await
+            .expect_err("refused by the proxy");
+        assert!(error.to_string().contains("407"), "{error}");
     }
 }

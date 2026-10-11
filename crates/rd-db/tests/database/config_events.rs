@@ -22,6 +22,7 @@ fn automation(name: &str) -> NewAutomation {
         name: name.to_owned(),
         enabled: true,
         trigger: rd_automation::Trigger::DownloadCompleted,
+        schedule: None,
         condition: rd_automation::ConditionNode::Always,
         actions: Vec::new(),
     }

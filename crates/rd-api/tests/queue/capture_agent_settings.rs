@@ -31,6 +31,14 @@ async fn the_tray_and_the_settings_page_switch_the_same_clipboard_pause() {
         fresh["shortcuts"]["quit"].is_null(),
         "quit has no default: {fresh}"
     );
+    assert!(
+        fresh["shortcuts"]["game_mode"].is_null(),
+        "\"Pause while gaming\" has none either (RD-1240-23): {fresh}"
+    );
+    assert!(
+        fresh["shortcuts"]["install_server_update"].is_null(),
+        "\"Install server update\" has none either (RD-1240-25): {fresh}"
+    );
 
     let (status, paused) = post_with_bearer(
         router,

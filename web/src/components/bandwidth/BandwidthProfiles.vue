@@ -44,7 +44,8 @@ function emptyForm(): BandwidthProfileRequest {
     max_active_files: null,
     daily_budget_bytes: null,
     monthly_budget_bytes: null,
-    scopes: []
+    scopes: [],
+    pause_downloads: false
   }
 }
 
@@ -111,7 +112,8 @@ function edit(profile: BandwidthProfile): void {
     max_active_files: profile.max_active_files,
     daily_budget_bytes: profile.daily_budget_bytes,
     monthly_budget_bytes: profile.monthly_budget_bytes,
-    scopes: [...(profile.scopes ?? [])]
+    scopes: [...(profile.scopes ?? [])],
+    pause_downloads: profile.pause_downloads ?? false
   })
   void focusForm()
 }
@@ -137,7 +139,8 @@ async function duplicate(profile: BandwidthProfile): Promise<void> {
       max_active_files: profile.max_active_files ?? null,
       daily_budget_bytes: profile.daily_budget_bytes ?? null,
       monthly_budget_bytes: profile.monthly_budget_bytes ?? null,
-      scopes: [...(profile.scopes ?? [])]
+      scopes: [...(profile.scopes ?? [])],
+      pause_downloads: profile.pause_downloads ?? false
     }
   })
   duplicatingId.value = null
@@ -168,6 +171,7 @@ function summary(profile: BandwidthProfile): string {
     profile.max_active_files ? t('bandwidth.profile.summary_parallel', { count: profile.max_active_files }, profile.max_active_files) : null,
     profile.daily_budget_bytes ? t('bandwidth.profile.summary_daily', { size: formatBytes(profile.daily_budget_bytes) }) : null,
     profile.monthly_budget_bytes ? t('bandwidth.profile.summary_monthly', { size: formatBytes(profile.monthly_budget_bytes) }) : null,
+    profile.pause_downloads ? t('bandwidth.profile.summary_pause') : null,
     t('bandwidth.profile.summary_scopes', { count: scopes }, scopes)
   ].filter(part => part !== null).join(' · ')
 }
@@ -203,6 +207,10 @@ function summary(profile: BandwidthProfile): string {
             <NumberWithUnit v-model="monthlyGiB" unit="GiB" :min="0" :format-options="DECIMAL" :step-snapping="false" class="w-full" :placeholder="t('bandwidth.profile.no_budget')" />
           </UFormField>
           <SettingsCrossLink class="-mt-2" anchor="unattended.power" title-key="power.context.metered_label" />
+          <!-- The schedule's download window (RD-1240-30): a profile that pauses downloads. -->
+          <UFormField orientation="horizontal" data-settings-anchor="bandwidth.pause_downloads" :label="t('bandwidth.profile.pause_label')" :description="t('bandwidth.profile.pause_description')">
+            <USwitch v-model="form.pause_downloads" :aria-label="t('bandwidth.profile.pause_label')" data-testid="profile-pause-downloads" />
+          </UFormField>
 
           <div>
             <p class="text-sm font-medium text-highlighted">{{ t('bandwidth.scope.title') }}</p>

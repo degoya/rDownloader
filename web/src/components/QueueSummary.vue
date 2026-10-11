@@ -43,7 +43,9 @@ function usage(free: string | null | undefined, total: string | null | undefined
     </div>
     <StatTiles :tiles="tiles" class="sm:grid-cols-3 xl:grid-cols-7" />
     <SpeedHistoryChart class="mt-3" :current-rate="props.currentRate" :points="props.speedHistory" />
-    <div class="mt-3 grid gap-2 md:grid-cols-2">
+    <!-- Tracks that may shrink below their content: a long path otherwise widens the card past the
+         page on a phone and cuts off the free space and the usage (RD-1240-33). -->
+    <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 md:grid-cols-2">
       <div v-for="root in props.summary.storage" :key="root.id" class="border border-muted bg-default p-3">
         <div class="flex items-center justify-between gap-3">
           <div class="min-w-0">

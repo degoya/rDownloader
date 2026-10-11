@@ -29,18 +29,22 @@ use crate::{
     config,
     controls::{self, Action, Controls},
     hotkeys::{self, Hotkeys},
-    self_update::OfferEntry,
-    status::{HEALTH_INTERVAL, HealthWatch, ServerStatus, health_probe},
+    self_update::UpdateMenu,
+    server_update,
+    status::ServerStatus,
     supervision::AgentNotice,
     tray_state::{IconKind, TrayState, Update},
 };
 
 #[path = "tray_handle.rs"]
 mod handle;
+#[path = "tray_health.rs"]
+mod health;
 #[path = "tray_marks.rs"]
 mod marks;
 
 use handle::TrayHandle;
+use health::spawn_health_poll;
 use marks::Marks;
 
 /// How long "Quit" waits for the agent to wind down before exiting anyway.
@@ -51,19 +55,25 @@ enum UserEvent {
     Menu(MenuEvent),
     /// The agent future finished, carrying the error it failed with, if any.
     AgentExited(Option<anyhow::Error>),
-    /// The health poll saw the service change state.
-    Server(ServerStatus),
+    /// The health poll's reading: the service's state, and its version while it names one.
+    Server(ServerStatus, Option<String>),
     /// The transfer summary changed.
     Transfers(Activity),
     /// The agent has something to say about itself: a task that ended, or an address it did not
     /// get. Nothing puts either right on its own, so it belongs in the status line.
     Notice(AgentNotice),
-    /// The service changed the clipboard pause or the shortcuts (RD-1180-01, RD-1180-03).
-    Settings(CaptureAgentSettings),
+    /// The service changed the clipboard pause, the shortcuts or game mode (RD-1180-01,
+    /// RD-1180-03, RD-1240-23).
+    /// Boxed: with game mode, the server update and the automatic update it is the largest variant
+    /// by far, and every other event would carry its size.
+    Settings(Box<CaptureAgentSettings>),
     /// A system-wide shortcut was pressed; carries its registration's id.
     Hotkey(u32),
-    /// The agent's own update entry changed (RD-1210-03): shown, relabelled, or gone.
-    SelfUpdate(Option<OfferEntry>),
+    /// The agent's own update entries changed (RD-1210-03, RD-1240-27): shown, relabelled,
+    /// ticked, or gone.
+    SelfUpdate(UpdateMenu),
+    /// The service's update entry or its install changed (RD-1240-25).
+    ServerUpdate(server_update::View),
 }
 
 /// A prepared, not yet running event loop.
@@ -123,6 +133,7 @@ impl Tray {
         let notice_proxy = proxy.clone();
         let settings_proxy = proxy.clone();
         let update_proxy = proxy.clone();
+        let server_update_proxy = proxy.clone();
         // The menu and the shortcuts name a command, the agent carries it out: the agent holds
         // the token.
         let (controls, inbox) = controls::channels();
@@ -135,11 +146,14 @@ impl Tray {
                     let _ = notice_proxy.send_event(UserEvent::Notice(notice));
                 }),
                 settings: std::sync::Arc::new(move |settings: CaptureAgentSettings| {
-                    let _ = settings_proxy.send_event(UserEvent::Settings(settings));
+                    let _ = settings_proxy.send_event(UserEvent::Settings(Box::new(settings)));
                 }),
                 inbox,
-                update: std::sync::Arc::new(move |entry: Option<OfferEntry>| {
-                    let _ = update_proxy.send_event(UserEvent::SelfUpdate(entry));
+                update: std::sync::Arc::new(move |menu: UpdateMenu| {
+                    let _ = update_proxy.send_event(UserEvent::SelfUpdate(menu));
+                }),
+                server_update: std::sync::Arc::new(move |view: server_update::View| {
+                    let _ = server_update_proxy.send_event(UserEvent::ServerUpdate(view));
                 }),
             };
             let result = crate::run(args, agent_cancellation, Some(desktop)).await;
@@ -162,7 +176,8 @@ impl Tray {
             hotkeys: None,
             cancellation,
             quit_deadline: None,
-            update_entry: None,
+            update_menu: UpdateMenu::default(),
+            server_view: server_update::View::default(),
             _runtime: runtime,
         };
 
@@ -171,12 +186,15 @@ impl Tray {
                 Event::NewEvents(StartCause::Init) => agent.show_tray(),
                 Event::UserEvent(UserEvent::Menu(event)) => agent.on_menu(&event.id),
                 Event::UserEvent(UserEvent::AgentExited(error)) => agent.finish(error),
-                Event::UserEvent(UserEvent::Server(status)) => agent.on_server_status(status),
+                Event::UserEvent(UserEvent::Server(status, version)) => {
+                    agent.on_server_status(status, version);
+                }
                 Event::UserEvent(UserEvent::Transfers(activity)) => agent.on_transfers(activity),
                 Event::UserEvent(UserEvent::Notice(notice)) => agent.on_notice(&notice),
                 Event::UserEvent(UserEvent::Settings(settings)) => agent.on_settings(&settings),
                 Event::UserEvent(UserEvent::Hotkey(id)) => agent.on_hotkey(id),
-                Event::UserEvent(UserEvent::SelfUpdate(entry)) => agent.on_self_update(entry),
+                Event::UserEvent(UserEvent::SelfUpdate(menu)) => agent.on_self_update(menu),
+                Event::UserEvent(UserEvent::ServerUpdate(view)) => agent.on_server_update(view),
                 _ => {}
             }
             // Checked on every iteration rather than only on `ResumeTimeReached`:
@@ -209,8 +227,10 @@ struct Agent {
     cancellation: CancellationToken,
     /// Set once the user asked to quit; bounds the wait for the agent.
     quit_deadline: Option<Instant>,
-    /// The update entry, kept for a tray built after it arrived.
-    update_entry: Option<OfferEntry>,
+    /// The update entries, the agent's and the service's, kept for a tray built after they
+    /// arrived and for writing all of them whenever one changes.
+    update_menu: UpdateMenu,
+    server_view: server_update::View,
     // Owned by the event loop so the agent's tasks keep running: dropping the
     // runtime would abort them.
     _runtime: tokio::runtime::Runtime,
@@ -227,7 +247,7 @@ impl Agent {
         let surface = self.state.surface();
         match TrayHandle::build(self.mark(surface.icon), &surface) {
             Ok(handle) => {
-                handle.show_update(self.update_entry.as_ref());
+                handle.show_updates(&self.server_view, &self.update_menu);
                 self.tray = Some(handle);
             }
             Err(error) => {
@@ -284,8 +304,8 @@ impl Agent {
     }
 
     /// The health poll saw the service change state; see [`TrayState::on_server_status`].
-    fn on_server_status(&mut self, status: ServerStatus) {
-        let update = self.state.on_server_status(status);
+    fn on_server_status(&mut self, status: ServerStatus, version: Option<String>) {
+        let update = self.state.on_server_status(status, version);
         self.apply(update);
     }
 
@@ -322,6 +342,9 @@ impl Agent {
         if let Some(line) = update.status_line {
             tray.status_item.set_text(line);
         }
+        if let Some(line) = update.server_line {
+            tray.server_item.set_text(line);
+        }
         if let Some(tooltip) = update.tooltip {
             let _ = tray.set_tooltip(&tooltip);
         }
@@ -331,6 +354,9 @@ impl Agent {
         if let Some(shortcuts) = update.accelerators {
             tray.show_accelerators(&shortcuts);
         }
+        if let Some(entry) = update.game_mode {
+            tray.show_game_mode(entry);
+        }
     }
 
     /// The icon handle for a mark the state named.
@@ -338,31 +364,49 @@ impl Agent {
         self.marks.get(kind)
     }
 
-    /// Shows, relabels or removes the agent's own update entry (RD-1210-03).
-    fn on_self_update(&mut self, entry: Option<OfferEntry>) {
-        if let Some(tray) = self.tray.as_ref() {
-            tray.show_update(entry.as_ref());
-        }
-        self.update_entry = entry;
+    /// Shows, relabels, ticks or removes the agent's own update entries (RD-1210-03,
+    /// RD-1240-27).
+    fn on_self_update(&mut self, menu: UpdateMenu) {
+        self.update_menu = menu;
+        self.show_updates();
     }
 
-    fn on_menu(&mut self, id: &MenuId) {
-        if self.tray.as_ref().is_some_and(|tray| tray.is_update(id)) {
-            tracing::info!("installing the agent's update from the tray");
-            if self.controls.self_update.send(()).is_err() {
-                tracing::warn!("the agent's update task has stopped; the request was dropped");
-            }
-            return;
+    /// The service's update entry and the server line while it installs (RD-1240-25), or while a
+    /// restart is pending (RD-1240-32).
+    fn on_server_update(&mut self, view: server_update::View) {
+        let update = self
+            .state
+            .on_server_update(view.updating.clone(), view.restart_pending);
+        self.apply(update);
+        self.server_view = view;
+        self.show_updates();
+    }
+
+    fn show_updates(&self) {
+        if let Some(tray) = self.tray.as_ref() {
+            tray.show_updates(&self.server_view, &self.update_menu);
         }
+    }
+
+    /// A click: the entry's command, carried out as its shortcut is (RD-1240-24).
+    fn on_menu(&mut self, id: &MenuId) {
         let Some(command) = self.tray.as_ref().and_then(|tray| tray.command(id)) else {
             return;
         };
-        if command == CaptureCommand::ClipboardWatch
-            && let Some(tray) = self.tray.as_ref()
-        {
-            // The click ticked the entry already; the agent's settings decide, and the update
-            // that follows them sets it again.
-            tray.show_clipboard_paused(self.state.surface().clipboard_paused);
+        // The click ticked a check entry already; the agent's settings decide, and the update
+        // that follows them sets it again.
+        if let Some(tray) = self.tray.as_ref() {
+            match command {
+                CaptureCommand::ClipboardWatch => {
+                    tray.show_clipboard_paused(self.state.surface().clipboard_paused);
+                }
+                CaptureCommand::GameMode => tray.show_game_mode(self.state.surface().game_mode),
+                _ => {}
+            }
+        }
+        if command == CaptureCommand::AutoInstall {
+            // The same for the automatic update: the watch answers with the stored switch.
+            self.show_updates();
         }
         self.carry_out(command);
     }
@@ -381,6 +425,12 @@ impl Agent {
                 if let Err(error) = open::that_detached(self.service.as_str()) {
                     tracing::warn!(%error, "could not open the rDownloader web interface");
                 }
+            }
+            // A shortcut obeys the greyed-out entry here too: nothing set up to watch for, or no
+            // queue control to switch it with (RD-1240-23).
+            Action::ToggleGameMode if !self.state.surface().game_mode.enabled() => {
+                let reason = self.state.surface().game_mode.refused.unwrap_or_default();
+                tracing::info!(reason, "not switching game mode");
             }
             Action::Quit => {
                 tracing::info!("shutting down on tray request");
@@ -425,59 +475,4 @@ impl Agent {
         };
         std::process::exit(i32::from(crate::conclude(&error)));
     }
-}
-
-/// Reports the service's reachability to the event loop.
-///
-/// `/api/v1/health` needs no authentication, so this works before the agent is paired and says
-/// nothing about the installation beyond whether it answers. A silence right after launch reads
-/// as "starting" rather than "not reachable": both are launched together at login, and the
-/// service takes far longer to come up than the tray does.
-///
-/// Nothing here decides anything: the request is made, its outcome is handed to `health_probe`,
-/// and what a run of probes means is [`HealthWatch`]. Both live in `status`, which compiles and
-/// is tested on every host — this function is only the part that cannot exist without an event
-/// loop to send the result to.
-fn spawn_health_poll(
-    runtime: &tokio::runtime::Runtime,
-    service: Url,
-    proxy: tao::event_loop::EventLoopProxy<UserEvent>,
-) {
-    runtime.spawn(async move {
-        let Ok(health) = service.join("api/v1/health") else {
-            let _ = proxy.send_event(UserEvent::Server(ServerStatus::Unreachable));
-            return;
-        };
-        // Not `unwrap_or_default()`: that produced a client *without* the deadline it was
-        // written for, so the poll hung on its first request, the status line froze on whatever
-        // it last said, and no line explained it. A client that cannot be built is a fault, and
-        // the state it leaves behind is "not reachable" (RD-109-06).
-        let client = match crate::client::build(crate::client::Purpose::Health) {
-            Ok(client) => client,
-            Err(error) => {
-                tracing::error!(
-                    %error,
-                    "the tray cannot build an HTTP client; the service state stays unknown"
-                );
-                let _ = proxy.send_event(UserEvent::Server(ServerStatus::Unreachable));
-                return;
-            }
-        };
-        let started = Instant::now();
-        let mut watch = HealthWatch::default();
-        loop {
-            // The status is the whole of what the rule reads; a transport failure has no status
-            // at all, and that absence is what "silence" means one line further down.
-            let answer = client
-                .get(health.clone())
-                .send()
-                .await
-                .ok()
-                .map(|response| response.status());
-            let status = watch.observe(health_probe(answer), started.elapsed());
-            // Sending on every tick is fine: the agent ignores a status it already holds.
-            let _ = proxy.send_event(UserEvent::Server(status));
-            tokio::time::sleep(HEALTH_INTERVAL).await;
-        }
-    });
 }

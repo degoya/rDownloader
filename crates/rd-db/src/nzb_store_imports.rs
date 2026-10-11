@@ -284,6 +284,11 @@ impl TryFrom<NzbImportRow> for NzbImport {
                 .map(|value| rd_core::DownloadPriority::from_i32(value as i32)),
             import_mode: serde_json::from_str(&format!("\"{}\"", row.import_mode))?,
             source_path: row.source_path,
+            error_code: row
+                .last_error
+                .as_deref()
+                .and_then(rd_collector::nzb_refusal_code)
+                .map(str::to_owned),
             error: row.last_error,
             duplicate: false,
             has_password: row.has_password != 0,

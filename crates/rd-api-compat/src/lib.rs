@@ -1,13 +1,14 @@
 //! Compatibility adapters for automation clients that speak someone else's API.
 //!
 //! Kept apart from `/api/v1` on purpose. These surfaces exist to satisfy clients written
-//! against SABnzbd and qBittorrent, so their shapes, their status vocabulary and their error
-//! conventions are theirs, not ours — and the native contract must never be bent to make one
-//! of them fit. They translate at the edge and reuse the same handlers, validation and error
+//! against SABnzbd, qBittorrent and aria2, so their shapes, their status vocabulary and their
+//! error conventions are theirs, not ours — and the native contract must never be bent to make
+//! one of them fit. They translate at the edge and reuse the same handlers, validation and error
 //! codes underneath.
 
 #![warn(unreachable_pub)]
 
+pub(crate) mod aria2;
 pub(crate) mod qbittorrent;
 pub(crate) mod sabnzbd;
 
@@ -24,13 +25,15 @@ use rd_api_queue::{download_handlers, package_handlers, torrent_control};
 /// Takes the state because the qBittorrent half authenticates with a layer rather than with a
 /// call inside each handler, and a layer needs the state at build time. SABnzbd needs no such
 /// thing: it has a single entry point, so a mode added to its `match` is behind the check by
-/// construction.
+/// construction. aria2 takes it for its own switch, which a layer reads per request.
 pub fn routes(state: &AppState) -> Router<AppState> {
-    sabnzbd::routes().merge(qbittorrent::routes(state))
+    sabnzbd::routes()
+        .merge(qbittorrent::routes(state))
+        .merge(aria2::routes(state))
 }
 
-/// The answer to a key over its call limit (RD-1200-04), the same on both adapters: a plain
-/// `429` with `Retry-After`, which SABnzbd and qBittorrent clients both back off on.
+/// The answer to a key over its call limit (RD-1200-04), the same on every adapter: a plain
+/// `429` with `Retry-After`, which SABnzbd, qBittorrent and aria2 clients back off on.
 pub(crate) fn rate_limited(retry_after_seconds: u64) -> axum::response::Response {
     use axum::response::IntoResponse;
     (

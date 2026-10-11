@@ -1,4 +1,4 @@
-use super::{NzbDocument, NzbFile, NzbSegment, parse_nzb, render_nzb};
+use super::{NzbDocument, NzbFile, NzbSegment, nzb_refusal_code, parse_nzb, render_nzb};
 
 const BODY: &str = r#"<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
       <file poster="tester" subject="example.bin">
@@ -143,6 +143,7 @@ fn a_rendered_document_parses_back_to_what_it_was_made_from() {
             NzbFile {
                 subject: "[1/2] - \"Show.S01E01.part1.rar\" yEnc (1/2)".to_owned(),
                 poster: "Poster <poster@example.test>".to_owned(),
+                date: None,
                 groups: vec!["alt.binaries.test".to_owned(), "a.b.other".to_owned()],
                 segments: vec![
                     NzbSegment {
@@ -160,6 +161,7 @@ fn a_rendered_document_parses_back_to_what_it_was_made_from() {
             NzbFile {
                 subject: "Show.S01E01.par2".to_owned(),
                 poster: "poster".to_owned(),
+                date: Some(1_600_000_000),
                 groups: vec!["alt.binaries.test".to_owned()],
                 segments: vec![NzbSegment {
                     number: 1,
@@ -180,7 +182,9 @@ fn a_rendered_document_parses_back_to_what_it_was_made_from() {
         text.contains("<meta type=\"name\">Show.S01E01</meta>"),
         "{text}"
     );
+    // The file without a post date of its own takes the one given, the other keeps its own.
     assert!(text.contains("date=\"1700000000\""), "{text}");
+    assert!(text.contains("date=\"1600000000\""), "{text}");
     let parsed = parse_nzb(&rendered).expect("the rendered document parses");
     assert_eq!(parsed.password, document.password);
     assert_eq!(parsed.files.len(), 2);
@@ -190,6 +194,23 @@ fn a_rendered_document_parses_back_to_what_it_was_made_from() {
         assert_eq!(parsed.groups, original.groups);
         assert_eq!(parsed.segments, original.segments);
     }
+    assert_eq!(parsed.files[1].date, Some(1_600_000_000));
+}
+
+/// An exported NZB carries the date its files were posted on, not the time it was written
+/// (RD-1240-33); a date that is no number is dropped rather than refusing the document.
+#[test]
+fn a_rendered_document_keeps_the_post_date_it_was_parsed_with() {
+    let posted = BODY.replace("poster=\"tester\"", "poster=\"tester\" date=\"1500000000\"");
+    let document = parse_nzb(posted.as_bytes()).expect("fixture");
+    assert_eq!(document.files[0].date, Some(1_500_000_000));
+    let text = String::from_utf8(render_nzb(&document, None, 1_700_000_000)).expect("UTF-8");
+    assert!(text.contains("date=\"1500000000\""), "{text}");
+    assert!(!text.contains("1700000000"), "{text}");
+
+    let garbled = BODY.replace("poster=\"tester\"", "poster=\"tester\" date=\"yesterday\"");
+    let document = parse_nzb(garbled.as_bytes()).expect("a garbled date is no reason to refuse");
+    assert_eq!(document.files[0].date, None);
 }
 
 #[test]
@@ -201,4 +222,23 @@ fn a_document_without_name_or_password_has_no_head() {
         text.contains("<nzb"),
         "a provider sniffs this element: {text}"
     );
+}
+
+/// A failed import's reason carries a code the interface translates (RD-1240-33): the parser's
+/// own message, wherever a caller's context put it in the line; anything else has none.
+#[test]
+fn a_refusal_of_this_parser_is_found_by_its_code() {
+    let empty = parse_nzb(br#"<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb"></nzb>"#)
+        .expect_err("an NZB without files is refused");
+    assert_eq!(
+        nzb_refusal_code(&format!("hotfolder intake: {empty:#}")),
+        Some("collector.nzb_empty")
+    );
+    let input = format!("<!DOCTYPE nzb [<!ENTITY x \"y\">]>{BODY}");
+    let doctype = parse_nzb(input.as_bytes()).expect_err("an internal subset is refused");
+    assert_eq!(
+        nzb_refusal_code(&doctype.to_string()),
+        Some("nzb.doctype_refused")
+    );
+    assert_eq!(nzb_refusal_code("permission denied"), None);
 }

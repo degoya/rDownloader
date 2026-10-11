@@ -196,6 +196,31 @@ async fn a_torrent_arrives_as_json_and_matches_the_upload() {
     assert_eq!(candidates.as_array().map(Vec::len), Some(1), "{candidates}");
 }
 
+/// RD-1240-28: the route documented `enqueue` and left the torrent in the LinkGrabber.
+#[tokio::test]
+async fn a_torrent_handed_in_with_enqueue_goes_straight_into_the_download_list() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = test_router(directory.path()).await;
+    let mut body = encoded("bbb.torrent", TORRENT);
+    body["enqueue"] = json!("true");
+    let (status, sent) = json_import(&router, "/api/v1/torrents/import", &body).await;
+    assert_eq!(status, StatusCode::CREATED, "{sent}");
+
+    let (_, downloads) = get_json(&router, "/api/v1/downloads").await;
+    let downloads = downloads.as_array().cloned().unwrap_or_default();
+    assert_eq!(downloads.len(), 1, "{downloads:?}");
+    assert_eq!(downloads[0]["kind"], "torrent", "{downloads:?}");
+    let (_, candidates) = get_json(&router, "/api/v1/collector/candidates").await;
+    assert_eq!(candidates.as_array().map(Vec::len), Some(0), "{candidates}");
+
+    // Without it, or with `false`, the torrent waits in the LinkGrabber as before; anything
+    // else is refused as the container import refuses it.
+    body["enqueue"] = json!("maybe");
+    let (status, refused) = json_import(&router, "/api/v1/torrents/import", &body).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(refused["code"], "container.enqueue_invalid", "{refused}");
+}
+
 #[tokio::test]
 async fn an_nzb_arrives_as_json_and_matches_the_upload() {
     let (first, second) = (

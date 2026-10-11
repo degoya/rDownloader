@@ -32,9 +32,9 @@ defineSlots<{
       <slot name="form" />
     </div>
     <div class="min-w-0">
-      <div v-if="listTitle" class="mb-3 flex items-center justify-between gap-2">
+      <div v-if="listTitle" class="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 class="text-sm font-semibold text-highlighted">{{ listTitle }}</h3>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
           <slot name="list-actions" />
           <UBadge v-if="count !== undefined" color="neutral" variant="outline">{{ count }}</UBadge>
         </div>

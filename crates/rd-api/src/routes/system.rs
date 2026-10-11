@@ -7,9 +7,10 @@ use axum::{
 use utoipa::OpenApi;
 
 use crate::{
-    AppState, about, about_page, candidate_handlers, capture_agent_handlers, capture_queue,
-    capture_summary, collector_handlers, data_reset_handlers, handlers, login_handlers,
-    nzb_handlers, package_handlers, settings_handlers, tools_handlers, update_handlers,
+    AppState, about, about_page, candidate_handlers, capture_agent_handlers, capture_game_mode,
+    capture_linkgrabber, capture_queue, capture_server_update, capture_summary, collector_handlers,
+    data_reset_handlers, handlers, login_handlers, nzb_handlers, package_handlers,
+    restart_handlers, settings_handlers, system_cleanup, tools_handlers, update_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -27,6 +28,10 @@ pub(crate) fn routes() -> Router<AppState> {
             get(data_reset_handlers::data_reset_preview),
         )
         .route(
+            "/api/v1/system/cleanup",
+            get(system_cleanup::cleanup_preview).post(system_cleanup::run_cleanup),
+        )
+        .route(
             "/api/v1/system/update",
             get(update_handlers::get_update_status),
         )
@@ -41,6 +46,11 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/system/update/install",
             post(update_handlers::install_update),
+        )
+        // A pending restart and "restart now" (RD-1240-32).
+        .route(
+            "/api/v1/system/restart",
+            get(restart_handlers::get_restart_status).post(restart_handlers::restart_service),
         )
         .route(
             "/api/v1/system/tools",
@@ -123,6 +133,13 @@ pub(crate) fn routes() -> Router<AppState> {
     capture_summary::capture_summary,
     capture_queue::pause_capture_queue,
     capture_queue::resume_capture_queue,
+    capture_linkgrabber::enqueue_capture_linkgrabber,
+    capture_game_mode::hold_capture_game_mode,
+    capture_game_mode::release_capture_game_mode,
+    capture_game_mode::switch_capture_game_mode,
+    capture_server_update::get_capture_server_update,
+    capture_server_update::install_capture_server_update,
+    capture_server_update::restart_capture_server,
     capture_agent_handlers::read_capture_agent_settings,
     capture_agent_handlers::set_capture_clipboard,
     capture_agent_handlers::report_capture_shortcuts,
@@ -143,6 +160,8 @@ pub(crate) fn routes() -> Router<AppState> {
     update_handlers::check_for_updates,
     update_handlers::download_update,
     update_handlers::install_update,
+    restart_handlers::get_restart_status,
+    restart_handlers::restart_service,
     handlers::capture_ping,
     crate::capture_file::capture_file,
     candidate_handlers::list_batches,
@@ -158,5 +177,7 @@ pub(crate) fn routes() -> Router<AppState> {
     settings_handlers::put_settings,
     settings_handlers::reset_settings,
     data_reset_handlers::data_reset_preview,
+    system_cleanup::cleanup_preview,
+    system_cleanup::run_cleanup,
 ))]
 pub(crate) struct Doc;

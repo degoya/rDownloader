@@ -23,6 +23,16 @@ pub const TORRENT_PROVIDER: &str = "torrent";
 /// the declared type is what identifies it (RD-080-11).
 pub const TORRENT_CONTENT_TYPES: &[&str] = &["application/x-bittorrent", "application/x-torrent"];
 
+/// Torrents downloading at once unless the settings say otherwise; the engine's fixed slot
+/// count before RD-1240-16.
+pub const DEFAULT_TORRENT_ACTIVE_DOWNLOADS: u32 = 4;
+
+/// Upper bound of [`TorrentSettings::torrent_max_active_downloads`].
+pub const MAX_TORRENT_ACTIVE_DOWNLOADS: u32 = 32;
+
+/// Upper bound of [`TorrentSettings::torrent_max_active_seeds`].
+pub const MAX_TORRENT_ACTIVE_SEEDS: u32 = 500;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct TorrentSettings {
@@ -67,6 +77,10 @@ pub struct TorrentSettings {
     /// Show full peer addresses in the peer list. Off by default: a peer address is
     /// personal data of a third party, and the network prefix is enough to judge a swarm.
     pub torrent_peer_addresses_visible: bool,
+    /// Torrents downloading at once; the queue holds the rest (RD-1240-16).
+    pub torrent_max_active_downloads: u32,
+    /// Torrents seeding at once; `None` = no limit. Past it the longest seeds end first.
+    pub torrent_max_active_seeds: Option<u32>,
     /// Keep stored `.torrent` files after the download finishes (shared blob key,
     /// hence no `torrent_` prefix).
     pub keep_import_history: bool,
@@ -91,6 +105,8 @@ impl Default for TorrentSettings {
             torrent_upnp_enabled: false,
             torrent_announce_port: None,
             torrent_peer_addresses_visible: false,
+            torrent_max_active_downloads: DEFAULT_TORRENT_ACTIVE_DOWNLOADS,
+            torrent_max_active_seeds: None,
             keep_import_history: true,
         }
     }

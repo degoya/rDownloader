@@ -1,6 +1,6 @@
 //! The writer half of `config_store` — storage roots, categories, routing rules and hot
-//! folders — and of `site_rules_store`, `site_rule_switches_store` and
-//! `site_rule_checks_store`.
+//! folders — and of `site_rules_store`, `site_rule_switches_store`, `site_rule_checks_store`
+//! and `link_filter_store`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
 use crate::commands::ConfigCommand;
@@ -14,6 +14,15 @@ impl Writer {
                     crate::config_store::set_category_seeding(&mut self.connection, id, policy)
                         .await;
                 publish_unit_event(reply, result, &self.events);
+            }
+            ConfigCommand::SetCategoryDownloadWindow { id, window, reply } => {
+                let result = crate::download_window_store::set_category_download_window(
+                    &mut self.connection,
+                    id,
+                    window,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
             }
             ConfigCommand::CreateStorageRoot { id, input, reply } => {
                 let result =
@@ -115,6 +124,33 @@ impl Writer {
             ConfigCommand::DeleteCategoryRule { id, reply } => {
                 let result =
                     crate::config_store::delete_category_rule(&mut self.connection, id).await;
+                publish_unit_event(reply, result, &self.events);
+            }
+            ConfigCommand::CreateLinkFilterRule { input, reply } => {
+                let result =
+                    crate::link_filter_store::create_link_filter_rule(&mut self.connection, input)
+                        .await;
+                publish_config(reply, result, &self.events);
+            }
+            ConfigCommand::UpdateLinkFilterRule { id, input, reply } => {
+                let result = crate::link_filter_store::update_link_filter_rule(
+                    &mut self.connection,
+                    id,
+                    input,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
+            }
+            ConfigCommand::DeleteLinkFilterRule { id, reply } => {
+                let result =
+                    crate::link_filter_store::delete_link_filter_rule(&mut self.connection, id)
+                        .await;
+                publish_unit_event(reply, result, &self.events);
+            }
+            ConfigCommand::ReorderLinkFilterRules { ids, reply } => {
+                let result =
+                    crate::link_filter_store::reorder_link_filter_rules(&mut self.connection, &ids)
+                        .await;
                 publish_unit_event(reply, result, &self.events);
             }
             ConfigCommand::CreateHotFolder { input, reply } => {

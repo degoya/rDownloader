@@ -9,7 +9,11 @@
 //! call to the route that answers the screen.
 //!
 //! `get_update_status` and `check_for_updates` are the update card of Settings > System
-//! (RD-180-01): what runs, what is offered and what to run for it.
+//! (RD-180-01): what runs, what is offered and what to run for it. `get_restart_status` and
+//! `restart_service` its restart notice (RD-1240-32): what waits for the next start, and the
+//! restart that applies it. Unlike installing an update, a restart replaces nothing and brings
+//! the same version back; the session that asked ends with the process and the agent connects
+//! again, as after any restart.
 //!
 //! `get_about` reads the About page's head (RD-130-12). Not its licence list: a thousand
 //! entries answer no question an agent is asked, and the route stays one call away for a person.
@@ -18,7 +22,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 
 use super::{
     RdMcpServer,
@@ -31,9 +35,18 @@ use super::{
     script_gate,
 };
 use crate::{
-    ApiError, postprocess_handlers as postprocess, tools_handlers as tools,
-    update_handlers as updates,
+    ApiError, postprocess_handlers as postprocess, restart_handlers as restarts,
+    tools_handlers as tools, update_handlers as updates,
 };
+
+/// Whether `restart_service` goes ahead while downloads run.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub(crate) struct RestartParams {
+    /// Restart although downloads are running: the stop saves them and they continue after the
+    /// restart. Without it running downloads refuse with restart.transfers_active.
+    #[serde(default)]
+    pub allow_active: bool,
+}
 
 fn value<T: serde::Serialize>(answer: T) -> Result<serde_json::Value, ApiError> {
     serde_json::to_value(answer)
@@ -266,7 +279,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Read the application update status: the running version, the channel (stable or beta), how this installation was installed, when the last check ran and what it found, and the newer version on offer with its notes for users (one point per line), the links to its full changes (changelog_url) and its release page, and what to do about it (a download, or the package manager's command), and per connected capture agent its version, whether it is older than the service (outdated) and where its own update stands (self_update: with_service, disabled, unchecked, current, offered, failed or installing; offered_version; remote_update_allowed). An agent installed without the service installs its own update from its tray or with rdownloader-capture update; no tool here installs software on the agent's machine. Read-only; check_for_updates asks GitHub again."
+        description = "Read the application update status: the running version, the channel (stable or beta), how this installation was installed, when the last check ran and what it found, and the newer version on offer with its notes for users (one point per line), the links to its full changes (changelog_url) and its release page, and what to do about it (a download, or the package manager's command), whether this installation installs an update itself (installs_itself: the portable archive or the Windows installer) and whether it does so automatically (auto_install, the update_auto_install setting: off by default; once nothing has transferred, post-processed or recorded for five minutes, inside update_auto_install_window if one is set, it installs the offered version with the backup and roll-back of a manual install, announced as update_available before and update_installed or update_failed after), and per connected capture agent its version, whether it is older than the service (outdated) and where its own update stands (self_update: with_service, disabled, unchecked, current, offered, failed or installing; offered_version; remote_update_allowed). An agent installed without the service installs its own update from its tray or with rdownloader-capture update; no tool here installs software on the agent's machine. Read-only; check_for_updates asks GitHub again."
     )]
     pub async fn get_update_status(&self) -> McpToolResult {
         let Json(answer) = updates::get_update_status(State(self.state.clone())).await;
@@ -281,6 +294,34 @@ impl RdMcpServer {
             updates::check_for_updates(State(self.state.clone()))
                 .await
                 .map(|Json(answer)| answer),
+        )
+    }
+
+    #[tool(
+        description = "Read whether a restart of rDownloader is pending and why: pending, reasons (each a code - plugin_installed, plugin_updated with from_version, plugin_staged, plugin_unstaged, plugin_enabled, plugin_disabled, plugin_removed, plugin_key_revoked, plugin_digest_revoked or plugin_digest_unrevoked - with plugin_id, name and version: a plugin installed or updated by hand or by the automatic plugin update runs only from the next start), how this installation restarts (how: self - rDownloader starts itself again; supervisor - systemd or the container runtime starts it again on exit code 75, supervisor names which, and a container without a restart policy stays stopped; manual - it stops and has to be started by hand), can_restart with blocked_reason (restart.update_running, restart.already_restarting), restarting, automatic (the restart_when_needed setting: off by default; once nothing has transferred, post-processed or recorded for five minutes, inside update_auto_install_window if one is set, the service restarts by itself) and started_at, which changes once a restart is done. Read-only; restart_service carries the restart out."
+    )]
+    pub async fn get_restart_status(&self) -> McpToolResult {
+        let Json(answer) = restarts::get_restart_status(State(self.state.clone())).await;
+        respond(Ok::<_, ApiError>(answer))
+    }
+
+    #[tool(
+        description = "Restart rDownloader now to apply what waits for the next start (get_restart_status says what and how). The service saves its queue, stops and comes back as the same version; this MCP session ends with it, and the agent connects again once get_restart_status answers with a new started_at. Refused with restart.transfers_active while downloads run unless allow_active is true (they are saved by the stop and continue after the restart), with restart.update_running while an update is being installed, restart.already_restarting once a restart began, restart.relaunch_failed when rDownloader could not start its relauncher. Audited as a stop request and announced as the notification event service_restarting."
+    )]
+    pub async fn restart_service(
+        &self,
+        Parameters(params): Parameters<RestartParams>,
+    ) -> McpToolResult {
+        respond(
+            restarts::restart_service(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                Json(crate::dto::RestartRequest {
+                    allow_active: params.allow_active,
+                }),
+            )
+            .await
+            .map(|(_, Json(answer))| answer),
         )
     }
 

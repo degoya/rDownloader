@@ -27,10 +27,18 @@
     "monthly": "This month ({period})",
     "usage": "{used} of {limit}",
     "budget_exhausted": "The traffic budget is used up. Running transfers finish; nothing new starts until the period rolls over.",
-    "upload_binding": "Strictest upload limit"
+    "upload_binding": "Strictest upload limit",
+    "downloads_paused": "Downloads are paused by the schedule until {time}. To download now anyway, switch to another profile or to “No limits” above.",
+    "downloads_paused_open": "Downloads are paused while this profile is in force. To download now anyway, switch to another profile or to “No limits” above."
   },
   "capabilities": {
-    "title": "What a limit cannot fully reach"
+    "title": "What a limit cannot fully reach",
+    "notes": {
+      "torrent_session_rate": "engine applies one session-wide rate",
+      "media_job_rate": "yt-dlp takes one rate per job (--limit-rate)",
+      "gallery_job_rate": "gallery-dl takes one rate per job (--limit-rate)",
+      "record_no_rate": "streamlink has no rate limit; a live recording cannot be slowed"
+    }
   },
   "profile": {
     "eyebrow": "Reusable limits",
@@ -57,7 +65,10 @@
     "summary_parallel": "{count} parallel file | {count} parallel files",
     "summary_upload": "{rate} upload",
     "summary_daily": "{size} per day",
-    "summary_monthly": "{size} per month"
+    "summary_monthly": "{size} per month",
+    "pause_label": "Pause downloads",
+    "pause_description": "While the profile is in force no download starts, and running transfers that can resume pause until it ends. Uploads, seeding and post-processing go on; a package can be set to ignore the pause.",
+    "summary_pause": "pauses downloads"
   },
   "scope": {
     "title": "Scope limits",

@@ -242,8 +242,11 @@ async fn take_in(
         Ok(FetchedSegment::Article(segment, decoded, attempts)) => (*segment, decoded, attempts),
         Ok(FetchedSegment::Missing(segment, detail)) => {
             // Like SABnzbd: keep going, leave a zero-filled hole and let PAR2 repair it.
+            // At `debug`: an incomplete post is routine, and the file's one line with the
+            // count, and a warning only if its set cannot be repaired, are what the log
+            // carries (RD-1240-38, 543 per-segment warnings on the owner's instance).
             assembly.missing += 1;
-            tracing::warn!(
+            tracing::debug!(
                 nzb_file_id = %nzb_file.id,
                 segment = segment.number,
                 message_id = %segment.message_id,

@@ -17,8 +17,7 @@ vi.mock('@/api/client', () => ({
  * The store used to collect single rows whose own state was `completed` and delete them one at
  * a time. Nothing asked what else was in their package, so a package that was still downloading
  * lost the rows of the files it had already finished (RD-107-07). These tests fail against that
- * version twice over: it sent `DELETE /api/v1/downloads/{id}` per row, and it had nothing that
- * could report a package it had left alone.
+ * version: it sent `DELETE /api/v1/downloads/{id}` per row.
  */
 describe('transfers store: clearing the download list', () => {
   beforeEach(() => {
@@ -61,7 +60,7 @@ describe('transfers store: clearing the download list', () => {
     ])
   })
 
-  it('names the packages it left alone and why', async () => {
+  it('says only how many packages went, never which ones it left (owner, 2026-10-10)', async () => {
     respond({
       removed: 1,
       skipped: [{ package_id: 'p-2', name: 'Season 2', code: 'package.members_active' }]
@@ -70,29 +69,19 @@ describe('transfers store: clearing the download list', () => {
 
     await store.clear('completed')
 
-    // Something left alone is a warning, which the view keeps until it is closed (RD-1220-03).
-    expect(store.warning).toContain('Season 2')
-    expect(store.notice).toBeNull()
+    expect(store.notice).toBe('1 package was removed.')
+    expect(store.warning).toBeNull()
     expect(store.error).toBeNull()
   })
 
-  it('groups the skipped packages by reason rather than repeating it per package', async () => {
-    respond({
-      removed: 0,
-      skipped: [
-        { package_id: 'p-1', name: 'One', code: 'package.members_active' },
-        { package_id: 'p-2', name: 'Two', code: 'package.members_active' },
-        { package_id: 'p-3', name: 'Three', code: 'package.members_seeding' }
-      ]
-    })
+  it('says there was nothing to clear when every package stayed', async () => {
+    respond({ removed: 0, skipped: [{ package_id: 'p-1', name: 'One', code: 'package.members_active' }] })
     const store = useTransfersStore()
 
     await store.clear('all')
 
-    const notice = String(store.warning)
-    expect(notice).toContain('One')
-    expect(notice).toContain('Two')
-    expect(notice).toContain('Three')
+    expect(store.notice).not.toContain('One')
+    expect(store.warning).toBeNull()
   })
 
   it('reports a refusal instead of pretending the list was cleared', async () => {

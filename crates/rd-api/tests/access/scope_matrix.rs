@@ -37,7 +37,11 @@ fn concrete_path(path: &str) -> String {
 }
 
 /// Mints a bearer holding exactly `scopes` and returns it.
-async fn bearer_holding(database: &rd_db::Database, label: &str, scopes: &[&str]) -> String {
+pub(crate) async fn bearer_holding(
+    database: &rd_db::Database,
+    label: &str,
+    scopes: &[&str],
+) -> String {
     let bearer = format!("scope-matrix-{label}");
     let result = database
         .create_capture_token(
@@ -119,7 +123,9 @@ fn is_capture_scope(required: &str) -> bool {
         .any(|scope| scope.as_str() == required)
 }
 
-/// A capture agent paired with queue control reaches no route of the API (RD-1100-06).
+/// A capture agent paired with queue control reaches no route of the API (RD-1100-06), and one
+/// that may also install the service's update from its tray none either (RD-1240-25): not even
+/// `/api/v1/system/update/install`, the route its own install route shares the install with.
 ///
 /// `capture:queue` buys the tray's two capture routes and nothing beside them: every API route
 /// -- `/api/v1/queue/pause` and the bulk route included -- answers the token with the refusal a
@@ -131,7 +137,11 @@ async fn a_capture_token_with_queue_control_reaches_no_api_route() {
     let bearer = bearer_holding(
         &harness.database,
         "capture-with-queue-control",
-        &[rd_core::CAPTURE_SCOPE, rd_core::CAPTURE_QUEUE_SCOPE],
+        &[
+            rd_core::CAPTURE_SCOPE,
+            rd_core::CAPTURE_QUEUE_SCOPE,
+            rd_core::CAPTURE_SERVER_UPDATE_SCOPE,
+        ],
     )
     .await;
 
@@ -434,6 +444,28 @@ async fn a_config_token_cannot_change_where_the_service_fetches_from() {
         assert_eq!(status, StatusCode::FORBIDDEN, "{field}: {body}");
         assert_eq!(body["code"], "auth.scope_insufficient", "{field}");
         assert_eq!(body["params"]["setting"], field, "{field}");
+    }
+}
+
+/// How long the copies a rollback reaches for stay (RD-1240-34), and how long the subscription
+/// archive keeps its full rows (RD-1240-35), cost `api:admin`, like the clean-up through
+/// `POST /api/v1/system/cleanup` that applies both.
+#[tokio::test]
+async fn a_config_token_cannot_shorten_how_long_update_backups_or_archived_items_stay() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = bearer_holding(&harness.database, "config-only", &[Scope::Config.as_str()]).await;
+    let (_, settings) = get_with_bearer(&harness.router, "/api/v1/settings", &bearer).await;
+    for (field, default) in [
+        ("update_backup_retention_days", 14),
+        ("subscription_item_retention_days", 30),
+    ] {
+        assert_eq!(settings[field], default, "{settings}");
+        let mut changed = settings.clone();
+        changed[field] = serde_json::json!(1);
+        let (status, body) = put_settings(&harness.router, &bearer, &changed).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{field}: {body}");
+        assert_eq!(body["params"]["setting"], field);
     }
 }
 

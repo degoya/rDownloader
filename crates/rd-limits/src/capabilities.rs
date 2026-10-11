@@ -15,8 +15,11 @@ pub struct RunnerLimitSupport {
     /// Whether the transport can be limited per host, account, category or package, or only
     /// as a whole. External helper processes only take one rate for the whole job.
     pub scoped_enforced: bool,
-    /// Short reason shown next to an unenforced entry; `None` when fully enforced.
+    /// Short reason shown next to an unenforced entry, in English; `None` when fully enforced.
     pub note: Option<&'static str>,
+    /// The stable code of `note`, which the interface translates (RD-1240-33):
+    /// `torrent_session_rate`, `media_job_rate`, `gallery_job_rate` or `record_no_rate`.
+    pub note_code: Option<&'static str>,
 }
 
 /// The capability matrix of the built-in transports.
@@ -28,12 +31,14 @@ pub fn limit_capabilities() -> Vec<RunnerLimitSupport> {
             download_enforced: true,
             scoped_enforced: true,
             note: None,
+            note_code: None,
         },
         RunnerLimitSupport {
             kind: DownloadKind::Usenet,
             download_enforced: true,
             scoped_enforced: true,
             note: None,
+            note_code: None,
         },
         RunnerLimitSupport {
             kind: DownloadKind::Torrent,
@@ -42,18 +47,21 @@ pub fn limit_capabilities() -> Vec<RunnerLimitSupport> {
             // limit cannot be expressed.
             scoped_enforced: false,
             note: Some("engine applies one session-wide rate"),
+            note_code: Some("torrent_session_rate"),
         },
         RunnerLimitSupport {
             kind: DownloadKind::Media,
             download_enforced: true,
             scoped_enforced: false,
             note: Some("yt-dlp takes one rate per job (--limit-rate)"),
+            note_code: Some("media_job_rate"),
         },
         RunnerLimitSupport {
             kind: DownloadKind::Gallery,
             download_enforced: true,
             scoped_enforced: false,
             note: Some("gallery-dl takes one rate per job (--limit-rate)"),
+            note_code: Some("gallery_job_rate"),
         },
         RunnerLimitSupport {
             kind: DownloadKind::Record,
@@ -62,6 +70,7 @@ pub fn limit_capabilities() -> Vec<RunnerLimitSupport> {
             download_enforced: false,
             scoped_enforced: false,
             note: Some("streamlink has no rate limit; a live recording cannot be slowed"),
+            note_code: Some("record_no_rate"),
         },
     ]
 }
@@ -90,6 +99,7 @@ mod tests {
             // Anything not fully enforced has to say why, or the UI cannot explain it.
             if !entry.download_enforced || !entry.scoped_enforced {
                 assert!(entry.note.is_some(), "{kind:?} needs a note");
+                assert!(entry.note_code.is_some(), "{kind:?} needs a note code");
             }
         }
     }

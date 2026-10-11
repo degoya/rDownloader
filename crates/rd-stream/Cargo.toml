@@ -16,12 +16,17 @@ rd-db = { path = "../rd-db" }
 # host and a news server, and that decision is made in one place (rd-http/src/tls.rs).
 rd-http = { path = "../rd-http" }
 rd-scheduler = { path = "../rd-scheduler" }
+rd-files = { path = "../rd-files" }
 rd-tools = { path = "../rd-tools" }
 reqwest.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+secrecy.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

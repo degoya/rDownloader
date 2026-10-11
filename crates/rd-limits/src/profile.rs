@@ -32,6 +32,11 @@ pub struct BandwidthProfile {
     /// Traffic budget for one calendar month in the schedule's timezone.
     pub monthly_budget_bytes: Option<rd_core::ByteCount>,
     pub scopes: Vec<ScopeLimit>,
+    /// While the profile is in force no new download starts and a running transfer that can
+    /// resume pauses until it ends (RD-1240-30): the schedule's download window. Uploads,
+    /// seeding and post-processing go on; a package may be set to ignore it.
+    #[serde(default)]
+    pub pause_downloads: bool,
 }
 
 impl BandwidthProfile {
@@ -47,6 +52,7 @@ impl BandwidthProfile {
             daily_budget_bytes: None,
             monthly_budget_bytes: None,
             scopes: Vec::new(),
+            pause_downloads: false,
         }
     }
 

@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Seitenerkennung",
     "title": "Seitenregeln",
-    "description": "Welche Release-Seiten rDownloader erkennt und durch welche Regel. Mit dem Programm kommen nur abgeschaltete Beispiele für freie Seiten; weitere Regeln importierst du aus einem Export oder schreibst sie selbst. Jede Regel hier kannst du schalten, bearbeiten, duplizieren, exportieren und entfernen."
+    "description": "Welche Release-Seiten rDownloader erkennt und durch welche Regel. Mit dem Programm kommen nur wenige eigene Regeln, abgeschaltet; weitere Regeln importierst du aus einem Export oder schreibst sie selbst. Jede Regel hier kannst du schalten, bearbeiten, duplizieren, exportieren und entfernen."
   },
   "groups": {
     "board": "Boards",
@@ -10,7 +10,10 @@
     "adult": "Erwachsene",
     "ebooks": "E-Books",
     "graphics": "Grafik",
-    "examples": "Beispiele"
+    "blender": "Blender",
+    "linux": "Linux",
+    "software": "Freie Software",
+    "archive": "Internet Archive"
   },
   "group_switch": "Ganze Gruppe schalten",
   "rule_switch": "Diese Regel schalten",
@@ -22,8 +25,9 @@
   },
   "list": {
     "title": "Regeln",
-    "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Stelle die Beispiele für freie Seiten wieder her, importiere einen Regel-Export oder schreibe eine eigene Regel.",
-    "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt."
+    "empty": "Es ist keine Regel installiert, also wird keine Release-Seite durch eine Regel erkannt. Stelle die mit rDownloader ausgelieferten Regeln wieder her, importiere einen Regel-Export oder schreibe eine eigene Regel.",
+    "group_off": "Die Gruppe ist abgeschaltet, diese Regel wird deshalb nicht befragt.",
+    "more": "Weitere Aktionen"
   },
   "editor": {
     "eyebrow": "Eigene Regel",
@@ -134,10 +138,7 @@
     "address_hint": "Leer: die Prüfadresse der Regel."
   },
   "transfer": {
-    "export": "Regeln exportieren",
     "export_empty": "Es gibt keine Regel zum Exportieren.",
-    "import": "Regeln importieren",
-    "import_hint": "Nimmt einen Regel-Export. Bevor etwas übernommen wird, siehst du jede Regel: neu, ersetzt eine vorhandene oder schon gleich da. Jede Regel kommt mit dem Schalter an, den sie beim Exportierenden hatte.",
     "import_unreadable": "Diese Datei ist kein Regel-Export.",
     "imported": "Übernommen: {stored} neu, {replaced} ersetzt, von {total} Regeln der Datei.",
     "refused_one": "{name} wurde abgelehnt",
@@ -178,8 +179,8 @@
     "mcp_detail": "Von einem MCP-Client geschrieben oder geändert",
     "unknown": "Herkunft unbekannt",
     "unknown_detail": "Vor 1.20 gespeichert oder aus der signierten Regeldatei von 1.20 bis 1.22",
-    "example": "Beispiel",
-    "example_detail": "Eine der Beispielregeln für freie Seiten, die mit dem Programm kommen"
+    "example": "Mitgeliefert",
+    "example_detail": "Mit rDownloader ausgeliefert"
   },
   "import_dialog": {
     "title": "Regeln importieren",
@@ -206,9 +207,24 @@
     "done": "{count} Regeln gelöscht."
   },
   "examples": {
-    "restore": "Beispiele wiederherstellen",
-    "restore_hint": "Legt die Beispielregeln für freie Seiten, die mit dem Programm kommen, wieder an, abgeschaltet. Eine vorhandene Beispielregel bleibt, wie sie ist.",
-    "restored": "{count} Beispielregeln wiederhergestellt, abgeschaltet.",
-    "none_missing": "Alle Beispielregeln sind schon da."
+    "restore": "Mitgelieferte wiederherstellen",
+    "restore_hint": "Legt die mit rDownloader ausgelieferten Regeln wieder an, abgeschaltet. Eine vorhandene bleibt, wie sie ist.",
+    "restored": "{count} mitgelieferte Regeln wiederhergestellt, abgeschaltet.",
+    "none_missing": "Alle mitgelieferten Regeln sind schon da."
+  },
+  "bundled": {
+    "debian-cd": "Eine einstufige Regel. Die Regel übernimmt die Image-Ordner von cdimage.debian.org, lädt die Ordnerliste (fetch), nimmt jeden Link, der auf .iso endet (regex mit all: true, into links), und benennt das Paket nach dem ersten Netzwerk-Installer, den sie findet (package from regex). Die Seite listet jedes Image zweimal; die doppelten Links werden zu einem.",
+    "ubuntu-releases": "Eine einstufige Regel wie die für Debian, für releases.ubuntu.com: Ein Release-Ordner (24.04/, noble/ ...) wird ein Paket seiner .iso-Images. Der Paketname kommt aus dem Seitentitel, abgeschnitten vor dem Codenamen in Klammern.",
+    "blender-releases": "Eine zweistufige Regel (groups mit pick). Der Ordner einer Blender-Reihe listet jeden Build für jede Plattform, deshalb sammeln die eigenen Schritte der Regel nur die Dateinamen (regex mit all: true, into files). groups.from macht aus jeder Datei einen Eintrag, und pick liest Version, Plattform und Format, so dass der LinkGrabber die Builds zur Auswahl listet, bevor etwas geladen wird. Nur die gewählten Einträge durchlaufen die Schritte der Gruppe: Der Eintrag selbst ist der Link, an die Adresse des Ordners angehängt, und sein Name ohne Endung ist der Paketname.",
+    "blender-open-movies": "Eine zweistufige Regel für die Ordner der offenen Filme der Blender Foundation (Big Buck Bunny, Tears of Steel, Sintel). Jede Videodatei des Ordners ist ein Eintrag; pick liest Auflösung und Format, so dass du im LinkGrabber die Fassung wählst, die du willst. Der Link des gewählten Eintrags ist die Datei selbst; das Paket heißt wie die Datei ohne .zip.",
+    "fedora-releases": "Eine einstufige Regel für die Image-Ordner eines Fedora-Release auf dem kernel.org-Mirror (dl.fedoraproject.org selbst beantwortet automatische Anfragen mit einer Bot-Prüfung). Die Regel lädt die Ordnerliste, nimmt jeden Link, der auf .iso endet (regex mit all: true, into links), so dass die .manifest- und CHECKSUM-Dateien draußen bleiben, und benennt das Paket nach der CHECKSUM-Datei: Edition, Release und Architektur.",
+    "archlinux-iso": "Eine einstufige Regel für die ISO-Ordner von Arch Linux auf dessen eigenem Geo-Mirror, latest/ oder ein datiertes Release. Der Ordner listet das Image zweimal, einmal datiert und einmal als archlinux-x86_64.iso, deshalb nimmt das Muster nur den datierten Namen (regex mit all: true, into links), und das Paket wird nach ihm benannt; Signaturen, Torrents und die Bootstrap-Archive bleiben draußen.",
+    "linuxmint-releases": "Eine einstufige Regel wie die für Debian, für die Release-Ordner auf pub.linuxmint.io: Ein Versionsordner (22.3/ ...) wird ein Paket seiner .iso-Images, Cinnamon, MATE und Xfce, und die Prüfsummendateien bleiben draußen. Das Paket heißt wie das erste Image, abgeschnitten nach der Version.",
+    "libreoffice-stable": "Eine zweistufige Regel (groups mit pick) für einen Plattform-Ordner eines stabilen LibreOffice-Release (win/x86_64/, deb/x86_64/, mac/aarch64/ ...). Der Ordner enthält den Installer neben einem Hilfe- oder Sprachpaket pro Sprache und dem SDK, deshalb sammeln die Schritte der Regel nur die Dateinamen (regex mit all: true, into files) und lassen die Signaturen und Mirror-Listen weg. pick liest Version, Teil (helppack, langpack, sdk; keiner für den Installer), Sprache und Format, so dass du im LinkGrabber wählst; der gewählte Eintrag ist der Link, und sein Name ohne Endung ist der Paketname.",
+    "vlc-releases": "Eine zweistufige Regel für einen Plattform-Ordner eines VLC-Release auf dem Download-Server von VideoLAN (last/ oder eine Version, dann win64/, win32/, winarm64/ oder macosx/). Der Ordner bietet denselben Build als Installer, MSI, zip und 7z an, deshalb sammeln die Schritte der Regel die Dateinamen (regex mit all: true, into files) und lassen Prüfsummen, Signaturen und Debug-Symbole weg, und pick liest Version, Plattform und Format. Der gewählte Eintrag ist der Link; sein Name ohne Endung ist der Paketname.",
+    "archive-org-items": "Eine einstufige Regel, die eine Item-Seite (archive.org/details/<item>) zu einem Paket der Dateien des Items macht. Die Regel liest den Namen des Items aus der Adresse (regex from url, into item), lädt die Item-Seite für ihren Titel, dann die Dateiliste <item>_files.xml des Items (die auf einen Speicherknoten umleitet, daher *.archive.org) und nimmt jede Datei, die der Uploader eingestellt hat (source=\"original\"; regex mit all: true, into links). Die eigenen Ableitungen des Archivs, Vorschaubilder und Namen mit führendem Unterstrich bleiben draußen; kleine Metadaten-Dateien, die das Archiv als original führt, kommen mit. Zuletzt lädt die Regel den Download-Ordner des Items, so dass die Dateinamen zu Links unter archive.org/download/<item>/ werden. Das Paket heißt wie der Titel des Items. Items sind Uploads von irgendwem, und eine Adresse sagt nichts über ihre Lizenz: Prüf sie auf der Item-Seite.",
+    "pastebin": "Eine einstufige Regel für öffentliche Pastes auf pastebin.com, die Paste-Seite oder ihre /raw/-Form. Die Regel liest die ID des Pastes aus der Adresse (regex from url, into id), lädt die Paste-Seite für ihren Titel, dann den Paste als reinen Text von /raw/<id> (into text), und nimmt jede http- oder https-Adresse im Text (regex mit all: true, into links); Klammern, Anführungszeichen und ein abschließender Punkt oder ein Komma gehören nicht zum Link. Das Paket heißt wie der Titel des Pastes.",
+    "rentry": "Eine einstufige Regel für öffentliche Seiten auf rentry.co und rentry.org. Der Rohtext verlangt einen Zugangscode, deshalb liest die Regel die gerenderte Seite: Die Regel lädt die Seite, schneidet den Eintrag selbst heraus, das erste <article> (regex, into text), und nimmt jeden http- oder https-Link darin (regex mit all: true, into links), so dass die Navigation der Seite draußen bleibt. Das Paket heißt wie der Seitentitel.",
+    "sourcehut-paste": "Eine einstufige Regel für öffentliche Pastes auf paste.sr.ht. Ein Paste kann mehrere Dateien enthalten, jede mit einem View-raw-Link, deshalb lädt die Regel die Paste-Seite, sammelt diese Links (regex mit all: true, into blobs), lädt jede Datei roh (fetch über die Liste, into text) und nimmt jede http- oder https-Adresse im Text (regex mit all: true, into links); Klammern, Anführungszeichen und ein abschließender Punkt oder ein Komma gehören nicht zum Link. Das Paket heißt wie der Titel des Pastes, der Name seiner ersten Datei."
   }
 }

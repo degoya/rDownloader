@@ -1,0 +1,15 @@
+[package]
+name = "rd-plugin-jellyfin-notifier"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+plugin-guest-notifier = { path = "../guest-notifier" }
+
+[lib]
+crate-type = ["rlib"]
+
+[lints]
+workspace = true

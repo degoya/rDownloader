@@ -2,8 +2,9 @@
 //!
 //! The pause itself is the scheduler's (`rd_scheduler::QueuePause`): the files it stops, the
 //! hold that keeps new ones back, the end that survives a restart. These routes set it, read it
-//! and end it early. Reading it also names the accounts whose traffic is used up (RD-1190-14),
-//! the other thing that holds downloads back without anybody pressing pause.
+//! and end it early. Reading it also names the accounts whose traffic is used up (RD-1190-14)
+//! and a bandwidth profile that pauses downloads (RD-1240-30), the other things that hold
+//! downloads back without anybody pressing pause.
 
 use axum::{Json, extract::State};
 use chrono::{DateTime, Duration, Utc};
@@ -40,6 +41,21 @@ pub struct QueuePauseResponse {
     /// Where the queue will pause next: the stop mark in force (RD-1210-02), `null` while none
     /// is set.
     pub stop_mark: Option<crate::stop_mark_handlers::QueueStopMarkResponse>,
+    /// Set while the bandwidth profile in force pauses downloads (RD-1240-30); `null` otherwise.
+    pub schedule_pause: Option<SchedulePauseResponse>,
+    /// The timezone download windows and the schedule are read in.
+    pub schedule_timezone: String,
+}
+
+/// A bandwidth profile that pauses downloads while it is in force (RD-1240-30).
+#[derive(Serialize, ToSchema)]
+pub struct SchedulePauseResponse {
+    pub profile_id: rd_core::BandwidthProfileId,
+    pub profile_name: String,
+    /// When it ends, as the schedule or a switch by hand says; `null` when nothing ends it.
+    pub until: Option<DateTime<Utc>>,
+    /// Whether somebody switched it on by hand rather than the schedule.
+    pub manual: bool,
 }
 
 /// An account whose traffic is used up, and what that holds back.
@@ -97,6 +113,17 @@ pub async fn resume_queue(
 }
 
 async fn response(state: &AppState, pause: Option<rd_scheduler::QueuePause>) -> QueuePauseResponse {
+    let bandwidth = state.scheduler.bandwidth().status().await;
+    let schedule_pause = bandwidth
+        .active_profile
+        .as_ref()
+        .filter(|profile| profile.pause_downloads)
+        .map(|profile| SchedulePauseResponse {
+            profile_id: profile.id,
+            profile_name: profile.name.clone(),
+            until: bandwidth.next_switch_at,
+            manual: bandwidth.manual.is_some(),
+        });
     QueuePauseResponse {
         paused: pause.is_some(),
         until: pause.as_ref().and_then(|pause| pause.until),
@@ -105,6 +132,8 @@ async fn response(state: &AppState, pause: Option<rd_scheduler::QueuePause>) -> 
         }),
         account_traffic: account_traffic(state).await,
         stop_mark: stop_mark(state).await,
+        schedule_pause,
+        schedule_timezone: bandwidth.timezone,
     }
 }
 

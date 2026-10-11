@@ -33,6 +33,8 @@ vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn() }))
 // The update dialog's copy button reports a refused clipboard with a toast.
 vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
 vi.mock('./CaptchaDialog.vue', () => ({ default: { template: '<div />' } }))
+// The restart line subscribes to the event stream, which jsdom has no EventSource for (RD-1240-32).
+vi.mock('./RestartNotice.vue', () => ({ default: { template: '<div />' } }))
 vi.mock('@/composables/useAppTour', () => ({ useAppTour: () => ({ startTour: vi.fn() }) }))
 vi.mock('@/composables/useNzbDropZone', () => ({ useFileImportDropZone: () => ({ dropActive: ref(false) }) }))
 vi.mock('@/stores/transfers', () => ({ useTransfersStore: () => ({ packages: [], activePackages: 0 }) }))

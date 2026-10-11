@@ -278,6 +278,10 @@ pub struct NzbImport {
     pub import_mode: ImportMode,
     pub source_path: Option<String>,
     pub error: Option<String>,
+    /// The stable code of `error` when the interface can translate it (RD-1240-33), e.g.
+    /// `collector.nzb_empty`; `None` leaves `error` as the reason to show.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
     pub duplicate: bool,
     /// Whether an archive password (from `{{password}}` in the file name) is stored.
     #[serde(default)]

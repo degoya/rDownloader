@@ -94,3 +94,73 @@ self.addEventListener('fetch', event => {
     )
   )
 })
+
+/*
+ * Web Push (RD-1240-13). The service encrypts each message for this browser; the push service
+ * wakes the worker with it even when no tab is open. A message names its event, and a click on
+ * the notification opens the view that event belongs to — in a tab of the app that is already
+ * open, or in a new one.
+ */
+
+/** The view each notification event opens, relative to the scope; anything else opens the app. */
+const EVENT_VIEWS = {
+  package_completed: 'downloads',
+  package_failed: 'downloads',
+  usenet_job_hopeless: 'downloads',
+  stop_mark_reached: 'downloads',
+  captcha_waiting: 'downloads',
+  power_pending: 'downloads',
+  budget_exhausted: 'settings/bandwidth',
+  storage_blocked: 'settings/routing',
+  backup_failed: 'settings/backup?tab=full',
+  backup_verify_failed: 'settings/backup?tab=full',
+  update_available: 'settings/system?tab=updates',
+  update_installed: 'settings/system?tab=updates',
+  update_failed: 'settings/system?tab=updates',
+  service_restarting: 'settings/system?tab=updates',
+  plugin_update_available: 'settings/plugins?tab=updates',
+  plugin_update_failed: 'settings/plugins?tab=updates',
+  account_expiring: 'settings/accounts',
+  account_invalid: 'settings/accounts',
+  usenet_quota_reached: 'settings/usenet'
+}
+
+function viewFor(event) {
+  return inScope(Object.hasOwn(EVENT_VIEWS, event) ? EVENT_VIEWS[event] : './')
+}
+
+function readPush(data) {
+  try {
+    const message = data?.json()
+    if (message && typeof message === 'object') return message
+  } catch {
+    // Not JSON: shown as its text below.
+  }
+  return { body: data?.text() ?? '' }
+}
+
+self.addEventListener('push', event => {
+  const message = readPush(event.data)
+  const title = typeof message.title === 'string' && message.title ? message.title : 'rDownloader'
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: typeof message.body === 'string' ? message.body : '',
+      // A delivery the service tries again replaces its first notification instead of adding one.
+      tag: typeof message.tag === 'string' && message.tag ? message.tag : undefined,
+      icon: inScope('icons/icon-192.png'),
+      data: { url: viewFor(message.event) }
+    })
+  )
+})
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  const url = event.notification.data?.url ?? inScope('./')
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+      const open = windows.find(client => client.url.startsWith(SCOPE.href))
+      if (!open) return self.clients.openWindow(url)
+      return open.focus().then(client => (client ?? open).navigate?.(url)).catch(() => undefined)
+    })
+  )
+})

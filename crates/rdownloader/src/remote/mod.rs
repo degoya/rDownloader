@@ -1,9 +1,12 @@
-//! Queue and LinkGrabber commands against a local or remote server (RD-090-07).
+//! Queue, LinkGrabber and event commands against a local or remote server (RD-090-07,
+//! RD-1240-18).
 
 mod client;
+mod events_cmd;
 mod links_cmd;
 mod output;
 mod queue_cmd;
+mod sse;
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -35,6 +38,20 @@ impl ConnectionArgs {
             Format::from_flag(self.json),
         ))
     }
+
+    /// The same, for a stream that stays open: `--timeout` bounds connecting, not the stream.
+    fn stream(&self) -> Result<(Client, Format)> {
+        Ok((
+            Client::streaming(&self.server, self.token.clone(), self.timeout)?,
+            Format::from_flag(self.json),
+        ))
+    }
+}
+
+#[derive(Args)]
+pub(crate) struct EventsArgs {
+    #[command(flatten)]
+    connection: ConnectionArgs,
 }
 
 #[derive(Args)]
@@ -177,6 +194,14 @@ pub(crate) async fn links(args: LinksArgs) -> Result<()> {
             links_cmd::remove(&client, format, &ids).await
         }
     }
+}
+
+/// Runs `events`: follows the event stream until Ctrl+C, a closed output or a refusal.
+pub(crate) async fn events(args: EventsArgs) -> Result<()> {
+    let (client, format) = args.connection.stream()?;
+    events_cmd::Follower::new(format)
+        .run(&client, &mut std::io::stdout())
+        .await
 }
 
 /// Ends the process with the exit code that matches why a remote command failed.

@@ -17,6 +17,7 @@ use crate::{ApiError, AppState, scope_policy};
 
 mod middleware;
 mod password;
+mod refusal_log;
 mod service;
 mod token_rate;
 mod tokens;

@@ -14,6 +14,10 @@ pub const CAPTURE_SCOPE: &str = "capture:*";
 /// (RD-1100-06). Chosen when the agent is paired, never implied: a capture token without it can
 /// do exactly what it could before.
 pub const CAPTURE_QUEUE_SCOPE: &str = "capture:queue";
+/// Scope granting a paired capture agent the installation of the service's own update from its
+/// tray, and nothing else (RD-1240-25). Chosen when the agent is paired, off by default, never
+/// implied: an agent without it opens the update page in the browser instead.
+pub const CAPTURE_SERVER_UPDATE_SCOPE: &str = "capture:server_update";
 /// Scope granting full API access (MCP and future machine clients).
 pub const API_SCOPE: &str = "api:*";
 /// Scope granting read-only access to queue and status resources.
@@ -66,10 +70,14 @@ pub enum Scope {
     Metrics,
     /// Browser-capture intake. Isolated from every API scope in both directions.
     Capture,
-    /// Pausing and resuming the whole queue from the capture agent's tray (RD-1100-06). Off the
-    /// ladder like [`Capture`](Self::Capture): it confers nothing, and nothing confers it, not
+    /// Pausing and resuming the whole queue from the capture agent's tray (RD-1100-06), and
+    /// adding everything from the LinkGrabber to it (RD-1240-07). Off the ladder like [`Capture`](Self::Capture): it confers nothing, and nothing confers it, not
     /// even `api:*` or `capture:*`.
     CaptureQueue,
+    /// Installing the service's offered update from the capture agent's tray (RD-1240-25). Off
+    /// the ladder like [`CaptureQueue`](Self::CaptureQueue): it confers nothing, and nothing
+    /// confers it, not even `api:*`, `capture:*` or `capture:queue`.
+    CaptureServerUpdate,
 }
 
 impl Scope {
@@ -91,9 +99,10 @@ impl Scope {
         Self::Metrics,
     ];
 
-    /// The capture surface's scopes: the intake every agent holds, and the queue control one is
-    /// paired with on request. Neither is on [`API`](Self::API)'s ladder.
-    pub const CAPTURE: &'static [Self] = &[Self::Capture, Self::CaptureQueue];
+    /// The capture surface's scopes: the intake every agent holds, and the queue control and the
+    /// server update one is paired with on request. None is on [`API`](Self::API)'s ladder.
+    pub const CAPTURE: &'static [Self] =
+        &[Self::Capture, Self::CaptureQueue, Self::CaptureServerUpdate];
 
     /// The scope string persisted in a token and shown to the user.
     #[must_use]
@@ -108,6 +117,7 @@ impl Scope {
             Self::Metrics => API_METRICS_SCOPE,
             Self::Capture => CAPTURE_SCOPE,
             Self::CaptureQueue => CAPTURE_QUEUE_SCOPE,
+            Self::CaptureServerUpdate => CAPTURE_SERVER_UPDATE_SCOPE,
         }
     }
 
@@ -144,7 +154,12 @@ impl Scope {
     pub fn implies(self) -> &'static [Self] {
         match self {
             Self::Intake | Self::Queue | Self::Config | Self::Admin => &[Self::Read],
-            Self::Read | Self::Secrets | Self::Metrics | Self::Capture | Self::CaptureQueue => &[],
+            Self::Read
+            | Self::Secrets
+            | Self::Metrics
+            | Self::Capture
+            | Self::CaptureQueue
+            | Self::CaptureServerUpdate => &[],
         }
     }
 

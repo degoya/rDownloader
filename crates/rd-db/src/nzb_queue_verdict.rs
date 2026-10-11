@@ -177,6 +177,13 @@ pub(crate) async fn settle_par2_verdicts(
             .bind(&row.id)
             .execute(&mut *tx)
             .await?;
+            // The one warning a hole earns (RD-1240-38): the articles are logged at `debug`
+            // and the file's count at `info`, because a set with PAR2 repairs them.
+            tracing::warn!(
+                download_id = %row.id,
+                missing,
+                "segments missing on every server and the set carries no PAR2; the file stays incomplete"
+            );
             EventEnvelope::new(
                 EventKind::DownloadState,
                 serde_json::json!({

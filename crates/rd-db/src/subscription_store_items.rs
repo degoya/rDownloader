@@ -33,8 +33,8 @@ fn attributes_json(attributes: &BTreeMap<String, String>) -> Option<String> {
 /// anything — is the event itself. Without these fields a client could not tell a completed
 /// poll from an unrelated edit of another subscription.
 ///
-/// Deliberately not named `accepted_items`: that key is what `rd-api`'s automation context
-/// looks for, and reviving a trigger is not this event's business.
+/// It is also the one moment the `subscription_item` automation trigger fires on: the
+/// automation context reads `accepted` from it (RD-1240-21).
 fn run_finished_event(subscription_id: SubscriptionId, result: &PollResult) -> EventEnvelope {
     EventEnvelope::new(
         EventKind::SubscriptionChanged,
@@ -60,7 +60,8 @@ pub(crate) type ItemPasswords = Vec<(String, String)>;
 /// `INSERT … ON CONFLICT DO NOTHING` against the UNIQUE index is what makes this safe to
 /// repeat: an interrupted poll, an overlapping one, or a feed that re-lists the same entry
 /// produces no second row and no second download. The returned list is exactly the rows
-/// this call created, so the caller queues only those.
+/// this call created, so the caller queues only those. A key left by a compacted item
+/// (RD-1240-35) is archived as well: the entry is passed over, as a skipped row would be.
 pub(crate) async fn record_items(
     connection: &mut SqliteConnection,
     subscription_id: SubscriptionId,
@@ -72,6 +73,17 @@ pub(crate) async fn record_items(
     let event = changed_event();
     let mut tx = connection.begin().await?;
     for item in items {
+        let compacted: i64 = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM subscription_item_keys \
+             WHERE subscription_id = ? AND item_key = ?)",
+        )
+        .bind(subscription_id.to_string())
+        .bind(&item.item_key)
+        .fetch_one(&mut *tx)
+        .await?;
+        if compacted != 0 {
+            continue;
+        }
         let id = SubscriptionItemId::new();
         let result = sqlx::query(
             "INSERT INTO subscription_items (id, subscription_id, item_key, title, url, \
@@ -183,7 +195,8 @@ pub(crate) async fn set_pending_items_state(
     Ok((updated, event))
 }
 
-/// Deletes settled items and every poll run of one subscription, leaving pending review intact.
+/// Deletes settled items, the keys of compacted ones and every poll run of one subscription,
+/// leaving pending review intact.
 pub(crate) async fn clear_history(
     connection: &mut SqliteConnection,
     id: SubscriptionId,
@@ -204,6 +217,11 @@ pub(crate) async fn clear_history(
     .execute(&mut *tx)
     .await?
     .rows_affected();
+    // Forgotten like the rows they stand for (RD-1240-35); not counted, nothing shows them.
+    sqlx::query("DELETE FROM subscription_item_keys WHERE subscription_id = ?")
+        .bind(id.to_string())
+        .execute(&mut *tx)
+        .await?;
     let deleted_runs = sqlx::query("DELETE FROM subscription_runs WHERE subscription_id = ?")
         .bind(id.to_string())
         .execute(&mut *tx)

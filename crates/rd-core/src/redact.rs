@@ -328,9 +328,17 @@ fn redact_inline(line: &str) -> String {
     while index < line.len() {
         // The remote transfer schemes are here because `ftp://user:password@host/` is the
         // ordinary way people paste an FTP link; without them the password would survive
-        // into every log line and error message that quotes the source URL.
+        // into every log line and error message that quotes the source URL. The SOCKS schemes
+        // because a download tool handed a proxy profile may quote its address (RD-1240-08).
         if let Some(marker) = [
-            "https://", "http://", "vault://", "ftps://", "ftp://", "sftp://",
+            "https://",
+            "http://",
+            "vault://",
+            "ftps://",
+            "ftp://",
+            "sftp://",
+            "socks5://",
+            "socks5h://",
         ]
         .into_iter()
         .find(|marker| lowered[index..].starts_with(marker))

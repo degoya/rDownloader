@@ -120,6 +120,11 @@ impl AppState {
             secrets.clone(),
             scheduler.clone(),
             extraction.clone(),
+            automation_links::LinkIntake {
+                link_check: link_check.clone(),
+                media_settings: media_settings.clone(),
+                gallery_settings: gallery_settings.clone(),
+            },
         );
         let tools = managed_tools(&database);
         let plugin_repositories = plugin_repositories(&database, &plugins);
@@ -180,6 +185,7 @@ impl AppState {
             local_capture_fetches: false,
             local_control: local_control::LocalControl::default(),
             shutdown: tokio_util::sync::CancellationToken::new(),
+            restart: restart_state::RestartState::default(),
             stream_recheck: stream_standing::STREAM_RECHECK,
         }
     }

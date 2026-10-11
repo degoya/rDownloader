@@ -1,4 +1,4 @@
-//! LinkGrabber, NZB and DLC intake, categories and routing rules.
+//! LinkGrabber, NZB and DLC intake, categories, routing rules and LinkFilter rules.
 
 #![warn(unreachable_pub)]
 
@@ -7,6 +7,7 @@ mod container;
 mod crawljob;
 mod dlc;
 mod grouping;
+mod link_filters;
 mod links;
 mod mirror_separations;
 mod mirrors;
@@ -23,12 +24,13 @@ pub use dlc::{
     split_dlc_container,
 };
 pub use grouping::{Group, GroupInput, common_stem, container_name, group_links};
+pub use link_filters::{LinkFilterContext, LinkFilters, compile_name_pattern};
 pub use links::{canonical_url, extract_urls};
 pub use mirror_separations::MirrorSeparations;
 pub use mirrors::{MirrorInput, group_mirrors, language_of, quality_of};
 pub use nzb::{
-    MAX_NZB_BYTES, NzbDocument, NzbFile, NzbSegment, looks_like_file_name, parse_nzb, render_nzb,
-    subject_file_name,
+    MAX_NZB_BYTES, NzbDocument, NzbFile, NzbSegment, looks_like_file_name, nzb_refusal_code,
+    parse_nzb, render_nzb, subject_file_name,
 };
 pub use rdlinks::{
     LinksDocument, LinksEntry, LinksFile, LinksKdf, LinksNzb, LinksPackage, MAX_RDLINKS_BYTES,

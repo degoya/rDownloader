@@ -9,6 +9,7 @@ use url::Url;
 
 use crate::{error::StoreError, page_binds};
 
+mod filter_decision;
 mod intake;
 mod rows;
 

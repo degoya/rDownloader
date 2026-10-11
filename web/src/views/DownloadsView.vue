@@ -23,7 +23,6 @@ import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { setDirectAddAction } from '@/composables/directAddAction'
-import { setIndexerSearchFocusAction } from '@/composables/indexerSearchFocus'
 import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
 import { useDownloadsActions } from '@/composables/useDownloadsActions'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
@@ -34,6 +33,7 @@ import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useQueueColumns } from '@/composables/useQueueColumns'
 import { filterQueue, QUEUE_FILTERS, useQueueFilter } from '@/composables/useQueueFilter'
 import { useQueueNoticeToasts } from '@/composables/useQueueNoticeToasts'
+import { useQueueReveal } from '@/composables/useQueueReveal'
 import { useQueueReorder } from '@/composables/useQueueReorder'
 import { useQueueRows } from '@/composables/useQueueRows'
 import { useQueueSort } from '@/composables/useQueueSort'
@@ -46,6 +46,7 @@ import { usePostprocessStore } from '@/stores/postprocess'
 import { useProxyProfiles } from '@/stores/proxyProfiles'
 import { usePublishedSelection } from '@/stores/selection'
 import { RESETTABLE_STATES, useTransfersStore } from '@/stores/transfers'
+import { DOWNLOADS_NAV_KBD, DOWNLOADS_NAV_LABEL, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
 import { hasExtractable } from '@/utils/format'
 
 const { t } = useI18n()
@@ -60,7 +61,6 @@ provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 
 /** The state filter and the name search, both in the address (RD-190-21). */
 const { filter, search, needle, active: filterActive, reset: resetFilter } = useQueueFilter()
-const searchField = ref<HTMLElement | null>(null)
 const adding = ref(false)
 /** The direct job's dialog, and the refusal it keeps until the next attempt (RD-1220-03). */
 const addOpen = ref(false)
@@ -105,11 +105,11 @@ const resetFailed = useResetFailed({ visible, needle })
  * row is a stop of its own, so a range can run from package to package (RD-170-13).
  */
 const orderedRowKeys = computed(() => rows.value.map(row => row.kind === 'file' ? row.download.id : packageRowKey(row.group.package.id)))
-const selection = useQueueSelection(groups, computed(() => transfers.downloads), orderedRowKeys)
+const selection = useQueueSelection(groups, computed(() => transfers.downloads), orderedRowKeys, visible)
 // How much is ticked, shown in the status bar while this view is open (RD-170-14).
 usePublishedSelection(selection.size)
 
-/** The data columns' widths, set on the container of the header row and the rows (RD-191-11). */
+/** The data columns' widths and which are off, set on the container of the header and the rows (RD-191-11, RD-1240-14). */
 const columns = useQueueColumns('downloads')
 
 const queueList = ref<{
@@ -124,6 +124,17 @@ const {
   bulkAction, canControlPackage, controlPackage, bulkRemove, resetDownloads, bulkExtract, bulkRename, packageStorage,
   renamePackage, extractPackages, forceExtractPackage, renameFile, clearDownloads, clearEverything, removeDownload
 } = useDownloadsActions({ selection, groups, packageDownloads })
+
+/** The search palette's jump to one row, `?reveal=package:<id>` or `file:<id>` (RD-1240-14). */
+useQueueReveal({
+  settled: () => !transfers.loading,
+  packageOfFile: id => transfers.downloads.find(download => download.id === id)?.package_id,
+  rowKeys: computed(() => rows.value.map(row => row.key)),
+  openPackage: id => openPackages.set(id, true),
+  filterActive,
+  resetFilter,
+  list: queueList
+})
 
 /** Border frame of a file row: the package's frame carried down its children. */
 function fileFrame(group: QueueGroup): string {
@@ -158,18 +169,9 @@ const selectionDetail = computed(() => {
   return t('common.selection.detail', { items: t('common.units.file', { count: files.length }, files.length), packages: t('common.units.package', { count: packages }, packages) })
 })
 
-/**
- * `f` puts the keyboard in the name search, as it does in the LinkGrabber's indexer search: one
- * key for "the search of this page", handed in while the list is mounted (RD-190-21).
- */
-function focusSearch(): void {
-  searchField.value?.querySelector('input')?.focus()
-}
-
 onMounted(() => {
   // `k` (RD-180-17): the same action as the menu item below, confirmation included.
   setClearCompletedAction(() => void clearDownloads('completed'))
-  setIndexerSearchFocusAction(focusSearch)
   setDirectAddAction(openDirectAdd)
   void loadSelections()
   void loadSummary()
@@ -186,7 +188,6 @@ onUnmounted(() => {
   if (summaryTimer) clearInterval(summaryTimer)
   if (postprocessTimer) clearInterval(postprocessTimer)
   setClearCompletedAction(null)
-  setIndexerSearchFocusAction(null)
   setDirectAddAction(null)
 })
 // `download.state` / `package.state` events feed the store's debounced refresh (400 ms);
@@ -240,20 +241,21 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
 <template>
   <UDashboardPanel id="downloads">
     <template #header>
-      <UDashboardNavbar :title="t('downloads.title')">
+      <UDashboardNavbar :title="t('downloads.title')" :ui="{ root: '@container' }">
         <template #leading><UDashboardSidebarCollapse /></template>
         <template #right>
-          <UButton icon="i-lucide-plus" :label="t('downloads.add.title')" :aria-label="t('downloads.add.title')" :title="t('downloads.add.title')" :ui="{ label: 'max-sm:hidden' }" color="neutral" variant="outline" data-tour="downloads-add" data-testid="downloads-add" @click="openDirectAdd">
-            <template #trailing><UKbd value="a" class="max-sm:hidden" /></template>
+          <UButton icon="i-lucide-plus" :label="t('downloads.add.title')" :aria-label="t('downloads.add.title')" :title="t('downloads.add.title')" :ui="DOWNLOADS_NAV_LABEL" color="neutral" variant="outline" data-tour="downloads-add" data-testid="downloads-add" @click="openDirectAdd">
+            <template #trailing><UKbd value="a" :class="DOWNLOADS_NAV_KBD" /></template>
           </UButton>
           <div data-tour="downloads-controls" class="flex items-center gap-2">
-          <!-- On a phone the count goes (the toolbar repeats it) and the buttons keep only their
-               icons, so the row fits beside the title and never covers the sidebar toggle. -->
-          <UBadge color="neutral" variant="outline" class="font-mono max-sm:hidden">{{ t('common.units.file', { count: transfers.downloads.length }, transfers.downloads.length).toLocaleUpperCase() }}</UBadge>
+          <!-- Below the navbar's threshold the count goes (the toolbar repeats it) and the buttons
+               keep only their icons, so the row fits beside the title and never covers the
+               sidebar toggle (RD-1240-33, `utils/downloadsNavbar.ts`). -->
+          <UBadge color="neutral" variant="outline" class="font-mono" :class="DOWNLOADS_NAV_WIDE">{{ t('common.units.file', { count: transfers.downloads.length }, transfers.downloads.length).toLocaleUpperCase() }}</UBadge>
           <QueuePauseControl placement="header" />
           <QueueResetFailedMenu :counts="resetFailed.counts.value" :busy="resetFailed.busy.value" @reset="resetFailed.resetShown" />
           <UDropdownMenu :items="clearItems">
-            <UButton icon="i-lucide-list-x" :label="t('downloads.header.clear_list')" :aria-label="t('downloads.header.clear_list')" :title="t('downloads.header.clear_list')" :ui="{ label: 'max-sm:hidden' }" color="neutral" variant="outline" :loading="transfers.clearing" />
+            <UButton icon="i-lucide-list-x" :label="t('downloads.header.clear_list')" :aria-label="t('downloads.header.clear_list')" :title="t('downloads.header.clear_list')" :ui="DOWNLOADS_NAV_LABEL" color="neutral" variant="outline" :loading="transfers.clearing" />
           </UDropdownMenu>
           </div>
         </template>
@@ -302,7 +304,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
             @export-all="exportPackages({ all: true })"
           >
             <template #filters>
-              <div ref="searchField" class="w-full sm:w-56">
+              <div class="w-full sm:w-56">
                 <UInput
                   v-model="search"
                   type="search"
@@ -312,9 +314,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
                   :placeholder="t('downloads.filters.search_placeholder')"
                   :aria-label="t('downloads.filters.search_label')"
                   data-testid="downloads-search"
-                >
-                  <template #trailing><UKbd value="f" /></template>
-                </UInput>
+                />
               </div>
               <USelect v-model="filter" :items="filters" value-key="value" class="w-36" :aria-label="t('downloads.filters.aria')" />
             </template>
@@ -357,16 +357,18 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
             value, which is what turns a pick into a range (RD-106-12).
           -->
           <!-- While sorted for the eye the drag handles stay in the grid but are not shown (RD-1190-16). -->
-          <div :style="columns.style.value" :class="queueSort.active.value ? '[&_[data-row-handle]]:invisible' : ''">
+          <div :style="columns.style.value" :data-hidden-columns="columns.hiddenAttr.value" :class="queueSort.active.value ? '[&_[data-row-handle]]:invisible' : ''">
           <QueueColumnHeader
             :widths="columns.widths.value"
             view="downloads"
             :gutter="rows.length > DEFAULT_THRESHOLD"
             :customized="columns.customized.value"
+            :hidden="columns.hidden.value"
             :sort="queueSort.sort.value"
             @resize="columns.setWidth"
             @reset="columns.reset"
             @reset-all="columns.resetAll"
+            @visibility="columns.setVisible"
             @sort="queueSort.toggle"
           />
           <VirtualRowList

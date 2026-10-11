@@ -11,7 +11,7 @@ import EnrichmentChips from '@/components/EnrichmentChips.vue'
 import MediaFormatSelector from '@/components/MediaFormatSelector.vue'
 import RemoteFileTree from '@/components/RemoteFileTree.vue'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
-import { queuedCount } from '@/composables/useQueuedSources'
+import { downloadedBefore, queuedCount } from '@/composables/useQueuedSources'
 import { useAccountProviders } from '@/composables/useAccountProviders'
 import { useCandidateDetails } from '@/composables/useCandidateDetails'
 import { translateServerMessage } from '@/i18n/server'
@@ -56,6 +56,8 @@ const emit = defineEmits<{
   'dissolve-mirror': [id: string]
   /** Hide every link of this hoster from the LinkGrabber (RD-130-21). */
   'hide-hoster': [hoster: string]
+  /** Show a link a LinkFilter rule hid, until the rules are applied again (RD-1240-09). */
+  unhide: [id: string]
   /** Addresses onto the clipboard; the view copies and says so (RD-190-21). */
   'copy-links': [links: string[]]
 }>()
@@ -77,8 +79,17 @@ const stateColor = computed<'success' | 'error' | 'warning' | 'neutral' | 'prima
   }
 })
 const stateLabel = computed(() => t(`linkgrabber.candidate.state.${props.candidate.state}`))
+// One mark per address (owner, 2026-10-10): the orange "already in the list" state wins over
+// both blue badges, which would repeat it for the same address (RD-1240-28, live test 10), so
+// they show only when the address is in neither the LinkGrabber nor the list.
+const duplicate = computed(() => props.candidate.state === 'duplicate')
 /** Queue downloads of the same source, by identity rather than by spelling (RD-150-01). */
-const queuedCopies = computed(() => queuedCount(props.candidate.url))
+const queuedCopies = computed(() => duplicate.value ? 0 : queuedCount(props.candidate.url))
+/** The history's package of the same source, when the setting compares with it (RD-1240-14). */
+const earlier = computed(() => duplicate.value ? null : downloadedBefore(props.candidate.url))
+const earlierHint = computed(() => earlier.value
+  ? t('linkgrabber.duplicates.history_hint', { name: earlier.value.name, date: formatMoment(earlier.value.finished_at) })
+  : '')
 /**
  * The values a coded candidate message interpolates.
  *
@@ -193,7 +204,8 @@ function variantLabel(variant: MediaVariant): string {
  * Everything but the enqueue button, which is the one action worth a row's width: queueing the
  * link is what the review is for, and it is what somebody reaches for while working down the
  * list. Rename, the MP3 switch and delete are deliberate acts that can afford a menu, and they
- * keep the labels they carried as `aria-label`s (RD-110-27, the rule of RD-109-30).
+ * keep the labels they carried as `aria-label`s (RD-110-27, the rule of RD-109-30). A right-click
+ * on the row opens the same entries (`UContextMenu`, RD-1240-14).
  */
 const actions = computed(() => [[
   // A mirror group takes the row's chevron for its members, so the detail panel — which no
@@ -243,6 +255,9 @@ const actions = computed(() => [[
         icon: 'i-lucide-eye-off',
         onSelect: () => emit('hide-hoster', messageParams.value.host)
       }]
+    : []),
+  ...(props.candidate.hidden_by_filter
+    ? [{ label: t('linkgrabber.link_filter.unhide'), icon: 'i-lucide-eye', onSelect: () => emit('unhide', props.candidate.id) }]
     : [])
 ], [
   {
@@ -269,104 +284,108 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
     @dragover.prevent
     @drop.prevent.stop="emit('drop', props.candidate.id)"
   >
-    <div class="queue-row px-2 py-1.5" :class="props.mirrorMember ? 'pl-8' : ''">
-      <!--
-        A member row is not a second candidate: queueing, selecting and reordering belong to
-        the group, which is the one thing that will be downloaded. So it carries no handle and
-        no checkbox, and the cells stay empty rather than disappearing, or the grid loses its
-        shape (RD-110-19).
-      -->
-      <DragHandle
-        v-if="!props.mirrorMember"
-        class="queue-cell-handle grid place-items-center"
-        :label="dragTitle"
-        @dragstart="emit('dragstart', props.candidate.id)"
-        @move="(delta: -1 | 1) => emit('move', props.candidate.id, delta)"
-      />
-      <div v-else class="queue-cell-handle" />
-      <div v-if="props.mirrorMember" class="queue-cell-select" />
-      <UCheckbox v-else-if="selectable" class="queue-cell-select justify-self-center" :model-value="props.selected" :aria-label="t('linkgrabber.candidate.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.candidate.id, value === true)" />
-      <UIcon v-else name="i-lucide-link-2" class="queue-cell-select size-4 justify-self-center text-muted" />
-      <UButton
-        v-if="props.mirrorGroup"
-        class="queue-cell-expand"
-        :icon="props.mirrorOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        :aria-expanded="props.mirrorOpen"
-        :aria-label="mirrorToggleLabel"
-        :title="mirrorToggleLabel"
-        @click="emit('toggle-mirror', props.mirrorGroup.key)"
-      />
-      <UButton
-        v-else-if="expandable && !props.mirrorMember"
-        class="queue-cell-expand"
-        :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        :aria-expanded="expanded"
-        :aria-label="t('linkgrabber.actions.details')"
-        :title="t('linkgrabber.actions.details')"
-        @click="expand"
-      />
-      <div class="queue-cell-name flex min-w-0 items-center gap-2">
-        <img v-if="media?.thumbnail" :src="media.thumbnail" alt="" loading="lazy" class="size-12 shrink-0 bg-elevated object-cover">
-        <div class="min-w-0 flex-1">
-          <UButton variant="link" color="neutral" class="flex w-full p-0 text-left text-sm font-normal text-highlighted hover:text-highlighted hover:underline" :label="rowName" :title="rowTitle" @click="emit('rename', props.candidate.id)" />
-          <p v-if="mediaMeta" class="truncate text-xs text-muted">{{ mediaMeta }}</p>
-        </div>
-        <!-- Each of these is one idea with one icon; the word it dropped is its name. -->
-        <UBadge v-if="props.candidate.provider === 'media'" color="primary" variant="outline" size="sm" class="shrink-0" role="img" :icon="mediaIcon" :title="t('linkgrabber.media.badge')" :aria-label="t('linkgrabber.media.badge')" />
-        <UBadge v-if="torrent" color="primary" variant="outline" size="sm" class="shrink-0" :title="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })" :aria-label="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })">
-          <UIcon name="i-lucide-list-tree" class="mr-1 size-3.5" />{{ torrent.selected_count }}/{{ torrent.file_count }}
-        </UBadge>
-        <UBadge v-if="consent" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-shield-check" :title="t('linkgrabber.replay.consent.granted')" :aria-label="t('linkgrabber.replay.consent.granted')" />
-        <UBadge v-if="queuedCopies" color="info" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-list-checks" :title="t('linkgrabber.duplicates.queued_hint', { count: queuedCopies })" :aria-label="t('linkgrabber.duplicates.queued', { count: queuedCopies })" data-testid="queued-badge" />
-        <UBadge v-if="freeDownload" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-user-x" :title="t('linkgrabber.candidate.no_account')" :aria-label="t('linkgrabber.candidate.no_account')" />
-        <UBadge v-if="sources.length" color="neutral" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-layers" :title="t('linkgrabber.sources.badge', { count: sources.length })" :aria-label="t('linkgrabber.sources.badge', { count: sources.length })" data-testid="candidate-sources-badge" />
-        <!-- The group, and how sure it is. The word changes with the evidence, not only the
-             colour: a proposal that merely looked different would read as a fact to anybody
-             who does not see the difference (RD-110-19). -->
-        <CollectorMirrorBadge v-if="props.mirrorGroup" :group="props.mirrorGroup" />
-        <UBadge v-if="props.mirrorGroup && props.mirrorGroup.onlineCount === 0" color="error" variant="soft" size="sm" class="shrink-0" role="img" icon="i-lucide-cloud-off" :title="t('linkgrabber.mirror.all_offline_hint', { count: props.mirrorGroup.members.length })" :aria-label="t('linkgrabber.mirror.all_offline')" />
-        <UBadge v-if="props.mirrorGroup?.pinned" color="neutral" variant="outline" size="sm" class="shrink-0" role="img" icon="i-lucide-pin" :title="t('linkgrabber.mirror.pinned_hint')" :aria-label="t('linkgrabber.mirror.pinned')" />
-      </div>
-      <!-- Kept as a word: `check failed` and `not checked` need their qualifier, and a list that
-           mixes glyph states with worded ones reads as two systems. The cell is sized for it. -->
-      <span class="queue-cell-state min-w-0">
-        <UBadge :color="stateColor" variant="subtle" size="sm" class="max-w-full truncate" :title="stateHint">
-          <UIcon v-if="props.candidate.state === 'checking'" name="i-lucide-loader-circle" class="mr-1 size-3 animate-spin" />{{ stateLabel }}
-        </UBadge>
-      </span>
-      <!-- A link under review has no progress; the cell stays so the grid keeps its shape. -->
-      <div class="queue-cell-progress" />
-      <!-- A size nobody measured prints nothing, not a dash. -->
-      <span class="queue-cell-size numeric min-w-0 truncate text-right text-xs text-muted">{{ props.candidate.size ? formatBytes(props.candidate.size) : '' }}</span>
-      <div class="queue-cell-meta min-w-0 items-center">
-        <USelect v-if="media" v-model="variantModel" :items="variantItems" value-key="value" size="xs" class="w-full" :aria-label="t('linkgrabber.media.variant')" :disabled="props.busy" />
-        <UBadge v-else color="neutral" variant="outline" size="sm" class="max-w-full truncate font-mono">{{ hosterOf(props.candidate) }}</UBadge>
-      </div>
-      <div class="queue-cell-actions flex items-center justify-end opacity-70 transition group-hover:opacity-100">
-        <!-- The one action the expansion exists for, labelled because it is not self-evident. -->
+    <UContextMenu :items="actions">
+      <div class="queue-row px-2 py-1.5" :class="props.mirrorMember ? 'pl-8' : ''">
+        <!--
+          A member row is not a second candidate: queueing, selecting and reordering belong to
+          the group, which is the one thing that will be downloaded. So it carries no handle and
+          no checkbox, and the cells stay empty rather than disappearing, or the grid loses its
+          shape (RD-110-19).
+        -->
+        <DragHandle
+          v-if="!props.mirrorMember"
+          class="queue-cell-handle grid place-items-center"
+          :label="dragTitle"
+          @dragstart="emit('dragstart', props.candidate.id)"
+          @move="(delta: -1 | 1) => emit('move', props.candidate.id, delta)"
+        />
+        <div v-else class="queue-cell-handle" />
+        <div v-if="props.mirrorMember" class="queue-cell-select" />
+        <UCheckbox v-else-if="selectable" class="queue-cell-select justify-self-center" :model-value="props.selected" :aria-label="t('linkgrabber.candidate.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.candidate.id, value === true)" />
+        <UIcon v-else name="i-lucide-link-2" class="queue-cell-select size-4 justify-self-center text-muted" />
         <UButton
-          v-if="props.mirrorMember"
-          icon="i-lucide-check"
-          :label="t('linkgrabber.mirror.use')"
+          v-if="props.mirrorGroup"
+          class="queue-cell-expand"
+          :icon="props.mirrorOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
           size="xs"
           color="neutral"
-          variant="outline"
-          :aria-label="t('linkgrabber.mirror.use')"
-          :title="t('linkgrabber.mirror.use_hint')"
-          @click="emit('choose-mirror', props.candidate.id, true)"
+          variant="ghost"
+          :aria-expanded="props.mirrorOpen"
+          :aria-label="mirrorToggleLabel"
+          :title="mirrorToggleLabel"
+          @click="emit('toggle-mirror', props.mirrorGroup.key)"
         />
-        <UButton v-else icon="i-lucide-arrow-down-to-line" size="xs" color="primary" variant="ghost" :aria-label="t('linkgrabber.actions.enqueue_link')" :title="t('linkgrabber.actions.enqueue_link')" :disabled="!selectable || props.busy" :loading="props.busy" @click="emit('enqueue', props.candidate.id)" />
-        <UDropdownMenu :items="actions" :content="{ align: 'end' }">
-          <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('linkgrabber.actions.link_actions')" :title="t('linkgrabber.actions.link_actions')" />
-        </UDropdownMenu>
+        <UButton
+          v-else-if="expandable && !props.mirrorMember"
+          class="queue-cell-expand"
+          :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :aria-expanded="expanded"
+          :aria-label="t('linkgrabber.actions.details')"
+          :title="t('linkgrabber.actions.details')"
+          @click="expand"
+        />
+        <div class="queue-cell-name flex min-w-0 items-center gap-2">
+          <img v-if="media?.thumbnail" :src="media.thumbnail" alt="" loading="lazy" class="size-12 shrink-0 bg-elevated object-cover">
+          <div class="min-w-0 flex-1">
+            <UButton variant="link" color="neutral" class="flex w-full p-0 text-left text-sm font-normal text-highlighted hover:text-highlighted hover:underline" :label="rowName" :title="rowTitle" @click="emit('rename', props.candidate.id)" />
+            <p v-if="mediaMeta" class="truncate text-xs text-muted">{{ mediaMeta }}</p>
+          </div>
+          <!-- Each of these is one idea with one icon; the word it dropped is its name. -->
+          <UBadge v-if="props.candidate.provider === 'media'" color="primary" variant="outline" size="sm" class="shrink-0" role="img" :icon="mediaIcon" :title="t('linkgrabber.media.badge')" :aria-label="t('linkgrabber.media.badge')" />
+          <UBadge v-if="torrent" color="primary" variant="outline" size="sm" class="shrink-0" :title="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })" :aria-label="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })">
+            <UIcon name="i-lucide-list-tree" class="mr-1 size-3.5" />{{ torrent.selected_count }}/{{ torrent.file_count }}
+          </UBadge>
+          <UBadge v-if="consent" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-shield-check" :title="t('linkgrabber.replay.consent.granted')" :aria-label="t('linkgrabber.replay.consent.granted')" />
+          <UBadge v-if="queuedCopies" color="info" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-list-checks" :title="t('linkgrabber.duplicates.queued_hint', { count: queuedCopies })" :aria-label="t('linkgrabber.duplicates.queued', { count: queuedCopies })" data-testid="queued-badge" />
+          <UBadge v-if="earlier" color="info" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-history" :title="earlierHint" :aria-label="t('linkgrabber.duplicates.history')" data-testid="history-badge" />
+          <UBadge v-if="freeDownload" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-user-x" :title="t('linkgrabber.candidate.no_account')" :aria-label="t('linkgrabber.candidate.no_account')" />
+          <UBadge v-if="props.candidate.hidden_by_filter" color="neutral" variant="outline" size="sm" class="shrink-0" role="img" icon="i-lucide-filter" :title="t('linkgrabber.link_filter.hidden_hint')" :aria-label="t('linkgrabber.link_filter.hidden')" data-testid="filter-hidden-badge" />
+          <UBadge v-if="sources.length" color="neutral" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-layers" :title="t('linkgrabber.sources.badge', { count: sources.length })" :aria-label="t('linkgrabber.sources.badge', { count: sources.length })" data-testid="candidate-sources-badge" />
+          <!-- The group, and how sure it is. The word changes with the evidence, not only the
+               colour: a proposal that merely looked different would read as a fact to anybody
+               who does not see the difference (RD-110-19). -->
+          <CollectorMirrorBadge v-if="props.mirrorGroup" :group="props.mirrorGroup" />
+          <UBadge v-if="props.mirrorGroup && props.mirrorGroup.onlineCount === 0" color="error" variant="soft" size="sm" class="shrink-0" role="img" icon="i-lucide-cloud-off" :title="t('linkgrabber.mirror.all_offline_hint', { count: props.mirrorGroup.members.length })" :aria-label="t('linkgrabber.mirror.all_offline')" />
+          <UBadge v-if="props.mirrorGroup?.pinned" color="neutral" variant="outline" size="sm" class="shrink-0" role="img" icon="i-lucide-pin" :title="t('linkgrabber.mirror.pinned_hint')" :aria-label="t('linkgrabber.mirror.pinned')" />
+        </div>
+        <!-- Kept as a word: `check failed` and `not checked` need their qualifier, and a list that
+             mixes glyph states with worded ones reads as two systems. The cell is sized for it. -->
+        <span class="queue-cell-state min-w-0">
+          <UBadge :color="stateColor" variant="subtle" size="sm" class="max-w-full truncate" :title="stateHint">
+            <UIcon v-if="props.candidate.state === 'checking'" name="i-lucide-loader-circle" class="mr-1 size-3 animate-spin" />{{ stateLabel }}
+          </UBadge>
+        </span>
+        <!-- A link under review has no progress; the cell stays so the grid keeps its shape. -->
+        <div class="queue-cell-progress" />
+        <!-- A size nobody measured prints nothing, not a dash. -->
+        <span class="queue-cell-size numeric min-w-0 truncate text-right text-xs text-muted">{{ props.candidate.size ? formatBytes(props.candidate.size) : '' }}</span>
+        <div class="queue-cell-meta min-w-0 items-center">
+          <USelect v-if="media" v-model="variantModel" :items="variantItems" value-key="value" size="xs" class="w-full" :aria-label="t('linkgrabber.media.variant')" :disabled="props.busy" />
+          <UBadge v-else color="neutral" variant="outline" size="sm" class="max-w-full truncate font-mono">{{ hosterOf(props.candidate) }}</UBadge>
+        </div>
+        <div class="queue-cell-actions flex items-center justify-end opacity-70 transition group-hover:opacity-100">
+          <!-- The one action the expansion exists for, labelled because it is not self-evident. -->
+          <UButton
+            v-if="props.mirrorMember"
+            icon="i-lucide-check"
+            :label="t('linkgrabber.mirror.use')"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            :aria-label="t('linkgrabber.mirror.use')"
+            :title="t('linkgrabber.mirror.use_hint')"
+            @click="emit('choose-mirror', props.candidate.id, true)"
+          />
+          <UButton v-else icon="i-lucide-arrow-down-to-line" size="xs" color="primary" variant="ghost" :aria-label="t('linkgrabber.actions.enqueue_link')" :title="t('linkgrabber.actions.enqueue_link')" :disabled="!selectable || props.busy" :loading="props.busy" @click="emit('enqueue', props.candidate.id)" />
+          <UDropdownMenu :items="actions" :content="{ align: 'end' }">
+            <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('linkgrabber.actions.link_actions')" :title="t('linkgrabber.actions.link_actions')" />
+          </UDropdownMenu>
+        </div>
       </div>
-    </div>
+    </UContextMenu>
     <p v-if="candidateError" class="truncate px-12 pb-1 text-xs text-error" :title="candidateError">{{ candidateError }}</p>
     <div v-if="(enrichment.length && !props.hideMetadata) || cachedAt" class="flex flex-wrap items-center gap-2 px-12 pb-1">
       <UBadge

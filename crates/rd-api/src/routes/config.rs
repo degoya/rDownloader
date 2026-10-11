@@ -54,6 +54,10 @@ fn configuration_routes() -> Router<AppState> {
                 .delete(config_handlers::delete_category),
         )
         .route(
+            "/api/v1/categories/{id}/download-window",
+            axum::routing::put(config_handlers::set_category_download_window),
+        )
+        .route(
             "/api/v1/category-rules/{id}",
             axum::routing::put(config_handlers::update_category_rule)
                 .delete(config_handlers::delete_category_rule),
@@ -248,6 +252,7 @@ fn setup_and_backup_routes() -> Router<AppState> {
     config_handlers::create_category,
     config_handlers::update_category,
     config_handlers::delete_category,
+    config_handlers::set_category_download_window,
     config_handlers::list_category_rules,
     config_handlers::create_category_rule,
     config_handlers::update_category_rule,

@@ -6,7 +6,10 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, captcha_handlers, collector_handlers, container_handlers, media_handlers};
+use crate::{
+    AppState, area_backup, captcha_handlers, collector_handlers, container_handlers,
+    link_filter_handlers, media_handlers,
+};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
@@ -94,6 +97,37 @@ pub(crate) fn routes() -> Router<AppState> {
             get(collector_handlers::get_mirror_preference)
                 .put(collector_handlers::put_mirror_preference),
         )
+        // LinkFilter rules (RD-1240-09).
+        .route(
+            "/api/v1/collector/candidates/unhide",
+            post(link_filter_handlers::unhide_candidates),
+        )
+        .route(
+            "/api/v1/link-filters",
+            get(link_filter_handlers::list_link_filter_rules)
+                .post(link_filter_handlers::create_link_filter_rule),
+        )
+        .route(
+            "/api/v1/link-filters/{id}",
+            put(link_filter_handlers::update_link_filter_rule)
+                .delete(link_filter_handlers::delete_link_filter_rule),
+        )
+        .route(
+            "/api/v1/link-filters/reorder",
+            post(link_filter_handlers::reorder_link_filter_rules),
+        )
+        .route(
+            "/api/v1/link-filters/apply",
+            post(link_filter_handlers::apply_link_filters),
+        )
+        .route(
+            "/api/v1/link-filters/export",
+            get(area_backup::export_link_filters),
+        )
+        .route(
+            "/api/v1/link-filters/import",
+            post(area_backup::import_link_filters),
+        )
         .route("/api/v1/captchas", get(captcha_handlers::list_captchas))
         .route(
             "/api/v1/captchas/{id}/solution",
@@ -151,6 +185,15 @@ pub(crate) fn routes() -> Router<AppState> {
     collector_handlers::get_mirror_preference,
     collector_handlers::put_mirror_preference,
     collector_handlers::rename_candidate,
+    link_filter_handlers::list_link_filter_rules,
+    link_filter_handlers::create_link_filter_rule,
+    link_filter_handlers::update_link_filter_rule,
+    link_filter_handlers::delete_link_filter_rule,
+    link_filter_handlers::reorder_link_filter_rules,
+    link_filter_handlers::apply_link_filters,
+    link_filter_handlers::unhide_candidates,
+    area_backup::export_link_filters,
+    area_backup::import_link_filters,
     captcha_handlers::list_captchas,
     captcha_handlers::solve_captcha,
     captcha_handlers::click_captcha,

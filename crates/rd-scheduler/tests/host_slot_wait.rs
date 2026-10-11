@@ -1,8 +1,9 @@
 //! RD-1130-02 — a file that would only wait for a connection to its host leaves its place to a
 //! file of another host; RD-1140-07 — and waits only when its host has no connection left.
 //!
-//! A starting file promises its host one connection. A host that allows two holds the third
-//! of its files back; that file used to be started all the same: it took one of the
+//! A starting file promises its host the connections it will open there: one per file of one
+//! chunk, its chunks for a direct link split into several (RD-1240-33). A host that allows two
+//! holds the third of its one-chunk files back; that file used to be started all the same: it took one of the
 //! `max_active_files` places and then waited inside the engine, showing *Downloading* with
 //! 0 B, while a file of another host stayed queued behind it. The source is a local listener
 //! that accepts and never answers, so a started file stays started for as long as the case
@@ -85,7 +86,8 @@ async fn state(database: &rd_db::Database, id: DownloadId) -> DownloadState {
 }
 
 /// A hoster: `127.0.0.1` is its page and answers every request with a redirect to the same
-/// path on `localhost`, its download server, which accepts and never answers.
+/// path on `localhost`, its download server, which answers the probe's `HEAD` and never a
+/// byte of the transfer.
 async fn hoster_listener() -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("address").port();
@@ -122,7 +124,16 @@ async fn hoster_listener() -> u16 {
                     let _ = stream.shutdown().await;
                     return;
                 }
-                // The download server: held open, never a byte.
+                // The download server: the probe learns the size and where the redirect led,
+                // the chunks are held open without a byte.
+                if text.starts_with("HEAD ") {
+                    let head = "HTTP/1.1 200 OK\r\ncontent-type: application/octet-stream\r\n\
+                                content-length: 8388608\r\naccept-ranges: bytes\r\n\
+                                connection: close\r\n\r\n";
+                    let _ = stream.write_all(head.as_bytes()).await;
+                    let _ = stream.shutdown().await;
+                    return;
+                }
                 let _held = stream;
                 std::future::pending::<()>().await;
             });
@@ -156,6 +167,8 @@ async fn a_file_waiting_for_its_host_leaves_its_place_to_another_host() {
         database.clone(),
         SchedulerConfig {
             max_active_files: 3,
+            // One connection per file: two take the host's two (the chunked case below).
+            max_chunks_per_file: 1,
             max_connections_per_host: 2,
             ..SchedulerConfig::for_directory(directory.path().join("downloads"))
         },
@@ -204,8 +217,10 @@ async fn a_file_waiting_for_its_host_leaves_its_place_to_another_host() {
 /// RD-1140-07 — a hoster's files run side by side. Each file of the hoster page promised its
 /// host as many connections as it planned chunks, six of six here, and the bytes came from
 /// another host, so nothing ever took the promise back: one file ran, the others waited
-/// (1.13.0, DDownload). The download server never answers, so no file reaches the engine and
-/// only the promise could have let the next one start.
+/// (1.13.0, DDownload). A direct link promises its chunks again since RD-1240-33, so the next
+/// file starts once the probe has followed the redirect to the download server, which ends
+/// the promise to the page's host; a download server that never answered even the probe
+/// would hold it for `START_GRACE`.
 #[tokio::test]
 async fn files_of_a_hoster_downloaded_from_another_host_run_side_by_side() {
     let directory = tempfile::tempdir().expect("tempdir");
@@ -252,6 +267,63 @@ async fn files_of_a_hoster_downloaded_from_another_host_run_side_by_side() {
     );
     let waits = scheduler.host_waits().await;
     assert!(waits.is_empty(), "no file waits for its host: {waits:?}");
+
+    scheduler.shutdown().await.expect("shutdown");
+}
+
+/// RD-1240-33, the live finding: parallel 3, six connections per host, four chunks per file;
+/// three big files of one host and one of another. Two files of the first host take its six
+/// connections (four and two); the third used to be admitted all the same, waited inside the
+/// engine on one of the three places and kept the other host's file queued, with no hint.
+#[tokio::test]
+async fn a_chunked_file_that_would_only_wait_leaves_its_place_to_another_host() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let port = silent_listener().await;
+    let database = rd_db::Database::open(directory.path().join("host-wait-chunks.sqlite3"))
+        .await
+        .expect("database");
+    let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
+        .await
+        .expect("secrets");
+    let scheduler = SchedulerHandle::start(
+        database.clone(),
+        SchedulerConfig {
+            max_active_files: 3,
+            max_chunks_per_file: 4,
+            max_connections_per_host: 6,
+            ..SchedulerConfig::for_directory(directory.path().join("downloads"))
+        },
+        secrets,
+        None,
+        Vec::new(),
+    )
+    .await
+    .expect("scheduler");
+    let mut same_host = Vec::new();
+    for _ in 0..3 {
+        same_host.push(file(&scheduler, directory.path(), "127.0.0.1", port).await);
+    }
+    let other_host = file(&scheduler, directory.path(), "localhost", port).await;
+
+    until_started(&database, other_host.id).await;
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    let mut waiting = Vec::new();
+    for download in &same_host {
+        if state(&database, download.id).await == DownloadState::Queued {
+            waiting.push(download.id);
+        }
+    }
+    assert_eq!(
+        waiting.len(),
+        1,
+        "two files of four chunks take the host's six connections, the third waits"
+    );
+    let waits = scheduler.host_waits().await;
+    assert_eq!(
+        waits.get(&waiting[0]).map(String::as_str),
+        Some("127.0.0.1"),
+        "the waiting file says which host it waits for: {waits:?}"
+    );
 
     scheduler.shutdown().await.expect("shutdown");
 }

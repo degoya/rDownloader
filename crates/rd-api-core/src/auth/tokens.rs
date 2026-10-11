@@ -1,5 +1,6 @@
 //! Bearers: session and API tokens, the compatibility adapters' access and the capture token.
 
+use axum::extract::FromRequestParts;
 use rd_core::AuditChannel;
 
 use super::*;
@@ -218,11 +219,15 @@ pub async fn require_api_token(
         // whole middleware future `!Send` and fails the build with an unrelated-looking
         // `Service` trait error at the router.
         let reason = refusal_reason(&state, request.headers()).await;
-        tracing::warn!(
-            path = %request.uri().path(),
-            reason = %reason,
-            "an API token was refused"
-        );
+        let path = request.uri().path().to_owned();
+        let (mut parts, _) = request.into_parts();
+        let crate::client::ClientAddress(client) =
+            crate::client::ClientAddress::from_request_parts(&mut parts, &state)
+                .await
+                .unwrap_or_else(|never| match never {});
+        // Once per client, path and reason in ten minutes, with the count in between: a client
+        // that keeps knocking with the wrong header wrote one line per knock (RD-1240-38).
+        super::refusal_log::log_refusal(&path, &reason, client);
         return Ok(unauthorized_with_challenge());
     }
     request.extensions_mut().insert(Granted(granted));
@@ -358,7 +363,8 @@ pub async fn require_capture(
     Ok(next.run(request).await)
 }
 
-/// The tray's queue control (RD-1100-06): a capture token that was paired with `capture:queue`.
+/// The tray's queue control (RD-1100-06, RD-1240-07): a capture token that was paired with
+/// `capture:queue`.
 ///
 /// Runs inside [`require_capture`], which established the token and left its scopes on the
 /// request. A capture token without the right is refused with the `403` the scope policy gives
@@ -375,6 +381,30 @@ pub async fn require_capture_queue(request: Request, next: Next) -> Result<Respo
             "This token does not hold the scope this route requires",
         )
         .with_param("scope", rd_core::CAPTURE_QUEUE_SCOPE));
+    }
+    Ok(next.run(request).await)
+}
+
+/// The tray's "Install server update" (RD-1240-25): a capture token that was paired with
+/// `capture:server_update`.
+///
+/// Runs inside [`require_capture`] like [`require_capture_queue`], and refuses the same way, with
+/// the scope it lacks, so the agent can tell "not allowed" from "not paired". Queue control does
+/// not stand in for it: installing replaces the service's program.
+pub async fn require_capture_server_update(
+    request: Request,
+    next: Next,
+) -> Result<Response, ApiError> {
+    let holds = request
+        .extensions()
+        .get::<Granted>()
+        .is_some_and(|granted| granted.holds(rd_core::Scope::CaptureServerUpdate));
+    if !holds {
+        return Err(ApiError::forbidden(
+            "auth.scope_insufficient",
+            "This token does not hold the scope this route requires",
+        )
+        .with_param("scope", rd_core::CAPTURE_SERVER_UPDATE_SCOPE));
     }
     Ok(next.run(request).await)
 }

@@ -1,4 +1,5 @@
-//! The LinkGrabber: the writer half of `collector_store`, `collector_packages` and `collector_media`.
+//! The LinkGrabber: the writer half of `collector_store`, `collector_packages`, `collector_media`
+//! and `link_filter_apply`.
 
 use super::{Writer, publish_config, publish_unit_event, send};
 use crate::commands::CollectorCommand;
@@ -25,7 +26,11 @@ impl Writer {
             | CollectorCommand::ReorderCollectorPackages { .. }
             | CollectorCommand::ReorderGrabberEntries { .. }
             | CollectorCommand::ReorderCandidates { .. }
-            | CollectorCommand::MoveCandidates { .. }) => self.collector_order(command).await,
+            | CollectorCommand::MoveCandidates { .. }
+            | CollectorCommand::ApplyLinkFilters { .. }
+            | CollectorCommand::ShowFilteredCandidates { .. }) => {
+                self.collector_order(command).await
+            }
             command @ (CollectorCommand::ClaimCandidatesForCheck { .. }
             | CollectorCommand::RecordCandidateCheck { .. }
             | CollectorCommand::MarkCandidateUnsupported { .. }
@@ -196,6 +201,17 @@ impl Writer {
             CollectorCommand::MoveCandidates { ids, target, reply } => {
                 let result =
                     crate::collector_packages::move_candidates(&mut self.connection, &ids, target)
+                        .await;
+                publish_config(reply, result, &self.events);
+            }
+            CollectorCommand::ApplyLinkFilters { reply } => {
+                let result =
+                    crate::link_filter_apply::apply_link_filters(&mut self.connection).await;
+                publish_config(reply, result, &self.events);
+            }
+            CollectorCommand::ShowFilteredCandidates { ids, reply } => {
+                let result =
+                    crate::link_filter_apply::show_filtered_candidates(&mut self.connection, &ids)
                         .await;
                 publish_config(reply, result, &self.events);
             }

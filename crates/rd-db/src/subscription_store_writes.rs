@@ -247,6 +247,10 @@ pub(crate) async fn delete(
         .bind(id.to_string())
         .execute(&mut *tx)
         .await?;
+    sqlx::query("DELETE FROM subscription_item_keys WHERE subscription_id = ?")
+        .bind(id.to_string())
+        .execute(&mut *tx)
+        .await?;
     sqlx::query("DELETE FROM subscription_runs WHERE subscription_id = ?")
         .bind(id.to_string())
         .execute(&mut *tx)

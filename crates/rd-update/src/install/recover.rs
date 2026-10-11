@@ -145,6 +145,24 @@ pub fn confirm_started(data: &Path, running_version: &str) -> Result<bool> {
     Ok(true)
 }
 
+/// Whether the copies kept for taking the last update back may thin out (RD-1240-34): no update
+/// is recorded, or the last one is `verified` for the version running now and no updater runs.
+/// An update still waiting for its proof, rolled back or failed keeps them all, and so does a
+/// journal that cannot be read.
+#[must_use]
+pub fn update_proven(data: &Path, running_version: &str) -> bool {
+    if updater_running(data) {
+        return false;
+    }
+    match Journal::read(data) {
+        Ok(None) => true,
+        Ok(Some(journal)) => {
+            journal.phase == Phase::Verified && journal.plan.target_version == running_version
+        }
+        Err(_) => false,
+    }
+}
+
 /// Rolls the portable switch back, the database copy with it if the new version ran, and ends the
 /// journal; a failure ends it as `update.rollback_failed` and is returned.
 fn take_back(journal: &mut Journal, code: &str, detail: &str) -> Result<()> {

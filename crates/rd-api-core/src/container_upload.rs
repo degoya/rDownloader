@@ -99,7 +99,8 @@ pub struct ContainerUpload {
     #[schema(value_type = Option<String>, write_only)]
     pub passphrase: Option<crate::links_file::Passphrase>,
     /// `true` queues every package once its links are checked, instead of leaving them in the
-    /// LinkGrabber (RD-1210-01). Read by `/api/v1/containers/import` only.
+    /// LinkGrabber (RD-1210-01). Read by `/api/v1/containers/import` and
+    /// `/api/v1/torrents/import`, whose package is queued at once (RD-1240-28).
     #[serde(default)]
     pub enqueue: Option<String>,
 }

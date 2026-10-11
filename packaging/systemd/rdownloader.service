@@ -13,6 +13,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/lib/rdownloader/rdownloader serve
+# Also what restarts the service when rDownloader restarts itself to apply a plugin installed or
+# updated (RD-1240-32): it stops gracefully and ends with exit code 75, which on-failure restarts.
 Restart=on-failure
 RestartSec=5
 # Hardening that holds for a user unit without a namespace of its own (audit K5). Not

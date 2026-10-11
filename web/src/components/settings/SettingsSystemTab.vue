@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import type { CaptureToken, Settings, UsenetServer } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import StatTiles from '@/components/StatTiles.vue'
+import SettingsCleanupCard from '@/components/settings/SettingsCleanupCard.vue'
 import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
 import SettingsReadinessCard from '@/components/settings/SettingsReadinessCard.vue'
 import SettingsUpdateCard from '@/components/settings/SettingsUpdateCard.vue'
@@ -300,6 +301,9 @@ const systems = computed(() => [
             </div>
             <SettingsDataResetButton class="mt-4" target="stats" :count="dataCounts.stats" @cleared="loadDataCounts()" />
           </UCard>
+
+          <!-- The copies kept for taking updates back and the plugin cache (RD-1240-34). -->
+          <SettingsCleanupCard v-model="settings" class="mt-6" />
 
           <!-- With the other retention rules since RD-1120-23; it was a switch on General. -->
           <UCard as="section" class="mt-6" data-testid="import-history-retention">

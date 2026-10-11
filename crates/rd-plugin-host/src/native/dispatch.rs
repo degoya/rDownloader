@@ -110,8 +110,10 @@ impl ResolverService {
 
     /// Whether any installed resolver speaks for this address at all -- free or account-bound.
     ///
-    /// Broader than [`Self::has_free_resolver`] on purpose, and asked by exactly one caller:
-    /// the verdict a crawled address passes before it may become a candidate (RD-110-07).
+    /// Broader than [`Self::has_free_resolver`] on purpose. Asked by the verdict a crawled
+    /// address passes before it may become a candidate (RD-110-07), and by the dispatcher,
+    /// whose hoster link promises its page host one connection rather than its chunks
+    /// (RD-1240-33).
     /// There the question is not "can this be downloaded right now" but "is this a hoster
     /// link rather than an arbitrary page" -- an address a resolver claims is one the resolver
     /// turns into a file, so nothing is gained by fetching it here to look at its content

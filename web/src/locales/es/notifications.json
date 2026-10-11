@@ -3,7 +3,8 @@
     "webhook": "Webhook",
     "smtp": "Correo (SMTP)",
     "apprise": "Apprise",
-    "plugin": "Destino por plugin"
+    "plugin": "Destino por plugin",
+    "web_push": "Push del navegador"
   },
   "event": {
     "package_completed": "Paquete terminado",
@@ -21,7 +22,15 @@
     "plugin_update_failed": "Actualización automática de plugin fallida",
     "usenet_job_hopeless": "Descarga de Usenet sin remedio",
     "usenet_quota_reached": "Cuota del servidor Usenet agotada",
-    "stop_mark_reached": "Marca de parada alcanzada"
+    "stop_mark_reached": "Marca de parada alcanzada",
+    "download_started": "Descarga iniciada",
+    "links_added": "Enlaces añadidos",
+    "stream_recorded": "Stream grabado",
+    "subscription_matched": "La suscripción encontró elementos nuevos",
+    "update_installed": "Actualización de rDownloader instalada",
+    "update_failed": "Actualización de rDownloader fallida",
+    "automation": "Mensaje de una automatización",
+    "service_restarting": "rDownloader se reinicia"
   },
   "severity": {
     "info": "Info y superior",
@@ -71,7 +80,8 @@
     "destination_description": "Qué destino instalado entrega este objetivo.",
     "form_new": "Nuevo destino",
     "secret_copy": "No se ha copiado: vuelve a introducirlo; hasta entonces la copia no tiene ninguno.",
-    "setting_unset": "Sin definir"
+    "setting_unset": "Sin definir",
+    "web_push_description": "Envía a cada navegador que haya activado «Push en este dispositivo» en Ajustes › Interfaz. No hace falta dirección ni secreto; el primer navegador crea este destino por sí solo."
   },
   "smtp": {
     "from": "Remitente",
@@ -98,7 +108,7 @@
     "severity_label": "Gravedad mínima",
     "severity_description": "Los eventos menos graves se filtran.",
     "events_label": "Eventos",
-    "events_description": "Sin selección significa todos los eventos.",
+    "events_description": "Sin selección significa todos los eventos salvo las descargas iniciadas y los enlaces añadidos: una regla solo los recibe si están seleccionados, y una ráfaga de ellos llega como una sola notificación.",
     "all_events": "todos los eventos",
     "all_categories": "Todas las categorías",
     "empty": "Aún no hay reglas.",
@@ -111,7 +121,8 @@
     "eyebrow": "Qué ha pasado",
     "title": "Historial de entregas",
     "description": "Cada intento con su respuesta. Las respuestas se recortan y se redactan, así que ningún secreto acaba aquí.",
-    "attempts": "{count} intentos",
-    "empty": "Aún no se ha entregado nada."
+    "attempts": "{count} intento | {count} intentos",
+    "empty": "Aún no se ha entregado nada.",
+    "target_removed": "destino eliminado"
   }
 }

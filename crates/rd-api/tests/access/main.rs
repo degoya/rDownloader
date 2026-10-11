@@ -25,6 +25,7 @@ mod password_reset;
 mod public_surface;
 mod reverse_proxy;
 mod scope_matrix;
+mod scope_matrix_compat;
 mod sessions;
 mod sign_in_doors;
 mod step_up;

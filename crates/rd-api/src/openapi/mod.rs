@@ -1,6 +1,7 @@
 //! Assembles the OpenAPI document from the per-area operation sets.
 
 mod schemas;
+mod schemas_capture;
 mod schemas_diagnostics;
 
 use utoipa::OpenApi;
@@ -23,6 +24,7 @@ struct Base;
 pub(crate) fn document() -> utoipa::openapi::OpenApi {
     let mut doc = Base::openapi();
     doc.merge(schemas::Schemas::openapi());
+    doc.merge(schemas_capture::CaptureSchemas::openapi());
     doc.merge(schemas_diagnostics::DiagnosticsSchemas::openapi());
     doc.merge(routes::automations::Doc::openapi());
     doc.merge(routes::collector::Doc::openapi());

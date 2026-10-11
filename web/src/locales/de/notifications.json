@@ -3,7 +3,8 @@
     "webhook": "Webhook",
     "smtp": "E-Mail (SMTP)",
     "apprise": "Apprise",
-    "plugin": "Plugin-Ziel"
+    "plugin": "Plugin-Ziel",
+    "web_push": "Browser-Push"
   },
   "event": {
     "package_completed": "Paket fertig",
@@ -21,7 +22,15 @@
     "plugin_update_failed": "Automatisches Plugin-Update fehlgeschlagen",
     "usenet_job_hopeless": "Usenet-Download aussichtslos",
     "usenet_quota_reached": "Usenet-Kontingent verbraucht",
-    "stop_mark_reached": "Stoppmarke erreicht"
+    "stop_mark_reached": "Stoppmarke erreicht",
+    "download_started": "Download gestartet",
+    "links_added": "Links hinzugefügt",
+    "stream_recorded": "Stream aufgenommen",
+    "subscription_matched": "Abo-Treffer",
+    "update_installed": "rDownloader-Update installiert",
+    "update_failed": "rDownloader-Update fehlgeschlagen",
+    "automation": "Nachricht einer Automation",
+    "service_restarting": "rDownloader startet neu"
   },
   "severity": {
     "info": "Info und höher",
@@ -71,7 +80,8 @@
     "destination_description": "Welches installierte Ziel dieses Element zustellt.",
     "form_new": "Neues Ziel",
     "secret_copy": "Nicht mitkopiert – bitte neu eintragen; bis dahin hat die Kopie keins.",
-    "setting_unset": "Nicht gesetzt"
+    "setting_unset": "Nicht gesetzt",
+    "web_push_description": "Sendet an jeden Browser, der unter Einstellungen › Oberfläche „Push auf diesem Gerät“ eingeschaltet hat. Adresse und Geheimnis braucht es nicht; der erste Browser legt dieses Ziel selbst an."
   },
   "smtp": {
     "from": "Absender",
@@ -98,7 +108,7 @@
     "severity_label": "Mindest-Severity",
     "severity_description": "Leisere Ereignisse werden gefiltert.",
     "events_label": "Ereignisse",
-    "events_description": "Nichts ausgewählt bedeutet alle Ereignisse.",
+    "events_description": "Nichts ausgewählt bedeutet alle Ereignisse außer gestarteten Downloads und hinzugefügten Links: Die bekommt eine Regel nur, wenn du sie auswählst, und viele davon kurz hintereinander kommen als eine Benachrichtigung.",
     "all_events": "alle Ereignisse",
     "all_categories": "Alle Kategorien",
     "empty": "Noch keine Regel.",
@@ -111,7 +121,8 @@
     "eyebrow": "Was passiert ist",
     "title": "Zustellhistorie",
     "description": "Jeder Versuch mit seiner Antwort. Antworten werden gekürzt und redigiert, damit kein Secret hier landet.",
-    "attempts": "{count} Versuche",
-    "empty": "Noch nichts zugestellt."
+    "attempts": "{count} Versuch | {count} Versuche",
+    "empty": "Noch nichts zugestellt.",
+    "target_removed": "gelöschtes Ziel"
   }
 }

@@ -63,6 +63,14 @@ impl TorrentService {
         };
         let stats = handle.stats();
         let live = stats.live.as_ref();
+        // From the bitfield, as the piece map reads it (RD-1240-33): librqbit's
+        // `downloaded_and_checked_pieces` counts what this session fetched, so after a recheck
+        // that repaired 12 pieces it said 12 of 129 for a torrent whose data was complete.
+        let pieces_have = if live.is_some() {
+            have_bits(&session, entry.handle()).map_or(0, |bits| count_have(&bits))
+        } else {
+            0
+        };
         Ok(TorrentAggregateStats {
             live: live.is_some(),
             checking: matches!(
@@ -79,9 +87,7 @@ impl TorrentService {
                 .metadata
                 .as_ref()
                 .map_or(0, |metadata| metadata.piece_count),
-            pieces_have: live.map_or(0, |live| {
-                u32::try_from(live.snapshot.downloaded_and_checked_pieces).unwrap_or(u32::MAX)
-            }),
+            pieces_have,
             ratio: TorrentAggregateStats::compute_ratio(stats.uploaded_bytes, stats.total_bytes),
             seeded_seconds,
             sampled_at: chrono::Utc::now(),
@@ -171,17 +177,13 @@ impl TorrentService {
             ));
         };
         let session = self.session().await?;
-        let api = librqbit::api::Api::new(session, None);
-        let Ok((have, total)) = api.api_dump_haves(entry.handle()) else {
+        let Some(pieces) = have_bits(&session, entry.handle()) else {
             return Ok(TorrentPieceAvailability::from_bitfield(
                 &[],
                 sampled_at,
                 false,
             ));
         };
-        let pieces: Vec<bool> = (0..total as usize)
-            .map(|index| have.get(index).is_some_and(|bit| *bit))
-            .collect();
         Ok(TorrentPieceAvailability::from_bitfield(
             &pieces, sampled_at, true,
         ))
@@ -218,6 +220,25 @@ impl TorrentService {
     }
 }
 
+/// Which pieces the torrent has, verified, one flag per piece; `None` when it is not live.
+fn have_bits(
+    session: &std::sync::Arc<librqbit::Session>,
+    handle: librqbit::api::TorrentIdOrHash,
+) -> Option<Vec<bool>> {
+    let api = librqbit::api::Api::new(session.clone(), None);
+    let (have, total) = api.api_dump_haves(handle).ok()?;
+    Some(
+        (0..total as usize)
+            .map(|index| have.get(index).is_some_and(|bit| *bit))
+            .collect(),
+    )
+}
+
+/// How many pieces a bitfield holds.
+fn count_have(pieces: &[bool]) -> u32 {
+    u32::try_from(pieces.iter().filter(|have| **have).count()).unwrap_or(u32::MAX)
+}
+
 /// Interval between two statistics broadcasts.
 ///
 /// Slower than the progress tick on purpose: these numbers are read by a detail panel a
@@ -248,7 +269,18 @@ pub fn peer_page_size(requested: Option<usize>) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::peer_page_size;
+    use super::{count_have, peer_page_size};
+
+    /// Every verified piece counts, not only those this session fetched (RD-1240-33).
+    #[test]
+    fn the_pieces_held_are_counted_from_the_bitfield() {
+        let mut pieces = vec![true; 129];
+        assert_eq!(count_have(&pieces), 129);
+        pieces[3] = false;
+        pieces[100] = false;
+        assert_eq!(count_have(&pieces), 127);
+        assert_eq!(count_have(&[]), 0);
+    }
 
     #[test]
     fn the_peer_page_size_is_bounded_in_both_directions() {

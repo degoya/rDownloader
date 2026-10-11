@@ -74,7 +74,7 @@ onMounted(load)
         </div>
       </template>
       <template #history>
-        <NotificationHistory ref="history" />
+        <NotificationHistory ref="history" :targets="targets" />
       </template>
     </UTabs>
   </div>

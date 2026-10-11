@@ -16,7 +16,11 @@ pub mod auth_flow_service;
 pub mod automation_actions;
 pub mod automation_context;
 pub mod automation_input;
+pub mod automation_links;
+mod automation_schedule;
 pub mod automation_service;
+#[cfg(test)]
+mod automation_test_support;
 pub mod browser_session;
 pub mod build_info;
 pub mod capture_agents;
@@ -28,6 +32,7 @@ pub mod config_fields;
 pub mod container_upload;
 pub mod destination;
 pub mod dlc_import;
+pub mod download_window_input;
 pub mod dto;
 pub mod error;
 pub mod error_codes;
@@ -55,6 +60,7 @@ pub mod reconnect_decision;
 pub mod reconnect_ip;
 pub mod reconnect_service;
 pub mod remote_job_service;
+pub mod restart_state;
 pub mod scope_policy;
 pub mod settings_store;
 pub mod step_up;
@@ -66,6 +72,7 @@ pub mod subscription_service;
 pub mod torrent_intake;
 pub mod trace_context;
 pub mod update_service;
+pub mod web_push;
 
 use rd_db::Database;
 use rd_scheduler::SchedulerHandle;
@@ -206,6 +213,9 @@ pub struct AppState {
     /// Cancelled to stop the service gracefully: the listener stops, then the queue checkpoints
     /// and the binary exits. The binary hands in the token its signal handler cancels too.
     pub shutdown: tokio_util::sync::CancellationToken,
+    /// A pending restart and the restart under way (RD-1240-32): what waits for the next start,
+    /// how this installation restarts, and the exit code a supervised restart ends with.
+    pub restart: restart_state::RestartState,
     /// How often an open event stream checks that its credential still stands
     /// (`stream_standing`); see [`Self::with_stream_recheck`].
     pub stream_recheck: std::time::Duration,

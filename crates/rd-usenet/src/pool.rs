@@ -334,13 +334,18 @@ impl ServerPool {
                 }
                 Outcome::Swapped { answered } => {
                     self.retire(&slot.line).await;
-                    tracing::warn!(
+                    // At `debug`: the pipelined requests still in flight when the first one
+                    // was caught come back out of step too, and the one line that matters is
+                    // `keep_in_step`'s, once per server, naming the first pair (RD-1240-38).
+                    tracing::debug!(
                         host = %self.config.host,
                         requested = message_id,
                         answered,
                         "NNTP server answered out of step under pipelining"
                     );
-                    self.keep_in_step("its answers were out of step");
+                    self.keep_in_step(&format!(
+                        "its answers were out of step: asked for {message_id}, answered {answered}"
+                    ));
                     continue;
                 }
                 Outcome::Broken(error) => {

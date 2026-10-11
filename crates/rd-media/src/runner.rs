@@ -10,7 +10,7 @@ use rd_core::{
     MediaFormatCriteria, MediaKind, MediaSelection,
 };
 use rd_db::Database;
-use rd_scheduler::{ExternalRunner, RunOutcome};
+use rd_scheduler::{ExternalRunner, RunOutcome, ToolNetwork, ToolNetworkSource};
 use rd_secrets::SecretStore;
 use rd_tools::{
     LiveSlots, ProgressThrottle, ToolLine, ToolProcess,
@@ -23,6 +23,7 @@ use crate::{
     args::{DownloadPlan, output_mode},
     cookies::{CookieError, CookieFile},
     merge,
+    pacing::job_pauses,
     probe::map_tool_error,
     progress::parse_progress_line,
     select::MediaCapabilities,
@@ -36,6 +37,7 @@ mod ytdlp;
 use ytdlp::progressive_format;
 use ytdlp::{
     YTDLP_SUFFIX_RESERVE, final_path_line, output_template, resolve_format, template_values,
+    timed_out,
 };
 
 /// Downloads `DownloadKind::Media` files.
@@ -45,6 +47,8 @@ pub struct MediaRunner {
     settings: SharedMediaSettings,
     /// Read on every dispatch pass, so a changed setting needs no restart (audit 1.9.1, TR-07).
     slots: LiveSlots<rd_core::MediaSettings>,
+    /// The proxy and CA yt-dlp is started with (RD-1240-08); none without it, as in tests.
+    network: Option<ToolNetworkSource>,
 }
 
 impl MediaRunner {
@@ -58,7 +62,15 @@ impl MediaRunner {
             secrets,
             settings,
             slots,
+            network: None,
         }
+    }
+
+    /// Hands yt-dlp the download's proxy and the custom CA (RD-1240-08).
+    #[must_use]
+    pub fn with_tool_network(mut self, network: ToolNetworkSource) -> Self {
+        self.network = Some(network);
+        self
     }
 
     /// Resolves the file's cookie profile into a scoped, self-deleting cookie file.
@@ -160,6 +172,15 @@ impl ExternalRunner for MediaRunner {
                 "Media download has no variant selection",
             )));
         };
+        // Before anything reaches the network: a proxy that cannot be used is a failure, never
+        // a direct connection.
+        let network = match &self.network {
+            Some(source) => match source.for_file(file).await {
+                Ok(network) => network,
+                Err(failure) => return Ok(RunOutcome::Failed(failure)),
+            },
+            None => ToolNetwork::direct(),
+        };
         let settings = self.settings.read().await.clone();
         let ytdlp_tool = match lease_ytdlp(&settings).await {
             Ok(tool) => tool,
@@ -191,6 +212,7 @@ impl ExternalRunner for MediaRunner {
             &selection,
             criteria.as_ref(),
             capabilities,
+            &network,
         )
         .await
         {
@@ -215,13 +237,15 @@ impl ExternalRunner for MediaRunner {
                 .as_ref()
                 .map_or(&empty_tracks, |criteria| &criteria.tracks),
             embed: &embed,
+            section: criteria.as_ref().and_then(|criteria| criteria.section),
+            pauses: job_pauses(criteria.as_ref(), &settings),
             page_url: selection.page_url.as_str(),
         };
-        let mut command = tokio::process::Command::new(ytdlp);
+        let mut command = crate::args::ytdlp_command(ytdlp, &network);
         command.args(plan.build());
         let process = ToolProcess::spawn(&mut command, "yt-dlp", Stdout::Read)?
             .with_silence_limit(rd_tools::SILENCE_LIMIT);
-        self.follow(process, file, &cancellation).await
+        self.follow(process, file, &cancellation, &network).await
     }
 }
 
@@ -233,6 +257,7 @@ impl MediaRunner {
         mut process: ToolProcess,
         file: &DownloadFile,
         cancellation: &CancellationToken,
+        network: &ToolNetwork,
     ) -> Result<RunOutcome> {
         let mut final_path: Option<String> = None;
         let mut throttle = ProgressThrottle::default();
@@ -280,7 +305,7 @@ impl MediaRunner {
                 final_path = Some(path.to_owned());
             }
         }
-        self.finish(process, file, final_path).await
+        self.finish(process, file, final_path, network).await
     }
 
     /// The verdict on a yt-dlp run that reached its end: its exit, its warnings, and the file
@@ -290,11 +315,16 @@ impl MediaRunner {
         mut process: ToolProcess,
         file: &DownloadFile,
         final_path: Option<String>,
+        network: &ToolNetwork,
     ) -> Result<RunOutcome> {
         let status = process.wait().await?;
         let stderr_text = process.stderr().await;
         if !status.success() {
-            return Ok(RunOutcome::Failed(map_tool_error(&stderr_text)));
+            return Ok(RunOutcome::Failed(
+                network
+                    .unsupported_proxy("yt-dlp", &stderr_text)
+                    .unwrap_or_else(|| map_tool_error(&stderr_text, status.code())),
+            ));
         }
         // yt-dlp reports a missing ffmpeg, an unmergeable format or a skipped post-processing
         // step as a warning and still exits successfully. Silently dropping those is what let
@@ -454,21 +484,6 @@ fn embed_policy(
             capabilities.can_transcode_audio,
         )
     })
-}
-
-/// A run its deadline ended: the tool failed, retried like any other yt-dlp failure. Answered
-/// as a stop it read as the person's own pause and was never tried again (re-audit 1.9.1,
-/// RA-TR-03).
-fn timed_out(stderr: &str) -> Failure {
-    let tail = rd_tools::stderr_tail(stderr, "yt-dlp went silent past its time limit");
-    Failure::coded(
-        FailureKind::Transient {
-            retry_after_seconds: Some(120),
-        },
-        "media.ytdlp_failed",
-        format!("yt-dlp failed: {tail}"),
-    )
-    .with_param("detail", tail)
 }
 
 #[cfg(test)]

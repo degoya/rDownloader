@@ -1,5 +1,6 @@
 //! MCP tools for handling queued work: order, names, targets, tidying and unpacking
-//! (RD-120-32), and a package's own speed limit (RD-1100-01).
+//! (RD-120-32), a package's own speed limit (RD-1100-01), its "not before" and the search by
+//! name (RD-1240-14).
 //!
 //! RD-120-29 left these out as positions in a list the caller cannot see, as renames a model
 //! would only echo, and as repairs a person makes while watching. `list_downloads` and
@@ -12,7 +13,8 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
+use serde::Deserialize;
 
 use super::{
     RdMcpServer,
@@ -28,8 +30,29 @@ use super::{
 };
 use crate::{
     ApiError, bandwidth_handlers, download_handlers as downloads, error_codes::parse_id,
-    package_handlers as packages,
+    package_handlers as packages, queue_search,
 };
+
+/// The search by name (RD-1240-14).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct SearchQueueParams {
+    /// Part of a package or file name, case-insensitive for ASCII letters.
+    pub q: String,
+    /// Rows of each kind, 1 to 50; 8 when left out.
+    #[serde(default)]
+    pub limit: Option<u32>,
+}
+
+/// A package's "not before" (RD-1240-14).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct PackageStartAfterParams {
+    /// Download package id (from list_packages).
+    pub id: String,
+    /// The moment (RFC 3339, e.g. 2026-10-11T02:00:00Z) the package's files may start from;
+    /// absent, null or a moment that has passed removes it.
+    #[serde(default)]
+    pub start_after: Option<String>,
+}
 
 #[tool_router(router = queue_router, vis = "pub(crate)")]
 impl RdMcpServer {
@@ -284,6 +307,48 @@ impl RdMcpServer {
             )
             .await?;
             Ok(limit)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Find download packages and files by name, without reading the whole queue: `q` is part of a name (case-insensitive for ASCII letters), `limit` the rows of each kind (1-50, default 8). Answers packages (id, name, state) and downloads (id, package_id, package_name, file_name, state), each in queue order; the ids work with every package and download tool."
+    )]
+    pub async fn search_queue(
+        &self,
+        Parameters(params): Parameters<SearchQueueParams>,
+    ) -> McpToolResult {
+        respond(
+            queue_search::search_queue(
+                State(self.state.clone()),
+                queue_search::QueueSearchParams(queue_search::QueueSearchQuery {
+                    q: Some(params.q),
+                    limit: params.limit,
+                }),
+            )
+            .await
+            .map(|Json(found)| found),
+        )
+    }
+
+    #[tool(
+        description = "Hold one download package back until a moment (id from list_packages): its waiting files start no earlier than start_after (RFC 3339); without it, or with a moment that has passed, the hold is removed. Running files go on; the package's start_after shows in list_packages."
+    )]
+    pub async fn set_package_start_after(
+        &self,
+        Parameters(params): Parameters<PackageStartAfterParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let request = body(serde_json::json!({ "start_after": params.start_after }))?;
+            let Json(stored) = packages::set_package_start_after(
+                State(self.state.clone()),
+                Path(id),
+                Json(request),
+            )
+            .await?;
+            Ok(stored)
         }
         .await;
         respond(result)

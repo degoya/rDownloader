@@ -190,9 +190,10 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Settings",
         &[any("/api/v1/settings")],
     ),
-    // RD-1180-01, RD-1180-03: a row of its own beside the document, which the tray switches too.
+    // RD-1180-01, RD-1180-03, RD-1240-19: a row of its own beside the document, which the tray
+    // switches too.
     covered(
-        "The desktop agent's clipboard pause and shortcuts",
+        "The desktop agent's clipboard pause, shortcuts and game mode",
         "Settings > Clients & API > Desktop",
         &[any("/api/v1/settings/capture-agent")],
     ),
@@ -270,6 +271,26 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/notifications/targets/{id}"),
             any("/api/v1/notifications/rules"),
         ],
+    ),
+    // RD-1240-13: the browsers a `web_push` destination sends to; a lost device is removed here.
+    covered(
+        "Browsers that receive push messages",
+        "Settings > Interface",
+        &[
+            only("/api/v1/notifications/web-push/subscriptions", "GET"),
+            any("/api/v1/notifications/web-push/subscriptions/{id}"),
+        ],
+    ),
+    omitted(
+        "Turning push on in this browser",
+        "Settings > Interface",
+        &[
+            only("/api/v1/notifications/web-push/subscriptions", "POST"),
+            any("/api/v1/notifications/web-push/key"),
+        ],
+        "A push subscription is made by a browser's own push service for that very browser; an \
+         agent has no browser to subscribe. list_web_push_subscriptions and \
+         delete_web_push_subscription manage the ones there are.",
     ),
     covered(
         "Subscriptions",
@@ -366,6 +387,14 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/stats/transfers/clear"),
         ],
     ),
+    // Old backups before updates and migrations and compiled plugin code nothing uses
+    // (RD-1240-34), the subscription archive's compaction and the database's free pages
+    // (RD-1240-35): the preview and the clean-up the start and every day also run.
+    covered(
+        "Cleaning up update backups, the plugin cache and the database",
+        "Settings > System > Retention",
+        &[any("/api/v1/system/cleanup")],
+    ),
     // Each listed rule carries its origin since RD-1200-05: import, editor, MCP, example
     // (RD-1230-03) or unknown; no rule carries a signature since RD-1230-03.
     covered(
@@ -399,6 +428,13 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/collector/candidates"),
             any("/api/v1/collector/entries"),
         ],
+    ),
+    // RD-1240-09: the rules, their order, applying them to the list; showing a hidden link is
+    // a candidate tool under the row above.
+    covered(
+        "LinkFilter rules",
+        "Settings > LinkGrabber",
+        &[any("/api/v1/link-filters")],
     ),
     covered(
         "Mirror groups",
@@ -562,7 +598,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
         ],
     ),
     // The download history (RD-1100-04): listed and searched, an entry added again, and the
-    // clear offered like the other clears, with `confirmed` an argument the caller sets.
+    // clear offered like the other clears, with `confirmed` an argument the caller sets. The
+    // export (RD-1240-14) is claimed with it: `list_download_history` pages through the same
+    // entries with the same filters, and a file to download is what a person wants, not an agent.
     covered(
         "Download history: search, add again, clear",
         "History",
@@ -579,6 +617,13 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Application updates",
         "Settings > System",
         &[any("/api/v1/system/update")],
+    ),
+    // RD-1240-32: what waits for the next start, and the restart that applies it. Unlike an
+    // update it replaces nothing; the session that asked ends and connects again.
+    covered(
+        "A pending restart and restarting the service",
+        "Settings > System",
+        &[any("/api/v1/system/restart")],
     ),
     covered(
         "Writing a site rule",
@@ -709,6 +754,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/streams/import"),
             any("/api/v1/subscriptions/export"),
             any("/api/v1/subscriptions/import"),
+            any("/api/v1/link-filters/export"),
+            any("/api/v1/link-filters/import"),
             any("/api/v1/audit/export"),
         ],
         OWNER_LINE,
@@ -798,10 +845,18 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Not a user-facing capability but the agent's own contract, priced with its own \
          capture: scopes. No api: token reaches it, so a tool over it could not be called. The \
          tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue \
-         already give MCP, and the clipboard pause and the shortcuts the agent follows \
-         (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it. What \
+         already give MCP, its \"Add all from LinkGrabber\" (RD-1240-07) the one \
+         enqueue_collector and enqueue_nzb_import give it, and the clipboard pause and the \
+         shortcuts the agent follows (RD-1180-01, RD-1180-03) the one get_ and \
+         update_capture_agent_settings give it, which set its game mode too (RD-1240-19) and \
+         switch it on and off like the tray's \"Pause while gaming\" (RD-1240-23); the \
+         hold and release the agent makes under it are pause_queue, resume_queue, \
+         switch_bandwidth_profile and return_to_bandwidth_schedule for a person. What \
          an agent says about its own update on its poll (RD-1210-03) get_update_status reads; \
-         installing it is the agent's own decision, never a tool's.",
+         installing it is the agent's own decision, never a tool's. The service's update the \
+         tray offers (RD-1240-25) is the offer get_update_status shows; installing it stays a \
+         person's click, in the interface or in a tray paired with capture:server_update, for \
+         the reasons \"Installing an update\" gives.",
     ),
     omitted(
         "Controlling one download by its own route",
@@ -1019,6 +1074,17 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Downloads > package editor",
         &[any("/api/v1/packages/{id}/speed-limit")],
     ),
+    // ---- RD-1240-14 ----
+    covered(
+        "A package's \"not before\"",
+        "Downloads > package menu",
+        &[any("/api/v1/packages/{id}/start-after")],
+    ),
+    covered(
+        "Finding packages and files by name",
+        "Search palette",
+        &[any("/api/v1/queue/search")],
+    ),
     // ---- RD-1210-01 ----
     covered(
         "Exporting packages as a link file",
@@ -1036,6 +1102,19 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "The queue's stop mark",
         "Downloads, row menu and transfer rail",
         &[any("/api/v1/queue/stop-mark")],
+    ),
+    // ---- RD-1240-30 ----
+    // A profile's `pause_downloads` is edited with the profile, in the interface like the rest of
+    // it; list_bandwidth_profiles and get_bandwidth_status read it.
+    covered(
+        "A package's download window",
+        "Downloads > package menu",
+        &[any("/api/v1/packages/{id}/download-window")],
+    ),
+    covered(
+        "A category's download window",
+        "Settings > Routing > category editor",
+        &[any("/api/v1/categories/{id}/download-window")],
     ),
 ];
 

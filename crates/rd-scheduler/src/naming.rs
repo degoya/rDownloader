@@ -34,7 +34,8 @@ const MIN_NAME_CHARS: usize = 3;
 ///
 /// Renaming is confined to a package that still carries the automatic fallback: its name *is*
 /// the host of its link, which is the one string `group_links` produces when it knows nothing
-/// else. A package anybody named — by hand, from a container, from a common stem — differs from
+/// else, or the placeholder `download` a direct download without a name in its address was
+/// given (RD-1240-33). A package anybody named — by hand, from a container, from a common stem — differs from
 /// that string and is left alone, which is what keeps this out of `auto_named = 0` territory
 /// without a column that says so.
 pub(crate) fn resolved_package_name(
@@ -45,7 +46,10 @@ pub(crate) fn resolved_package_name(
     // The same form `group_links` names the package with (audit 1.9.1, RA-IN-06).
     let host = rd_core::host_key(source.host_str()?);
     let host = host.as_str();
-    if host.is_empty() || !package_name.trim().eq_ignore_ascii_case(host) {
+    let fallback = package_name.trim();
+    if host.is_empty()
+        || !(fallback.eq_ignore_ascii_case(host) || fallback.eq_ignore_ascii_case(PLACEHOLDER))
+    {
         return None;
     }
     let release = rd_files::package_name_from_file_name(file_name.trim());
@@ -65,6 +69,40 @@ pub(crate) fn resolved_package_name(
 }
 
 impl SchedulerHandle {
+    /// Names a download whose address offered no name after what the server declares in its
+    /// `Content-Disposition` (RFC 6266, RD-1240-33), and its package with it while that one is
+    /// still the fallback. Returns the new name, or `None` when the file keeps the one it has:
+    /// a name of its own, bytes on disk already, or no usable name in the answer.
+    ///
+    /// Runs after the probe and before the destination is created, like the resolver's name.
+    pub async fn adopt_declared_name(
+        &self,
+        file: &DownloadFile,
+        disposition: Option<&str>,
+    ) -> Result<Option<String>> {
+        if file.file_name != rd_files::FALLBACK_FILE_NAME || file.committed_bytes.get() > 0 {
+            return Ok(None);
+        }
+        let Some(name) = disposition
+            .and_then(rd_files::disposition_file_name)
+            .map(|name| rd_files::sanitize_file_name(&name))
+            .filter(|name| name != rd_files::FALLBACK_FILE_NAME)
+        else {
+            return Ok(None);
+        };
+        self.database
+            .set_download_file_name(file.id, name.clone())
+            .await?;
+        if let Err(error) = self.adopt_resolved_package_name(file, &name).await {
+            tracing::warn!(
+                package_id = %file.package_id,
+                %error,
+                "the package kept its fallback name"
+            );
+        }
+        Ok(Some(name))
+    }
+
     /// Gives a package that is still named after its hoster the release name the resolver just
     /// learned, and points its folder at the same name.
     ///
@@ -213,6 +251,21 @@ mod tests {
         assert_eq!(
             name("https://1fichier.com/?x", "1fichier.com", "a.mp4"),
             None
+        );
+    }
+
+    /// A direct download without a name in its address was called `download`; the name its
+    /// server declares replaces that too (RD-1240-33).
+    #[test]
+    fn the_placeholder_package_takes_the_declared_name() {
+        assert_eq!(
+            name(
+                "http://127.0.0.1:18712/?cd=x",
+                "download",
+                "Big Buck Bunny.mp4"
+            )
+            .as_deref(),
+            Some("Big Buck Bunny")
         );
     }
 

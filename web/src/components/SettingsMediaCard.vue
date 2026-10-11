@@ -125,5 +125,11 @@ function toolDetail(tool: MediaToolStatus): string {
     <UFormField :label="t('settings.media.check_timeout.label')" :description="t('settings.media.check_timeout.description')">
       <NumberWithUnit v-model="settings.media_check_timeout_seconds" unit="s" required :min="5" :max="600" :format-options="WHOLE" class="w-full" />
     </UFormField>
+    <UFormField :label="t('settings.media.sleep_requests.label')" :description="t('settings.media.sleep_requests.description')">
+      <NumberWithUnit v-model="settings.media_sleep_requests_seconds" unit="s" required :min="0" :max="600" :format-options="WHOLE" class="w-full" />
+    </UFormField>
+    <UFormField :label="t('settings.media.sleep_interval.label')" :description="t('settings.media.sleep_interval.description')">
+      <NumberWithUnit v-model="settings.media_sleep_interval_seconds" unit="s" required :min="0" :max="600" :format-options="WHOLE" class="w-full" />
+    </UFormField>
   </UCard>
 </template>

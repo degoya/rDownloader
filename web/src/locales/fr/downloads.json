@@ -51,8 +51,7 @@
     "remove_failed": "L’entrée n’a pas pu être retirée.",
     "nothing_to_reset": "Rien dans la sélection ne peut être réinitialisé pour l'instant – les transferts actifs doivent d'abord être mis en pause",
     "reorder_filter_active": "L’ordre ne peut être modifié que dans la liste non filtrée : les fichiers masqués seraient sinon mal classés.",
-    "cleared_packages": "Aucun paquet n'a été retiré. | {count} paquet a été retiré. | {count} paquets ont été retirés.",
-    "clear_skipped": "Aucun paquet n'est resté intact. | {count} paquet est resté intact – {reason} : {names}. | {count} paquets sont restés intacts – {reason} : {names}."
+    "cleared_packages": "Aucun paquet n'a été retiré. | {count} paquet a été retiré. | {count} paquets ont été retirés."
   },
   "notifications": {
     "failed_title": "Téléchargement échoué",
@@ -486,5 +485,47 @@
     "rail_title": "Marque d’arrêt après « {name} » : la file se met en pause une fois terminé.",
     "set_failed": "La marque d’arrêt n’a pas pu être placée",
     "clear_failed": "La marque d’arrêt n’a pas pu être retirée"
+  },
+  "start_after": {
+    "set": "Ne pas démarrer avant…",
+    "set_hint": "Les fichiers en attente du paquet ne démarrent pas avant le moment choisi",
+    "clear": "Retirer l’heure de début",
+    "glyph": "Démarre plus tard",
+    "glyph_title": "Ne démarre pas avant {time}",
+    "title": "Démarrer le paquet plus tard",
+    "description": "Les fichiers en attente de « {name} » ne démarrent pas avant ce moment. Ce qui tourne déjà continue.",
+    "day": "Jour",
+    "time": "Heure",
+    "not_ahead": "Choisis un moment dans le futur.",
+    "set_done": "Ne démarre pas avant {time}",
+    "cleared": "Heure de début retirée",
+    "failed": "L’heure de début n’a pas pu être enregistrée"
+  },
+  "window": {
+    "menu": "Plage de téléchargement …",
+    "menu_hint": "Quand ce paquet peut télécharger",
+    "title": "Plage de téléchargement",
+    "description": "Quand « {name} » peut télécharger. Les heures sont lues dans le fuseau horaire du planning de bande passante ({zone}).",
+    "own_label": "Plage propre",
+    "own_off_category": "Désactivée : le paquet suit la plage de sa catégorie ({window}).",
+    "own_off_schedule": "Désactivée : le paquet suit uniquement le planning de bande passante.",
+    "add": "Ajouter une plage horaire",
+    "anytime": "Aucune plage horaire : télécharge à toute heure, seul l'interrupteur ci-dessous compte.",
+    "ignore_label": "Ignorer la pause du planning",
+    "ignore_description": "Télécharge même lorsqu'un profil de bande passante met les téléchargements en pause – par exemple un téléchargement urgent en journée.",
+    "rates_hint": "Un paquet n'est jamais plus rapide que la limite globale, celle du profil ou celle fixée à la main : la plus stricte s'applique toujours.",
+    "saved": "Plage de téléchargement enregistrée",
+    "cleared": "Le paquet suit de nouveau sa catégorie et le planning",
+    "failed": "Plage de téléchargement non enregistrée",
+    "glyph": "Plage de téléchargement",
+    "glyph_closed": "Hors de sa plage de téléchargement, en attente : {window}",
+    "glyph_open": "Ne télécharge que dans sa plage : {window}",
+    "glyph_bypass": "Ignore la pause du planning"
+  },
+  "schedule_pause": {
+    "label": "En pause selon le planning jusqu'à {time}",
+    "label_open": "En pause selon le planning",
+    "title": "Le profil de bande passante « {profile} » met les téléchargements en pause. Les paquets qui ignorent la pause du planning continuent ; Paramètres › Bande passante permet de passer à un autre profil.",
+    "open_settings": "Changer de profil"
   }
 }

@@ -70,6 +70,8 @@ pub(crate) struct CandidateRow {
     secret_fragment_ref: Option<String>,
     /// The checked source set a Metalink parser stated (RD-150-03), shown before queueing.
     source_set_json: Option<String>,
+    /// The LinkFilter rule that hid the link (RD-1240-09).
+    hidden_by_filter: Option<String>,
 }
 
 impl TryFrom<CandidateRow> for LinkCandidate {
@@ -193,6 +195,7 @@ impl TryFrom<CandidateRow> for LinkCandidate {
                 })
                 .map(|set| set.preview())
                 .unwrap_or_default(),
+            hidden_by_filter: row.hidden_by_filter.as_deref().map(parse_id).transpose()?,
         })
     }
 }
@@ -200,7 +203,7 @@ impl TryFrom<CandidateRow> for LinkCandidate {
 /// The columns a `CandidateRow` reads, once for both queries (DB-12).
 macro_rules! candidate_columns {
     () => {
-        "id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json"
+        "id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json, hidden_by_filter"
     };
 }
 

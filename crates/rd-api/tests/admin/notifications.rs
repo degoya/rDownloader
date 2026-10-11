@@ -14,7 +14,7 @@ const SECRET: &str = "topsecret-signing-key";
 type Call = (String, String, String);
 
 /// Starts a local receiver and returns its URL together with what it collects.
-async fn spawn_receiver() -> (String, Arc<Mutex<Vec<Call>>>) {
+pub(crate) async fn spawn_receiver() -> (String, Arc<Mutex<Vec<Call>>>) {
     let calls: Arc<Mutex<Vec<Call>>> = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&calls);
     let app = Router::new().route(
@@ -48,7 +48,7 @@ async fn spawn_receiver() -> (String, Arc<Mutex<Vec<Call>>>) {
     (format!("http://{address}/hook"), calls)
 }
 
-async fn create_target(router: &Router, body: serde_json::Value) -> serde_json::Value {
+pub(crate) async fn create_target(router: &Router, body: serde_json::Value) -> serde_json::Value {
     let (status, target) = common::post_json(router, "/api/v1/notifications/targets", body).await;
     assert_eq!(status, StatusCode::CREATED, "{target}");
     target

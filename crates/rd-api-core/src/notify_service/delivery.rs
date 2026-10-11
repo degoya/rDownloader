@@ -75,18 +75,24 @@ impl NotificationService {
         let outcome = if target.kind == rd_notify::TargetKind::Plugin {
             self.deliver_through_plugin(&target, &config, &message)
                 .await
+        } else if target.kind == rd_notify::TargetKind::WebPush {
+            self.deliver_web_push(&message, false).await
         } else {
-            let secret = self.resolve_secret(&target).await;
-            let vendor = vendor_directory(&self.inner.database).await;
-            rd_notify::send(
-                &super::webhook_reach(&target),
-                &target,
-                &config,
-                &message,
-                secret.as_ref(),
-                vendor.as_deref(),
-            )
-            .await
+            match self.resolve_secret(&target).await {
+                Ok(secret) => {
+                    let vendor = vendor_directory(&self.inner.database).await;
+                    rd_notify::send(
+                        &super::webhook_reach(&target),
+                        &target,
+                        &config,
+                        &message,
+                        secret.as_ref(),
+                        vendor.as_deref(),
+                    )
+                    .await
+                }
+                Err(unreadable) => unreadable,
+            }
         };
         self.inner.in_flight.lock().await.remove(&target.id);
 

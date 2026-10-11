@@ -23,7 +23,9 @@
 //! before it applies anything. The newest [`KEPT`] copies stay; older ones are removed whenever
 //! a start leaves the database whole — upgraded, or put back from its copy — so a service that
 //! restarts into the same failure does not fill the disk, and never after a put-back that
-//! failed, which would rotate away the copy the database has to be restored from by hand.
+//! failed, which would rotate away the copy the database has to be restored from by hand. Once
+//! the update that brought the migrations is proven, `rd_backup::update_retention` keeps only the
+//! newest copy (RD-1240-34).
 
 use std::path::{Path, PathBuf};
 
@@ -198,8 +200,10 @@ pub fn copy_name(from: &str, to: &str, at: chrono::DateTime<chrono::Utc>) -> Str
     )
 }
 
-/// The timestamp of a name [`snapshot_name`] wrote; `None` for every other file.
-fn snapshot_stamp(name: &str) -> Option<&str> {
+/// The timestamp of a name [`copy_name`] wrote; `None` for every other file. The update
+/// backups' retention (`rd_backup::update_retention`, RD-1240-34) sorts the copies by it.
+#[must_use]
+pub fn snapshot_stamp(name: &str) -> Option<&str> {
     let stem = name.strip_prefix(PREFIX)?.strip_suffix(EXTENSION)?;
     let (versions, stamp) = stem.rsplit_once('-')?;
     (versions.contains("-to-") && stamp.len() == 19 && stamp.ends_with('Z')).then_some(stamp)

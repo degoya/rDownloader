@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Automation, AutomationRun } from '@/api/types'
 import { formatMoment } from '@/utils/format'
 import { editingRowClass } from '@/utils/editingRow'
+import { describeTrigger } from '@/utils/automationText'
 
 const props = defineProps<{
   automation: Automation
@@ -24,7 +25,7 @@ const { t } = useI18n()
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-medium text-highlighted">{{ props.automation.name }}</p>
         <p class="text-xs text-muted">
-          {{ t(`automation.trigger.${props.automation.definition?.trigger ?? 'download_completed'}`) }}
+          {{ describeTrigger(props.automation.definition?.trigger ?? 'download_completed', props.automation.definition?.schedule, t) }}
           · {{ t('automation.version', { version: props.automation.version }) }}
           · {{ t('automation.action_count', { count: props.automation.definition?.actions?.length ?? 0 }) }}
         </p>

@@ -24,10 +24,12 @@ import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import AutomationActionCard from '@/components/automation/AutomationActionCard.vue'
 import AutomationListItem from '@/components/automation/AutomationListItem.vue'
+import AutomationTriggerCard from '@/components/automation/AutomationTriggerCard.vue'
 import AutomationVersionsModal from '@/components/automation/AutomationVersionsModal.vue'
 import ConditionTree from '@/components/automation/ConditionTree.vue'
-import { type AutomationTrigger, useAutomationDraft } from '@/composables/useAutomationDraft'
+import { actionComplete, type AutomationTrigger, toDraft, toWire, useAutomationDraft } from '@/composables/useAutomationDraft'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopyName } from '@/composables/useCopyName'
 import { useFormBaseline } from '@/composables/useFormBaseline'
@@ -37,7 +39,8 @@ import { useAutomationsStore } from '@/stores/automations'
 import { useCategories } from '@/stores/categories'
 import { usePostprocessStore } from '@/stores/postprocess'
 import AreaBackupButtons from '@/components/AreaBackupButtons.vue'
-import SearchableSelect from '@/components/SearchableSelect.vue'
+import { describeAction } from '@/utils/automationText'
+import { formatMoment } from '@/utils/format'
 
 /** Fields that hold a number; the operator list narrows on these. */
 const NUMERIC_FIELDS = ['size_bytes']
@@ -61,8 +64,22 @@ const MAX_AUTOMATION_NAME = 100
 const dryRunResult = ref<AutomationDryRun[] | null>(null)
 const dryRunPackage = ref<string | null>(null)
 
-const { draft, triggerOptions, actionKindOptions, canAddAction, scriptItems, canSave, addAction, changeActionKind } =
-  useAutomationDraft(categories, targets)
+const {
+  draft,
+  triggerOptions,
+  actionKindOptions,
+  canAddAction,
+  scriptItems,
+  canSave,
+  packageActionOnSchedule,
+  request,
+  addAction,
+  changeActionKind
+} = useAutomationDraft(categories, targets)
+/** Names of what an action points at, for the dry run's list of what would run. */
+const referenceNames = computed(
+  () => new Map([...categories.value, ...targets.value].map(item => [item.id, item.name] as [string, string]))
+)
 
 const open = computed(() => creating.value || editing.value !== null)
 /** An open editor with changes asks before a leave drops them (RD-1120-15). */
@@ -104,8 +121,9 @@ function startCreate(): void {
     name: '',
     enabled: false,
     trigger: (store.vocabulary?.triggers?.[0] ?? 'download_completed') as AutomationTrigger,
+    schedule: { kind: 'interval', minutes: 60 },
     condition: { type: 'always' } as AutomationCondition,
-    actions: [{ kind: 'pause_package' } as AutomationAction]
+    actions: [{ kind: 'pause_package' }]
   })
   draftBaseline.settle()
 }
@@ -118,8 +136,9 @@ function startEdit(automation: Automation): void {
     name: automation.name,
     enabled: automation.enabled,
     trigger: (automation.definition?.trigger ?? 'download_completed') as AutomationTrigger,
+    schedule: automation.definition?.schedule ?? { kind: 'interval', minutes: 60 },
     condition: (automation.definition?.condition ?? { type: 'always' }) as AutomationCondition,
-    actions: [...((automation.definition?.actions ?? []) as AutomationAction[])]
+    actions: ((automation.definition?.actions ?? []) as AutomationAction[]).map(toDraft)
   })
   draftBaseline.settle()
   void focusForm()
@@ -133,17 +152,8 @@ function cancel(): void {
 
 async function save(): Promise<void> {
   if (!canSave.value) return
-  // The one cast, and only after `canSave` has checked every action carries its id.
-  const saved = await store.save(
-    {
-      name: draft.name,
-      enabled: draft.enabled,
-      trigger: draft.trigger,
-      condition: draft.condition,
-      actions: draft.actions as AutomationAction[]
-    },
-    editing.value ?? undefined
-  )
+  // Only after `canSave` has checked every action carries its id.
+  const saved = await store.save(request(), editing.value ?? undefined)
   if (saved) cancel()
 }
 
@@ -158,6 +168,7 @@ async function duplicate(automation: Automation): Promise<void> {
     name: copyName(automation.name, store.automations.map(item => item.name), MAX_AUTOMATION_NAME),
     enabled: false,
     trigger: (automation.definition?.trigger ?? 'download_completed') as AutomationTrigger,
+    schedule: automation.definition?.schedule ?? null,
     condition: (automation.definition?.condition ?? { type: 'always' }) as AutomationCondition,
     actions: [...((automation.definition?.actions ?? []) as AutomationAction[])]
   })
@@ -170,10 +181,14 @@ async function duplicate(automation: Automation): Promise<void> {
  * enabled automations used to be judged, so a new or switched-off one had nothing to show here.
  */
 async function runDryRun(): Promise<void> {
+  const { schedule, actions } = request()
   const result = await store.dryRun(draft.trigger, dryRunPackage.value, {
     automation_id: editing.value ?? undefined,
     trigger: draft.trigger,
-    condition: draft.condition
+    schedule,
+    condition: draft.condition,
+    // An action still missing its id or links is left out rather than sent half-made.
+    actions: canSave.value ? actions : draft.actions.filter(actionComplete).map(toWire)
   })
   // A refusal shows in the alert above; an empty list here would read as "nothing matched".
   dryRunResult.value = store.error ? null : result
@@ -240,16 +255,12 @@ function runsOf(id: string) {
             />
             <form v-if="open" ref="formElement" data-testid="automation-form" @submit.prevent="save">
               <div class="grid gap-4">
-                <!-- The trigger is the automation's kind, so it comes first, before its name. -->
-                <UFormField :label="t('automation.trigger_label')" :description="t('automation.trigger_help')">
-                  <USelectMenu
-                    :model-value="draft.trigger"
-                    :items="triggerOptions"
-                    value-key="value"
-                    class="w-full"
-                    @update:model-value="(value: AutomationTrigger) => (draft.trigger = value)"
-                  />
-                </UFormField>
+                <AutomationTriggerCard
+                  v-model:trigger="draft.trigger"
+                  v-model:schedule="draft.schedule"
+                  :trigger-options="triggerOptions"
+                  :package-action-on-schedule="packageActionOnSchedule"
+                />
                 <UFormField :label="t('automation.name')" required>
                   <UInput v-model="draft.name" required maxlength="100" class="w-full" />
                 </UFormField>
@@ -273,65 +284,17 @@ function runsOf(id: string) {
               </h3>
               <p class="mb-2 text-xs text-muted">{{ t('automation.action.at_least_once') }}</p>
               <div class="space-y-2">
-                <div
+                <AutomationActionCard
                   v-for="(action, index) in draft.actions"
                   :key="index"
-                  class="flex flex-wrap items-center gap-2 border border-muted p-3"
-                >
-                  <USelectMenu
-                    :model-value="action.kind"
-                    :items="actionKindOptions"
-                    value-key="value"
-                    :aria-label="t('automation.action.kind')"
-                    class="w-52"
-                    @update:model-value="(value: string) => changeActionKind(index, value)"
-                  />
-                  <SearchableSelect
-                    v-if="action.kind === 'script' && scriptItems.length"
-                    :model-value="action.name"
-                    :items="scriptItems"
-                    :aria-label="t('automation.action.script_name')"
-                    class="w-56 font-mono"
-                    @update:model-value="(name: string) => (draft.actions[index]!.name = name)"
-                  />
-                  <p v-else-if="action.kind === 'script'" class="self-center text-xs text-error">
-                    {{ t('automation.action.no_scripts') }}
-                  </p>
-                  <USelectMenu
-                    v-if="action.kind === 'set_category'"
-                    :model-value="action.category_id"
-                    :items="categories"
-                    value-key="id"
-                    label-key="name"
-                    :aria-label="t('automation.action.category')"
-                    :placeholder="t('automation.action.category')"
-                    class="w-56"
-                    @update:model-value="(id: string) => (draft.actions[index]!.category_id = id)"
-                  />
-                  <USelectMenu
-                    v-if="action.kind === 'webhook'"
-                    :model-value="action.target_id"
-                    :items="targets"
-                    value-key="id"
-                    label-key="name"
-                    :filter-fields="['name', 'endpoint']"
-                    :aria-label="t('automation.action.target')"
-                    :placeholder="t('automation.action.target')"
-                    class="w-56"
-                    @update:model-value="(id: string) => (draft.actions[index]!.target_id = id)"
-                  />
-                  <p v-if="action.kind === 'webhook' && !targets.length" class="self-center text-xs text-error">
-                    {{ t('automation.action.no_targets') }}
-                  </p>
-                  <UButton
-                    icon="i-lucide-x"
-                    size="xs"
-                    color="error"
-                    variant="ghost"
-                    :aria-label="t('automation.action.remove')"
-                    @click="draft.actions.splice(index, 1)"
-                  />
-                </div>
+                  v-model="draft.actions[index]!"
+                  :kind-options="actionKindOptions"
+                  :script-items="action.kind === 'script' ? scriptItems : []"
+                  :categories="categories"
+                  :targets="targets"
+                  @kind="(kind: string) => changeActionKind(index, kind)"
+                  @remove="draft.actions.splice(index, 1)"
+                />
               </div>
               <UButton
                 class="mt-2"
@@ -373,6 +336,11 @@ function runsOf(id: string) {
                   —
                   {{ match.trigger_matches ? t('automation.dry_run.trigger_yes') : t('automation.dry_run.trigger_no') }},
                   {{ match.condition_matches ? t('automation.dry_run.condition_yes') : t('automation.dry_run.condition_no') }}
+                  <template v-if="match.next_run_at">, {{ t('automation.dry_run.next_run', { time: formatMoment(match.next_run_at) }) }}</template>
+                  <span v-if="match.actions.length" class="block text-xs" data-testid="automation-dry-run-actions">
+                    {{ t('automation.dry_run.would_run') }}:
+                    {{ match.actions.map(action => describeAction(action, t, id => referenceNames.get(id))).join(' · ') }}
+                  </span>
                 </li>
               </ul>
 

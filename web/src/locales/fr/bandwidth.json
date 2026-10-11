@@ -27,10 +27,18 @@
     "monthly": "Ce mois-ci ({period})",
     "usage": "{used} sur {limit}",
     "budget_exhausted": "Le quota de trafic est épuisé. Les transferts en cours se terminent ; rien de nouveau ne démarre avant la période suivante.",
-    "upload_binding": "Limite d'envoi la plus stricte"
+    "upload_binding": "Limite d'envoi la plus stricte",
+    "downloads_paused": "Les téléchargements sont en pause selon le planning jusqu'à {time}. Pour télécharger maintenant malgré tout, passez ci-dessus à un autre profil ou à « Aucune limite ».",
+    "downloads_paused_open": "Les téléchargements sont en pause tant que ce profil s'applique. Pour télécharger maintenant malgré tout, passez ci-dessus à un autre profil ou à « Aucune limite »."
   },
   "capabilities": {
-    "title": "Ce qu'une limite n'atteint pas entièrement"
+    "title": "Ce qu'une limite n'atteint pas entièrement",
+    "notes": {
+      "torrent_session_rate": "le moteur applique un seul débit pour toute la session",
+      "media_job_rate": "yt-dlp prend un débit par tâche (--limit-rate)",
+      "gallery_job_rate": "gallery-dl prend un débit par tâche (--limit-rate)",
+      "record_no_rate": "streamlink n'a pas de limite de débit ; un enregistrement en direct ne peut pas être ralenti"
+    }
   },
   "profile": {
     "eyebrow": "Limites réutilisables",
@@ -57,7 +65,10 @@
     "summary_parallel": "{count} fichier en parallèle | {count} fichiers en parallèle",
     "summary_upload": "{rate} en envoi",
     "summary_daily": "{size} par jour",
-    "summary_monthly": "{size} par mois"
+    "summary_monthly": "{size} par mois",
+    "pause_label": "Mettre les téléchargements en pause",
+    "pause_description": "Tant que le profil s'applique, aucun téléchargement ne démarre et les transferts en cours qui peuvent reprendre sont mis en pause jusqu'à sa fin. Les envois, le seeding et le post-traitement continuent ; un paquet peut ignorer la pause.",
+    "summary_pause": "met les téléchargements en pause"
   },
   "scope": {
     "title": "Limites par portée",

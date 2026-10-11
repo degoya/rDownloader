@@ -3,7 +3,8 @@
     "webhook": "Webhook",
     "smtp": "E-mail (SMTP)",
     "apprise": "Apprise",
-    "plugin": "Destination par plugin"
+    "plugin": "Destination par plugin",
+    "web_push": "Push du navigateur"
   },
   "event": {
     "package_completed": "Paquet terminé",
@@ -21,7 +22,15 @@
     "plugin_update_failed": "Mise à jour automatique de plugin échouée",
     "usenet_job_hopeless": "Téléchargement Usenet irréparable",
     "usenet_quota_reached": "Quota du serveur Usenet épuisé",
-    "stop_mark_reached": "Marque d’arrêt atteinte"
+    "stop_mark_reached": "Marque d’arrêt atteinte",
+    "download_started": "Téléchargement démarré",
+    "links_added": "Liens ajoutés",
+    "stream_recorded": "Stream enregistré",
+    "subscription_matched": "L’abonnement a trouvé du nouveau",
+    "update_installed": "Mise à jour de rDownloader installée",
+    "update_failed": "Échec de la mise à jour de rDownloader",
+    "automation": "Message d'une automatisation",
+    "service_restarting": "rDownloader redémarre"
   },
   "severity": {
     "info": "Info et plus",
@@ -71,7 +80,8 @@
     "destination_description": "Quelle destination installée distribue cette cible.",
     "form_new": "Nouvelle cible",
     "secret_copy": "Non copié — saisissez-le à nouveau ; d’ici là, la copie n’en a aucun.",
-    "setting_unset": "Non défini"
+    "setting_unset": "Non défini",
+    "web_push_description": "Envoie à chaque navigateur qui a activé « Push sur cet appareil » dans Paramètres › Interface. Ni adresse ni secret nécessaires ; le premier navigateur crée cette destination lui-même."
   },
   "smtp": {
     "from": "Expéditeur",
@@ -98,7 +108,7 @@
     "severity_label": "Gravité minimale",
     "severity_description": "Les événements moins graves sont filtrés.",
     "events_label": "Événements",
-    "events_description": "Aucune sélection signifie tous les événements.",
+    "events_description": "Aucune sélection signifie tous les événements sauf les téléchargements démarrés et les liens ajoutés : une règle ne les reçoit que si vous les sélectionnez, et une rafale arrive en une seule notification.",
     "all_events": "tous les événements",
     "all_categories": "Toutes les catégories",
     "empty": "Aucune règle pour l'instant.",
@@ -111,7 +121,8 @@
     "eyebrow": "Ce qui s'est passé",
     "title": "Historique des livraisons",
     "description": "Chaque tentative avec sa réponse. Les réponses sont tronquées et expurgées, aucun secret ne s'y retrouve.",
-    "attempts": "{count} tentatives",
-    "empty": "Rien de livré pour l'instant."
+    "attempts": "{count} tentative | {count} tentatives",
+    "empty": "Rien de livré pour l'instant.",
+    "target_removed": "destination supprimée"
   }
 }

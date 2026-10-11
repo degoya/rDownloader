@@ -85,6 +85,7 @@ async fn an_agent_switches_a_listed_profile_and_pauses_the_queue() {
             daily_budget_bytes: None,
             monthly_budget_bytes: None,
             scopes: Vec::new(),
+            pause_downloads: false,
         })
         .await
         .expect("profile");

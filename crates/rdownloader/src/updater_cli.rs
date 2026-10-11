@@ -51,7 +51,7 @@ pub(crate) struct ApplyArgs {
 }
 
 /// A step's failure: its stable code and what happened.
-type Failure = (&'static str, String);
+pub(crate) type Failure = (&'static str, String);
 
 pub(crate) async fn run(args: ApplyArgs) -> Result<()> {
     let data = args
@@ -153,7 +153,12 @@ async fn apply(journal: &mut Journal) -> Result<()> {
 /// survives (`crates/rd-core/recovery-matrix.md`). A version from before 1.8.0-beta.3 never ended
 /// with an event stream open (live test 2026-10-01); this one ends by itself within a minute.
 async fn end_by_force(journal: &Journal) -> Result<(), String> {
-    let (pid, image) = (journal.plan.service_pid, journal.plan.executable.as_str());
+    end_process(journal.plan.service_pid, &journal.plan.executable).await
+}
+
+/// [`end_by_force`] by process id and image name, for the relauncher of a restart too
+/// (RD-1240-32).
+pub(crate) async fn end_process(pid: u32, image: &str) -> Result<(), String> {
     tracing::warn!(
         pid,
         "rDownloader accepted the stop and did not end; it is ended by force"
@@ -347,15 +352,39 @@ async fn start_and_await(journal: &Journal, version: &str) -> bool {
     }
 }
 
-/// Waits until the started process answers its health route with `version`: the address is the
-/// one its own local control file names, once that file carries its process id.
+/// Waits until the started process answers its health route with `version` ([`await_answer`]).
 async fn await_health(
     journal: &Journal,
     child: &mut Child,
     version: &str,
     is_new: bool,
 ) -> Result<(), Failure> {
-    let limit = Duration::from_secs(journal.plan.health_timeout_secs).max(HEALTH_TIMEOUT);
+    await_answer(
+        &journal.plan.data_dir,
+        journal.plan.health_timeout_secs,
+        child,
+        version,
+    )
+    .await?;
+    if is_new && cfg!(debug_assertions) && std::env::var_os(TEST_FAIL_HEALTH).is_some() {
+        return Err((
+            "update.health_failed_test",
+            format!("{TEST_FAIL_HEALTH} declares the new version unhealthy"),
+        ));
+    }
+    Ok(())
+}
+
+/// Waits until the started process answers its health route with `version`: the address is the
+/// one its own local control file in `data` names, once that file carries its process id. Shared
+/// with the relauncher of a restart (RD-1240-32).
+pub(crate) async fn await_answer(
+    data: &Path,
+    timeout_secs: u64,
+    child: &mut Child,
+    version: &str,
+) -> Result<(), Failure> {
+    let limit = Duration::from_secs(timeout_secs).max(HEALTH_TIMEOUT);
     let deadline = tokio::time::Instant::now() + limit;
     let client = crate::remote::local_http(Duration::from_secs(5))
         .map_err(|error| ("update.health_timeout", format!("{error:#}")))?;
@@ -366,16 +395,10 @@ async fn await_health(
                 format!("{version} ended right after its start ({status})"),
             ));
         }
-        if let Ok(Some(control)) = rd_api::local_control::read(&journal.plan.data_dir)
+        if let Ok(Some(control)) = rd_api::local_control::read(data)
             && control.pid == child.id()
             && answers_as(&client, &control.address, version).await
         {
-            if is_new && cfg!(debug_assertions) && std::env::var_os(TEST_FAIL_HEALTH).is_some() {
-                return Err((
-                    "update.health_failed_test",
-                    format!("{TEST_FAIL_HEALTH} declares the new version unhealthy"),
-                ));
-            }
             return Ok(());
         }
         if tokio::time::Instant::now() >= deadline {

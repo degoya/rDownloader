@@ -2,9 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api } from '@/api/client'
+import { api, responseError } from '@/api/client'
 import { useProxyProfiles } from '@/stores/proxyProfiles'
-import type { NetworkInterface, Settings, TorrentEngineCapabilities } from '@/api/types'
+import type { NetworkInterface, Settings, TorrentEngineCapabilities, TorrentPortTest } from '@/api/types'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { MIB, byteModel } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -56,6 +56,46 @@ const blocklistUrl = computed({
 const peerLimit = computed({
   get: () => settings.value.torrent_peer_limit ?? null,
   set: (value: number | null) => { settings.value.torrent_peer_limit = value && value > 0 ? value : null }
+})
+const maxActiveSeeds = computed({
+  get: () => settings.value.torrent_max_active_seeds ?? null,
+  set: (value: number | null) => { settings.value.torrent_max_active_seeds = value && value > 0 ? value : null }
+})
+
+/** The last port test of the saved settings, asked of this machine alone (RD-1240-16). */
+const portTest = ref<TorrentPortTest | null>(null)
+const portTestError = ref<string | null>(null)
+const portTesting = ref(false)
+async function testPort(): Promise<void> {
+  portTesting.value = true
+  portTestError.value = null
+  const response = await api.POST('/api/v1/torrents/network/port-test')
+  portTesting.value = false
+  portTest.value = response.data ?? null
+  if (!response.data) portTestError.value = responseError(response)
+}
+const PORT_TEST_COLORS = {
+  reachable: 'success',
+  listening: 'warning',
+  not_listening: 'error',
+  unavailable: 'error'
+} as const
+const portTestTitle = computed(() => {
+  const report = portTest.value
+  if (!report) return ''
+  return t(`settings.torrent.port_test.verdict.${report.verdict}`, {
+    port: report.listen_port ?? '–',
+    error: report.error ?? ''
+  })
+})
+const portTestDetails = computed(() => {
+  const report = portTest.value
+  if (!report || report.verdict === 'unavailable') return ''
+  const counts = t('settings.torrent.port_test.details', {
+    torrents: report.live_torrents,
+    peers: report.incoming_peers
+  })
+  return report.peer_proxy_configured ? `${counts}. ${t('settings.torrent.port_test.proxy_hint')}` : counts
 })
 
 onMounted(async () => {
@@ -123,6 +163,12 @@ const uploadLimitMiB = byteModel(
     <UFormField :label="t('settings.torrent.seed_time.label')" :description="t('settings.torrent.seed_time.description')">
       <NumberWithUnit v-model="seedTime" unit="min" :min="1" :format-options="WHOLE" :disabled="!seeding" class="w-full" />
     </UFormField>
+    <UFormField data-settings-anchor="torrent.max_active_seeds" :label="t('settings.torrent.max_active_seeds.label')" :description="t('settings.torrent.max_active_seeds.description')">
+      <UInputNumber v-model="maxActiveSeeds" :min="0" :max="500" :format-options="WHOLE" :disabled="!seeding" class="w-full" />
+    </UFormField>
+    <UFormField data-settings-anchor="torrent.max_active_downloads" :label="t('settings.torrent.max_active_downloads.label')" :description="t('settings.torrent.max_active_downloads.description')">
+      <UInputNumber v-model="settings.torrent_max_active_downloads" required :min="1" :max="32" :format-options="WHOLE" class="w-full" />
+    </UFormField>
     <UFormField
       data-settings-anchor="torrent.bind_interface"
       v-if="capabilities?.interface_binding"
@@ -177,6 +223,33 @@ const uploadLimitMiB = byteModel(
       :description="t('settings.torrent.announce_port.description')"
     >
       <UInputNumber v-model="announcePort" :min="0" :max="65535" :format-options="PLAIN" class="w-full" />
+    </UFormField>
+    <UFormField
+      data-settings-anchor="torrent.port_test"
+      :label="t('settings.torrent.port_test.label')"
+      :description="t('settings.torrent.port_test.description')"
+    >
+      <div class="space-y-2">
+        <UButton
+          :label="t('settings.torrent.port_test.action')"
+          icon="i-lucide-radar"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :loading="portTesting"
+          data-testid="torrent-port-test"
+          @click="testPort"
+        />
+        <UAlert
+          v-if="portTest"
+          :color="PORT_TEST_COLORS[portTest.verdict]"
+          variant="subtle"
+          :title="portTestTitle"
+          :description="portTestDetails || undefined"
+          data-testid="torrent-port-test-result"
+        />
+        <UAlert v-else-if="portTestError" color="error" variant="subtle" :title="portTestError" />
+      </div>
     </UFormField>
     <UFormField
       data-settings-anchor="torrent.blocklist"

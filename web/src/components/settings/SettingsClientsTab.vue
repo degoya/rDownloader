@@ -8,22 +8,29 @@
  * Both pairings hand out a capture token, so both cards show the one list of paired clients;
  * it is read once for the page. Desktop also carries what the agent does once it runs: its
  * clipboard pause and its shortcuts (RD-1180-01, RD-1180-03), which the card reads itself.
+ *
+ * API & MCP carries the one card of the settings document on this page: the aria2 JSON-RPC
+ * switch (RD-1240-11), whose secret is a token issued on the card above it.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
-import type { CaptureToken } from '@/api/types'
+import type { CaptureToken, Settings } from '@/api/types'
 import CaptureAgentCard from '@/components/settings/CaptureAgentCard.vue'
 import CapturePairingCard from '@/components/settings/CapturePairingCard.vue'
 import ExtensionPairingGuide from '@/components/settings/ExtensionPairingGuide.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import SettingsAriaRpcCard from '@/components/settings/SettingsAriaRpcCard.vue'
+import SettingsDocumentGate from '@/components/settings/SettingsDocumentGate.vue'
 import SettingsMcpAccess from '@/components/settings/SettingsMcpAccess.vue'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 
 /** Owned by the settings view, which keeps it in the address. */
 const activeTab = defineModel<string>('subTab', { required: true })
+/** The settings document, for the aria2 switch on API & MCP (RD-1240-11). */
+const settings = defineModel<Settings>()
 const { t } = useI18n()
 const agents = ref<CaptureToken[]>([])
 const { loading, loadError, load: trackLoad } = useFetchState()
@@ -77,7 +84,12 @@ async function loadAgents(): Promise<void> {
         </UCard>
       </template>
       <template #api>
-        <SettingsMcpAccess />
+        <div class="space-y-6">
+          <SettingsMcpAccess />
+          <SettingsDocumentGate v-if="settings">
+            <SettingsAriaRpcCard v-model="settings" />
+          </SettingsDocumentGate>
+        </div>
       </template>
     </UTabs>
   </div>

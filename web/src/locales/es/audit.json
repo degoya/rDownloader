@@ -85,7 +85,8 @@
     "token_limits_changed": "Límites del token cambiados",
     "proxy_profile_changed": "Perfil de proxy modificado",
     "remote_credential_changed": "Acceso remoto modificado",
-    "site_rules_cleared": "Todas las reglas de sitios eliminadas"
+    "site_rules_cleared": "Todas las reglas de sitios eliminadas",
+    "system_cleanup": "Carpeta de datos limpiada"
   },
   "list": {
     "title": "Registros",

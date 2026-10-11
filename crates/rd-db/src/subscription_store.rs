@@ -6,6 +6,10 @@
 //! for one item, and `INSERT … ON CONFLICT` against the UNIQUE index is the only version of
 //! that which is true without holding a lock across the network call.
 //!
+//! A skipped or dismissed item older than `subscription_item_retention_days` keeps only its key,
+//! in `subscription_item_keys` ([`compact_items`], RD-1240-35); [`record_items`] and
+//! [`knows_item`] count such a key as archived.
+//!
 //! A repeat poll refreshes an item nobody has decided on yet — its address and the media type
 //! the feed declares — because those are the feed's to correct and a stale one is what an
 //! archived item is stuck with otherwise. Anything already queued, skipped or dismissed is
@@ -25,6 +29,8 @@ use rd_core::{
 use sqlx::SqlitePool;
 use url::Url;
 
+#[path = "subscription_store_compact.rs"]
+mod compact;
 #[path = "subscription_store_items.rs"]
 mod items;
 #[path = "subscription_store_rows.rs"]
@@ -32,6 +38,10 @@ mod rows;
 #[path = "subscription_store_writes.rs"]
 mod writes;
 
+pub(crate) use compact::{COMPACTION_BATCH, compact_items, compactable_items};
+pub use compact::{
+    DEFAULT_ITEM_RETENTION_DAYS, ITEM_RETENTION_DAYS_RANGE, SubscriptionItemRetention,
+};
 pub(crate) use items::{
     ItemPasswords, clear_history, finish_run, record_items, set_item_state, set_pending_items_state,
 };
@@ -300,10 +310,13 @@ pub(crate) async fn runs(
 
 /// Whether the subscription's archive holds an item under `key` (RD-1150-05): where an indexer
 /// poll meets what it already has. One lookup on the UNIQUE index over `(subscription_id,
-/// item_key)`.
+/// item_key)`, and one on the compacted keys' primary key (RD-1240-35).
 pub(crate) async fn knows_item(pool: &SqlitePool, id: SubscriptionId, key: &str) -> Result<bool> {
     Ok(sqlx::query_scalar::<_, i64>(
-        "SELECT EXISTS(SELECT 1 FROM subscription_items WHERE subscription_id = ? AND item_key = ?)",
+        "SELECT EXISTS(SELECT 1 FROM subscription_items \
+                       WHERE subscription_id = ?1 AND item_key = ?2) \
+             OR EXISTS(SELECT 1 FROM subscription_item_keys \
+                       WHERE subscription_id = ?1 AND item_key = ?2)",
     )
     .bind(id.to_string())
     .bind(key)

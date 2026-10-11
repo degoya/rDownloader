@@ -158,6 +158,29 @@ export const SETTINGS_SUB_TABS = {
     { value: 'categories', labelKey: 'routing.tabs.categories', icon: 'i-lucide-folder-tree' },
     { value: 'rules', labelKey: 'routing.tabs.rules', icon: 'i-lucide-git-branch' }
   ],
+  // RD-1240-26: four cards, one subject each; the two switches that apply to every link first.
+  linkgrabber: [
+    { value: 'general', labelKey: 'settings.subtabs.linkgrabber.general', icon: 'i-lucide-sliders-horizontal', saveBar: true },
+    { value: 'blocklist', labelKey: 'settings.subtabs.linkgrabber.blocklist', icon: 'i-lucide-shield-ban', saveBar: true },
+    { value: 'containers', labelKey: 'settings.subtabs.linkgrabber.containers', icon: 'i-lucide-package-open', saveBar: true },
+    { value: 'filters', labelKey: 'settings.subtabs.linkgrabber.filters', icon: 'i-lucide-filter' }
+  ],
+  // RD-1240-26: the pipeline card had some twenty-five fields; the malware scan and the package
+  // names are tabs of their own (owner, 2026-10-10), the rest split in the order a package meets it.
+  postprocess: [
+    { value: 'unpack', labelKey: 'settings.subtabs.postprocess.unpack', icon: 'i-lucide-package-open', saveBar: true },
+    { value: 'repair', labelKey: 'settings.subtabs.postprocess.repair', icon: 'i-lucide-wrench', saveBar: true },
+    { value: 'names', labelKey: 'settings.subtabs.postprocess.names', icon: 'i-lucide-text-cursor-input', saveBar: true },
+    { value: 'malware', labelKey: 'settings.subtabs.postprocess.malware', icon: 'i-lucide-shield-check', saveBar: true },
+    { value: 'delivery', labelKey: 'settings.subtabs.postprocess.delivery', icon: 'i-lucide-cloud-upload', saveBar: true }
+  ],
+  // RD-1240-26: what was found, where it is looked up, and the versions the service installs.
+  // The status loads and acts on its own, so it has no save bar and does not wait.
+  tools: [
+    { value: 'status', labelKey: 'settings.subtabs.tools.status', icon: 'i-lucide-activity' },
+    { value: 'paths', labelKey: 'settings.subtabs.tools.paths', icon: 'i-lucide-folder-tree', saveBar: true },
+    { value: 'managed', labelKey: 'settings.subtabs.tools.managed', icon: 'i-lucide-package-check', saveBar: true }
+  ],
   bandwidth: [
     { value: 'status', labelKey: 'settings.subtabs.bandwidth.status', icon: 'i-lucide-gauge', documentCard: true },
     { value: 'profiles', labelKey: 'settings.subtabs.bandwidth.profiles', icon: 'i-lucide-sliders-horizontal' },
@@ -205,7 +228,13 @@ export const SETTINGS_SUB_TABS = {
   clients: [
     { value: 'desktop', labelKey: 'settings.subtabs.clients.desktop', icon: 'i-lucide-monitor' },
     { value: 'browser', labelKey: 'settings.subtabs.clients.browser', icon: 'i-lucide-puzzle' },
-    { value: 'api', labelKey: 'settings.subtabs.clients.api', icon: 'i-lucide-bot' }
+    { value: 'api', labelKey: 'settings.subtabs.clients.api', icon: 'i-lucide-bot', documentCard: true }
+  ],
+  // RD-1240-26: two subjects, what this browser keeps and what every browser shares. The first
+  // edits nothing of the settings document, so it has no save bar and does not wait for it.
+  interface: [
+    { value: 'browser', labelKey: 'settings.subtabs.interface.browser', icon: 'i-lucide-app-window' },
+    { value: 'display', labelKey: 'settings.subtabs.interface.display', icon: 'i-lucide-monitor', saveBar: true }
   ],
   // RD-1160-01: three pages split by their subjects rather than by a sixth card.
   notifications: [
@@ -251,7 +280,7 @@ export function settingsSection(value: unknown): string | null {
 const MOVED_SETTINGS_PAGES: Readonly<Record<string, string>> = {
   desktop: '/settings/clients',
   mcp: '/settings/clients?tab=api',
-  'routing?tab=collector': '/settings/linkgrabber',
+  'routing?tab=collector': '/settings/linkgrabber?tab=blocklist',
   'network?tab=auth': '/settings/accounts?tab=logins'
 }
 

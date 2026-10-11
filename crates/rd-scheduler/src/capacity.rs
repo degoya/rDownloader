@@ -245,13 +245,18 @@ impl SchedulerHandle {
     pub(crate) async fn package_destinations(
         &self,
     ) -> Result<HashMap<rd_core::PackageId, PathBuf>> {
-        Ok(self
-            .database
-            .list_packages()
-            .await?
-            .into_iter()
-            .filter(|package| !package.destination.is_empty())
-            .map(|package| (package.id, PathBuf::from(package.destination)))
-            .collect())
+        Ok(destinations_of(&self.database.list_packages().await?))
     }
+}
+
+/// The destination directory of each package that has one; the dispatch pass reads the
+/// packages once for this and for their "not before" (RD-1240-14).
+pub(crate) fn destinations_of(
+    packages: &[rd_core::DownloadPackage],
+) -> HashMap<rd_core::PackageId, PathBuf> {
+    packages
+        .iter()
+        .filter(|package| !package.destination.is_empty())
+        .map(|package| (package.id, PathBuf::from(&package.destination)))
+        .collect()
 }

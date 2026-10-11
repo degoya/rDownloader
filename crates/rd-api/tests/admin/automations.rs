@@ -403,11 +403,11 @@ async fn the_editor_vocabulary_matches_what_the_engine_accepts() {
     // Every trigger the vocabulary offers has to be one the API accepts, or the editor can
     // build a definition the server refuses.
     for trigger in vocabulary["triggers"].as_array().expect("triggers") {
+        // A schedule is read for the time trigger alone, and starting the queue suits them all.
         let body = json!({
-            "name": "Vocabulary probe",
-            "trigger": trigger,
-            "condition": { "type": "always" },
-            "actions": [{ "kind": "pause_package" }]
+            "name": "Vocabulary probe", "trigger": trigger,
+            "schedule": { "kind": "interval", "minutes": 60 },
+            "actions": [{ "kind": "start_queue" }]
         });
         let (status, response) = post_json(&harness.router, "/api/v1/automations", body).await;
         assert_eq!(status, StatusCode::CREATED, "{trigger}: {response}");

@@ -68,9 +68,15 @@ function page(rows: unknown[], total: number) {
   return { data: rows, response: new Response(null, { headers: { 'x-total-count': String(total) } }) }
 }
 
-async function mountView() {
+async function mountView(stubs: Record<string, unknown> = {}) {
   const { default: HistoryTab } = await import('./HistoryTab.vue')
-  return mountComponent(HistoryTab, { messages: { history, system } })
+  return mountComponent(HistoryTab, { messages: { history, system }, stubs })
+}
+
+/** The export's menu rendered open, each item the download link the real one draws. */
+const LinkMenu = {
+  props: ['items'],
+  template: '<div><slot /><a v-for="item in items.flat()" :key="item.label" :href="item.to" :download="item.download">{{ item.label }}</a></div>'
 }
 
 beforeEach(() => {
@@ -92,6 +98,18 @@ describe('HistoryTab', () => {
     expect(within(list).getByText(history.kinds.usenet)).toBeTruthy()
     expect(screen.getByText('2 of 120')).toBeTruthy()
     expect(screen.getByTestId('history-more')).toBeTruthy()
+  })
+
+  it('offers the list as CSV and NDJSON under the filter that is set (RD-1240-14)', async () => {
+    await mountView({ UDropdownMenu: LinkMenu })
+    await screen.findByTestId('history-list')
+    expect(screen.getByTestId('history-export')).toBeTruthy()
+    expect(screen.getByRole('link', { name: history.export.csv }).getAttribute('href')).toBe('/api/v1/history/export?format=csv')
+
+    await fireEvent.update(screen.getByTestId('history-search'), 'holiday')
+    const ndjson = screen.getByRole('link', { name: history.export.ndjson })
+    expect(ndjson.getAttribute('href')).toBe('/api/v1/history/export?format=ndjson&q=holiday')
+    expect(ndjson.hasAttribute('download')).toBe(true)
   })
 
   it('asks the server for one page under the filter, not for the whole history', async () => {

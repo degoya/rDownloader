@@ -13,7 +13,7 @@ use url::Url;
 use super::expand::{http_failure, transient, validate_redirect};
 // The impls in `resolver_host.rs` and `requests.rs` reach these as `super::name`, the path they
 // had when they lived in this file.
-use super::{account_credentials, account_username, permanent};
+use super::{account_credentials, account_username, permanent, vault_failure};
 
 mod requests;
 mod resolver_host;

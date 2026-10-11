@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
-import type { NotificationDelivery } from '@/api/types'
+import type { NotificationDelivery, NotificationTarget } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
 import { useFetchState } from '@/composables/useFetchState'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { formatLongMoment } from '@/utils/format'
 
+const props = withDefaults(defineProps<{
+  /** The destinations, so every row says where it went (RD-1240-33). */
+  targets?: NotificationTarget[]
+}>(), { targets: () => [] })
+
 const { t } = useI18n()
 const deliveries = ref<NotificationDelivery[]>([])
+const targetNames = computed(() => new Map(props.targets.map(target => [target.id, target.name])))
+
+/** The destination's name; one deleted since says so rather than leaving the row anonymous. */
+function targetName(delivery: NotificationDelivery): string {
+  return targetNames.value.get(delivery.target_id) ?? t('notifications.history.target_removed')
+}
 /** `loading` used to start `false`, so the history claimed to be empty before it had asked. */
 const { loading, loadError, load: track } = useFetchState()
 /**
@@ -72,8 +83,9 @@ defineExpose({ reload: load })
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm text-highlighted">{{ delivery.title }}</p>
           <p class="text-2xs text-muted">
+            <span class="font-medium text-default" data-testid="delivery-target">{{ targetName(delivery) }}</span> ·
             {{ formatLongMoment(delivery.updated_at) }} ·
-            {{ t('notifications.history.attempts', { count: delivery.attempt }) }}
+            {{ t('notifications.history.attempts', { count: delivery.attempt }, delivery.attempt) }}
             <template v-if="delivery.response_status"> · HTTP {{ delivery.response_status }}</template>
           </p>
           <p v-if="delivery.response_excerpt" class="mt-1 break-words font-mono text-2xs text-muted">{{ delivery.response_excerpt }}</p>

@@ -23,12 +23,14 @@ use crate::{
 
 mod accounts;
 mod categories;
+mod category_window;
 mod hotfolders;
 mod proxy_profiles;
 mod storage_roots;
 
 pub use accounts::*;
 pub use categories::*;
+pub use category_window::*;
 pub use hotfolders::*;
 pub use proxy_profiles::*;
 pub use storage_roots::*;

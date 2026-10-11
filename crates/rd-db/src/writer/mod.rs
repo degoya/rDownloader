@@ -119,6 +119,19 @@ impl Writer {
 /// on any busy install, growing for the life of the service.
 const EVENT_RETENTION_DAYS: i64 = 30;
 
+/// Event kinds that are broadcast and never written to `events` (RD-1240-35).
+///
+/// Both are change notices that tell a client to read again — a Usenet checkpoint, a candidate's
+/// online state — and they made 87 % of the table on a live install (822 k `usenet_changed` and
+/// 326 k `collector_changed` of 1.33 M rows in 27 days). Nothing reads the table back: the
+/// resume of an event stream replays the bus's own buffer (`EventBus`), automations and
+/// notifications listen on the bus. So they go the way `DownloadProgress` and the torrent's
+/// seeding writes already go: live only. Every other kind is persisted as before.
+pub(crate) const BROADCAST_ONLY_EVENT_KINDS: [rd_core::EventKind; 2] = [
+    rd_core::EventKind::UsenetChanged,
+    rd_core::EventKind::CollectorChanged,
+];
+
 /// Rows one event purge removes at most, so a sweep over a month of backlog never holds the
 /// writer for long (DB-09).
 pub(crate) const EVENT_PURGE_BATCH: i64 = 2_000;
@@ -173,10 +186,15 @@ fn publish_unit_event(reply: Reply<()>, result: Result<EventEnvelope>, events: &
     send(reply, result.map(|_| ()));
 }
 
+/// Writes `event` to `events` inside the caller's transaction — unless its kind is one of
+/// [`BROADCAST_ONLY_EVENT_KINDS`], which the caller still broadcasts after the commit.
 pub(crate) async fn insert_event(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     event: &EventEnvelope,
 ) -> Result<()> {
+    if BROADCAST_ONLY_EVENT_KINDS.contains(&event.kind) {
+        return Ok(());
+    }
     sqlx::query("INSERT INTO events (id, kind, occurred_at, payload_json) VALUES (?, ?, ?, ?)")
         .bind(event.id.to_string())
         .bind(

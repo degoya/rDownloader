@@ -322,3 +322,53 @@ async fn a_page_waiting_for_a_choice_is_a_success_of_the_hand_over() {
         .expect_err("refused");
     assert_eq!(super::pick_waiting(&refused), None);
 }
+
+/// "Add all from LinkGrabber" reads the service's counts, and a refusal keeps its code for the
+/// notification (RD-1240-07).
+#[tokio::test]
+async fn adding_all_from_the_linkgrabber_reads_the_counts_and_keeps_a_refusal() {
+    let address = answer_once(
+        "200 OK",
+        r#"{"links":5,"nzbs":1,"duplicates":2,"failed":1,"first_error":"collector.package_busy"}"#,
+    )
+    .await;
+    let client = super::CaptureClient::confirmed(
+        format!("http://{address}/").parse().expect("url"),
+        "token".to_owned(),
+    )
+    .expect("a client");
+    let answer = client
+        .enqueue_linkgrabber(true)
+        .await
+        .expect("the service answered");
+    assert_eq!(
+        answer,
+        crate::linkgrabber::Enqueued {
+            links: 5,
+            nzbs: 1,
+            duplicates: 2,
+            failed: 1,
+            first_error: Some("collector.package_busy".to_owned()),
+        }
+    );
+
+    let address = answer_once(
+        "403 Forbidden",
+        r#"{"error":"This token does not hold the scope this route requires","code":"auth.scope_insufficient","params":{"scope":"capture:queue"}}"#,
+    )
+    .await;
+    let client = super::CaptureClient::confirmed(
+        format!("http://{address}/").parse().expect("url"),
+        "token".to_owned(),
+    )
+    .expect("a client");
+    let refused = client
+        .enqueue_linkgrabber(false)
+        .await
+        .expect_err("an agent without queue control is refused");
+    let refusal = refused
+        .downcast_ref::<ServiceRefusal>()
+        .expect("the service's own refusal");
+    assert_eq!(refusal.status(), StatusCode::FORBIDDEN);
+    assert_eq!(refusal.code(), Some("auth.scope_insufficient"));
+}

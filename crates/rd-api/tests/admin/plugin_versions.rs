@@ -11,7 +11,7 @@ use axum::http::StatusCode;
 use common::{delete_json, get_json, parked_harness, post_json, put_json, test_harness};
 use rd_plugin_host::repository::{UpdatePolicy, UpdatePolicySource};
 
-const PLUGIN: &str = "019d0000-0000-7000-8000-000000000108";
+pub(crate) const PLUGIN: &str = "019d0000-0000-7000-8000-000000000108";
 
 /// Two installed version directories, as an upgrade leaves them. The manifests are not read
 /// here: removal works on the directory, and the listing skips what it cannot parse.
@@ -192,7 +192,7 @@ async fn removing_a_version_nothing_is_bound_to_still_answers_not_installed_twic
 
 /// A loadable package for one version: a valid manifest and a component that compiles. Unsigned,
 /// which the harness's development-mode verifier accepts.
-fn install_package(directory: &std::path::Path, version: &str) {
+pub(crate) fn install_package(directory: &std::path::Path, version: &str) {
     let path = directory.join("plugins").join(PLUGIN).join(version);
     std::fs::create_dir_all(&path).expect("version directory");
     std::fs::write(

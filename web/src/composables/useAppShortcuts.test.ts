@@ -1,7 +1,7 @@
 // The real key handling, not a copy: this subpath needs nothing but Vue and VueUse.
 import { defineShortcuts } from '@nuxt/ui/composables/defineShortcuts'
 import { fireEvent, render } from '@testing-library/vue'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 
 // `SHORTCUT_DEFINITIONS` lives in `shortcutDefinitions.ts`, a module free of
@@ -9,11 +9,12 @@ import { defineComponent, h } from 'vue'
 // Vitest — see `useNzbDropZone.test.ts` for the same constraint). `useAppShortcuts.ts` itself
 // wires `defineShortcuts`/`useOverlay` from that barrel, so it is exercised only through the app,
 // not imported here.
-import { setIndexerSearchFocusAction } from './indexerSearchFocus'
+import { cancelIndexerSearchRequest, setIndexerSearchFocusAction } from './indexerSearchFocus'
 import { setLinkGrabberActions } from './linkGrabberActions'
 import { SHORTCUT_DEFINITIONS, hasOpenDialog, registeredShortcuts, setClearCompletedAction, setShortcutFeedback, shouldSuppressShortcuts } from './shortcutDefinitions'
 import { sidebarCollapsed } from './sidebarCollapse'
 import english from '@/locales/en/common.json'
+import { router } from '@/router'
 
 function resolvePath(root: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((node, segment) => {
@@ -291,10 +292,13 @@ describe('the indexer-search shortcut', () => {
     expect(focused).toBe(0)
   })
 
-  it('does nothing where no search field handed its focus in', () => {
+  it('goes to the LinkGrabber where the drawer is not mounted (owner, 2026-10-10)', () => {
     setIndexerSearchFocusAction(null)
-    expect(() => entry.handler()).not.toThrow()
-    expect(focused).toBe(0)
+    const push = vi.spyOn(router, 'push').mockResolvedValue(undefined)
+    entry.handler()
+    expect(push).toHaveBeenCalledWith('/linkgrabber')
+    push.mockRestore()
+    cancelIndexerSearchRequest()
   })
 })
 

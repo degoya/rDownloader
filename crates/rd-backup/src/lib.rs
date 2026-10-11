@@ -17,7 +17,9 @@
 //! archives as its [`retention`] says. [`verify`] checks an archive where it lies. When a run happens is [`schedule`], the
 //! cron arithmetic the subscriptions use, read in an IANA zone. Getting an installation back from an archive — preview,
 //! test restore, path remap, cutover — is [`restore`] (RD-160-03). The verified database copy and
-//! archive the updater asks for before it switches versions are [`pre_update`] (RD-180-03).
+//! archive the updater asks for before it switches versions are [`pre_update`] (RD-180-03); what
+//! of them, and of the copies before a migration, stays once an update is proven is
+//! [`update_retention`] (RD-1240-34).
 
 #![warn(unreachable_pub)]
 
@@ -35,6 +37,7 @@ pub mod restore;
 pub mod retention;
 pub mod schedule;
 pub mod stream;
+pub mod update_retention;
 pub mod verify;
 
 pub use create::{

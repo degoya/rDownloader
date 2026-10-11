@@ -290,7 +290,7 @@ export const useTransfersStore = defineStore('transfers', () => {
 
   const { extractPackages, forceExtractPackage, loadPostprocess, updatePackages, renamePackageFolder, deletePackages, reorderPackages, reorderDownloads } =
     usePackageActions({ error, notice, refresh })
-  const { clear, clearing } = useClearList({ error, notice, warning, refresh })
+  const { clear, clearing } = useClearList({ error, notice, refresh })
   const {
     applyRailSettings, loadRailSettings, setSpeedLimit, speedLimitBusy, speedLimitMiB,
     maxActiveFiles, maxActiveFilesBusy, setMaxActiveFiles, loadPackageSpeedLimit, setPackageSpeedLimit

@@ -395,3 +395,41 @@ async fn a_large_hand_over_is_announced_once_without_overrunning_the_bus() {
     let (_, downloads) = get_json(&harness.router, "/api/v1/downloads").await;
     assert_eq!(ids(&downloads).len(), LINKS);
 }
+
+/// A name read from the address is the one a person reads (RD-1240-33): `%20`, `%28` and `%29`
+/// are a space and brackets in the file and in the package derived from it, a UTF-8 escape is
+/// its letter, and an encoded slash stays inside the name instead of naming a folder.
+#[tokio::test]
+async fn a_name_read_from_the_address_is_percent_decoded() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = parked_harness(directory.path()).await;
+    for (url, file_name) in [
+        (
+            "https://files.example.com/Big%20Buck%20Test%20%282026%29.mkv",
+            "Big Buck Test (2026).mkv",
+        ),
+        ("https://files.example.com/Caf%C3%A9.zip", "Café.zip"),
+        (
+            "https://files.example.com/outer%2F..%2Finner.bin",
+            "outer_.._inner.bin",
+        ),
+    ] {
+        let (status, created) = post_json(
+            &harness.router,
+            "/api/v1/downloads",
+            json!({ "url": url, "paused": true }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{url}: {created}");
+        assert_eq!(created["file_name"], file_name, "{url}");
+    }
+    let (_, packages) = get_json(&harness.router, "/api/v1/packages").await;
+    let names: Vec<&str> = packages
+        .as_array()
+        .expect("packages")
+        .iter()
+        .filter_map(|package| package["name"].as_str())
+        .collect();
+    assert!(names.contains(&"Big Buck Test (2026)"), "{names:?}");
+    assert!(names.iter().all(|name| !name.contains('%')), "{names:?}");
+}

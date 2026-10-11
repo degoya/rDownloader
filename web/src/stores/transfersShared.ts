@@ -18,7 +18,6 @@ export interface DownloadSelection {
 export type ClearScope = components['schemas']['PackageClearScope']
 
 /** A package the server refused to clear, with the stable code saying why. */
-export type ClearSkip = components['schemas']['PackageClearSkip']
 
 export type ClearResult = components['schemas']['PackageClearResponse']
 

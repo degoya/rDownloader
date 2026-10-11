@@ -49,6 +49,16 @@ pub async fn start(
     request: UpdateInstallRequest,
     audit: &AuditContext,
 ) -> Result<UpdateInstallStatus, ApiError> {
+    begin(state, request, audit, false).await
+}
+
+/// [`start`], recording whether a person asked or the automatic install did (RD-1240-27).
+pub(crate) async fn begin(
+    state: &AppState,
+    request: UpdateInstallRequest,
+    audit: &AuditContext,
+    automatic: bool,
+) -> Result<UpdateInstallStatus, ApiError> {
     let _starting = STARTING.lock().await;
     let updates = &state.updates;
     let kind = updates.install_kind();
@@ -87,7 +97,8 @@ pub async fn start(
             .detail("from_version", updates.current_version())
             .detail("install_kind", kind.as_str())
             .detail("schema_change", schema_change)
-            .detail("active_downloads", active),
+            .detail("active_downloads", active)
+            .detail("automatic", automatic),
     )
     .await;
     tracing::info!(target = %target, kind = kind.as_str(), "installing an update");

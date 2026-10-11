@@ -129,26 +129,62 @@ pub(crate) fn server_status(
     }
 }
 
-/// Renders the disabled status line of the tray menu.
+/// Renders the agent's half of the tray: the product, its version and where it points.
 ///
-/// Lives outside the platform-gated `tray` module so that it stays unit
-/// testable on every host.
-pub(crate) fn status_label(service: Option<&Url>, status: ServerStatus) -> String {
+/// The first of the two status lines (RD-1240-06); the server's state moved to its own line,
+/// [`server_label`], so this one stays short enough to read beside the transfers.
+pub(crate) fn agent_label(service: Option<&Url>) -> String {
     let product = format!("rDownloader Capture v{}", env!("CARGO_PKG_VERSION"));
     let Some(service) = service else {
-        return format!("{product} — not configured");
+        return format!("{product} \u{2014} not configured");
     };
     let host = service.host_str().unwrap_or("unknown host");
-    let endpoint = match service.port() {
-        Some(port) => format!("{host}:{port}"),
-        None => host.to_owned(),
-    };
-    let state = match status {
-        ServerStatus::Starting => "server starting",
-        ServerStatus::Running => "server running",
-        ServerStatus::Unreachable => "server not reachable",
-    };
-    format!("{product} — {endpoint} — {state}")
+    match service.port() {
+        Some(port) => format!("{product} \u{2014} {host}:{port}"),
+        None => format!("{product} \u{2014} {host}"),
+    }
+}
+
+/// Renders the second status line: the service's version, while it answers with one, and its
+/// state (RD-1240-06): "Server v1.24.0 — running", or "Server — not reachable".
+pub(crate) fn server_label(status: ServerStatus, version: Option<&str>) -> String {
+    let state = state_word(status);
+    match version {
+        Some(version) => format!("Server v{version} \u{2014} {state}"),
+        None => format!("Server \u{2014} {state}"),
+    }
+}
+
+/// The second status line while the service installs an update (RD-1240-25): "Server —
+/// updating to v1.25.0…", whether it still answers or is away restarting.
+pub(crate) fn server_updating_label(target: &str) -> String {
+    format!("Server \u{2014} updating to v{target}\u{2026}")
+}
+
+/// The second status line while a restart of the service is pending (RD-1240-32): "Server
+/// v1.24.0 — running, restart pending".
+pub(crate) fn server_restart_label(status: ServerStatus, version: Option<&str>) -> String {
+    format!("{}, restart pending", server_label(status, version))
+}
+
+/// The agent and the server on one line, for the tooltip.
+///
+/// The menu has two lines since RD-1240-06; the tooltip keeps the one it had, because it still
+/// has to say whether the server answers and has no second line to say it in.
+pub(crate) fn status_label(service: Option<&Url>, status: ServerStatus) -> String {
+    let agent = agent_label(service);
+    if service.is_none() {
+        return agent;
+    }
+    format!("{agent} \u{2014} server {}", state_word(status))
+}
+
+fn state_word(status: ServerStatus) -> &'static str {
+    match status {
+        ServerStatus::Starting => "starting",
+        ServerStatus::Running => "running",
+        ServerStatus::Unreachable => "not reachable",
+    }
 }
 
 #[cfg(test)]

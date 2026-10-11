@@ -103,10 +103,15 @@ useDebouncedEventRefresh(['plugin_catalog.changed'], loadDestinations)
 
 /**
  * The `plugin` kind is offered only when something can serve it. A kind that always fails
- * because nothing is installed is worse than one that is not in the list.
+ * because nothing is installed is worse than one that is not in the list. Browser push is made
+ * by the first browser that turns it on (RD-1240-13), so it is offered only while one is edited.
  */
 const kinds = computed(() => {
-  const values = ['webhook', 'smtp', 'apprise', ...(destinations.value.length ? ['plugin'] : [])] as const
+  const values = [
+    'webhook', 'smtp', 'apprise',
+    ...(destinations.value.length ? ['plugin'] : []),
+    ...(form.kind === 'web_push' ? ['web_push'] : [])
+  ] as const
   return values.map(value => ({ value, label: t(`notifications.kind.${value}`) }))
 })
 
@@ -287,12 +292,19 @@ async function remove(target: NotificationTarget): Promise<void> {
           <UFormField :label="t('notifications.target.name_label')" required>
             <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-bell" />
           </UFormField>
-          <UFormField :label="t(`notifications.target.endpoint_${form.kind}`)" :description="t(`notifications.target.endpoint_${form.kind}_description`)" required>
-            <UInput v-model="form.endpoint" required class="w-full font-mono" icon="i-lucide-link" />
-          </UFormField>
-          <UFormField :label="t(`notifications.target.secret_${form.kind}`)" :description="secretDescription">
-            <UInput v-model="form.secret" type="password" class="w-full font-mono" autocomplete="new-password" />
-          </UFormField>
+          <!-- Browser push has no address and no secret: it sends to the subscribed browsers. -->
+          <template v-if="form.kind === 'web_push'">
+            <p class="text-xs leading-5 text-muted">{{ t('notifications.target.web_push_description') }}</p>
+            <SettingsCrossLink anchor="interface.web_push" />
+          </template>
+          <template v-else>
+            <UFormField :label="t(`notifications.target.endpoint_${form.kind}`)" :description="t(`notifications.target.endpoint_${form.kind}_description`)" required>
+              <UInput v-model="form.endpoint" required class="w-full font-mono" icon="i-lucide-link" />
+            </UFormField>
+            <UFormField :label="t(`notifications.target.secret_${form.kind}`)" :description="secretDescription">
+              <UInput v-model="form.secret" type="password" class="w-full font-mono" autocomplete="new-password" />
+            </UFormField>
+          </template>
 
           <UFormField
             v-if="form.kind === 'plugin'"

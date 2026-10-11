@@ -406,5 +406,20 @@ pub(super) fn permanent(error: impl std::fmt::Display) -> Failure {
     Failure::new(FailureKind::Permanent, error.to_string())
 }
 
+/// A failed vault read as the failure a host call returns. An entry the master key cannot open
+/// keeps its stable code, so the check, the sign-in or the download that needed it says to enter
+/// the credential again instead of naming a decryption step (RD-1240-36).
+pub(super) fn vault_failure(error: anyhow::Error) -> Failure {
+    if rd_secrets::is_unreadable(&error) {
+        Failure::coded(
+            FailureKind::Permanent,
+            rd_secrets::SECRET_UNREADABLE,
+            error.to_string(),
+        )
+    } else {
+        permanent(error)
+    }
+}
+
 #[cfg(test)]
 mod tests;

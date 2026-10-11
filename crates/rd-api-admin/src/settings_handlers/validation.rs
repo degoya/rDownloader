@@ -119,6 +119,20 @@ fn validate_display_and_telemetry(settings: &mut SettingsResponse) -> Result<(),
             "The download history must keep between 100 and 100000 entries for 1 to 3650 days",
         ));
     }
+    if !rd_db::ITEM_RETENTION_DAYS_RANGE.contains(&settings.subscription_item_retention_days) {
+        let days = rd_db::ITEM_RETENTION_DAYS_RANGE;
+        return Err(ApiError::bad_request(
+            "settings.subscription_item_retention_invalid",
+            format!(
+                "The days a skipped or dismissed subscription item keeps its details must be \
+                 between {} and {}",
+                days.start(),
+                days.end()
+            ),
+        )
+        .with_param("min", *days.start())
+        .with_param("max", *days.end()));
+    }
     settings.otlp_endpoint = settings.otlp_endpoint.trim().to_owned();
     if !rd_core::is_valid_otlp_endpoint(&settings.otlp_endpoint)
         || !rd_core::OTLP_TIMEOUT_SECONDS_RANGE.contains(&settings.otlp_timeout_seconds)

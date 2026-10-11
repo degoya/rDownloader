@@ -15,13 +15,15 @@
   "audit": "Audit",
   "search": {
     "button": "Suchen",
-    "placeholder": "Einstellung oder Ansicht suchen …",
+    "placeholder": "Einstellung, Ansicht oder Download suchen …",
     "title": "Suche",
-    "description": "Finde jede Einstellung und wechsle in jede Ansicht.",
+    "description": "Finde jede Einstellung, wechsle in jede Ansicht und finde Pakete und Dateien der Warteschlange.",
     "groups": {
       "views": "Gehe zu",
       "pages": "Einstellungsseiten",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "packages": "Pakete",
+      "downloads": "Downloads"
     },
     "keywords": {
       "desktop": "Tray, Desktop-Agent, Browser-Erweiterung, Koppeln",
@@ -66,7 +68,9 @@
       "active_files": "parallele Downloads, gleichzeitig, Slots, Warteschlange",
       "collision": "Kollision, Namenskonflikt, überschreiben, umbenennen",
       "linkgrabber": "Sperrliste, ausgeschlossene Domains, Spiegel, Mirrors, Container",
-      "desktop_agent": "Tastenkürzel, Hotkey, Zwischenablage, pausieren, Capture-Agent"
+      "desktop_agent": "Tastenkürzel, Hotkey, Zwischenablage, pausieren, Capture-Agent",
+      "link_filters": "Filter, Linkfilter, ausblenden, Regeln",
+      "download_window": "Download-Zeitfenster, Zeitfenster, nachts laden, Uhrzeit, Startzeit, Downloads pausieren, tagsüber pausieren"
     }
   },
   "connection": {

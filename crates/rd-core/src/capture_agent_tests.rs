@@ -124,16 +124,54 @@ fn cmd_or_ctrl_is_ctrl_on_a_pc_and_cmd_on_a_mac() {
 
 /// The defaults are what a fresh agent registers, so each one has to pass the very rules a
 /// person's own choice is held to, and none may collide with another.
+///
+/// Quit has none, and neither have "Pause while gaming" (RD-1240-23), "Install server update"
+/// (RD-1240-25), "Install updates automatically" (RD-1240-27), the two LinkGrabber entries,
+/// "Install update" (RD-1240-24) and "Restart server" (RD-1240-32): they can be assigned, but a
+/// new tray function takes no combination nobody chose.
 #[test]
-fn the_defaults_pass_their_own_rules_and_quit_has_none() {
+fn the_defaults_pass_their_own_rules_and_quit_and_the_later_commands_have_none() {
     let defaults = CaptureShortcuts::default();
     assert_eq!(defaults.validated(), Ok(defaults.clone()));
-    assert_eq!(defaults.get(CaptureCommand::Quit), None);
+    let without = [
+        CaptureCommand::Quit,
+        CaptureCommand::GameMode,
+        CaptureCommand::InstallServerUpdate,
+        CaptureCommand::AutoInstall,
+        CaptureCommand::AddAllFromLinkGrabber,
+        CaptureCommand::AddAllFromLinkGrabberPaused,
+        CaptureCommand::InstallUpdate,
+        CaptureCommand::RestartServer,
+    ];
     for command in CaptureCommand::ALL {
-        if command != CaptureCommand::Quit {
-            assert!(defaults.get(command).is_some(), "{command:?} has a default");
-        }
+        assert_eq!(
+            defaults.get(command).is_some(),
+            !without.contains(&command),
+            "{command:?}"
+        );
     }
+}
+
+/// "Pause while gaming" takes a shortcut like every other command, held to the same rules.
+#[test]
+fn the_game_mode_switch_can_be_given_a_shortcut() {
+    let mut shortcuts = CaptureShortcuts::default();
+    shortcuts.set(CaptureCommand::GameMode, Some("cmdorctrl+alt+b".to_owned()));
+    let accepted = shortcuts.validated().expect("valid");
+    assert_eq!(
+        accepted.get(CaptureCommand::GameMode),
+        Some("CmdOrCtrl+Alt+B")
+    );
+    shortcuts.set(CaptureCommand::GameMode, Some("CmdOrCtrl+Alt+V".to_owned()));
+    let refused = shortcuts.validated().expect_err("a duplicate");
+    assert_eq!(refused.command, CaptureCommand::GameMode);
+    assert_eq!(refused.other, Some(CaptureCommand::SendClipboard));
+    let stored: CaptureShortcuts = serde_json::from_str("{}").expect("reads");
+    assert_eq!(
+        stored.get(CaptureCommand::GameMode),
+        None,
+        "none when left out"
+    );
 }
 
 #[test]
@@ -196,4 +234,92 @@ fn every_command_has_its_own_stable_name() {
             serde_json::Value::String(command.as_str().to_owned())
         );
     }
+}
+
+/// "Install server update" takes a shortcut like every other command (RD-1240-25), and a stored
+/// set from before it reads as none.
+#[test]
+fn the_server_update_can_be_given_a_shortcut() {
+    let mut shortcuts = CaptureShortcuts::default();
+    shortcuts.set(
+        CaptureCommand::InstallServerUpdate,
+        // Not Alt+U: Super+Alt+U is the system's on a Mac (`RESERVED_MAC`).
+        Some("cmdorctrl+alt+y".to_owned()),
+    );
+    let accepted = shortcuts.validated().expect("valid");
+    assert_eq!(
+        accepted.get(CaptureCommand::InstallServerUpdate),
+        Some("CmdOrCtrl+Alt+Y")
+    );
+    assert_eq!(
+        CaptureCommand::InstallServerUpdate.as_str(),
+        "install_server_update"
+    );
+    let stored: CaptureShortcuts = serde_json::from_str("{}").expect("reads");
+    assert_eq!(stored.get(CaptureCommand::InstallServerUpdate), None);
+}
+
+/// The tray entries that had no command before (RD-1240-24) take a shortcut like every other one,
+/// with stable names, and a stored set from before them reads as none.
+#[test]
+fn the_linkgrabber_entries_and_the_agents_update_can_be_given_a_shortcut() {
+    let mut shortcuts = CaptureShortcuts::default();
+    for (command, text, name) in [
+        (
+            CaptureCommand::AddAllFromLinkGrabber,
+            "cmdorctrl+alt+a",
+            "add_all_from_linkgrabber",
+        ),
+        (
+            CaptureCommand::AddAllFromLinkGrabberPaused,
+            "cmdorctrl+alt+shift+a",
+            "add_all_from_linkgrabber_paused",
+        ),
+        (
+            CaptureCommand::InstallUpdate,
+            "cmdorctrl+alt+n",
+            "install_update",
+        ),
+    ] {
+        shortcuts.set(command, Some(text.to_owned()));
+        assert_eq!(command.as_str(), name);
+    }
+    let accepted = shortcuts.validated().expect("valid");
+    assert_eq!(
+        accepted.get(CaptureCommand::AddAllFromLinkGrabberPaused),
+        Some("CmdOrCtrl+Alt+Shift+A")
+    );
+    assert_eq!(
+        accepted.get(CaptureCommand::InstallUpdate),
+        Some("CmdOrCtrl+Alt+N")
+    );
+    let stored: CaptureShortcuts = serde_json::from_str("{}").expect("reads");
+    for command in [
+        CaptureCommand::AddAllFromLinkGrabber,
+        CaptureCommand::AddAllFromLinkGrabberPaused,
+        CaptureCommand::InstallUpdate,
+    ] {
+        assert_eq!(stored.get(command), None, "{command:?}");
+    }
+}
+
+/// "Restart server" (RD-1240-32) is a command of its own with its stable name, and takes a
+/// shortcut like every other.
+#[test]
+fn the_server_restart_can_be_given_a_shortcut() {
+    assert_eq!(CaptureCommand::RestartServer.as_str(), "restart_server");
+    assert_eq!(
+        serde_json::to_value(CaptureCommand::RestartServer).expect("serialize"),
+        serde_json::json!("restart_server")
+    );
+    let mut shortcuts = CaptureShortcuts::default();
+    shortcuts.set(
+        CaptureCommand::RestartServer,
+        Some("cmdorctrl+alt+y".to_owned()),
+    );
+    let accepted = shortcuts.validated().expect("valid");
+    assert_eq!(
+        accepted.get(CaptureCommand::RestartServer),
+        Some("CmdOrCtrl+Alt+Y")
+    );
 }

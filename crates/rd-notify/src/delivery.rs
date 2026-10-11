@@ -11,6 +11,7 @@ use secrecy::ExposeSecret;
 
 use crate::model::{NotificationTarget, TargetKind};
 
+pub(crate) mod web_push;
 mod webhook;
 
 /// Header carrying the HMAC of the body, so a receiver can verify the call came from here.
@@ -134,12 +135,12 @@ pub async fn send(
         TargetKind::Apprise => {
             send_apprise(target, config, message, secret, vendor_directory).await
         }
-        // Never reached in practice: the service dispatches plugin targets before it gets
-        // here. Answering rather than panicking means a target whose kind was changed while
-        // a delivery was in flight fails once instead of taking the worker down.
-        TargetKind::Plugin => Ok(Attempt::failed(
+        // Never reached in practice: the service dispatches plugin and browser push targets
+        // before it gets here. Answering rather than panicking means a target whose kind was
+        // changed while a delivery was in flight fails once instead of taking the worker down.
+        TargetKind::Plugin | TargetKind::WebPush => Ok(Attempt::failed(
             None,
-            "a plugin destination is delivered by the service, not by this transport",
+            "this destination is delivered by the service, not by this transport",
             false,
         )),
     };

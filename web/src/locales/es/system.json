@@ -48,8 +48,10 @@
     "extension_steps": "En las opciones de la extensión, introduce {origin} como URL del servidor, pega este token y pulsa «Probar conexión». Instalación: consulta extension/README.md.",
     "token_copied_description": "El token de captura está en el portapapeles.",
     "label": "Nombre de la conexión",
-    "queue_control": "Puede pausar la cola",
-    "queue_control_help": "Permite «Pause all» y «Resume all» en el menú de la bandeja del agente, nada más. Sin esta opción el agente solo entrega enlaces."
+    "queue_control": "Puede controlar la cola",
+    "queue_control_help": "Permite «Start all», «Pause all» y «Add all from LinkGrabber» en el menú de la bandeja del agente, nada más. Sin esta opción el agente solo entrega enlaces.",
+    "server_update": "Puede instalar actualizaciones del servidor",
+    "server_update_help": "Permite «Install server update» en el menú de la bandeja del agente: instala la actualización ofrecida de rDownloader y el servicio se reinicia. Sin esta opción, la entrada abre la página de actualizaciones en el navegador. La misma opción permite «Restart server» en el menú de la bandeja, que reinicia rDownloader."
   },
   "agents": {
     "eyebrow": "Conexiones emparejadas",
@@ -705,7 +707,21 @@
       "outdated_description": "Un agente de captura sigue en la versión {agent} y rDownloader ya en {service}. Desde la 1.8.1, el agente se reinicia solo en menos de un minuto tras una actualización. Si no lo hace —porque es más antiguo o lo inició otro usuario—, ciérralo desde su icono de la bandeja o en el Administrador de tareas y vuelve a iniciarlo; en Linux, systemctl --user restart rdownloader-capture hace ambas cosas.",
       "self_offered": "Un agente de captura instalado sin rDownloader se ofrece a sí mismo la versión {version}: elige «Install update to {version}» en su menú de la bandeja o ejecuta rdownloader-capture update."
     },
-    "whats_new": "Novedades"
+    "whats_new": "Novedades",
+    "auto_install": {
+      "label": "Instalar actualizaciones automáticamente",
+      "description": "Instala por sí mismo una versión nueva encontrada en cuanto nada se ha descargado, posprocesado ni grabado durante cinco minutos, con copia de seguridad previa y vuelta atrás si no arranca.",
+      "locked": "No disponible: esta instalación ({kind}) no se actualiza sola; lo hace su gestor de paquetes o su contenedor.",
+      "window_label": "Instalar y reiniciar solo dentro de una franja horaria",
+      "window_description": "Se aplica a la instalación automática y al reinicio automático; sin franja, en cualquier momento. Las horas están en la zona horaria del plan de ancho de banda.",
+      "from": "Desde",
+      "until": "Hasta",
+      "window_empty": "El inicio y el fin deben ser distintos."
+    },
+    "auto_restart": {
+      "label": "Reiniciar automáticamente cuando haga falta",
+      "description": "Reinicia rDownloader por sí mismo tras un cambio de plugins en cuanto nada se ha descargado, posprocesado ni grabado durante cinco minutos, dentro de la franja horaria si hay una. Con las actualizaciones automáticas de plugins activadas, este interruptor es lo que las hace efectivas. Las transferencias continúan tras el reinicio."
+    }
   },
   "oidc": {
     "eyebrow": "Proveedor de identidad",
@@ -772,5 +788,39 @@
     "unit": "/min",
     "none": "Sin límite",
     "row": "Como máximo {count} llamadas por minuto"
+  },
+  "restart": {
+    "title": "Reinicio pendiente",
+    "intro": "Estos cambios surten efecto tras un reinicio:",
+    "now": "Reiniciar ahora",
+    "anyway": "Reiniciar de todos modos",
+    "confirm_title": "¿Reiniciar rDownloader?",
+    "failed_title": "No se puede reiniciar",
+    "restarting_title": "rDownloader se está reiniciando…",
+    "restarting_hint": "Esta página se recarga en cuanto el servicio vuelva a responder.",
+    "lost_title": "rDownloader no ha vuelto",
+    "lost": "Tras cinco minutos el servicio sigue sin responder. Puede que tengas que iniciarlo a mano.",
+    "automatic_hint": "«Reiniciar automáticamente cuando haga falta» está activado: rDownloader se reinicia por sí mismo en cuanto nada se ha ejecutado durante cinco minutos.",
+    "how": {
+      "self": "rDownloader se vuelve a iniciar por sí mismo.",
+      "systemd": "rDownloader se detiene y systemd vuelve a iniciar el servicio.",
+      "container": "rDownloader se detiene y la política de reinicio del contenedor lo vuelve a iniciar; sin una (docker run sin --restart) tienes que iniciarlo tú.",
+      "supervisor": "rDownloader se detiene y su gestor de servicios lo vuelve a iniciar.",
+      "manual": "rDownloader se detiene; vuelve a iniciarlo tú después."
+    },
+    "reason": {
+      "plugin_installed": "{plugin} instalado",
+      "plugin_updated": "{name} actualizado: {from} → {version}",
+      "plugin_staged": "{plugin} preparado para probarlo",
+      "plugin_unstaged": "Versión preparada de {plugin} descartada",
+      "plugin_enabled": "{name} activado",
+      "plugin_disabled": "{name} desactivado",
+      "plugin_removed": "{plugin} eliminado",
+      "plugin_key_revoked": "Clave de firma {name} revocada",
+      "plugin_digest_revoked": "Paquete {plugin} retirado",
+      "plugin_digest_unrevoked": "Retirada de {plugin} anulada",
+      "other": "Un cambio en los plugins",
+      "unnamed": "Un plugin"
+    }
   }
 }

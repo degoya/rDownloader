@@ -9,7 +9,7 @@
 //! default a missing field and would refuse a `null` one.
 
 use rmcp::schemars;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// A JSON object from the arguments that were given; an absent one is left out, not `null`.
 pub(crate) fn object(pairs: &[(&str, serde_json::Value)]) -> serde_json::Value {
@@ -47,8 +47,9 @@ pub(crate) struct DryRunParams {
     #[serde(default)]
     pub package_id: Option<String>,
     /// An automation that need not be saved or switched on, to judge on its own: `trigger`,
-    /// `condition` as create_automation takes them, and optionally `automation_id` when it is
-    /// an edit of a saved one. Absent judges every enabled automation.
+    /// `condition`, and optionally `schedule` and `actions` as create_automation takes them,
+    /// and `automation_id` when it is an edit of a saved one. Absent judges every enabled
+    /// automation.
     #[serde(default)]
     pub draft: Option<serde_json::Map<String, serde_json::Value>>,
 }
@@ -162,8 +163,35 @@ pub(crate) struct UpdateCaptureAgentSettingsParams {
     #[serde(default)]
     pub clipboard_paused: Option<bool>,
     /// Shortcuts to change, by command (open, start_all, pause_all, pause_half_hour, pause_hour,
-    /// clipboard_watch, send_clipboard, quit): a combination such as "CmdOrCtrl+Alt+V", or
-    /// `null` for none. Commands left out keep theirs.
+    /// clipboard_watch, send_clipboard, game_mode, install_server_update, auto_install, quit,
+    /// add_all_from_linkgrabber, add_all_from_linkgrabber_paused, install_update, restart_server):
+    /// a combination such as "CmdOrCtrl+Alt+V", or `null` for none. Commands left out keep theirs.
     #[serde(default)]
     pub shortcuts: Option<std::collections::BTreeMap<String, Option<String>>>,
+    /// Replaces the game mode as a whole: `enabled` (the switch, on when left out), `full_screen`
+    /// (Windows), `processes` (names such as "game.exe"), `action` (`pause` or `profile`) and
+    /// `profile_id` for `profile`. Left out, it stays as it is.
+    #[serde(default)]
+    pub game_mode: Option<GameModeParams>,
+}
+
+/// The agent's game mode (RD-1240-19), as a whole.
+#[derive(Deserialize, Serialize, schemars::JsonSchema)]
+pub(crate) struct GameModeParams {
+    /// Switched on (default) or off, like the tray's "Pause while gaming"; off keeps the
+    /// programs and full screen for the next time and lifts the agent's running pause.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    /// Step aside while a full-screen program is in front (Windows only).
+    #[serde(default)]
+    pub full_screen: bool,
+    /// Process names to step aside for, such as "game.exe"; compared without case and ending.
+    #[serde(default)]
+    pub processes: Vec<String>,
+    /// `pause` (default): pause the queue; `profile`: switch on the profile in `profile_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<String>,
+    /// The bandwidth profile for `action: profile`.
+    #[serde(default)]
+    pub profile_id: Option<String>,
 }

@@ -18,7 +18,8 @@
 //! A stop at any point leaves at most a `.partial` file or the staging folder, never a file
 //! under a final name; [`sweep`] removes both, and the service runs it at every start and before
 //! and after every preparation. The live database is only read. The newest [`KEPT`] copies and
-//! [`KEPT`] archives stay.
+//! [`KEPT`] archives stay; once the update is proven, only the newest of each
+//! ([`crate::update_retention`], RD-1240-34).
 
 use std::path::{Path, PathBuf};
 
@@ -32,7 +33,7 @@ use crate::private_folder;
 /// One preparation or sweep at a time in this process. The start's sweep of a stopped
 /// preparation runs in the background, and without this it removed the `.partial` copy of a
 /// preparation that had just begun (`sync …: No such file or directory`).
-static FOLDER_LOCK: std::sync::LazyLock<tokio::sync::Mutex<()>> =
+pub(crate) static FOLDER_LOCK: std::sync::LazyLock<tokio::sync::Mutex<()>> =
     std::sync::LazyLock::new(|| tokio::sync::Mutex::new(()));
 
 /// The folder below the data directory everything here is written to.
@@ -311,22 +312,13 @@ async fn rotate_archives(folder: &Path, keep: usize) {
     let Ok(mut entries) = tokio::fs::read_dir(folder).await else {
         return;
     };
-    let prefix = format!("{}{RUN}-", crate::ARCHIVE_PREFIX);
     let mut archives = Vec::new();
     while let Ok(Some(entry)) = entries.next_entry().await {
         let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
             continue;
         };
-        if name.starts_with(&prefix) && crate::is_archive_name(&name) {
-            // The timestamp is the last segment before the extension, fixed width.
-            let stamp = name
-                .trim_end_matches(crate::ARCHIVE_EXTENSION)
-                .trim_end_matches('.')
-                .rsplit('-')
-                .next()
-                .unwrap_or_default()
-                .to_owned();
-            archives.push((stamp, entry.path()));
+        if let Some(stamp) = archive_stamp(&name) {
+            archives.push((stamp.to_owned(), entry.path()));
         }
     }
     archives.sort();
@@ -336,6 +328,19 @@ async fn rotate_archives(folder: &Path, keep: usize) {
             tracing::warn!(%error, archive = %path.display(), "an old pre-update archive could not be removed");
         }
     }
+}
+
+/// The timestamp of an archive [`seal_archive`] named, the last segment before the extension and
+/// fixed width; `None` for every other file.
+pub(crate) fn archive_stamp(name: &str) -> Option<&str> {
+    let prefix = format!("{}{RUN}-", crate::ARCHIVE_PREFIX);
+    if !name.starts_with(&prefix) || !crate::is_archive_name(name) {
+        return None;
+    }
+    name.strip_suffix(crate::ARCHIVE_EXTENSION)?
+        .strip_suffix('.')?
+        .rsplit('-')
+        .next()
 }
 
 #[cfg(test)]

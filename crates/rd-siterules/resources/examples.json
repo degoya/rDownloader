@@ -6,7 +6,7 @@
       "rule": {
         "id": "debian-cd",
         "name": "Debian installation images",
-        "group": "examples",
+        "group": "linux",
         "description": "A one-stage rule. It claims the image folders of cdimage.debian.org, fetches the folder listing (fetch), takes every link that ends in .iso (regex with all: true, into links) and names the package after the first network installer it finds (package from regex). The site lists each image twice; the duplicate links collapse into one.",
         "version": 1,
         "match": {
@@ -41,7 +41,7 @@
       "rule": {
         "id": "ubuntu-releases",
         "name": "Ubuntu release images",
-        "group": "examples",
+        "group": "linux",
         "description": "A one-stage rule like the Debian one, for releases.ubuntu.com: one release folder (24.04/, noble/ ...) becomes one package of its .iso images. The package name is read from the page title, cut before the code name in brackets.",
         "version": 1,
         "match": {
@@ -76,7 +76,7 @@
       "rule": {
         "id": "blender-releases",
         "name": "Blender releases",
-        "group": "examples",
+        "group": "blender",
         "description": "A two-stage rule (groups with pick). The folder of one Blender series lists every build for every platform, so the rule's own steps only collect the file names (regex with all: true, into files). groups.from turns each file into one entry, and pick reads its version, platform and format, so the LinkGrabber lists the builds to choose from before anything is fetched. Only the chosen entries run the group's steps: the entry itself is the link, joined to the folder's address, and its name without the extension is the package name.",
         "version": 1,
         "match": {
@@ -134,7 +134,7 @@
       "rule": {
         "id": "blender-open-movies",
         "name": "Blender open movies",
-        "group": "examples",
+        "group": "blender",
         "description": "A two-stage rule for the folders of the Blender Foundation's open movies (Big Buck Bunny, Tears of Steel, Sintel). Each video file of the folder is one entry; pick reads its resolution and format, so you choose the version you want in the LinkGrabber. The chosen entry's link is the file itself; the package is named after the file without .zip.",
         "version": 1,
         "match": {
@@ -184,6 +184,419 @@
         },
         "probe": "https://download.blender.org/demo/movies/BBB/",
         "checked": "2026-10-09"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "fedora-releases",
+        "name": "Fedora release images",
+        "group": "linux",
+        "description": "A one-stage rule for the image folders of one Fedora release on the kernel.org mirror (dl.fedoraproject.org itself answers automated requests with a bot check). It fetches the folder listing, takes every link that ends in .iso (regex with all: true, into links), so the .manifest and CHECKSUM files stay out, and names the package after the CHECKSUM file: edition, release and architecture.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "mirrors.edge.kernel.org"
+          ],
+          "paths": [
+            "^/fedora/releases/[0-9]+/[A-Za-z]+/[a-z0-9_]+/iso/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(Fedora-[A-Za-z0-9._-]+\\.iso)\"",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "href=\"(Fedora-[A-Za-z]+-[0-9]+-[0-9.]+-[a-z0-9_]+)-CHECKSUM\""
+        },
+        "probe": "https://mirrors.edge.kernel.org/fedora/releases/44/Server/x86_64/iso/",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "archlinux-iso",
+        "name": "Arch Linux installation image",
+        "group": "linux",
+        "description": "A one-stage rule for Arch Linux's ISO folders on its own geo mirror, latest/ or one dated release. The folder lists the image twice, once dated and once as archlinux-x86_64.iso, so the pattern takes only the dated name (regex with all: true, into links) and the package is named after it; signatures, torrents and the bootstrap archives stay out.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "geo.mirror.pkgbuild.com"
+          ],
+          "paths": [
+            "^/iso/(?:latest|[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(archlinux-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}-x86_64\\.iso)\"",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "href=\"(archlinux-[0-9]{4}\\.[0-9]{2}\\.[0-9]{2})-x86_64\\.iso\""
+        },
+        "probe": "https://geo.mirror.pkgbuild.com/iso/latest/",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "linuxmint-releases",
+        "name": "Linux Mint release images",
+        "group": "linux",
+        "description": "A one-stage rule like the Debian one, for the release folders on pub.linuxmint.io: one version folder (22.3/ ...) becomes one package of its .iso images, Cinnamon, MATE and Xfce, and the checksum files stay out. The package is named after the first image, cut after the version.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "pub.linuxmint.io"
+          ],
+          "paths": [
+            "^/stable/[0-9]+(?:\\.[0-9]+)?/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(linuxmint-[a-z0-9.-]+\\.iso)\"",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "href=\"(linuxmint-[0-9]+(?:\\.[0-9]+)?)-"
+        },
+        "probe": "https://pub.linuxmint.io/stable/22.3/",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "libreoffice-stable",
+        "name": "LibreOffice downloads",
+        "group": "software",
+        "description": "A two-stage rule (groups with pick) for one platform folder of a stable LibreOffice release (win/x86_64/, deb/x86_64/, mac/aarch64/ ...). The folder holds the installer next to a help pack or language pack per language and the SDK, so the rule's steps only collect the file names (regex with all: true, into files), leaving the signatures and mirror lists out. pick reads version, part (helppack, langpack, sdk; none for the installer), language and format, so you choose in the LinkGrabber; the chosen entry is the link, and its name without the extension is the package name.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "download.documentfoundation.org"
+          ],
+          "paths": [
+            "^/libreoffice/stable/[0-9]+(?:\\.[0-9]+)+/(?:win|mac|deb|rpm)/[a-z0-9_]+/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(LibreOffice_[0-9][A-Za-z0-9._-]*\\.(?:msi|dmg|tar\\.gz))\"",
+            "into": "files",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "href=\"(LibreOffice_[0-9]+(?:\\.[0-9]+)+)_"
+        },
+        "groups": {
+          "from": "files",
+          "pick": {
+            "attributes": {
+              "version": "^LibreOffice_([0-9]+(?:\\.[0-9]+)+)_",
+              "part": "_(helppack|langpack|sdk)[_.]",
+              "language": "_(?:helppack|langpack)_([A-Za-z-]+)\\.",
+              "format": "\\.(msi|dmg|tar\\.gz)$"
+            }
+          },
+          "steps": [
+            {
+              "kind": "regex",
+              "from": "entry",
+              "pattern": "(.+)",
+              "into": "links"
+            }
+          ],
+          "package": {
+            "from": "regex",
+            "pattern": "^(.+?)\\.(?:msi|dmg|tar\\.gz)$",
+            "source": "entry"
+          }
+        },
+        "probe": "https://download.documentfoundation.org/libreoffice/stable/26.8.1/win/x86_64/",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "vlc-releases",
+        "name": "VLC media player downloads",
+        "group": "software",
+        "description": "A two-stage rule for one platform folder of a VLC release on VideoLAN's download server (last/ or a version, then win64/, win32/, winarm64/ or macosx/). The folder offers the same build as installer, MSI, zip and 7z, so the rule's steps collect the file names (regex with all: true, into files), leaving the checksums, signatures and debug symbols out, and pick reads version, platform and format. The chosen entry is the link; its name without the extension is the package name.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "download.videolan.org",
+            "get.videolan.org"
+          ],
+          "paths": [
+            "^/pub/videolan/vlc/(?:last|[0-9]+(?:\\.[0-9]+)+)/(?:win32|win64|winarm64|macosx)/$",
+            "^/vlc/(?:last|[0-9]+(?:\\.[0-9]+)+)/(?:win32|win64|winarm64|macosx)/$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(vlc-[0-9][0-9.]*-[a-z0-9]+\\.(?:exe|msi|zip|7z|dmg))\"",
+            "into": "files",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "href=\"(vlc-[0-9]+(?:\\.[0-9]+)+)-"
+        },
+        "groups": {
+          "from": "files",
+          "pick": {
+            "attributes": {
+              "version": "^vlc-([0-9]+(?:\\.[0-9]+)+)-",
+              "platform": "-([a-z0-9]+)\\.[a-z0-9]+$",
+              "format": "\\.(exe|msi|zip|7z|dmg)$"
+            }
+          },
+          "steps": [
+            {
+              "kind": "regex",
+              "from": "entry",
+              "pattern": "(.+)",
+              "into": "links"
+            }
+          ],
+          "package": {
+            "from": "regex",
+            "pattern": "^(.+?)\\.(?:exe|msi|zip|7z|dmg)$",
+            "source": "entry"
+          }
+        },
+        "probe": "https://download.videolan.org/pub/videolan/vlc/last/win64/",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "archive-org-items",
+        "name": "Internet Archive items",
+        "group": "archive",
+        "description": "A one-stage rule that turns an item page (archive.org/details/<item>) into one package of the item's files. It reads the item's name from the address (regex from url, into item), fetches the item page for its title, then the item's file list <item>_files.xml (it redirects to a storage node, hence *.archive.org) and takes every file the uploader put in (source=\"original\"; regex with all: true, into links). The archive's own derivatives, thumbnails and names starting with an underscore stay out; small item metadata files the archive lists as original come along. Last it fetches the item's download folder, so the file names become links below archive.org/download/<item>/. The package is named after the item's title. Items are anybody's uploads and an address says nothing about their licence: check it on the item page.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "archive.org",
+            "*.archive.org"
+          ],
+          "paths": [
+            "^/details/[A-Za-z0-9._-]+/?$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "regex",
+            "from": "url",
+            "pattern": "/details/([A-Za-z0-9._-]+)",
+            "into": "item"
+          },
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "fetch",
+            "url": "https://archive.org/download/${item}/${item}_files.xml",
+            "into": "files"
+          },
+          {
+            "kind": "fetch",
+            "url": "https://archive.org/download/${item}/",
+            "into": "folder"
+          },
+          {
+            "kind": "regex",
+            "from": "files",
+            "pattern": "<file name=\"([^_\"][^\"]*)\" source=\"original\"",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "<title>\\s*([^<]+?)\\s+:\\s+(?:[^<:]+\\s+:\\s+)?Free Download"
+        },
+        "probe": "https://archive.org/details/CosmosLaundromatFirstCycle",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "pastebin",
+        "name": "Pastebin pastes",
+        "group": "paste",
+        "description": "A one-stage rule for public pastes on pastebin.com, the paste page or its /raw/ form. It reads the paste's id from the address (regex from url, into id), fetches the paste page for its title, then the paste as plain text from /raw/<id> (into text), and takes every http or https address in the text (regex with all: true, into links); brackets, quotes and a trailing full stop or comma are not part of a link. The package is named after the paste's title.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "pastebin.com"
+          ],
+          "paths": [
+            "^/(?:raw/)?[A-Za-z0-9]{8}$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "regex",
+            "from": "url",
+            "pattern": "pastebin\\.com/(?:raw/)?([A-Za-z0-9]{8})",
+            "into": "id"
+          },
+          {
+            "kind": "fetch",
+            "url": "https://pastebin.com/${id}"
+          },
+          {
+            "kind": "fetch",
+            "url": "https://pastebin.com/raw/${id}",
+            "into": "text"
+          },
+          {
+            "kind": "regex",
+            "from": "text",
+            "pattern": "https?://[^\\s\"'<>()\\[\\]{}`]*[^\\s\"'<>()\\[\\]{}`.,;:!?]",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "<title>\\s*(.+?)\\s+-\\s+Pastebin\\.com\\s*</title>"
+        },
+        "probe": "https://pastebin.com/eY5ybGfc",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "rentry",
+        "name": "Rentry pages",
+        "group": "paste",
+        "description": "A one-stage rule for public pages on rentry.co and rentry.org. The raw text asks for an access code, so the rule reads the rendered page: it fetches it, cuts out the entry itself, the first <article> (regex, into text), and takes every http or https link in it (regex with all: true, into links), so the site's own navigation stays out. The package is named after the page title.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "rentry.co",
+            "rentry.org"
+          ],
+          "paths": [
+            "^/[A-Za-z0-9_-]+$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "(?s)<article>(.*?)</article>",
+            "into": "text"
+          },
+          {
+            "kind": "regex",
+            "from": "text",
+            "pattern": "href=\"(https?://[^\"]+)\"",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "title"
+        },
+        "probe": "https://rentry.co/manjaro-controversies",
+        "checked": "2026-10-10"
+      }
+    },
+    {
+      "enabled": false,
+      "rule": {
+        "id": "sourcehut-paste",
+        "name": "sourcehut pastes",
+        "group": "paste",
+        "description": "A one-stage rule for public pastes on paste.sr.ht. A paste may hold several files, each with a View raw link, so the rule fetches the paste page, collects those links (regex with all: true, into blobs), fetches every file raw (fetch over the list, into text) and takes every http or https address in the text (regex with all: true, into links); brackets, quotes and a trailing full stop or comma are not part of a link. The package is named after the paste's title, the name of its first file.",
+        "version": 1,
+        "match": {
+          "hosts": [
+            "paste.sr.ht"
+          ],
+          "paths": [
+            "^/~[A-Za-z0-9_.-]+/[0-9a-f]{40}$"
+          ]
+        },
+        "steps": [
+          {
+            "kind": "fetch"
+          },
+          {
+            "kind": "regex",
+            "pattern": "href=\"(/blob/[0-9a-f]{40})\"",
+            "into": "blobs",
+            "all": true
+          },
+          {
+            "kind": "fetch",
+            "url": "${blobs}",
+            "into": "text"
+          },
+          {
+            "kind": "regex",
+            "from": "text",
+            "pattern": "https?://[^\\s\"'<>()\\[\\]{}`]*[^\\s\"'<>()\\[\\]{}`.,;:!?]",
+            "into": "links",
+            "all": true
+          }
+        ],
+        "package": {
+          "from": "regex",
+          "pattern": "(?s)<title>\\s*([^<&]+?)\\s*&mdash;"
+        },
+        "probe": "https://paste.sr.ht/~sircmpwn/78cc21e1661d5a9d8038f47e532d286807ac89ad",
+        "checked": "2026-10-10"
       }
     }
   ]

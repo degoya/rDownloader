@@ -13,6 +13,7 @@ import {
   QUEUE_COLUMN_LIMITS,
   QUEUE_COLUMNS,
   clampColumnWidth,
+  hiddenColumnsStorageKey,
   queueColumnsStorageKey,
   useQueueColumns
 } from './useQueueColumns'
@@ -104,6 +105,36 @@ describe('useQueueColumns', () => {
     expect(columns.style.value['--queue-col-meta']).toBe('300px')
     expect(() => columns.resetAll()).not.toThrow()
     expect(columns.widths.value.meta).toBe(176)
+    expect(() => columns.setVisible('size', false)).not.toThrow()
+    expect(columns.hiddenAttr.value).toBe('size')
+  })
+
+  it('switches columns off per view, keeps their widths and draws them at 0 px (RD-1240-14)', () => {
+    const columns = useQueueColumns('downloads')
+    columns.setWidth('meta', 300)
+    columns.setVisible('meta', false)
+    columns.setVisible('state', false)
+    expect(columns.hidden.value).toEqual(['state', 'meta'])
+    expect(columns.hiddenAttr.value).toBe('state meta')
+    expect(columns.style.value['--queue-col-meta']).toBe('0px')
+    expect(JSON.parse(localStorage.getItem(hiddenColumnsStorageKey('downloads')) ?? '[]')).toEqual(['state', 'meta'])
+    expect(useQueueColumns('linkgrabber').hidden.value).toEqual([])
+
+    const again = useQueueColumns('downloads')
+    expect(again.hidden.value).toEqual(['state', 'meta'])
+    again.setVisible('meta', true)
+    expect(again.style.value['--queue-col-meta']).toBe('300px')
+    again.setVisible('state', true)
+    expect(again.hiddenAttr.value).toBeUndefined()
+    expect(localStorage.getItem(hiddenColumnsStorageKey('downloads'))).toBeNull()
+  })
+
+  it('ignores a column the list does not fill, stored or asked for', () => {
+    localStorage.setItem(hiddenColumnsStorageKey('linkgrabber'), JSON.stringify(['progress', 'size', 'bogus']))
+    const columns = useQueueColumns('linkgrabber')
+    expect(columns.hidden.value).toEqual(['size'])
+    columns.setVisible('progress', false)
+    expect(columns.hidden.value).toEqual(['size'])
   })
 })
 
@@ -123,5 +154,11 @@ describe('the queue grid in main.css', () => {
     const tracks = [...css.matchAll(/minmax\(var\(--queue-floor-(\w+)\), var\(--queue-width-(\w+)\)\)/g)]
     expect(tracks.map(match => match[1])).toEqual(['state', 'state', 'progress', 'state', 'progress', 'size', 'meta'])
     expect(tracks.every(match => match[1] === match[2])).toBe(true)
+  })
+
+  it('hides the cells of every column that can be switched off', () => {
+    for (const column of QUEUE_COLUMNS) {
+      expect(css).toContain(`[data-hidden-columns~="${column}"] .queue-cell-${column}`)
+    }
   })
 })

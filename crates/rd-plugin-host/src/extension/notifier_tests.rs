@@ -220,6 +220,31 @@ fn an_address_without_a_host_is_refused() {
     assert_eq!(refusal("https://"), "plugin.destination_invalid");
 }
 
+/// RD-1240-12: a destination whose manifest names nothing but `*` (Plex, Jellyfin, Emby) can
+/// only reach an address; anything else is refused, and an address still reaches its own host.
+#[test]
+fn a_manifest_of_only_the_catch_all_needs_an_address() {
+    let only = vec!["*".to_owned()];
+    for bare in ["plex", "192.168.1.10:32400", "", "ftp://plex.example.org"] {
+        assert_eq!(
+            destination_reach(&only, bare, &own())
+                .expect_err(bare)
+                .code
+                .as_deref(),
+            Some("plugin.destination_invalid"),
+            "{bare:?}"
+        );
+    }
+    assert_eq!(
+        destination_reach(&only, "http://192.168.1.10:32400", &own()).expect("address"),
+        ["192.168.1.10"]
+    );
+    assert_eq!(
+        destination_reach(&only, "https://jellyfin.example.org/jf", &own()).expect("address"),
+        ["jellyfin.example.org"]
+    );
+}
+
 #[test]
 fn a_manifest_without_the_catch_all_keeps_its_list_whatever_the_destination() {
     let telegram = vec!["api.telegram.org".to_owned()];

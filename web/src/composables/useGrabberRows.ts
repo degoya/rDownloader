@@ -47,6 +47,8 @@ export function useGrabberRows(view: {
   stateFilter: Ref<LinkCandidate['state'] | 'all'>
   /** Hosters hidden from the list, lower case. */
   hidden: Readonly<Ref<ReadonlySet<string>>>
+  /** Whether links a LinkFilter rule hid are drawn (RD-1240-09); hidden ones are left out otherwise. */
+  showFiltered?: Readonly<Ref<boolean>>
   openPackages: OpenState
   openMirrors: OpenState
 }) {
@@ -60,6 +62,7 @@ export function useGrabberRows(view: {
     for (const candidate of collector.candidates) {
       if (!candidate.package_id) continue
       if (view.stateFilter.value !== 'all' && candidate.state !== view.stateFilter.value) continue
+      if (candidate.hidden_by_filter && !view.showFiltered?.value) continue
       const bucket = buckets.get(candidate.package_id)
       if (bucket) bucket.push(candidate)
       else buckets.set(candidate.package_id, [candidate])

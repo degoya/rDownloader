@@ -15,13 +15,14 @@ use tokio_util::sync::CancellationToken;
 use crate::{ServeArgs, Telemetry, load_stored_settings, plugin_boot, startup, updater_cli};
 
 /// Runs the service until it is stopped: the store, the settings, the plugins, the queue and
-/// the post-processing, then the HTTP surface; the stop in the reverse order.
-pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<()> {
+/// the post-processing, then the HTTP surface; the stop in the reverse order. Answers the exit
+/// code a restart left to a supervisor ends with (RD-1240-32), `None` for an ordinary stop.
+pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<Option<i32>> {
     // An update the journal records ends before the database opens (RD-180-02): taken back when
     // it was interrupted, and when the files are the previous version again but this process is
     // the newer one, that previous program starts in its place.
     if updater_cli::recover(&args.paths.database)? {
-        return Ok(());
+        return Ok(None);
     }
     let startup::Store {
         data_directory,
@@ -249,7 +250,8 @@ struct Running {
     traffic_flusher: rd_usenet::TrafficFlusher,
 }
 
-/// Serves until the stop, then stops everything in order; the control file goes last.
+/// Serves until the stop, then stops everything in order; the control file goes last. Answers
+/// the exit code of a restart the supervisor carries out, if one was asked for.
 async fn serve_until_stopped(
     state: AppState,
     args: &ServeArgs,
@@ -258,7 +260,7 @@ async fn serve_until_stopped(
     listen: SocketAddr,
     shutdown: CancellationToken,
     running: Running,
-) -> Result<()> {
+) -> Result<Option<i32>> {
     // Written only now, with everything the stop route needs in place; removed as the last
     // step of this function, so `rdownloader stop --wait` sees it gone once the queue is safe.
     let (local_control, control_file) =
@@ -275,6 +277,7 @@ async fn serve_until_stopped(
     let state_link_check = state.link_check.clone();
     let remote_jobs = state.remote_jobs.clone();
     let stream_monitor = state.stream_monitor.clone();
+    let restart = state.restart.clone();
     updater_cli::confirm_when_answering(&args.paths.database, listen);
     let result = rd_api::serve(state, listen).await;
     stream_monitor.shutdown();
@@ -287,7 +290,8 @@ async fn serve_until_stopped(
     running.traffic_flusher.shutdown().await;
     remove_control_file(&control_file);
     stopped?;
-    result
+    result?;
+    Ok(restart.exit_code())
 }
 
 /// Cancelled by a signal, and by `POST /api/v1/system/shutdown` (RD-180-02): the one way to

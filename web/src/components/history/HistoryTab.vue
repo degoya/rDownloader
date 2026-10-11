@@ -8,9 +8,10 @@
  * what the filters match, details (the source addresses) behind the chevron pair. "Add again"
  * puts an entry's sources back into the LinkGrabber, where the online check and the review
  * apply as to a pasted link. The clear is the shared data-reset control, with its count and
- * its confirmation.
+ * its confirmation. The export (RD-1240-14) sits beside it where the other lists keep theirs
+ * (`AreaBackupButtons`): the filtered list as CSV or NDJSON, a plain download link each.
  */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from '@nuxt/ui/composables'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +20,7 @@ import type { HistoryEntry } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
 import { translateServerMessage } from '@/i18n/server'
-import { HISTORY_KINDS, HISTORY_PERIODS, useHistoryStore } from '@/stores/history'
+import { HISTORY_EXPORT_FORMATS, HISTORY_KINDS, HISTORY_PERIODS, useHistoryStore } from '@/stores/history'
 import { formatBytes, formatMoment } from '@/utils/format'
 
 const { t } = useI18n()
@@ -28,6 +29,13 @@ const toast = useToast()
 const store = useHistoryStore()
 const expanded = ref<Set<number>>(new Set())
 const adding = ref<number | null>(null)
+const exportItems = computed(() => [HISTORY_EXPORT_FORMATS.map(format => ({
+  label: t(`history.export.${format}`),
+  icon: format === 'csv' ? 'i-lucide-sheet' : 'i-lucide-file-json',
+  to: store.exportHref(format),
+  external: true,
+  download: true
+}))])
 
 function toggle(id: number): void {
   const next = new Set(expanded.value)
@@ -138,7 +146,12 @@ onMounted(() => {
           {{ t('history.list.shown', { shown: store.entries.length, total: store.total }) }}
         </span>
       </h2>
-      <SettingsDataResetButton target="history" :count="store.stored" @cleared="store.refresh()" />
+      <div class="flex items-center gap-2">
+        <UDropdownMenu :items="exportItems">
+          <UButton icon="i-lucide-download" :label="t('common.backup.export')" :title="t('history.export.hint')" color="neutral" variant="outline" size="sm" data-testid="history-export" />
+        </UDropdownMenu>
+        <SettingsDataResetButton target="history" :count="store.stored" @cleared="store.refresh()" />
+      </div>
     </div>
 
     <DataState :loading="store.loading" :error="store.error" :empty="store.settled && store.entries.length === 0" :rows="6">
@@ -151,7 +164,9 @@ onMounted(() => {
           <UBadge :color="entry.outcome === 'completed' ? 'success' : 'error'" variant="subtle" size="sm">
             {{ t(`history.outcomes.${entry.outcome}`) }}
           </UBadge>
-          <span class="min-w-0 flex-1 break-words text-sm font-medium text-highlighted">{{ entry.name }}</span>
+          <!-- At least 12rem: on a phone the meta wraps under the name instead of squeezing it to
+               ~90 px and six lines (RD-1240-33). -->
+          <span class="min-w-48 flex-1 break-words text-sm font-medium text-highlighted">{{ entry.name }}</span>
           <span class="shrink-0 text-xs text-muted">{{ t(`history.kinds.${entry.kind}`) }}</span>
           <span class="numeric shrink-0 text-xs text-muted">
             {{ formatBytes(entry.total_bytes) }} · {{ t('history.list.files', { count: entry.file_count }, entry.file_count) }}

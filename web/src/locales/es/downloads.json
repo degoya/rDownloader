@@ -51,8 +51,7 @@
     "remove_failed": "No se pudo quitar la entrada.",
     "nothing_to_reset": "Ahora mismo no se puede restablecer nada de la selección: las transferencias activas deben pausarse primero",
     "reorder_filter_active": "El orden solo se puede cambiar en la lista sin filtrar; de lo contrario, los archivos ocultos quedarían mal ordenados.",
-    "cleared_packages": "No se quitó ningún paquete. | Se quitó {count} paquete. | Se quitaron {count} paquetes.",
-    "clear_skipped": "No quedó ningún paquete intacto. | {count} paquete quedó intacto – {reason}: {names}. | {count} paquetes quedaron intactos – {reason}: {names}."
+    "cleared_packages": "No se quitó ningún paquete. | Se quitó {count} paquete. | Se quitaron {count} paquetes."
   },
   "notifications": {
     "failed_title": "Descarga fallida",
@@ -486,5 +485,47 @@
     "rail_title": "Marca de parada tras «{name}»: la cola se pausa cuando termine.",
     "set_failed": "No se pudo poner la marca de parada",
     "clear_failed": "No se pudo quitar la marca de parada"
+  },
+  "start_after": {
+    "set": "No empezar antes de…",
+    "set_hint": "Los archivos en espera del paquete no empiezan antes del momento que elijas",
+    "clear": "Quitar la hora de inicio",
+    "glyph": "Empieza más tarde",
+    "glyph_title": "No empieza antes de {time}",
+    "title": "Empezar el paquete más tarde",
+    "description": "Los archivos en espera de «{name}» no empiezan antes de este momento. Lo que ya está en marcha continúa.",
+    "day": "Día",
+    "time": "Hora",
+    "not_ahead": "Elige un momento en el futuro.",
+    "set_done": "No empieza antes de {time}",
+    "cleared": "Hora de inicio quitada",
+    "failed": "No se pudo guardar la hora de inicio"
+  },
+  "window": {
+    "menu": "Ventana de descarga …",
+    "menu_hint": "Cuándo puede descargar este paquete",
+    "title": "Ventana de descarga",
+    "description": "Cuándo puede descargar «{name}». Las horas se leen en la zona horaria del horario de ancho de banda ({zone}).",
+    "own_label": "Ventana propia",
+    "own_off_category": "Desactivada: el paquete sigue la ventana de su categoría ({window}).",
+    "own_off_schedule": "Desactivada: el paquete solo sigue el horario de ancho de banda.",
+    "add": "Añadir franja",
+    "anytime": "Sin franja: descarga a cualquier hora, solo cuenta el interruptor de abajo.",
+    "ignore_label": "Ignorar la pausa del horario",
+    "ignore_description": "Descarga aunque un perfil de ancho de banda pause las descargas, por ejemplo una descarga urgente durante el día.",
+    "rates_hint": "Un paquete nunca va más rápido que el límite global, el del perfil o el fijado a mano: siempre se aplica el más estricto.",
+    "saved": "Ventana de descarga guardada",
+    "cleared": "El paquete vuelve a seguir su categoría y el horario",
+    "failed": "Ventana de descarga no guardada",
+    "glyph": "Ventana de descarga",
+    "glyph_closed": "Fuera de su ventana de descarga, en espera: {window}",
+    "glyph_open": "Solo descarga dentro de su ventana: {window}",
+    "glyph_bypass": "Ignora la pausa del horario"
+  },
+  "schedule_pause": {
+    "label": "Pausado por el horario hasta {time}",
+    "label_open": "Pausado por el horario",
+    "title": "El perfil de ancho de banda «{profile}» pausa las descargas. Los paquetes que ignoran la pausa del horario continúan; en Ajustes › Ancho de banda puedes cambiar a otro perfil.",
+    "open_settings": "Cambiar perfil"
   }
 }

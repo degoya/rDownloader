@@ -84,6 +84,10 @@ pub struct Category {
     /// inherits the global list, a list — an empty one too — replaces it.
     #[serde(default)]
     pub package_name_regex: Option<Vec<crate::PackageNameRegex>>,
+    /// The download window of this category's packages (RD-1240-30); a package's own wins.
+    /// `None` leaves them to the bandwidth schedule alone. Set on its own route only.
+    #[serde(default)]
+    pub download_window: Option<crate::DownloadWindow>,
 }
 
 /// Allowlisted filesystem root available to categories.

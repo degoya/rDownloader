@@ -18,9 +18,23 @@ describe('the Nuxt UI theme', () => {
   })
 
   // RD-1120-14: the templates stopped naming these, so the theme is the only place left that does.
+  it('breaks a long word in a toast instead of clipping it', () => {
+    expect(uiTheme.toast.slots.title).toContain('wrap-anywhere')
+    expect(uiTheme.toast.slots.description).toContain('wrap-anywhere')
+  })
+
   it('carries the defaults the templates no longer repeat', () => {
     expect(uiTheme.alert.defaultVariants.variant).toBe('subtle')
     expect(uiTheme.modal.slots.footer).toBe('justify-end')
     expect(uiTheme.tabs.slots.content).toBe('pt-4')
+  })
+
+  // RD-1240-33: on a phone the sub-tab bars squeezed every name to a letter or two.
+  it('lets a pill tab bar scroll sideways with full names instead of squeezing them', () => {
+    const [pill] = uiTheme.tabs.compoundVariants
+    expect(pill?.variant).toBe('pill')
+    expect(pill?.orientation).toBe('horizontal')
+    expect(pill?.class.list).toContain('overflow-x-auto')
+    expect(pill?.class.trigger).toContain('shrink-0')
   })
 })

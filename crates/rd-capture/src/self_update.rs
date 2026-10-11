@@ -10,6 +10,7 @@
 //! module is the agent's side of them:
 //!
 //! * [`watch`] — the check loop, the tray's "Install update to X" and the service's request;
+//! * [`auto`] — "Install updates automatically" (RD-1240-27), off by default;
 //! * [`update`] — `rdownloader-capture update`, the same for a terminal;
 //! * [`apply_update`] — the updater, a copy of the agent outside its folder.
 //!
@@ -29,11 +30,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::config;
 
+mod auto;
 mod check;
 mod cli;
 mod updater;
 mod watch;
 
+pub(crate) use auto::{Request, UpdateMenu};
 pub(crate) use check::check_now;
 pub(crate) use cli::{UpdateArgs, update};
 pub(crate) use updater::{ApplyArgs, apply_update, recover_at_start, started};
@@ -59,6 +62,9 @@ pub(crate) struct Config {
     /// Whether the service may ask this agent to install an update. Off by default: no service,
     /// and no MCP tool behind one, installs software on this machine without its consent.
     pub(crate) allow_remote: bool,
+    /// Whether a found update installs by itself (RD-1240-27). Off by default, for the same
+    /// reason.
+    pub(crate) auto_install: bool,
 }
 
 impl Default for Config {
@@ -66,6 +72,7 @@ impl Default for Config {
         Self {
             check: true,
             allow_remote: false,
+            auto_install: false,
         }
     }
 }
@@ -158,17 +165,16 @@ pub(crate) fn report_of(
     }
 }
 
-/// The tray's entry for an offer: its text, and whether choosing it installs. Only the tray reads
-/// it, and Linux has none.
+/// The tray's entry for an offer: its text, and whether choosing it installs. Its shortcut reads
+/// it too, on Linux as well (`install_refusal`).
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub(crate) struct OfferEntry {
     pub(crate) label: String,
     pub(crate) enabled: bool,
 }
 
-/// Hands the tray its update entry, `None` for none. A callback, like `ActivitySink`.
-pub(crate) type OfferSink = Arc<dyn Fn(Option<OfferEntry>) + Send + Sync>;
+/// Hands the tray its update entries. A callback, like `ActivitySink`.
+pub(crate) type OfferSink = Arc<dyn Fn(UpdateMenu) + Send + Sync>;
 
 /// The entry for `offer`: "Install update to X" where the agent installs it itself, the way to
 /// get it otherwise; `None` beside the service, which offers it.
@@ -185,6 +191,22 @@ pub(crate) fn entry_for(setup: AgentSetup, offer: &Offer) -> Option<OfferEntry> 
         ),
     };
     Some(OfferEntry { label, enabled })
+}
+
+/// Why "Install update", clicked or pressed, installs nothing; `None` when it installs `offer`.
+///
+/// The shortcut obeys the entry (RD-1240-24): it is shown only with an offer and can be chosen only
+/// where the agent installs the offer itself. A key press has no entry to grey out, so the text
+/// is what the notification says instead.
+pub(crate) fn install_refusal(setup: AgentSetup, offer: Option<&Offer>) -> Option<String> {
+    let Some(offer) = offer else {
+        return Some("No update of rDownloader Capture is offered".to_owned());
+    };
+    match entry_for(setup, offer) {
+        Some(entry) if entry.enabled => None,
+        Some(entry) => Some(entry.label),
+        None => Some("The rDownloader service beside this agent updates it".to_owned()),
+    }
 }
 
 /// Whether the service's request to install `requested` is carried out: only when this agent's

@@ -3,7 +3,8 @@
     "webhook": "Webhook",
     "smtp": "E-mail (SMTP)",
     "apprise": "Apprise",
-    "plugin": "Plugin destination"
+    "plugin": "Plugin destination",
+    "web_push": "Browser push"
   },
   "event": {
     "package_completed": "Package finished",
@@ -21,7 +22,15 @@
     "plugin_update_failed": "Automatic plugin update failed",
     "usenet_job_hopeless": "Usenet download beyond repair",
     "usenet_quota_reached": "Usenet server quota used up",
-    "stop_mark_reached": "Stop mark reached"
+    "stop_mark_reached": "Stop mark reached",
+    "download_started": "Download started",
+    "links_added": "Links added",
+    "stream_recorded": "Stream recorded",
+    "subscription_matched": "Subscription found new items",
+    "update_installed": "rDownloader update installed",
+    "update_failed": "rDownloader update failed",
+    "automation": "Automation message",
+    "service_restarting": "rDownloader restarts"
   },
   "severity": {
     "info": "Info and above",
@@ -71,7 +80,8 @@
     "destination_description": "Which installed destination delivers this target.",
     "form_new": "New target",
     "secret_copy": "Not copied — enter it again; until then the copy has none.",
-    "setting_unset": "Not set"
+    "setting_unset": "Not set",
+    "web_push_description": "Sends to every browser that turned on “Push on this device” under Settings › Interface. No address or secret needed; the first browser creates this destination by itself."
   },
   "smtp": {
     "from": "Sender",
@@ -98,7 +108,7 @@
     "severity_label": "Minimum severity",
     "severity_description": "Quieter events are filtered out.",
     "events_label": "Events",
-    "events_description": "Nothing selected means every event.",
+    "events_description": "Nothing selected means every event except download starts and added links: a rule gets those only when you select them, and a burst of them arrives as one notification.",
     "all_events": "every event",
     "all_categories": "Every category",
     "empty": "No rule yet.",
@@ -111,7 +121,8 @@
     "eyebrow": "What happened",
     "title": "Delivery history",
     "description": "Every attempt with its response. Responses are truncated and redacted, so no secret ends up here.",
-    "attempts": "{count} attempts",
-    "empty": "Nothing delivered yet."
+    "attempts": "{count} attempt | {count} attempts",
+    "empty": "Nothing delivered yet.",
+    "target_removed": "removed destination"
   }
 }

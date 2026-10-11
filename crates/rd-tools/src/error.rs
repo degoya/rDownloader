@@ -29,6 +29,9 @@ pub enum ToolError {
     /// The manifest carries no build of this tool for this platform and application version.
     #[error("the tool manifest offers no build of {name} for this platform")]
     NoRelease { name: String },
+    /// No manifest URL is configured, so there is nothing to refresh from (RD-1240-28).
+    #[error("no tool manifest URL is configured")]
+    ManifestUrlMissing,
     /// Managed tools are switched off in the settings.
     #[error("managed external tools are switched off")]
     Disabled,
@@ -58,6 +61,7 @@ impl ToolError {
             Self::DownloadFailed { .. } => "tools.download_failed",
             Self::NotManaged(_) => "tools.not_managed",
             Self::NoRelease { .. } => "tools.no_release",
+            Self::ManifestUrlMissing => "tools.manifest_url_missing",
             Self::Disabled => "tools.disabled",
             Self::InUse { .. } => "tools.version_in_use",
             Self::NothingToRollBackTo { .. } => "tools.nothing_to_roll_back_to",

@@ -18,12 +18,16 @@ const PROGRESS_INTERVAL: Duration = Duration::from_millis(750);
 /// Downloads `DownloadKind::Torrent` files.
 pub struct TorrentRunner {
     service: TorrentService,
+    /// Read on every dispatch pass, so a changed limit needs no restart (RD-1240-16).
+    slots: crate::limits::ActiveDownloads,
 }
 
 impl TorrentRunner {
     #[must_use]
     pub fn new(service: TorrentService) -> Self {
-        Self { service }
+        let slots =
+            crate::limits::ActiveDownloads::new(std::sync::Arc::clone(&service.inner.settings));
+        Self { service, slots }
     }
 }
 
@@ -61,8 +65,9 @@ impl ExternalRunner for TorrentRunner {
         }
     }
 
+    /// The "active torrent downloads" setting; the queue keeps every further torrent waiting.
     fn slot_capacity(&self) -> usize {
-        4
+        self.slots.get()
     }
 
     async fn run(
@@ -122,18 +127,22 @@ impl ExternalRunner for TorrentRunner {
             .database
             .set_download_progress(file.id, stats.total_bytes, Some(stats.total_bytes))
             .await;
-        let seeding_enabled = self
+        let seed_limit = self
             .service
             .inner
             .settings
             .read()
             .await
-            .torrent_seeding_enabled;
-        if seeding_enabled {
+            .torrent_max_active_seeds;
+        if crate::seeding::seeds_after_download(&self.service, file.id).await {
             crate::seeding::begin(&self.service, file.id, torrent_id, info_hash, generation).await;
             let mut state = self.service.job_state(file.id).await;
             state.seed.start(chrono::Utc::now());
             self.service.store_job_state(file.id, state).await;
+            // Past the seed limit, the supervisor ends the longest seed now (RD-1240-16).
+            if seed_limit.is_some() {
+                self.service.nudge_seeding();
+            }
             return Ok(RunOutcome::Detached {
                 state: DownloadState::Seeding,
             });
@@ -198,7 +207,7 @@ impl TorrentRunner {
             .service
             .add_options(file.id, &package.destination)
             .await;
-        let response = match session.add_torrent(request, Some(options)).await {
+        let response = match self.service.add_to(&session, request, options).await {
             Ok(response) => response,
             Err(error) => {
                 return Ok(ControlFlow::Break(RunOutcome::Failed(Failure::coded(
@@ -211,8 +220,25 @@ impl TorrentRunner {
             }
         };
         let (torrent_id, handle) = match response {
-            AddTorrentResponse::Added(id, handle)
-            | AddTorrentResponse::AlreadyManaged(id, handle) => (id, handle),
+            AddTorrentResponse::Added(id, handle) => (id, handle),
+            AddTorrentResponse::AlreadyManaged(id, handle) => {
+                // Another torrent's handle is never this row's: retried, and the other torrent
+                // is left alone instead of being deleted as a mismatch (RD-1240-28).
+                let expected = self.service.job_state(file.id).await.metadata;
+                let expected = expected
+                    .as_ref()
+                    .map(|metadata| metadata.info_hash.as_str());
+                if crate::adding::is_foreign(&handle.info_hash().as_string(), expected) {
+                    return Ok(ControlFlow::Break(RunOutcome::Failed(Failure::coded(
+                        FailureKind::Transient {
+                            retry_after_seconds: Some(30),
+                        },
+                        "torrent.add_failed",
+                        "the session answered with another torrent",
+                    ))));
+                }
+                (id, handle)
+            }
             AddTorrentResponse::ListOnly(_) => {
                 return Ok(ControlFlow::Break(RunOutcome::Failed(Failure::coded(
                     FailureKind::Permanent,

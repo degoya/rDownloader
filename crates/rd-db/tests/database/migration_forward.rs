@@ -69,8 +69,10 @@ const BASELINES: &[(&str, i64)] = &[
 /// Two branches each took the next free number, only one of them landed, and renumbering the
 /// survivor would change a migration that installations have already applied. The numbers are
 /// therefore burnt: nothing may reuse them, and the count below is what stops this file from
-/// reading a gap as a missing migration. The one place they are named.
-const RESERVED_GAPS: &[i64] = &[66, 68, 88];
+/// reading a gap as a missing migration. The one place they are named. `0140` and `0141` were
+/// handed to the 1.24 wave-4 jobs "if one is needed" (RD-1240-32 among them); none was, and
+/// RD-1240-35 had already taken `0142`.
+const RESERVED_GAPS: &[i64] = &[66, 68, 88, 140, 141];
 
 /// Migration numbers a parallel branch holds and that arrive when it lands.
 ///

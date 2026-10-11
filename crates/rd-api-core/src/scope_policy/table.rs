@@ -13,6 +13,7 @@ const SECRETS: Requirement = Requirement::Scope(Scope::Secrets);
 const ADMIN: Requirement = Requirement::Scope(Scope::Admin);
 const CAPTURE: Requirement = Requirement::Scope(Scope::Capture);
 const CAPTURE_QUEUE: Requirement = Requirement::Scope(Scope::CaptureQueue);
+const CAPTURE_SERVER_UPDATE: Requirement = Requirement::Scope(Scope::CaptureServerUpdate);
 const METRICS: Requirement = Requirement::Scope(Scope::Metrics);
 
 /// Every route, with the scope it costs. Sorted by path then method.
@@ -191,6 +192,25 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/capture/cookies", Method::POST, CAPTURE),
     entry("/api/v1/capture/events", Method::GET, CAPTURE),
     entry("/api/v1/capture/file", Method::POST, CAPTURE),
+    // The agent's game mode (RD-1240-19): a timed pause or the profile its settings name, and
+    // the tray's switch of it (RD-1240-23).
+    entry("/api/v1/capture/game-mode", Method::POST, CAPTURE_QUEUE),
+    entry(
+        "/api/v1/capture/game-mode/hold",
+        Method::POST,
+        CAPTURE_QUEUE,
+    ),
+    entry(
+        "/api/v1/capture/game-mode/release",
+        Method::POST,
+        CAPTURE_QUEUE,
+    ),
+    // The tray's "Add all from LinkGrabber" (RD-1240-07): queue control, like pause and resume.
+    entry(
+        "/api/v1/capture/linkgrabber/enqueue",
+        Method::POST,
+        CAPTURE_QUEUE,
+    ),
     entry("/api/v1/capture/nzb", Method::POST, CAPTURE),
     entry("/api/v1/capture/pair", Method::POST, SECRETS),
     entry("/api/v1/capture/ping", Method::GET, CAPTURE),
@@ -198,6 +218,21 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // and the only queue routes a capture token reaches.
     entry("/api/v1/capture/queue/pause", Method::POST, CAPTURE_QUEUE),
     entry("/api/v1/capture/queue/resume", Method::POST, CAPTURE_QUEUE),
+    // The service's update in the tray (RD-1240-25): read by every agent, installed only by one
+    // paired with the right to.
+    entry("/api/v1/capture/server-update", Method::GET, CAPTURE),
+    entry(
+        "/api/v1/capture/server-update/install",
+        Method::POST,
+        CAPTURE_SERVER_UPDATE,
+    ),
+    // Restarting the service from the tray for what waits for the next start (RD-1240-32): the
+    // same right as installing its update, which restarts it too.
+    entry(
+        "/api/v1/capture/server-update/restart",
+        Method::POST,
+        CAPTURE_SERVER_UPDATE,
+    ),
     entry("/api/v1/capture/shortcut-report", Method::POST, CAPTURE),
     entry("/api/v1/capture/summary", Method::GET, CAPTURE),
     entry("/api/v1/categories", Method::GET, CONFIG),
@@ -206,6 +241,12 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/categories/{id}", Method::PUT, CONFIG),
     entry(
         "/api/v1/categories/{id}/collision-policy",
+        Method::PUT,
+        CONFIG,
+    ),
+    // A category's download window (RD-1240-30): configuration like its post-processing.
+    entry(
+        "/api/v1/categories/{id}/download-window",
         Method::PUT,
         CONFIG,
     ),
@@ -224,6 +265,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/collector/candidates/check", Method::POST, QUEUE),
     entry("/api/v1/collector/candidates/move", Method::POST, QUEUE),
     entry("/api/v1/collector/candidates/reorder", Method::POST, QUEUE),
+    entry("/api/v1/collector/candidates/unhide", Method::POST, QUEUE),
     entry("/api/v1/collector/candidates/{id}", Method::DELETE, QUEUE),
     entry("/api/v1/collector/candidates/{id}", Method::PATCH, QUEUE),
     entry(
@@ -410,8 +452,10 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/health", Method::GET, PUBLIC),
     // The download history (RD-1100-04): reading it is a read, adding an entry again is an
     // intake like pasting its links, and emptying it is a clear like the other histories'.
+    // The export (RD-1240-14) is the list as a file, so a read as well.
     entry("/api/v1/history", Method::GET, READ),
     entry("/api/v1/history/clear", Method::POST, ADMIN),
+    entry("/api/v1/history/export", Method::GET, READ),
     entry("/api/v1/history/{id}/readd", Method::POST, INTAKE),
     entry("/api/v1/hotfolders", Method::GET, CONFIG),
     entry("/api/v1/hotfolders", Method::POST, CONFIG),
@@ -427,6 +471,16 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/indexers/{id}", Method::DELETE, SECRETS),
     entry("/api/v1/indexers/{id}", Method::PUT, SECRETS),
     entry("/api/v1/indexers/{id}/caps", Method::POST, SECRETS),
+    // LinkFilter rules (RD-1240-09): written like the routing rules; applying them changes the
+    // LinkGrabber's rows like a regroup; the file transfer is an area bundle like the others.
+    entry("/api/v1/link-filters", Method::GET, CONFIG),
+    entry("/api/v1/link-filters", Method::POST, CONFIG),
+    entry("/api/v1/link-filters/apply", Method::POST, QUEUE),
+    entry("/api/v1/link-filters/export", Method::GET, ADMIN),
+    entry("/api/v1/link-filters/import", Method::POST, ADMIN),
+    entry("/api/v1/link-filters/reorder", Method::POST, CONFIG),
+    entry("/api/v1/link-filters/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/link-filters/{id}", Method::PUT, CONFIG),
     // The one route the scrape scope reaches, and the one route `api:read` does not: a
     // Prometheus target is a credential that lives in a configuration file for years, so it
     // gets an island of its own (RD-110-01).
@@ -464,6 +518,24 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry(
         "/api/v1/notifications/targets/{id}/test",
         Method::POST,
+        CONFIG,
+    ),
+    // RD-1240-13: the browsers that receive push messages, a notification destination like the
+    // targets above.
+    entry("/api/v1/notifications/web-push/key", Method::GET, CONFIG),
+    entry(
+        "/api/v1/notifications/web-push/subscriptions",
+        Method::GET,
+        CONFIG,
+    ),
+    entry(
+        "/api/v1/notifications/web-push/subscriptions",
+        Method::POST,
+        CONFIG,
+    ),
+    entry(
+        "/api/v1/notifications/web-push/subscriptions/{id}",
+        Method::DELETE,
         CONFIG,
     ),
     entry("/api/v1/nzb/imports", Method::GET, QUEUE),
@@ -511,6 +583,9 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/packages/{id}", Method::PATCH, QUEUE),
     entry("/api/v1/packages/{id}/collision-policy", Method::GET, READ),
     entry("/api/v1/packages/{id}/collision-policy", Method::PUT, QUEUE),
+    // A package's download window (RD-1240-30): set like its "not before".
+    entry("/api/v1/packages/{id}/download-window", Method::GET, READ),
+    entry("/api/v1/packages/{id}/download-window", Method::PUT, QUEUE),
     entry("/api/v1/packages/{id}/extract", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}/extract/force", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}/folder", Method::POST, QUEUE),
@@ -520,6 +595,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // A package's own speed limit (RD-1100-01): read like the package, set like its priority.
     entry("/api/v1/packages/{id}/speed-limit", Method::GET, READ),
     entry("/api/v1/packages/{id}/speed-limit", Method::PUT, QUEUE),
+    // A package's "not before" (RD-1240-14): set like its priority.
+    entry("/api/v1/packages/{id}/start-after", Method::PUT, QUEUE),
     entry("/api/v1/plugins", Method::GET, ADMIN),
     // Choosing which of the release's own services are installed (RD-160-05).
     entry("/api/v1/plugins/bundled", Method::GET, ADMIN),
@@ -615,6 +692,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/queue/pause", Method::DELETE, QUEUE),
     entry("/api/v1/queue/pause", Method::GET, READ),
     entry("/api/v1/queue/pause", Method::PUT, QUEUE),
+    // Finding packages and files by name (RD-1240-14) reads what the queue list reads.
+    entry("/api/v1/queue/search", Method::GET, READ),
     entry("/api/v1/queue/stop-mark", Method::DELETE, QUEUE),
     entry("/api/v1/queue/stop-mark", Method::GET, READ),
     entry("/api/v1/queue/stop-mark", Method::PUT, QUEUE),
@@ -768,6 +847,10 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // page's token may show them.
     entry("/api/v1/system/about", Method::GET, READ),
     entry("/api/v1/system/about/licenses", Method::GET, READ),
+    // What a clean-up of the data directory would remove, and the clean-up itself (RD-1240-34):
+    // the backups an update's rollback reaches for, so the service's own.
+    entry("/api/v1/system/cleanup", Method::GET, ADMIN),
+    entry("/api/v1/system/cleanup", Method::POST, ADMIN),
     // Counting what a clear would remove discloses how much the installation has done and
     // how long it has run, which is the same disclosure the audit log is priced for.
     entry("/api/v1/system/data-reset", Method::GET, ADMIN),
@@ -775,6 +858,12 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // Stopping the service and the backup before an update (RD-180-02, RD-180-03): the service
     // itself. Refused from anywhere but this machine by the handlers; the local control token
     // opens these two and nothing else (`crate::local_control`).
+    // A pending restart names the plugins that wait for the next start, which the plugin list
+    // prices at the administrator's; restarting stops the service and brings it back
+    // (RD-1240-32), the administrator's like the stop. The tray reads only whether one is
+    // pending, on its own route.
+    entry("/api/v1/system/restart", Method::GET, ADMIN),
+    entry("/api/v1/system/restart", Method::POST, ADMIN),
     entry("/api/v1/system/shutdown", Method::POST, ADMIN),
     entry("/api/v1/system/tools", Method::GET, READ),
     entry(
@@ -797,6 +886,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/torrents/capabilities", Method::GET, READ),
     entry("/api/v1/torrents/import", Method::POST, INTAKE),
     entry("/api/v1/torrents/network/interfaces", Method::GET, CONFIG),
+    // Starts the engine when it is not running and dials its own listener (RD-1240-16).
+    entry("/api/v1/torrents/network/port-test", Method::POST, CONFIG),
     entry("/api/v1/torrents/network/status", Method::GET, READ),
     entry("/api/v1/usenet/servers", Method::GET, SECRETS),
     entry("/api/v1/usenet/servers", Method::POST, SECRETS),

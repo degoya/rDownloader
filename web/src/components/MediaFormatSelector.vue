@@ -21,15 +21,19 @@ import type {
   MediaFormatCriteria,
   MediaFormatsResponse,
   MediaEmbedPolicy,
+  MediaPauses,
   MediaResolution,
+  MediaSection,
   TrackSelection,
   VideoCodecFamily
 } from '@/api/types'
 import MediaCookieProfileField from '@/components/MediaCookieProfileField.vue'
 import MediaEmbedPolicyCard from '@/components/MediaEmbedPolicyCard.vue'
 import MediaOutputTemplateField from '@/components/MediaOutputTemplateField.vue'
+import MediaSectionPausesField from '@/components/MediaSectionPausesField.vue'
 import MediaTrackSelector from '@/components/MediaTrackSelector.vue'
 import { formatBytes } from '@/utils/format'
+import { presetCriteria } from '@/utils/mediaPresets'
 import { WHOLE, orNull } from '@/utils/numberInput'
 
 const { t } = useI18n()
@@ -53,6 +57,8 @@ const PRESETS = ['best', '2160p', '1440p', '1080p', '720p', '480p', 'audio_mp3']
 const VIDEO_CODECS: VideoCodecFamily[] = ['avc', 'hevc', 'av1', 'vp9', 'vp8']
 const AUDIO_CODECS: AudioCodecFamily[] = ['aac', 'opus', 'vorbis', 'mp3', 'flac', 'ac3', 'eac3']
 const RANGES: DynamicRange[] = ['sdr', 'hdr10', 'hdr10_plus', 'hlg', 'dolby_vision']
+/** What yt-dlp's `--audio-format` is offered with (RD-1240-15); `video` keeps the video. */
+const AUDIO_FORMATS = ['video', 'mp3', 'm4a', 'opus', 'flac'] as const
 
 /**
  * Own copy of the criteria so editing a filter does not mutate the prop.
@@ -75,7 +81,10 @@ function cloneCriteria(value: MediaFormatCriteria): MediaFormatCriteria {
     embed: {
       ...value.embed,
       sponsorblock: { ...value.embed.sponsorblock, categories: [...value.embed.sponsorblock.categories] }
-    }
+    },
+    // Left out of the JSON when unset, so `undefined` arrives as often as `null`.
+    section: value.section ? { ...value.section } : null,
+    pauses: value.pauses ? { ...value.pauses } : null
   }
 }
 
@@ -118,6 +127,19 @@ const videoCodecItems = computed(() => VIDEO_CODECS.map(value => ({ label: t(`li
 const audioCodecItems = computed(() => AUDIO_CODECS.map(value => ({ label: t(`linkgrabber.media.codecs.${value}`), value })))
 const rangeItems = computed(() => RANGES.map(value => ({ label: t(`linkgrabber.media.ranges.${value}`), value })))
 const languageItems = computed(() => languages.value.map(value => ({ label: value.toUpperCase(), value })))
+/**
+ * A codec the catalogue names is named as the codec filter names it — "Opus", not "OPUS"
+ * (RD-1240-28); `m4a` is a container, written as the container list writes one.
+ */
+function audioFormatLabel(value: typeof AUDIO_FORMATS[number]): string {
+  if (value === 'video') return t('linkgrabber.media.audio_format_video')
+  return (AUDIO_CODECS as readonly string[]).includes(value) ? t(`linkgrabber.media.codecs.${value}`) : value.toUpperCase()
+}
+const audioFormatItems = computed(() => AUDIO_FORMATS.map(value => ({ label: audioFormatLabel(value), value })))
+/** The extraction codec in force, or `video` while the job keeps the video. */
+const audioFormat = computed(() =>
+  criteria.value.target === 'audio_only' && criteria.value.output.mode === 'extract_audio' ? criteria.value.output.codec : 'video'
+)
 
 const matched = computed(() => resolution.value?.matched_total ?? 0)
 const total = computed(() => resolution.value?.candidate_total ?? inventory.value.length)
@@ -143,7 +165,7 @@ const embedWarnings = computed(() => resolution.value?.embed_warnings ?? [])
 const warnings = computed(() => resolution.value?.warnings ?? [])
 
 function selectPreset(preset: string): void {
-  criteria.value = { ...criteria.value, preset: preset === 'custom' ? null : preset }
+  criteria.value = preset === 'custom' ? { ...criteria.value, preset: null } : presetCriteria(preset, criteria.value)
   emit('preview', criteria.value)
 }
 
@@ -160,6 +182,25 @@ function updateTracks(tracks: TrackSelection): void {
 
 function updateEmbed(embed: MediaEmbedPolicy): void {
   criteria.value = { ...criteria.value, embed, preset: null }
+  emit('preview', criteria.value)
+}
+
+/** Audio only into the chosen codec, or back to the video the `best` preset remuxes to mp4. */
+function selectAudioFormat(format: string): void {
+  const quality = criteria.value.output.mode === 'extract_audio' ? criteria.value.output.quality ?? 0 : 0
+  criteria.value = format === 'video'
+    ? { ...criteria.value, target: 'video', output: { mode: 'remux', container: 'mp4' }, preset: null }
+    : { ...criteria.value, target: 'audio_only', output: { mode: 'extract_audio', codec: format, quality }, preset: null }
+  emit('preview', criteria.value)
+}
+
+function updateSection(section: MediaSection | null): void {
+  criteria.value = { ...criteria.value, section, preset: null }
+  emit('preview', criteria.value)
+}
+
+function updatePauses(pauses: MediaPauses | null): void {
+  criteria.value = { ...criteria.value, pauses, preset: null }
   emit('preview', criteria.value)
 }
 
@@ -211,6 +252,17 @@ defineExpose({ setResolution })
     />
 
     <div class="grid gap-3 sm:grid-cols-2">
+      <UFormField :label="t('linkgrabber.media.audio_format')">
+        <USelect
+          :model-value="audioFormat"
+          :items="audioFormatItems"
+          value-key="value"
+          size="xs"
+          :disabled="props.busy || !props.formats.capabilities.can_transcode_audio"
+          data-testid="media-audio-format"
+          @update:model-value="selectAudioFormat"
+        />
+      </UFormField>
       <UFormField :label="t('linkgrabber.media.filters.container')">
         <USelectMenu
           v-model="criteria.containers"
@@ -298,6 +350,15 @@ defineExpose({ setResolution })
       :can-transcode="props.formats.capabilities.can_transcode_audio"
       :busy="props.busy"
       @change="updateEmbed"
+    />
+
+    <MediaSectionPausesField
+      :section="criteria.section ?? null"
+      :pauses="criteria.pauses ?? null"
+      :can-cut="canMerge"
+      :busy="props.busy"
+      @section="updateSection"
+      @pauses="updatePauses"
     />
 
     <MediaCookieProfileField

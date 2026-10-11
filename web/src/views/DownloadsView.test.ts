@@ -772,27 +772,6 @@ describe('DownloadsView search and filter', () => {
     expect(dialogs.toasts.at(-1)).toMatchObject({ title: downloads.notices.reorder_filter_active, color: 'warning' })
   })
 
-  describe('the `f` key', () => {
-    const pressF = SHORTCUT_DEFINITIONS.find(definition => definition.keys === 'f')!.handler
-
-    it('puts the keyboard in the search and shows itself on the field', async () => {
-      seedMixed()
-      const { getByLabelText, getByTestId } = mountView()
-      await nextTick()
-      pressF()
-      expect(document.activeElement).toBe(getByLabelText(downloads.filters.search_label))
-      expect(getByTestId('downloads-search').parentElement?.querySelector('kbd')?.textContent).toBe('f')
-    })
-
-    it('does nothing once the page is left', async () => {
-      seedMixed()
-      const view = mountView()
-      await nextTick()
-      view.unmount()
-      pressF()
-      expect(document.activeElement).toBe(document.body)
-    })
-  })
 })
 
 /** "Copy links" of a package takes every file of it, whatever the filter hides (RD-190-21). */

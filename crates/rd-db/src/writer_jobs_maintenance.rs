@@ -77,6 +77,29 @@ impl Writer {
         Ok(())
     }
 
+    /// `PRAGMA incremental_vacuum`, then the checkpoint that carries the shorter file over from
+    /// the WAL (RD-1240-35). Moves the pages at the end of the file into the free ones, so it
+    /// costs about as much as the free pages it returns; in a file without
+    /// `auto_vacuum = INCREMENTAL` it does nothing. Returns the bytes the file shrank by.
+    pub(crate) async fn reclaim_free_pages(&mut self) -> Result<u64> {
+        let pages_before = self.page_count().await?;
+        sqlx::query("PRAGMA incremental_vacuum")
+            .execute(&mut self.connection)
+            .await?;
+        self.checkpoint_wal().await?;
+        let pages_after = self.page_count().await?;
+        let page_size: i64 = sqlx::query_scalar("PRAGMA page_size")
+            .fetch_one(&mut self.connection)
+            .await?;
+        Ok(u64::try_from((pages_before - pages_after).max(0) * page_size).unwrap_or_default())
+    }
+
+    async fn page_count(&mut self) -> Result<i64> {
+        Ok(sqlx::query_scalar("PRAGMA page_count")
+            .fetch_one(&mut self.connection)
+            .await?)
+    }
+
     /// `VACUUM INTO` on the writer's own connection: the copy is the state after every
     /// command sent before this one, and no command sent after it (see `crate::snapshot`).
     pub(crate) async fn vacuum_into(&mut self, path: &std::path::Path) -> Result<()> {

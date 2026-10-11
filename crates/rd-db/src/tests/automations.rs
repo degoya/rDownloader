@@ -10,6 +10,7 @@ fn new_automation(name: &str, enabled: bool) -> crate::NewAutomation {
         name: name.to_owned(),
         enabled,
         trigger: rd_automation::Trigger::PackageCompleted,
+        schedule: None,
         condition: rd_automation::ConditionNode::Always,
         actions: vec![rd_automation::Action::PausePackage],
     }
@@ -334,5 +335,39 @@ async fn deleting_an_automation_takes_its_versions_and_runs_with_it() {
             .expect("runs")
             .is_empty(),
         "runs outlived the automation they belong to"
+    );
+}
+
+#[tokio::test]
+async fn a_time_trigger_keeps_its_schedule_across_a_reopen() {
+    // RD-1240-10: the schedule is part of the version, read back after a restart as written.
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = directory.path().join("automations.sqlite");
+    let schedule = rd_automation::Schedule::Cron {
+        expression: "0 6 * * 1-5".to_owned(),
+    };
+    {
+        let database = Database::open(&path).await.expect("database");
+        let mut input = new_automation("Start at six", true);
+        input.trigger = rd_automation::Trigger::Schedule;
+        input.schedule = Some(schedule.clone());
+        input.actions = vec![rd_automation::Action::StartQueue];
+        database.upsert_automation(None, input).await.expect("save");
+        let plain = new_automation("Plain", true);
+        database.upsert_automation(None, plain).await.expect("save");
+    }
+    let database = Database::open(&path).await.expect("reopen");
+    let versions = database.active_automation_versions().await.expect("active");
+    let timed = versions
+        .iter()
+        .find(|version| version.trigger == rd_automation::Trigger::Schedule)
+        .expect("time-triggered version");
+    assert_eq!(timed.schedule.as_ref(), Some(&schedule));
+    assert_eq!(timed.actions, vec![rd_automation::Action::StartQueue]);
+    assert!(
+        versions
+            .iter()
+            .filter(|version| version.trigger != rd_automation::Trigger::Schedule)
+            .all(|version| version.schedule.is_none())
     );
 }

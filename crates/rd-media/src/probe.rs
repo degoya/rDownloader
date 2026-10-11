@@ -1,4 +1,4 @@
-//! Metadata probe: `yt-dlp -J` for one page (or a playlist, flattened).
+//! Metadata probe: `yt-dlp -J --flat-playlist` for one page, or for a playlist's listing.
 
 use std::{sync::Arc, time::Duration};
 
@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use rd_core::{
     Failure, FailureKind, MediaCandidate, MediaCandidateState, MediaFormatInventory, MediaInfo,
 };
+use rd_scheduler::{ToolNetwork, ToolNetworkSource};
 use rd_tools::process::prepare;
 use serde::Deserialize;
 use tokio::sync::Semaphore;
@@ -35,6 +36,8 @@ pub trait MediaProbe: Send + Sync {
 pub struct YtDlpProbe {
     settings: SharedMediaSettings,
     slots: Arc<Semaphore>,
+    /// The proxy and CA the probe goes through (RD-1240-22); none without it, as in tests.
+    network: Option<ToolNetworkSource>,
 }
 
 impl YtDlpProbe {
@@ -43,7 +46,16 @@ impl YtDlpProbe {
         Self {
             settings,
             slots: Arc::new(Semaphore::new(2)),
+            network: None,
         }
+    }
+
+    /// Sends the probe through the global proxy profile and the custom CA (RD-1240-22): a
+    /// link in the LinkGrabber belongs to no download yet, so to no job's or account's profile.
+    #[must_use]
+    pub fn with_tool_network(mut self, network: ToolNetworkSource) -> Self {
+        self.network = Some(network);
+        self
     }
 }
 
@@ -100,6 +112,12 @@ impl MediaProbe for YtDlpProbe {
                 "Media probe is shutting down",
             )
         })?;
+        // Before anything reaches the network: a proxy that cannot be used is a failure, never
+        // a direct connection.
+        let network = match &self.network {
+            Some(source) => source.for_request(url).await?,
+            None => ToolNetwork::direct(),
+        };
         let settings = self.settings.read().await.clone();
         // The lease keeps the managed version alive for the length of the probe run, and it is
         // taken before the version is assessed (RD-102-02). A yt-dlp below the floor this build
@@ -127,26 +145,51 @@ impl MediaProbe for YtDlpProbe {
         let ffmpeg = FfmpegTools::resolve(&settings);
         let capabilities = ffmpeg.media_capabilities().await;
         let preferred = settings.media_default_variant.clone();
-        let metadata = run_json(ytdlp, url, false, timeout).await?;
-        if metadata.kind.as_deref() != Some("playlist") {
-            return Ok(vec![single(metadata, url, &preferred, capabilities)]);
-        }
-        let flat = run_json(ytdlp, url, true, timeout).await?;
-        let entries: Vec<MediaCandidate> = flat
-            .entries
-            .into_iter()
-            .take(MAX_PLAYLIST_ENTRIES)
-            .filter_map(|entry| playlist_entry(entry, &preferred, capabilities))
-            .collect();
-        if entries.is_empty() {
-            return Err(Failure::coded(
-                FailureKind::Permanent,
-                "media.playlist_empty",
-                "Playlist contains no downloadable entries",
-            ));
-        }
-        Ok(entries)
+        // One flat run (RD-1240-37). A full `-J` came first before, and on a playlist address
+        // it resolved every video only to learn that the page is a playlist: 196 s and exit 1
+        // for a 240-entry YouTube list, where one private or removed video failed the whole
+        // run. `--flat-playlist` lists a playlist's entries and still probes a single page in
+        // full, formats included.
+        let metadata = run_json(ytdlp, url, true, timeout, &network).await?;
+        candidates(metadata, url, &preferred, capabilities)
     }
+}
+
+/// One candidate for a single page, one per entry for a playlist (capped).
+fn candidates(
+    metadata: Metadata,
+    url: &Url,
+    preferred: &str,
+    capabilities: MediaCapabilities,
+) -> Result<Vec<MediaCandidate>, Failure> {
+    if metadata.kind.as_deref() != Some("playlist") {
+        return Ok(vec![single(metadata, url, preferred, capabilities)]);
+    }
+    let entries: Vec<MediaCandidate> = metadata
+        .entries
+        .into_iter()
+        .filter(|entry| !unavailable(entry))
+        .take(MAX_PLAYLIST_ENTRIES)
+        .filter_map(|entry| playlist_entry(entry, preferred, capabilities))
+        .collect();
+    if entries.is_empty() {
+        return Err(Failure::coded(
+            FailureKind::Permanent,
+            "media.playlist_empty",
+            "Playlist contains no downloadable entries",
+        ));
+    }
+    Ok(entries)
+}
+
+/// YouTube's stand-in for a private or deleted video in a playlist: the flat listing names it
+/// by this title and knows nothing else about it, and it can never be downloaded.
+fn unavailable(entry: &PlaylistEntry) -> bool {
+    entry.duration.is_none()
+        && matches!(
+            entry.title.as_deref(),
+            Some("[Private video]" | "[Deleted video]")
+        )
 }
 
 /// Re-probes `url` for its format inventory only.
@@ -158,8 +201,9 @@ pub(crate) async fn probe_inventory(
     ytdlp: &std::path::Path,
     url: &Url,
     timeout: Duration,
+    network: &ToolNetwork,
 ) -> Result<MediaFormatInventory, Failure> {
-    let metadata = run_json(ytdlp, url, false, timeout).await?;
+    let metadata = run_json(ytdlp, url, false, timeout, network).await?;
     Ok(normalize(&metadata.formats))
 }
 
@@ -168,17 +212,19 @@ async fn run_json(
     url: &Url,
     flat: bool,
     timeout: Duration,
+    network: &ToolNetwork,
 ) -> Result<Metadata, Failure> {
-    let mut command = tokio::process::Command::new(ytdlp);
-    command
-        .args(["-J", "--no-warnings", "--no-color"])
-        .arg(if flat {
-            "--flat-playlist"
-        } else {
-            "--no-playlist"
-        })
-        .arg("--")
-        .arg(url.as_str());
+    let mut command = crate::args::ytdlp_command(ytdlp, network);
+    // `--no-playlist` keeps a video address that also names a list (`watch?v=…&list=…`) the
+    // one video.
+    command.args(["-J", "--no-warnings", "--no-color", "--no-playlist"]);
+    if flat {
+        // Entries are listed, not resolved, and the listing stops where the expansion would.
+        command
+            .args(["--flat-playlist", "--playlist-end"])
+            .arg(MAX_PLAYLIST_ENTRIES.to_string());
+    }
+    command.arg("--").arg(url.as_str());
     // The stdio wiring, the timeout and the Windows console-window flag are the same for
     // every short tool invocation and live in rd-tools; stdout and stderr are both captured,
     // because `Command::output` pipes them whatever the caller asks for.
@@ -199,7 +245,9 @@ async fn run_json(
         .map_err(|error| tool_failure(format!("{error:#}")))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(map_tool_error(&stderr));
+        return Err(network
+            .unsupported_proxy("yt-dlp", &stderr)
+            .unwrap_or_else(|| map_tool_error(&stderr, output.status.code())));
     }
     serde_json::from_slice::<Metadata>(&output.stdout)
         .map_err(|error| tool_failure(format!("invalid yt-dlp JSON: {error}")))
@@ -291,13 +339,13 @@ fn playlist_entry(
     })
 }
 
-/// Maps yt-dlp's stderr to a failure class the queue can retry or block on.
+/// Maps yt-dlp's stderr and exit code to a failure class the queue can retry or block on.
 ///
 /// Read from the `ERROR:` line alone and by whole words (audit 1.9.1, TR-02): matched as a
 /// substring of all of stderr, "age" found "Unable to download web*page*" — a network failure
 /// that then counted as a login wall and was never retried — and a warning's "404" or
 /// "removed" made a passing problem permanent.
-pub(crate) fn map_tool_error(stderr: &str) -> Failure {
+pub(crate) fn map_tool_error(stderr: &str, exit_code: Option<i32>) -> Failure {
     let text = stderr.trim();
     if crate::merge::merge_skipped(text) {
         return crate::merge::merge_failure();
@@ -308,11 +356,26 @@ pub(crate) fn map_tool_error(stderr: &str) -> Failure {
         .map(str::trim)
         .find(|line| line.starts_with("ERROR:"))
         .unwrap_or_else(|| text.lines().last().unwrap_or_default());
+    // Before the rest: a proxy refusing the profile's password was a network failure retried
+    // every two minutes, never the proxy's (RD-1240-29).
+    if let Some(failure) = rd_scheduler::proxy_auth_failed(error_line) {
+        return failure;
+    }
     let lower = error_line.to_ascii_lowercase();
     let says = |phrases: &[&str]| phrases.iter().any(|phrase| contains_words(&lower, phrase));
     // Redacted before it becomes a message and a param: this tail is shown in the UI and
     // stored on the download row, and yt-dlp happily echoes the signed URL it just tried.
     let tail: String = rd_core::redact_text(error_line).chars().take(300).collect();
+    // Never an empty detail: "yt-dlp failed: " with nothing after it names no cause at all
+    // (RD-1240-37). A run that printed nothing still has its exit code to say.
+    let tail = if tail.is_empty() {
+        match exit_code {
+            Some(code) => format!("exit code {code}, no error output"),
+            None => "ended by a signal, no error output".to_owned(),
+        }
+    } else {
+        tail
+    };
     let category = if says(&[
         "unsupported url",
         "video unavailable",
@@ -372,129 +435,9 @@ fn web_page(value: &str) -> Option<Url> {
 mod page_tests;
 
 #[cfg(test)]
-mod error_tests {
-    use rd_core::FailureKind;
+#[path = "probe_error_tests.rs"]
+mod error_tests;
 
-    use super::{contains_words, map_tool_error};
-
-    fn category(stderr: &str) -> FailureKind {
-        map_tool_error(stderr).category
-    }
-
-    /// RA-TR-04: a yt-dlp that cannot be started says why, not only "spawn yt-dlp".
-    #[tokio::test]
-    async fn a_tool_that_cannot_start_reports_the_cause() {
-        let missing = tempfile::tempdir().expect("temp");
-        let failure = super::run_json(
-            &missing.path().join("no-such-yt-dlp"),
-            &"https://example.invalid/watch".parse().expect("url"),
-            false,
-            std::time::Duration::from_secs(10),
-        )
-        .await;
-        let Err(failure) = failure else {
-            panic!("nothing to start")
-        };
-        assert_eq!(failure.code.as_deref(), Some("media.tool_error"));
-        let cause = failure
-            .message
-            .split_once("spawn yt-dlp: ")
-            .map(|(_, cause)| cause.trim())
-            .unwrap_or_default();
-        assert!(!cause.is_empty(), "the cause was lost: {}", failure.message);
-    }
-
-    /// TR-02: yt-dlp's own wording, as it prints it.
-    #[test]
-    fn a_network_failure_is_retried_rather_than_taken_for_a_login_wall() {
-        assert_eq!(
-            category(
-                "ERROR: [youtube] dQw4w9WgXcQ: Unable to download webpage: <urlopen error \
-                 [Errno -3] Temporary failure in name resolution> (caused by \
-                 URLError(gaierror(-3, 'Temporary failure in name resolution')))"
-            ),
-            FailureKind::Transient {
-                retry_after_seconds: Some(120)
-            }
-        );
-        assert_eq!(
-            category(
-                "ERROR: [generic] Unable to download webpage: HTTP Error 503: Service Unavailable"
-            ),
-            FailureKind::Transient {
-                retry_after_seconds: Some(120)
-            }
-        );
-    }
-
-    #[test]
-    fn a_warning_does_not_decide_the_class() {
-        let stderr = "WARNING: [youtube] Video 3 of the playlist was removed (HTTP 404)\n\
-                      WARNING: Falling back to generic n function search\n\
-                      ERROR: [youtube] dQw4w9WgXcQ: Unable to extract initial player response; \
-                      please report this issue on https://github.com/yt-dlp/yt-dlp/issues";
-        assert_eq!(
-            category(stderr),
-            FailureKind::Transient {
-                retry_after_seconds: Some(120)
-            }
-        );
-    }
-
-    #[test]
-    fn age_and_sign_in_walls_need_an_account() {
-        for stderr in [
-            "ERROR: [youtube] dQw4w9WgXcQ: Sign in to confirm your age. This video may be \
-             inappropriate for some users.",
-            "ERROR: [youtube] dQw4w9WgXcQ: Sign in to confirm you\u{2019}re not a bot. Use \
-             --cookies-from-browser or --cookies for the authentication.",
-            "ERROR: [vimeo] 123456: This video is age-restricted",
-        ] {
-            assert_eq!(category(stderr), FailureKind::AuthRequired, "{stderr}");
-        }
-    }
-
-    #[test]
-    fn gone_videos_are_permanent() {
-        for stderr in [
-            "ERROR: [youtube] dQw4w9WgXcQ: Video unavailable. This video has been removed by \
-             the uploader",
-            "ERROR: [youtube] dQw4w9WgXcQ: Private video. Sign in if you've been granted \
-             access to this video",
-            "ERROR: Unsupported URL: https://example.com/page",
-            "ERROR: [generic] Unable to download webpage: HTTP Error 404: Not Found",
-        ] {
-            assert_eq!(category(stderr), FailureKind::Permanent, "{stderr}");
-        }
-    }
-
-    #[test]
-    fn too_many_requests_waits_longer() {
-        assert_eq!(
-            category("ERROR: unable to download video data: HTTP Error 429: Too Many Requests"),
-            FailureKind::RateLimited {
-                retry_after_seconds: Some(600)
-            }
-        );
-    }
-
-    #[test]
-    fn words_match_whole_and_only_whole() {
-        assert!(contains_words("confirm your age.", "age"));
-        assert!(contains_words("age-restricted", "age"));
-        for text in ["webpage", "message", "image", "storage", "usage limit"] {
-            assert!(!contains_words(text, "age"), "{text}");
-        }
-        assert!(!contains_words("error 4040", "404"));
-        assert!(contains_words("http error 404: not found", "404"));
-    }
-
-    #[test]
-    fn the_detail_is_the_error_line() {
-        let failure = map_tool_error("WARNING: something\nERROR: [youtube] x: Video unavailable\n");
-        assert_eq!(
-            failure.params.get("detail").map(String::as_str),
-            Some("ERROR: [youtube] x: Video unavailable")
-        );
-    }
-}
+#[cfg(test)]
+#[path = "probe_playlist_tests.rs"]
+mod playlist_tests;

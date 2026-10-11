@@ -108,6 +108,10 @@ pub(crate) async fn fetch_decoded_with_attempts(
 /// set gives every article its own random name, so one warning per segment turned a single
 /// download into hundreds of identical lines -- seen on a live run on 2026-09-23, where the only
 /// thing that differed between them was a name nothing ever used.
+///
+/// And at `debug`, not `warn` (RD-1240-38): one line per file still flooded the owner's log, 687
+/// of 1,463 warnings, for an obfuscated post whose name the NZB subject supplied correctly every
+/// time. Nothing in it is for the user to act on; the fields stay for whoever reads at `debug`.
 #[derive(Default)]
 pub(crate) struct NameDeviations {
     count: u64,
@@ -134,7 +138,7 @@ impl NameDeviations {
     /// usually none of the names the articles carried.
     pub(crate) fn report(&self, chosen: &str) {
         if let Some(first) = self.first.as_deref() {
-            tracing::warn!(
+            tracing::debug!(
                 chosen,
                 first_deviation = first,
                 deviating_segments = self.count,

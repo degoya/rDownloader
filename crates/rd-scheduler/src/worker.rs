@@ -76,6 +76,16 @@ pub(crate) async fn run(
     else {
         return Ok(());
     };
+    // An address without a name of its own: the server's `Content-Disposition` names the file
+    // (and a fallback-named package) before the destination exists (RD-1240-33).
+    let mut working_file = file.clone();
+    if let Some(name) = scheduler
+        .adopt_declared_name(file, probed.probe_result.content_disposition.as_deref())
+        .await?
+    {
+        working_file.file_name = name;
+    }
+    let file = &working_file;
     transfer(
         scheduler,
         file,

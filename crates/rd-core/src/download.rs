@@ -264,6 +264,15 @@ pub struct DownloadPackage {
     /// an auto-queueing subscription is a few seconds.
     #[serde(default)]
     pub enrichment: Vec<crate::EnrichmentField>,
+    /// The package's files start no earlier than this (RD-1240-14); `None` starts them as the
+    /// queue reaches them. A moment that has passed holds nothing back and stays until the next
+    /// edit.
+    #[serde(default)]
+    pub start_after: Option<DateTime<Utc>>,
+    /// The package's own download window (RD-1240-30); `None` follows its category's, and a
+    /// category without one leaves the package to the bandwidth schedule alone.
+    #[serde(default)]
+    pub download_window: Option<crate::DownloadWindow>,
 }
 
 /// One downloadable file within a package.

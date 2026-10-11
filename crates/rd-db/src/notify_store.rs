@@ -424,7 +424,7 @@ pub(crate) async fn delete_rule(
     Ok(event)
 }
 
-fn changed_event(entity: &str, id: String) -> EventEnvelope {
+pub(crate) fn changed_event(entity: &str, id: String) -> EventEnvelope {
     EventEnvelope::new(
         EventKind::NotificationChanged,
         serde_json::json!({ "entity": entity, "id": id }),

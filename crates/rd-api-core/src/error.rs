@@ -168,6 +168,17 @@ impl ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(error: anyhow::Error) -> Self {
+        // A stored credential the vault master key cannot open -- a data folder moved from
+        // another machine or account -- is stored state the user can repair, not a fault of the
+        // service: one code for every route that reads a credential (RD-1240-36).
+        if rd_secrets::is_unreadable(&error) {
+            tracing::warn!(
+                code = rd_secrets::SECRET_UNREADABLE,
+                "{}",
+                rd_core::redact_text(&format!("{error:#}"))
+            );
+            return crate::error_codes::secret_unreadable();
+        }
         // `{:#}` writes the whole cause chain: `to_string()` kept only the outermost context,
         // which named the step that failed and dropped why (audit 1.9.1, API-06).
         tracing::error!(error = %rd_core::redact_text(&format!("{error:#}")), "request failed");

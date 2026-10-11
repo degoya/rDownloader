@@ -78,6 +78,9 @@ pub struct NzbDocument {
 pub struct NzbFile {
     pub subject: String,
     pub poster: String,
+    /// The post date the document announced, in Unix seconds (`<file date>`), when it had a
+    /// usable one; a rendered document carries it on rather than the time it is written.
+    pub date: Option<i64>,
     pub groups: Vec<String>,
     pub segments: Vec<NzbSegment>,
 }
@@ -90,11 +93,32 @@ pub struct NzbSegment {
     pub message_id: String,
 }
 
+const TOO_LARGE: &str = "NZB exceeds the 64 MiB input limit";
+const NO_FILES: &str = "NZB contains no files";
+const DOCTYPE_REFUSED: &str = "only the external NZB doctype is allowed";
+
+/// The stable code of a refusal this parser wrote, found in a stored reason (RD-1240-33).
+///
+/// A failed import keeps its reason as one line of English (`nzb_imports.last_error`), the
+/// parser's message somewhere in it; the LinkGrabber translates the code and shows the line
+/// itself only for a reason that has none.
+#[must_use]
+pub fn nzb_refusal_code(reason: &str) -> Option<&'static str> {
+    [
+        (NO_FILES, "collector.nzb_empty"),
+        (TOO_LARGE, "nzb.too_large"),
+        (DOCTYPE_REFUSED, "nzb.doctype_refused"),
+    ]
+    .into_iter()
+    .find(|(message, _)| reason.contains(message))
+    .map(|(_, code)| code)
+}
+
 /// Parses an NZB while allowing the standard external NZB doctype, but rejecting
 /// internal subsets and entity declarations.
 pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
     if input.len() > MAX_NZB_BYTES {
-        bail!("NZB exceeds the 64 MiB input limit");
+        bail!("{TOO_LARGE}");
     }
 
     let mut reader = Reader::from_reader(input);
@@ -114,7 +138,7 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
     }
     let document = parser.document;
     if document.files.is_empty() {
-        bail!("NZB contains no files");
+        bail!("{NO_FILES}");
     }
     Ok(document)
 }
@@ -238,7 +262,7 @@ fn is_password_meta(start: &BytesStart<'_>) -> Result<bool> {
     Ok(is_password)
 }
 
-/// A `<file>` with its subject and poster.
+/// A `<file>` with its subject, poster and post date.
 fn file_start(start: &BytesStart<'_>) -> Result<NzbFile> {
     let mut file = NzbFile::default();
     for attribute in start.attributes().with_checks(true) {
@@ -253,6 +277,15 @@ fn file_start(start: &BytesStart<'_>) -> Result<NzbFile> {
                 file.poster = attribute
                     .normalized_value(XmlVersion::Implicit1_0)?
                     .into_owned()
+            }
+            // Informational only, so a value that is no number is dropped instead of failing
+            // the import.
+            "date" => {
+                file.date = attribute
+                    .normalized_value(XmlVersion::Implicit1_0)?
+                    .trim()
+                    .parse()
+                    .ok()
             }
             _ => {}
         }
@@ -316,7 +349,8 @@ fn finished_file(mut file: NzbFile) -> NzbFile {
 /// output is the same for the same input: a second hand-over of one import derives the same
 /// content key at the provider and meets the duplicate guard instead of a second job. `name`
 /// goes into `<meta type="name">`, where providers read a release name from, and `date` is the
-/// per-file attribute the DTD requires, in Unix seconds.
+/// per-file attribute the DTD requires, in Unix seconds, for a file whose own post date is not
+/// known: one parsed from a document keeps the date it was posted on (RD-1240-33).
 #[must_use]
 pub fn render_nzb(document: &NzbDocument, name: Option<&str>, date: i64) -> Vec<u8> {
     use std::fmt::Write as _;
@@ -342,8 +376,9 @@ pub fn render_nzb(document: &NzbDocument, name: Option<&str>, date: i64) -> Vec<
     for file in &document.files {
         let _ = writeln!(
             out,
-            " <file poster=\"{}\" date=\"{date}\" subject=\"{}\">",
+            " <file poster=\"{}\" date=\"{}\" subject=\"{}\">",
             escape(&file.poster),
+            file.date.unwrap_or(date),
             escape(&file.subject)
         );
         out.push_str("  <groups>\n");
@@ -391,7 +426,7 @@ fn validate_doctype(value: &str) -> Result<()> {
         || trimmed.contains(['[', ']'])
         || trimmed.to_ascii_lowercase().contains("<!entity")
     {
-        bail!("only the external NZB doctype is allowed");
+        bail!("{DOCTYPE_REFUSED}");
     }
     Ok(())
 }

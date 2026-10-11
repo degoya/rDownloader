@@ -55,6 +55,26 @@ fn a_failure_the_plugin_calls_temporary_is_still_retried() {
     );
 }
 
+/// The host's HTTP gate speaks of a resolver; a destination's history says "HTTP error" and
+/// the cause (RD-1240-33).
+#[test]
+fn a_failed_request_of_a_destination_plugin_is_no_resolver_error() {
+    let failure = Failure::coded(
+        FailureKind::Transient {
+            retry_after_seconds: None,
+        },
+        "plugin.http_error",
+        "Resolver HTTP error: error sending request: connection refused",
+    )
+    .with_param("error", "error sending request: connection refused");
+    let attempt = plugin_failure(&anyhow::Error::new(failure));
+    assert!(attempt.retryable);
+    assert_eq!(
+        attempt.excerpt.as_deref(),
+        Some("HTTP error: error sending request: connection refused")
+    );
+}
+
 #[test]
 fn an_error_without_a_category_stays_retryable() {
     // A trap or a component that would not instantiate says nothing about the destination.

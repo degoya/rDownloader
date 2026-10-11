@@ -1146,9 +1146,8 @@ async fn auto_remove_takes_the_torrent_out_of_the_session() {
     assert_forgotten(&router, directory.path()).await;
 }
 
-/// Serves the fixture with `content_type` at any path and counts the grabs: the GETs of
-/// the whole file. The check's HEAD, and the one-byte range GET it falls back to,
-/// read no torrent and are not counted (RD-130-18).
+/// Serves the fixture with `content_type` at any path, ignoring ranges, and counts the grabs:
+/// every GET but the check's one-byte probe (RD-130-18), the sniff's 1 KiB one included.
 async fn torrent_server(
     content_type: &'static str,
 ) -> (
@@ -1161,7 +1160,8 @@ async fn torrent_server(
         move |method: axum::http::Method, headers: axum::http::HeaderMap| {
             let counter = std::sync::Arc::clone(&counter);
             async move {
-                if method == axum::http::Method::GET && !headers.contains_key(header::RANGE) {
+                let probe = headers.get(header::RANGE).is_some_and(|r| r == "bytes=0-0");
+                if method == axum::http::Method::GET && !probe {
                     counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 }
                 ([(header::CONTENT_TYPE, content_type)], multi_file_torrent())
@@ -1332,8 +1332,8 @@ async fn a_rerouted_torrent_is_grabbed_exactly_once() {
     assert!(!kept_torrent(directory.path(), &candidate).exists());
 }
 
-/// A torrent served without its content type is recognised by its first bytes, and the
-/// sniff reads that same response to its end rather than asking for the file again.
+/// A torrent served without its content type is recognised by its first bytes; a server that
+/// ignores the sniff's range sends the whole file, and that one answer is all the check reads.
 #[tokio::test]
 async fn a_torrent_without_its_content_type_is_grabbed_exactly_once() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");

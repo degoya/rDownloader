@@ -1,0 +1,7 @@
+{
+  "name": "Plex",
+  "description": "Refreshes the Plex libraries when a package finishes.",
+  "codes": {
+    "plex_notifier.rejected": "Plex refused the library refresh."
+  }
+}

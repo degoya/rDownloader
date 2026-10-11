@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onUnmounted, provide, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IndexerSearchPanel from '@/components/IndexerSearchPanel.vue'
@@ -50,7 +50,8 @@ watch(() => indexers.loaded, (loaded) => {
   if (loaded && open.value) void nextTick(focusField)
 })
 
-setIndexerSearchFocusAction(() => void openSearch())
+// Handed in once mounted: a request `f` left on another page opens the drawer right here.
+onMounted(() => setIndexerSearchFocusAction(() => void openSearch()))
 onUnmounted(() => setIndexerSearchFocusAction(null))
 
 defineExpose({ openSearch })

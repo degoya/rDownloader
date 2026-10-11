@@ -229,7 +229,8 @@ fn resolve_settings(
 /// is narrower than either: the host of a destination written as an address, or, for anything
 /// else (a bare ntfy topic), the services the manifest named, without the `*`. So a token set
 /// for one destination reaches that one host and no other, and the manifest's `*` is never
-/// handed to the sandbox, which would read it as "anywhere".
+/// handed to the sandbox, which would read it as "anywhere". A manifest whose only domain is
+/// `*` names no service to fall back on, so a destination that is not an address is refused.
 ///
 /// `https` everywhere; `http` only to an address inside the person's own network, because the
 /// token would otherwise cross the internet readable (owner's decision, 2026-09-25).
@@ -242,13 +243,6 @@ pub(crate) fn destination_reach(
         return Ok(domains.to_vec());
     }
     let destination = destination.trim();
-    if !written_as_address(destination) {
-        return Ok(domains
-            .iter()
-            .filter(|domain| *domain != "*")
-            .cloned()
-            .collect());
-    }
     let invalid = || {
         Failure::coded(
             FailureKind::Permanent,
@@ -256,6 +250,20 @@ pub(crate) fn destination_reach(
             "The notification destination is not a usable web address",
         )
     };
+    if !written_as_address(destination) {
+        let named: Vec<String> = domains
+            .iter()
+            .filter(|domain| *domain != "*")
+            .cloned()
+            .collect();
+        // A manifest that names no service of its own -- a media server's library refresh,
+        // RD-1240-12 -- has nowhere to send anything but an address, so anything else is
+        // refused when the target is saved rather than failing on its first event.
+        if named.is_empty() {
+            return Err(invalid());
+        }
+        return Ok(named);
+    }
     let url = Url::parse(destination).map_err(|_| invalid())?;
     let (Some(host), Some(name)) = (url.host(), url.host_str()) else {
         return Err(invalid());

@@ -242,6 +242,19 @@ impl RdMcpServer {
     }
 
     #[tool(
+        description = "Test the torrent engine's incoming peer port from this machine alone; no outside service is asked. Starts the engine when it is not running. verdict: reachable (a peer connected in), listening (the listener answers locally, but no peer has connected in yet, so reachability from the internet is unproven), not_listening, or unavailable (the session could not start; see error). Also reports listen_port, announce_port, local_tcp_accepted, live_torrents, incoming_peers and whether UPnP and a peer proxy are set. Refused with torrent.service_disabled while BitTorrent is switched off."
+    )]
+    pub async fn test_torrent_port(&self) -> McpToolResult {
+        let result = async {
+            let Json(answer) =
+                crate::torrent_handlers::test_torrent_port(State(self.state.clone())).await?;
+            Ok(answer)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
         description = "List this machine's network interfaces, the names the torrent engine can be bound to in the settings document (torrent bind interface)."
     )]
     pub async fn list_network_interfaces(&self) -> McpToolResult {

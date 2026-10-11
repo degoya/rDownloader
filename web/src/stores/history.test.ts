@@ -91,4 +91,13 @@ describe('history store', () => {
     expect(vi.mocked(api.POST)).toHaveBeenLastCalledWith('/api/v1/history/{id}/readd', { params: { path: { id: 7 } } })
     expect(store.error).toBeNull()
   })
+
+  it('builds the export link from the filters that are set (RD-1240-14)', () => {
+    const store = useHistoryStore()
+    expect(store.exportHref('csv')).toBe('/api/v1/history/export?format=csv')
+    store.filters.search = ' ubuntu '
+    store.filters.outcome = 'failed'
+    store.filters.kind = 'usenet'
+    expect(store.exportHref('ndjson')).toBe('/api/v1/history/export?format=ndjson&q=ubuntu&outcome=failed&kind=usenet')
+  })
 })

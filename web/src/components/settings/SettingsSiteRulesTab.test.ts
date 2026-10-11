@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import common from '@/locales/en/common.json'
 import server from '@/locales/en/server.json'
+import siterulesGerman from '@/locales/de/siterules.json'
 import siterules from '@/locales/en/siterules.json'
 import { mountComponent } from '@/test/mount'
 
@@ -107,7 +108,7 @@ const BUNDLE = {
       id: 'debian-cd',
       name: 'Debian installation images',
       description: 'A one-stage rule for the image folders.',
-      group: 'examples',
+      group: 'linux',
       hosts: ['cdimage.debian.org'],
       version: 1,
       probe: 'https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/',
@@ -123,8 +124,9 @@ const BUNDLE = {
     {
       id: 'ubuntu-releases',
       name: 'Ubuntu release images',
-      description: null,
-      group: 'examples',
+      // A bundled id, but no longer the example: its own text stands (RD-1240-33).
+      description: 'Kept as it was stored.',
+      group: 'linux',
       hosts: ['releases.ubuntu.com'],
       version: 1,
       probe: 'https://releases.ubuntu.com/24.04/',
@@ -139,7 +141,7 @@ const BUNDLE = {
   ],
   groups: [
     { group: 'board', enabled: true, rules: 2 },
-    { group: 'examples', enabled: true, rules: 2 }
+    { group: 'linux', enabled: true, rules: 2 }
   ]
 }
 
@@ -195,8 +197,17 @@ describe('the site-rule list', () => {
     // "Works" is there, but quiet.
     const working = within(row('Ubuntu release images')).getByTestId('site-rule-state')
     expect(working.textContent?.trim()).toBe('Working')
-    // A rule's description stands under its name.
-    expect(within(row('Debian installation images')).getByText('A one-stage rule for the image folders.')).toBeTruthy()
+    // A rule's description stands under its name; a bundled rule's in the reader's language.
+    expect(within(row('Debian installation images')).getByText(siterules.bundled['debian-cd'])).toBeTruthy()
+    expect(within(row('Ubuntu release images')).getByText('Kept as it was stored.')).toBeTruthy()
+  })
+
+  it('describes a bundled rule in German in the German interface (RD-1240-33)', async () => {
+    mountComponent(SettingsSiteRulesTab, { messages: { common, server, siterules: siterulesGerman }, stubs: modal, locale: 'de' })
+    await screen.findByText('Release board')
+
+    expect(within(row('Debian installation images')).getByText(siterulesGerman.bundled['debian-cd'])).toBeTruthy()
+    expect(within(row('Ubuntu release images')).getByText('Kept as it was stored.')).toBeTruthy()
   })
 
   it('offers every rule the switch, duplicate, edit and delete', async () => {
@@ -221,7 +232,7 @@ describe('the site-rule list', () => {
   it('switches a whole group from the heading beside its count', async () => {
     mount()
     await screen.findByText('Boards')
-    expect(screen.getByText('Examples')).toBeTruthy()
+    expect(screen.getByText('Linux')).toBeTruthy()
 
     await fireEvent.click(screen.getAllByLabelText('Switch the whole group')[0] as HTMLElement)
     expect(put).toHaveBeenCalledWith('/api/v1/site-rule-groups/{group}/enabled', {
@@ -271,7 +282,7 @@ describe('carrying rules to another installation (RD-1230-03)', () => {
     mount()
     await screen.findByText('Release board')
 
-    await fireEvent.click(screen.getByRole('button', { name: siterules.transfer.export }))
+    await fireEvent.click(screen.getByRole('button', { name: common.backup.export }))
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/site-rules/export', { params: { query: {} } }))
 
     await fireEvent.click(within(row('My board')).getByRole('checkbox'))
@@ -332,14 +343,14 @@ describe('deleting every rule and the examples (RD-1230-03)', () => {
     mount()
     await screen.findByText('Release board')
 
-    await fireEvent.click(screen.getByTestId('site-rules-clear'))
+    await fireEvent.click(screen.getByRole('button', { name: siterules.clear.button }))
     await waitFor(() => expect(state.asked).toHaveLength(1))
     expect(state.asked[0]?.description).toContain('All 4 rules')
     expect(state.asked[0]?.description).toContain('Export them first')
     expect(post).not.toHaveBeenCalled()
 
     state.confirm = true
-    await fireEvent.click(screen.getByTestId('site-rules-clear'))
+    await fireEvent.click(screen.getByRole('button', { name: siterules.clear.button }))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/site-rules/clear', { body: { confirmed: true } }))
   })
 

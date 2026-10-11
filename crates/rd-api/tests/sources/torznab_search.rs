@@ -3,8 +3,8 @@
 //!
 //! A fake Jackett on loopback answers everything; nothing here reaches a real indexer. What is
 //! held: the hit is read as a torrent with its swarm, the ids reach the wire under their Newznab
-//! names, a `.torrent`, a magnet and a download that only redirects to a magnet all arrive in
-//! the LinkGrabber -- and **the API key is never in an answer**.
+//! names, a `.torrent`, a magnet and a download that only redirects to a magnet -- with or
+//! without the hit's own magnet beside it -- all arrive in the LinkGrabber -- and **the API key is never in an answer**.
 
 use crate::common;
 
@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use axum::{
     Router,
     extract::{Query, State},
-    http::StatusCode,
+    http::{StatusCode, header},
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
@@ -23,6 +23,8 @@ use serde_json::{Value, json};
 const API_KEY: &str = "rd-1100-03-jackett-key-9c1e";
 const MAGNET: &str = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Some.Show";
 const LONE_MAGNET: &str = "magnet:?xt=urn:btih:89abcdef0123456789abcdef0123456789abcdef";
+/// Where Prowlarr's `301` for a magnet-only hit points (RD-1240-33).
+const MOVED_MAGNET: &str = "magnet:?xt=urn:btih:fedcba9876543210fedcba9876543210fedcba98&dn=Moved";
 
 const CAPS: &str = r#"<?xml version="1.0"?>
 <caps>
@@ -132,6 +134,27 @@ async fn serve_redirect() -> Redirect {
     Redirect::to(LONE_MAGNET)
 }
 
+/// Prowlarr's answer for a magnet-only hit whose feed names no magnet (RD-1240-33): a `301`.
+async fn serve_moved() -> Response {
+    (
+        StatusCode::MOVED_PERMANENTLY,
+        [(header::LOCATION, MOVED_MAGNET)],
+    )
+        .into_response()
+}
+
+/// A redirect to a magnet without a BitTorrent info hash: nothing to take.
+async fn serve_moved_without_hash() -> Response {
+    (
+        StatusCode::MOVED_PERMANENTLY,
+        [(
+            header::LOCATION,
+            "magnet:?xt=urn:sha1:YNCKHTQCWBTRNJIV4WNAE52SJUQCZO5C",
+        )],
+    )
+        .into_response()
+}
+
 async fn fake_jackett() -> (String, Fake) {
     let fake = Fake {
         base: Arc::new(Mutex::new(String::new())),
@@ -142,6 +165,8 @@ async fn fake_jackett() -> (String, Fake) {
         .route("/api", get(serve_api))
         .route("/dl", get(serve_torrent))
         .route("/redirect", get(serve_redirect))
+        .route("/moved", get(serve_moved))
+        .route("/moved-without-hash", get(serve_moved_without_hash))
         .with_state(fake.clone());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -335,10 +360,22 @@ async fn grabbed_torrent_hits_arrive_in_the_linkgrabber_and_the_key_goes_only_to
                     "title": "Redirected.Release",
                     "magnet": LONE_MAGNET,
                 },
+                // Prowlarr's `301` to a magnet with no magnet beside it: the redirect's target is
+                // taken (RD-1240-33).
+                {
+                    "indexer_id": indexer["id"],
+                    "download": format!("{base}/moved"),
+                    "title": "Moved.Release",
+                },
                 {
                     "indexer_id": indexer["id"],
                     "download": "magnet:?dn=no-topic",
                     "title": "Broken.Magnet",
+                },
+                {
+                    "indexer_id": indexer["id"],
+                    "download": format!("{base}/moved-without-hash"),
+                    "title": "Moved.Without.Hash",
                 },
             ],
         }),
@@ -358,13 +395,19 @@ async fn grabbed_torrent_hits_arrive_in_the_linkgrabber_and_the_key_goes_only_to
         [
             "Some.Show.S01E02.1080p",
             "Only.A.Magnet",
-            "Redirected.Release"
+            "Redirected.Release",
+            "Moved.Release"
         ],
         "{grabbed}"
     );
     assert_eq!(grabbed["failed"][0]["title"], "Broken.Magnet");
     assert_eq!(
         grabbed["failed"][0]["error"]["code"],
+        "indexer.magnet_invalid"
+    );
+    assert_eq!(grabbed["failed"][1]["title"], "Moved.Without.Hash");
+    assert_eq!(
+        grabbed["failed"][1]["error"]["code"],
         "indexer.magnet_invalid"
     );
 

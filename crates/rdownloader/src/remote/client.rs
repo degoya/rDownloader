@@ -97,6 +97,24 @@ impl Client {
         Self::with(http, server, token)
     }
 
+    /// A client for a stream that stays open for as long as the reader wants it: `events`.
+    ///
+    /// No overall timeout, which would end the stream after `connect_seconds`: the limit is on
+    /// connecting, and on a read that brings nothing for [`STREAM_STALL`] — the service sends a
+    /// keep-alive comment every fifteen seconds, so that long a silence is a lost connection.
+    pub(crate) fn streaming(
+        server: &str,
+        token: Option<String>,
+        connect_seconds: u64,
+    ) -> Result<Self> {
+        let http = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(connect_seconds))
+            .read_timeout(STREAM_STALL)
+            .build()
+            .context("build HTTP client")?;
+        Self::with(http, server, token)
+    }
+
     fn with(http: reqwest::Client, server: &str, token: Option<String>) -> Result<Self> {
         let base = server.trim_end_matches('/').to_owned();
         if !base.starts_with("http://") && !base.starts_with("https://") {
@@ -126,6 +144,47 @@ impl Client {
             .await
     }
 
+    /// Opens a `GET` whose body is read as it arrives, resuming after `last_event_id` when one
+    /// is given. A refusal is the same [`CommandError`] every other request ends in.
+    pub(crate) async fn open_stream(
+        &self,
+        path: &str,
+        last_event_id: Option<&str>,
+    ) -> Result<reqwest::Response> {
+        let mut request = self
+            .http
+            .get(format!("{}{path}", self.base))
+            .header(reqwest::header::ACCEPT, "text/event-stream");
+        if let Some(token) = &self.token {
+            request = request.bearer_auth(token);
+        }
+        if let Some(id) = last_event_id {
+            request = request.header("Last-Event-ID", id);
+        }
+        let response = request
+            .send()
+            .await
+            .map_err(|error| self.unreachable(&error))?;
+        let status = response.status();
+        if status.is_success() {
+            return Ok(response);
+        }
+        let text = response.text().await.unwrap_or_default();
+        Err(CommandError::new(Failure::of_status(status.as_u16()), describe(status, &text)).into())
+    }
+
+    /// The server address this client talks to, for messages.
+    pub(crate) fn base(&self) -> &str {
+        &self.base
+    }
+
+    fn unreachable(&self, error: &reqwest::Error) -> CommandError {
+        CommandError::new(
+            Failure::Unreachable,
+            format!("request to {} failed: {error}", self.base),
+        )
+    }
+
     async fn send<T: DeserializeOwned, B: serde::Serialize>(
         &self,
         method: reqwest::Method,
@@ -139,12 +198,10 @@ impl Client {
         if let Some(body) = body {
             request = request.json(body);
         }
-        let response = request.send().await.map_err(|error| {
-            CommandError::new(
-                Failure::Unreachable,
-                format!("request to {} failed: {error}", self.base),
-            )
-        })?;
+        let response = request
+            .send()
+            .await
+            .map_err(|error| self.unreachable(&error))?;
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
         if status.is_success() {
@@ -161,6 +218,10 @@ impl Client {
         Err(CommandError::new(Failure::of_status(status.as_u16()), describe(status, &text)).into())
     }
 }
+
+/// How long a stream may bring nothing at all before it counts as lost: four of the service's
+/// fifteen-second keep-alives.
+pub(crate) const STREAM_STALL: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// The HTTP client for everything that talks to the service on this machine: `stop`, the
 /// updater's stop and its health checks (security review 2026-09-30, finding 1).

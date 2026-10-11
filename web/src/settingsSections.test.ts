@@ -93,7 +93,7 @@ describe('older settings addresses', () => {
     expect(settingsRedirect('mcp', undefined)).toBe('/settings/clients?tab=api')
     expect(settingsRedirect(undefined, 'desktop')).toBe('/settings/clients')
     expect(settingsRedirect(undefined, 'mcp')).toBe('/settings/clients?tab=api')
-    expect(settingsRedirect('routing', 'collector')).toBe('/settings/linkgrabber')
+    expect(settingsRedirect('routing', 'collector')).toBe('/settings/linkgrabber?tab=blocklist')
     expect(settingsRedirect('network', 'auth')).toBe('/settings/accounts?tab=logins')
     // The tabs that stayed are left alone, and so is the new place itself.
     expect(settingsRedirect('routing', 'rules')).toBeNull()
@@ -109,7 +109,9 @@ describe('where the settings document is edited', () => {
     const tabs = Object.entries(SETTINGS_SUB_TABS).flatMap(([section, list]) => (list as readonly SettingsSubTab[])
       .filter(tab => tab.documentCard)
       .map(tab => `${section}?tab=${tab.value}`))
-    expect(tabs).toEqual(['routing?tab=roots', 'bandwidth?tab=status', 'security?tab=signin', 'usenet?tab=servers'])
+    expect(tabs).toEqual([
+      'routing?tab=roots', 'bandwidth?tab=status', 'security?tab=signin', 'usenet?tab=servers', 'clients?tab=api'
+    ])
   })
 
   it('splits bandwidth into status and limits, profiles and schedule, the limits first', () => {
@@ -125,5 +127,22 @@ describe('the sub-tabs of the pages that were rearranged', () => {
     expect(SETTINGS_SUB_TABS.clients.map(tab => tab.value)).toEqual(['desktop', 'browser', 'api'])
     expect(SETTINGS_SUB_TABS.routing.map(tab => tab.value)).toEqual(['roots', 'categories', 'rules'])
     expect(SETTINGS_SUB_TABS.network.map(tab => tab.value)).toEqual(['proxies', 'reconnect'])
+  })
+
+  // RD-1240-26: the browser's own choices save as they are made; only the tabs with fields of the
+  // settings document carry the save bar, and the LinkFilter rules save themselves.
+  it('splits LinkGrabber and Interface, the save bar only under document fields', () => {
+    const shape = (section: 'linkgrabber' | 'interface') => (SETTINGS_SUB_TABS[section] as readonly SettingsSubTab[])
+      .map(tab => [tab.value, Boolean(tab.saveBar)])
+    expect(shape('linkgrabber')).toEqual([['general', true], ['blocklist', true], ['containers', true], ['filters', false]])
+    expect(shape('interface')).toEqual([['browser', false], ['display', true]])
+  })
+
+  // RD-1240-26, owner: the malware scan and the package names each a tab; the tool status saves nothing.
+  it('splits Post-processing and Tools, the save bar under every tab with document fields', () => {
+    const shape = (section: 'postprocess' | 'tools') => (SETTINGS_SUB_TABS[section] as readonly SettingsSubTab[])
+      .map(tab => [tab.value, Boolean(tab.saveBar)])
+    expect(shape('postprocess')).toEqual([['unpack', true], ['repair', true], ['names', true], ['malware', true], ['delivery', true]])
+    expect(shape('tools')).toEqual([['status', false], ['paths', true], ['managed', true]])
   })
 })

@@ -46,7 +46,27 @@
     "script": "Ejecutar script",
     "set_category": "Mover a la categoría",
     "pause_package": "Pausar el paquete",
-    "resume_package": "Reanudar el paquete"
+    "resume_package": "Reanudar el paquete",
+    "set_priority": "Establecer prioridad",
+    "start_queue": "Iniciar cola",
+    "extract_package": "Extraer paquete",
+    "notify": "Notificar",
+    "add_links": "Añadir enlaces",
+    "priority": "Prioridad",
+    "priority_value": {
+      "low": "Baja",
+      "normal": "Normal",
+      "high": "Alta"
+    },
+    "message": "Mensaje",
+    "links": "Enlaces, uno por línea",
+    "destination": "Destino",
+    "destination_value": {
+      "link_grabber": "LinkGrabber",
+      "downloads": "Descargas"
+    },
+    "link_count": "{count} enlaces",
+    "pause_queue": "Pausar cola"
   },
   "dry_run": {
     "heading": "Ejecución de prueba",
@@ -57,7 +77,9 @@
     "trigger_no": "otro disparador",
     "condition_yes": "la condición se cumple",
     "condition_no": "la condición no se cumple",
-    "draft": "Esta automatización"
+    "draft": "Esta automatización",
+    "next_run": "próxima ejecución {time}",
+    "would_run": "ejecutaría"
   },
   "trigger": {
     "intake_received": "Enlaces recibidos",
@@ -72,7 +94,8 @@
     "upload_finished": "Subida terminada",
     "storage_threshold": "Umbral de almacenamiento",
     "subscription_item": "Elemento de suscripción",
-    "usenet_job_hopeless": "Descarga de Usenet sin remedio"
+    "usenet_job_hopeless": "Descarga de Usenet sin remedio",
+    "schedule": "A una hora"
   },
   "field": {
     "source": "Origen",
@@ -116,5 +139,17 @@
     "restore_title": "¿Restaurar la versión {version}?",
     "restore_description": "El disparador, la condición y las acciones de la versión {version} vuelven a ser la definición de «{name}», guardados como una versión nueva. El nombre y el interruptor de activación se quedan como están.",
     "restored": "La versión {version} vuelve a estar en vigor, guardada como versión {current}."
+  },
+  "schedule": {
+    "heading": "Programación",
+    "interval": "Cada pocos minutos",
+    "cron": "Expresión cron",
+    "minutes": "Minutos",
+    "expression": "Expresión",
+    "help": "Se lee en la zona horaria del servicio. Una hora que el servicio perdió por más de dos minutos, por ejemplo porque estaba apagado, no se recupera.",
+    "interval_help": "Contado desde medianoche: 60 se ejecuta en punto, como máximo 1440 (un día).",
+    "cron_help": "Minuto hora día mes día de la semana, por ejemplo «0 6 * * 1-5» para los días laborables a las seis.",
+    "every_minutes": "cada {minutes} minutos",
+    "no_package": "Una programación no indica ningún paquete: las acciones de paquete no están disponibles aquí."
   }
 }

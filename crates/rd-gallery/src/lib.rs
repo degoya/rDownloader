@@ -38,3 +38,12 @@ pub async fn shared_settings(database: &Database) -> Result<SharedGallerySetting
 pub fn build(database: Database, settings: SharedGallerySettings) -> Arc<dyn ExternalRunner> {
     Arc::new(GalleryRunner::new(database, settings))
 }
+
+/// [`build`], with gallery-dl handed each download's proxy and the custom CA (RD-1240-08).
+pub fn build_with_tool_network(
+    database: Database,
+    settings: SharedGallerySettings,
+    network: rd_scheduler::ToolNetworkSource,
+) -> Arc<dyn ExternalRunner> {
+    Arc::new(GalleryRunner::new(database, settings).with_tool_network(network))
+}

@@ -200,7 +200,11 @@ async fn the_remaining_triggers_fire_on_their_own_event() {
         (
             "subscription_item",
             EventKind::SubscriptionChanged,
-            json!({ "accepted_items": 1, "name": "A feed" }),
+            // What `finish_subscription_run` writes for a poll that accepted an item.
+            json!({
+                "resource": "subscription", "poll": "finished", "subscription_id": "s",
+                "found": 3, "accepted": 1, "skipped": 2, "error": null
+            }),
         ),
         (
             "usenet_job_hopeless",
@@ -272,6 +276,14 @@ async fn an_event_that_is_not_a_moment_fires_nothing() {
             EventKind::SubscriptionChanged,
             json!({ "resource": "subscription" }),
         ),
+        (
+            EventKind::SubscriptionChanged,
+            json!({ "resource": "subscription", "poll": "finished", "accepted": 0 }),
+        ),
+        (
+            EventKind::SubscriptionChanged,
+            json!({ "resource": "subscription", "poll": "finished", "accepted": 1, "error": "x" }),
+        ),
     ] {
         harness
             .database
@@ -299,6 +311,74 @@ async fn an_event_that_is_not_a_moment_fires_nothing() {
             .iter()
             .all(|run| run["automation_id"] == witness.as_str()),
         "only the witness ran: {runs}"
+    );
+}
+
+/// The real producer, end to end (RD-1240-21): the trigger once listened for a payload key no
+/// subscription event carried, so it never fired. A poll that accepted items starts exactly one
+/// run; a poll that accepted nothing, or failed, starts none.
+#[tokio::test]
+async fn a_finished_poll_that_accepted_an_item_fires_subscription_item_once() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+
+    let witness = automation_for(&harness.router, "intake_received").await;
+    let listening = automation_for(&harness.router, "subscription_item").await;
+    // Disabled, so the service never polls it on its own and every run below is one the test
+    // recorded.
+    let (status, created) = post_json(
+        &harness.router,
+        "/api/v1/subscriptions",
+        json!({
+            "name": "Weekly", "url": "https://example.test/feed.xml", "kind": "feed",
+            "enabled": false, "mode": "auto_queue", "interval_seconds": 3_600,
+            "filters": {}, "backlog": { "mode": "from_now" }
+        }),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::CREATED, "{created}");
+    let subscription_id: rd_core::SubscriptionId = created["id"]
+        .as_str()
+        .expect("id")
+        .parse()
+        .expect("subscription id");
+
+    let poll = |accepted: u32, error: Option<&str>| rd_db::PollResult {
+        found: accepted + 1,
+        accepted,
+        skipped: 1,
+        error: error.map(ToOwned::to_owned),
+        next_run_at: chrono::Utc::now(),
+        consecutive_failures: 0,
+        etag: None,
+        last_modified: None,
+    };
+    harness
+        .database
+        .finish_subscription_run(subscription_id, chrono::Utc::now(), poll(1, None))
+        .await
+        .expect("run recorded");
+    assert_fired(&harness.router, &listening, "subscription_item").await;
+
+    for result in [poll(0, None), poll(2, Some("poll timed out"))] {
+        harness
+            .database
+            .finish_subscription_run(subscription_id, chrono::Utc::now(), result)
+            .await
+            .expect("run recorded");
+    }
+    harness.database.broadcast(intake("after"));
+    wait_for_runs_of(
+        &harness.router,
+        &witness,
+        1,
+        "the engine never read past the polls",
+    )
+    .await;
+    assert_eq!(
+        run_count(&harness.router, &listening).await,
+        1,
+        "one accepting poll is one run"
     );
 }
 

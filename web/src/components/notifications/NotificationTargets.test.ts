@@ -265,3 +265,28 @@ describe('NotificationTargets SMTP port', () => {
     expect(put.mock.calls[0]?.[1]?.body?.config).toHaveProperty('port', null)
   })
 })
+
+/** RD-1240-13: browser push has no address and no secret; its form says where it comes from. */
+describe('NotificationTargets browser push', () => {
+  const PUSH = { id: 't1', name: 'Phones', kind: 'web_push', enabled: true, endpoint: '', config: {}, has_secret: false }
+
+  beforeEach(() => {
+    get.mockReset()
+    get.mockResolvedValue({ data: [] })
+    put.mockReset()
+    put.mockResolvedValue({ data: PUSH })
+  })
+
+  it('edits a push destination without an address or a secret', async () => {
+    mountComponent(NotificationTargets, { messages: { notifications }, props: { modelValue: [PUSH], loading: false, loadError: null } })
+    const row = screen.getByText('Phones').closest('div.flex') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.edit }))
+
+    await screen.findByText(notifications.target.web_push_description)
+    expect(screen.queryByLabelText(notifications.target.endpoint_webhook)).toBeNull()
+    await fireEvent.submit(screen.getByText(notifications.target.web_push_description).closest('form') as HTMLFormElement)
+
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    expect(put.mock.calls[0]?.[1]?.body).toMatchObject({ kind: 'web_push', endpoint: '' })
+  })
+})

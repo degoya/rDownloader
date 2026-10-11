@@ -29,6 +29,14 @@ pub(super) const fn default_update_check_interval_hours() -> u32 {
     rd_update::settings::DEFAULT_INTERVAL_HOURS
 }
 
+pub(super) const fn default_update_backup_retention_days() -> u32 {
+    rd_update::settings::DEFAULT_BACKUP_RETENTION_DAYS
+}
+
+pub(super) const fn default_subscription_item_retention_days() -> u32 {
+    rd_db::DEFAULT_ITEM_RETENTION_DAYS
+}
+
 pub(super) const fn default_history_retention_entries() -> u32 {
     rd_core::DEFAULT_HISTORY_RETENTION_ENTRIES
 }
@@ -53,6 +61,11 @@ impl Default for SettingsResponse {
             update_check_enabled: true,
             update_channel: default_update_channel(),
             update_check_interval_hours: default_update_check_interval_hours(),
+            update_auto_install: false,
+            update_auto_install_window: None,
+            restart_when_needed: false,
+            update_backup_retention_days: default_update_backup_retention_days(),
+            subscription_item_retention_days: default_subscription_item_retention_days(),
             history_retention_entries: default_history_retention_entries(),
             history_retention_days: default_history_retention_days(),
             account_traffic_action: rd_core::AccountTrafficAction::default(),
@@ -81,6 +94,7 @@ impl Default for SettingsResponse {
             auto_remove_keep_failed: default_auto_remove_keep_failed(),
             passwords_file: None,
             admin_login_disabled: false,
+            aria2_rpc_enabled: false,
             trusted_proxies: Vec::new(),
             external_url: None,
             allowed_hosts: Vec::new(),
@@ -122,6 +136,8 @@ impl Default for SettingsResponse {
             media_hosts: rd_core::MediaSettings::default_hosts(),
             media_max_parallel: 2,
             media_check_timeout_seconds: 60,
+            media_sleep_requests_seconds: 0,
+            media_sleep_interval_seconds: 0,
             gallery_executable: None,
             gallery_hosts: rd_core::GallerySettings::default_hosts(),
             gallery_max_parallel: default_gallery_max_parallel(),
@@ -148,6 +164,8 @@ impl Default for SettingsResponse {
             torrent_upnp_enabled: false,
             torrent_announce_port: None,
             torrent_peer_addresses_visible: false,
+            torrent_max_active_downloads: default_torrent_max_active_downloads(),
+            torrent_max_active_seeds: None,
             quiet_hours: rd_limits::QuietHours::default(),
             quiet_hours_defer_postprocess: true,
             quiet_hours_defer_notifications: true,
@@ -160,6 +178,7 @@ impl Default for SettingsResponse {
             prevent_standby: false,
             prevent_display_standby: false,
             mirror_detection: default_mirror_detection(),
+            duplicates_include_history: false,
             reconnect_enabled: false,
             reconnect_script: None,
             reconnect_windows: Vec::new(),
@@ -273,6 +292,10 @@ pub(super) fn default_storage_unknown_size_headroom() -> u32 {
 
 pub(super) fn default_torrent_seeding_enabled() -> bool {
     false
+}
+
+pub(super) const fn default_torrent_max_active_downloads() -> u32 {
+    rd_core::DEFAULT_TORRENT_ACTIVE_DOWNLOADS
 }
 
 /// On: fetching the same bytes twice is never what somebody wanted, and a mirror that is not

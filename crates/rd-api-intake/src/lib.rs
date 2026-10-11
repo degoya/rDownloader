@@ -1,6 +1,6 @@
 //! How links get in (RD-160-06): the LinkGrabber and its enqueue path, containers, NZB and
-//! capture uploads, captchas, site rules, subscriptions, livestream channels and schedules, and
-//! the area bundle that carries them.
+//! capture uploads, captchas, site rules, subscriptions, livestream channels and schedules, the
+//! LinkFilter rules, and the area bundle that carries them.
 
 #![warn(unreachable_pub)]
 
@@ -9,6 +9,7 @@ pub mod candidate_handlers;
 pub mod captcha_handlers;
 pub mod capture_fetch;
 pub mod capture_file;
+pub mod capture_linkgrabber;
 pub mod collector_crawl_verdict;
 pub mod collector_enqueue;
 pub mod collector_handlers;
@@ -18,6 +19,8 @@ pub mod container_handlers;
 pub mod history_readd_handlers;
 pub mod indexer_handlers;
 pub mod indexer_search;
+pub mod link_filter_handlers;
+pub mod link_filter_input;
 pub mod nzb_handlers;
 pub mod nzb_zip;
 pub mod regex_tester;
@@ -31,6 +34,7 @@ pub mod stream_handlers;
 pub mod stream_schedule_handlers;
 pub mod subscription_autoqueue;
 pub mod subscription_handlers;
+pub mod torrent_import;
 
 // The modules of the crates below, at this crate's root, so that a module here names them as
 // `crate::…` exactly as it did while the HTTP surface was one crate (RD-160-06).

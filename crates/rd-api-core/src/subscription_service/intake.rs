@@ -39,6 +39,7 @@ pub async fn hand_urls_to_intake(
             source: rd_core::IngressSource::Subscription,
             source_label: Some(subscription_name.to_owned()),
             category_id,
+            reach: None,
         },
         links,
     )

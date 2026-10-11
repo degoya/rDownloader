@@ -16,6 +16,7 @@ rd-collector = { path = "../rd-collector" }
 rd-core = { path = "../rd-core" }
 serde.workspace = true
 serde_json.workspace = true
+tower-http.workspace = true
 tracing.workspace = true
 url.workspace = true
 

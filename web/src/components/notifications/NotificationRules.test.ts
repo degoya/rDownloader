@@ -58,7 +58,7 @@ describe('NotificationRules', () => {
   it('offers the operational events next to the queue events (RD-190-19)', () => {
     mount()
     const group = screen.getByRole('group', { name: notifications.rule.events_label })
-    for (const event of ['backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available', 'plugin_update_failed', 'account_expiring', 'account_invalid', 'usenet_quota_reached'] as const) {
+    for (const event of ['backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available', 'plugin_update_failed', 'account_expiring', 'account_invalid', 'usenet_quota_reached', 'service_restarting'] as const) {
       expect(within(group).getByRole('checkbox', { name: notifications.event[event] })).toBeTruthy()
     }
   })
@@ -67,6 +67,15 @@ describe('NotificationRules', () => {
     mount()
     const group = screen.getByRole('group', { name: notifications.rule.events_label })
     expect(within(group).getByRole('checkbox', { name: notifications.event.usenet_job_hopeless })).toBeTruthy()
+  })
+
+  it('offers the activity events and says that starts and added links must be chosen (RD-1240-17)', () => {
+    mount()
+    const group = screen.getByRole('group', { name: notifications.rule.events_label })
+    for (const event of ['download_started', 'links_added', 'stream_recorded', 'subscription_matched'] as const) {
+      expect(within(group).getByRole('checkbox', { name: notifications.event[event] })).toBeTruthy()
+    }
+    expect(screen.getByText(notifications.rule.events_description)).toBeTruthy()
   })
 
   it('copies a rule with its target, events, category and severity, and opens the copy', async () => {

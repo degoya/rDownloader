@@ -40,6 +40,7 @@ pub use bundled::{BundledPolicy, BundledSyncReport, sync_bundled};
 pub use bundled_services::{
     BundledPackage, BundledService, BundledText, ServiceCategory, group_services,
 };
+pub use compile_cache::prune::{CachePrune, prune_compile_cache};
 pub use component::ComponentResolver;
 pub use conformance::{ConformanceCheck, ConformanceReport, check_package};
 pub use diagnostics::{ExecutionLog, ExecutionOutcome, Invocation};

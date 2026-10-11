@@ -1,7 +1,8 @@
 //! The automation engine's two background loops (RD-090-04, RD-090-06).
 //!
 //! One subscribes to the event bus and turns matching events into queued runs; the other
-//! works the queue. Separated for the same reason the notification hub separates them: a
+//! works the queue. A third looks at the clock for the time trigger (RD-1240-10,
+//! `automation_schedule`) and queues into the same table. Separated for the same reason the notification hub separates them: a
 //! webhook that hangs must never delay the event stream.
 //!
 //! The engine is a bus subscriber rather than a hook inside the writer. An automation that
@@ -10,7 +11,7 @@
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use rd_automation::{Automation, AutomationVersion, Run, RunState, Trigger};
+use rd_automation::{Action, Automation, AutomationVersion, Run, RunState, Schedule, Trigger};
 use rd_core::AutomationId;
 use tokio_util::sync::CancellationToken;
 
@@ -85,6 +86,7 @@ impl AutomationService {
         secrets: rd_secrets::SecretStore,
         scheduler: rd_scheduler::SchedulerHandle,
         extraction: rd_extract::ExtractionService,
+        links: crate::automation_links::LinkIntake,
     ) -> Self {
         let service = Self {
             inner: Arc::new(Inner {
@@ -93,12 +95,17 @@ impl AutomationService {
                     secrets,
                     scheduler,
                     extraction,
+                    links: Some(links),
                 },
                 shutdown: CancellationToken::new(),
             }),
         };
-        tokio::spawn(service.clone().watch_events());
+        // Subscribed here, before the recovery the loop starts with: an event sent while that
+        // waits for the writer is then buffered for the loop instead of lost.
+        let events = service.inner.context.database.subscribe();
+        tokio::spawn(service.clone().watch_events(events));
         tokio::spawn(service.clone().run_loop());
+        tokio::spawn(service.clone().schedule_loop());
         service
     }
 
@@ -128,6 +135,8 @@ impl AutomationService {
                 automation_id: version.automation_id,
                 trigger_matches: version.trigger == trigger,
                 condition_matches: version.condition.matches(&context),
+                next_run_at: next_run_at(version.trigger, version.schedule.as_ref()),
+                actions: version.actions,
             })
             .collect())
     }
@@ -148,10 +157,15 @@ impl AutomationService {
                 .unwrap_or_else(|| AutomationId::from_uuid(uuid::Uuid::nil())),
             trigger_matches: draft.trigger == trigger,
             condition_matches: draft.condition.matches(&context),
+            next_run_at: next_run_at(draft.trigger, draft.schedule.as_ref()),
+            actions: draft.actions,
         })
     }
 
-    async fn watch_events(self) {
+    async fn watch_events(
+        self,
+        mut events: tokio::sync::broadcast::Receiver<rd_core::EventEnvelope>,
+    ) {
         // Recovery first: a run left `running` means the process died between claiming it
         // and recording its outcome, and it belongs back in the queue.
         match self.inner.context.database.recover_automation_runs().await {
@@ -160,7 +174,6 @@ impl AutomationService {
             Err(error) => tracing::warn!(%error, "automation recovery failed"),
         }
         let database = self.inner.context.database.clone();
-        let mut events = database.subscribe();
         let mut last = None;
         loop {
             tokio::select! {
@@ -236,6 +249,28 @@ impl AutomationService {
         Ok(())
     }
 
+    /// Queues the runs of the time trigger whose slot is due, in the service's own zone.
+    async fn schedule_loop(self) {
+        let mut ticker = tokio::time::interval(crate::automation_schedule::TICK);
+        loop {
+            tokio::select! {
+                () = self.inner.shutdown.cancelled() => return,
+                _ = ticker.tick() => {
+                    let database = &self.inner.context.database;
+                    if let Err(error) = crate::automation_schedule::queue_due(
+                        database,
+                        chrono::Utc::now(),
+                        &chrono::Local,
+                    )
+                    .await
+                    {
+                        tracing::warn!(%error, "automation schedule check failed");
+                    }
+                }
+            }
+        }
+    }
+
     async fn run_loop(self) {
         let mut ticker = tokio::time::interval(SWEEP);
         loop {
@@ -301,7 +336,17 @@ impl AutomationService {
                 None,
             )
             .await?;
-        match execute(&self.inner.context, action, run.package_id, version.trigger).await {
+        // One key per action of a run, the same on every attempt (RD-1240-28).
+        let delivery_key = format!("{}:{}", run.id, run.action_index);
+        match execute(
+            &self.inner.context,
+            action,
+            run.package_id,
+            version.trigger,
+            &delivery_key,
+        )
+        .await
+        {
             Ok(()) => {
                 // A stop here leaves the action done and the run `running`: the next start
                 // queues it again at this action (RD-180-12, recovery matrix).
@@ -360,8 +405,14 @@ pub struct DryRunDraft {
     pub automation_id: Option<AutomationId>,
     /// The trigger the draft listens for.
     pub trigger: Trigger,
+    /// The draft's schedule, for a time trigger (RD-1240-10).
+    #[serde(default)]
+    pub schedule: Option<Schedule>,
     #[serde(default)]
     pub condition: rd_automation::ConditionNode,
+    /// The draft's actions, handed back so the answer says what would run.
+    #[serde(default)]
+    pub actions: Vec<Action>,
 }
 
 /// What a dry run found for one automation.
@@ -372,6 +423,22 @@ pub struct DryRunMatch {
     pub trigger_matches: bool,
     /// Whether its condition holds for the sample package.
     pub condition_matches: bool,
+    /// For a time trigger, when its schedule runs next, read in the service's zone
+    /// (RD-1240-10); absent for every other trigger.
+    pub next_run_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// What would run, in order: the actions a match executes (RD-1240-10).
+    pub actions: Vec<Action>,
+}
+
+/// When a time trigger runs next; `None` for every other trigger.
+fn next_run_at(
+    trigger: Trigger,
+    schedule: Option<&Schedule>,
+) -> Option<chrono::DateTime<chrono::Utc>> {
+    if trigger != Trigger::Schedule {
+        return None;
+    }
+    schedule?.next_after(chrono::Utc::now(), &chrono::Local)
 }
 
 /// Crash and restart of a run (RD-180-12, recovery matrix).
