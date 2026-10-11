@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * What the desktop capture agent does on its computer, set from here (RD-1180-01, RD-1180-03):
- * whether it watches the clipboard, and the system-wide shortcuts of its tray commands.
+ * What the desktop capture agent does on its computer, set from here (RD-1180-01, RD-1180-03,
+ * RD-1240-19): whether it watches the clipboard, the system-wide shortcuts of its tray commands
+ * and its game mode (`CaptureGameModeForm`).
  *
  * The pause is a switch that saves at once, like the tray's own; the shortcuts are edited as a
  * set and saved together, because two of them can only be judged against each other. Both are
@@ -16,6 +17,7 @@ import type { CaptureAgentSettingsResponse, CaptureCommand, CaptureShortcuts } f
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
+import CaptureGameModeForm from '@/components/settings/CaptureGameModeForm.vue'
 import ShortcutField from '@/components/settings/ShortcutField.vue'
 import { subscribeEvents } from '@/composables/useEventStream'
 import { useFetchState } from '@/composables/useFetchState'
@@ -209,6 +211,8 @@ async function saveShortcuts(): Promise<void> {
           @cancel="discard"
         />
       </UForm>
+      <USeparator />
+      <CaptureGameModeForm :game-mode="current.game_mode" @saved="value => apply(value, dirty)" />
     </template>
   </div>
 </template>

@@ -12,6 +12,7 @@ import { type PickListing, useSitePicksStore } from '@/stores/sitePicks'
 import { batchError, inBatches } from '@/utils/bulkBatches'
 
 import { useCandidateActions } from './collectorCandidates'
+import { useLinkFilterActions } from './collectorLinkFilters'
 import { useMirrorActions } from './collectorMirrors'
 import {
   changeBody,
@@ -95,6 +96,7 @@ export const useCollectorStore = defineStore('collector', () => {
     useCandidateActions({ candidates, error, refresh })
   const { mirrorPreference, loadMirrorPreference, setMirrorPreference, chooseMirror, dissolveMirror } =
     useMirrorActions({ error, refresh })
+  const { applyLinkFilters, unhideCandidates } = useLinkFilterActions({ error, refresh })
 
   const notifications = useNotifications()
 
@@ -432,6 +434,8 @@ export const useCollectorStore = defineStore('collector', () => {
     setMirrorPreference,
     chooseMirror,
     dissolveMirror,
+    applyLinkFilters,
+    unhideCandidates,
     enqueuePackages,
     enqueueCandidate,
     replayPreview,

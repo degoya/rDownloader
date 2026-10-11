@@ -303,7 +303,12 @@ impl SubscriptionService {
                 let failures = subscription.consecutive_failures.saturating_add(1);
                 // Redacted: a poll URL can carry an indexer API key, and this message is
                 // shown in the UI and stored on the row.
-                let message = rd_core::redact_text(&error.to_string());
+                // A key the vault holds but cannot open is recorded by its code, whatever
+                // context the poll wrapped it in (RD-1240-36).
+                let message = match rd_secrets::find_unreadable(&error) {
+                    Some(unreadable) => unreadable.to_string(),
+                    None => rd_core::redact_text(&error.to_string()),
+                };
                 tracing::warn!(
                     subscription = %subscription.name,
                     failures,

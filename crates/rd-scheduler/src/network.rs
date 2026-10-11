@@ -36,6 +36,17 @@ impl SchedulerHandle {
         worker::build_test_client(self, profile, scope).await
     }
 
+    /// The proxy and CA a tool is handed, for a run outside the queue: the channel monitor's
+    /// probe (RD-1240-22).
+    #[must_use]
+    pub fn tool_network(&self) -> crate::ToolNetworkSource {
+        crate::ToolNetworkSource::new(
+            self.database.clone(),
+            self.secrets.clone(),
+            self.network_defaults.clone(),
+        )
+    }
+
     /// HTTP client honouring the global proxy/TLS defaults without an account identity,
     /// plus any credential headers of the auth profile matching `scope`.
     pub async fn direct_client(&self, scope: &Url) -> Result<NetworkClient> {

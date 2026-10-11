@@ -185,28 +185,9 @@ fn looks_like_bencode(head: &[u8]) -> bool {
     (1..=3).contains(&digits) && rest.get(digits) == Some(&b':')
 }
 
-/// Parses `filename*=UTF-8''…` (RFC 5987) or `filename="…"`.
-#[must_use]
-pub fn disposition_file_name(value: &str) -> Option<String> {
-    let mut plain = None;
-    for part in value.split(';').map(str::trim) {
-        if let Some(rest) = part.strip_prefix("filename*=") {
-            let encoded = rest.trim_matches('"');
-            let encoded = encoded.splitn(3, '\'').nth(2).unwrap_or(encoded);
-            if let Ok(decoded) = percent_encoding::percent_decode_str(encoded).decode_utf8()
-                && !decoded.is_empty()
-            {
-                return Some(decoded.into_owned());
-            }
-        } else if let Some(rest) = part.strip_prefix("filename=") {
-            let name = rest.trim_matches(['"', '\'']).trim();
-            if !name.is_empty() {
-                plain = Some(name.to_owned());
-            }
-        }
-    }
-    plain
-}
+/// Parses `filename*=UTF-8''…` (RFC 5987) or `filename="…"`; shared with the download
+/// worker, which names a file its address could not (RD-1240-33).
+pub use rd_files::disposition_file_name;
 
 #[cfg(test)]
 mod tests {

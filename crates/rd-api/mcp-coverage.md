@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**105 capabilities, 79 covered by a tool, 26 deliberately out (16 of them on the owner's line of 2026-09-23).** 450 REST operations, 240 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**114 capabilities, 87 covered by a tool, 27 deliberately out (16 of them on the owner's line of 2026-09-23).** 481 REST operations, 259 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -24,7 +24,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Packages in the queue | Downloads | 2 | `delete_packages`, `list_packages` |
 | LinkGrabber: collect, check, enqueue | LinkGrabber | 5 | `check_links`, `collect_links`, `enqueue_collector`, `list_collector` |
 | The settings document | Settings | 2 | `get_settings`, `update_settings` |
-| The desktop agent's clipboard pause and shortcuts | Settings > Clients & API > Desktop | 2 | `get_capture_agent_settings`, `update_capture_agent_settings` |
+| The desktop agent's clipboard pause, shortcuts and game mode | Settings > Clients & API > Desktop | 2 | `get_capture_agent_settings`, `update_capture_agent_settings` |
 | Full backup: schedule, runs and history | Settings > Backup | 4 | `get_backup_status`, `list_backup_runs`, `run_backup`, `update_backup_schedule` |
 | Full backup: destinations, retention and verification | Settings > Backup | 7 | `create_backup_destination`, `delete_backup_destination`, `list_backup_archives`, `list_backup_verifications`, `preview_backup_retention`, `update_backup_destination`, `verify_backup_archive` |
 | Categories | Settings > Routing | 4 | `create_category`, `delete_category`, `list_configuration`, `update_category` |
@@ -36,6 +36,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Proxy profiles | Settings > Network | 4 | `create_proxy_profile`, `delete_proxy_profile`, `list_configuration`, `update_proxy_profile` |
 | Usenet servers | Settings > Usenet | 4 | `create_usenet_server`, `delete_usenet_server`, `list_usenet_servers`, `update_usenet_server` |
 | Notification targets and rules | Settings > Notifications | 8 | `create_notification_rule`, `create_notification_target`, `delete_notification_rule`, `delete_notification_target`, `list_notification_rules`, `list_notification_targets`, `update_notification_rule`, `update_notification_target` |
+| Browsers that receive push messages | Settings > Interface | 2 | `delete_web_push_subscription`, `list_web_push_subscriptions` |
 | Subscriptions | Subscriptions | 4 | `create_subscription`, `delete_subscription`, `list_subscriptions`, `update_subscription` |
 | Livestream channels | Streams | 4 | `create_stream_channel`, `delete_stream_channel`, `list_stream_channels`, `update_stream_channel` |
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
@@ -47,9 +48,11 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | The log store | Logs | 1 | `list_log_records` |
 | The audit log | Audit | 1 | `list_audit_records` |
 | Clearing logs, audit records and statistics | Settings > System | 4 | `clear_audit_records`, `clear_log_records`, `clear_transfer_stats`, `get_data_reset_preview` |
+| Cleaning up update backups, the plugin cache and the database | Settings > System > Retention | 2 | `clean_up_data_directory`, `get_cleanup_preview` |
 | Site rules: read and switch | Settings > Site rules | 3 | `list_site_rules`, `set_site_rule_enabled`, `set_site_rule_group_enabled` |
 | Handing in a container file | .torrent / .nzb / .dlc / .rdlinks / .crawljob drop | 4 | `import_container`, `import_nzb`, `import_torrent` |
-| LinkGrabber: candidate-level handling | LinkGrabber | 17 | `clear_linkgrabber`, `delete_candidates`, `enqueue_candidate`, `get_candidate_details`, `list_candidates`, `move_candidates`, `preview_candidate_media`, `reorder_candidates`, `reorder_collector`, `resolve_candidate_torrent`, `set_candidate_plan`, `update_candidate` |
+| LinkGrabber: candidate-level handling | LinkGrabber | 18 | `clear_linkgrabber`, `delete_candidates`, `enqueue_candidate`, `get_candidate_details`, `list_candidates`, `move_candidates`, `preview_candidate_media`, `reorder_candidates`, `reorder_collector`, `resolve_candidate_torrent`, `set_candidate_plan`, `unhide_candidates`, `update_candidate` |
+| LinkFilter rules | Settings > LinkGrabber | 6 | `apply_link_filters`, `create_link_filter`, `delete_link_filter`, `list_link_filters`, `reorder_link_filters`, `update_link_filter` |
 | Mirror groups | LinkGrabber | 5 | `get_mirror_preference`, `set_candidate_mirror`, `set_mirror_preference` |
 | Reviewing an NZB before it is queued | NZB import | 1 | `list_nzb_imports` |
 | NZB import files and enqueue | NZB import | 4 | `delete_nzb_import`, `enqueue_nzb_import`, `get_nzb_import`, `update_nzb_import` |
@@ -59,7 +62,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Clearing finished work in one sweep | Downloads | 1 | `clear_finished_packages` |
 | Unpacking on demand | Downloads | 4 | `extract_downloads`, `extract_packages` |
 | The mirrors of a download and their health | Downloads > transfer details | 1 | `get_download_sources` |
-| Torrent detail and seeding | Downloads > torrent panel | 18 | `get_torrent_details`, `get_torrent_engine`, `list_network_interfaces`, `set_category_seeding`, `set_torrent_file_plan`, `set_torrent_seeding`, `stop_seeding`, `update_torrent_trackers` |
+| Torrent detail and seeding | Downloads > torrent panel | 19 | `get_torrent_details`, `get_torrent_engine`, `list_network_interfaces`, `set_category_seeding`, `set_torrent_file_plan`, `set_torrent_seeding`, `stop_seeding`, `test_torrent_port`, `update_torrent_trackers` |
 | Rechecking a torrent and moving its files | Downloads > torrent menu | 2 | `move_torrent`, `recheck_torrent` |
 | Post-processing inventory and queue | Settings > Post-processing | 8 | `get_nzb_import`, `get_package_postprocess`, `list_postprocess_options`, `list_postprocess_queue`, `test_malware_scanner`, `update_category_postprocess` |
 | Sort and rename templates for series and films | Settings > Routing > category | 1 | `preview_category_sorting` |
@@ -71,9 +74,10 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Source and content duplicates | Downloads > package, LinkGrabber | 3 | `dedupe_download`, `get_download_duplicates`, `lookup_duplicates` |
 | Storage history, reuse and the content index | Settings > Storage | 4 | `check_content_index`, `get_link_support`, `get_storage_reuse`, `list_storage_operations` |
 | Clearing the storage history and the content index | Settings > Storage | 2 | `clear_content_index`, `clear_storage_operations` |
-| Download history: search, add again, clear | History | 3 | `clear_download_history`, `list_download_history`, `readd_history_entry` |
+| Download history: search, add again, clear | History | 4 | `clear_download_history`, `list_download_history`, `readd_history_entry` |
 | About rDownloader | Settings > About | 2 | `get_about` |
 | Application updates | Settings > System | 2 | `check_for_updates`, `get_update_status` |
+| A pending restart and restarting the service | Settings > System | 2 | `get_restart_status`, `restart_service` |
 | Writing a site rule | Settings > Site rules | 5 | `create_site_rule`, `delete_site_rule`, `restore_site_rule_examples`, `test_site_rule`, `update_site_rule` |
 | Choosing a series page's releases before resolving them | LinkGrabber | 6 | `cancel_page_pick`, `discard_page_pick`, `get_page_pick`, `list_page_entries`, `list_page_picks`, `resolve_page_entries` |
 | Which providers can take a remote job | Remote jobs | 1 | `list_remote_job_providers` |
@@ -96,14 +100,19 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Pausing the whole queue for a while | Downloads, transfer rail | 3 | `get_queue_pause`, `pause_queue`, `resume_queue` |
 | Switching a bandwidth profile by hand, and the bandwidth status | Settings > Bandwidth | 4 | `get_bandwidth_status`, `list_bandwidth_profiles`, `return_to_bandwidth_schedule`, `switch_bandwidth_profile` |
 | A package's own speed limit | Downloads > package editor | 2 | `get_package_speed_limit`, `set_package_speed_limit` |
+| A package's "not before" | Downloads > package menu | 1 | `set_package_start_after` |
+| Finding packages and files by name | Search palette | 1 | `search_queue` |
 | Exporting packages as a link file | Downloads and LinkGrabber, selection bar and package menu | 1 | `export_packages` |
 | Resolving downloads again with the plugin installed now | Downloads, selection bar and package menu | 1 | `reresolve_downloads` |
 | The queue's stop mark | Downloads, row menu and transfer rail | 3 | `clear_stop_mark`, `get_queue_pause`, `set_stop_mark` |
+| A package's download window | Downloads > package menu | 2 | `get_package_download_window`, `set_package_download_window` |
+| A category's download window | Settings > Routing > category editor | 1 | `set_category_download_window` |
 
 ### Deliberately out
 
 | Capability | Surface | REST ops | Why not |
 | --- | --- | --: | --- |
+| Turning push on in this browser | Settings > Interface | 2 | A push subscription is made by a browser's own push service for that very browser; an agent has no browser to subscribe. list_web_push_subscriptions and delete_web_push_subscription manage the ones there are. |
 | Deleting a remote job at the provider | Remote jobs | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Signing in, sessions, second factor and API tokens | Login, Settings > Security | 35 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Signing in at a provider | Settings > Accounts | 13 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
@@ -114,7 +123,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Consent to replay a paid link | LinkGrabber | 3 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Full backup passphrase | Settings > Backup | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Restoring a full backup | Settings > Backup | 8 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
-| Import and export of a whole area | Settings > Backup | 15 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
+| Import and export of a whole area | Settings > Backup | 17 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Plugin trust and installation | Settings > Plugins | 21 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Probing an indexer's capabilities | Subscriptions | 2 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Defining and testing indexers | Settings > Usenet | 4 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
@@ -122,7 +131,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Reconnecting on demand | Settings > Network | 1 | Owner's decision, 2026-09-23 (RD-120-32): not offered. A tool that hands out a secret, takes one in, gives a consent, or changes something outside this machine irreversibly is not offered -- not because it could not be built, but because an agent holding it could do what the person meant to do themselves. |
 | Choosing a stored browser profile for queued work | Downloads, LinkGrabber | 2 | Each route names one of the stored browser profiles, and listing those is part of signing in at a provider, which the owner decided on 2026-09-23 to keep out. A tool here would take an id no tool can supply -- the gap RD-120-32 exists to close, not one to open. |
 | Deleting every site rule at once | Settings > Site rules | 1 | Redundant and destructive (RD-1230-03): delete_site_rule removes any rule, one call per id, which an agent can repeat for every rule list_site_rules names. Wiping all of them in one call throws away what the person wrote, and the settings page asks first with the number and advises an export, which is not offered here either; the clear stays the person's own act. |
-| The desktop capture agent | the agent, not the web UI | 20 | Not a user-facing capability but the agent's own contract, priced with its own capture: scopes. No api: token reaches it, so a tool over it could not be called. The tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue already give MCP, and the clipboard pause and the shortcuts the agent follows (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it. What an agent says about its own update on its poll (RD-1210-03) get_update_status reads; installing it is the agent's own decision, never a tool's. |
+| The desktop capture agent | the agent, not the web UI | 27 | Not a user-facing capability but the agent's own contract, priced with its own capture: scopes. No api: token reaches it, so a tool over it could not be called. The tray's pause and resume (RD-1100-06) are the capability pause_queue and resume_queue already give MCP, its "Add all from LinkGrabber" (RD-1240-07) the one enqueue_collector and enqueue_nzb_import give it, and the clipboard pause and the shortcuts the agent follows (RD-1180-01, RD-1180-03) the one get_ and update_capture_agent_settings give it, which set its game mode too (RD-1240-19) and switch it on and off like the tray's "Pause while gaming" (RD-1240-23); the hold and release the agent makes under it are pause_queue, resume_queue, switch_bandwidth_profile and return_to_bandwidth_schedule for a person. What an agent says about its own update on its poll (RD-1210-03) get_update_status reads; installing it is the agent's own decision, never a tool's. The service's update the tray offers (RD-1240-25) is the offer get_update_status shows; installing it stays a person's click, in the interface or in a tray paired with capture:server_update, for the reasons "Installing an update" gives. |
 | Controlling one download by its own route | Downloads | 5 | control_downloads already does all five for one id or many, over the bulk route. A second spelling of the same act is one more thing for a model to choose between and nothing it could not do before. |
 | The live rate series | Downloads chart | 1 | A chart's data series, sampled per second. get_status_summary answers how fast the queue is going in one number, and get_transfer_stats answers it over time; the queued files waiting for their host are list_downloads' waiting_for_host. |
 | Editing bandwidth profiles and the weekly schedule | Settings > Bandwidth | 6 | The limit in force is in the settings document, which update_settings writes. Profiles and the weekly schedule are a calendar grid, and a schedule edited by something that cannot see it is how a quiet hour lands on the wrong day. Reading the status, listing the profiles and switching one on for a while are tools (RD-190-20). |

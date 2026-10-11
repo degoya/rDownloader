@@ -220,13 +220,7 @@ pub async fn automation_vocabulary() -> Json<AutomationVocabulary> {
             "greater_than",
             "less_than",
         ],
-        action_kinds: vec![
-            "webhook",
-            "script",
-            "set_category",
-            "pause_package",
-            "resume_package",
-        ],
+        action_kinds: rd_automation::Action::KINDS.to_vec(),
         max_actions: rd_automation::MAX_ACTIONS,
         max_condition_depth: rd_automation::MAX_CONDITION_DEPTH,
     })

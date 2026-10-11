@@ -11,6 +11,7 @@ mod cnl;
 mod commands;
 mod config;
 mod controls;
+mod game_mode;
 mod hotkeys;
 // The badge the tray draws over its icon is plain arithmetic on an RGBA buffer, so it carries the
 // tray's gate plus `test` and is measured here; only the decoding and `Icon::from_rgba` around it
@@ -18,12 +19,14 @@ mod hotkeys;
 #[cfg(any(windows, target_os = "macos", test))]
 mod icon;
 mod instance;
+mod linkgrabber;
 mod notify;
 #[cfg(test)]
 mod notify_resume;
 mod os_integration;
 mod relaunch;
 mod self_update;
+mod server_update;
 // The platform gate: what a Linux build of the agent may link, and which modules may be
 // compiled there at all. Its own file because it is a check, not a part of the agent.
 #[cfg(test)]
@@ -37,6 +40,10 @@ mod status;
 mod supervision;
 #[cfg(any(windows, target_os = "macos"))]
 mod tray;
+// Every entry of the tray menu and its command (RD-1240-24): a list the tray builds from, held by
+// a test on every host. Same gate as `status`.
+#[cfg(any(windows, target_os = "macos", test))]
+mod tray_menu;
 // What the tray shows -- which mark, whether "Open" can be chosen, the status line -- is a rule
 // over the service state, the transfer poll and the agent's notices, and it is decided and
 // tested here; `tray` only applies the result to its handles. Same gate as `status`.
@@ -243,6 +250,8 @@ pub(crate) struct DesktopSinks {
     pub inbox: controls::Inbox,
     /// The tray's entry for the agent's own update (RD-1210-03).
     pub update: self_update::OfferSink,
+    /// The tray's entry for the service's update and its server line (RD-1240-25).
+    pub server_update: server_update::ViewSink,
 }
 
 async fn run(
@@ -259,7 +268,8 @@ async fn run(
         anyhow::bail!("Click'n'Load requires at least one loopback address");
     }
     let connection = config::load(args.connection.service, args.connection.token)?;
-    // For the Linux shortcut listener, which opens the web interface itself.
+    // For the Linux shortcut listener, which opens the web interface itself, and for the server
+    // update's page (RD-1240-25).
     let service = connection.service.clone();
     let client = CaptureClient::new(connection.service, connection.token)?;
     let signal = cancellation.clone();
@@ -269,6 +279,9 @@ async fn run(
     });
     let notice = desktop.as_ref().map(|desktop| desktop.notice.clone());
     let offer_sink = desktop.as_ref().map(|desktop| desktop.update.clone());
+    let server_update_sink = desktop
+        .as_ref()
+        .map(|desktop| desktop.server_update.clone());
     // Every background task is held rather than spawned and forgotten, so its end is read
     // (RD-109-07) and so the error path below can give it a moment to stop.
     let mut background = tokio::task::JoinSet::new();
@@ -290,6 +303,7 @@ async fn run(
         settings: settings_requests,
         hand_over,
         self_update: update_requests,
+        server_update: server_update_requests,
     } = inbox;
     self_update::spawn(
         &mut background,
@@ -298,6 +312,15 @@ async fn run(
         offer_sink,
         update_requests,
     );
+    server_update::spawn(
+        &mut background,
+        &client,
+        service.clone(),
+        &cancellation,
+        notice.clone(),
+        server_update_sink,
+        server_update_requests,
+    );
     let settings = controls::follow_settings(
         &mut background,
         &client,
@@ -305,6 +328,14 @@ async fn run(
         notice.clone(),
         settings_requests,
         desktop.as_ref().map(|(_, sink)| sink.clone()),
+    );
+    // Pausing for a game (RD-1240-19); it does nothing until the settings name a trigger.
+    game_mode::spawn(
+        &mut background,
+        &client,
+        &cancellation,
+        notice.clone(),
+        settings.clone(),
     );
     if args.clipboard {
         tracing::info!("clipboard monitoring enabled");

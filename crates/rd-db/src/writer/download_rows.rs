@@ -94,6 +94,8 @@ impl Writer {
             extraction_result: None,
             // Filled after the enqueue, once the candidates behind the package are known.
             enrichment: Vec::new(),
+            start_after: None,
+            download_window: None,
         })
     }
 

@@ -165,6 +165,7 @@ describe('AutomationView', () => {
       name: `Pause big (${common.copy_suffix})`,
       enabled: false,
       trigger: 'download_completed',
+      schedule: null,
       condition: { type: 'always' },
       actions: [{ kind: 'pause_package' }]
     })
@@ -176,7 +177,15 @@ describe('AutomationView', () => {
   it('judges the form it holds in a dry run, saved or not (RD-1120-17)', async () => {
     post.mockImplementation(async (path: string) =>
       path === '/api/v1/automations/dry-run'
-        ? { data: [{ automation_id: '00000000-0000-0000-0000-000000000000', trigger_matches: true, condition_matches: false }] }
+        ? {
+            data: [{
+              automation_id: '00000000-0000-0000-0000-000000000000',
+              trigger_matches: true,
+              condition_matches: false,
+              next_run_at: '2026-10-12T06:00:00Z',
+              actions: [{ kind: 'pause_package' }]
+            }]
+          }
         : { data: null }
     )
     mount()
@@ -188,11 +197,20 @@ describe('AutomationView', () => {
     expect(post.mock.calls[0]?.[1]?.body).toEqual({
       trigger: 'download_completed',
       package_id: undefined,
-      draft: { automation_id: undefined, trigger: 'download_completed', condition: { type: 'always' } }
+      draft: {
+        automation_id: undefined,
+        trigger: 'download_completed',
+        schedule: null,
+        condition: { type: 'always' },
+        // The form's actions travel too, so the answer can say what would run (RD-1240-10).
+        actions: [{ kind: 'pause_package' }]
+      }
     })
     // The answer is the draft's, named by the form since nothing is saved under that id.
     expect(await screen.findByText(automation.dry_run.draft)).toBeTruthy()
     expect(screen.getByText(new RegExp(automation.dry_run.condition_no))).toBeTruthy()
+    expect(screen.getByText(new RegExp(automation.dry_run.next_run.replace('{time}', '')))).toBeTruthy()
+    expect(screen.getByTestId('automation-dry-run-actions').textContent).toContain(automation.action.pause_package)
   })
 
   it('renders without an axe violation', async () => {

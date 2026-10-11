@@ -1516,6 +1516,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capture/game-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The tray's "Pause while gaming" (RD-1240-23): switches game mode on or off and keeps what it
+         *     watches for. Audited like the settings page's change of the same row.
+         */
+        post: operations["switch_capture_game_mode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/game-mode/hold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets or renews the agent's hold: the timed pause of the whole queue, or the chosen bandwidth
+         *     profile switched on by hand, for the next few minutes.
+         */
+        post: operations["hold_capture_game_mode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/game-mode/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lifts the agent's own hold: the queue pause or the profile switch that ends at `until`. Both
+         *     are looked at, so a hold made before the settings page changed the action is lifted too.
+         */
+        post: operations["release_capture_game_mode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/linkgrabber/enqueue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves everything the LinkGrabber holds into the queue, started or paused, as the web
+         *     interface's `E` and `W` do; what holds a duplicate stays behind.
+         */
+        post: operations["enqueue_capture_linkgrabber"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capture/pair": {
         parameters: {
             query?: never;
@@ -1585,6 +1665,66 @@ export interface paths {
          *     stopped, and restarting what failed is the web interface's decision.
          */
         post: operations["resume_capture_queue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/server-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_capture_server_update"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/server-update/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Installs the offered update and restarts, as Settings > System > Updates does: answers at once
+         *     with the step it begins in, and `GET /api/v1/capture/server-update` follows it through the
+         *     restart. Running downloads refuse it with `update.transfers_active` unless `allow_active` is
+         *     sent; the stop saves the queue and they continue after the restart.
+         */
+        post: operations["install_capture_server_update"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/server-update/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restarts the service to apply what waits for the next start, as the button under Settings >
+         *     System > Updates does (RD-1240-32): answers at once with how it comes back, then stops.
+         *     Running downloads refuse it with `restart.transfers_active` unless `allow_active` is sent; the
+         *     stop saves them and they continue after the restart.
+         */
+        post: operations["restart_capture_server"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1674,6 +1814,26 @@ export interface paths {
         };
         get?: never;
         put: operations["set_category_collision_policy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/{id}/download-window": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets or removes the download window of a category's packages; the scheduler reads it on its
+         *     next pass.
+         */
+        put: operations["set_category_download_window"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1849,6 +2009,23 @@ export interface paths {
          *     same rule to the download queue.
          */
         post: operations["reorder_candidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collector/candidates/unhide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Shows links a LinkFilter rule hid, until the rules are applied again. */
+        post: operations["unhide_candidates"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3110,6 +3287,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/history/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The history the filters match as a file, newest first, at most [`MAX_HISTORY_EXPORT`]
+         *     entries.
+         */
+        get: operations["export_download_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/history/{id}/readd": {
         parameters: {
             query?: never;
@@ -3256,6 +3453,108 @@ export interface paths {
          */
         post: operations["indexer_caps"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/link-filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_link_filter_rules"];
+        put?: never;
+        post: operations["create_link_filter_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/link-filters/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decides every link in the LinkGrabber anew by the rules as they are now.
+         * @description Hidden links are kept, never deleted, and a link already in the downloads is not touched.
+         */
+        post: operations["apply_link_filters"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/link-filters/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["export_link_filters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/link-filters/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["import_link_filters"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/link-filters/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Puts the named rules first, in the order given; the first matching rule decides. */
+        post: operations["reorder_link_filter_rules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/link-filters/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_link_filter_rule"];
+        post?: never;
+        /** Deletes a rule; the links it hid are shown again, nothing else changes. */
+        delete: operations["delete_link_filter_rule"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3566,6 +3865,58 @@ export interface paths {
          */
         post: operations["test_target"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/web-push/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The public key browsers subscribe with, made the first time anybody asks. */
+        get: operations["web_push_key"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/web-push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every browser that receives push messages. Their message keys are never returned. */
+        get: operations["list_web_push_subscriptions"];
+        put?: never;
+        /** Stores a browser's subscription, or updates the one with the same push address. */
+        post: operations["create_web_push_subscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/web-push/subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stops push messages to one browser. The browser itself unsubscribes at its push service. */
+        delete: operations["delete_web_push_subscription"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3904,6 +4255,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/packages/{id}/download-window": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads a package's download window, its category's, and whether either or the schedule holds
+         *     the package back now.
+         */
+        get: operations["get_package_download_window"];
+        /**
+         * Sets or removes a package's own download window; it never makes the package faster than the
+         *     global, profile or hand-set limits.
+         */
+        put: operations["set_package_download_window"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/packages/{id}/extract": {
         parameters: {
             query?: never;
@@ -4028,6 +4403,23 @@ export interface paths {
         get: operations["get_package_speed_limit"];
         /** Sets or removes one package's own download limit; it applies to running transfers at once. */
         put: operations["set_package_speed_limit"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/packages/{id}/start-after": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sets or removes the moment a package's files may start from; the next dispatch pass follows. */
+        put: operations["set_package_start_after"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4847,6 +5239,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/queue/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The queue's packages and files whose name contains `q`, at most `limit` of each. */
+        get: operations["search_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/queue/stop-mark": {
         parameters: {
             query?: never;
@@ -5213,8 +5622,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Pauses or resumes clipboard watching, or replaces the shortcuts; the agent follows within
-         *     seconds, without a restart.
+         * Pauses or resumes clipboard watching, replaces the shortcuts or the game mode; the agent
+         *     follows within seconds, without a restart.
          */
         patch: operations["update_capture_agent_settings"];
         trace?: never;
@@ -6173,6 +6582,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What a clean-up would remove now. Nothing changes. */
+        get: operations["cleanup_preview"];
+        put?: never;
+        /**
+         * Removes the old copies before updates and migrations and the compiled plugin code nothing
+         *     uses, compacts the old skipped or dismissed subscription items and shrinks the database
+         *     file — rewriting it once if it was created before 1.24, unless something downloads
+         *     (`system.cleanup_rewrite_busy`) or the data directory has not room for a second copy
+         *     (`system.cleanup_rewrite_no_space`); answers what stayed and what went.
+         */
+        post: operations["run_cleanup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/data-reset": {
         parameters: {
             query?: never;
@@ -6200,6 +6633,28 @@ export interface paths {
         get: operations["media_status"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_restart_status"];
+        put?: never;
+        /**
+         * Restarts the service now: answers at once with how it comes back, then stops. Running
+         *     downloads refuse it with `restart.transfers_active` unless `allow_active` is sent; the stop
+         *     saves them and they continue after the restart. `GET /api/v1/system/restart` answers with a
+         *     new `started_at` once the service is back.
+         */
+        post: operations["restart_service"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6453,6 +6908,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/torrents/network/port-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests the incoming peer port from this machine alone, no outside service asked
+         *     (RD-1240-16); starts the torrent engine when it is not running yet.
+         */
+        post: operations["test_torrent_port"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/torrents/network/status": {
         parameters: {
             query?: never;
@@ -6675,6 +7150,29 @@ export interface components {
         } | {
             /** @enum {string} */
             kind: "resume_package";
+        } | {
+            /** @enum {string} */
+            kind: "set_priority";
+            priority: components["schemas"]["DownloadPriority"];
+        } | {
+            /** @enum {string} */
+            kind: "pause_queue";
+        } | {
+            /** @enum {string} */
+            kind: "start_queue";
+        } | {
+            /** @enum {string} */
+            kind: "extract_package";
+        } | {
+            /** @enum {string} */
+            kind: "notify";
+            message: string;
+            target_id: components["schemas"]["NotificationTargetId"];
+        } | {
+            destination?: components["schemas"]["LinkDestination"];
+            /** @enum {string} */
+            kind: "add_links";
+            links: string[];
         };
         /** @description Body of `POST /api/v1/plugins/repositories`. */
         AddPluginRepositoryRequest: {
@@ -6713,7 +7211,7 @@ export interface components {
          * @description Pairing request for a machine API token.
          *
          *     Separate from [`CapturePairRequest`] because a capture agent has no choice of API areas: it
-         *     always gets `capture:*`, and `capture:queue` on request, while an API client picks its areas.
+         *     always gets `capture:*`, and `capture:queue` and `capture:server_update` on request, while an API client picks its areas.
          */
         ApiTokenRequest: {
             /**
@@ -6762,6 +7260,8 @@ export interface components {
             /** Format: date-time */
             exported_at: string;
             format: string;
+            /** @description The LinkFilter rules in their evaluation order (RD-1240-09). */
+            link_filters?: components["schemas"]["BundleAreaLinkFilter"][] | null;
             stream_channels?: components["schemas"]["BundleAreaStreamChannel"][] | null;
             stream_schedules?: components["schemas"]["BundleAreaStreamSchedule"][] | null;
             subscriptions?: components["schemas"]["BundleAreaSubscription"][] | null;
@@ -6811,7 +7311,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed" | "remote_jobs_cleared" | "token_limits_changed" | "proxy_profile_changed" | "remote_credential_changed" | "site_rules_cleared";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed" | "remote_jobs_cleared" | "token_limits_changed" | "proxy_profile_changed" | "remote_credential_changed" | "site_rules_cleared" | "system_cleanup";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -7056,6 +7556,7 @@ export interface components {
             condition?: components["schemas"]["ConditionNode"];
             enabled?: boolean;
             name: string;
+            schedule?: components["schemas"]["Schedule"] | null;
             trigger: components["schemas"]["Trigger"];
         };
         /**
@@ -7077,6 +7578,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             id: components["schemas"]["AutomationVersionId"];
+            schedule?: components["schemas"]["Schedule"] | null;
             trigger: components["schemas"]["Trigger"];
             /** Format: int32 */
             version: number;
@@ -7350,6 +7852,12 @@ export interface components {
             max_active_files?: number | null;
             monthly_budget_bytes?: components["schemas"]["ByteCount"] | null;
             name: string;
+            /**
+             * @description While the profile is in force no new download starts and a running transfer that can
+             *     resume pauses until it ends (RD-1240-30): the schedule's download window. Uploads,
+             *     seeding and post-processing go on; a package may be set to ignore it.
+             */
+            pause_downloads?: boolean;
             scopes: components["schemas"]["ScopeLimit"][];
             upload_bytes_per_second?: components["schemas"]["ByteCount"] | null;
         };
@@ -7365,6 +7873,11 @@ export interface components {
             max_active_files?: number | null;
             monthly_budget_bytes?: components["schemas"]["ByteCount"] | null;
             name: string;
+            /**
+             * @description While the profile is in force no new download starts and running resumable transfers
+             *     pause until it ends (RD-1240-30); uploads, seeding and post-processing go on.
+             */
+            pause_downloads?: boolean;
             scopes?: components["schemas"]["ScopeLimit"][];
             upload_bytes_per_second?: components["schemas"]["ByteCount"] | null;
         };
@@ -7446,7 +7959,8 @@ export interface components {
          *
          *     Mirrors `rd_automation::Action` rather than reusing it: a webhook points at a notification
          *     target by id and a category move at a category by id, and neither id means anything on
-         *     another instance. `Script` already carries a name, and the two package actions carry nothing.
+         *     another instance. `Script` already carries a name, and the package and queue actions carry
+         *     nothing or a value that means the same everywhere (RD-1240-10).
          */
         BundleAreaAction: {
             /** @enum {string} */
@@ -7466,13 +7980,57 @@ export interface components {
         } | {
             /** @enum {string} */
             kind: "resume_package";
+        } | {
+            /** @enum {string} */
+            kind: "set_priority";
+            priority: components["schemas"]["DownloadPriority"];
+        } | {
+            /** @enum {string} */
+            kind: "pause_queue";
+        } | {
+            /** @enum {string} */
+            kind: "start_queue";
+        } | {
+            /** @enum {string} */
+            kind: "extract_package";
+        } | {
+            /** @enum {string} */
+            kind: "notify";
+            message: string;
+            target_name: string;
+        } | {
+            destination?: components["schemas"]["LinkDestination"];
+            /** @enum {string} */
+            kind: "add_links";
+            links: string[];
         };
         BundleAreaAutomation: {
             actions: components["schemas"]["BundleAreaAction"][];
             condition?: components["schemas"]["ConditionNode"];
             enabled: boolean;
             name: string;
+            schedule?: components["schemas"]["Schedule"] | null;
             trigger: components["schemas"]["Trigger"];
+        };
+        /**
+         * @description One LinkFilter rule, with its category named rather than referenced. The order of the list
+         *     is the evaluation order; an import appends in it.
+         */
+        BundleAreaLinkFilter: {
+            action: components["schemas"]["LinkFilterAction"];
+            category_name?: string | null;
+            enabled: boolean;
+            extensions?: string[];
+            hoster?: string | null;
+            name: string;
+            name_pattern?: string | null;
+            name_syntax?: components["schemas"]["LinkFilterNameSyntax"];
+            package_name?: string | null;
+            /** Format: int64 */
+            size_max?: number | null;
+            /** Format: int64 */
+            size_min?: number | null;
+            source?: components["schemas"]["IngressSource"] | null;
         };
         BundleAreaStreamChannel: {
             category_name?: string | null;
@@ -7933,6 +8491,15 @@ export interface components {
             /** @description The address, with credentials and signed query values replaced. */
             url: string;
         };
+        /** @description Hidden links to show again. */
+        CandidateUnhideRequest: {
+            candidate_ids: components["schemas"]["CandidateId"][];
+        };
+        /** @description How many of the named links were hidden and are shown now. */
+        CandidateUnhideResponse: {
+            /** Format: int64 */
+            shown: number;
+        };
         /**
          * @description What a tool version can take away.
          *
@@ -8003,11 +8570,14 @@ export interface components {
              *     clipboard is something that happens. What is copied while this holds is never delivered.
              */
             clipboard_paused?: boolean;
+            /** @description Stepping aside while a full-screen program or a named process runs (RD-1240-19). */
+            game_mode?: components["schemas"]["CaptureGameMode"];
             shortcuts?: components["schemas"]["CaptureShortcuts"];
         };
         /** @description A change to the agent's settings; a field left out stays as it is. */
         CaptureAgentSettingsPatch: {
             clipboard_paused?: boolean | null;
+            game_mode?: components["schemas"]["CaptureGameMode"] | null;
             shortcuts?: components["schemas"]["CaptureShortcuts"] | null;
         };
         /** @description The agent's settings as the settings page shows them. */
@@ -8015,6 +8585,8 @@ export interface components {
             clipboard_paused: boolean;
             /** @description The built-in shortcuts, for "Reset". */
             default_shortcuts: components["schemas"]["CaptureShortcuts"];
+            /** @description Pausing the queue or switching a profile while a game runs (RD-1240-19). */
+            game_mode: components["schemas"]["CaptureGameMode"];
             report?: components["schemas"]["CaptureShortcutReport"] | null;
             shortcuts: components["schemas"]["CaptureShortcuts"];
         };
@@ -8078,7 +8650,7 @@ export interface components {
          * @description One command of the agent's tray menu, each of which a shortcut can trigger.
          * @enum {string}
          */
-        CaptureCommand: "open" | "start_all" | "pause_all" | "pause_half_hour" | "pause_hour" | "clipboard_watch" | "send_clipboard" | "quit";
+        CaptureCommand: "open" | "start_all" | "pause_all" | "pause_half_hour" | "pause_hour" | "clipboard_watch" | "send_clipboard" | "game_mode" | "install_server_update" | "auto_install" | "quit" | "add_all_from_linkgrabber" | "add_all_from_linkgrabber_paused" | "install_update" | "restart_server";
         /** @description Cookies handed over by a capture client for one approved domain. */
         CaptureCookiesRequest: {
             cookies: string;
@@ -8126,6 +8698,100 @@ export interface components {
             nzb_imports: components["schemas"]["NzbImport"][];
             torrent?: components["schemas"]["CollectorIntakeResponse"] | null;
         };
+        /**
+         * @description When the agent steps aside, and what it does then. Off while neither trigger is set, or while
+         *     it is switched off.
+         */
+        CaptureGameMode: {
+            action?: components["schemas"]["GameModeAction"];
+            /**
+             * @description Switched on (RD-1240-23): the tray's "Pause while gaming" and the switch on the settings
+             *     page. Off keeps the triggers for the next time. Left out, it is on, so settings stored
+             *     before the switch existed mean what they meant.
+             */
+            enabled?: boolean;
+            /**
+             * @description While a program fills the screen in front (Windows: a full-screen or Direct3D program, or
+             *     the presentation mode). macOS and Linux cannot tell without extra rights or a tray.
+             */
+            full_screen?: boolean;
+            /**
+             * @description Programs by process name, `game.exe` or `game`, compared without case and without the
+             *     `.exe` or `.app` ending.
+             */
+            processes?: string[];
+            profile_id?: components["schemas"]["BandwidthProfileId"] | null;
+        };
+        CaptureGameModeHoldRequest: {
+            /**
+             * Format: date-time
+             * @description The end the previous answer gave, when this renews the agent's own hold; absent for a
+             *     new one.
+             */
+            renews?: string | null;
+        };
+        CaptureGameModeHoldResponse: {
+            /** @description What the hold is: the queue paused or the profile switched on. */
+            action: components["schemas"]["GameModeAction"];
+            /**
+             * @description Whether the hold is set. `false` when somebody else's pause or switch holds, when the
+             *     agent's own was ended or changed meanwhile, or when game mode is off.
+             */
+            held: boolean;
+            /**
+             * Format: date-time
+             * @description When the hold ends unless it is renewed; the agent sends it back to renew or lift it.
+             */
+            until?: string | null;
+        };
+        CaptureGameModeReleaseRequest: {
+            /**
+             * Format: date-time
+             * @description The end of the agent's own hold, as the last hold answer gave it.
+             */
+            until: string;
+        };
+        CaptureGameModeReleaseResponse: {
+            /** @description Whether a hold of the agent's was lifted; `false` when nothing of its own held any more. */
+            released: boolean;
+        };
+        /** @description The tray's switch (RD-1240-23). */
+        CaptureGameModeSwitchRequest: {
+            /**
+             * @description Whether game mode is switched on; the programs, full screen and the action stay as they
+             *     are.
+             */
+            enabled: boolean;
+        };
+        CaptureLinkGrabberRequest: {
+            /** @description Create the downloads paused, as `W` does; absent or `false` starts them, as `E` does. */
+            paused?: boolean;
+        };
+        CaptureLinkGrabberResponse: {
+            /**
+             * Format: int32
+             * @description Packages and NZB imports left in the LinkGrabber because they hold something that was
+             *     already added; the web interface asks about those.
+             */
+            duplicates: number;
+            /**
+             * Format: int32
+             * @description Packages and NZB imports that could not be queued.
+             */
+            failed: number;
+            /** @description The stable code of the first failure, when one failed. */
+            first_error?: string | null;
+            /**
+             * Format: int32
+             * @description Links of the packages that went to the queue.
+             */
+            links: number;
+            /**
+             * Format: int32
+             * @description NZB imports that went to the queue.
+             */
+            nzbs: number;
+        };
         /** @description One structured link of a capture batch, optionally with the request that produced it. */
         CaptureLinkRequest: {
             file_name?: string | null;
@@ -8143,11 +8809,18 @@ export interface components {
             expires_in_days?: number | null;
             label: string;
             /**
-             * @description Whether the agent may also pause and resume the whole queue from its tray
-             *     (`capture:queue`, RD-1100-06). Asked for explicitly or not at all: absent means `false`,
-             *     so an agent paired without it can do no more than one paired before the choice existed.
+             * @description Whether the agent may also pause and resume the whole queue from its tray and add
+             *     everything from the LinkGrabber to it (`capture:queue`, RD-1100-06, RD-1240-07). Asked
+             *     for explicitly or not at all: absent means `false`, so an agent paired without it can do
+             *     no more than one paired before the choice existed.
              */
             queue_control?: boolean;
+            /**
+             * @description Whether the agent may install the service's offered update from its tray
+             *     (`capture:server_update`, RD-1240-25). Off when absent, like `queue_control`: without it
+             *     the tray's entry opens the update page in the browser.
+             */
+            server_update?: boolean;
         };
         /** @description One-time bearer plus its revocable metadata. */
         CapturePairResponse: {
@@ -8178,6 +8851,54 @@ export interface components {
              */
             paused_until?: string | null;
         };
+        /** @description A pending restart, as the tray shows it. */
+        CaptureServerRestart: {
+            /** @description Whether a restart can begin now: no update is being installed, none runs already. */
+            can_restart: boolean;
+            /** @description `self`, `supervisor` or `manual`, as `GET /api/v1/system/restart` names it. */
+            how: string;
+            /** @description Something waits for the next start. */
+            pending: boolean;
+            /** @description How many things wait for it. */
+            reasons: number;
+        };
+        /** @description An install's state, as `GET /api/v1/system/update` names it, without its timestamps. */
+        CaptureServerUpdateInstall: {
+            /** @description The stable code of why it failed or was rolled back. */
+            reason?: string | null;
+            /**
+             * @description `downloading`, `preparing`, `restarting`, `installing`, `verifying`, `rolling_back`,
+             *     `done`, `rolled_back` or `failed`.
+             */
+            state: string;
+            target_version: string;
+        };
+        /** @description The offered version and how it gets installed. */
+        CaptureServerUpdateOffer: {
+            /**
+             * @description `install` (the service installs it itself and restarts), `download` (it is replaced by
+             *     hand) or `command` (a package manager or container runtime does it).
+             */
+            action: string;
+            /** @description The command to run, for `action` = `command`. */
+            command?: string | null;
+            version: string;
+        };
+        /** @description What the tray reads about the service's update. */
+        CaptureServerUpdateResponse: {
+            available?: components["schemas"]["CaptureServerUpdateOffer"] | null;
+            install?: components["schemas"]["CaptureServerUpdateInstall"] | null;
+            /**
+             * @description Whether this agent may install it: it was paired with `capture:server_update`. Without it
+             *     the tray opens the update page instead.
+             */
+            may_install: boolean;
+            /**
+             * @description Whether a restart is pending (RD-1240-32); `may_install` also says whether this agent
+             *     may carry it out.
+             */
+            restart: components["schemas"]["CaptureServerRestart"];
+        };
         /** @description What an agent last said about registering its shortcuts. */
         CaptureShortcutReport: {
             platform: components["schemas"]["CapturePlatform"];
@@ -8197,13 +8918,28 @@ export interface components {
          *     "no shortcut": somebody who removed one must not get it back from the next release.
          */
         CaptureShortcuts: {
+            /** @description No default either (RD-1240-24): the tray functions that had no command before. */
+            add_all_from_linkgrabber?: string | null;
+            add_all_from_linkgrabber_paused?: string | null;
+            /** @description No default either (RD-1240-27), for the same reason. */
+            auto_install?: string | null;
             clipboard_watch?: string | null;
+            /**
+             * @description No default (owner, 2026-10-10): a tray function added after the defaults were chosen gets
+             *     a shortcut only when somebody assigns one.
+             */
+            game_mode?: string | null;
+            /** @description No default either (RD-1240-25), for the same reason. */
+            install_server_update?: string | null;
+            install_update?: string | null;
             open?: string | null;
             pause_all?: string | null;
             pause_half_hour?: string | null;
             pause_hour?: string | null;
             /** @description No default: quitting by accident is the one command a stray key press should not reach. */
             quit?: string | null;
+            /** @description No default either (RD-1240-32), for the same reason. */
+            restart_server?: string | null;
             send_clipboard?: string | null;
             start_all?: string | null;
         };
@@ -8257,8 +8993,9 @@ export interface components {
              */
             paused_until?: string | null;
             /**
-             * @description Whether the token asking may pause and resume the queue (`capture:queue`, chosen when the
-             *     agent was paired). The tray offers the two entries only when it may (RD-1100-06).
+             * @description Whether the token asking may control the queue (`capture:queue`, chosen when the agent was
+             *     paired). The tray offers its queue and LinkGrabber entries only when it may (RD-1100-06,
+             *     RD-1240-07).
              */
             queue_control: boolean;
             /** Format: int32 */
@@ -8395,6 +9132,7 @@ export interface components {
              *     `None` = global default (RD-1100-07).
              */
             direct_unpack?: boolean | null;
+            download_window?: components["schemas"]["DownloadWindow"] | null;
             id: components["schemas"]["CategoryId"];
             is_default: boolean;
             /**
@@ -8445,6 +9183,11 @@ export interface components {
             upload_enabled?: boolean | null;
             /** @description rclone target override in `remote:path` form; `None` = the global remote. */
             upload_remote?: string | null;
+        };
+        /** @description A category's download window as stored. */
+        CategoryDownloadWindowResponse: {
+            category_id: components["schemas"]["CategoryId"];
+            download_window?: components["schemas"]["DownloadWindow"] | null;
         };
         /** Format: uuid */
         CategoryId: string;
@@ -8564,6 +9307,42 @@ export interface components {
          * @enum {string}
          */
         ChecksumAlgorithm: "md5" | "sha1" | "sha256" | "crc32" | "dropbox_content_hash";
+        /** @description One store: what stays and what goes. */
+        CleanupArea: {
+            /** Format: int64 */
+            kept_bytes: number;
+            /** Format: int64 */
+            kept_files: number;
+            /** Format: int64 */
+            removable_bytes: number;
+            /**
+             * Format: int64
+             * @description In the preview what a clean-up would remove; in its answer what it removed.
+             */
+            removable_files: number;
+        };
+        /** @description The stores a clean-up looks at. */
+        CleanupSummary: {
+            /** @description The database file: its events, the subscription archive and its free pages. */
+            database: components["schemas"]["DatabaseCleanup"];
+            /** @description Compiled plugin code. */
+            plugin_cache: components["schemas"]["CleanupArea"];
+            /** @description Database copies taken before migrations. */
+            pre_migration: components["schemas"]["CleanupArea"];
+            /** @description Database copies and encrypted archives taken before updates. */
+            pre_update: components["schemas"]["CleanupArea"];
+            /**
+             * Format: int32
+             * @description `update_backup_retention_days`: how long the newest copy stays behind a proven update;
+             *     0 for good.
+             */
+            retention_days: number;
+            /**
+             * @description Whether the last update is proven, or none is recorded. Only then do the copies before
+             *     updates and migrations thin out.
+             */
+            update_proven: boolean;
+        };
         /**
          * @description The spot clicked in a click-point captcha, in pixels of the image as the hoster served
          *     it — not of the rendering, which the interface may have scaled.
@@ -8877,7 +9656,8 @@ export interface components {
             content: string;
             /**
              * @description `true` queues every package once its links are checked, instead of leaving them in the
-             *     LinkGrabber (RD-1210-01). Read by `/api/v1/containers/import` only.
+             *     LinkGrabber (RD-1210-01). Read by `/api/v1/containers/import` and
+             *     `/api/v1/torrents/import`, whose package is queued at once (RD-1240-28).
              */
             enqueue?: string | null;
             /**
@@ -9253,6 +10033,70 @@ export interface components {
              */
             storage_operations: number;
         };
+        /** @description The database file and the stores in it that grow with use. */
+        DatabaseCleanup: {
+            /** Format: int64 */
+            compactable_bytes: number;
+            /**
+             * Format: int64
+             * @description In the preview the skipped or dismissed items past the retention and an estimate of
+             *     their bytes; in a clean-up's answer the items it compacted.
+             */
+            compactable_items: number;
+            /** Format: int64 */
+            event_bytes: number;
+            /**
+             * Format: int64
+             * @description The persisted events and their size, indexes included. Kept 30 days; the change notices
+             *     of Usenet and the LinkGrabber are broadcast only.
+             */
+            event_rows: number;
+            /**
+             * Format: int64
+             * @description The file, once the WAL is checkpointed; after a clean-up its new size.
+             */
+            file_bytes: number;
+            /**
+             * Format: int64
+             * @description Free pages inside the file, waiting to be reused or handed back.
+             */
+            free_bytes: number;
+            /**
+             * @description Whether free pages go back without a rewrite (`auto_vacuum = INCREMENTAL`). A file
+             *     created before 1.24 is not, until its first rewrite.
+             */
+            incremental: boolean;
+            /** Format: int64 */
+            item_bytes: number;
+            /**
+             * Format: int64
+             * @description Keys of compacted items: what the poll still recognises them by.
+             */
+            item_key_rows: number;
+            /**
+             * Format: int32
+             * @description `subscription_item_retention_days`: how long a skipped or dismissed item keeps its full
+             *     row; 0 for good.
+             */
+            item_retention_days: number;
+            /**
+             * Format: int64
+             * @description The subscription archive's full rows and their size, indexes included.
+             */
+            item_rows: number;
+            /**
+             * Format: int64
+             * @description In the preview about how much smaller "Clean up now" makes the file; in a clean-up's
+             *     answer how much smaller it became.
+             */
+            removable_bytes: number;
+            /**
+             * @description Why the file is not (or would not be) rewritten although it is not incremental:
+             *     `system.cleanup_rewrite_busy`, `system.cleanup_rewrite_no_space` or
+             *     `system.cleanup_rewrite_failed`. Empty when it is rewritten or need not be.
+             */
+            rewrite_refused?: string | null;
+        };
         /**
          * Format: int32
          * @description Days a window applies to, as a Monday-first bitmask (bit 0 = Monday).
@@ -9415,6 +10259,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /**
+         * @description Why a package's files wait.
+         * @enum {string}
+         */
+        DownloadHold: "window" | "schedule";
         /** @description A queued entry waiting for a connection to its host. */
         DownloadHostWait: {
             /** @description The host as the per-host connection limit counts it: lower case, no `www.`, no port. */
@@ -9443,6 +10292,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             destination: string;
+            download_window?: components["schemas"]["DownloadWindow"] | null;
             /**
              * @description Fields enrichers contributed to the links this package was built from (RD-107-02).
              *
@@ -9479,6 +10329,13 @@ export interface components {
             priority: components["schemas"]["DownloadPriority"];
             /** @description Post-processing script file name (inside the scripts directory); `None` inherits. */
             script?: string | null;
+            /**
+             * Format: date-time
+             * @description The package's files start no earlier than this (RD-1240-14); `None` starts them as the
+             *     queue reaches them. A moment that has passed holds nothing back and stays until the next
+             *     edit.
+             */
+            start_after?: string | null;
             state?: components["schemas"]["PackageState"];
         };
         /**
@@ -9624,18 +10481,53 @@ export interface components {
             total_bytes: components["schemas"]["ByteCount"];
             transferring_remaining_bytes?: components["schemas"]["ByteCount"] | null;
         };
+        /**
+         * @description When a package's files may download, set on the package or, as the default of its packages,
+         *     on a category. A package's own setting wins over its category's as a whole; neither means the
+         *     package follows the bandwidth schedule only.
+         */
+        DownloadWindow: {
+            /**
+             * @description Downloads even while the bandwidth schedule's active profile pauses downloads. Every rate
+             *     limit still applies: a package is never faster than the global, profile or hand-set limit.
+             * @default false
+             */
+            ignore_schedule_pause: boolean;
+            /**
+             * @description The times the files may download; outside them waiting files wait and running resumable
+             *     transfers pause. Empty means at any time, so only `ignore_schedule_pause` counts.
+             * @default []
+             */
+            windows: components["schemas"]["WeeklyWindow"][];
+        };
+        /** @description Sets or removes a download window. */
+        DownloadWindowRequest: {
+            /** @default null */
+            download_window: components["schemas"]["DownloadWindow"] | null;
+        };
         /** @description The automation as the editor holds it, for a dry run (RD-1120-17): saved or not, on or off. */
         DryRunDraft: {
+            /** @description The draft's actions, handed back so the answer says what would run. */
+            actions?: components["schemas"]["Action"][];
             automation_id?: components["schemas"]["AutomationId"] | null;
             condition?: components["schemas"]["ConditionNode"];
+            schedule?: components["schemas"]["Schedule"] | null;
             /** @description The trigger the draft listens for. */
             trigger: components["schemas"]["Trigger"];
         };
         /** @description What a dry run found for one automation. */
         DryRunMatch: {
+            /** @description What would run, in order: the actions a match executes (RD-1240-10). */
+            actions: components["schemas"]["Action"][];
             automation_id: components["schemas"]["AutomationId"];
             /** @description Whether its condition holds for the sample package. */
             condition_matches: boolean;
+            /**
+             * Format: date-time
+             * @description For a time trigger, when its schedule runs next, read in the service's zone
+             *     (RD-1240-10); absent for every other trigger.
+             */
+            next_run_at?: string | null;
             /** @description Whether this automation listens for the trigger that was tried. */
             trigger_matches: boolean;
         };
@@ -9650,6 +10542,13 @@ export interface components {
          */
         DuplicateLocation: "queue" | "linkgrabber";
         DuplicateLookupEntry: {
+            /**
+             * @description History entries of the same source whose package has left the queue (RD-1240-14), newest
+             *     first; always empty while the setting `duplicates_include_history` is off. The history
+             *     keeps addresses with their credentials masked, so a link that carries one in its query
+             *     is not recognised there.
+             */
+            history: components["schemas"]["HistoryDuplicate"][];
             identity: components["schemas"]["SourceIdentity"];
             /**
              * @description Queue downloads of the same source. The LinkGrabber marks duplicates among its own links
@@ -9826,6 +10725,11 @@ export interface components {
          */
         FilterReason: "title_not_included" | "title_excluded" | "too_short" | "too_long" | "too_old" | "language_not_wanted" | "resolution_too_low" | "backlog" | "asset_not_wanted";
         /**
+         * @description What the agent does while a trigger holds.
+         * @enum {string}
+         */
+        GameModeAction: "pause" | "profile";
+        /**
          * @description A processor architecture a release file can be built for.
          * @enum {string}
          */
@@ -9906,6 +10810,15 @@ export interface components {
         GrabberEntryReorderRequest: {
             after?: components["schemas"]["GrabberEntryRef"] | null;
             entries: components["schemas"]["GrabberEntryRef"][];
+        };
+        /** @description A package of the download history with the same source (RD-1240-14). */
+        HistoryDuplicate: {
+            /** Format: date-time */
+            finished_at: string;
+            /** Format: int64 */
+            history_id: number;
+            name: string;
+            outcome: components["schemas"]["HistoryOutcome"];
         };
         /** @description One package the history remembers. */
         HistoryEntry: {
@@ -10556,6 +11469,7 @@ export interface components {
              *     look alike afterwards; only this says which it was.
              */
             file_name_declared?: boolean;
+            hidden_by_filter?: components["schemas"]["LinkFilterRuleId"] | null;
             id: components["schemas"]["CandidateId"];
             listing?: components["schemas"]["RemoteListingSummary"] | null;
             media?: components["schemas"]["MediaInfo"] | null;
@@ -10607,6 +11521,102 @@ export interface components {
             status: components["schemas"]["LinkStatus"];
             /** Format: uri */
             url: string;
+        };
+        /**
+         * @description Where an `add_links` action puts its links.
+         * @enum {string}
+         */
+        LinkDestination: "link_grabber" | "downloads";
+        /**
+         * @description What a rule does with a link it matches.
+         * @enum {string}
+         */
+        LinkFilterAction: "hide" | "accept" | "route";
+        /** @description What applying the rules to the LinkGrabber changed. */
+        LinkFilterApplyResponse: {
+            /**
+             * Format: int64
+             * @description Links a rule hides now that were shown.
+             */
+            hidden: number;
+            /**
+             * Format: int64
+             * @description Links a `route` rule moved into its package or gave its category.
+             */
+            routed: number;
+            /**
+             * Format: int64
+             * @description Links shown now that a rule hid.
+             */
+            shown: number;
+        };
+        /**
+         * @description How a rule's `name_pattern` is read.
+         * @enum {string}
+         */
+        LinkFilterNameSyntax: "glob" | "regex";
+        /** @description The rules in the order they are to be asked; rules left out follow in their current order. */
+        LinkFilterReorderRequest: {
+            ids: components["schemas"]["LinkFilterRuleId"][];
+        };
+        /**
+         * @description One LinkFilter rule. The enabled rules are asked in `position` order and the first whose
+         *     conditions all hold decides; a condition left empty holds for every link.
+         */
+        LinkFilterRule: {
+            action: components["schemas"]["LinkFilterAction"];
+            category_id?: components["schemas"]["CategoryId"] | null;
+            enabled: boolean;
+            /** @description File types, lower case without the dot (`rar`, `part1.rar`); one matching is enough. */
+            extensions?: string[];
+            /** @description The host, lower case; its subdomains match too. */
+            hoster?: string | null;
+            id: components["schemas"]["LinkFilterRuleId"];
+            name: string;
+            /** @description Matched against the link's file name; a link without one never matches. */
+            name_pattern?: string | null;
+            name_syntax?: components["schemas"]["LinkFilterNameSyntax"];
+            /** @description The package a `route` rule puts the link in. */
+            package_name?: string | null;
+            /**
+             * Format: int64
+             * @description Evaluation order, ascending; the list is numbered 1..n.
+             */
+            position: number;
+            /**
+             * Format: int64
+             * @description Largest size in bytes, inclusive.
+             */
+            size_max?: number | null;
+            /**
+             * Format: int64
+             * @description Smallest size in bytes; a link whose size is not known yet never matches a size bound.
+             */
+            size_min?: number | null;
+            source?: components["schemas"]["IngressSource"] | null;
+        };
+        /** Format: uuid */
+        LinkFilterRuleId: string;
+        /** @description A LinkFilter rule as the form and the tools send it; the server keeps its place in the order. */
+        LinkFilterRuleRequest: {
+            action: components["schemas"]["LinkFilterAction"];
+            category_id?: components["schemas"]["CategoryId"] | null;
+            enabled?: boolean;
+            /** @description File types without the dot, e.g. `nfo`, `part1.rar`. */
+            extensions?: string[];
+            /** @description Host name; its subdomains match too. */
+            hoster?: string | null;
+            name: string;
+            /** @description Matched against the file name; empty matches every name. */
+            name_pattern?: string | null;
+            name_syntax?: components["schemas"]["LinkFilterNameSyntax"];
+            /** @description For `route`: the package the link goes into. */
+            package_name?: string | null;
+            /** Format: int64 */
+            size_max?: number | null;
+            /** Format: int64 */
+            size_min?: number | null;
+            source?: components["schemas"]["IngressSource"] | null;
         };
         /**
          * @description Availability reported by an online check.
@@ -11034,12 +12044,16 @@ export interface components {
              * @default null
              */
             output_template: string | null;
+            /** @default null */
+            pauses: components["schemas"]["MediaPauses"] | null;
             /**
              * @description The preset these criteria came from (`best`, `1080p`, `audio_mp3`), or `None` for a
              *     hand-built selection. Display only — the criteria are the contract.
              * @default null
              */
             preset: string | null;
+            /** @default null */
+            section: components["schemas"]["MediaSection"] | null;
             /** @default preferred */
             strictness: components["schemas"]["MediaStrictness"];
             /** @default video */
@@ -11159,6 +12173,21 @@ export interface components {
             /** @description The path relative to the package directory, using `/` separators. */
             relative_path: string;
         };
+        /** @description Pauses yt-dlp keeps so a site is not asked too fast; `0` is no pause. */
+        MediaPauses: {
+            /**
+             * Format: int32
+             * @description Seconds before each download starts (`--sleep-interval`).
+             * @default 0
+             */
+            sleep_interval_seconds: number;
+            /**
+             * Format: int32
+             * @description Seconds between the requests made while a page is read (`--sleep-requests`).
+             * @default 0
+             */
+            sleep_requests_seconds: number;
+        };
         /** @description What a set of criteria resolves to. */
         MediaResolutionResponse: {
             candidate_total: number;
@@ -11190,6 +12219,21 @@ export interface components {
             /** @description The variant this selection would store on the candidate. */
             variant: components["schemas"]["MediaVariant"];
             warnings: components["schemas"]["MediaCompatibilityWarning"][];
+        };
+        /** @description The part of a video to download, by its start and end in seconds. */
+        MediaSection: {
+            /**
+             * Format: int32
+             * @description Where the part ends; `None` is the end of the video.
+             * @default null
+             */
+            end_seconds: number | null;
+            /**
+             * Format: int32
+             * @description Where the part begins; `None` is the beginning of the video.
+             * @default null
+             */
+            start_seconds: number | null;
         };
         /**
          * @description What the media runner needs to fetch one file.
@@ -11485,12 +12529,12 @@ export interface components {
          * @description What happened. Deliberately a closed set: a rule filters on it, so it has to be stable.
          * @enum {string}
          */
-        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached" | "stop_mark_reached";
+        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "update_installed" | "update_failed" | "service_restarting" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached" | "stop_mark_reached" | "download_started" | "links_added" | "stream_recorded" | "subscription_matched" | "automation";
         /** @description Which events of which packages reach which target. */
         NotificationRule: {
             category_id?: components["schemas"]["CategoryId"] | null;
             enabled: boolean;
-            /** @description Empty means every event. */
+            /** @description Empty means every event except the opt-in ones ([`NotificationEvent::is_opt_in`]). */
             events: components["schemas"]["NotificationEvent"][];
             id: components["schemas"]["NotificationRuleId"];
             min_severity: components["schemas"]["Severity"];
@@ -11574,6 +12618,11 @@ export interface components {
             created_at: string;
             duplicate: boolean;
             error?: string | null;
+            /**
+             * @description The stable code of `error` when the interface can translate it (RD-1240-33), e.g.
+             *     `collector.nzb_empty`; `None` leaves `error` as the reason to show.
+             */
+            error_code?: string | null;
             /** Format: int32 */
             file_count: number;
             handed_over?: components["schemas"]["NzbHandOver"] | null;
@@ -11860,6 +12909,18 @@ export interface components {
             force?: boolean;
             ids: components["schemas"]["PackageId"][];
         };
+        /** @description A package's own download window as stored. */
+        PackageDownloadWindowResponse: {
+            download_window?: components["schemas"]["DownloadWindow"] | null;
+            package_id: components["schemas"]["PackageId"];
+        };
+        /** @description A package's download window and what it does right now. */
+        PackageDownloadWindowStatus: {
+            category_window?: components["schemas"]["DownloadWindow"] | null;
+            download_window?: components["schemas"]["DownloadWindow"] | null;
+            held?: components["schemas"]["DownloadHold"] | null;
+            package_id: components["schemas"]["PackageId"];
+        };
         /**
          * @description The file an export writes.
          * @enum {string}
@@ -11975,6 +13036,25 @@ export interface components {
              *     cannot limit one torrent on its own (`per_torrent_limits` in the torrent capabilities).
              */
             supported: boolean;
+        };
+        /** @description Sets or removes a package's "not before". */
+        PackageStartAfterRequest: {
+            /**
+             * Format: date-time
+             * @description The moment (RFC 3339) the package's files may start from; `null`, or a moment that has
+             *     passed, removes it.
+             * @default null
+             */
+            start_after: string | null;
+        };
+        /** @description A package's "not before" as stored. */
+        PackageStartAfterResponse: {
+            package_id: components["schemas"]["PackageId"];
+            /**
+             * Format: date-time
+             * @description `null` when the package starts as the queue reaches it.
+             */
+            start_after?: string | null;
         };
         /**
          * @description Lifecycle of a download package as a whole.
@@ -12702,6 +13782,9 @@ export interface components {
             files: number;
             /** @description Whether a pause is in force. */
             paused: boolean;
+            schedule_pause?: components["schemas"]["SchedulePauseResponse"] | null;
+            /** @description The timezone download windows and the schedule are read in. */
+            schedule_timezone: string;
             stop_mark?: components["schemas"]["QueueStopMarkResponse"] | null;
             /**
              * Format: date-time
@@ -12716,6 +13799,25 @@ export interface components {
              * @description Files the ended pause queued again.
              */
             resumed: number;
+        };
+        /** @description A file whose name matched, with the package it belongs to. */
+        QueueSearchDownloadHit: {
+            file_name: string;
+            id: components["schemas"]["DownloadId"];
+            package_id: components["schemas"]["PackageId"];
+            package_name: string;
+            state: components["schemas"]["DownloadState"];
+        };
+        /** @description A package whose name matched. */
+        QueueSearchPackageHit: {
+            id: components["schemas"]["PackageId"];
+            name: string;
+            state: components["schemas"]["PackageState"];
+        };
+        /** @description What the queue holds under a name, each list in queue order. */
+        QueueSearchResponse: {
+            downloads: components["schemas"]["QueueSearchDownloadHit"][];
+            packages: components["schemas"]["QueueSearchPackageHit"][];
         };
         QueueStopMarkClearResponse: {
             /** @description Whether a mark was set and is gone now. */
@@ -13309,6 +14411,66 @@ export interface components {
             /** Format: int32 */
             priority: number;
         };
+        /** @description One thing that waits for the next start. */
+        RestartReason: {
+            /**
+             * @description `plugin_installed`, `plugin_updated`, `plugin_staged`, `plugin_unstaged`,
+             *     `plugin_enabled`, `plugin_disabled`, `plugin_removed`, `plugin_key_revoked`,
+             *     `plugin_digest_revoked` or `plugin_digest_unrevoked`.
+             */
+            code: string;
+            /** @description For `plugin_updated`: the version that runs now. */
+            from_version?: string | null;
+            /** @description The plugin's name; for `plugin_key_revoked` the key's. */
+            name?: string | null;
+            plugin_id?: string | null;
+            /** @description The version that runs from the next start, or the one the reason is about. */
+            version?: string | null;
+        };
+        /** @description Body of `POST /api/v1/system/restart`. */
+        RestartRequest: {
+            /**
+             * @description Restart although downloads are running: the stop saves them, and they continue after
+             *     the restart. Without it running downloads refuse the restart (`restart.transfers_active`).
+             */
+            allow_active?: boolean;
+        };
+        /** @description What a restart that began answers. */
+        RestartStartedResponse: {
+            /** @description As in [`RestartStatusResponse::how`]. */
+            how: string;
+            supervisor?: string | null;
+        };
+        /** @description Whether a restart is pending, why, and how this installation restarts. */
+        RestartStatusResponse: {
+            /** @description Whether a pending restart happens by itself (`restart_when_needed`). */
+            automatic: boolean;
+            /** @description Why `can_restart` is false: `restart.update_running` or `restart.already_restarting`. */
+            blocked_reason?: string | null;
+            /** @description Whether `POST /api/v1/system/restart` is accepted now. */
+            can_restart: boolean;
+            /**
+             * @description `self` (rDownloader starts itself again), `supervisor` (systemd or the container runtime
+             *     starts it again on exit code 75) or `manual` (it stops; whoever started it starts it).
+             */
+            how: string;
+            /** @description Something waits for the next start. */
+            pending: boolean;
+            /** @description What waits for it; empty when nothing does. */
+            reasons: components["schemas"]["RestartReason"][];
+            /** @description A restart was asked for and the service is on its way down. */
+            restarting: boolean;
+            /**
+             * @description When this service process started (RFC 3339); a client that asked for a restart reads it
+             *     changed once the service is back.
+             */
+            started_at: string;
+            /**
+             * @description For `how` = `supervisor`: `systemd` or `container`. A container started without a
+             *     restart policy stays stopped.
+             */
+            supervisor?: string | null;
+        };
         /** @description How much the database copy holds. */
         RestoreCountsResponse: {
             /** Format: int64 */
@@ -13583,8 +14745,13 @@ export interface components {
             /** @description Whether the download limit reaches this transport at all. */
             download_enforced: boolean;
             kind: components["schemas"]["DownloadKind"];
-            /** @description Short reason shown next to an unenforced entry; `None` when fully enforced. */
+            /** @description Short reason shown next to an unenforced entry, in English; `None` when fully enforced. */
             note?: string | null;
+            /**
+             * @description The stable code of `note`, which the interface translates (RD-1240-33):
+             *     `torrent_session_rate`, `media_job_rate`, `gallery_job_rate` or `record_no_rate`.
+             */
+            note_code?: string | null;
             /**
              * @description Whether the transport can be limited per host, account, category or package, or only
              *     as a whole. External helper processes only take one rate for the whole job.
@@ -13604,6 +14771,17 @@ export interface components {
             enabled?: boolean;
             /** @description The rule body. Parsed through `rd_siterules::Rule` and validated before it is stored. */
             rule: unknown;
+        };
+        /** @description When a time-triggered automation runs, read in the service's own time zone. */
+        Schedule: {
+            /** @enum {string} */
+            kind: "interval";
+            /** Format: int32 */
+            minutes: number;
+        } | {
+            expression: string;
+            /** @enum {string} */
+            kind: "cron";
         };
         /** @description When a schedule fires. */
         ScheduleKind: {
@@ -13625,6 +14803,18 @@ export interface components {
              * @description Minutes after local midnight, `0..MINUTES_PER_DAY`.
              */
             start_minute: number;
+        };
+        /** @description A bandwidth profile that pauses downloads while it is in force (RD-1240-30). */
+        SchedulePauseResponse: {
+            /** @description Whether somebody switched it on by hand rather than the schedule. */
+            manual: boolean;
+            profile_id: components["schemas"]["BandwidthProfileId"];
+            profile_name: string;
+            /**
+             * Format: date-time
+             * @description When it ends, as the schedule or a switch by hand says; `null` when nothing ends it.
+             */
+            until?: string | null;
         };
         ScheduleRequest: {
             default_profile_id?: components["schemas"]["BandwidthProfileId"] | null;
@@ -13919,6 +15109,14 @@ export interface components {
             /** @default 107374182400 */
             archive_max_uncompressed_bytes: components["schemas"]["ByteCount"];
             /**
+             * @description Answers aria2's JSON-RPC at `/jsonrpc` for AriaNg and similar front ends (RD-1240-11).
+             *     Off by default: switched off, the path does not exist. The RPC secret is an API token
+             *     holding `api:intake`, `api:queue` and `api:read`, as for the SABnzbd and qBittorrent
+             *     adapters.
+             * @default false
+             */
+            aria2_rpc_enabled: boolean;
+            /**
              * Format: int32
              * @description Days an audit record is kept at most (30-3650), whatever the count.
              * @default 365
@@ -14068,6 +15266,14 @@ export interface components {
              * @default true
              */
             downloads_packages_closed_by_default: boolean;
+            /**
+             * @description Also mark a LinkGrabber link whose source the download history holds — a package that
+             *     completed or failed and has left the queue (RD-1240-14). Off by default: the history
+             *     keeps what was removed on purpose too, and a mark on every link fetched again by choice
+             *     would be noise.
+             * @default false
+             */
+            duplicates_include_history: boolean;
             /**
              * @description Download every PAR2 recovery volume of an NZB straight away. Off by default, like
              *     SABnzbd's `enable_all_par`: the main index comes down with the payload, the `vol`
@@ -14336,6 +15542,18 @@ export interface components {
             /** @default true */
             media_service_enabled: boolean;
             /**
+             * Format: int32
+             * @description Seconds before each media download starts (`--sleep-interval`, 0–600, 0 = none).
+             * @default 0
+             */
+            media_sleep_interval_seconds: number;
+            /**
+             * Format: int32
+             * @description Seconds between the requests of one media download (`--sleep-requests`, 0–600, 0 = none).
+             * @default 0
+             */
+            media_sleep_requests_seconds: number;
+            /**
              * @description Absolute path of yt-dlp; empty = look up on PATH.
              * @default null
              */
@@ -14579,6 +15797,13 @@ export interface components {
              */
             remote_timeout_seconds: number;
             /**
+             * @description Whether a pending restart happens by itself (RD-1240-32): a plugin installed or updated
+             *     that runs only from the next start, once nothing has run for five minutes, inside
+             *     `update_auto_install_window`. Off by default.
+             * @default false
+             */
+            restart_when_needed: boolean;
+            /**
              * @description Whether a failed PAR2/SFV/RAR verification blocks unpacking and everything after it.
              *     On by default, like SABnzbd's `safe_postproc`; off means the unpack runs anyway and a
              *     broken recovery set beside intact archives no longer locks a package (RD-104-04).
@@ -14671,6 +15896,14 @@ export interface components {
              */
             subscription_item_images_enabled: boolean;
             /**
+             * Format: int32
+             * @description Days a skipped or dismissed subscription item keeps its full row (0-3650, default 30;
+             *     0 for good). After that only its key stays, which is what a poll recognises it by, so a
+             *     feed that still lists it brings nothing back (RD-1240-35).
+             * @default 30
+             */
+            subscription_item_retention_days: number;
+            /**
              * @description Whether the browser tab reports what is running — the queue rate and the number of
              *     active transfers — instead of the application name alone (RD-106-07).
              *
@@ -14717,6 +15950,19 @@ export interface components {
              * @default null
              */
             torrent_listen_port: number | null;
+            /**
+             * Format: int32
+             * @description Torrents downloading at once, 1 to 32; the queue holds the rest.
+             * @default 4
+             */
+            torrent_max_active_downloads: number;
+            /**
+             * Format: int32
+             * @description Torrents seeding at once, 1 to 500; empty = no limit. Past it the seeds that have seeded
+             *     longest end first.
+             * @default null
+             */
+            torrent_max_active_seeds: number | null;
             /**
              * @description Show full peer addresses in the torrent peer list instead of the network prefix.
              * @default false
@@ -14798,6 +16044,22 @@ export interface components {
              * @default false
              */
             unwrap_package_folder: boolean;
+            /**
+             * @description Whether an offered update installs by itself (RD-1240-27): only where the installation
+             *     installs itself, once nothing has run for five minutes, inside the window. Off by default.
+             * @default false
+             */
+            update_auto_install: boolean;
+            /** @default null */
+            update_auto_install_window: components["schemas"]["UpdateInstallWindow"] | null;
+            /**
+             * Format: int32
+             * @description Days the newest database copy and archive before an update, and the newest copy before a
+             *     migration, stay once that update is proven (0-3650, default 14; 0 keeps them for good).
+             *     The older ones go as soon as it is (RD-1240-34).
+             * @default 14
+             */
+            update_backup_retention_days: number;
             /**
              * @description Which releases the update check offers: `stable`, or `beta` for the pre-releases too.
              *     Unset, it is `beta` on a pre-release build and `stable` on every other.
@@ -15961,7 +17223,7 @@ export interface components {
          * @description Where a notification is delivered.
          * @enum {string}
          */
-        TargetKind: "webhook" | "smtp" | "apprise" | "plugin";
+        TargetKind: "webhook" | "smtp" | "apprise" | "plugin" | "web_push";
         TargetTestResponse: {
             /** @description Redacted excerpt of what the target answered; never contains a secret. */
             detail?: string | null;
@@ -16441,6 +17703,48 @@ export interface components {
              */
             sequential: components["schemas"]["TorrentSequentialMode"];
         };
+        /** @description The result of one port test. */
+        TorrentPortTest: {
+            /**
+             * Format: int32
+             * @description The port announced to trackers: the configured announce port, else the listen port.
+             */
+            announce_port?: number | null;
+            /** @description Why the session could not be started, for `unavailable`. */
+            error?: string | null;
+            /**
+             * Format: int32
+             * @description Connected peers that reached this machine through the port.
+             */
+            incoming_peers: number;
+            /**
+             * Format: int32
+             * @description The port the engine listens on, when it has a listener.
+             */
+            listen_port?: number | null;
+            /**
+             * Format: int32
+             * @description Torrents running in the engine right now, whose peers were looked at.
+             */
+            live_torrents: number;
+            /**
+             * @description Whether the listener answered a local TCP connection; `None` when it was not tried,
+             *     because the engine accepts uTP only or is bound to one network interface.
+             */
+            local_tcp_accepted?: boolean | null;
+            /** @description Whether outgoing peer connections go through a SOCKS5 proxy; incoming ones never do. */
+            peer_proxy_configured: boolean;
+            /** Format: date-time */
+            tested_at: string;
+            /** @description Whether UPnP port forwarding was requested. */
+            upnp_enabled: boolean;
+            verdict: components["schemas"]["TorrentPortVerdict"];
+        };
+        /**
+         * @description What the port test concluded.
+         * @enum {string}
+         */
+        TorrentPortVerdict: "reachable" | "listening" | "not_listening" | "unavailable";
         /**
          * @description A recheck of a torrent's data against its piece hashes (RD-1100-10).
          *
@@ -16659,7 +17963,7 @@ export interface components {
          *     none of it is something to hang an action off.
          * @enum {string}
          */
-        Trigger: "intake_received" | "download_resolved" | "download_started" | "download_completed" | "download_failed" | "package_completed" | "package_failed" | "extraction_finished" | "script_finished" | "upload_finished" | "storage_threshold" | "subscription_item" | "usenet_job_hopeless";
+        Trigger: "intake_received" | "download_resolved" | "download_started" | "download_completed" | "download_failed" | "package_completed" | "package_failed" | "extraction_finished" | "script_finished" | "upload_finished" | "storage_threshold" | "subscription_item" | "usenet_job_hopeless" | "schedule";
         /**
          * @description Confirms one SSH host key as trusted.
          *
@@ -16768,6 +18072,23 @@ export interface components {
             updated_at: string;
         };
         /**
+         * @description When an automatic install may start (`update_auto_install_window`, RD-1240-27): local times
+         *     in the installation's time zone (`bandwidth_timezone`).
+         */
+        UpdateInstallWindow: {
+            /**
+             * Format: int32
+             * @description Minutes after midnight, exclusive (0-1439); below `start_minute` the window wraps past
+             *     midnight.
+             */
+            end_minute: number;
+            /**
+             * Format: int32
+             * @description Minutes after midnight, inclusive (0-1439).
+             */
+            start_minute: number;
+        };
+        /**
          * @description Editable profile fields. An empty secret or session token keeps the stored one while the
          *     provider, the credential source and the host — the endpoint, and the Azure account — stay
          *     what they were; a changed host needs the secret typed again (RD-1190-20).
@@ -16854,6 +18175,8 @@ export interface components {
         };
         /** @description The update check's state, as `GET /api/v1/system/update` answers it. */
         UpdateStatusResponse: {
+            /** @description Whether an offered update installs by itself (`update_auto_install`, RD-1240-27). */
+            auto_install?: boolean;
             available?: components["schemas"]["UpdateOffer"] | null;
             /**
              * @description The capture agents connected right now, by the version each reported (RD-190-07); empty
@@ -16887,6 +18210,12 @@ export interface components {
              *     `scoop`, `winget`, `aur`, `docker` or `unknown`.
              */
             install_kind: string;
+            /**
+             * @description Whether this installation installs an update itself (the portable archive, the Windows
+             *     installer), and so whether `update_auto_install` can do anything; elsewhere a package
+             *     manager or the container runtime updates it.
+             */
+            installs_itself?: boolean;
             /**
              * Format: int32
              * @description Hours between two automatic checks.
@@ -17023,6 +18352,59 @@ export interface components {
          * @enum {string}
          */
         VideoCodecFamily: "avc" | "hevc" | "av1" | "vp9" | "vp8" | "other";
+        /** @description The key a browser subscribes with (`applicationServerKey`). */
+        WebPushKeyResponse: {
+            /** @description URL-safe base64 of the uncompressed P-256 public key. */
+            public_key: string;
+        };
+        /** @description A browser's message keys, as `PushSubscription.toJSON()` names them. */
+        WebPushKeys: {
+            auth: string;
+            p256dh: string;
+        };
+        /** @description One browser that receives push messages. */
+        WebPushSubscription: {
+            /** Format: date-time */
+            created_at: string;
+            /** @description What the person called the device, or what the browser said it is. */
+            device_name: string;
+            /** @description The push service's address for this browser; it names the subscription. */
+            endpoint: string;
+            /** @description The events this browser wants; empty means every event. */
+            events: components["schemas"]["NotificationEvent"][];
+            id: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description A browser's push subscription. The same `endpoint` again updates the stored one. */
+        WebPushSubscriptionRequest: {
+            /** @description What the device is called in the list; empty is "Browser". */
+            device_name?: string;
+            /** @description The push service's `https` address for this browser. */
+            endpoint: string;
+            /** @description The events this browser wants; empty means every event. */
+            events?: components["schemas"]["NotificationEvent"][];
+            keys: components["schemas"]["WebPushKeys"];
+        };
+        /** @description One weekly span of a download window, local times in the bandwidth schedule's timezone. */
+        WeeklyWindow: {
+            /**
+             * Format: int32
+             * @description Monday-first bitmask; bit 0 = Monday.
+             */
+            days: number;
+            /**
+             * Format: int32
+             * @description Exclusive; below `start_minute` the span wraps past midnight and belongs to the day it
+             *     starts on, so "Fri 22:00–06:00" still holds at Saturday 05:00.
+             */
+            end_minute: number;
+            /**
+             * Format: int32
+             * @description Minutes since local midnight.
+             */
+            start_minute: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -20766,6 +22148,183 @@ export interface operations {
             };
         };
     };
+    switch_capture_game_mode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureGameModeSwitchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureAgentSettings"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    hold_capture_game_mode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureGameModeHoldRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureGameModeHoldResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    release_capture_game_mode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureGameModeReleaseRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureGameModeReleaseResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    enqueue_capture_linkgrabber: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureLinkGrabberRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureLinkGrabberResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     pair_capture: {
         parameters: {
             query?: never;
@@ -20897,6 +22456,110 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_capture_server_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureServerUpdateResponse"];
+                };
+            };
+        };
+    };
+    install_capture_server_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInstallRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureServerUpdateInstall"];
+                };
+            };
+            /** @description The agent was not paired with capture:server_update */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Nothing to install, not an installation that installs itself, downloads running, or the program folder is not fit */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    restart_capture_server: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestartRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestartStartedResponse"];
+                };
+            };
+            /** @description The agent was not paired with capture:server_update */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description An update is being installed, a restart runs already, downloads are running, or the relauncher could not be started */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -21114,6 +22777,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    set_category_download_window: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadWindowRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryDownloadWindowResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -21549,6 +23256,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    unhide_candidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateUnhideRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateUnhideResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -24397,6 +26137,49 @@ export interface operations {
             };
         };
     };
+    export_download_history: {
+        parameters: {
+            query?: {
+                /** @description `csv` (the default) or `ndjson`. */
+                format?: "csv" | "ndjson";
+                /** @description Part of the name or of a source address, case-insensitive. */
+                q?: string;
+                /** @description `completed` or `failed`. */
+                outcome?: components["schemas"]["HistoryOutcome"];
+                /** @description The download kind (`http`, `usenet`, `torrent`, ...). */
+                kind?: components["schemas"]["DownloadKind"];
+                /** @description Entries that ended at or after this instant (RFC 3339). */
+                from?: string;
+                /** @description Entries that ended at or before this instant (RFC 3339). */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The filtered history as CSV (`format=csv`) or newline-delimited JSON (`format=ndjson`) */
+            200: {
+                headers: {
+                    /** @description How many entries the filters match; more than the file holds when it was cut */
+                    "x-total-count"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                    "application/x-ndjson": string;
+                };
+            };
+            /** @description history.filter_invalid or history.export_format_invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     readd_history_entry: {
         parameters: {
             query?: never;
@@ -24846,6 +26629,236 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
+            };
+        };
+    };
+    list_link_filter_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkFilterRule"][];
+                };
+            };
+        };
+    };
+    create_link_filter_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkFilterRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkFilterRule"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    apply_link_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkFilterApplyResponse"];
+                };
+            };
+        };
+    };
+    export_link_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaBundle"];
+                };
+            };
+        };
+    };
+    import_link_filters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AreaBundle"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportAreaSummary"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reorder_link_filter_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkFilterReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkFilterRule"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_link_filter_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["LinkFilterRuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkFilterRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkFilterRule"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_link_filter_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["LinkFilterRuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -25478,6 +27491,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TargetTestResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    web_push_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebPushKeyResponse"];
+                };
+            };
+        };
+    };
+    list_web_push_subscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebPushSubscription"][];
+                };
+            };
+        };
+    };
+    create_web_push_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebPushSubscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebPushSubscription"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_web_push_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Not Found */
@@ -26356,6 +28469,81 @@ export interface operations {
             };
         };
     };
+    get_package_download_window: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageDownloadWindowStatus"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_package_download_window: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadWindowRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageDownloadWindowResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     extract_package: {
         parameters: {
             query?: never;
@@ -26592,6 +28780,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_package_start_after: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackageStartAfterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackageStartAfterResponse"];
                 };
             };
             /** @description Not Found */
@@ -28130,6 +30353,38 @@ export interface operations {
             };
         };
     };
+    search_queue: {
+        parameters: {
+            query?: {
+                /** @description Part of a package or file name, case-insensitive for ASCII letters; blank finds nothing. */
+                q?: string;
+                /** @description Rows of each kind, 1 to 50; 8 when left out. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueSearchResponse"];
+                };
+            };
+            /** @description queue.search_invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_queue_stop_mark: {
         parameters: {
             query?: never;
@@ -28884,6 +31139,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SettingsResponse"];
                 };
+            };
+            /** @description Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -30815,6 +33077,57 @@ export interface operations {
             };
         };
     };
+    cleanup_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CleanupSummary"];
+                };
+            };
+        };
+    };
+    run_cleanup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataClearRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CleanupSummary"];
+                };
+            };
+            /** @description data_reset.not_confirmed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     data_reset_preview: {
         parameters: {
             query?: never;
@@ -30851,6 +33164,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaStatusResponse"];
+                };
+            };
+        };
+    };
+    get_restart_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestartStatusResponse"];
+                };
+            };
+        };
+    };
+    restart_service: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestartRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestartStartedResponse"];
+                };
+            };
+            /** @description An update is being installed, a restart runs already, downloads are running, or the relauncher could not be started */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -30921,6 +33287,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ManagedToolsResponse"];
                 };
+            };
+            /** @description Managed tools are off (`tools.disabled`) or no manifest URL is set (`tools.manifest_url_missing`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -31211,6 +33584,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description `enqueue` was set and the package could not be queued; it stays in the LinkGrabber */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit */
             413: {
                 headers: {
@@ -31237,6 +33617,33 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["NetworkInterface"][];
                 };
+            };
+        };
+    };
+    test_torrent_port: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TorrentPortTest"];
+                };
+            };
+            /** @description The BitTorrent service is switched off */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

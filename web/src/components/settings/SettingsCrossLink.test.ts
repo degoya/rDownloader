@@ -45,7 +45,7 @@ describe('SettingsCrossLink', () => {
 
   it('brings a field into view with the focus, a card without', async () => {
     mountComponent(SettingsCrossLink, { messages: { settings: en }, props: { anchor: 'postprocess.rclone_executable' } })
-    expect(screen.getByRole('link').getAttribute('href')).toBe('/settings/tools')
+    expect(screen.getByRole('link').getAttribute('href')).toBe('/settings/tools?tab=paths')
     await fireEvent.click(screen.getByRole('link'))
     expect(revealAnchor).toHaveBeenCalledWith('postprocess.rclone_executable', { focus: true })
   })

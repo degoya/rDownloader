@@ -160,7 +160,7 @@ fn file_name_for(candidate: &LinkCandidate, summary: &rd_core::RemoteListingSumm
         .url
         .path_segments()
         .and_then(|mut segments| segments.rfind(|part| !part.is_empty()))
-        .map(str::to_owned);
+        .map(rd_files::decode_path_segment);
     from_path
         .or_else(|| {
             summary

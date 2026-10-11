@@ -197,3 +197,41 @@ async fn a_folder_an_earlier_attempt_left_behind_is_carried_over() {
         "the finished move is still recorded as outstanding"
     );
 }
+
+/// RD-1240-33: a link whose address names nothing is `download.bin` in a package called
+/// `download`; the server's `Content-Disposition` names both before the folder exists.
+#[tokio::test]
+async fn a_declared_name_replaces_the_fallback_of_the_file_and_the_package() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (scheduler, database, file, _) = paused_package(temporary.path(), "download").await;
+
+    let named = scheduler
+        .adopt_declared_name(
+            &file,
+            Some("attachment; filename=x.bin; filename*=UTF-8''Big%20Buck%20Bunny.mp4"),
+        )
+        .await
+        .expect("adopt");
+    assert_eq!(named.as_deref(), Some("Big Buck Bunny.mp4"));
+    let row = database
+        .get_download(file.id)
+        .await
+        .expect("read")
+        .expect("row");
+    assert_eq!(row.file_name, "Big Buck Bunny.mp4");
+    assert_eq!(package_of(&database, &file).await.name, "Big Buck Bunny");
+
+    // A file with a name of its own keeps it, and an answer without one changes nothing.
+    let unnamed = scheduler
+        .adopt_declared_name(&row, Some("attachment; filename=\"other.mp4\""))
+        .await
+        .expect("adopt");
+    assert_eq!(unnamed, None);
+    assert_eq!(
+        scheduler
+            .adopt_declared_name(&file, Some("attachment"))
+            .await
+            .expect("adopt"),
+        None
+    );
+}

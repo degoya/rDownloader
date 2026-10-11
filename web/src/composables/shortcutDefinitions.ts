@@ -1,5 +1,5 @@
 import { openDirectAdd } from '@/composables/directAddAction'
-import { focusIndexerSearch } from '@/composables/indexerSearchFocus'
+import { cancelIndexerSearchRequest, focusIndexerSearch } from '@/composables/indexerSearchFocus'
 import { runLinkGrabberAction } from '@/composables/linkGrabberActions'
 import { requestFileImport } from '@/composables/nzbImportRequest'
 import { openPalette } from '@/composables/searchPalette'
@@ -117,6 +117,12 @@ function goTo(path: string): () => void {
   return () => { void router.push(path) }
 }
 
+/** `f`: the drawer if the LinkGrabber is open, otherwise there first; the drawer opens on arrival. */
+function openIndexerSearch(): void {
+  if (focusIndexerSearch()) return
+  void router.push('/linkgrabber').then((failure) => { if (failure) cancelIndexerSearchRequest() })
+}
+
 /**
  * Reads `transfers.globalControl`, applies it, and (off `/downloads`, where a notice already shows)
  * toasts the result. While a timed pause holds, `p` ends it instead, as the control's own button
@@ -204,11 +210,11 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'n', labelKeys: ['n'], descriptionKey: 'common.shortcuts.import_nzb', group: 'actions', handler: guarded(importFiles) },
   { keys: 'p', labelKeys: ['p'], descriptionKey: 'common.shortcuts.toggle_transfers', group: 'actions', handler: guarded(toggleTransfers) },
   { keys: 'k', labelKeys: ['k'], descriptionKey: 'common.shortcuts.clear_completed', group: 'actions', handler: guarded(() => clearCompleted?.()) },
-  // `f` is the page's search — it opens the LinkGrabber's indexer search drawer or focuses the
-  // download list's name search — handed in by whichever is mounted (`indexerSearchFocus.ts`).
+  // `f` opens the LinkGrabber's indexer search drawer, handed in by the drawer while it is
+  // mounted (`indexerSearchFocus.ts`); from any other page it goes to the LinkGrabber first.
   // Ctrl/Cmd+F stays the browser's find and Shift+F does nothing: `defineShortcuts` matches
   // modifiers exactly, Shift included for a letter.
-  { keys: 'f', labelKeys: ['f'], descriptionKey: 'common.shortcuts.focus_indexer_search', group: 'actions', handler: guarded(focusIndexerSearch) },
+  { keys: 'f', labelKeys: ['f'], descriptionKey: 'common.shortcuts.focus_indexer_search', group: 'actions', handler: guarded(openIndexerSearch) },
   // The LinkGrabber's own keys, handed in by the view (`linkGrabberActions.ts`). The ones that
   // ask first are answered by the same key again (`ConfirmModal`'s `confirmKey`), as `k` is.
   // `a` adds on Downloads too: there it opens the direct job (`directAddAction.ts`, RD-1220-03).

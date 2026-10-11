@@ -85,7 +85,9 @@ export function useGrabberEnqueue(view: {
    * behind, and a failed mirror then had nothing to fall back to.
    */
   function visibleCandidateIds(packageIds: string[]): string[] | undefined {
-    if (!view.filterActive.value) return undefined
+    // A link a LinkFilter rule hid is left behind by a whole-package claim, so while there is one
+    // the shown links are always named — also the hidden ones the list draws (RD-1240-09).
+    if (!view.filterActive.value && !collector.candidates.some(c => c.hidden_by_filter)) return undefined
     const wanted = new Set(packageIds)
     return withMirrors(view.groups.value.filter(g => wanted.has(g.package.id)).flatMap(g => g.candidates))
   }
@@ -95,7 +97,8 @@ export function useGrabberEnqueue(view: {
     const ids = new Set(links.map(c => c.id))
     // A group key is unique within its package only, so package and key together name a group.
     const groups = new Set(links.filter(c => c.mirror).map(c => `${c.package_id}\u0000${c.mirror?.group}`))
-    const mirrors = collector.candidates.filter(c => c.mirror && !ids.has(c.id)
+    // A mirror a LinkFilter rule hid is not a fallback anybody asked for (RD-1240-09).
+    const mirrors = collector.candidates.filter(c => c.mirror && !ids.has(c.id) && !c.hidden_by_filter
       && groups.has(`${c.package_id}\u0000${c.mirror.group}`))
     return [...ids, ...mirrors.map(c => c.id)]
   }

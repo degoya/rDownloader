@@ -53,6 +53,9 @@ impl Writer {
                     .map_err(anyhow::Error::from);
                 send(reply, result);
             }
+            MaintenanceCommand::ReclaimFreePages { reply } => {
+                send(reply, self.reclaim_free_pages().await);
+            }
             MaintenanceCommand::VacuumInto { path, reply } => {
                 send(reply, self.vacuum_into(&path).await);
             }

@@ -226,3 +226,60 @@ describe('MediaFormatSelector limits', () => {
     expect(view.emitted<[Record<string, unknown>]>().apply?.at(-1)?.[0]).toHaveProperty(key, null)
   })
 })
+
+/** RD-1240-15: audio only in a chosen format, a section and the job's own pauses. */
+describe('MediaFormatSelector audio format, section and pauses', () => {
+  function lastPreview(emitted: Record<string, unknown[]>): Record<string, unknown> | undefined {
+    return (emitted.preview as Record<string, unknown>[][] | undefined)?.at(-1)?.[0]
+  }
+
+  it('turns the job into an audio extraction in the chosen format and back into the video', async () => {
+    const { emitted } = mount(formats())
+    const select = screen.getByTestId('media-audio-format') as HTMLSelectElement
+    expect([...select.options].map(option => option.value)).toEqual(['video', 'mp3', 'm4a', 'opus', 'flac'])
+    // The catalogue's names, as the codec filter shows them: "Opus", not "OPUS" (RD-1240-28).
+    expect([...select.options].map(option => option.textContent?.trim())).toEqual([en.media.audio_format_video, 'MP3', 'M4A', 'Opus', 'FLAC'])
+    expect(select.value).toBe('video')
+
+    await fireEvent.update(select, 'opus')
+    expect(lastPreview(emitted())).toMatchObject({
+      target: 'audio_only',
+      output: { mode: 'extract_audio', codec: 'opus', quality: 0 },
+      preset: null
+    })
+
+    await fireEvent.update(select, 'video')
+    expect(lastPreview(emitted())).toMatchObject({ target: 'video', output: { mode: 'remux', container: 'mp4' } })
+  })
+
+  it('shows the codec of a stored audio selection and keeps its quality', async () => {
+    const base = formats()
+    const { emitted } = mount({
+      ...base,
+      criteria: { ...base.criteria, target: 'audio_only', output: { mode: 'extract_audio', codec: 'flac', quality: 3 } }
+    })
+    const select = screen.getByTestId('media-audio-format') as HTMLSelectElement
+    expect(select.value).toBe('flac')
+    await fireEvent.update(select, 'm4a')
+    expect(lastPreview(emitted())).toMatchObject({ output: { mode: 'extract_audio', codec: 'm4a', quality: 3 } })
+  })
+
+  it('offers no audio format without ffmpeg', () => {
+    mount(formats({ capabilities: { can_merge: false, can_transcode_audio: false } }))
+    expect(screen.getByTestId('media-audio-format').hasAttribute('disabled')).toBe(true)
+  })
+
+  it('previews a section once both positions read as times', async () => {
+    const { emitted } = mount(formats())
+    await fireEvent.update(screen.getByTestId('media-section-start'), '1:30')
+    await fireEvent.update(screen.getByTestId('media-section-end'), '2:30')
+    await fireEvent.blur(screen.getByTestId('media-section-end'))
+    expect(lastPreview(emitted())).toMatchObject({ section: { start_seconds: 90, end_seconds: 150 }, preset: null })
+  })
+
+  it('passes the job pauses on, and null to follow the settings again', async () => {
+    const { emitted } = mount(formats())
+    await fireEvent.click(screen.getByRole('switch', { name: en.media.pauses.own }))
+    expect(lastPreview(emitted())).toMatchObject({ pauses: { sleep_requests_seconds: 0, sleep_interval_seconds: 0 } })
+  })
+})

@@ -181,7 +181,9 @@
     "package_names_on": "Activé",
     "package_names_off": "Désactivé",
     "package_names_regex_override": "Règles regex propres",
-    "package_names_regex_override_description": "Désactivé : les règles globales s'appliquent. Activé : cette liste les remplace — vide aussi, et alors aucune ne s'applique."
+    "package_names_regex_override_description": "Désactivé : les règles globales s'appliquent. Activé : cette liste les remplace — vide aussi, et alors aucune ne s'applique.",
+    "download_window_label": "Plage de téléchargement",
+    "download_window_description": "Quand les paquets de cette catégorie peuvent télécharger ; la plage propre d'un paquet l'emporte. Désactivée : les paquets suivent uniquement le planning de bande passante."
   },
   "rule": {
     "eyebrow": "Classificateur",
@@ -210,7 +212,8 @@
       "nzb": "Import NZB",
       "hot_folder": "Dossier surveillé",
       "browser_extension": "Extension de navigateur",
-      "browser_download": "Téléchargement du navigateur"
+      "browser_download": "Téléchargement du navigateur",
+      "subscription": "Abonnement"
     },
     "protocol_label": "Protocole",
     "protocol_description": "Comparé au schéma de l'URL, sans tenir compte de la casse et sans « :// ».",

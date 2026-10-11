@@ -50,8 +50,9 @@ pub(super) async fn insert_categories(
              postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, \
              direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, \
              upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, \
-             unwrap_package_folder, package_name_rules_json, package_name_regex_json, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             unwrap_package_folder, package_name_rules_json, package_name_regex_json, \
+             download_window_json, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -96,6 +97,9 @@ pub(super) async fn insert_categories(
         )?)
         .bind(crate::config_store::package_name_regex_json(
             value.package_name_regex.as_ref(),
+        )?)
+        .bind(crate::download_window_store::window_json(
+            value.download_window.as_ref(),
         )?)
         .bind(now)
         .bind(now)

@@ -6,6 +6,9 @@
 //! transfer when the source stated a SHA-256. The answer keeps the two in separate lists
 //! because they mean different things: "this is already queued" against "these bytes are
 //! already on disk".
+//!
+//! The LinkGrabber's lookup also compares with the download history when the setting
+//! `duplicates_include_history` asks for it (RD-1240-14): "this was downloaded before".
 
 use std::{collections::HashMap, path::Path};
 
@@ -89,6 +92,15 @@ pub struct DuplicateLookupRequest {
     pub urls: Vec<String>,
 }
 
+/// A package of the download history with the same source (RD-1240-14).
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct HistoryDuplicate {
+    pub history_id: i64,
+    pub name: String,
+    pub outcome: rd_core::HistoryOutcome,
+    pub finished_at: chrono::DateTime<chrono::Utc>,
+}
+
 #[derive(Serialize, ToSchema)]
 pub struct DuplicateLookupEntry {
     pub url: String,
@@ -96,6 +108,11 @@ pub struct DuplicateLookupEntry {
     /// Queue downloads of the same source. The LinkGrabber marks duplicates among its own links
     /// already; this is the part it cannot see.
     pub queue: Vec<SourceDuplicate>,
+    /// History entries of the same source whose package has left the queue (RD-1240-14), newest
+    /// first; always empty while the setting `duplicates_include_history` is off. The history
+    /// keeps addresses with their credentials masked, so a link that carries one in its query
+    /// is not recognised there.
+    pub history: Vec<HistoryDuplicate>,
 }
 
 const MAX_LOOKUP_URLS: usize = 500;
@@ -282,6 +299,7 @@ pub async fn lookup_duplicates(
         return Err(crate::error_codes::bulk_range(MAX_LOOKUP_URLS));
     }
     let queue = Queue::load(&state).await?;
+    let history = history_identities(&state, &queue).await?;
     let identities = queue
         .downloads
         .iter()
@@ -308,13 +326,57 @@ pub async fn lookup_duplicates(
                 state: Some(file.state),
             })
             .collect();
+        let mut earlier = history
+            .iter()
+            .filter(|(other, _)| *other == identity)
+            .map(|(_, entry)| entry.clone())
+            .collect::<Vec<_>>();
+        // An entry whose sources share an identity is one match, not several.
+        earlier.dedup_by_key(|entry| entry.history_id);
         entries.push(DuplicateLookupEntry {
             url: raw,
             identity,
             queue: queued,
+            history: earlier,
         });
     }
     Ok(Json(entries))
+}
+
+/// The history's sources as identities, newest entry first, when the setting asks for them
+/// (RD-1240-14). A package still in the queue is left out: its files are matched there.
+async fn history_identities(
+    state: &AppState,
+    queue: &Queue,
+) -> Result<Vec<(SourceIdentity, HistoryDuplicate)>, ApiError> {
+    let wanted = crate::settings_store::stored_settings(&state.database)
+        .await
+        .is_ok_and(|settings| settings.duplicates_include_history);
+    if !wanted {
+        return Ok(Vec::new());
+    }
+    let page = state
+        .database
+        .list_download_history(&rd_db::HistoryQuery::default())
+        .await?;
+    let mut identities = Vec::new();
+    for entry in page.entries {
+        if queue.packages.contains_key(&entry.package_id) {
+            continue;
+        }
+        let duplicate = HistoryDuplicate {
+            history_id: entry.id,
+            name: entry.name,
+            outcome: entry.outcome,
+            finished_at: entry.finished_at,
+        };
+        for source in &entry.sources {
+            if let Ok(url) = Url::parse(source) {
+                identities.push((identity_of_url(&url), duplicate.clone()));
+            }
+        }
+    }
+    Ok(identities)
 }
 
 #[cfg(test)]

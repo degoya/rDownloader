@@ -8,7 +8,7 @@ use utoipa::OpenApi;
 
 use crate::{
     AppState, download_handlers, download_sources, package_clear, package_export, package_handlers,
-    postprocess_handlers, queue_pause_handlers, stop_mark_handlers,
+    postprocess_handlers, queue_pause_handlers, queue_search, stop_mark_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -36,6 +36,7 @@ pub(crate) fn routes() -> Router<AppState> {
                 .put(queue_pause_handlers::pause_queue)
                 .delete(queue_pause_handlers::resume_queue),
         )
+        .route("/api/v1/queue/search", get(queue_search::search_queue))
         .route(
             "/api/v1/queue/stop-mark",
             get(stop_mark_handlers::get_queue_stop_mark)
@@ -93,6 +94,15 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/packages/{id}/folder",
             post(package_handlers::rename_package_folder),
+        )
+        .route(
+            "/api/v1/packages/{id}/start-after",
+            axum::routing::put(package_handlers::set_package_start_after),
+        )
+        .route(
+            "/api/v1/packages/{id}/download-window",
+            get(package_handlers::get_package_download_window)
+                .put(package_handlers::set_package_download_window),
         )
         .route(
             "/api/v1/packages/{id}/postprocess",
@@ -178,6 +188,7 @@ pub(crate) fn routes() -> Router<AppState> {
     queue_pause_handlers::get_queue_pause,
     queue_pause_handlers::pause_queue,
     queue_pause_handlers::resume_queue,
+    queue_search::search_queue,
     stop_mark_handlers::get_queue_stop_mark,
     stop_mark_handlers::set_queue_stop_mark,
     stop_mark_handlers::clear_queue_stop_mark,
@@ -189,6 +200,9 @@ pub(crate) fn routes() -> Router<AppState> {
     package_handlers::extract_package,
     package_handlers::force_extract_package,
     package_handlers::rename_package_folder,
+    package_handlers::set_package_start_after,
+    package_handlers::get_package_download_window,
+    package_handlers::set_package_download_window,
     package_handlers::extract_packages,
     package_handlers::delete_package,
     package_handlers::delete_packages,

@@ -4,7 +4,8 @@
 //! here takes one, and an update carries the stored one over untouched. A destination's address
 //! is answered without its path and query (RD-1190-21), where Slack, Discord, Teams and most
 //! self-hosted webhooks keep the key that lets anybody post; passed back unchanged, the masked
-//! address keeps the stored one.
+//! address keeps the stored one. The browsers that receive push messages (RD-1240-13) are listed
+//! the same way: a push service's address names the browser in its path.
 
 use axum::{
     Json,
@@ -146,7 +147,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Besides the queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair, and stop_mark_reached: the queue paused at its stop mark) there are operational ones: backup_failed, backup_verify_failed, update_available, plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached."
+        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Besides the queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair, and stop_mark_reached: the queue paused at its stop mark) there are operational ones: backup_failed, backup_verify_failed, update_available, update_installed (rDownloader runs a newer version after an update), update_failed (an update did not go ahead or was taken back), service_restarting (rDownloader restarts to apply a plugin installed or updated, by request or by restart_when_needed; once per restart), plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached. Activity events: stream_recorded (a livestream recording finished), subscription_matched (a subscription check accepted new items), and the opt-in download_started and links_added, which only a rule listing them gets and whose bursts arrive as one notification each."
     )]
     pub async fn create_notification_rule(
         &self,
@@ -230,6 +231,43 @@ impl RdMcpServer {
         }
         .await;
         respond(result)
+    }
+
+    #[tool(
+        description = "List the browsers that receive push messages (Settings > Interface, \"Push on this device\"): id, device name, the events each wants (empty: every event) and its push service address with the path [redacted]. A browser turns push on itself; no tool subscribes one. The `web_push` notification destination sends to them."
+    )]
+    pub async fn list_web_push_subscriptions(&self) -> McpToolResult {
+        respond(
+            crate::web_push_handlers::list_web_push_subscriptions(State(self.state.clone()))
+                .await
+                .map(|subscriptions| {
+                    subscriptions
+                        .0
+                        .into_iter()
+                        .map(|mut subscription| {
+                            subscription.endpoint = shown_endpoint(&subscription.endpoint);
+                            subscription
+                        })
+                        .collect::<Vec<_>>()
+                }),
+        )
+    }
+
+    #[tool(
+        description = "Stop push messages to one browser, by the id list_web_push_subscriptions shows: for a lost or replaced device. Destructive; the browser has to turn push on again to receive them."
+    )]
+    pub async fn delete_web_push_subscription(
+        &self,
+        Parameters(params): Parameters<IdParams>,
+    ) -> McpToolResult {
+        respond(
+            crate::web_push_handlers::delete_web_push_subscription(
+                State(self.state.clone()),
+                AxumPath(params.id),
+            )
+            .await
+            .map(|answer| answer.0),
+        )
     }
 
     #[tool(

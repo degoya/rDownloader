@@ -181,7 +181,9 @@
     "package_names_on": "On",
     "package_names_off": "Off",
     "package_names_regex_override": "Own regex rules",
-    "package_names_regex_override_description": "Off: the global rules apply. On: this list replaces them — empty too, then none applies."
+    "package_names_regex_override_description": "Off: the global rules apply. On: this list replaces them — empty too, then none applies.",
+    "download_window_label": "Download window",
+    "download_window_description": "When this category's packages may download; a package's own window wins. Off: the packages follow the bandwidth schedule alone."
   },
   "rule": {
     "eyebrow": "Classifier",
@@ -210,7 +212,8 @@
       "nzb": "NZB import",
       "hot_folder": "Hotfolder",
       "browser_extension": "Browser extension",
-      "browser_download": "Browser download"
+      "browser_download": "Browser download",
+      "subscription": "Subscription"
     },
     "protocol_label": "Protocol",
     "protocol_description": "Compared with the URL scheme, case-insensitive and without \"://\".",

@@ -206,6 +206,14 @@ plan_run
 expect "a fixture only a comment elsewhere names: its crate's tests" " | leaf | lib 0 |  | crash 0  | sqlx 0" "$(rust_summary)"
 reset
 
+# Thousands of changed paths are more than the environment holds in one value (E2BIG); the strings
+# reach awk as a file, and the answer is the same as for two.
+mapfile -t many < <(seq -f 'crates/leaf/tests/fixtures/padding-%05g.html' 1 5000)
+expect "thousands of strings: the same mentions, nothing on stderr" \
+    "crates/mid/src/lib.rs:leaf/tests/fixtures/page.html" \
+    "$(rd_crate_code_mentions crates/mid crates/top -- "${many[@]}" leaf/tests/fixtures/page.html \
+        leaf/tests/data/only.html 2>&1)"
+
 change crates/rd-api/tests/two/beta.rs
 plan_run
 expect "an rd-api suite file: its binary alone, no library" " |  | lib 0 | two | crash 0  | sqlx 0" "$(rust_summary)"

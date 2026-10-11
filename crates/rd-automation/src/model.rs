@@ -5,12 +5,18 @@ use rd_core::{AutomationId, AutomationRunId, AutomationVersionId, CategoryId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::condition::ConditionNode;
+use crate::{condition::ConditionNode, schedule::Schedule};
 
 /// Upper bound on actions in one automation, so a single event cannot fan out unbounded.
 pub const MAX_ACTIONS: usize = 10;
 /// Upper bound on the depth of a condition tree.
 pub const MAX_CONDITION_DEPTH: usize = 6;
+/// Upper bound on the links one `add_links` action hands over.
+pub const MAX_ACTION_LINKS: usize = 50;
+/// Longest link an `add_links` action carries, in bytes.
+pub const MAX_LINK_LEN: usize = 2_048;
+/// Longest message a `notify` action sends, in characters.
+pub const MAX_NOTIFY_MESSAGE: usize = 500;
 
 /// A named automation. The definition lives in its versions, not here.
 ///
@@ -35,6 +41,9 @@ pub struct AutomationVersion {
     pub automation_id: AutomationId,
     pub version: u32,
     pub trigger: Trigger,
+    /// When a [`Trigger::Schedule`] automation runs; `None` for every other trigger.
+    #[serde(default)]
+    pub schedule: Option<Schedule>,
     pub condition: ConditionNode,
     pub actions: Vec<Action>,
     pub created_at: DateTime<Utc>,
@@ -75,12 +84,15 @@ pub enum Trigger {
     SubscriptionItem,
     /// A Usenet download was given up as beyond repair (RD-1100-02).
     UsenetJobHopeless,
+    /// A time of day or an interval came round (RD-1240-10); the automation's `schedule`
+    /// says which. Names no package.
+    Schedule,
 }
 
 impl Trigger {
     /// Every trigger, for the editor and for the contract test that iterates them.
     #[must_use]
-    pub const fn all() -> [Self; 13] {
+    pub const fn all() -> [Self; 14] {
         [
             Self::IntakeReceived,
             Self::DownloadResolved,
@@ -95,6 +107,7 @@ impl Trigger {
             Self::StorageThreshold,
             Self::SubscriptionItem,
             Self::UsenetJobHopeless,
+            Self::Schedule,
         ]
     }
 }
@@ -119,6 +132,47 @@ pub enum Action {
     PausePackage,
     /// Resume every download of the package.
     ResumePackage,
+    /// Give the package a queue priority (RD-1240-10).
+    SetPriority { priority: rd_core::DownloadPriority },
+    /// Pause the whole queue as "pause all" does, until `StartQueue` or the queue's own resume
+    /// ends it (RD-1240-30): waiting and running downloads are paused and nothing new starts.
+    /// With a time trigger, a pair of these is a download window for those who prefer
+    /// automations: pause at 06:00, start at 22:00.
+    PauseQueue,
+    /// End a pause of the whole queue -- "pause all", a timed pause or a stop mark -- as the
+    /// queue's own resume does (RD-1240-10). Nothing to do when the queue is not paused.
+    StartQueue,
+    /// Unpack the package's completed files now, as the package menu's "Extract" does
+    /// (RD-1240-10).
+    ExtractPackage,
+    /// Send a message of the author's own through a configured notification target
+    /// (RD-1240-10). The target decides the channel; the message is the body.
+    Notify {
+        target_id: rd_core::NotificationTargetId,
+        message: String,
+    },
+    /// Hand links to the LinkGrabber or straight to the downloads (RD-1240-10).
+    ///
+    /// An automation runs unattended, so its links keep to the address rule of a link proposed
+    /// from the person's own intake, as a hot folder's `.rdlinks` does: they may reach the
+    /// person's own network, never this machine.
+    AddLinks {
+        links: Vec<String>,
+        #[serde(default)]
+        destination: LinkDestination,
+    },
+}
+
+/// Where an `add_links` action puts its links.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkDestination {
+    /// The LinkGrabber, through the same intake a pasted link takes: routing rules, the
+    /// online check and the review all apply.
+    #[default]
+    LinkGrabber,
+    /// The downloads, each link a package of its own, as `POST /api/v1/downloads` creates it.
+    Downloads,
 }
 
 impl Action {
@@ -131,7 +185,41 @@ impl Action {
             Self::SetCategory { .. } => "set_category",
             Self::PausePackage => "pause_package",
             Self::ResumePackage => "resume_package",
+            Self::SetPriority { .. } => "set_priority",
+            Self::PauseQueue => "pause_queue",
+            Self::StartQueue => "start_queue",
+            Self::ExtractPackage => "extract_package",
+            Self::Notify { .. } => "notify",
+            Self::AddLinks { .. } => "add_links",
         }
+    }
+
+    /// Every action kind, in the editor's order; the vocabulary hands this out.
+    pub const KINDS: [&str; 11] = [
+        "webhook",
+        "script",
+        "set_category",
+        "pause_package",
+        "resume_package",
+        "set_priority",
+        "pause_queue",
+        "start_queue",
+        "extract_package",
+        "notify",
+        "add_links",
+    ];
+
+    /// Whether the action works on the run's package and so cannot run without one.
+    #[must_use]
+    pub const fn needs_package(&self) -> bool {
+        matches!(
+            self,
+            Self::SetCategory { .. }
+                | Self::PausePackage
+                | Self::ResumePackage
+                | Self::SetPriority { .. }
+                | Self::ExtractPackage
+        )
     }
 }
 
@@ -185,6 +273,18 @@ pub enum DefinitionError {
     Predicate(String),
     /// A script action names a file that cannot be a script name.
     ScriptName,
+    /// A time trigger without a schedule, or a schedule that names no time.
+    Schedule(String),
+    /// A package action on a trigger that names no package.
+    NeedsPackage,
+    /// A notify action without a message, or with one that is too long.
+    NotifyMessage,
+    /// An `add_links` action without links, with too many, or with one that is not a link
+    /// its destination takes.
+    Links,
+    /// An `add_links` action into the LinkGrabber on the trigger its own intake fires, which
+    /// would run again on every batch it adds.
+    LinksLoop,
 }
 
 impl DefinitionError {
@@ -197,6 +297,11 @@ impl DefinitionError {
             Self::ConditionDepth => "automation.condition_too_deep",
             Self::Predicate(_) => "automation.predicate_invalid",
             Self::ScriptName => "automation.script_name_invalid",
+            Self::Schedule(_) => "automation.schedule_invalid",
+            Self::NeedsPackage => "automation.action_needs_package",
+            Self::NotifyMessage => "automation.notify_message_invalid",
+            Self::Links => "automation.links_invalid",
+            Self::LinksLoop => "automation.links_loop",
         }
     }
 }
@@ -214,6 +319,21 @@ impl std::fmt::Display for DefinitionError {
             }
             Self::Predicate(detail) => write!(f, "Condition is not valid: {detail}"),
             Self::ScriptName => f.write_str("Script name is not a valid file name"),
+            Self::Schedule(detail) => write!(f, "Schedule is not valid: {detail}"),
+            Self::NeedsPackage => {
+                f.write_str("A package action needs a trigger that names a package")
+            }
+            Self::NotifyMessage => write!(
+                f,
+                "A notification needs a message of 1 to {MAX_NOTIFY_MESSAGE} characters"
+            ),
+            Self::Links => write!(
+                f,
+                "Links must be 1 to {MAX_ACTION_LINKS} addresses the destination takes"
+            ),
+            Self::LinksLoop => {
+                f.write_str("Links added to the LinkGrabber would start this automation again")
+            }
         }
     }
 }
@@ -238,10 +358,80 @@ pub fn validate(
     }
     validate_condition(condition)?;
     for action in actions {
-        if let Action::Script { name } = action
-            && !is_script_name(name)
+        match action {
+            Action::Script { name } if !is_script_name(name) => {
+                return Err(DefinitionError::ScriptName);
+            }
+            Action::Notify { message, .. } => {
+                let length = message.trim().chars().count();
+                if length == 0 || length > MAX_NOTIFY_MESSAGE {
+                    return Err(DefinitionError::NotifyMessage);
+                }
+            }
+            Action::AddLinks { links, destination } => validate_links(links, *destination)?,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// The trigger half of a definition (RD-1240-10): a time trigger carries a schedule that names
+/// a time, read from `now` in the service's `zone`, and no action that needs a package; and
+/// links into the LinkGrabber never hang off the LinkGrabber's own intake.
+pub fn validate_trigger<Tz: chrono::TimeZone>(
+    trigger: Trigger,
+    schedule: Option<&Schedule>,
+    actions: &[Action],
+    now: DateTime<Utc>,
+    zone: &Tz,
+) -> Result<(), DefinitionError> {
+    if trigger == Trigger::IntakeReceived
+        && actions.iter().any(|action| {
+            matches!(
+                action,
+                Action::AddLinks {
+                    destination: LinkDestination::LinkGrabber,
+                    ..
+                }
+            )
+        })
+    {
+        return Err(DefinitionError::LinksLoop);
+    }
+    if trigger != Trigger::Schedule {
+        return Ok(());
+    }
+    let Some(schedule) = schedule else {
+        return Err(DefinitionError::Schedule(
+            "a time trigger needs a schedule".to_owned(),
+        ));
+    };
+    schedule
+        .validate(now, zone)
+        .map_err(|error| DefinitionError::Schedule(error.0))?;
+    if actions.iter().any(Action::needs_package) {
+        return Err(DefinitionError::NeedsPackage);
+    }
+    Ok(())
+}
+
+/// The links of an `add_links` action: absolute addresses, HTTP(S) only for the downloads,
+/// which take nothing else directly.
+fn validate_links(links: &[String], destination: LinkDestination) -> Result<(), DefinitionError> {
+    if links.is_empty() || links.len() > MAX_ACTION_LINKS {
+        return Err(DefinitionError::Links);
+    }
+    for link in links {
+        let link = link.trim();
+        if link.is_empty() || link.len() > MAX_LINK_LEN {
+            return Err(DefinitionError::Links);
+        }
+        let Ok(parsed) = url::Url::parse(link) else {
+            return Err(DefinitionError::Links);
+        };
+        if destination == LinkDestination::Downloads && !matches!(parsed.scheme(), "http" | "https")
         {
-            return Err(DefinitionError::ScriptName);
+            return Err(DefinitionError::Links);
         }
     }
     Ok(())

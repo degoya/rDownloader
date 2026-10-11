@@ -58,6 +58,14 @@ impl UpdateService {
             .map_or(InstallKind::Unknown, |installation| installation.kind)
     }
 
+    /// Whether this installation installs an update itself: a kind that does, and a program
+    /// folder to replace. What the install refuses otherwise, and what the automatic install
+    /// (RD-1240-27) waits for.
+    #[must_use]
+    pub fn installs_itself(&self) -> bool {
+        self.install_kind().installs_itself() && self.install_dir().is_some()
+    }
+
     /// The running program's folder, which a portable update replaces.
     #[must_use]
     pub fn install_dir(&self) -> Option<PathBuf> {

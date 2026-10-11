@@ -1,8 +1,9 @@
 use super::{
     API_ADMIN_SCOPE, API_CONFIG_SCOPE, API_INTAKE_SCOPE, API_METRICS_SCOPE, API_QUEUE_SCOPE,
     API_READ_SCOPE, API_SCOPE, API_SECRETS_SCOPE, CAPTURE_QUEUE_SCOPE, CAPTURE_SCOPE,
-    CAPTURED_HEADER_ALLOWLIST, CapturedRequest, Scope, granted_scopes, is_allowed_captured_header,
-    is_credential_header, scope_satisfies, scopes_grant, scopes_satisfy,
+    CAPTURE_SERVER_UPDATE_SCOPE, CAPTURED_HEADER_ALLOWLIST, CapturedRequest, Scope, granted_scopes,
+    is_allowed_captured_header, is_credential_header, scope_satisfies, scopes_grant,
+    scopes_satisfy,
 };
 
 /// Nothing confers the two scopes that matter most, not even administration.
@@ -109,6 +110,39 @@ fn the_capture_queue_scope_is_isolated_in_both_directions() {
     assert!(!scope_satisfies(CAPTURE_QUEUE_SCOPE, API_QUEUE_SCOPE));
 }
 
+/// Installing the service's update from the tray is an island of its own too (RD-1240-25): no
+/// other scope -- not `api:*`, not `api:admin`, not `capture:*` or `capture:queue` -- reaches it,
+/// and it reaches none of them.
+#[test]
+fn the_capture_server_update_scope_is_isolated_in_both_directions() {
+    assert_eq!(
+        granted_scopes([CAPTURE_SCOPE, CAPTURE_SERVER_UPDATE_SCOPE]),
+        vec![Scope::Capture, Scope::CaptureServerUpdate]
+    );
+    assert!(Scope::CaptureServerUpdate.implies().is_empty());
+    for other in Scope::API
+        .iter()
+        .chain([Scope::Capture, Scope::CaptureQueue].iter())
+    {
+        assert!(
+            !other.satisfies(Scope::CaptureServerUpdate),
+            "{}",
+            other.as_str()
+        );
+        assert!(
+            !Scope::CaptureServerUpdate.satisfies(*other),
+            "{}",
+            other.as_str()
+        );
+    }
+    assert!(!granted_scopes([API_SCOPE]).contains(&Scope::CaptureServerUpdate));
+    assert!(!scope_satisfies(API_SCOPE, CAPTURE_SERVER_UPDATE_SCOPE));
+    assert!(!scope_satisfies(
+        CAPTURE_QUEUE_SCOPE,
+        CAPTURE_SERVER_UPDATE_SCOPE
+    ));
+}
+
 /// Round-tripping is what makes the persisted strings and the enum one vocabulary.
 #[test]
 fn every_scope_parses_back_from_its_string() {
@@ -132,6 +166,7 @@ fn the_scope_strings_are_distinct() {
         API_METRICS_SCOPE,
         CAPTURE_SCOPE,
         CAPTURE_QUEUE_SCOPE,
+        CAPTURE_SERVER_UPDATE_SCOPE,
         API_SCOPE,
     ];
     for (index, left) in strings.iter().enumerate() {

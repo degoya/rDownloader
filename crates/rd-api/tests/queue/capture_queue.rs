@@ -1,6 +1,7 @@
-//! Pausing and resuming the whole queue from the capture agent's tray (RD-1100-06): only an
-//! agent paired with queue control may, a plain capture token is refused with a stable code, and
-//! the summary tells the tray which of the two it is.
+//! Pausing and resuming the whole queue from the capture agent's tray (RD-1100-06), and adding
+//! everything from the LinkGrabber (RD-1240-07): only an agent paired with queue control may, a
+//! plain capture token is refused with a stable code, and the summary tells the tray which of the
+//! two it is.
 
 use crate::common;
 
@@ -11,6 +12,7 @@ use sha2::{Digest, Sha256};
 const PAUSE: &str = "/api/v1/capture/queue/pause";
 const RESUME: &str = "/api/v1/capture/queue/resume";
 const SUMMARY: &str = "/api/v1/capture/summary";
+const LINKGRABBER: &str = "/api/v1/capture/linkgrabber/enqueue";
 
 /// A bearer for an agent paired with queue control.
 async fn controlling_agent(database: &rd_db::Database) -> String {
@@ -75,6 +77,7 @@ async fn a_capture_token_without_queue_control_is_refused_and_told_so() {
         (PAUSE, serde_json::json!({})),
         (PAUSE, serde_json::json!({ "minutes": 30 })),
         (RESUME, serde_json::json!({})),
+        (LINKGRABBER, serde_json::json!({ "paused": true })),
     ] {
         let (status, refused) = post_with_bearer(router, uri, CAPTURE_BEARER, body).await;
         assert_eq!(status, StatusCode::FORBIDDEN, "{uri}: {refused}");
@@ -204,4 +207,31 @@ async fn pairing_grants_queue_control_only_when_asked() {
     assert_eq!(summary["queue_control"], true, "{summary}");
     let (status, _) = post_with_bearer(router, RESUME, bearer, serde_json::json!({})).await;
     assert_eq!(status, StatusCode::OK);
+}
+
+/// "Add all from LinkGrabber" on an empty LinkGrabber is no failure: the answer is all zeros,
+/// which the tray reports as an empty LinkGrabber, and nothing reaches the queue (RD-1240-07).
+#[tokio::test]
+async fn adding_all_from_an_empty_linkgrabber_answers_with_zeros() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    let router = &harness.router;
+    let bearer = controlling_agent(&harness.database).await;
+
+    for paused in [false, true] {
+        let (status, answer) = post_with_bearer(
+            router,
+            LINKGRABBER,
+            &bearer,
+            serde_json::json!({ "paused": paused }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{answer}");
+        for field in ["links", "nzbs", "duplicates", "failed"] {
+            assert_eq!(answer[field], 0, "{field}: {answer}");
+        }
+        assert!(answer["first_error"].is_null(), "{answer}");
+    }
+    let (_, downloads) = common::get_json(router, "/api/v1/downloads").await;
+    assert_eq!(downloads.as_array().map(Vec::len), Some(0), "{downloads}");
 }

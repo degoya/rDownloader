@@ -6,14 +6,14 @@ use axum::{
 };
 use utoipa::OpenApi;
 
-use crate::{AppState, torrent_control, torrent_handlers, torrent_trackers};
+use crate::{AppState, torrent_control, torrent_handlers, torrent_import, torrent_trackers};
 
 /// Session-authenticated routes of this area.
 pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route(
             "/api/v1/torrents/import",
-            post(torrent_handlers::import_torrent),
+            post(torrent_import::import_torrent),
         )
         .route(
             "/api/v1/torrents/capabilities",
@@ -26,6 +26,10 @@ pub(crate) fn routes() -> Router<AppState> {
         .route(
             "/api/v1/torrents/network/status",
             get(torrent_handlers::torrent_network_status),
+        )
+        .route(
+            "/api/v1/torrents/network/port-test",
+            post(torrent_handlers::test_torrent_port),
         )
         .route(
             "/api/v1/collector/candidates/{id}/torrent",
@@ -109,10 +113,11 @@ pub(crate) fn routes() -> Router<AppState> {
     torrent_control::delete_download_seeding,
     torrent_control::put_category_seeding,
     torrent_control::delete_category_seeding,
-    torrent_handlers::import_torrent,
+    torrent_import::import_torrent,
     torrent_handlers::move_torrent,
     torrent_handlers::recheck_torrent,
     torrent_handlers::stop_seeding,
+    torrent_handlers::test_torrent_port,
     torrent_handlers::torrent_capabilities,
     torrent_handlers::torrent_interfaces,
     torrent_handlers::torrent_network_status,

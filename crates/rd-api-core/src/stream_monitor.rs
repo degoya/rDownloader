@@ -193,6 +193,9 @@ impl StreamMonitorService {
         };
         let channels = self.inner.database.list_stream_channels().await?;
         let downloads = self.inner.database.list_downloads().await?;
+        // A channel carries no proxy profile of its own: the probe goes through the global one,
+        // as the HTTP online check does (RD-1240-22).
+        let tool_network = self.inner.scheduler.tool_network();
         for channel in channels.into_iter().filter(|channel| channel.enabled) {
             let failures = errors.get(&channel.id).copied().unwrap_or(0);
             if failures >= ERROR_BACKOFF_THRESHOLD && !cycle.is_multiple_of(4) {
@@ -211,7 +214,17 @@ impl StreamMonitorService {
             if active.is_none() && self.is_scheduled(channel.id).await {
                 continue;
             }
-            match rd_stream::probe_stream(&streamlink.path, &channel.url).await {
+            // A proxy that cannot be used is a probe failure, never a direct probe.
+            let probed = match Url::parse(&channel.url) {
+                Ok(url) => match tool_network.for_request(&url).await {
+                    Ok(network) => {
+                        rd_stream::probe_stream(&streamlink.path, &channel.url, &network).await
+                    }
+                    Err(failure) => Err(anyhow::anyhow!(failure.message)),
+                },
+                Err(error) => Err(anyhow::anyhow!("channel URL is not a valid URL: {error}")),
+            };
+            match probed {
                 Ok(probe) if probe.live => {
                     errors.remove(&channel.id);
                     self.touch_channel(&channel, Some(chrono::Utc::now()), None)

@@ -113,6 +113,7 @@ pub(crate) async fn add_import(
         import_mode: new.import_mode,
         source_path: new.source_path,
         error: None,
+        error_code: None,
         duplicate: false,
         // The answer carries the value it was given; the row gets a vault reference from
         // `Database::add_nzb_import` once it exists (RD-190-04).
@@ -341,6 +342,7 @@ pub(crate) async fn record_import_failure(
         // Nothing can be queued from it, whatever the folder was set to.
         import_mode: rd_core::ImportMode::Review,
         source_path: failed.source_path,
+        error_code: rd_collector::nzb_refusal_code(&failed.error).map(str::to_owned),
         error: Some(failed.error.clone()),
         duplicate: false,
         has_password: false,

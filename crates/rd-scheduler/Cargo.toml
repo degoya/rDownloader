@@ -28,6 +28,8 @@ reqwest.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# The CA bundle file a download tool is handed (RD-1240-08).
+tempfile.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
@@ -41,7 +43,6 @@ rd-plugin-host = { path = "../rd-plugin-host", features = ["test-support"] }
 rcgen.workspace = true
 rd-provider-registry = { path = "../rd-provider-registry" }
 rustls.workspace = true
-tempfile.workspace = true
 tokio-rustls.workspace = true
 tracing-subscriber.workspace = true
 

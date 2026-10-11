@@ -8,6 +8,7 @@ import DragHandle from '@/components/DragHandle.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
+import { translateServerMessage } from '@/i18n/server'
 import { formatBytes, priorityItems } from '@/utils/format'
 import { NO_SELECTION } from '@/utils/select'
 
@@ -53,6 +54,14 @@ const files = ref<NzbFileStatus[]>([])
 const steps = ref<PostprocessStep[]>([])
 
 const failed = computed(() => props.item.state === 'failed')
+/**
+ * Why the import failed, in the reader's language when the service named a code for it
+ * (RD-1240-33); the stored English line otherwise. `error_code` is optional in the contract.
+ */
+const errorText = computed(() => {
+  const { error, error_code: code } = props.item as NzbImport & { error_code?: string | null }
+  return code ? translateServerMessage({ code, message: error ?? null }) : error
+})
 /** A failed import whose group, opened, would explain nothing: no error and no failed step. */
 const failedSilently = computed(() => failed.value && !props.item.error && !steps.value.some(step => step.state === 'failed'))
 const stateColor = computed<'success' | 'error' | 'warning'>(() => props.item.duplicate ? 'warning' : failed.value ? 'error' : 'success')
@@ -149,7 +158,7 @@ function completedSegments(file: NzbFileStatus): number {
         size="xs"
         class="shrink-0"
         :label="stateLabel"
-        :title="props.item.error || t('linkgrabber.nzb.show_files')"
+        :title="errorText || t('linkgrabber.nzb.show_files')"
         :aria-expanded="open"
         :loading="pending"
         data-testid="nzb-failed"
@@ -189,7 +198,8 @@ function completedSegments(file: NzbFileStatus): number {
       <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_nzb')" :loading="props.deleting" @click="emit('remove', props.item.id)" />
       </div>
     </header>
-    <UAlert v-if="props.item.error" class="mx-2 my-2" color="error" icon="i-lucide-circle-alert" :description="props.item.error" />
+    <!-- `w-auto`: the alert's own `w-full` plus the margins ran past the group (RD-1240-33). -->
+    <UAlert v-if="errorText" class="m-2 w-auto" color="error" icon="i-lucide-circle-alert" :description="errorText" />
     <div v-if="open" class="divide-y divide-muted">
       <p v-if="failedSilently" class="px-2 py-2 text-sm text-error">{{ t('linkgrabber.nzb.failed_no_reason') }}</p>
       <div v-for="file in files" :key="file.id" class="flex items-center gap-2 px-2 py-1.5 transition hover:bg-elevated/60">

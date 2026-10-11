@@ -51,8 +51,7 @@
     "remove_failed": "The entry could not be removed.",
     "nothing_to_reset": "Nothing in the selection can be reset right now – active transfers have to be paused first",
     "reorder_filter_active": "The order can only be changed in the unfiltered list – the hidden files would otherwise be sorted wrongly.",
-    "cleared_packages": "No packages were removed. | {count} package was removed. | {count} packages were removed.",
-    "clear_skipped": "No packages were left untouched. | {count} package was left untouched – {reason}: {names}. | {count} packages were left untouched – {reason}: {names}."
+    "cleared_packages": "No packages were removed. | {count} package was removed. | {count} packages were removed."
   },
   "notifications": {
     "failed_title": "Download failed",
@@ -486,5 +485,47 @@
     "rail_title": "Stop mark after “{name}”: the queue pauses once it is done.",
     "set_failed": "The stop mark could not be set",
     "clear_failed": "The stop mark could not be removed"
+  },
+  "start_after": {
+    "set": "Start not before…",
+    "set_hint": "The package's waiting files start no earlier than a moment you choose",
+    "clear": "Remove the start time",
+    "glyph": "Starts later",
+    "glyph_title": "Starts not before {time}",
+    "title": "Start the package later",
+    "description": "The waiting files of “{name}” start no earlier than this moment. What already runs carries on.",
+    "day": "Day",
+    "time": "Time",
+    "not_ahead": "Choose a moment in the future.",
+    "set_done": "Starts not before {time}",
+    "cleared": "Start time removed",
+    "failed": "The start time could not be saved"
+  },
+  "window": {
+    "menu": "Download window …",
+    "menu_hint": "When this package may download",
+    "title": "Download window",
+    "description": "When “{name}” may download. The times are read in the bandwidth schedule's timezone ({zone}).",
+    "own_label": "Own download window",
+    "own_off_category": "Off: the package follows its category's window ({window}).",
+    "own_off_schedule": "Off: the package follows the bandwidth schedule alone.",
+    "add": "Add time span",
+    "anytime": "No time span: downloads at any time, only the switch below counts.",
+    "ignore_label": "Ignore the schedule's pause",
+    "ignore_description": "Downloads even while a bandwidth profile pauses downloads – say, one urgent download during the day.",
+    "rates_hint": "A package is never faster than the global, the profile or the hand-set limit: the strictest limit always applies.",
+    "saved": "Download window saved",
+    "cleared": "The package follows its category and the schedule again",
+    "failed": "Download window not saved",
+    "glyph": "Download window",
+    "glyph_closed": "Outside its download window, waiting: {window}",
+    "glyph_open": "Downloads only within its window: {window}",
+    "glyph_bypass": "Ignores the schedule's pause"
+  },
+  "schedule_pause": {
+    "label": "Paused by schedule until {time}",
+    "label_open": "Paused by schedule",
+    "title": "The bandwidth profile “{profile}” pauses downloads. Packages that ignore the schedule's pause go on; Settings › Bandwidth switches to another profile.",
+    "open_settings": "Switch profile"
   }
 }

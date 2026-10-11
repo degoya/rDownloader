@@ -24,8 +24,13 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 mod os_keyring;
+mod unreadable;
 
 pub use os_keyring::{KEYRING_INTERACTION_REFUSED, KeyringInteractionRefused};
+pub use unreadable::{
+    SECRET_UNREADABLE, SecretUnreadable, UnreadableReason, VaultReadability, find_unreadable,
+    is_unreadable,
+};
 
 const KEYRING_SERVICE: &str = "rDownloader";
 const KEYRING_USER: &str = "master-key";
@@ -145,38 +150,46 @@ impl SecretStore {
     }
 
     /// Resolves and decrypts one vault reference.
+    ///
+    /// # Errors
+    ///
+    /// [`SecretUnreadable`] (recognised by [`is_unreadable`]) when an entry exists but cannot be
+    /// opened -- another master key, a damaged file, an unknown envelope version; any other
+    /// error for a reference that is not one or names no entry.
     pub async fn get(&self, reference: &str) -> Result<SecretString> {
         let id = parse_reference(reference)?;
         let bytes = tokio::fs::read(self.secret_path(id))
             .await
             .context("read encrypted secret")?;
-        let envelope: Envelope =
-            serde_json::from_slice(&bytes).context("decode secret envelope")?;
-        let aad = associated_data(envelope.version, id)?;
+        let envelope: Envelope = serde_json::from_slice(&bytes)
+            .map_err(|_| SecretUnreadable::error(UnreadableReason::Malformed))?;
+        let aad = associated_data(envelope.version, id)
+            .map_err(|_| SecretUnreadable::error(UnreadableReason::UnknownVersion))?;
         let nonce = STANDARD
             .decode(envelope.nonce)
-            .context("decode secret nonce")?;
+            .map_err(|_| SecretUnreadable::error(UnreadableReason::Malformed))?;
         let ciphertext = STANDARD
             .decode(envelope.ciphertext)
-            .context("decode secret ciphertext")?;
+            .map_err(|_| SecretUnreadable::error(UnreadableReason::Malformed))?;
         if nonce.len() != 24 {
-            bail!("invalid secret nonce");
+            return Err(SecretUnreadable::error(UnreadableReason::Malformed));
         }
+        let nonce = <&XNonce>::try_from(nonce.as_slice())
+            .map_err(|_| SecretUnreadable::error(UnreadableReason::Malformed))?;
         let cipher = XChaCha20Poly1305::new_from_slice(self.key.as_slice())
             .map_err(|_| anyhow::anyhow!("invalid vault master key"))?;
         let plaintext = cipher
             .decrypt(
-                <&XNonce>::try_from(nonce.as_slice())
-                    .map_err(|_| anyhow::anyhow!("invalid secret nonce"))?,
+                nonce,
                 Payload {
                     msg: &ciphertext,
                     aad: &aad,
                 },
             )
-            .map_err(|_| anyhow::anyhow!("decrypt secret"))?;
+            .map_err(|_| SecretUnreadable::error(UnreadableReason::Undecryptable))?;
         String::from_utf8(plaintext)
             .map(SecretString::from)
-            .context("secret is not UTF-8")
+            .map_err(|_| SecretUnreadable::error(UnreadableReason::Malformed))
     }
 
     /// Puts raw key material away and returns the reference it is reached by (RD-110-33).
@@ -329,17 +342,10 @@ async fn master_key_from(
     root: &std::path::Path,
     read_keyring: Option<KeyringRead>,
 ) -> Result<[u8; 32]> {
-    if let Some(read) = read_keyring
-        && let Some(key) = read()?
-    {
+    if let Some(key) = existing_master_key(root, read_keyring).await? {
         return Ok(key);
     }
     let fallback = root.join("master.key");
-    if let Ok(bytes) = tokio::fs::read(&fallback).await {
-        return bytes
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("invalid fallback master key length"));
-    }
     let mut key = [0_u8; 32];
     rand::rng().fill_bytes(&mut key);
     let encoded = STANDARD.encode(key);
@@ -354,6 +360,26 @@ async fn master_key_from(
         sync_directory(root).await;
     }
     Ok(key)
+}
+
+/// The master key from `read_keyring` when given, else from the file beside the vault; `None`
+/// when neither holds one. Mints nothing.
+async fn existing_master_key(
+    root: &std::path::Path,
+    read_keyring: Option<KeyringRead>,
+) -> Result<Option<[u8; 32]>> {
+    if let Some(read) = read_keyring
+        && let Some(key) = read()?
+    {
+        return Ok(Some(key));
+    }
+    match tokio::fs::read(root.join("master.key")).await {
+        Ok(bytes) => bytes
+            .try_into()
+            .map(Some)
+            .map_err(|_| anyhow::anyhow!("invalid fallback master key length")),
+        Err(_) => Ok(None),
+    }
 }
 
 /// Makes a new or renamed entry in `directory` durable ([`rd_files::durable::sync_directory`]),

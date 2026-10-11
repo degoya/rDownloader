@@ -146,8 +146,9 @@ pub struct CaptureSummaryResponse {
     /// When the timed pause of the whole queue ends, while one holds (RD-190-20); the tray says
     /// "paused until" with it.
     pub paused_until: Option<chrono::DateTime<chrono::Utc>>,
-    /// Whether the token asking may pause and resume the queue (`capture:queue`, chosen when the
-    /// agent was paired). The tray offers the two entries only when it may (RD-1100-06).
+    /// Whether the token asking may control the queue (`capture:queue`, chosen when the agent was
+    /// paired). The tray offers its queue and LinkGrabber entries only when it may (RD-1100-06,
+    /// RD-1240-07).
     pub queue_control: bool,
     /// Accounts whose used-up traffic holds downloads back (RD-1190-14): their own files, or
     /// the whole queue, as the setting says. A count, not names: this token sees no accounts.

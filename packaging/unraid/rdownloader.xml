@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Unraid Docker template for rDownloader (RD-1240-18). Add it under Docker > Add Container >
+     Template repositories, or copy it to /boot/config/plugins/dockerMan/templates-user/ on the
+     flash drive. docker/README.md describes every setting. -->
+<Container version="2">
+  <Name>rdownloader</Name>
+  <Repository>ghcr.io/degoya/rdownloader:latest</Repository>
+  <Registry>https://github.com/degoya/rDownloader/pkgs/container/rdownloader</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/degoya/rDownloader/issues</Support>
+  <Project>https://rdownloader.net</Project>
+  <ReadMe>https://github.com/degoya/rDownloader/wiki</ReadMe>
+  <Overview>Local-first download manager: HTTP, Usenet, torrents, media sites and hosters with a web interface, a LinkGrabber, post-processing and an API for Sonarr and Radarr. The first start installs the bundled plugins and takes about a minute; then open the web interface and work through the setup wizard. Every storage root you create in the application must be a path mounted below, such as /media; a path that is not mounted is lost with the next image update. Opening the interface by a host name rather than the IP address needs that name under Settings, Security, Allowed host names.</Overview>
+  <Category>Downloaders: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8710]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/degoya/rDownloader/main/packaging/unraid/rdownloader.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/degoya/rDownloader/main/web/public/icons/icon-512.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Web interface" Target="8710" Default="8710" Mode="tcp" Description="Port of the web interface and the API." Type="Port" Display="always" Required="true" Mask="false">8710</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/rdownloader" Mode="rw" Description="Database, installed plugins, encrypted credentials and the vendor folder for your own helper binaries. Back this up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/rdownloader</Config>
+  <Config Name="Downloads" Target="/downloads" Default="/mnt/user/downloads" Mode="rw" Description="Fallback destination for a download without a category." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/downloads</Config>
+  <Config Name="Media" Target="/media" Default="/mnt/user/media" Mode="rw" Description="A share for storage roots: create them in the application at paths below /media. Add one path like this for every further share you download into." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/media</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="Numeric id of the user that owns the shares; 99 is Unraid's nobody." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Numeric id of the group that owns the shares; 100 is Unraid's users." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="UTC" Mode="" Description="Time zone for schedules, quiet hours and completion actions, such as Europe/Berlin." Type="Variable" Display="always" Required="false" Mask="false">UTC</Config>
+  <Config Name="Install all bundled plugins" Target="RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS" Default="false" Mode="" Description="true installs every bundled plugin at the first start instead of only those that need no account." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+</Container>

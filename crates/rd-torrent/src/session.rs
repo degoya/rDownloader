@@ -29,6 +29,10 @@ pub const CAPABILITIES: TorrentEngineCapabilities = TorrentEngineCapabilities {
     // has no priority concept.
     file_priorities: true,
     priorities_emulated: true,
+    // librqbit 9.0.1 has one fixed piece order and nothing to switch (measured for RD-1240-16):
+    // files sorted by name, of each its first and last piece, then the rest front to back
+    // (`torrent_state/live/mod.rs`, "TODO: make it configurable"; `file_info.rs`). A per-torrent
+    // mode would change nothing, so neither is offered.
     sequential_download: false,
     first_last_piece: false,
     // The tracker list is persisted by rDownloader and applied when the torrent is added
@@ -201,6 +205,11 @@ impl TorrentService {
     /// Rate limits are applied in place. A change that the engine can only take at
     /// construction time rebuilds the session; the previous session stays in place if the
     /// rebuild fails, so a bad port cannot leave the service without an engine.
+    ///
+    /// A new session that wants the port the running one listens on cannot be built beside
+    /// it -- the bind fails with "Address already in use", and every rebuild with a fixed port
+    /// failed so, sharing switched off included (RD-1240-28). The running session is stopped
+    /// first then, and a rebuild that still fails brings it back with its own settings.
     pub async fn reconfigure(&self) -> Result<()> {
         let next = self.session_config().await?;
         let mut guard = self.inner.session.write().await;
@@ -223,6 +232,11 @@ impl TorrentService {
         let mut paused = HashSet::new();
         kill_switch::hold_torrents(&registered, &mut paused, REBUILD).await;
         let generation = slot.generation;
+        let previous = slot.config.clone();
+        let stopped = holds_port(slot.session.listen_addr().map(|addr| addr.port()), &next);
+        if stopped {
+            slot.session.stop().await;
+        }
         match build(&self.inner, next.clone()).await {
             Ok(rebuilt) => {
                 tracing::info!(
@@ -249,6 +263,28 @@ impl TorrentService {
                 }
                 Ok(())
             }
+            Err(error) if stopped => {
+                *self.inner.rebuild_error.write().await = Some(format!("{error:#}"));
+                // The old engine is gone: bring it back as it was. Its torrents are re-added
+                // by their runners, as after any rebuild.
+                match build(&self.inner, previous).await {
+                    Ok(restored) => *guard = Some(restored),
+                    Err(restore) => {
+                        tracing::warn!(
+                            error = %format!("{restore:#}"),
+                            "the previous torrent session could not be restored either"
+                        );
+                        *guard = None;
+                    }
+                }
+                drop(guard);
+                self.inner
+                    .registry
+                    .write()
+                    .await
+                    .retire_before(generation + 1);
+                Err(error).context("rebuild torrent session")
+            }
             Err(error) => {
                 *self.inner.rebuild_error.write().await = Some(format!("{error:#}"));
                 // Keep the old session and let what was paused here run again; a torrent the
@@ -258,6 +294,13 @@ impl TorrentService {
             }
         }
     }
+}
+
+/// Whether a session for `next` would bind the port the running session listens on
+/// (`bound`), so the running one has to let go of it first. A random port (`None`) never
+/// does: the system hands out a free one.
+fn holds_port(bound: Option<u16>, next: &SessionConfig) -> bool {
+    next.listen_port.is_some() && next.listen_port == bound
 }
 
 /// The stricter of two optional rates; `None` means unlimited and therefore never wins.
@@ -364,10 +407,14 @@ async fn build(inner: &ServiceInner, config: SessionConfig) -> Result<SessionSlo
 }
 
 #[cfg(test)]
+#[path = "session_rebuild_tests.rs"]
+mod rebuild_tests;
+
+#[cfg(test)]
 mod tests {
     use rd_core::{ByteCount, TorrentSettings};
 
-    use super::{CAPABILITIES, SessionConfig};
+    use super::{CAPABILITIES, SessionConfig, holds_port};
 
     #[test]
     fn only_construction_time_settings_force_a_rebuild() {
@@ -384,6 +431,23 @@ mod tests {
             ..TorrentSettings::default()
         });
         assert!(base.needs_rebuild(&other_port));
+    }
+
+    /// RD-1240-28: switching sharing off with a fixed port built the new session beside the
+    /// old one, which still listened on that port; the bind failed and the old engine, sharing
+    /// on, kept running.
+    #[test]
+    fn a_rebuild_on_the_running_session_s_port_releases_it_first() {
+        let fixed = SessionConfig::from_settings(&TorrentSettings {
+            torrent_listen_port: Some(51_413),
+            torrent_sharing_enabled: false,
+            ..TorrentSettings::default()
+        });
+        assert!(holds_port(Some(51_413), &fixed));
+        assert!(!holds_port(Some(6_881), &fixed));
+        assert!(!holds_port(None, &fixed));
+        let random = SessionConfig::from_settings(&TorrentSettings::default());
+        assert!(!holds_port(Some(51_413), &random));
     }
 
     #[test]

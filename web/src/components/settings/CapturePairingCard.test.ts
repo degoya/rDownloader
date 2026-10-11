@@ -1,6 +1,6 @@
 /**
- * Pairing a capture agent with or without queue control (RD-1100-06): the right to pause the
- * queue from the tray is asked for explicitly, and only the desktop agent is offered it.
+ * Pairing a capture agent with or without queue control (RD-1100-06) and the server update
+ * (RD-1240-25): each right is asked for explicitly, and only the desktop agent is offered them.
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -47,21 +47,29 @@ describe('CapturePairingCard', () => {
     vi.mocked(api.POST).mockResolvedValue({ data: { bearer: 'secret', token: TOKEN } } as never)
   })
 
-  it('pairs the desktop agent without queue control unless it is ticked', async () => {
+  it('pairs the desktop agent without queue control or server update unless ticked', async () => {
     const { container } = renderCard()
-    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: false, expires_in_days: null } })
+    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: false, server_update: false, expires_in_days: null } })
   })
 
   it('asks for queue control when the box is ticked', async () => {
     const { container } = renderCard()
     await fireEvent.click(screen.getByRole('checkbox', { name: system.pairing.queue_control }))
-    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: true, expires_in_days: null } })
+    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: true, server_update: false, expires_in_days: null } })
   })
 
-  it('offers the browser extension no queue control', async () => {
+  it('asks for the server update right when its box is ticked', async () => {
+    const { container } = renderCard()
+    await fireEvent.click(screen.getByRole('checkbox', { name: system.pairing.server_update }))
+    expect(await pair(container)).toEqual({ body: { label: 'Windows 11', queue_control: false, server_update: true, expires_in_days: null } })
+  })
+
+  it('offers the browser extension no queue control and no server update', async () => {
     const { container } = renderCard(true)
     expect(screen.queryByRole('checkbox', { name: system.pairing.queue_control })).toBeNull()
-    const sent = await pair(container) as { body: { queue_control: boolean } }
+    expect(screen.queryByRole('checkbox', { name: system.pairing.server_update })).toBeNull()
+    const sent = await pair(container) as { body: { queue_control: boolean, server_update: boolean } }
     expect(sent.body.queue_control).toBe(false)
+    expect(sent.body.server_update).toBe(false)
   })
 })

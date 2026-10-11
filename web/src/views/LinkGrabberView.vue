@@ -59,7 +59,7 @@ const { importing: importingFiles, importFiles } = useFileImport(categories)
 const bulkBusy = ref(false)
 const sort = ref<CollectorSort>('manual')
 const descending = ref(false)
-/** The facets, the state filter and the hidden hosters (RD-110-19, RD-130-21). */
+/** The facets, the state filter, the hidden hosters and LinkFilter's hidden links (RD-110-19, RD-130-21, RD-1240-09). */
 const facets = useGrabberFacets()
 const { stateFilter, facetBusy, hiddenHosters, filterActive } = facets
 
@@ -74,7 +74,7 @@ const openPackages = usePackageOpenState('linkgrabber', { known: () => collector
 const showMetadata = useShowMetadata('linkgrabber')
 
 const { groups, visibleLinks, nzbGroups, entries, rows, orderedSelectionKeys } = useGrabberRows({
-  sort, descending, stateFilter, hidden: hiddenHosters.hidden, openPackages, openMirrors
+  sort, descending, stateFilter, hidden: hiddenHosters.hidden, showFiltered: facets.showFiltered, openPackages, openMirrors
 })
 const selection = useGrabberSelection(entries, orderedSelectionKeys)
 // How much is ticked, shown in the status bar while this view is open (RD-170-14).
@@ -90,7 +90,7 @@ const selectionDetail = computed(() => {
 /** The navbar button and `f` open the indexer search (RD-1230-02). */
 const indexerSearch = ref<{ openSearch: () => Promise<void> } | null>(null)
 
-/** The data columns' widths, set on the container of the header row and the rows (RD-191-11). */
+/** The data columns' widths and which are off, set on the container of the header and the rows (RD-191-11, RD-1240-14). */
 const columns = useQueueColumns('linkgrabber')
 
 const grabberList = ref<{
@@ -357,15 +357,17 @@ function openNzbHistory(): void {
             of the open ones, and the reviewed NZB imports between them. The capture-phase handlers
             read the shift key before a checkbox reports its new value (RD-106-12).
           -->
-          <div v-if="rows.length" :style="columns.style.value">
+          <div v-if="rows.length" :style="columns.style.value" :data-hidden-columns="columns.hiddenAttr.value">
           <QueueColumnHeader
             :widths="columns.widths.value"
             view="linkgrabber"
             :gutter="rows.length > DEFAULT_THRESHOLD"
             :customized="columns.customized.value"
+            :hidden="columns.hidden.value"
             @resize="columns.setWidth"
             @reset="columns.reset"
             @reset-all="columns.resetAll"
+            @visibility="columns.setVisible"
           />
           <VirtualRowList
             ref="grabberList"
@@ -414,6 +416,7 @@ function openNzbHistory(): void {
                 @choose-mirror="(id: string, chosen: boolean) => void collector.chooseMirror(id, chosen)"
                 @dissolve-mirror="dissolveMirror"
                 @hide-hoster="(hoster: string) => void hiddenHosters.setHidden(hoster, true)"
+                @unhide="(id: string) => void collector.unhideCandidates([id])"
                 @select="selection.pickCollector"
                 @rename="renameCandidate"
                 @enqueue="enqueueCandidate"

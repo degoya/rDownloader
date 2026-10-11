@@ -1,4 +1,4 @@
-//! The notification-destination contract, exercised against the three bundled plugins.
+//! The notification-destination contract, exercised against the bundled plugins.
 //!
 //! What is checked here is not that a message arrives — that needs an ntfy server, a Discord
 //! webhook and a Telegram bot, none of which belong in a test run. It is the promises the
@@ -14,17 +14,24 @@ fn manifest(source: &str) -> PluginManifest {
 const NTFY: &str = include_str!("../../../../plugins/ntfy-notifier/manifest.toml");
 const DISCORD: &str = include_str!("../../../../plugins/discord-notifier/manifest.toml");
 const TELEGRAM: &str = include_str!("../../../../plugins/telegram-notifier/manifest.toml");
+const PLEX: &str = include_str!("../../../../plugins/plex-notifier/manifest.toml");
+const JELLYFIN: &str = include_str!("../../../../plugins/jellyfin-notifier/manifest.toml");
+const EMBY: &str = include_str!("../../../../plugins/emby-notifier/manifest.toml");
 
 #[test]
 fn every_destination_declares_exactly_the_service_it_talks_to() {
     // A notification destination is one service. A manifest listing several hosts would be a
-    // plugin that could be pointed somewhere its name does not say. ntfy's `*` is the one
-    // exception, and a narrow one: it stands for the server the destination names, and the
-    // host cuts every delivery down to that single host (RD-130-15).
+    // plugin that could be pointed somewhere its name does not say. `*` is the one exception,
+    // and a narrow one: it stands for the server the destination names, and the host cuts every
+    // delivery down to that single host (RD-130-15). The media servers are the person's own, so
+    // their manifests name nothing else (RD-1240-12).
     for (source, expected) in [
         (NTFY, vec!["ntfy.sh", "*"]),
         (DISCORD, vec!["discord.com", "discordapp.com"]),
         (TELEGRAM, vec!["api.telegram.org"]),
+        (PLEX, vec!["*"]),
+        (JELLYFIN, vec!["*"]),
+        (EMBY, vec!["*"]),
     ] {
         let manifest = manifest(source);
         assert_eq!(manifest.capabilities.domains(), expected.as_slice());
@@ -50,6 +57,9 @@ async fn each_destination_compiles_against_the_notifier_world() {
         ("rd-plugin-ntfy-notifier", NTFY),
         ("rd-plugin-discord-notifier", DISCORD),
         ("rd-plugin-telegram-notifier", TELEGRAM),
+        ("rd-plugin-plex-notifier", PLEX),
+        ("rd-plugin-jellyfin-notifier", JELLYFIN),
+        ("rd-plugin-emby-notifier", EMBY),
     ] {
         let bytes = component(crate_name);
         NotifierPlugin::new(manifest(source), &bytes, None)

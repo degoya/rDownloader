@@ -379,7 +379,25 @@
       "formats_missing": "yt-dlp reported no downloadable format for this page. Check the link again; if the list stays empty, the site is not supported.",
       "audio_missing": "The page offers video streams but not a single audio track. \"Best\" still downloads the video, without sound."
     },
-    "preset_label": "Quality preset"
+    "preset_label": "Quality preset",
+    "audio_format": "Audio format",
+    "section": {
+      "label": "Only a section",
+      "start": "From",
+      "end": "To",
+      "start_placeholder": "Beginning",
+      "end_placeholder": "End",
+      "hint": "Times as seconds, m:ss or h:mm:ss. The cut lands on the nearest keyframe, without re-encoding. Needs ffmpeg.",
+      "invalid": "Enter a time as seconds, m:ss or h:mm:ss.",
+      "order": "The end must come after the start."
+    },
+    "pauses": {
+      "own": "Own pauses for this link",
+      "own_hint": "Off: the pauses from the settings apply.",
+      "requests": "Between requests",
+      "interval": "Before the download"
+    },
+    "audio_format_video": "Keep the video"
   },
   "replay": {
     "title": "Approve this download",
@@ -504,7 +522,9 @@
   },
   "duplicates": {
     "queued": "{count} × already queued",
-    "queued_hint": "The same source is already queued {count} time(s) – recognised by the normalised address, the info-hash or the hoster."
+    "queued_hint": "The same source is already queued {count} time(s) – recognised by the normalised address, the info-hash or the hoster.",
+    "history": "Already downloaded",
+    "history_hint": "The same source is in the download history: “{name}”, ended on {date}."
   },
   "sources": {
     "title": "Sources ({count})",
@@ -613,5 +633,14 @@
     "take_all": "Take all | Take 1 release | Take all {count}",
     "announced": "{rule}: a page waits for your choice"
   },
-  "selection_nzbs": "no NZB imports | {count} NZB import | {count} NZB imports"
+  "selection_nzbs": "no NZB imports | {count} NZB import | {count} NZB imports",
+  "link_filter": {
+    "unhide": "Show again",
+    "hidden": "Hidden",
+    "hidden_hint": "A LinkFilter rule hid this link. It is kept, and queueing its package takes it only when it is selected.",
+    "show_hidden": "Show hidden ({count})",
+    "apply": "Apply LinkFilter",
+    "apply_hint": "Decides every link in the LinkGrabber again by the rules as they are now. Nothing is deleted, and the downloads are not touched.",
+    "applied": "LinkFilter applied: {hidden} hidden, {shown} shown again, {routed} sorted in"
+  }
 }

@@ -3,8 +3,10 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AccountTrafficNotice from '@/components/AccountTrafficNotice.vue'
+import SchedulePauseNotice from '@/components/SchedulePauseNotice.vue'
 import { nextOccurrence, PAUSE_DURATIONS, useQueuePauseStore } from '@/stores/queuePause'
 import { useTransfersStore } from '@/stores/transfers'
+import { DOWNLOADS_NAV_LABEL } from '@/utils/downloadsNavbar'
 import { formatDuration, formatPauseEnd } from '@/utils/format'
 import { clockOf, timeFieldValue } from '@/utils/timeFields'
 
@@ -16,6 +18,7 @@ import { clockOf, timeFieldValue } from '@/utils/timeFields'
  * that pauses for 30 minutes, an hour, three hours or until a time. While a timed pause holds,
  * the control says until when and resumes everything at a click, which also ends the pause. The
  * pause a stop mark sets (RD-1210-02) has no end; the control says where it stopped instead.
+ * A bandwidth profile that pauses downloads (RD-1240-30) is named beside it.
  */
 const props = withDefaults(defineProps<{
   /** `rail`: icon-sized, the labels in the tooltip; `header`: labelled buttons. */
@@ -27,9 +30,9 @@ const transfers = useTransfersStore()
 const queuePause = useQueuePauseStore()
 const compact = computed(() => props.placement === 'rail')
 const size = computed(() => compact.value ? 'xs' as const : 'md' as const)
-// A phone keeps the header's icons only; the names stay as `aria-label` and `title`, and the rail
-// still says until when a timed pause holds.
-const labelUi = { label: 'max-sm:hidden' }
+// A narrow Downloads navbar keeps the header's icons only (RD-1240-33); the names stay as
+// `aria-label` and `title`, and the rail still says until when a timed pause holds.
+const labelUi = DOWNLOADS_NAV_LABEL
 
 const untilOpen = ref(false)
 const untilClock = ref('')
@@ -93,6 +96,7 @@ async function resumeNow(): Promise<void> {
 
 <template>
   <div class="flex shrink-0 items-center gap-1" data-testid="queue-pause-control">
+    <SchedulePauseNotice :placement="props.placement" />
     <AccountTrafficNotice :placement="props.placement" />
     <template v-if="queuePause.active">
       <UButton

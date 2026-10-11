@@ -130,7 +130,7 @@ const CATEGORY_NAME_TAKEN: &str = "a category with this name already exists";
 /// A watched folder's name is unique, and so is its folder per executor (`hotfolders`).
 const HOTFOLDER_TAKEN: &str = "a watched folder with this name or folder already exists";
 
-const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, package_name_rules_json, package_name_regex_json, unwrap_package_folder";
+const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, package_name_rules_json, package_name_regex_json, unwrap_package_folder, download_window_json";
 
 /// Repairs the default flag across a restored bundle.
 ///

@@ -286,7 +286,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Decide what one link will fetch. kind=media: `body` is {preset} or {criteria} (PUT /api/v1/collector/candidates/{id}/media/selection); kind=torrent: {included, excluded, priorities, exclusion_patterns, sequential} (PUT …/torrent/plan); kind=listing: {excluded} paths (PUT …/listing/plan). Read the current state with get_candidate_details first."
+        description = "Decide what one link will fetch. kind=media: `body` is {preset} or {criteria} (PUT /api/v1/collector/candidates/{id}/media/selection; criteria.target audio_only with output {mode: extract_audio, codec: mp3|m4a|opus|flac} keeps only the audio in that format, criteria.section {start_seconds, end_seconds} downloads only that part of the video, either end open, and criteria.pauses {sleep_requests_seconds, sleep_interval_seconds} 0-600 replaces the configured pauses for this link); kind=torrent: {included, excluded, priorities, exclusion_patterns, sequential} (PUT …/torrent/plan); kind=listing: {excluded} paths (PUT …/listing/plan). Read the current state with get_candidate_details first."
     )]
     pub async fn set_candidate_plan(
         &self,

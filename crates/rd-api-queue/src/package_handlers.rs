@@ -21,9 +21,13 @@ use crate::{
 };
 use rd_api_core::list_bounds::{total_header, validate_bulk};
 
+mod download_window;
 mod removal;
+mod start_after;
 
+pub use download_window::*;
 pub use removal::*;
+pub use start_after::*;
 
 /// The one place a package name is checked, so the folder rename cannot drift from the label.
 fn package_name(value: &str) -> Result<String, ApiError> {

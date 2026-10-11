@@ -52,5 +52,10 @@
     "done": "« {name} » est de nouveau dans le LinkGrabber",
     "open": "Ouvrir le LinkGrabber",
     "no_sources": "Aucune adresse source qui puisse être ajoutée à nouveau (un NZB importé, par exemple)."
+  },
+  "export": {
+    "csv": "CSV pour un tableur",
+    "ndjson": "NDJSON pour les scripts",
+    "hint": "Exporte ce que montrent les filtres – les 10 000 entrées les plus récentes"
   }
 }

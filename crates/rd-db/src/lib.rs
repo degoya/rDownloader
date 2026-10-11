@@ -21,7 +21,9 @@ mod collector_packages;
 mod collector_store;
 mod commands;
 mod config_store;
+mod database_size;
 mod download_sources_store;
+mod download_window_store;
 mod error;
 mod event_bus;
 mod facade_access;
@@ -38,6 +40,7 @@ mod facade_downloads;
 mod facade_full_backup;
 mod facade_history;
 mod facade_indexers;
+mod facade_link_filters;
 mod facade_logs;
 mod facade_network;
 mod facade_notify;
@@ -61,6 +64,8 @@ mod helpers;
 mod history_store;
 mod indexer_store;
 mod json_column;
+mod link_filter_apply;
+mod link_filter_store;
 mod log_store;
 mod managed_tools_store;
 mod mfa_store;
@@ -76,6 +81,7 @@ mod open;
 mod package_names;
 mod package_relocation_store;
 mod package_speed_limit_store;
+mod package_start_after_store;
 mod package_store;
 mod plugin_execution_store;
 mod plugin_keys_store;
@@ -85,6 +91,7 @@ mod plugin_transfer_store;
 mod plugin_versions_store;
 mod postprocess_store;
 pub mod pre_migration;
+mod queue_search_store;
 mod remote_job_store;
 mod replay_store;
 pub mod restore_copy;
@@ -105,6 +112,7 @@ mod torrent_store;
 mod usenet_store;
 mod usenet_traffic_store;
 mod vault_sweep;
+mod web_push_store;
 mod writer;
 mod writer_jobs;
 mod writer_pins;
@@ -157,6 +165,7 @@ use commands::{MaintenanceCommand, WriterCommand};
 pub use config_store::{
     CategoryPostprocess, NewCategory, NewCategoryRule, NewHotFolder, NewStorageRoot,
 };
+pub use database_size::DatabaseStorage;
 pub use download_sources_store::ChunkMark;
 pub use error::{StoreError, StoreErrorKind, store_kind};
 pub use event_bus::{EVENT_BUFFER_BYTES, EVENT_BUFFER_EVENTS, EventBus, Follower, Replay};
@@ -175,6 +184,8 @@ pub use history_store::{
     UNPACK_FAILED_CODE as HISTORY_UNPACK_FAILED_CODE,
 };
 pub use indexer_store::NewIndexer;
+pub use link_filter_apply::LinkFilterOutcome;
+pub use link_filter_store::NewLinkFilterRule;
 pub use log_store::{LogPruneReport, LogQuery, LogRecord, NewLogRecord};
 pub use managed_tools_store::{ManagedToolRecord, NewManagedTool, ToolManifestState};
 pub use models::{NewDownload, NewPackage, PersistedChunk, TransferMetadata};
@@ -196,6 +207,7 @@ pub use plugin_revocations_store::{NewPluginDigestRevocation, PluginDigestRevoca
 pub use plugin_transfer_store::PluginTransfer;
 pub use plugin_versions_store::{NewPluginVersionChoice, PluginVersionChoice};
 pub use postprocess_store::AssembledSegment;
+pub use queue_search_store::{QueueSearch, QueueSearchDownload, QueueSearchPackage};
 pub use remote_job_store::{AdvanceRemoteJob, ClaimRemoteJob};
 pub use remote_store::{HostKeyVerdict, NewRemoteCredential, UpdateRemoteCredential};
 pub use replay_store::{REFRESH_WINDOW_HOURS, REPLAY_REFRESH_MAX};
@@ -218,11 +230,15 @@ pub use storage_ops_store::{
 };
 pub use stream_schedule_store::{NewStreamSchedule, PlannedOccurrence};
 pub use stream_store::NewStreamChannel;
-pub use subscription_store::{NewSubscription, NewSubscriptionItem, PollResult};
+pub use subscription_store::{
+    DEFAULT_ITEM_RETENTION_DAYS, ITEM_RETENTION_DAYS_RANGE, NewSubscription, NewSubscriptionItem,
+    PollResult, SubscriptionItemRetention,
+};
 pub use usenet_store::{
     NewUsenetServer, UpdateUsenetServer, UsenetConnectionConfig, UsenetQuotaInput,
 };
 pub use usenet_traffic_store::{UsenetQuotaReached, UsenetServerTraffic};
+pub use web_push_store::{NewWebPushSubscription, WebPushKey};
 
 /// SQLite database facade with one serialized writer and a small reader pool.
 #[derive(Clone)]

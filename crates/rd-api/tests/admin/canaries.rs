@@ -173,11 +173,30 @@ const PLACES: &[Read] = &[
 /// credential is a leak too once somebody turns debug on for a support case.
 const LOG_FILTER: &str = "rdownloader=debug,rd_=debug";
 
-#[tokio::test]
-async fn no_planted_secret_comes_back_out_anywhere() {
+/// The run polls every route and tool of a debug build on one thread; on Windows the futures
+/// outgrew a test thread's stack, so the run gets a thread of its own with room to spare.
+#[test]
+fn no_planted_secret_comes_back_out_anywhere() {
+    let run = std::thread::Builder::new()
+        .name("canaries".to_owned())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(the_canary_run());
+        })
+        .expect("the canary thread");
+    if let Err(panic) = run.join() {
+        std::panic::resume_unwind(panic);
+    }
+}
+
+async fn the_canary_run() {
     data_directory();
     let (layer, mut stream) = LogCaptureLayer::with_stats(Arc::new(CaptureStats::default()));
-    // Thread-local, and a `tokio::test` runtime is this one thread: every task the service
+    // Thread-local, and the current-thread runtime is this one thread: every task the service
     // spawns logs through it.
     let _capture =
         tracing::subscriber::set_default(registry().with(EnvFilter::new(LOG_FILTER)).with(layer));

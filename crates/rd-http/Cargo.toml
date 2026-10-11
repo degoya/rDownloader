@@ -13,6 +13,7 @@ failpoints = ["rd-core/failpoints"]
 aes.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
+base64.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 ctr.workspace = true
@@ -24,6 +25,7 @@ rd-files = { path = "../rd-files" }
 rd-limits = { path = "../rd-limits" }
 reqwest.workspace = true
 rustls.workspace = true
+rustls-native-certs.workspace = true
 rustls-platform-verifier.workspace = true
 secrecy.workspace = true
 subtle.workspace = true

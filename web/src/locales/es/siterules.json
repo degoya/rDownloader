@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Reconocimiento de páginas",
     "title": "Reglas de sitios",
-    "description": "Qué páginas de lanzamientos reconoce rDownloader y mediante qué regla. El programa solo trae ejemplos desactivados para sitios libres; importa otras reglas desde una exportación o escribe las tuyas. Cada regla de aquí puedes activarla, editarla, duplicarla, exportarla y eliminarla."
+    "description": "Qué páginas de lanzamientos reconoce rDownloader y mediante qué regla. El programa solo trae unas pocas reglas propias, desactivadas; importa otras reglas desde una exportación o escribe las tuyas. Cada regla de aquí puedes activarla, editarla, duplicarla, exportarla y eliminarla."
   },
   "groups": {
     "board": "Foros",
@@ -10,7 +10,10 @@
     "adult": "Adultos",
     "ebooks": "Libros electrónicos",
     "graphics": "Gráficos",
-    "examples": "Ejemplos"
+    "blender": "Blender",
+    "linux": "Linux",
+    "software": "Software libre",
+    "archive": "Internet Archive"
   },
   "group_switch": "Activar o desactivar todo el grupo",
   "rule_switch": "Activar o desactivar esta regla",
@@ -22,8 +25,9 @@
   },
   "list": {
     "title": "Reglas",
-    "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Restaura los ejemplos para sitios libres, importa una exportación de reglas o escribe una regla propia.",
-    "group_off": "El grupo está desactivado, por lo que no se consulta esta regla."
+    "empty": "No hay ninguna regla instalada, por lo que ninguna página de lanzamientos se reconoce mediante reglas. Restaura las reglas incluidas con rDownloader, importa una exportación de reglas o escribe una regla propia.",
+    "group_off": "El grupo está desactivado, por lo que no se consulta esta regla.",
+    "more": "Más acciones"
   },
   "editor": {
     "eyebrow": "Regla propia",
@@ -134,10 +138,7 @@
     "address_hint": "Vacío: la dirección de prueba de la regla."
   },
   "transfer": {
-    "export": "Exportar reglas",
     "export_empty": "No hay ninguna regla que exportar.",
-    "import": "Importar reglas",
-    "import_hint": "Acepta una exportación de reglas. Antes de guardar nada ves cada regla: nueva, sustituye a una existente o ya está igual. Cada regla llega con el interruptor que tenía en la instalación que la exportó.",
     "import_unreadable": "Ese archivo no es una exportación de reglas.",
     "imported": "Importadas: {stored} nuevas, {replaced} sustituidas, de {total} reglas del archivo.",
     "refused_one": "{name} fue rechazada",
@@ -178,8 +179,8 @@
     "mcp_detail": "Escrita o modificada por un cliente MCP",
     "unknown": "Origen desconocido",
     "unknown_detail": "Guardada antes de la 1.20 o procedente del archivo de reglas firmado de la 1.20 a la 1.22",
-    "example": "Ejemplo",
-    "example_detail": "Una de las reglas de ejemplo para sitios libres que trae el programa"
+    "example": "Incluida",
+    "example_detail": "Incluida con rDownloader"
   },
   "import_dialog": {
     "title": "Importar reglas",
@@ -206,9 +207,24 @@
     "done": "{count} reglas eliminadas."
   },
   "examples": {
-    "restore": "Restaurar ejemplos",
-    "restore_hint": "Vuelve a crear, desactivadas, las reglas de ejemplo para sitios libres que trae el programa. Una regla de ejemplo existente se queda como está.",
-    "restored": "{count} reglas de ejemplo restauradas, desactivadas.",
-    "none_missing": "Todas las reglas de ejemplo ya están."
+    "restore": "Restaurar reglas incluidas",
+    "restore_hint": "Vuelve a crear, desactivadas, las reglas incluidas con rDownloader. Una que ya tengas se queda como está.",
+    "restored": "{count} reglas incluidas restauradas, desactivadas.",
+    "none_missing": "Todas las reglas incluidas ya están."
+  },
+  "bundled": {
+    "debian-cd": "Una regla de una etapa. Se encarga de las carpetas de imágenes de cdimage.debian.org, descarga el listado de la carpeta (fetch), toma cada enlace que termina en .iso (regex con all: true, into links) y nombra el paquete según el primer instalador de red que encuentra (package from regex). El sitio lista cada imagen dos veces; los enlaces duplicados quedan en uno.",
+    "ubuntu-releases": "Una regla de una etapa como la de Debian, para releases.ubuntu.com: una carpeta de versión (24.04/, noble/ ...) se convierte en un paquete con sus imágenes .iso. El nombre del paquete se lee del título de la página, cortado antes del nombre en clave entre paréntesis.",
+    "blender-releases": "Una regla de dos etapas (groups con pick). La carpeta de una serie de Blender lista cada compilación para cada plataforma, así que los pasos propios de la regla solo recogen los nombres de archivo (regex con all: true, into files). groups.from convierte cada archivo en una entrada, y pick lee su versión, plataforma y formato, de modo que el LinkGrabber lista las compilaciones para elegir antes de descargar nada. Solo las entradas elegidas ejecutan los pasos del grupo: la entrada misma es el enlace, unido a la dirección de la carpeta, y su nombre sin la extensión es el nombre del paquete.",
+    "blender-open-movies": "Una regla de dos etapas para las carpetas de las películas abiertas de la Blender Foundation (Big Buck Bunny, Tears of Steel, Sintel). Cada archivo de vídeo de la carpeta es una entrada; pick lee su resolución y formato, así que eliges en el LinkGrabber la versión que quieres. El enlace de la entrada elegida es el propio archivo; el paquete se llama como el archivo sin .zip.",
+    "fedora-releases": "Una regla de una etapa para las carpetas de imágenes de una versión de Fedora en el mirror de kernel.org (dl.fedoraproject.org responde a las peticiones automáticas con una comprobación de bots). Descarga el listado de la carpeta, toma cada enlace que termina en .iso (regex con all: true, into links), de modo que los archivos .manifest y CHECKSUM quedan fuera, y nombra el paquete según el archivo CHECKSUM: edición, versión y arquitectura.",
+    "archlinux-iso": "Una regla de una etapa para las carpetas ISO de Arch Linux en su propio mirror geográfico, latest/ o una versión con fecha. La carpeta lista la imagen dos veces, una con fecha y otra como archlinux-x86_64.iso, así que el patrón solo toma el nombre con fecha (regex con all: true, into links) y el paquete se nombra según él; las firmas, los torrents y los archivos de bootstrap quedan fuera.",
+    "linuxmint-releases": "Una regla de una etapa como la de Debian, para las carpetas de versiones de pub.linuxmint.io: una carpeta de versión (22.3/ ...) se convierte en un paquete con sus imágenes .iso, Cinnamon, MATE y Xfce, y los archivos de sumas de comprobación quedan fuera. El paquete se llama como la primera imagen, cortado tras la versión.",
+    "libreoffice-stable": "Una regla de dos etapas (groups con pick) para una carpeta de plataforma de una versión estable de LibreOffice (win/x86_64/, deb/x86_64/, mac/aarch64/ ...). La carpeta contiene el instalador junto a un paquete de ayuda o de idioma por idioma y el SDK, así que los pasos de la regla solo recogen los nombres de archivo (regex con all: true, into files) y dejan fuera las firmas y las listas de mirrors. pick lee versión, parte (helppack, langpack, sdk; ninguna para el instalador), idioma y formato, así que eliges en el LinkGrabber; la entrada elegida es el enlace, y su nombre sin la extensión es el nombre del paquete.",
+    "vlc-releases": "Una regla de dos etapas para una carpeta de plataforma de una versión de VLC en el servidor de descargas de VideoLAN (last/ o una versión, luego win64/, win32/, winarm64/ o macosx/). La carpeta ofrece la misma compilación como instalador, MSI, zip y 7z, así que los pasos de la regla recogen los nombres de archivo (regex con all: true, into files), dejando fuera las sumas de comprobación, las firmas y los símbolos de depuración, y pick lee versión, plataforma y formato. La entrada elegida es el enlace; su nombre sin la extensión es el nombre del paquete.",
+    "archive-org-items": "Una regla de una etapa que convierte una página de ítem (archive.org/details/<item>) en un paquete con los archivos del ítem. Lee el nombre del ítem de la dirección (regex from url, into item), descarga la página del ítem para su título, luego la lista de archivos del ítem <item>_files.xml (redirige a un nodo de almacenamiento, de ahí *.archive.org) y toma cada archivo que subió quien lo publicó (source=\"original\"; regex con all: true, into links). Los derivados propios del archivo, las miniaturas y los nombres que empiezan por un guion bajo quedan fuera; los pequeños archivos de metadatos que el archivo lista como original vienen también. Por último descarga la carpeta de descarga del ítem, de modo que los nombres de archivo se convierten en enlaces bajo archive.org/download/<item>/. El paquete se llama como el título del ítem. Los ítems son subidas de cualquiera y una dirección no dice nada de su licencia: compruébala en la página del ítem.",
+    "pastebin": "Una regla de una etapa para pastes públicos en pastebin.com, la página del paste o su forma /raw/. Lee el id del paste de la dirección (regex from url, into id), descarga la página del paste para su título, luego el paste como texto plano desde /raw/<id> (into text), y toma cada dirección http o https del texto (regex con all: true, into links); los paréntesis, las comillas y un punto o una coma final no forman parte de un enlace. El paquete se llama como el título del paste.",
+    "rentry": "Una regla de una etapa para páginas públicas en rentry.co y rentry.org. El texto en bruto pide un código de acceso, así que la regla lee la página renderizada: la descarga, recorta la entrada misma, el primer <article> (regex, into text), y toma cada enlace http o https que contiene (regex con all: true, into links), de modo que la navegación propia del sitio queda fuera. El paquete se llama como el título de la página.",
+    "sourcehut-paste": "Una regla de una etapa para pastes públicos en paste.sr.ht. Un paste puede contener varios archivos, cada uno con un enlace View raw, así que la regla descarga la página del paste, recoge esos enlaces (regex con all: true, into blobs), descarga cada archivo en bruto (fetch sobre la lista, into text) y toma cada dirección http o https del texto (regex con all: true, into links); los paréntesis, las comillas y un punto o una coma final no forman parte de un enlace. El paquete se llama como el título del paste, el nombre de su primer archivo."
   }
 }

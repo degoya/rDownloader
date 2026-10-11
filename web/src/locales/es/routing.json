@@ -181,7 +181,9 @@
     "package_names_on": "Activado",
     "package_names_off": "Desactivado",
     "package_names_regex_override": "Reglas regex propias",
-    "package_names_regex_override_description": "Desactivado: se aplican las reglas globales. Activado: esta lista las sustituye — también vacía, y entonces no se aplica ninguna."
+    "package_names_regex_override_description": "Desactivado: se aplican las reglas globales. Activado: esta lista las sustituye — también vacía, y entonces no se aplica ninguna.",
+    "download_window_label": "Ventana de descarga",
+    "download_window_description": "Cuándo pueden descargar los paquetes de esta categoría; la ventana propia de un paquete prevalece. Desactivada: los paquetes solo siguen el horario de ancho de banda."
   },
   "rule": {
     "eyebrow": "Clasificador",
@@ -210,7 +212,8 @@
       "nzb": "Importación NZB",
       "hot_folder": "Carpeta vigilada",
       "browser_extension": "Extensión del navegador",
-      "browser_download": "Descarga del navegador"
+      "browser_download": "Descarga del navegador",
+      "subscription": "Suscripción"
     },
     "protocol_label": "Protocolo",
     "protocol_description": "Se compara con el esquema de la URL, sin distinguir mayúsculas y sin «://».",

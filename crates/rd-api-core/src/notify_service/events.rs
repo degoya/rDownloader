@@ -8,9 +8,20 @@ impl NotificationService {
         // A follower takes what a burst pushed past the live channel from the bus's buffer
         // (CORE-01); `Lagged` is left for what fell out of the buffer as well.
         let mut events = self.inner.database.follow();
+        // The open bursts of links and download starts close on this tick (RD-1240-17).
+        let mut bursts = tokio::time::interval(super::bursts::BURST_TICK);
+        bursts.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             let event = tokio::select! {
-                () = self.inner.shutdown.cancelled() => return,
+                () = self.inner.shutdown.cancelled() => {
+                    // Queued now rather than lost: the delivery queue outlives the restart.
+                    self.flush_bursts(true).await;
+                    return;
+                }
+                _ = bursts.tick() => {
+                    self.flush_bursts(false).await;
+                    continue;
+                }
                 event = events.recv() => match event {
                     Ok(event) => event,
                     // Not silent any more (audit 1.9.1, INTAKE-04): the lost events are
@@ -29,9 +40,25 @@ impl NotificationService {
     }
 
     pub(super) async fn handle_event(&self, event: &rd_core::EventEnvelope) -> anyhow::Result<()> {
+        if let Some(kind) = super::bursts::coalescing_kind(event) {
+            return self.fold_into_burst(kind, event).await;
+        }
         let Some((kind, category_id, title, body)) = self.classify(event).await? else {
             return Ok(());
         };
+        self.queue_event(kind, category_id, &event.id.to_string(), &title, &body)
+            .await
+    }
+
+    /// Queues one delivery of an event for every rule that wants it.
+    pub(super) async fn queue_event(
+        &self,
+        kind: NotificationEvent,
+        category_id: Option<rd_core::CategoryId>,
+        event_id: &str,
+        title: &str,
+        body: &str,
+    ) -> anyhow::Result<()> {
         for rule in self.inner.database.list_notification_rules().await? {
             if !rule.matches(kind, category_id) {
                 continue;
@@ -43,10 +70,10 @@ impl NotificationService {
                     target_id: rule.target_id,
                     // Derived from the rule and the event id, so a replay after a crash
                     // lands on the same key and the unique index drops it.
-                    idempotency_key: rd_notify::idempotency_key(rule.id, &event.id.to_string()),
+                    idempotency_key: rd_notify::idempotency_key(rule.id, event_id),
                     event: kind,
-                    title: title.clone(),
-                    body: body.clone(),
+                    title: title.to_owned(),
+                    body: body.to_owned(),
                 })
                 .await?;
         }
@@ -153,8 +180,105 @@ impl NotificationService {
                 None => self.usenet_job_hopeless(&event.payload).await,
             },
             rd_core::EventKind::QueueStopMark => self.stop_mark_reached(&event.payload).await,
+            rd_core::EventKind::DownloadState => self.stream_recorded(&event.payload).await,
+            rd_core::EventKind::SubscriptionChanged => {
+                self.subscription_matched(&event.payload).await
+            }
             _ => Ok(None),
         }
+    }
+
+    /// A livestream recording that finished (RD-1240-17), in its package's category. Every
+    /// other `download.state` is a start (folded into a burst) or nobody's news.
+    #[allow(clippy::type_complexity)]
+    async fn stream_recorded(
+        &self,
+        payload: &serde_json::Value,
+    ) -> anyhow::Result<
+        Option<(
+            NotificationEvent,
+            Option<rd_core::CategoryId>,
+            String,
+            String,
+        )>,
+    > {
+        if payload.get("state").and_then(|value| value.as_str()) != Some("completed") {
+            return Ok(None);
+        }
+        let Some(id) = payload
+            .get("download_id")
+            .and_then(|value| value.as_str())
+            .and_then(|id| id.parse::<rd_core::DownloadId>().ok())
+        else {
+            return Ok(None);
+        };
+        let database = &self.inner.database;
+        let Some(file) = database.get_download(id).await? else {
+            return Ok(None);
+        };
+        if file.kind != rd_core::DownloadKind::Record {
+            return Ok(None);
+        }
+        let category_id = database
+            .get_package(file.package_id)
+            .await?
+            .and_then(|package| package.category_id);
+        Ok(Some((
+            NotificationEvent::StreamRecorded,
+            category_id,
+            format!("Stream recorded: {}", file.file_name),
+            format!("The recording {} is complete.", file.file_name),
+        )))
+    }
+
+    /// A subscription poll that accepted new items (RD-1240-17), in the subscription's
+    /// category. Every other `subscription.changed` - an edit, a poll that found nothing new -
+    /// is nobody's news.
+    #[allow(clippy::type_complexity)]
+    async fn subscription_matched(
+        &self,
+        payload: &serde_json::Value,
+    ) -> anyhow::Result<
+        Option<(
+            NotificationEvent,
+            Option<rd_core::CategoryId>,
+            String,
+            String,
+        )>,
+    > {
+        if payload.get("poll").and_then(|value| value.as_str()) != Some("finished") {
+            return Ok(None);
+        }
+        let accepted = payload
+            .get("accepted")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        if accepted == 0 {
+            return Ok(None);
+        }
+        let subscription = match payload
+            .get("subscription_id")
+            .and_then(|value| value.as_str())
+            .and_then(|id| id.parse::<rd_core::SubscriptionId>().ok())
+        {
+            Some(id) => self.inner.database.subscription(id).await?,
+            None => None,
+        };
+        let (name, category_id) = subscription.map_or_else(
+            || ("A subscription".to_owned(), None),
+            |subscription| (subscription.name, subscription.category_id),
+        );
+        let items = if accepted == 1 {
+            "1 new item".to_owned()
+        } else {
+            format!("{accepted} new items")
+        };
+        Ok(Some((
+            NotificationEvent::SubscriptionMatched,
+            category_id,
+            format!("New in {name}: {items}"),
+            format!("The check of {name} accepted {items}."),
+        )))
     }
 
     /// The queue paused at its stop mark (RD-1210-02), in the marked package's category. A mark

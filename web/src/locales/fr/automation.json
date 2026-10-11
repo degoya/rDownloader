@@ -46,7 +46,27 @@
     "script": "Exécuter le script",
     "set_category": "Déplacer vers la catégorie",
     "pause_package": "Mettre le paquet en pause",
-    "resume_package": "Reprendre le paquet"
+    "resume_package": "Reprendre le paquet",
+    "set_priority": "Définir la priorité",
+    "start_queue": "Démarrer la file",
+    "extract_package": "Extraire le paquet",
+    "notify": "Notifier",
+    "add_links": "Ajouter des liens",
+    "priority": "Priorité",
+    "priority_value": {
+      "low": "Basse",
+      "normal": "Normale",
+      "high": "Haute"
+    },
+    "message": "Message",
+    "links": "Liens, un par ligne",
+    "destination": "Destination",
+    "destination_value": {
+      "link_grabber": "LinkGrabber",
+      "downloads": "Téléchargements"
+    },
+    "link_count": "{count} liens",
+    "pause_queue": "Mettre la file en pause"
   },
   "dry_run": {
     "heading": "Essai à blanc",
@@ -57,7 +77,9 @@
     "trigger_no": "autre déclencheur",
     "condition_yes": "condition vérifiée",
     "condition_no": "condition non vérifiée",
-    "draft": "Cette automatisation"
+    "draft": "Cette automatisation",
+    "next_run": "prochaine exécution {time}",
+    "would_run": "exécuterait"
   },
   "trigger": {
     "intake_received": "Liens reçus",
@@ -72,7 +94,8 @@
     "upload_finished": "Envoi terminé",
     "storage_threshold": "Seuil de stockage",
     "subscription_item": "Élément d’abonnement",
-    "usenet_job_hopeless": "Téléchargement Usenet irréparable"
+    "usenet_job_hopeless": "Téléchargement Usenet irréparable",
+    "schedule": "À une heure"
   },
   "field": {
     "source": "Source",
@@ -116,5 +139,17 @@
     "restore_title": "Restaurer la version {version} ?",
     "restore_description": "Le déclencheur, la condition et les actions de la version {version} redeviennent la définition de « {name} », enregistrés comme une nouvelle version. Le nom et l’interrupteur d’activation restent tels quels.",
     "restored": "La version {version} est de nouveau en vigueur, enregistrée comme version {current}."
+  },
+  "schedule": {
+    "heading": "Planification",
+    "interval": "Toutes les quelques minutes",
+    "cron": "Expression cron",
+    "minutes": "Minutes",
+    "expression": "Expression",
+    "help": "Lu dans le fuseau horaire du service. Une heure manquée de plus de deux minutes, par exemple parce que le service était arrêté, n'est pas rattrapée.",
+    "interval_help": "Compté depuis minuit : 60 s'exécute à l'heure pile, au plus 1440 (un jour).",
+    "cron_help": "Minute heure jour mois jour de la semaine, par exemple « 0 6 * * 1-5 » pour les jours ouvrés à six heures.",
+    "every_minutes": "toutes les {minutes} minutes",
+    "no_package": "Une planification ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
   }
 }

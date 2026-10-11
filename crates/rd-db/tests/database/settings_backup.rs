@@ -32,9 +32,8 @@ fn replacement(label: &str) -> ConfigReplacement {
             script: Some("finish.sh".to_owned()),
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
             recursive_unpack: Some(true),
-            // Non-default (the global setting is off) so the round trip proves it survives.
+            // Non-default (the global setting is off; RD-1140-01) so the round trip proves both.
             unpack_to_subfolder: Some(true),
-            // Non-default as well (RD-1140-01).
             unwrap_package_folder: Some(true),
             direct_unpack: Some(true),
             malware_scan: Some(true),
@@ -50,8 +49,7 @@ fn replacement(label: &str) -> ConfigReplacement {
                 ratio_milli: Some(2_500),
                 time: Some(rd_core::SeedTimeLimit::Unlimited),
             }),
-            // Round-tripped for the same reason: a category's plugin steps are configuration
-            // somebody chose, and an export that dropped them would restore a quieter setup.
+            // Round-tripped too: plugin steps somebody chose must not come back quieter.
             plugin_steps: Some(vec!["019d0000-0000-7000-8000-000000000106".to_owned()]),
             // Round-tripped too: a library layout somebody wrote is configuration (RD-1100-08).
             sorting: Some(rd_core::SortTemplates {
@@ -71,6 +69,7 @@ fn replacement(label: &str) -> ConfigReplacement {
                 pattern: r"\.REPACK".to_owned(),
                 replacement: String::new(),
             }]),
+            download_window: Some(rd_core::DownloadWindow::default()),
         }],
         category_rules: vec![CategoryRule {
             id: CategoryRuleId::new(),
@@ -287,6 +286,7 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
         restored[0].package_name_regex.as_deref().map(<[_]>::len),
         Some(1)
     );
+    assert_eq!(restored[0].download_window, Some(Default::default()));
     assert_eq!(
         database.list_category_rules().await.expect("rules")[0].id,
         ids.2

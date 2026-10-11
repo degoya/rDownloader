@@ -85,7 +85,8 @@
     "token_limits_changed": "Limites du jeton modifiées",
     "proxy_profile_changed": "Profil de proxy modifié",
     "remote_credential_changed": "Accès distant modifié",
-    "site_rules_cleared": "Toutes les règles de site supprimées"
+    "site_rules_cleared": "Toutes les règles de site supprimées",
+    "system_cleanup": "Dossier de données nettoyé"
   },
   "list": {
     "title": "Entrées",

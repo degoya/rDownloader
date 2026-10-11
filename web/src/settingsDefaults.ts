@@ -1,3 +1,4 @@
+import type { RestartSettings } from '@/api/restart'
 import type { Settings } from '@/api/types'
 import { GIB, MIB } from '@/utils/format'
 import { isNumber } from '@/utils/numberInput'
@@ -6,8 +7,9 @@ import { isNumber } from '@/utils/numberInput'
  * The settings document as the view holds it before the service has answered: every field the
  * tabs bind to, so no tab reads an undefined value while the first request is in flight.
  * Only the shape matters here; the values the service reports replace all of it.
+ * `RestartSettings` names `restart_when_needed` (RD-1240-32) until the schema is regenerated.
  */
-export function defaultSettings(): Settings {
+export function defaultSettings(): RestartSettings {
   return {
     max_active_files: 3,
     max_chunks_per_file: 4,
@@ -33,6 +35,7 @@ export function defaultSettings(): Settings {
     auto_remove_keep_failed: true,
     passwords_file: null,
     admin_login_disabled: false,
+    aria2_rpc_enabled: false,
     default_level: 'unpack',
     pause_during_postprocess: true,
     cleanup_extensions: ['nfo', 'sfv', 'srr', 'url', 'nzb'],
@@ -73,6 +76,11 @@ export function defaultSettings(): Settings {
     update_check_enabled: true,
     update_channel: 'stable',
     update_check_interval_hours: 24,
+    update_auto_install: false,
+    update_auto_install_window: null,
+    restart_when_needed: false,
+    update_backup_retention_days: 14,
+    subscription_item_retention_days: 30,
     managed_tools_enabled: false,
     managed_tools_manifest_url: null,
     tool_compatibility_overrides: [],
@@ -85,6 +93,8 @@ export function defaultSettings(): Settings {
     media_hosts: ['youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com', 'dumpert.nl'],
     media_max_parallel: 2,
     media_check_timeout_seconds: 60,
+    media_sleep_requests_seconds: 0,
+    media_sleep_interval_seconds: 0,
     gallery_executable: null,
     gallery_hosts: [
       'pixiv.net', 'deviantart.com', 'artstation.com', 'flickr.com',
@@ -121,6 +131,8 @@ export function defaultSettings(): Settings {
   torrent_proxy_profile_id: null,
   torrent_upnp_enabled: false,
   torrent_announce_port: null,
+  torrent_max_active_downloads: 4,
+  torrent_max_active_seeds: null,
   quiet_hours: { enabled: false, windows: [] },
   quiet_hours_defer_postprocess: true,
   quiet_hours_defer_notifications: true,
@@ -133,6 +145,7 @@ export function defaultSettings(): Settings {
   prevent_standby: false,
   prevent_display_standby: false,
   mirror_detection: true,
+  duplicates_include_history: false,
   reconnect_enabled: false,
   reconnect_script: null,
   reconnect_windows: [],

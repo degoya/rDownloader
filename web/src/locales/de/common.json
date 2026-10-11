@@ -118,7 +118,7 @@
     "go_audit": "Zum Audit-Protokoll",
     "open_search": "Suche öffnen",
     "clear_completed": "Fertige Pakete entfernen (in Downloads)",
-    "focus_indexer_search": "Suche: öffnet im LinkGrabber die Indexer-Suche, fokussiert in Downloads die Namenssuche",
+    "focus_indexer_search": "Suche: öffnet die Indexer-Suche im LinkGrabber, von jeder Seite aus",
     "add_links": "Hinzufügen: Links im LinkGrabber, ein direkter Auftrag in Downloads",
     "enqueue_all": "Alle laden (im LinkGrabber)",
     "enqueue_paused": "Alle pausiert übernehmen (im LinkGrabber)",
@@ -187,7 +187,8 @@
     "state_linkgrabber": "Linkstatus",
     "sort": "Ansicht nach „{column}“ sortieren",
     "sorted_asc": "Nach „{column}“ aufsteigend sortiert – klicken für absteigend",
-    "sorted_desc": "Nach „{column}“ absteigend sortiert – klicken für die Reihenfolge der Warteschlange"
+    "sorted_desc": "Nach „{column}“ absteigend sortiert – klicken für die Reihenfolge der Warteschlange",
+    "shown": "Angezeigte Spalten"
   },
   "weekdays": {
     "mon": "Mo",

@@ -1,8 +1,9 @@
 //! The notification hub's two background loops (RD-050-14).
 //!
-//! One subscribes to the event bus and turns matching events into queued deliveries; the
-//! other works the queue. They are separate so a hanging target can never delay the event
-//! stream, and every target gets its own task so one dead endpoint does not block the rest.
+//! One subscribes to the event bus and turns matching events into queued deliveries - a burst of
+//! links arriving or of downloads starting into one (RD-1240-17); the other works the queue.
+//! They are separate so a hanging target can never delay the event stream, and every target
+//! gets its own task so one dead endpoint does not block the rest.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -17,8 +18,10 @@ use rd_notify::{
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
+mod bursts;
 mod delivery;
 mod events;
+mod web_push;
 
 /// How often the delivery queue is swept.
 const SWEEP: Duration = Duration::from_secs(5);
@@ -42,6 +45,8 @@ struct Inner {
     /// Targets currently being delivered to, so one slow endpoint is not attempted twice
     /// in parallel and cannot hold up the others.
     in_flight: Mutex<HashSet<NotificationTargetId>>,
+    /// Links arriving and downloads starting, folded until their burst closes (RD-1240-17).
+    bursts: Mutex<rd_notify::Coalescer>,
     shutdown: CancellationToken,
 }
 
@@ -69,6 +74,7 @@ impl NotificationService {
                 plugin_host,
                 notifiers: tokio::sync::OnceCell::new(),
                 in_flight: Mutex::new(HashSet::new()),
+                bursts: Mutex::new(rd_notify::Coalescer::default()),
                 shutdown: CancellationToken::new(),
             }),
         };
@@ -167,7 +173,13 @@ impl NotificationService {
         if target.kind == rd_notify::TargetKind::Plugin {
             return self.deliver_through_plugin(target, &config, &message).await;
         }
-        let secret = self.resolve_secret(target).await;
+        if target.kind == rd_notify::TargetKind::WebPush {
+            return self.deliver_web_push(&message, true).await;
+        }
+        let secret = match self.resolve_secret(target).await {
+            Ok(secret) => secret,
+            Err(unreadable) => return unreadable,
+        };
         let vendor = vendor_directory(&self.inner.database).await;
         rd_notify::send(
             &webhook_reach(target),
@@ -180,13 +192,25 @@ impl NotificationService {
         .await
     }
 
-    async fn resolve_secret(&self, target: &NotificationTarget) -> Option<secrecy::SecretString> {
-        let reference = target.secret_ref.as_deref()?;
+    /// The target's secret. One the vault holds but cannot open ends the attempt with
+    /// `secret.unreadable` and is not retried: sending without it only earns a refusal that
+    /// hides the cause (RD-1240-36).
+    async fn resolve_secret(
+        &self,
+        target: &NotificationTarget,
+    ) -> Result<Option<secrecy::SecretString>, Attempt> {
+        let Some(reference) = target.secret_ref.as_deref() else {
+            return Ok(None);
+        };
         match self.inner.secrets.get(reference).await {
-            Ok(secret) => Some(secret),
+            Ok(secret) => Ok(Some(secret)),
+            Err(error) if rd_secrets::is_unreadable(&error) => {
+                tracing::warn!(target = %target.name, code = rd_secrets::SECRET_UNREADABLE, "{error}");
+                Err(Attempt::could_not_deliver(error.to_string(), false))
+            }
             Err(error) => {
                 tracing::warn!(target = %target.name, %error, "target secret is unreadable");
-                None
+                Ok(None)
             }
         }
     }
@@ -221,11 +245,20 @@ fn settle(
 /// category — a trap, a component that would not instantiate — says nothing about the
 /// destination and stays retryable, as every plugin failure was before.
 fn plugin_failure(error: &anyhow::Error) -> Attempt {
-    let retryable = error
-        .downcast_ref::<rd_core::Failure>()
-        .is_none_or(|failure| failure.category.is_retryable());
-    Attempt::could_not_deliver(error.to_string(), retryable)
+    let failure = error.downcast_ref::<rd_core::Failure>();
+    let retryable = failure.is_none_or(|failure| failure.category.is_retryable());
+    // The plugin host's HTTP gate words its failure for a resolver ("Resolver HTTP error: …"),
+    // and a notification destination is none (RD-1240-33): the history says what failed, and
+    // its row names the destination.
+    let detail = failure
+        .filter(|failure| failure.code.as_deref() == Some(PLUGIN_HTTP_ERROR))
+        .and_then(|failure| failure.params.get("error"))
+        .map_or_else(|| error.to_string(), |cause| format!("HTTP error: {cause}"));
+    Attempt::could_not_deliver(detail, retryable)
 }
+
+/// The plugin host's code for a request a plugin made that failed on the way.
+const PLUGIN_HTTP_ERROR: &str = "plugin.http_error";
 
 /// The address rule a webhook to `target` keeps to (audit 2026-10-05, S2): an address the
 /// person entered, so their own network and a receiver on this machine are reachable, while

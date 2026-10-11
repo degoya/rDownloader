@@ -21,6 +21,9 @@ pub(crate) enum TargetKindParam {
     Apprise,
     /// A signed notification-destination plugin, named by `config.plugin_id`.
     Plugin,
+    /// Push to every browser that turned it on under Settings > Interface; the endpoint is not
+    /// used. The first browser that turns push on makes one by itself.
+    WebPush,
 }
 
 impl From<TargetKindParam> for rd_notify::TargetKind {
@@ -30,6 +33,7 @@ impl From<TargetKindParam> for rd_notify::TargetKind {
             TargetKindParam::Smtp => Self::Smtp,
             TargetKindParam::Apprise => Self::Apprise,
             TargetKindParam::Plugin => Self::Plugin,
+            TargetKindParam::WebPush => Self::WebPush,
         }
     }
 }
@@ -75,6 +79,12 @@ pub(crate) enum NotificationEventParam {
     PluginUpdateAvailable,
     /// An automatic plugin update was not installed; once per plugin and version.
     PluginUpdateFailed,
+    /// rDownloader runs a newer version after an update; once per version.
+    UpdateInstalled,
+    /// An update of rDownloader did not go ahead or was taken back; once per version.
+    UpdateFailed,
+    /// rDownloader restarts to apply a plugin installed or updated; once per restart.
+    ServiceRestarting,
     /// An account check found the premium ending within seven days, or ended.
     AccountExpiring,
     /// An account no longer signs in: a check refused it or a token renewal failed.
@@ -85,6 +95,16 @@ pub(crate) enum NotificationEventParam {
     UsenetQuotaReached,
     /// The queue's stop mark was reached and the queue paused after it.
     StopMarkReached,
+    /// Downloads began to transfer; a burst of starts is one notification. Opt-in: only a
+    /// rule that lists it gets it.
+    DownloadStarted,
+    /// Links arrived in the LinkGrabber; a burst of imports is one notification. Opt-in: only
+    /// a rule that lists it gets it.
+    LinksAdded,
+    /// A livestream recording finished.
+    StreamRecorded,
+    /// A subscription check accepted new items.
+    SubscriptionMatched,
 }
 
 impl From<NotificationEventParam> for rd_notify::NotificationEvent {
@@ -101,11 +121,18 @@ impl From<NotificationEventParam> for rd_notify::NotificationEvent {
             NotificationEventParam::UpdateAvailable => Self::UpdateAvailable,
             NotificationEventParam::PluginUpdateAvailable => Self::PluginUpdateAvailable,
             NotificationEventParam::PluginUpdateFailed => Self::PluginUpdateFailed,
+            NotificationEventParam::UpdateInstalled => Self::UpdateInstalled,
+            NotificationEventParam::UpdateFailed => Self::UpdateFailed,
+            NotificationEventParam::ServiceRestarting => Self::ServiceRestarting,
             NotificationEventParam::AccountExpiring => Self::AccountExpiring,
             NotificationEventParam::AccountInvalid => Self::AccountInvalid,
             NotificationEventParam::UsenetJobHopeless => Self::UsenetJobHopeless,
             NotificationEventParam::UsenetQuotaReached => Self::UsenetQuotaReached,
             NotificationEventParam::StopMarkReached => Self::StopMarkReached,
+            NotificationEventParam::DownloadStarted => Self::DownloadStarted,
+            NotificationEventParam::LinksAdded => Self::LinksAdded,
+            NotificationEventParam::StreamRecorded => Self::StreamRecorded,
+            NotificationEventParam::SubscriptionMatched => Self::SubscriptionMatched,
         }
     }
 }
@@ -143,9 +170,10 @@ pub(crate) struct CreateNotificationRuleParams {
     pub name: String,
     /// Destination this rule delivers to.
     pub target_id: String,
-    /// Events the rule reacts to; empty means every event. The operational ones (backup,
-    /// verification, update, plugin update, account) belong to no category, so a rule restricted to one never
-    /// receives them.
+    /// Events the rule reacts to; empty means every event except download_started and
+    /// links_added, which a rule gets only by listing them. The operational ones (backup,
+    /// verification, update, plugin update, account) and links_added belong to no category, so
+    /// a rule restricted to one never receives them.
     pub events: Option<Vec<NotificationEventParam>>,
     /// Restricts the rule to one category.
     pub category_id: Option<String>,

@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use rd_core::{DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind};
 use rd_db::Database;
 use rd_http::SharedNetworkDefaults;
-use rd_scheduler::{ExternalRunner, RunOutcome};
+use rd_scheduler::{ExternalRunner, RunOutcome, ToolNetwork, ToolNetworkSource};
 use tokio_util::sync::CancellationToken;
 
 use crate::{SharedStreamSettings, sidecars::SidecarClients};
@@ -24,6 +24,8 @@ pub struct StreamRunner {
     /// [`Self::with_network_defaults`] hands over the scheduler's, which is the platform
     /// store alone - the behaviour of an installation without a custom CA.
     sidecars: SidecarClients,
+    /// The proxy and CA streamlink is started with (RD-1240-08); none without it, as in tests.
+    network: Option<ToolNetworkSource>,
 }
 
 impl StreamRunner {
@@ -37,7 +39,15 @@ impl StreamRunner {
             settings,
             slots,
             sidecars: SidecarClients::new(),
+            network: None,
         }
+    }
+
+    /// Hands streamlink the recording's proxy and the custom CA (RD-1240-08).
+    #[must_use]
+    pub fn with_tool_network(mut self, network: ToolNetworkSource) -> Self {
+        self.network = Some(network);
+        self
     }
 
     /// Connects the sidecar fetches to the shared network defaults, which is where the
@@ -55,6 +65,11 @@ impl StreamRunner {
 
 /// Maps a streamlink failure (no bytes recorded) onto the retry policy.
 pub(crate) fn map_stream_error(stderr: &str) -> Failure {
+    // A proxy refusing the profile's password was a failure retried every two minutes, never
+    // the proxy's (RD-1240-29).
+    if let Some(failure) = rd_scheduler::proxy_auth_failed(stderr) {
+        return failure;
+    }
     let lower = stderr.to_ascii_lowercase();
     if lower.contains("no plugin can handle url") {
         return Failure::coded(
@@ -154,6 +169,8 @@ struct Recording {
     directory: PathBuf,
     policy: rd_core::RecordingPolicy,
     stem: String,
+    /// The proxy and CA every segment and the sidecar probe go through (RD-1240-08).
+    network: ToolNetwork,
 }
 
 impl StreamRunner {
@@ -164,6 +181,14 @@ impl StreamRunner {
         file: &DownloadFile,
         package: &DownloadPackage,
     ) -> Result<ControlFlow<RunOutcome, Recording>> {
+        // A proxy that cannot be used is a failure, never a direct connection.
+        let network = match &self.network {
+            Some(source) => match source.for_file(file).await {
+                Ok(network) => network,
+                Err(failure) => return Ok(ControlFlow::Break(RunOutcome::Failed(failure))),
+            },
+            None => ToolNetwork::direct(),
+        };
         let settings = self.settings.read().await.clone();
         // Leased before the version is assessed, and only recordings stop when Streamlink is
         // too old or listed as broken (RD-102-02, RD-102-03); both rules live in `prepare`.
@@ -200,6 +225,7 @@ impl StreamRunner {
             directory,
             policy,
             stem,
+            network,
         }))
     }
 
@@ -255,9 +281,12 @@ impl StreamRunner {
                     return Ok(ControlFlow::Break(RunOutcome::Stopped));
                 }
                 if state.segments.is_empty() {
-                    return Ok(ControlFlow::Break(RunOutcome::Failed(map_stream_error(
-                        &last_error,
-                    ))));
+                    return Ok(ControlFlow::Break(RunOutcome::Failed(
+                        recording
+                            .network
+                            .unsupported_proxy("streamlink", &last_error)
+                            .unwrap_or_else(|| map_stream_error(&last_error)),
+                    )));
                 }
                 break;
             }
@@ -298,6 +327,7 @@ impl StreamRunner {
                 streamlink: recording.streamlink.path(),
                 url: file.source.as_str(),
                 quality: &recording.quality,
+                network: &recording.network,
             },
             output,
             recording.policy,
@@ -334,6 +364,7 @@ impl StreamRunner {
                 &recording.directory,
                 &recording.stem,
                 policy.sidecars,
+                &recording.network,
             )
             .await;
         }
@@ -389,5 +420,20 @@ mod tests {
             map_stream_error("some transport error").category,
             FailureKind::Transient { .. }
         ));
+    }
+
+    /// RD-1240-29: streamlink's words for a proxy that refused the profile's password are the
+    /// proxy's permanent failure, not a recording retried every two minutes.
+    #[test]
+    fn a_proxy_refusing_its_password_is_a_proxy_failure() {
+        let failure = map_stream_error(
+            "[cli][info] Found matching plugin twitch for URL https://www.twitch.tv/example\n\
+             error: Unable to open URL: https://gql.twitch.tv/gql (HTTPSConnectionPool(host=\
+             'gql.twitch.tv', port=443): Max retries exceeded with url: /gql (Caused by \
+             ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 407 \
+             Proxy Authentication Required'))))",
+        );
+        assert_eq!(failure.code.as_deref(), Some("proxy.auth_failed"));
+        assert_eq!(failure.category, FailureKind::Permanent);
     }
 }

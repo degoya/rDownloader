@@ -36,8 +36,7 @@ const { example, preview, refusal } = usePackageNamePreview(() => ({
 </script>
 
 <template>
-  <div data-settings-anchor="postprocess.package_names" class="space-y-3">
-    <USeparator />
+  <UCard as="section" data-settings-anchor="postprocess.package_names" :ui="{ body: 'space-y-3' }">
     <div>
       <p class="text-sm font-medium text-highlighted">{{ t('settings.postprocess.package_names.label') }}</p>
       <p class="mt-1 text-xs leading-5 text-muted">{{ t('settings.postprocess.package_names.description') }}</p>
@@ -63,5 +62,5 @@ const { example, preview, refusal } = usePackageNamePreview(() => ({
       {{ t('settings.postprocess.package_names.example', { name: example }) }}
       <span class="font-mono text-highlighted">{{ preview.folder }}</span>
     </p>
-  </div>
+  </UCard>
 </template>

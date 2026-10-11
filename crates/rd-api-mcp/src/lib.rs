@@ -18,6 +18,7 @@ mod params_config;
 mod params_delivery;
 mod params_handling;
 mod params_insight;
+mod params_link_filters;
 mod params_remaining;
 mod params_storage;
 mod policy;
@@ -29,6 +30,7 @@ mod tools_collisions;
 mod tools_config;
 mod tools_containers;
 mod tools_credentials;
+mod tools_download_window;
 mod tools_downloads;
 mod tools_editors;
 mod tools_grabber;
@@ -36,6 +38,7 @@ mod tools_history;
 mod tools_indexers;
 mod tools_insight;
 mod tools_intake;
+mod tools_link_filters;
 mod tools_notify;
 mod tools_operations;
 mod tools_package_export;
@@ -76,8 +79,8 @@ use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers,
     capture_agent_handlers, config_handlers, data_reset_handlers, diagnostics_dto,
     diagnostics_handlers, notify_handlers, plugin_bundled, plugin_handlers,
-    plugin_repository_handlers, plugin_update_policy, settings_handlers, stats_handlers,
-    tools_handlers, update_handlers,
+    plugin_repository_handlers, plugin_update_policy, restart_handlers, settings_handlers,
+    stats_handlers, system_cleanup, tools_handlers, update_handlers, web_push_handlers,
 };
 use rd_api_core::{
     ApiError, AppState, audit, auth, client, container_upload, dto, error_codes, hosters,
@@ -85,16 +88,16 @@ use rd_api_core::{
 };
 use rd_api_intake::{
     candidate_handlers, collector_enqueue, collector_handlers, container_handlers,
-    indexer_handlers, indexer_search, nzb_handlers, regex_tester, remote_listing_handlers,
-    site_rule_picks, site_rules_dto, site_rules_handlers, stream_handlers,
-    stream_schedule_handlers, subscription_handlers,
+    indexer_handlers, indexer_search, link_filter_handlers, nzb_handlers, regex_tester,
+    remote_listing_handlers, site_rule_picks, site_rules_dto, site_rules_handlers, stream_handlers,
+    stream_schedule_handlers, subscription_handlers, torrent_import,
 };
 use rd_api_queue::{
     bandwidth_handlers, bandwidth_manual_handlers, collision_handlers, download_handlers,
     download_sources, duplicates, media_handlers, metrics, nzb_remote_job_handlers, package_clear,
-    package_export, package_handlers, power_handlers, queue_pause_handlers, reconnect_handlers,
-    remote_job_handlers, stop_mark_handlers, storage_handlers, torrent_control, torrent_handlers,
-    torrent_trackers, usenet_handlers,
+    package_export, package_handlers, power_handlers, queue_pause_handlers, queue_search,
+    reconnect_handlers, remote_job_handlers, stop_mark_handlers, storage_handlers, torrent_control,
+    torrent_handlers, torrent_trackers, usenet_handlers,
 };
 
 // Public for the coverage table in `rd-api`, which holds them against the assembled document.
@@ -107,7 +110,8 @@ then check_links to see availability and enqueue_collector to start the download
 A container file (.dlc, .torrent, .nzb, ...) is handed in as base64 with import_container, \
 import_torrent or import_nzb. \
 Progress is polled: call get_status_summary for the queue overview or list_downloads \
-for per-file states. Settings changes via update_settings apply live. \
+for per-file states; search_queue finds packages and files by name. Settings changes via \
+update_settings apply live. \
 All byte values in settings are plain integers or JSON strings of integers. \
 The configuration is writable too: categories, routing rules, storage roots, watched \
 folders, provider accounts, proxies, NNTP servers, notification destinations and rules, \
@@ -124,7 +128,10 @@ resolve_page_entries; each resolved release asks one captcha a person solves in 
 Everything the LinkGrabber screen does is here too: list_candidates names each link, and \
 the candidate tools rename, move, reorder, enqueue, pick media variants, plan torrents and \
 directory listings, and pin mirrors; list_nzb_imports and the nzb_import tools review and \
-queue an NZB. search_indexers searches the Newznab and Torznab indexers defined in the web UI \
+queue an NZB. The LinkFilter rules (list_link_filters and the link_filter tools) decide what \
+arriving links are hidden, kept or filed into a package or category; apply_link_filters \
+decides the LinkGrabber's links again and unhide_candidates shows a hidden one. \
+search_indexers searches the Newznab and Torznab indexers defined in the web UI \
 (list_indexers), by term or as a TV or film search with its ids, and grab_indexer_results puts \
 chosen hits into the LinkGrabber, an NZB as an NZB import and a torrent as a package. \
 The queue is ordered with reorder_downloads and reorder_packages, renamed \
@@ -134,9 +141,13 @@ queue for a while and resumes it by itself (resume_queue ends it early); set_sto
 pauses it once one download or package is done (clear_stop_mark removes the mark); \
 switch_bandwidth_profile puts one of list_bandwidth_profiles in front of the schedule \
 until its next change, a time or return_to_bandwidth_schedule; set_package_speed_limit \
-gives one package a download limit of its own. get_torrent_details, the \
+gives one package a download limit of its own, set_package_start_after holds one back until \
+a moment, set_package_download_window and set_category_download_window give a package or a \
+category weekly download times and let it ignore a bandwidth profile that pauses downloads \
+(pause_downloads; get_package_download_window says what holds a package back). \
+get_torrent_details, the \
 seeding and tracker tools, list_postprocess_options, list_managed_tools and manage_tool, \
-and get_storage_capacity cover the rest; get_about says which build is running, get_update_status and check_for_updates whether a newer one is out. The histories and catalogues beside the editors are \
+and get_storage_capacity cover the rest; get_about says which build is running, get_update_status and check_for_updates whether a newer one is out, get_restart_status and restart_service whether a restart is pending and carry it out. The histories and catalogues beside the editors are \
 here too: automation runs, versions, vocabulary and dry run, notification deliveries, the \
 subscription review list and its polls, recording schedules and record-now, plugin runs, \
 power and reconnect status, metrics and the diagnostic bundle's preview. What happens when a \
@@ -184,6 +195,7 @@ impl RdMcpServer {
             + Self::containers_router()
             + Self::config_router()
             + Self::routing_router()
+            + Self::link_filters_router()
             + Self::storage_router()
             + Self::credentials_router()
             + Self::notify_router()
@@ -206,7 +218,8 @@ impl RdMcpServer {
             + Self::backup_router()
             + Self::pause_router()
             + Self::history_router()
-            + Self::package_export_router();
+            + Self::package_export_router()
+            + Self::download_window_router();
         untrusted::describe(&mut router);
         router
     }

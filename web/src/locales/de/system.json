@@ -48,8 +48,10 @@
     "extension_steps": "Trage in den Erweiterungsoptionen {origin} als Server-URL ein, füge dieses Token ein und drücke „Verbindung testen“. Installation siehe extension/README.md.",
     "token_copied_description": "Das Capture-Token liegt in der Zwischenablage.",
     "label": "Name der Verbindung",
-    "queue_control": "Darf die Warteschlange pausieren",
-    "queue_control_help": "Erlaubt „Pause all“ und „Resume all“ im Tray-Menü des Agenten – sonst nichts. Ohne diese Wahl übergibt der Agent nur Links."
+    "queue_control": "Darf die Warteschlange steuern",
+    "queue_control_help": "Erlaubt „Start all“, „Pause all“ und „Add all from LinkGrabber“ im Tray-Menü des Agenten – sonst nichts. Ohne diese Wahl übergibt der Agent nur Links.",
+    "server_update": "Darf Server-Updates installieren",
+    "server_update_help": "Erlaubt „Install server update“ im Tray-Menü des Agenten: Er installiert das angebotene Update von rDownloader, und der Dienst startet neu. Ohne diese Wahl öffnet der Eintrag die Update-Seite im Browser. Dieselbe Wahl erlaubt „Restart server“ im Tray-Menü, das rDownloader neu startet."
   },
   "agents": {
     "eyebrow": "Gekoppelte Verbindungen",
@@ -705,7 +707,21 @@
       "outdated_description": "Ein Capture-Agent läuft noch in Version {agent}, rDownloader schon in {service}. Ab 1.8.1 startet er sich nach einem Update innerhalb einer Minute selbst neu. Tut er das nicht – etwa weil er älter ist oder ein anderer Nutzer ihn gestartet hat –, beende ihn über sein Tray-Symbol oder den Task-Manager und starte ihn wieder; unter Linux erledigt systemctl --user restart rdownloader-capture beides.",
       "self_offered": "Ein Capture-Agent, der ohne rDownloader installiert ist, bietet sich selbst Version {version} an: wähle in seinem Tray-Menü „Install update to {version}“ oder führe rdownloader-capture update aus."
     },
-    "whats_new": "Was ist neu"
+    "whats_new": "Was ist neu",
+    "auto_install": {
+      "label": "Updates automatisch installieren",
+      "description": "Installiert eine gefundene neue Version selbst, sobald fünf Minuten lang nichts lädt, nachbearbeitet oder aufnimmt – mit Sicherung vorher und Rücknahme, wenn sie nicht startet.",
+      "locked": "Nicht verfügbar: Diese Installation ({kind}) aktualisiert sich nicht selbst, das übernimmt ihr Paketmanager oder Container.",
+      "window_label": "Nur in einem Zeitfenster installieren und neu starten",
+      "window_description": "Gilt für die automatische Installation und den automatischen Neustart; ohne Fenster jederzeit. Die Zeiten gelten in der Zeitzone der Bandbreitenplanung.",
+      "from": "Von",
+      "until": "Bis",
+      "window_empty": "Beginn und Ende müssen sich unterscheiden."
+    },
+    "auto_restart": {
+      "label": "Bei Bedarf automatisch neu starten",
+      "description": "Startet rDownloader nach einer Plugin-Änderung selbst neu, sobald fünf Minuten lang nichts lädt, nachbearbeitet oder aufnimmt – im Zeitfenster, wenn eines gesetzt ist. Mit automatischen Plugin-Updates sorgt dieser Schalter dafür, dass sie wirksam werden. Laufende Übertragungen gehen nach dem Neustart weiter."
+    }
   },
   "oidc": {
     "eyebrow": "Identitätsanbieter",
@@ -772,5 +788,39 @@
     "unit": "/min",
     "none": "Keine Grenze",
     "row": "Höchstens {count} Aufrufe pro Minute"
+  },
+  "restart": {
+    "title": "Neustart ausstehend",
+    "intro": "Diese Änderungen wirken erst nach einem Neustart:",
+    "now": "Jetzt neu starten",
+    "anyway": "Trotzdem neu starten",
+    "confirm_title": "rDownloader neu starten?",
+    "failed_title": "Neustart nicht möglich",
+    "restarting_title": "rDownloader startet neu …",
+    "restarting_hint": "Diese Seite lädt neu, sobald der Dienst wieder antwortet.",
+    "lost_title": "rDownloader ist nicht zurück",
+    "lost": "Nach fünf Minuten antwortet der Dienst noch nicht. Vielleicht musst du ihn von Hand starten.",
+    "automatic_hint": "„Bei Bedarf automatisch neu starten“ ist an: rDownloader startet von selbst neu, sobald fünf Minuten lang nichts läuft.",
+    "how": {
+      "self": "rDownloader startet sich selbst neu.",
+      "systemd": "rDownloader beendet sich, und systemd startet den Dienst wieder.",
+      "container": "rDownloader beendet sich, und die Neustart-Richtlinie des Containers startet ihn wieder; ohne eine (docker run ohne --restart) musst du ihn selbst starten.",
+      "supervisor": "rDownloader beendet sich, und sein Dienstverwalter startet ihn wieder.",
+      "manual": "rDownloader beendet sich; starte es danach selbst."
+    },
+    "reason": {
+      "plugin_installed": "{plugin} installiert",
+      "plugin_updated": "{name} aktualisiert: {from} → {version}",
+      "plugin_staged": "{plugin} zum Ausprobieren vorgemerkt",
+      "plugin_unstaged": "Vorgemerkte Version von {plugin} verworfen",
+      "plugin_enabled": "{name} eingeschaltet",
+      "plugin_disabled": "{name} ausgeschaltet",
+      "plugin_removed": "{plugin} entfernt",
+      "plugin_key_revoked": "Signaturschlüssel {name} widerrufen",
+      "plugin_digest_revoked": "Paket {plugin} zurückgezogen",
+      "plugin_digest_unrevoked": "Rückzug von {plugin} aufgehoben",
+      "other": "Eine Änderung an den Plugins",
+      "unnamed": "Ein Plugin"
+    }
   }
 }

@@ -152,3 +152,55 @@ async fn a_disabled_kind_is_blocked_in_one_pass() {
     }
     assert!(scheduler.active.lock().await.tokens.is_empty());
 }
+
+async fn blocked(database: &rd_db::Database) -> Vec<rd_core::DownloadId> {
+    database
+        .downloads_blocked_by(BlockReason::KindDisabled.as_str())
+        .await
+        .expect("blocked")
+}
+
+/// RD-1240-14: a package whose "not before" lies ahead keeps its waiting files out of the pass,
+/// and a moment that has passed holds nothing. A switched-off kind makes the pass's attention
+/// visible without a transfer: a file it looked at is blocked.
+#[tokio::test]
+async fn a_package_not_due_yet_is_left_out_of_the_pass() {
+    let directory = tempfile::tempdir().expect("temp");
+    let (scheduler, database) = scheduler_over(directory.path()).await;
+    scheduler
+        .disabled_kinds
+        .lock()
+        .await
+        .push(DownloadKind::Ftp);
+    scheduler.shutdown().await.expect("shutdown");
+    let (package, files) = scheduler
+        .enqueue_package(
+            spec(directory.path(), false),
+            vec![file("a.bin", DownloadKind::Ftp)],
+        )
+        .await
+        .expect("enqueue");
+    let later = chrono::Utc::now() + chrono::Duration::hours(1);
+    assert!(
+        database
+            .set_package_start_after(package.id, Some(later))
+            .await
+            .expect("hold")
+    );
+    scheduler.schedule_runnable().await.expect("pass");
+    assert!(
+        !blocked(&database).await.contains(&files[0].id),
+        "a package not due yet is not looked at"
+    );
+
+    let earlier = chrono::Utc::now() - chrono::Duration::minutes(1);
+    database
+        .set_package_start_after(package.id, Some(earlier))
+        .await
+        .expect("due");
+    scheduler.schedule_runnable().await.expect("pass");
+    assert!(
+        blocked(&database).await.contains(&files[0].id),
+        "once due, the pass takes the file up"
+    );
+}

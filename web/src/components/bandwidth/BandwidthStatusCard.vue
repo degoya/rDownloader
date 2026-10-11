@@ -13,7 +13,14 @@ const props = withDefaults(defineProps<{
   profiles?: BandwidthProfile[]
 }>(), { profiles: () => [] })
 
-const { t } = useI18n()
+const { t, te } = useI18n()
+
+/** The note in the reader's language by its code (RD-1240-33); the service's English otherwise. */
+function noteOf(entry: BandwidthCapability): string | null | undefined {
+  const { note, note_code: code } = entry as BandwidthCapability & { note_code?: string | null }
+  const key = code ? `bandwidth.capabilities.notes.${code}` : null
+  return key && te(key) ? t(key) : note
+}
 const status = ref<BandwidthStatus | null>(null)
 const capabilities = ref<BandwidthCapability[]>([])
 let timer: ReturnType<typeof setInterval> | null = null
@@ -172,6 +179,16 @@ defineExpose({ reload: load })
       </div>
     </dl>
     <UAlert
+      v-if="status.active_profile?.pause_downloads"
+      class="mt-4"
+      color="warning"
+      icon="i-lucide-calendar-clock"
+      :description="status.next_switch_at
+        ? t('bandwidth.status.downloads_paused', { time: formatPauseEnd(status.next_switch_at) })
+        : t('bandwidth.status.downloads_paused_open')"
+      data-testid="bandwidth-downloads-paused"
+    />
+    <UAlert
       v-if="status.budget_exhausted"
       class="mt-4"
       color="warning"
@@ -186,7 +203,7 @@ defineExpose({ reload: load })
           <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" />
           <span>
             <span class="font-medium text-highlighted">{{ t(`bandwidth.kinds.${entry.kind}`) }}</span>
-            — {{ entry.note }}
+            — {{ noteOf(entry) }}
           </span>
         </li>
       </ul>

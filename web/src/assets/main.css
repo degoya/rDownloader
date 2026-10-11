@@ -48,8 +48,11 @@
    *
    * Dark mode keeps Nuxt UI's own choice: shade 400 is 10.98:1 there, and its buttons carry
    * dark text on that ground.
+   *
+   * Shade 700 of the palette in use, not of `signal` by name: a colour theme (RD-1240-05) sets
+   * `--ui-color-primary-*` on `<html>`, and its 700 passes the same test (`contrast.test.ts`).
    */
-  --ui-primary: var(--color-signal-700);
+  --ui-primary: var(--ui-color-primary-700);
   --ui-error: var(--color-coral-700);
 }
 
@@ -208,6 +211,17 @@ body {
  * to label or resize, so the header waits for the first tier.
  */
 .queue-head {
+  display: none;
+}
+
+/*
+ * A column the viewer switched off (RD-1240-14): its track is 0 px through `--queue-col-<column>`
+ * and its cells leave the header and every row. Two classes outrank the tiers' `display` below.
+ */
+[data-hidden-columns~="state"] .queue-cell-state,
+[data-hidden-columns~="progress"] .queue-cell-progress,
+[data-hidden-columns~="size"] .queue-cell-size,
+[data-hidden-columns~="meta"] .queue-cell-meta {
   display: none;
 }
 

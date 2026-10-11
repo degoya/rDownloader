@@ -91,6 +91,9 @@ fn the_capture_scope_covers_exactly_the_capture_router() {
         "/api/v1/capture/file",
         "/api/v1/capture/nzb",
         "/api/v1/capture/ping",
+        // Whether the service has an update, how it is installed and where an install stands
+        // (RD-1240-25); installing it is a right of its own.
+        "/api/v1/capture/server-update",
         "/api/v1/capture/shortcut-report",
         // Figures for the tray: counts and byte totals, nothing that names a file.
         "/api/v1/capture/summary",
@@ -100,12 +103,13 @@ fn the_capture_scope_covers_exactly_the_capture_router() {
     assert_eq!(capture, expected);
 }
 
-/// The tray's queue control is two routes on the capture surface, and no capture scope reaches
-/// a queue route of the API (RD-1100-06).
+/// The tray's queue control is six routes on the capture surface, and no capture scope reaches
+/// a queue route of the API (RD-1100-06, RD-1240-07, RD-1240-19, RD-1240-23).
 ///
 /// `capture:queue` is chosen when an agent is paired; what it buys has to stay exactly "pause
-/// everything, resume everything", so an agent that may pause cannot reorder, delete or read
-/// the queue through it.
+/// everything, resume everything, add everything from the LinkGrabber, hold and lift its game
+/// mode, switch its game mode on and off", so an agent that may pause cannot reorder, delete or read the queue or the LinkGrabber
+/// through it.
 #[test]
 fn the_capture_queue_scope_covers_exactly_the_tray_controls() {
     let controls: BTreeSet<(&str, &str)> = ROUTE_POLICY
@@ -114,6 +118,10 @@ fn the_capture_queue_scope_covers_exactly_the_tray_controls() {
         .map(|entry| (entry.path, entry.method.as_str()))
         .collect();
     let expected: BTreeSet<(&str, &str)> = [
+        ("/api/v1/capture/game-mode", "POST"),
+        ("/api/v1/capture/game-mode/hold", "POST"),
+        ("/api/v1/capture/game-mode/release", "POST"),
+        ("/api/v1/capture/linkgrabber/enqueue", "POST"),
         ("/api/v1/capture/queue/pause", "POST"),
         ("/api/v1/capture/queue/resume", "POST"),
     ]
@@ -140,6 +148,39 @@ fn the_capture_queue_scope_covers_exactly_the_tray_controls() {
                     "{method} {path} is reachable with a capture scope"
                 );
             }
+        }
+    }
+}
+
+/// Installing the service's update from the tray, and restarting the service for what waits for
+/// the next start, are two routes and nothing beside them (RD-1240-25, RD-1240-32):
+/// `capture:server_update` is chosen when an agent is paired, and it must not open the
+/// administration's update or restart routes or anything else.
+#[test]
+fn the_capture_server_update_scope_covers_exactly_the_tray_install() {
+    let routes: BTreeSet<(&str, &str)> = ROUTE_POLICY
+        .iter()
+        .filter(|entry| entry.requires == Requirement::Scope(Scope::CaptureServerUpdate))
+        .map(|entry| (entry.path, entry.method.as_str()))
+        .collect();
+    let expected: BTreeSet<(&str, &str)> = [
+        ("/api/v1/capture/server-update/install", "POST"),
+        ("/api/v1/capture/server-update/restart", "POST"),
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(routes, expected);
+    for path in [
+        "/api/v1/system/update/install",
+        "/api/v1/system/update/download",
+        "/api/v1/system/restart",
+        "/api/v1/system/shutdown",
+    ] {
+        if let Some(Requirement::Scope(required)) = requirement(path, &Method::POST) {
+            assert!(
+                !Scope::CaptureServerUpdate.satisfies(required),
+                "POST {path} is reachable with the tray's server update right"
+            );
         }
     }
 }

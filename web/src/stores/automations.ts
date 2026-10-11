@@ -7,11 +7,13 @@ import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useLatestFetch } from '@/composables/useLatestFetch'
 import type {
   Automation,
+  AutomationAction,
   AutomationCondition,
   AutomationDryRun,
   AutomationRequest,
   AutomationRun,
   AutomationVersion,
+  AutomationSchedule,
   AutomationVocabulary
 } from '@/api/types'
 
@@ -21,6 +23,10 @@ interface AutomationDraftProbe {
   automation_id?: string | undefined
   trigger: string
   condition: AutomationCondition
+  /** The time trigger's schedule, so the answer can name the next run (RD-1240-10). */
+  schedule?: AutomationSchedule | null | undefined
+  /** The form's actions, handed back as what a match would run. */
+  actions?: AutomationAction[]
 }
 
 /**

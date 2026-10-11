@@ -19,6 +19,14 @@ pub struct UpdateStatusResponse {
     pub effective_channel: String,
     /// Hours between two automatic checks.
     pub interval_hours: u32,
+    /// Whether an offered update installs by itself (`update_auto_install`, RD-1240-27).
+    #[serde(default)]
+    pub auto_install: bool,
+    /// Whether this installation installs an update itself (the portable archive, the Windows
+    /// installer), and so whether `update_auto_install` can do anything; elsewhere a package
+    /// manager or the container runtime updates it.
+    #[serde(default)]
+    pub installs_itself: bool,
     /// How this installation was installed: `portable`, `msi`, `deb`, `rpm`, `homebrew`,
     /// `scoop`, `winget`, `aur`, `docker` or `unknown`.
     pub install_kind: String,
@@ -140,9 +148,38 @@ pub struct UpdateOffer {
     pub rollback_available: Option<bool>,
 }
 
+/// When an automatic install may start (`update_auto_install_window`, RD-1240-27): local times
+/// in the installation's time zone (`bandwidth_timezone`).
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+pub struct UpdateInstallWindow {
+    /// Minutes after midnight, inclusive (0-1439).
+    pub start_minute: u16,
+    /// Minutes after midnight, exclusive (0-1439); below `start_minute` the window wraps past
+    /// midnight.
+    pub end_minute: u16,
+}
+
+impl From<UpdateInstallWindow> for rd_update::InstallWindow {
+    fn from(window: UpdateInstallWindow) -> Self {
+        Self {
+            start_minute: window.start_minute,
+            end_minute: window.end_minute,
+        }
+    }
+}
+
 impl SettingsResponse {
-    /// Refuses an update channel or interval the check cannot use (RD-180-01).
+    /// Refuses an update channel, interval, install window or backup retention the update cannot
+    /// use (RD-180-01, RD-1240-27, RD-1240-34).
     pub fn validate_update(&self) -> Result<(), crate::ApiError> {
+        if let Some(window) = self.update_auto_install_window
+            && !rd_update::InstallWindow::from(window).is_valid()
+        {
+            return Err(crate::ApiError::bad_request(
+                "settings.update_auto_install_window_invalid",
+                "The install window needs a start and an end between 00:00 and 23:59 that differ",
+            ));
+        }
         if rd_update::Channel::parse(&self.update_channel).is_none() {
             return Err(crate::ApiError::bad_request(
                 "settings.update_channel_invalid",
@@ -161,6 +198,19 @@ impl SettingsResponse {
             )
             .with_param("min", *range.start())
             .with_param("max", *range.end()));
+        }
+        let days = rd_update::settings::BACKUP_RETENTION_DAYS_RANGE;
+        if !days.contains(&self.update_backup_retention_days) {
+            return Err(crate::ApiError::bad_request(
+                "settings.update_backup_retention_invalid",
+                format!(
+                    "The days the backup before an update is kept must be between {} and {}",
+                    days.start(),
+                    days.end()
+                ),
+            )
+            .with_param("min", *days.start())
+            .with_param("max", *days.end()));
         }
         Ok(())
     }

@@ -101,3 +101,22 @@ describe('NotificationHistory clearing', () => {
     expect(screen.queryByTestId('data-reset-notifications_pending')).toBeNull()
   })
 })
+
+/** Every row says where it went and counts its attempts in the right number (RD-1240-33). */
+describe('NotificationHistory rows', () => {
+  beforeEach(() => get.mockReset())
+
+  it('names the destination of each delivery and one attempt in the singular', async () => {
+    const removed = { ...delivery('failed', 'to nowhere'), target_id: 'gone', attempt: 3 }
+    answer([delivery('delivered', 'Package finished: Big Buck Bunny'), removed], 0)
+    mountComponent(NotificationHistory, {
+      messages: { notifications },
+      props: { targets: [{ id: 'target', name: 'Family Telegram' }] }
+    })
+
+    const targets = await screen.findAllByTestId('delivery-target')
+    expect(targets.map(target => target.textContent)).toEqual(['Family Telegram', notifications.history.target_removed])
+    expect(screen.getByText(/1 attempt(?!s)/)).toBeTruthy()
+    expect(screen.getByText(/3 attempts/)).toBeTruthy()
+  })
+})

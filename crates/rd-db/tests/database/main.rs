@@ -11,6 +11,7 @@ mod category_defaults;
 mod collisions;
 mod config_events;
 mod data_reset;
+mod database_growth;
 mod download_history;
 mod download_sources;
 mod event_retention;

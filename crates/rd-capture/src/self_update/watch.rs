@@ -1,6 +1,7 @@
 //! The running agent's side of its own update (RD-1210-03): the check after the start and then
 //! daily, the tray's "Install update to X", and the service's request, which this agent's own
-//! configuration has to allow.
+//! configuration has to allow; with "Install updates automatically" on, the check installs what it
+//! found itself (RD-1240-27, `auto`).
 
 use std::path::Path;
 
@@ -12,19 +13,19 @@ use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 use super::{
-    CHECK_INTERVAL, Config, FIRST_CHECK_DELAY, OfferSink, Shared, State, check_now, entry_for,
-    remote_decision, report_of,
+    CHECK_INTERVAL, Config, FIRST_CHECK_DELAY, OfferSink, Request, Shared, State, UpdateMenu, auto,
+    check_now, entry_for, install_refusal, remote_decision, report_of,
 };
 use crate::{client::CaptureClient, config, supervision::supervised};
 
 /// Starts the watch beside the agent's other tasks. `requests` are the tray's clicks on its
-/// update entry; `sink` shows the entry.
+/// update entries and their shortcuts; `sink` shows the entries.
 pub(crate) fn spawn(
     background: &mut tokio::task::JoinSet<()>,
     client: &CaptureClient,
     cancellation: &CancellationToken,
     sink: Option<OfferSink>,
-    requests: mpsc::UnboundedReceiver<()>,
+    requests: mpsc::UnboundedReceiver<Request>,
 ) {
     let (shared, task_cancellation) = (client.self_update().clone(), cancellation.clone());
     background.spawn(supervised(
@@ -53,7 +54,7 @@ async fn watch(
     shared: Shared,
     cancellation: CancellationToken,
     sink: Option<OfferSink>,
-    mut requests: mpsc::UnboundedReceiver<()>,
+    mut requests: mpsc::UnboundedReceiver<Request>,
 ) {
     let Ok(directory) = config::config_directory() else {
         return;
@@ -88,7 +89,8 @@ async fn watch(
                 next = Instant::now() + CHECK_INTERVAL;
             }
             request = requests.recv(), if listening => match request {
-                Some(()) => watch.install_offer().await,
+                Some(Request::Install) => watch.install_requested().await,
+                Some(Request::ToggleAutoInstall) => watch.toggle_auto_install(),
                 None => listening = false,
             },
             _ = poll.tick() => watch.answer_service().await,
@@ -110,7 +112,7 @@ impl Watch {
         let Some(sink) = &self.sink else {
             return;
         };
-        let entry = match installing {
+        let offer = match installing {
             Some(version) => Some(super::OfferEntry {
                 label: format!("Installing update to {version}..."),
                 enabled: false,
@@ -120,7 +122,36 @@ impl Watch {
                 .current_offer(self.running)
                 .and_then(|offer| entry_for(self.setup, offer)),
         };
-        sink(entry);
+        sink(UpdateMenu {
+            offer,
+            auto_install: auto::auto_install_entry(self.setup, &self.settings),
+        });
+    }
+
+    /// "Install updates automatically", from the tray or its shortcut: switched and stored where
+    /// it applies, and shown either way, so the tray's tick follows the setting, not the click.
+    fn toggle_auto_install(&mut self) {
+        match auto::toggle(self.setup, &mut self.settings) {
+            Ok(on) => {
+                tracing::info!(on, "the agent's automatic update was switched");
+                if let Err(error) = self.settings.store(&self.directory) {
+                    tracing::warn!(%error, "the agent's update switches could not be stored");
+                }
+            }
+            Err(why) => tracing::info!(why, "the agent's automatic update does not apply here"),
+        }
+        self.publish(None);
+    }
+
+    /// "Install update", from the tray or its shortcut: installed, or a notification why not.
+    async fn install_requested(&mut self) {
+        match install_refusal(self.setup, self.state.current_offer(self.running)) {
+            None => self.install_offer().await,
+            Some(why) => {
+                tracing::info!(%why, "not installing the agent's update");
+                crate::notify::toast(why).await;
+            }
+        }
     }
 
     async fn check(&mut self) {
@@ -134,7 +165,13 @@ impl Watch {
         if let Err(error) = self.state.store(&self.directory) {
             tracing::warn!(%error, "the agent's update state could not be stored");
         }
-        if let Some(offer) = self.state.current_offer(self.running)
+        let offer = self.state.current_offer(self.running);
+        if auto::installs_now(self.setup, &self.settings, offer) {
+            tracing::info!("installing the agent's update automatically");
+            self.install_offer().await;
+            return;
+        }
+        if let Some(offer) = offer
             && self.sink.is_none()
         {
             tracing::info!(

@@ -1,0 +1,7 @@
+{
+  "name": "Jellyfin",
+  "description": "Aktualisiert die Jellyfin-Bibliotheken, wenn ein Paket fertig ist.",
+  "codes": {
+    "jellyfin_notifier.rejected": "Jellyfin hat die Aktualisierung der Bibliothek abgelehnt."
+  }
+}

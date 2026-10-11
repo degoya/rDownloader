@@ -37,12 +37,34 @@ pub async fn export_automations(
                     }),
                 rd_automation::Action::PausePackage => Some(BundleAreaAction::PausePackage),
                 rd_automation::Action::ResumePackage => Some(BundleAreaAction::ResumePackage),
+                rd_automation::Action::SetPriority { priority } => {
+                    Some(BundleAreaAction::SetPriority {
+                        priority: *priority,
+                    })
+                }
+                rd_automation::Action::PauseQueue => Some(BundleAreaAction::PauseQueue),
+                rd_automation::Action::StartQueue => Some(BundleAreaAction::StartQueue),
+                rd_automation::Action::ExtractPackage => Some(BundleAreaAction::ExtractPackage),
+                rd_automation::Action::Notify { target_id, message } => targets
+                    .iter()
+                    .find(|target| target.id == *target_id)
+                    .map(|target| BundleAreaAction::Notify {
+                        target_name: target.name.clone(),
+                        message: message.clone(),
+                    }),
+                rd_automation::Action::AddLinks { links, destination } => {
+                    Some(BundleAreaAction::AddLinks {
+                        links: links.clone(),
+                        destination: *destination,
+                    })
+                }
             })
             .collect();
         entries.push(BundleAreaAutomation {
             name: automation.name,
             enabled: automation.enabled,
             trigger: definition.trigger,
+            schedule: definition.schedule,
             condition: definition.condition,
             actions,
         });
@@ -103,6 +125,30 @@ pub async fn import_automations(
                     }),
                 BundleAreaAction::PausePackage => Some(rd_automation::Action::PausePackage),
                 BundleAreaAction::ResumePackage => Some(rd_automation::Action::ResumePackage),
+                BundleAreaAction::SetPriority { priority } => {
+                    Some(rd_automation::Action::SetPriority {
+                        priority: *priority,
+                    })
+                }
+                BundleAreaAction::PauseQueue => Some(rd_automation::Action::PauseQueue),
+                BundleAreaAction::StartQueue => Some(rd_automation::Action::StartQueue),
+                BundleAreaAction::ExtractPackage => Some(rd_automation::Action::ExtractPackage),
+                BundleAreaAction::Notify {
+                    target_name,
+                    message,
+                } => targets
+                    .iter()
+                    .find(|target| &target.name == target_name)
+                    .map(|target| rd_automation::Action::Notify {
+                        target_id: target.id,
+                        message: message.clone(),
+                    }),
+                BundleAreaAction::AddLinks { links, destination } => {
+                    Some(rd_automation::Action::AddLinks {
+                        links: links.clone(),
+                        destination: *destination,
+                    })
+                }
             };
             match resolved {
                 Some(action) => actions.push(action),
@@ -120,6 +166,7 @@ pub async fn import_automations(
             name: entry.name.clone(),
             enabled: entry.enabled,
             trigger: entry.trigger,
+            schedule: entry.schedule,
             condition: entry.condition,
             actions,
         };

@@ -191,7 +191,7 @@ async fn import(
 }
 
 /// The `enqueue` field: absent or empty is `false`, like an unticked box.
-fn enqueue_flag(value: Option<&str>) -> Result<bool, ApiError> {
+pub(crate) fn enqueue_flag(value: Option<&str>) -> Result<bool, ApiError> {
     match value.map(str::trim) {
         None | Some("" | "false") => Ok(false),
         Some("true") => Ok(true),

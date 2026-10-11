@@ -1,4 +1,5 @@
-//! Export and import of one configuration area at a time: subscriptions, streams, automations.
+//! Export and import of one configuration area at a time: subscriptions, streams, automations,
+//! LinkFilter rules.
 //!
 //! Modelled on `routing_backup` rather than on `settings_backup`. The distinction is what the
 //! file is for: a settings bundle is a backup of one instance, replaces everything and carries
@@ -24,10 +25,12 @@ use utoipa::ToSchema;
 use crate::{ApiError, AppState};
 
 mod automations;
+mod link_filters;
 mod streams;
 mod subscriptions;
 
 pub use automations::*;
+pub use link_filters::*;
 pub use streams::*;
 pub use subscriptions::*;
 
@@ -119,15 +122,37 @@ pub struct BundleAreaStreamSchedule {
 ///
 /// Mirrors `rd_automation::Action` rather than reusing it: a webhook points at a notification
 /// target by id and a category move at a category by id, and neither id means anything on
-/// another instance. `Script` already carries a name, and the two package actions carry nothing.
+/// another instance. `Script` already carries a name, and the package and queue actions carry
+/// nothing or a value that means the same everywhere (RD-1240-10).
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum BundleAreaAction {
-    Webhook { target_name: String },
-    Script { name: String },
-    SetCategory { category_name: String },
+    Webhook {
+        target_name: String,
+    },
+    Script {
+        name: String,
+    },
+    SetCategory {
+        category_name: String,
+    },
     PausePackage,
     ResumePackage,
+    SetPriority {
+        priority: rd_core::DownloadPriority,
+    },
+    PauseQueue,
+    StartQueue,
+    ExtractPackage,
+    Notify {
+        target_name: String,
+        message: String,
+    },
+    AddLinks {
+        links: Vec<String>,
+        #[serde(default)]
+        destination: rd_automation::LinkDestination,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -135,6 +160,9 @@ pub struct BundleAreaAutomation {
     pub name: String,
     pub enabled: bool,
     pub trigger: rd_automation::Trigger,
+    /// A time trigger's schedule (RD-1240-10); absent for every other trigger.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schedule: Option<rd_automation::Schedule>,
     #[serde(default)]
     pub condition: rd_automation::ConditionNode,
     pub actions: Vec<BundleAreaAction>,
@@ -155,6 +183,9 @@ pub struct AreaBundle {
     pub stream_schedules: Option<Vec<BundleAreaStreamSchedule>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub automations: Option<Vec<BundleAreaAutomation>>,
+    /// The LinkFilter rules in their evaluation order (RD-1240-09).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link_filters: Option<Vec<BundleAreaLinkFilter>>,
 }
 
 impl AreaBundle {
@@ -168,6 +199,7 @@ impl AreaBundle {
             stream_channels: None,
             stream_schedules: None,
             automations: None,
+            link_filters: None,
         }
     }
 }

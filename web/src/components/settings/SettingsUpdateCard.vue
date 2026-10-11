@@ -6,6 +6,8 @@ import type { Settings } from '@/api/types'
 import { INSTALL_ENDED, type CaptureAgentVersion, type UpdateInstall } from '@/api/updates'
 import SectionHeader from '@/components/SectionHeader.vue'
 import UpdateDetailsModal from '@/components/UpdateDetailsModal.vue'
+import RestartPendingNotice from '@/components/settings/RestartPendingNotice.vue'
+import SettingsUpdateAutoInstall from '@/components/settings/SettingsUpdateAutoInstall.vue'
 import UpdateAvailableNotice from '@/components/settings/UpdateAvailableNotice.vue'
 import { useUpdateStatus } from '@/composables/useUpdateStatus'
 import { translateServerMessage } from '@/i18n/server'
@@ -20,7 +22,8 @@ import { WHOLE } from '@/utils/numberInput'
  * running version, the versions of the running capture agents and, for one older than the
  * service, how to restart it (RD-190-07), and the update an agent installed without the service
  * offers itself (RD-1210-03). A newer version stands at the top of the card, with its actions
- * (RD-1150-01).
+ * (RD-1150-01). Below the check, whether an update installs by itself (RD-1240-27). Above it all,
+ * a restart that plugin changes wait for, and the switch that restarts by itself (RD-1240-32).
  */
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
@@ -131,6 +134,8 @@ async function checkNow(): Promise<void> {
       />
     </div>
 
+    <RestartPendingNotice class="mt-4" />
+
     <UAlert
       v-if="status && !status.configured"
       class="mt-4"
@@ -189,6 +194,7 @@ async function checkNow(): Promise<void> {
       <UFormField :label="t('system.updates.interval_label')" :description="t('system.updates.interval_description')">
         <NumberWithUnit v-model="settings.update_check_interval_hours" unit="h" required :min="1" :max="168" :format-options="WHOLE" class="mt-2 w-full" data-testid="update-interval" />
       </UFormField>
+      <SettingsUpdateAutoInstall v-model="settings" :status="status" />
     </div>
 
     <UpdateDetailsModal v-if="status" v-model:open="detailsOpen" :offer="status.available ?? null" :kind="status.install_kind" />

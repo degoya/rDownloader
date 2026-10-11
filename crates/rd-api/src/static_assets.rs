@@ -1,7 +1,6 @@
 use axum::{
     body::Body,
-    extract::OriginalUri,
-    http::header,
+    http::{Uri, header},
     response::{IntoResponse, Response},
 };
 use rust_embed::RustEmbed;
@@ -37,15 +36,21 @@ const MUST_EXIST_PREFIXES: &[&str] = &["icons/", "assets/"];
 /// So the three documents that carry absolute references are prefixed as they are served. The
 /// base is also handed to the application as `window.__RD_BASE__`, because the router and the
 /// API client need to know it and cannot read it from anywhere else.
+///
+/// The file is looked up by the request's own URI, the one the mount point was stripped from —
+/// never by `OriginalUri`. The outer router that puts the stripping in front of the routing
+/// records `OriginalUri` before it runs, so under a base it still reads `/downloads/assets/…`:
+/// every file missed and was answered with the shell as `text/html`, and the browser refused
+/// the module script — a blank page (RD-1240-33).
 pub(crate) async fn serve(
     axum::extract::State(state): axum::extract::State<crate::AppState>,
-    OriginalUri(uri): OriginalUri,
+    uri: Uri,
 ) -> Response {
     let base = state.proxy.read().await.base_path().to_owned();
     serve_with_base(&uri, &base)
 }
 
-fn serve_with_base(uri: &axum::http::Uri, base: &str) -> Response {
+fn serve_with_base(uri: &Uri, base: &str) -> Response {
     let requested = uri.path().trim_start_matches('/');
     let requested_asset = WebAssets::get(requested);
     if requested_asset.is_none() && must_exist(requested) {

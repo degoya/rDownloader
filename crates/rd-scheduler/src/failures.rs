@@ -393,7 +393,22 @@ fn truncate_on_char_boundary(mut text: String, limit: usize) -> String {
     text
 }
 
+/// An attempt that met a stored credential the vault master key cannot open (RD-1240-36): coded,
+/// and permanent, since another attempt opens the same entry with the same key.
+pub(crate) fn unreadable_secret(error: &anyhow::Error) -> Option<Failure> {
+    rd_secrets::find_unreadable(error).map(|unreadable| {
+        Failure::coded(
+            FailureKind::Permanent,
+            rd_secrets::SECRET_UNREADABLE,
+            unreadable.to_string(),
+        )
+    })
+}
+
 fn transient(error: anyhow::Error) -> Failure {
+    if let Some(unreadable) = unreadable_secret(&error) {
+        return unreadable;
+    }
     Failure::new(
         FailureKind::Transient {
             retry_after_seconds: None,

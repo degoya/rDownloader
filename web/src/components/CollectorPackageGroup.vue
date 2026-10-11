@@ -83,7 +83,10 @@ const categoryModel = computed({
   get: () => props.package.category_id ?? NO_SELECTION,
   set: (value: string) => emit('category', props.package.id, value === NO_SELECTION ? null : value)
 })
-/** The row's menu: the export, then what acts on the list rather than on this package (RD-1170-01). */
+/**
+ * The row's menu: the export, then what acts on the list rather than on this package (RD-1170-01);
+ * a right-click on the header opens the same entries (RD-1240-14).
+ */
 const listActions = computed(() => [[
   { label: t('common.export.action'), icon: 'i-lucide-file-down', onSelect: () => emit('export', props.package.id) }
 ], [
@@ -113,41 +116,43 @@ const priorityModel = computed({
       the controls take a line of their own under the name; the name never goes below 200 px —
       the link count gives way first — and the size shows only where a line still has room for it.
     -->
-    <header class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
-      <DragHandle
-        :label="dragTitle"
-        @dragstart="emit('dragstart', props.package.id)"
-        @move="(delta: -1 | 1) => emit('move', props.package.id, delta)"
-      />
-      <UCheckbox :model-value="allSelected ? true : someSelected ? 'indeterminate' : false" :disabled="!selectable.length" :aria-label="t('linkgrabber.package.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', selectable, value === true)" />
-      <UButton :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('linkgrabber.package.hide_links') : t('linkgrabber.package.show_links')" @click="emit('toggle', props.package.id)" />
-      <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">
-        <UButton variant="link" color="neutral" class="min-w-50 flex-1 p-0 text-left text-sm font-semibold text-highlighted hover:text-highlighted hover:underline" :label="shownName" :title="nameTitle" data-testid="collector-package-name" @click="emit('rename', props.package.id)" />
-        <span class="numeric hidden min-w-0 truncate text-xs text-muted @min-[32rem]:block">
-          {{ t('common.units.link', { count: props.candidates.length }, props.candidates.length) }}
-          <span v-if="online" class="text-success"> · {{ t('linkgrabber.package.online', { count: online }) }}</span>
-          <span v-if="checking" class="text-primary"> · {{ t('linkgrabber.package.checking', { count: checking }) }}</span>
-          <span v-if="offline" class="text-error"> · {{ t('linkgrabber.package.offline', { count: offline }) }}</span>
-          <span v-if="unverified" class="text-warning"> · {{ t('linkgrabber.package.unverified', { count: unverified }) }}</span>
+    <UContextMenu :items="listActions">
+      <header class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-2 py-1.5" :class="props.open ? 'border-b border-muted' : ''">
+        <DragHandle
+          :label="dragTitle"
+          @dragstart="emit('dragstart', props.package.id)"
+          @move="(delta: -1 | 1) => emit('move', props.package.id, delta)"
+        />
+        <UCheckbox :model-value="allSelected ? true : someSelected ? 'indeterminate' : false" :disabled="!selectable.length" :aria-label="t('linkgrabber.package.select')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', selectable, value === true)" />
+        <UButton :icon="props.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" size="xs" color="neutral" variant="ghost" :aria-expanded="props.open" :aria-label="props.open ? t('linkgrabber.package.hide_links') : t('linkgrabber.package.show_links')" @click="emit('toggle', props.package.id)" />
+        <div class="flex min-w-0 shrink grow basis-[200px] items-center gap-3">
+          <UButton variant="link" color="neutral" class="min-w-50 flex-1 p-0 text-left text-sm font-semibold text-highlighted hover:text-highlighted hover:underline" :label="shownName" :title="nameTitle" data-testid="collector-package-name" @click="emit('rename', props.package.id)" />
+          <span class="numeric hidden min-w-0 truncate text-xs text-muted @min-[32rem]:block">
+            {{ t('common.units.link', { count: props.candidates.length }, props.candidates.length) }}
+            <span v-if="online" class="text-success"> · {{ t('linkgrabber.package.online', { count: online }) }}</span>
+            <span v-if="checking" class="text-primary"> · {{ t('linkgrabber.package.checking', { count: checking }) }}</span>
+            <span v-if="offline" class="text-error"> · {{ t('linkgrabber.package.offline', { count: offline }) }}</span>
+            <span v-if="unverified" class="text-warning"> · {{ t('linkgrabber.package.unverified', { count: unverified }) }}</span>
+          </span>
+          <span class="numeric hidden w-24 shrink-0 text-right text-xs text-muted @min-[40rem]:block @min-[64rem]:hidden @min-[76rem]:block">{{ total > 0n ? formatBytes(total) : '–' }}</span>
+        </div>
+        <div class="ms-auto flex w-full flex-wrap items-center justify-end gap-2 @min-[64rem]:w-auto">
+        <span v-if="props.package.has_password" class="flex shrink-0 items-center gap-1 text-warning" :title="t('linkgrabber.package.password_hint')">
+          <UIcon name="i-lucide-key-round" class="size-4" />
+          <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
         </span>
-        <span class="numeric hidden w-24 shrink-0 text-right text-xs text-muted @min-[40rem]:block @min-[64rem]:hidden @min-[76rem]:block">{{ total > 0n ? formatBytes(total) : '–' }}</span>
-      </div>
-      <div class="ms-auto flex w-full flex-wrap items-center justify-end gap-2 @min-[64rem]:w-auto">
-      <span v-if="props.package.has_password" class="flex shrink-0 items-center gap-1 text-warning" :title="t('linkgrabber.package.password_hint')">
-        <UIcon name="i-lucide-key-round" class="size-4" />
-        <span v-if="props.package.password" class="max-w-32 truncate font-mono text-xs">{{ props.package.password }}</span>
-      </span>
-      <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
-      <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
-      <!-- Icons, as a Downloads package row's start (RD-1230-02): the name is the `aria-label`. -->
-      <UButton icon="i-lucide-arrow-down-to-line" :aria-label="t('linkgrabber.actions.enqueue')" :title="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="!selectable.length" :loading="busy" @click="emit('enqueue', props.package.id)" />
-      <UButton icon="i-lucide-pause" :aria-label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.package.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="!selectable.length" :loading="busy" @click="emit('enqueuePaused', props.package.id)" />
-      <UButton icon="i-lucide-link" size="xs" color="neutral" variant="ghost" :aria-label="t('common.actions.copy_links')" :title="t('common.actions.copy_links')" @click="emit('copyLinks', props.package.id)" />
-      <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_package')" :title="t('linkgrabber.actions.delete_package')" @click="emit('remove', props.package.id)" />
-      <UDropdownMenu :items="listActions" :content="{ align: 'end' }">
-        <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('linkgrabber.package.actions')" :title="t('linkgrabber.package.actions')" />
-      </UDropdownMenu>
-      </div>
-    </header>
+        <SearchableSelect v-model="categoryModel" :items="categoryItems" size="xs" class="w-36" :aria-label="t('linkgrabber.package.category')" />
+        <USelect v-model="priorityModel" :items="PRIORITY_ITEMS" value-key="value" size="xs" class="w-24" :aria-label="t('linkgrabber.package.priority')" />
+        <!-- Icons, as a Downloads package row's start (RD-1230-02): the name is the `aria-label`. -->
+        <UButton icon="i-lucide-arrow-down-to-line" :aria-label="t('linkgrabber.actions.enqueue')" :title="t('linkgrabber.actions.enqueue')" size="xs" color="primary" variant="soft" :disabled="!selectable.length" :loading="busy" @click="emit('enqueue', props.package.id)" />
+        <UButton icon="i-lucide-pause" :aria-label="t('linkgrabber.actions.enqueue_paused')" :title="t('linkgrabber.package.enqueue_paused_hint')" size="xs" color="neutral" variant="outline" :disabled="!selectable.length" :loading="busy" @click="emit('enqueuePaused', props.package.id)" />
+        <UButton icon="i-lucide-link" size="xs" color="neutral" variant="ghost" :aria-label="t('common.actions.copy_links')" :title="t('common.actions.copy_links')" @click="emit('copyLinks', props.package.id)" />
+        <UButton icon="i-lucide-trash-2" size="xs" color="error" variant="ghost" :aria-label="t('linkgrabber.actions.delete_package')" :title="t('linkgrabber.actions.delete_package')" @click="emit('remove', props.package.id)" />
+        <UDropdownMenu :items="listActions" :content="{ align: 'end' }">
+          <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('linkgrabber.package.actions')" :title="t('linkgrabber.package.actions')" />
+        </UDropdownMenu>
+        </div>
+      </header>
+    </UContextMenu>
   </section>
 </template>

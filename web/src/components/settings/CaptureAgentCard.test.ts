@@ -36,11 +36,18 @@ const DEFAULTS = {
   pause_hour: 'CmdOrCtrl+Alt+Shift+K',
   clipboard_watch: 'CmdOrCtrl+Alt+Z',
   send_clipboard: 'CmdOrCtrl+Alt+V',
-  quit: null
+  game_mode: null,
+  install_server_update: null,
+  auto_install: null,
+  quit: null,
+  add_all_from_linkgrabber: null,
+  add_all_from_linkgrabber_paused: null,
+  install_update: null,
+  restart_server: null
 }
 
 function answer(overrides: Record<string, unknown> = {}) {
-  return { clipboard_paused: false, shortcuts: { ...DEFAULTS }, default_shortcuts: { ...DEFAULTS }, report: null, ...overrides }
+  return { clipboard_paused: false, shortcuts: { ...DEFAULTS }, default_shortcuts: { ...DEFAULTS }, report: null, game_mode: {}, ...overrides }
 }
 
 /** Runs `validate` and submits only without errors, as `UForm` does. */
@@ -57,6 +64,8 @@ const UForm = {
 }
 const stubs = {
   UForm,
+  // Its own test is CaptureGameModeForm.test.ts.
+  CaptureGameModeForm: true,
   UKbd: { props: ['value'], template: '<kbd>{{ value }}</kbd>' },
   UBadge: { props: ['label'], template: '<span v-bind="$attrs">{{ label }}</span>' },
   // The error under the field, where the real one draws it.

@@ -1,5 +1,6 @@
 //! What the desktop capture agent is set to from the service: whether it watches the clipboard
-//! (RD-1180-01), and the system-wide shortcuts of its tray commands (RD-1180-03).
+//! (RD-1180-01), the system-wide shortcuts of its tray commands (RD-1180-03) and its game mode
+//! (RD-1240-19, `capture_game_mode`).
 //!
 //! Shared by both ends on purpose. The service validates a shortcut before it stores one and the
 //! agent turns the same text into a registration, so the two read one grammar: modifiers first,
@@ -37,13 +38,36 @@ pub enum CaptureCommand {
     ClipboardWatch,
     /// "Hand over clipboard now": the clipboard read once, watching paused or not.
     SendClipboard,
-    /// "Quit".
+    /// "Pause while gaming": game mode switched on and off (RD-1240-23).
+    GameMode,
+    /// "Install server update": the service's offered update, installed with the agent's own
+    /// right or opened on the update page without it (RD-1240-25).
+    InstallServerUpdate,
+    /// "Install updates automatically", switched on and off (RD-1240-27): the agent's own
+    /// update, where it installs itself.
+    AutoInstall,
+    /// "Quit". Its shortcut has no default (`CaptureShortcuts::quit`).
     Quit,
+    /// "Add all from LinkGrabber" (RD-1240-07, shortcut since RD-1240-24): every package of the
+    /// LinkGrabber to the queue, started.
+    #[serde(rename = "add_all_from_linkgrabber")]
+    AddAllFromLinkGrabber,
+    /// "Add all from LinkGrabber paused": the same, added paused.
+    #[serde(rename = "add_all_from_linkgrabber_paused")]
+    AddAllFromLinkGrabberPaused,
+    /// "Install update to X" (RD-1210-03): the agent's own offered update, where it installs
+    /// itself.
+    InstallUpdate,
+    /// "Restart server": the service restarted for what waits for the next start, with the
+    /// agent's `capture:server_update` right; shown only while a restart is pending (RD-1240-32).
+    RestartServer,
 }
 
 impl CaptureCommand {
-    /// Every command, in the order of the tray menu.
-    pub const ALL: [Self; 8] = [
+    /// Every command, in the order the settings list them: the tray menu's order up to "Quit",
+    /// then the entries that became shortcut-capable with RD-1240-24 and "Restart server"
+    /// (RD-1240-32).
+    pub const ALL: [Self; 15] = [
         Self::Open,
         Self::StartAll,
         Self::PauseAll,
@@ -51,7 +75,14 @@ impl CaptureCommand {
         Self::PauseHour,
         Self::ClipboardWatch,
         Self::SendClipboard,
+        Self::GameMode,
+        Self::InstallServerUpdate,
+        Self::AutoInstall,
         Self::Quit,
+        Self::AddAllFromLinkGrabber,
+        Self::AddAllFromLinkGrabberPaused,
+        Self::InstallUpdate,
+        Self::RestartServer,
     ];
 
     /// The stable name, as the settings document and the API spell it.
@@ -65,7 +96,14 @@ impl CaptureCommand {
             Self::PauseHour => "pause_hour",
             Self::ClipboardWatch => "clipboard_watch",
             Self::SendClipboard => "send_clipboard",
+            Self::GameMode => "game_mode",
+            Self::InstallServerUpdate => "install_server_update",
+            Self::AutoInstall => "auto_install",
             Self::Quit => "quit",
+            Self::AddAllFromLinkGrabber => "add_all_from_linkgrabber",
+            Self::AddAllFromLinkGrabberPaused => "add_all_from_linkgrabber_paused",
+            Self::InstallUpdate => "install_update",
+            Self::RestartServer => "restart_server",
         }
     }
 }
@@ -90,9 +128,29 @@ pub struct CaptureShortcuts {
     pub clipboard_watch: Option<String>,
     #[serde(default = "default_send_clipboard")]
     pub send_clipboard: Option<String>,
+    /// No default (owner, 2026-10-10): a tray function added after the defaults were chosen gets
+    /// a shortcut only when somebody assigns one.
+    #[serde(default)]
+    pub game_mode: Option<String>,
+    /// No default either (RD-1240-25), for the same reason.
+    #[serde(default)]
+    pub install_server_update: Option<String>,
+    /// No default either (RD-1240-27), for the same reason.
+    #[serde(default)]
+    pub auto_install: Option<String>,
     /// No default: quitting by accident is the one command a stray key press should not reach.
     #[serde(default)]
     pub quit: Option<String>,
+    /// No default either (RD-1240-24): the tray functions that had no command before.
+    #[serde(default)]
+    pub add_all_from_linkgrabber: Option<String>,
+    #[serde(default)]
+    pub add_all_from_linkgrabber_paused: Option<String>,
+    #[serde(default)]
+    pub install_update: Option<String>,
+    /// No default either (RD-1240-32), for the same reason.
+    #[serde(default)]
+    pub restart_server: Option<String>,
 }
 
 // The defaults (owner, 2026-10-07: Ctrl+Alt+<letter> on Windows and Linux, Cmd+Option+<letter> on
@@ -131,7 +189,14 @@ impl Default for CaptureShortcuts {
             pause_hour: default_pause_hour(),
             clipboard_watch: default_clipboard_watch(),
             send_clipboard: default_send_clipboard(),
+            game_mode: None,
+            install_server_update: None,
+            auto_install: None,
             quit: None,
+            add_all_from_linkgrabber: None,
+            add_all_from_linkgrabber_paused: None,
+            install_update: None,
+            restart_server: None,
         }
     }
 }
@@ -157,7 +222,14 @@ impl CaptureShortcuts {
             CaptureCommand::PauseHour => &self.pause_hour,
             CaptureCommand::ClipboardWatch => &self.clipboard_watch,
             CaptureCommand::SendClipboard => &self.send_clipboard,
+            CaptureCommand::GameMode => &self.game_mode,
+            CaptureCommand::InstallServerUpdate => &self.install_server_update,
+            CaptureCommand::AutoInstall => &self.auto_install,
             CaptureCommand::Quit => &self.quit,
+            CaptureCommand::AddAllFromLinkGrabber => &self.add_all_from_linkgrabber,
+            CaptureCommand::AddAllFromLinkGrabberPaused => &self.add_all_from_linkgrabber_paused,
+            CaptureCommand::InstallUpdate => &self.install_update,
+            CaptureCommand::RestartServer => &self.restart_server,
         }
     }
 
@@ -170,7 +242,16 @@ impl CaptureShortcuts {
             CaptureCommand::PauseHour => &mut self.pause_hour,
             CaptureCommand::ClipboardWatch => &mut self.clipboard_watch,
             CaptureCommand::SendClipboard => &mut self.send_clipboard,
+            CaptureCommand::GameMode => &mut self.game_mode,
+            CaptureCommand::InstallServerUpdate => &mut self.install_server_update,
+            CaptureCommand::AutoInstall => &mut self.auto_install,
             CaptureCommand::Quit => &mut self.quit,
+            CaptureCommand::AddAllFromLinkGrabber => &mut self.add_all_from_linkgrabber,
+            CaptureCommand::AddAllFromLinkGrabberPaused => {
+                &mut self.add_all_from_linkgrabber_paused
+            }
+            CaptureCommand::InstallUpdate => &mut self.install_update,
+            CaptureCommand::RestartServer => &mut self.restart_server,
         }
     }
 
@@ -222,6 +303,9 @@ pub struct CaptureAgentSettings {
     pub clipboard_paused: bool,
     #[serde(default)]
     pub shortcuts: CaptureShortcuts,
+    /// Stepping aside while a full-screen program or a named process runs (RD-1240-19).
+    #[serde(default)]
+    pub game_mode: crate::CaptureGameMode,
 }
 
 /// Why the agent cannot register any shortcut at all.

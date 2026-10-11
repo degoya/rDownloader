@@ -56,23 +56,28 @@
 ^crates/rd-api(-[a-z]+)?/src/(about|about_page|build_info)(\.rs$|/)                           api_tokens scope_matrix mcp
 ^crates/rd-api/licenses/                                                                  api_tokens
 ^crates/rd-api(-[a-z]+)?/src/api_tokens(\.rs$|/)                                              api_tokens grant_ceiling audit token_expiry token_limits
-^crates/rd-api(-[a-z]+)?/src/area_backup(\.rs$|/)                                             area_backup
+^crates/rd-api(-[a-z]+)?/src/area_backup(\.rs$|/)                                             area_backup automation_schedule
 ^crates/rd-api(-[a-z]+)?/src/(audit|audit_dto|audit_handlers|routes/audit)(\.rs$|/)           audit data_reset api_tokens token_limits mcp
 ^crates/rd-api(-[a-z]+)?/src/(auth_flow_handlers|auth_flow_service|auth_flow_guard|auth_profile_handlers)(\.rs$|/)   auth_profiles media_cookie_profile browser_session capture_intake oauth_callback
 ^crates/rd-db/src/auth_flow_store(\.rs$|/)                                                     + oauth_callback
 ^crates/rd-db/src/(config_store|usenet_store|bandwidth_store|notify_store)(\.rs$|/)          + unique_names notifications
+^crates/rd-db/src/web_push_store(\.rs$|_tests\.rs$)                                  + web_push
 ^crates/rd-db/src/(package_names|nzb_queue|config_store_postprocess)(\.rs$|/)                 + package_names
 ^crates/rd-api(-[a-z]+)?/src/(collector_enqueue|download_handlers/create|torrent_intake|postprocess_handlers)(\.rs$|/)   + package_names
 ^crates/rd-api(-[a-z]+)?/src/auto_remove_service(\.rs$|/)                                     auto_remove
-^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)(\.rs$|/)                 automations automation_triggers area_backup automation_dry_run
+^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)(\.rs$|/)                 automations automation_triggers area_backup automation_dry_run automation_schedule
 ^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+(\.rs$|/)                                   full_backup backup_destinations backup_remote mcp service_lifecycle archive_password_backup
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_handlers(\.rs$|/)                                      bandwidth bandwidth_manual unique_names
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_manual_handlers(\.rs$|/)                               bandwidth_manual
 ^crates/rd-api(-[a-z]+)?/src/queue_pause_handlers(\.rs$|/)                                    queue_pause capture_queue stop_mark
 ^crates/rd-api(-[a-z]+)?/src/stop_mark_handlers(\.rs$|/)                                      stop_mark queue_pause mcp
 ^crates/rd-api(-[a-z]+)?/src/capture_queue(\.rs$|/)                                         capture_queue scope_matrix
-^crates/rd-api(-[a-z]+)?/src/capture_agent_handlers(\.rs$|/)                                capture_agent_settings scope_matrix mcp
-^crates/rd-core/src/capture_agent(_tests)?(\.rs$|/)                                         capture_agent_settings mcp
+^crates/rd-api(-[a-z]+)?/src/capture_linkgrabber(_tests)?(\.rs$|/)                          capture_queue scope_matrix
+^crates/rd-api(-[a-z]+)?/src/capture_agent_handlers(\.rs$|/)                                capture_agent_settings capture_game_mode scope_matrix mcp
+^crates/rd-api(-[a-z]+)?/src/capture_game_mode(\.rs$|/)                                     capture_game_mode scope_matrix
+^crates/rd-api(-[a-z]+)?/src/capture_server_update(\.rs$|/)                                 capture_server_update updates scope_matrix restart
+^crates/rd-core/src/capture_agent(_tests)?(\.rs$|/)                                         capture_agent_settings capture_game_mode mcp
+^crates/rd-core/src/capture_game_mode(_tests)?(\.rs$|/)                                     capture_game_mode capture_agent_settings mcp
 ^crates/rd-api(-[a-z]+)?/src/browser_session[a-z_]*\.rs$                                  browser_session
 ^crates/rd-api(-[a-z]+)?/src/captcha_handlers(\.rs$|/)                                        captcha
 ^crates/rd-api(-[a-z]+)?/src/capture_sanitize(\.rs$|/)                                        capture_intake capture_boundary captcha event_resume browser_session auth_profiles
@@ -80,13 +85,17 @@
 ^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)(\.rs$|/)                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets git_releases collector_pages capture_pick address_rule
 ^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr
 ^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr history
+^crates/rd-api-compat/src/(lib\.rs|aria2/)                                                compat_aria2 scope_matrix scope_matrix_compat
 ^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file package_export package_export_nzb
 # Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
 ^crates/rd-api(-[a-z]+)?/src/(package_export|package_export_nzb|links_file|links_nzb|container_enqueue|download_handlers/reresolve)(\.rs$|/)   package_export package_export_nzb mcp scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/nzb_candidate(\.rs$|/)                                          nzb_paused package_export_nzb indexers
 ^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)(\.rs$|/)   service_lifecycle oidc password_reset
-^crates/rd-api(-[a-z]+)?/src/data_reset_handlers(\.rs$|/)                                     data_reset storage_clear history
-^crates/rd-api(-[a-z]+)?/src/(history_handlers|history_readd_handlers|routes/history)(\.rs$|/)   history compat_sabnzbd
+^crates/rd-api(-[a-z]+)?/src/data_reset_handlers(\.rs$|/)                                     data_reset storage_clear history system_cleanup
+# The clean-up of update backups, the plugin cache (RD-1240-34) and the database (RD-1240-35).
+^crates/rd-api(-[a-z]+)?/src/system_cleanup(_database)?(\.rs$|/)                              system_cleanup mcp scope_matrix
+^crates/rd-api(-[a-z]+)?/src/(history_handlers|history_export|history_readd_handlers|routes/history)(\.rs$|/)   history compat_sabnzbd
+^crates/rd-api(-[a-z]+)?/src/queue_search(\.rs$|/)                                          queue_search
 ^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule
 ^crates/rd-api(-[a-z]+)?/src/download_sources(\.rs$|/)                                        source_sets scope_matrix mcp
@@ -94,17 +103,19 @@
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)(\.rs$|/)   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)(\.rs$|/)                mfa passkeys auth step_up password_reset restore_step_up
-^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable automations
+^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity automations web_push
+# Web Push for the installed app (RD-1240-13).
+^crates/rd-api(-[a-z]+)?/src/(web_push|web_push_tests|web_push_handlers)(\.rs$|/)             web_push
 # Signing in through an identity provider (RD-190-15).
 ^crates/rd-api(-[a-z]+)?/src/(oidc_handlers|oidc_settings_handlers|oidc_client|password_login_handlers)(\.rs$|/)   oidc auth step_up
 ^crates/rd-authn/src/(oidc|oidc_token|oidc_testing)(\.rs$|/)                                   + oidc
-^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)(\.rs$|/)                        auto_remove category_move_and_reset clear_list reorder download_list
+^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)(\.rs$|/)                        auto_remove category_move_and_reset clear_list reorder download_list package_start_after package_download_window
 ^crates/rd-api(-[a-z]+)?/src/passkey_handlers(\.rs$|/)                                        passkeys step_up
 # Every door under the sign-in limiter side by side, and the password change's session (RD-1120-19).
 ^crates/rd-api(-[a-z]+)?/src/(login_handlers|password_handlers|step_up|passkey_handlers|oidc_handlers|qbittorrent/mod)(\.rs$|/)   + sign_in_doors
 # The password reset on the host (RD-190-24): its route, and the steps it shares with the command.
 ^crates/rd-api(-[a-z]+)?/src/(password_reset_handlers|password_reset)(\.rs$|/)                password_reset auth
-^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)(\.rs$|/)   plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_superseded plugin_repositories plugin_auto_updates audit
+^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)(\.rs$|/)   plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_superseded plugin_repositories plugin_auto_updates audit restart
 # The order of a key revocation, row before live verifier (audit 1.9.1, API-13; RD-1120-19).
 ^crates/rd-api(-[a-z]+)?/src/plugin_handlers(\.rs$|/)                                        + plugin_trust
 ^crates/rd-api(-[a-z]+)?/src/plugin_bundled(\.rs$|/)                                        plugin_bundled plugin_bundled_removal audit
@@ -128,15 +139,17 @@
 # The pick board of a two-stage rule (RD-1170-03): its routes, and the tools that drive them.
 ^crates/rd-api(-[a-z]+)?/src/site_rule_picks[a-z_]*(\.rs$|/)                                 site_rules mcp collector_picks capture_pick address_rule
 ^crates/rd-api(-[a-z]+)?/src/storage_capacity(\.rs$|/)                                        storage_capacity
-^crates/rd-api(-[a-z]+)?/src/(collision_handlers|duplicates|storage_handlers|routes/storage)(\.rs$|/)   collisions storage_clear
+^crates/rd-api(-[a-z]+)?/src/(collision_handlers|duplicates|storage_handlers|routes/storage)(\.rs$|/)   collisions storage_clear history
 ^crates/rd-api(-[a-z]+)?/src/stream_[a-z_]+\.rs$                                          stream_schedules area_backup
 ^crates/rd-api(-[a-z]+)?/src/subscription_[a-z_]+(\.rs$|/)                               subscriptions feeds indexers indexer_search torznab_search area_backup git_releases
 ^crates/rd-api(-[a-z]+)?/src/indexer_(handlers|search)(\.rs$|/)                                indexer_search torznab_search
 ^crates/rd-api(-[a-z]+)?/src/tools_handlers(\.rs$|/)                                          managed_tools data_reset
-^crates/rd-api(-[a-z]+)?/src/(update_handlers|update_service|update_install_service|update_service/[a-z_]+)(\.rs$|/)   updates
+^crates/rd-api(-[a-z]+)?/src/(update_handlers|update_service|update_install_service|update_auto_install|update_service/[a-z_]+)(\.rs$|/)   updates capture_server_update update_auto_install restart
+# A pending restart and the restart itself (RD-1240-32): its routes, the tray's, the scope rows.
+^crates/rd-api(-[a-z]+)?/src/(restart_service|restart_auto|restart_state|restart_handlers)(\.rs$|/)   restart capture_server_update scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/capture_agents(\.rs$|/)                                         updates
 ^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)(\.rs$|/)                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file
-^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names
+^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names unreadable_secrets
 ^crates/rd-api(-[a-z]+)?/src/nzb_remote_job_handlers(\.rs$|/)                                nzb_remote_job
 
 # The modules no row named until RD-1120-08 (35 sources fell back to every suite), from the routes
@@ -149,7 +162,7 @@
 ^crates/rd-api(-[a-z]+)?/src/destination(\.rs$|/)                                             storage_roots storage_capacity protected_roots category_move_and_reset unique_names capture_intake compat_sabnzbd torrent hotfolder_poll automations stream_schedules
 ^crates/rd-api(-[a-z]+)?/src/hosters(\.rs$|/)                                                 canaries mirrors mcp
 ^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule
-^crates/rd-api(-[a-z]+)?/src/notify_notice(\.rs$|/)                                           notifications updates plugin_repositories full_backup
+^crates/rd-api(-[a-z]+)?/src/notify_notice(\.rs$|/)                                           notifications updates plugin_repositories full_backup update_auto_install
 ^crates/rd-api(-[a-z]+)?/src/postprocess_handlers(\.rs$|/)                                    api_tokens
 ^crates/rd-api(-[a-z]+)?/src/(remote_job_service|remote_job_handlers)(\.rs$|/)                 nzb_remote_job container_json mcp remote_jobs_clear
 ^crates/rd-api(-[a-z]+)?/src/regex_tester(\.rs$|/)                                            scope_matrix mcp
@@ -160,6 +173,7 @@
 # Added to whatever the rows above select; they still decide the rest of each path.
 ^crates/rd-api(-[a-z]+)?/src/(config_handlers|config_fields|remote_handlers|object_storage_(handlers|fields)|notify_(handlers|service)|backup_[a-z_]+|settings_backup[a-z_]*|diagnostics_[a-z_]+|captcha_handlers|api_tokens|auth_profile_handlers|usenet_handlers|login_handlers|password_handlers|password_reset_handlers|event_stream|oidc_handlers|oidc_settings_handlers|oidc_client)(\.rs$|/)   + canaries
 ^crates/(rd-secrets|rd-diagnostics|rd-backup|rd-notify|rd-object-storage|rd-ftp)/src/        + canaries
+^crates/(rd-secrets|rd-usenet)/src/                                                       + unreadable_secrets
 
 # --- rd-core, by domain module ----------------------------------------------------------------
 # failpoint.rs compiles to nothing without its feature; the crash matrix is its test.
@@ -187,7 +201,7 @@
 ^crates/rd-core/src/indexer(\.rs$|/)                                                           indexer_search torznab_search subscriptions indexers mcp
 ^crates/rd-core/src/toolpath(\.rs$|/)                                                         managed_tools
 ^crates/rd-core/src/history(\.rs$|/)                                                          history compat_sabnzbd mcp
-^crates/rd-update/                                                                        updates
+^crates/rd-update/                                                                        updates capture_server_update update_auto_install restart
 ^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr container_json service_switches mcp
 ^crates/rd-core/src/package_names(\.rs$|/)                                                   package_names mcp
 ^crates/rd-core/src/usenet(\.rs$|/)                                                           nzb_paused nzb_remote_job container_json indexers compat_sabnzbd mcp

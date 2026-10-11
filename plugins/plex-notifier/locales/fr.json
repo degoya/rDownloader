@@ -1,0 +1,7 @@
+{
+  "name": "Plex",
+  "description": "Actualise les bibliothèques Plex lorsqu’un paquet est terminé.",
+  "codes": {
+    "plex_notifier.rejected": "Plex a refusé l’actualisation de la bibliothèque."
+  }
+}

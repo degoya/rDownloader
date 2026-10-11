@@ -74,7 +74,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Ask, per active automation, whether a trigger would match it and whether its conditions would hold, without running anything. `trigger` is a word from get_automation_vocabulary; `package_id` (from list_packages) is the package the conditions are judged against. With `draft` (`trigger`, `condition`, optional `automation_id`) only that automation is judged, saved or not, enabled or not; one not saved yet answers with the nil id."
+        description = "Ask, per active automation, whether a trigger would match it and whether its conditions would hold, without running anything. `trigger` is a word from get_automation_vocabulary; `package_id` (from list_packages) is the package the conditions are judged against. With `draft` (`trigger`, `condition`, optional `schedule`, `actions` and `automation_id`) only that automation is judged, saved or not, enabled or not; one not saved yet answers with the nil id. Each answer lists the actions a match would run and, for the `schedule` trigger, `next_run_at`."
     )]
     pub async fn dry_run_automations(
         &self,

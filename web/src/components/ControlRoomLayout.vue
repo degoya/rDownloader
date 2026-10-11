@@ -8,6 +8,7 @@ import CaptchaDialog from '@/components/CaptchaDialog.vue'
 import LiveAnnouncer from '@/components/LiveAnnouncer.vue'
 import NzbDropOverlay from '@/components/NzbDropOverlay.vue'
 import PreferencesFooter from '@/components/PreferencesFooter.vue'
+import RestartNotice from '@/components/RestartNotice.vue'
 import SearchPalette from '@/components/SearchPalette.vue'
 import TransferRail from '@/components/TransferRail.vue'
 import UpdateNotice from '@/components/UpdateNotice.vue'
@@ -237,6 +238,7 @@ const items = computed<NavigationMenuItem[][]>(() => [[
         <div data-testid="sidebar-footer" class="w-full min-w-0">
           <USeparator class="mb-2" />
           <UpdateNotice :collapsed="collapsed" />
+          <RestartNotice :collapsed="collapsed" />
           <PreferencesFooter :collapsed="collapsed" />
           <UTooltip :text="connectionLabel" :disabled="!collapsed">
             <div

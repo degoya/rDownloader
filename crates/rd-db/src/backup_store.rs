@@ -329,6 +329,7 @@ async fn drop_unnamed_subscriptions(
         }
         for statement in [
             "DELETE FROM subscription_items WHERE subscription_id = ?",
+            "DELETE FROM subscription_item_keys WHERE subscription_id = ?",
             "DELETE FROM subscription_runs WHERE subscription_id = ?",
             "DELETE FROM subscriptions WHERE id = ?",
         ] {

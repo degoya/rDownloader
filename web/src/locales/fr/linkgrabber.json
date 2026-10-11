@@ -379,7 +379,25 @@
       "formats_missing": "yt-dlp n'a signalé aucun format téléchargeable pour cette page. Vérifiez à nouveau le lien ; si la liste reste vide, le site n'est pas pris en charge.",
       "audio_missing": "La page propose des flux vidéo, mais aucune piste audio. « Meilleur » télécharge quand même la vidéo, sans le son."
     },
-    "preset_label": "Préréglage de qualité"
+    "preset_label": "Préréglage de qualité",
+    "audio_format": "Format audio",
+    "section": {
+      "label": "Seulement un extrait",
+      "start": "De",
+      "end": "À",
+      "start_placeholder": "Début",
+      "end_placeholder": "Fin",
+      "hint": "Temps en secondes, m:ss ou h:mm:ss. La coupe tombe sur l’image clé la plus proche, sans réencodage. Nécessite ffmpeg.",
+      "invalid": "Saisissez un temps en secondes, m:ss ou h:mm:ss.",
+      "order": "La fin doit venir après le début."
+    },
+    "pauses": {
+      "own": "Pauses propres à ce lien",
+      "own_hint": "Désactivé : les pauses des paramètres s’appliquent.",
+      "requests": "Entre les requêtes",
+      "interval": "Avant le téléchargement"
+    },
+    "audio_format_video": "Garder la vidéo"
   },
   "replay": {
     "title": "Autoriser ce téléchargement",
@@ -504,7 +522,9 @@
   },
   "duplicates": {
     "queued": "{count} × déjà dans la file",
-    "queued_hint": "La même source est déjà {count} fois dans la file – reconnue par l’adresse normalisée, l’info-hash ou l’hébergeur."
+    "queued_hint": "La même source est déjà {count} fois dans la file – reconnue par l’adresse normalisée, l’info-hash ou l’hébergeur.",
+    "history": "Déjà téléchargé",
+    "history_hint": "La même source figure dans l’historique des téléchargements : « {name} », terminé le {date}."
   },
   "sources": {
     "title": "Sources ({count})",
@@ -613,5 +633,14 @@
     "take_all": "Tout prendre | Prendre 1 release | Prendre les {count}",
     "announced": "{rule} : une page attend votre choix"
   },
-  "selection_nzbs": "aucun import NZB | {count} import NZB | {count} imports NZB"
+  "selection_nzbs": "aucun import NZB | {count} import NZB | {count} imports NZB",
+  "link_filter": {
+    "unhide": "Afficher de nouveau",
+    "hidden": "Masqué",
+    "hidden_hint": "Une règle LinkFilter a masqué ce lien. Il est conservé et la mise en file de son paquet ne le prend que s'il est sélectionné.",
+    "show_hidden": "Afficher les masqués ({count})",
+    "apply": "Appliquer LinkFilter",
+    "apply_hint": "Décide de nouveau tous les liens du LinkGrabber selon les règles actuelles. Rien n'est supprimé et les téléchargements ne sont pas touchés.",
+    "applied": "LinkFilter appliqué : {hidden} masqués, {shown} de nouveau affichés, {routed} classés"
+  }
 }

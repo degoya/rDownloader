@@ -4,7 +4,11 @@
 //! what is being checked is the client half — the address, the bearer token, the way an
 //! error response is turned into a message — and none of that exists without a listener.
 
-use std::process::Command;
+use std::{
+    io::BufRead as _,
+    process::{Command, Stdio},
+    time::Duration,
+};
 
 use tokio::net::TcpListener;
 
@@ -381,4 +385,77 @@ fn a_server_address_without_a_scheme_is_refused_before_any_request() {
     assert!(!ok);
     assert_eq!(code, 2, "{stderr}");
     assert!(stderr.contains("http://"), "{stderr}");
+}
+
+/// RD-1240-18: `events` follows the real stream, and what the queue does shows up as a line of
+/// JSON on standard output.
+#[tokio::test(flavor = "multi_thread")]
+async fn events_follow_what_the_queue_does() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (server, shutdown, token) = serve(directory.path()).await;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_rdownloader"))
+        .args(["events", "--json", "--server", &server, "--token", &token])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("start events");
+    let stdout = child.stdout.take().expect("stdout");
+    let stderr = child.stderr.take().expect("stderr");
+
+    // The subscription exists once the stream has answered, which the command says on standard
+    // error; an event published before that would reach nobody. The reader keeps draining, so
+    // a later line never meets a closed pipe.
+    let (followed, following) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for line in std::io::BufReader::new(stderr)
+            .lines()
+            .map_while(Result::ok)
+        {
+            if line.starts_with("Following events") {
+                let _ = followed.send(());
+            }
+        }
+    });
+    following
+        .recv_timeout(Duration::from_secs(30))
+        .expect("the stream did not open");
+
+    let (ok, _, stderr) = run(&[
+        "queue",
+        "add",
+        "https://example.com/followed.bin",
+        "--server",
+        &server,
+        "--token",
+        &token,
+    ]);
+    assert!(ok, "queue add failed: {stderr}");
+
+    let (line, received) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for text in std::io::BufReader::new(stdout)
+            .lines()
+            .map_while(Result::ok)
+        {
+            let _ = line.send(text);
+        }
+    });
+    let event: serde_json::Value = loop {
+        let text = received
+            .recv_timeout(Duration::from_secs(30))
+            .expect("no event within 30 s");
+        let value: serde_json::Value = serde_json::from_str(&text).expect("a line of JSON");
+        if value["kind"]
+            .as_str()
+            .is_some_and(|kind| kind.starts_with("download_"))
+        {
+            break value;
+        }
+    };
+    assert!(event["id"].is_string(), "{event}");
+    assert!(event["occurred_at"].is_string(), "{event}");
+
+    let _ = child.kill();
+    let _ = child.wait();
+    shutdown.cancel();
 }

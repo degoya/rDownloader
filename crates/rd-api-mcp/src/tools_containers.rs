@@ -40,6 +40,16 @@ pub(crate) struct ContainerFileParams {
     pub priority: Option<String>,
 }
 
+/// A `.torrent` file, and whether to queue it at once.
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct ImportTorrentParams {
+    #[serde(flatten)]
+    pub file: ContainerFileParams,
+    /// Queue the torrent's package at once instead of leaving it in the LinkGrabber.
+    #[serde(default)]
+    pub enqueue: bool,
+}
+
 /// The same, plus what only the generic container route reads.
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct ImportContainerParams {
@@ -106,16 +116,16 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Hand a .torrent file to the LinkGrabber, as base64 (at most 16 MiB). Answers with the LinkGrabber batch, package and candidate it produced; enqueue it with enqueue_collector."
+        description = "Hand a .torrent file to the LinkGrabber, as base64 (at most 16 MiB). Answers with the LinkGrabber batch, package and candidate it produced; enqueue it with enqueue_collector, or pass `enqueue: true` to queue it at once (a torrent's link needs no online check)."
     )]
     pub async fn import_torrent(
         &self,
-        Parameters(params): Parameters<ContainerFileParams>,
+        Parameters(params): Parameters<ImportTorrentParams>,
     ) -> McpToolResult {
         respond(
-            crate::torrent_handlers::import_torrent(
+            crate::torrent_import::import_torrent(
                 State(self.state.clone()),
-                params.into_body(None),
+                params.file.into_full_body(None, None, params.enqueue),
             )
             .await
             .map(|(_, answer)| answer.0),

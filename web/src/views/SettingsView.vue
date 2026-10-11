@@ -101,13 +101,12 @@ const networkTab = ref<InstanceType<typeof SettingsNetworkTab> | null>(null)
  * button, through `saveCaptcha`.
  */
 const DOCUMENT_TABS = [
-  'general', 'interface', 'linkgrabber', 'unattended', 'postprocess', 'captcha', 'torrent', 'services',
-  'tools'
+  'general', 'unattended', 'captcha', 'torrent', 'services'
 ]
 /**
  * On a page with sub-tabs the tab decides: routing saves itself on its categories and rules,
- * and network, security, bandwidth, Usenet, system and FTP, SFTP, WebDAV & S3 only have document
- * fields on some of theirs (`saveBar` or `documentCard` in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its
+ * and network, security, bandwidth, Usenet, system, FTP, SFTP, WebDAV & S3, LinkGrabber,
+ * Interface, post-processing and tools only have document fields on some of theirs (`saveBar` or `documentCard` in `SETTINGS_SUB_TABS`). System had none until RD-180-15: its
  * update and retention fields were saved only by the button of another page.
  */
 const showSaveBar = computed(() => loaded.value && (subTabs.value.length
@@ -327,7 +326,7 @@ async function resetSettings(): Promise<void> {
             <SettingsGeneralTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'interface'" class="pt-4">
-            <SettingsInterfaceTab :model-value="settings" />
+            <SettingsInterfaceTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'routing'" class="pt-4">
             <SettingsRoutingTab :model-value="settings" v-model:sub-tab="subTab" />
@@ -336,7 +335,7 @@ async function resetSettings(): Promise<void> {
             <SettingsHotfoldersTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'linkgrabber'" class="pt-4">
-            <SettingsLinkgrabberTab :model-value="settings" />
+            <SettingsLinkgrabberTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'bandwidth'" class="pt-4">
             <SettingsBandwidthTab v-model="settings" v-model:speed-mib="speedMiB" v-model:sub-tab="subTab" />
@@ -345,7 +344,7 @@ async function resetSettings(): Promise<void> {
             <SettingsUnattendedTab :model-value="settings" />
           </div>
           <div v-if="activeSection === 'postprocess'" class="pt-4">
-            <SettingsPostprocessTab :model-value="settings" />
+            <SettingsPostprocessTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'accounts'" class="pt-4">
             <SettingsAccountsTab v-model:sub-tab="subTab" />
@@ -375,13 +374,13 @@ async function resetSettings(): Promise<void> {
             <SettingsPluginsTab v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'tools'" class="pt-4">
-            <SettingsToolsTab :model-value="settings" />
+            <SettingsToolsTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'notifications'" class="pt-4">
             <SettingsNotificationsTab v-model:sub-tab="subTab" />
           </div>
           <div v-if="activeSection === 'clients'" class="pt-4">
-            <SettingsClientsTab v-model:sub-tab="subTab" />
+            <SettingsClientsTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'network'" class="pt-4">
             <SettingsNetworkTab

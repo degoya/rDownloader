@@ -10,6 +10,7 @@ import { api } from '@/api/client'
 import type { NzbImport } from '@/api/types'
 import downloads from '@/locales/en/downloads.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
+import server from '@/locales/en/server.json'
 import { mountComponent } from '@/test/mount'
 
 import NzbImportGroup from './NzbImportGroup.vue'
@@ -76,6 +77,12 @@ describe('NzbImportGroup failed badge', () => {
     await fireEvent.click(badge)
     expect(badge.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByText(stepReason)).toBeNull()
+  })
+
+  it('says why in the reader\'s language when the service names a code (RD-1240-33)', () => {
+    renderGroup(nzb({ error: 'hotfolder intake: NZB contains no files', error_code: 'collector.nzb_empty' } as Partial<NzbImport>))
+    expect(screen.getByText(server.codes['collector.nzb_empty'])).toBeTruthy()
+    expect(screen.queryByText('hotfolder intake: NZB contains no files')).toBeNull()
   })
 
   // The chevron opens the same files as the badge, and says so as the badge does (RD-1110-11).

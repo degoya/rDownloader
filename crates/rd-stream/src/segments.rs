@@ -8,7 +8,7 @@
 //!
 //! The decisions are pure functions over the state so far; only [`record`] touches a process.
 
-use std::{path::Path, time::Duration};
+use std::{ffi::OsString, path::Path, time::Duration};
 
 use anyhow::Result;
 use chrono::Utc;
@@ -16,6 +16,8 @@ use rd_core::{
     MAX_RECONNECTS, MAX_SEGMENTS, RecordingPolicy, RecordingSegment, RecordingState, SegmentEnd,
     segment_name,
 };
+use rd_files::NoConsoleWindow as _;
+use rd_scheduler::ToolNetwork;
 use rd_tools::{ToolProcess, process::Stdout};
 use tokio_util::sync::CancellationToken;
 
@@ -76,6 +78,44 @@ pub struct SegmentTool<'a> {
     pub streamlink: &'a Path,
     pub url: &'a str,
     pub quality: &'a str,
+    /// The recording's proxy and the custom CA (RD-1240-08).
+    pub network: &'a ToolNetwork,
+}
+
+/// streamlink's network options (RD-1240-08): the proxy as `--http-proxy` when it carries no
+/// credentials. One with credentials reaches streamlink through its environment only, which it
+/// reads unless told otherwise, because an argument list is readable by every process on the
+/// machine; so does the custom CA (`REQUESTS_CA_BUNDLE`).
+pub(crate) fn network_args(network: &ToolNetwork) -> Vec<OsString> {
+    network
+        .proxy_argument()
+        .map(|proxy| vec![OsString::from("--http-proxy"), OsString::from(proxy)])
+        .unwrap_or_default()
+}
+
+/// A streamlink command with `network`'s environment and options set; the caller adds the rest.
+pub(crate) fn streamlink_command(
+    streamlink: &Path,
+    network: &ToolNetwork,
+) -> tokio::process::Command {
+    let mut command = tokio::process::Command::new(streamlink);
+    command.no_console_window();
+    network.apply(&mut command);
+    command.args(network_args(network));
+    command
+}
+
+/// The arguments that record one segment into `output`, after the network options.
+pub(crate) fn segment_args(tool: &SegmentTool<'_>, output: &Path) -> Vec<OsString> {
+    vec![
+        OsString::from("--output"),
+        output.as_os_str().to_owned(),
+        // A retry after a failed attempt reuses the same segment name.
+        OsString::from("--force"),
+        OsString::from("--"),
+        OsString::from(tool.url),
+        OsString::from(tool.quality),
+    ]
 }
 
 /// Records one segment, returning what ended it and how many bytes it holds.
@@ -94,20 +134,8 @@ pub(crate) async fn record<F>(
 where
     F: FnMut(u64),
 {
-    let SegmentTool {
-        streamlink,
-        url,
-        quality,
-    } = tool;
-    let mut command = tokio::process::Command::new(streamlink);
-    command
-        .arg("--output")
-        .arg(output)
-        // A retry after a failed attempt reuses the same segment name.
-        .arg("--force")
-        .arg("--")
-        .arg(url)
-        .arg(quality);
+    let mut command = streamlink_command(tool.streamlink, tool.network);
+    command.args(segment_args(tool, output));
     // Discarded, not captured: streamlink writes the stream itself to `--output` and nothing
     // here parses its stdout. Piping it would only fill a buffer nobody drains, which stalls
     // a recording that can run for hours.
@@ -193,9 +221,16 @@ pub fn next_name(stem: &str, index: u32) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{SegmentOutcome, end_reason, next_name, push_segment, should_continue};
+    use std::{ffi::OsStr, path::Path};
+
+    use super::{
+        SegmentOutcome, SegmentTool, end_reason, next_name, push_segment, segment_args,
+        should_continue, streamlink_command,
+    };
     use chrono::Utc;
-    use rd_core::{MAX_RECONNECTS, MAX_SEGMENTS, RecordingState, SegmentEnd};
+    use rd_core::{MAX_RECONNECTS, MAX_SEGMENTS, ProxyKind, RecordingState, SegmentEnd};
+    use rd_scheduler::{ToolNetwork, ToolProxy};
+    use secrecy::SecretString;
 
     #[test]
     fn a_drop_reconnects_while_there_is_budget() {
@@ -260,6 +295,49 @@ mod tests {
         // And what was already recorded is still there — the point of the whole loop.
         assert_eq!(state.total_bytes(), 300);
         assert!(state.segments.iter().any(|s| s.reason.leaves_gap()));
+    }
+
+    /// RD-1240-08: the recording's proxy is on streamlink's command line, credentials never.
+    #[test]
+    fn the_proxy_is_on_the_command_line_and_its_credentials_are_not() {
+        let command_line = |network: &ToolNetwork| -> Vec<String> {
+            let tool = SegmentTool {
+                streamlink: Path::new("streamlink"),
+                url: "https://live.example/channel",
+                quality: "best",
+                network,
+            };
+            let command = streamlink_command(tool.streamlink, network);
+            command
+                .as_std()
+                .get_args()
+                .map(OsStr::to_owned)
+                .chain(segment_args(&tool, Path::new("/rec/show.part001.ts")))
+                .map(|arg| arg.to_string_lossy().into_owned())
+                .collect()
+        };
+        let proxy = |password: Option<&str>| {
+            let password = password.map(|password| SecretString::from(password.to_owned()));
+            ToolNetwork::with_proxy(
+                ToolProxy::new(
+                    ProxyKind::Http,
+                    "http://proxy.example:3128".parse().expect("endpoint"),
+                    password.as_ref().map(|_| "alice"),
+                    password.as_ref(),
+                )
+                .expect("proxy"),
+            )
+        };
+        let args = command_line(&proxy(None));
+        assert_eq!(args[..2], ["--http-proxy", "http://proxy.example:3128/"]);
+        assert_eq!(args[2..4], ["--output", "/rec/show.part001.ts"]);
+
+        let args = command_line(&proxy(Some("pr0xy-secret")));
+        assert!(!args.iter().any(|arg| arg.contains("pr0xy")), "{args:?}");
+        assert!(!args.iter().any(|arg| arg == "--http-proxy"), "{args:?}");
+
+        let args = command_line(&ToolNetwork::direct());
+        assert!(!args.iter().any(|arg| arg.contains("proxy")), "{args:?}");
     }
 
     #[test]

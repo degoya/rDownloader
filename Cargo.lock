@@ -1273,6 +1273,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3be2ad0423bdbbb0e25bc89add796f3559706d4a95e1bc98e4d9662a957b6a19"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6987,6 +6996,7 @@ dependencies = [
  "rd-core",
  "serde",
  "serde_json",
+ "tower-http 0.7.1",
  "tracing",
  "url",
 ]
@@ -7180,11 +7190,13 @@ name = "rd-automation"
 version = "1.23.0"
 dependencies = [
  "chrono",
+ "croner",
  "rd-core",
  "rd-notify",
  "regex",
  "serde",
  "serde_json",
+ "url",
  "utoipa",
 ]
 
@@ -7481,6 +7493,8 @@ dependencies = [
  "rd-files",
  "rd-scheduler",
  "rd-tools",
+ "secrecy",
+ "tempfile",
  "tokio",
  "tokio-util",
 ]
@@ -7511,6 +7525,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64 0.23.1",
  "bytes",
  "chrono",
  "ctr 0.10.1",
@@ -7525,6 +7540,7 @@ dependencies = [
  "rd-limits",
  "reqwest",
  "rustls",
+ "rustls-native-certs",
  "rustls-platform-verifier",
  "secrecy",
  "serde_json",
@@ -7585,6 +7601,8 @@ name = "rd-notify"
 version = "1.23.0"
 dependencies = [
  "anyhow",
+ "aws-lc-rs",
+ "base64 0.23.1",
  "chrono",
  "hex",
  "hmac 0.13.0",
@@ -7823,6 +7841,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rd-plugin-emby-notifier"
+version = "0.1.0"
+dependencies = [
+ "plugin-guest-notifier",
+]
+
+[[package]]
 name = "rd-plugin-example-oauth"
 version = "1.2.2"
 dependencies = [
@@ -7988,6 +8013,13 @@ dependencies = [
  "wasmtime",
  "zeroize",
  "zip",
+]
+
+[[package]]
+name = "rd-plugin-jellyfin-notifier"
+version = "0.1.0"
+dependencies = [
+ "plugin-guest-notifier",
 ]
 
 [[package]]
@@ -8308,6 +8340,13 @@ dependencies = [
  "plugin-guest-crawler",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rd-plugin-plex-notifier"
+version = "0.1.0"
+dependencies = [
+ "plugin-guest-notifier",
 ]
 
 [[package]]
@@ -8785,11 +8824,14 @@ dependencies = [
  "chrono-tz",
  "rd-core",
  "rd-db",
+ "rd-files",
  "rd-http",
  "rd-scheduler",
  "rd-tools",
  "reqwest",
+ "secrecy",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
@@ -8977,6 +9019,7 @@ dependencies = [
  "axum",
  "chrono",
  "clap",
+ "clap_complete",
  "dunce",
  "embed-resource",
  "hex",

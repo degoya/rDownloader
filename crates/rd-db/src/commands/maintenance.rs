@@ -45,6 +45,12 @@ pub(crate) enum MaintenanceCommand {
     Vacuum {
         reply: Reply<()>,
     },
+    /// Hands the free pages back to the file system where the file allows it
+    /// (`auto_vacuum = INCREMENTAL`) and truncates the WAL; replies the bytes the file shrank by
+    /// (RD-1240-35).
+    ReclaimFreePages {
+        reply: Reply<u64>,
+    },
     /// Writes a consistent copy of the whole database to `path` (RD-160-01).
     VacuumInto {
         path: std::path::PathBuf,

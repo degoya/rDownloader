@@ -306,3 +306,152 @@ async fn a_refused_keyring_read_mints_no_new_master_key() {
     assert!(error.downcast_ref::<KeyringInteractionRefused>().is_some());
     assert!(!directory.path().join("master.key").exists());
 }
+
+/// RD-1240-36: a data folder copied to another machine arrives without the master key its
+/// entries were sealed under. Opening one is its own typed error, told apart from a reference
+/// with no entry, and the vault counts such entries without handing out a value.
+#[tokio::test]
+async fn an_entry_sealed_under_another_master_key_is_unreadable_not_missing() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let key_file = directory.path().join("master.key");
+    write_private(&key_file, &[1_u8; 32])
+        .await
+        .expect("first master key");
+    let first = SecretStore::open(directory.path().to_owned())
+        .await
+        .expect("store");
+    let sealed = first
+        .put_string("nntp password".to_owned())
+        .await
+        .expect("put");
+
+    // The same folder, opened with the key another installation would hold.
+    std::fs::remove_file(&key_file).expect("remove key");
+    write_private(&key_file, &[2_u8; 32])
+        .await
+        .expect("second master key");
+    let moved = SecretStore::open(directory.path().to_owned())
+        .await
+        .expect("store");
+    let readable = moved
+        .put_string("entered again".to_owned())
+        .await
+        .expect("put");
+
+    let error = moved
+        .get(&sealed)
+        .await
+        .expect_err("another key opens nothing");
+    assert!(super::is_unreadable(&error), "{error:#}");
+    assert_eq!(
+        error
+            .downcast_ref::<super::SecretUnreadable>()
+            .expect("typed")
+            .reason(),
+        super::UnreadableReason::Undecryptable
+    );
+    assert!(!format!("{error:#}").contains("nntp password"));
+    assert!(!format!("{error:#}").contains(sealed.trim_start_matches("vault://")));
+    // Through a caller's context too.
+    let wrapped =
+        anyhow::Context::context(Err::<(), _>(error), "load the server").expect_err("err");
+    assert!(super::is_unreadable(&wrapped));
+
+    let missing = moved
+        .get(&SecretStore::new_reference())
+        .await
+        .expect_err("no entry");
+    assert!(!super::is_unreadable(&missing), "missing is not unreadable");
+
+    assert_eq!(
+        moved.readability().await.expect("count"),
+        super::VaultReadability {
+            readable: 1,
+            unreadable: 1,
+        }
+    );
+    assert_eq!(
+        moved.get(&readable).await.expect("get").expose_secret(),
+        "entered again"
+    );
+}
+
+/// A damaged file and an envelope of an unknown version are unreadable too, each with its reason.
+#[tokio::test]
+async fn a_damaged_or_unknown_envelope_is_unreadable() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let store = SecretStore::open(directory.path().to_owned())
+        .await
+        .expect("store");
+    let file = |reference: &str| {
+        directory.path().join(format!(
+            "{}.secret",
+            reference.trim_start_matches("vault://")
+        ))
+    };
+    let damaged = SecretStore::new_reference();
+    std::fs::write(file(&damaged), b"not an envelope").expect("write");
+    let newer = SecretStore::new_reference();
+    std::fs::write(
+        file(&newer),
+        br#"{"version":9,"nonce":"AAAA","ciphertext":"AAAA"}"#,
+    )
+    .expect("write");
+    for (reference, reason) in [
+        (&damaged, super::UnreadableReason::Malformed),
+        (&newer, super::UnreadableReason::UnknownVersion),
+    ] {
+        let error = store.get(reference).await.expect_err("unreadable");
+        assert_eq!(
+            error
+                .downcast_ref::<super::SecretUnreadable>()
+                .expect("typed")
+                .reason(),
+            reason
+        );
+    }
+}
+
+/// What `rdownloader doctor` counts: entries sealed under another key are unreadable, and a
+/// folder that arrived without any master key -- the Windows keyring stayed behind -- has every
+/// entry unreadable and gets no key minted by the diagnosis.
+#[tokio::test]
+async fn the_inspection_counts_unreadable_entries_and_mints_no_key() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let key_file = directory.path().join("master.key");
+    let store = SecretStore::open(directory.path().to_owned())
+        .await
+        .expect("store");
+    store.put_string("one".to_owned()).await.expect("put");
+    store.put_string("two".to_owned()).await.expect("put");
+    assert_eq!(
+        super::unreadable::inspect(directory.path().to_owned(), None)
+            .await
+            .expect("inspect"),
+        super::VaultReadability {
+            readable: 2,
+            unreadable: 0,
+        }
+    );
+
+    std::fs::remove_file(&key_file).expect("the key stays behind");
+    assert_eq!(
+        super::unreadable::inspect(directory.path().to_owned(), None)
+            .await
+            .expect("inspect"),
+        super::VaultReadability {
+            readable: 0,
+            unreadable: 2,
+        }
+    );
+    assert!(!key_file.exists(), "the inspection minted a master key");
+
+    let absent = directory.path().join("never-created");
+    assert_eq!(
+        super::unreadable::inspect(absent.clone(), None)
+            .await
+            .expect("inspect"),
+        super::VaultReadability::default()
+    );
+    assert!(!absent.exists(), "the inspection created the folder");
+}

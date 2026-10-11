@@ -324,10 +324,12 @@ impl UsenetRunner {
             // A package that has nothing left running is decided by that same call,
             // during the transition below, so a set without PAR2 fails as promptly
             // as it always did.
+            // The file's one line about its holes (RD-1240-38): the articles themselves are
+            // logged at `debug`, and a warning follows only when the set cannot repair them.
             tracing::info!(
                 download_id = %file.id,
                 missing,
-                "segments missing; the verdict waits for the rest of the set"
+                "segments missing on every server; the set's PAR2 verdict decides the repair"
             );
             self.database.defer_par2_verdict(file.id, missing).await?;
             // Unless the holes already show the set cannot be repaired (RD-1100-02):

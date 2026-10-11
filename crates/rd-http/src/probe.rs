@@ -227,6 +227,17 @@ pub async fn fetch_document(
 ) -> Result<FetchedDocument, anyhow::Error> {
     let response = apply_headers(client.get(url), headers).send().await?;
     let status = response.status();
+    if status.is_redirection()
+        && let Some(location) = response
+            .headers()
+            .get(header::LOCATION)
+            .and_then(|value| value.to_str().ok())
+    {
+        return Err(anyhow::Error::new(UnfollowedRedirect {
+            status,
+            location: location.to_owned(),
+        }));
+    }
     if !status.is_success() {
         anyhow::bail!("HTTP {status}");
     }
@@ -244,6 +255,24 @@ pub async fn fetch_document(
         headers,
     })
 }
+
+/// A redirect [`fetch_document`] got back instead of following it: one that leaves HTTP, as
+/// Prowlarr's `301 Location: magnet:…` for a magnet-only hit (RD-1240-33), or one the client's
+/// policy does not follow. Its message is the status, as before; a caller that can use the
+/// target finds it with `downcast_ref`.
+#[derive(Clone, Debug)]
+pub struct UnfollowedRedirect {
+    pub status: StatusCode,
+    pub location: String,
+}
+
+impl std::fmt::Display for UnfollowedRedirect {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "HTTP {}", self.status)
+    }
+}
+
+impl std::error::Error for UnfollowedRedirect {}
 
 /// A document fetched to be parsed, with the response headers that describe it.
 #[derive(Clone, Debug)]

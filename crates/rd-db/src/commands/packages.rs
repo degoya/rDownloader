@@ -64,6 +64,20 @@ pub(crate) enum PackagesCommand {
         bytes_per_second: Option<u64>,
         reply: Reply<()>,
     },
+    /// Sets or removes (`None`) the moment the package's files may start from (RD-1240-14);
+    /// `false` when there is no such package.
+    SetPackageStartAfter {
+        id: rd_core::PackageId,
+        start_after: Option<chrono::DateTime<chrono::Utc>>,
+        reply: Reply<bool>,
+    },
+    /// Sets or removes (`None`) the package's own download window (RD-1240-30); `false` when
+    /// there is no such package.
+    SetPackageDownloadWindow {
+        id: rd_core::PackageId,
+        window: Option<rd_core::DownloadWindow>,
+        reply: Reply<bool>,
+    },
     /// Sets the queue's stop mark, replacing the one in force (RD-1210-02).
     SetStopMark {
         target: crate::StopMarkTarget,

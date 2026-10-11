@@ -8,7 +8,11 @@
  */
 import type { CaptureCommand, CaptureShortcuts } from '@/api/types'
 
-/** Every tray command, in the order of the tray menu. */
+/**
+ * Every tray command, in the service's order (`CaptureCommand::ALL`): the tray menu's up to
+ * `quit`, then the entries that became shortcut-capable with RD-1240-24 and "Restart server"
+ * (RD-1240-32).
+ */
 export const CAPTURE_COMMANDS: readonly CaptureCommand[] = [
   'open',
   'start_all',
@@ -17,7 +21,14 @@ export const CAPTURE_COMMANDS: readonly CaptureCommand[] = [
   'pause_hour',
   'clipboard_watch',
   'send_clipboard',
-  'quit'
+  'game_mode',
+  'install_server_update',
+  'auto_install',
+  'quit',
+  'add_all_from_linkgrabber',
+  'add_all_from_linkgrabber_paused',
+  'install_update',
+  'restart_server'
 ]
 
 export type ShortcutPlatform = 'windows' | 'macos' | 'linux'

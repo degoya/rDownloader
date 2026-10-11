@@ -6,7 +6,7 @@
 //! `CONNECT` and then terminates TLS with a certificate for the requested name, issued by a test
 //! CA the client trusts through `custom_ca_pem`. Nothing leaves the machine.
 
-// Shared by two test binaries, and neither uses every helper.
+// Shared by several test binaries, and none uses every helper.
 #![allow(dead_code)]
 
 use std::{
@@ -67,6 +67,16 @@ impl Arrived {
 /// RD-130-24).
 pub const REDIRECT_TO: &str = "/redirect-to/";
 
+/// An answer a service gave, played back for a request to one path instead of `200`.
+#[derive(Clone, Copy, Debug)]
+pub struct Recorded {
+    pub status: u16,
+    pub reason: &'static str,
+    /// Empty for an answer without a body type, such as a `204`.
+    pub content_type: &'static str,
+    pub body: &'static str,
+}
+
 pub struct Wire {
     pub proxy: SocketAddr,
     pub ca_pem: String,
@@ -112,6 +122,12 @@ async fn read_message<S: AsyncRead + Unpin>(stream: &mut S) -> Option<(String, V
 /// A proxy that accepts `CONNECT`, then plays the service at the far end over TLS and answers
 /// every request `200 {"ok":true}`.
 pub async fn wire() -> Wire {
+    wire_playing(Vec::new()).await
+}
+
+/// [`wire`], answering a request whose path is one of `recorded` with that answer instead.
+pub async fn wire_playing(recorded: Vec<(&'static str, Recorded)>) -> Wire {
+    let recorded = Arc::new(recorded);
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let mut ca_params = rcgen::CertificateParams::new(Vec::new()).expect("ca params");
     ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
@@ -133,6 +149,9 @@ pub async fn wire() -> Wire {
         "cloud.example".to_owned(),
         "ntfy.example.org".to_owned(),
         "push.example.org".to_owned(),
+        "plex.example.org".to_owned(),
+        "jellyfin.example.org".to_owned(),
+        "emby.example.org".to_owned(),
     ])
     .expect("server params");
     let server_key = rcgen::KeyPair::generate().expect("server key");
@@ -157,6 +176,7 @@ pub async fn wire() -> Wire {
         while let Ok((mut stream, _)) = listener.accept().await {
             let acceptor = acceptor.clone();
             let log = Arc::clone(&log);
+            let recorded = Arc::clone(&recorded);
             tokio::spawn(async move {
                 let Some((connect, _)) = read_message(&mut stream).await else {
                     return;
@@ -194,6 +214,11 @@ pub async fn wire() -> Wire {
                 let redirect = target
                     .strip_prefix(REDIRECT_TO)
                     .map(|rest| format!("https://{rest}"));
+                let path = target.split('?').next().unwrap_or_default();
+                let played = recorded
+                    .iter()
+                    .find(|(recorded_path, _)| *recorded_path == path)
+                    .map(|(_, answer)| *answer);
                 log.lock().expect("arrived").push(Arrived {
                     tunnel,
                     method,
@@ -202,7 +227,21 @@ pub async fn wire() -> Wire {
                     body,
                 });
                 let answer = "{\"ok\":true}";
-                let response = if let Some(location) = redirect {
+                let response = if let Some(answer) = played {
+                    let content_type = if answer.content_type.is_empty() {
+                        String::new()
+                    } else {
+                        format!("content-type: {}\r\n", answer.content_type)
+                    };
+                    format!(
+                        "HTTP/1.1 {} {}\r\n{content_type}content-length: {}\r\n\
+                         connection: close\r\n\r\n{}",
+                        answer.status,
+                        answer.reason,
+                        answer.body.len(),
+                        answer.body
+                    )
+                } else if let Some(location) = redirect {
                     format!(
                         "HTTP/1.1 307 Temporary Redirect\r\nlocation: {location}\r\n\
                          content-length: 0\r\nconnection: close\r\n\r\n"

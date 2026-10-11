@@ -225,6 +225,7 @@ pub(crate) fn document(
             .map(|file| rd_collector::NzbFile {
                 subject: file.subject,
                 poster: file.poster,
+                date: None,
                 groups: file.groups,
                 segments: file
                     .segments

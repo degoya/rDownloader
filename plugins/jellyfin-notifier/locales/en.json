@@ -1,0 +1,7 @@
+{
+  "name": "Jellyfin",
+  "description": "Refreshes the Jellyfin libraries when a package finishes.",
+  "codes": {
+    "jellyfin_notifier.rejected": "Jellyfin refused the library refresh."
+  }
+}

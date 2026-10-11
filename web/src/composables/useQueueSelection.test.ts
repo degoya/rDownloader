@@ -33,22 +33,40 @@ describe('useQueueSelection', () => {
     expect(selection.selectedDownloads.value).toHaveLength(0)
   })
 
-  it('judges a package by every file it has, not by the ones a filter leaves visible', () => {
-    // `p1` holds two files; the active filter shows only the first — the shape an NZB package
-    // has while its `.par2` files sit in another state than its payload.
-    const all = ref([file('a', 'p1'), file('hidden', 'p1')])
-    const groups = computed(() => [group('p1', [all.value[0]!])])
-    const selection = useQueueSelection(groups, all)
+  it('picks only the files a filter shows, and keeps package actions for whole packages', () => {
+    // `p1` holds three files; the "failed" filter shows two of them (RD-1240-31: with the filter
+    // set, ticking the package selected every file of it instead of the failed ones).
+    const all = ref([file('a', 'p1'), file('b', 'p1'), file('done', 'p1')])
+    const shown = ref([all.value[0]!, all.value[1]!])
+    const groups = computed(() => [group('p1', shown.value)])
+    const selection = useQueueSelection(groups, all, undefined, shown)
 
-    selection.setFiles(['a'], true)
-    expect(selection.packageState(groups.value[0]!)).toBe('some')
-    expect(selection.fullySelectedPackageIds.value).toEqual([])
-
-    // Ticking the package takes the hidden file with it, so the package-level actions apply to
-    // the package the user pointed at rather than to a part of it.
     selection.togglePackage(groups.value[0]!, true)
-    expect(selection.selectedIds.value).toEqual(['a', 'hidden'])
+    expect(selection.selectedIds.value).toEqual(['a', 'b'])
+    expect(selection.packageState(groups.value[0]!)).toBe('all')
+    // The hidden file is not ticked, so the package as a whole is not: no category, priority or
+    // delete-package action reaches the file the user never saw.
+    expect(selection.fullySelectedPackageIds.value).toEqual([])
+    expect(selection.state.value).toBe('all')
+
+    // Without the filter the hidden file shows up unticked; ticking the package now takes it all.
+    shown.value = [...all.value]
+    expect(selection.packageState(groups.value[0]!)).toBe('some')
+    selection.togglePackage(groups.value[0]!, true)
     expect(selection.fullySelectedPackageIds.value).toEqual(['p1'])
+  })
+
+  it('acts only on shown files when a filter hides some that were ticked before', () => {
+    const all = ref([file('a', 'p1'), file('b', 'p1')])
+    const shown = ref([...all.value])
+    const groups = computed(() => [group('p1', shown.value)])
+    const selection = useQueueSelection(groups, all, undefined, shown)
+
+    selection.selectAll()
+    shown.value = [all.value[0]!]
+    expect(selection.selectedIds.value).toEqual(['a'])
+    expect(selection.count.value).toBe(1)
+    expect(selection.fullySelectedPackageIds.value).toEqual([])
   })
 })
 

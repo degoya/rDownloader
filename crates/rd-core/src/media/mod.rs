@@ -10,6 +10,7 @@ mod criteria;
 mod embed;
 mod format;
 mod resolve;
+mod section;
 mod tracks;
 
 use serde::{Deserialize, Serialize};
@@ -37,6 +38,7 @@ pub use resolve::{
     CriterionKind, CriterionMatch, MediaCompatibilityWarning, MediaResolution, MediaSelectionError,
     RELAXATION_ORDER,
 };
+pub use section::{MAX_PAUSE_SECONDS, MAX_SECTION_SECONDS, MediaPauses, MediaSection};
 pub use tracks::{
     AudioTrack, AudioTrackPolicy, MAX_MEDIA_TRACKS, SubtitleMode, SubtitlePolicy, SubtitleSource,
     SubtitleTrack, TrackSelection, TrackWarning, track_warnings,
@@ -319,6 +321,11 @@ pub struct MediaSettings {
     pub media_max_parallel: u32,
     /// Timeout for one metadata probe.
     pub media_check_timeout_seconds: u32,
+    /// Seconds between the requests of one media download (`--sleep-requests`, RD-1240-15);
+    /// a job's own `pauses` win.
+    pub media_sleep_requests_seconds: u32,
+    /// Seconds before each media download starts (`--sleep-interval`, RD-1240-15).
+    pub media_sleep_interval_seconds: u32,
     /// Directory searched for yt-dlp/ffmpeg/ffprobe before `PATH`; `None` = the built-in
     /// vendor folders next to the executable and in the data directory.
     pub vendor_directory: Option<String>,
@@ -397,6 +404,15 @@ impl MediaSettings {
         .collect()
     }
 
+    /// The configured pauses, which a job without its own keeps.
+    #[must_use]
+    pub const fn pauses(&self) -> MediaPauses {
+        MediaPauses {
+            sleep_requests_seconds: self.media_sleep_requests_seconds,
+            sleep_interval_seconds: self.media_sleep_interval_seconds,
+        }
+    }
+
     /// Whether `host` (any casing, optional `www.`) belongs to the media provider.
     #[must_use]
     pub fn handles_host(&self, host: &str) -> bool {
@@ -418,6 +434,8 @@ impl Default for MediaSettings {
             media_hosts: Self::default_hosts(),
             media_max_parallel: 2,
             media_check_timeout_seconds: 60,
+            media_sleep_requests_seconds: 0,
+            media_sleep_interval_seconds: 0,
             vendor_directory: None,
         }
     }

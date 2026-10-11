@@ -152,4 +152,13 @@ pub(crate) enum CollectorCommand {
     DeleteCandidates {
         reply: Reply<u64>,
     },
+    /// Decides every open link anew by the LinkFilter rules (RD-1240-09).
+    ApplyLinkFilters {
+        reply: Reply<crate::LinkFilterOutcome>,
+    },
+    /// Shows links a LinkFilter rule hid; answers how many were hidden.
+    ShowFilteredCandidates {
+        ids: Vec<rd_core::CandidateId>,
+        reply: Reply<u64>,
+    },
 }

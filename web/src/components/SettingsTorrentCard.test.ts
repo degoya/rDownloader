@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Settings } from '@/api/types'
@@ -7,9 +7,10 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsTorrentCard from './SettingsTorrentCard.vue'
 
+const post = vi.hoisted(() => vi.fn())
 vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })) },
-  responseError: vi.fn()
+  api: { GET: vi.fn(async () => ({ data: undefined })), POST: post },
+  responseError: vi.fn(() => 'refused')
 }))
 // The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
 vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
@@ -72,5 +73,49 @@ describe('SettingsTorrentCard order', () => {
     expect(at(en.torrent.seeding.label)).toBe(at(en.torrent.upload_limit.label) + 1)
     expect(at(en.torrent.seed_ratio.label)).toBe(at(en.torrent.seeding.label) + 1)
     expect(at(en.torrent.seed_time.label)).toBe(at(en.torrent.seed_ratio.label) + 1)
+  })
+})
+
+/** RD-1240-16: the active limits and the port test, which asks this machine alone. */
+describe('SettingsTorrentCard active limits and port test', () => {
+  it('ties the seed limit to seeding and keeps the download limit free', () => {
+    mount({ torrent_sharing_enabled: true, torrent_seeding_enabled: false, torrent_max_active_downloads: 4 })
+
+    expect(screen.getByRole('spinbutton', { name: en.torrent.max_active_seeds.label }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('spinbutton', { name: en.torrent.max_active_downloads.label }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('shows a listening port as unproven, with what the test saw', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        verdict: 'listening',
+        listen_port: 51413,
+        announce_port: 51413,
+        local_tcp_accepted: true,
+        live_torrents: 2,
+        incoming_peers: 0,
+        upnp_enabled: false,
+        peer_proxy_configured: false,
+        error: null,
+        tested_at: '2026-10-10T12:00:00Z'
+      }
+    })
+    mount({ torrent_sharing_enabled: true })
+
+    await fireEvent.click(screen.getByTestId('torrent-port-test'))
+
+    expect(post).toHaveBeenCalledWith('/api/v1/torrents/network/port-test')
+    await waitFor(() => expect(screen.getByText(en.torrent.port_test.verdict.listening.replace('{port}', '51413'))).toBeTruthy())
+    expect(screen.getByText('Torrents running: 2 · peers connected in: 0')).toBeTruthy()
+  })
+
+  it('shows the refusal when the test cannot run', async () => {
+    post.mockResolvedValueOnce({ data: undefined, error: { code: 'torrent.service_disabled' } })
+    mount({ torrent_sharing_enabled: true })
+
+    await fireEvent.click(screen.getByTestId('torrent-port-test'))
+
+    await waitFor(() => expect(screen.getByText('refused')).toBeTruthy())
+    expect(screen.queryByTestId('torrent-port-test-result')).toBeNull()
   })
 })

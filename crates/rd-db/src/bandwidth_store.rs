@@ -20,6 +20,8 @@ pub struct NewBandwidthProfile {
     pub daily_budget_bytes: Option<rd_core::ByteCount>,
     pub monthly_budget_bytes: Option<rd_core::ByteCount>,
     pub scopes: Vec<ScopeLimit>,
+    /// Pause downloads while the profile is in force (RD-1240-30).
+    pub pause_downloads: bool,
 }
 
 /// One window of the weekly schedule, without an id — the schedule is replaced as a whole.
@@ -43,6 +45,7 @@ struct ProfileRow {
     daily_budget_bytes: Option<i64>,
     monthly_budget_bytes: Option<i64>,
     scopes_json: String,
+    pause_downloads: bool,
 }
 
 impl TryFrom<ProfileRow> for BandwidthProfile {
@@ -60,6 +63,7 @@ impl TryFrom<ProfileRow> for BandwidthProfile {
             daily_budget_bytes: optional_bytes(row.daily_budget_bytes)?,
             monthly_budget_bytes: optional_bytes(row.monthly_budget_bytes)?,
             scopes: serde_json::from_str(&row.scopes_json).context("stored scope limits")?,
+            pause_downloads: row.pause_downloads,
         })
     }
 }
@@ -92,7 +96,7 @@ impl TryFrom<WindowRow> for ScheduleWindow {
 }
 
 const PROFILE_COLUMNS: &str = "id, name, download_bytes_per_second, upload_bytes_per_second, \
-     max_active_files, daily_budget_bytes, monthly_budget_bytes, scopes_json";
+     max_active_files, daily_budget_bytes, monthly_budget_bytes, scopes_json, pause_downloads";
 
 pub(crate) async fn list_profiles(pool: &SqlitePool) -> Result<Vec<BandwidthProfile>> {
     sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
@@ -133,6 +137,7 @@ pub(crate) async fn create_profile(
         daily_budget_bytes: input.daily_budget_bytes,
         monthly_budget_bytes: input.monthly_budget_bytes,
         scopes: input.scopes,
+        pause_downloads: input.pause_downloads,
     };
     let now = Utc::now();
     let event = changed_event(value.id);
@@ -140,7 +145,8 @@ pub(crate) async fn create_profile(
     sqlx::query(
         "INSERT INTO bandwidth_profiles (id, name, download_bytes_per_second, \
          upload_bytes_per_second, max_active_files, daily_budget_bytes, monthly_budget_bytes, \
-         scopes_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         scopes_json, pause_downloads, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(value.id.to_string())
     .bind(&value.name)
@@ -150,6 +156,7 @@ pub(crate) async fn create_profile(
     .bind(value.daily_budget_bytes.map(persisted))
     .bind(value.monthly_budget_bytes.map(persisted))
     .bind(serde_json::to_string(&value.scopes)?)
+    .bind(value.pause_downloads)
     .bind(now)
     .bind(now)
     .execute(&mut *tx)
@@ -174,6 +181,7 @@ pub(crate) async fn update_profile(
         daily_budget_bytes: input.daily_budget_bytes,
         monthly_budget_bytes: input.monthly_budget_bytes,
         scopes: input.scopes,
+        pause_downloads: input.pause_downloads,
     };
     let now = Utc::now();
     let event = changed_event(id);
@@ -181,7 +189,8 @@ pub(crate) async fn update_profile(
     let updated = sqlx::query(
         "UPDATE bandwidth_profiles SET name = ?, download_bytes_per_second = ?, \
          upload_bytes_per_second = ?, max_active_files = ?, daily_budget_bytes = ?, \
-         monthly_budget_bytes = ?, scopes_json = ?, updated_at = ? WHERE id = ?",
+         monthly_budget_bytes = ?, scopes_json = ?, pause_downloads = ?, updated_at = ? \
+         WHERE id = ?",
     )
     .bind(&value.name)
     .bind(value.download_bytes_per_second.map(persisted))
@@ -190,6 +199,7 @@ pub(crate) async fn update_profile(
     .bind(value.daily_budget_bytes.map(persisted))
     .bind(value.monthly_budget_bytes.map(persisted))
     .bind(serde_json::to_string(&value.scopes)?)
+    .bind(value.pause_downloads)
     .bind(now)
     .bind(id.to_string())
     .execute(&mut *tx)

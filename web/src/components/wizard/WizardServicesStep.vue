@@ -8,6 +8,7 @@ import ExtensionPairingModal from '@/components/settings/ExtensionPairingModal.v
 import SettingsAccountsTab from '@/components/settings/SettingsAccountsTab.vue'
 import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
 import { useExtensionConnection } from '@/composables/useExtensionConnection'
+import { useRestartAction } from '@/composables/useRestartStatus'
 import { providerText } from '@/i18n/plugins'
 
 /** Something "Your services" installed runs only from the next start (RD-170-12). */
@@ -36,6 +37,9 @@ const chooseActions = computed(() => [{
   onClick: () => emit('choose-services')
 }])
 const pairingOpen = ref(false)
+/** The restart the box asks for, right there (RD-1240-32). */
+const { action: restartAction } = useRestartAction()
+const restartActions = computed(() => [restartAction()])
 /**
  * The providers whose account can take over the browser's sign-in (a `cookie_scope_host`), which
  * only a paired extension delivers (RD-150-17). Named in the hint, so the reader knows whether it
@@ -69,6 +73,7 @@ onMounted(async () => {
       icon="i-lucide-rotate-ccw"
       :title="t('wizard.services.restart_required_title')"
       :description="t('wizard.services.restart_required')"
+      :actions="restartActions"
       data-testid="services-restart-required"
     />
     <UAlert

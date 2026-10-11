@@ -11,12 +11,14 @@ use rd_scheduler::SchedulerConfig;
 use tracing_subscriber::EnvFilter;
 
 mod auth_cli;
+mod completions;
 mod doctor_site_rules;
 mod instance_lock;
 mod plugin_boot;
 mod plugin_cli;
 mod remote;
 mod reset_password_cli;
+mod restart_cli;
 mod serve;
 mod site_rules_cli;
 mod startup;
@@ -57,16 +59,24 @@ enum Command {
     Queue(remote::QueueArgs),
     /// Hands links to the LinkGrabber of a local or remote server and reviews them.
     Links(remote::LinksArgs),
+    /// Follows the event stream of a local or remote server, one line per event.
+    Events(remote::EventsArgs),
     /// Stops the service running on this machine gracefully and waits until it has ended.
     Stop(stop_cli::StopArgs),
     /// Sign-in steps only this machine may take: `auth password-login on` switches the
     /// password sign-in back on after it was switched off for the identity provider, `auth
     /// reset-password` sets a new administrator password without the current one.
     Auth(auth_cli::AuthArgs),
+    /// Prints the shell completion script for bash, zsh, fish, PowerShell or elvish.
+    Completions(completions::CompletionsArgs),
     /// Installs a downloaded update and takes it back when the new version does not answer
     /// (RD-180-02). Started by the service from a copy of itself, not by hand.
     #[command(name = "apply-update", hide = true)]
     ApplyUpdate(updater_cli::ApplyArgs),
+    /// Restarts the running service as the same version (RD-1240-32). Started by the service
+    /// from a copy of itself, not by hand.
+    #[command(name = "restart-service", hide = true)]
+    RestartService(restart_cli::RestartArgs),
 }
 
 #[derive(Args)]
@@ -157,7 +167,12 @@ async fn main() -> Result<()> {
     match Cli::parse().command {
         Command::Serve(args) => {
             enter_installed_home()?;
-            serve::run(args, telemetry).await
+            // A restart left to systemd or the container runtime ends with its own code
+            // (RD-1240-32), once everything `serve` held is released.
+            if let Some(code) = serve::run(args, telemetry).await? {
+                std::process::exit(code);
+            }
+            Ok(())
         }
         Command::Doctor(args) => {
             enter_installed_home()?;
@@ -185,6 +200,7 @@ async fn main() -> Result<()> {
         // failed rather than on a single catch-all exit code.
         Command::Queue(args) => remote::finish(remote::queue(args).await),
         Command::Links(args) => remote::finish(remote::links(args).await),
+        Command::Events(args) => remote::finish(remote::events(args).await),
         Command::Stop(args) => {
             // The control file lives in the data folder, which an installed build keeps in the
             // user's folder: the Start menu's "Stop rDownloader" runs from the program folder.
@@ -196,7 +212,9 @@ async fn main() -> Result<()> {
             enter_installed_home()?;
             remote::finish(auth_cli::run(args).await)
         }
+        Command::Completions(args) => completions::run(&args),
         Command::ApplyUpdate(args) => updater_cli::run(args).await,
+        Command::RestartService(args) => restart_cli::run(args).await,
     }
 }
 
@@ -304,7 +322,41 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
         })
         .await;
     print!("{}", rd_api::diagnostics_checks::render_checks(&checks));
+    report_vault(data_directory).await;
     Ok(())
+}
+
+/// How many stored credentials this installation's master key opens (RD-1240-36). Counts only:
+/// no value and no reference is printed, and no master key is minted.
+async fn report_vault(data_directory: &std::path::Path) {
+    let counts = match rd_secrets::SecretStore::inspect_with_os_keyring(
+        data_directory.join("secrets"),
+    )
+    .await
+    {
+        Ok(counts) => counts,
+        Err(error) => {
+            println!("vault: cannot be inspected: {error:#}");
+            return;
+        }
+    };
+    let total = counts.readable + counts.unreadable;
+    if counts.unreadable == 0 {
+        println!("vault: {total} stored credentials, all readable");
+        return;
+    }
+    println!(
+        "vault: {total} stored credentials, {} cannot be read with this installation's master key \
+         ({})",
+        counts.unreadable,
+        rd_secrets::SECRET_UNREADABLE
+    );
+    println!(
+        "  The data folder was probably copied from another machine or user account; the master \
+         key stays in that system's credential store. Enter these credentials again (accounts, \
+         NNTP servers, indexers, notification targets, proxies, remote logins), or restore a \
+         full backup with its passphrase, which carries the key."
+    );
 }
 
 /// One self-test run, with the adapters a running service would use: the same proxy profile

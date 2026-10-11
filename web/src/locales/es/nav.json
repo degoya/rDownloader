@@ -15,13 +15,15 @@
   "audit": "Auditoría",
   "search": {
     "button": "Buscar",
-    "placeholder": "Buscar ajustes y vistas…",
+    "placeholder": "Buscar ajustes, vistas y la cola…",
     "title": "Búsqueda",
-    "description": "Buscar cualquier ajuste y abrir cualquier vista.",
+    "description": "Buscar cualquier ajuste, abrir cualquier vista y encontrar paquetes y archivos de la cola.",
     "groups": {
       "views": "Ir a",
       "pages": "Páginas de ajustes",
-      "settings": "Ajustes"
+      "settings": "Ajustes",
+      "packages": "Paquetes",
+      "downloads": "Descargas"
     },
     "keywords": {
       "desktop": "bandeja, agente de escritorio, extensión del navegador, emparejar",
@@ -66,7 +68,9 @@
       "active_files": "descargas en paralelo, simultáneas, a la vez, cola",
       "collision": "colisión, conflicto de nombres, sobrescribir, renombrar",
       "linkgrabber": "lista de bloqueo, dominios excluidos, espejos, contenedor",
-      "desktop_agent": "atajo, tecla rápida, teclado, portapapeles, pausar, agente de captura"
+      "desktop_agent": "atajo, tecla rápida, teclado, portapapeles, pausar, agente de captura",
+      "link_filters": "filtro, filtro de enlaces, ocultar, reglas",
+      "download_window": "ventana de descarga, franja horaria, descargar de noche, hora de inicio, pausar descargas, pausar durante el día"
     }
   },
   "connection": {

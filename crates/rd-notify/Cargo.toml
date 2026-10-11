@@ -7,6 +7,9 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+# Web Push (RD-1240-13): message encryption, the VAPID signature and their key pairs.
+aws-lc-rs.workspace = true
+base64.workspace = true
 chrono.workspace = true
 hex.workspace = true
 hmac.workspace = true

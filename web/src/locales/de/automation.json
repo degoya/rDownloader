@@ -46,7 +46,27 @@
     "script": "Skript ausführen",
     "set_category": "In Kategorie verschieben",
     "pause_package": "Paket pausieren",
-    "resume_package": "Paket fortsetzen"
+    "resume_package": "Paket fortsetzen",
+    "set_priority": "Priorität setzen",
+    "start_queue": "Warteschlange starten",
+    "extract_package": "Paket entpacken",
+    "notify": "Benachrichtigen",
+    "add_links": "Links hinzufügen",
+    "priority": "Priorität",
+    "priority_value": {
+      "low": "Niedrig",
+      "normal": "Normal",
+      "high": "Hoch"
+    },
+    "message": "Nachricht",
+    "links": "Links, einer pro Zeile",
+    "destination": "Ziel",
+    "destination_value": {
+      "link_grabber": "LinkGrabber",
+      "downloads": "Downloads"
+    },
+    "link_count": "{count} Links",
+    "pause_queue": "Warteschlange pausieren"
   },
   "dry_run": {
     "heading": "Testlauf",
@@ -57,7 +77,9 @@
     "trigger_no": "anderer Auslöser",
     "condition_yes": "Bedingung trifft zu",
     "condition_no": "Bedingung trifft nicht zu",
-    "draft": "Diese Automation"
+    "draft": "Diese Automation",
+    "next_run": "nächster Lauf {time}",
+    "would_run": "würde ausführen"
   },
   "trigger": {
     "intake_received": "Links übernommen",
@@ -72,7 +94,8 @@
     "upload_finished": "Upload fertig",
     "storage_threshold": "Speicherschwelle",
     "subscription_item": "Abo-Eintrag",
-    "usenet_job_hopeless": "Usenet-Download aussichtslos"
+    "usenet_job_hopeless": "Usenet-Download aussichtslos",
+    "schedule": "Zu einer Zeit"
   },
   "field": {
     "source": "Quelle",
@@ -116,5 +139,17 @@
     "restore_title": "Version {version} wiederherstellen?",
     "restore_description": "Auslöser, Bedingung und Aktionen von Version {version} werden wieder die Definition von „{name}“, gespeichert als neue Version. Name und Aktiv-Schalter bleiben, wie sie sind.",
     "restored": "Version {version} ist wieder in Kraft, gespeichert als Version {current}."
+  },
+  "schedule": {
+    "heading": "Zeitplan",
+    "interval": "Alle paar Minuten",
+    "cron": "Cron-Ausdruck",
+    "minutes": "Minuten",
+    "expression": "Ausdruck",
+    "help": "Gilt in der Zeitzone des Dienstes. Ein Termin, den der Dienst um mehr als zwei Minuten verpasst hat, etwa weil er aus war, wird nicht nachgeholt.",
+    "interval_help": "Gezählt ab Mitternacht: 60 läuft zur vollen Stunde, höchstens 1440 (ein Tag).",
+    "cron_help": "Minute Stunde Tag Monat Wochentag, etwa „0 6 * * 1-5“ für werktags um sechs.",
+    "every_minutes": "alle {minutes} Minuten",
+    "no_package": "Ein Zeitplan nennt kein Paket: Paket-Aktionen sind hier nicht wählbar."
   }
 }

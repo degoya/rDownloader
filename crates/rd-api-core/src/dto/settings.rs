@@ -69,6 +69,12 @@ pub struct SettingsResponse {
     /// Switches the administrator login off (only sensible on a trusted loopback/LAN setup).
     #[serde(default)]
     pub admin_login_disabled: bool,
+    /// Answers aria2's JSON-RPC at `/jsonrpc` for AriaNg and similar front ends (RD-1240-11).
+    /// Off by default: switched off, the path does not exist. The RPC secret is an API token
+    /// holding `api:intake`, `api:queue` and `api:read`, as for the SABnzbd and qBittorrent
+    /// adapters.
+    #[serde(default)]
+    pub aria2_rpc_enabled: bool,
     /// Address ranges whose `X-Forwarded-For` is believed, as CIDR or bare addresses.
     ///
     /// Empty means no header is read and the peer address is the client, which is the safe
@@ -208,6 +214,12 @@ pub struct SettingsResponse {
     pub media_max_parallel: u32,
     /// Timeout of one metadata probe in seconds (5–600).
     pub media_check_timeout_seconds: u32,
+    /// Seconds between the requests of one media download (`--sleep-requests`, 0–600, 0 = none).
+    #[serde(default)]
+    pub media_sleep_requests_seconds: u32,
+    /// Seconds before each media download starts (`--sleep-interval`, 0–600, 0 = none).
+    #[serde(default)]
+    pub media_sleep_interval_seconds: u32,
     /// Absolute path of gallery-dl; empty = look up in the vendor folders and on PATH.
     #[serde(default)]
     pub gallery_executable: Option<String>,
@@ -286,6 +298,13 @@ pub struct SettingsResponse {
     /// Show full peer addresses in the torrent peer list instead of the network prefix.
     #[serde(default)]
     pub torrent_peer_addresses_visible: bool,
+    /// Torrents downloading at once, 1 to 32; the queue holds the rest.
+    #[serde(default = "default_torrent_max_active_downloads")]
+    pub torrent_max_active_downloads: u32,
+    /// Torrents seeding at once, 1 to 500; empty = no limit. Past it the seeds that have seeded
+    /// longest end first.
+    #[serde(default)]
+    pub torrent_max_active_seeds: Option<u32>,
     /// Weekly windows during which resource-intensive work waits.
     #[serde(default)]
     pub quiet_hours: rd_limits::QuietHours,
@@ -322,6 +341,12 @@ pub struct SettingsResponse {
     /// Treat links in a package that point at the same file as alternatives, downloading one.
     #[serde(default = "default_mirror_detection")]
     pub mirror_detection: bool,
+    /// Also mark a LinkGrabber link whose source the download history holds — a package that
+    /// completed or failed and has left the queue (RD-1240-14). Off by default: the history
+    /// keeps what was removed on purpose too, and a mark on every link fetched again by choice
+    /// would be noise.
+    #[serde(default)]
+    pub duplicates_include_history: bool,
     /// Run the reconnect script when free downloads are stuck behind an IP limit.
     #[serde(default)]
     pub reconnect_enabled: bool,
@@ -522,6 +547,28 @@ pub struct SettingsResponse {
     /// Hours between two automatic update checks (1-168).
     #[serde(default = "default_update_check_interval_hours")]
     pub update_check_interval_hours: u32,
+    /// Whether an offered update installs by itself (RD-1240-27): only where the installation
+    /// installs itself, once nothing has run for five minutes, inside the window. Off by default.
+    #[serde(default)]
+    pub update_auto_install: bool,
+    /// When an automatic install, and an automatic restart, may start; empty for any time.
+    #[serde(default)]
+    pub update_auto_install_window: Option<UpdateInstallWindow>,
+    /// Whether a pending restart happens by itself (RD-1240-32): a plugin installed or updated
+    /// that runs only from the next start, once nothing has run for five minutes, inside
+    /// `update_auto_install_window`. Off by default.
+    #[serde(default)]
+    pub restart_when_needed: bool,
+    /// Days the newest database copy and archive before an update, and the newest copy before a
+    /// migration, stay once that update is proven (0-3650, default 14; 0 keeps them for good).
+    /// The older ones go as soon as it is (RD-1240-34).
+    #[serde(default = "default_update_backup_retention_days")]
+    pub update_backup_retention_days: u32,
+    /// Days a skipped or dismissed subscription item keeps its full row (0-3650, default 30;
+    /// 0 for good). After that only its key stays, which is what a poll recognises it by, so a
+    /// feed that still lists it brings nothing back (RD-1240-35).
+    #[serde(default = "default_subscription_item_retention_days")]
+    pub subscription_item_retention_days: u32,
     /// Entries the download history keeps at most (100-100000); the oldest go first
     /// (RD-1100-04).
     #[serde(default = "default_history_retention_entries")]

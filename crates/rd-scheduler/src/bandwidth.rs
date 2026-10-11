@@ -467,6 +467,8 @@ impl SchedulerHandle {
 
 #[path = "bandwidth_manual.rs"]
 mod manual;
+#[path = "bandwidth_window.rs"]
+mod window;
 
 /// The odometer a stored value holds; any other shape is logged and reads as none.
 fn baseline_of(value: &serde_json::Value) -> Option<u64> {

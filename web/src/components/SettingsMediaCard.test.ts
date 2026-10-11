@@ -33,6 +33,13 @@ describe('the media card', () => {
   it('holds the save while the probe timeout is empty', async () => {
     expect(await clear(settingsMessages.media.check_timeout.label)).toEqual(['media_check_timeout_seconds'])
   })
+
+  it.each([
+    ['sleep_requests', 'media_sleep_requests_seconds'],
+    ['sleep_interval', 'media_sleep_interval_seconds']
+  ] as const)('holds the save while the %s pause is empty (RD-1240-15)', async (key, field) => {
+    expect(await clear(settingsMessages.media[key].label)).toEqual([field])
+  })
 })
 
 /** RD-1140-08: a count beside a duration looks like it — no plus and minus — and the seconds stand at their field. */

@@ -145,6 +145,7 @@ fn beside_the_service_or_switched_off_the_agent_reports_so_and_offers_nothing() 
     let off = Config {
         check: false,
         allow_remote: false,
+        auto_install: false,
     };
     assert_eq!(
         report_of(PORTABLE, &off, &state, "1.20.0", None).state,
@@ -169,6 +170,7 @@ fn the_services_request_needs_the_agents_consent() {
     let allowed = Config {
         check: true,
         allow_remote: true,
+        auto_install: false,
     };
     assert!(remote_decision(&allowed, &state, "1.20.0", "1.21.0").is_ok());
     assert!(remote_decision(&allowed, &state, "1.20.0", "1.22.0").is_err());
@@ -211,6 +213,7 @@ fn the_switches_and_the_state_survive_a_restart() {
     let switched = Config {
         check: false,
         allow_remote: true,
+        auto_install: true,
     };
     switched.store(&directory).expect("store");
     assert_eq!(Config::load(&directory), switched);
@@ -223,6 +226,81 @@ fn the_switches_and_the_state_survive_a_restart() {
     state.store(&directory).expect("store");
     assert_eq!(State::load(&directory).service_channel, Some(Channel::Beta));
     let _ = std::fs::remove_dir_all(&directory);
+}
+
+/// RD-1240-27: off by default; switched on, a portable agent alone installs what its check found,
+/// with the archive. Beside the service the switch does not apply and the tray does not show it.
+#[test]
+fn the_automatic_install_applies_to_a_portable_agent_alone() {
+    use super::auto::{AutoInstallEntry, auto_install_entry, installs_now, toggle};
+
+    let mut settings = Config::default();
+    assert!(!settings.auto_install, "off by default");
+    let mut state = offered("1.21.0");
+    let without_archive = state.offer.clone();
+    if let Some(offer) = state.offer.as_mut() {
+        offer.artifact = Some(Artifact {
+            platform: "windows".to_owned(),
+            arch: "x86_64".to_owned(),
+            kind: "archive".to_owned(),
+            url: "https://example.test/agent.zip".to_owned(),
+            sha256: "ab".repeat(32),
+            size: 1,
+        });
+    }
+    let offer = state.current_offer("1.20.0");
+    assert!(!installs_now(PORTABLE, &settings, offer));
+
+    assert_eq!(toggle(PORTABLE, &mut settings), Ok(true));
+    assert!(installs_now(PORTABLE, &settings, offer));
+    assert!(!installs_now(PORTABLE, &settings, without_archive.as_ref()));
+    assert!(!installs_now(PORTABLE, &settings, None));
+    assert_eq!(
+        auto_install_entry(PORTABLE, &settings),
+        Some(AutoInstallEntry {
+            enabled: true,
+            checked: true
+        })
+    );
+
+    assert!(toggle(AgentSetup::WithService, &mut settings).is_err());
+    assert_eq!(auto_install_entry(AgentSetup::WithService, &settings), None);
+    assert!(!installs_now(AgentSetup::WithService, &settings, offer));
+
+    let homebrew = AgentSetup::Alone(InstallKind::Homebrew);
+    assert!(toggle(homebrew, &mut settings).is_err());
+    assert!(settings.auto_install, "a refused switch changes nothing");
+    assert!(!installs_now(homebrew, &settings, offer));
+    assert_eq!(
+        auto_install_entry(homebrew, &settings),
+        Some(AutoInstallEntry {
+            enabled: false,
+            checked: false
+        })
+    );
+
+    assert_eq!(toggle(PORTABLE, &mut settings), Ok(false));
+}
+
+/// "Install update" pressed obeys the entry (RD-1240-24): it installs only what the entry would,
+/// and otherwise names why, as the entry's text does.
+#[tokio::test]
+async fn the_update_shortcut_installs_only_what_the_entry_would() {
+    let state = checked(&key(), "1.21.0", "1.20.0").await;
+    assert_eq!(
+        install_refusal(PORTABLE, state.current_offer("1.20.0")),
+        None
+    );
+    assert_eq!(
+        install_refusal(PORTABLE, None).as_deref(),
+        Some("No update of rDownloader Capture is offered")
+    );
+    let without_archive = offered("1.21.0");
+    assert_eq!(
+        install_refusal(PORTABLE, without_archive.offer.as_ref()).as_deref(),
+        Some("Update to 1.21.0 is on the download page")
+    );
+    assert!(install_refusal(AgentSetup::WithService, state.current_offer("1.20.0")).is_some());
 }
 
 /// A state that offers `version`, without an archive.

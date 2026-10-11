@@ -177,7 +177,13 @@ pub(crate) async fn api_key(state: &AppState, indexer: &Indexer) -> Result<Strin
             .with_param("indexer", indexer.name.clone())
     };
     let reference = indexer.secret_ref.as_deref().ok_or_else(missing)?;
-    let key = state.secrets.get(reference).await.map_err(|_| missing())?;
+    // A key sealed under another master key is no missing key: it has to be entered again
+    // (RD-1240-36).
+    let key = state
+        .secrets
+        .get(reference)
+        .await
+        .map_err(|error| crate::error_codes::unless_secret_unreadable(&error, missing))?;
     Ok(secrecy::ExposeSecret::expose_secret(&key).to_owned())
 }
 

@@ -25,9 +25,9 @@ fn plugin_directories() -> Vec<PathBuf> {
     // Counted, not reasoned about, and re-measured on 2026-09-23 with
     // `grep -h '^plugin_type' plugins/*/manifest.toml | sort | uniq -c`: twenty-seven resolvers,
     // twelve folder crawlers, eight `oauth` sign-ins, five `auth` sign-ins, the reference
-    // transfer plugin, two intake parsers, three notification destinations, three
-    // post-processing steps, the WebDAV destination, two enrichers, six remote jobs and two
-    // stream transforms. Two of the crawlers serve no provider at all
+    // transfer plugin, two intake parsers, three notification destinations (six since
+    // RD-1240-12), three post-processing steps, the WebDAV destination, two enrichers, six
+    // remote jobs and two stream transforms. Two of the crawlers serve no provider at all
     // and name no domain in their manifest — the Nextcloud share and the open directory index
     // of RD-107-05 — because where somebody put their server is not a plugin author's to know.
     // A third, `peeplink-crawler`, names its two domains but serves no provider either: a link
@@ -117,9 +117,15 @@ fn plugin_directories() -> Vec<PathBuf> {
     // not counted: the address of a Seedr file is written by one of them and read by the other,
     // and two copies of that would be two places for it to drift.
     //
+    // The seventy-third, seventy-fourth and seventy-fifth are `plex-notifier`,
+    // `jellyfin-notifier` and `emby-notifier` (RD-1240-12): a library refresh per media server,
+    // three rather than one for the reason the first three notifiers are -- each is updated and
+    // switched off on its own. Jellyfin and Emby speak the same request and share no crate: the
+    // request is a dozen lines, and a shared one would raise both for a change to either.
+    //
     // Read this number, never add to a remembered one: every provider branch lands here and
     // the figure has been stale more than once. `ls plugins/*/manifest.toml | wc -l`.
-    assert_eq!(directories.len(), 72, "expected 72 bundled plugins");
+    assert_eq!(directories.len(), 75, "expected 75 bundled plugins");
     directories
 }
 

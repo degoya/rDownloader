@@ -16,5 +16,9 @@ rd-tools = { path = "../rd-tools" }
 tokio.workspace = true
 tokio-util.workspace = true
 
+[dev-dependencies]
+secrecy.workspace = true
+tempfile.workspace = true
+
 [lints]
 workspace = true

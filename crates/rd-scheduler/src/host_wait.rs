@@ -12,12 +12,18 @@
 //! that runs already and whose further chunks wait holds connections and moves bytes; it is
 //! left alone. The limit itself is unchanged: this only reads it.
 //!
-//! A starting file promises its host one connection, not its planned chunks (RD-1140-07). The
-//! promise is made to the host of the link as it was added, and a hoster's or a debrid
-//! service's link is downloaded from somewhere else: in 1.13.0 the first file of a hoster
-//! promised as many chunks as the hoster page had connections, nothing ever took them back,
-//! and the hoster's files ran one at a time. A promise therefore also ends when the worker
+//! A starting hoster link promises its host one connection, not its planned chunks
+//! (RD-1140-07): the promise is made to the host of the link as it was added, and a hoster's or
+//! a debrid service's link is downloaded from somewhere else. In 1.13.0 the first file of a
+//! hoster promised as many chunks as the hoster page had connections, nothing ever took them
+//! back, and the hoster's files ran one at a time. A promise therefore also ends when the worker
 //! turns to another host, and after [`START_GRACE`] whatever the worker does.
+//!
+//! A direct link is downloaded from the host it names, so it promises the chunks it will open
+//! there (RD-1240-33). Promising one let three files of four chunks each start on a host of six
+//! connections: the third then waited inside the engine, held one of the `max_active_files`
+//! places and kept a file of another host queued — the very case RD-1130-02 was about, and no
+//! hint said why, because only a file held back here is listed as waiting.
 
 use std::{
     collections::HashMap,
@@ -38,17 +44,22 @@ const HANDOVER_GRACE: Duration = Duration::from_secs(1);
 /// long as the attempt lasts.
 const START_GRACE: Duration = Duration::from_secs(30);
 
-/// What a queued HTTP file asks of its host's connections: one, for as long as it starts.
+/// What a queued HTTP file asks of its host's connections, for as long as it starts.
 pub(crate) struct HostClaim {
     /// The host as the limiter counts it (`rd_core::host_key`).
     pub(crate) host: String,
     /// Connections the host could open right now.
     pub(crate) free: usize,
+    /// Connections the file will open there: its chunk budget for a direct link, one for a
+    /// link a resolver turns into another address.
+    pub(crate) connections: usize,
 }
 
 /// A started file whose chunks have not reached the limiter yet.
 struct Starting {
     host: String,
+    /// The connections it promised.
+    connections: usize,
     /// When the dispatcher started it.
     started: Instant,
     /// When the worker handed the transfer to the engine; `None` while it still resolves,
@@ -66,15 +77,16 @@ pub(crate) struct HostAdmission {
 
 impl HostAdmission {
     /// Whether `claim`'s host has a connection left once the files started before it on the
-    /// same host take one each. The limiter cannot know those yet: they resolve, connect and
-    /// probe before their chunks ask, so three files of one host started in one pass used to
-    /// see the same six free connections.
+    /// same host take what they promised. The limiter cannot know those yet: they resolve,
+    /// connect and probe before their chunks ask, so three files of one host started in one
+    /// pass used to see the same six free connections.
     pub(crate) fn has_room(&self, claim: &HostClaim, now: Instant) -> bool {
-        let promised = self
+        let promised: usize = self
             .starting
             .values()
             .filter(|start| start.host == claim.host && !start.expired(now))
-            .count();
+            .map(|start| start.connections)
+            .sum();
         claim.free > promised
     }
 
@@ -83,6 +95,7 @@ impl HostAdmission {
             id,
             Starting {
                 host: claim.host,
+                connections: claim.connections.max(1),
                 started: now,
                 handed_over: None,
             },
@@ -148,7 +161,16 @@ impl SchedulerHandle {
         }
         let free = self.host_limits().free(&file.source)?;
         let host = rd_core::host_key(file.source.host_str()?);
-        Some(HostClaim { host, free })
+        let connections = if self.resolvers.has_resolver(&file.source) {
+            1
+        } else {
+            self.chunk_budget(&file.source)
+        };
+        Some(HostClaim {
+            host,
+            free,
+            connections,
+        })
     }
 
     /// The worker hands the transfer of `id` to the engine.
@@ -184,11 +206,35 @@ mod tests {
 
     use super::{HANDOVER_GRACE, HostAdmission, HostClaim, START_GRACE};
 
+    /// A hoster link's claim: one connection.
     fn claim(host: &str, free: usize) -> HostClaim {
+        chunked(host, free, 1)
+    }
+
+    fn chunked(host: &str, free: usize, connections: usize) -> HostClaim {
         HostClaim {
             host: host.to_owned(),
             free,
+            connections,
         }
+    }
+
+    /// RD-1240-33: three direct files of four chunks each on a host of six connections. Two
+    /// start (four plus two connections); the third would only wait inside the engine, so it
+    /// is held back here, and a file of another host takes the place.
+    #[test]
+    fn a_direct_file_promises_the_chunks_it_will_open() {
+        let now = Instant::now();
+        let mut admission = HostAdmission::default();
+        assert!(admission.has_room(&chunked("a.test", 6, 4), now));
+        admission.start(DownloadId::new(), chunked("a.test", 6, 4), now);
+        assert!(admission.has_room(&chunked("a.test", 6, 4), now));
+        admission.start(DownloadId::new(), chunked("a.test", 6, 4), now);
+        assert!(
+            !admission.has_room(&chunked("a.test", 6, 4), now),
+            "the third file of the host waits"
+        );
+        assert!(admission.has_room(&chunked("b.test", 6, 4), now));
     }
 
     #[test]
@@ -217,10 +263,11 @@ mod tests {
         assert!(admission.has_room(&claim("a.test", 2), later));
     }
 
-    /// RD-1140-07: a file planning six chunks on a host with six free connections let no
-    /// other file of that host start; a hoster's files then ran one at a time.
+    /// RD-1140-07: a hoster file planning six chunks on a host with six free connections let
+    /// no other file of that host start; a hoster's files then ran one at a time. A hoster link
+    /// promises one connection.
     #[test]
-    fn a_file_does_not_promise_its_chunks() {
+    fn a_hoster_file_does_not_promise_its_chunks() {
         let now = Instant::now();
         let mut admission = HostAdmission::default();
         for _ in 0..5 {

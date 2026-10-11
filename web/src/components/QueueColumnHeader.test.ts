@@ -23,21 +23,39 @@ const Harness = defineComponent({
   props: { view: { type: String as () => QueueColumnsView, default: 'downloads' } },
   setup(props) {
     const columns = useQueueColumns(props.view)
-    return () => h('div', { 'data-testid': 'container', style: columns.style.value }, [
+    return () => h('div', { 'data-testid': 'container', style: columns.style.value, 'data-hidden-columns': columns.hiddenAttr.value }, [
       h(QueueColumnHeader, {
         widths: columns.widths.value,
         view: props.view,
         customized: columns.customized.value,
+        hidden: columns.hidden.value,
         onResize: columns.setWidth,
         onReset: columns.reset,
-        onResetAll: columns.resetAll
+        onResetAll: columns.resetAll,
+        onVisibility: columns.setVisible
       })
     ])
   }
 })
 
+interface MenuItem { type?: string, label?: string, checked?: boolean, onUpdateChecked?: (checked: boolean) => void }
+
+/**
+ * The menu rendered open: its checkbox items as real checkboxes that report as Nuxt UI's do, named
+ * rather than labelled so a label's text stays unique on the page, and its plain items as buttons.
+ */
+const CheckboxMenu = {
+  props: ['items'],
+  template: `<div><slot /><div data-menu-items>
+    <template v-for="item in (items ?? []).flat()" :key="item.label">
+      <input v-if="item.type === 'checkbox'" type="checkbox" :aria-label="item.label" :checked="item.checked" @change="item.onUpdateChecked?.($event.target.checked)">
+      <button v-else-if="item.type !== 'label'" type="button" :disabled="item.disabled" @click="item.onSelect?.()">{{ item.label }}</button>
+    </template>
+  </div></div>`
+}
+
 function renderHeader(view: QueueColumnsView = 'downloads') {
-  return mountComponent(Harness, { props: { view } })
+  return mountComponent(Harness, { props: { view }, stubs: { UDropdownMenu: CheckboxMenu } })
 }
 
 function container(): HTMLElement {
@@ -183,6 +201,27 @@ describe('QueueColumnHeader view sort', () => {
     renderSorted({ column: 'size', direction: 'asc' })
     expect(screen.getByRole('button', { name: 'Sorted by “Size”, ascending – click for descending' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Sort the view by “Name”' })).toBeTruthy()
+  })
+
+  it('switches a column off and on from its menu, for the header and the rows alike (RD-1240-14)', async () => {
+    renderHeader('downloads')
+    const toggles = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    expect(toggles.map(toggle => toggle.getAttribute('aria-label'))).toEqual(['State', 'Progress', 'Size', 'Category · Account'])
+    expect(toggles.every(toggle => toggle.checked)).toBe(true)
+
+    await fireEvent.change(screen.getByRole('checkbox', { name: 'Size' }), { target: { checked: false } })
+    expect(container().getAttribute('data-hidden-columns')).toBe('size')
+    expect(container().style.getPropertyValue('--queue-col-size')).toBe('0px')
+    expect((screen.getByRole('checkbox', { name: 'Size' }) as HTMLInputElement).checked).toBe(false)
+
+    await fireEvent.change(screen.getByRole('checkbox', { name: 'Size' }), { target: { checked: true } })
+    expect(container().hasAttribute('data-hidden-columns')).toBe(false)
+    expect(container().style.getPropertyValue('--queue-col-size')).toBe(`${QUEUE_COLUMN_DEFAULTS.size}px`)
+  })
+
+  it('offers the LinkGrabber only the columns it fills', () => {
+    renderHeader('linkgrabber')
+    expect(screen.getAllByRole('checkbox').map(toggle => toggle.getAttribute('aria-label'))).toEqual(['Link state', 'Size', 'Hoster · Variant'])
   })
 
   it('leaves the labels as text where the list does not sort', () => {

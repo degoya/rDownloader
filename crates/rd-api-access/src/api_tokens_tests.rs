@@ -45,8 +45,9 @@ fn minting_never_widens_a_request() {
 /// exactly where somebody would try to bridge them.
 #[test]
 fn the_capture_scope_cannot_be_minted_as_an_api_token() {
-    // Nor the tray's queue control (RD-1100-06): it is chosen when an agent is paired.
-    for scope in ["capture:*", "capture:queue"] {
+    // Nor the tray's queue control (RD-1100-06) or server update (RD-1240-25): they are chosen
+    // when an agent is paired.
+    for scope in ["capture:*", "capture:queue", "capture:server_update"] {
         let error = requested_scopes(&request(&[scope])).expect_err("capture is not an API area");
         assert_eq!(error.code(), "api.scope_unknown", "{scope}");
     }

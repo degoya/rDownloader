@@ -40,6 +40,10 @@ pub struct BandwidthProfileRequest {
     pub monthly_budget_bytes: Option<rd_core::ByteCount>,
     #[serde(default)]
     pub scopes: Vec<ScopeLimit>,
+    /// While the profile is in force no new download starts and running resumable transfers
+    /// pause until it ends (RD-1240-30); uploads, seeding and post-processing go on.
+    #[serde(default)]
+    pub pause_downloads: bool,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -382,6 +386,7 @@ fn validated_profile(
         daily_budget_bytes: request.daily_budget_bytes,
         monthly_budget_bytes: request.monthly_budget_bytes,
         scopes: request.scopes,
+        pause_downloads: request.pause_downloads,
     })
 }
 

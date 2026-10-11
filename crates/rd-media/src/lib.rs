@@ -9,6 +9,7 @@ mod cookies;
 mod format_inventory;
 mod manifest;
 mod merge;
+mod pacing;
 mod probe;
 mod progress;
 mod runner;
@@ -68,5 +69,22 @@ pub fn build(
     (
         Arc::new(MediaRunner::new(database, secrets, settings.clone())),
         Arc::new(YtDlpProbe::new(settings)),
+    )
+}
+
+/// [`build`], with yt-dlp handed each download's proxy and the custom CA (RD-1240-08), and the
+/// intake probe the global proxy profile (RD-1240-22).
+pub fn build_with_tool_network(
+    database: Database,
+    secrets: rd_secrets::SecretStore,
+    settings: SharedMediaSettings,
+    network: rd_scheduler::ToolNetworkSource,
+) -> (Arc<dyn ExternalRunner>, Arc<dyn MediaProbe>) {
+    (
+        Arc::new(
+            MediaRunner::new(database, secrets, settings.clone())
+                .with_tool_network(network.clone()),
+        ),
+        Arc::new(YtDlpProbe::new(settings).with_tool_network(network)),
     )
 }

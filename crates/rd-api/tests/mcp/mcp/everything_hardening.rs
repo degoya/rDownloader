@@ -128,6 +128,7 @@ async fn a_clearing_tool_acts_only_on_the_code_its_own_question_handed_out() {
         "clear_content_index",
         "clear_download_history",
         "clear_remote_jobs",
+        "clean_up_data_directory",
     ] {
         // `confirmed` alone is the model's own word: the tool asks instead of acting.
         let asked = ok(&router, &session, tool, json!({ "confirmed": true })).await;

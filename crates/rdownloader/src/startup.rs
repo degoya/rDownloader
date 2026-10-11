@@ -99,6 +99,19 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
     // dropped (RD-110-38). Installed rather than passed to `Database::open`, because the
     // store has to exist before the vault's master key is fetched from the keyring.
     database.install_secret_vault(secrets.clone());
+    // A data folder copied from another machine or account arrives without its master key; say
+    // so once at the start, counted, instead of only as failed tests later (RD-1240-36).
+    if let Ok(counts) = secrets.readability().await
+        && counts.unreadable > 0
+    {
+        tracing::warn!(
+            code = rd_secrets::SECRET_UNREADABLE,
+            unreadable = counts.unreadable,
+            readable = counts.readable,
+            "stored credentials cannot be read with this installation's master key; enter them \
+             again or restore a full backup with its passphrase (`rdownloader doctor`)"
+        );
+    }
     // A restore that was put back leaves the credentials it put into the vault; they belong to
     // nothing now.
     if let Cutover::RolledBack {
@@ -223,16 +236,32 @@ pub(crate) async fn native_runners(
         .with_network_defaults(config.network_defaults.clone())
         .with_traffic(usenet_traffic.clone()),
     );
+    // yt-dlp, gallery-dl and streamlink open their own sockets: each run is handed its
+    // download's proxy and the custom CA, resolved like an HTTP transfer's (RD-1240-08).
+    let tool_network = rd_scheduler::ToolNetworkSource::new(
+        database.clone(),
+        secrets.clone(),
+        config.network_defaults.clone(),
+    );
     let media_settings = rd_media::shared_settings(database).await?;
-    let (media_runner, media_probe) =
-        rd_media::build(database.clone(), secrets.clone(), media_settings.clone());
+    let (media_runner, media_probe) = rd_media::build_with_tool_network(
+        database.clone(),
+        secrets.clone(),
+        media_settings.clone(),
+        tool_network.clone(),
+    );
     let gallery_settings = rd_gallery::shared_settings(database).await?;
-    let gallery_runner = rd_gallery::build(database.clone(), gallery_settings.clone());
+    let gallery_runner = rd_gallery::build_with_tool_network(
+        database.clone(),
+        gallery_settings.clone(),
+        tool_network.clone(),
+    );
     let stream_settings = rd_stream::shared_settings(database).await?;
     let stream_runner = rd_stream::build_with_network_defaults(
         database.clone(),
         stream_settings.clone(),
         config.network_defaults.clone(),
+        tool_network,
     );
     let torrent_settings = rd_torrent::shared_settings(database).await?;
     let torrent_service = rd_torrent::TorrentService::start(
@@ -441,6 +470,15 @@ pub(crate) async fn prepare_state(state: &AppState) -> Result<()> {
     // The application update check (RD-180-01): spawned, its first run minutes after the start,
     // so it never holds the start up.
     state.updates.start();
+    // The automatic install (RD-1240-27): a look a minute, which does nothing while the
+    // setting is off or this installation does not install itself.
+    rd_api::update_auto_install::start(state);
+    // The automatic restart (RD-1240-32): remembers what this start found pending already, then
+    // a look a minute, which does nothing while `restart_when_needed` is off or nothing waits.
+    rd_api::restart_auto::start(state);
+    // Old update backups and compiled plugin code nothing uses (RD-1240-34): ten minutes on, once
+    // the start's compiles are recorded and an update the updater proves is proven.
+    rd_api::system_cleanup::start(state);
     state.hotfolders.start_existing().await?;
     Ok(())
 }

@@ -303,8 +303,10 @@ async fn file_spec(
             .path_segments()
             .and_then(Iterator::last)
             .filter(|value| !value.is_empty())
-            .unwrap_or("download.bin")
-            .to_owned()
+            .map_or_else(
+                || rd_files::FALLBACK_FILE_NAME.to_owned(),
+                rd_files::decode_path_segment,
+            )
     });
     let media = candidate
         .media

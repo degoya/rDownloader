@@ -81,4 +81,19 @@ pub(crate) enum NotifyCommand {
     DiscardPendingNotificationDeliveries {
         reply: Reply<u64>,
     },
+    /// A browser's push subscription, with the `web_push` target made on first use (RD-1240-13).
+    UpsertWebPushSubscription {
+        input: crate::web_push_store::NewWebPushSubscription,
+        reply: Reply<rd_notify::WebPushSubscription>,
+    },
+    DeleteWebPushSubscription {
+        id: String,
+        reply: Reply<()>,
+    },
+    /// Records the VAPID key, or replaces the unreadable one named by `replacing`.
+    StoreWebPushKey {
+        key: crate::web_push_store::WebPushKey,
+        replacing: Option<String>,
+        reply: Reply<crate::web_push_store::WebPushKey>,
+    },
 }

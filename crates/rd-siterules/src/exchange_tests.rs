@@ -10,8 +10,8 @@ fn every_example_reads_and_validates() {
     let document = document();
     assert_eq!(document.format_version, EXCHANGE_VERSION);
     assert!(
-        (3..=6).contains(&document.rules.len()),
-        "three to six examples, not {}",
+        (10..=16).contains(&document.rules.len()),
+        "ten to sixteen bundled rules, not {}",
         document.rules.len()
     );
     for entry in &document.rules {
@@ -23,7 +23,9 @@ fn every_example_reads_and_validates() {
     assert_eq!(examples().len(), document.rules.len());
 }
 
-/// Switched off, one group, a description each, and ids that do not repeat (RD-1230-03).
+/// Switched off, grouped by project or kind (Blender, Linux, free software, the Internet Archive,
+/// paste services; owner 2026-10-10, RD-1240-01), a description each, and ids that do not repeat
+/// (RD-1230-03).
 #[test]
 fn the_examples_arrive_switched_off_and_explain_themselves() {
     let document = document();
@@ -34,7 +36,12 @@ fn the_examples_arrive_switched_off_and_explain_themselves() {
     ids.dedup();
     assert_eq!(ids.len(), rules.len(), "an id repeats");
     for rule in &rules {
-        assert_eq!(rule.group, "examples", "{}", rule.id);
+        assert!(
+            ["blender", "linux", "software", "archive", "paste"].contains(&rule.group.as_str()),
+            "{} is in group {}",
+            rule.id,
+            rule.group
+        );
         let description = rule.description.as_deref().unwrap_or_default();
         assert!(description.len() > 80, "{} explains too little", rule.id);
     }

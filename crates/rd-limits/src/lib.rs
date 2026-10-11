@@ -1,6 +1,7 @@
 //! Scheduled bandwidth profiles, scoped limits and traffic budgets (RD-050-12), the upload
-//! limit every upload keeps (RD-150-15), a profile switched on by hand (RD-190-20), and a
-//! package's own limit (RD-1100-01).
+//! limit every upload keeps (RD-150-15), a profile switched on by hand (RD-190-20), a
+//! package's own limit (RD-1100-01), and the download window of a profile, a package and a
+//! category (RD-1240-30).
 //!
 //! The crate holds the policy only: which limit applies to what, which profile is active
 //! when, and how much a period has used. Persisting it and applying it to the transports is
@@ -10,6 +11,7 @@
 
 mod budget;
 mod capabilities;
+mod download_window;
 mod limiter;
 mod manual;
 mod profile;
@@ -21,6 +23,7 @@ pub use budget::{
     BudgetExceeded, BudgetKind, BudgetLimits, BudgetPeriod, BudgetState, BudgetStates,
 };
 pub use capabilities::{RunnerLimitSupport, limit_capabilities};
+pub use download_window::{DownloadHold, package_hold, window_open};
 pub use limiter::{BandwidthLimiter, BindingLimit, LimiterRegistry, ScopedLimiter};
 pub use manual::{ManualEnd, ManualProfile};
 pub use profile::{BandwidthProfile, ScopeLimit};

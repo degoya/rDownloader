@@ -16,31 +16,37 @@ export function packageRowKey(packageId: string): string {
 /**
  * File-level selection with tri-state package checkboxes.
  *
- * `groups` holds what the active filter shows; `allDownloads` is the unfiltered queue. Package
- * checkboxes and the package-level actions (category, priority, delete package) reason over a
- * package's complete file list rather than the visible part of it — a package is the unit those
- * actions apply to, so a filtered view must not be able to report a half-selected package as
- * fully selected.
+ * `groups` holds what the active filter shows; `allDownloads` is the unfiltered queue and
+ * `shownDownloads` the files the filter leaves visible (the whole queue when omitted). What is
+ * picked is what is seen: a package checkbox, a range and "select all" take only the shown files
+ * of a package, its tri-state reflects them, and the file actions act on them alone (RD-1240-31,
+ * a tester's report: with "Failed" set, ticking a package selected all 53 files instead of the 5
+ * failed ones). The package-level actions (category, priority, delete package) still reason over
+ * a package's complete file list — a package is the unit they apply to, so a filter that hides
+ * some of its files never lets them count it as fully selected.
  *
  * `orderedIds` is the order the rows are actually on screen in, which is what a range selection
  * has to follow: with a virtualized list the visible order is the flattened row stream, not the
  * store's order, and a collapsed package contributes nothing to it (RD-106-12). A package row
  * takes part as `package:<id>` and brings all of its files along (RD-170-13).
  */
-export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<Download[]>, orderedIds?: Ref<string[]>) {
+export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<Download[]>, orderedIds?: Ref<string[]>, shownDownloads?: Ref<Download[]>) {
   const selectedFiles = ref<Set<string>>(new Set())
+  const shown = shownDownloads ?? allDownloads
 
-  /** One pass over the queue instead of one filter per package (that was O(packages x files)). */
-  const filesByPackage = computed(() => {
+  /** One pass over a list instead of one filter per package (that was O(packages x files)). */
+  function byPackage(downloads: Download[]): Map<string, Download[]> {
     const buckets = new Map<string, Download[]>()
-    for (const download of allDownloads.value) {
+    for (const download of downloads) {
       if (!download.package_id) continue
       const bucket = buckets.get(download.package_id)
       if (bucket) bucket.push(download)
       else buckets.set(download.package_id, [download])
     }
     return buckets
-  })
+  }
+  const filesByPackage = computed(() => byPackage(shown.value))
+  const everyFileByPackage = computed(() => byPackage(allDownloads.value))
 
   function filesOf(packageId: string): Download[] {
     return filesByPackage.value.get(packageId) ?? []
@@ -94,7 +100,9 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
     return packageStates.value[group.package.id] ?? 'none'
   }
 
-  /** Every file of every package the filter currently shows. */
+  const shownIds = computed(() => new Set(shown.value.map(download => download.id)))
+
+  /** Every shown file of every package the filter currently shows. */
   const selectableIds = computed(() => groups.value.flatMap(group => filesOf(group.package.id).map(download => download.id)))
 
   function selectAll(): void {
@@ -106,10 +114,15 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
     range.reset()
   }
 
-  const selectedDownloads = computed(() => allDownloads.value.filter(download => selectedFiles.value.has(download.id)))
+  const selectedDownloads = computed(() => shown.value.filter(download => selectedFiles.value.has(download.id)))
   const selectedIds = computed(() => selectedDownloads.value.map(download => download.id))
   /** Packages whose files are all selected (category/priority apply to whole packages). */
-  const fullySelectedPackageIds = computed(() => groups.value.filter(group => packageState(group) === 'all').map(group => group.package.id))
+  const fullySelectedPackageIds = computed(() => groups.value
+    .filter(group => {
+      const files = everyFileByPackage.value.get(group.package.id) ?? []
+      return files.length > 0 && files.every(download => selectedFiles.value.has(download.id) && shownIds.value.has(download.id))
+    })
+    .map(group => group.package.id))
   const count = computed(() => selectedIds.value.length)
   /** The status bar's figure: selected files only, so a ticked package is its files (RD-170-14). */
   const size = computed(() => sumSelection(selectedDownloads.value.map(download => download.total_bytes)))

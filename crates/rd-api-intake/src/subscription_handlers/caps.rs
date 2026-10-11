@@ -39,10 +39,11 @@ pub async fn subscription_caps(
             "That indexer has no API key",
         ));
     };
-    let api_key =
-        state.secrets.get(reference).await.map_err(|_| {
+    let api_key = state.secrets.get(reference).await.map_err(|error| {
+        crate::error_codes::unless_secret_unreadable(&error, || {
             ApiError::unprocessable("subscription.api_key_missing", "Key unavailable")
-        })?;
+        })
+    })?;
     fetch_caps(
         &state,
         &subscription.url,

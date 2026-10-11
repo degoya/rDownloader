@@ -83,12 +83,15 @@ pub async fn create_download_as(
             "The address points at this machine or into the local network",
         ));
     }
+    // Decoded, so `Big%20Buck.mkv` is saved as `Big Buck.mkv` (RD-1240-33).
     let inferred = url
         .path_segments()
         .and_then(Iterator::last)
         .filter(|value| !value.is_empty())
-        .unwrap_or("download.bin")
-        .to_owned();
+        .map_or_else(
+            || rd_files::FALLBACK_FILE_NAME.to_owned(),
+            rd_files::decode_path_segment,
+        );
     // A URL-derived package name doubles as the folder name; extensions are stripped, and the
     // package-name rules of its category apply. A name the request stated stays (RD-1140-05).
     let package_name = match request.package_name {

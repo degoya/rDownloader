@@ -379,7 +379,25 @@
       "formats_missing": "yt-dlp hat für diese Seite kein ladbares Format gemeldet. Prüfe den Link erneut; bleibt die Liste leer, wird die Seite nicht unterstützt.",
       "audio_missing": "Die Seite bietet Videospuren, aber keine einzige Tonspur. „Beste“ lädt das Video trotzdem – ohne Ton."
     },
-    "preset_label": "Qualitätsvorgabe"
+    "preset_label": "Qualitätsvorgabe",
+    "audio_format": "Audioformat",
+    "section": {
+      "label": "Nur ein Ausschnitt",
+      "start": "Von",
+      "end": "Bis",
+      "start_placeholder": "Anfang",
+      "end_placeholder": "Ende",
+      "hint": "Zeiten als Sekunden, m:ss oder h:mm:ss. Geschnitten wird am nächsten Schlüsselbild, ohne neu zu kodieren. Braucht ffmpeg.",
+      "invalid": "Gib eine Zeit als Sekunden, m:ss oder h:mm:ss ein.",
+      "order": "Das Ende muss nach dem Anfang liegen."
+    },
+    "pauses": {
+      "own": "Eigene Pausen für diesen Link",
+      "own_hint": "Aus: Es gelten die Pausen aus den Einstellungen.",
+      "requests": "Zwischen Anfragen",
+      "interval": "Vor dem Download"
+    },
+    "audio_format_video": "Video behalten"
   },
   "replay": {
     "title": "Diesen Download freigeben",
@@ -504,7 +522,9 @@
   },
   "duplicates": {
     "queued": "{count} × schon in der Warteschlange",
-    "queued_hint": "Dieselbe Quelle ist bereits {count}-mal in der Warteschlange – erkannt an der normalisierten Adresse, am Info-Hash oder am Hoster."
+    "queued_hint": "Dieselbe Quelle ist bereits {count}-mal in der Warteschlange – erkannt an der normalisierten Adresse, am Info-Hash oder am Hoster.",
+    "history": "Schon heruntergeladen",
+    "history_hint": "Dieselbe Quelle steht im Download-Verlauf: „{name}“, beendet am {date}."
   },
   "sources": {
     "title": "Quellen ({count})",
@@ -613,5 +633,14 @@
     "take_all": "Alle übernehmen | 1 Release übernehmen | Alle {count} übernehmen",
     "announced": "{rule}: eine Seite wartet auf deine Auswahl"
   },
-  "selection_nzbs": "keine NZB-Importe | {count} NZB-Import | {count} NZB-Importe"
+  "selection_nzbs": "keine NZB-Importe | {count} NZB-Import | {count} NZB-Importe",
+  "link_filter": {
+    "unhide": "Wieder anzeigen",
+    "hidden": "Ausgeblendet",
+    "hidden_hint": "Eine LinkFilter-Regel hat diesen Link ausgeblendet. Er bleibt erhalten und wird mit seinem Paket nur übernommen, wenn du ihn auswählst.",
+    "show_hidden": "Ausgeblendete zeigen ({count})",
+    "apply": "LinkFilter anwenden",
+    "apply_hint": "Entscheidet alle Links im LinkGrabber neu nach den aktuellen Regeln. Nichts wird gelöscht, die Downloads bleiben unberührt.",
+    "applied": "LinkFilter angewendet: {hidden} ausgeblendet, {shown} wieder angezeigt, {routed} einsortiert"
+  }
 }

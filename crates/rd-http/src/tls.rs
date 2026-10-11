@@ -54,6 +54,51 @@ pub fn client_config(custom_ca_pem: &[Vec<u8>]) -> Result<ClientConfig> {
     Ok(builder.with_no_client_auth())
 }
 
+/// The trust a download tool (yt-dlp, gallery-dl, streamlink) is handed as one PEM bundle: the
+/// platform roots plus `custom_ca_pem` (RD-1240-08).
+///
+/// Those tools read a CA *file* (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, gallery-dl's `verify`)
+/// and replace their own roots with it, so a file holding the custom CA alone would make every
+/// public site fail. `None` without a custom CA, and when the platform roots cannot be read:
+/// the tool then keeps its own roots, which is what it did before.
+pub fn tool_trust_bundle(custom_ca_pem: &[Vec<u8>]) -> Result<Option<String>> {
+    use base64::Engine as _;
+
+    if custom_ca_pem.is_empty() {
+        return Ok(None);
+    }
+    let mut custom = Vec::new();
+    for pem in custom_ca_pem {
+        for certificate in CertificateDer::pem_slice_iter(pem) {
+            custom.push(certificate.context("custom CA bundle is not valid PEM")?);
+        }
+    }
+    anyhow::ensure!(
+        !custom.is_empty(),
+        "custom CA bundle contains no certificate"
+    );
+    let platform = rustls_native_certs::load_native_certs();
+    if platform.certs.is_empty() {
+        tracing::warn!(
+            errors = platform.errors.len(),
+            "the platform roots could not be read; download tools keep their own and do not \
+             trust the custom CA"
+        );
+        return Ok(None);
+    }
+    let mut bundle = String::new();
+    for certificate in platform.certs.iter().chain(&custom) {
+        let encoded = base64::engine::general_purpose::STANDARD.encode(certificate.as_ref());
+        bundle.push_str("-----BEGIN CERTIFICATE-----\n");
+        for line in encoded.as_bytes().chunks(64) {
+            bundle.push_str(&String::from_utf8_lossy(line));
+            bundle.push('\n');
+        }
+        bundle.push_str("-----END CERTIFICATE-----\n");
+    }
+    Ok(Some(bundle))
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -67,5 +112,34 @@ mod tests {
     #[test]
     fn the_default_configuration_uses_the_platform_store() {
         assert!(super::client_config(&[]).is_ok());
+    }
+
+    /// RD-1240-08: no custom CA, no bundle — the tools keep their own roots.
+    #[test]
+    fn a_tool_gets_no_bundle_without_a_custom_ca() {
+        assert_eq!(super::tool_trust_bundle(&[]).expect("bundle"), None);
+        assert!(super::tool_trust_bundle(&[b"not a certificate".to_vec()]).is_err());
+    }
+
+    /// The bundle carries the custom CA beside the platform roots, never instead of them.
+    #[test]
+    fn a_tool_bundle_holds_the_custom_ca_beside_the_platform_roots() {
+        let key = rcgen::KeyPair::generate().expect("key");
+        let mut params =
+            rcgen::CertificateParams::new(vec!["ca.example".to_owned()]).expect("params");
+        params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+        let pem = params.self_signed(&key).expect("certificate").pem();
+        let Some(bundle) = super::tool_trust_bundle(&[pem.as_bytes().to_vec()]).expect("bundle")
+        else {
+            // A machine without readable platform roots keeps the tools' own trust.
+            return;
+        };
+        let certificates = bundle.matches("-----BEGIN CERTIFICATE-----").count();
+        assert!(certificates > 1, "{certificates}");
+        let body: String = pem
+            .lines()
+            .filter(|line| !line.starts_with("-----"))
+            .collect();
+        assert!(bundle.replace('\n', "").contains(&body));
     }
 }

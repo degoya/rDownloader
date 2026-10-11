@@ -221,6 +221,7 @@ async function moveTorrent(): Promise<void> {
 function saveTorrentPlan(plan: TorrentPlanRequest): void {
   void torrents.savePlan('download', props.download.id, plan)
 }
+/** The dots' entries; a right-click on the row opens the same ones (`UContextMenu`, RD-1240-14). */
 const actions = computed(() => [[
   ...(pausable.value
     ? [{
@@ -299,47 +300,49 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
     @dragover.prevent
     @drop.prevent.stop="emit('drop', props.download.id)"
   >
-    <div class="queue-row px-2 py-1.5">
-      <DragHandle
-        class="queue-cell-handle grid place-items-center"
-        :label="dragTitle"
-        @dragstart="emit('dragstart', props.download.id)"
-        @move="(delta: -1 | 1) => emit('move', props.download.id, delta)"
-      />
-      <UCheckbox class="queue-cell-select justify-self-center" :model-value="props.selected ?? false" :aria-label="t('downloads.transfer.select_aria')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.download.id, value === true)" />
-      <UButton
-        class="queue-cell-expand"
-        :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        :aria-label="expanded ? t('downloads.transfer.hide_details') : t('downloads.transfer.show_details')"
-        @click="openDetails"
-      />
-      <span class="queue-cell-name flex min-w-0 items-center gap-1.5">
-        <UIcon :name="kindIcon" class="size-4 shrink-0 text-primary" />
-        <span class="min-w-0 truncate text-sm text-highlighted" :title="props.download.file_name">{{ props.download.file_name }}</span>
-        <UTooltip v-if="stopMarked" :text="t('downloads.stop_mark.glyph_title')">
-          <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="shrink-0" role="img" :aria-label="t('downloads.stop_mark.glyph')" data-testid="stop-mark" />
-        </UTooltip>
-      </span>
-      <span class="queue-cell-state min-w-0"><UBadge :color="stateColor(props.download.state)" variant="subtle" size="sm" class="max-w-full truncate">{{ stateLabel(props.download.state, props.download) }}</UBadge></span>
-      <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
-      <div class="queue-cell-progress items-center gap-1.5">
-        <UProgress :model-value="progressOf(props.download)" size="2xs" class="flex-1" />
-        <span v-if="progressOf(props.download) < 100" class="numeric w-8 text-right text-2xs text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
+    <UContextMenu :items="actions" :disabled="!actions.length">
+      <div class="queue-row px-2 py-1.5">
+        <DragHandle
+          class="queue-cell-handle grid place-items-center"
+          :label="dragTitle"
+          @dragstart="emit('dragstart', props.download.id)"
+          @move="(delta: -1 | 1) => emit('move', props.download.id, delta)"
+        />
+        <UCheckbox class="queue-cell-select justify-self-center" :model-value="props.selected ?? false" :aria-label="t('downloads.transfer.select_aria')" @update:model-value="(value: boolean | 'indeterminate') => emit('select', props.download.id, value === true)" />
+        <UButton
+          class="queue-cell-expand"
+          :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :aria-label="expanded ? t('downloads.transfer.hide_details') : t('downloads.transfer.show_details')"
+          @click="openDetails"
+        />
+        <span class="queue-cell-name flex min-w-0 items-center gap-1.5">
+          <UIcon :name="kindIcon" class="size-4 shrink-0 text-primary" />
+          <span class="min-w-0 truncate text-sm text-highlighted" :title="props.download.file_name">{{ props.download.file_name }}</span>
+          <UTooltip v-if="stopMarked" :text="t('downloads.stop_mark.glyph_title')">
+            <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="shrink-0" role="img" :aria-label="t('downloads.stop_mark.glyph')" data-testid="stop-mark" />
+          </UTooltip>
+        </span>
+        <span class="queue-cell-state min-w-0"><UBadge :color="stateColor(props.download.state)" variant="subtle" size="sm" class="max-w-full truncate">{{ stateLabel(props.download.state, props.download) }}</UBadge></span>
+        <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
+        <div class="queue-cell-progress items-center gap-1.5">
+          <UProgress :model-value="progressOf(props.download)" size="2xs" class="flex-1" />
+          <span v-if="progressOf(props.download) < 100" class="numeric w-8 text-right text-2xs text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
+        </div>
+        <span class="queue-cell-size min-w-0 text-right">
+          <span class="numeric block truncate text-xs text-muted">{{ sizeLabel }}</span>
+          <span v-if="props.download.state === 'downloading'" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.transfer.rate_aria', { rate: formatRate(props.bytesPerSecond) })">{{ formatRate(props.bytesPerSecond) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.transfer.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
+        </span>
+        <span class="queue-cell-meta min-w-0 truncate text-xs text-muted" :title="props.accountLabel ?? undefined">{{ props.accountLabel ?? '' }}</span>
+        <div class="queue-cell-actions flex items-center justify-end opacity-70 transition group-hover:opacity-100">
+          <UDropdownMenu v-if="actions.length" :items="actions" :content="{ align: 'end' }">
+            <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.transfer.actions_aria')" :title="t('downloads.transfer.actions_aria')" />
+          </UDropdownMenu>
+        </div>
       </div>
-      <span class="queue-cell-size min-w-0 text-right">
-        <span class="numeric block truncate text-xs text-muted">{{ sizeLabel }}</span>
-        <span v-if="props.download.state === 'downloading'" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.transfer.rate_aria', { rate: formatRate(props.bytesPerSecond) })">{{ formatRate(props.bytesPerSecond) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.transfer.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
-      </span>
-      <span class="queue-cell-meta min-w-0 truncate text-xs text-muted" :title="props.accountLabel ?? undefined">{{ props.accountLabel ?? '' }}</span>
-      <div class="queue-cell-actions flex items-center justify-end opacity-70 transition group-hover:opacity-100">
-        <UDropdownMenu v-if="actions.length" :items="actions" :content="{ align: 'end' }">
-          <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.transfer.actions_aria')" :title="t('downloads.transfer.actions_aria')" />
-        </UDropdownMenu>
-      </div>
-    </div>
+    </UContextMenu>
     <p v-if="lastError && !expanded" class="truncate px-11 pb-1.5 text-xs text-error" :title="lastError">{{ lastError }}</p>
     <p v-if="nextAttempt" class="flex items-center gap-1 px-11 pb-1.5 text-xs text-muted" data-testid="next-attempt">
       <UIcon name="i-lucide-clock" class="size-3.5 shrink-0" />

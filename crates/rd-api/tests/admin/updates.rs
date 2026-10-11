@@ -270,11 +270,11 @@ async fn the_update_settings_are_validated_and_shown() {
 
 // ---- RD-180-02: installing the offered update ----
 
-const ARTIFACT_BYTES: &[u8] = b"the next version's archive";
+pub(crate) const ARTIFACT_BYTES: &[u8] = b"the next version's archive";
 
 /// A harness whose update check offers `99.0.0` with an artifact for this platform, installed as
 /// `kind` from a folder of its own, with an updater that records the journal instead of running.
-async fn installable(
+pub(crate) async fn installable(
     directory: &std::path::Path,
     kind: rd_update::InstallKind,
     artifact_body: &[u8],
@@ -330,7 +330,7 @@ async fn installable_from(
 }
 
 /// Reads the status until the install reaches `state`, or fails the test.
-async fn install_reaches(harness: &common::Harness, state: &str) -> serde_json::Value {
+pub(crate) async fn install_reaches(harness: &common::Harness, state: &str) -> serde_json::Value {
     for _ in 0..200 {
         let (_, body) = get_json(&harness.router, "/api/v1/system/update").await;
         if body["install"]["state"] == state {

@@ -1,0 +1,26 @@
+# Why not Docker for SourceHut?
+
+The use of Docker, k8s, etc, is strongly discouraged for sr.ht installations.
+Consult [the official installation docs][0] instead.
+
+[0]: https://man.sr.ht/installation.md
+
+So, why not Docker?
+
+1. The installation procedure acquaints you with the system which you will be
+   expected to maintain. With Docker, your understanding of the system would be
+   lacking, and you'd be poorly positioned to maintain it.
+2. SourceHut is not a one-size-fits-all, plug-and-play deployment procedure. The
+   admin will be asked to use a lot of discretion to tweak the installation to
+   their particular needs.
+3. The same is true of our dependencies &mdash; managing PostgreSQL, Redis,
+   worker clusters, and so on, is not trivial and has a lot of room for sysadmin
+   judgement calls. To make these calls, you need to grok the system, and not
+   take shortcuts.
+4. Docker encourages your installation to rapidly and dangerously grow
+   out-of-date. It's also overcomplex, brittle, and bloated &mdash; further
+   reducing security and stability.
+
+Docker is *easy*, but it's not *good*. Please don't use it.
+
+[![](https://imgs.xkcd.com/comics/containers.png)](https://xkcd.com/1988/)

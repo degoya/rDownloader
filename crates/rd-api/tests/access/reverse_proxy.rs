@@ -157,6 +157,88 @@ async fn the_application_shell_points_at_the_mount_point() {
     );
 }
 
+/// The interface's own files are served under the mount point as what they are (RD-1240-33).
+///
+/// The shell pointed at `/downloads/assets/…` and every one of those answered the shell itself
+/// as `text/html`: the lookup read the path before the mount point was stripped. The browser
+/// refuses a module script of that type, so the page stayed blank while the shell, the API
+/// and the files without the prefix all looked fine.
+#[tokio::test]
+async fn the_interface_files_are_served_under_the_mount_point() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    mount_under(&harness, "http://rd.example.test/downloads", &[]).await;
+
+    let (status, shell) = get(&harness.router, "/downloads/").await;
+    assert_eq!(status, StatusCode::OK);
+    // The entry script the shell names, so the test follows the bundle rather than a hash.
+    let entry = shell
+        .split("src=\"")
+        .skip(1)
+        .filter_map(|rest| rest.split('"').next())
+        .find(|source| source.starts_with("/downloads/assets/") && source.ends_with(".js"))
+        .expect("the shell names its entry script under the mount point")
+        .to_owned();
+
+    for (path, expected) in [
+        (entry.as_str(), "javascript"),
+        ("/downloads/sw.js", "javascript"),
+        ("/downloads/favicon.svg", "image/svg+xml"),
+        ("/downloads/manifest.webmanifest", "manifest"),
+    ] {
+        let (status, content_type, body) = get_typed(&harness.router, path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert!(
+            content_type.contains(expected),
+            "{path} was served as {content_type}"
+        );
+        assert!(
+            !body.contains("window.__RD_BASE__"),
+            "{path} was answered with the app shell"
+        );
+    }
+
+    // The manifest is rewritten for the mount point as it is served.
+    let (_, _, manifest) = get_typed(&harness.router, "/downloads/manifest.webmanifest").await;
+    assert!(manifest.contains("\"/downloads/"), "{manifest}");
+
+    // A file that is not part of the bundle stays a 404, a client-side route stays the shell.
+    let (status, _, _) = get_typed(&harness.router, "/downloads/assets/missing.js").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, content_type, body) = get_typed(&harness.router, "/downloads/some/route").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(content_type.starts_with("text/html"), "{content_type}");
+    assert!(body.contains("window.__RD_BASE__=\"/downloads\""), "{body}");
+}
+
+async fn get_typed(router: &axum::Router, uri: &str) -> (StatusCode, String, String) {
+    let request = Request::builder()
+        .method("GET")
+        .uri(uri)
+        .header(header::HOST, "127.0.0.1:8710")
+        .body(Body::empty())
+        .expect("request");
+    let response = router.clone().oneshot(request).await.expect("response");
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_owned();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body")
+        .to_bytes();
+    (
+        status,
+        content_type,
+        String::from_utf8_lossy(&bytes).into_owned(),
+    )
+}
+
 /// The event stream is reachable under the mount point too.
 ///
 /// Named in the job's acceptance criteria because it is the one an SPA silently loses: the

@@ -47,7 +47,7 @@ pub(crate) async fn classify(
             context: EventContext::default(),
             package_id: None,
         })),
-        EventKind::SubscriptionChanged => Ok(subscription(event)),
+        EventKind::SubscriptionChanged => subscription(database, event).await,
         EventKind::UsenetChanged => usenet_job_hopeless(database, event).await,
         _ => Ok(None),
     }
@@ -188,20 +188,41 @@ fn postprocess(event: &EventEnvelope) -> Option<EventMatch> {
     })
 }
 
-fn subscription(event: &EventEnvelope) -> Option<EventMatch> {
-    // The subscription bus event covers every change to a subscription; only an accepted
-    // item is something to act on.
-    event.payload.get("accepted_items")?;
+/// A finished poll that accepted at least one new item (RD-1240-21).
+///
+/// The record of a finished run is the one subscription event that says anything was
+/// accepted: every other write announces an anonymous `{"resource":"subscription"}`. One poll
+/// is one run however many items it accepted -- a first poll that collects a backlog must not
+/// start an automation per entry -- and the poll's own record is written once, so a poll that
+/// is repeated over the same feed (and accepts nothing new) fires nothing.
+async fn subscription(
+    database: &rd_db::Database,
+    event: &EventEnvelope,
+) -> anyhow::Result<Option<EventMatch>> {
+    if text(event, "poll") != Some("finished") || text(event, "error").is_some() {
+        return Ok(None);
+    }
+    let accepted = event
+        .payload
+        .get("accepted")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or_default();
+    if accepted == 0 {
+        return Ok(None);
+    }
     let mut context = EventContext::default();
     context.set(Field::Source, "subscription");
-    if let Some(name) = text(event, "name") {
-        context.set(Field::Name, name);
+    // The name a condition can match on is the subscription's; a deleted one still fires.
+    if let Some(id) = text(event, "subscription_id").and_then(|id| id.parse().ok())
+        && let Some(subscription) = database.subscription(id).await?
+    {
+        context.set(Field::Name, subscription.name);
     }
-    Some(EventMatch {
+    Ok(Some(EventMatch {
         triggers: vec![Trigger::SubscriptionItem],
         context,
         package_id: None,
-    })
+    }))
 }
 
 /// A Usenet set given up as beyond repair (RD-1100-02); every other `usenet.changed` is

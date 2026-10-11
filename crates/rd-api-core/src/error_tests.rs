@@ -73,3 +73,32 @@ fn an_internal_error_logs_its_whole_cause_chain_and_answers_none_of_it() {
         error.message()
     );
 }
+
+/// RD-1240-36: a stored credential the vault master key cannot open answers its own code, `409`
+/// -- through every context a caller added -- and never `internal.error`.
+#[tokio::test]
+async fn an_unreadable_secret_answers_its_code_not_an_internal_error() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let vault = rd_secrets::SecretStore::open(directory.path().to_owned())
+        .await
+        .expect("vault");
+    let reference = rd_secrets::SecretStore::new_reference();
+    std::fs::write(
+        directory.path().join(format!(
+            "{}.secret",
+            reference.trim_start_matches("vault://")
+        )),
+        b"sealed elsewhere",
+    )
+    .expect("entry");
+    let failure = vault
+        .get(&reference)
+        .await
+        .context("load the NNTP server")
+        .expect_err("unreadable");
+    let error = ApiError::from(failure);
+
+    assert_eq!(error.status, StatusCode::CONFLICT);
+    assert_eq!(error.code(), rd_secrets::SECRET_UNREADABLE);
+    assert!(!error.message().contains("vault://"), "{}", error.message());
+}

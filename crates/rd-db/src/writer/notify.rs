@@ -66,6 +66,25 @@ impl Writer {
                     crate::notify_store::discard_pending_deliveries(&mut self.connection).await;
                 send(reply, result);
             }
+            NotifyCommand::UpsertWebPushSubscription { input, reply } => {
+                let result =
+                    crate::web_push_store::upsert_subscription(&mut self.connection, input).await;
+                publish_config(reply, result, &self.events);
+            }
+            NotifyCommand::DeleteWebPushSubscription { id, reply } => {
+                let result =
+                    crate::web_push_store::delete_subscription(&mut self.connection, id).await;
+                publish_unit_event(reply, result, &self.events);
+            }
+            NotifyCommand::StoreWebPushKey {
+                key,
+                replacing,
+                reply,
+            } => {
+                let result =
+                    crate::web_push_store::store_key(&mut self.connection, key, replacing).await;
+                send(reply, result);
+            }
             NotifyCommand::UpsertAutomation { id, input, reply } => {
                 let result = crate::automation_store::upsert(&mut self.connection, id, input).await;
                 publish_config(reply, result, &self.events);

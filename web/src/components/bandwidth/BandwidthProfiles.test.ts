@@ -71,6 +71,12 @@ describe('the bandwidth profile list', () => {
     expect(summaryOf('Night')).toBe('Unlimited · 6 parallel files · 0 scope limits')
     expect(summaryOf('Office')).toBe('4.0 MiB/s · 1.0 MiB/s upload · 1 parallel file · 50.0 GiB per day · 1 scope limit')
   })
+
+  it('names a profile that pauses downloads (RD-1240-30)', () => {
+    mount([profile({ id: 'day', name: 'Day', pause_downloads: true } as Partial<BandwidthProfile>)])
+
+    expect(summaryOf('Day')).toBe('Unlimited · pauses downloads · 0 scope limits')
+  })
 })
 
 /** RD-150-12: a profile is copied with its limits and opened for editing. */
@@ -100,7 +106,9 @@ describe('duplicating a bandwidth profile', () => {
       max_active_files: 2,
       daily_budget_bytes: null,
       monthly_budget_bytes: office.monthly_budget_bytes,
-      scopes: office.scopes
+      scopes: office.scopes,
+      // The copy pauses downloads exactly when the original does (RD-1240-30).
+      pause_downloads: false
     })
     await screen.findByRole('heading', { name: bandwidth.profile.form_edit })
     const copyRow = screen.getAllByText(copy.name).map(node => node.closest('div.flex') as HTMLElement).at(-1) as HTMLElement

@@ -334,6 +334,8 @@ impl UpdateService {
             channel: settings.channel().as_str().to_owned(),
             effective_channel: channel.as_str().to_owned(),
             interval_hours: interval,
+            auto_install: settings.update_auto_install,
+            installs_itself: self.installs_itself(),
             install_kind: self.install_kind().as_str().to_owned(),
             checking: self.0.checking.try_lock().is_err(),
             last_checked_at: stored.last_checked.map(|at| at.to_rfc3339()),

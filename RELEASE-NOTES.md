@@ -12,6 +12,19 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.24.0
+
+<!-- draft: the notes of the version in the making -->
+
+- LinkFilter rules decide what arriving links do: hide them, keep them, or put them into a package or category. Hidden links stay in the LinkGrabber.
+- Automations can run at set times, set a priority, pause or start the queue, unpack, notify you and add links; automations on a new subscription item now run.
+- Pick a colour theme next to light and dark. Lists get right-click menus, columns to hide, packages in the search and a history export; downloads can start later or only at night.
+- Plex, Jellyfin and Emby refresh their library when a package finishes, the installed app can show push notifications, and new events tell you when downloads start.
+- Media links can keep only the audio as MP3, M4A, Opus or FLAC, download part of a video and pause between requests; 1080p presets and YouTube playlists now work.
+- Video, gallery and stream downloads, video checks and recording thumbnails now go through the proxy you chose. AriaNg can connect, and torrents get limits and a port test.
+- rDownloader and its agent update by themselves, restart when a plugin needs it and clear old backups. The tray shows the server, adds LinkGrabber links, pauses for games; every entry takes a shortcut.
+- More bundled site rules, grouped by project, switched off and described in your language. The F key opens the indexer search from any page, and notices say only what happened.
+
 ## 1.23.0
 
 - On macOS, a service that the keychain stops after an upgrade now always says so in its log and tells you how to allow it, instead of an unclear password error.

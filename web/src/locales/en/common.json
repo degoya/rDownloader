@@ -118,7 +118,7 @@
     "go_audit": "Go to the audit log",
     "open_search": "Open search",
     "clear_completed": "Remove completed packages (on Downloads)",
-    "focus_indexer_search": "Search: opens the indexer search in the LinkGrabber, focuses the name search in Downloads",
+    "focus_indexer_search": "Search: opens the indexer search in the LinkGrabber, from any page",
     "add_links": "Add: links in the LinkGrabber, a direct job in Downloads",
     "enqueue_all": "Enqueue all (in the LinkGrabber)",
     "enqueue_paused": "Add all paused (in the LinkGrabber)",
@@ -187,7 +187,8 @@
     "state_linkgrabber": "Link state",
     "sort": "Sort the view by “{column}”",
     "sorted_asc": "Sorted by “{column}”, ascending – click for descending",
-    "sorted_desc": "Sorted by “{column}”, descending – click for the queue order"
+    "sorted_desc": "Sorted by “{column}”, descending – click for the queue order",
+    "shown": "Shown columns"
   },
   "weekdays": {
     "mon": "Mon",

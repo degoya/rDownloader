@@ -46,7 +46,27 @@
     "script": "Run script",
     "set_category": "Move to category",
     "pause_package": "Pause package",
-    "resume_package": "Resume package"
+    "resume_package": "Resume package",
+    "set_priority": "Set priority",
+    "start_queue": "Start queue",
+    "extract_package": "Extract package",
+    "notify": "Notify",
+    "add_links": "Add links",
+    "priority": "Priority",
+    "priority_value": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High"
+    },
+    "message": "Message",
+    "links": "Links, one per line",
+    "destination": "Destination",
+    "destination_value": {
+      "link_grabber": "LinkGrabber",
+      "downloads": "Downloads"
+    },
+    "link_count": "{count} links",
+    "pause_queue": "Pause queue"
   },
   "dry_run": {
     "heading": "Dry run",
@@ -57,7 +77,9 @@
     "trigger_no": "different trigger",
     "condition_yes": "condition holds",
     "condition_no": "condition does not hold",
-    "draft": "This automation"
+    "draft": "This automation",
+    "next_run": "next run {time}",
+    "would_run": "would run"
   },
   "trigger": {
     "intake_received": "Links arrived",
@@ -72,7 +94,8 @@
     "upload_finished": "Upload finished",
     "storage_threshold": "Storage threshold",
     "subscription_item": "Subscription item",
-    "usenet_job_hopeless": "Usenet download beyond repair"
+    "usenet_job_hopeless": "Usenet download beyond repair",
+    "schedule": "At a time"
   },
   "field": {
     "source": "Source",
@@ -116,5 +139,17 @@
     "restore_title": "Restore version {version}?",
     "restore_description": "The trigger, condition and actions of version {version} become the definition of “{name}” again, saved as a new version. Name and the enabled switch stay as they are.",
     "restored": "Version {version} is in force again, saved as version {current}."
+  },
+  "schedule": {
+    "heading": "Schedule",
+    "interval": "Every few minutes",
+    "cron": "Cron expression",
+    "minutes": "Minutes",
+    "expression": "Expression",
+    "help": "Read in the service's time zone. A time the service missed by more than two minutes, for example because it was off, is not caught up.",
+    "interval_help": "Counted from midnight: 60 runs on the hour, at most 1440 (one day).",
+    "cron_help": "Minute hour day month weekday, for example “0 6 * * 1-5” for weekdays at six.",
+    "every_minutes": "every {minutes} minutes",
+    "no_package": "A schedule names no package: package actions are not available here."
   }
 }

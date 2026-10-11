@@ -132,6 +132,7 @@ pub(super) async fn resolve_format(
     selection: &MediaSelection,
     criteria: Option<&MediaFormatCriteria>,
     capabilities: MediaCapabilities,
+    network: &rd_scheduler::ToolNetwork,
 ) -> Result<String, Failure> {
     let Some(criteria) =
         criteria.filter(|criteria| criteria.strictness == rd_core::MediaStrictness::Required)
@@ -139,7 +140,8 @@ pub(super) async fn resolve_format(
         return Ok(degrade(&selection.format, selection.kind, capabilities));
     };
     let timeout = Duration::from_secs(u64::from(settings.media_check_timeout_seconds.max(5)));
-    let inventory = crate::probe::probe_inventory(ytdlp, &selection.page_url, timeout).await?;
+    let inventory =
+        crate::probe::probe_inventory(ytdlp, &selection.page_url, timeout, network).await?;
     let resolution = resolve(&inventory, criteria, capabilities).map_err(|error| {
         let failure = Failure::coded(FailureKind::Permanent, error.code(), error.to_string());
         match &error {
@@ -170,4 +172,19 @@ fn degrade(format: &str, kind: MediaKind, capabilities: MediaCapabilities) -> St
     } else {
         format.to_owned()
     }
+}
+
+/// A run its deadline ended: the tool failed, retried like any other yt-dlp failure. Answered
+/// as a stop it read as the person's own pause and was never tried again (re-audit 1.9.1,
+/// RA-TR-03).
+pub(super) fn timed_out(stderr: &str) -> Failure {
+    let tail = rd_tools::stderr_tail(stderr, "yt-dlp went silent past its time limit");
+    Failure::coded(
+        FailureKind::Transient {
+            retry_after_seconds: Some(120),
+        },
+        "media.ytdlp_failed",
+        format!("yt-dlp failed: {tail}"),
+    )
+    .with_param("detail", tail)
 }

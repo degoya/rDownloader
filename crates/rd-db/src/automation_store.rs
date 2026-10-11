@@ -2,7 +2,9 @@
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use rd_automation::{Action, Automation, AutomationVersion, ConditionNode, Run, RunState, Trigger};
+use rd_automation::{
+    Action, Automation, AutomationVersion, ConditionNode, Run, RunState, Schedule, Trigger,
+};
 use rd_core::{AutomationId, AutomationRunId, AutomationVersionId, EventEnvelope, EventKind};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -18,6 +20,8 @@ pub struct NewAutomation {
     pub name: String,
     pub enabled: bool,
     pub trigger: Trigger,
+    /// When a time trigger runs (RD-1240-10); `None` for every other trigger.
+    pub schedule: Option<Schedule>,
     pub condition: ConditionNode,
     pub actions: Vec<Action>,
 }
@@ -48,6 +52,7 @@ struct VersionRow {
     automation_id: String,
     version: i64,
     trigger_kind: String,
+    schedule_json: Option<String>,
     condition_json: String,
     actions_json: String,
     created_at: DateTime<Utc>,
@@ -87,8 +92,8 @@ pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<Automation>> {
 /// than in the engine keeps that decision in one place.
 pub(crate) async fn active_versions(pool: &SqlitePool) -> Result<Vec<AutomationVersion>> {
     sqlx::query_as::<_, VersionRow>(
-        "SELECT v.id, v.automation_id, v.version, v.trigger_kind, v.condition_json, \
-                v.actions_json, v.created_at \
+        "SELECT v.id, v.automation_id, v.version, v.trigger_kind, v.schedule_json, \
+                v.condition_json, v.actions_json, v.created_at \
          FROM automation_versions v \
          JOIN automations a ON a.id = v.automation_id AND a.version = v.version \
          WHERE a.enabled = 1",
@@ -105,8 +110,8 @@ pub(crate) async fn version(
     id: AutomationVersionId,
 ) -> Result<Option<AutomationVersion>> {
     sqlx::query_as::<_, VersionRow>(
-        "SELECT id, automation_id, version, trigger_kind, condition_json, actions_json, \
-                created_at FROM automation_versions WHERE id = ?",
+        "SELECT id, automation_id, version, trigger_kind, schedule_json, condition_json, \
+                actions_json, created_at FROM automation_versions WHERE id = ?",
     )
     .bind(id.to_string())
     .fetch_optional(pool)
@@ -120,8 +125,8 @@ pub(crate) async fn versions(
     automation_id: AutomationId,
 ) -> Result<Vec<AutomationVersion>> {
     sqlx::query_as::<_, VersionRow>(
-        "SELECT id, automation_id, version, trigger_kind, condition_json, actions_json, \
-                created_at FROM automation_versions WHERE automation_id = ? \
+        "SELECT id, automation_id, version, trigger_kind, schedule_json, condition_json, \
+                actions_json, created_at FROM automation_versions WHERE automation_id = ? \
          ORDER BY version DESC",
     )
     .bind(automation_id.to_string())
@@ -219,7 +224,8 @@ pub(crate) async fn upsert(
     let version_id = AutomationVersionId::new();
     sqlx::query(
         "INSERT INTO automation_versions (id, automation_id, version, trigger_kind, \
-                condition_json, actions_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                schedule_json, condition_json, actions_json, created_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(version_id.to_string())
     .bind(id.to_string())
@@ -228,6 +234,13 @@ pub(crate) async fn upsert(
         serde_json::to_string(&input.trigger)?
             .trim_matches('"')
             .to_owned(),
+    )
+    .bind(
+        input
+            .schedule
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?,
     )
     .bind(serde_json::to_string(&input.condition)?)
     .bind(serde_json::to_string(&input.actions)?)
@@ -425,6 +438,12 @@ impl TryFrom<VersionRow> for AutomationVersion {
             version: u32::try_from(row.version).unwrap_or(1),
             trigger: serde_json::from_str(&format!("\"{}\"", row.trigger_kind))
                 .context("unknown automation trigger")?,
+            schedule: row
+                .schedule_json
+                .as_deref()
+                .map(serde_json::from_str)
+                .transpose()
+                .context("unreadable automation schedule")?,
             condition: serde_json::from_str(&row.condition_json)?,
             actions: serde_json::from_str(&row.actions_json)?,
             created_at: row.created_at,

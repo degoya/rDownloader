@@ -1,5 +1,6 @@
 //! What the desktop capture agent is set to from here: clipboard watching paused or not
-//! (RD-1180-01), and the system-wide shortcuts of its tray commands (RD-1180-03).
+//! (RD-1180-01), the system-wide shortcuts of its tray commands (RD-1180-03) and its game mode
+//! (RD-1240-19; the hold itself and the tray's switch, RD-1240-23, are `capture_game_mode`).
 //!
 //! A settings row of its own rather than fields of the settings document. The tray switches the
 //! clipboard pause while the settings page may be open with the whole document in memory, and
@@ -17,7 +18,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
-use rd_core::{CaptureAgentSettings, CaptureShortcutReport, CaptureShortcuts};
+use rd_core::{CaptureAgentSettings, CaptureGameMode, CaptureShortcutReport, CaptureShortcuts};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -42,6 +43,8 @@ pub struct CaptureAgentSettingsResponse {
     pub shortcuts: CaptureShortcuts,
     /// The built-in shortcuts, for "Reset".
     pub default_shortcuts: CaptureShortcuts,
+    /// Pausing the queue or switching a profile while a game runs (RD-1240-19).
+    pub game_mode: CaptureGameMode,
     /// What an agent last said about registering the shortcuts; `None` before any did.
     pub report: Option<CaptureShortcutReport>,
 }
@@ -55,6 +58,9 @@ pub struct CaptureAgentSettingsPatch {
     /// "no shortcut".
     #[serde(default)]
     pub shortcuts: Option<CaptureShortcuts>,
+    /// Replaces the game mode as a whole (RD-1240-19).
+    #[serde(default)]
+    pub game_mode: Option<CaptureGameMode>,
 }
 
 /// The agent's own switch.
@@ -124,15 +130,58 @@ pub async fn apply_capture_agent_patch(
             error
         })?;
     }
+    if let Some(game_mode) = patch.game_mode {
+        settings.game_mode = validated_game_mode(state, &game_mode).await?;
+    }
+    store(state, &settings).await?;
+    Ok(settings)
+}
+
+/// Switches game mode on or off under the same lock, keeping its triggers and its action: the
+/// tray's "Pause while gaming" (RD-1240-23).
+pub async fn set_capture_game_mode_enabled(
+    state: &AppState,
+    enabled: bool,
+) -> Result<CaptureAgentSettings, ApiError> {
+    let _guard = WRITE.lock().await;
+    let mut settings = stored_capture_agent_settings(&state.database).await?;
+    settings.game_mode.enabled = enabled;
+    store(state, &settings).await?;
+    Ok(settings)
+}
+
+/// Writes the row and tells open pages; the caller holds [`WRITE`].
+async fn store(state: &AppState, settings: &CaptureAgentSettings) -> Result<(), ApiError> {
     state
         .database
         .set_setting(
             CAPTURE_AGENT_SETTINGS_KEY.to_owned(),
-            serde_json::to_value(&settings).map_err(anyhow::Error::new)?,
+            serde_json::to_value(settings).map_err(anyhow::Error::new)?,
         )
         .await?;
     announce(state);
-    Ok(settings)
+    Ok(())
+}
+
+/// The game mode as stored: names trimmed and once each, and a profile that exists.
+async fn validated_game_mode(
+    state: &AppState,
+    game_mode: &CaptureGameMode,
+) -> Result<CaptureGameMode, ApiError> {
+    let stored = game_mode.validated().map_err(|problem| {
+        ApiError::bad_request(problem.code(), "The game mode settings cannot be used")
+            .with_param("max_processes", rd_core::MAX_GAME_MODE_PROCESSES)
+    })?;
+    if let Some(id) = stored.profile_id {
+        let profiles = state.database.list_bandwidth_profiles().await?;
+        if !profiles.iter().any(|profile| profile.id == id) {
+            return Err(ApiError::bad_request(
+                "bandwidth.profile_not_found",
+                "Bandwidth profile not found",
+            ));
+        }
+    }
+    Ok(stored)
 }
 
 /// Open settings pages reload on this; the capture event stream does not carry it.
@@ -151,6 +200,7 @@ async fn response(
         clipboard_paused: settings.clipboard_paused,
         shortcuts: settings.shortcuts,
         default_shortcuts: CaptureShortcuts::default(),
+        game_mode: settings.game_mode,
         report: stored_report(&state.database).await?,
     })
 }
@@ -164,8 +214,8 @@ pub async fn get_capture_agent_settings(
     Ok(Json(response(&state, settings).await?))
 }
 
-/// Pauses or resumes clipboard watching, or replaces the shortcuts; the agent follows within
-/// seconds, without a restart.
+/// Pauses or resumes clipboard watching, replaces the shortcuts or the game mode; the agent
+/// follows within seconds, without a restart.
 #[utoipa::path(patch, path = "/api/v1/settings/capture-agent", tag = "capture", request_body = CaptureAgentSettingsPatch, responses((status = 200, body = CaptureAgentSettingsResponse), (status = 400, body = crate::error::ErrorBody)))]
 pub async fn update_capture_agent_settings(
     State(state): State<AppState>,
@@ -175,6 +225,7 @@ pub async fn update_capture_agent_settings(
     let fields: Vec<&str> = [
         patch.clipboard_paused.map(|_| "clipboard_paused"),
         patch.shortcuts.as_ref().map(|_| "shortcuts"),
+        patch.game_mode.as_ref().map(|_| "game_mode"),
     ]
     .into_iter()
     .flatten()
@@ -223,7 +274,7 @@ pub async fn set_capture_clipboard(
         &state,
         CaptureAgentSettingsPatch {
             clipboard_paused: Some(request.paused),
-            shortcuts: None,
+            ..CaptureAgentSettingsPatch::default()
         },
     )
     .await?;

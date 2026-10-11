@@ -1,0 +1,7 @@
+{
+  "name": "Emby",
+  "description": "Refreshes the Emby libraries when a package finishes.",
+  "codes": {
+    "emby_notifier.rejected": "Emby refused the library refresh."
+  }
+}

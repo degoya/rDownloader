@@ -285,12 +285,15 @@ pub async fn save_target(
         "notification.name_invalid",
         "A target name must be between 1 and 100 characters",
     )?;
-    let endpoint = required_text(
-        &request.endpoint,
-        TextLimit::Unbounded,
-        "notification.endpoint_invalid",
-        "A target needs an endpoint",
-    )?;
+    let endpoint = match request.kind {
+        TargetKind::WebPush => String::new(),
+        _ => required_text(
+            &request.endpoint,
+            TextLimit::Unbounded,
+            "notification.endpoint_invalid",
+            "A target needs an endpoint",
+        )?,
+    };
     if request.kind == TargetKind::Plugin {
         check_plugin_destination(state, &request.config, &endpoint).await?;
     }

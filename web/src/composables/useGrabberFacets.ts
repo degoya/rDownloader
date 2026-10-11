@@ -8,7 +8,8 @@ import { hosterOf } from '@/utils/collectorSort'
 import { facetValues, type MirrorFacet } from '@/utils/mirrorGroups'
 
 /**
- * The LinkGrabber's filters: the three mirror facets, the state filter and the hidden hosters.
+ * The LinkGrabber's filters: the three mirror facets, the state filter, the hidden hosters and
+ * the links LinkFilter rules hid.
  *
  * `'all'` = facet off; an empty string is not a legal select value (Reka UI throws on it).
  *
@@ -50,6 +51,13 @@ export function useGrabberFacets() {
   /** Hosters hidden from the list, several at once (RD-130-21); stored with the facets. */
   const hiddenHosters = useHiddenHosters()
 
+  /**
+   * Links a LinkFilter rule hid (RD-1240-09) are drawn only while this is on. View state, like
+   * the state filter: the rule is what stands, and the switch is a look at what it kept back.
+   */
+  const showFiltered = ref(false)
+  const filteredCount = computed(() => collector.candidates.filter(candidate => candidate.hidden_by_filter).length)
+
   /** The facets and the state filter, which "clear filters" resets; hidden hosters have their own way back. */
   const facetFilterActive = computed(() => hosterFilter.value !== 'all' || stateFilter.value !== 'all'
     || qualityFilter.value !== 'all' || languageFilter.value !== 'all')
@@ -58,7 +66,8 @@ export function useGrabberFacets() {
    * hide a link: a hoster hidden last week with nothing in the list now must not turn every
    * enqueue into a partial one or refuse a reorder of a list that is in fact whole.
    */
-  const filterActive = computed(() => facetFilterActive.value || hiddenHosters.hiddenLinks.value.length > 0)
+  const filterActive = computed(() => facetFilterActive.value || hiddenHosters.hiddenLinks.value.length > 0
+    || (!showFiltered.value && filteredCount.value > 0))
   /** Hoster options come from the unfiltered list so the active choice never disappears. */
   const hosterItems = computed(() => {
     const values = new Set([...collector.candidates.map(hosterOf)].filter(Boolean))
@@ -98,6 +107,6 @@ export function useGrabberFacets() {
 
   return {
     hosterFilter, qualityFilter, languageFilter, stateFilter, facetBusy, hiddenHosters,
-    facetFilterActive, filterActive, hosterItems, qualityItems, languageItems, stateItems, clearFilters
+    showFiltered, filteredCount, facetFilterActive, filterActive, hosterItems, qualityItems, languageItems, stateItems, clearFilters
   }
 }

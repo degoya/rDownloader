@@ -17,6 +17,12 @@
 //!   one.
 //! * [`agent`] — the capture agent's own update when it is installed without the service
 //!   (RD-1210-03): whether it updates itself, what it reports, and its install with roll-back.
+//! * [`auto_install`] — when an offered update installs by itself (RD-1240-27): switched on,
+//!   installable, nothing running for a quiet period, inside the optional time window.
+//! * [`restart`] — restarting the running version (RD-1240-32): by its supervisor (systemd, a
+//!   container) on [`restart::RESTART_EXIT_CODE`], or by the relauncher the updater's way.
+//! * [`auto_restart`] — when a pending restart happens by itself: the automatic install's
+//!   conditions over the same quiet clock.
 //!
 //! No database, no queue, no plugin host: the updater of RD-180-02 runs this before the new
 //! version is known to start, and the service keeps its own state (the floors, the last result)
@@ -25,6 +31,8 @@
 #![warn(unreachable_pub)]
 
 pub mod agent;
+pub mod auto_install;
+pub mod auto_restart;
 pub mod check;
 pub mod download;
 pub mod fetch;
@@ -32,14 +40,18 @@ pub mod install;
 pub mod install_kind;
 pub mod manifest;
 pub mod offer;
+pub mod restart;
 pub mod settings;
 
+pub use auto_install::{AutoInstall, InstallWindow};
+pub use auto_restart::{AutoRestart, RestartMoment};
 pub use check::{CheckReport, Floors, Sources, check};
 pub use download::{download_verified, download_verified_with, verified_file};
 pub use fetch::{Fetcher, HttpFetcher, MemoryFetcher};
 pub use install_kind::{INSTALL_KIND_ENV, INSTALL_KIND_FILE, InstallKind, UpdateAction};
 pub use manifest::{Artifact, Channel, UpdateError, UpdateManifest};
 pub use offer::{Offer, Target, is_newer, newest_agent_offer, newest_offer, parse_version};
+pub use restart::{RESTART_EXIT_CODE, RestartHow, RestartPlan, Supervisor};
 pub use settings::UpdateSettings;
 
 pub use rd_sign::{SigningKey, TrustStore};

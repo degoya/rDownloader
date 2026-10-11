@@ -52,9 +52,10 @@ pub(crate) fn lease_tool(
 /// without falling back to `PATH`. Pointing it at a directory that only holds ffmpeg makes
 /// post-processing fail with "ffprobe and ffmpeg not found", so a directory is only handed
 /// over when both live in it. The managed store keeps every tool in its own version folder,
-/// so ffmpeg and ffprobe from it never share one: [`FfmpegTools::resolve`] then prefers a
-/// pair that does, and failing that [`FfmpegTools::location`] names the ffmpeg binary itself,
-/// which yt-dlp also accepts. Passing nothing at all left yt-dlp without ffmpeg, and every
+/// so ffmpeg and ffprobe from it never share one; that pair is still the one used — the
+/// versions this installation set up win over any folder that happens to hold both, and only
+/// an ffmpeg path the person set wins over them (owner, 2026-10-10, RD-1240-33) — and
+/// [`FfmpegTools::location`] names the ffmpeg binary itself, which yt-dlp also accepts. Passing nothing at all left yt-dlp without ffmpeg, and every
 /// merged format came out as two separate streams ("ffmpeg is not installed. The formats
 /// won't be merged").
 #[derive(Clone, Debug)]
@@ -117,11 +118,18 @@ impl FfmpegTools {
                 None,
             ));
         }
-        // Still split — typically both from the managed store, one folder per tool: a
-        // directory holding both beats the split pair. An explicit ffmpeg stays authoritative.
+        // Still split: a directory holding both beats the split pair — unless ffmpeg is the
+        // person's own path, or both come from the managed store, one folder per tool. The
+        // managed pair takes precedence over a vendor or `PATH` folder holding both (owner,
+        // 2026-10-10, RD-1240-33: `/usr/bin` won over an installed and active managed pair).
+        // A managed ffmpeg beside an ffprobe from elsewhere is still split and paired as before.
         let split = match (&ffmpeg, &ffprobe) {
-            (Some((tool, _)), Some(_)) => {
-                tool.source != ToolSource::Explicit && !same_directory(tool, ffprobe.as_ref())
+            (Some((tool, _)), Some((probe, _))) => {
+                let managed_pair =
+                    tool.source == ToolSource::Managed && probe.source == ToolSource::Managed;
+                tool.source != ToolSource::Explicit
+                    && !managed_pair
+                    && !same_directory(tool, ffprobe.as_ref())
             }
             _ => false,
         };
@@ -272,192 +280,5 @@ pub async fn tool_status(name: &str, tool: Option<&ResolvedTool>) -> ToolStatus 
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::{Path, PathBuf};
-
-    use rd_core::{ResolvedTool, ToolSource};
-
-    use super::FfmpegTools;
-
-    fn tool(path: &str) -> Option<ResolvedTool> {
-        Some(ResolvedTool {
-            path: path.into(),
-            source: ToolSource::Path,
-        })
-    }
-
-    /// A lookup result as `rd_core::locate_tool_leased` returns it, without a lease.
-    fn found(
-        path: PathBuf,
-        source: ToolSource,
-    ) -> Option<(ResolvedTool, Option<rd_core::ToolLease>)> {
-        Some((ResolvedTool { path, source }, None))
-    }
-
-    /// Creates `names` as empty files in `directory` and returns their paths.
-    fn binaries(directory: &Path, names: &[&str]) -> Vec<PathBuf> {
-        std::fs::create_dir_all(directory).expect("directory");
-        names
-            .iter()
-            .map(|name| {
-                let path = directory.join(name);
-                std::fs::write(&path, b"").expect("binary");
-                path
-            })
-            .collect()
-    }
-
-    #[test]
-    fn location_is_the_shared_directory_or_else_the_ffmpeg_binary() {
-        let split = FfmpegTools {
-            ffmpeg: tool("/usr/bin/ffmpeg"),
-            ffprobe: tool("/usr/local/bin/ffprobe"),
-            leases: Vec::new(),
-        };
-        assert!(split.is_complete());
-        assert_eq!(
-            split.location().expect("ffmpeg binary"),
-            Path::new("/usr/bin/ffmpeg")
-        );
-
-        let together = FfmpegTools {
-            ffmpeg: tool("/opt/vendor/ffmpeg"),
-            ffprobe: tool("/opt/vendor/ffprobe"),
-            leases: Vec::new(),
-        };
-        assert_eq!(
-            together.location().expect("shared directory").as_os_str(),
-            "/opt/vendor"
-        );
-
-        let missing = FfmpegTools {
-            ffmpeg: tool("/usr/bin/ffmpeg"),
-            ffprobe: None,
-            leases: Vec::new(),
-        };
-        assert!(!missing.is_complete());
-        assert!(missing.location().is_none());
-    }
-
-    /// The managed store keeps ffmpeg and ffprobe in one version folder each; with nothing
-    /// better around, yt-dlp is pointed at the ffmpeg binary rather than left without one.
-    #[test]
-    fn split_store_folders_hand_over_the_ffmpeg_binary() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let ffmpeg = binaries(&root.path().join("tools/ffmpeg/9.0.1"), &["ffmpeg"]);
-        let ffprobe = binaries(&root.path().join("tools/ffprobe/9.0.1"), &["ffprobe"]);
-        let tools = FfmpegTools::pair(
-            found(ffmpeg[0].clone(), ToolSource::Managed),
-            found(ffprobe[0].clone(), ToolSource::Managed),
-            Vec::new(),
-        );
-        assert!(tools.is_complete());
-        assert_eq!(tools.location(), Some(ffmpeg[0].as_path()));
-    }
-
-    #[test]
-    fn a_directory_holding_both_beats_split_store_folders() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let ffmpeg = binaries(&root.path().join("tools/ffmpeg/9.0.1"), &["ffmpeg"]);
-        let ffprobe = binaries(&root.path().join("tools/ffprobe/9.0.1"), &["ffprobe"]);
-        let empty = root.path().join("empty");
-        std::fs::create_dir_all(&empty).expect("directory");
-        let vendor = root.path().join("vendor");
-        let pair = binaries(&vendor, &["ffmpeg", "ffprobe"]);
-        let tools = FfmpegTools::pair(
-            found(ffmpeg[0].clone(), ToolSource::Managed),
-            found(ffprobe[0].clone(), ToolSource::Managed),
-            vec![
-                (empty, ToolSource::Vendor),
-                (vendor.clone(), ToolSource::Vendor),
-            ],
-        );
-        let resolved_ffmpeg = tools.ffmpeg.as_ref().expect("ffmpeg");
-        let resolved_ffprobe = tools.ffprobe.as_ref().expect("ffprobe");
-        assert_eq!(resolved_ffmpeg.path, pair[0]);
-        assert_eq!(resolved_ffmpeg.source, ToolSource::Vendor);
-        assert_eq!(resolved_ffprobe.path, pair[1]);
-        assert_eq!(tools.location(), Some(vendor.as_path()));
-    }
-
-    #[test]
-    fn a_pair_that_already_shares_a_directory_is_kept() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let store = binaries(
-            &root.path().join("tools/ffmpeg/9.0.1"),
-            &["ffmpeg", "ffprobe"],
-        );
-        let vendor = root.path().join("vendor");
-        binaries(&vendor, &["ffmpeg", "ffprobe"]);
-        let tools = FfmpegTools::pair(
-            found(store[0].clone(), ToolSource::Managed),
-            found(store[1].clone(), ToolSource::Managed),
-            vec![(vendor, ToolSource::Vendor)],
-        );
-        assert_eq!(tools.ffmpeg.as_ref().expect("ffmpeg").path, store[0]);
-        assert_eq!(tools.location(), store[0].parent());
-    }
-
-    #[test]
-    fn ffmpegs_own_sibling_ffprobe_wins_over_one_found_elsewhere() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let configured = binaries(&root.path().join("custom"), &["ffmpeg", "ffprobe"]);
-        let managed = binaries(&root.path().join("tools/ffprobe/9.0.1"), &["ffprobe"]);
-        let tools = FfmpegTools::pair(
-            found(configured[0].clone(), ToolSource::Explicit),
-            found(managed[0].clone(), ToolSource::Managed),
-            Vec::new(),
-        );
-        let resolved_ffprobe = tools.ffprobe.as_ref().expect("ffprobe");
-        assert_eq!(resolved_ffprobe.path, configured[1]);
-        assert_eq!(resolved_ffprobe.source, ToolSource::Explicit);
-        assert_eq!(tools.location(), configured[0].parent());
-    }
-
-    #[test]
-    fn an_explicit_ffmpeg_is_not_swapped_for_a_shared_directory() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let configured = binaries(&root.path().join("custom"), &["ffmpeg"]);
-        let managed = binaries(&root.path().join("tools/ffprobe/9.0.1"), &["ffprobe"]);
-        let vendor = root.path().join("vendor");
-        binaries(&vendor, &["ffmpeg", "ffprobe"]);
-        let tools = FfmpegTools::pair(
-            found(configured[0].clone(), ToolSource::Explicit),
-            found(managed[0].clone(), ToolSource::Managed),
-            vec![(vendor, ToolSource::Vendor)],
-        );
-        assert_eq!(tools.ffmpeg.as_ref().expect("ffmpeg").path, configured[0]);
-        assert_eq!(tools.location(), Some(configured[0].as_path()));
-    }
-
-    #[test]
-    fn without_ffprobe_nothing_is_paired() {
-        let root = tempfile::tempdir().expect("tempdir");
-        let ffmpeg = binaries(&root.path().join("tools/ffmpeg/9.0.1"), &["ffmpeg"]);
-        let vendor = root.path().join("vendor");
-        binaries(&vendor, &["ffmpeg", "ffprobe"]);
-        let tools = FfmpegTools::pair(
-            found(ffmpeg[0].clone(), ToolSource::Managed),
-            None,
-            vec![(vendor, ToolSource::Vendor)],
-        );
-        assert!(!tools.is_complete());
-        assert!(tools.location().is_none());
-    }
-
-    /// Both binaries resolved, but nothing yt-dlp could be pointed at: no merge is offered,
-    /// so no selector asks for one that would leave two stream files behind.
-    #[tokio::test]
-    async fn merging_is_not_offered_without_a_location() {
-        let unreachable = FfmpegTools {
-            ffmpeg: tool("/"),
-            ffprobe: tool("/"),
-            leases: Vec::new(),
-        };
-        assert!(unreachable.is_complete());
-        assert!(unreachable.location().is_none());
-        let capabilities = unreachable.media_capabilities().await;
-        assert!(!capabilities.can_merge);
-        assert!(!capabilities.can_transcode_audio);
-    }
-}
+#[path = "tools_tests.rs"]
+mod tests;

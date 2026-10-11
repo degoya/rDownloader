@@ -37,6 +37,9 @@ const pairLabel = ref(props.extension ? t('system.extension.default_label') : 'W
 // Opt-in, and only for the desktop agent: pausing the queue from its tray (RD-1100-06). An agent
 // paired without it can do exactly what it could before.
 const queueControl = ref(false)
+// Opt-in as well, and a right of its own: installing the service's update from the tray
+// (RD-1240-25). Without it the tray's entry opens the update page.
+const serverUpdate = ref(false)
 /// Days until the new token expires; `0`, never, is the default (RD-1110-07).
 const expiryDays = ref(0)
 const expiryItems = computed(() => tokenExpiryItems(t))
@@ -58,6 +61,7 @@ async function pair(): Promise<void> {
     body: {
       label: pairLabel.value,
       queue_control: !props.extension && queueControl.value,
+      server_update: !props.extension && serverUpdate.value,
       expires_in_days: expiresInDays(expiryDays.value)
     }
   })
@@ -137,6 +141,13 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
           :label="t('system.pairing.queue_control')"
           :description="t('system.pairing.queue_control_help')"
           data-testid="pairing-queue-control"
+        />
+        <UCheckbox
+          v-if="!props.extension"
+          v-model="serverUpdate"
+          :label="t('system.pairing.server_update')"
+          :description="t('system.pairing.server_update_help')"
+          data-testid="pairing-server-update"
         />
         <UFormField :label="t('system.token_expiry.label')" :description="t('system.token_expiry.hint')">
           <USelect v-model="expiryDays" :items="expiryItems" icon="i-lucide-calendar-clock" class="w-full" data-testid="pairing-expiry" />

@@ -48,8 +48,10 @@
     "extension_steps": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez ce jeton puis cliquez sur « Tester la connexion ». Installation : voir extension/README.md.",
     "token_copied_description": "Le jeton de capture est dans le presse-papiers.",
     "label": "Nom de la connexion",
-    "queue_control": "Peut mettre la file en pause",
-    "queue_control_help": "Autorise « Pause all » et « Resume all » dans le menu de la zone de notification de l'agent, rien de plus. Sans ce choix, l'agent ne transmet que des liens."
+    "queue_control": "Peut piloter la file",
+    "queue_control_help": "Autorise « Start all », « Pause all » et « Add all from LinkGrabber » dans le menu de la zone de notification de l'agent, rien de plus. Sans ce choix, l'agent ne transmet que des liens.",
+    "server_update": "Peut installer les mises à jour du serveur",
+    "server_update_help": "Autorise « Install server update » dans le menu de la zone de notification de l'agent : il installe la mise à jour proposée de rDownloader, puis le service redémarre. Sans ce choix, l'entrée ouvre la page des mises à jour dans le navigateur. Le même choix autorise « Restart server » dans le menu de la zone de notification, qui redémarre rDownloader."
   },
   "agents": {
     "eyebrow": "Connexions appairées",
@@ -705,7 +707,21 @@
       "outdated_description": "Un agent de capture tourne encore en version {agent}, rDownloader déjà en {service}. Depuis la 1.8.1, l'agent redémarre de lui-même dans la minute qui suit une mise à jour. S'il ne le fait pas — parce qu'il est plus ancien ou qu'un autre utilisateur l'a lancé —, quittez-le depuis son icône dans la zone de notification ou le Gestionnaire des tâches, puis relancez-le ; sous Linux, systemctl --user restart rdownloader-capture fait les deux.",
       "self_offered": "Un agent de capture installé sans rDownloader se propose lui-même la version {version} : choisissez « Install update to {version} » dans le menu de son icône, ou lancez rdownloader-capture update."
     },
-    "whats_new": "Nouveautés"
+    "whats_new": "Nouveautés",
+    "auto_install": {
+      "label": "Installer les mises à jour automatiquement",
+      "description": "Installe seul une nouvelle version trouvée dès que rien n’a été téléchargé, post-traité ni enregistré pendant cinq minutes – avec une sauvegarde avant et un retour arrière si elle ne démarre pas.",
+      "locked": "Indisponible : cette installation ({kind}) ne se met pas à jour elle-même ; son gestionnaire de paquets ou son conteneur s’en charge.",
+      "window_label": "Installer et redémarrer uniquement dans une plage horaire",
+      "window_description": "S’applique à l’installation automatique et au redémarrage automatique ; sans plage, à tout moment. Les heures suivent le fuseau horaire de la planification de bande passante.",
+      "from": "De",
+      "until": "Jusqu’à",
+      "window_empty": "Le début et la fin doivent différer."
+    },
+    "auto_restart": {
+      "label": "Redémarrer automatiquement si nécessaire",
+      "description": "Redémarre rDownloader seul après un changement de plugins dès que rien n’a été téléchargé, post-traité ni enregistré pendant cinq minutes – dans la plage horaire si une plage est définie. Avec les mises à jour automatiques des plugins, c’est cet interrupteur qui les rend effectives. Les transferts reprennent après le redémarrage."
+    }
   },
   "oidc": {
     "eyebrow": "Fournisseur d’identité",
@@ -772,5 +788,39 @@
     "unit": "/min",
     "none": "Aucune limite",
     "row": "Au plus {count} appels par minute"
+  },
+  "restart": {
+    "title": "Redémarrage en attente",
+    "intro": "Ces changements prennent effet après un redémarrage :",
+    "now": "Redémarrer maintenant",
+    "anyway": "Redémarrer quand même",
+    "confirm_title": "Redémarrer rDownloader ?",
+    "failed_title": "Redémarrage impossible",
+    "restarting_title": "rDownloader redémarre…",
+    "restarting_hint": "Cette page se recharge dès que le service répond de nouveau.",
+    "lost_title": "rDownloader n’est pas revenu",
+    "lost": "Après cinq minutes, le service ne répond toujours pas. Il faut peut-être le démarrer à la main.",
+    "automatic_hint": "« Redémarrer automatiquement si nécessaire » est activé : rDownloader redémarre seul dès que rien n’a tourné pendant cinq minutes.",
+    "how": {
+      "self": "rDownloader se relance lui-même.",
+      "systemd": "rDownloader s’arrête, et systemd relance le service.",
+      "container": "rDownloader s’arrête, et la politique de redémarrage du conteneur le relance ; sans politique (docker run sans --restart), vous devez le démarrer vous-même.",
+      "supervisor": "rDownloader s’arrête, et son gestionnaire de services le relance.",
+      "manual": "rDownloader s’arrête ; relancez-le vous-même ensuite."
+    },
+    "reason": {
+      "plugin_installed": "{plugin} installé",
+      "plugin_updated": "{name} mis à jour : {from} → {version}",
+      "plugin_staged": "{plugin} préparé pour être essayé",
+      "plugin_unstaged": "Version préparée de {plugin} abandonnée",
+      "plugin_enabled": "{name} activé",
+      "plugin_disabled": "{name} désactivé",
+      "plugin_removed": "{plugin} supprimé",
+      "plugin_key_revoked": "Clé de signature {name} révoquée",
+      "plugin_digest_revoked": "Paquet {plugin} retiré",
+      "plugin_digest_unrevoked": "Retrait de {plugin} levé",
+      "other": "Un changement dans les plugins",
+      "unnamed": "Un plugin"
+    }
   }
 }

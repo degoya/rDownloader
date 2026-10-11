@@ -25,6 +25,11 @@ pub(crate) struct PlainIntake<'a> {
     /// Destination for every link in this batch; `None` lets the routing rules decide, as
     /// they do for a pasted link.
     pub category_id: Option<rd_core::CategoryId>,
+    /// How far the online check and the transfer of these links may reach (RD-150-03): `None`
+    /// for links the person chose, `Some(local_network)` for links nobody looked at when they
+    /// went in -- an automation's (RD-1240-10). Set before the check starts, as the `.rdlinks`
+    /// import does.
+    pub reach: Option<bool>,
 }
 
 /// A link a background producer submits, with everything its source already knows about it.
@@ -74,6 +79,7 @@ pub(crate) async fn submit_plain_links_as(
         source,
         source_label,
         category_id,
+        reach,
     } = intake;
     if links.is_empty() {
         return Err(ApiError::bad_request(
@@ -129,7 +135,7 @@ pub(crate) async fn submit_plain_links_as(
             *slot = Some(provider.to_owned());
         }
     }
-    let (batch, _, _) = database
+    let (batch, _, candidates) = database
         .add_collector_batch(NewCollectorBatch {
             package_hints: Vec::new(),
             mirror_hints: Vec::new(),
@@ -152,6 +158,12 @@ pub(crate) async fn submit_plain_links_as(
             source_attributes,
         })
         .await?;
+    if let Some(local_network) = reach {
+        let ids = candidates.iter().map(|candidate| candidate.id).collect();
+        database
+            .set_candidates_remote_reach(ids, local_network)
+            .await?;
+    }
     link_check.check_batch(batch.id).await;
     Ok(batch)
 }

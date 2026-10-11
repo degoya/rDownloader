@@ -43,8 +43,11 @@ for arg in "$@"; do
 done
 case " $* " in
   *" -J "*)
-    if [ "$flat" = "1" ]; then
-      printf '%s' '{"_type":"playlist","title":"List","entries":[{"title":"First","url":"https://www.youtube.com/watch?v=one","duration":10},{"title":"Second","id":"two","duration":20}]}'
+    # As real yt-dlp: `--flat-playlist` changes how a playlist's entries are listed, while a
+    # single page is probed in full either way (RD-1240-37). The listing carries one of
+    # YouTube's stand-ins for a private video, which is never offered.
+    if echo "$url" | grep -q "list=" && [ "$flat" = "1" ]; then
+      printf '%s' '{"_type":"playlist","title":"List","entries":[{"title":"First","url":"https://www.youtube.com/watch?v=one","duration":10},{"_type":"url","title":"[Private video]","url":"https://www.youtube.com/watch?v=gone","duration":null},{"title":"Second","id":"two","duration":20}]}'
     elif echo "$url" | grep -q "list="; then
       printf '%s' '{"_type":"playlist","title":"List","entries":[]}'
     else

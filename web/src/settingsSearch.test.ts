@@ -167,11 +167,11 @@ describe('the settings search registry (RD-170-15)', () => {
       const entry = settingsSearchEntry(id)
       return entry ? settingsSearchLocation(entry) : null
     }
-    expect(location('routing.collector')).toEqual({ path: '/settings/linkgrabber' })
-    expect(location('routing.dlc')).toEqual({ path: '/settings/linkgrabber' })
-    expect(location('general.mirrors')).toEqual({ path: '/settings/linkgrabber' })
-    expect(location('routing.indexer_images')).toEqual({ path: '/settings/interface' })
-    expect(location('routing.nzb_hand_over')).toEqual({ path: '/settings/interface' })
+    expect(location('routing.collector')).toEqual({ path: '/settings/linkgrabber', query: { tab: 'blocklist' } })
+    expect(location('routing.dlc')).toEqual({ path: '/settings/linkgrabber', query: { tab: 'containers' } })
+    expect(location('general.mirrors')).toEqual({ path: '/settings/linkgrabber', query: { tab: 'general' } })
+    expect(location('routing.indexer_images')).toEqual({ path: '/settings/interface', query: { tab: 'display' } })
+    expect(location('routing.nzb_hand_over')).toEqual({ path: '/settings/interface', query: { tab: 'display' } })
     expect(location('network.auth_profiles')).toEqual({ path: '/settings/accounts', query: { tab: 'logins' } })
     expect(location('desktop.pairing')).toEqual({ path: '/settings/clients', query: { tab: 'desktop' } })
     expect(location('mcp.access')).toEqual({ path: '/settings/clients', query: { tab: 'api' } })
@@ -194,5 +194,62 @@ describe('the settings search registry (RD-170-15)', () => {
     expect(location('backup.full_restore')).toEqual({ path: '/settings/backup', query: { tab: 'restore' } })
     expect(location('about.build')).toEqual({ path: '/settings/about', query: { tab: 'about' } })
     expect(location('about.licenses')).toEqual({ path: '/settings/about', query: { tab: 'licenses' } })
+  })
+
+  // RD-1240-26: LinkGrabber and Interface split; every card and field opens its tab.
+  it('opens the cards and fields of LinkGrabber and Interface on their tab', () => {
+    const tabs = (section: string) => Object.fromEntries(SETTINGS_SEARCH_ENTRIES
+      .filter(entry => entry.section === section)
+      .map(entry => [entry.id, settingsSearchLocation(entry).query?.tab]))
+    expect(tabs('linkgrabber')).toEqual({
+      'linkgrabber.blocklist': 'blocklist',
+      'linkgrabber.excluded_domains': 'blocklist',
+      'linkgrabber.dlc': 'containers',
+      'linkgrabber.mirrors': 'general',
+      'linkgrabber.duplicates_history': 'general',
+      'linkgrabber.link_filters': 'filters'
+    })
+    expect(tabs('interface')).toEqual({
+      'interface.appearance': 'browser',
+      'interface.language': 'browser',
+      'interface.theme': 'browser',
+      'interface.palette': 'browser',
+      'interface.browser_notifications': 'browser',
+      'interface.web_push': 'browser',
+      'interface.display': 'display',
+      'interface.byte_display': 'display',
+      'interface.title_status': 'display',
+      'interface.indexer_images': 'display',
+      'interface.nzb_hand_over': 'display',
+      'interface.package_groups': 'display'
+    })
+  })
+
+  it('opens the fields of Post-processing and Tools on their tab, the moved program paths with them', () => {
+    const tabs = (section: string) => Object.fromEntries(SETTINGS_SEARCH_ENTRIES
+      .filter(entry => entry.section === section)
+      .map(entry => [entry.id, settingsSearchLocation(entry).query?.tab]))
+    expect(tabs('postprocess')).toEqual({
+      'postprocess.defaults': 'unpack',
+      'postprocess.passwords_file': 'unpack',
+      'postprocess.unpack_to_subfolder': 'unpack',
+      'postprocess.unwrap_package_folder': 'unpack',
+      'postprocess.direct_unpack': 'unpack',
+      'postprocess.delete_par2': 'repair',
+      'postprocess.cleanup_extensions': 'repair',
+      'postprocess.scripts_directory': 'delivery',
+      'postprocess.mcp_scripts_allowed': 'delivery',
+      'postprocess.package_names': 'names',
+      'postprocess.malware_scan': 'malware',
+      'postprocess.upload': 'delivery'
+    })
+    expect(tabs('tools')).toEqual({
+      'tools.status': 'status',
+      'tools.paths': 'paths',
+      'postprocess.rar_executable': 'paths',
+      'postprocess.rclone_executable': 'paths',
+      'tools.vendor_directory': 'paths',
+      'tools.managed': 'managed'
+    })
   })
 })

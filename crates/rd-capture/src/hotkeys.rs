@@ -272,6 +272,11 @@ async fn run_headless(
                 match crate::controls::action(command) {
                     Action::Open => open_in_browser(&service),
                     Action::Quit => cancellation.cancel(),
+                    // As the tray's entry: nothing to switch while nothing is set up. Queue
+                    // control is the service's to refuse, which the settings task logs.
+                    Action::ToggleGameMode if !settings.borrow().game_mode.watches() => {
+                        tracing::info!(reason = crate::game_mode::NOTHING_SET_UP, "not switching game mode");
+                    }
                     other => controls.pass(other),
                 }
             }

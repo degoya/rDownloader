@@ -9,6 +9,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import { withBase } from './basePath'
 import { BUILD_VERSION } from './composables/serviceVersion'
+import { applyColorPalette } from './composables/useColorPalette'
 import { i18n, setLocale, detectLocale } from './i18n'
 import { router } from './router'
 
@@ -30,6 +31,9 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
       .catch(() => undefined)
   })
 }
+
+// Before the first paint, so a chosen palette never flashes the default (RD-1240-05).
+applyColorPalette()
 
 const app = createApp(App)
 

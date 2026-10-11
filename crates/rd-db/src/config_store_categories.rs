@@ -47,6 +47,8 @@ pub(crate) async fn create_category(
         sorting: None,
         package_name_rules: None,
         package_name_regex: None,
+        // Set on its own route only (RD-1240-30).
+        download_window: None,
     };
     let event = config_event(EventKind::CategoryChanged, "category", value.id);
     // Clear the old default before inserting the new one: `idx_categories_single_default`
@@ -142,6 +144,8 @@ pub(crate) async fn update_category(
         sorting: None,
         package_name_rules: None,
         package_name_regex: None,
+        // Set on its own route only (RD-1240-30).
+        download_window: None,
     };
     if value.is_default {
         sqlx::query("UPDATE categories SET is_default = 0, updated_at = ? WHERE id != ?")
@@ -294,6 +298,7 @@ pub(super) struct CategoryRow {
     unwrap_package_folder: Option<bool>,
     package_name_rules_json: Option<String>,
     package_name_regex_json: Option<String>,
+    download_window_json: Option<String>,
 }
 impl TryFrom<CategoryRow> for Category {
     type Error = anyhow::Error;
@@ -371,6 +376,16 @@ impl TryFrom<CategoryRow> for Category {
                     serde_json::from_str(value),
                     "categories",
                     "package_name_regex_json",
+                    &row.id,
+                )
+            }),
+            // A malformed window leaves the packages to the schedule rather than hiding the
+            // category (RD-1240-30).
+            download_window: row.download_window_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "categories",
+                    "download_window_json",
                     &row.id,
                 )
             }),

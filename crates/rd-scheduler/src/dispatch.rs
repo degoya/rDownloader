@@ -1,7 +1,7 @@
 //! The supervise loop and the dispatch pass that starts queued files, one attempt each.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, atomic::Ordering},
     time::Duration,
 };
@@ -32,6 +32,14 @@ impl SchedulerHandle {
                         && let Err(error) = self.supervise_capacity().await
                     {
                         tracing::error!(%error, "storage capacity supervision failed");
+                    }
+                    // As often, a tick later: a window's end resumes what it paused within
+                    // seconds, and an edit to a package's window reaches its transfers as fast
+                    // (RD-1240-30).
+                    if capacity_tick % 4 == 1
+                        && let Err(error) = self.supervise_download_windows().await
+                    {
+                        tracing::error!(%error, "the download window could not be applied");
                     }
                     // The schedule is evaluated every fifteen seconds; a window boundary is
                     // a minute-grained event, so this is far finer than it needs to be.
@@ -150,13 +158,27 @@ impl SchedulerHandle {
         if files.is_empty() {
             return Ok(());
         }
-        let destinations = self.package_destinations().await?;
+        let packages = self.database.list_packages().await?;
+        // A package whose "not before" lies ahead keeps its waiting files out of this pass; once
+        // the moment has passed it holds nothing (RD-1240-14).
+        let not_due: HashSet<PackageId> = packages
+            .iter()
+            .filter(|package| package.start_after.is_some_and(|at| at > now))
+            .map(|package| package.id)
+            .collect();
+        // A package held by its download window or by the schedule's pause keeps its waiting
+        // files out of this pass as well (RD-1240-30).
+        let gate = self.download_gate(&packages, now).await?;
+        let destinations = crate::capacity::destinations_of(&packages);
         // A mirror group's members, read once per package and pass: the check below needs a
         // file's siblings in every state, not only the startable ones.
         let mut groups: HashMap<PackageId, Vec<rd_core::DownloadFile>> = HashMap::new();
         // A switched-off kind is blocked once per pass, not once per waiting file of it.
         let mut blocked_kinds: Vec<rd_core::DownloadKind> = Vec::new();
         for file in files {
+            if not_due.contains(&file.package_id) || gate.holds(&file) {
+                continue;
+            }
             if !self
                 .may_start(&file, now, &destinations, &mut groups, &mut blocked_kinds)
                 .await?
@@ -311,12 +333,14 @@ impl SchedulerHandle {
                         DownloadState::Queued | DownloadState::RetryWait
                     )))
             {
-                let failure = Failure::new(
-                    FailureKind::Transient {
-                        retry_after_seconds: None,
-                    },
-                    message,
-                );
+                let failure = crate::failures::unreadable_secret(error).unwrap_or_else(|| {
+                    Failure::new(
+                        FailureKind::Transient {
+                            retry_after_seconds: None,
+                        },
+                        message,
+                    )
+                });
                 // The same way as a failure the runner reported: a mirror group hands its turn
                 // on once the attempts are spent, where `record_failure` alone left the waiting
                 // members `Skipped` until the next start (re-audit 1.9.1, RA-TR-01) — a missing

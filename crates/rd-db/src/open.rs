@@ -10,7 +10,10 @@ use std::{
 use anyhow::{Context, Result};
 use sqlx::{
     ConnectOptions, Connection, SqliteConnection,
-    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
+    sqlite::{
+        SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions,
+        SqliteSynchronous,
+    },
 };
 use tokio::sync::mpsc;
 use tracing::log::LevelFilter;
@@ -52,7 +55,14 @@ impl Database {
             .busy_timeout(Duration::from_secs(5))
             .log_statements(LevelFilter::Trace);
 
-        let writer_connection = SqliteConnection::connect_with(&options)
+        // Free pages can be handed back to the file system a few at a time
+        // (`PRAGMA incremental_vacuum`, RD-1240-35). A new file has it from its first table; an
+        // older one, created without, takes it on with its next `VACUUM`. The writer alone sets
+        // it: on a file that already has tables the pragma writes the header, and a reader
+        // connection the pool opens later doing so commits under the writer's open snapshot,
+        // which then fails with `SQLITE_BUSY_SNAPSHOT` (517).
+        let writer_options = options.clone().auto_vacuum(SqliteAutoVacuum::Incremental);
+        let writer_connection = SqliteConnection::connect_with(&writer_options)
             .await
             .context("open SQLite writer connection")?;
         let writer_connection = pre_migration::migrate(writer_connection, path, migrator).await?;

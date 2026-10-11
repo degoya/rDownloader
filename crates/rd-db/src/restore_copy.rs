@@ -95,6 +95,9 @@ pub const UNBUNDLED_SECRET_COLUMNS: &[CopyColumn] = &[
     column("downloads", "secret_fragment_ref", "rowid"),
     column("downloads", "transform_key_ref", "rowid"),
     column("download_request_templates", "body_ref", "rowid"),
+    // RD-1240-13: the VAPID key. On another machine the service makes a new one, and the
+    // browsers turn push on again.
+    column("web_push_keys", "private_key_ref", "rowid"),
 ];
 
 /// The backup key's reference, which a restore can put back: it knows the key.

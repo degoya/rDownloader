@@ -27,10 +27,18 @@
     "monthly": "Dieser Monat ({period})",
     "usage": "{used} von {limit}",
     "budget_exhausted": "Das Trafficbudget ist aufgebraucht. Laufende Transfers werden fertig; Neues startet erst im nächsten Zeitraum.",
-    "upload_binding": "Strengste Upload-Grenze"
+    "upload_binding": "Strengste Upload-Grenze",
+    "downloads_paused": "Downloads sind nach Zeitplan pausiert bis {time}. Um jetzt trotzdem zu laden, schalte oben auf ein anderes Profil oder „Keine Limits“ um.",
+    "downloads_paused_open": "Downloads sind pausiert, solange dieses Profil gilt. Um jetzt trotzdem zu laden, schalte oben auf ein anderes Profil oder „Keine Limits“ um."
   },
   "capabilities": {
-    "title": "Was eine Grenze nicht vollständig erreicht"
+    "title": "Was eine Grenze nicht vollständig erreicht",
+    "notes": {
+      "torrent_session_rate": "die Engine kennt nur eine Rate für die ganze Sitzung",
+      "media_job_rate": "yt-dlp nimmt eine Rate pro Auftrag (--limit-rate)",
+      "gallery_job_rate": "gallery-dl nimmt eine Rate pro Auftrag (--limit-rate)",
+      "record_no_rate": "streamlink hat kein Ratenlimit; eine Live-Aufnahme lässt sich nicht verlangsamen"
+    }
   },
   "profile": {
     "eyebrow": "Wiederverwendbare Grenzen",
@@ -57,7 +65,10 @@
     "summary_parallel": "{count} parallele Datei | {count} parallele Dateien",
     "summary_upload": "{rate} Upload",
     "summary_daily": "{size} pro Tag",
-    "summary_monthly": "{size} pro Monat"
+    "summary_monthly": "{size} pro Monat",
+    "pause_label": "Downloads pausieren",
+    "pause_description": "Solange das Profil gilt, startet kein Download, und laufende Übertragungen, die fortsetzen können, pausieren bis zu seinem Ende. Uploads, Seeding und Nachbearbeitung laufen weiter; ein Paket kann die Pause ignorieren.",
+    "summary_pause": "pausiert Downloads"
   },
   "scope": {
     "title": "Bereichsgrenzen",

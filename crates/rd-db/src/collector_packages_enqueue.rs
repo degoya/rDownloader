@@ -16,6 +16,9 @@ use crate::{
 /// `only` narrows the claim to the links a person could see: a LinkGrabber filter hides links
 /// of a package, and "add to the queue" must not send what it hid. The links left out keep
 /// their state and their package, which `finish_package_enqueue` then keeps alive for them.
+///
+/// A link a LinkFilter rule hid (RD-1240-09) is claimed only when `only` names it: hidden is
+/// the server's own filter, so a claim of the whole package leaves it behind like the list's.
 pub(crate) async fn claim_package_for_enqueue(
     connection: &mut SqliteConnection,
     package_id: CollectorPackageId,
@@ -49,7 +52,8 @@ pub(crate) async fn claim_package_for_enqueue(
     let mut claimed = Vec::with_capacity(rows.len());
     for row in rows {
         let candidate: LinkCandidate = row.try_into()?;
-        if only.is_some_and(|ids| !ids.contains(&candidate.id)) {
+        let named = only.map(|ids| ids.contains(&candidate.id));
+        if named == Some(false) || (named.is_none() && candidate.hidden_by_filter.is_some()) {
             continue;
         }
         let previous = candidate.state;

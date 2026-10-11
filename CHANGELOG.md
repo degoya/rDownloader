@@ -5,6 +5,549 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Tray switch for game mode (RD-1240-23, owner 2026-10-10).** The desktop agent's tray has a
+  check item “Pause while gaming” that switches game mode on and off; the switch is
+  `CaptureGameMode.enabled` (on when left out, so stored settings keep their meaning), shown on
+  the Desktop settings form and taken by MCP's `update_capture_agent_settings`. The agent sets it
+  with its own right over `POST /api/v1/capture/game-mode` (`capture:queue`, audited), keeps it
+  until the service has it and, switched off, lifts its own hold at once. Greyed out while no
+  program or full screen is set and for an agent without queue control. It is the tray command
+  `game_mode` (`CaptureCommand::GameMode`), so a global shortcut can be assigned on the settings
+  page or over MCP; it has none by default, and a pressed one obeys the greyed-out entry and logs
+  why it did nothing (nothing set up, no queue control, not known yet).
+
+- **Colour themes (RD-1240-05, owner 2026-10-10).** Settings › Interface › *Colour theme*, per
+  browser beside light/dark: Signal (default), Ocean, Violet, Forest, Rose, Amber.
+  `web/src/composables/useColorPalette.ts` writes a palette's two Tailwind scales over
+  `--ui-color-primary-*`/`--ui-color-neutral-*` on `<html>` before the first paint (`main.ts`),
+  the default writes none; `main.css` takes the light accent from `--ui-color-primary-700`
+  instead of `signal-700` by name. Every palette passes 4.5:1 in both modes
+  (`useColorPalette.test.ts`). `tailwindcss` moved to `dependencies`, its colours now imported at
+  run time.
+
+- **Nine more bundled site rules (RD-1240-01, owner 2026-10-10).** `rd-siterules/resources/examples.json`
+  brings, switched off: `fedora-releases` (kernel.org's mirror; `dl.fedoraproject.org` answers
+  with a bot check), `archlinux-iso` and `linuxmint-releases` in `linux`; the two-stage
+  `libreoffice-stable` and `vlc-releases` in the new group `software`; `archive-org-items` (an
+  item's original files from `<item>_files.xml`, linked below `archive.org/download/<item>/`) in
+  the new group `archive`; `pastebin`, `rentry` and `sourcehut-paste` in `paste`. Each was
+  measured live with a Chrome user agent and has a recorded page and a test
+  (`tests/bundled_{linux,software,archive,paste}.rs`); the paste services left out, with their
+  measurements, are in the job and `docs/site-rules.md`. Group names *Free software* and
+  *Internet Archive* in all four catalogues; `restore_site_rule_examples` names the groups.
+
+- **Tray: "Add all from LinkGrabber", started or paused (RD-1240-07, owner 2026-10-10).** Two
+  entries beside the queue controls do what `E`/`W` do in the web interface. A capture token
+  reaches no API route and may not read the LinkGrabber, so the web's
+  `/api/v1/collector/packages/enqueue` (which wants package ids) is not reusable; the new
+  `POST /api/v1/capture/linkgrabber/enqueue` (`rd_api_intake::capture_linkgrabber`, behind
+  `require_capture_queue`, scope `capture:queue` — no new scope) selects on the server: packages
+  with an online link, imported NZBs, minus what holds a duplicate (the web asks about those, the
+  tray cannot), and answers with counts and the first error code. The agent sends it on the queue
+  channel (`QueueRequest::AddLinkGrabber`, `activity::carry_out`) and answers with a desktop
+  notification (`linkgrabber.rs`); without the right the entries are greyed with the pairing hint.
+  The pairing checkbox reads "May control the queue" and names the three tray actions.
+
+- **Media: audio formats, a section of the video and pauses between requests (RD-1240-15).** The
+  format selector's *Audio format* turns a link into an audio extraction as MP3, M4A, Opus or
+  FLAC (`target: audio_only`, `output.extract_audio`; disabled without ffmpeg) and back to the
+  video. `MediaFormatCriteria` gains `section` (`rd_core::MediaSection`, start/end seconds, an
+  open end allowed, `--download-sections "*START-END"`, no `--force-keyframes-at-cuts`) and
+  `pauses` (`rd_core::MediaPauses`, `--sleep-requests`/`--sleep-interval`, 0–600 s), both
+  checked in `sanitized` (`media.criteria_invalid`); a link without its own pauses keeps the new
+  settings `media_sleep_requests_seconds`/`media_sleep_interval_seconds` (0–600, default 0,
+  `settings.media_pause_invalid`). The flags come from `rd-media/src/pacing.rs`, one call in
+  `DownloadPlan::build`; the probe stays without pauses. UI: `MediaSectionPausesField.vue`
+  (times as `90`, `1:30`, `1:02:03`, `utils/mediaTimecode.ts`), two fields in the media settings
+  card; MCP descriptions of `set_candidate_plan` and `get_settings` name the new fields.
+
+- **LinkFilter rules for the LinkGrabber (RD-1240-09, owner 2026-10-10).** After JDownloader's
+  LinkFilter: conditions on the file name (glob or regex), size from/to, file types, hoster and
+  source decide at intake whether a link is hidden, accepted (an exception above a broader rule)
+  or routed into a package and/or category; the first enabled rule in order wins
+  (`rd_collector::LinkFilters`). Migration `0135` holds `link_filter_rules` and
+  `link_candidates.hidden_by_filter` (`ON DELETE SET NULL`: deleting a rule shows its links
+  again). A hidden link stays in the LinkGrabber, in its package; a whole-package claim leaves it
+  behind unless the enqueue names it (`claim_package_for_enqueue`), and nothing in the downloads is
+  touched. `POST /api/v1/link-filters/apply` decides the open links again (hide, show, route),
+  `POST /api/v1/collector/candidates/unhide` shows one until then; CRUD, `reorder`, and the area
+  bundle's `link_filters` section (`/api/v1/link-filters/export|import`). Settings › LinkGrabber
+  has the form-and-list card with order arrows, export/import and *Apply to LinkGrabber*; the
+  LinkGrabber's *Filters* has *Show hidden* and *Apply LinkFilter*, a hidden row a badge and
+  *Show again*. MCP: `list_link_filters`, `create_/update_/delete_link_filter`,
+  `reorder_link_filters`, `apply_link_filters`, `unhide_candidates`. No JDownloader import of
+  filter rules (owner).
+
+- **Automations at a time, and five more actions (RD-1240-10, owner 2026-10-10).** Trigger
+  `schedule` with a `schedule` beside it — `{"kind":"interval","minutes":N}` (1–1440, counted from
+  midnight) or `{"kind":"cron","expression":…}` (five fields, the subscription's parser) — read in
+  the service's zone (`rd-automation/src/schedule.rs`, stored in `automation_versions.schedule_json`,
+  migration 0136). `rd-api-core/src/automation_schedule.rs` looks every 15 s and queues a due slot
+  into the ordinary run table: a slot is due for 120 s and not caught up after a restart, and its
+  idempotency key (`schedule_key`: automation + slot's wall-clock time) keeps it to one run across
+  a restart or a repeated summer-time hour; a slot older than the version is skipped. New actions:
+  `set_priority`, `start_queue` (ends a whole-queue pause), `extract_package` (the menu's
+  "Extract"), `notify` (a message through a notification target) and `add_links` (LinkGrabber via
+  the plain intake, or straight to the downloads as `POST /api/v1/downloads` does, HTTP(S) only,
+  `rd-api-core/src/automation_links.rs`); its links run unattended and so take the reach of
+  `LinkOrigin::Proposed` from the person's own intake, as a hot folder's `.rdlinks` does: their own
+  network, never this machine (LinkGrabber: candidates held before the check through the plain
+  intake's new `reach`; downloads: a literal address here refused, `address_reach` written). A time trigger refuses package actions
+  (`automation.action_needs_package`), links into the LinkGrabber on `intake_received` are
+  refused as a loop (`automation.links_loop`). The dry run answers each match's `actions` and,
+  for a time trigger, `next_run_at`; the area export carries `schedule` and the new actions
+  (targets by name). The editor has a trigger card with the schedule and one card per action;
+  the MCP tool descriptions name the new trigger and actions.
+
+- **aria2 JSON-RPC adapter (RD-1240-11, owner 2026-10-10).** `crates/rd-api-compat/src/aria2/`
+  answers `POST /jsonrpc` (JSON-RPC 2.0, batches, `system.multicall`): `addUri`, `tellStatus`,
+  `tellActive`, `tellWaiting`, `tellStopped`, `pause`/`forcePause`, `unpause`,
+  `remove`/`forceRemove`, `getGlobalStat`, `getVersion` (1.37.0), `system.listMethods`. Off by
+  default: the new settings field `aria2_rpc_enabled` (Settings › Clients & API › API & MCP,
+  `SettingsAriaRpcCard.vue`), `404` while off, preflight included. The `token:` secret is an API
+  token checked by `auth::compat_access`, once per request; refused `403 Unauthorized`. GID = the
+  download id's low 64 bits. CORS for every origin without credentials; body bounded at 64 KiB.
+  No WebSocket, `addTorrent`, `addMetalink`. Tests: `aria2::tests`, `sources::compat_aria2`,
+  `access::scope_matrix::the_aria2_adapter_wants_all_three_compatibility_scopes`.
+
+- **Media library refresh for Plex, Jellyfin and Emby (RD-1240-12, owner 2026-10-10).** Three
+  notifier plugins, `plugins/plex-notifier` (`019d…0182`), `jellyfin-notifier` (`…0183`) and
+  `emby-notifier` (`…0184`), each 0.1.0: on `package_completed` Plex gets
+  `GET /library/sections/all/refresh` with `X-Plex-Token={{secret}}` (left off without a token),
+  Jellyfin and Emby `POST /Library/Refresh` with `Authorization: MediaBrowser Token="{{secret}}"`
+  (`auth_required` before sending without one); every other event sends nothing. Manifests
+  declare `domains = ["*"]` only, and `destination_reach` now refuses a destination that is not
+  an address when the manifest names no service besides `*` (`plugin.destination_invalid`, at
+  save and delivery). Whole library only by owner decision; the path-precise scan with a path
+  mapping is RD-1250-01. Tests: `rd-plugin-host/tests/media_library_contract.rs` against the
+  servers' answers on the wire (`support::wire_playing`), token in no failure; the contract's
+  notifier lists; bundled count 75.
+
+- **Web Push for the installed app (RD-1240-13, owner 2026-10-10).** Settings › Interface ›
+  *Push on this device* (this browser only; `SettingsWebPushField.vue`, `useWebPush.ts`)
+  subscribes at the browser's push service with the service's VAPID key and hands the
+  subscription over: `GET /api/v1/notifications/web-push/key`,
+  `GET|POST /api/v1/notifications/web-push/subscriptions`, `DELETE …/subscriptions/{id}` (scope
+  `api:config`; MCP `list_web_push_subscriptions`, `delete_web_push_subscription`, subscribing
+  omitted). Migration `0137`: `web_push_keys` (one row, private key as a vault reference, made on
+  first need; an unreadable one — a restore elsewhere — is replaced and the subscriptions go) and
+  `web_push_subscriptions` (endpoint, keys, device name, events). The first subscription makes a
+  `web_push` target and a rule for every event; each browser's events filter. `rd-notify` sends
+  one push: RFC 8291 `aes128gcm` (tested against the RFC's example), RFC 8292 VAPID, all from
+  `aws-lc-rs`; `https` and public addresses only, 404/410 deletes the subscription. `sw.js` shows
+  the message and opens the event's view on a click. Off a secure context the switch says so.
+
+- **Polish of the two lists (RD-1240-14, owner 2026-10-10).** A right-click on a row of the
+  download list or the LinkGrabber opens a `UContextMenu` with exactly the items of the row's dots
+  (`rowContextMenu.test.ts`). The column header's menu switches each data column on or off
+  (`useQueueColumns` keeps it per list and browser: track `0px`, cells hidden through
+  `data-hidden-columns`). `GET /api/v1/history/export?format=csv|ndjson` (`rd_api_queue::history_export`,
+  scope `api:read`, the list's filters, newest 10,000, `X-Total-Count`; CSV with BOM and
+  apostrophe-defused formulas, refusal `history.export_format_invalid`) behind *Export* on the
+  History tab; MCP claims it with `list_download_history`. The setting
+  `duplicates_include_history` (default off, Settings › LinkGrabber) adds `history`
+  (`HistoryDuplicate`: id, name, outcome, end) to each answer of `POST /api/v1/duplicates/lookup`
+  for the history's packages that left the queue; the link row shows *Already downloaded*.
+  A package's "not before": `packages.start_after` (migration `0138`), `DownloadPackage::start_after`,
+  `PUT /api/v1/packages/{id}/start-after` (scope `api:queue`, a past moment stored as none), MCP
+  `set_package_start_after`; the dispatch pass skips the waiting files of a package not due yet
+  (`dispatch.rs`, one package read per pass as before). Menu entries and the row's alarm-clock glyph
+  come from `usePackageStartAfter`, the dialog is `PackageStartAfterModal.vue`. The search palette
+  lists the queue's packages and files by name from `GET /api/v1/queue/search?q=&limit=`
+  (`rd_api_queue::queue_search`, `Database::search_queue`, scope `api:read`, 1-50 rows of each,
+  default 8, refusal `queue.search_invalid`; MCP `search_queue`) and jumps to the row through
+  `/downloads?reveal=` (`useQueueReveal`).
+
+- **Torrents: active limits and a port test (RD-1240-16).** `torrent_max_active_downloads`
+  (1–32, default 4, the runner's former fixed slot count) is read by `TorrentRunner::slot_capacity`
+  on every dispatch pass (`rd-torrent/src/limits.rs`, `try_read` with the last value standing in);
+  the queue's `max_active_files` still applies. `torrent_max_active_seeds` (1–500, empty = none):
+  past it the seeding supervisor ends the seeds that have seeded longest, a seed still hashing
+  counts but is never ended; error code `settings.torrent_active_limit_invalid`. New
+  `POST /api/v1/torrents/network/port-test` (scope `api:config`, MCP `test_torrent_port`,
+  `rd-torrent/src/port_test.rs`) asks no outside service: a local TCP connection to the listener
+  and librqbit's per-peer `incoming_connections` give `reachable`, `listening` (unproven),
+  `not_listening` or `unavailable`. Sequential download and first/last piece stay unsupported:
+  librqbit 9.0.1 has one fixed piece order (files by name, first and last piece, then front to
+  back) and nothing to switch, so no per-torrent switch was added (job: Blocked/No-Go for that
+  part).
+
+- **More notification events (RD-1240-17).** `rd_notify::NotificationEvent` gains
+  `download_started` (queued or resolving -> downloading), `links_added` (`collector.intake`),
+  `stream_recorded` (a `record` download completed, in its package's category) and
+  `subscription_matched` (a finished poll with `accepted > 0`, in the subscription's category).
+  The first two are opt-in (`is_opt_in`: a rule without an event list does not take them) and
+  coalesce: `rd_notify::Coalescer` folds a burst per event and category into one delivery,
+  closed 10 s after its last occurrence or 60 s after its first, keyed by the first bus event
+  (`notify_service/bursts.rs`, flushed on a 1 s tick and on shutdown). MCP event parameter and
+  tool description updated; rule editor and catalogues in four languages. No WIT change: plugin
+  destinations receive the new names as the existing `event` string. Suite
+  `admin::notification_activity`.
+
+- **CLI completions and event following; Grafana, Unraid, TrueNAS (RD-1240-18).**
+  `rdownloader completions <shell>` writes `clap_complete`'s script (bash, zsh, fish, PowerShell,
+  elvish; new dependency `clap_complete` 4.6.9) without the hidden `apply-update`.
+  `rdownloader events [--json]` follows `GET /api/v1/events` one line per event (JSON Lines:
+  the envelope, markers as `{"kind","payload"}`), resumes with `Last-Event-ID` after the
+  service's `retry:` (1–60 s) and ends with the remote exit codes on a refusal; `--timeout`
+  bounds connecting, a 60 s silence counts as a lost stream (`remote/events_cmd.rs`,
+  `remote/sse.rs`). `packaging/grafana/rdownloader-dashboard.json` covers every
+  `/api/v1/metrics` family; `packaging/unraid/rdownloader.xml` and
+  `packaging/truenas/compose.yml` with the NAS's ids and paths, described in `docker/README.md`.
+
+- **Desktop agent: game mode (RD-1240-19).** Settings › Clients & API › Desktop › *Step aside for
+  games*: while a full-screen program is in front (Windows) or a named process runs (Windows,
+  macOS), the agent pauses the queue or switches on a chosen bandwidth profile, and lifts it
+  afterwards. The settings are a field of the `capture.agent` row (`rd_core::CaptureGameMode`,
+  validated with `capture.game_mode_*` codes; MCP `update_capture_agent_settings`). The agent asks
+  `POST /api/v1/capture/game-mode/hold|release` (`rd_api_admin::capture_game_mode`, behind
+  `capture:queue`), which read the action from the row, set a 15-minute timed pause or hand-made
+  switch the agent renews, and hold or lift only over nothing or the agent's own hold (matched by
+  its end) — a pause somebody set, changed or resumed stays theirs. Detection is a PowerShell
+  helper on Windows (`SHQueryUserNotificationState`, `Get-Process`; the workspace denies
+  `unsafe_code`) and `ps` on macOS; macOS full screen would need the screen-recording right and
+  Linux has no tray, so neither is offered. Decisions (`game_mode::Guard`) and parsing are ungated
+  and tested on Linux.
+
+- **Server update in the tray (RD-1240-25, owner 2026-10-10).** While the service is offered an
+  update the desktop agent's tray shows “Install server update X.Y.Z”, read from
+  `GET /api/v1/capture/server-update` (every capture token: version, how it installs, whether
+  this agent may, where an install stands). An agent paired with the new right **May install
+  server updates** (`capture:server_update`, off by default, off the scope ladder like
+  `capture:queue`) installs it over `POST /api/v1/capture/server-update/install`
+  (`require_capture_server_update`), which is `update_install_service::start` — the web
+  interface's install with its checks, codes and audit; without the right the entry opens
+  Settings › System › Updates. A package manager's or container's installation shows its
+  command, greyed out. Start and outcome are notifications (an install the agent started is
+  kept in `server-update.json`, so its outcome is told after the agent's own restart too);
+  running downloads are confirmed by choosing the entry again within two minutes; the server
+  line reads “updating to vX…”. Tray command `install_server_update`
+  (`CaptureCommand::InstallServerUpdate`), no default shortcut.
+
+- **Automatic updates for the service and the desktop agent (RD-1240-27, owner 2026-10-10).**
+  `update_auto_install` (off by default) and `update_auto_install_window` (`start_minute`,
+  `end_minute` in `bandwidth_timezone`) in the settings document, under Settings › System ›
+  Updates, greyed out with its reason where `InstallKind::installs_itself` is false (package
+  managers, Docker); the status says `installs_itself` and `auto_install`. `rd_update::auto_install`
+  decides (switched on, installs itself, offered on the channel in force, no install running, not
+  failed or rolled back before for that version, nothing transferred, post-processed or recorded
+  for five minutes, inside the window); `rd_api_admin::update_auto_install` looks once a minute
+  and installs through `update_install_service` — the same download, backup and updater with
+  roll-back — as the system actor (audit `update_install_started`, detail `automatic`). New
+  notification events `update_installed` and `update_failed` (once per version, for a manual
+  install too); the start is announced under `update_available` before the stop. Over MCP the
+  switch needs `api:admin`. The agent alone: `auto_install` in `self-update.json`,
+  `rdownloader-capture update --auto-install on|off`, the tray's check item "Install updates
+  automatically" (`CaptureCommand::AutoInstall`, no default shortcut); only a portable agent
+  installs itself, beside the service the item is not shown.
+
+- **Download window (RD-1240-30, owner 2026-10-10).** A bandwidth profile can *pause downloads*
+  (`pause_downloads`, migration `0139`): while it is in force nothing starts and running transfers
+  that can resume pause, recorded under `queue.schedule_hold` apart from the queue pause, and its
+  end resumes only those; recordings, media, gallery, plugin and non-resumable HTTP transfers run
+  to their end, seeding and post-processing go on. A package and a category carry a weekly
+  `download_window` and `ignore_schedule_pause` (`GET|PUT /api/v1/packages/{id}/download-window`,
+  `PUT /api/v1/categories/{id}/download-window`, codes `download_window.window_invalid` and
+  `.too_many_windows`); the package's own wins, rates never rise above the global, profile or
+  hand-set limit. `rd-limits/src/download_window.rs` decides, `rd-scheduler/src/download_window.rs`
+  holds and pauses. `GET /api/v1/queue/pause` names `schedule_pause`; the header and the rail say
+  *Paused by schedule until …*. Automation action `pause_queue`, ended by `start_queue`. MCP
+  `get_package_download_window`, `set_package_download_window`, `set_category_download_window`;
+  profile, status, pause and automation tool descriptions name the rest.
+
+- **Shortcuts for every tray function (RD-1240-24, owner 2026-10-10).** `CaptureCommand` gains
+  `AddAllFromLinkGrabber`, `AddAllFromLinkGrabberPaused` and `InstallUpdate` (the agent's own
+  update), at the end of the enum, without a default shortcut, listed in Settings › Clients & API ›
+  Desktop and named in `update_capture_agent_settings`. A click now goes through the entry's
+  command like its shortcut does (`controls::action`); a pressed `install_update` without an
+  update the agent installs itself shows a notification why (`self_update::install_refusal`), the
+  LinkGrabber ones answer without `capture:queue` as the entries do. `rd-capture`'s `tray_menu`
+  lists every menu entry with its command on every host; its tests fail for a clickable entry
+  without one. Quit keeps its command from RD-1180-03 (no default).
+
+- **Restart when needed (RD-1240-32, owner 2026-10-10).** What runs only from the next start makes
+  a restart pending: plugin versions derived from the plugin lifecycle (`restart_required`),
+  plugin switches, removals and withdrawals recorded by their routes, in memory
+  (`rd_api_core::restart_state`, `AppState::restart`); what a start finds already is its baseline.
+  `GET`/`POST /api/v1/system/restart` (`api:admin`; `pending`, `reasons`, `can_restart`, `how`
+  `self`|`supervisor`|`manual`, `supervisor`, `blocked_reason`, `restarting`, `automatic`,
+  `started_at`), the tray's `POST /api/v1/capture/server-update/restart` (`capture:server_update`)
+  and a `restart` block in `GET /api/v1/capture/server-update`. Under systemd (`INVOCATION_ID`) or
+  in a container the service stops gracefully and ends with exit code 75
+  (`rd_update::RESTART_EXIT_CODE`) for the unit's `Restart=on-failure` or the restart policy;
+  otherwise the hidden `rdownloader restart-service` relauncher, started like the updater, stops
+  it, starts the same version and waits for its health (helpers factored out of `apply-update`).
+  Codes `restart.transfers_active`, `restart.update_running`, `restart.already_restarting`,
+  `restart.relaunch_failed`; audit `service_stop_requested` with `restart`; event
+  `service_restarting`. `restart_when_needed` (off) restarts by itself over the automatic
+  install's quiet clock and window (`rd_update::auto_restart`, `rd_api_admin::restart_auto`). UI
+  notice and header badge with *Restart now*, the action on the plugin restart messages, the
+  switch beside the automatic install; tray line “restart pending” and “Restart server”
+  (`CaptureCommand::RestartServer`, no default shortcut). MCP `get_restart_status`,
+  `restart_service`.
+
+- **Clean-up after updates and in the plugin cache (RD-1240-34, owner 2026-10-10).** Behind a
+  proven update (`rd_update::install::recover::update_proven`: journal `verified` for the running
+  version and no updater, or no journal) only the newest database copy and archive in
+  `pre-update/` and the newest copy in `pre-migration/` stay (`rd_backup::update_retention`);
+  after the new setting `update_backup_retention_days` (0-3650, default 14, 0 = for good) those go
+  too, an unproven update keeps everything. The plugin compile cache records the owners of each
+  entry (`plugin-cache/owners.json`) and its Wasmtime directory; `rd_plugin_host::prune_compile_cache`
+  removes entries of no installed component, of another Wasmtime and the least recently used
+  beyond 256 MiB (also Wasmtime's own limit). Entries written before this have no owner and
+  compile once more. `GET`/`POST /api/v1/system/cleanup` (admin, `confirmed`, audited as
+  `system_cleanup`), the same pass ten minutes after every start, MCP `get_cleanup_preview` and
+  `clean_up_data_directory`, a card under Settings › System › Retention. The tool store already
+  prunes (three versions) and is unchanged. Measured on the owner's data: `events` and
+  `subscription_items` make up 520 of the database's 538 MB.
+
+- **The database stops growing with use (RD-1240-35, owner 2026-10-10).** `usenet_changed` and
+  `collector_changed` are broadcast as before but no longer written to `events`
+  (`BROADCAST_ONLY_EVENT_KINDS` in `rd_db::writer::insert_event`; nothing reads the table back —
+  the SSE resume replays the bus buffer); on the owner's copy they were 1.15 M of 1.33 M rows.
+  Skipped or dismissed subscription items older than the new setting
+  `subscription_item_retention_days` (0-3650, default 30, 0 = whole for good, admin field) keep
+  only their key in `subscription_item_keys` (migration 0142), which `record_items` and
+  `knows_item` count as archived, so a re-listed item stays out. New databases are
+  `auto_vacuum = INCREMENTAL`; the clean-up of RD-1240-34 compacts, hands free pages back
+  (`incremental_vacuum`), now also daily, and on "Clean up now" rewrites an older file once
+  (`VACUUM`) unless something runs (`system.cleanup_rewrite_busy`) or there is no room for a
+  second copy (`system.cleanup_rewrite_no_space`). `GET`/`POST /api/v1/system/cleanup` carry
+  `database` (file, free pages, events, archive, keys, compactable items); the Retention card shows
+  them. Measured on a copy of the owner's 564 MB database: 261 MB without the two event kinds,
+  83 MB with the archive compacted.
+
+### Changed
+
+- **Roadmap: RD-1240-08 … RD-1240-20 from the feature review of 2026-10-10.** Proxy profiles
+  for the media tools, LinkFilter, automation time triggers and actions, an aria2 JSON-RPC
+  adapter, media-library refresh, Web Push, six polish jobs and the feature-list drift, all in
+  milestone 1.24 (owner, 2026-10-10).
+
+- **`F` opens the indexer search from every page (RD-1240-02, owner 2026-10-10).** Pressed outside the
+  LinkGrabber, `F` goes there and opens the search drawer with the keyboard in its field; the
+  download list's name search has no key any more. That also ends a dead `F`: Downloads took its
+  handler back on unmount *after* the LinkGrabber's drawer had handed its own in, so the key did
+  nothing on a LinkGrabber reached from Downloads. `indexerSearchFocus.ts` keeps a request the
+  drawer answers once mounted, dropped when the navigation is refused.
+
+- **Site rules: the bundled rules in the groups `blender` and `linux`, and a list header that
+  fits (RD-1240-03, owner 2026-10-10).** The four rules of `rd-siterules/resources/examples.json` leave the
+  group `examples`; their origin reads *Bundled* / "Comes with rDownloader", without the "examples
+  for free sites" wording, here and in the header, the empty list and the restore button. The list
+  header carries *Export* and *Import* as `AreaBackupButtons` does on Subscriptions and
+  Automation (outline, `sm`); *Restore bundled rules* and *Delete all* moved behind a dots menu.
+  `FormListLayout`'s list header wraps instead of pushing the count out of the column.
+  The import explanation above the list and on the *Import* button is gone, its key with it.
+
+- **Result toasts say only what happened, and long names wrap (RD-1240-04, owner 2026-10-10).** "Clear the
+  list" answers with the count it removed (or that there was nothing to clear); the sentence per
+  reason naming up to three packages it left alone (`downloads.notices.clear_skipped`) is
+  removed. Nuxt UI's toast clips its overflow and a package name without a space never wrapped;
+  `uiTheme.ts` gives the toast's title and description `wrap-anywhere`.
+
+- **Tray: a second status line with the server's version and state (RD-1240-06, owner
+  2026-10-10).** The agent's line keeps its version, address, transfers and notices and loses the
+  server state; a disabled item under it reads "Server v1.24.0 — running", or "Server — starting"/
+  "not reachable" without a version. The health poll (`tray_health.rs`, split out of `tray.rs`)
+  reads the version from the answer it already gets, bounded like the identity check and only
+  from one that names rDownloader (`client::health_version`: at most 32 of `[A-Za-z0-9.+-]`).
+  `TrayState::on_server_status` takes the version and names `server_line` instead of
+  `status_line`; the tooltip keeps the combined line, server state in front, within 127 chars.
+
+- **`docs/feature-list.md` measured against the code again (RD-1240-20).** The API's operation
+  count, the MCP capability split and the tool count no longer stand in the text; it points at the
+  generated `crates/rd-api/mcp-coverage.md`, and the owner's line names everything that page
+  lists under it (object storage, the backup passphrase and restore, indexers). The CLI list
+  gains `update`, `stop` and `auth`; the cloud drives are five (Box and pCloud, not Real-Debrid);
+  the free flow applies to every hoster the provider table marks *Yes*; all five bundled sign-in
+  plugins are named; a duplicated crawler fragment is gone; the settings page count is dropped.
+
+- **Settings › LinkGrabber, Interface, Post-processing and Tools in tabs (RD-1240-26, owner
+  2026-10-10).** LinkGrabber: *General* (mirror detection, duplicates in the history),
+  *Blocklist*, *Containers*, *LinkFilter*; Interface: *This browser* and *Display*;
+  Post-processing: *Unpacking*, *Repair & cleanup*, *Package names*, *Malware scan (ClamAV)*,
+  *Scripts & upload*, the 270-line pipeline card split into one card per tab
+  (`SettingsPostprocessRepairCard`, `SettingsPostprocessDeliveryCard`); Tools: *Status*, *Paths*,
+  *Managed tools*, the vendor-folder card split from the managed switches. The tab is in the
+  address (`?tab=`), every search entry and cross link names its tab, the old Collector address
+  opens *Blocklist*; *This browser*, *LinkFilter* and the tool *Status* carry no save bar
+  (`SETTINGS_SUB_TABS`).
+
+### Fixed
+
+- **yt-dlp and streamlink behind a proxy that refuses its password (RD-1240-29).** A proxy's 407
+  (`Tunnel connection failed: 407 Proxy Authentication Required`, `HTTP Error 407`, curl's
+  `CONNECT tunnel failed, response 407`) was a `media.ytdlp_failed` / `record.tool_failed` retried
+  every two minutes, and the channel monitor's probe read it as an offline channel; it is now
+  `proxy.auth_failed`, permanent, from one shared check `rd_scheduler::proxy_auth_failed` that
+  gallery-dl's mapping (RD-1240-28) uses too.
+
+- **Twelve findings of the 1.24 live tests (RD-1240-28).** (1) aria2: AriaNg's "Remove Task" on a
+  finished task met `HTTP 500 No such method`; `aria2/options.rs` adds `removeDownloadResult`,
+  `purgeDownloadResult`, `getFiles`, `getUris`, `getPeers`, `getServers`, `getOption`,
+  `getGlobalOption` and `saveSession`, `changeOption`/`changeGlobalOption` answer `OK` without
+  effect, and an unknown method is `-32601 Method not found` with `HTTP 400`
+  (`RpcError::method_not_found`). (2) LinkGrabber: the orange duplicate state also suppresses the
+  blue *N × already queued* badge, one mark per link. (3) Web Push: subscribing applies the
+  sending side's address rule (`rd_notify::is_deliverable_push_address`, public addresses only),
+  so a loopback or private push address is refused with `notification.push_endpoint_invalid`
+  at once. (4) Media dialog: the section's *From*/*To* are field-group badges instead of a
+  `#leading` slot that overlapped the placeholder; audio formats take the codec catalogue's
+  names (*Opus*). (5) gallery-dl's `407 Proxy Authentication Required` is the new code
+  `proxy.auth_failed` instead of `gallery.auth_required`, whose "authentication" it matched.
+  (6) Two packages of one name share a folder, so a new gallery met the other one's file,
+  gallery-dl skipped it and the download finished with nothing transferred; a gallery that has
+  not run before now claims the next free `name (n)` when its folder holds files
+  (`claim_folder`) and records it as its name, so a retry comes back to it. (7) A torrent session
+  rebuild on the fixed port the running session listens on stops that session first and brings it
+  back if the new one still fails; `PUT /api/v1/settings` (and MCP `update_settings`) answers a
+  failed rebuild with `409 torrent.session_rebuild_failed` after saving, instead of `200`.
+  (8) librqbit took a new torrent's id as the highest persisted id plus one, read before the entry
+  was stored: torrents added at once to a fresh session shared an id, the second came back
+  "already managed" with the first one's handle, failed as `torrent.metadata_mismatch`
+  (permanent) and deleted that handle (`bug: torrent in broken "None" state`); `rd-torrent`'s
+  `adding` hands out the ids, and another torrent's handle is retried, never deleted.
+  (9) `POST /api/v1/torrents/import` reads `enqueue` and queues the package at once; the handler
+  moved from `rd-api-queue` to `rd-api-intake` (`torrent_import`), which owns the enqueue, and MCP
+  `import_torrent` takes `enqueue`. (10) The seeding nudge used `notify_waiters`, lost while the
+  supervisor was mid-pass, so two torrents finishing together both seeded until the next 30 s
+  tick; now `notify_one`. A finished torrent seeds by its effective policy, which sharing off
+  turns off, not by the global seeding switch alone. (11) Refreshing the tool manifest without a
+  URL is `409 tools.manifest_url_missing` (`ToolError::ManifestUrlMissing`), not `500`.
+  (12) Automation webhook and notify messages carry `<run id>:<action index>` as
+  `X-RDownloader-Idempotency-Key` and the new `NotificationEvent::Automation` (`automation`, no
+  rule's event) instead of an empty key and `package_completed`.
+
+- **Proxy profiles reach yt-dlp, gallery-dl and streamlink (RD-1240-08, owner 2026-10-10).** The
+  three tools open their own sockets and inherited only the service's `HTTP(S)_PROXY`, so media,
+  galleries and recordings went past a job's, account's or the global proxy profile. A runner now
+  asks `rd_scheduler::ToolNetworkSource::for_file` (new `tool_network.rs`; the precedence of
+  `network_client_config`, wired in `startup.rs` through the new `rd_media`/`rd_gallery`
+  `build_with_tool_network` and `rd_stream::build_with_network_defaults`): a profile without
+  credentials goes as `--proxy` (yt-dlp, gallery-dl) or `--http-proxy` (streamlink) and in the
+  environment, one with credentials only through the child's `HTTP(S)_PROXY`/`ALL_PROXY` in both
+  spellings (`NO_PROXY` removed; gallery-dl gets `-o proxy-env=true`), percent-encoded, never on
+  a command line. yt-dlp's format probe of a required selection and the recording's sidecar probe
+  use it too. A custom CA reaches them as a bundle file of platform roots plus the CA
+  (`rd_http::tool_trust_bundle`, `rustls-native-certs`): `SSL_CERT_FILE`/`REQUESTS_CA_BUNDLE`,
+  yt-dlp `--compat-options no-certifi`, gallery-dl `-o verify=`. A profile that cannot be
+  resolved fails the run with `proxy.unavailable`; a tool that says it cannot speak the proxy
+  (yt-dlp's "Unsupported proxy type", requests without PySocks) fails with
+  `proxy.unsupported_by_tool` instead of a generic tool error. `rd_core::redact_text` now also
+  masks `socks5://`/`socks5h://` userinfo. `rd-media`'s probe error tests moved to
+  `probe_error_tests.rs`, `timed_out` to `runner_ytdlp.rs` (file length).
+
+- **Proxy profile for the media probe, the channel monitor and recording thumbnails (RD-1240-22,
+  owner 2026-10-10).** The three requests RD-1240-08 left direct now go through the same
+  `ToolNetwork`: `YtDlpProbe::with_tool_network` (the LinkGrabber's yt-dlp probe and the
+  subscription poll sharing it) and the channel monitor (`SchedulerHandle::tool_network`,
+  `rd_stream::probe_stream` takes the network) resolve `ToolNetworkSource::for_request` — the
+  global profile, since a candidate, a subscription and a channel carry neither a profile nor an
+  account — and fail with the new `proxy.check_unavailable` instead of a direct request; a
+  streamlink that cannot speak the proxy is a probe failure, no longer an offline channel. The
+  thumbnail fetch (`SidecarClients`) builds its client with the recording's proxy
+  (`ToolProxy::http_proxy`, basic authentication as `rd-http` does) beside the custom CA.
+
+- **Automation trigger `subscription_item` and the format presets (RD-1240-21).** The trigger
+  waited for a payload key `accepted_items` no subscription event carried, so it never fired;
+  `automation_context::subscription` now fires on the finished-poll event
+  (`finish_subscription_run`: `poll: "finished"`, `accepted`, `error`) once per poll that accepted
+  at least one item without error, `Name` the subscription's. `automation_triggers.rs` drives it
+  through the real producer. The format dialog's presets set only the label while the server
+  treats `preset` as display only; `utils/mediaPresets.ts` mirrors `MediaFormatCriteria::preset`
+  (filters back to any, `max_height`, mp4 remux, MP3 extraction), keeping tracks, embedding and
+  the output template.
+
+- **Automations no longer miss an event right after the service starts (RD-1240-10).** The
+  engine subscribed to the event bus only after its start-up recovery of interrupted runs, so an
+  event in that window (a storage alert, say) fired no trigger. It now subscribes before the
+  recovery, and what arrives meanwhile waits in the channel.
+
+- **A package checkbox picks what the filter shows (RD-1240-31, tester report 2026-10-10).** With
+  a filter such as "Failed" set, ticking a package in Downloads selected every file of it — 53
+  instead of the 5 shown — and the file actions then reset or removed files nobody saw. The
+  checkbox, a range and "select all" now take only the shown files, the counter and the file
+  actions follow them, and the package-level actions still need every file of a package ticked.
+
+- **The web interface loads under a base path again; exported NZBs keep their post date; bundled
+  site rules are described in the reader's language (RD-1240-33, old live checks 2026-10-10).**
+  Behind a reverse proxy that mounts the service under a path (`external_url …/rd`) every static
+  file under the base — `/rd/assets/index-*.js`, `/rd/sw.js`, `/rd/favicon.svg` — was answered
+  with the SPA shell as `text/html`, so the browser refused the module script and the page stayed
+  blank (also in 1.23.0): `static_assets::serve` read `OriginalUri`, which the outer router records
+  before `client::strip_base_path` removes the base. It reads the request's own URI now; new
+  `access::reverse_proxy::the_interface_files_are_served_under_the_mount_point`. The NZB parser
+  keeps `<file date>` (`NzbFile::date`, a non-number dropped) and `render_nzb` writes each file's
+  own date, the given one only for a file without, so an indexer hit's NZB in an export carries
+  its post date instead of the export time; a queue package's NZB still carries the import time
+  (no stored post date, would need a migration). Each bundled site rule has its description as
+  `siterules.bundled.<id>` in de/en/es/fr, shown in the rule list while the rule's origin is
+  `example`; any other rule shows its stored text, and the exchange format is unchanged
+  (`web/src/utils/siteRuleOrigin.test.ts` holds the catalogues to `examples.json`).
+  Findings 4–17 of the view, integration and media-server checks: the category form, the storage
+  card and the history row fit 390 px (`minmax(0,1fr)` tracks, a 12rem name); the Downloads
+  navbar measures itself (`@container`) and drops its labels below 72rem, as the LinkGrabber's
+  does (`utils/downloadsNavbar.ts`); every pill tab bar scrolls sideways with full names (theme
+  `tabs`, `design.md`); a field the search found is kept in view while the cards above it load
+  (`revealAnchor`); a failed NZB import carries `error_code` (`rd_collector::nzb_refusal_code`, new
+  `nzb.doctype_refused`) and its alert stays inside the group; the bandwidth capability notes
+  carry `note_code`, translated; a Torznab download answering `301 Location: magnet:…` is taken
+  by that magnet when it names a BitTorrent hash (`rd_http::UnfollowedRedirect`); a torrent's
+  `pieces_have` counts its bitfield, not the pieces this session fetched; names read from an
+  address are percent-decoded (`rd_files::decode_path_segment`, `%2F` stays in the name); the
+  delivery history names each row's destination, says "1 attempt", and a destination plugin's
+  `plugin.http_error` reads "HTTP error: …" instead of "Resolver HTTP error".
+  Findings 18–21: the managed FFmpeg and ffprobe are used as a pair ahead of a vendor or `PATH`
+  folder holding both, only a set ffmpeg path wins (owner, 2026-10-10; `FfmpegTools::pair`); a
+  direct HTTP file promises its host its chunk budget at admission, a resolver's link one
+  connection, so a third four-chunk file on a six-connection host waits `Queued` with its hint
+  and another host's file starts (RD-1130-02 regression; `host_wait.rs`); a download still named
+  `download.bin` takes the server's `Content-Disposition` name after the probe, its fallback-named
+  package with it (`adopt_declared_name`, `rd_files::disposition_file_name`); the online check's
+  sniff asks `Range: bytes=0-1023` instead of reading the whole file (`fetch_sniffed`).
+
+- **A stored credential the vault master key cannot open answers `secret.unreadable`, not `500`
+  (RD-1240-36).** A data folder copied to another machine or account arrives without its master
+  key (it stays in that system's keyring), and testing an NNTP server there answered
+  `internal.error`. `rd_secrets::SecretStore::get` now fails with the typed `SecretUnreadable`
+  (another key, a damaged file, an unknown envelope version; `is_unreadable`/`find_unreadable`
+  through every context), apart from a missing entry. `ApiError::from(anyhow::Error)` maps it
+  centrally to `409 secret.unreadable`; the indexer and caps key reads and the account check keep
+  it apart from "no key"; downloads (permanent, coded), subscription polls, notification
+  deliveries (not retried), automation runs and plugin host calls record the code.
+  `rdownloader doctor` counts readable and unreadable entries and says what to do, the start warns
+  once with the count; neither mints a master key. Translated in de/en/es/fr.
+
+- **YouTube playlists in the LinkGrabber (RD-1240-37, tester report 2026-10-10).** A playlist
+  link ended as one link “playlist” with “yt-dlp failed:” and nothing after the colon. The media
+  probe ran a full `yt-dlp -J --no-playlist` first, which on a `playlist?list=` address resolves
+  every video (measured with 2026.08.19: 196 s and exit 1 for a 240-entry list, because one
+  private or removed video fails the whole run; longer lists hit the 60 s probe limit), and only
+  then the flat listing. It is now one run, `-J --no-playlist --flat-playlist --playlist-end 200`:
+  a single page is still probed in full, a playlist or channel is listed flat and expanded into
+  one link per video, and YouTube's stand-ins `[Private video]`/`[Deleted video]` (no length) are
+  left out; subscriptions use the same probe. `map_tool_error` takes the exit code, so a run
+  without stderr reports `exit code N, no error output` instead of an empty `detail`. The empty
+  line itself came from the web: a LinkGrabber row stores a failure's code and English text but
+  not its parameters, and the catalogue's `{detail}` rendered as nothing; `translateServerMessage`
+  now shows the server's text when a known code's line needs a parameter the message lacks.
+  Tests: `probe_playlist_tests.rs` (real, trimmed flat JSON), `probe_error_tests.rs`, the fake
+  yt-dlp mirrors `--flat-playlist`, Vitest `web/src/i18n/server.test.ts`.
+
+- **Usenet and refused tokens no longer flood the log (RD-1240-38, owner 2026-10-10).** Of 1,463
+  warnings on the owner's instance, 687 were the per-file "yEnc segments disagree on the output
+  filename" of obfuscated posts and 543 the per-segment "segment missing on every server": the
+  first is now `debug`, the second too, with the runner's one `info` line per file carrying the
+  count and a new `warn` in `settle_par2_verdicts` only when a set without PAR2 leaves the file
+  incomplete (the beyond-repair warning per set stays). The per-request "NNTP server answered out
+  of step under pipelining" is `debug`; the once-per-server "pipelining given up" warning now
+  names the first pair. "an API token was refused" is written once per client, path and reason in
+  ten minutes with a `repeated` count (`rd_api_core::auth::refusal_log`), instead of once per
+  request.
+
 ## [1.23.0] - 2026-10-09
 
 ### Changed

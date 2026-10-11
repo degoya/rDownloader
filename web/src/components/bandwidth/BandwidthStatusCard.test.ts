@@ -5,10 +5,17 @@
  * those were in flight unmounted the card first, and the interval started afterwards with no
  * `onUnmounted` left to clear it.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/vue'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { REQUIRED_LOCALES, i18n } from '@/i18n'
+import bandwidthGerman from '@/locales/de/bandwidth.json'
 import bandwidth from '@/locales/en/bandwidth.json'
+import { loadEveryLocale } from '@/test/locales'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.hoisted(() => vi.fn())
@@ -136,5 +143,39 @@ describe('the bandwidth status card switching a profile by hand', () => {
 
     expect(remove).toHaveBeenCalledWith('/api/v1/bandwidth/manual')
     await waitFor(() => expect(screen.getByTestId('bandwidth-source').textContent?.trim()).toBe('Chosen by the schedule'))
+  })
+})
+
+/**
+ * What a limit cannot fully reach reads in the reader's language (RD-1240-33): the service names
+ * each note by a code, and every code it names has its sentence in every required language.
+ */
+describe('the bandwidth status card naming what a limit cannot reach', () => {
+  const sourceFile = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../crates/rd-limits/src/capabilities.rs')
+  const codes = existsSync(sourceFile)
+    ? [...readFileSync(sourceFile, 'utf8').matchAll(/note_code: Some\("([a-z_]+)"\)/g)].map(match => match[1] as string)
+    : []
+
+  beforeAll(loadEveryLocale)
+
+  it.skipIf(codes.length === 0)('has a sentence for every note code in every required language', () => {
+    for (const code of codes) {
+      for (const locale of REQUIRED_LOCALES) {
+        expect(i18n.global.te(`bandwidth.capabilities.notes.${code}`, locale), `${code} in ${locale}`).toBe(true)
+      }
+    }
+  })
+
+  it('shows the note in German in the German interface', async () => {
+    vi.useRealTimers()
+    get.mockReset()
+    get.mockImplementation(async (path: string) => ({
+      data: path === '/api/v1/bandwidth/capabilities'
+        ? [{ kind: 'torrent', download_enforced: true, scoped_enforced: false, note: 'engine applies one session-wide rate', note_code: 'torrent_session_rate' }]
+        : path === '/api/v1/bandwidth/status' ? { timezone: 'UTC', budget_exhausted: false, source: 'schedule', active_profile: null } : []
+    }))
+    mountComponent(BandwidthStatusCard, { messages: { bandwidth: bandwidthGerman }, locale: 'de' })
+    expect(await screen.findByText(new RegExp(bandwidthGerman.capabilities.notes.torrent_session_rate))).toBeTruthy()
+    expect(screen.queryByText(/engine applies one session-wide rate/)).toBeNull()
   })
 })

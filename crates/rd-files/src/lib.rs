@@ -23,6 +23,7 @@ mod storage;
 mod template;
 mod tidy_name;
 mod tidy_regex;
+mod url_names;
 mod verified_move;
 
 #[cfg(test)]
@@ -71,6 +72,7 @@ pub use template::{
 };
 pub use tidy_name::tidy_package_name;
 pub use tidy_regex::{PackageNameRegexError, package_name_regex, validate_package_name_regex};
+pub use url_names::{FALLBACK_FILE_NAME, decode_path_segment, disposition_file_name};
 pub use verified_move::{
     PlacedCopy, VerifiedMoveError, copy_verified, move_temporary_of, place_verified,
     release_source, verified_move_file,

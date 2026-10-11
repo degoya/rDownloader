@@ -19,7 +19,7 @@ pub async fn get_settings(
     Ok(Json(read_settings(&state).await?))
 }
 
-#[utoipa::path(put, path = "/api/v1/settings", tag = "system", request_body = SettingsResponse, responses((status = 200, body = SettingsResponse)))]
+#[utoipa::path(put, path = "/api/v1/settings", tag = "system", request_body = SettingsResponse, responses((status = 200, body = SettingsResponse), (status = 409, description = "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`)")))]
 pub async fn put_settings(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
@@ -76,7 +76,7 @@ pub async fn save_settings(
         )
         .await?;
     }
-    let applied = apply_settings(state, settings).await?;
+    let (applied, torrent_refused) = apply_settings_reporting(state, settings).await?;
     // The *names* of the fields that changed, never their values: the settings document holds
     // secret references, executable paths and proxy addresses, and an audit log that quoted
     // them would be a copy of the configuration with a timestamp on it.
@@ -88,6 +88,11 @@ pub async fn save_settings(
             .detail("fields", changed_field_names(&current, &applied).join(" ")),
     )
     .await;
+    // Saved and audited, but the torrent engine kept its previous settings: said, not a
+    // silent `200` beside a status that shows the new values (RD-1240-28).
+    if let Some(refused) = torrent_refused {
+        return Err(refused);
+    }
     Ok(applied)
 }
 
@@ -128,7 +133,7 @@ fn changed_field_names(current: &SettingsResponse, next: &SettingsResponse) -> V
 /// endpoints that receive what the service holds -- the trace export, the DLC decryption
 /// service -- are the third kind: pointing one elsewhere hands somebody else the data.
 fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Option<&'static str> {
-    let fields: [(&'static str, bool); 27] = [
+    let fields: [(&'static str, bool); 31] = [
         (
             "admin_login_disabled",
             current.admin_login_disabled != next.admin_login_disabled,
@@ -250,6 +255,31 @@ fn privileged_change(current: &SettingsResponse, next: &SettingsResponse) -> Opt
             "torrent_ip_blocklist_url",
             current.torrent_ip_blocklist_url != next.torrent_ip_blocklist_url,
         ),
+        // Installing a new version of the program by itself (RD-1240-27): what the service runs
+        // next, the same decision the install route keeps to the interface.
+        (
+            "update_auto_install",
+            current.update_auto_install != next.update_auto_install
+                || current.update_auto_install_window != next.update_auto_install_window,
+        ),
+        // Restarting the service by itself when a restart is pending (RD-1240-32): when the
+        // service stops and starts, as privileged as the automatic install beside it.
+        (
+            "restart_when_needed",
+            current.restart_when_needed != next.restart_when_needed,
+        ),
+        // How long the copies a rollback reaches for stay (RD-1240-34): as much the
+        // administrator's as removing them, which `POST /api/v1/system/cleanup` keeps to them.
+        (
+            "update_backup_retention_days",
+            current.update_backup_retention_days != next.update_backup_retention_days,
+        ),
+        // The same for the subscription archive's full rows (RD-1240-35): the same clean-up
+        // compacts them.
+        (
+            "subscription_item_retention_days",
+            current.subscription_item_retention_days != next.subscription_item_retention_days,
+        ),
         // Whether MCP tools may name a script (RD-1190-21): what an agent may make this service
         // run, so as privileged as the script fields it opens. MCP refuses it outright.
         (
@@ -280,10 +310,22 @@ pub async fn reset_settings(
 }
 
 /// Validates, persists and live-applies the full settings blob — the only legal mutation path.
+///
+/// A torrent session that could not be rebuilt for the new settings is logged and keeps its
+/// previous ones; [`apply_settings_reporting`] hands that refusal to the caller instead.
 pub(crate) async fn apply_settings(
     state: &AppState,
-    mut settings: SettingsResponse,
+    settings: SettingsResponse,
 ) -> Result<SettingsResponse, ApiError> {
+    Ok(apply_settings_reporting(state, settings).await?.0)
+}
+
+/// [`apply_settings`], answering beside the stored document the torrent engine's refusal of
+/// it, if it refused: the document is saved and every other part applied either way.
+pub(crate) async fn apply_settings_reporting(
+    state: &AppState,
+    mut settings: SettingsResponse,
+) -> Result<(SettingsResponse, Option<ApiError>), ApiError> {
     let runtime = validate_settings(&mut settings)?;
     state
         .database
@@ -341,6 +383,8 @@ pub(crate) async fn apply_settings(
         media_hosts: settings.media_hosts.clone(),
         media_max_parallel: settings.media_max_parallel,
         media_check_timeout_seconds: settings.media_check_timeout_seconds,
+        media_sleep_requests_seconds: settings.media_sleep_requests_seconds,
+        media_sleep_interval_seconds: settings.media_sleep_interval_seconds,
         vendor_directory: settings.vendor_directory.clone(),
     };
     *state.gallery_settings.write().await = rd_core::GallerySettings {
@@ -385,12 +429,35 @@ pub(crate) async fn apply_settings(
         torrent_upnp_enabled: settings.torrent_upnp_enabled,
         torrent_announce_port: settings.torrent_announce_port,
         torrent_peer_addresses_visible: settings.torrent_peer_addresses_visible,
+        torrent_max_active_downloads: settings.torrent_max_active_downloads,
+        torrent_max_active_seeds: settings.torrent_max_active_seeds,
         keep_import_history: settings.keep_import_history,
     };
     // Rate limits are applied in place; a changed listen port rebuilds the session. A
     // failed rebuild keeps the previous engine running, so it is reported, not fatal.
-    if let Err(error) = state.torrent.reconfigure().await {
-        tracing::warn!(%error, "torrent session could not be reconfigured");
-    }
-    Ok(settings)
+    let torrent_refused = match state.torrent.reconfigure().await {
+        Ok(()) => None,
+        Err(error) => {
+            let reason = format!("{error:#}");
+            tracing::warn!(error = %reason, "torrent session could not be reconfigured");
+            Some(torrent_rebuild_failed(&reason))
+        }
+    };
+    // A lowered seed limit ends the surplus seeds now rather than at the next tick.
+    state.torrent.nudge_seeding();
+    Ok((settings, torrent_refused))
+}
+
+/// `409` for settings that were saved but the torrent engine could not take.
+fn torrent_rebuild_failed(reason: &str) -> ApiError {
+    // The cause can name a proxy address; it reaches a browser and an MCP client.
+    let reason = rd_core::redact_text(reason);
+    ApiError::conflict(
+        "torrent.session_rebuild_failed",
+        format!(
+            "The settings were saved, but the torrent engine could not take them and keeps its \
+             previous ones: {reason}"
+        ),
+    )
+    .with_param("reason", reason)
 }

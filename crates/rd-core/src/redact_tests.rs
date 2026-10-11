@@ -120,6 +120,12 @@ fn remote_transfer_urls_lose_their_password_in_free_text() {
             "s3cr3t",
         ),
         ("ftps://u:p%40ss@files.example.com/x refused", "p%40ss"),
+        // A proxy profile handed to yt-dlp or gallery-dl (RD-1240-08).
+        (
+            "Unable to connect to proxy socks5h://alice:pr0xy@proxy.example.com:1080",
+            "pr0xy",
+        ),
+        ("socks5://alice:pr0xy@10.0.0.5:1080 refused", "pr0xy"),
     ] {
         let redacted = redact_text(input);
         assert!(!redacted.contains(secret), "{input} -> {redacted}");

@@ -16,6 +16,7 @@ mod enrichment;
 mod grabber_order;
 mod held_verdicts;
 mod hopeless_sets;
+mod link_filters;
 mod list_pages;
 mod mirrors;
 mod network;

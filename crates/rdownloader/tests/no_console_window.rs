@@ -29,6 +29,7 @@ const OFF_WINDOWS: &[&str] = &[
     "#[cfg(unix)]",
     "#[cfg(not(windows))]",
     "#[cfg(target_os = \"linux\")]",
+    "#[cfg(not(any(windows, target_os = \"macos\")))]",
     "#[cfg(target_os = \"macos\")]",
     "#[cfg(test)]",
 ];

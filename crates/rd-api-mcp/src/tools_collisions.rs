@@ -150,7 +150,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Look up addresses before they are queued: for each, its normalised source identity and the queue downloads of the same source."
+        description = "Look up addresses before they are queued: for each, its normalised source identity, the queue downloads of the same source and - while the setting duplicates_include_history is on (default off) - the download-history entries of the same source whose package has left the queue (history_id, name, outcome, finished_at)."
     )]
     pub async fn lookup_duplicates(
         &self,

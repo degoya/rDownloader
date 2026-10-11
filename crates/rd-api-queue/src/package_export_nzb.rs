@@ -137,6 +137,8 @@ async fn collector_nzb(
     // The password the enqueue would have taken travels inside the NZB, so the import takes it
     // in the same order.
     document.password = release.password;
+    // Each file keeps the post date the indexer's NZB announced; the time of the export only
+    // stands in for a file that announced none (RD-1240-33).
     written(&document, release.name, Utc::now().timestamp())
 }
 

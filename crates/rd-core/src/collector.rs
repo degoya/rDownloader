@@ -10,6 +10,8 @@ use crate::{
 
 #[path = "collector_categories.rs"]
 mod categories;
+#[path = "collector_link_filter.rs"]
+mod link_filter;
 #[path = "collector_mirror.rs"]
 mod mirror;
 
@@ -17,6 +19,7 @@ pub use categories::{
     Category, CategoryRule, CategoryRuleNameTarget, HotFolderConfig, HotFolderExecutor, ImportMode,
     StorageRootConfig,
 };
+pub use link_filter::{LinkFilterAction, LinkFilterNameSyntax, LinkFilterRule, LinkFilterRuleId};
 pub use mirror::{CandidateMirror, MirrorFacet, MirrorHint, MirrorPreference, MirrorSource};
 
 /// Origin of a batch submitted to the LinkGrabber.
@@ -219,6 +222,12 @@ pub struct LinkCandidate {
     /// Empty for a link without a source set.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<crate::CandidateSource>,
+    /// The LinkFilter rule that hid this link (RD-1240-09), `None` for a link the list shows.
+    ///
+    /// A hidden link stays in the LinkGrabber and in its package: the list draws it behind its
+    /// "Show hidden" switch, and an enqueue takes it only when it names it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_by_filter: Option<LinkFilterRuleId>,
 }
 
 /// What the online check leaves on a candidate: the English sentence, and the stable code

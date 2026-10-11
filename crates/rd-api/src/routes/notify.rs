@@ -1,14 +1,15 @@
 //! Notification hub, quiet hours/power and bandwidth routes, a package's own speed limit
-//! included (RD-1100-01).
+//! included (RD-1100-01), and the browsers that receive push messages (RD-1240-13).
 
 use axum::{
     Router,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
 };
 use utoipa::OpenApi;
 
 use crate::{
     AppState, bandwidth_handlers, bandwidth_manual_handlers, notify_handlers, power_handlers,
+    web_push_handlers,
 };
 
 /// Session-authenticated routes of this area.
@@ -71,6 +72,19 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/notifications/deliveries/discard-pending",
             post(crate::data_reset_handlers::discard_pending_notification_deliveries),
         )
+        .route(
+            "/api/v1/notifications/web-push/key",
+            get(web_push_handlers::web_push_key),
+        )
+        .route(
+            "/api/v1/notifications/web-push/subscriptions",
+            get(web_push_handlers::list_web_push_subscriptions)
+                .post(web_push_handlers::create_web_push_subscription),
+        )
+        .route(
+            "/api/v1/notifications/web-push/subscriptions/{id}",
+            delete(web_push_handlers::delete_web_push_subscription),
+        )
         .route("/api/v1/power/status", get(power_handlers::power_status))
         .route(
             "/api/v1/reconnect",
@@ -120,6 +134,10 @@ pub(crate) fn routes() -> Router<AppState> {
     notify_handlers::list_deliveries,
     crate::data_reset_handlers::clear_notification_deliveries,
     crate::data_reset_handlers::discard_pending_notification_deliveries,
+    web_push_handlers::web_push_key,
+    web_push_handlers::list_web_push_subscriptions,
+    web_push_handlers::create_web_push_subscription,
+    web_push_handlers::delete_web_push_subscription,
     power_handlers::power_status,
     crate::reconnect_handlers::reconnect_status,
     crate::reconnect_handlers::trigger_reconnect,

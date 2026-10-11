@@ -13,6 +13,11 @@ import { computed, ref } from 'vue'
  * per view, the way `rdownloader-open-packages` does. Every access is guarded: without storage
  * (private mode, blocked site data) the widths are simply the defaults and still adjustable for
  * as long as the view lives. Stored are only the columns that differ from their default.
+ *
+ * A column can also be switched off (RD-1240-14), from the column header's menu: its track
+ * becomes 0 px wide, so the name takes the room, and `data-hidden-columns` on the container
+ * hides its cells in the header and in every row (`main.css`). Which columns are off is kept
+ * per view under a key of its own, beside the widths and guarded the same way.
  */
 export type QueueColumn = 'state' | 'progress' | 'size' | 'meta'
 export type QueueColumnsView = 'downloads' | 'linkgrabber'
@@ -50,6 +55,10 @@ export function queueColumnsStorageKey(view: QueueColumnsView): string {
   return `rdownloader-queue-columns-${view}`
 }
 
+export function hiddenColumnsStorageKey(view: QueueColumnsView): string {
+  return `${queueColumnsStorageKey(view)}-hidden`
+}
+
 export function clampColumnWidth(column: QueueColumn, width: number): number {
   const { min, max } = QUEUE_COLUMN_LIMITS[column]
   if (!Number.isFinite(width)) return QUEUE_COLUMN_DEFAULTS[column]
@@ -81,6 +90,35 @@ export function useQueueColumns(view: QueueColumnsView) {
   }
 
   const widths = ref<Record<QueueColumn, number>>(read())
+
+  function readHidden(): QueueColumn[] {
+    try {
+      const raw = localStorage.getItem(hiddenColumnsStorageKey(view))
+      const stored: unknown = raw ? JSON.parse(raw) : null
+      if (Array.isArray(stored)) return columns.filter(column => stored.includes(column))
+    } catch {
+      // Unreadable or unavailable storage: every column is shown.
+    }
+    return []
+  }
+
+  /** The columns switched off, in the grid's order. */
+  const hidden = ref<QueueColumn[]>(readHidden())
+
+  /** Shows or hides one of this list's columns; a column the list does not fill is left alone. */
+  function setVisible(column: QueueColumn, visible: boolean): void {
+    if (!columns.includes(column) || visible === !hidden.value.includes(column)) return
+    hidden.value = columns.filter(name => name === column ? !visible : hidden.value.includes(name))
+    try {
+      if (hidden.value.length) localStorage.setItem(hiddenColumnsStorageKey(view), JSON.stringify(hidden.value))
+      else localStorage.removeItem(hiddenColumnsStorageKey(view))
+    } catch {
+      // Storage unavailable — the choice still holds for as long as the view lives.
+    }
+  }
+
+  /** The container's attribute that hides the switched-off columns' cells; `undefined` leaves it out. */
+  const hiddenAttr = computed(() => hidden.value.length ? hidden.value.join(' ') : undefined)
 
   function persist(): void {
     const changed = Object.fromEntries(columns
@@ -118,8 +156,8 @@ export function useQueueColumns(view: QueueColumnsView) {
 
   /** The custom properties for the container that holds the header row and the rows. */
   const style = computed<Record<string, string>>(() => Object.fromEntries(
-    columns.map(column => [`--queue-col-${column}`, `${widths.value[column]}px`])
+    columns.map(column => [`--queue-col-${column}`, `${hidden.value.includes(column) ? 0 : widths.value[column]}px`])
   ))
 
-  return { widths, setWidth, reset, resetAll, customized, style }
+  return { widths, setWidth, reset, resetAll, customized, style, hidden, setVisible, hiddenAttr }
 }

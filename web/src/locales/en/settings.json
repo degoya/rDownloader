@@ -394,6 +394,16 @@
     "title_status": {
       "label": "State in the browser tab",
       "description": "While something is running the tab shows the overall rate and the number of active transfers, and the application name alone otherwise. Off if a title that keeps changing is a distraction."
+    },
+    "palette": {
+      "label": "Colour theme",
+      "description": "The interface's accent and greys, in this browser only; light and dark are set above.",
+      "signal": "Signal (default)",
+      "ocean": "Ocean",
+      "violet": "Violet",
+      "forest": "Forest",
+      "rose": "Rose",
+      "amber": "Amber"
     }
   },
   "messages": {
@@ -463,6 +473,14 @@
       "description": "Arranges media downloads inside the package folder. Folders are separated by /. Empty keeps the plain file name. Each link can override this.",
       "placeholder": "{uploader}/{upload_year}/{title}",
       "fields": "Available fields: {fields}"
+    },
+    "sleep_requests": {
+      "label": "Pause between requests",
+      "description": "Seconds yt-dlp waits between the requests it makes while reading a page, so a site is not asked too fast (0–600, 0 = no pause). Each link can override this."
+    },
+    "sleep_interval": {
+      "label": "Pause before each download",
+      "description": "Seconds yt-dlp waits before a media download starts (0–600, 0 = no pause). Each link can override this."
     }
   },
   "groups": {
@@ -731,6 +749,27 @@
       "peer_proxy_off": "none",
       "rebuild_failed": "The last session rebuild failed; the previous session keeps running.",
       "proxy_failed": "The peer proxy cannot be resolved; without it the session does not start."
+    },
+    "max_active_downloads": {
+      "label": "Active torrent downloads",
+      "description": "How many torrents download at once; the rest wait in the queue. The queue's general limit on active downloads still applies."
+    },
+    "max_active_seeds": {
+      "label": "Active seeds",
+      "description": "How many finished torrents seed at once; empty means no limit. Past it, the torrents that have seeded longest finish first."
+    },
+    "port_test": {
+      "label": "Port test",
+      "description": "Checks the incoming port from this machine alone, with the saved settings; no outside service is asked.",
+      "action": "Test port",
+      "verdict": {
+        "reachable": "Reachable: a peer has connected in through port {port}.",
+        "listening": "Port {port} is listening, but no peer has connected in yet. Whether the internet reaches it is unproven: check the router's forwarding or UPnP, then test again while a torrent runs.",
+        "not_listening": "The engine is not listening for incoming peers.",
+        "unavailable": "The torrent engine could not be started: {error}"
+      },
+      "details": "Torrents running: {torrents} · peers connected in: {peers}",
+      "proxy_hint": "A peer proxy carries outgoing connections only; incoming peers always arrive directly."
     }
   },
   "auth_profiles": {
@@ -1049,6 +1088,28 @@
       "media": "Media",
       "galleries": "Galleries",
       "streams": "Streams"
+    },
+    "linkgrabber": {
+      "general": "General",
+      "blocklist": "Blocklist",
+      "containers": "Containers",
+      "filters": "LinkFilter"
+    },
+    "interface": {
+      "browser": "This browser",
+      "display": "Display"
+    },
+    "postprocess": {
+      "unpack": "Unpacking",
+      "repair": "Repair & cleanup",
+      "names": "Package names",
+      "malware": "Malware scan (ClamAV)",
+      "delivery": "Scripts & upload"
+    },
+    "tools": {
+      "status": "Status",
+      "paths": "Paths",
+      "managed": "Managed tools"
     }
   },
   "auto_retry": {
@@ -1138,7 +1199,14 @@
       "pause_hour": "Pause for 1 hour",
       "clipboard_watch": "Pause clipboard watching",
       "send_clipboard": "Hand over clipboard now",
-      "quit": "Quit"
+      "quit": "Quit",
+      "game_mode": "Pause while gaming",
+      "install_server_update": "Install server update",
+      "auto_install": "Install updates automatically",
+      "add_all_from_linkgrabber": "Add all from LinkGrabber",
+      "add_all_from_linkgrabber_paused": "Add all from LinkGrabber paused",
+      "install_update": "Install agent update",
+      "restart_server": "Restart server"
     },
     "report": {
       "title_unavailable": "Shortcuts unavailable",
@@ -1150,6 +1218,39 @@
         "no_display": "The agent found no display (no DISPLAY) to register shortcuts with.",
         "no_tray": "The agent runs without its tray icon (--no-tray); on Windows and macOS shortcuts need it.",
         "failed": "The system refused to set the shortcuts up."
+      }
+    },
+    "game_mode": {
+      "eyebrow": "Game mode",
+      "title": "Step aside for games",
+      "description": "While a full-screen program is in front or one of the programs below runs, the agent pauses the queue or switches on a bandwidth profile, and lifts it again afterwards. It only lifts what it set itself: a pause you resume in between stays resumed. Windows and macOS.",
+      "full_screen": {
+        "label": "While a program is full screen",
+        "description": "Games, videos and presentations in full screen. Windows only: macOS cannot tell without the screen recording permission."
+      },
+      "processes": {
+        "label": "While these programs run",
+        "description": "Process names such as game.exe or obs64, without a path; upper and lower case and the .exe ending do not matter.",
+        "placeholder": "game.exe"
+      },
+      "action": {
+        "legend": "What the agent does then",
+        "pause": "Pause the queue",
+        "pause_description": "Running and waiting downloads stop and start again afterwards.",
+        "profile": "Switch on a bandwidth profile",
+        "profile_description": "Downloads continue at the profile's limits; the schedule decides again afterwards."
+      },
+      "profile": {
+        "label": "Profile",
+        "placeholder": "Choose a profile",
+        "none": "No bandwidth profile yet; create one under Bandwidth."
+      },
+      "profile_required": "Choose the profile to switch on.",
+      "save": "Save game mode",
+      "saved": "Game mode saved. The agent takes it over within a few seconds.",
+      "enabled": {
+        "label": "Game mode switched on",
+        "description": "Also in the agent's tray menu as “Pause while gaming”. Switched off, the programs below are kept, and a pause the agent set ends at once."
       }
     }
   },
@@ -1163,5 +1264,110 @@
     "overrides_description": "An account can do something other than the default above.",
     "inherit": "As the default",
     "held": "Traffic used up · next check {time}"
+  },
+  "link_filters": {
+    "eyebrow": "LinkFilter",
+    "list_title": "LinkFilter rules",
+    "form_new": "New rule",
+    "form_edit": "Edit rule",
+    "description": "Decides when a link arrives: hide it, keep it, or put it into a package or category. The first enabled rule in the list that matches decides; hidden links are kept.",
+    "create": "Create rule",
+    "created": "Rule created",
+    "updated": "Rule saved",
+    "duplicated": "Rule copied",
+    "delete_title": "Delete rule?",
+    "delete_description": "\"{name}\" is deleted. The links it hid are shown again.",
+    "empty": "No rules yet. Without one every link arrives visible in the LinkGrabber.",
+    "matches_everything": "every link",
+    "apply": "Apply to LinkGrabber",
+    "name_label": "Name",
+    "name_placeholder": "e.g. Hide info files",
+    "action_label": "Action",
+    "actions": {
+      "hide": "Hide",
+      "accept": "Accept",
+      "route": "Sort into"
+    },
+    "action_descriptions": {
+      "hide": "The link stays in the LinkGrabber but is shown only with “Show hidden”, and queueing its package leaves it behind.",
+      "accept": "The link stays as it is and no later rule is asked — an exception above a broader rule.",
+      "route": "The link goes into the package of this name and/or its package gets this category."
+    },
+    "package_label": "Package",
+    "package_description": "Package name; empty keeps the package the grouping makes.",
+    "category_label": "Category",
+    "category_none": "None",
+    "enabled_label": "Enabled",
+    "conditions": "Conditions",
+    "pattern_label": "File name",
+    "pattern_descriptions": {
+      "glob": "* stands for any run of characters, ? for one; the whole name, case ignored. Empty matches every name.",
+      "regex": "Regular expression, searched in the name as written; (?i) ignores case."
+    },
+    "syntax_label": "Pattern type",
+    "syntax": {
+      "glob": "Wildcard",
+      "regex": "Regex"
+    },
+    "extensions_label": "File types",
+    "extensions_description": "Endings without the dot, e.g. nfo or part1.rar; one matching is enough.",
+    "size_label": "Size (MiB)",
+    "size_description": "From–to, both inclusive. A link whose size is not known yet matches no bound — apply again after the online check.",
+    "size_min": "from",
+    "size_max": "up to",
+    "hoster_label": "Hoster",
+    "hoster_description": "Host name without scheme; subdomains match too.",
+    "source_label": "Source",
+    "move_up": "Move up",
+    "move_down": "Move down"
+  },
+  "aria2": {
+    "eyebrow": "aria2 interface",
+    "title": "aria2-compatible clients",
+    "description": "AriaNg, Motrix-style front ends, browser extensions and Android apps hand over links through aria2's JSON-RPC and show the queue.",
+    "enabled": {
+      "label": "Answer aria2 JSON-RPC",
+      "description": "Off by default. Switched off, the path /jsonrpc does not exist."
+    },
+    "endpoint": "Enter this address as the RPC address in the client:",
+    "copy_endpoint": "Copy RPC address",
+    "secret": "The RPC secret (secret token) is an API token holding the areas intake, queue and read (api:intake, api:queue, api:read); issue one above."
+  },
+  "web_push": {
+    "label": "Push on this device",
+    "description": "Notifications arrive even with no tab open, as long as this browser runs — best in the installed app. Applies to this browser only.",
+    "insecure": "Push needs a secure context: open rDownloader over https, or as localhost on this machine.",
+    "unsupported": "This browser does not support web push.",
+    "events_label": "Events",
+    "events_description": "Which events reach this device; none chosen means every event."
+  },
+  "duplicates_history": {
+    "label": "Look for duplicates in the history too",
+    "description": "A link whose source is already in a package of the download history – finished or failed and removed from the queue – gets a mark in the LinkGrabber. The queue is always checked."
+  },
+  "cleanup": {
+    "eyebrow": "Data folder",
+    "title": "Update backups, plugin cache and database",
+    "description": "Each update keeps a copy of the database to roll back to, and compiled plugins are cached. Once an update is proven, only the newest copy stays; the cache keeps only what installed plugins use. Old skipped subscription entries keep only what the subscription recognises them by, and the database file hands free space back. This also runs by itself ten minutes after every start and daily.",
+    "days_label": "Keep the newest copy",
+    "days_description": "Days the newest copy stays after a proven update; 0 keeps it for good (0-3650).",
+    "pre_update": "Before updates",
+    "pre_migration": "Before database upgrades",
+    "plugin_cache": "Plugin cache",
+    "removable": "of which {size} removable",
+    "unproven": "The last update is not proven yet, so every copy before it stays.",
+    "button": "Clean up now",
+    "confirm_title": "Clean up the data folder?",
+    "confirm_description": "About {size} of old update backups, unused compiled plugin code and free database space will be freed for good; old skipped subscription entries lose their title and link. Plugins compile again when they need it; downloads, settings and open subscription entries stay.",
+    "confirm": "Clean up",
+    "done": "{size} freed",
+    "events": "Events",
+    "rows": "{count} entries from the last 30 days",
+    "items": "Subscription archive",
+    "compactable": "{count} old entries to compact",
+    "database_file": "Database file",
+    "items_days_label": "Keep skipped subscription entries whole",
+    "items_days_description": "Days a skipped or dismissed subscription entry keeps its title and link; after that only what the subscription recognises it by stays, so it does not come back. 0 keeps everything (0-3650).",
+    "rewrite": "The database comes from a version before 1.24: “Clean up now” rewrites it once, and afterwards it hands free space back by itself. That needs room for a second copy in the data folder and nothing running."
   }
 }

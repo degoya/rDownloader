@@ -27,10 +27,18 @@
     "monthly": "Este mes ({period})",
     "usage": "{used} de {limit}",
     "budget_exhausted": "El presupuesto de tráfico se agotó. Las transferencias en curso terminan; nada nuevo empieza hasta el siguiente periodo.",
-    "upload_binding": "Límite de subida más estricto"
+    "upload_binding": "Límite de subida más estricto",
+    "downloads_paused": "Las descargas están pausadas por el horario hasta {time}. Para descargar ahora de todos modos, cambia arriba a otro perfil o a «Sin límites».",
+    "downloads_paused_open": "Las descargas están pausadas mientras este perfil esté activo. Para descargar ahora de todos modos, cambia arriba a otro perfil o a «Sin límites»."
   },
   "capabilities": {
-    "title": "Lo que un límite no alcanza del todo"
+    "title": "Lo que un límite no alcanza del todo",
+    "notes": {
+      "torrent_session_rate": "el motor aplica una sola tasa para toda la sesión",
+      "media_job_rate": "yt-dlp toma una tasa por trabajo (--limit-rate)",
+      "gallery_job_rate": "gallery-dl toma una tasa por trabajo (--limit-rate)",
+      "record_no_rate": "streamlink no tiene límite de tasa; una grabación en directo no se puede ralentizar"
+    }
   },
   "profile": {
     "eyebrow": "Límites reutilizables",
@@ -57,7 +65,10 @@
     "summary_parallel": "{count} archivo en paralelo | {count} archivos en paralelo",
     "summary_upload": "{rate} de subida",
     "summary_daily": "{size} al día",
-    "summary_monthly": "{size} al mes"
+    "summary_monthly": "{size} al mes",
+    "pause_label": "Pausar descargas",
+    "pause_description": "Mientras el perfil está activo no empieza ninguna descarga, y las transferencias en curso que pueden reanudarse se pausan hasta que termina. Las subidas, el seeding y el posprocesado continúan; un paquete puede ignorar la pausa.",
+    "summary_pause": "pausa las descargas"
   },
   "scope": {
     "title": "Límites por ámbito",

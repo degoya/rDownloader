@@ -379,7 +379,25 @@
       "formats_missing": "yt-dlp no ha informado de ningún formato descargable para esta página. Vuelve a comprobar el enlace; si la lista sigue vacía, el sitio no es compatible.",
       "audio_missing": "La página ofrece pistas de vídeo, pero ninguna pista de audio. «Mejor» descarga el vídeo de todos modos, sin sonido."
     },
-    "preset_label": "Ajuste de calidad"
+    "preset_label": "Ajuste de calidad",
+    "audio_format": "Formato de audio",
+    "section": {
+      "label": "Solo un fragmento",
+      "start": "Desde",
+      "end": "Hasta",
+      "start_placeholder": "Inicio",
+      "end_placeholder": "Final",
+      "hint": "Tiempos en segundos, m:ss o h:mm:ss. El corte cae en el fotograma clave más cercano, sin recodificar. Requiere ffmpeg.",
+      "invalid": "Introduce un tiempo en segundos, m:ss o h:mm:ss.",
+      "order": "El final debe estar después del inicio."
+    },
+    "pauses": {
+      "own": "Pausas propias para este enlace",
+      "own_hint": "Desactivado: se aplican las pausas de los ajustes.",
+      "requests": "Entre solicitudes",
+      "interval": "Antes de la descarga"
+    },
+    "audio_format_video": "Mantener el vídeo"
   },
   "replay": {
     "title": "Autorizar esta descarga",
@@ -504,7 +522,9 @@
   },
   "duplicates": {
     "queued": "{count} × ya en la cola",
-    "queued_hint": "La misma fuente ya está {count} vez/veces en la cola: reconocida por la dirección normalizada, el info-hash o el hoster."
+    "queued_hint": "La misma fuente ya está {count} vez/veces en la cola: reconocida por la dirección normalizada, el info-hash o el hoster.",
+    "history": "Ya descargado",
+    "history_hint": "El mismo origen está en el historial de descargas: «{name}», terminado el {date}."
   },
   "sources": {
     "title": "Fuentes ({count})",
@@ -613,5 +633,14 @@
     "take_all": "Tomar todos | Tomar 1 release | Tomar los {count}",
     "announced": "{rule}: una página espera tu elección"
   },
-  "selection_nzbs": "ninguna importación NZB | {count} importación NZB | {count} importaciones NZB"
+  "selection_nzbs": "ninguna importación NZB | {count} importación NZB | {count} importaciones NZB",
+  "link_filter": {
+    "unhide": "Mostrar de nuevo",
+    "hidden": "Oculto",
+    "hidden_hint": "Una regla de LinkFilter ocultó este enlace. Se conserva y, al encolar su paquete, solo se incluye si está seleccionado.",
+    "show_hidden": "Mostrar ocultos ({count})",
+    "apply": "Aplicar LinkFilter",
+    "apply_hint": "Vuelve a decidir todos los enlaces del LinkGrabber según las reglas actuales. No se elimina nada y las descargas no se tocan.",
+    "applied": "LinkFilter aplicado: {hidden} ocultos, {shown} mostrados de nuevo, {routed} clasificados"
+  }
 }

@@ -55,16 +55,19 @@ pub fn build(database: Database, settings: SharedStreamSettings) -> Arc<dyn Exte
     Arc::new(StreamRunner::new(database, settings))
 }
 
-/// [`build`], with the sidecar fetches trusting what the rest of the service trusts.
-///
-/// The recording itself runs through streamlink and needs nothing from here; it is the
-/// thumbnail fetch that would otherwise miss the operator's custom CA.
+/// [`build`], with the sidecar fetches trusting what the rest of the service trusts, and
+/// streamlink handed each recording's proxy and the custom CA (RD-1240-08).
 pub fn build_with_network_defaults(
     database: Database,
     settings: SharedStreamSettings,
     network: rd_http::SharedNetworkDefaults,
+    tools: rd_scheduler::ToolNetworkSource,
 ) -> Arc<dyn ExternalRunner> {
-    Arc::new(StreamRunner::new(database, settings).with_network_defaults(network))
+    Arc::new(
+        StreamRunner::new(database, settings)
+            .with_network_defaults(network)
+            .with_tool_network(tools),
+    )
 }
 
 /// streamlink executable: explicit setting → managed store → vendor folders and `PATH` → the

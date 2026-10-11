@@ -20,7 +20,7 @@ import { downloadJson } from '@/utils/jsonFile'
  */
 const props = defineProps<{
   /** Path segment of the area, e.g. `subscriptions`; also the file name and the toast text. */
-  area: 'subscriptions' | 'streams' | 'automations'
+  area: 'subscriptions' | 'streams' | 'automations' | 'link-filters'
 }>()
 const emit = defineEmits<{ imported: [] }>()
 
@@ -37,12 +37,14 @@ function fail(message: string): void {
 
 async function exportArea(): Promise<void> {
   exporting.value = true
-  // openapi-fetch types each path literally, so the three are named rather than built.
+  // openapi-fetch types each path literally, so the four are named rather than built.
   const response = await (props.area === 'subscriptions'
     ? api.GET('/api/v1/subscriptions/export')
     : props.area === 'streams'
       ? api.GET('/api/v1/streams/export')
-      : api.GET('/api/v1/automations/export'))
+      : props.area === 'link-filters'
+        ? api.GET('/api/v1/link-filters/export')
+        : api.GET('/api/v1/automations/export'))
   exporting.value = false
   if (!response.data) return fail(responseError(response))
 
@@ -71,7 +73,9 @@ async function importArea(bundle: AreaBundle): Promise<void> {
     ? api.POST('/api/v1/subscriptions/import', { body: bundle })
     : props.area === 'streams'
       ? api.POST('/api/v1/streams/import', { body: bundle })
-      : api.POST('/api/v1/automations/import', { body: bundle }))
+      : props.area === 'link-filters'
+        ? api.POST('/api/v1/link-filters/import', { body: bundle })
+        : api.POST('/api/v1/automations/import', { body: bundle }))
   importing.value = false
   if (!response.data) return fail(responseError(response))
 
@@ -93,7 +97,8 @@ function entryCount(bundle: AreaBundle): number {
     (bundle.subscriptions?.length ?? 0) +
     (bundle.stream_channels?.length ?? 0) +
     (bundle.stream_schedules?.length ?? 0) +
-    (bundle.automations?.length ?? 0)
+    (bundle.automations?.length ?? 0) +
+    (bundle.link_filters?.length ?? 0)
   )
 }
 

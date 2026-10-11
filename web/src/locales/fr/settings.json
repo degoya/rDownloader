@@ -394,6 +394,16 @@
     "title_status": {
       "label": "État dans l'onglet du navigateur",
       "description": "Tant que quelque chose est en cours, l'onglet affiche le débit global et le nombre de transferts actifs, sinon le seul nom de l'application. À désactiver si un titre qui change sans cesse vous dérange."
+    },
+    "palette": {
+      "label": "Thème de couleurs",
+      "description": "Les tons d’accent et de gris de l’interface, dans ce navigateur seulement ; clair et sombre se règlent au-dessus.",
+      "signal": "Signal (par défaut)",
+      "ocean": "Océan",
+      "violet": "Violet",
+      "forest": "Forêt",
+      "rose": "Rose",
+      "amber": "Ambre"
     }
   },
   "messages": {
@@ -463,6 +473,14 @@
       "description": "Organise les téléchargements médias dans le dossier du paquet. Les dossiers sont séparés par /. Vide conserve le nom de fichier simple. Chaque lien peut le remplacer.",
       "placeholder": "{uploader}/{upload_year}/{title}",
       "fields": "Champs disponibles : {fields}"
+    },
+    "sleep_requests": {
+      "label": "Pause entre les requêtes",
+      "description": "Secondes pendant lesquelles yt-dlp attend entre ses requêtes à la lecture d’une page, pour ne pas solliciter un site trop vite (0–600, 0 = aucune pause). Chaque lien peut le modifier."
+    },
+    "sleep_interval": {
+      "label": "Pause avant chaque téléchargement",
+      "description": "Secondes pendant lesquelles yt-dlp attend avant le début d’un téléchargement multimédia (0–600, 0 = aucune pause). Chaque lien peut le modifier."
     }
   },
   "groups": {
@@ -731,6 +749,27 @@
       "peer_proxy_off": "aucun",
       "rebuild_failed": "La dernière reconstruction de la session a échoué ; la session précédente continue.",
       "proxy_failed": "Le proxy de pairs ne peut pas être résolu ; sans lui la session ne démarre pas."
+    },
+    "max_active_downloads": {
+      "label": "Téléchargements torrent actifs",
+      "description": "Nombre de torrents téléchargés en même temps ; les autres attendent dans la file. La limite générale de téléchargements actifs s'applique toujours."
+    },
+    "max_active_seeds": {
+      "label": "Seeds actifs",
+      "description": "Nombre de torrents terminés partagés en même temps ; vide signifie sans limite. Au-delà, ceux qui partagent depuis le plus longtemps s'arrêtent en premier."
+    },
+    "port_test": {
+      "label": "Test du port",
+      "description": "Vérifie le port entrant depuis cette seule machine, avec les réglages enregistrés ; aucun service extérieur n'est sollicité.",
+      "action": "Tester le port",
+      "verdict": {
+        "reachable": "Joignable : un pair s'est connecté via le port {port}.",
+        "listening": "Le port {port} écoute, mais aucun pair ne s'est encore connecté. Qu'internet l'atteigne n'est pas prouvé : vérifiez la redirection du routeur ou l'UPnP, puis testez à nouveau pendant qu'un torrent tourne.",
+        "not_listening": "Le moteur n'accepte pas de pairs entrants.",
+        "unavailable": "Le moteur torrent n'a pas pu démarrer : {error}"
+      },
+      "details": "Torrents actifs : {torrents} · pairs entrants : {peers}",
+      "proxy_hint": "Un proxy de pairs ne transporte que les connexions sortantes ; les pairs entrants arrivent toujours directement."
     }
   },
   "auth_profiles": {
@@ -1049,6 +1088,28 @@
       "media": "Médias",
       "galleries": "Galeries",
       "streams": "Streams"
+    },
+    "linkgrabber": {
+      "general": "Général",
+      "blocklist": "Liste de blocage",
+      "containers": "Conteneurs",
+      "filters": "LinkFilter"
+    },
+    "interface": {
+      "browser": "Ce navigateur",
+      "display": "Affichage"
+    },
+    "postprocess": {
+      "unpack": "Extraction",
+      "repair": "Réparation et nettoyage",
+      "names": "Noms de paquets",
+      "malware": "Antimalware (ClamAV)",
+      "delivery": "Scripts et envoi"
+    },
+    "tools": {
+      "status": "État",
+      "paths": "Chemins",
+      "managed": "Outils gérés"
     }
   },
   "auto_retry": {
@@ -1138,7 +1199,14 @@
       "pause_hour": "Pause d'une heure",
       "clipboard_watch": "Mettre en pause la surveillance du presse-papiers",
       "send_clipboard": "Transmettre le presse-papiers maintenant",
-      "quit": "Quitter"
+      "quit": "Quitter",
+      "game_mode": "Pause pendant le jeu",
+      "install_server_update": "Installer la mise à jour du serveur",
+      "auto_install": "Installer les mises à jour automatiquement",
+      "add_all_from_linkgrabber": "Tout ajouter depuis le LinkGrabber",
+      "add_all_from_linkgrabber_paused": "Tout ajouter depuis le LinkGrabber en pause",
+      "install_update": "Installer la mise à jour de l'agent",
+      "restart_server": "Redémarrer le serveur"
     },
     "report": {
       "title_unavailable": "Raccourcis indisponibles",
@@ -1150,6 +1218,39 @@
         "no_display": "L'agent n'a trouvé aucun écran (pas de DISPLAY) auprès duquel enregistrer les raccourcis.",
         "no_tray": "L'agent tourne sans son icône (--no-tray) ; sous Windows et macOS, les raccourcis en ont besoin.",
         "failed": "Le système a refusé d'enregistrer les raccourcis."
+      }
+    },
+    "game_mode": {
+      "eyebrow": "Mode jeu",
+      "title": "Pause pendant le jeu",
+      "description": "Tant qu’un programme en plein écran est au premier plan ou que l’un des programmes ci-dessous s’exécute, l’agent met la file en pause ou active un profil de bande passante, puis l’annule ensuite. Il n’annule que ce qu’il a lui-même mis en place : une pause que vous reprenez entre-temps reste reprise. Windows et macOS.",
+      "full_screen": {
+        "label": "Avec les programmes en plein écran",
+        "description": "Jeux, vidéos et présentations en plein écran. Windows uniquement : macOS ne peut pas le savoir sans l’autorisation d’enregistrement de l’écran."
+      },
+      "processes": {
+        "label": "Pendant que ces programmes tournent",
+        "description": "Noms de processus comme game.exe ou obs64, sans chemin ; la casse et l’extension .exe ne comptent pas.",
+        "placeholder": "game.exe"
+      },
+      "action": {
+        "legend": "Ce que fait alors l’agent",
+        "pause": "Mettre la file en pause",
+        "pause_description": "Les téléchargements en cours et en attente s’arrêtent et reprennent ensuite.",
+        "profile": "Activer un profil de bande passante",
+        "profile_description": "Les téléchargements continuent avec les limites du profil ; ensuite, le planning décide de nouveau."
+      },
+      "profile": {
+        "label": "Profil",
+        "placeholder": "Choisissez un profil",
+        "none": "Aucun profil de bande passante pour l’instant ; créez-en un sous Bande passante."
+      },
+      "profile_required": "Choisissez le profil à activer.",
+      "save": "Enregistrer le mode jeu",
+      "saved": "Mode jeu enregistré. L’agent l’applique en quelques secondes.",
+      "enabled": {
+        "label": "Mode jeu activé",
+        "description": "Aussi dans le menu de la zone de notification de l'agent, sous « Pause while gaming ». Désactivé, les programmes ci-dessous sont conservés et une pause posée par l'agent prend fin aussitôt."
       }
     }
   },
@@ -1163,5 +1264,110 @@
     "overrides_description": "Un compte peut faire autre chose que la valeur par défaut ci-dessus.",
     "inherit": "Comme par défaut",
     "held": "Trafic épuisé · prochaine vérification {time}"
+  },
+  "link_filters": {
+    "eyebrow": "LinkFilter",
+    "list_title": "Règles LinkFilter",
+    "form_new": "Nouvelle règle",
+    "form_edit": "Modifier la règle",
+    "description": "Décide à l'arrivée d'un lien : le masquer, le garder ou le placer dans un paquet ou une catégorie. La première règle active de la liste qui correspond décide ; les liens masqués sont conservés.",
+    "create": "Créer la règle",
+    "created": "Règle créée",
+    "updated": "Règle enregistrée",
+    "duplicated": "Règle copiée",
+    "delete_title": "Supprimer la règle ?",
+    "delete_description": "« {name} » est supprimée. Les liens qu'elle masquait sont de nouveau affichés.",
+    "empty": "Aucune règle pour l'instant. Sans règle, chaque lien arrive visible dans le LinkGrabber.",
+    "matches_everything": "tout lien",
+    "apply": "Appliquer au LinkGrabber",
+    "name_label": "Nom",
+    "name_placeholder": "p. ex. Masquer les fichiers d'information",
+    "action_label": "Action",
+    "actions": {
+      "hide": "Masquer",
+      "accept": "Accepter",
+      "route": "Classer"
+    },
+    "action_descriptions": {
+      "hide": "Le lien reste dans le LinkGrabber mais n'est affiché qu'avec « Afficher les masqués », et la mise en file de son paquet le laisse de côté.",
+      "accept": "Le lien reste tel quel et aucune règle suivante n'est consultée : une exception au-dessus d'une règle plus large.",
+      "route": "Le lien va dans le paquet portant ce nom et/ou son paquet reçoit cette catégorie."
+    },
+    "package_label": "Paquet",
+    "package_description": "Nom du paquet ; vide garde le paquet formé par le regroupement.",
+    "category_label": "Catégorie",
+    "category_none": "Aucune",
+    "enabled_label": "Active",
+    "conditions": "Conditions",
+    "pattern_label": "Nom de fichier",
+    "pattern_descriptions": {
+      "glob": "* représente une suite quelconque de caractères, ? un seul ; le nom entier, sans tenir compte de la casse. Vide correspond à tout nom.",
+      "regex": "Expression régulière, cherchée dans le nom telle qu'écrite ; (?i) ignore la casse."
+    },
+    "syntax_label": "Type de motif",
+    "syntax": {
+      "glob": "Joker",
+      "regex": "Regex"
+    },
+    "extensions_label": "Types de fichier",
+    "extensions_description": "Terminaisons sans point, p. ex. nfo ou part1.rar ; une seule correspondance suffit.",
+    "size_label": "Taille (Mio)",
+    "size_description": "De–à, bornes incluses. Un lien dont la taille est encore inconnue ne correspond à aucune borne : appliquer de nouveau après la vérification en ligne.",
+    "size_min": "à partir de",
+    "size_max": "jusqu'à",
+    "hoster_label": "Hébergeur",
+    "hoster_description": "Nom d'hôte sans schéma ; les sous-domaines correspondent aussi.",
+    "source_label": "Source",
+    "move_up": "Monter",
+    "move_down": "Descendre"
+  },
+  "aria2": {
+    "eyebrow": "Interface aria2",
+    "title": "Clients compatibles aria2",
+    "description": "AriaNg, les interfaces de type Motrix, les extensions de navigateur et les applis Android transmettent des liens via le JSON-RPC d'aria2 et affichent la file.",
+    "enabled": {
+      "label": "Répondre au JSON-RPC d'aria2",
+      "description": "Désactivé par défaut. Désactivé, le chemin /jsonrpc n'existe pas."
+    },
+    "endpoint": "Saisissez cette adresse comme adresse RPC dans le client :",
+    "copy_endpoint": "Copier l'adresse RPC",
+    "secret": "Le secret RPC (secret token) est un jeton d'API possédant les domaines ajout, file et lecture (api:intake, api:queue, api:read) ; créez-le ci-dessus."
+  },
+  "web_push": {
+    "label": "Push sur cet appareil",
+    "description": "Les notifications arrivent même sans onglet ouvert, tant que ce navigateur fonctionne — idéalement dans l’application installée. Uniquement pour ce navigateur.",
+    "insecure": "Le push nécessite un contexte sécurisé : ouvrez rDownloader en https, ou via localhost sur cette machine.",
+    "unsupported": "Ce navigateur ne prend pas en charge le web push.",
+    "events_label": "Événements",
+    "events_description": "Les événements qui parviennent à cet appareil ; sans choix, tous."
+  },
+  "duplicates_history": {
+    "label": "Chercher les doublons aussi dans l’historique",
+    "description": "Un lien dont la source figure déjà dans un paquet de l’historique des téléchargements – terminé ou en échec et retiré de la file – reçoit une marque dans le LinkGrabber. La file est toujours vérifiée."
+  },
+  "cleanup": {
+    "eyebrow": "Dossier de données",
+    "title": "Sauvegardes de mise à jour, cache des plugins et base de données",
+    "description": "Chaque mise à jour garde une copie de la base de données pour revenir en arrière, et les plugins compilés sont mis en cache. Une fois la mise à jour confirmée, seule la copie la plus récente reste ; le cache ne garde que ce qu'utilisent les plugins installés. Les anciennes entrées d'abonnement ignorées ne gardent que ce qui permet de les reconnaître, et le fichier de base de données rend l'espace libre. Cela s'exécute aussi tout seul dix minutes après chaque démarrage et chaque jour.",
+    "days_label": "Conserver la copie la plus récente",
+    "days_description": "Jours pendant lesquels la copie la plus récente reste après une mise à jour confirmée ; 0 la garde pour toujours (0-3650).",
+    "pre_update": "Avant les mises à jour",
+    "pre_migration": "Avant les mises à niveau de la base",
+    "plugin_cache": "Cache des plugins",
+    "removable": "dont {size} supprimables",
+    "unproven": "La dernière mise à jour n'est pas encore confirmée, toutes les copies précédentes restent donc.",
+    "button": "Nettoyer maintenant",
+    "confirm_title": "Nettoyer le dossier de données ?",
+    "confirm_description": "Environ {size} d'anciennes sauvegardes de mise à jour, de code de plugin compilé inutilisé et d'espace libre de la base de données seront libérés définitivement ; les anciennes entrées d'abonnement ignorées perdent leur titre et leur lien. Les plugins sont recompilés au besoin ; les téléchargements, les réglages et les entrées en attente restent.",
+    "confirm": "Nettoyer",
+    "done": "{size} libérés",
+    "events": "Événements",
+    "rows": "{count} entrées des 30 derniers jours",
+    "items": "Archive des abonnements",
+    "compactable": "{count} anciennes entrées à compacter",
+    "database_file": "Fichier de base de données",
+    "items_days_label": "Garder entières les entrées ignorées",
+    "items_days_description": "Jours pendant lesquels une entrée ignorée ou écartée garde son titre et son lien ; ensuite il ne reste que ce qui permet de la reconnaître, pour qu'elle ne revienne pas. 0 garde tout (0-3650).",
+    "rewrite": "La base de données vient d'une version antérieure à 1.24 : « Nettoyer maintenant » la réécrit une fois, ensuite elle rend l'espace libre d'elle-même. Il faut de la place pour une seconde copie dans le dossier de données et que rien ne tourne."
   }
 }

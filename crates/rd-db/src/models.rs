@@ -130,6 +130,8 @@ pub(crate) struct PackageRow {
     extraction_result: Option<String>,
     completed_at: Option<DateTime<Utc>>,
     enrichment_json: Option<String>,
+    start_after: Option<DateTime<Utc>>,
+    download_window_json: Option<String>,
 }
 
 #[derive(FromRow)]
@@ -248,6 +250,17 @@ impl TryFrom<PackageRow> for DownloadPackage {
                 .as_deref()
                 .and_then(|value| value.parse().ok()),
             enrichment: parse_enrichment(row.enrichment_json.as_deref(), "packages", &row.id),
+            start_after: row.start_after,
+            // A malformed window follows the category rather than hiding the package
+            // (RD-1240-30).
+            download_window: row.download_window_json.as_deref().and_then(|value| {
+                lenient(
+                    serde_json::from_str(value),
+                    "packages",
+                    "download_window_json",
+                    &row.id,
+                )
+            }),
         })
     }
 }
@@ -337,7 +350,8 @@ pub(crate) const PACKAGE_COLUMNS: &str = "SELECT packages.id, packages.name, pac
      packages.nzb_import_id, \
      packages.postprocess_level, packages.script, packages.postprocess_stage, \
      packages.postprocess_percent, packages.postprocess_current, packages.extraction_result, \
-     packages.completed_at, packages.enrichment_json \
+     packages.completed_at, packages.enrichment_json, packages.start_after, \
+     packages.download_window_json \
      FROM packages";
 
 fn i64_to_bytes(value: i64) -> Result<ByteCount> {

@@ -103,6 +103,21 @@ impl SettingsResponse {
             .with_param("min", 5)
             .with_param("max", 600));
         }
+        let pauses = [
+            self.media_sleep_requests_seconds,
+            self.media_sleep_interval_seconds,
+        ];
+        if pauses
+            .iter()
+            .any(|seconds| *seconds > rd_core::MAX_PAUSE_SECONDS)
+        {
+            return Err(crate::ApiError::bad_request(
+                "settings.media_pause_invalid",
+                "Pauses between media requests must be between 0 and 600 seconds",
+            )
+            .with_param("min", 0)
+            .with_param("max", rd_core::MAX_PAUSE_SECONDS));
+        }
         Ok(())
     }
 
@@ -203,6 +218,26 @@ impl SettingsResponse {
                 "settings.torrent_seed_time_invalid",
                 "Seed time limit must be between 1 minute and one year",
             ));
+        }
+        if !(1..=rd_core::MAX_TORRENT_ACTIVE_DOWNLOADS).contains(&self.torrent_max_active_downloads)
+        {
+            return Err(crate::ApiError::bad_request(
+                "settings.torrent_active_limit_invalid",
+                "Active torrent downloads must be between 1 and 32",
+            )
+            .with_param("min", 1)
+            .with_param("max", rd_core::MAX_TORRENT_ACTIVE_DOWNLOADS));
+        }
+        if self
+            .torrent_max_active_seeds
+            .is_some_and(|seeds| !(1..=rd_core::MAX_TORRENT_ACTIVE_SEEDS).contains(&seeds))
+        {
+            return Err(crate::ApiError::bad_request(
+                "settings.torrent_active_limit_invalid",
+                "Active seeds must be between 1 and 500",
+            )
+            .with_param("min", 1)
+            .with_param("max", rd_core::MAX_TORRENT_ACTIVE_SEEDS));
         }
 
         if let Some(url) = self.torrent_ip_blocklist_url.as_deref() {
@@ -365,6 +400,41 @@ mod tests {
         }
     }
 
+    /// RD-1240-16: both active-torrent limits have a floor of one and a ceiling.
+    #[test]
+    fn the_active_torrent_limits_are_checked_before_they_are_stored() {
+        let code = |downloads: u32, seeds: Option<u32>| {
+            let mut settings = SettingsResponse {
+                torrent_max_active_downloads: downloads,
+                torrent_max_active_seeds: seeds,
+                ..SettingsResponse::default()
+            };
+            settings
+                .validate_torrent()
+                .err()
+                .map(|error| error.code().to_owned())
+        };
+        let defaults = SettingsResponse::default();
+        assert_eq!(defaults.torrent_max_active_downloads, 4);
+        assert_eq!(defaults.torrent_max_active_seeds, None);
+        let invalid = Some("settings.torrent_active_limit_invalid");
+        for (downloads, seeds, expected) in [
+            (4, None, None),
+            (1, Some(1), None),
+            (32, Some(500), None),
+            (0, None, invalid),
+            (33, None, invalid),
+            (4, Some(0), invalid),
+            (4, Some(501), invalid),
+        ] {
+            assert_eq!(
+                code(downloads, seeds).as_deref(),
+                expected,
+                "{downloads} downloads, {seeds:?} seeds"
+            );
+        }
+    }
+
     /// RA-IN-06: media and gallery hosts are stored in `rd_core::host_key`'s form.
     #[test]
     fn media_and_gallery_hosts_are_stored_as_host_keys() {
@@ -376,5 +446,27 @@ mod tests {
         settings.validate_media(4096).expect("valid hosts");
         assert_eq!(settings.media_hosts, ["example.com"]);
         assert_eq!(settings.gallery_hosts, ["pixiv.net"]);
+    }
+
+    /// RD-1240-15: the media pauses stay within what a link's own pauses may be.
+    #[test]
+    fn media_pauses_above_the_limit_are_refused() {
+        for (requests, interval, expected) in [
+            (0, 0, None),
+            (600, 600, None),
+            (601, 0, Some("settings.media_pause_invalid")),
+            (0, 601, Some("settings.media_pause_invalid")),
+        ] {
+            let mut settings = SettingsResponse {
+                media_sleep_requests_seconds: requests,
+                media_sleep_interval_seconds: interval,
+                ..SettingsResponse::default()
+            };
+            let code = settings
+                .validate_media_downloads()
+                .err()
+                .map(|error| error.code().to_owned());
+            assert_eq!(code.as_deref(), expected, "{requests}/{interval} seconds");
+        }
     }
 }

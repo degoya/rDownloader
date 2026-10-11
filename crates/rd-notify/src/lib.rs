@@ -1,17 +1,26 @@
 //! Server-side notifications: filterable rules, signed webhooks, SMTP and Apprise-compatible
-//! targets with a persistent delivery history (RD-050-14).
+//! targets with a persistent delivery history (RD-050-14), and Web Push to the installed app's
+//! browsers (RD-1240-13).
 //!
 //! The crate owns the contract and the transports. Persisting deliveries and running the
 //! worker is the service's job, so the policy stays testable without a database.
 
 #![warn(unreachable_pub)]
 
+mod coalesce;
 mod delivery;
 mod executable;
 mod model;
 mod retry;
 
-pub use delivery::{Attempt, IDEMPOTENCY_HEADER, Message, SIGNATURE_HEADER, TargetConfig, send};
+pub use coalesce::{Burst, Coalescer, LONGEST_SECONDS, NAMED, Occurrence, QUIET_SECONDS};
+pub use delivery::{
+    Attempt, IDEMPOTENCY_HEADER, Message, SIGNATURE_HEADER, TargetConfig, send,
+    web_push::{
+        PushOutcome, VapidKey, WebPushSubscription, are_push_keys, is_deliverable_push_address,
+        is_push_address, push_payload, send_push,
+    },
+};
 pub use executable::{EXECUTABLE_SEAL, ExecutableNeedsAdmin, check_executable, seal_executable};
 pub use model::{
     Delivery, DeliveryState, NotificationEvent, NotificationRule, NotificationTarget, Severity,

@@ -87,7 +87,7 @@ fn not_confirmed(target: &str) -> ApiError {
     .with_param("target", target)
 }
 
-fn confirm(request: &DataClearRequest, target: &str) -> Result<(), ApiError> {
+pub(crate) fn confirm(request: &DataClearRequest, target: &str) -> Result<(), ApiError> {
     if request.confirmed {
         Ok(())
     } else {

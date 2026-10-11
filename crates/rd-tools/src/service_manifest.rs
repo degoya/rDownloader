@@ -53,9 +53,9 @@ impl ManagedToolService {
             .read()
             .ok()
             .and_then(|settings| settings.managed_tools_manifest_url.clone())
-            .ok_or_else(|| {
-                ToolError::Other(anyhow::anyhow!("no tool manifest URL is configured"))
-            })?;
+            // A setting left empty, not a fault of the service: it had answered `500
+            // internal.error` (RD-1240-28).
+            .ok_or(ToolError::ManifestUrlMissing)?;
         if !url.starts_with("https://") {
             return Err(ToolError::ManifestUntrusted(
                 "the tool manifest URL is not https".to_owned(),
@@ -144,4 +144,35 @@ pub(super) async fn fetch_manifest(
         });
     }
     Ok(bytes.to_vec())
+}
+
+#[cfg(test)]
+mod tests {
+    use rd_core::ManagedToolSettings;
+
+    use crate::{ManagedToolService, ToolError};
+
+    /// RD-1240-28: refreshing without a manifest URL is a coded refusal, not `internal.error`.
+    #[tokio::test]
+    async fn a_refresh_without_a_manifest_url_names_the_missing_setting() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = rd_db::Database::open(directory.path().join("tools.sqlite3"))
+            .await
+            .expect("database");
+        let service = ManagedToolService::new(
+            database,
+            crate::store_root(directory.path()),
+            ManagedToolSettings {
+                managed_tools_enabled: true,
+                managed_tools_manifest_url: None,
+                tool_compatibility_overrides: Vec::new(),
+            },
+        );
+        let refused = service.refresh_manifest().await.expect_err("refused");
+        assert!(
+            matches!(refused, ToolError::ManifestUrlMissing),
+            "{refused:?}"
+        );
+        assert_eq!(refused.code(), "tools.manifest_url_missing");
+    }
 }

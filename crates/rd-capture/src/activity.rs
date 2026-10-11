@@ -96,6 +96,23 @@ pub(crate) enum QueueRequest {
     Pause { minutes: Option<u32> },
     /// "Start all": end a timed pause, or queue the paused files again.
     Resume,
+    /// "Add all from LinkGrabber", started or `paused` (RD-1240-07), from the tray or a shortcut
+    /// (RD-1240-24); answered with a desktop notification rather than a log line, since nothing
+    /// else shows what it did.
+    AddLinkGrabber { paused: bool },
+}
+
+/// Carries out one queue request with the agent's token: from the tray's transfer poll, or from
+/// the shortcut listener of a run without a tray.
+pub(crate) async fn carry_out(client: &CaptureClient, request: QueueRequest) -> anyhow::Result<()> {
+    match request {
+        QueueRequest::Pause { minutes } => client.pause_queue(minutes).await,
+        QueueRequest::Resume => client.resume_queue().await,
+        QueueRequest::AddLinkGrabber { paused } => {
+            crate::linkgrabber::add_all(client, paused).await;
+            Ok(())
+        }
+    }
 }
 
 /// Byte counts cross the API as strings, because they do not fit a JSON number safely.
@@ -364,11 +381,7 @@ pub(crate) async fn watch_activity(
             () = cancellation.cancelled() => return,
             () = tokio::time::sleep(config::STATUS_POLL_INTERVAL) => {}
             Some(request) = requests.recv() => {
-                let outcome = match request {
-                    QueueRequest::Pause { minutes } => client.pause_queue(minutes).await,
-                    QueueRequest::Resume => client.resume_queue().await,
-                };
-                if let Err(error) = outcome {
+                if let Err(error) = carry_out(&client, request).await {
                     tracing::warn!(%error, ?request, "the tray's queue request was not carried out");
                 }
             }

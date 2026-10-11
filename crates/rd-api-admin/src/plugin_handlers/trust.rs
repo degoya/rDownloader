@@ -41,6 +41,14 @@ pub async fn revoke_plugin_key(
             "signing key revoked in the database but not in the live verifier; it takes effect at the next start"
         );
     }
+    // Plugins signed with it are skipped from the next start (RD-1240-32).
+    state.restart.record(crate::dto::RestartReason {
+        code: "plugin_key_revoked".to_owned(),
+        plugin_id: None,
+        name: Some(key_id.clone()),
+        version: None,
+        from_version: None,
+    });
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::PluginKeyRevoked)
@@ -110,6 +118,14 @@ pub async fn revoke_plugin_digest(
         .map(str::to_owned);
     let target = resolve_digest(&state, request).await?;
     let hex = rd_plugin_host::format_package_digest(&target.digest);
+    // Refused from the next start (RD-1240-32), recorded once the withdrawal is new.
+    let pending = crate::dto::RestartReason {
+        code: "plugin_digest_revoked".to_owned(),
+        plugin_id: target.plugin_id.clone(),
+        name: target.plugin_name.clone(),
+        version: target.version.clone(),
+        from_version: None,
+    };
     // The row first: it is what the next start reads back, and a live set that outlives the
     // record it was meant to mirror is the one inconsistency a restart cannot correct.
     state
@@ -140,6 +156,9 @@ pub async fn revoke_plugin_digest(
             true
         }
     };
+    if newly {
+        state.restart.record(pending);
+    }
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::PluginDigestRevoked)
@@ -194,6 +213,14 @@ pub async fn unrevoke_plugin_digest(
             "withdrawal lifted in the database but not in the live verifier; it takes effect at the next start"
         );
     }
+    // Accepted again from the next start (RD-1240-32).
+    state.restart.record(crate::dto::RestartReason {
+        code: "plugin_digest_unrevoked".to_owned(),
+        plugin_id: None,
+        name: None,
+        version: None,
+        from_version: None,
+    });
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::PluginDigestUnrevoked)

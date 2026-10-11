@@ -247,6 +247,9 @@ pub async fn pair_capture(
     if request.queue_control {
         scopes.push(rd_core::CAPTURE_QUEUE_SCOPE.to_owned());
     }
+    if request.server_update {
+        scopes.push(rd_core::CAPTURE_SERVER_UPDATE_SCOPE.to_owned());
+    }
     let response = crate::api_tokens::pair_with_scopes(
         &state,
         &request.label,

@@ -85,7 +85,8 @@
     "token_limits_changed": "Token limits changed",
     "proxy_profile_changed": "Proxy profile changed",
     "remote_credential_changed": "Remote login changed",
-    "site_rules_cleared": "All site rules deleted"
+    "site_rules_cleared": "All site rules deleted",
+    "system_cleanup": "Data folder cleaned up"
   },
   "list": {
     "title": "Records",

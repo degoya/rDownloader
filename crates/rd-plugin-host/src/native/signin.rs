@@ -73,7 +73,11 @@ impl NativeHost {
                     .map_err(super::permanent)?
                     .ok_or_else(secret_missing)?;
                 let stored = stored.ok_or_else(secret_missing)?;
-                let secret = self.secrets.get(&stored).await.map_err(super::permanent)?;
+                let secret = self
+                    .secrets
+                    .get(&stored)
+                    .await
+                    .map_err(super::vault_failure)?;
                 keyderive::run(secret.expose_secret().as_bytes(), steps)
             }
             SecretOrigin::SignIn => {
@@ -86,7 +90,11 @@ impl NativeHost {
                     .map_err(super::permanent)?
                     .and_then(|flow| flow.key_ref)
                     .ok_or_else(secret_missing)?;
-                let text = self.secrets.get(&stored).await.map_err(super::permanent)?;
+                let text = self
+                    .secrets
+                    .get(&stored)
+                    .await
+                    .map_err(super::vault_failure)?;
                 let key = session::decode_key(text.expose_secret())?;
                 keyderive::run(&key, steps)
             }

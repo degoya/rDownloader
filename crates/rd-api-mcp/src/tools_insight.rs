@@ -129,6 +129,44 @@ impl RdMcpServer {
     }
 
     #[tool(
+        description = "How much the data directory holds that a clean-up would remove right now, and what stays: the database copies and encrypted archives taken before updates (pre_update), the database copies taken before migrations (pre_migration) and the compiled plugin code (plugin_cache), each as kept_files/kept_bytes and removable_files/removable_bytes. Behind a proven update (update_proven) only the newest copy of each kind stays, and after retention_days (the update_backup_retention_days setting, 0 = for good) that one goes too; an update not proven keeps all of them. Compiled code no installed plugin uses, from an older Wasmtime, or beyond 256 MiB is removable. And the database file (database): file_bytes, free_bytes (free pages inside it), event_rows/event_bytes, the subscription archive's item_rows/item_bytes and item_key_rows (keys of compacted items), compactable_items/compactable_bytes (skipped or dismissed items older than item_retention_days, the subscription_item_retention_days setting, 0 = for good; they keep only their key, so a feed still listing them brings nothing back) and removable_bytes (about how much smaller the file gets). incremental=false means a file from before 1.24 that the clean-up rewrites once; rewrite_refused says why it would not now (system.cleanup_rewrite_busy while something downloads, system.cleanup_rewrite_no_space without room for a second copy). Read-only; say the numbers before clean_up_data_directory."
+    )]
+    pub async fn get_cleanup_preview(&self) -> McpToolResult {
+        respond(
+            crate::system_cleanup::cleanup_preview(State(self.state.clone()))
+                .await
+                .map(|response| response.0),
+        )
+    }
+
+    #[tool(
+        description = "Remove what get_cleanup_preview names as removable: old database copies and archives before updates and migrations, compiled plugin code nothing uses (it compiles again if a plugin needs it), the details of old skipped or dismissed subscription items (their keys stay), and the free pages of the database file, which a file from before 1.24 gets back through one rewrite (refused with rewrite_refused while something downloads or without room for a second copy; the rest runs anyway). The service runs the same clean-up, without the rewrite, ten minutes after every start and daily. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. Answers what stayed and what went (database.compactable_items: items compacted, database.removable_bytes: how much smaller the file became); downloads, settings and pending or queued subscription items are untouched."
+    )]
+    pub async fn clean_up_data_directory(
+        &self,
+        Parameters(params): Parameters<DataClearToolParams>,
+    ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "clean_up_data_directory",
+            params.confirmation.as_deref(),
+            "Remove old backups before updates, unused compiled plugin code and the details of old skipped subscription items, and shrink the database file.",
+        ) {
+            return question;
+        }
+        respond(
+            crate::system_cleanup::run_cleanup(
+                State(self.state.clone()),
+                crate::audit::AuditContext::current(),
+                axum::Json(DataClearRequest {
+                    confirmed: params.confirmed,
+                }),
+            )
+            .await
+            .map(|response| response.0),
+        )
+    }
+
+    #[tool(
         description = "Empty the service log so a test run starts from nothing. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. Downloads, packages and settings are untouched; the audit log and the statistics are left alone."
     )]
     pub async fn clear_log_records(

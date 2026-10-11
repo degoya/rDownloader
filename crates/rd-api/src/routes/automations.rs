@@ -79,10 +79,12 @@ pub(crate) fn routes() -> Router<AppState> {
         rd_automation::AutomationVersion,
         rd_automation::ConditionNode,
         rd_automation::Field,
+        rd_automation::LinkDestination,
         rd_automation::Operator,
         rd_automation::Predicate,
         rd_automation::Run,
         rd_automation::RunState,
+        rd_automation::Schedule,
         rd_automation::Trigger,
     ))
 )]

@@ -35,7 +35,8 @@ use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, trace::TraceLaye
 
 pub use rd_api_admin::{
     backup_service, diagnostics_checks, plugin_repository_handlers::prepare_plugin_repositories,
-    plugin_update_policy::VersionChoicePolicy,
+    plugin_update_policy::VersionChoicePolicy, restart_auto, restart_service, system_cleanup,
+    update_auto_install,
 };
 pub use rd_api_core::{
     ApiError, AppState, AuthService, BuildInfo, HotFolderService, LinkCheckService, RUNTIME_FIELDS,
@@ -56,12 +57,13 @@ use rd_api_access::{
 };
 use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers,
-    capture_agent_handlers, config_handlers, data_reset_handlers, diagnostics_dto,
-    diagnostics_handlers, lifecycle_handlers, notify_handlers, object_storage_handlers,
-    plugin_bundled, plugin_handlers, plugin_lifecycle, plugin_repository_handlers,
-    plugin_update_policy, providers_handlers, remote_handlers, restore_handlers, restore_uploads,
-    routing_backup, settings_backup, settings_backup_crypto, settings_backup_dto,
-    settings_handlers, stats_handlers, stats_retention_service, tools_handlers, update_handlers,
+    capture_agent_handlers, capture_game_mode, capture_server_update, config_handlers,
+    data_reset_handlers, diagnostics_dto, diagnostics_handlers, lifecycle_handlers,
+    notify_handlers, object_storage_handlers, plugin_bundled, plugin_handlers, plugin_lifecycle,
+    plugin_repository_handlers, plugin_update_policy, providers_handlers, remote_handlers,
+    restart_handlers, restore_handlers, restore_uploads, routing_backup, settings_backup,
+    settings_backup_crypto, settings_backup_dto, settings_handlers, stats_handlers,
+    stats_retention_service, tools_handlers, update_handlers, web_push_handlers,
 };
 use rd_api_compat as compat;
 use rd_api_core::{
@@ -69,17 +71,18 @@ use rd_api_core::{
     postprocess_handlers, reconnect_service, storage_capacity, trace_context,
 };
 use rd_api_intake::{
-    area_backup, candidate_handlers, captcha_handlers, capture_file, collector_handlers,
-    container_handlers, indexer_handlers, indexer_search, nzb_handlers, regex_tester,
-    remote_listing_handlers, site_rule_picks, site_rules_dto, site_rules_handlers, stream_handlers,
-    stream_schedule_handlers, subscription_autoqueue, subscription_handlers,
+    area_backup, candidate_handlers, captcha_handlers, capture_file, capture_linkgrabber,
+    collector_handlers, container_handlers, indexer_handlers, indexer_search, link_filter_handlers,
+    nzb_handlers, regex_tester, remote_listing_handlers, site_rule_picks, site_rules_dto,
+    site_rules_handlers, stream_handlers, stream_schedule_handlers, subscription_autoqueue,
+    subscription_handlers, torrent_import,
 };
 use rd_api_mcp as mcp;
 use rd_api_queue::{
     auto_remove_service, bandwidth_handlers, bandwidth_manual_handlers, capture_queue,
     capture_summary, collision_handlers, download_handlers, download_sources, duplicates,
     media_dto, media_handlers, metrics, nzb_remote_job_handlers, package_clear, package_export,
-    package_handlers, power_handlers, queue_pause_handlers, reconnect_handlers,
+    package_handlers, power_handlers, queue_pause_handlers, queue_search, reconnect_handlers,
     remote_job_handlers, replay_dto, replay_handlers, stop_mark_handlers, storage_handlers,
     torrent_control, torrent_handlers, torrent_trackers, usenet_handlers,
 };
@@ -228,6 +231,47 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/capture/queue/resume",
             post(capture_queue::resume_capture_queue)
+                .route_layer(middleware::from_fn(auth::require_capture_queue)),
+        )
+        // The agent's game mode (RD-1240-19), behind the same right: it pauses the queue too.
+        // The tray's switch of it (RD-1240-23) as well.
+        .route(
+            "/api/v1/capture/game-mode",
+            post(capture_game_mode::switch_capture_game_mode)
+                .route_layer(middleware::from_fn(auth::require_capture_queue)),
+        )
+        .route(
+            "/api/v1/capture/game-mode/hold",
+            post(capture_game_mode::hold_capture_game_mode)
+                .route_layer(middleware::from_fn(auth::require_capture_queue)),
+        )
+        .route(
+            "/api/v1/capture/game-mode/release",
+            post(capture_game_mode::release_capture_game_mode)
+                .route_layer(middleware::from_fn(auth::require_capture_queue)),
+        )
+        // The service's update in the tray (RD-1240-25): every agent reads whether there is one;
+        // installing it takes a right of its own, not queue control.
+        .route(
+            "/api/v1/capture/server-update",
+            get(capture_server_update::get_capture_server_update),
+        )
+        .route(
+            "/api/v1/capture/server-update/install",
+            post(capture_server_update::install_capture_server_update)
+                .route_layer(middleware::from_fn(auth::require_capture_server_update)),
+        )
+        // Restarting the service from the tray for what waits for the next start (RD-1240-32),
+        // behind the same right as installing its update.
+        .route(
+            "/api/v1/capture/server-update/restart",
+            post(capture_server_update::restart_capture_server)
+                .route_layer(middleware::from_fn(auth::require_capture_server_update)),
+        )
+        // The tray's "Add all from LinkGrabber" (RD-1240-07), behind the same right.
+        .route(
+            "/api/v1/capture/linkgrabber/enqueue",
+            post(capture_linkgrabber::enqueue_capture_linkgrabber)
                 .route_layer(middleware::from_fn(auth::require_capture_queue)),
         )
         .route_layer(middleware::from_fn_with_state(

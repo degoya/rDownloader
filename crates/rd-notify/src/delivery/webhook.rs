@@ -43,7 +43,7 @@ pub(super) async fn send(
         return Ok(refused());
     }
     let body = serde_json::to_vec(&message.payload)?;
-    let mut request = client(reach)?
+    let mut request = client(reach, TIMEOUT)?
         .post(url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .header(IDEMPOTENCY_HEADER, &message.idempotency_key);
@@ -70,12 +70,13 @@ pub(super) async fn send(
 
 /// A client for one call: names resolved through the guard at connect time, so a name that
 /// passed the check above cannot point inside a moment later, and no redirect followed — a
-/// receiver that answers `302` with an inner address would otherwise be the way around it.
-fn client(reach: &rd_http::AddressPolicy) -> Result<reqwest::Client> {
+/// receiver that answers `302` with an inner address would otherwise be the way around it. The
+/// Web Push transport sends through the same kind of client (RD-1240-13).
+pub(super) fn client(reach: &rd_http::AddressPolicy, timeout: Duration) -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .dns_resolver(rd_http::GuardedResolver::system(reach.clone()))
-        .timeout(TIMEOUT)
+        .timeout(timeout)
         .build()
         .context("webhook client")
 }
@@ -87,7 +88,7 @@ fn refused() -> Attempt {
 
 /// The first [`MAX_ANSWER_BYTES`] of an answer; the rest is never read. A broken transfer
 /// keeps what arrived.
-async fn answer_head(mut response: reqwest::Response) -> String {
+pub(super) async fn answer_head(mut response: reqwest::Response) -> String {
     let mut head = Vec::new();
     while head.len() < MAX_ANSWER_BYTES {
         match response.chunk().await {

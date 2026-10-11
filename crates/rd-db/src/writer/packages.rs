@@ -114,6 +114,28 @@ impl Writer {
                 .await;
                 send(reply, result);
             }
+            PackagesCommand::SetPackageStartAfter {
+                id,
+                start_after,
+                reply,
+            } => {
+                let result = crate::package_start_after_store::set_package_start_after(
+                    &mut self.connection,
+                    id,
+                    start_after,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
+            }
+            PackagesCommand::SetPackageDownloadWindow { id, window, reply } => {
+                let result = crate::download_window_store::set_package_download_window(
+                    &mut self.connection,
+                    id,
+                    window,
+                )
+                .await;
+                publish_config(reply, result, &self.events);
+            }
             PackagesCommand::SetStopMark { target, reply } => {
                 let result =
                     crate::stop_mark_store::set_stop_mark(&mut self.connection, target).await;

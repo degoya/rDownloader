@@ -51,7 +51,7 @@ const BASELINE: &[(&str, usize)] = &[
     ("crates/rd-api/tests/admin/updates.rs", 736),
     ("crates/rd-api/tests/intake/captcha.rs", 618),
     ("crates/rd-api/tests/intake/torrent.rs", 1457),
-    ("crates/rd-api/tests/mcp/mcp.rs", 1766),
+    ("crates/rd-api/tests/mcp/mcp.rs", 1687),
     ("crates/rd-api/tests/queue/category_move_and_reset.rs", 557),
     ("crates/rd-api/tests/sources/compat_qbittorrent.rs", 1016),
     ("crates/rd-api/tests/sources/indexer_search.rs", 564),

@@ -15,7 +15,7 @@ import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
 import { useAutomationsStore } from '@/stores/automations'
-import { changedParts, describeAction, describeCondition } from '@/utils/automationText'
+import { changedParts, describeAction, describeCondition, describeTrigger } from '@/utils/automationText'
 import { formatMoment } from '@/utils/format'
 import FormFeedback from '@/components/FormFeedback.vue'
 
@@ -107,7 +107,7 @@ onMounted(() => void load())
             <dl class="grid gap-x-4 gap-y-1 text-xs sm:grid-cols-[auto_1fr]">
               <dt class="text-muted">{{ t('automation.trigger_label') }}</dt>
               <dd class="text-toned">
-                {{ t(`automation.trigger.${version.trigger}`) }}
+                {{ describeTrigger(version.trigger, version.schedule, t) }}
                 <UBadge v-if="changed.has('trigger')" color="warning" variant="subtle" size="sm">{{ t('automation.history.changed') }}</UBadge>
               </dd>
               <dt class="text-muted">{{ t('automation.condition.heading') }}</dt>

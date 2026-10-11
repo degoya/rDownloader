@@ -15,6 +15,7 @@ import { useFormFocus } from '@/composables/useFormFocus'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { editingRowClass } from '@/utils/editingRow'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
+import { NOTIFICATION_EVENTS } from '@/components/notifications/notificationEvents'
 
 const props = defineProps<{
   targets: NotificationTarget[]
@@ -32,20 +33,6 @@ const copyName = useCopyName()
 const duplicatingId = ref<string | null>(null)
 /** Matches the name check in `crates/rd-api-admin/src/notify_handlers.rs`. */
 const MAX_RULE_NAME = 100
-
-const EVENTS: NotificationEvent[] = [
-  'package_completed', 'package_failed', 'storage_blocked',
-  'budget_exhausted', 'captcha_waiting', 'power_pending',
-  // A Usenet set given up as beyond repair (RD-1100-02), in its package's category.
-  'usenet_job_hopeless',
-  // Operational events (RD-190-19): from background checks and runs, never in a category.
-  'backup_failed', 'backup_verify_failed', 'update_available', 'plugin_update_available',
-  'plugin_update_failed', 'account_expiring', 'account_invalid',
-  // A Usenet server used up its quota (RD-1100-05).
-  'usenet_quota_reached',
-  // The queue paused at its stop mark (RD-1210-02).
-  'stop_mark_reached'
-]
 
 function emptyForm(): NotificationRuleRequest {
   return {
@@ -74,7 +61,7 @@ const severities = computed(() =>
   (['info', 'warning', 'error'] as const).map(value => ({ value, label: t(`notifications.severity.${value}`) }))
 )
 
-const eventItems = computed(() => EVENTS.map(event => ({ value: event, label: t(`notifications.event.${event}`) })))
+const eventItems = computed(() => NOTIFICATION_EVENTS.map(event => ({ value: event, label: t(`notifications.event.${event}`) })))
 /** The checkbox group holds a plain list; the request's `events` may be absent. */
 const events = computed({
   get: () => form.events ?? [],

@@ -18,6 +18,7 @@ mod control;
 mod dispatch;
 #[cfg(test)]
 mod dispatch_tests;
+mod download_window;
 mod enqueue;
 mod failures;
 mod finish;
@@ -41,6 +42,7 @@ mod runner;
 mod settings;
 mod start;
 mod stop_mark;
+mod tool_network;
 mod worker;
 
 pub use account_traffic::{AccountTrafficHold, TRAFFIC_CHECK_INTERVAL_MINUTES};
@@ -73,6 +75,9 @@ pub use holds::HoldSource;
 pub use queue_pause::{QueuePause, pausable};
 pub use rates::estimate_seconds;
 pub use runner::{ExternalRunner, HTTP_REUSE, RunLimits, RunOutcome};
+pub use tool_network::{
+    ToolNetwork, ToolNetworkSource, ToolProxy, proxy_auth_failed, unsupported_by_tool,
+};
 
 /// Runtime defaults for queue execution.
 #[derive(Clone, Debug)]

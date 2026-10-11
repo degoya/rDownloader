@@ -170,6 +170,7 @@ fn nzb(name: &str) -> LinksNzb {
         files: vec![crate::NzbFile {
             subject: "\"holiday.part1.rar\" yEnc (1/1)".to_owned(),
             poster: "poster@example.com".to_owned(),
+            date: None,
             groups: vec!["alt.binaries.test".to_owned()],
             segments: vec![crate::NzbSegment {
                 number: 1,

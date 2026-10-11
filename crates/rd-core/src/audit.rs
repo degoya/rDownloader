@@ -174,11 +174,14 @@ pub enum AuditAction {
     RemoteCredentialChanged,
     /// Every site rule was deleted from the settings (RD-1230-03); `cleared` says how many.
     SiteRulesCleared,
+    /// Old copies before updates and migrations and compiled plugin code nothing uses were
+    /// removed from the data directory (RD-1240-34); the details say how much of each.
+    SystemCleanup,
 }
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 58] = [
+    pub const ALL: [Self; 59] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -237,6 +240,7 @@ impl AuditAction {
         Self::ProxyProfileChanged,
         Self::RemoteCredentialChanged,
         Self::SiteRulesCleared,
+        Self::SystemCleanup,
     ];
 
     /// The stored word, which is also the filter value and the translation key suffix.
@@ -301,6 +305,7 @@ impl AuditAction {
             Self::ProxyProfileChanged => "proxy_profile_changed",
             Self::RemoteCredentialChanged => "remote_credential_changed",
             Self::SiteRulesCleared => "site_rules_cleared",
+            Self::SystemCleanup => "system_cleanup",
         }
     }
 

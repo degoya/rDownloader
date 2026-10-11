@@ -240,6 +240,16 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
     // Capture intake authenticates with its own token; reading candidates back is a session
     // route, so the default stands in for an installation without an admin password.
     state.auth.set_disabled(!options.login);
+    // A restart follows the environment the process started in (RD-1240-32): under systemd, as
+    // on a CI runner, it stops this router, and by hand it launches a relauncher. Here it starts
+    // nothing; the restart suite sets the environment of each case itself.
+    state.restart.use_environment(
+        rd_update::restart::Environment {
+            systemd: false,
+            relaunchable: true,
+        },
+        std::sync::Arc::new(|_: &rd_update::RestartPlan| -> anyhow::Result<()> { Ok(()) }),
+    );
     Harness {
         router: rd_api::router(state.clone()),
         link_check: state.link_check.clone(),

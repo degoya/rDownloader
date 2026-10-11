@@ -196,3 +196,54 @@ fn a_failed_roll_back_keeps_the_files_the_manual_recovery_needs() {
     assert!(fixture.journal.previous_dir().exists());
     assert!(!fixture.stored().cleaned);
 }
+
+/// RD-1240-34: the copies before an update thin out only behind a proven one.
+#[test]
+fn only_a_proven_update_lets_its_backups_thin_out() {
+    let empty = tempfile::tempdir().expect("tempdir");
+    assert!(update_proven(empty.path(), OLD), "nothing recorded");
+
+    let mut fixture = Fixture::tar();
+    assert!(
+        !update_proven(&fixture.data, NEW),
+        "handed, not switched yet"
+    );
+    portable::stage(&mut fixture.journal).expect("stage");
+    portable::switch(&mut fixture.journal).expect("switch");
+    assert!(
+        !update_proven(&fixture.data, NEW),
+        "switched, waiting for its proof"
+    );
+    {
+        let _lock = UpdaterLock::acquire(&fixture.data)
+            .expect("lock")
+            .expect("free");
+        fixture.journal.advance(Phase::Verified).expect("verified");
+        assert!(!update_proven(&fixture.data, NEW), "the updater still runs");
+    }
+    assert!(update_proven(&fixture.data, NEW));
+    assert!(
+        !update_proven(&fixture.data, OLD),
+        "proven for another version than the one running"
+    );
+
+    let mut failed = Fixture::tar();
+    failed
+        .journal
+        .end(Phase::Failed, "update.interrupted", "the test says so")
+        .expect("end");
+    assert!(
+        !update_proven(&failed.data, NEW),
+        "a failed update keeps everything"
+    );
+    let mut rolled_back = Fixture::tar();
+    rolled_back
+        .journal
+        .end(
+            Phase::RolledBack,
+            "update.not_confirmed",
+            "the test says so",
+        )
+        .expect("end");
+    assert!(!update_proven(&rolled_back.data, OLD));
+}
