@@ -1,5 +1,5 @@
 //! LinkFilter rules (RD-1240-09): which link the LinkGrabber hides, keeps or files away, decided
-//! by the first enabled rule in order whose conditions all hold — JDownloader's LinkFilter.
+//! by the first enabled rule in order whose conditions all hold.
 //!
 //! Pure, like the category rules beside it: the rules and the facts of one link go in, the rule
 //! that decides comes out. `rd-db` applies the answer at intake and when a person re-applies the

@@ -15,8 +15,8 @@ use serde_json::Value;
 
 use crate::messages;
 
-/// Most keys one `file/get_info` call carries. The documentation allows 500; JDownloader
-/// sends 100, and a smaller batch keeps one bad answer from taking down a large check.
+/// Most keys one `file/get_info` call carries. The documentation allows 500; a smaller
+/// batch keeps one bad answer from taking down a large check.
 pub(crate) const CHECK_BATCH: usize = 100;
 
 /// One API call; the `response` object on success.
@@ -107,8 +107,8 @@ pub(crate) fn http_failure(response: &HttpResponse) -> Failure {
         .with_param("status", status.to_string())
 }
 
-/// What an `error.php?errno=<n>` page means. The numbers are the ones JD's `MediafireCom`
-/// has collected over the years (job file, section 4); none was provoked live except 320.
+/// What an `error.php?errno=<n>` page means. The numbers are known second-hand (job file,
+/// section 4); none was provoked live except 320.
 #[must_use]
 pub(crate) fn errno_failure(errno: u32) -> Failure {
     let blocked = |reason: &str| {

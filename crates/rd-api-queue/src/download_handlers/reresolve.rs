@@ -7,6 +7,10 @@
 //! is assigned to now. A running file is paused first and started again afterwards, since a
 //! running job keeps its version; finished files are left as they are.
 //!
+//! With `check_now` the files are resolved at once as well, without a transfer, and their size,
+//! name and online status written back (RD-1250-05, `reresolve_now.rs`); a running file then
+//! stays paused until its own resolution is over.
+//!
 //! The bytes already on disk are not touched here. The next attempt plans its transfer exactly
 //! as every resume does: a size or validator that changed between the recorded transfer and the
 //! new resolution stops the file as `blocked (validators-changed)` rather than writing another
@@ -15,37 +19,52 @@
 use std::time::Duration;
 
 use axum::{Json, extract::State};
-use rd_core::{DownloadId, DownloadState};
+use rd_core::{DownloadFile, DownloadId, DownloadState};
 use rd_db::StoreErrorKind;
 
 use crate::{
     ApiError, AppState,
     audit::{AuditContext, AuditEvent},
-    dto::{DownloadBulkResponse, ReresolveRequest},
+    dto::{ReresolveRequest, ReresolveResponse},
 };
 use rd_api_core::list_bounds::validate_bulk;
+
+#[path = "reresolve_now.rs"]
+mod now;
 
 /// How often, and how far apart, the pin is tried again while a paused worker lets go.
 const PAUSE_WAIT_ROUNDS: usize = 25;
 const PAUSE_WAIT_STEP: Duration = Duration::from_millis(200);
 
-#[utoipa::path(post, path = "/api/v1/downloads/reresolve", tag = "downloads", request_body = ReresolveRequest, responses((status = 200, body = DownloadBulkResponse, description = "`affected` counts the files that resolve anew at their next start; each refusal is coded"), (status = 400, description = "No download or more than 500 named"), (status = 404, description = "A named package does not exist")))]
+#[utoipa::path(post, path = "/api/v1/downloads/reresolve", tag = "downloads", request_body = ReresolveRequest, responses((status = 200, body = ReresolveResponse, description = "`affected` counts the files that resolve anew; with `check_now`, `resolved` and `failed` count what resolving them now found and `results` names it per file; each refusal is coded"), (status = 400, description = "No download or more than 500 named"), (status = 404, description = "A named package does not exist")))]
 pub async fn reresolve_downloads(
     State(state): State<AppState>,
     audit: AuditContext,
     Json(request): Json<ReresolveRequest>,
-) -> Result<Json<DownloadBulkResponse>, ApiError> {
+) -> Result<Json<ReresolveResponse>, ApiError> {
+    let check_now = request.check_now;
     let ids = selected(&state, request).await?;
-    let mut answer = DownloadBulkResponse {
+    let mut answer = ReresolveResponse {
         affected: 0,
         errors: Vec::new(),
         refusals: Vec::new(),
+        resolved: 0,
+        failed: 0,
+        skipped: 0,
+        results: Vec::new(),
     };
+    let mut held = Vec::new();
     for id in ids {
-        match reresolve(&state, id).await {
+        match reresolve(&state, id, check_now).await {
             Ok(Some(released)) => {
                 answer.affected += 1;
-                if let Some(pin) = released {
+                if check_now {
+                    held.push(now::Held {
+                        file: released.file,
+                        paused: released.paused,
+                    });
+                }
+                if let Some(pin) = released.pin {
                     let event = AuditEvent::success(rd_core::AuditAction::PluginVersionChosen)
                         .by(&audit)
                         .target("plugin", pin.plugin_id)
@@ -62,7 +81,18 @@ pub async fn reresolve_downloads(
             }
         }
     }
+    if check_now {
+        now::resolve_all(&state, held, &mut answer).await;
+    }
     Ok(Json(answer))
+}
+
+/// A file whose pin was dropped: the pin it had, the file as it was read, and whether it was
+/// paused for it.
+struct Released {
+    pin: Option<rd_core::ResolverPin>,
+    file: DownloadFile,
+    paused: bool,
 }
 
 /// The named downloads and every file of the named packages, each once, in that order.
@@ -90,12 +120,14 @@ async fn selected(
     Ok(ids)
 }
 
-/// Re-resolves one file: `Some(pin it had)` when it resolves anew at its next start, `None` for
-/// a file past the resolver, which has nothing left to resolve.
+/// Re-resolves one file: `Some` when it resolves anew, `None` for a file past the resolver,
+/// which has nothing left to resolve. With `hold` a file paused for it is not started again
+/// here: the caller resumes it once it has been resolved now.
 async fn reresolve(
     state: &AppState,
     id: DownloadId,
-) -> Result<Option<Option<rd_core::ResolverPin>>, ApiError> {
+    hold: bool,
+) -> Result<Option<Released>, ApiError> {
     let file = state
         .database
         .get_download(id)
@@ -125,11 +157,11 @@ async fn reresolve(
         tokio::time::sleep(PAUSE_WAIT_STEP).await;
         released = state.database.release_resolver_pin(id).await;
     }
-    let released = released.map_err(refusal)?;
-    if paused {
+    let pin = released.map_err(refusal)?;
+    if paused && !hold {
         state.scheduler.resume(id).await.map_err(refusal)?;
     }
-    Ok(Some(released))
+    Ok(Some(Released { pin, file, paused }))
 }
 
 fn refusal(error: anyhow::Error) -> ApiError {

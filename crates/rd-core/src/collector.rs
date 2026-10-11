@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::{
     BatchId, ByteCount, CandidateId, CategoryId, CollectorPackageId, DownloadPriority, LinkStatus,
-    PluginLinkCheck, PostprocessLevel, ResolverRoute,
+    MessageParams, PluginLinkCheck, PostprocessLevel, ResolverRoute,
 };
 
 #[path = "collector_categories.rs"]
@@ -138,6 +138,11 @@ pub struct LinkCandidate {
     /// reaches the reader as that text, exactly as every candidate used to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
+    /// The parameters `error_code` is translated with, redacted (RD-1250-03): the cause in
+    /// `{detail}` of `media.ytdlp_failed`, for one. Empty for a code that takes none and for a
+    /// row written before the column existed, which the interface then shows as `error`.
+    #[serde(default, skip_serializing_if = "MessageParams::is_empty")]
+    pub error_params: MessageParams,
     /// LinkGrabber package the link is grouped into.
     pub package_id: Option<CollectorPackageId>,
     /// Manual order inside the package.
@@ -244,6 +249,9 @@ pub struct CandidateMessage {
     pub code: Option<String>,
     /// English wording, shown when no catalogue translates the code.
     pub text: String,
+    /// What the code is translated with (RD-1250-03); a failure's own parameters.
+    #[serde(default, skip_serializing_if = "MessageParams::is_empty")]
+    pub params: MessageParams,
 }
 
 impl CandidateMessage {
@@ -253,6 +261,7 @@ impl CandidateMessage {
         Self {
             code: Some(code.to_owned()),
             text: text.into(),
+            params: MessageParams::new(),
         }
     }
 
@@ -263,16 +272,19 @@ impl CandidateMessage {
         Self {
             code: None,
             text: text.into(),
+            params: MessageParams::new(),
         }
     }
 }
 
 impl From<&crate::Failure> for CandidateMessage {
-    /// Keeps the code a failure already carries instead of flattening it to prose.
+    /// Keeps the code and parameters a failure already carries instead of flattening them to
+    /// prose.
     fn from(failure: &crate::Failure) -> Self {
         Self {
             code: failure.code.clone(),
             text: failure.message.clone(),
+            params: failure.params.clone(),
         }
     }
 }

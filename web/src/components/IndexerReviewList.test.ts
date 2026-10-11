@@ -114,7 +114,8 @@ beforeEach(() => {
         .filter(row => row.kind === 'indexer')
         .map(row => ({
           subscription_id: row.id,
-          pending: (items[row.id] ?? []).filter(item => item.state === 'pending').length
+          pending: (items[row.id] ?? []).filter(item => item.state === 'pending').length,
+          newest_discovered_at: '2026-10-11T08:00:00Z'
         }))
       return { data: {
         pending_total: subscriptions.reduce((sum, entry) => sum + entry.pending, 0),
@@ -130,20 +131,22 @@ beforeEach(() => {
         items: pending.slice(offset, offset + limit),
         total: pending.length,
         counts: { pending: pending.length, queued: 0, dismissed: 0, skipped: 0 },
-        run_total: 0
+        run_total: 0,
+        newest_discovered_at: '2026-10-11T08:00:00Z'
       } }
     }
     return { data: [] }
   }) as never)
   vi.mocked(api.PUT).mockImplementation((async (
     path: string,
-    options: { params: { path: { id: string } }, body: { state: SubscriptionItem['state'] } }
+    options: { params: { path: { id: string } }, body: { state: SubscriptionItem['state'], item_ids?: string[] } }
   ) => {
     if (path === '/api/v1/subscriptions/{id}/items/pending') {
-      const bucket = items[options.params.path.id] ?? []
-      const matched = bucket.filter(item => item.state === 'pending').length
-      for (const found of bucket) if (found.state === 'pending') found.state = options.body.state
-      return { data: { matched, updated: matched, failed: 0 } }
+      const named = options.body.item_ids
+      const chosen = (items[options.params.path.id] ?? [])
+        .filter(item => item.state === 'pending' && (!named || named.includes(item.id)))
+      for (const found of chosen) found.state = options.body.state
+      return { data: { matched: chosen.length, updated: chosen.length, failed: 0 } }
     }
     for (const bucket of Object.values(items)) {
       const found = bucket.find(item => item.id === options.params.path.id)
@@ -306,7 +309,7 @@ describe('IndexerReviewList', () => {
     })
   })
 
-  it('queues all open hits across pages and confirms the server total', async () => {
+  it('queues all open hits across pages up to the watermark, with their count (RD-1250-13)', async () => {
     items['sub-1'] = Array.from({ length: 75 }, (_, index) =>
       hit(`item-${index}`, `Release ${index}`))
     await openList('Release 0')
@@ -314,8 +317,8 @@ describe('IndexerReviewList', () => {
 
     await waitFor(() => expect(confirmed).toHaveBeenCalled())
     expect(confirmed.mock.calls[0]?.[0].description).toBe('75 hits will be queued.')
-    expect(vi.mocked(api.PUT).mock.calls
-      .filter(call => call[0] === '/api/v1/subscriptions/{id}/items/pending')).toHaveLength(1)
+    const bulk = vi.mocked(api.PUT).mock.calls.filter(call => call[0] === '/api/v1/subscriptions/{id}/items/pending')
+    expect((bulk[0]?.[1] as unknown as { body: { until: string } }).body.until).toBe('2026-10-11T08:00:00Z')
   })
 
   it('loads later open hits through server-side pagination', async () => {
@@ -547,19 +550,6 @@ describe('IndexerReviewList', () => {
  * stayed empty until the page was reloaded by hand.
  */
 describe('IndexerReviewList: the rows follow the same event as the count', () => {
-  it('shows a hit that arrives while the group is open, without a reload', async () => {
-    await openList()
-    expect(screen.getByText('2 hits')).toBeTruthy()
-
-    // Written by a check that ran elsewhere; the event says only that something changed.
-    items['sub-1']?.push(hit('item-5', 'Deep Ocean S01E03'))
-    subscriptionEvent?.({ data: JSON.stringify({ payload: {} }) } as MessageEvent<string>)
-
-    await waitFor(() => expect(screen.getByText('Deep Ocean S01E03')).toBeTruthy())
-    expect(screen.getByText('3 hits')).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(3)
-  })
-
   it('fills a group that was opened while the check was still running', async () => {
     // The race from the report: the badge is already 2 because the hits are written, but the
     // page read the click sent out crossed that write and answers with nothing.
@@ -620,6 +610,8 @@ describe('IndexerReviewList: the rows follow the same event as the count', () =>
     await fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     await waitFor(() => expect(screen.getByText('Release 50')).toBeTruthy())
 
+    // The last page dismissed here, the first one elsewhere: nothing of the subscription is left.
+    for (const found of items['sub-1'].slice(0, 50)) found.state = 'dismissed'
     await fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss all' })[0] as HTMLElement)
     await waitFor(() => expect(screen.queryByText('Weekly documentaries')).toBeNull())
     // The write's own event, as the server sends it.

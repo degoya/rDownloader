@@ -3,7 +3,7 @@ manifest_version = 3
 # parser whose component also exports `mirror-sets`. The host sees the second export and asks
 # it; the world in `Cargo.toml` is what makes the component carry it.
 plugin_type = "intake"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "{{PLUGIN_ID}}"
 name = "{{PLUGIN_NAME}}"
 version = "0.1.0"
@@ -25,7 +25,7 @@ claims = []
 description = "Reads {{PLUGIN_NAME}} mirror lists and proposes each file with every place it can be fetched from."
 author = "Your name"
 license = "MIT"
-min_app_version = "1.9.0"
+min_app_version = "1.25.0"
 
 [limits]
 memory_bytes = 33554432

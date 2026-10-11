@@ -60,9 +60,10 @@
 ^crates/rd-api(-[a-z]+)?/src/(audit|audit_dto|audit_handlers|routes/audit)(\.rs$|/)           audit data_reset api_tokens token_limits mcp
 ^crates/rd-api(-[a-z]+)?/src/(auth_flow_handlers|auth_flow_service|auth_flow_guard|auth_profile_handlers)(\.rs$|/)   auth_profiles media_cookie_profile browser_session capture_intake oauth_callback
 ^crates/rd-db/src/auth_flow_store(\.rs$|/)                                                     + oauth_callback
-^crates/rd-db/src/(config_store|usenet_store|bandwidth_store|notify_store)(\.rs$|/)          + unique_names notifications
+^crates/rd-db/src/(config_store|usenet_store|bandwidth_store|notify_store)(\.rs$|/)          + unique_names notifications notification_package_path
 ^crates/rd-db/src/web_push_store(\.rs$|_tests\.rs$)                                  + web_push
 ^crates/rd-db/src/(package_names|nzb_queue|config_store_postprocess)(\.rs$|/)                 + package_names
+^crates/rd-(db/src/(writer_jobs_state_batch|facade_download_batches)|scheduler/src/(control_batches|queue_pause))\.rs$ + bulk_pause queue_pause
 ^crates/rd-api(-[a-z]+)?/src/(collector_enqueue|download_handlers/create|torrent_intake|postprocess_handlers)(\.rs$|/)   + package_names
 ^crates/rd-api(-[a-z]+)?/src/auto_remove_service(\.rs$|/)                                     auto_remove
 ^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)(\.rs$|/)                 automations automation_triggers area_backup automation_dry_run automation_schedule
@@ -88,7 +89,9 @@
 ^crates/rd-api-compat/src/(lib\.rs|aria2/)                                                compat_aria2 scope_matrix scope_matrix_compat
 ^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file package_export package_export_nzb
 # Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
-^crates/rd-api(-[a-z]+)?/src/(package_export|package_export_nzb|links_file|links_nzb|container_enqueue|download_handlers/reresolve)(\.rs$|/)   package_export package_export_nzb mcp scope_matrix
+^crates/rd-api(-[a-z]+)?/src/(package_export|package_export_nzb|links_file|links_nzb|container_enqueue|download_handlers/reresolve(_now)?)(\.rs$|/)   package_export package_export_nzb reresolve_now mcp scope_matrix
+^crates/rd-scheduler/src/resolve_now\.rs$                                                     + reresolve_now
+^crates/rd-db/src/writer_pins(_tests)?\.rs$                                                   + reresolve_now package_export
 ^crates/rd-api(-[a-z]+)?/src/nzb_candidate(\.rs$|/)                                          nzb_paused package_export_nzb indexers
 ^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)(\.rs$|/)   service_lifecycle oidc password_reset
 ^crates/rd-api(-[a-z]+)?/src/data_reset_handlers(\.rs$|/)                                     data_reset storage_clear history system_cleanup
@@ -97,13 +100,13 @@
 ^crates/rd-api(-[a-z]+)?/src/(history_handlers|history_export|history_readd_handlers|routes/history)(\.rs$|/)   history compat_sabnzbd
 ^crates/rd-api(-[a-z]+)?/src/queue_search(\.rs$|/)                                          queue_search
 ^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics data_reset
-^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule
+^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule
 ^crates/rd-api(-[a-z]+)?/src/download_sources(\.rs$|/)                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service(\.rs$|/)                                       hotfolder_poll
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)(\.rs$|/)   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)(\.rs$|/)                mfa passkeys auth step_up password_reset restore_step_up
-^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity automations web_push
+^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity notification_package_path automations web_push
 # Web Push for the installed app (RD-1240-13).
 ^crates/rd-api(-[a-z]+)?/src/(web_push|web_push_tests|web_push_handlers)(\.rs$|/)             web_push
 # Signing in through an identity provider (RD-190-15).

@@ -2,7 +2,7 @@
  * Which version the service runs, against the version this page was built as (RD-1120-16).
  *
  * A single-page app never fetches `index.html` again on its own, so a tab left open across an
- * update keeps the old interface while the status bar already names the new version.
+ * update keeps the old interface while the sidebar already names the new version.
  * `useVersionNotice` turns a difference into the toast that offers the reload.
  */
 
@@ -18,7 +18,7 @@ export const BUILD_VERSION: string = __RD_BUILD_VERSION__
 
 const reported = ref<string | null>(null)
 
-/** The version the service answers as, or `null` until it has; the status bar shows it. */
+/** The version the service answers as, or `null` until it has; the sidebar shows it. */
 export const serviceVersion = readonly(reported)
 
 /** The service's version while it is not this page's, otherwise `null`. */

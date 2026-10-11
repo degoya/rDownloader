@@ -4,7 +4,7 @@
 use super::*;
 
 /// A trimmed-down version of the real free download page: a first form with the hidden fields the
-/// site carries (`adz` among them) plus the `save` checkbox JD drops.
+/// site carries (`adz` among them) plus the `save` checkbox the submission drops.
 const FORM_PAGE: &str = r#"<html><head><title>1fichier.com: Download release.rar</title></head><body>
 <form method="POST" action="./?abc12defg3" id="f1">
 <input type="hidden" name="adz" value="1a2b3c">
@@ -53,7 +53,7 @@ fn the_download_form_is_the_pages_first_form_with_its_hidden_fields() {
     );
 }
 
-/// JD removes `save` and puts `did=1`; every other field the page carried is submitted unchanged.
+/// `save` is removed and `did=1` put; every other field the page carried is submitted unchanged.
 #[test]
 fn the_free_submission_drops_save_and_sets_did() {
     let submitted = free_form(&download_form(FORM_PAGE).expect("form"));
@@ -69,7 +69,7 @@ fn the_free_submission_drops_save_and_sets_did() {
         "{submitted:?}"
     );
     assert!(!submitted.iter().any(|(name, _)| name == "save"));
-    // The page's own `did=0` must not survive alongside the `did=1` JD sends.
+    // The page's own `did=0` must not survive alongside the `did=1` that is sent.
     assert_eq!(
         submitted.iter().filter(|(name, _)| name == "did").count(),
         1
@@ -125,7 +125,7 @@ fn a_stated_wait_is_parsed_in_minutes() {
     );
 }
 
-/// A limit stated without a duration keeps JD's five-minute default; "IP Locked" is an hour.
+/// A limit stated without a duration keeps the five-minute default; "IP Locked" is an hour.
 #[test]
 fn a_limit_without_a_duration_uses_the_default_cooldown() {
     assert_eq!(
@@ -181,7 +181,7 @@ fn the_direct_link_comes_from_the_download_button() {
 }
 
 /// Without the button's wording, an absolute link on one of the hoster's content domains is the
-/// fallback JD accepts — and an unrelated link must not be mistaken for one.
+/// accepted fallback — and an unrelated link must not be mistaken for one.
 #[test]
 fn the_direct_link_falls_back_to_a_content_domain_link() {
     assert_eq!(

@@ -37,7 +37,7 @@ fn getfilesinfo_response(body: &str) -> HostHttpResponse {
     json_response(200, "https://k2s.cc/api/v2/getfilesinfo", body)
 }
 
-const FILE_ID: &str = "abcdefghijklm"; // 13 chars, JD's minimum
+const FILE_ID: &str = "abcdefghijklm"; // 13 chars, the minimum
 const OFFLINE_ID: &str = "offline123456"; // 13 chars
 const FILE_URL: &str = "https://k2s.cc/file/abcdefghijklm/release.html";
 const LOGIN_OK: &str = r#"{"status":"success","code":200,"auth_token":"tok-abc"}"#;

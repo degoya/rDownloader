@@ -1,8 +1,7 @@
 //! Page helpers for the XFS *free* (account-less) download flow, the counterpart to
 //! [`crate::page`]'s premium `download2` helpers.
 //!
-//! Mirrors JDownloader's `XFileSharingProBasic.doFree`
-//! (`svn_trunk/src/org/jdownloader/plugins/components/XFileSharingProBasic.java`): the file
+//! The XFS free flow: the file
 //! page carries an `op=download1` form whose free-mode marker must be kept; posting it
 //! yields a page with a countdown and usually a captcha; after solving the captcha and
 //! waiting out the countdown, the `op=download2` form is posted and the answer is either the
@@ -60,7 +59,7 @@ impl WidgetKind {
     }
 }
 
-/// Turns the raw form fields into the free submission JDownloader sends: the premium marker
+/// Turns the raw form fields into the free submission: the premium marker
 /// is dropped and `method_free` carries the button label the site expects.
 ///
 /// The exact counterpart of [`crate::page::premium_form`], which drops `method_free` — that
@@ -171,7 +170,7 @@ fn digits_after(html: &str, marker: &str) -> Option<u64> {
 
 /// How long this IP must wait before the hoster grants another free download, in seconds.
 ///
-/// Mirrors the phrasings JD's `checkErrors` parses ("You have to wait X minutes, Y seconds",
+/// Reads the XFS engine's limit phrasings ("You have to wait X minutes, Y seconds",
 /// "You can download files up to ... only", the parallel-download notice). `None` means the
 /// page carries no limit notice.
 #[must_use]
@@ -242,7 +241,7 @@ pub fn unit_sum_seconds(text: &str) -> Option<u64> {
 }
 
 /// Whether the page says the captcha answer was wrong, so a fresh challenge is worth one
-/// more attempt (JD retries a rejected captcha rather than failing the link).
+/// more attempt (a rejected captcha is retried rather than failing the link).
 #[must_use]
 pub fn is_wrong_captcha(html: &str) -> bool {
     [

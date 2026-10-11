@@ -14,7 +14,7 @@ use axum::{
 };
 use common::{Upload, get_json, put_json, send_strict, test_router};
 
-/// The DLC import route, with a file the way JDownloader names one.
+/// The DLC import route, with a `.dlc` file.
 const DLC: Upload<'static> = Upload {
     uri: "/api/v1/dlc/import",
     file_name: "release.dlc",

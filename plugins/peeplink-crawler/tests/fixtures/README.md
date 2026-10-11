@@ -10,8 +10,8 @@ curl -sS -L -A "$UA" <url>
 — no account, no session taken from a browser, no cookie jar, nothing solved and no hurdle
 worked around. These are the same four entry pages, two `404` pages and one deleted entry that
 the measurement in `docs/roadmap/jobs/110-17-die-uebrigen-protektoren.md` reports, fetched again
-so the bytes themselves are in the tree. Every identifier here comes from a public source (the
-URL patterns of the JDownloader plugin mirror and the CDX index of the Internet Archive).
+so the bytes themselves are in the tree. Every identifier here comes from a public source (published
+URL patterns and the CDX index of the Internet Archive).
 
 | File | What it is | Recorded size | Foreign links in `<article>` |
 | --- | --- | --- | --- |
@@ -40,7 +40,7 @@ the site, printed in the job file already.
 
 ## What is not here
 
-**There is no fixture for a password-protected entry.** `PrrpLinkIn.java` recognises one by
+**There is no fixture for a password-protected entry.** A protected entry is recognised by
 `value="Enter Access Password"`, and none of the pages above carries it; no public identifier of
 a protected entry was findable on either measuring day. The password branch in `src/entry.rs` and
 `src/guest.rs` is therefore built and **not tested**, and it stays that way until a real

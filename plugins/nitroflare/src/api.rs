@@ -4,32 +4,31 @@
 //! `wit-bindgen`'s generated types are used here, only `serde`/`serde_json`/`url`, which are
 //! available on every target.
 //!
-//! IMPL-VERIFY (against JD's `NitroFlareCom.java`, the living reference; this is the full list):
+//! IMPL-VERIFY (this is the full list):
 //! - The file-id pattern is `/(?:view|watch)/([A-Z0-9]+)` — **uppercase** letters and digits
 //!   only, and either `/view/` or `/watch/` (the brief only mentioned `/view/`).
 //! - `getDownloadLink`'s response carries only `result.url`; unlike the brief's assumption,
-//!   name/size never come from it. JD instead reads them from a preceding `getFileInfo` call
-//!   (`requestFileInformationAPI`, called right before `handlePremiumDownloadAPI`) — mirrored
-//!   here by `resolve()` calling `getFileInfo` before `getDownloadLink`, the same two-call shape
+//!   name/size never come from it but from a preceding `getFileInfo` call — here
+//!   `resolve()` calling `getFileInfo` before `getDownloadLink`, the same two-call shape
 //!   `plugins/onefichier` uses (`file/info.cgi` then `download/get_token.cgi`).
-//! - Envelopes are classified by a top-level `code` field (`checkErrorsAPI`), not by a `"type"`
+//! - Envelopes are classified by a top-level `code` field, not by a `"type"`
 //!   discriminator as the brief described: `code` absent or `-1` is success; any other value is
-//!   an error, `message` carrying the provider's text. `checkErrorsAPI`'s `switch` has exactly
-//!   six arms — `-1`, `1`, `4`, `6`, `8`, `12`, plus `default` — and this is the complete list:
+//!   an error, `message` carrying the provider's text. Six values are known — `-1`, `1`, `4`,
+//!   `6`, `8`, `12` — and this is the complete list:
 //!   `1` = access denied (premium-only file / non-premium account), `4` = file doesn't exist,
-//!   `6` = invalid captcha response (JD's own comment: "This should rarely/never happen!!" —
-//!   only reachable after JD itself submits a captcha solution, which this plugin never does),
+//!   `6` = invalid captcha response (rare — only reachable after a client submits a captcha
+//!   solution, which this plugin never does),
 //!   `8` = invalid login data, `12` = the API itself now demands a captcha to continue (abuse
 //!   protection). This plugin has no captcha-solving pipeline, so both `6` and `12` map to
 //!   `FailureKind::NeedsCaptcha` (with distinct codes/messages — "invalid" vs. "required") rather
-//!   than the generic bucket. Every other `code` value falls into JD's `default` arm.
-//! - JD's `checkErrorsAPI` switch has no dedicated code for traffic/bandwidth exhaustion (that
-//!   phrasing only appears in JD's *website*-mode HTML error strings, which this pure-API
-//!   plugin never sees). The brief's "traffic exhausted → RateLimited{3600}" mapping is
-//!   approximated here by matching the generic-error `message` text for traffic/bandwidth
-//!   wording, mirroring those website-mode phrases as closely as the API surface allows.
+//!   than the generic bucket. Every other `code` value falls into the generic bucket.
+//! - The API has no dedicated code for traffic/bandwidth exhaustion (that phrasing only appears
+//!   in the *website*'s HTML error strings, which this pure-API plugin never sees). The brief's
+//!   "traffic exhausted → RateLimited{3600}" mapping is approximated here by matching the
+//!   generic-error `message` text for traffic/bandwidth wording, mirroring those website-mode
+//!   phrases as closely as the API surface allows.
 //! - `getFileInfo`'s `result.files` is a map keyed by file id — *unless* every requested id was
-//!   invalid, in which case JD documents it comes back as an empty JSON array instead of an
+//!   invalid, in which case it comes back as an empty JSON array instead of an
 //!   empty object. Handled by [`deserialize_files`].
 
 use std::collections::HashMap;
@@ -40,7 +39,7 @@ use url::Url;
 
 use crate::messages;
 
-/// Bare hostname (no `www.` prefix) this hoster's file links carry. JD's plugin also accepts
+/// Bare hostname (no `www.` prefix) this hoster's file links carry. The site also answers on
 /// the `nitroflare.net` and `nitro.download` aliases; the manifest's `match_domains` names
 /// `nitroflare.com` (and its `www.` form) only, a scope decision taken when the plugin was written.
 pub(crate) const MATCH_HOST: &str = "nitroflare.com";
@@ -49,9 +48,9 @@ pub(crate) const API_BASE: &str = "https://nitroflare.com/api/v2";
 
 /// Extracts the file id from a Nitroflare link, e.g. `https://nitroflare.com/view/ABC123DEF`.
 ///
-/// Mirrors JD's `PATTERN_FILE = "/(?:view|watch)/([A-Z0-9]+)"`: the host (`www.`-stripped) must
+/// Matches `/(?:view|watch)/([A-Z0-9]+)`: the host (`www.`-stripped) must
 /// be [`MATCH_HOST`], the path must start with `/view/` or `/watch/`, and the id is the longest
-/// run of uppercase-ASCII-alphanumeric characters that follows (JD's regex is not anchored at
+/// run of uppercase-ASCII-alphanumeric characters that follows (the pattern is not anchored at
 /// the end, so trailing path segments are tolerated, matching `1fichier::file_id`'s handling of
 /// a trailing query string).
 pub(crate) fn file_id(url: &Url) -> Option<&str> {
@@ -105,8 +104,7 @@ pub(crate) struct KeyInfoResult {
     #[serde(default)]
     pub(crate) traffic_left: Option<FlexibleU64>,
     /// A date string (`"yyyy-MM-dd HH:mm:ss"`), or `0`/`"0"`/absent for a non-premium key. Kept
-    /// as a raw JSON value since JD checks both a numeric and a string `0` (`AccountInfo`'s
-    /// `expiryDateO.toString().equals("0")`); see [`expiry_text`].
+    /// as a raw JSON value since both a numeric and a string `0` occur; see [`expiry_text`].
     #[serde(default)]
     pub(crate) expiry_date: Option<serde_json::Value>,
 }
@@ -147,8 +145,8 @@ impl FileEntry {
     }
 }
 
-/// `result.files` is a map keyed by file id, except when every requested id was invalid — JD
-/// documents that case answers with an empty JSON array instead ("If all given fileIDs are
+/// `result.files` is a map keyed by file id, except when every requested id was invalid — that
+/// case answers with an empty JSON array instead ("If all given fileIDs are
 /// invalid it will be an empty list!").
 fn deserialize_files<'de, D>(deserializer: D) -> Result<HashMap<String, FileEntry>, D::Error>
 where
@@ -171,8 +169,8 @@ where
 pub(crate) use plugin_flexible::FlexibleU64;
 
 /// Classifies a non-success `code`/`message` pair from the envelope (see the module-level
-/// IMPL-VERIFY note). Covers every arm of JD's `checkErrorsAPI` switch (`1`, `4`, `6`, `8`,
-/// `12`); `code` values not in that switch fall into JD's own `default` arm here, further split
+/// IMPL-VERIFY note). Covers every known code (`1`, `4`, `6`, `8`, `12`); other `code` values
+/// fall into the generic bucket here, further split
 /// by a traffic/bandwidth-exhaustion heuristic on `message` (see the note above on why there is
 /// no dedicated numeric code for it in API mode).
 fn classify_code(code: i64, message: &str) -> ApiFailure {
@@ -198,10 +196,10 @@ fn classify_code(code: i64, message: &str) -> ApiFailure {
     }
 }
 
-/// Matches the traffic/bandwidth-exhaustion wording JD's website-mode error strings use
+/// Matches the traffic/bandwidth-exhaustion wording the website's error strings use
 /// (`"reached the maximum volume for today"`, `"exceeds the daily download limit"`) — the
 /// closest verified phrasing available, since API mode has no dedicated error code for this.
-/// `"daily download"` is checked on its own since JD's "exceeds the daily download limit"
+/// `"daily download"` is checked on its own since "exceeds the daily download limit"
 /// phrase carries no traffic/volume/bandwidth keyword.
 fn is_traffic_exhausted(message: &str) -> bool {
     let lower = message.to_ascii_lowercase();
@@ -280,7 +278,7 @@ mod tests {
 
     #[test]
     fn file_id_rejects_lowercase_and_unsupported_shapes() {
-        // JD's pattern is strictly `[A-Z0-9]+` — lowercase ids never matched the live site.
+        // The pattern is strictly `[A-Z0-9]+` — lowercase ids never matched the live site.
         assert_eq!(
             file_id(&url("https://nitroflare.com/view/abcdefghij")),
             None
@@ -352,7 +350,7 @@ mod tests {
 
     #[test]
     fn classify_code_maps_the_daily_download_limit_phrase_without_a_traffic_keyword() {
-        // JD's website-mode phrase "This download exceeds the daily download limit" carries no
+        // The website's phrase "This download exceeds the daily download limit" carries no
         // traffic/volume/bandwidth keyword, so it needs its own trigger in `is_traffic_exhausted`.
         let failure = classify_code(99, "This download exceeds the daily download limit");
         assert!(matches!(failure.kind, ErrorKind::RateLimited(Some(3600))));

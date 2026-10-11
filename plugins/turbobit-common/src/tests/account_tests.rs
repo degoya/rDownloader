@@ -1,5 +1,5 @@
 //! The account half — sign-in, premium download, account check — against the synthetic
-//! answers that mirror what JDownloader reads, since nothing behind the login was measured.
+//! answers in the expected shape, since nothing behind the login was measured.
 
 use plugin_common::{CaptchaChallenge, FailureKind, ResolveInput};
 

@@ -2,9 +2,11 @@
 #
 # scripts/check-sdk-templates.sh against a fixture tree with one world (audit K2, K4): a complete
 # template passes; a guest generating another world, a template on another wit-bindgen than the
-# workspace, an api_version the core does not accept, a min_app_version that is not the first
-# release of its api_version, a contract version without a row, an SDK workflow pinned to another
-# release than the workspace and a pre-release pin older than min_app_version each fail, named.
+# workspace, an api_version the core does not accept, a min_app_version that is not the workspace
+# version, one older than the tagged first release of its api_version, a contract version without
+# a row and an SDK workflow pinned to another release than the workspace each fail, named; a tree
+# older than an untagged first release -- the contract's own, before its release -- passes, and
+# so does a pre-release tree (RD-1250-01).
 # Last, this checkout's own templates, which have to pass as they are.
 #
 # Pure bash: it runs in well under a second.
@@ -40,7 +42,7 @@ EOF
     printf '[dependencies]\nwit-bindgen = "0.62"\n' > "$TEMPLATE/Cargo.toml"
     printf 'wit_bindgen::generate!({\n    path: "wit",\n    world: "demo-plugin",\n});\n' \
         > "$TEMPLATE/src/guest.rs"
-    printf 'api_version = "0.10.0"\nplugin_type = "demo"\n\n[metadata]\nmin_app_version = "1.9.0"\n' \
+    printf 'api_version = "0.10.0"\nplugin_type = "demo"\n\n[metadata]\nmin_app_version = "1.10.0"\n' \
         > "$TEMPLATE/manifest.toml"
     echo "# Demo" > "$TEMPLATE/README.md"
     printf '# Changes\n\n## 0.1.0\n\nThe first release.\n' > "$TEMPLATE/CHANGES.md"
@@ -82,15 +84,35 @@ expect_output "and named" "declares api_version 0.9.0, this core accepts 0.10.0"
 fixture
 sed -i 's/^min_app_version = .*/min_app_version = "0.9.0"/' "$TEMPLATE/manifest.toml"
 check
-expect_status "a min_app_version below the api_version's first release: refused" 1
-expect_output "and named" "says min_app_version 0.9.0, api_version 0.10.0 needs 1.9.0"
+expect_status "a min_app_version other than the workspace version: refused" 1
+expect_output "and named" "says min_app_version 0.9.0, the workspace is 1.10.0 (scripts/set-version.sh 1.10.0)"
+
+# A tree older than the first release of its contract: the tree that introduces the contract,
+# before its release, passes (RD-1250-01); once that release is tagged, it is a floor.
+older() {
+    sed -i 's/^version = .*/version = "1.8.0"/' "$TREE/Cargo.toml"
+    sed -i 's/^min_app_version = .*/min_app_version = "1.8.0"/' "$TEMPLATE/manifest.toml"
+    sed -i 's/^  RDOWNLOADER_VERSION: .*/  RDOWNLOADER_VERSION: 1.8.0/' "$TREE"/sdk/ci/*.yml
+}
+fixture
+older
+check
+expect_status "a contract whose first release is not tagged yet: passes" 0
+fixture
+older
+git -C "$TREE" init -q
+git -C "$TREE" -c user.name=t -c user.email=t@example.invalid commit -q --allow-empty -m tree
+git -C "$TREE" tag v1.9.0
+check
+expect_status "a min_app_version older than the tagged first release: refused" 1
+expect_output "and named" "says min_app_version 1.8.0, older than 1.9.0, the release that first shipped api_version 0.10.0"
 
 fixture
-sed -i 's/&\["0.10.0"\]/\&["0.10.0", "0.11.0"]/' "$TREE/crates/rd-plugin-host/src/manifest.rs"
-sed -i 's/^api_version = .*/api_version = "0.11.0"/' "$TEMPLATE/manifest.toml"
+sed -i 's/&\["0.10.0"\]/\&["0.10.0", "0.99.0"]/' "$TREE/crates/rd-plugin-host/src/manifest.rs"
+sed -i 's/^api_version = .*/api_version = "0.99.0"/' "$TEMPLATE/manifest.toml"
 check
 expect_status "a contract version without a row: refused" 1
-expect_output "and named" "api_version 0.11.0 has no row in api_first_release"
+expect_output "and named" "api_version 0.99.0 has no row in api_first_release"
 
 fixture
 sed -i 's/^  RDOWNLOADER_VERSION: .*/  RDOWNLOADER_VERSION: 1.5.2/' "$TREE/sdk/ci/plugin.yml"
@@ -99,11 +121,11 @@ expect_status "an SDK workflow pinned to another release: refused" 1
 expect_output "and named" "sdk/ci/plugin.yml pins rDownloader 1.5.2, the workspace is 1.10.0"
 
 fixture
-sed -i 's/^version = .*/version = "1.9.0-beta.1"/' "$TREE/Cargo.toml"
-sed -i 's/^  RDOWNLOADER_VERSION: .*/  RDOWNLOADER_VERSION: 1.9.0-beta.1/' "$TREE"/sdk/ci/*.yml
+sed -i 's/^version = .*/version = "1.11.0-beta.1"/' "$TREE/Cargo.toml"
+sed -i 's/^min_app_version = .*/min_app_version = "1.11.0-beta.1"/' "$TEMPLATE/manifest.toml"
+sed -i 's/^  RDOWNLOADER_VERSION: .*/  RDOWNLOADER_VERSION: 1.11.0-beta.1/' "$TREE"/sdk/ci/*.yml
 check
-expect_status "a pre-release pin older than min_app_version: refused" 1
-expect_output "and named" "pins rDownloader 1.9.0-beta.1, older than the templates' min_app_version 1.9.0"
+expect_status "a pre-release tree whose templates and pins say the pre-release: passes" 0
 
 run_status "$SCRIPT"
 expect_status "this checkout's templates pass" 0

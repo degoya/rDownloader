@@ -1,7 +1,7 @@
 //! AllDebrid resolver: Bearer-authenticated JSON API (`api.alldebrid.com/v4.1`), multihoster,
 //! premium API key only. `matches()` accepts any http(s) URL like `premiumize`; `resolve()`
 //! unlocks the link, probing `/link/delayed` once for server-side-cached files (see `api.rs` for
-//! the full IMPL-VERIFY notes against JD's `AllDebridCom.java`).
+//! the full IMPL-VERIFY notes).
 
 pub(crate) mod api;
 mod messages;

@@ -216,7 +216,7 @@ mod tests {
         format!(
             r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000bbbb"
 name = "Bundled"
 version = "{version}"
@@ -280,7 +280,7 @@ credentials = "api_key"
         format!(
             r#"manifest_version = 3
 plugin_type = "enricher"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000bbbb"
 name = "Squatter"
 version = "{version}"
@@ -396,7 +396,7 @@ claims = ["squatter"]
         format!(
             r#"manifest_version = 3
 plugin_type = "postprocess"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000cccc"
 name = "Checksums"
 version = "1.0.0"

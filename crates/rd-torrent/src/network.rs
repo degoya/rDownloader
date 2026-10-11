@@ -52,6 +52,9 @@ pub struct TorrentNetworkStatus {
     pub session_generation: u64,
     /// Why the last session rebuild failed, if it did. The previous session keeps running.
     pub last_rebuild_error: Option<String>,
+    /// The fixed listen port of the settings when another program holds it, so the engine does
+    /// not listen there (`torrent.port_in_use`, RD-1250-04).
+    pub port_in_use: Option<u16>,
     /// Whether a SOCKS5 proxy is configured for outgoing peer connections.
     pub peer_proxy_configured: bool,
     /// Why the configured proxy could not be resolved, if it could not.
@@ -125,6 +128,7 @@ impl TorrentService {
                 .map(rd_core::redact_tracker_url),
             session_generation: self.session_generation().await,
             last_rebuild_error: self.inner.rebuild_error.read().await.clone(),
+            port_in_use: self.port_conflict().await,
             peer_proxy_configured: settings.torrent_proxy_profile_id.is_some(),
             // Reported rather than hidden: a proxy that cannot be resolved means the
             // session refuses to start, which is easier to act on when it is visible.

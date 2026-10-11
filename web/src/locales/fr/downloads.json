@@ -472,9 +472,12 @@
   },
   "reresolve": {
     "action": "Résoudre à nouveau",
-    "hint": "Résoudre à nouveau avec la version du plugin installée maintenant ; les fichiers en cours sont brièvement mis en pause",
+    "hint": "Résoudre maintenant avec la version du plugin installée et récupérer la taille et le nom sans lancer le téléchargement ; les fichiers en cours sont brièvement mis en pause",
     "done": "{count} fichier sera résolu à nouveau à son prochain démarrage | {count} fichiers seront résolus à nouveau à leur prochain démarrage",
-    "failed": "La nouvelle résolution a échoué"
+    "failed": "La nouvelle résolution a échoué",
+    "checked": "{resolved} résolus, {failed} en échec",
+    "resolving": "Résolution en cours",
+    "checked_skipped": "{resolved} résolus, {failed} en échec, {skipped} ignorés (pas de compte)"
   },
   "stop_mark": {
     "set": "Placer la marque d’arrêt ici",

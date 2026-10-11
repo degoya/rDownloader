@@ -52,10 +52,11 @@ pub use locales::{
     locale_member_language, parse_locale, valid_language, validate_locales,
 };
 pub use manifest::{
-    Capabilities, CredentialKindManifest, MANIFEST_VERSION, ManifestHeader, ManifestRejection,
-    NetHttpCapability, OAuthFlowManifest, PluginManifest, PluginMetadata, PluginType,
-    ProviderKindManifest, ProviderManifest, SUPPORTED_API_VERSIONS, SecretFilledByManifest,
-    SettingManifest, check_app_version, decode_public_key, provider_spec_from_manifest,
+    Capabilities, CredentialKindManifest, MANIFEST_VERSION, MAX_SETTING_LINE_CHARS,
+    MAX_SETTING_TEXT_CHARS, ManifestHeader, ManifestRejection, NetHttpCapability,
+    OAuthFlowManifest, PluginManifest, PluginMetadata, PluginType, ProviderKindManifest,
+    ProviderManifest, SUPPORTED_API_VERSIONS, SecretFilledByManifest, SettingManifest,
+    check_app_version, decode_public_key, provider_spec_from_manifest,
 };
 pub use native::{
     CLIENT_ID_MARKER, ResolverService, client_not_configured, provider_cookie_scope,
@@ -233,7 +234,7 @@ mod tests {
         format!(
             r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000abcd"
 name = "Fixture"
 version = "1.2.3"

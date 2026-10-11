@@ -7,8 +7,7 @@ use plugin_common::{Failure, HttpRequest, HttpResponse};
 
 use crate::messages;
 
-/// ddownload's main domain — `DdownloadCom.getPluginDomains()`'s index 0 (the entry JD returns
-/// from `Plugin.getHost()`; `ddl.to` and the CDN hosts are aliases). Used as the `Referer` the
+/// ddownload's main domain (`ddl.to` and the CDN hosts are aliases). Used as the `Referer` the
 /// free flow's final transfer must carry.
 pub(crate) const PRIMARY_DOMAIN: &str = "ddownload.com";
 pub(crate) const API_KEY_REFERENCE: &str = "ddownload_api_key";
@@ -69,8 +68,8 @@ pub(crate) fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure>
 
 /// The codes this plugin's free flow reports its dead ends under (`xfs_common::free`,
 /// RD-1110-03). The IP limit is read in the XFS base class's phrasings
-/// (`xfs_common::free::ip_block_seconds`) unchanged: `DdownloadCom.checkErrors` adds only HTTP
-/// 429/500 handling, already covered by [`ensure_http_status`], on top of `super.checkErrors`.
+/// (`xfs_common::free::ip_block_seconds`) unchanged: ddownload adds only HTTP 429/500 answers,
+/// already covered by [`ensure_http_status`], on top of the stock ones.
 pub(crate) const FREE: xfs_common::free::FreeWords = xfs_common::free::FreeWords {
     http_error: plugin_common::HttpError {
         code: messages::HTTP_ERROR,

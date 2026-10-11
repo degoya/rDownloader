@@ -14,7 +14,7 @@ use super::{
 
 #[tokio::test]
 async fn check_maps_online_offline_and_unparseable_batch() {
-    // JD's `checkLinks` calls `/getfilesinfo` with `account = null` — no login, no secret gate.
+    // `/getfilesinfo` needs no account — no login, no secret gate.
     let host = MockHost::with_responses(
         vec![getfilesinfo_response(&format!(
             r#"{{"status":"success","code":200,"files":[{{"id":"{FILE_ID}","name":"a.rar","size":10,"is_available":true}}]}}"#
@@ -44,7 +44,7 @@ async fn check_maps_online_offline_and_unparseable_batch() {
     assert_eq!(results[0].status, LinkStatus::Online);
     assert_eq!(results[0].file_name.as_deref(), Some("a.rar"));
     assert_eq!(results[0].size.map(|size| size.get()), Some(10));
-    // Absent from the batch response -> offline (JD: `fileInfo == null` -> unavailable).
+    // Absent from the batch response -> offline.
     assert_eq!(results[1].status, LinkStatus::Offline);
     // Not a `/file/`-shaped link -> never enters the batch at all.
     assert_eq!(results[2].status, LinkStatus::Unknown);
@@ -63,8 +63,8 @@ async fn check_maps_online_offline_and_unparseable_batch() {
     );
 }
 
-/// JD's `checkLinks` chunks at 100 fileIDs per `/getfilesinfo` call and loops
-/// (`K2SApi.java:476-485`, "Check up to 100 fileIDs with one request"). This test drives 150
+/// `/getfilesinfo` takes up to 100 file ids per call, so a check chunks and loops. This test
+/// drives 150
 /// links through `check()` and asserts: exactly 2 `/getfilesinfo` requests (100 ids, then 50),
 /// every result lands at the same index as its input URL (input order preserved end to end), and
 /// a chunk whose request itself fails (the second chunk here, given a `network_restricted` error)
@@ -143,7 +143,7 @@ async fn check_chunks_at_100_ids_preserves_order_and_isolates_a_failed_chunk() {
 #[tokio::test]
 async fn check_needs_no_account_or_secret() {
     // `check()` never gates on the secret and never requires `client.account_id` — `/getfilesinfo`
-    // is unauthenticated in JD (see the `api` module doc's IMPL-VERIFY note).
+    // is unauthenticated (see the `api` module doc's IMPL-VERIFY note).
     let host = MockHost::with_responses(
         vec![getfilesinfo_response(
             r#"{"status":"success","code":200,"files":[]}"#,

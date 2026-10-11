@@ -1,5 +1,6 @@
 //! The list page read in SQL, the removal of many rows in one transaction, and the event a new
-//! row announces itself with (RD-1120-17).
+//! row announces itself with (RD-1120-17); many rows paused and resumed in one transaction
+//! (RD-1250-08).
 
 use rd_core::{DownloadId, DownloadPriority, DownloadState, EventKind, PackageId};
 
@@ -224,4 +225,85 @@ async fn the_rows_of_one_enqueue_are_announced_with_one_event() {
     assert_eq!(announced.len(), 1);
     assert_eq!(announced[0].payload["download_id"], rows[0].to_string());
     assert_eq!(announced[0].payload["count"], 1);
+}
+
+/// The `download.state` events with this `state`, as far as they have arrived.
+fn moved_to(
+    events: &mut tokio::sync::broadcast::Receiver<rd_core::EventEnvelope>,
+    state: &str,
+) -> Vec<rd_core::EventEnvelope> {
+    std::iter::from_fn(|| events.try_recv().ok())
+        .filter(|event| event.kind == EventKind::DownloadState && event.payload["state"] == state)
+        .collect()
+}
+
+/// A pause and a resume of many rows are one transaction and one event each (RD-1250-08): the
+/// pause leaves a row that does not wait as it is, either direction refuses a row that is gone,
+/// and the resume queues a row that is queued already again, as the single resume does (a
+/// transition to the state a row is in is allowed), and takes a failed one up again.
+#[tokio::test]
+async fn many_rows_are_paused_and_resumed_with_one_event_each() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = open(directory.path()).await;
+    let (_, rows) = package(
+        &database,
+        directory.path(),
+        "pausing",
+        DownloadPriority::Normal,
+        4,
+    )
+    .await;
+    for next in [DownloadState::Resolving, DownloadState::Failed] {
+        database
+            .transition_download(rows[3], next)
+            .await
+            .expect("failed row");
+    }
+    let mut events = database.subscribe();
+    let unknown = DownloadId::new();
+
+    let paused = database
+        .pause_downloads(vec![rows[0], unknown, rows[1], rows[3], rows[0]])
+        .await
+        .expect("one transaction");
+    assert!(matches!(paused[0], Ok(true)), "{paused:?}");
+    assert_eq!(
+        paused[1].as_ref().err().and_then(store_kind),
+        Some(StoreErrorKind::NotFound)
+    );
+    assert!(matches!(paused[2], Ok(true)), "{paused:?}");
+    assert!(matches!(paused[3], Ok(false)), "a failed row does not wait");
+    assert!(
+        matches!(paused[4], Ok(false)),
+        "the second mention finds it paused"
+    );
+    let announced = moved_to(&mut events, "paused");
+    assert_eq!(announced.len(), 1, "one event for the batch");
+    assert_eq!(announced[0].payload["count"], 2);
+    assert_eq!(
+        announced[0].payload["download_ids"],
+        serde_json::json!([rows[0], rows[1]])
+    );
+    assert!(announced[0].payload.get("previous").is_none());
+
+    let resumed = database
+        .resume_downloads(vec![rows[0], rows[1], rows[2], rows[3]])
+        .await
+        .expect("one transaction");
+    assert!(
+        resumed.iter().all(|answer| matches!(answer, Ok(true))),
+        "{resumed:?}"
+    );
+    let announced = moved_to(&mut events, "queued");
+    assert_eq!(announced.len(), 1, "one event for the batch");
+    assert_eq!(announced[0].payload["count"], 4);
+    for row in rows {
+        let state = database
+            .get_download(row)
+            .await
+            .expect("read")
+            .expect("row")
+            .state;
+        assert_eq!(state, DownloadState::Queued, "{row}");
+    }
 }

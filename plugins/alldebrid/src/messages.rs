@@ -51,7 +51,7 @@ pub(crate) const PREMIUM_REQUIRED: (&str, &str) = (
 );
 
 /// API responded `LINK_TEMPORARY_UNAVAILABLE`/`MAINTENANCE`/`AUTH_BLOCKED`, all mapped to a
-/// fixed 5-minute retry (mirrors JD's `AccountUnavailableException(msg, 5 * 60 * 1000)`).
+/// fixed 5-minute retry.
 pub(crate) const TEMPORARILY_UNAVAILABLE: (&str, &str) = (
     "alldebrid.temporarily_unavailable",
     "AllDebrid is temporarily unavailable",

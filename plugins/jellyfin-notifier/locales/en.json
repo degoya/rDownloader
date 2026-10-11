@@ -2,6 +2,8 @@
   "name": "Jellyfin",
   "description": "Refreshes the Jellyfin libraries when a package finishes.",
   "codes": {
-    "jellyfin_notifier.rejected": "Jellyfin refused the library refresh."
+    "jellyfin_notifier.rejected": "Jellyfin refused the library refresh.",
+    "jellyfin_notifier.setting.path_mapping": "Path mapping",
+    "jellyfin_notifier.setting.path_mapping.description": "One line per folder: rDownloader's path=the path Jellyfin sees, e.g. /downloads=/data/media. The longest matching path decides and Jellyfin scans the folder that holds the package instead of every library; without a matching line every library is refreshed."
   }
 }

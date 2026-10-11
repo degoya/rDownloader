@@ -2,7 +2,7 @@
 //!
 //! Drives the real resolver against queued mock responses and asserts what the plugin *did* —
 //! which requests, in which order, with which bodies, which captcha and which wait — not only what
-//! it returned. The flow itself and its JD provenance are documented in `crate::api::free`.
+//! it returned. The flow itself is documented in `crate::api::free`.
 
 use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver, ResolverHost};
 use rd_plugin_types::FailureKind;
@@ -24,14 +24,13 @@ fn free_request() -> ResolveRequest {
     }
 }
 
-/// The `/geturl` probe's answer when a captcha is needed. JD quotes this exact payload in its
-/// errorcode-30 arm (`K2SApi.java:1531-1533`).
+/// The `/geturl` probe's answer when a captcha is needed: the known errorcode-30 payload.
 const CAPTCHA_DEMANDED: &str = r#"{"message":"You need send request for free download with captcha fields","status":"error","code":406,"errorCode":30}"#;
 
 /// `/requestcaptcha`'s answer: the challenge id plus the image URL.
 const CAPTCHA_CHALLENGE: &str = r#"{"status":"success","code":200,"challenge":"chal-7","captcha_url":"http://k2s.cc/api/v2/captcha.html?id=chal-7"}"#;
 
-/// `/geturl`'s answer after a valid captcha — JD's own documented sample (line 879).
+/// `/geturl`'s answer after a valid captcha — the known sample answer.
 const CAPTCHA_ACCEPTED: &str = r#"{"status":"success","code":200,"message":"Captcha accepted, please wait","free_download_key":"homeHash","time_wait":30}"#;
 
 const DOWNLOAD_URL: &str = "https://fs42.k2s.cc/d/homeHash/release.rar";
@@ -98,7 +97,7 @@ async fn the_free_flow_probes_solves_the_image_captcha_waits_and_uses_the_free_d
     assert_eq!(requests[0].url.as_str(), "https://k2s.cc/api/v2/geturl");
     assert_eq!(body_str(&requests[0]), r#"{"file_id":"abcdefghijklm"}"#);
 
-    // 2. `/requestcaptcha` takes an empty body (JD posts an empty map, not the file id).
+    // 2. `/requestcaptcha` takes an empty body (an empty map, not the file id).
     assert_eq!(
         requests[1].url.as_str(),
         "https://k2s.cc/api/v2/requestcaptcha"
@@ -283,7 +282,7 @@ async fn a_rejected_captcha_answer_is_reported_as_captcha_failed() {
     assert_eq!(failure.code.as_deref(), Some("keep2share.captcha_rejected"));
 }
 
-/// A countdown longer than JD's 180-second ceiling is a download limit, not something to wait out.
+/// A countdown longer than the 180-second ceiling is a download limit, not something to wait out.
 #[tokio::test]
 async fn an_excessive_countdown_becomes_an_ip_block() {
     let host = MockHost::free(

@@ -55,6 +55,10 @@ pub struct TorrentPortTest {
     pub peer_proxy_configured: bool,
     /// Why the session could not be started, for `unavailable`.
     pub error: Option<String>,
+    /// The fixed listen port another program holds, so the engine does not listen there
+    /// (`torrent.port_in_use`, RD-1250-04): the session did not start, or a rebuild onto it was
+    /// refused and the engine runs on its previous port.
+    pub port_in_use: Option<u16>,
     pub tested_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -121,12 +125,15 @@ impl TorrentService {
             upnp_enabled: settings.torrent_upnp_enabled,
             peer_proxy_configured: settings.torrent_proxy_profile_id.is_some(),
             error: None,
+            port_in_use: None,
             tested_at: chrono::Utc::now(),
         };
         if let Err(error) = self.session().await {
             report.error = Some(format!("{error:#}"));
+            report.port_in_use = crate::port_in_use(&error);
             return report;
         }
+        report.port_in_use = self.port_conflict().await;
         let Some((session, config)) = self
             .inner
             .session

@@ -1,7 +1,7 @@
 //! Which links a brand claims, and the file id inside them.
 //!
 //! The shapes come from the SPA's own router (`/:id/:name.html`, `/download/free/:id`,
-//! `/download/started/:id`, `/download/folder/:folderId`), from JDownloader's patterns and
+//! `/download/started/:id`, `/download/folder/:folderId`), from known link patterns and
 //! from what `links/check` accepts. A short-domain link (`turb.pw`, `hil.to`, …) is claimed
 //! and its id taken; the short domain itself is never fetched — every request goes to the main
 //! site or its API. Query strings (`?short_domain=…`, `?from_mirror=1&site_version=1`) and
@@ -29,7 +29,7 @@ pub enum LinkError {
     Unsupported,
 }
 
-/// Path segments that look like an id and are not one. JDownloader's HitFile exclusion list,
+/// Path segments that look like an id and are not one. The known HitFile exclusion list,
 /// plus the SPA's own top-level routes, applied to both brands: a page name costs nothing to
 /// refuse and a page fetched as a file is exactly the failure this plugin exists to prevent.
 const RESERVED_SEGMENTS: &[&str] = &[

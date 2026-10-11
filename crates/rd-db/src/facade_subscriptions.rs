@@ -44,8 +44,9 @@ impl Database {
     pub async fn pending_subscription_item_ids(
         &self,
         id: rd_core::SubscriptionId,
+        until: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<Vec<rd_core::SubscriptionItemId>> {
-        crate::subscription_store::pending_item_ids(&self.readers, id).await
+        crate::subscription_store::pending_item_ids(&self.readers, id, until).await
     }
 
     /// One subscription item by id.

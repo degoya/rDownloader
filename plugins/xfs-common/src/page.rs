@@ -64,7 +64,7 @@ pub fn download_form(html: &str, op_value: &str) -> Option<Vec<(String, String)>
     (!fields.is_empty()).then_some(fields)
 }
 
-/// Turns the raw `download2` fields into the premium submission JDownloader sends: the free-mode
+/// Turns the raw `download2` fields into the premium submission: the free-mode
 /// marker is dropped and `method_premium` carries `premium_button`, the button label the site's
 /// XFS installation expects for a premium session (ddownload's default: `"Premium Download"`).
 #[must_use]
@@ -465,13 +465,12 @@ fn attribute<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     None
 }
 
-/// XFS captcha markers found on a `download2` premium form or its containing page: KatFile's JD
-/// plugin (`KatfileCom.findFormDownload2Premium` -> `XFileSharingProBasic.handleCaptcha`,
-/// `svn_trunk/src/org/jdownloader/plugins/components/XFileSharingProBasic.java:2990-3119`)
-/// conditionally requires solving a reCaptchaV2/hCaptcha/Cloudflare-Turnstile challenge before the
+/// XFS captcha markers found on a `download2` premium form or its containing page: KatFile's
+/// premium flow conditionally requires solving a reCaptchaV2/hCaptcha/Cloudflare-Turnstile
+/// challenge before the
 /// premium form is accepted; this crate has no interactive captcha-solving capability, so a
-/// consuming plugin that can hit this flow (KatFile; ddownload's own JD plugin has no such
-/// override and never calls this) checks for these markers and reports `NeedsCaptcha` instead of
+/// consuming plugin that can hit this flow (KatFile; ddownload's premium flow has no such
+/// step and never calls this) checks for these markers and reports `NeedsCaptcha` instead of
 /// posting a form the server will reject anyway. Not used by ddownload (see
 /// `plugins/ddownload/src/native.rs`): ddownload's premium flow never reaches a captcha
 /// challenge, so leaving this function uncalled on that path changes nothing about its behavior.

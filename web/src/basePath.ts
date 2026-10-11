@@ -30,6 +30,14 @@ export function withBase(path: string): string {
 }
 
 /**
+ * The application's mark (`public/favicon.svg`), for an `<img>` or a CSS background. A file of
+ * `public/` is not processed by the build, so its address is written by hand — and an absolute
+ * `/favicon.svg` missed the mount point (RD-1250-09). `builtUrl.test.ts` holds every other
+ * reference to it here.
+ */
+export const LOGO_URL: string = withBase('/favicon.svg')
+
+/**
  * The service's full address for `path`, as a client outside this page needs it (a scraper,
  * the extension, the desktop agent, an MCP client): origin and mount point. Built by hand, the
  * mount point was the part that went missing (audit K8).

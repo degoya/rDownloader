@@ -4,16 +4,15 @@
 //! `wit-bindgen`'s generated types are used here, only `serde`/`serde_json`/`url`, which are
 //! available on every target.
 //!
-//! IMPL-VERIFY summary (against JD's `RapidGatorNet.java`, the living reference —
-//! `svn_trunk/src/jd/plugins/hoster/RapidGatorNet.java`, revision 53165): endpoints/params
+//! IMPL-VERIFY summary (the known handling of Rapidgator's API v2): endpoints/params
 //! (`user/login?login=&password=`, `file/info?token=&file_id=`, `file/download?token=&file_id=`)
 //! and the `{"response": T|null, "status": <int>, "details": "..."}` envelope shape are confirmed
-//! verbatim. `check_account` skips a separate `user/info` call — JD only uses that endpoint to
-//! validate a *cached* session, which this plugin never has (`user/login`'s own response already
-//! carries `user`/`storage`). [`classify_status`]/[`ensure_http_status`]'s doc comments carry the
-//! full per-branch enumeration and retry-delay provenance; the exhaustive walk-through of every
-//! `handleErrors_api` arm this implements lives in `api/tests.rs`'s module doc, next to the tests
-//! that assert each one.
+//! verbatim. `check_account` skips a separate `user/info` call — that endpoint only validates a
+//! *cached* session, which this plugin never has (`user/login`'s own response already carries
+//! `user`/`storage`). [`classify_status`]/[`ensure_http_status`]'s doc comments carry the full
+//! per-branch enumeration and retry-delay provenance; the exhaustive walk-through of every error
+//! arm this implements lives in `api/tests.rs`'s module doc, next to the tests that assert each
+//! one.
 
 use plugin_common::failure::{ApiFailure, ErrorKind, HttpError, HttpWords};
 use plugin_common::label::civil_date;
@@ -22,8 +21,7 @@ use url::Url;
 
 use crate::messages;
 
-/// Bare hostnames (no `www.` prefix) this hoster's file links carry, per JD's
-/// `getPluginDomains()`.
+/// Bare hostnames (no `www.` prefix) this hoster's file links carry.
 pub(crate) const MATCH_HOSTS: &[&str] = &["rapidgator.net", "rg.to", "rapidgator.asia"];
 
 pub(crate) const API_BASE: &str = "https://rapidgator.net/api/v2";
@@ -31,10 +29,10 @@ pub(crate) const API_BASE: &str = "https://rapidgator.net/api/v2";
 /// Extracts the file id from a Rapidgator link, e.g. `https://rapidgator.net/file/<id>` or
 /// `https://rapidgator.net/file/<id>/name.html`.
 ///
-/// Mirrors JD's `getFID`: `(?i)/file/([a-z0-9]{32}|\d+)` — the host (`www.`-stripped) must be one
+/// Matches `(?i)/file/([a-z0-9]{32}|\d+)` — the host (`www.`-stripped) must be one
 /// of [`MATCH_HOSTS`], the path must start with `/file/`, and the id is the first path segment
 /// after it, accepted only if it is exactly 32 ASCII alphanumeric characters or one-or-more ASCII
-/// digits (JD's `[a-z0-9]{32}` is case-insensitive, so any letter, not just hex digits).
+/// digits (`[a-z0-9]{32}` is case-insensitive, so any letter, not just hex digits).
 pub(crate) fn file_id(url: &Url) -> Option<&str> {
     let host_str = url.host_str()?;
     let host = host_str.strip_prefix("www.").unwrap_or(host_str);
@@ -111,16 +109,14 @@ pub(crate) fn premium_until(premium: bool, premium_end_time: Option<i64>) -> Opt
     premium_end_time.filter(|_| premium).map(civil_date)
 }
 
-/// Classifies a non-success `status`/`details` pair from the envelope. Mirrors JD's
-/// `handleErrors_api` in its actual precedence order (see `api/tests.rs`'s module doc for the
-/// full per-branch enumeration this implements, with JD line references and retry-delay
-/// provenance).
+/// Classifies a non-success `status`/`details` pair from the envelope, in the known precedence
+/// order (see `api/tests.rs`'s module doc for the full per-branch enumeration this implements,
+/// with retry-delay provenance).
 ///
-/// `trust_404` mirrors JD's own `trustError404` parameter to `handleErrors_api`: `file/info`
-/// passes `true` (a 404 there is trusted unconditionally as "file offline"); `file/download`
-/// passes `false`, because JD explicitly does *not* trust a 404 on that endpoint — its own
-/// comment: "Rapidgator API IN SOME SITUATIONS has a bug which will return invalid offline
-/// status. Do NOT trust this status anymore!" (this is an API-bug workaround, unrelated to
+/// `trust_404`: `file/info` passes `true` (a 404 there is trusted unconditionally as "file
+/// offline"); `file/download` passes `false`, because a 404 on that endpoint is explicitly *not*
+/// trusted — the known note: "Rapidgator API IN SOME SITUATIONS has a bug which will return invalid
+/// offline status. Do NOT trust this status anymore!" (this is an API-bug workaround, unrelated to
 /// session caching). An untrusted 404 is retried instead of declared offline.
 fn classify_status(status: i64, message: &str, trust_404: bool) -> ApiFailure {
     let lower = message.to_ascii_lowercase();
@@ -169,8 +165,8 @@ fn classify_status(status: i64, message: &str, trust_404: bool) -> ApiFailure {
         {
             ApiFailure::new(ErrorKind::Transient(None), messages::SESSION_INVALID)
         }
-        // JD: `AccountUnavailableException(msg, 60_000)` — the same temporary-block exception
-        // class used for "Denied by IP"/traffic-limit above, so `RateLimited` rather than
+        // A temporary block of 60 seconds — the same kind as "Denied by IP"/traffic-limit
+        // above, so `RateLimited` rather than
         // `AccountInvalid` (see `messages::IP_CONFIRMATION_REQUIRED`'s doc comment).
         _ if message
             .contains("Error: You requested login to your account from unusual Ip address") =>
@@ -181,7 +177,7 @@ fn classify_status(status: i64, message: &str, trust_404: bool) -> ApiFailure {
             )
         }
         _ => {
-            // JD's own fallback for an unrecognized error is retryable (60s), not permanent.
+            // An unrecognized error is retryable (60s), not permanent.
             let text = messages::api_error(status, message);
             ApiFailure::new(
                 ErrorKind::Transient(Some(60)),
@@ -211,16 +207,15 @@ pub(crate) fn error_from_envelope(
     ))
 }
 
-/// Maps a bare HTTP status whose body did not parse as an [`Envelope`] (JD's upfront
-/// `con.getResponseCode()` checks, run before any JSON parsing is attempted). `trust_404` — see
-/// [`classify_status`]; JD's bare-status check also calls `handle404API(..., trustError404)`, so
-/// the same distinction applies here too.
+/// Maps a bare HTTP status whose body did not parse as an [`Envelope`] (the status checks run
+/// before any JSON parsing is attempted). `trust_404` — see [`classify_status`]; the same
+/// distinction applies here too.
 ///
-/// Rapidgator's own statuses come first — an untrusted 404, 416, 423 and the long waits JD
-/// keeps for 500 and 503 — and everything else goes through the mapping every plugin shares
+/// Rapidgator's own statuses come first — an untrusted 404, 416, 423 and the long waits
+/// known for 500 and 503 — and everything else goes through the mapping every plugin shares
 /// (`plugin_common::http_status`, RD-191-07): 403 is a refused account like 401, a trusted 404
 /// and a 410 are final (`Permanent`, owner 2026-10-04), a 451 is `Offline` and retried, and a
-/// 429 carries the `Retry-After` it stated. A stated wait also replaces JD's fixed one on a 500
+/// 429 carries the `Retry-After` it stated. A stated wait also replaces the fixed one on a 500
 /// or 503.
 pub(crate) fn ensure_http_status(
     status: u16,

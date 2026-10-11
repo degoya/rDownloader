@@ -472,9 +472,12 @@
   },
   "reresolve": {
     "action": "Resolver de nuevo",
-    "hint": "Resolver de nuevo con la versión del plugin instalada ahora; los archivos en curso se pausan un momento",
+    "hint": "Resolver ahora con la versión del plugin instalada y obtener tamaño y nombre sin iniciar la descarga; los archivos en curso se pausan un momento",
     "done": "{count} archivo se resolverá de nuevo en su próximo inicio | {count} archivos se resolverán de nuevo en su próximo inicio",
-    "failed": "No se pudo resolver de nuevo"
+    "failed": "No se pudo resolver de nuevo",
+    "checked": "{resolved} resueltos, {failed} con error",
+    "resolving": "Resolviendo",
+    "checked_skipped": "{resolved} resueltos, {failed} con error, {skipped} omitidos (sin cuenta)"
   },
   "stop_mark": {
     "set": "Poner la marca de parada aquí",

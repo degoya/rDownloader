@@ -1,6 +1,6 @@
 //! Nitroflare resolver. With an account it uses the JSON API (`nitroflare.com/api/v2`), premium
 //! key only: `getDownloadLink`/`getKeyInfo` additionally require the account's username (its
-//! Nitroflare login e-mail; JD's `FEATURE.USERNAME_IS_EMAIL`).
+//! Nitroflare login e-mail).
 //!
 //! Without an account it runs the website free flow instead ([`page`] + each adapter's `free`
 //! submodule): the file page's countdown is started, its reCAPTCHA solved and the countdown

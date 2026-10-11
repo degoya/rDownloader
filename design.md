@@ -738,7 +738,8 @@ prevent columns from shifting during live updates.
   named for both, *Language and theme*, never for one of them. The footer takes the sidebar's
   width in both states — its separator and selects run where the navigation's separator runs —
   and on the rail the connection dot and the sign-out button stack, since side by side they need
-  56 of the 32 px between the paddings (RD-120-61). The dot says what is true: green and
+  56 of the 32 px between the paddings (RD-120-61). The running version closes the footer under
+  them, short on the rail, a link to *About* (RD-1250-06). The dot says what is true: green and
   pulsing beside the endpoint while the service answers, red with *Connection to the service
   lost* in place of the endpoint once the event stream broke off or a request got no answer for
   1.5 s, with one warning toast for the outage that goes when the service is back; the same
@@ -1389,11 +1390,10 @@ recognised as drifting.
   that follows will name it. Changing the kind clears the fields the old kind owned instead of
   carrying them over into a shape they do not fit; what survives is the variable the step
   writes into, which is the one field every kind has. There is **no free-text JSON box** as the
-  only way in — that is the JDownloader rule editor this pattern was written against, and it is
-  where people stop (RD-110-08). A second list of the same steps — the steps a site rule runs
-  once per entry (RD-1170-02) — is the same rows again, behind a `USwitch` under its own section
-  header; switching it off keeps what was typed, and a field it excludes (the page-wide
-  mirrors box) is disabled while it is on rather than hidden.
+  only way in — that is where people stop (RD-110-08). A second list of the same steps — the
+  steps a site rule runs once per entry (RD-1170-02) — is the same rows again, behind a `USwitch`
+  under its own section header; switching it off keeps what was typed, and a field it excludes
+  (the page-wide mirrors box) is disabled while it is on rather than hidden.
 - **Something with a shape a person is guessing at gets a trial run before it is saved.** A site
   rule, a regular expression, a connection: the control is a labelled `i-lucide-flask-conical`
   button under the form, enabled only once the form carries what the service would need, and its
@@ -1479,7 +1479,7 @@ recognised as drifting.
   As a panel in the page it unfolded itself when there were hits and grew with every hit that
   arrived afterwards, so the rows underneath moved while somebody was reading them. It is now a
   one-line header — title, the count as a badge, the hint — with a button that opens a drawer in
-  scale-background mode; the groups live in the drawer. Three rules come with that:
+  scale-background mode; the groups live in the drawer. Four rules come with that:
   - **Nothing opens itself.** Not on load, not when a poll finds something. The badge is what
     says there is work; opening it is the reader's decision. This reverses RD-106-18, which had
     the panel unfold on hits — right for a small box, wrong for something worth reading.
@@ -1489,6 +1489,11 @@ recognised as drifting.
   - **The scale-background effect needs its wrapper.** `should-scale-background` only works if
     an ancestor carries `data-vaul-drawer-wrapper`; in this application that is the element
     around the whole control-room layout in `App.vue`. A drawer added elsewhere inherits it.
+  - **A list under the reader's hand does not move (RD-1250-13).** While the drawer is open, hits
+    and groups that arrive are read but held behind one "N more hits — show" alert at its top;
+    a row shown keeps its place, and "show" or closing the drawer brings the rest in. "All" in a
+    bulk action is every page of the list as it was last drawn — up to its watermark — never
+    "whatever is pending by now".
 
   Inside the drawer the older rules still hold: individual subscriptions start closed and fetch
   their first page on demand, the person's manual open/closed state wins over any event, and a
@@ -1663,8 +1668,17 @@ recognised as drifting.
   beside it (`writeSettings` in `stores/transfersSpeedLimit.ts`), a refusal is an error toast with
   the service's message, and the field goes back to the stored value. The scheduler takes it on
   its next pass; a lowered value starts nothing new until fewer run, it stops none. The bar
-  follows what the settings page loads and saves. Below a 56 rem rail the control folds away, as
-  the version does, so the rail never takes a second line.
+  follows what the settings page loads and saves. Below a 56 rem rail the control folds away, so
+  the rail never takes a second line.
+- **The status bar carries state, not the product** (RD-1250-06; owner, 2026-10-11). Name,
+  version and *Made with ♥ in Germany* left it: they pushed the selection's count and size out of
+  view. In its right half the selection keeps its width (`shrink-0`) and the volume line is the one
+  cut. The version is the last line of the sidebar footer, under the connection row, in both
+  states: `v1.24.0` while open, the short `1.24` on the 64 px rail (its 32 px between the paddings
+  hold no more), the full form in the tooltip and in the accessible name, which contains the
+  visible text. It links to *About*, where the dedication stays in the credits card; the login and
+  the setup wizard, which have no sidebar, keep their signature line (`AppSignature`). Until the
+  service has answered, the version the page was built as stands in, so the line is never empty.
 - **A list that mixes two kinds of row orders them in one sequence, or it does not order them
   at all.** The LinkGrabber shows collector packages beside NZB imports. Packages carried a
   manual position and a handle; imports carried neither and were interleaved by creation time,

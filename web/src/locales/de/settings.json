@@ -748,7 +748,8 @@
       "peer_proxy_on": "eingerichtet",
       "peer_proxy_off": "keiner",
       "rebuild_failed": "Der letzte Neuaufbau der Sitzung ist fehlgeschlagen; die bisherige Sitzung läuft weiter.",
-      "proxy_failed": "Der Peer-Proxy lässt sich nicht auflösen; ohne ihn startet die Sitzung nicht."
+      "proxy_failed": "Der Peer-Proxy lässt sich nicht auflösen; ohne ihn startet die Sitzung nicht.",
+      "port_in_use": "Port belegt"
     },
     "max_active_downloads": {
       "label": "Aktive Torrent-Downloads",
@@ -770,7 +771,8 @@
       },
       "details": "Laufende Torrents: {torrents} · hereinverbundene Peers: {peers}",
       "proxy_hint": "Ein Peer-Proxy trägt nur ausgehende Verbindungen; eingehende Peers kommen immer direkt an."
-    }
+    },
+    "port_in_use": "Ein anderes Programm hält Port {port}, deshalb lauscht die Torrent-Engine dort nicht. Wähle einen anderen Port oder beende dieses Programm."
   },
   "auth_profiles": {
     "approval_description": "Diese Sitzungen wurden von der Browsererweiterung gesendet. Sie werden erst nach deiner Freigabe verwendet.",

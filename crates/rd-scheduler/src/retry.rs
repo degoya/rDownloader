@@ -14,6 +14,15 @@ const DEFAULT_IP_BLOCK: Duration = Duration::from_secs(15 * 60);
 /// The longest wait the exponential backoff alone reaches.
 const MAX_BACKOFF: Duration = Duration::from_secs(5 * 60);
 
+/// Failed attempts in a row after which a download waits [`LONG_RETRY_WAIT`] instead of the
+/// backoff (RD-1250-07). The sixth failure leaves the queue place to the files after it rather
+/// than taking it again every few seconds.
+pub(crate) const RETRIES_BEFORE_LONG_WAIT: u32 = 5;
+
+/// The wait from the sixth failed attempt in a row on (RD-1250-07): long enough for the files
+/// after it to run, short enough for a server that recovers to be asked again the same hour.
+pub(crate) const LONG_RETRY_WAIT: Duration = Duration::from_secs(30 * 60);
+
 /// Attempts allowed for a rejected captcha, independent of the general retry count.
 ///
 /// A rejected answer is usually an expired token and worth another try, but every attempt
@@ -61,17 +70,22 @@ pub(crate) fn retry_at(
     if failure.category == FailureKind::CaptchaFailed && previous_attempts >= MAX_CAPTCHA_ATTEMPTS {
         return None;
     }
-    // The shared backoff and spread (re-audit 1.9.1, RA-TR-08): one, two, four … seconds,
-    // five minutes at most, each spread by ±`RETRY_JITTER_PERCENT` so links that failed
-    // together do not return together. Seeded by the clock's sub-second part, as the
-    // notification retry is; the spread is what matters, not unpredictability.
+    // The shared backoff and spread (re-audit 1.9.1, RA-TR-08): one, two, four, eight,
+    // sixteen seconds, then half an hour from the sixth failed attempt in a row (RD-1250-07),
+    // each spread by ±`RETRY_JITTER_PERCENT` so links that failed together do not return
+    // together. Seeded by the clock's sub-second part, as the notification retry is; the
+    // spread is what matters, not unpredictability. A limit has its own waits below.
     let now = Utc::now();
-    let backoff_ms = i64::try_from(rd_core::exponential_backoff(
-        previous_attempts,
-        1_000,
-        MAX_BACKOFF.as_millis().try_into().unwrap_or(u64::MAX),
-    ))
-    .unwrap_or(i64::MAX);
+    let backoff = if previous_attempts >= RETRIES_BEFORE_LONG_WAIT && !failure.category.is_limit() {
+        LONG_RETRY_WAIT.as_millis().try_into().unwrap_or(u64::MAX)
+    } else {
+        rd_core::exponential_backoff(
+            previous_attempts,
+            1_000,
+            MAX_BACKOFF.as_millis().try_into().unwrap_or(u64::MAX),
+        )
+    };
+    let backoff_ms = i64::try_from(backoff).unwrap_or(i64::MAX);
     let spread = rd_core::jitter(
         backoff_ms,
         rd_core::RETRY_JITTER_PERCENT,
@@ -203,10 +217,19 @@ mod tests {
         );
     }
 
-    /// RA-TR-08: the shared backoff, spread by the shared percentage, five minutes at most.
+    /// RA-TR-08: the shared backoff, spread by the shared percentage; from the sixth failed
+    /// attempt in a row on, half an hour (RD-1250-07).
     #[test]
-    fn the_backoff_doubles_within_its_spread_up_to_five_minutes() {
-        for (attempts, seconds) in [(0, 1), (1, 2), (4, 16), (8, 256), (9, 300), (40, 300)] {
+    fn the_backoff_doubles_within_its_spread_then_waits_half_an_hour() {
+        for (attempts, seconds) in [
+            (0, 1),
+            (1, 2),
+            (3, 8),
+            (4, 16),
+            (5, 1_800),
+            (8, 1_800),
+            (40, 1_800),
+        ] {
             let due = retry_at(&transient(), attempts, 0, 100).expect("retryable");
             let delay = (due - chrono::Utc::now()).num_milliseconds();
             let base = seconds * 1_000;

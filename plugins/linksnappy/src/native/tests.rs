@@ -292,7 +292,7 @@ async fn hosters_flattens_domains_and_aliases_lowercase_dedupe_and_sort() {
         requests[0].url.as_str(),
         "https://linksnappy.com/api/FILEHOSTS"
     );
-    // FILEHOSTS is authenticated (JD never calls it without a prior login) — same credential
+    // FILEHOSTS is authenticated (never called without a prior login) — same credential
     // pair as USERDETAILS.
     assert_eq!(query_value(&requests[0], "username"), Some("{{username}}"));
     assert_eq!(

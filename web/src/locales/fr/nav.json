@@ -85,6 +85,8 @@
   "version": {
     "outdated": "Nouvelle version disponible — rechargez",
     "outdated_hint": "Le service exécute désormais la version {version}, cette page encore la {build}. Rechargez-la pour obtenir l’interface actuelle.",
-    "reload": "Recharger"
+    "reload": "Recharger",
+    "sidebar_about": "À propos de rDownloader",
+    "sidebar_title": "Version {version} – À propos de rDownloader"
   }
 }

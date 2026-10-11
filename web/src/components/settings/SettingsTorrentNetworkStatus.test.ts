@@ -63,4 +63,17 @@ describe('SettingsTorrentNetworkStatus', () => {
     expect(screen.getByText(s.proxy_failed, { exact: false })).not.toBeNull()
     expect(screen.getByText(s.peer_proxy_on)).not.toBeNull()
   })
+
+  it('names a fixed listen port another program holds (RD-1250-04)', async () => {
+    mount({ port_in_use: 51413 })
+    expect(await screen.findByTestId('torrent-port-in-use')).not.toBeNull()
+    expect(screen.getByText(s.port_in_use)).not.toBeNull()
+    expect(screen.getByText(settings.torrent.port_in_use.replace('{port}', '51413'))).not.toBeNull()
+  })
+
+  it('shows no port alert while the port is free', async () => {
+    mount({})
+    await screen.findByText(settings.torrent.bind_interface.any)
+    expect(screen.queryByTestId('torrent-port-in-use')).toBeNull()
+  })
 })

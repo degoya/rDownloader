@@ -184,7 +184,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Pause, resume, cancel, remove or reset downloads, by id (bulk, 1-500 ids) or by state: with states instead of ids it acts on every download in those state groups, optionally only of package_id -- e.g. action reset, states [failed, blocked] starts every stuck file over. remove deletes the list entry; active files are cancelled first."
+        description = "Pause, resume, cancel, remove or reset downloads, by id (bulk, 1-500 ids) or by state: with states instead of ids it acts on every download in those state groups, optionally only of package_id -- e.g. action reset, states [failed, blocked] starts every stuck file over, action pause with states [queued, active] pauses the whole queue in one step. pause, resume and remove take many files in one database write. remove deletes the list entry; active files are cancelled first."
     )]
     pub async fn control_downloads(
         &self,

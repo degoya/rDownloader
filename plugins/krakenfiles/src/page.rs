@@ -26,7 +26,7 @@ const UNAVAILABLE_NOTICE: &str = "File has been deleted or never existed";
 /// The file id of a supported link, lowercased: the site answers the same file for any case
 /// (measured on the page and on `/json/`), so the lowercased id is the link's identity.
 ///
-/// Supported are `/view/<id>/file.html` (JDownloader's pattern) and `/embed-video/<id>`, the
+/// Supported are `/view/<id>/file.html` and `/embed-video/<id>`, the
 /// site's own player, which embeds the same file. Short forms such as `/view/<id>` or `/<id>`
 /// answer 404 and are refused.
 #[must_use]
@@ -146,8 +146,7 @@ pub(crate) fn file_name(html: &str) -> Option<String> {
 }
 
 /// A size the site prints, such as `4.90 MB`, in bytes. Approximate by nature - the site
-/// rounds to two decimals - and read with 1024-based units, as JDownloader's `SizeFormatter`
-/// reads the same string.
+/// rounds to two decimals - and read with 1024-based units.
 #[must_use]
 pub(crate) fn parse_size(text: &str) -> Option<u64> {
     let text = text.trim();

@@ -1304,7 +1304,13 @@
     "system.cleanup_rewrite_no_space": "La carpeta de datos no tiene espacio para una segunda copia de la base de datos, así que no se reescribe.",
     "system.cleanup_rewrite_failed": "No se pudo reescribir la base de datos; no ha cambiado.",
     "settings.subscription_item_retention_invalid": "Los días que una entrada omitida se conserva completa deben estar entre {min} y {max}.",
-    "secret.unreadable": "Una credencial guardada no se puede leer en esta instalación; la carpeta de datos probablemente procede de otro equipo o cuenta de usuario. Vuelve a introducirla o restaura una copia completa con su frase de contraseña."
+    "secret.unreadable": "Una credencial guardada no se puede leer en esta instalación; la carpeta de datos probablemente procede de otro equipo o cuenta de usuario. Vuelve a introducirla o restaura una copia completa con su frase de contraseña.",
+    "plugin.setting_text_invalid": "Un ajuste de texto de este destino es demasiado largo o contiene un carácter que no admite",
+    "torrent.port_in_use": "Otro programa ocupa el puerto {port}, así que el motor de torrents no escucha en él; la configuración guardada se mantiene. Elige otro puerto o cierra ese programa.",
+    "download.resolve_timeout": "El enlace no se pudo resolver a tiempo; se resolverá en su próximo inicio",
+    "download.resolve_offline": "El servidor indica que el archivo ya no existe",
+    "download.resolve_failed": "El enlace no se pudo resolver ahora; se resolverá en su próximo inicio",
+    "download.resolve_skipped_free": "Un enlace de un servidor de archivos sin cuenta no se resuelve por adelantado; se resolverá al iniciarse"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

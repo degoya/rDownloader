@@ -25,6 +25,7 @@ mod full_restore;
 mod managed_tools;
 mod metrics;
 mod notification_activity;
+mod notification_package_path;
 mod notifications;
 mod notifications_executable;
 mod object_storage_profiles;

@@ -165,8 +165,10 @@ onMounted(() => {
             {{ t(`history.outcomes.${entry.outcome}`) }}
           </UBadge>
           <!-- At least 12rem: on a phone the meta wraps under the name instead of squeezing it to
-               ~90 px and six lines (RD-1240-33). -->
-          <span class="min-w-48 flex-1 break-words text-sm font-medium text-highlighted">{{ entry.name }}</span>
+               ~90 px and six lines (RD-1240-33). From `md` on at least 24rem: beside the whole
+               meta row a long name got ~200 px and four lines at 1024 px; now the date and the
+               actions wrap first and the name keeps at most three (RD-1250-10). -->
+          <span class="min-w-48 flex-1 break-words text-sm font-medium text-highlighted md:min-w-96" data-testid="history-name">{{ entry.name }}</span>
           <span class="shrink-0 text-xs text-muted">{{ t(`history.kinds.${entry.kind}`) }}</span>
           <span class="numeric shrink-0 text-xs text-muted">
             {{ formatBytes(entry.total_bytes) }} · {{ t('history.list.files', { count: entry.file_count }, entry.file_count) }}

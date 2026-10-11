@@ -2,7 +2,7 @@
 //!
 //! Drives the real resolver against queued mock responses and asserts what the plugin *did* —
 //! which requests, in which order, with which body and which `Referer` — not only what it
-//! returned. The flow itself and its JD provenance are documented in `crate::page`.
+//! returned. The flow itself is documented in `crate::page`.
 
 use std::sync::Arc;
 
@@ -202,7 +202,7 @@ async fn a_stated_limit_becomes_an_ip_block_with_the_parsed_seconds() {
     assert!(host.waits.lock().expect("mock lock").is_empty());
 }
 
-/// A limit stated without a duration keeps JD's five-minute default.
+/// A limit stated without a duration keeps the five-minute default.
 #[tokio::test]
 async fn a_limit_without_a_duration_still_blocks_the_hoster() {
     let host = MockHost::free(

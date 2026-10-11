@@ -10,6 +10,7 @@
  * of the indexer search — so a hit without a picture looks the same wherever it stands. The
  * caller gives the size (`size-12`, `size-10`), the same as the cover it stands in for.
  */
+import { LOGO_URL } from '@/basePath'
 </script>
 
 <template>
@@ -17,6 +18,6 @@
     aria-hidden="true"
     data-testid="cover-placeholder"
     class="shrink-0 bg-elevated bg-[length:1.5rem] bg-center bg-no-repeat"
-    style="background-image: url(/favicon.svg)"
+    :style="{ backgroundImage: `url(${LOGO_URL})` }"
   />
 </template>

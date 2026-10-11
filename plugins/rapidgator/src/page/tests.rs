@@ -191,7 +191,7 @@ fn final_download_link_falls_back_to_location_href() {
     );
 }
 
-/// JD's third, much looser fallback is deliberately unimplemented (see the module doc): the
+/// A third, much looser fallback is deliberately unimplemented (see the module doc): the
 /// captcha page's own URL must never be handed back as a download link.
 #[test]
 fn final_download_link_does_not_match_the_captcha_page_itself() {

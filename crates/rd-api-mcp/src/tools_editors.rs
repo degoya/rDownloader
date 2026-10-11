@@ -113,7 +113,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the destinations installed notification plugins provide: plugin_id (what a plugin target carries in config.plugin_id), name and version."
+        description = "List the destinations installed notification plugins provide: plugin_id (what a plugin target carries in config.plugin_id), name, version and the settings a target of it may hold in config.settings. A setting with choices takes one of them; one with no choices is free text: one line of at most 256 characters, or several (multiline: true) of at most 4096 together, no control characters but line breaks, refused otherwise with plugin.setting_text_invalid. Plex takes `section` (the library number; empty = every library) and Plex, Jellyfin and Emby `path_mapping`, one `rDownloader path=server path` per line: a finished package whose folder a line holds (the longest wins) is scanned alone, any other refreshes the whole library."
     )]
     pub async fn list_notification_destinations(&self) -> McpToolResult {
         let Json(destinations) =

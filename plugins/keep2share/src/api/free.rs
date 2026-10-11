@@ -4,46 +4,37 @@
 //! and report byte-identical failures; like the rest of [`crate::api`] this module depends only on
 //! `serde`/`serde_json`/`url`.
 //!
-//! IMPL-VERIFY against JD's `svn_trunk/src/jd/plugins/hoster/K2SApi.java` (revision 53214, the
-//! `$Revision$` tag on line 76) — `handleDownload` lines 783-935, `ipBlockedOrAccountLimit` lines
-//! 1013-1019, and the `handleErrorsAPI` `switch` lines 1426-1545. Verified against that source:
+//! What the flow sends and expects:
 //!
-//! - **`/requestcaptcha` takes an empty body.** JD line 858 posts
-//!   `new HashMap<String, Object>()` — the line above it, posting `postdata`, is commented out in
-//!   the living source. [`requestcaptcha_body`] therefore sends `{}`, not the file id.
-//! - **The captcha is an image captcha.** JD line 867 calls `getCaptchaCode(captcha_url, ...)`,
-//!   which downloads `captcha_url` and asks a human (or a solver service) to type what it shows —
-//!   the `Image` variant of the host's `captcha-challenge`, not a widget. The sibling
-//!   `/requestrecaptcha` endpoint (line 1207, login only) is the reCaptcha one and is not used
-//!   here.
+//! - **`/requestcaptcha` takes an empty body.** [`requestcaptcha_body`] therefore sends `{}`, not
+//!   the file id.
+//! - **The captcha is an image captcha.** `captcha_url` is downloaded and a human (or a solver
+//!   service) types what it shows — the `Image` variant of the host's `captcha-challenge`, not a
+//!   widget. The sibling `/requestrecaptcha` endpoint (login only) is the reCaptcha one and is
+//!   not used here.
 //! - **No prompt text.** `/requestcaptcha`'s payload carries `challenge` and `captcha_url` and
-//!   nothing else (JD lines 859-860; the response sample on line 1399 shows the same two fields),
-//!   so no prompt text is ever available and the challenge is handed over with `prompt: None`.
+//!   nothing else, so no prompt text is ever available and the challenge is handed over with
+//!   `prompt: None`.
 //! - **`/geturl` after the captcha** carries `file_id` + `captcha_challenge` + `captcha_response`
-//!   (JD lines 843, 868-869) — see [`geturl_captcha_body`].
-//! - **The wait round** posts `file_id` + `free_download_key` and *removes* the captcha fields
-//!   (JD lines 907-910) — see [`geturl_free_key_body`].
-//! - **Limits are IP blocks.** With `account == null` — this flow's only case —
-//!   `ipBlockedOrAccountLimit` raises `LinkStatus.ERROR_IP_BLOCKED` (JD lines 1013-1019), and it is
-//!   reached from errorcodes 1/2/5/6 and from a `time_wait` above 180 seconds or a sixth wait round
-//!   in a row (JD lines 884-902). [`free_failure`] and [`wait_step`] mirror both.
+//!   — see [`geturl_captcha_body`].
+//! - **The wait round** posts `file_id` + `free_download_key` and *removes* the captcha fields —
+//!   see [`geturl_free_key_body`].
+//! - **Limits are IP blocks.** Without an account — this flow's only case — errorcodes 1/2/5/6,
+//!   a `time_wait` above 180 seconds and a sixth wait round in a row all mean that this IP may
+//!   not download for a while. [`free_failure`] and [`wait_step`] implement both.
 //!
-//! Assumed, not verified against JD:
+//! Assumed, not verified:
 //!
-//! - **The unauthenticated `/geturl` probe.** JD requests a captcha unconditionally in free mode
-//!   and only then calls `/geturl`. This module posts `{"file_id":...}` first (see
-//!   [`geturl_probe_body`]) and treats errorcode 30 as "now solve a captcha" — JD's own comment on
-//!   that arm quotes exactly that response for this situation ("You need send request for free
-//!   download with captcha fields", line 1533). The probe is what lets a stated download limit
-//!   surface as an IP block *before* a captcha is paid for; JD reaches the same goal with a local
-//!   IP/timestamp bookkeeping (`isEnableReconnectWorkaround`, lines 807-843) that a stateless
-//!   plugin cannot keep.
-//! - **`free_download_key: null` is not sent** on the captcha round. JD simply never puts the key
-//!   into `postdata` until the wait round, so it is omitted rather than sent as an explicit JSON
-//!   `null`.
+//! - **The unauthenticated `/geturl` probe.** This module posts `{"file_id":...}` first (see
+//!   [`geturl_probe_body`]), before any captcha is requested, and treats errorcode 30 as "now
+//!   solve a captcha" — the API's answer for exactly this situation ("You need send request for
+//!   free download with captcha fields"). The probe is what lets a stated download limit surface
+//!   as an IP block *before* a captcha is paid for, without the local IP/timestamp bookkeeping a
+//!   stateless plugin cannot keep.
+//! - **`free_download_key: null` is not sent** on the captcha round: the key is left out until
+//!   the wait round rather than sent as an explicit JSON `null`.
 //! - **The image's media type** is taken from the response's `Content-Type` and, when that is
-//!   missing or not an `image/*` type, sniffed from the leading bytes ([`image_mime`]). JD hands
-//!   the URL to its captcha subsystem and never inspects either.
+//!   missing or not an `image/*` type, sniffed from the leading bytes ([`image_mime`]).
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -55,19 +46,17 @@ use crate::messages;
 /// `/geturl` — the only endpoint the free flow calls more than once.
 pub(crate) const GETURL_PATH: &str = "geturl";
 
-/// `/requestcaptcha` — the image-captcha challenge endpoint (JD line 858).
+/// `/requestcaptcha` — the image-captcha challenge endpoint.
 pub(crate) const REQUESTCAPTCHA_PATH: &str = "requestcaptcha";
 
-/// Longest countdown the flow waits out itself; anything above is an IP block (JD line 894:
-/// `if (waitseconds > 180 || stopNow)`).
+/// Longest countdown the flow waits out itself; anything above is an IP block.
 pub(crate) const MAX_WAIT_SECONDS: u64 = 180;
 
-/// Wait rounds allowed in a row before the flow gives up (JD lines 887-891: `counter > 4`).
+/// Wait rounds allowed in a row before the flow gives up.
 pub(crate) const MAX_WAIT_ROUNDS: usize = 5;
 
-/// Failure codes [`free_failure`] re-labels as an IP block. Each maps an errorcode whose JD arm
-/// ends in `ipBlockedOrAccountLimit` (1, 2, 5, 6) or, for errorcode 1, in a bare
-/// `ERROR_IP_BLOCKED` — all of them "this IP may not download for a while", none of them
+/// Failure codes [`free_failure`] re-labels as an IP block. Each maps an errorcode that means an IP
+/// block (1, 2, 5, 6) — all of them "this IP may not download for a while", none of them
 /// something a retry of *this* link can fix.
 const LIMIT_CODES: &[&str] = &[
     messages::DOWNLOAD_LIMIT_REACHED.0,
@@ -88,7 +77,7 @@ pub(crate) fn geturl_probe_body(file_id: &str) -> Vec<u8> {
     serde_json::to_vec(&FileIdRequest { file_id }).expect("FileIdRequest always serializes")
 }
 
-/// `POST /requestcaptcha {}` — JD line 858 posts an empty map.
+/// `POST /requestcaptcha {}` — the endpoint takes an empty map.
 pub(crate) fn requestcaptcha_body() -> Vec<u8> {
     b"{}".to_vec()
 }
@@ -100,8 +89,7 @@ struct CaptchaAnswerRequest<'a> {
     captcha_response: &'a str,
 }
 
-/// `POST /geturl {"file_id":..,"captcha_challenge":..,"captcha_response":..}` (JD lines 843,
-/// 868-869).
+/// `POST /geturl {"file_id":..,"captcha_challenge":..,"captcha_response":..}`.
 pub(crate) fn geturl_captcha_body(file_id: &str, challenge: &str, response: &str) -> Vec<u8> {
     serde_json::to_vec(&CaptchaAnswerRequest {
         file_id,
@@ -118,7 +106,7 @@ struct FreeKeyRequest<'a> {
 }
 
 /// `POST /geturl {"file_id":..,"free_download_key":..}` — the post-countdown round, with the
-/// captcha fields removed exactly as JD removes them (lines 907-910).
+/// captcha fields removed.
 pub(crate) fn geturl_free_key_body(file_id: &str, free_download_key: &str) -> Vec<u8> {
     serde_json::to_vec(&FreeKeyRequest {
         file_id,
@@ -127,7 +115,7 @@ pub(crate) fn geturl_free_key_body(file_id: &str, free_download_key: &str) -> Ve
     .expect("FreeKeyRequest always serializes")
 }
 
-/// `/requestcaptcha`'s success payload (JD lines 859-860).
+/// `/requestcaptcha`'s success payload.
 #[derive(Deserialize)]
 pub(crate) struct RequestCaptchaResult {
     #[serde(default)]
@@ -137,7 +125,7 @@ pub(crate) struct RequestCaptchaResult {
 }
 
 /// `/geturl`'s success payload on the free path. `url` ends the flow; `free_download_key` plus
-/// `time_wait` start a countdown round (JD's documented sample, line 879:
+/// `time_wait` start a countdown round (a documented sample:
 /// `{"status":"success","code":200,"message":"Captcha accepted, please wait",
 /// "free_download_key":"homeHash","time_wait":30}`).
 #[derive(Deserialize)]
@@ -153,8 +141,8 @@ pub(crate) struct FreeUrlResult {
 }
 
 impl FreeUrlResult {
-    /// `time_wait` in whole seconds. JD reads it as a `Number` (line 884); a numeric string is
-    /// accepted too, since several other fields of this API are served in both shapes.
+    /// `time_wait` in whole seconds, usually a JSON number; a numeric string is accepted too,
+    /// since several other fields of this API are served in both shapes.
     pub(crate) fn wait_seconds(&self) -> Option<u64> {
         match self.time_wait.as_ref()? {
             Value::Number(number) => number
@@ -181,11 +169,11 @@ impl FreeUrlResult {
 pub(crate) enum WaitStep {
     /// Sit out the countdown and post `/geturl` again.
     Wait(u32),
-    /// Too long, or too many rounds in a row: JD's `ipBlockedOrAccountLimit` case.
+    /// Too long, or too many rounds in a row: an IP block.
     Blocked(u64),
 }
 
-/// Mirrors JD lines 884-902: a countdown longer than [`MAX_WAIT_SECONDS`], or a
+/// A countdown longer than [`MAX_WAIT_SECONDS`], or a
 /// [`MAX_WAIT_ROUNDS`]-th round in a row, is an IP block rather than something to wait out.
 pub(crate) fn wait_step(seconds: u64, round: usize) -> WaitStep {
     if seconds > MAX_WAIT_SECONDS || round >= MAX_WAIT_ROUNDS {
@@ -195,8 +183,8 @@ pub(crate) fn wait_step(seconds: u64, round: usize) -> WaitStep {
     WaitStep::Wait(u32::try_from(seconds).unwrap_or(u32::MAX))
 }
 
-/// Whether an error means "now solve a captcha" rather than "this link failed". Errorcodes 30/33
-/// (JD lines 1526-1538); the arm's own comment quotes the response the free probe provokes:
+/// Whether an error means "now solve a captcha" rather than "this link failed". Errorcodes 30/33;
+/// the response the free probe provokes reads:
 /// `{"message":"You need send request for free download with captcha fields",...,"errorCode":30}`.
 pub(crate) fn needs_captcha(failure: &ApiFailure) -> bool {
     matches!(failure.kind, ErrorKind::NeedsCaptcha) && failure.code == messages::LOGIN_CAPTCHA.0
@@ -225,7 +213,7 @@ pub(crate) fn free_failure(failure: ApiFailure) -> ApiFailure {
     }
 }
 
-/// The IP block a too-long or too-often-repeated countdown amounts to (JD lines 894-901).
+/// The IP block a too-long or too-often-repeated countdown amounts to.
 pub(crate) fn wait_limit_failure(seconds: u64) -> ApiFailure {
     let text = messages::free_limit_reached(Some(seconds));
     ApiFailure::new(
@@ -245,9 +233,9 @@ pub(crate) fn no_free_link_failure(diagnosis: &str) -> ApiFailure {
     .with_param("diagnosis", diagnosis)
 }
 
-/// The challenge id and the absolute image URL `/requestcaptcha` answered with. JD aborts when
-/// either is empty (lines 862-866); a relative or `http://` URL is repaired the way JD repairs the
-/// login captcha's (lines 1211-1219) rather than rejected.
+/// The challenge id and the absolute image URL `/requestcaptcha` answered with. Either one
+/// empty is a failure; a relative or `http://` URL is repaired, as the login captcha's is,
+/// rather than rejected.
 pub(crate) fn captcha_request(result: &RequestCaptchaResult) -> Result<(String, Url), ApiFailure> {
     let challenge = non_empty(result.challenge.as_deref())
         .ok_or_else(|| ApiFailure::new(ErrorKind::Permanent, messages::CAPTCHA_UNAVAILABLE))?;

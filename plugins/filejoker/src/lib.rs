@@ -1,8 +1,8 @@
 //! FileJoker resolver: cookie-backed premium transfer only (XFileSharing-clone HTML flow). Unlike
 //! `ddownload`/`katfile`, the registry defines no secret for this provider (`CredentialKind::Cookies`,
 //! `secret_reference: None`) — see `native/api.rs`'s module doc for why no API-key path exists here
-//! and for the full IMPL-VERIFY record (no JD reference exists; verified against the live site and
-//! two independent community references).
+//! and for the full IMPL-VERIFY record (no reference source exists; verified against the live site
+//! and two independent community references).
 
 /// Domain served by this hoster. Used only by `guest.rs`'s `hosters()` (the WIT `Guest` trait has
 /// no default to fall back to, unlike the native `Resolver` trait — see `native.rs`'s module doc),

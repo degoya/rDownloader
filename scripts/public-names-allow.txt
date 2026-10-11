@@ -1,0 +1,63 @@
+# Where the public tree may still name JDownloader or `JD` (RD-1250-11), read by
+# scripts/lib/public-names.py and held by scripts/tests/public-names.sh.
+#
+# The owner, 2026-10-11: nothing public names it as the model or the source of a behaviour. What
+# stays is a format and its interop — the `.crawljob` format, the DLC service's default endpoint,
+# the Click'n'Load answers a hoster page checks for, a hint that another program holds the
+# Click'n'Load port — the released history, and an existing migration.
+#
+# One entry per line: <path or glob> | <regular expression found in the line> | <reason>.
+# `@released` instead of an expression allows the released version sections of CHANGELOG.md and
+# RELEASE-NOTES.md only, never `## [Unreleased]` or a draft section. An entry no mention needs
+# any more fails the test as well.
+
+# The released history.
+CHANGELOG.md | @released | published version sections are history
+RELEASE-NOTES.md | @released | published version sections are history
+
+# An existing migration: sqlx checksums every byte, it is never edited.
+crates/rd-db/migrations/0135_link_filter_rules.sql | JDownloader | an existing migration's comment
+
+# The DLC format and its decryption service, whose default endpoint is JDownloader's.
+crates/rd-api-core/src/dlc_import.rs | JDownloader's service|service\.jdownloader\.org | the dlcrypt service's default endpoint
+crates/rd-api-core/src/dto/settings.rs | the JDownloader service | the dlcrypt service's default, documented on the setting
+web/openapi.json | the JDownloader service | generated from the settings DTO
+web/src/api/schema.d.ts | the JDownloader service | generated from the settings DTO
+crates/rd-api/tests/intake/container_json.rs | service\.jdownloader\.org | the recorded answer of the dlcrypt service
+crates/rd-collector/src/container.rs | JDownloader's encrypted container|JDownloader's `\.crawljob` | container formats named by their program
+crates/rd-collector/src/dlc.rs | the format JDownloader established|JDownloader's `dlcrypt` service | the DLC format and its service
+web/src/components/settings/SettingsLinkgrabberTab.vue | service\.jdownloader\.org | the dlcrypt endpoint's placeholder
+web/src/locales/*/settings.json | service\.jdownloader\.org | the dlcrypt setting names its default service
+
+# The `.crawljob` format: written for JDownloader to read, and read as it writes it.
+crates/rd-api-core/src/dto/package_export.rs | JDownloader's `\.crawljob` | the export format, named by its program
+crates/rd-api-mcp/src/tools_containers.rs | JDownloader \.crawljob | the MCP description names the format
+crates/rd-api-mcp/src/tools_package_export.rs | JDownloader's plain-text file|crawljob \(JDownloader: | the MCP description names the format
+crates/rd-api-queue/src/package_export.rs | `\.crawljob` for JDownloader | the export format's reader
+crates/rd-api/tests/queue/package_export.rs | attachment_jdownloader_reads | the export lands in the program that reads it
+crates/rd-api/tests/queue/package_export_nzb.rs | jdownloader\.crawljob | a `.crawljob` file name
+crates/rd-collector/src/crawljob.rs | JDownloader | the `.crawljob` writer: what JDownloader's folder watch reads
+crates/rd-collector/src/rdlinks.rs | the one JDownloader reads | the `.crawljob` export's reader
+plugins/crawljob-intake/locales/*.json | JDownloader | the plugin's description names the format
+plugins/crawljob-intake/manifest.toml | Reads JDownloader \.crawljob files | the plugin's description names the format
+plugins/crawljob-intake/src/lib.rs | JDownloader `\.crawljob` intake parser | the format's name
+plugins/crawljob-intake/src/parse.rs | into a folder for JDownloader|JDownloader writes several links | how the format is written
+web/src/composables/nzbImportRequest.ts | JDownloader's `\.crawljob` | the import format's name
+web/src/composables/useFileImportLinks.test.ts | jdownloader\.crawljob | a `.crawljob` file name
+web/src/locales/*/common.json | "format_crawljob": "JDownloader \(\.crawljob\)" | the export format's label
+
+# Click'n'Load: the routes and answers hoster pages check for, and another program at its port.
+crates/rd-capture/src/cnl.rs | JDownloader parity|"JDownloader"|jdownloader=true|JDownloader-compatible | the Click'n'Load routes and their answers
+crates/rd-capture/src/cnl/tests.rs | JDownloader-compatible routes | the Click'n'Load routes
+crates/rd-capture/src/client/identity/tests.rs | "service":"JDownloader" | the Click'n'Load identity answer
+web/e2e/capture.e2e.mjs | === 'JDownloader' | the Click'n'Load identity answer
+crates/rd-capture/src/config.rs | or JDownloader | another program on the Click'n'Load port
+crates/rd-capture/src/main.rs | or JDownloader | another program on the Click'n'Load port
+scripts/linux/start-rdownloader.sh | or JDownloader | another program on the Click'n'Load port
+scripts/macos/start-rdownloader.command | or JDownloader | another program on the Click'n'Load port
+scripts/windows/start-rdownloader.bat | or JDownloader | another program on the Click'n'Load port
+
+# The guard itself.
+scripts/lib/public-names.py | (?i)jdownloader|\bJD\b | the guard names the word it looks for
+scripts/public-names-allow.txt | (?i)jdownloader|\bJD\b | this list
+scripts/tests/public-names.sh | (?i)jdownloader|\bJD\b | the guard's cases

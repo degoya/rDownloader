@@ -5,9 +5,10 @@ use super::*;
 impl LinkCheckService {
     /// Stores a failure on the candidate.
     ///
-    /// A candidate carries a plain message rather than a code, so the parameters a person
-    /// actually needs are folded into the text: an unknown SSH host key is useless without
-    /// the fingerprint to compare, which is public data, not a secret.
+    /// The code and its parameters travel with the message (RD-1250-03). A host key is the
+    /// exception: an unknown SSH host key is useless without the fingerprint to compare, which
+    /// is public data, not a secret, and no catalogue line names it, so it is folded into the
+    /// text.
     pub(super) async fn record_failure(
         &self,
         candidate: &LinkCandidate,

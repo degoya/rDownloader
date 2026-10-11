@@ -59,7 +59,7 @@ struct FreeInit {
     ip_ban: Option<IpBan>,
 }
 
-/// JDownloader reads `ipBan { delay, now }` off `free/init`; the measurement never saw one.
+/// `free/init` may carry `ipBan { delay, now }`; the measurement never saw one.
 #[derive(Debug, Deserialize)]
 struct IpBan {
     delay: Option<Count>,
@@ -248,7 +248,7 @@ pub fn ensure_free_allowed(brand: &Brand, info: &DownloadInfo) -> Result<(), Fai
 /// The direct link as the transfer may use it.
 ///
 /// The answer is not URL-encoded — a file name with a space arrives with the space — and
-/// JDownloader's `%` -> `%25` is what keeps a name containing a percent sign from being read as
+/// Encoding `%` as `%25` is what keeps a name containing a percent sign from being read as
 /// an escape. The host must be the site or one of its delivery subdomains: a link elsewhere is
 /// refused rather than followed.
 ///

@@ -52,6 +52,7 @@ async fn notification_deliveries_are_trimmed_per_rule_but_never_while_pending() 
                     event: NotificationEvent::PackageCompleted,
                     title: format!("Package {index}"),
                     body: "done".to_owned(),
+                    package_path: None,
                 })
                 .await
                 .expect("queue delivery"),
@@ -105,4 +106,93 @@ async fn notification_deliveries_are_trimmed_per_rule_but_never_while_pending() 
         ),
         "trimming a queued delivery would discard the notification, not just its record"
     );
+}
+
+/// RD-1250-01: a delivery keeps the folder of its package, and a retry after a restart -- the
+/// database opened again, the worker reading what is due -- names the same folder.
+#[tokio::test]
+async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
+    use rd_notify::{DeliveryState, NotificationEvent, Severity, TargetKind};
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = directory.path().join("notifications.sqlite");
+    let folder = "/srv/downloads/Holiday {2026}";
+    {
+        let database = Database::open(&path).await.expect("database");
+        let target = database
+            .upsert_notification_target(
+                None,
+                crate::NewNotificationTarget {
+                    name: "Jellyfin".to_owned(),
+                    kind: TargetKind::Plugin,
+                    enabled: true,
+                    endpoint: "https://jellyfin.example.test".to_owned(),
+                    config: serde_json::json!({}),
+                    secret_ref: None,
+                    clear_secret: false,
+                },
+            )
+            .await
+            .expect("target");
+        let rule = database
+            .upsert_notification_rule(
+                None,
+                crate::NewNotificationRule {
+                    name: "Finished".to_owned(),
+                    enabled: true,
+                    target_id: target.id,
+                    events: vec![NotificationEvent::PackageCompleted],
+                    category_id: None,
+                    min_severity: Severity::Info,
+                },
+            )
+            .await
+            .expect("rule");
+        for (key, package_path) in [("with", Some(folder.to_owned())), ("without", None)] {
+            database
+                .queue_notification_delivery(crate::NewDelivery {
+                    rule_id: rule.id,
+                    target_id: rule.target_id,
+                    idempotency_key: key.to_owned(),
+                    event: NotificationEvent::PackageCompleted,
+                    title: key.to_owned(),
+                    body: "done".to_owned(),
+                    package_path,
+                })
+                .await
+                .expect("queue delivery");
+        }
+        let first = database
+            .due_notification_deliveries(chrono::Utc::now())
+            .await
+            .expect("due");
+        for delivery in first {
+            database
+                .record_notification_attempt(
+                    delivery.id,
+                    DeliveryState::Retrying,
+                    1,
+                    Some(chrono::Utc::now()),
+                    Some(503),
+                    None,
+                )
+                .await
+                .expect("record attempt");
+        }
+        database.close().await.expect("close");
+    }
+
+    let database = Database::open(&path).await.expect("database again");
+    let due = database
+        .due_notification_deliveries(chrono::Utc::now() + chrono::Duration::seconds(1))
+        .await
+        .expect("due after the restart");
+    assert_eq!(due.len(), 2, "{due:?}");
+    let named = |key: &str| {
+        due.iter()
+            .find(|delivery| delivery.idempotency_key == key)
+            .map(|delivery| (delivery.attempt, delivery.package_path.clone()))
+    };
+    assert_eq!(named("with"), Some((1, Some(folder.to_owned()))));
+    assert_eq!(named("without"), Some((1, None)));
 }

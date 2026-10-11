@@ -202,6 +202,11 @@ pub async fn reannounce(
             Some(rd_torrent::TorrentErrorKind::RateLimited) => {
                 ApiError::too_many_requests("torrent.reannounce_rate_limited", message)
             }
+            // The engine did not start: another program holds its fixed port (RD-1250-04).
+            Some(rd_torrent::TorrentErrorKind::PortInUse) => {
+                let port = rd_torrent::port_in_use(&error).unwrap_or_default();
+                ApiError::conflict("torrent.port_in_use", message).with_param("port", port)
+            }
             // An engine failure is not "not active" either, but that is the answer this route
             // has always given for anything it could not place, and narrowing it is a separate
             // decision from removing the string match.

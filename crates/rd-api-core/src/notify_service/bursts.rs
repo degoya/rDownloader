@@ -117,6 +117,7 @@ impl NotificationService {
                     &burst.first_event_id,
                     &title,
                     &body,
+                    None,
                 )
                 .await
             {

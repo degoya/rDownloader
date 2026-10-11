@@ -1,7 +1,7 @@
 //! Debrid-Link resolver: Bearer-authenticated JSON API (`debrid-link.com/api/v2`), multihoster,
 //! premium API key only. `matches()` accepts any http(s) URL like `premiumize`/`alldebrid`;
-//! `resolve()` posts the link to `/downloader/add` (see `api.rs` for the full IMPL-VERIFY notes
-//! against JD's `DebridLinkCom.java`).
+//! `resolve()` posts the link to `/downloader/add` (see `api.rs` for the full IMPL-VERIFY
+//! notes).
 
 pub(crate) mod api;
 mod messages;

@@ -1,7 +1,7 @@
 //! One rule: what it claims, what it does, where the package name comes from, and what has
 //! to be true about it before it is allowed in.
 //!
-//! The shape follows what JDownloader's page decrypters carry once the Java is stripped
+//! The shape is what a page decrypter comes down to once its code is stripped
 //! away — an address pattern, a container, two regular expressions and a list of former
 //! domains — plus what this project needs to keep a rule honest: a real address to probe
 //! (RD-110-09) and the date the service was last measured alive.

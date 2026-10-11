@@ -55,6 +55,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   load: [page: number]
+  /** The group was folded: its hits are off screen. */
+  close: []
   more: []
   queue: [itemId: string]
   dismiss: [itemId: string]
@@ -71,6 +73,7 @@ const startPage = computed(() => (cards.value ? 1 : props.page))
 function toggle(): void {
   open.value = !open.value
   if (open.value) emit('load', startPage.value)
+  else emit('close')
 }
 
 function busy(itemId: string): boolean {

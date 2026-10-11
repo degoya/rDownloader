@@ -117,12 +117,15 @@ impl NotificationService {
     ///
     /// Separate from `rd_notify::send` because a plugin runs in the host's sandbox, which
     /// `rd-notify` deliberately knows nothing about. What comes back is the same `Attempt`,
-    /// so the retry policy above does not care which transport answered.
+    /// so the retry policy above does not care which transport answered. `package_path` is
+    /// the finished package's folder the delivery was queued with (RD-1250-01); only a plugin
+    /// destination is told it.
     async fn deliver_through_plugin(
         &self,
         target: &NotificationTarget,
         config: &TargetConfig,
         message: &Message,
+        package_path: Option<&str>,
     ) -> Attempt {
         let Some(plugin_id) = config.plugin_id.as_deref().filter(|id| !id.is_empty()) else {
             return Attempt::could_not_deliver("this destination names no plugin", false);
@@ -143,6 +146,7 @@ impl NotificationService {
             destination: &target.endpoint,
             secret_ref: target.secret_ref.as_deref(),
             settings: &settings,
+            package_path,
         };
         match self.notifiers().await.deliver(plugin_id, delivery).await {
             Some(Ok(())) => Attempt::succeeded(),
@@ -170,8 +174,11 @@ impl NotificationService {
                 "body": "This is a test notification from rDownloader."
             }),
         };
+        // A test names no package, so a media server refreshes its whole library.
         if target.kind == rd_notify::TargetKind::Plugin {
-            return self.deliver_through_plugin(target, &config, &message).await;
+            return self
+                .deliver_through_plugin(target, &config, &message, None)
+                .await;
         }
         if target.kind == rd_notify::TargetKind::WebPush {
             return self.deliver_web_push(&message, true).await;

@@ -45,7 +45,7 @@ pub struct ProbeResult {
 impl ProbeResult {
     /// Whether the response headers describe file content rather than a hoster page.
     ///
-    /// Mirrors JDownloader's `looksLikeDownloadableContent`: an explicit attachment always
+    /// An explicit attachment always
     /// counts, markup never does, and other text-ish types are only rejected while the
     /// payload is small enough to be an error page.
     #[must_use]

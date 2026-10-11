@@ -15,7 +15,7 @@ fn timer_start_accepts_the_answer_jd_expects() {
     assert_eq!(timer_start("  1\n"), TimerStart::Started);
 }
 
-/// The brief described the wait seconds as coming back from this call; JD reads them off the
+/// The brief described the wait seconds as coming back from this call; they are read off the
 /// file page instead. A numeric answer is still honoured, so a drifted site keeps working.
 #[test]
 fn timer_start_accepts_a_numeric_answer_as_a_countdown() {

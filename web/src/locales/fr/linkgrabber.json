@@ -480,7 +480,10 @@
       "play": "Reprendre le défilement automatique",
       "close_details": "Fermer les détails",
       "details_title": "Détails"
-    }
+    },
+    "held_title": "{count} résultat de plus | {count} résultats de plus",
+    "held_description": "La liste ne bouge pas pendant qu'on y travaille.",
+    "show_held": "Afficher"
   },
   "notices": {
     "reorder_filter_active": "L’ordre ne peut être modifié que sans filtre actif : les liens masqués seraient sinon mal classés."

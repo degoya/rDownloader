@@ -191,7 +191,7 @@ async fn file_info_status<H: PluginHost>(
 
 /// `GET file/info` for `resolve`, which cannot hand an offline file back: the refusal travels
 /// in the class it was given — an HTTP 404 or 410 final (owner, 2026-10-04), the API's own
-/// `status` 404 `Offline` as JD reads it.
+/// `status` 404 `Offline`.
 async fn file_info<H: PluginHost>(
     host: &H,
     token: &str,
@@ -222,7 +222,7 @@ async fn download_url<H: PluginHost>(
 
 /// `GET {API_BASE}/{path}?{query}`, decoding the `{"response":..,"status":..,"details":..}`
 /// envelope and classifying any error. Falls back to a bare HTTP-status classification when the
-/// body is not the expected JSON shape at all. `trust_404` is JD's `trustError404`.
+/// body is not the expected JSON shape at all. `trust_404` — see `api::classify_status`.
 async fn api_call<H: PluginHost, T: DeserializeOwned>(
     host: &H,
     path: &str,

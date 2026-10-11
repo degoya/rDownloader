@@ -19,6 +19,8 @@ wit_bindgen::generate!({
     export_macro_name: "export_notifier",
 });
 
+pub mod media_path;
+
 pub use exports::rdownloader::plugin::notifier::{Guest, Notification};
 pub use rdownloader::plugin::{destination_settings, host, http, types};
 

@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.24.0"
+    "version": "1.25.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -8120,11 +8120,11 @@
         },
         "responses": {
           "200": {
-            "description": "`affected` counts the files that resolve anew at their next start; each refusal is coded",
+            "description": "`affected` counts the files that resolve anew; with `check_now`, `resolved` and `failed` count what resolving them now found and `results` names it per file; each refusal is coded",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DownloadBulkResponse"
+                  "$ref": "#/components/schemas/ReresolveResponse"
                 }
               }
             }
@@ -15665,7 +15665,7 @@
             }
           },
           "409": {
-            "description": "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`)"
+            "description": "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`; `torrent.port_in_use` when another program holds the fixed listen port)"
           }
         }
       }
@@ -17802,7 +17802,7 @@
         "tags": [
           "subscriptions"
         ],
-        "summary": "Sets every item that was pending when this request started.",
+        "summary": "Sets every item that was pending when this request started, or the named ones of them, or\nthose found up to a watermark.",
         "operationId": "set_pending_subscription_items_state",
         "parameters": [
           {
@@ -17818,7 +17818,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SubscriptionItemStateRequest"
+                "$ref": "#/components/schemas/SubscriptionPendingStateRequest"
               }
             }
           },
@@ -30429,6 +30429,10 @@
             ],
             "description": "Stable code for `error`, translated by the interface as `server.codes.<code>`.\n\nThe text stays beside it as the English fallback, for a row written before the code\nexisted and for a message a plugin worded itself. A candidate that carries no code\nreaches the reader as that text, exactly as every candidate used to."
           },
+          "error_params": {
+            "$ref": "#/components/schemas/BTreeMap",
+            "description": "The parameters `error_code` is translated with, redacted (RD-1250-03): the cause in\n`{detail}` of `media.ytdlp_failed`, for one. Empty for a code that takes none and for a\nrow written before the column existed, which the interface then shows as `error`."
+          },
           "file_name": {
             "type": [
               "string",
@@ -32000,6 +32004,13 @@
             "type": "string",
             "format": "uri"
           },
+          "playlist_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The title of the playlist or channel the probe listed this entry from, its channel\nwhere the listing has no title (RD-1250-03). The LinkGrabber names the entry's package\nafter it; `None` for a single page."
+          },
           "selected": {
             "type": "string",
             "description": "Id of the selected variant (defaults to the configured preference)."
@@ -32903,7 +32914,8 @@
         "description": "One setting a notification destination offers.",
         "required": [
           "name",
-          "choices"
+          "choices",
+          "multiline"
         ],
         "properties": {
           "choices": {
@@ -32911,7 +32923,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Every value the setting accepts, in the order to offer them."
+            "description": "Every value the setting accepts, in the order to offer them. Empty: the setting is free\ntext (RD-1250-01), at most 256 characters on one line, or 4096 when `multiline`, without\ncontrol characters but line breaks."
           },
           "default": {
             "type": [
@@ -32919,6 +32931,10 @@
               "null"
             ],
             "description": "What applies while the target leaves the setting alone; absent means it may stay unset."
+          },
+          "multiline": {
+            "type": "boolean",
+            "description": "Free text only: whether it holds several lines, one entry each."
           },
           "name": {
             "type": "string",
@@ -37782,6 +37798,10 @@
         "type": "object",
         "description": "Downloads to resolve again with the plugin installed now: any mix of single downloads and\nwhole packages.",
         "properties": {
+          "check_now": {
+            "type": "boolean",
+            "description": "Resolve the files now, without downloading them, and write back the size, the name and\nany failure (RD-1250-05). Off: they resolve at their next start, as before."
+          },
           "ids": {
             "type": "array",
             "items": {
@@ -37796,6 +37816,115 @@
           }
         },
         "additionalProperties": false
+      },
+      "ReresolveResponse": {
+        "type": "object",
+        "description": "The answer to a re-resolve: the bulk answer's counts and refusals and, with `check_now`,\nwhat resolving each file now found.",
+        "required": [
+          "affected",
+          "errors",
+          "refusals",
+          "resolved",
+          "failed",
+          "skipped",
+          "results"
+        ],
+        "properties": {
+          "affected": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Files that resolve anew with the plugin installed now.",
+            "minimum": 0
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32",
+            "description": "With `check_now`: files whose resolution failed or found them offline.",
+            "minimum": 0
+          },
+          "refusals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageResponse"
+            },
+            "description": "The same refusals as `errors`, coded and in the same order."
+          },
+          "resolved": {
+            "type": "integer",
+            "format": "int32",
+            "description": "With `check_now`: files that resolved, online or held in a provider's cache.",
+            "minimum": 0
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReresolveResult"
+            },
+            "description": "With `check_now`: one entry per file that was resolved now, in request order. Files of\na kind with no resolver step (Usenet, torrents, media, remote folders) are not listed."
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int32",
+            "description": "With `check_now`: hoster links without an account, which are not resolved ahead because\nthat would run the hoster's free flow (owner, 2026-10-11); they resolve at their start.",
+            "minimum": 0
+          }
+        }
+      },
+      "ReresolveResult": {
+        "type": "object",
+        "description": "What resolving one file now found.",
+        "required": [
+          "download_id",
+          "status",
+          "skipped"
+        ],
+        "properties": {
+          "download_id": {
+            "$ref": "#/components/schemas/DownloadId"
+          },
+          "failure": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Failure",
+                "description": "Why the file did not resolve, coded like a download's last error."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "file_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name the resolver or the server declared, as written to the file."
+          },
+          "skipped": {
+            "type": "boolean",
+            "description": "Not resolved ahead: a hoster link without an account (`download.resolve_skipped_free`\nin `failure`). Nothing was asked of the hoster and nothing written."
+          },
+          "status": {
+            "$ref": "#/components/schemas/LinkStatus"
+          },
+          "total_bytes": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ByteCount",
+                "description": "The size the resolver or the server reported."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
       },
       "ResolveCollectorPickRequest": {
         "type": "object",
@@ -42924,6 +43053,14 @@
               "$ref": "#/components/schemas/SubscriptionItem"
             }
           },
+          "newest_discovered_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the newest row of the selected state filter was found, whatever the page: the\nwatermark a decision about \"all of this list\" sends as `until` (RD-1250-13). `None` for an\nempty filter."
+          },
           "run_total": {
             "type": "integer",
             "format": "int64",
@@ -42980,6 +43117,36 @@
           "review",
           "auto_queue"
         ]
+      },
+      "SubscriptionPendingStateRequest": {
+        "type": "object",
+        "description": "Body of the decision about a subscription's pending items.",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "item_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionItemId"
+            },
+            "description": "Only these items, of those still pending in the subscription of the path (RD-1250-13): a\nselection. An id that is not pending there is left out of `matched`. Without it and\n`until`, every item pending when the request starts."
+          },
+          "state": {
+            "$ref": "#/components/schemas/SubscriptionItemState"
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of the\nlist as the reader last saw it drawn — every page of it, but no hit that arrived after.\nCombines with `item_ids`."
+          }
+        }
       },
       "SubscriptionRequest": {
         "type": "object",
@@ -43174,6 +43341,14 @@
           "pending"
         ],
         "properties": {
+          "newest_discovered_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the newest pending item was found: the watermark of the counted hits (RD-1250-13)."
+          },
           "pending": {
             "type": "integer",
             "format": "int64",
@@ -44351,6 +44526,15 @@
             ],
             "description": "Why the configured proxy could not be resolved, if it could not."
           },
+          "port_in_use": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The fixed listen port of the settings when another program holds it, so the engine does\nnot listen there (`torrent.port_in_use`, RD-1250-04).",
+            "minimum": 0
+          },
           "session_generation": {
             "type": "integer",
             "format": "int64",
@@ -44587,6 +44771,15 @@
           "peer_proxy_configured": {
             "type": "boolean",
             "description": "Whether outgoing peer connections go through a SOCKS5 proxy; incoming ones never do."
+          },
+          "port_in_use": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The fixed listen port another program holds, so the engine does not listen there\n(`torrent.port_in_use`, RD-1250-04): the session did not start, or a rebuild onto it was\nrefused and the engine runs on its previous port.",
+            "minimum": 0
           },
           "tested_at": {
             "type": "string",

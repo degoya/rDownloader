@@ -94,11 +94,25 @@ pub(crate) struct SubscriptionSwitchParams {
 
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct ReviewParams {
-    /// For review_subscription_item the item id from list_subscription_items; for
-    /// review_pending_subscription_items the subscription id from list_subscriptions.
+    /// The item, as list_subscription_items reports it.
     pub id: String,
     /// `queued` hands the hit to the LinkGrabber; `dismissed` sets it aside.
     pub state: String,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct PendingReviewParams {
+    /// The subscription, as list_subscriptions reports it.
+    pub id: String,
+    /// `queued` hands the hits to the LinkGrabber; `dismissed` sets them aside.
+    pub state: String,
+    /// Only these of its pending items, as list_subscription_items reports them.
+    #[serde(default)]
+    pub item_ids: Option<Vec<String>>,
+    /// Only items found at or before this RFC 3339 moment: the newest_discovered_at that
+    /// list_subscription_items reported, so hits found after that read stay pending.
+    #[serde(default)]
+    pub until: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]

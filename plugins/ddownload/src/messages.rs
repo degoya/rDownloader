@@ -132,8 +132,8 @@ pub(crate) const NO_FREE_FORM: &str = "ddownload.no_free_form";
 pub(crate) const NO_FREE_LINK: &str = "ddownload.no_free_link";
 
 /// This IP may not start another free download yet; carries `wait_seconds` when the page stated
-/// one. Mirrors the `ERROR_IP_BLOCKED` handling in JD's `XFileSharingProBasic.checkErrors`, which
-/// `DdownloadCom.checkErrors` delegates to unchanged (it only adds HTTP 429/500 handling).
+/// one. The stock XFS IP-block handling, unchanged for ddownload (which only adds HTTP 429/500
+/// handling).
 pub(crate) const FREE_LIMIT_REACHED: &str = "ddownload.free_limit_reached";
 
 /// The hoster rejected the captcha answer even after a fresh challenge.

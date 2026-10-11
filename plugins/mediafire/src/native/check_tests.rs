@@ -57,7 +57,7 @@ async fn a_batch_maps_found_skipped_and_unparsable_links() {
     );
 }
 
-/// The API's own limit is 500 keys, JD's 100; a check of more is split.
+/// The API's own limit is 500 keys, this plugin's 100; a check of more is split.
 #[tokio::test]
 async fn more_than_a_hundred_keys_are_split_into_calls_of_a_hundred() {
     let urls: Vec<String> = (0..150)

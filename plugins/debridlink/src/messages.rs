@@ -14,8 +14,8 @@ pub(crate) const ACCOUNT_MISSING: (&str, &str) = (
     "Debrid-Link account is missing",
 );
 
-/// Debrid-Link's `requestFileInformation` reports `AvailableStatus.UNCHECKABLE` (JD never queries
-/// a batch link-status endpoint), so `check()` is not implemented. The native `Resolver` trait
+/// Debrid-Link has no batch link-status endpoint to query, so links are uncheckable and
+/// `check()` is not implemented. The native `Resolver` trait
 /// (`rd_plugin_api::Resolver::check`) has a default that reports exactly this `(code, message)`
 /// pair; the WIT `Guest` trait has no such default (every export must be implemented), so
 /// `guest.rs` reproduces it explicitly via this constant instead of a hand-copied literal that
@@ -40,8 +40,8 @@ pub(crate) const FILE_OFFLINE: (&str, &str) = (
     "Debrid-Link file is not available",
 );
 
-/// API responded `notDebrid`/`hostNotValid`/`notFreeHost`: JD's `downloadErrorsHostUnavailable`
-/// bucket, handled with a 5-minute link retry (`MultiHosterManagement#putError`), not a permanent
+/// API responded `notDebrid`/`hostNotValid`/`notFreeHost`: the host-unavailable bucket,
+/// handled with a 5-minute link retry, not a permanent
 /// capability gap — see `api.rs`'s IMPL-VERIFY note on why this is `Transient`, not `Unsupported`.
 pub(crate) const HOST_UNSUPPORTED: (&str, &str) = (
     "debridlink.host_unsupported",
@@ -49,8 +49,8 @@ pub(crate) const HOST_UNSUPPORTED: (&str, &str) = (
 );
 
 /// API responded `freeServerOverload`/`serverNotAllowed`/`maintenanceHost`/`noServerHost`/
-/// `disabledServerHost`/`accountLocked`: JD's remaining `downloadErrorsHostUnavailable` and
-/// `accountErrorsTemporary` members, all handled with the same 5-minute retry.
+/// `disabledServerHost`/`accountLocked`: the remaining host-unavailable and temporary account
+/// errors, all handled with the same 5-minute retry.
 pub(crate) const SERVER_BUSY: (&str, &str) = (
     "debridlink.server_busy",
     "Debrid-Link server is temporarily busy",

@@ -43,6 +43,8 @@ pub(crate) struct CandidateRow {
     route_json: Option<String>,
     error: Option<String>,
     error_code: Option<String>,
+    /// The message's parameters as a JSON object (RD-1250-03); `NULL` when it has none.
+    error_params_json: Option<String>,
     package_id: Option<String>,
     position: i64,
     checked_at: Option<DateTime<Utc>>,
@@ -103,6 +105,20 @@ impl TryFrom<CandidateRow> for LinkCandidate {
                 .transpose()?,
             error: row.error,
             error_code: row.error_code,
+            // Like the enrichment: parameters that no longer parse cost the translation, which
+            // then falls back to `error`, never the link.
+            error_params: row
+                .error_params_json
+                .as_deref()
+                .and_then(|value| {
+                    crate::json_column::lenient(
+                        serde_json::from_str(value),
+                        "link_candidates",
+                        "error_params_json",
+                        &row.id,
+                    )
+                })
+                .unwrap_or_default(),
             package_id: row.package_id.as_deref().map(parse_id).transpose()?,
             position: row.position,
             checked_at: row.checked_at,
@@ -203,7 +219,7 @@ impl TryFrom<CandidateRow> for LinkCandidate {
 /// The columns a `CandidateRow` reads, once for both queries (DB-12).
 macro_rules! candidate_columns {
     () => {
-        "id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json, hidden_by_filter"
+        "id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, error_params_json, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json, hidden_by_filter"
     };
 }
 

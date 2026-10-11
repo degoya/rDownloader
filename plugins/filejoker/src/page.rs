@@ -1,14 +1,13 @@
 //! Thin wrapper binding `xfs-common`'s generalized XFS page helpers to FileJoker's own
 //! parameterization, plus FileJoker-specific parsers not generalized into `xfs-common` (mirrors
-//! `plugins/katfile/src/page.rs`'s pattern for `KatfileCom`-specific overrides, adapted here since
-//! no JD source exists at all — see `native/api.rs`'s module doc for the verification record
+//! `plugins/katfile/src/page.rs`'s pattern for KatFile-specific overrides, adapted here since
+//! no reference exists at all — see `native/api.rs`'s module doc for the verification record
 //! behind every marker below).
 
 //!
 //! The account-less (free) flow's wrappers were added on top of that, mirroring
-//! `plugins/katfile/src/page.rs`. IMPL-VERIFY (still **no JD reference**: `FileJoker*.java` is
-//! absent from `mycodedoesnotcompile2/jdownloader_mirror`'s `svn_trunk` — re-confirmed 2026-09-02
-//! for `FileJokerNet.java`, `FilejokerNet.java` and `FileJoker.java`, all 404), verified instead
+//! `plugins/katfile/src/page.rs`. IMPL-VERIFY (still **no reference**, re-confirmed
+//! 2026-09-02), verified instead
 //! against `mcrapet/plowshare-modules-legacy`'s `filejoker.sh`, which implements the free flow in
 //! full (`filejoker_download`, the branch taken when the account is not premium):
 //! - **Two-step form flow**: the file page carries a first form (named `F22`) with

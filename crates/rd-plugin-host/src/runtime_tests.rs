@@ -5,7 +5,7 @@ fn manifest(plugin_type: &str) -> crate::PluginManifest {
         r#"
             manifest_version = 3
             plugin_type = "{plugin_type}"
-            api_version = "0.10.0"
+            api_version = "0.11.0"
             id = "11111111-1111-4111-8111-111111111111"
             name = "Demo"
             version = "0.1.0"

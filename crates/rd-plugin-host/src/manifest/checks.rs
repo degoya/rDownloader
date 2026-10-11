@@ -9,7 +9,7 @@ use super::{
     CredentialKindManifest, CredentialModeManifest, MAX_AUTHOR_CHARS, MAX_DESCRIPTION_CHARS,
     MAX_LICENSE_CHARS, MAX_SLUG_CHARS, MAX_URL_CHARS, MIN_SLUG_CHARS, PluginMetadata,
     ProviderKindManifest, ProviderManifest, SecretFilledByManifest, SecretSlotManifest,
-    SettingManifest, TransferAuthManifest,
+    TransferAuthManifest,
 };
 
 pub(super) fn validate_metadata(metadata: &PluginMetadata) -> Result<()> {
@@ -302,48 +302,6 @@ fn validate_oauth_or_api_key(slots: &[SecretSlotManifest]) -> Result<()> {
         bail!(
             "provider.credentials = \"oauth_or_api_key\" needs oauth entries, each with filled_by = \"flow\""
         );
-    }
-    Ok(())
-}
-
-/// Most settings one destination declares, and most values one setting offers.
-const MAX_SETTINGS: usize = 16;
-const MAX_SETTING_CHOICES: usize = 32;
-
-/// `[[extension.settings]]`: names that can be a key and a code, values that can be offered.
-pub(super) fn validate_settings(settings: &[SettingManifest]) -> Result<()> {
-    if settings.len() > MAX_SETTINGS {
-        bail!("extension.settings declares more than {MAX_SETTINGS} settings");
-    }
-    let mut names = Vec::new();
-    for setting in settings {
-        let name = setting.name.as_str();
-        if name.is_empty()
-            || name.len() > MAX_SLUG_CHARS
-            || !name
-                .bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
-        {
-            bail!("extension.settings name `{name}` must be 1-{MAX_SLUG_CHARS} of a-z, 0-9 and _");
-        }
-        if names.contains(&name) {
-            bail!("extension.settings declares `{name}` twice");
-        }
-        names.push(name);
-        if setting.choices.is_empty() || setting.choices.len() > MAX_SETTING_CHOICES {
-            bail!("extension.settings `{name}` needs 1-{MAX_SETTING_CHOICES} choices");
-        }
-        for (index, choice) in setting.choices.iter().enumerate() {
-            bounded_text("extension.settings choice", choice, MAX_SLUG_CHARS)?;
-            if choice.trim() != choice || setting.choices[..index].contains(choice) {
-                bail!("extension.settings `{name}` offers `{choice}` badly or twice");
-            }
-        }
-        if let Some(default) = &setting.default
-            && !setting.choices.contains(default)
-        {
-            bail!("extension.settings `{name}` defaults to `{default}`, which it does not offer");
-        }
     }
     Ok(())
 }

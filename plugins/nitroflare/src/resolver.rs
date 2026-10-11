@@ -27,7 +27,7 @@ const ACCOUNT_SECRET: SecretSlot = SecretSlot {
     missing: messages::PREMIUM_KEY_MISSING,
 };
 
-/// JD batches at most 100 file ids per `getFileInfo` call (`NitroFlareCom#checkLinks`).
+/// At most 100 file ids per `getFileInfo` call.
 const FILE_INFO_BATCH_SIZE: usize = 100;
 
 /// Whether this plugin claims `url`.
@@ -147,8 +147,7 @@ fn check_result(
             entry.name.clone(),
             entry.size.clone().and_then(api::FlexibleU64::into_u64),
         ),
-        // A missing entry and a present-but-not-online status both mean unavailable, exactly as
-        // JD treats them.
+        // A missing entry and a present-but-not-online status both mean unavailable.
         _ => LinkCheck::offline(url),
     }
 }
@@ -191,7 +190,7 @@ async fn file_info_batch<H: PluginHost>(
 }
 
 /// Availability and metadata for one file. A missing entry and a non-`"online"` status both
-/// report `nitroflare.file_offline`, the way JD treats them.
+/// report `nitroflare.file_offline`.
 async fn file_info_one<H: PluginHost>(host: &H, file_id: &str) -> Result<api::FileEntry, Failure> {
     let mut files = file_info_batch(host, &[file_id]).await?;
     let entry = files

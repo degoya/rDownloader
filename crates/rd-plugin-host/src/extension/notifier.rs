@@ -51,7 +51,8 @@ impl NotifierPlugin {
 
     /// Whether a target's settings are ones this destination offers, asked when the target
     /// is saved (RD-170-09): every name declared in the manifest, every value one of its
-    /// choices. An empty value leaves the setting at its default.
+    /// choices or, for a free-text setting, text within the host's rule (RD-1250-01). An empty
+    /// value leaves the setting at its default.
     pub fn check_settings(&self, settings: &[(String, String)]) -> Result<(), Failure> {
         check_settings(self.declared_settings(), settings)
     }
@@ -105,6 +106,8 @@ impl NotifierPlugin {
             idempotency_key: foreign(message.idempotency_key),
             destination: message.destination.to_owned(),
             has_secret: message.secret_ref.is_some(),
+            // Its last segments are a package name, so foreign like the title (RD-1250-01).
+            package_path: message.package_path.map(foreign),
         };
         instance
             .rdownloader_plugin_notifier()
@@ -132,6 +135,8 @@ pub struct Delivery<'a> {
     /// The target's settings as stored (RD-170-09), name and value. Resolved against the
     /// manifest before the plugin runs, so a name it does not declare never reaches it.
     pub settings: &'a [(String, String)],
+    /// The folder of the finished package, for `package_completed` only (RD-1250-01).
+    pub package_path: Option<&'a str>,
 }
 
 /// `destination-settings`: the settings of the target this delivery goes to, and nothing else.
@@ -176,7 +181,8 @@ pub fn settings_from_config(config: &serde_json::Value) -> Result<Vec<(String, S
         .collect()
 }
 
-/// Whether every chosen setting is one the manifest declares, with a value it offers.
+/// Whether every chosen setting is one the manifest declares, with a value it offers or, for
+/// free text, one within the host's rule (RD-1250-01).
 fn check_settings(
     declared: &[SettingManifest],
     chosen: &[(String, String)],
@@ -189,20 +195,29 @@ fn check_settings(
                 "This notification destination has no setting of that name",
             ));
         };
-        if !value.is_empty() && !setting.choices.contains(value) {
+        if value.is_empty() || setting.accepts(value) {
+            continue;
+        }
+        if setting.is_free_text() {
             return Err(Failure::coded(
                 FailureKind::Permanent,
-                "plugin.setting_invalid",
-                "A setting of this notification target has a value its destination does not offer",
+                "plugin.setting_text_invalid",
+                "A text setting of this notification target is too long or holds a character it does not take",
             ));
         }
+        return Err(Failure::coded(
+            FailureKind::Permanent,
+            "plugin.setting_invalid",
+            "A setting of this notification target has a value its destination does not offer",
+        ));
     }
     Ok(())
 }
 
 /// What the plugin is told for each setting its manifest declares: the stored value when it is
-/// one of the choices, else the default. A value the manifest stopped offering after the target
-/// was saved -- a newer version of the plugin -- falls back rather than failing the delivery.
+/// one the setting accepts, else the default. A value the manifest stopped offering after the
+/// target was saved -- a newer version of the plugin -- falls back rather than failing the
+/// delivery, and so does free text left empty.
 fn resolve_settings(
     declared: &[SettingManifest],
     chosen: &[(String, String)],
@@ -212,7 +227,9 @@ fn resolve_settings(
         .filter_map(|setting| {
             let stored = chosen
                 .iter()
-                .find(|(name, value)| *name == setting.name && setting.choices.contains(value))
+                .find(|(name, value)| {
+                    *name == setting.name && !value.is_empty() && setting.accepts(value)
+                })
                 .map(|(_, value)| value.clone());
             stored
                 .or_else(|| setting.default.clone())

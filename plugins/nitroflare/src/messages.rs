@@ -47,7 +47,7 @@ pub(crate) const CAPTCHA_REQUIRED: (&str, &str) = (
     "Nitroflare requires solving a captcha to continue using the API",
 );
 
-/// API responded with error code `6` ("invalid captcha"). JD only reaches this after submitting
+/// API responded with error code `6` ("invalid captcha"), which comes only after submitting
 /// a captcha solution, which this plugin never does; kept distinct from `CAPTCHA_REQUIRED`
 /// because the provider's own wording distinguishes "required" from "invalid".
 pub(crate) const CAPTCHA_INVALID: (&str, &str) = (
@@ -78,7 +78,7 @@ pub(crate) const NO_DOWNLOAD_URL: (&str, &str) = (
 // --- account-less (free) website flow ---------------------------------------------------------
 
 /// The file page carried no reCAPTCHA site key, so the free flow has nothing to solve; carries a
-/// `diagnosis`. An absent countdown is *not* an error — JD falls back to 60 seconds
+/// `diagnosis`. An absent countdown is *not* an error — the flow falls back to 60 seconds
 /// (`crate::page::DEFAULT_WAIT_SECONDS`).
 pub(crate) const NO_FREE_MARKERS: &str = "nitroflare.no_free_markers";
 
@@ -91,11 +91,11 @@ pub(crate) const NO_FREE_LINK: &str = "nitroflare.no_free_link";
 pub(crate) const FREE_LINK_HOST_MISMATCH: &str = "nitroflare.free_link_host_mismatch";
 
 /// This IP may not start another free download yet; carries `wait_seconds` when the page stated
-/// one. Mirrors the `ERROR_IP_BLOCKED` branches of JD's `handleErrors`.
+/// one. Covers every IP-block notice the website shows.
 pub(crate) const FREE_LIMIT_REACHED: &str = "nitroflare.free_limit_reached";
 
-/// `POST /ajax/freeDownload.php method=startTimer` did not answer `1`; carries the `answer`. JD
-/// treats this as a plugin defect after re-checking for a known error first.
+/// `POST /ajax/freeDownload.php method=startTimer` did not answer `1`; carries the `answer`.
+/// Reported after re-checking the answer for a known error first.
 pub(crate) const TIMER_NOT_STARTED: &str = "nitroflare.timer_not_started";
 
 /// The hoster rejected the captcha answer ("The captcha wasn't entered correctly" / "You have to

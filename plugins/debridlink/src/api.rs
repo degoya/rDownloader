@@ -4,54 +4,51 @@
 //! `wit-bindgen`'s generated types are used here, only `serde`/`serde_json`/`url`, which are
 //! available on every target.
 //!
-//! IMPL-VERIFY (against JD's `DebridLinkCom.java`, the living reference; the task brief's URL is
-//! correct at `svn_trunk/src/jd/plugins/hoster/DebridLinkCom.java`):
+//! IMPL-VERIFY (against the provider's error list, `https://debrid-link.com/api_doc/v2/errors`,
+//! and the known handling of this API):
 //!
-//! - **Auth flavor**: JD authenticates with OAuth2 (device-code flow, `POST /api/oauth/token`,
-//!   `Authorization: Bearer <access_token>`); it never uses a personal API key. Debrid-Link does
-//!   offer personal API keys (`debrid-link.com/webapp/apikey`, referenced by the task brief), and
-//!   JD's own error message for `badToken` reads "For token/key auth, you must create a new one"
-//!   — confirming the *same* `Authorization: Bearer <token>` header accepts a personal API key,
-//!   the API just does not distinguish the two token flavors at the header level. This plugin
+//! - **Auth flavor**: the API's sign-in is OAuth2 (device-code flow, `POST /api/oauth/token`,
+//!   `Authorization: Bearer <access_token>`). Debrid-Link also offers personal API keys
+//!   (`debrid-link.com/webapp/apikey`, referenced by the task brief), and the error text for
+//!   `badToken` reads "For token/key auth, you must create a new one" — suggesting the *same*
+//!   `Authorization: Bearer <token>` header accepts a personal API key, the API just does not
+//!   distinguish the two token flavors at the header level. This plugin
 //!   sends `Authorization: Bearer {{secret:debridlink_api_key}}` per the brief; unverified beyond
 //!   that inference — flag for live testing.
 //! - **Resolve endpoint**: `POST /api/v2/downloader/add` with an `application/x-www-form-urlencoded`
-//!   body (`url=`), matching the brief. JD only reads `value.chunk` and `value.downloadUrl` from
-//!   the response — it never reads a `name`/`size` field, so whether the API actually returns
-//!   them is unverified from JD alone; both are modeled here as optional and simply left `None`
-//!   if absent, same risk profile as leaving them out.
+//!   body (`url=`), matching the brief. Only `value.chunk` and `value.downloadUrl` are known to
+//!   be in the response — whether it also carries a `name`/`size` field is unverified; both are
+//!   modeled here as optional and simply left `None` if absent, same risk profile as leaving
+//!   them out.
 //! - **Account endpoint**: `GET /api/v2/account/infos` returns `value.accountType` (`0` = free,
 //!   `1` = premium, `2` = lifetime), `value.premiumLeft` (seconds, `accountType == 1` only) and
-//!   `value.email` (JD sets it as the account's username label). JD never reads a `pseudo` field;
+//!   `value.email` (usable as the account's username label). A `pseudo` field is unverified;
 //!   it is modeled here as optional per the brief and preferred over `email` when present, same
 //!   fallback risk as `name`/`size` above.
-//! - **Hosters endpoint**: `GET /api/v2/downloader/hosts?keys=status,isFree,name,domains` (JD's
-//!   `fetchAccountInfo`), **not** `/downloader/domains` as the brief first guessed. `value` is a
+//! - **Hosters endpoint**: `GET /api/v2/downloader/hosts?keys=status,isFree,name,domains`,
+//!   **not** `/downloader/domains` as the brief first guessed. `value` is a
 //!   JSON *array* of `{name, status, isFree, domains}` objects, not a domain-keyed map.
 //! - **Error envelope**: `{"success": bool, "error": "<key>", "value": ...}` — `error` is a bare
 //!   string key with no accompanying provider message (unlike AllDebrid's `{code, message}`
-//!   pair); friendly text comes from JD's own static `errorKeyToMessageMap`, not the response.
-//! - **Error classification deviates from the brief in two places**, both because JD's actual
-//!   `errHandling` buckets contradict it (see `classify_error` for the full mapping and
-//!   per-bucket JD line references):
-//!   1. `notDebrid`/`hostNotValid`/`notFreeHost` are brief-classified `Unsupported`, but JD's
-//!      `downloadErrorsHostUnavailable` set treats all nine of its members (these three plus
+//!   pair); friendly text comes from this plugin's own messages, not the response.
+//! - **Error classification deviates from the brief in two places**, both because the error
+//!   keys' known meaning contradicts it (see `classify_error` for the full mapping):
+//!   1. `notDebrid`/`hostNotValid`/`notFreeHost` are brief-classified `Unsupported`, but they
+//!      belong to one host-unavailable group of nine (these three plus
 //!      `maintenanceHost`/`noServerHost`/`disabledServerHost`/`freeServerOverload`, which the
-//!      brief omitted) identically: a 5-minute link-level retry (`mhm.putError`), not a permanent
+//!      brief omitted) that all mean the same: a 5-minute link-level retry, not a permanent
 //!      capability gap. `debridlink.host_unsupported` keeps the brief's message/code (still useful
 //!      to tell "this host" apart from "the server"), but is mapped `Transient{300}`.
-//!   2. `floodDetected`'s own JD message text reads "API rate limit reached for the endpoint,
-//!      retry after 1 hour", contradicting the brief's `RateLimited{600}` — even though JD's
-//!      *code* enforces a flat 5-minute account pause for the whole `accountErrorsTemporary`
-//!      bucket (a JD-internal scheduling detail, not the provider's documented reset window).
-//!      This plugin follows the documented 1-hour reset: `RateLimited{3600}`.
+//!   2. `floodDetected`'s own message text reads "API rate limit reached for the endpoint,
+//!      retry after 1 hour", contradicting the brief's `RateLimited{600}`. This plugin follows
+//!      the documented 1-hour reset: `RateLimited{3600}`.
 //!
-//!   `noLink`/`authorization`, named in the brief, do not appear in JD's `errorKeyToMessageMap` at
+//!   `noLink`/`authorization`, named in the brief, are not known error keys at
 //!   all and are dropped; they fall through to the generic `debridlink.api_error` bucket like any
 //!   other unrecognized key. `accountLocked`/`maintenanceHost`/`noServerHost`/`disabledServerHost`
-//!   are JD-verified siblings of codes the brief did name and are added to the matching buckets
-//!   for parity with JD's own grouping. `badFileUrl`/`badFilePassword`/`fileNotAvailable`
-//!   (JD's `downloadErrorsFileUnavailable`) and `hidedToken` are outside the brief's scope and are
+//!   are verified siblings of codes the brief did name and are added to the matching buckets.
+//!   `badFileUrl`/`badFilePassword`/`fileNotAvailable` (the file-unavailable group) and
+//!   `hidedToken` are outside the brief's scope and are
 //!   intentionally left in the generic fallback bucket rather than growing the code surface
 //!   further; they still surface with their raw key via `api_code`.
 
@@ -145,7 +142,7 @@ pub(crate) fn merge_hosters(entries: Vec<HostEntry>) -> Vec<String> {
 }
 
 /// `true` for `accountType` `1` (premium) or `2` (lifetime); `false` for `0` (free) or an
-/// unrecognized value (mirrors JD's `default:` branch treating unknown types as non-premium).
+/// unrecognized value (an unknown type counts as non-premium).
 pub(crate) fn is_premium(account_type: Option<u8>) -> bool {
     matches!(account_type, Some(1) | Some(2))
 }
@@ -164,20 +161,20 @@ pub(crate) fn account_name<'a>(pseudo: Option<&'a str>, email: Option<&'a str>) 
 /// `debridlink.host_unsupported`).
 ///
 /// Classifies a `{"success":false,"error":"<key>"}` envelope by the provider's error key. Every
-/// branch mirrors JDownloader's `DebridLinkCom#errHandling` (`https://debrid-link.com/api_doc/v2/errors`)
+/// branch follows the provider's error list (`https://debrid-link.com/api_doc/v2/errors`)
 /// — see `api.rs`'s module-level IMPL-VERIFY note for the two documented deviations from the task
 /// brief.
 fn classify_error(code: &str) -> ApiFailure {
     match code {
-        // JD's `accountErrorsPermanent`.
+        // Permanent account errors.
         "badToken" => {
             ApiFailure::with_api_code(ErrorKind::AccountInvalid, messages::AUTH_INVALID, code)
         }
         "fileNotFound" => {
             ApiFailure::with_api_code(ErrorKind::Offline, messages::FILE_OFFLINE, code)
         }
-        // JD's `downloadErrorsHostUnavailable`, split into two brief-named buckets that share the
-        // same `Transient{300}` kind (JD's own `mhm.putError(..., 5 * 60 * 1000l, ...)`).
+        // The host-unavailable group, split into two brief-named buckets that share the
+        // same `Transient{300}` kind (a 5-minute link-level retry).
         "notDebrid" | "hostNotValid" | "notFreeHost" => ApiFailure::with_api_code(
             ErrorKind::Transient(Some(300)),
             messages::HOST_UNSUPPORTED,
@@ -192,7 +189,7 @@ fn classify_error(code: &str) -> ApiFailure {
             messages::LIMIT_REACHED,
             code,
         ),
-        // Deviation from the brief's `RateLimited{600}`: JD's own message for this key documents
+        // Deviation from the brief's `RateLimited{600}`: the message for this key documents
         // a 1-hour reset window (see the module doc's IMPL-VERIFY note).
         "floodDetected" => {
             ApiFailure::with_api_code(ErrorKind::RateLimited(Some(3600)), messages::FLOOD, code)

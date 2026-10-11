@@ -27,6 +27,9 @@ pub enum TorrentErrorKind {
     RateLimited,
     /// The torrent is not running in the engine right now, so there is no handle to act on.
     NotActive,
+    /// Another program holds the fixed listen port, so the session was not started on it
+    /// (RD-1250-04). [`TorrentError::port`] names the port.
+    PortInUse,
 }
 
 /// A refusal from a torrent control call, with the message it has always carried.
@@ -34,6 +37,7 @@ pub enum TorrentErrorKind {
 pub struct TorrentError {
     kind: TorrentErrorKind,
     message: String,
+    port: Option<u16>,
 }
 
 impl TorrentError {
@@ -42,6 +46,7 @@ impl TorrentError {
         Self {
             kind,
             message: message.into(),
+            port: None,
         }
     }
 
@@ -49,6 +54,12 @@ impl TorrentError {
     #[must_use]
     pub fn kind(&self) -> TorrentErrorKind {
         self.kind
+    }
+
+    /// The port a [`TorrentErrorKind::PortInUse`] refusal is about.
+    #[must_use]
+    pub fn port(&self) -> Option<u16> {
+        self.port
     }
 
     /// Too soon since the last call of its kind.
@@ -59,6 +70,18 @@ impl TorrentError {
     /// The torrent is not in the running session.
     pub fn not_active(message: impl Into<String>) -> Self {
         Self::new(TorrentErrorKind::NotActive, message)
+    }
+
+    /// Another program holds the fixed listen port.
+    #[must_use]
+    pub fn port_in_use(port: u16) -> Self {
+        Self {
+            port: Some(port),
+            ..Self::new(
+                TorrentErrorKind::PortInUse,
+                format!("the torrent listen port {port} is in use by another program"),
+            )
+        }
     }
 }
 
@@ -79,11 +102,20 @@ pub fn torrent_kind(error: &anyhow::Error) -> Option<TorrentErrorKind> {
     error.downcast_ref::<TorrentError>().map(TorrentError::kind)
 }
 
+/// The port another program holds, when that is why the session did not start.
+#[must_use]
+pub fn port_in_use(error: &anyhow::Error) -> Option<u16> {
+    error
+        .downcast_ref::<TorrentError>()
+        .filter(|refusal| refusal.kind == TorrentErrorKind::PortInUse)
+        .and_then(TorrentError::port)
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Context;
 
-    use super::{TorrentError, TorrentErrorKind, torrent_kind};
+    use super::{TorrentError, TorrentErrorKind, port_in_use, torrent_kind};
 
     #[test]
     fn a_reason_survives_being_bailed_and_being_attached_as_context() {
@@ -102,6 +134,17 @@ mod tests {
             .expect_err("error");
         assert_eq!(torrent_kind(&attached), Some(TorrentErrorKind::NotActive));
         assert_eq!(attached.to_string(), "torrent is not active");
+    }
+
+    #[test]
+    fn a_held_port_is_named_through_a_context() {
+        let refused = Err::<(), _>(anyhow::Error::new(TorrentError::port_in_use(51_413)))
+            .context("rebuild torrent session")
+            .expect_err("error");
+        assert_eq!(torrent_kind(&refused), Some(TorrentErrorKind::PortInUse));
+        assert_eq!(port_in_use(&refused), Some(51_413));
+        let other = anyhow::Error::new(TorrentError::not_active("torrent is not active"));
+        assert_eq!(port_in_use(&other), None);
     }
 
     #[test]

@@ -56,6 +56,11 @@ pub(crate) struct ReresolveDownloadsParams {
     /// Package ids (list_packages): every file of each.
     #[serde(default)]
     pub package_ids: Vec<String>,
+    /// Resolve the files now, without downloading them, and write back size, name and any
+    /// failure; hoster links without an account are skipped. The answer then counts `resolved`,
+    /// `failed` and `skipped` and lists `results` per file.
+    #[serde(default)]
+    pub check_now: bool,
 }
 
 #[derive(Serialize)]
@@ -102,14 +107,18 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Resolve downloads again with the plugin version installed now: drops each download's binding to the plugin version that first resolved it (a download keeps that version for good otherwise, even after an update). A running file is paused and started again; finished files are left alone. Bytes already on disk are kept when the new resolution's size and ETag match, otherwise the file stops as blocked rather than mixing two files. By ids and/or package_ids, at most 500 files."
+        description = "Resolve downloads again with the plugin version installed now: drops each download's binding to the plugin version that first resolved it (a download keeps that version for good otherwise, even after an update). A running file is paused and started again; finished files are left alone. Bytes already on disk are kept when the new resolution's size and ETag match, otherwise the file stops as blocked rather than mixing two files. With check_now the files with an account are resolved at once without a transfer (the worker's resolver step, a HEAD probe for a plain direct link; at most 2 per host and 8 in all, 60 s each): size and name are written back, an offline file or a page instead of a file gets the failure as its last error, and the state stays as it is. A hoster link without an account is skipped, since resolving it would run the hoster's free flow with captcha and wait: nothing is asked or written, and it is listed with skipped = true and download.resolve_skipped_free. The answer counts resolved, failed and skipped and lists status, name, size and coded failure per file (Usenet, torrent, media and remote-folder files are not listed). By ids and/or package_ids, at most 500 files."
     )]
     pub async fn reresolve_downloads(
         &self,
         Parameters(params): Parameters<ReresolveDownloadsParams>,
     ) -> McpToolResult {
         let request = match parse_ids(&params.ids).and_then(|ids| {
-            parse_ids(&params.package_ids).map(|package_ids| ReresolveRequest { ids, package_ids })
+            parse_ids(&params.package_ids).map(|package_ids| ReresolveRequest {
+                ids,
+                package_ids,
+                check_now: params.check_now,
+            })
         }) {
             Ok(request) => request,
             Err(error) => return Ok(api_error(error)),

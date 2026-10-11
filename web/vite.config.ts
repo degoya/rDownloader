@@ -5,6 +5,7 @@ import ui from '@nuxt/ui/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
+import { renderBuiltUrl } from './src/builtUrl'
 import { uiTheme } from './src/uiTheme'
 
 /**
@@ -47,6 +48,8 @@ export default defineConfig({
       { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) }
     ]
   },
+  // Chunks, preloads, fonts and pictures under the mount point the server injects (RD-1250-09).
+  experimental: { renderBuiltUrl },
   build: {
     rolldownOptions: {
       output: {

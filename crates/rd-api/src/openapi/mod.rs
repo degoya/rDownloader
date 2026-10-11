@@ -3,6 +3,7 @@
 mod schemas;
 mod schemas_capture;
 mod schemas_diagnostics;
+mod schemas_queue;
 
 use utoipa::OpenApi;
 
@@ -26,6 +27,7 @@ pub(crate) fn document() -> utoipa::openapi::OpenApi {
     doc.merge(schemas::Schemas::openapi());
     doc.merge(schemas_capture::CaptureSchemas::openapi());
     doc.merge(schemas_diagnostics::DiagnosticsSchemas::openapi());
+    doc.merge(schemas_queue::QueueSchemas::openapi());
     doc.merge(routes::automations::Doc::openapi());
     doc.merge(routes::collector::Doc::openapi());
     doc.merge(routes::config::Doc::openapi());

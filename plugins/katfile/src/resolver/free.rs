@@ -1,8 +1,8 @@
 //! The account-less (free) XFS download flow, as KatFile runs it.
 //!
-//! The flow is `xfs_common::free::FreeFlow` (RD-1120-10), JD's `XFileSharingProBasic.doFree`;
+//! The flow is `xfs_common::free::FreeFlow` (RD-1120-10), the XFS free flow;
 //! what is KatFile's own is a field each: the link is browsed on today's main domain
-//! (`canonicalize_host`, JD's `KatfileCom.rewriteHost`), the countdown is read off its own
+//! (`canonicalize_host`), the countdown is read off its own
 //! `var estimated_time` marker first, and the direct link has to be on `katfile.biz`.
 
 use plugin_common::{Failure, PluginHost, ResolveInput, Resolved};

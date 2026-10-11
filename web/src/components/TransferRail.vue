@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 
 import QueuePauseControl from '@/components/QueuePauseControl.vue'
 import SpeedHistoryChart from '@/components/SpeedHistoryChart.vue'
-import { serviceVersion } from '@/composables/serviceVersion'
 import { useErrorToast } from '@/composables/useErrorToast'
 import { useQueuePauseStore } from '@/stores/queuePause'
 import { useSelectionStore } from '@/stores/selection'
@@ -87,8 +86,8 @@ onMounted(() => void transfers.loadRailSettings())
     The rail's width is the panel's, not the window's: with the sidebar open a 1440 px window
     leaves some 1220 px, and viewport breakpoints then let the right half run under the speed
     limit field and break the signature over two lines (RD-120-48). So the controls on the left
-    keep their size, the right half takes what is left and truncates rather than overlapping,
-    and the signature appears only once the rail itself is wide enough (a container query).
+    keep their size, the right half takes what is left and truncates rather than overlapping.
+    In it the selection keeps its width and the volume line is cut first (RD-1250-06).
   -->
   <footer data-tour="rail" class="@container relative z-20 flex h-11 shrink-0 items-center justify-between gap-4 border-t border-muted bg-elevated px-4 text-xs sm:px-6">
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -101,8 +100,8 @@ onMounted(() => void transfers.loadRailSettings())
         <UIcon name="i-lucide-hourglass" class="size-3.5 text-muted" />
         <span class="numeric">{{ t('downloads.rail.eta', { duration: etaLabel }) }}</span>
       </div>
-      <!-- On a phone the rail has no room for the chart beside a timed pause's "paused until",
-           and the version wrote over the connection count; both wait for a wider rail. -->
+      <!-- On a phone the rail has no room for the chart beside a timed pause's "paused until";
+           it waits for a wider rail. -->
       <div class="hidden w-16 shrink-0 border-x border-muted px-2 @min-[26rem]:block sm:w-24">
         <SpeedHistoryChart compact :current-rate="transfers.globalRate" :points="transfers.speedHistory" />
       </div>
@@ -110,7 +109,7 @@ onMounted(() => void transfers.loadRailSettings())
         <UIcon name="i-lucide-waypoints" class="size-3.5 text-muted" />
         <span class="numeric"><strong class="text-highlighted">{{ parallelDownloads }}</strong> <span class="hidden @min-[72rem]:inline">{{ t('downloads.rail.parallel') }}</span></span>
       </div>
-      <!-- Folded away on a narrow rail like the version, so the rail never takes a second line. -->
+      <!-- Folded away on a narrow rail, so the rail never takes a second line. -->
       <div v-if="parallelInput !== null" data-testid="rail-parallel-limit" class="hidden shrink-0 items-center gap-1 @min-[56rem]:flex" :title="t('downloads.rail.parallel_limit_title', { min: MIN_ACTIVE_FILES, max: MAX_ACTIVE_FILES })">
         <UFieldGroup size="xs" class="w-28">
           <UBadge color="neutral" variant="outline" :label="t('downloads.rail.parallel_max')" />
@@ -159,27 +158,17 @@ onMounted(() => void transfers.loadRailSettings())
         <UButton icon="i-lucide-x" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.stop_mark.clear')" :title="t('downloads.stop_mark.clear')" @click="clearStopMark" />
       </span>
       <!-- Short on a narrow rail: the count and the size, the word only once there is room. -->
-      <span v-if="selection.size" data-testid="rail-selection" class="flex min-w-0 items-center gap-1.5" :title="selectionTitle">
+      <span v-if="selection.size" data-testid="rail-selection" class="flex shrink-0 items-center gap-1.5" :title="selectionTitle">
         <UIcon name="i-lucide-list-checks" class="size-3.5 shrink-0 text-primary" />
-        <span class="numeric truncate">
+        <span class="numeric whitespace-nowrap">
           <strong class="text-highlighted">{{ selection.size.count }}</strong>
           <span class="hidden @min-[40rem]:inline">&nbsp;{{ t('common.units.selected') }}</span>
           <template v-if="selectionSize"> · {{ selectionSize }}</template>
         </span>
       </span>
+      <!-- No name, version or dedication here any more: they pushed the selection's count and
+           size out of view; the version sits at the foot of the sidebar (RD-1250-06). -->
       <span class="hidden min-w-0 truncate font-mono md:inline" :title="volume">{{ volume }}</span>
-      <span class="flex shrink-0 items-center gap-1 whitespace-nowrap">
-        <!-- The name only where the rail has room for it: at 1280 px beside the open sidebar
-             it cut the volume line, and the sidebar names the application anyway (RD-120-53). -->
-        <span class="hidden font-semibold text-highlighted @min-[72rem]:inline">rDownloader</span>
-        <span v-if="serviceVersion" class="hidden font-mono text-muted @min-[48rem]:inline">v{{ serviceVersion }}</span>
-        <span class="hidden items-center gap-1 @min-[96rem]:flex">
-          —
-          {{ t('common.footer.made_with') }}
-          <UIcon name="i-lucide-heart" class="size-3 text-primary" />
-          {{ t('common.footer.by', { author: 'Alexander Herling' }) }}
-        </span>
-      </span>
     </div>
     <div class="transfer-stripe absolute inset-x-0 top-0 h-px" />
   </footer>

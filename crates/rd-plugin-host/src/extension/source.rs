@@ -16,7 +16,7 @@ type ProgressReporter = Box<dyn Fn(u64, Option<u64>) + Send + Sync>;
 pub(crate) const MAX_READ_BYTES: u32 = 1024 * 1024;
 
 /// The interface `read-at` is re-linked into, with the store in hand (RD-191-06, PLUG-01).
-const INTERFACE: &str = "rdownloader:plugin/source@0.10.0";
+const INTERFACE: &str = "rdownloader:plugin/source@0.11.0";
 
 /// Fuel a read credits for every byte it hands the guest (RD-191-06, PLUG-01).
 ///

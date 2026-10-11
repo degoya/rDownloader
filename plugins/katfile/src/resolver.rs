@@ -4,8 +4,8 @@
 //! code runs against the native `ResolverHost` and against the WIT imports. The two adapters
 //! that supply it — `native.rs` and `guest.rs` — hold nothing but type conversions.
 //!
-//! KatFile runs the same XFileSharing engine as `plugins/ddownload`, with three additions JD's
-//! `KatfileCom` makes: every link is rewritten to the current main domain before it is browsed,
+//! KatFile runs the same XFileSharing engine as `plugins/ddownload`, with three additions of
+//! its own: every link is rewritten to the current main domain before it is browsed,
 //! both fetched pages are checked for a premium-only marker and a pre-download wait, and the
 //! `download2` form is checked for a captcha before it is posted — this plugin cannot solve one
 //! there, so it says so instead of submitting a form the server will reject.
@@ -307,7 +307,7 @@ async fn premium_transfer<H: PluginHost>(
     let Some(form) = page::download_form(&body) else {
         return Ok(page_response);
     };
-    // JD hands `handleCaptcha` the found form, not the page, so a widget elsewhere — a login
+    // Only the found form is checked, not the page, so a widget elsewhere — a login
     // modal, a site banner — never aborts a resolve.
     if page::form_html(&body).is_some_and(page::has_captcha_challenge) {
         return Err(coded(FailureKind::NeedsCaptcha, messages::CAPTCHA_REQUIRED));

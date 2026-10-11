@@ -1,9 +1,9 @@
 //! Thin wrapper binding `xfs-common`'s generalized XFS page helpers to KatFile's own
 //! parameterization, plus two KatFile-specific parsers (`premium_only_reason`,
-//! `estimated_wait_seconds`) not generalized into `xfs-common` since they mirror JD overrides
-//! specific to `KatfileCom` — see the crate's module doc. No KatFile-specific deviation was
-//! found for the `op` marker or the premium button label (JD's `KatfileCom` does not override
-//! `findFormDownload2Premium`'s field values, only wraps it with a captcha check), so the forms
+//! `estimated_wait_seconds`) not generalized into `xfs-common` since they are specific
+//! to KatFile — see the crate's module doc. No KatFile-specific deviation was
+//! found for the `op` marker or the premium button label (the site keeps the premium form's
+//! field values and only adds a captcha check), so the forms
 //! are the script's own (`xfs_common::standard`, re-exported here); only the direct-link domain
 //! differs.
 
@@ -60,8 +60,8 @@ pub(crate) fn has_captcha_challenge(html: &str) -> bool {
     xfs_common::page::has_captcha_challenge(html)
 }
 
-/// KatFile's `getPremiumOnlyErrorMessage` additions (JD `KatfileCom.java:309-317`, on top of the
-/// XFS base class's own generic phrase list, which this plugin does not otherwise model — see
+/// KatFile's own premium-only phrasings (on top of the
+/// XFS engine's generic phrase list, which this plugin does not otherwise model — see
 /// the crate's module doc): a distinct "This file is available for Premium" phrasing, and a
 /// `/?op=registration&redirect=` URL marker. Returns the reason text for the failure message;
 /// `None` if neither marker is found.
@@ -76,9 +76,8 @@ pub(crate) fn premium_only_reason(html: &str, final_url: &str) -> Option<&'stati
     }
 }
 
-/// KatFile's `regexWaittime` override (JD `KatfileCom.java:320-328`): `var estimated_time =
-/// (\d+)` counts TENTHS of a second, not seconds — JD's own comment: "Small hack: These aren't
-/// seconds but tenths of a second". `None` if the marker is absent, unparseable, or rounds to
+/// KatFile's wait marker: `var estimated_time = (\d+)` counts TENTHS of a second, not seconds.
+/// `None` if the marker is absent, unparseable, or rounds to
 /// zero seconds. See the crate's module doc.
 #[must_use]
 pub(crate) fn estimated_wait_seconds(html: &str) -> Option<u64> {

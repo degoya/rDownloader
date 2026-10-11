@@ -149,7 +149,7 @@ async fn premium_only_page_reports_auth_required_and_form_is_not_posted() {
 
 #[tokio::test]
 async fn wait_page_reports_transient_with_retry_after_seconds() {
-    // `var estimated_time = 450` is in TENTHS of a second (JD's own comment) -> 45 whole seconds.
+    // `var estimated_time = 450` is in TENTHS of a second -> 45 whole seconds.
     let host = MockHost::in_session(
         vec![html(
             "<html><body><script>var estimated_time = 450;</script></body></html>",

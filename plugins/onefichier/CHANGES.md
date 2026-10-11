@@ -1,5 +1,9 @@
 # Changes
 
+## 0.7.16
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.7.15
 
 The plugin's description now appears in German, Spanish and French as well.

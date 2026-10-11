@@ -1,15 +1,15 @@
 //! LinkSnappy resolver: stateless multihoster JSON API (`linksnappy.com/api`), username + account
-//! password. JD's own plugin authenticates once via `/api/AUTHENTICATE` and reuses the resulting
-//! cookie session for every later call; this plugin cannot do that (the host never hands a
+//! password. The API offers a sign-in via `/api/AUTHENTICATE` whose cookie session later calls
+//! reuse; this plugin cannot do that (the host never hands a
 //! freshly-authenticated session's cookies back for reuse within one resolver invocation, and
 //! every plugin in this workspace treats each invocation as stateless). It instead follows
-//! pyLoad's independently-implemented `LinksnappyCom.py`, which proves the API also accepts
+//! the API's other form, which also accepts
 //! `username`/`password` embedded directly in a single stateless `genLinks` call with no prior
-//! login step — see `api.rs`'s module-level IMPL-VERIFY note for the full comparison against JD,
-//! `resolveurl`'s Kodi plugin and pyLoad.
+//! login step — see `api.rs`'s module-level IMPL-VERIFY note for the full
+//! comparison.
 //!
-//! `check_account`'s premium detection is a second, related simplification: JD compares the
-//! numeric `expire` epoch LinkSnappy returns against the current wall-clock time
+//! `check_account`'s premium detection is a second, related simplification: the exact check
+//! compares the numeric `expire` epoch LinkSnappy returns against the current wall-clock time
 //! (`validUntil > System.currentTimeMillis()`). Neither this crate's WASM guest target (the WIT
 //! host interface in `crates/rd-plugin-api/wit/rdownloader.wit` exposes no clock function at all)
 //! nor, deliberately, `native.rs` (to keep native/guest parity — see `plugin-common.md`'s "Both

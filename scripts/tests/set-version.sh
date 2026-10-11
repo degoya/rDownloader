@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
 # scripts/set-version.sh against a scratch tree (RD-140-22): every copy of the release version
-# moves with Cargo.toml (web package, browser manifest, the OpenAPI document's info.version),
-# nothing else with a `version` key moves, the browser manifest drops a pre-release suffix, and
-# `--check` names a copy that disagrees. `cargo update` is a stub here; the lock is cargo's job.
+# moves with Cargo.toml (web package, browser manifest, the OpenAPI document's info.version, the
+# SDK pins and templates' `min_app_version`), nothing else with a `version` key moves, the
+# browser manifest drops a pre-release suffix, and `--check` names a copy that disagrees.
+# `cargo update` is a stub here; the lock is cargo's job.
 #
 #   scripts/tests/set-version.sh
 set -euo pipefail
@@ -15,7 +16,8 @@ trap 'rm -rf "$SCRATCH"' EXIT
 source "$ROOT/scripts/tests/lib/expect.sh"
 
 TREE="$SCRATCH/tree"
-mkdir -p "$TREE/scripts/lib" "$TREE/web" "$TREE/extension" "$TREE/sdk/ci" "$SCRATCH/bin"
+mkdir -p "$TREE/scripts/lib" "$TREE/web" "$TREE/extension" "$TREE/sdk/ci" "$TREE/sdk/templates/demo" \
+    "$SCRATCH/bin"
 cp "$ROOT/scripts/set-version.sh" "$TREE/scripts/"
 cp "$ROOT/scripts/lib/workspace-version.sh" "$TREE/scripts/lib/"
 printf '#!/bin/sh\necho "$@" >> "%s/cargo.calls"\n' "$SCRATCH" > "$SCRATCH/bin/cargo"
@@ -79,7 +81,11 @@ jobs:
       TOOL_VERSION: 1.3.1
 EOF
 done
+# A template's minimum, beside the template's own version that must not move (RD-1250-01).
+printf 'api_version = "0.11.0"\nversion = "0.1.0"\n\n[metadata]\nmin_app_version = "1.3.1"\n' \
+    > "$TREE/sdk/templates/demo/manifest.toml"
 set_version() { run_status "$TREE/scripts/set-version.sh" "$@"; }
+template_minimum() { sed -n 's/^min_app_version = "\(.*\)"$/\1/p' "$TREE/sdk/templates/demo/manifest.toml"; }
 json_version() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "$1"; }
 sdk_pin() { sed -n 's/^  RDOWNLOADER_VERSION: //p' "$TREE/sdk/ci/$1.yml"; }
 api_version() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["info"]["version"])' "$1"; }
@@ -99,6 +105,8 @@ expect "extension/manifest.base.json" "1.4.0" "$(json_version "$TREE/extension/m
 expect "web/openapi.json info.version" "1.4.0" "$(api_version "$TREE/web/openapi.json")"
 expect "sdk/ci/plugin.yml pins the release" "1.4.0" "$(sdk_pin plugin)"
 expect "sdk/ci/repository.yml pins the release" "1.4.0" "$(sdk_pin repository)"
+expect "a template needs the release" "1.4.0" "$(template_minimum)"
+expect_true "the template's own version is untouched" 'grep -qF "version = \"0.1.0\"" "$TREE/sdk/templates/demo/manifest.toml"'
 expect_true "a step's own version is untouched" 'grep -qF "TOOL_VERSION: 1.3.1" "$TREE/sdk/ci/plugin.yml"'
 expect_true "a schema's own version property is untouched" 'grep -qF "\"example\": \"0.1.0\"" "$TREE/web/openapi.json"'
 set_version --check
@@ -109,7 +117,8 @@ expect "the lock is updated through cargo" "update --workspace --offline" "$(tai
 
 # The same version again, as a re-started release chain bumps it (RD-1130-01): no copy is
 # rewritten, so no mtime moves and web/dist stays current for scripts/web-dist-stale.sh.
-copies=(Cargo.toml web/package.json extension/manifest.base.json web/openapi.json sdk/ci/plugin.yml sdk/ci/repository.yml)
+copies=(Cargo.toml web/package.json extension/manifest.base.json web/openapi.json sdk/ci/plugin.yml sdk/ci/repository.yml
+    sdk/templates/demo/manifest.toml)
 for copy in "${copies[@]}"; do touch -d '2001-01-01 00:00' "$TREE/$copy"; done
 set_version 1.4.0
 expect_status "the version the tree already carries is set again" 0
@@ -126,6 +135,7 @@ expect "web/package.json carries it" "1.5.0-beta.1" "$(json_version "$TREE/web/p
 expect "web/openapi.json info.version carries it" "1.5.0-beta.1" "$(api_version "$TREE/web/openapi.json")"
 expect "the browser manifest drops it" "1.5.0" "$(json_version "$TREE/extension/manifest.base.json")"
 expect "the SDK pin names the pre-release tag" "1.5.0-beta.1" "$(sdk_pin plugin)"
+expect "a template needs the pre-release" "1.5.0-beta.1" "$(template_minimum)"
 set_version --check
 expect_status "--check on a beta: the bare manifest version agrees" 0
 
@@ -137,6 +147,10 @@ PY
 set_version --check
 expect_status "--check: a lagging copy fails" 1
 expect_true "and is named" 'grep -qF "web/package.json reports 0.0.1" <<< "$output"'
+
+sed -i 's/^min_app_version = .*/min_app_version = "1.9.0"/' "$TREE/sdk/templates/demo/manifest.toml"
+set_version --check
+expect_true "a template's lagging minimum is named too" 'grep -qF "sdk/templates/demo/manifest.toml reports 1.9.0" <<< "$output"'
 
 "$TREE/scripts/set-version.sh" 1.5.0-beta.1 > /dev/null 2>&1
 sed -i 's/^  RDOWNLOADER_VERSION: .*/  RDOWNLOADER_VERSION: 1.5.2/' "$TREE/sdk/ci/repository.yml"

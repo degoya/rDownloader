@@ -95,9 +95,14 @@ const earlierHint = computed(() => earlier.value
  *
  * The host is a parameter and never a sentence the backend assembled: it is the candidate's
  * own address, which the row already has, so `collector.check_no_resolver` can name it in four
- * languages without a column to carry it (RD-120-18).
+ * languages without a column to carry it (RD-120-18). Everything else the message needs — the
+ * cause in `{detail}` of `media.ytdlp_failed` — the row stores with it (RD-1250-03); a row
+ * without parameters keeps the server's English text where the sentence would have a hole.
  */
-const messageParams = computed(() => ({ host: hosterOf(props.candidate) }))
+const messageParams = computed(() => ({
+  ...(props.candidate.error_params ?? {}),
+  host: hosterOf(props.candidate)
+}))
 /**
  * What the state badge says beyond its one word.
  *
@@ -247,7 +252,7 @@ const actions = computed(() => [[
   ...(sourcePage.value
     ? [{ label: t('common.actions.open_source_page'), icon: 'i-lucide-external-link', to: sourcePage.value, target: '_blank' }]
     : []),
-  // JDownloader's "hide links of this hoster": the row is where somebody notices a hoster they
+  // "Hide links of this hoster": the row is where somebody notices a hoster they
   // do not want, so the way to hide it is where the noticing happens (RD-130-21).
   ...(messageParams.value.host
     ? [{

@@ -19,7 +19,7 @@ pub async fn get_settings(
     Ok(Json(read_settings(&state).await?))
 }
 
-#[utoipa::path(put, path = "/api/v1/settings", tag = "system", request_body = SettingsResponse, responses((status = 200, body = SettingsResponse), (status = 409, description = "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`)")))]
+#[utoipa::path(put, path = "/api/v1/settings", tag = "system", request_body = SettingsResponse, responses((status = 200, body = SettingsResponse), (status = 409, description = "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`; `torrent.port_in_use` when another program holds the fixed listen port)")))]
 pub async fn put_settings(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
@@ -440,7 +440,12 @@ pub(crate) async fn apply_settings_reporting(
         Err(error) => {
             let reason = format!("{error:#}");
             tracing::warn!(error = %reason, "torrent session could not be reconfigured");
-            Some(torrent_rebuild_failed(&reason))
+            Some(
+                match rd_api_core::torrent_intake::torrent_port_in_use(&error) {
+                    Some(port) => torrent_port_in_use(port, &reason),
+                    None => torrent_rebuild_failed(&reason),
+                },
+            )
         }
     };
     // A lowered seed limit ends the surplus seeds now rather than at the next tick.
@@ -460,4 +465,18 @@ fn torrent_rebuild_failed(reason: &str) -> ApiError {
         ),
     )
     .with_param("reason", reason)
+}
+
+/// `409` for a saved fixed listen port another program holds (RD-1250-04): the engine keeps its
+/// previous settings, as for any refused rebuild, and the answer names the port.
+fn torrent_port_in_use(port: u16, reason: &str) -> ApiError {
+    ApiError::conflict(
+        "torrent.port_in_use",
+        format!(
+            "The settings were saved, but another program holds port {port}; the torrent engine \
+             keeps its previous settings: {}",
+            rd_core::redact_text(reason)
+        ),
+    )
+    .with_param("port", port)
 }

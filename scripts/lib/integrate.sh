@@ -16,8 +16,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/inert-paths.sh"
 # without a person: crates/rd-db/migrations.sha384 as the sorted union of both sides
 # (`rd-pins`), the locale catalogues key by key (`rd-json`), CHANGELOG.md by section, new entries
 # under [Unreleased] even across a release (`rd-changelog`, RD-1220-01), and the two job indexes
-# with conflicts of table rows only taken from both sides (`rd-jobindex`), which archive-jobs.sh
-# after the last merge reduces to one row per job. A clone without the config merges those files
+# with conflicts of table rows only merged row by row against the base (`rd-jobindex`,
+# RD-1250-02), which archive-jobs.sh after the last merge recounts and reduces to one row per job
+# where its file lies. A clone without the config merges those files
 # as text. The drivers are the ones of checkout $2, by absolute path — the checkout integrate.sh
 # runs from — and every run registers them again.
 rd_integrate_merge_drivers() {
@@ -28,7 +29,7 @@ rd_integrate_merge_drivers() {
     git -C "$tree" config merge.rd-json.driver "python3 '$drivers/json-merge.py' %O %A %B %P"
     git -C "$tree" config merge.rd-changelog.name "CHANGELOG: by section, new entries under [Unreleased]"
     git -C "$tree" config merge.rd-changelog.driver "python3 '$drivers/changelog-merge.py' %O %A %B %P"
-    git -C "$tree" config merge.rd-jobindex.name "job indexes: conflicts of table rows take both sides"
+    git -C "$tree" config merge.rd-jobindex.name "job indexes: conflicts of table rows merged row by row"
     git -C "$tree" config merge.rd-jobindex.driver "python3 '$drivers/job-index-merge.py' %O %A %B %P"
 }
 

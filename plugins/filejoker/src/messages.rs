@@ -29,8 +29,8 @@ pub(crate) const INVALID_URL: &str = "filejoker.invalid_url";
 
 /// The `download2` premium form (or its containing file page) carries a captcha challenge
 /// (reCaptcha/hCaptcha/Cloudflare Turnstile) this plugin has no way to solve. Mirrors
-/// `plugins/katfile/src/messages.rs::CAPTCHA_REQUIRED`; unlike KatFile, this is not a JD citation
-/// (no JD reference exists) but is corroborated by `pyload`'s FileJoker GitHub issues, which
+/// `plugins/katfile/src/messages.rs::CAPTCHA_REQUIRED`; no reference source exists for
+/// FileJoker, but this is corroborated by `pyload`'s FileJoker GitHub issues, which
 /// report captcha challenges on this flow repeatedly changing shape over time (see
 /// `native/api.rs`'s module doc).
 pub(crate) const CAPTCHA_REQUIRED: (&str, &str) = (

@@ -3,8 +3,7 @@
 //!
 //! Measured on 2026-09-21 (RD-103-08): the file page is static HTML carrying everything the
 //! download needs, there is no countdown, and the site's official API has no download
-//! endpoint at all - so the route is the one JDownloader's `KrakenfilesCom` and pyLoad's
-//! `KrakenfilesCom` drive, and nothing else.
+//! endpoint at all - so the route is the file page's form, and nothing else.
 
 /// Domains served by this hoster.
 pub(crate) const HOSTERS: &[&str] = &["krakenfiles.com"];

@@ -95,7 +95,7 @@ pub(crate) async fn resolve<H: PluginHost>(
 }
 
 /// Batched link check through `file/get_info`, up to [`api::CHECK_BATCH`] keys per call.
-/// A key the API did not return is offline, as JD reads it; a call refused with 110 as a
+/// A key the API did not return is offline; a call refused with 110 as a
 /// whole makes every key in it offline; anything else fails the batch.
 pub(crate) async fn check<H: PluginHost>(
     host: &H,

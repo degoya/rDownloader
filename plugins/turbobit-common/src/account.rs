@@ -1,6 +1,6 @@
 //! Everything an account does: signing in, the premium download, the account check.
 //!
-//! All of it is written from JDownloader's `TurbobitCore` (r52763) rather than from a
+//! All of it is written second-hand rather than from a
 //! measurement — nothing behind the login was reachable without an account — so every field is
 //! read as optional and a shape that does not fit costs a figure, not the account. The session
 //! that a sign-in produces lives in the host's per-account cookie jar, which this code can
@@ -22,7 +22,7 @@ use crate::brand::Brand;
 use crate::free;
 use crate::reason::{coded, invalid_response};
 
-/// How long a premium account waits after the site handed out no mirror: JDownloader's
+/// How long a premium account waits after the site handed out no mirror: the
 /// "limit of premium downloads" pause. Second-hand, like the rest of this module.
 const PREMIUM_LIMIT_PAUSE_SECONDS: u64 = 30 * 60;
 
@@ -70,8 +70,8 @@ pub async fn resolve<H: PluginHost>(
 ) -> Result<Resolved, Failure> {
     ensure_password(brand, host, account_id).await?;
     // `download/info` answers a guest and a lapsed session alike, with `premium: false` and no
-    // mirrors, so the session is confirmed first — the way JD checks the login state before
-    // every download — rather than discovered from a download that quietly went the free way.
+    // mirrors, so the session is confirmed first — the login state is checked before every
+    // download — rather than discovered from a download that quietly went the free way.
     ensure_session(brand, host).await?;
     let info = free::download_info(brand, host, id).await?;
     if let Some(raw) = info

@@ -9,7 +9,7 @@ use super::{
 
 /// The public file page, captured 2026-09-21 and sanitised (token, security value, scripts).
 const FILE_PAGE: &str = include_str!("../tests/fixtures/file-page-2026-09-21.html");
-/// Synthetic: the reCAPTCHA form JD's `MediafireCom` handles; not seen live.
+/// Synthetic: the reCAPTCHA form; not seen live.
 const CAPTCHA_RECAPTCHA: &str = include_str!("../tests/fixtures/file-page-captcha-recaptcha.html");
 /// Synthetic: MediaFire's own checkbox form; not seen live.
 const CAPTCHA_CHECKBOX: &str = include_str!("../tests/fixtures/file-page-captcha-checkbox.html");

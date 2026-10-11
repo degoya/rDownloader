@@ -224,6 +224,7 @@ async fn seed_deliveries(database: &rd_db::Database) {
                 event: NotificationEvent::BudgetExhausted,
                 title: title.clone(),
                 body: String::new(),
+                package_path: None,
             })
             .await
             .expect("queue");

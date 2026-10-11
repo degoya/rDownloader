@@ -1,5 +1,4 @@
-//! LinkFilter rules (RD-1240-09): what the LinkGrabber does with a link the moment it arrives,
-//! after JDownloader's LinkFilter.
+//! LinkFilter rules (RD-1240-09): what the LinkGrabber does with a link the moment it arrives.
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

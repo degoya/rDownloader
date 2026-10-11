@@ -36,6 +36,7 @@ mod facade_collector;
 mod facade_collector_mirrors;
 mod facade_credentials;
 mod facade_destinations;
+mod facade_download_batches;
 mod facade_downloads;
 mod facade_full_backup;
 mod facade_history;

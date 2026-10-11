@@ -161,7 +161,7 @@ impl TorrentService {
             return Ok((slot.session.clone(), slot.generation));
         }
         let config = self.session_config().await?;
-        let slot = build(&self.inner, config).await?;
+        let slot = build(&self.inner, config, true).await?;
         let result = (slot.session.clone(), slot.generation);
         *guard = Some(slot);
         Ok(result)
@@ -237,7 +237,7 @@ impl TorrentService {
         if stopped {
             slot.session.stop().await;
         }
-        match build(&self.inner, next.clone()).await {
+        match build(&self.inner, next.clone(), !stopped).await {
             Ok(rebuilt) => {
                 tracing::info!(
                     from = generation,
@@ -267,7 +267,7 @@ impl TorrentService {
                 *self.inner.rebuild_error.write().await = Some(format!("{error:#}"));
                 // The old engine is gone: bring it back as it was. Its torrents are re-added
                 // by their runners, as after any rebuild.
-                match build(&self.inner, previous).await {
+                match build(&self.inner, previous, false).await {
                     Ok(restored) => *guard = Some(restored),
                     Err(restore) => {
                         tracing::warn!(
@@ -352,8 +352,13 @@ fn apply_live_limits(session: &Session, config: &SessionConfig) {
 /// Constructs a session from the given config.
 ///
 /// Torrents in the persisted list that no queue row claims are struck first: librqbit
-/// restores every entry, and restoring one creates its files (RD-120-68).
-async fn build(inner: &ServiceInner, config: SessionConfig) -> Result<SessionSlot> {
+/// restores every entry, and restoring one creates its files (RD-120-68). With `probe`, a fixed
+/// port another program holds refuses the start (RD-1250-04); without, the port is the one the
+/// running session let go of a moment ago.
+async fn build(inner: &ServiceInner, config: SessionConfig, probe: bool) -> Result<SessionSlot> {
+    if probe && let Some(port) = crate::port_probe::held_port(&config) {
+        return Err(crate::TorrentError::port_in_use(port).into());
+    }
     crate::forget::drop_orphans(inner).await;
     let mut options = SessionOptions {
         fastresume: true,

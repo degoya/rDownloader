@@ -111,6 +111,7 @@ async fn seed_deliveries(database: &Database, states: &[DeliveryState]) {
                 event: NotificationEvent::BudgetExhausted,
                 title: title.clone(),
                 body: String::new(),
+                package_path: None,
             })
             .await
             .expect("queue");

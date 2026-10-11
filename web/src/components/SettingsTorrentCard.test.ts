@@ -109,6 +109,30 @@ describe('SettingsTorrentCard active limits and port test', () => {
     expect(screen.getByText('Torrents running: 2 · peers connected in: 0')).toBeTruthy()
   })
 
+  it('names a fixed port another program holds instead of the engine error (RD-1250-04)', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        verdict: 'unavailable',
+        listen_port: null,
+        announce_port: null,
+        local_tcp_accepted: null,
+        live_torrents: 0,
+        incoming_peers: 0,
+        upnp_enabled: false,
+        peer_proxy_configured: false,
+        error: 'the torrent listen port 51413 is in use by another program',
+        port_in_use: 51413,
+        tested_at: '2026-10-11T12:00:00Z'
+      }
+    })
+    mount({ torrent_sharing_enabled: true })
+
+    await fireEvent.click(screen.getByTestId('torrent-port-test'))
+
+    await waitFor(() => expect(screen.getByText(en.torrent.port_in_use.replace('{port}', '51413'))).toBeTruthy())
+    expect(screen.queryByText('the torrent listen port 51413 is in use by another program', { exact: false })).toBeNull()
+  })
+
   it('shows the refusal when the test cannot run', async () => {
     post.mockResolvedValueOnce({ data: undefined, error: { code: 'torrent.service_disabled' } })
     mount({ torrent_sharing_enabled: true })

@@ -25,6 +25,12 @@
 # the release, so the pin is the version being released; scripts/check-sdk-templates.sh holds
 # the templates' `api_version` to what this version accepts.
 #
+# The SDK templates' `min_app_version` (sdk/templates/*/manifest.toml) are the last: a scaffold
+# needs the release its SDK came with, the one whose contract its `wit/` copy is. A fixed value
+# could not be right on both sides of a contract step -- 1.25.0 for contract 0.11.0 is newer than
+# the tree that introduces it, so CI's scaffold failed its own packaging check against 1.24.0
+# (RD-1250-01) -- while the tree's own version is always a core that accepts the copy.
+#
 # Usage:
 #   scripts/set-version.sh            # print the current version
 #   scripts/set-version.sh --check    # every copy agrees with Cargo.toml, or exit 1 naming it
@@ -48,7 +54,7 @@ fi
 # Python on Windows ends its lines with CRLF; the CR would make every copy disagree.
 copies() {
     python3 - <<'PY' | tr -d '\r'
-import json, re
+import glob, json, re
 for path, read in (
     ('web/package.json', lambda d: d['version']),
     ('extension/manifest.base.json', lambda d: d['version']),
@@ -60,6 +66,10 @@ for path in ('sdk/ci/plugin.yml', 'sdk/ci/repository.yml'):
     with open(path) as handle:
         pins = re.findall(r'^  RDOWNLOADER_VERSION: (\S+)$', handle.read(), re.MULTILINE)
     print(f'{path}\t{pins[0] if len(pins) == 1 else "no single RDOWNLOADER_VERSION"}')
+for path in sorted(glob.glob('sdk/templates/*/manifest.toml')):
+    with open(path) as handle:
+        minimums = re.findall(r'^min_app_version = "([^"]*)"$', handle.read(), re.MULTILINE)
+    print(f'{path}\t{minimums[0] if len(minimums) == 1 else "no single min_app_version"}')
 PY
 }
 
@@ -153,6 +163,18 @@ for workflow in (pathlib.Path('sdk/ci/plugin.yml'), pathlib.Path('sdk/ci/reposit
     if count != 1:
         raise SystemExit(f'could not rewrite RDOWNLOADER_VERSION in {workflow}')
     write(workflow, updated)
+
+# The SDK templates' `min_app_version`: one under `[metadata]` each.
+for template in sorted(pathlib.Path('sdk/templates').glob('*/manifest.toml')):
+    updated, count = re.subn(
+        r'^(min_app_version = ")[^"]*(")$',
+        lambda match: f'{match.group(1)}{version}{match.group(2)}',
+        template.read_text(),
+        flags=re.MULTILINE,
+    )
+    if count != 1:
+        raise SystemExit(f'could not rewrite min_app_version in {template}')
+    write(template, updated)
 PY
 
 # Workspace members carry `version.workspace = true`, so only the lock needs rewriting.
@@ -167,5 +189,5 @@ manifest_version="$(python3 -c 'import json;print(json.load(open("extension/mani
     || { echo "extension/manifest.base.json reports $manifest_version" >&2; exit 1; }
 
 "$0" --check > /dev/null || exit 1
-echo "==> Cargo.toml, web/package.json, extension/manifest.base.json, web/openapi.json, sdk/ci/*.yml and Cargo.lock now report $version"
+echo "==> Cargo.toml, web/package.json, extension/manifest.base.json, web/openapi.json, sdk/ci/*.yml, the SDK templates and Cargo.lock now report $version"
 echo "    remember: CHANGELOG.md and docs/roadmap.md are written by hand"

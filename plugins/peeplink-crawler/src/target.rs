@@ -6,8 +6,8 @@
 
 /// The domains the service answers on, measured on 2026-09-21.
 ///
-/// `alfalink.info`, which `alfalink.to/robots.txt` names as its `Host` and which the
-/// JDownloader pattern still carries, is **not** here: it ran into a 25 s timeout. It is kept
+/// `alfalink.info`, which `alfalink.to/robots.txt` names as its `Host`, is **not**
+/// here: it ran into a 25 s timeout. It is kept
 /// in [`SERVICE_HOSTS`] so a link back to it is still recognised as the service's own and
 /// dropped, but an address on it is not claimed — claiming one would promise a request the
 /// manifest does not grant.

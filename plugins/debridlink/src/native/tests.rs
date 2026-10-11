@@ -322,8 +322,8 @@ async fn hosters_without_api_key_reports_api_key_missing() {
 
 #[tokio::test]
 async fn check_defaults_to_unsupported() {
-    // No batch link-status endpoint exists on Debrid-Link's API per JD's `DebridLinkCom.java`
-    // (`requestFileInformation` returns `AvailableStatus.UNCHECKABLE`) — `check()` is
+    // No batch link-status endpoint exists on Debrid-Link's API, so links are uncheckable —
+    // `check()` is
     // intentionally left as the `Resolver` trait's default (`rd_plugin_api::Resolver::check`),
     // which reports `link.check_unsupported`. `guest.rs` cannot rely on that default (the WIT
     // `Guest` trait has none) and instead reproduces it via `messages::CHECK_UNSUPPORTED`;

@@ -30,7 +30,7 @@ pub(crate) const DIRECT_LINK_MISSING: (&str, &str) = (
 /// The link the site handed out lies outside the manifest's download domains; carries `host`.
 pub(crate) const DIRECT_LINK_FOREIGN: &str = "krakenfiles.direct_link_foreign";
 
-/// The direct link answered 403, 404 or 405 - JDownloader treats all three as "too many
+/// The direct link answered 403, 404 or 405 - all three read as "too many
 /// connections, wait an hour"; carries `status`.
 pub(crate) const RATE_LIMITED: &str = "krakenfiles.rate_limited";
 

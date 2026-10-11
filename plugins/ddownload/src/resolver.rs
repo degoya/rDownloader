@@ -12,8 +12,8 @@
 //! An account is held in one of two ways, and which one the host admits is what
 //! [`signs_in`] discovers. In `api_key` mode nothing changed: a stored key for the metadata API
 //! plus, for downloads, a cookie session the user imported by hand. In `login` mode the account
-//! stores a username and a password, and this plugin signs in for itself — the flow JDownloader
-//! and pyLoad have always used, and the reason a user no longer has to copy a `Cookie:` header
+//! stores a username and a password, and this plugin signs in for itself — the usual flow for
+//! these sites, and the reason a user no longer has to copy a `Cookie:` header
 //! out of browser devtools. The session that sign-in produces lives in the host's per-account
 //! cookie jar, which this plugin can neither read nor write; it only has to notice when a
 //! request came back unauthenticated and sign in once more.
@@ -74,9 +74,8 @@ pub(crate) async fn check_account<H: PluginHost>(
         // key that turns the check into measured figures — and it is the page a cold jar is
         // redirected away from (measured 2026-09-20: `GET /?op=my_account` without a session
         // answers 302 to `/login.html`, whose body reads as `Guest`). Signing in stays the
-        // answer to "there is no session", which is JDownloader's order too:
-        // `XFileSharingProBasic.loginWebsite` checks the site for a logged-in state before it
-        // touches the login form.
+        // answer to "there is no session": a sign-in checks the site for a logged-in state
+        // before it touches the login form.
         let mut page = signed_in_account_page(host).await?;
         let session = if page.signed_in() {
             Label::new().session_active()
@@ -312,10 +311,10 @@ pub(crate) async fn resolve<H: PluginHost>(
     let mut transfer = premium_transfer(host, &request.url, &code, url_name.as_deref()).await?;
     // An HTML answer with no file attached means the premium flow was not served — most often
     // because the session lapsed or the process has not signed in yet. Sign in and try once
-    // more, the way `XFileSharingProBasic.loginWebsite` re-authenticates on a failed cookie
-    // check. Exactly once: a second failure is a real one, and this must not become a loop
-    // that hammers the site's login form. A used-up quota is no lapsed session, and signing in
-    // again would only fetch the same answer (RD-1190-13).
+    // more, as an XFS sign-in re-authenticates on a failed cookie check. Exactly once: a second
+    // failure is a real one, and this must not become a loop that hammers the site's login form.
+    // A used-up quota is no lapsed session, and signing in again would only fetch the same answer
+    // (RD-1190-13).
     if signs_in && no_file_delivered(&transfer) && page::traffic_limit(&transfer.text()).is_none() {
         sign_in(host).await?;
         transfer = premium_transfer(host, &request.url, &code, url_name.as_deref()).await?;

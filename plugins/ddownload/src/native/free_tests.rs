@@ -1,11 +1,10 @@
 //! Account-less (free) resolve coverage for the XFS two-form flow — and for the one-form page
 //! DDownload serves since 2026-09-17.
 //!
-//! Mirrors JD's `XFileSharingProBasic.doFree` step by step (the method `DdownloadCom.doFree`
-//! delegates to): file page -> `download1` posted in free mode -> captcha solved and countdown
-//! waited out -> `download2` posted -> direct link. Each test drives the real resolver against
-//! queued mock responses and asserts what the plugin *did* (which requests, which captcha, which
-//! wait), not just what it returned.
+//! The XFS free flow step by step: file page -> `download1` posted in free mode -> captcha
+//! solved and countdown waited out -> `download2` posted -> direct link. Each test drives the
+//! real resolver against queued mock responses and asserts what the plugin *did* (which
+//! requests, which captcha, which wait), not just what it returned.
 
 use rd_plugin_api::{CaptchaChallenge, ClientIdentity, ResolveRequest, Resolver};
 use rd_plugin_types::FailureKind;
@@ -94,7 +93,7 @@ async fn the_free_flow_solves_the_captcha_waits_and_posts_both_forms() {
     let requests = host.requests.lock().expect("lock");
     assert_eq!(requests.len(), 4, "page, download1, download2, transfer");
     // download1 is posted in free mode: the free marker survives, premium is gone, and
-    // ddownload's own `adblock_detected` field is cleared (JD `DdownloadCom.handleCaptcha`).
+    // ddownload's own `adblock_detected` field is cleared.
     let step_one = body_of(&requests[1]);
     assert_eq!(requests[1].method, "POST");
     assert!(step_one.contains("op=download1"), "{step_one}");
@@ -110,8 +109,8 @@ async fn the_free_flow_solves_the_captcha_waits_and_posts_both_forms() {
     );
     assert!(!step_two.contains("method_premium"), "{step_two}");
 
-    // The countdown was waited out, and the captcha was solved before it (JD's ordering, so the
-    // token is as fresh as possible when the form is posted).
+    // The countdown was waited out, and the captcha was solved before it (this ordering keeps
+    // the token as fresh as possible when the form is posted).
     assert_eq!(*host.waits.lock().expect("lock"), vec![30]);
     let captchas = host.captchas.lock().expect("lock");
     assert_eq!(captchas.len(), 1);
@@ -343,7 +342,7 @@ async fn a_captcha_without_a_solver_is_reported_verbatim() {
     );
 }
 
-/// A rejected captcha is retried once with a fresh challenge, the way JD retries it.
+/// A rejected captcha is retried once with a fresh challenge.
 #[tokio::test]
 async fn a_rejected_captcha_is_retried_once_then_reported() {
     let rejected = format!("<div class=\"err\">Wrong captcha</div>{DOWNLOAD2_PAGE}");

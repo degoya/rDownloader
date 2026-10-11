@@ -5,6 +5,182 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-10-11
+
+### Added
+
+- **Re-resolve at once (RD-1250-05, tester via the owner 2026-10-11).** *Re-resolve* resolves
+  the selected files now, without a transfer, and writes back size, name and online status before
+  the download starts. `POST /api/v1/downloads/reresolve` and MCP `reresolve_downloads` take
+  `check_now`; the answer (`ReresolveResponse`) adds `resolved`, `failed`, `skipped` and
+  `results` per file (status, name, size, `skipped`, coded failure). Only links with an account
+  are resolved ahead (owner, 2026-10-11): a hoster link without one would run the free flow with
+  captcha and wait, so it is skipped, nothing written, and reported with
+  `download.resolve_skipped_free`; a plain direct link is probed. The resolver step is
+  `SchedulerHandle::resolve_now` (the file's account, proxy and pin), a direct link the
+  LinkGrabber's probe, bounded 2 per host, 8 in all, 60 s a file (`download.resolve_timeout`,
+  `download.resolve_offline`, `download.resolve_failed`); `Database::record_resolution` writes
+  name, size (only while no byte is confirmed) and a conclusive failure, never the state. A
+  running file paused for it starts again after its own resolution. The rows say *Resolving now*
+  meanwhile, a toast counts *N resolved, M failed, K skipped (no account)*.
+
+- **Path-precise media library refresh (RD-1250-01, owner 2026-10-10), plugin contract
+  `rdownloader:plugin@0.11.0`.** `notifier.notification` carries `package-path`, the finished
+  package's folder (its destination), for `package_completed` only, braces made inert like the
+  title; migration 0143 keeps it on `notification_deliveries.package_path`, so a retry after a
+  restart names it too (`rd_notify::Delivery.package_path`, not serialised). A new record field is
+  a break: `SUPPORTED_API_VERSIONS` is `["0.11.0"]`, every bundled plugin takes `api_version`
+  0.11.0 with a raised `version` and its `CHANGES.md` section, the SDK copies are byte-identical
+  and the templates' `min_app_version` is a copy of the workspace version `set-version.sh` writes,
+  so a scaffold verifies against the tree's own binary; `check-sdk-templates.sh` holds it to that
+  version and, once the contract's first release (row 0.11.0 -> 1.25.0) is tagged, to that floor. A destination setting without `choices` is free text (`manifest/settings.rs`: 256
+  characters on one line, 4096 with `multiline = true`, no control characters but line breaks,
+  `plugin.setting_text_invalid`); the destination catalogue says `multiline`, the target editor
+  shows a field or a text area, the MCP destination list describes it. Plex, Jellyfin and Emby
+  0.2.0 map the folder through the free-text `path_mapping` (`service=server` per line, longest
+  prefix wins, `plugin_guest_notifier::media_path`): Plex refreshes
+  `/library/sections/<section>/refresh?path=` when the free-text `section` is set, Jellyfin and
+  Emby `POST /Library/Media/Updated` with the folder as created; without a mapped folder the
+  whole library as before; Jellyfin and Emby then rescan the folder around it. Tests:
+  `media_library_paths.rs` (wire, answers recorded from Jellyfin 10.11.0, Emby 4.9.1.80 and Plex
+  1.41.6 in containers, where `/Library/Media/Updated` with the `Authorization` header and Plex's
+  `sections/<id>/refresh?path=` were confirmed to scan the reported folder), `settings_tests.rs`, `media_path_tests.rs`, the admin suite
+  `notification_package_path`, the restart case in `rd-db`'s notification tests:
+  `emby-notifier`, `jellyfin-notifier` and `plex-notifier` 0.2.0.
+
+### Changed
+
+- **Every bundled plugin is built for the plugin contract `0.11.0`** (RD-1250-01). Nothing changes
+  in what a plugin does but Plex, Jellyfin and Emby (above); each is rebuilt against the new `wit/`
+  so that it loads on a host that supports only `0.11.0`, and a plugin built against `0.10.0` is
+  refused until it is rebuilt. The versions this release raises: `example-stream-transform` 0.1.9;
+  `metadata-enricher` 0.1.11; `box-crawler`, `box-oauth`, `directory-index-crawler`,
+  `dropbox-crawler`, `dropbox-oauth`, `google-drive-crawler`, `google-drive-oauth`, `hitfile`,
+  `offcloud-cloud`, `onedrive-crawler`, `onedrive-oauth`, `pcloud-crawler`, `pixeldrain-crawler`,
+  `premiumize-crawler`, `putio-oauth`, `torbox-auth` and `turbobit` 0.1.12; `box`, `dropbox`,
+  `google-drive`, `mediafire`, `mediafire-crawler`, `mega`, `mega-crawler`, `nextcloud-crawler`,
+  `offcloud`, `onedrive`, `pcloud`, `pcloud-oauth`, `peeplink-crawler`, `seedr-jobs` and
+  `xfs-generic` 0.1.13; `krakenfiles`, `mega-auth`, `pixeldrain`, `putio`, `putio-transfers`,
+  `seedr` and `torbox` 0.1.14; `realdebrid-auth` 0.2.9; `realdebrid-torrents` 0.2.10;
+  `example-oauth`, `premiumize-transfers`, `realdebrid` and `torbox-jobs` 0.2.11; `example-transfer`
+  0.7.9; `alldebrid`, `debridlink`, `keep2share`, `linksnappy`, `nitroflare` and `rapidgator`
+  0.7.15; `onefichier` 0.7.16; `premiumize` 0.7.17; `filejoker` 0.7.18; `crawljob-intake` and
+  `sponsorblock-enricher` 0.9.11; `alldebrid-auth`, `debridlink-auth`, `discord-notifier`,
+  `premiumize-auth`, `sha256-postprocess` and `webdav-storage` 0.9.12; `md5-postprocess` and
+  `telegram-notifier` 0.9.13; `rename-postprocess` 0.9.14; `katfile` 0.9.18; `ntfy-notifier` 0.10.6;
+  `metalink-intake` 0.10.8; `ddownload` 0.10.22.
+
+- **Playlist title as package name, LinkGrabber messages with their parameters (RD-1250-03).**
+  The media probe gives every playlist entry the playlist's title, else its channel
+  (`MediaInfo.playlist_title`); the regroup after the online check takes it as the package hint
+  (`json_extract` on `link_candidates.media_json`), so a playlist becomes an auto-named package
+  under its title instead of "youtube.com", one per playlist, tidied by the package-name rules.
+  A LinkGrabber row stores its message's parameters, redacted, in `error_params_json`
+  (migration 0144), carried as `LinkCandidate.error_params` and `CandidateMessage.params`;
+  `CollectorCandidateRow` translates with them, so `media.ytdlp_failed` shows its `{detail}` in
+  de/en/es/fr. MCP `list_candidates` rows carry `error_params`; `collect_links` names the
+  playlist package. A row without parameters still shows the English server text.
+
+- **Status bar room for the selection; the version in the sidebar (RD-1250-06, tester via the
+  owner 2026-10-11).** `TransferRail` drops "rDownloader vX — Made with ♥ in Germany by …"; the
+  selection figure no longer shrinks (`shrink-0`), the volume line truncates instead. The new
+  `SidebarVersion` closes the sidebar footer in both states (`v1.24.0` open, `1.24` on the rail,
+  full form in tooltip and accessible name), links to Settings › About and falls back to the
+  build version until `/api/v1/health` answers. The dedication moved into About's credits card.
+
+- **Pausing and resuming many files is one write (RD-1250-08).** A tester with 1145 files saw
+  "pause all" crawl: the web interface sent one request per file, and the server wrote every
+  file of a bulk request in a transaction of its own with an event each. `pause`/`resume` of
+  `POST /api/v1/downloads/bulk` now go through `SchedulerHandle::pause_many`/`resume_many`:
+  stop reasons and holds under one lock, running files stopped by their tokens together, the
+  rest in one writer transaction (`Database::pause_downloads`/`resume_downloads`) with one
+  `download.state` event for the batch (`state`, `count`, `download_ids`, no `previous`) and each
+  package settled once. A waiting mirror still takes the single resume. The queue pause (tray
+  "Pause all"/"Start all", stop mark, automations), the compatibility APIs and MCP's
+  `control_downloads` use the same path; the web interface's "pause/resume all" and the package
+  menu send one request by the list filter. Answers and per-id refusals are unchanged.
+
+- **No other download manager named as the model in public files (RD-1250-11, owner
+  2026-10-11).** Code comments, tests, plugin sources, manifests and fixtures, `design.md` and
+  the web UI's comments describe a behaviour without naming where it was modelled on, and without
+  the source classes, files and line numbers the plugins' verification notes cited; what still
+  names that program is a format and its interop (`.crawljob`, the DLC service's default
+  endpoint, the Click'n'Load answers), the released version sections and an existing migration.
+  `scripts/tests/public-names.sh` runs `scripts/lib/public-names.py` over every public path (the
+  tree minus `scripts/public-exclude.txt`), for the name, its two-letter abbreviation as a word and a path into its source tree,
+  against `scripts/public-names-allow.txt` — path,
+  expression and reason per entry, `[Unreleased]` and a draft release-notes section refused, an
+  entry nothing needs any more refused too.
+
+- **GitHub Actions updated (Dependabot #21).** `taiki-e/install-action` 2.87.26,
+  `actions/download-artifact` 8.0.2, `actions/upload-artifact` 7.0.2, `anchore/sbom-action` 0.24.3,
+  `actions/setup-node` 7.1.0, each pinned by commit SHA; the SDK's `sdk/ci/plugin.yml` carries the
+  same pins.
+
+### Fixed
+
+- **Job index merges keep archived rows out (RD-1250-02).** The `rd-jobindex` merge driver
+  resolves a row-only conflict three-way against the merge base instead of taking both sides: a
+  row one side removed and the other left alone stays removed, a changed row beats the unchanged
+  one, a row changed on both sides keeps the later status (an inventory row ours), and a job is
+  listed once per kind of list afterwards; `archive-jobs.sh` still recounts. In 1.24 w3/w4 the
+  old driver brought four archived rows back and doubled RD-1240-24 and the Job Inventory.
+  `scripts/tests/job-index-merge.sh` replays that case in both directions.
+
+- **A held torrent port is refused, not shared (RD-1250-04).** librqbit binds its TCP listener
+  with `SO_REUSEADDR`, which on Windows takes a port another program holds, so the engine started
+  silently beside it. Before a session binds a fixed TCP port, `rd-torrent`'s `port_probe` binds
+  it once with the standard library (Windows: no option, Unix: `SO_REUSEADDR` against `TIME_WAIT`)
+  and lets go; a held port refuses the start with `TorrentErrorKind::PortInUse`. Saving it answers
+  `409 torrent.port_in_use` with `port` instead of `torrent.session_rebuild_failed`, and
+  `TorrentPortTest` and `TorrentNetworkStatus` carry `port_in_use`, shown in the port test and the
+  network status card. The rebuild onto the port the running session just released is not probed.
+
+- **The queue downloads in its order again (RD-1250-07, tester's report via the owner; rule by
+  the owner, 2026-10-11).** At parallel 1 begun files stood in many
+  packages at once. Cause: a file whose attempt failed and waited seconds for its retry gave its
+  place up at once; the next pass handed it to the next file in the list, which then held it for
+  a whole transfer, so every transient failure moved the place further down the list, across
+  packages, and left a begun file behind. The dispatch pass (`dispatch_pass`, now given its `now`)
+  asks `dispatch_selection.rs`'s `turn` for every waiting row: a plain retry (no hoster limit, no
+  stated wait) at most 10 s away keeps its place against every file after it in the list; a
+  hoster's limit, a stated wait or a longer backoff leaves the place to them and is ahead of them
+  again once it is over. From the sixth failed attempt in a row `retry.rs` waits half an hour
+  (`LONG_RETRY_WAIT`) instead of the backoff's 32 s to 5 min, `max_retries` still the end. Rule in
+  `docs/architecture.md#rd-scheduler`; fixed-clock cases in `dispatch_selection_tests.rs` and
+  `dispatch_selection.rs`. No package-by-package mode (owner's decision open).
+
+- **Under a base path, chunks, fonts and the logo load under it (RD-1250-09).** Behind a proxy
+  that passes only `/rd/`, Vite's chunk and CSS preloads, the fonts of the stylesheet and the
+  hard-coded `/favicon.svg` were asked for at the root (431 × 404): four settings pages stayed
+  empty and the logo was missing. The build now writes JavaScript addresses from
+  `window.__RD_BASE__` at run time and CSS addresses relative to the stylesheet
+  (`experimental.renderBuiltUrl`, `web/src/builtUrl.ts`); the mark is `LOGO_URL` from
+  `basePath.ts`. `builtUrl.test.ts` refuses an absolute `/favicon.svg` or `/assets/` in `web/src`.
+
+- **The Downloads title at 390 px and the history's names at 1024 px (RD-1250-10).** The title,
+  clipped to "Downloac" without a sign, now ends in an ellipsis with its full name as `title`;
+  a history name keeps at least 24rem from `md` on, so the date and the actions wrap before it
+  breaks onto a fourth line.
+
+- **The bandwidth profile select shows what is in force (RD-1250-12).** Settings › Bandwidth ›
+  *Status & limits* preselected the first profile in the switch's *Profile* select even with no
+  profile active, as if it were active. The select now follows the status: the active profile, or
+  "No limits" without one; a poll that changes nothing keeps a choice not switched to yet, and
+  switching works as before.
+
+- **The indexer review drawer holds still (RD-1250-13, owner 2026-10-11).** While it is open, a
+  re-read nobody asked for (event stream, a finished check, the read after a decision) keeps the
+  rows on screen in place and only counts what it found besides; a group whose first hit arrives
+  waits too. An alert “N more hits — Show” at the top brings them in, as closing the drawer does
+  (`holdItems`/`heldItems` in `subscriptionsItems.ts`, `mergeUnderHand` in `heldHits.ts`).
+  “Queue all”/“Dismiss all” decide every page of the list as it was last drawn (opening the
+  drawer or a group, “Show”) and no hit held back or found later: the client keeps the list's
+  watermark and sends it as `until`. `PUT /api/v1/subscriptions/{id}/items/pending` takes an
+  optional `until` (pending items found at or before it) and `item_ids` for a selection
+  (`SubscriptionPendingStateRequest`), as does MCP's `review_pending_subscription_items`; the
+  item page and the review counts report `newest_discovered_at`, the watermark to send.
+
 ## [1.24.0] - 2026-10-11
 
 ### Added

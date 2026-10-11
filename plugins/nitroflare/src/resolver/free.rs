@@ -14,7 +14,7 @@ use url::Url;
 use super::{coded, invalid_url, send};
 use crate::{messages, page};
 
-/// The main domain JD's `getPluginDomains()` lists first, and the only one this plugin's
+/// The main domain, and the only one this plugin's
 /// manifest claims.
 const PRIMARY_DOMAIN: &str = "nitroflare.com";
 
@@ -68,7 +68,7 @@ async fn free_transfer<H: PluginHost>(host: &H, file_id: &str) -> Result<HttpRes
         .to_string();
 
     let stated = start_timer(host, &ajax_url, file_id, page_url.as_str()).await?;
-    // JD reads the countdown from the file page and falls back to 60 seconds; a countdown stated
+    // The countdown comes from the file page, else 60 seconds; a countdown stated
     // by the timer answer itself wins, since it is the more specific signal.
     let wait_seconds = stated
         .or_else(|| page::countdown_seconds(&body))
@@ -144,7 +144,7 @@ async fn fetch_download<H: PluginHost>(
         ajax_url,
         &[
             ("method", "fetchDownload"),
-            // JD sends the token under both names; the site has used each of them.
+            // The token goes under both names; the site has used each of them.
             ("captcha", token),
             ("g-recaptcha-response", token),
         ],
@@ -188,7 +188,7 @@ async fn range_probe<H: PluginHost>(
     .await
 }
 
-/// JD's `setAjaxHeaders` plus the `Referer`/`Origin` pair the endpoint's CSRF check wants.
+/// The AJAX request headers plus the `Referer`/`Origin` pair the endpoint's CSRF check wants.
 async fn ajax_post<H: PluginHost>(
     host: &H,
     url: &str,

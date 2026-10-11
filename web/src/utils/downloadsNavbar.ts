@@ -12,3 +12,10 @@ export const DOWNLOADS_NAV_LABEL = { label: 'hidden @min-[72rem]:inline' }
 export const DOWNLOADS_NAV_WIDE = 'hidden @min-[72rem]:inline-flex'
 /** The key hint, first to go. */
 export const DOWNLOADS_NAV_KBD = 'hidden @min-[80rem]:inline-flex'
+/**
+ * The title, on its own line of text inside Nuxt UI's flex heading, so it can end in an ellipsis
+ * (RD-1250-10): the heading's own `truncate` clips a flex container's text without one, and at
+ * 390 px the German title read "Downloac". The full name stays as `title`; the buttons keep their
+ * room (`shrink-0` in the navbar's right slot).
+ */
+export const DOWNLOADS_NAV_TITLE = 'min-w-0 truncate'

@@ -1,6 +1,6 @@
 //! Account-less (free) resolve coverage for Rapidgator's website flow.
 //!
-//! Mirrors JD's `RapidGatorNet.handleDownloadWebsite` step by step: file page -> timer start ->
+//! The website free flow step by step: file page -> timer start ->
 //! captcha solved and countdown waited out -> `AjaxGetDownloadLink` -> `/download/captcha` posted
 //! -> final link. Each test drives the real resolver against queued mock responses and asserts
 //! what the plugin *did* (which requests, which headers, which captcha, which wait), not only
@@ -73,7 +73,7 @@ const FILE_PAGE: &str = r#"<html><head><title>Rapidgator - release.rar</title></
 <div class="g-recaptcha" data-sitekey="6Lc-free-key"></div>
 </body></html>"#;
 
-/// `/download/captcha`, carrying the form JD looks up by `id="captchaform"`.
+/// `/download/captcha`, carrying the form found by `id="captchaform"`.
 const CAPTCHA_PAGE: &str = r#"<html><body>
 <form id="captchaform" method="post" action="/download/captcha">
 <input type="hidden" name="DownloadCaptchaForm[captchaType]" value="recaptcha">
@@ -185,7 +185,7 @@ async fn the_free_flow_starts_the_timer_solves_the_captcha_then_waits_and_posts_
         Some(CAPTCHA_URL)
     );
     let posted = body_of(&requests[4]);
-    // The token reaches both fields JD fills, and the form's own field survives.
+    // The token reaches both captcha fields, and the form's own field survives.
     assert!(
         posted.contains("DownloadCaptchaForm%5BverifyCode%5D=captcha-token"),
         "{posted}"
@@ -199,8 +199,8 @@ async fn the_free_flow_starts_the_timer_solves_the_captcha_then_waits_and_posts_
         "{posted}"
     );
 
-    // The countdown was waited out, and the captcha was solved before it (JD's ordering, so the
-    // token is as fresh as possible when the form is finally posted).
+    // The countdown was waited out, and the captcha was solved before it (so the token is as
+    // fresh as possible when the form is finally posted).
     assert_eq!(*host.waits.lock().expect("lock"), vec![30]);
     assert_eq!(
         *host.order.lock().expect("lock"),
@@ -417,7 +417,7 @@ async fn a_countdown_that_does_not_start_is_transient() {
     );
 }
 
-/// A link on a foreign host is refused rather than followed — JD's own final-URL regex accepts
+/// A link on a foreign host is refused rather than followed — the page's final link could name
 /// any domain, so this is the plugin's own guard against a drifted or injected page.
 #[tokio::test]
 async fn a_download_link_on_a_foreign_host_is_refused() {

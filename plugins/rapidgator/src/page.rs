@@ -5,31 +5,23 @@
 //! compiles on every target and every function is unit-testable without a host (see
 //! `page/tests.rs`).
 //!
-//! IMPL-VERIFY (against JD's `RapidGatorNet.java`, `svn_trunk/src/jd/plugins/hoster/`, fetched
-//! 2026-09-02 — the file is 2186 lines; `handleDownloadWebsite` is lines 436-725 and
-//! `handleErrorsWebsite` lines 1944-2089):
-//! - **Verified verbatim**: the three file-page markers `var startTimerUrl = '...';`,
-//!   `var fid = <digits>;` and `var secs = <digits>;` (lines 522-524); the timer-start request
-//!   `startTimerUrl + "?fid=" + fid` with `X-Requested-With: XMLHttpRequest` (lines 537-540); the
-//!   `{"state":"started","sid":...}` answer (lines 541-550); `/download/AjaxGetDownloadLink?sid=`
-//!   answering `{"state":"done"}` (lines 581-586); `GET /download/captcha` and the form found by
-//!   `id="captchaform"` (lines 587-590); the two token fields
-//!   `DownloadCaptchaForm[verifyCode]` + `g-recaptcha-response` (lines 611-612); JD continuing
-//!   without a captcha when no `captchaform` is present ("Failed to find captchaform -> No
-//!   captcha needed?", line 670); the final-URL regex
-//!   `'(https?://<host>//\?r=download/index&session_id=<alnum>)'` (line 672) with the
-//!   `location.href = '...'` fallback (line 675); the rejected-captcha phrases "Please fix the
-//!   following input errors" / "The verification code is incorrect" (line 653); JD's hard-coded
-//!   reCAPTCHA v2 site key (line 563, see [`RECAPTCHA_SITE_KEY_FALLBACK`]); the limit phrasings
-//!   in [`ip_block_seconds`] (lines 2019-2049); and `getContentURL` being
-//!   `https://<main domain>/file/<fid>` (line 179), the main domain being `rapidgator.net`
-//!   (`getPluginDomains`, line 123).
-//! - **Assumed** (not stated by JD, so kept deliberately defensive): that the file page itself
-//!   carries a `data-sitekey`/reCAPTCHA script URL at all — JD uses its hard-coded key at this
-//!   point in the flow, which is why [`recaptcha_site_key`] falls back to it; and that
-//!   `sid`/`code` may come back as either a JSON string or a number (JD casts to `String`), which
-//!   [`json_text`] tolerates.
-//! - **Deliberate deviation**: JD's third final-URL fallback,
+//! IMPL-VERIFY (the known free website flow, checked 2026-09-02):
+//! - **Verified verbatim**: the three file-page markers `var startTimerUrl = '...';`, `var fid =
+//!   <digits>;` and `var secs = <digits>;`; the timer-start request `startTimerUrl + "?fid=" + fid`
+//!   with `X-Requested-With: XMLHttpRequest`; the `{"state":"started","sid":...}` answer;
+//!   `/download/AjaxGetDownloadLink?sid=` answering `{"state":"done"}`; `GET /download/captcha` and
+//!   the form found by `id="captchaform"`; the two token fields `DownloadCaptchaForm[verifyCode]` +
+//!   `g-recaptcha-response`; going on without a captcha when no `captchaform` is present; the
+//!   final-URL regex `'(https?://<host>//\?r=download/index&session_id=<alnum>)'` with the
+//!   `location.href = '...'` fallback; the rejected-captcha phrases "Please fix the following input
+//!   errors" / "The verification code is incorrect"; the known fixed reCAPTCHA v2 site key (see
+//!   [`RECAPTCHA_SITE_KEY_FALLBACK`]); the limit phrasings in [`ip_block_seconds`]; and the content
+//!   URL being `https://<main domain>/file/<fid>`, the main domain being `rapidgator.net`.
+//! - **Assumed** (not verified, so kept deliberately defensive): that the file page itself carries
+//!   a `data-sitekey`/reCAPTCHA script URL at all — the known flow uses the fixed key at this
+//!   point, which is why [`recaptcha_site_key`] falls back to it; and that `sid`/`code` may come
+//!   back as either a JSON string or a number, which [`json_text`] tolerates.
+//! - **Deliberate deviation**: a third, looser final-URL fallback,
 //!   `(https?://[^/]+/download/[^<>"']+)`, is *not* implemented — it would happily match
 //!   `https://rapidgator.net/download/captcha`, the very page being parsed, and hand back a
 //!   silently wrong URL. A missing link is reported as `rapidgator.no_free_link` instead.
@@ -43,10 +35,10 @@ use self::parse::{
 };
 use plugin_common::html::{decode_entities, element_text, quoted_value};
 
-/// JD's own hard-coded reCAPTCHA v2 site key for Rapidgator's free flow
-/// (`RapidGatorNet.java:563`), used when the file page carries no site key of its own. JD relies
-/// on it precisely because the key is only discoverable on the *later* `/download/captcha` page,
-/// which cannot be fetched before the countdown has run out.
+/// The known fixed reCAPTCHA v2 site key of Rapidgator's free flow, used when the file page
+/// carries no site key of its own. It is needed precisely because the key is only discoverable
+/// on the *later* `/download/captcha` page, which cannot be fetched before the countdown has
+/// run out.
 pub(crate) const RECAPTCHA_SITE_KEY_FALLBACK: &str = "6LcSUAsUAAAAAKBeQQE893pf0Io66-mIeKWPl5yF";
 
 /// The three JavaScript markers the file page carries for a free download.
@@ -61,8 +53,8 @@ pub(crate) struct TimerMarkers {
     pub(crate) wait_seconds: u64,
 }
 
-/// All three markers, or `None` when any of them is missing (JD treats that as "check why the
-/// download is impossible, then plugin defect").
+/// All three markers, or `None` when any of them is missing (then the page says why the
+/// download is impossible, or the flow has changed).
 #[must_use]
 pub(crate) fn timer_markers(html: &str) -> Option<TimerMarkers> {
     Some(TimerMarkers {
@@ -80,9 +72,9 @@ pub(crate) use plugin_common::html::recaptcha_site_key;
 /// Seconds this IP must wait before Rapidgator grants another free download, or `Some(0)` when
 /// the page states a limit without naming a duration. `None` means no limit notice at all.
 ///
-/// Mirrors the free-mode branches of JD's `handleErrorsWebsite`. Note that JD raises
-/// `ERROR_HOSTER_TEMPORARILY_UNAVAILABLE` (not `ERROR_IP_BLOCKED`) for the parallel-download and
-/// "already downloading" notices; both are reported as an IP block here on purpose, so the
+/// Covers the free-mode limit notices. The parallel-download and "already downloading" notices
+/// could be read as the hoster being temporarily unavailable rather than an IP limit; both are
+/// reported as an IP block here on purpose, so the
 /// scheduler holds back every other free link of this hoster instead of spending a wait and a
 /// paid captcha on each of them.
 #[must_use]
@@ -90,7 +82,7 @@ pub(crate) fn ip_block_seconds(html: &str) -> Option<u64> {
     if let Some(minutes) = number_after(html, "Delay between downloads must be not less than") {
         return Some(minutes.saturating_mul(60));
     }
-    // JD: 60-second wait, no reconnect needed — a duration is known, so it is reported.
+    // A 60-second wait, no reconnect needed — a duration is known, so it is reported.
     if html.contains("File is already downloading") {
         return Some(60);
     }
@@ -99,7 +91,7 @@ pub(crate) fn ip_block_seconds(html: &str) -> Option<u64> {
         "You have reached your daily downloads limit",
         "You have reached your hourly downloads limit",
         "You have reached your daily limit",
-        // JD's phrasing carries a backtick ("You can`t download more than 1 file at a time in
+        // The known phrasing carries a backtick ("You can`t download more than 1 file at a time in
         // free mode."); the brief quotes a "not more than" variant. Both are matched by their
         // shared tail, so neither the backtick nor the drift matters.
         "download more than 1 file at a time",
@@ -111,9 +103,9 @@ pub(crate) fn ip_block_seconds(html: &str) -> Option<u64> {
     limited.then_some(0)
 }
 
-/// Whether the page rejected the captcha answer (JD's `handleDownloadWebsite`, line 653). JD's
-/// regex additionally treats "a captcha widget is still on the page" as a rejection; that case is
-/// covered here by the absence of a final link, which reports `rapidgator.no_free_link`.
+/// Whether the page rejected the captcha answer. "A captcha widget is still on the page" could
+/// count as a rejection too; that case is covered here by the absence of a final link, which
+/// reports `rapidgator.no_free_link`.
 #[must_use]
 pub(crate) fn is_wrong_captcha(html: &str) -> bool {
     html.contains("Please fix the following input errors")
@@ -129,7 +121,7 @@ pub(crate) struct Form {
 }
 
 /// The `id="captchaform"` form on `/download/captcha`. `None` means no captcha is being asked
-/// for, which JD treats as "no captcha needed" rather than an error.
+/// for, which means "no captcha needed" rather than an error.
 #[must_use]
 pub(crate) fn captcha_form(html: &str) -> Option<Form> {
     let form = form_with_id(html, "captchaform")?;
@@ -139,7 +131,7 @@ pub(crate) fn captcha_form(html: &str) -> Option<Form> {
     })
 }
 
-/// Puts the solved captcha's token into both fields JD fills, replacing any value the form
+/// Puts the solved captcha's token into both token fields, replacing any value the form
 /// already carried for them.
 #[must_use]
 pub(crate) fn with_captcha_token(
@@ -158,8 +150,8 @@ pub(crate) fn with_captcha_token(
     submitted
 }
 
-/// The final download URL the captcha answer carries: JD's `?r=download/index&session_id=`
-/// pattern first, then its `location.href = '...'` fallback. See the module doc for why JD's
+/// The final download URL the captcha answer carries: the `?r=download/index&session_id=`
+/// pattern first, then the `location.href = '...'` fallback. See the module doc for why a
 /// third, much looser fallback is deliberately not implemented.
 #[must_use]
 pub(crate) fn final_download_link(html: &str) -> Option<String> {
@@ -204,8 +196,7 @@ pub(crate) struct TimerState {
 }
 
 impl TimerState {
-    /// Whether the answer reports `state` equal to `expected`, case-insensitively (JD uses
-    /// `equalsIgnoreCase`).
+    /// Whether the answer reports `state` equal to `expected`, case-insensitively.
     #[must_use]
     pub(crate) fn is_state(&self, expected: &str) -> bool {
         self.state
@@ -243,7 +234,7 @@ pub(crate) fn json_text(value: &serde_json::Value) -> Option<String> {
 }
 
 /// Whether `host` belongs to the hoster, so a parsed link is followed only when it does. The
-/// final-URL patterns are host-agnostic (JD's own regex accepts any domain), and a link on a
+/// final-URL patterns are host-agnostic (they accept any domain), and a link on a
 /// foreign host must be refused rather than fetched.
 #[must_use]
 pub(crate) fn is_provider_host(host: &str) -> bool {
@@ -251,8 +242,8 @@ pub(crate) fn is_provider_host(host: &str) -> bool {
     host == PRIMARY || host.ends_with(&format!(".{PRIMARY}"))
 }
 
-/// The file name a Rapidgator link carries: `/file/<id>/<name>.html` -> `<name>`. Mirrors JD's
-/// `getURLFilename`, minus its percent-decoding step — the decoded form is only ever a fallback
+/// The file name a Rapidgator link carries: `/file/<id>/<name>.html` -> `<name>`, without
+/// percent-decoding — the decoded form is only ever a fallback
 /// for the `Content-Disposition` name, so a percent-escaped segment is left as it stands rather
 /// than pulling in a decoder for both targets.
 #[must_use]

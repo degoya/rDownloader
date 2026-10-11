@@ -273,6 +273,11 @@ pub struct Delivery {
     pub response_excerpt: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// The folder of the finished package, for `package_completed` (RD-1250-01): kept with the
+    /// delivery so a retry names the folder the first attempt did. Internal -- the history and
+    /// the API do not show it.
+    #[serde(skip)]
+    pub package_path: Option<String>,
 }
 
 #[cfg(test)]

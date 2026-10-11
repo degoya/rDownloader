@@ -120,9 +120,9 @@ pub(super) async fn sign_in<H: PluginHost>(host: &H) -> Result<(), Failure> {
 /// the page is what a signed-in visitor gets and what a visitor without a session is redirected
 /// away from, so [`page::session_verdict`] reads it off the body. And the account's API key:
 /// `check` and the traffic/expiry figures go through the metadata API, which knows only keys,
-/// and a `login`-mode account has none stored — so it is read off this page the way
-/// JDownloader's `DdownloadCom.findAPIKey` reads it. Nothing persists the key: a guest is
-/// instantiated fresh for every call, so it lives exactly as long as the invocation.
+/// and a `login`-mode account has none stored — so it is read off this page.
+/// Nothing persists the key: a guest is instantiated fresh for every call, so it lives exactly
+/// as long as the invocation.
 ///
 /// The `api_key` branch asks the same page for the same reason — whether the imported cookie
 /// session is alive — and reads the full verdict rather than [`AccountPage::signed_in`], because

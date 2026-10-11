@@ -137,6 +137,14 @@ describe('HistoryTab', () => {
     })
   })
 
+  // RD-1250-10: beside the whole meta row a long name got ~200 px and four lines at 1024 px.
+  it('gives a name room before the meta, which wraps first', async () => {
+    await mountView()
+    const names = await screen.findAllByTestId('history-name')
+    expect(names[0]?.textContent).toBe('Holiday Pictures')
+    for (const name of names) expect([...name.classList]).toEqual(expect.arrayContaining(['flex-1', 'min-w-48', 'md:min-w-96']))
+  })
+
   it('adds an entry again and offers the way to the LinkGrabber', async () => {
     await mountView()
     await screen.findByTestId('history-list')

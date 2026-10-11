@@ -1,6 +1,6 @@
 //! Account-less (free) resolve coverage for Nitroflare's website flow.
 //!
-//! Mirrors JD's `NitroFlareCom.handleFreeDownload` website branch step by step: file page ->
+//! The website's free flow step by step: file page ->
 //! `method=startTimer` -> captcha solved and countdown waited out -> `method=fetchDownload` ->
 //! direct link. Each test drives the real resolver against queued mock responses and asserts
 //! what the plugin *did* (which requests, which headers, which captcha, which wait), not only
@@ -52,7 +52,7 @@ fn file(url: &str) -> rd_plugin_api::HostHttpResponse {
     }
 }
 
-/// The file page: the countdown JD reads plus the reCAPTCHA widget.
+/// The file page: the countdown plus the reCAPTCHA widget.
 const FILE_PAGE: &str = r#"<html><head><title>Nitroflare - release.rar</title></head><body>
 <div id="CountDownTimer" data-timer="45"></div>
 <div class="g-recaptcha" data-sitekey="6Lc-nitro-key"></div>
@@ -131,7 +131,7 @@ async fn the_free_flow_starts_the_timer_solves_the_captcha_then_waits_and_fetche
         format!("method=startTimer&fileId={FILE_ID}")
     );
 
-    // 3. `fetchDownload` carries the token under both names JD sends it under.
+    // 3. `fetchDownload` carries the token under both names the site accepts.
     assert_eq!(requests[2].method, "POST");
     assert_eq!(requests[2].url.as_str(), AJAX_URL);
     assert_eq!(
@@ -146,8 +146,8 @@ async fn the_free_flow_starts_the_timer_solves_the_captcha_then_waits_and_fetche
         "{posted}"
     );
 
-    // The countdown was waited out, and the captcha was solved before it (JD's ordering, so the
-    // token is as fresh as possible when it is finally submitted).
+    // The countdown was waited out, and the captcha was solved before it (this ordering keeps
+    // the token as fresh as possible when it is finally submitted).
     assert_eq!(*host.waits.lock().expect("lock"), vec![45]);
     assert_eq!(
         *host.order.lock().expect("lock"),
@@ -166,7 +166,7 @@ async fn the_free_flow_starts_the_timer_solves_the_captcha_then_waits_and_fetche
     }
 }
 
-/// A page without a countdown is not an error: JD falls back to 60 seconds.
+/// A page without a countdown is not an error: the flow falls back to 60 seconds.
 #[tokio::test]
 async fn a_page_without_a_countdown_falls_back_to_sixty_seconds() {
     let mut responses = happy_path_responses();

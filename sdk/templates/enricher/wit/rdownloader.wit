@@ -1,4 +1,4 @@
-package rdownloader:plugin@0.10.0;
+package rdownloader:plugin@0.11.0;
 
 interface types {
   variant failure-kind {
@@ -976,6 +976,9 @@ interface enricher {
 /// `notification` record keeps its shape. What a destination may be set to is declared in its
 /// manifest (`[[extension.settings]]`, a name and the values it accepts); the host refuses
 /// anything else when the target is saved, so what arrives here is always one of those values.
+/// A setting that declares no values is free text since contract `0.11.0` (RD-1250-01): one
+/// line, or several where the manifest says `multiline`, within the host's length limit and
+/// without control characters other than the line breaks; the plugin reads it as written.
 interface destination-settings {
   /// The value of the declared setting `name` for the delivery in progress: what the person
   /// chose, else the manifest's default. `none` when neither exists -- a setting left unset on
@@ -1003,6 +1006,12 @@ interface notifier {
     /// to it: only whether there is one, so a plugin whose service takes an optional token
     /// can leave the header off instead of sending an empty one.
     has-secret: bool,
+    /// The folder of the finished package, as this service sees it, since contract `0.11.0`
+    /// (RD-1250-01): set for `package_completed` only, `none` for every other event and for a
+    /// test message. Somebody else wrote its last segments -- a release name -- so its braces are
+    /// made inert like those of `title` and `body`; a path that carried one is no longer the
+    /// folder on disk, and a plugin that maps it onto another server should not use it.
+    package-path: option<string>,
   }
 
   /// Delivers one notification. Retrying is the host's decision, driven by the failure kind.

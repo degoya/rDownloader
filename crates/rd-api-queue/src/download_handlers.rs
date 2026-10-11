@@ -105,16 +105,19 @@ async fn act_on_ids(
     let mut affected = 0_u32;
     let mut errors = Vec::new();
     let mut refusals = Vec::new();
-    // The removal goes through the writer once for the whole batch (RD-1120-17); every other
-    // action is still one call per id.
-    let results = if matches!(action, DownloadBulkAction::Remove) {
-        bulk_removal::remove_many_with_cancel(state, &ids).await
-    } else {
-        let mut results = Vec::with_capacity(ids.len());
-        for &id in &ids {
-            results.push(apply_to_one(state, action, id).await);
+    // The removal (RD-1120-17), the pause and the resume (RD-1250-08) go through the writer
+    // once for the whole batch; every other action is still one call per id.
+    let results = match action {
+        DownloadBulkAction::Remove => bulk_removal::remove_many_with_cancel(state, &ids).await,
+        DownloadBulkAction::Pause => state.scheduler.pause_many(&ids).await,
+        DownloadBulkAction::Resume => state.scheduler.resume_many(&ids).await,
+        _ => {
+            let mut results = Vec::with_capacity(ids.len());
+            for &id in &ids {
+                results.push(apply_to_one(state, action, id).await);
+            }
+            results
         }
-        results
     };
     for (id, result) in ids.into_iter().zip(results) {
         match result {

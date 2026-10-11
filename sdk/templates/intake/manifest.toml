@@ -1,6 +1,6 @@
 manifest_version = 3
 plugin_type = "intake"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "{{PLUGIN_ID}}"
 name = "{{PLUGIN_NAME}}"
 version = "0.1.0"
@@ -23,7 +23,7 @@ claims = []
 description = "Turns {{PLUGIN_NAME}} pages and lists into LinkGrabber candidates."
 author = "Your name"
 license = "MIT"
-min_app_version = "1.9.0"
+min_app_version = "1.25.0"
 
 [limits]
 memory_bytes = 33554432

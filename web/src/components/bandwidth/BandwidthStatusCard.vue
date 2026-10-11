@@ -33,11 +33,11 @@ const chosenProfile = ref<string>(NO_LIMITS)
 const chosenEnd = ref<SwitchEnd>('next_switch')
 const switching = ref(false)
 const switchError = ref<string | null>(null)
-// Offers the first profile rather than "no limits" once there is one to offer.
-watch(() => props.profiles, (list) => {
-  const first = list[0]
-  if (chosenProfile.value === NO_LIMITS && first) chosenProfile.value = first.id
-}, { immediate: true })
+// Shows what is in force (RD-1250-12): the active profile, "no limits" without one — never a
+// profile that is not active. A poll that changes nothing keeps a choice not switched to yet.
+watch(() => status.value && (status.value.active_profile?.id ?? NO_LIMITS), (active) => {
+  if (active) chosenProfile.value = active
+})
 
 const profileItems = computed(() => [
   ...props.profiles.map(profile => ({ label: profile.name, value: profile.id })),

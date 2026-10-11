@@ -15,22 +15,21 @@ pub(crate) const UNSUPPORTED_LINK: (&str, &str) = (
 );
 
 /// `/login` reported errorcode 41/70/72 ("Invalid username/password", the legacy alias, or
-/// "Account banned" — JD groups all three into one `AccountInvalidException` case, see
-/// `api::classify_error`'s doc comment), 74 ("Unknown login error", also `AccountInvalidException`
-/// when an account is present) or 76 ("Account stolen"), or a bare HTTP 401/403.
+/// "Account banned" — all three are one invalid-account case, see `api::classify_error`'s doc
+/// comment), 74 ("Unknown login error", also an invalid account when an account is present) or 76
+/// ("Account stolen"), or a bare HTTP 401/403.
 pub(crate) const BAD_CREDENTIALS: (&str, &str) = (
     "keep2share.bad_credentials",
     "Keep2Share login or password is wrong",
 );
 
-/// `/login` reported errorcode 30 (image captcha) or 33 (reCaptcha) — JD detects this directly
-/// on the `/login` response (before its generic error switch even runs) and drives an interactive
+/// `/login` reported errorcode 30 (image captcha) or 33 (reCaptcha) — it shows on the `/login`
+/// response directly (before any generic error handling) and asks for an interactive
 /// captcha-solve loop; this plugin has no captcha-solving capability, so it reports this
 /// unconditionally rather than attempting one. Also covers errorcode 31 (captcha answer
-/// rejected) and a captcha demand from any other endpoint (JD's own switch sends those to a
-/// generic "plugin defect" outside of `/login`, since JD never expects a captcha there in premium
-/// mode either) — folded into the same bucket since this plugin can act on it no differently
-/// either way. Not retryable today; that is expected (see the task brief).
+/// rejected) and a captcha demand from any other endpoint (unexpected outside of `/login`, and
+/// never expected there in premium mode either) — folded into the same bucket since this plugin can
+/// act on it no differently either way. Not retryable today; that is expected (see the task brief).
 pub(crate) const LOGIN_CAPTCHA: (&str, &str) = (
     "keep2share.login_captcha",
     "Keep2Share requires solving a captcha",
@@ -69,7 +68,7 @@ pub(crate) const DOWNLOAD_LIMIT_REACHED: (&str, &str) = (
     "Keep2Share download limit was reached",
 );
 
-/// Errorcode 5: "Please wait to download this file" — JD reads the wait duration from the
+/// Errorcode 5: "Please wait to download this file" — the wait duration comes from the
 /// sub-error's `timeRemaining` field (seconds, possibly fractional; truncated), defaulting to 15
 /// minutes when absent/unparseable.
 pub(crate) const DOWNLOAD_WAIT: (&str, &str) = (
@@ -84,39 +83,37 @@ pub(crate) const TOO_MANY_PARALLEL: (&str, &str) = (
     "Keep2Share does not allow more parallel downloads on this account",
 );
 
-/// Errorcode 4: "You no can access to this file" — JD: `PluginException(ERROR_FATAL, ...)`, no
-/// retry.
+/// Errorcode 4: "You no can access to this file" — final, no retry.
 pub(crate) const NO_ACCESS: (&str, &str) = (
     "keep2share.no_access",
     "Keep2Share denied access to this file",
 );
 
 /// Errorcode 8: "This is private file" ('PRIVATE_ONLY') — the file can only be downloaded by its
-/// owner; JD: `privateDownloadRestriction` → `PluginException(ERROR_FATAL, ...)`, no retry.
+/// owner; final, no retry.
 pub(crate) const PRIVATE_FILE: (&str, &str) = (
     "keep2share.private_file",
     "Keep2Share file can only be downloaded by its owner",
 );
 
 /// Errorcode 10 ("You are not authorized for this action" — bad/expired `auth_token`) or 75
-/// ("This token not allow access from this IP address"). JD dumps the cached token and retries
-/// after 1 minute rather than invalidating the account outright, since the login credentials
-/// themselves can still be valid — this plugin never caches a token either way (fresh login every
-/// call), so a fresh `/login` on the next attempt is the natural retry.
+/// ("This token not allow access from this IP address"). The known handling drops the cached
+/// token and retries after 1 minute rather than invalidating the account outright, since the login
+/// credentials themselves can still be valid — this plugin never caches a token either way (fresh
+/// login every call), so a fresh `/login` on the next attempt is the natural retry.
 pub(crate) const SESSION_INVALID: (&str, &str) = (
     "keep2share.session_invalid",
     "Keep2Share reported the auth token as invalid",
 );
 
 /// Errorcode 21/22 with no sub-error entry to unwrap (or a sub-error whose own code isn't one of
-/// the other known cases) — JD: `PluginException(ERROR_TEMPORARILY_UNAVAILABLE, ...)`, no
-/// explicit wait (server default retry).
+/// the other known cases) — temporarily unavailable, no explicit wait (server default retry).
 pub(crate) const TEMPORARILY_UNAVAILABLE: (&str, &str) = (
     "keep2share.temporarily_unavailable",
     "Keep2Share reported the download as temporarily unavailable",
 );
 
-/// Errorcode 73: "You can not access k2s.cc from your current network connection!" — JD waits 6
+/// Errorcode 73: "You can not access k2s.cc from your current network connection!" — a wait of 6
 /// hours before retrying an authenticated account.
 pub(crate) const NETWORK_RESTRICTED: (&str, &str) = (
     "keep2share.network_restricted",
@@ -153,8 +150,7 @@ pub(crate) const NO_DOWNLOAD_URL: (&str, &str) = (
 );
 
 /// Errorcode 31 ("ERROR_CAPTCHA_INVALID"): the hoster rejected the captcha answer the
-/// account-less free flow submitted. IMPL-VERIFY (`K2SApi.java` rev 53214, lines 1540-1542):
-/// JD throws `PluginException(LinkStatus.ERROR_CAPTCHA)` for this code, which is a *rejected*
+/// account-less free flow submitted. This code is a *rejected*
 /// answer rather than a captcha *demand* — hence a code of its own instead of
 /// [`LOGIN_CAPTCHA`]'s (30/33, "a captcha is required"). Unreachable on the premium path,
 /// which never submits a captcha answer.
@@ -164,17 +160,15 @@ pub(crate) const CAPTCHA_REJECTED: (&str, &str) = (
 );
 
 /// `POST /requestcaptcha` answered without a usable `challenge`/`captcha_url` pair, or the
-/// image URL did not serve an image at all. IMPL-VERIFY (`K2SApi.java:858-866`): JD logs the
-/// two values and treats the same case as a plugin defect.
+/// image URL did not serve an image at all — a defect of the flow, not of the link.
 pub(crate) const CAPTCHA_UNAVAILABLE: (&str, &str) = (
     "keep2share.captcha_unavailable",
     "Keep2Share did not return a solvable captcha challenge",
 );
 
 /// The account-less free flow hit a download-count/traffic/wait limit that no captcha and no
-/// countdown can work around. IMPL-VERIFY (`K2SApi.java:1013-1019` `ipBlockedOrAccountLimit`,
-/// reached from errorcodes 1/2/5/6 and from a `time_wait` above 180 seconds): with
-/// `account == null` JD raises `LinkStatus.ERROR_IP_BLOCKED`, so this is reported as
+/// countdown can work around (errorcodes 1/2/5/6 and a `time_wait` above
+/// 180 seconds): without an account that is an IP block, so this is reported as
 /// `IpBlocked` and the scheduler holds back every other free Keep2Share link instead of
 /// burning a wait and a paid captcha on each of them. Carries `wait_seconds` when the API
 /// stated one, plus the provider `message`.
@@ -184,8 +178,8 @@ pub(crate) const FREE_LIMIT_REACHED: &str = "keep2share.free_limit_reached";
 /// (the API's own `message`, when it sent one).
 pub(crate) const NO_FREE_LINK: &str = "keep2share.no_free_link";
 
-/// The API envelope reported an error not covered by a specific code above (JD's own default
-/// `switch` arm — an unrecognized errorcode); carries the provider `api_status`/`message`.
+/// The API envelope reported an error not covered by a specific code above (an
+/// unrecognized errorcode); carries the provider `api_status`/`message`.
 pub(crate) const API_ERROR: &str = "keep2share.api_error";
 
 /// Unexpected HTTP status not covered by a specific code above; carries a `status` parameter.

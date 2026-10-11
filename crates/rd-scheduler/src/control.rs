@@ -4,6 +4,8 @@ use rd_db::StoreError;
 
 use crate::{SchedulerHandle, StopReason};
 
+#[path = "control_batches.rs"]
+mod batches;
 #[path = "control_relocate.rs"]
 mod relocate;
 #[path = "control_removal.rs"]

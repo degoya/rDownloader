@@ -1,14 +1,14 @@
 manifest_version = 3
 plugin_type = "crawler"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000131"
 name = "PEEPLink entries"
-version = "0.1.12"
+version = "0.1.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
 # The two domains the service still answers on, measured on 2026-09-21 (RD-110-17). The alias
-# `alfalink.info` that both `robots.txt` and the JDownloader pattern still name is NOT here:
+# `alfalink.info` that `robots.txt` still names is NOT here:
 # it ran into a 25 s timeout on both measuring days, so granting it would be dead
 # configuration. Nothing else is reached: an entry page is one `GET`, and the hoster links it
 # carries are handed back for the selection to resolve, never followed.

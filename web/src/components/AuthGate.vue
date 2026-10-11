@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { BASE_PATH } from '@/basePath'
+import { BASE_PATH, LOGO_URL } from '@/basePath'
 import AppSignature from '@/components/AppSignature.vue'
 import { translateServerMessage } from '@/i18n/server'
 import { useSessionStore } from '@/stores/session'
@@ -58,7 +58,7 @@ function signInWithProvider(): void {
       <div class="h-1 transfer-stripe" />
       <div class="p-7 sm:p-9">
         <div class="mb-8 flex items-center gap-3">
-          <img src="/favicon.svg" alt="rDownloader" class="size-11" />
+          <img :src="LOGO_URL" alt="rDownloader" class="size-11" />
           <div>
             <p class="eyebrow">{{ t('auth.endpoint', { endpoint }) }}</p>
             <h1 class="text-xl font-semibold tracking-tight text-highlighted">rDownloader</h1>

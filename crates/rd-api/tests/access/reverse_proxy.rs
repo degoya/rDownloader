@@ -192,8 +192,13 @@ async fn the_interface_files_are_served_under_the_mount_point() {
             content_type.contains(expected),
             "{path} was served as {content_type}"
         );
+        // The shell by its document, not by the injected base: the bundle reads
+        // `window.__RD_BASE__` itself to build its chunk addresses (RD-1250-09).
         assert!(
-            !body.contains("window.__RD_BASE__"),
+            !body
+                .trim_start()
+                .to_ascii_lowercase()
+                .starts_with("<!doctype html"),
             "{path} was answered with the app shell"
         );
     }

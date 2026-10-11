@@ -38,7 +38,7 @@ fn incompatible_installed_component_is_skipped() {
     let manifest: PluginManifest = toml::from_str(
         r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-0000000000ff"
 name = "Outdated"
 version = "0.1.0"

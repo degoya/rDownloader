@@ -2,7 +2,7 @@
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_notifier::{
-    Guest, Notification, delivered,
+    Guest, Notification, delivered, destination_settings,
     http::{self, RequestHeader},
     refuse,
     types::{Failure, FailureKind},
@@ -29,25 +29,32 @@ impl Guest for Component {
                 FailureKind::AuthRequired,
             ));
         }
+        let mapping = destination_settings::setting(request::MAPPING_SETTING).unwrap_or_default();
+        let folder = request::folder(&mapping, message.package_path.as_deref());
         // Refused by the host before the plugin runs when the target is saved (RD-130-15);
         // checked here as well, so nothing is ever sent to a guessed address.
-        let Some(endpoint) = request::endpoint(&message.destination) else {
+        let Some(endpoint) = request::endpoint(&message.destination, folder.is_some()) else {
             return Err(refuse(
                 REJECTED,
                 "This destination is not the address of a Jellyfin server",
                 FailureKind::Permanent,
             ));
         };
-        let response = http::http_request(
-            "POST",
-            &endpoint,
-            &[],
-            &[RequestHeader {
-                name: "Authorization".to_owned(),
-                value_template: request::AUTHORIZATION.to_owned(),
-            }],
-            &[],
-        )?;
+        let mut headers = vec![RequestHeader {
+            name: "Authorization".to_owned(),
+            value_template: request::AUTHORIZATION.to_owned(),
+        }];
+        let body = folder
+            .as_deref()
+            .map(request::updated_body)
+            .unwrap_or_default();
+        if !body.is_empty() {
+            headers.push(RequestHeader {
+                name: "Content-Type".to_owned(),
+                value_template: "application/json".to_owned(),
+            });
+        }
+        let response = http::http_request("POST", &endpoint, &[], &headers, body.as_bytes())?;
         // A 401 is a wrong key and a 403 one without administrator rights, neither of which time
         // fixes; a 5xx is a server that is starting or busy, and is tried again.
         delivered(response.status, "Jellyfin", REJECTED)

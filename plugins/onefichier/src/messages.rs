@@ -54,31 +54,27 @@ pub(crate) const NO_DOWNLOAD_URL: (&str, &str) = (
 
 /// The account-less website flow found no download form on the file page — the page is not a
 /// download page at all. Carries a `diagnosis` (the page's own title/heading) so an unmapped
-/// page still reaches the user in its own words. IMPL-VERIFY (`OneFichierCom.java` rev 53205,
-/// lines 628-631): JD treats a missing `br.getForm(0)` as a plugin defect.
+/// page still reaches the user in its own words. A missing form is a dead end, not a wait.
 pub(crate) const NO_FREE_FORM: &str = "1fichier.no_free_form";
 
 /// The form was posted but the answer carried no download link; carries a `diagnosis`.
-/// IMPL-VERIFY (lines 696-703, 711-713): the same dead end JD reports.
+/// The same kind of dead end.
 pub(crate) const NO_FREE_LINK: &str = "1fichier.no_free_link";
 
-/// This IP may not start another free download yet. IMPL-VERIFY (lines 820-866): with
-/// `account == null` — the account-less flow's only case — every one of JD's wait/limit markers
-/// ends in `LinkStatus.ERROR_IP_BLOCKED`, so this is reported as `IpBlocked` and the scheduler
-/// holds back every other free 1fichier link instead of walking each one into the same wait.
-/// Carries `wait_seconds`.
+/// This IP may not start another free download yet. Without an account — the account-less
+/// flow's only case — every known wait/limit marker is an IP block, so this is reported as
+/// `IpBlocked` and the scheduler holds back every other free 1fichier link instead of walking each
+/// one into the same wait. Carries `wait_seconds`.
 pub(crate) const FREE_LIMIT_REACHED: &str = "1fichier.free_limit_reached";
 
 /// "Free download is temporarily limited due to high demand" — the hoster itself has no free
-/// slot right now; nothing about this link or this IP is wrong. IMPL-VERIFY
-/// (`isErrorNoFreeSlots`, lines 868-874, and `errorNoFreeSlots`, lines 876-897).
+/// slot right now; nothing about this link or this IP is wrong.
 pub(crate) const NO_FREE_SLOTS: (&str, &str) = (
     "1fichier.no_free_slots",
     "1fichier has no free download slot available right now",
 );
 
-/// The file is password-protected. IMPL-VERIFY (`isPasswordProtectedFileWebsite`, lines
-/// 542-550): JD prompts the user for the password and submits it as the form's `pass` field;
+/// The file is password-protected: the password would go in the form's `pass` field, and
 /// this plugin has no download password to send, so it reports the file instead.
 pub(crate) const PASSWORD_REQUIRED: (&str, &str) = (
     "1fichier.password_required",

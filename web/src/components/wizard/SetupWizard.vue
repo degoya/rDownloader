@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
+import { LOGO_URL } from '@/basePath'
 import AppSignature from '@/components/AppSignature.vue'
 import SettingsMcpAccess from '@/components/settings/SettingsMcpAccess.vue'
 import WizardPairingStep from '@/components/wizard/WizardPairingStep.vue'
@@ -150,7 +151,7 @@ async function finish(startTour: boolean): Promise<void> {
       <div class="p-6 sm:p-9">
         <header class="mb-8 flex items-start justify-between gap-4">
           <div class="flex items-center gap-3">
-            <img src="/favicon.svg" alt="rDownloader" class="size-11" />
+            <img :src="LOGO_URL" alt="rDownloader" class="size-11" />
             <div>
               <p class="eyebrow">{{ t('auth.endpoint', { endpoint }) }}</p>
               <h1 class="text-xl font-semibold tracking-tight text-highlighted">{{ t('wizard.title') }}</h1>

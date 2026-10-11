@@ -2,8 +2,8 @@
 //!
 //! The one endpoint the site describes as an API (`/linkchecker/api`): `links`, URL-encoded,
 //! one per line, answered as a list in the same order with `status` `active`, `inactive` or
-//! `invalid`. No key, no account, `X-RateLimit-Limit: 30`. JDownloader sends fifty per call;
-//! so does this.
+//! `invalid`. No key, no account, `X-RateLimit-Limit: 30`. Fifty links go in one
+//! call.
 
 use plugin_common::{CheckInput, Failure, LinkCheck, LinkStatus, PluginHost};
 use serde::Deserialize;

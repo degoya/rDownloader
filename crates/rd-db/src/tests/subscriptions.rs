@@ -236,7 +236,7 @@ async fn a_pending_bulk_snapshot_does_not_capture_items_that_arrive_later() {
         .await
         .expect("first items");
     let snapshot = database
-        .pending_subscription_item_ids(subscription.id)
+        .pending_subscription_item_ids(subscription.id, None)
         .await
         .expect("snapshot");
     database

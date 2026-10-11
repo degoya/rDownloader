@@ -95,7 +95,7 @@ mod tests {
             r#"
             manifest_version = 3
             plugin_type = "auth"
-            api_version = "0.10.0"
+            api_version = "0.11.0"
             id = "019d0000-0000-7000-8000-0000000001ff"
             name = "Demo"
             version = "0.1.0"

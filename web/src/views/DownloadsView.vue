@@ -46,7 +46,7 @@ import { usePostprocessStore } from '@/stores/postprocess'
 import { useProxyProfiles } from '@/stores/proxyProfiles'
 import { usePublishedSelection } from '@/stores/selection'
 import { RESETTABLE_STATES, useTransfersStore } from '@/stores/transfers'
-import { DOWNLOADS_NAV_KBD, DOWNLOADS_NAV_LABEL, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
+import { DOWNLOADS_NAV_KBD, DOWNLOADS_NAV_LABEL, DOWNLOADS_NAV_TITLE, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
 import { hasExtractable } from '@/utils/format'
 
 const { t } = useI18n()
@@ -243,6 +243,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
     <template #header>
       <UDashboardNavbar :title="t('downloads.title')" :ui="{ root: '@container' }">
         <template #leading><UDashboardSidebarCollapse /></template>
+        <template #title><span :class="DOWNLOADS_NAV_TITLE" :title="t('downloads.title')" data-testid="downloads-title">{{ t('downloads.title') }}</span></template>
         <template #right>
           <UButton icon="i-lucide-plus" :label="t('downloads.add.title')" :aria-label="t('downloads.add.title')" :title="t('downloads.add.title')" :ui="DOWNLOADS_NAV_LABEL" color="neutral" variant="outline" data-tour="downloads-add" data-testid="downloads-add" @click="openDirectAdd">
             <template #trailing><UKbd value="a" :class="DOWNLOADS_NAV_KBD" /></template>

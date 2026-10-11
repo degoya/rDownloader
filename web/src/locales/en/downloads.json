@@ -472,9 +472,12 @@
   },
   "reresolve": {
     "action": "Re-resolve",
-    "hint": "Resolve again with the plugin version installed now; running files are paused briefly",
+    "hint": "Resolve now with the installed plugin version and fetch size and name without starting the download; running files are paused briefly",
     "done": "{count} file resolves anew at its next start | {count} files resolve anew at their next start",
-    "failed": "Re-resolving failed"
+    "failed": "Re-resolving failed",
+    "checked": "{resolved} resolved, {failed} failed",
+    "resolving": "Resolving now",
+    "checked_skipped": "{resolved} resolved, {failed} failed, {skipped} skipped (no account)"
   },
   "stop_mark": {
     "set": "Set stop mark here",

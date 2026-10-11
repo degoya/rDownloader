@@ -20,6 +20,7 @@ use crate::{DEFAULT_FUEL, PluginLimits};
 
 mod checks;
 mod sections;
+mod settings;
 mod validate;
 
 pub use sections::{
@@ -30,13 +31,14 @@ pub(crate) use sections::{
     CredentialModeManifest, ExtensionManifest, NetStreamCapability, REMOTE_JOB_CONTAINERS,
     SecretSlotManifest, TransferAuthManifest, TransferManifest,
 };
+pub use settings::{MAX_SETTING_LINE_CHARS, MAX_SETTING_TEXT_CHARS};
 pub(crate) use validate::validate_manifest;
 
 /// The only manifest revision this core accepts.
 pub const MANIFEST_VERSION: u32 = 3;
 
 /// WIT package versions of `rdownloader:plugin` this core can link a plugin against.
-pub const SUPPORTED_API_VERSIONS: &[&str] = &["0.10.0"];
+pub const SUPPORTED_API_VERSIONS: &[&str] = &["0.11.0"];
 
 /// A manifest this core refuses, in the two shapes a user can act on.
 ///

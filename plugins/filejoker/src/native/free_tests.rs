@@ -1,8 +1,8 @@
 //! Account-less (free) resolve coverage for the XFS two-form flow.
 //!
-//! Mirrors `mcrapet/plowshare-modules-legacy`'s `filejoker.sh` step by step (there is no JD
-//! plugin for FileJoker — see `crate::page`'s module doc): file page -> first form posted in free
-//! mode -> captcha solved and countdown waited out -> second form posted -> direct link. Each
+//! Mirrors `mcrapet/plowshare-modules-legacy`'s `filejoker.sh` step by step (there is no other
+//! reference for FileJoker — see `crate::page`'s module doc): file page -> first form posted in
+//! free mode -> captcha solved and countdown waited out -> second form posted -> direct link. Each
 //! test drives the real resolver against queued mock responses and asserts what the plugin *did*
 //! (which requests, which captcha, which wait), not just what it returned.
 

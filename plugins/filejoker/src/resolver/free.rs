@@ -1,6 +1,6 @@
 //! The account-less (free) XFS download flow, as FileJoker runs it.
 //!
-//! The flow is `xfs_common::free::FreeFlow` (RD-1120-10), JD's `XFileSharingProBasic.doFree`;
+//! The flow is `xfs_common::free::FreeFlow` (RD-1120-10), the XFS free flow;
 //! what is FileJoker's own is a field each: every page is checked for FileJoker's own dead ends
 //! ([`free_page_failure`]), the countdown is read off its `Please Wait` marker first, and the
 //! direct link has to be on `filejoker.net`. See `crate::page`'s module doc for the verification

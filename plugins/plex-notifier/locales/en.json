@@ -2,6 +2,10 @@
   "name": "Plex",
   "description": "Refreshes the Plex libraries when a package finishes.",
   "codes": {
-    "plex_notifier.rejected": "Plex refused the library refresh."
+    "plex_notifier.rejected": "Plex refused the library refresh.",
+    "plex_notifier.setting.section": "Library section",
+    "plex_notifier.setting.section.description": "The number of the Plex library the downloads go to (Plex Web shows it as source=<number> in the library's address). Only with it can Plex scan just the finished package's folder; left empty, every library is refreshed.",
+    "plex_notifier.setting.path_mapping": "Path mapping",
+    "plex_notifier.setting.path_mapping.description": "One line per folder: rDownloader's path=the path Plex sees, e.g. /downloads=/data/media. The longest matching path decides; a package outside every line refreshes the whole section."
   }
 }

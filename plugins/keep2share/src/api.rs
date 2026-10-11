@@ -4,79 +4,69 @@
 //! byte-identical request bodies; neither `rd-core` nor `wit-bindgen`'s generated types are used
 //! here, only `serde`/`serde_json`/`url`, which are available on every target.
 //!
-//! IMPL-VERIFY summary (against JD's `Keep2ShareCc.java` + its base class `K2SApi.java`, the
-//! living reference — `svn_trunk/src/jd/plugins/hoster/{Keep2ShareCc,K2SApi}.java`, revisions
-//! 50178/53214, fetched in full, plus `Keep2ShareCcDecrypter.java` for the domain/URL-pattern
+//! IMPL-VERIFY summary (against the known handling of the API, plus the domain/URL-pattern
 //! question):
 //!
-//! - **API host (corrects the brief and the pre-existing registry row)**: `K2SApi.getApiUrl()`
-//!   is `getProtocol() + getInternalAPIDomain() + "/api/v2"`, and `Keep2ShareCc.getInternalAPIDomain()`
-//!   hardcodes `"k2s.cc"` — every API call (`/login`, `/geturl`, `/accountinfo`, `/getfilesinfo`)
-//!   targets `k2s.cc` specifically, regardless of which mirror domain (`keep2share.cc`, `k2share.cc`,
-//!   ...) the original file link used. The brief's guessed domains (`keep2share.cc`, `api.k2s.cc`)
-//!   are never actually contacted by this plugin.
+//! - **API host (corrects the brief and the pre-existing registry row)**: the API lives at
+//!   `https://k2s.cc/api/v2` — every API call (`/login`, `/geturl`, `/accountinfo`,
+//!   `/getfilesinfo`) targets `k2s.cc` specifically, regardless of which mirror domain
+//!   (`keep2share.cc`, `k2share.cc`, ...) the original file link used. The brief's guessed domains
+//!   (`keep2share.cc`, `api.k2s.cc`) are never actually contacted by this plugin.
 //! - **Endpoint paths are all lowercase** (the brief guessed camelCase for three of the four):
 //!   `/login` (brief matches), `/geturl` (brief guessed `/getUrl`), `/accountinfo` (brief guessed
-//!   `/accountInfo`), `/getfilesinfo` (brief guessed `/getFilesInfo`). JD wins per plugin-common.
-//! - **`/geturl` premium request body**: JD's `handleDownload` only adds `captcha_challenge`/
-//!   `captcha_response`/`free_download_key` when `isFree` (`!isPremium(account)` — true both for no
-//!   account *and* for a logged-in but non-premium account) — for a logged-in call (`account !=
-//!   null`) the body sent to `/geturl` is always exactly `{"file_id":..,"auth_token":..}`, regardless
-//!   of whether that account turns out to be premium; a non-premium account simply gets a
-//!   `premium_required`-flavored error back from this same request instead of a different request
-//!   shape. This plugin only ever calls `/geturl` with a real, logged-in account, so it always sends
-//!   this body shape; the brief's speculative "may need `free_download_key`/`captcha_challenge`
-//!   fields as null" is not needed and is not sent.
+//!   `/accountInfo`), `/getfilesinfo` (brief guessed `/getFilesInfo`). The known handling wins per
+//!   plugin-common.
+//! - **`/geturl` premium request body**: `captcha_challenge`/`captcha_response`/
+//!   `free_download_key` are only added for a free download (no account *or* a logged-in but
+//!   non-premium account) — for a logged-in call the body sent to `/geturl` is always exactly
+//!   `{"file_id":..,"auth_token":..}`, regardless of whether that account turns out to be premium;
+//!   a non-premium account simply gets a `premium_required`-flavored error back from this same
+//!   request instead of a different request shape. This plugin only ever calls `/geturl` with a
+//!   real, logged-in account, so it always sends this body shape; the brief's speculative "may need
+//!   `free_download_key`/`captcha_challenge` fields as null" is not needed and is not sent.
 //! - **`resolve()` shape**: the brief's flow section lists only `login` → `/geturl` for `resolve`
-//!   (no separate file-info call), matching JD's own two-call sequence for a premium account with
-//!   no cached direct-URL (`getAuthToken` then `/geturl`); `/geturl`'s response never carries a
-//!   filename or size (only `url`/`free_download_key`/`time_wait`), so `resolve()` here returns
+//!   (no separate file-info call), the two-call sequence for a premium account with no cached
+//!   direct URL (an auth token, then `/geturl`); `/geturl`'s response never carries a filename or
+//!   size (only `url`/`free_download_key`/`time_wait`), so `resolve()` here returns
 //!   `file_name: None`/`size: None`, exactly like `/geturl`'s own payload.
-//! - **`check()` batch body**: the brief asks for `{"ids": [...]}` only; JD's `checkLinks` always
-//!   adds `"extended_info": true` (`/getfilesinfo`'s docs: `extended_info` unlocks `video_info`).
-//!   This plugin never reads `video_info`, so the field is omitted — a deliberate simplification
-//!   with no effect on the `is_available`/`name`/`size` fields this plugin actually parses.
-//! - **`check()` needs no login at all (corrects the brief)**: JD's `checkLinks` calls
-//!   `postPageRaw(br, "/getfilesinfo", postdata, null)` — the `account` argument is a literal
-//!   `null`, and `postdata` never gets an `auth_token` added. `/getfilesinfo` is genuinely
-//!   unauthenticated in JD, unlike every other endpoint this plugin calls. The brief's flow
-//!   section ("check: login once → ...") is not followed here: `check()` requires neither an
-//!   account nor the secret gate.
-//! - **`check()` batching**: JD's `checkLinks` chunks at 100 fileIDs per `/getfilesinfo` call and
-//!   loops ("Check up to 100 fileIDs with one request", `K2SApi.java:476-485`) — mirrored in
-//!   `native.rs`/`guest.rs` (not in this cfg-free module, since it owns the HTTP round-trip loop,
-//!   which differs between the native `async` adapter and the guest's synchronous one). A chunk
-//!   whose request fails degrades only that chunk's links to `Unknown`, not the whole batch.
-//! - **Sister-site question (settled)**: `Keep2ShareCcDecrypter.getPluginDomains()` registers
-//!   `domainsK2s`, `domainsFileboom` and `domainsTezfilesAndPublish2` as three *separate*
-//!   `List<String[]>` entries — the class doc comment says each entry becomes its own
-//!   `PluginForHost` with its own `getHost()`. `fileboom.me`/`fboom.me`/`tezfiles.com`/
-//!   `publish2.me` are therefore separate JD hosters with separate accounts, not Keep2Share
-//!   aliases. [`MATCH_HOSTS`] only carries `domainsK2s`'s members (minus `keep2.cc`, which JD's
-//!   own `getDeadDomains()` excludes).
-//! - **`matches()` pattern**: JD's `SUPPORTED_LINKS_PATTERN_FILE` is
+//! - **`check()` batch body**: the brief asks for `{"ids": [...]}` only; `"extended_info": true` is
+//!   also accepted (`/getfilesinfo`'s docs: `extended_info` unlocks `video_info`). This plugin
+//!   never reads `video_info`, so the field is omitted — a deliberate simplification with no
+//!   effect on the `is_available`/`name`/`size` fields this plugin actually parses.
+//! - **`check()` needs no login at all (corrects the brief)**: `/getfilesinfo` answers without an
+//!   account and without an `auth_token` in the body — it is genuinely unauthenticated, unlike
+//!   every other endpoint this plugin calls. The brief's flow section ("check: login once → ...")
+//!   is not followed here: `check()` requires neither an account nor the secret gate.
+//! - **`check()` batching**: at most 100 fileIDs go into one `/getfilesinfo` call, looped over —
+//!   in `native.rs`/`guest.rs` (not in this cfg-free module, since it owns the HTTP round-trip
+//!   loop, which differs between the native `async` adapter and the guest's synchronous one). A
+//!   chunk whose request fails degrades only that chunk's links to `Unknown`, not the whole batch.
+//! - **Sister-site question (settled)**: the Keep2Share domains, the Fileboom domains and the
+//!   Tezfiles/Publish2 domains are three *separate* hosters with separate accounts, not Keep2Share
+//!   aliases (`fileboom.me`/`fboom.me`/`tezfiles.com`/`publish2.me`). [`MATCH_HOSTS`] only carries
+//!   the Keep2Share domains (minus the dead `keep2.cc`).
+//! - **`matches()` pattern**: a file link is
 //!   `(?i)/(?:f|file|preview)/(?:info/)?([a-z0-9_\-]{13,})(/([^/\?]+))?.*` — a `/f/`, `/file/` or
 //!   `/preview/` prefix, an optional `info/` segment, then a 13+ character id (letters/digits/`_`/
 //!   `-`). The brief's guess (`/file/<id>[/...]`) covered only one of the three prefixes and
-//!   omitted the `info/` segment and the 13-character minimum; [`file_id`] follows JD's full
-//!   pattern. The sibling `SUPPORTED_LINKS_PATTERN_FOLDER` (`/folder/...`) is deliberately not
-//!   matched here — this plugin resolves single files only, like every other hoster plugin in
-//!   this workspace (folder/container expansion is a decrypter's job, not modeled here).
-//! - **Error classification**: `handleErrorsAPI`'s full per-branch enumeration (JD lines
-//!   1350-1589), with every arm's JD line citation and this module's mapping decision, lives in
-//!   `api/tests.rs`'s module doc, next to the tests that assert the ones a premium, already-logged-in
-//!   flow can actually reach.
-//! - **`check_account` premium/expiry (a documented limitation)**: JD compares `account_expires`
-//!   (epoch seconds) against `System.currentTimeMillis()` to detect an *expired* premium account
-//!   that still carries an old expiry date. `rdownloader.wit` exposes no host clock function (the
-//!   same constraint `plugins/linksnappy`'s `api::is_premium` documents for the identical reason),
-//!   so this module cannot replicate that comparison on either target. [`is_premium`] instead
-//!   reports `true` whenever `account_expires` is a JSON number at all (JD's own signal for "this
+//!   omitted the `info/` segment and the 13-character minimum; [`file_id`] follows the full
+//!   pattern. Folder links (`/folder/...`) are deliberately not matched here — this plugin
+//!   resolves single files only, like every other hoster plugin in this workspace
+//!   (folder/container expansion is a decrypter's job, not modeled here).
+//! - **Error classification**: the full per-branch enumeration of the API's error codes, with
+//!   this module's mapping decision for each, lives in `api/errors/tests.rs`'s module doc, next to
+//!   the tests that assert the ones a premium, already-logged-in flow can actually reach.
+//! - **`check_account` premium/expiry (a documented limitation)**: an *expired* premium account
+//!   can still carry an old expiry date, which only a comparison of `account_expires` (epoch
+//!   seconds) with the current time would catch. `rdownloader.wit` exposes no host clock function
+//!   (the same constraint `plugins/linksnappy`'s `api::is_premium` documents for the identical
+//!   reason), so this module cannot make that comparison on either target. [`is_premium`] instead
+//!   reports `true` whenever `account_expires` is a JSON number at all (the signal for "this
 //!   account has ever had premium up to some earlier-or-later date"; a genuinely free account gets
-//!   the literal `false`, not a number — see JD's comment above `fetchAccountInfo`'s `account_expires`
-//!   read). A past-but-numeric expiry therefore reports `premium: true` here; a live traffic/`/geturl`
-//!   call against such an account fails through the normal error path instead (JD itself treats a
-//!   truly exhausted account the same way, via `/geturl`'s or `/accountinfo`'s own error response).
+//!   the literal `false`, not a number). A past-but-numeric expiry therefore reports
+//!   `premium: true` here; a live traffic/`/geturl` call against such an account fails through the
+//!   normal error path instead (a truly exhausted account answers the same way, via `/geturl`'s or
+//!   `/accountinfo`'s own error response).
 
 use plugin_common::label::civil_date;
 use serde::{Deserialize, Serialize};
@@ -89,16 +79,16 @@ pub(crate) const API_BASE: &str = "https://k2s.cc/api/v2";
 /// JSON-string-escape the substituted value (see `crates/rd-plugin-host/src/native/expand.rs`).
 pub(crate) const CONTENT_TYPE_JSON: &str = "application/json";
 
-/// Bare hostnames (no `www.` prefix) this hoster's file links carry — JD's `domainsK2s`, minus
-/// `keep2.cc` (JD's own `getDeadDomains()`); see the module doc's sister-site IMPL-VERIFY note for
-/// why `fileboom.me`/`tezfiles.com` are not here.
+/// Bare hostnames (no `www.` prefix) this hoster's file links carry, minus the dead `keep2.cc`;
+/// see the module doc's sister-site IMPL-VERIFY note for why `fileboom.me`/`tezfiles.com` are
+/// not here.
 pub(crate) const MATCH_HOSTS: &[&str] = &["k2s.cc", "keep2share.cc", "k2share.cc", "keep2s.cc"];
 
 const USERNAME_MARKER: &str = "{{username}}";
 
 /// Extracts the file id from a Keep2Share link, e.g. `https://k2s.cc/file/<id>/name.html`,
-/// `https://k2s.cc/f/<id>` or `https://k2s.cc/file/info/<id>`. Mirrors JD's
-/// `SUPPORTED_LINKS_PATTERN_FILE` — see the module doc's IMPL-VERIFY note.
+/// `https://k2s.cc/f/<id>` or `https://k2s.cc/file/info/<id>`, by the file-link pattern
+/// — see the module doc's IMPL-VERIFY note.
 pub(crate) fn file_id(url: &Url) -> Option<&str> {
     let host_str = url.host_str()?;
     let host = host_str.strip_prefix("www.").unwrap_or(host_str);
@@ -200,7 +190,7 @@ pub(crate) struct LoginResult {
 }
 
 /// `/geturl`'s success payload (only the field this plugin reads; also carries
-/// `free_download_key`/`time_wait` in JD's free-download flow, which this plugin never takes).
+/// `free_download_key`/`time_wait` in the free-download flow, which this plugin never takes).
 #[derive(Deserialize)]
 pub(crate) struct GetUrlResult {
     #[serde(default)]
@@ -241,13 +231,13 @@ pub(crate) struct FileEntry {
 }
 
 impl FileEntry {
-    /// JD's `parseFileInfo`: available unless explicitly marked unavailable or deleted.
+    /// Available unless explicitly marked unavailable or deleted.
     pub(crate) fn is_online(&self) -> bool {
         self.is_available != Some(false) && self.is_deleted != Some(true)
     }
 
     /// Whether `fuid` (the id taken from the requested URL) refers to this entry — either
-    /// directly or via its `requested_id` alias (JD: some files have multiple/legacy ids).
+    /// directly or via its `requested_id` alias (some files have multiple/legacy ids).
     pub(crate) fn matches_fuid(&self, fuid: &str) -> bool {
         self.id.as_deref() == Some(fuid) || self.requested_id.as_deref() == Some(fuid)
     }

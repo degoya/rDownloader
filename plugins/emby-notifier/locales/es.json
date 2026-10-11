@@ -2,6 +2,8 @@
   "name": "Emby",
   "description": "Actualiza las bibliotecas de Emby cuando termina un paquete.",
   "codes": {
-    "emby_notifier.rejected": "Emby rechazó la actualización de la biblioteca."
+    "emby_notifier.rejected": "Emby rechazó la actualización de la biblioteca.",
+    "emby_notifier.setting.path_mapping": "Correspondencia de rutas",
+    "emby_notifier.setting.path_mapping.description": "Una línea por carpeta: ruta en rDownloader=ruta que ve Emby, p. ej. /downloads=/data/media. Decide la ruta coincidente más larga y Emby examina la carpeta que contiene el paquete en lugar de todas las bibliotecas; sin línea coincidente se actualizan todas las bibliotecas."
   }
 }

@@ -17,13 +17,18 @@
 #   - `wit-bindgen` is the workspace's own requirement, the one the bundled plugins build with;
 #     two templates sat on 0.61 beside eleven on 0.62.
 #   - `api_version` is one this core accepts (`SUPPORTED_API_VERSIONS`, rd-plugin-host).
-#   - `min_app_version` is the first release that accepts that `api_version`, from the table
-#     below; a contract version without a row is a finding naming the row to add. Templates said
-#     0.7.0, 0.9.0 and 1.0.7 beside an `api_version` only 1.9.0 accepts.
-#   - The SDK workflows (sdk/ci/*.yml) pin `RDOWNLOADER_VERSION` to the workspace version, the
-#     release this tree becomes and the SDK is exported with (scripts/set-version.sh writes it),
-#     and that version is not older than `min_app_version`: the pinned release accepts what the
-#     templates declare. The pin said 1.5.2, which knows API 0.9.0 only.
+#   - `min_app_version` is the workspace version, the release this tree becomes and the SDK is
+#     exported with (scripts/set-version.sh writes it, RD-1250-01): that core accepts the
+#     template's `wit/` copy, and the tree's own binary verifies a scaffold against it. A fixed
+#     value cannot be right on both sides of a contract step -- 1.25.0, the first release of
+#     contract 0.11.0, is newer than the tree that introduces it, and CI's scaffold failed its own
+#     packaging check. Templates said 0.7.0, 0.9.0 and 1.0.7 beside an `api_version` only 1.9.0
+#     accepts, so the table below keeps a floor: every `api_version` has a row naming the release
+#     that first ships it, and once that release is tagged here (`v<release>`), `min_app_version`
+#     may not be older.
+#   - The SDK workflows (sdk/ci/*.yml) pin `RDOWNLOADER_VERSION` to the workspace version too, so
+#     the pinned release is the one the templates need. The pin said 1.5.2, which knows API 0.9.0
+#     only.
 #
 # A template directory no world names is refused too: `plugin new --type` would offer a
 # scaffold for a world the contract no longer has. Whether the template *compiles* against the
@@ -47,9 +52,11 @@ finding() { echo "!! $1" >&2; findings=$((findings + 1)); }
 source "$(dirname "${BASH_SOURCE[0]}")/lib/workspace-version.sh"
 
 # The first release that accepts a plugin `api_version`. A contract bump adds its row.
+# (Whether that release is tagged yet decides whether it is a floor: see `released`.)
 api_first_release() {
     case "$1" in
         0.10.0) echo 1.9.0 ;;
+        0.11.0) echo 1.25.0 ;;
     esac
 }
 
@@ -61,6 +68,10 @@ version_at_most() {
     [[ "$(printf '%s\n%s\n' "$1" "$core" | sort -V | head -n 1)" == "$1" ]]
 }
 
+# Whether release $1 is tagged in this repository: until then the contract is the tree's own,
+# on its way to that release, and nothing older than it can have been exported.
+released() { git -C "$ROOT" rev-parse -q --verify "refs/tags/v$1" > /dev/null 2>&1; }
+
 # The value of `key = "…"` in TOML file $2, the first one.
 toml_value() { sed -n "s/^$1 = \"\(.*\)\"\$/\1/p" "$2" 2> /dev/null | head -n 1; }
 
@@ -71,7 +82,6 @@ bindgen="$(sed -n '/^\[workspace\.dependencies\]/,/^\[/p' "$ROOT/Cargo.toml" | s
 supported="$(sed -n 's/^pub const SUPPORTED_API_VERSIONS: &\[&str\] = &\[\(.*\)\];$/\1/p' \
     "$ROOT/crates/rd-plugin-host/src/manifest.rs" | tr -d '" ' | tr ',' ' ')"
 [[ -n "$supported" ]] || { echo "!! no SUPPORTED_API_VERSIONS in crates/rd-plugin-host/src/manifest.rs" >&2; exit 1; }
-newest_minimum=""
 
 worlds=()
 while read -r world; do
@@ -106,10 +116,10 @@ for world in "${worlds[@]}"; do
     minimum="$(toml_value min_app_version "$dir/manifest.toml")"
     if [[ -z "$first" ]]; then
         finding "api_version ${api:-nothing} has no row in api_first_release (scripts/check-sdk-templates.sh): add the release that first accepts it"
-    elif [[ "$minimum" != "$first" ]]; then
-        finding "sdk/templates/${world}/manifest.toml says min_app_version ${minimum:-nothing}, api_version $api needs $first"
-    elif [[ -z "$newest_minimum" ]] || ! version_at_most "$minimum" "$newest_minimum"; then
-        newest_minimum="$minimum"
+    elif [[ "$minimum" != "$workspace_version" ]]; then
+        finding "sdk/templates/${world}/manifest.toml says min_app_version ${minimum:-nothing}, the workspace is $workspace_version (scripts/set-version.sh $workspace_version)"
+    elif released "$first" && ! version_at_most "$first" "$minimum"; then
+        finding "sdk/templates/${world}/manifest.toml says min_app_version $minimum, older than $first, the release that first shipped api_version $api"
     fi
 done
 
@@ -118,8 +128,6 @@ for workflow in "$ROOT"/sdk/ci/*.yml; do
     pin="$(sed -n 's/^  RDOWNLOADER_VERSION: //p' "$workflow")"
     if [[ "$pin" != "$workspace_version" ]]; then
         finding "$name pins rDownloader ${pin:-nothing}, the workspace is $workspace_version (scripts/set-version.sh $workspace_version)"
-    elif [[ -n "$newest_minimum" ]] && ! version_at_most "$newest_minimum" "$pin"; then
-        finding "$name pins rDownloader $pin, older than the templates' min_app_version $newest_minimum"
     fi
 done
 

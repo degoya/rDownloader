@@ -203,6 +203,17 @@ pub(crate) async fn item_page(
     .bind(state)
     .fetch_one(pool)
     .await?;
+    // The page's own order is `discovered_at` first, so its maximum is the newest row of the
+    // filter on any page: the watermark of the list as this read saw it (RD-1250-13).
+    let newest_discovered_at = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+        "SELECT MAX(discovered_at) FROM subscription_items \
+         WHERE subscription_id = ? AND (? IS NULL OR state = ?)",
+    )
+    .bind(id.to_string())
+    .bind(state)
+    .bind(state)
+    .fetch_one(pool)
+    .await?;
     let counts = item_counts(pool, id).await?;
     let run_total = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM subscription_runs WHERE subscription_id = ?",
@@ -218,6 +229,7 @@ pub(crate) async fn item_page(
         total: u64::try_from(total).unwrap_or_default(),
         counts,
         run_total: u64::try_from(run_total).unwrap_or_default(),
+        newest_discovered_at,
     })
 }
 
@@ -240,7 +252,9 @@ async fn item_counts(pool: &SqlitePool, id: SubscriptionId) -> Result<Subscripti
 pub(crate) async fn review_summary(pool: &SqlitePool) -> Result<SubscriptionReviewSummary> {
     let rows = sqlx::query_as::<_, ReviewCountRow>(
         "SELECT s.id AS subscription_id, \
-                SUM(CASE WHEN i.state = 'pending' THEN 1 ELSE 0 END) AS pending \
+                SUM(CASE WHEN i.state = 'pending' THEN 1 ELSE 0 END) AS pending, \
+                MAX(CASE WHEN i.state = 'pending' THEN i.discovered_at END) \
+                  AS newest_discovered_at \
          FROM subscriptions s \
          LEFT JOIN subscription_items i ON i.subscription_id = s.id \
          WHERE s.kind = 'indexer' GROUP BY s.id ORDER BY s.name, s.id",
@@ -258,16 +272,21 @@ pub(crate) async fn review_summary(pool: &SqlitePool) -> Result<SubscriptionRevi
     })
 }
 
-/// Snapshot of all items that are pending at the start of a bulk review action.
+/// Snapshot of all items that are pending at the start of a bulk review action; with `until`
+/// only those found at or before it (RD-1250-13), so a hit written after the list was drawn is
+/// not among them. `discovered_at` is set once, on insert, so it only grows for new hits.
 pub(crate) async fn pending_item_ids(
     pool: &SqlitePool,
     id: SubscriptionId,
+    until: Option<DateTime<Utc>>,
 ) -> Result<Vec<SubscriptionItemId>> {
     sqlx::query_scalar::<_, String>(
         "SELECT id FROM subscription_items WHERE subscription_id = ? AND state = 'pending' \
-         ORDER BY discovered_at, id",
+         AND (? IS NULL OR discovered_at <= ?) ORDER BY discovered_at, id",
     )
     .bind(id.to_string())
+    .bind(until)
+    .bind(until)
     .fetch_all(pool)
     .await?
     .into_iter()

@@ -97,6 +97,11 @@ pub struct SubscriptionItemPage {
     pub counts: SubscriptionItemCounts,
     /// Number of recorded checks that the history cleanup would remove.
     pub run_total: u64,
+    /// When the newest row of the selected state filter was found, whatever the page: the
+    /// watermark a decision about "all of this list" sends as `until` (RD-1250-13). `None` for an
+    /// empty filter.
+    #[serde(default)]
+    pub newest_discovered_at: Option<DateTime<Utc>>,
 }
 
 /// Pending review count for one indexer subscription.
@@ -104,6 +109,9 @@ pub struct SubscriptionItemPage {
 pub struct SubscriptionReviewCount {
     pub subscription_id: SubscriptionId,
     pub pending: u64,
+    /// When the newest pending item was found: the watermark of the counted hits (RD-1250-13).
+    #[serde(default)]
+    pub newest_discovered_at: Option<DateTime<Utc>>,
 }
 
 /// Lightweight indexer-review summary used before any item page is expanded.

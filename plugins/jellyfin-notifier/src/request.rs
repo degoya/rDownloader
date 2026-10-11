@@ -1,17 +1,28 @@
-//! The one request a finished package becomes: Jellyfin scans every library.
+//! The one request a finished package becomes: Jellyfin is told the package's folder is new, or
+//! scans every library when it cannot be told which folder.
 //!
-//! The notifier contract carries no path of the package (RD-1240-12, owner 2026-10-10), so the
-//! refresh is the whole library (`/Library/Refresh`) rather than one folder
-//! (`/Library/Media/Updated`); a path-precise scan waits for a contract that names it. Jellyfin
-//! queues the scan as a task and answers at once.
+//! Since contract `0.11.0` (RD-1250-01) the notification names the finished package's folder.
+//! When the target's mapping holds it, Jellyfin is told that folder was created
+//! (`POST /Library/Media/Updated`) and rescans the folder that holds it, not every library
+//! (Jellyfin 10.11.0, recorded 2026-10-11). Without a folder, or with one the mapping does not
+//! hold, it scans every library (`POST /Library/Refresh`), as before. Either way Jellyfin queues
+//! the work as a task and answers at once.
 
-/// What Jellyfin is asked: scan every library.
+use plugin_guest_notifier::media_path;
+
+/// What Jellyfin is asked without a folder: scan every library.
 pub const REFRESH_PATH: &str = "/Library/Refresh";
 
+/// What Jellyfin is told with a folder: these paths changed.
+pub const UPDATED_PATH: &str = "/Library/Media/Updated";
+
+/// The setting mapping rDownloader's folders onto the server's, one `service=server` per line.
+pub const MAPPING_SETTING: &str = "path_mapping";
+
 /// The `Authorization` value Jellyfin reads its API key from, in the spelling its current
-/// versions document. Its older names (`X-Emby-Token`, the `api_key` query) are legacy, and
-/// `Authorization` is the only one of them the host lets a plugin set anyway (RD-120-60). The
-/// host substitutes the marker; the plugin never sees the key.
+/// versions document. Its older names (`X-Emby-Token`, the `api_key` query) are legacy -- 10.11
+/// may switch them off -- and `Authorization` is the only one of them the host lets a plugin set
+/// anyway (RD-120-60). The host substitutes the marker; the plugin never sees the key.
 pub const AUTHORIZATION: &str = "MediaBrowser Token=\"{{secret}}\"";
 
 /// Whether this event is one a library refresh is for. Only a finished package adds files to
@@ -21,15 +32,31 @@ pub fn wanted(event: &str) -> bool {
     event == "package_completed"
 }
 
-/// The address to send the refresh to, or `None` when the destination is not the server's
-/// address.
+/// The folder Jellyfin is told about: the package's, as the server sees it, when the mapping
+/// holds it.
+#[must_use]
+pub fn folder(mapping: &str, package_path: Option<&str>) -> Option<String> {
+    media_path::mapped(mapping, package_path?)
+}
+
+/// The body that tells Jellyfin `folder` was created: its `MediaUpdateInfoDto`, one update.
+#[must_use]
+pub fn updated_body(folder: &str) -> String {
+    format!(
+        r#"{{"Updates":[{{"Path":{},"UpdateType":"Created"}}]}}"#,
+        media_path::json_string(folder)
+    )
+}
+
+/// The address to send the request to -- the update when there is a folder to name, else the
+/// refresh -- or `None` when the destination is not the server's address.
 ///
 /// The destination is the server as the person reaches it -- `http://192.168.1.10:8096`, or
 /// behind a proxy with a base path of its own. Whether it is an address is read exactly as the
 /// host reads it, which narrows the delivery to that address's host (RD-130-15); a query or
 /// fragment someone pasted along is dropped, since the refresh is a request of its own.
 #[must_use]
-pub fn endpoint(destination: &str) -> Option<String> {
+pub fn endpoint(destination: &str, with_folder: bool) -> Option<String> {
     let destination = destination.trim();
     let written_as_address = ["https://", "http://"].iter().any(|scheme| {
         destination
@@ -44,54 +71,14 @@ pub fn endpoint(destination: &str) -> Option<String> {
         .next()
         .unwrap_or_default()
         .trim_end_matches('/');
-    Some(format!("{server}{REFRESH_PATH}"))
+    let path = if with_folder {
+        UPDATED_PATH
+    } else {
+        REFRESH_PATH
+    };
+    Some(format!("{server}{path}"))
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{endpoint, wanted};
-
-    #[test]
-    fn the_refresh_goes_to_the_server_the_destination_names() {
-        assert_eq!(
-            endpoint("http://192.168.1.10:8096").as_deref(),
-            Some("http://192.168.1.10:8096/Library/Refresh")
-        );
-        assert_eq!(
-            endpoint(" https://jellyfin.example.org/ ").as_deref(),
-            Some("https://jellyfin.example.org/Library/Refresh")
-        );
-        // A server behind a reverse proxy keeps its base path.
-        assert_eq!(
-            endpoint("https://example.org/jellyfin/").as_deref(),
-            Some("https://example.org/jellyfin/Library/Refresh")
-        );
-    }
-
-    #[test]
-    fn a_query_or_fragment_pasted_along_is_dropped() {
-        assert_eq!(
-            endpoint("https://jellyfin.example.org/#/home.html").as_deref(),
-            Some("https://jellyfin.example.org/Library/Refresh")
-        );
-        assert_eq!(
-            endpoint("https://jellyfin.example.org/?api_key=pasted").as_deref(),
-            Some("https://jellyfin.example.org/Library/Refresh")
-        );
-    }
-
-    #[test]
-    fn a_destination_that_is_not_an_address_names_no_server() {
-        for destination in ["jellyfin", "192.168.1.10:8096", "", "ftp://jellyfin.lan"] {
-            assert_eq!(endpoint(destination), None, "{destination}");
-        }
-    }
-
-    #[test]
-    fn only_a_finished_package_refreshes_the_library() {
-        assert!(wanted("package_completed"));
-        for event in ["package_failed", "storage_blocked", "update_available", ""] {
-            assert!(!wanted(event), "{event}");
-        }
-    }
-}
+#[path = "request_tests.rs"]
+mod tests;

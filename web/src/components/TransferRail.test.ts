@@ -59,6 +59,22 @@ describe('TransferRail selection', () => {
     expect(figure.getAttribute('title')).toBe('4 selected, at least 2.0 KiB in total – the size of 2 is not known yet')
   })
 
+  // RD-1250-06: the name, the version and the dedication took the room the selection needs.
+  // jsdom lays nothing out, so the widths are the live check's; the structure is pinned here.
+  it('carries no product text, and keeps the selection whole while the volume line is cut', async () => {
+    const store = mount()
+    store.publish(Symbol('view'), { count: 46, bytes: 1288490188n, unknown: 0 })
+    await nextTick()
+    const rail = screen.getByTestId('rail-selection').closest('footer')
+    for (const text of ['rDownloader', common.footer.made_with, 'Alexander Herling']) {
+      expect(rail?.textContent, text).not.toContain(text)
+    }
+    const figure = screen.getByTestId('rail-selection')
+    expect(figure.classList).toContain('shrink-0')
+    expect(figure.querySelector('.truncate')).toBeNull()
+    expect(rail?.querySelector('[title^="Committed"]')?.classList).toContain('min-w-0')
+  })
+
   it('shows only the count when no size is known at all', async () => {
     const store = mount()
     store.publish(Symbol('view'), { count: 2, bytes: 0n, unknown: 2 })

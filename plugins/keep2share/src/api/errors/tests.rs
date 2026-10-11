@@ -3,122 +3,106 @@
 //! of `api/tests.rs`, to keep both files under the workspace's 500-line limit — see
 //! plugin-common.md).
 //!
-//! IMPL-VERIFY: `K2SApi.handleErrorsAPI`'s complete per-branch enumeration (JD
-//! `svn_trunk/src/jd/plugins/hoster/K2SApi.java`, revision 53214, lines 1350-1589), in the exact
-//! order JD evaluates them, with this module's mapping decision for each:
+//! IMPL-VERIFY: the complete per-branch enumeration of the API's error answers, in the order
+//! they are evaluated, with this module's mapping decision for each:
 //!
-//! - **JSON parse failure** (lines 1352-1363): JD falls back to `checkResponseCodeErrors` (see
-//!   the bare-HTTP-status arms below) then throws a generic "Invalid API response"
-//!   (`AccountUnavailableException`/`PluginException(ERROR_TEMPORARILY_UNAVAILABLE)`, 3 minutes).
-//!   Mirrored by [`super::ensure_http_status`], the fallback this crate's adapters use when the
-//!   body doesn't parse as [`super::ErrorProbe`] at all; a status that isn't 400/401/403/404/410/
-//!   451/429/5xx there falls through to `messages::INVALID_RESPONSE`-flavored handling at the
-//!   call site rather than a dedicated `ErrorProbe`-less arm here (JD's own fallback has no
-//!   distinct code either — it reuses `ERROR_TEMPORARILY_UNAVAILABLE`).
-//! - **`errorCode` string enum** (lines 1369-1380): `"captcha_need_wait"` → IP temporarily banned
-//!   for repeated captcha failures, 1-minute wait; `"captcha_need_wait_daily"` → permanently (for
-//!   the day) banned, 30-minute wait. Both `AccountUnavailableException`. Any other string is
-//!   logged and falls through to the numeric `code` field, exactly like a response that never had
-//!   an `errorCode` at all. Mapped to [`messages::FLOOD`], `RateLimited{60}`/`RateLimited{1800}`.
-//! - **No usable `errorCode`/`code` field at all** (lines 1385-1390): success — JD returns the
-//!   parsed body as-is (after one last `checkResponseCodeErrors` bare-status sanity check).
-//! - **`errorcode == 200 && status == "success"`** (lines 1396-1402): success, explicitly.
-//! - **Sub-error unwrap for errorcode 21/22/42** (lines 1405-1415): the wrapper's own `code`/
-//!   `message`/`timeRemaining` is replaced by `errors[0]`'s fields before the switch below runs,
-//!   if `errors` is non-empty. Implemented as a pre-step in [`super::error_from_probe`].
-//! - **`message` equals "File not available"** (lines 1423-1425, checked *before* the numeric
-//!   switch, so it wins regardless of which errorcode accompanies it): `ERROR_FILE_NOT_FOUND` →
+//! - **JSON parse failure**: the bare-HTTP-status arms below apply first, then a generic
+//!   "Invalid API response", a temporary failure of 3 minutes. Covered by
+//!   [`super::ensure_http_status`], the fallback this crate's adapters use when the body doesn't
+//!   parse as [`super::ErrorProbe`] at all; a status that isn't 400/401/403/404/410/451/429/5xx
+//!   there falls through to `messages::INVALID_RESPONSE`-flavored handling at the call site
+//!   rather than a dedicated `ErrorProbe`-less arm here (the case has no distinct code either).
+//! - **`errorCode` string enum**: `"captcha_need_wait"` → IP temporarily banned for repeated
+//!   captcha failures, 1-minute wait; `"captcha_need_wait_daily"` → banned for the day, 30-minute
+//!   wait. Any other string is logged and falls through to the numeric `code` field, exactly like
+//!   a response that never had an `errorCode` at all. Mapped to [`messages::FLOOD`],
+//!   `RateLimited{60}`/`RateLimited{1800}`.
+//! - **No usable `errorCode`/`code` field at all**: success — the parsed body is used as-is
+//!   (after one last bare-status sanity check).
+//! - **`errorcode == 200 && status == "success"`**: success, explicitly.
+//! - **Sub-error unwrap for errorcode 21/22/42**: the wrapper's own `code`/`message`/
+//!   `timeRemaining` is replaced by `errors[0]`'s fields before the switch below runs, if `errors`
+//!   is non-empty. Implemented as a pre-step in [`super::error_from_probe`].
+//! - **`message` equals "File not available"** (checked *before* the numeric switch, so it wins
+//!   regardless of which errorcode accompanies it): the file is gone →
 //!   [`messages::FILE_OFFLINE`], `Offline`.
-//! - **1** — "Download count files exceed" (line 1427-1430): `ERROR_IP_BLOCKED`, JD's
-//!   `ipBlockedOrAccountLimit` with `FREE_RECONNECTWAIT_MILLIS` (1 hour) since this plugin always
-//!   has an account. → [`messages::DOWNLOAD_LIMIT_REACHED`], `RateLimited{3600}`.
-//! - **2** — "Traffic limit exceed" (line 1431-1438): same 1-hour wait. →
-//!   [`messages::TRAFFIC_EXHAUSTED`], `RateLimited{3600}` (the brief's explicitly named mapping).
-//! - **3, 7** — file-size-exceeded / premium-only (line 1439-1444): `AccountRequiredException`. →
+//! - **1** — "Download count files exceed": an IP block or account limit with a 1-hour wait,
+//!   since this plugin always has an account. → [`messages::DOWNLOAD_LIMIT_REACHED`],
+//!   `RateLimited{3600}`.
+//! - **2** — "Traffic limit exceed": same 1-hour wait. → [`messages::TRAFFIC_EXHAUSTED`],
+//!   `RateLimited{3600}` (the brief's explicitly named mapping).
+//! - **3, 7** — file-size-exceeded / premium-only: an account is required. →
 //!   [`messages::PREMIUM_REQUIRED`], `AuthRequired`.
-//! - **4** — "You no can access to this file" (line 1445-1448): `ERROR_FATAL`, no retry. →
-//!   [`messages::NO_ACCESS`], `Permanent`.
-//! - **5** — "Please wait to download this file" (line 1449-1463): wait duration from the
-//!   sub-error's `timeRemaining` (seconds, truncated at any decimal point), default 15 minutes. →
+//! - **4** — "You no can access to this file": fatal, no retry. → [`messages::NO_ACCESS`],
+//!   `Permanent`.
+//! - **5** — "Please wait to download this file": wait duration from the sub-error's
+//!   `timeRemaining` (seconds, truncated at any decimal point), default 15 minutes. →
 //!   [`messages::DOWNLOAD_WAIT`], `RateLimited{<dynamic>}`.
-//! - **6** — free-account parallel-download cap (line 1464-1468): fixed 15-minute wait. →
+//! - **6** — free-account parallel-download cap: fixed 15-minute wait. →
 //!   [`messages::TOO_MANY_PARALLEL`], `RateLimited{900}`.
-//! - **9** — "store subscribers only" (line 1469-1474): `AccountRequiredException`. → same
-//!   [`messages::PREMIUM_REQUIRED`] bucket as 3/7 (identical exception class and outcome).
-//! - **8** — "This is private file" (line 1475-1479): `privateDownloadRestriction` →
-//!   `ERROR_FATAL`, no retry. → [`messages::PRIVATE_FILE`], `Permanent`.
-//! - **10** — "not authorized" / stale `auth_token` (line 1480-1484): dumps the cached token,
-//!   `AccountUnavailableException`, 1 minute. This plugin never caches a token (fresh `/login`
-//!   every call), so the "dump" is a no-op; only the retry semantics matter. →
-//!   [`messages::SESSION_INVALID`], `Transient{60}`.
+//! - **9** — "store subscribers only": an account is required. → same
+//!   [`messages::PREMIUM_REQUIRED`] bucket as 3/7 (identical outcome).
+//! - **8** — "This is private file": a private download restriction, fatal, no retry. →
+//!   [`messages::PRIVATE_FILE`], `Permanent`.
+//! - **10** — "not authorized" / stale `auth_token`: the cached token is dropped, 1-minute retry.
+//!   This plugin never caches a token (fresh `/login` every call), so dropping it is a no-op; only
+//!   the retry semantics matter. → [`messages::SESSION_INVALID`], `Transient{60}`.
 //! - **11, 42** (default sub-case, no `errors[0]` to unwrap into a more specific code) —
-//!   "auth_token expired" / generic download-not-available (line 1485-1501):
-//!   `AccountRequiredException`. → same [`messages::PREMIUM_REQUIRED`] bucket.
-//! - **75** — "token not allowed from this IP" (line 1502-1509): same handling as 10. → same
+//!   "auth_token expired" / generic download-not-available: an account is required. → same
+//!   [`messages::PREMIUM_REQUIRED`] bucket.
+//! - **75** — "token not allowed from this IP": same handling as 10. → same
 //!   [`messages::SESSION_INVALID`] bucket.
-//! - **20** — `ERROR_FILE_NOT_FOUND` (line 1510-1512). → [`messages::FILE_OFFLINE`], `Offline`.
+//! - **20** — file not found. → [`messages::FILE_OFFLINE`], `Offline`.
 //! - **21, 22** (reached only when the sub-error unwrap above found nothing to unwrap, or the
-//!   unwrapped code isn't otherwise recognized) — file unavailable / blocked (line 1513-1522):
-//!   `ERROR_TEMPORARILY_UNAVAILABLE`, no explicit wait. → [`messages::TEMPORARILY_UNAVAILABLE`],
-//!   `Transient{None}`.
-//! - **23** — "file_id is folder" (line 1523-1525): `ERROR_FILE_NOT_FOUND`. → same
-//!   [`messages::FILE_OFFLINE`] bucket as 20.
-//! - **30, 33** — image captcha / reCaptcha demanded (line 1526-1538): on the raw `/login`
-//!   response specifically, JD intercepts this even earlier (before `handleErrorsAPI` runs at
-//!   all, matched via a regex on the raw body) and drives an interactive captcha-solve retry loop
-//!   capped at one attempt; reached here as a fallback for any other endpoint, where JD throws
-//!   `ERROR_PLUGIN_DEFECT` since a captcha demand mid-download is unexpected in premium mode. This
-//!   plugin has no captcha-solving capability on any endpoint, so both cases collapse to one
-//!   unconditional, non-retryable outcome. → [`messages::LOGIN_CAPTCHA`], `NeedsCaptcha`.
-//! - **31** — captcha answer rejected (line 1539-1541): `ERROR_CAPTCHA`. Reachable only from the
-//!   account-less free flow, the one path that submits a captcha answer (`api::free`), so it gets
-//!   its own [`messages::CAPTCHA_REJECTED`]/`CaptchaFailed` rather than sharing 30/33's "a captcha
-//!   is required" bucket.
-//! - **40** — wrong free-download key (line 1542-1544): `ERROR_PLUGIN_DEFECT`, no wait — the same
-//!   non-retryable outcome as the default arm below. Unreachable in practice (this plugin never
-//!   sends `free_download_key`); no dedicated code, folds into the generic default arm below
-//!   rather than getting its own `messages` constant, since both land on the identical
-//!   `Permanent`/`api_error` outcome anyway.
-//! - **41, 70, 72** — bad credentials / legacy alias / account banned (line 1545-1551): dumps the
-//!   token, `AccountInvalidException`. → [`messages::BAD_CREDENTIALS`], `AccountInvalid`.
-//! - **71** — "Login attempt was exceed" (line 1552-1560): `AccountUnavailableException`, 31
-//!   minutes. → [`messages::FLOOD`], `RateLimited{1860}`.
-//! - **73** — network/IP not allowed to reach `k2s.cc` (line 1561-1567): `AccountUnavailableException`
-//!   when an account is present (always true here), 6 hours. → [`messages::NETWORK_RESTRICTED`],
-//!   `RateLimited{21600}`.
-//! - **74** — unknown login error (line 1568-1574): `AccountInvalidException("Account has been
-//!   banned")` when an account is present. → same [`messages::BAD_CREDENTIALS`] bucket as 41/70/72
-//!   (same exception class; JD's fixed message string differs from the 41/70/72 arms' dynamic
-//!   server message, not replicated since this module's messages carry the live server text via
-//!   the `message` parameter, not a hardcoded string per sub-case).
-//! - **76** — "Account stolen" (line 1575-1577): `AccountInvalidException`. → same
-//!   [`messages::BAD_CREDENTIALS`] bucket.
-//! - **default** — any other errorcode (line 1578-1582): one last `checkResponseCodeErrors` bare-
-//!   status check, then `ERROR_PLUGIN_DEFECT` with **no wait time** — non-retryable in JD. →
-//!   [`messages::API_ERROR`], `Permanent` (the task brief independently specifies "unknown ->
-//!   Permanent keep2share.api_error" — JD and the brief agree here. An earlier revision of this
-//!   module mapped this arm `Transient{300}`, a deviation from *both* JD and the brief with no
-//!   supporting evidence of its own; corrected after review. Unlike the Rapidgator/LinkSnappy
-//!   plugins in this workspace, whose own JD references make their unknown-code fallback
-//!   explicitly retryable, K2S's JD reference does not, so this plugin does not borrow their
-//!   convention here).
-//! - **Bare HTTP status** (JD's `checkResponseCodeErrors`, lines 1591-1599, invoked whenever no
-//!   JSON `errorCode`/`code` was found or the body didn't parse at all): `400` → 5-minute retry
-//!   ("This may happen after any request even if the request itself is done right"); `429` →
-//!   JD's own delay here is 3 minutes, but plugin-common's stated `429 → RateLimited` convention
-//!   is followed instead (`RateLimited{None}`) for consistency with every other plugin in this
-//!   workspace, since JD's browser layer (`createNewBrowserInstance`/`prepAPI`) allows 400/401/
-//!   403/406/429/503/520/522 through to body-level handling rather than throwing on them
-//!   directly — plugin-common's 401/403 → `AccountInvalid`, 404/410 → `Permanent`, 451 →
-//!   `Offline`, 5xx →
-//!   `Transient` conventions are applied for any bare status JD's own plugin never documents a
-//!   distinct handler for. See [`super::ensure_http_status`].
-//! - **`/login`'s own captcha short-circuit** (lines 1170-1240, outside `handleErrorsAPI`): JD
-//!   detects `"errorCode":30` (image captcha) or `"errorCode":33` (reCaptcha) directly in the raw
-//!   `/login` response body and only *then* calls `handleErrorsAPI` if no captcha was demanded.
-//!   Functionally identical to this module's handling: `/login`'s `errorCode` still flows through
-//!   [`super::error_from_probe`] → [`super::classify_errorcode`]'s 30/33 arm the same way any other
-//!   endpoint's would, so no special-casing by endpoint is needed here.
+//!   unwrapped code isn't otherwise recognized) — file unavailable / blocked: temporarily
+//!   unavailable, no explicit wait. → [`messages::TEMPORARILY_UNAVAILABLE`], `Transient{None}`.
+//! - **23** — "file_id is folder": not a file. → same [`messages::FILE_OFFLINE`] bucket as 20.
+//! - **30, 33** — image captcha / reCaptcha demanded: on the raw `/login` response a captcha can
+//!   be solved interactively and the sign-in retried once; on any other endpoint a captcha demand
+//!   mid-download is unexpected in premium mode. This plugin has no captcha-solving capability on
+//!   any endpoint, so both cases collapse to one unconditional, non-retryable outcome. →
+//!   [`messages::LOGIN_CAPTCHA`], `NeedsCaptcha`.
+//! - **31** — captcha answer rejected. Reachable only from the account-less free flow, the one
+//!   path that submits a captcha answer (`api::free`), so it gets its own
+//!   [`messages::CAPTCHA_REJECTED`]/`CaptchaFailed` rather than sharing 30/33's "a captcha is
+//!   required" bucket.
+//! - **40** — wrong free-download key: no wait, the same non-retryable outcome as the default arm
+//!   below. Unreachable in practice (this plugin never sends `free_download_key`); no dedicated
+//!   code, folds into the generic default arm below rather than getting its own `messages`
+//!   constant, since both land on the identical `Permanent`/`api_error` outcome anyway.
+//! - **41, 70, 72** — bad credentials / legacy alias / account banned: the token is dropped, the
+//!   account is invalid. → [`messages::BAD_CREDENTIALS`], `AccountInvalid`.
+//! - **71** — "Login attempt was exceed": the account is unavailable for 31 minutes. →
+//!   [`messages::FLOOD`], `RateLimited{1860}`.
+//! - **73** — network/IP not allowed to reach `k2s.cc`: with an account present (always true
+//!   here), 6 hours. → [`messages::NETWORK_RESTRICTED`], `RateLimited{21600}`.
+//! - **74** — unknown login error: "Account has been banned" when an account is present. → same
+//!   [`messages::BAD_CREDENTIALS`] bucket as 41/70/72 (a fixed message string differs from the
+//!   41/70/72 arms' dynamic server message, not replicated since this module's messages carry the
+//!   live server text via the `message` parameter, not a hardcoded string per sub-case).
+//! - **76** — "Account stolen": the account is invalid. → same [`messages::BAD_CREDENTIALS`]
+//!   bucket.
+//! - **default** — any other errorcode: one last bare-status check, then a defect with **no wait
+//!   time** — non-retryable. → [`messages::API_ERROR`], `Permanent` (the task brief independently
+//!   specifies "unknown -> Permanent keep2share.api_error" — the known handling and the brief
+//!   agree here. An earlier revision of this module mapped this arm `Transient{300}`, a deviation
+//!   from *both* with no supporting evidence of its own; corrected after review. Unlike the
+//!   Rapidgator/LinkSnappy plugins in this workspace, whose unknown-code fallback is explicitly
+//!   retryable, Keep2Share's is not, so this plugin does not borrow their convention here).
+//! - **Bare HTTP status** (whenever no JSON `errorCode`/`code` was found or the body didn't parse
+//!   at all): `400` → 5-minute retry ("This may happen after any request even if the request
+//!   itself is done right"); for `429` plugin-common's stated `429 → RateLimited` convention is
+//!   followed (`RateLimited{None}`, not a fixed 3 minutes) for consistency with every other plugin
+//!   in this workspace, since 400/401/403/406/429/503/520/522 can all carry a body-level answer —
+//!   plugin-common's 401/403 → `AccountInvalid`, 404/410 → `Permanent`, 451 → `Offline`, 5xx →
+//!   `Transient` conventions are applied for any bare status without a documented handler of its
+//!   own. See [`super::ensure_http_status`].
+//! - **`/login`'s own captcha short-circuit**: `"errorCode":30` (image captcha) or
+//!   `"errorCode":33` (reCaptcha) can be detected directly in the raw `/login` response body
+//!   before any other error handling. Functionally identical to this module's handling:
+//!   `/login`'s `errorCode` still flows through [`super::error_from_probe`] →
+//!   [`super::classify_errorcode`]'s 30/33 arm the same way any other endpoint's would, so no
+//!   special-casing by endpoint is needed here.
 
 use super::*;
 
@@ -344,7 +328,7 @@ fn classify_errorcode_maps_flood_and_network_restricted() {
 #[test]
 fn classify_errorcode_falls_back_to_a_permanent_unknown_error() {
     // Includes errorcode 40 (unreachable in this plugin's premium-only flow, per its doc comment).
-    // JD's own default arm (`ERROR_PLUGIN_DEFECT`, no wait) and the task brief ("unknown ->
+    // The known handling (a defect, no wait) and the task brief ("unknown ->
     // Permanent keep2share.api_error") agree this is non-retryable.
     for code in [40, 999] {
         let failure = classify_errorcode(code, "Some new provider error", None);

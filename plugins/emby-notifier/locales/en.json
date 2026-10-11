@@ -2,6 +2,8 @@
   "name": "Emby",
   "description": "Refreshes the Emby libraries when a package finishes.",
   "codes": {
-    "emby_notifier.rejected": "Emby refused the library refresh."
+    "emby_notifier.rejected": "Emby refused the library refresh.",
+    "emby_notifier.setting.path_mapping": "Path mapping",
+    "emby_notifier.setting.path_mapping.description": "One line per folder: rDownloader's path=the path Emby sees, e.g. /downloads=/data/media. The longest matching path decides and Emby scans the folder that holds the package instead of every library; without a matching line every library is refreshed."
   }
 }

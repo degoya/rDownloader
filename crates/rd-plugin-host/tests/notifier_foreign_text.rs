@@ -78,6 +78,7 @@ async fn telegram_sends_a_hostile_title_made_inert_and_keeps_the_token_in_its_pa
             destination: "-100123456",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("a hostile name is still delivered");
@@ -106,6 +107,7 @@ async fn ntfy_sends_a_hostile_title_and_body_made_inert() {
             destination: "downloads",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("a hostile name is still delivered");
@@ -139,6 +141,7 @@ async fn discord_sends_a_hostile_title_made_inert_and_keeps_the_token_in_its_pat
             destination: "",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("a hostile name is still delivered");
@@ -173,6 +176,7 @@ async fn ntfy_sends_the_granted_marker_made_inert() {
             destination: "downloads",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("delivered");
@@ -200,6 +204,7 @@ async fn discord_sends_the_granted_marker_made_inert() {
             destination: "",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("delivered");

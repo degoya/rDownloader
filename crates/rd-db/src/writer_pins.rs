@@ -3,10 +3,11 @@
 //! A pin keeps a download on one exact resolver version. `claim_resolver_pin` writes the first
 //! one when a job starts; this module holds the two other ways a pin changes: the operator
 //! points a download at the version under test, and a start finds a pin whose version is gone.
+//! Beside them, what an immediate re-resolve found is written back (RD-1250-05).
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
-use rd_core::{DownloadId, EventEnvelope, EventKind, Failure, FailureKind};
+use rd_core::{DownloadId, DownloadState, EventEnvelope, EventKind, Failure, FailureKind};
 use sqlx::{Connection, Row};
 
 use crate::{
@@ -90,6 +91,72 @@ impl Writer {
                 })
             })
             .transpose()
+    }
+
+    /// Writes what an immediate re-resolve found on a download that is not running
+    /// (RD-1250-05): the reported name, the reported size while no byte is confirmed, and the
+    /// failure as the last error. A success clears an earlier error, except on a file that
+    /// failed or is blocked, which keeps the reason it stopped for. The state stays as it is:
+    /// what the check says decides nothing the next attempt would not decide again.
+    ///
+    /// The size is left alone once bytes are confirmed. Overwriting it then would make the
+    /// recorded transfer agree with a file that may have changed, and the next attempt's
+    /// validator check is what stops a changed file from being continued.
+    pub(crate) async fn record_resolution(
+        &mut self,
+        id: DownloadId,
+        file_name: Option<String>,
+        total_bytes: Option<u64>,
+        failure: Option<Failure>,
+    ) -> Result<()> {
+        let current = crate::models::get_download_from_connection(&mut self.connection, id)
+            .await?
+            .context(StoreError::not_found("download not found"))?;
+        if current.state.holds_the_file() || current.state == DownloadState::Completed {
+            bail!(StoreError::wrong_state(
+                "a running or finished download is not resolved again here"
+            ));
+        }
+        let file_name = file_name.unwrap_or(current.file_name);
+        let total = if current.committed_bytes.get() == 0 {
+            total_bytes.or(current.total_bytes.map(rd_core::ByteCount::get))
+        } else {
+            current.total_bytes.map(rd_core::ByteCount::get)
+        }
+        .map(|value| i64::try_from(value).context("file size exceeds SQLite range"))
+        .transpose()?;
+        let last_error = match failure {
+            Some(failure) => Some(rd_core::redact_failure(failure)),
+            None if matches!(
+                current.state,
+                DownloadState::Failed | DownloadState::Blocked
+            ) =>
+            {
+                current.last_error
+            }
+            None => None,
+        };
+        let event = EventEnvelope::new(
+            EventKind::DownloadState,
+            serde_json::json!({ "download_id": id, "state": current.state, "resolved": true }),
+        );
+        let mut transaction = self.connection.begin().await?;
+        sqlx::query(
+            "UPDATE downloads SET file_name = ?, recovery = ?, total_bytes = ?, \
+             last_error_json = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(&file_name)
+        .bind(rd_core::is_recovery_volume(&file_name))
+        .bind(total)
+        .bind(last_error.as_ref().map(serde_json::to_string).transpose()?)
+        .bind(event.occurred_at)
+        .bind(id.to_string())
+        .execute(&mut *transaction)
+        .await?;
+        insert_event(&mut transaction, &event).await?;
+        transaction.commit().await?;
+        let _ = self.events.send(event);
+        Ok(())
     }
 
     /// Drops pins naming a resolver version this build can no longer provide.

@@ -1,6 +1,6 @@
 //! Rapidgator resolver. With an account it uses the pure JSON API (`rapidgator.net/api/v2`),
-//! username (login e-mail) + account password: every call issues a fresh `user/login` (JD's
-//! `FEATURE.USERNAME_IS_EMAIL`), and the resulting session `token` is a plain per-invocation
+//! username (login e-mail) + account password: every call issues a fresh `user/login` (the username
+//! is the e-mail address), and the resulting session `token` is a plain per-invocation
 //! value, never a secret-store secret and never cached (WASM is stateless).
 //!
 //! Without an account it runs the website free flow instead ([`page`] + each adapter's `free`

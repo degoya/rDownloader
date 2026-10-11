@@ -1,7 +1,7 @@
 //! Reading MediaFire addresses and building the ones the plugins hand out.
 //!
 //! The forms are the ones measured live on 2026-09-21 (`docs/roadmap/jobs/103-06-mediafire.md`,
-//! section 5) plus the ones JDownloader's `MediafireComFolder` decrypter still recognises:
+//! section 5) plus the older forms links still carry:
 //! `/file/<key>[/<name>[/file]]`, `/file_premium/<key>`, `/download/<key>`, `/view/<key>`,
 //! `/listen/<key>`, `/watch/<key>`, `/download.php?<key>` (a file), `/?<key>`, `/?<key>,<key>`,
 //! `/folder/<key>[/<name>|/shared]` and the `mfi.re` short host. A key is 11 to 15 lower-case

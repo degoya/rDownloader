@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
-import type { Download, DownloadBulkAction, DownloadPackage, DownloadRates } from '@/api/types'
+import type { Download, DownloadBulkAction, DownloadBulkFilter, DownloadPackage, DownloadRates, DownloadState } from '@/api/types'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { serverMessageFrom } from '@/i18n/server'
 import { batchError, combinedMessage, inBatches } from '@/utils/bulkBatches'
@@ -175,30 +175,28 @@ export const useTransfersStore = defineStore('transfers', () => {
     await refresh()
   }
 
+  /**
+   * Pauses or resumes every file the action applies to. One request by the list filter, which
+   * the server writes in one transaction (RD-1250-08); it used to be one request per file, and
+   * a queue of 1145 files took that many round trips. Answers how many files it changed.
+   */
   async function controlAll(action: 'pause' | 'resume'): Promise<number> {
     if (controlsBusy.value) return 0
     const states = action === 'pause' ? PAUSABLE_STATES : RESUMABLE_STATES
-    const targets = downloads.value.filter(download => states.includes(download.state))
-    if (!targets.length) {
+    if (!downloads.value.some(download => states.includes(download.state))) {
       notice.value = t(action === 'pause' ? 'downloads.notices.nothing_to_pause' : 'downloads.notices.nothing_to_resume')
       return 0
     }
     controlsBusy.value = true
     notice.value = null
     error.value = null
-    let changed = 0
-    for (const download of targets) {
-      const endpoint = action === 'pause'
-        ? '/api/v1/downloads/{id}/pause' as const
-        : '/api/v1/downloads/{id}/resume' as const
-      const response = await api.POST(endpoint, { params: { path: { id: download.id } } })
-      if (response.data) changed += 1
-      else error.value = responseError(response)
+    try {
+      const changed = await bulkByFilter(action, { states: [...states] as DownloadState[] })
+      notice.value = t(action === 'pause' ? 'downloads.notices.paused_count' : 'downloads.notices.resumed_count', { count: changed }, changed)
+      return changed
+    } finally {
+      controlsBusy.value = false
     }
-    controlsBusy.value = false
-    await refresh()
-    notice.value = t(action === 'pause' ? 'downloads.notices.paused_count' : 'downloads.notices.resumed_count', { count: changed }, changed)
-    return changed
   }
 
   async function remove(id: string): Promise<boolean> {
@@ -228,6 +226,22 @@ export const useTransfersStore = defineStore('transfers', () => {
     })
     error.value = [batchError(run), refused].filter(Boolean).join(' · ') || null
     return run.data.reduce((sum, result) => sum + result.affected, 0)
+  }
+
+  /**
+   * Applies one action to every file `filter` selects with one request, however many there are
+   * (RD-1190-15) — a package's pause or the queue's (RD-1250-08). Returns the number of
+   * affected files; the refusals become the error.
+   */
+  async function bulkByFilter(action: DownloadBulkAction, filter: DownloadBulkFilter): Promise<number> {
+    const response = await api.POST('/api/v1/downloads/bulk', { body: { ids: [], action, filter } })
+    await refresh()
+    if (!response.data) {
+      error.value = responseError(response)
+      return 0
+    }
+    error.value = bulkRefusals(response.data)
+    return response.data.affected
   }
 
   /**
@@ -367,6 +381,7 @@ export const useTransfersStore = defineStore('transfers', () => {
     connectEvents,
     control,
     controlAll,
+    bulkByFilter,
     controlsBusy,
     updatePackages,
     reorderPackages,

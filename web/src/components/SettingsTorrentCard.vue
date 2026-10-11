@@ -83,6 +83,10 @@ const PORT_TEST_COLORS = {
 const portTestTitle = computed(() => {
   const report = portTest.value
   if (!report) return ''
+  // A fixed port another program holds is named as such, not as the engine's start error (RD-1250-04).
+  if (report.verdict === 'unavailable' && report.port_in_use != null) {
+    return t('settings.torrent.port_in_use', { port: report.port_in_use })
+  }
   return t(`settings.torrent.port_test.verdict.${report.verdict}`, {
     port: report.listen_port ?? '–',
     error: report.error ?? ''
@@ -95,7 +99,9 @@ const portTestDetails = computed(() => {
     torrents: report.live_torrents,
     peers: report.incoming_peers
   })
-  return report.peer_proxy_configured ? `${counts}. ${t('settings.torrent.port_test.proxy_hint')}` : counts
+  // A rebuild onto a held port was refused: the engine runs on, on its previous port.
+  const conflict = report.port_in_use != null ? `${t('settings.torrent.port_in_use', { port: report.port_in_use })} ` : ''
+  return conflict + (report.peer_proxy_configured ? `${counts}. ${t('settings.torrent.port_test.proxy_hint')}` : counts)
 })
 
 onMounted(async () => {

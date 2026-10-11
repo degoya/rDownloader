@@ -95,6 +95,30 @@ describe('the bandwidth status card switching a profile by hand', () => {
     expect(screen.queryByRole('button', { name: 'Back to the schedule' })).toBeNull()
   })
 
+  // RD-1250-12: without an active profile the select offered the first one, as if it were active.
+  it('shows no profile in the select while none is active, and still switches to one chosen', async () => {
+    get.mockImplementation(async (path: string) =>
+      ({ data: path === '/api/v1/bandwidth/status' ? { ...STATUS, active_profile: null } : [] }))
+    put.mockResolvedValue({ data: STATUS })
+    await mounted()
+    expect(screen.getByRole('heading', { name: 'No profile active' })).toBeTruthy()
+    const [profile] = screen.getAllByRole('combobox') as HTMLSelectElement[]
+    expect(profile?.value).toBe('none')
+
+    await fireEvent.update(profile as HTMLElement, 'p-day')
+    await fireEvent.click(screen.getByRole('button', { name: 'Switch' }))
+
+    expect(put).toHaveBeenCalledWith('/api/v1/bandwidth/manual', { body: { profile_id: 'p-day', ends: 'next_switch' } })
+    await waitFor(() => expect((screen.getAllByRole('combobox')[0] as HTMLSelectElement).value).toBe('p-day'))
+  })
+
+  it('shows the active profile in the select, not the first one', async () => {
+    get.mockImplementation(async (path: string) =>
+      ({ data: path === '/api/v1/bandwidth/status' ? { ...STATUS, active_profile: PROFILES[1] } : [] }))
+    await mounted()
+    expect((screen.getAllByRole('combobox')[0] as HTMLSelectElement).value).toBe('p-night')
+  })
+
   it('switches to the chosen profile until the chosen end, and says so', async () => {
     const until = '2026-10-02T15:00:00Z'
     put.mockResolvedValue({

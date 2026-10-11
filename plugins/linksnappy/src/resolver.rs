@@ -1,7 +1,7 @@
 //! LinkSnappy's protocol logic, written once for both builds.
 //!
 //! A multihoster whose API takes the credentials on every call rather than through a session:
-//! JD establishes a cookie session with `AUTHENTICATE` and then calls the endpoints bare, but
+//! a cookie-session client signs in with `AUTHENTICATE` and then calls the endpoints bare, but
 //! this plugin has no session to rely on, so `username`/`password` travel with each request as
 //! `{{username}}`/`{{secret:…}}` markers the host expands.
 
@@ -107,7 +107,7 @@ pub(crate) async fn resolve<H: PluginHost>(
 
 /// The hosters this account's plan covers, from `FILEHOSTS`.
 ///
-/// JD requests this endpoint bare, relying on the cookie session `loginAPI` just established.
+/// A cookie-session client requests this endpoint bare, relying on the session it just signed in.
 /// This plugin has no such session, so the credentials travel with the call and it is gated the
 /// same way every other endpoint is.
 pub(crate) async fn hosters<H: PluginHost>(

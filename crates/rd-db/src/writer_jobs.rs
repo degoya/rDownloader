@@ -14,6 +14,8 @@ mod fields;
 mod maintenance;
 #[path = "writer_jobs_package.rs"]
 mod package;
+#[path = "writer_jobs_state_batch.rs"]
+mod state_batch;
 
 /// Adds a transfer's outcome to the persistent statistics, inside the caller's transaction.
 ///

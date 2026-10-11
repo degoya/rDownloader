@@ -1,8 +1,8 @@
 //! Reading the file page: the direct link, and every state the page can be in instead.
 //!
-//! The markers are the ones JDownloader's `MediafireCom` and pyLoad's `MediafireCom.py` read
-//! (behaviour, not code — see the job file, section 4), and the live page of 2026-09-21
-//! confirms the first: the anchor `id="downloadButton"` carries the direct link (the name and
+//! The markers are the file page's known states (see the job file, section 4), and the live
+//! page of 2026-09-21 confirms the first: the anchor `id="downloadButton"` carries the
+//! direct link (the name and
 //! size come from the API, which the resolver asks first). The other states — `form_captcha`, `form_password`,
 //! `MalwareAdvisory`, `limitReachedTTL` — were not seen live and are covered by synthetic
 //! fixtures that say so. Everything is a substring scan over one page; there is no HTML
@@ -34,7 +34,7 @@ pub(crate) use plugin_common::is_html;
 
 /// The direct link the page offers, validated to point at a delivery host.
 ///
-/// The download button first; then the `kNO` variable JD reads on older layouts; then any
+/// The download button first; then the `kNO` variable of older layouts; then any
 /// `download<n>.mediafire.com` address written anywhere on the page.
 #[must_use]
 pub(crate) fn direct_link(html: &str) -> Option<String> {

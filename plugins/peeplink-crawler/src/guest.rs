@@ -8,7 +8,7 @@
 //! Four refusals have to be told apart, and the service tells three of them apart itself: an
 //! identifier it never knew answers `404`, one it has deleted answers `200` at its front page,
 //! and an entry that exists but names nothing is an empty `<article>`. The fourth, the access
-//! password, is built from `PrrpLinkIn.java`'s marker and is **not** covered by a recorded
+//! password, is built from the known marker and is **not** covered by a recorded
 //! page: none of the seven pages of the measurement carries a protected entry, and none could
 //! be found. It is written to be right and it is honestly untested.
 #![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
@@ -88,7 +88,7 @@ fn page_of(target: &Entry) -> Result<String, Failure> {
     };
     // Untested against a real page: no protected entry was findable on either measuring day
     // (RD-110-17), and an invented fixture would only prove that this code agrees with
-    // itself. The shape is `PrrpLinkIn.java`'s — post the password to the entry, then look at
+    // itself. The shape is the known one — post the password to the entry, then look at
     // the answer for the same marker again.
     host::log("info", "this entry asks for its access password");
     let body = format!("pwd={}", target::encode_form_value(password));

@@ -73,8 +73,13 @@ impl NotificationService {
             }),
         };
         let outcome = if target.kind == rd_notify::TargetKind::Plugin {
-            self.deliver_through_plugin(&target, &config, &message)
-                .await
+            self.deliver_through_plugin(
+                &target,
+                &config,
+                &message,
+                delivery.package_path.as_deref(),
+            )
+            .await
         } else if target.kind == rd_notify::TargetKind::WebPush {
             self.deliver_web_push(&message, false).await
         } else {

@@ -53,6 +53,8 @@ pub struct NewDelivery {
     pub event: NotificationEvent,
     pub title: String,
     pub body: String,
+    /// The finished package's folder, for `package_completed` only (RD-1250-01).
+    pub package_path: Option<String>,
 }
 
 #[derive(FromRow)]
@@ -126,6 +128,7 @@ struct DeliveryRow {
     response_excerpt: Option<String>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
+    package_path: Option<String>,
 }
 
 impl TryFrom<DeliveryRow> for Delivery {
@@ -149,6 +152,7 @@ impl TryFrom<DeliveryRow> for Delivery {
             response_excerpt: row.response_excerpt,
             created_at: row.created_at,
             updated_at: row.updated_at,
+            package_path: row.package_path,
         })
     }
 }
@@ -165,7 +169,8 @@ fn to_name<T: serde::Serialize>(value: &T) -> Result<String> {
 const TARGET_COLUMNS: &str = "id, name, kind, enabled, endpoint, config_json, secret_ref";
 const RULE_COLUMNS: &str = "id, name, enabled, target_id, events_json, category_id, min_severity";
 const DELIVERY_COLUMNS: &str = "id, rule_id, target_id, idempotency_key, event, title, body, \
-     state, attempt, next_attempt_at, response_status, response_excerpt, created_at, updated_at";
+     state, attempt, next_attempt_at, response_status, response_excerpt, created_at, updated_at, \
+     package_path";
 
 pub(crate) async fn list_targets(pool: &SqlitePool) -> Result<Vec<NotificationTarget>> {
     sqlx::query_as::<_, TargetRow>(sqlx::AssertSqlSafe(format!(

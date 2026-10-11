@@ -1,6 +1,6 @@
 //! Open directory listings in the LinkGrabber (RD-107-05).
 //!
-//! The long tail, covered the way JDownloader covers it: one plugin rather than one plugin
+//! The long tail, covered by one plugin rather than one plugin
 //! per server. Apache's `mod_autoindex`, nginx's `autoindex`, lighttpd's `mod_dirlisting`
 //! and Caddy's `file_server browse` produce four different pages that all say the same thing
 //! — here are the names under this path — and every one of them marks the parent the same

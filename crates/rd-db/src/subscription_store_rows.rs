@@ -207,6 +207,7 @@ impl From<ItemCountRow> for SubscriptionItemCounts {
 pub(super) struct ReviewCountRow {
     subscription_id: String,
     pending: i64,
+    newest_discovered_at: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<ReviewCountRow> for SubscriptionReviewCount {
@@ -216,6 +217,7 @@ impl TryFrom<ReviewCountRow> for SubscriptionReviewCount {
         Ok(Self {
             subscription_id: SubscriptionId::from_uuid(row.subscription_id.parse()?),
             pending: u64::try_from(row.pending).unwrap_or_default(),
+            newest_discovered_at: row.newest_discovered_at,
         })
     }
 }

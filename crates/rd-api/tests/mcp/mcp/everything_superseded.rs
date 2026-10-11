@@ -17,7 +17,7 @@ fn install_package(directory: &std::path::Path, version: &str) {
         format!(
             r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "{PLUGIN}"
 name = "Superseded tool"
 version = "{version}"

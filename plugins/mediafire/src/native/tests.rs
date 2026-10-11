@@ -87,7 +87,7 @@ pub(crate) fn resolve_request(url: &str) -> ResolveRequest {
 
 // --- URL recognition -----------------------------------------------------------------------
 
-/// Every file form measured live on 2026-09-21 (job file, section 5), the JD-only forms, and
+/// Every file form measured live on 2026-09-21 (job file, section 5), the older forms, and
 /// the `mfi.re` short host.
 #[test]
 fn every_measured_file_form_is_claimed() {

@@ -1,7 +1,7 @@
 //! The self-test (RD-110-09): a rule is asked about its own `probe` and says how it fared.
 //!
 //! Rules age. The measurement of 20 September 2026 that led to this module is the whole
-//! argument: of 124 domains JDownloader carries for this class of page, 47 no longer
+//! argument: of 124 domains known for this class of page, 47 no longer
 //! answered at all. Without a mechanism the same state walks into rDownloader, and the
 //! person notices it as an empty package rather than as a finding.
 //!

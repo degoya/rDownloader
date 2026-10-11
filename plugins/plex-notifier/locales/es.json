@@ -2,6 +2,10 @@
   "name": "Plex",
   "description": "Actualiza las bibliotecas de Plex cuando termina un paquete.",
   "codes": {
-    "plex_notifier.rejected": "Plex rechazó la actualización de la biblioteca."
+    "plex_notifier.rejected": "Plex rechazó la actualización de la biblioteca.",
+    "plex_notifier.setting.section": "Sección de la biblioteca",
+    "plex_notifier.setting.section.description": "El número de la biblioteca de Plex a la que van las descargas (Plex Web la muestra como source=<número> en la dirección de la biblioteca). Solo con él Plex puede examinar únicamente la carpeta del paquete terminado; vacío, se actualizan todas las bibliotecas.",
+    "plex_notifier.setting.path_mapping": "Correspondencia de rutas",
+    "plex_notifier.setting.path_mapping.description": "Una línea por carpeta: ruta en rDownloader=ruta que ve Plex, p. ej. /downloads=/data/media. Decide la ruta coincidente más larga; un paquete fuera de todas las líneas actualiza la sección entera."
   }
 }

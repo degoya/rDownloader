@@ -1,4 +1,4 @@
-//! JDownloader-style package grouping for LinkGrabber submissions.
+//! Package grouping for LinkGrabber submissions.
 
 use rd_files::parse_archive_volume;
 

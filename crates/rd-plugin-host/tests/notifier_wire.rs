@@ -36,6 +36,7 @@ async fn telegram_reaches_send_message_with_its_query_and_no_header_of_its_own()
             destination: "-100123456",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("the delivery reaches Telegram");
@@ -77,6 +78,7 @@ async fn ntfy_carries_title_priority_and_tags_in_its_query() {
             destination: "downloads",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("the delivery reaches ntfy");
@@ -149,6 +151,7 @@ async fn ntfy_sends_the_priority_its_target_was_set_to() {
                 destination: "downloads",
                 secret_ref: None,
                 settings,
+                package_path: None,
             })
             .await
             .expect("the delivery reaches ntfy");
@@ -184,6 +187,7 @@ async fn ntfy_reaches_a_self_hosted_server_with_the_token() {
             destination: "https://ntfy.example.org/alerts",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("the delivery reaches the self-hosted server");
@@ -223,6 +227,7 @@ async fn ntfy_on_a_self_hosted_server_is_not_followed_to_ntfy_sh() {
             destination: &destination,
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect_err("a redirect off the configured server is not followed");
@@ -268,6 +273,7 @@ async fn a_redirect_between_two_reachable_hosts_is_followed() {
             destination: &destination,
             secret_ref: None,
             settings: &[],
+            package_path: None,
         })
         .await
         .expect("a redirect inside the plugin's domains is followed");
@@ -315,6 +321,7 @@ async fn a_redirect_to_another_host_does_not_carry_the_authorization_header() {
             destination: &destination,
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect_err("a credentialed request that changed host is refused afterwards");
@@ -356,6 +363,7 @@ async fn ntfy_refuses_plain_http_to_a_public_server_before_sending_anything() {
             destination: "http://ntfy.example.org/alerts",
             secret_ref: Some(&reference),
             settings: &[],
+            package_path: None,
         })
         .await
         .expect_err("plain http to a public server is refused");

@@ -241,3 +241,92 @@ async fn a_version_choice_is_stored_whole_and_refuses_the_same_version_twice() {
     unknown.update_policy = "sometimes".to_owned();
     assert!(database.save_plugin_version_choice(unknown).await.is_err());
 }
+
+/// An immediate re-resolve writes the reported name and size and the failure as the last
+/// error, leaves the state alone, and a later success clears that error (RD-1250-05).
+#[tokio::test]
+async fn a_resolution_writes_name_size_and_error_and_keeps_the_state() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = database(directory.path()).await;
+    let id = download(&database, DownloadState::Paused).await;
+
+    let offline = rd_core::Failure::coded(
+        rd_core::FailureKind::Offline,
+        "hoster.file_gone",
+        "The file is gone",
+    );
+    database
+        .record_resolution(id, None, None, Some(offline))
+        .await
+        .expect("failure recorded");
+    let (state, code) = state_and_code(&database, id).await;
+    assert_eq!(state, DownloadState::Paused, "the check decides no state");
+    assert_eq!(code.as_deref(), Some("hoster.file_gone"));
+
+    database
+        .record_resolution(id, Some("holiday.part1.rar".to_owned()), Some(4_096), None)
+        .await
+        .expect("resolution recorded");
+    let file = database
+        .get_download(id)
+        .await
+        .expect("read")
+        .expect("download");
+    assert_eq!(file.file_name, "holiday.part1.rar");
+    assert_eq!(file.total_bytes.map(rd_core::ByteCount::get), Some(4_096));
+    assert!(file.last_error.is_none(), "a success clears the old error");
+    assert_eq!(file.state, DownloadState::Paused);
+}
+
+/// Confirmed bytes keep the recorded size, so the next attempt's validator check still sees a
+/// file that changed; a running download is refused.
+#[tokio::test]
+async fn a_resolution_keeps_the_size_of_a_started_transfer_and_refuses_a_running_file() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = database(directory.path()).await;
+    let id = download(&database, DownloadState::Paused).await;
+    let chunk = rd_core::ChunkId::new();
+    database
+        .prepare_transfer(
+            id,
+            Some(8_192),
+            None,
+            None,
+            vec![crate::PersistedChunk {
+                id: chunk,
+                start: 0,
+                end: Some(8_191),
+                committed: 0,
+            }],
+        )
+        .await
+        .expect("transfer");
+    database
+        .checkpoint_chunk(chunk, 1_024)
+        .await
+        .expect("checkpoint");
+    database
+        .record_resolution(id, None, Some(4_096), None)
+        .await
+        .expect("resolution recorded");
+    let file = database
+        .get_download(id)
+        .await
+        .expect("read")
+        .expect("download");
+    assert_eq!(file.total_bytes.map(rd_core::ByteCount::get), Some(8_192));
+
+    let running = download(&database, DownloadState::Queued).await;
+    database
+        .transition_download(running, DownloadState::Resolving)
+        .await
+        .expect("resolving");
+    let refused = database
+        .record_resolution(running, Some("other".to_owned()), None, None)
+        .await
+        .expect_err("a running file keeps what its worker writes");
+    assert_eq!(
+        crate::store_kind(&refused),
+        Some(crate::StoreErrorKind::WrongState)
+    );
+}

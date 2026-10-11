@@ -84,6 +84,7 @@ async fn a_destination_with_no_way_out_reports_a_failure_rather_than_hanging() {
             destination: "downloads",
             secret_ref: None,
             settings: &[],
+            package_path: None,
         })
         .await
         .expect_err("no host is connected");
@@ -110,6 +111,7 @@ async fn a_failure_keeps_the_category_the_plugin_gave_it() {
             destination: "123456",
             secret_ref: None,
             settings: &[],
+            package_path: None,
         })
         .await
         .expect_err("no token is stored");
@@ -156,6 +158,7 @@ async fn a_destination_is_judged_the_same_when_saved_and_when_delivered() {
             destination: public_http,
             secret_ref: None,
             settings: &[],
+            package_path: None,
         })
         .await
         .expect_err("refused at delivery too");

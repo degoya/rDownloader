@@ -1,12 +1,12 @@
 manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000000e"
 name = "KrakenFiles"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
 # older version stays installed.
-version = "0.1.13"
+version = "0.1.14"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["krakenfiles.com", "www.krakenfiles.com"]
@@ -18,7 +18,7 @@ match_domains = ["krakenfiles.com", "www.krakenfiles.com"]
 # list is a claim to verify against the first real answer, not a measurement — a link served
 # from anywhere else is refused with `krakenfiles.direct_link_foreign`, never followed.
 download_domains = ["krakenfiles.com", "*.krakenfiles.com", "*.krakencloud.net"]
-# JDownloader reports HTTP 405 on the direct link when too many connections are open, and the
+# The direct link answers HTTP 405 when too many connections are open, and the
 # FAQ throttles a guest after 5 GB in 24 hours; two at a time keeps clear of both.
 max_concurrent_downloads = 2
 # There is no account flow yet: the site's free download is the file page's form, posted with

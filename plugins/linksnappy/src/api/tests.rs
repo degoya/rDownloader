@@ -1,46 +1,35 @@
-//! Exhaustive enumeration of JD's `LinkSnappyCom#handleErrors(DownloadLink, Account, Map)`
-//! (`svn_trunk/src/jd/plugins/hoster/LinkSnappyCom.java`, revision 52502), in its exact
-//! `if`/`else if` order, with the JD line each branch lives at and the [`super::classify_message`]
-//! test that asserts it:
+//! Exhaustive enumeration of the known LinkSnappy error messages, matched case-insensitively and in
+//! precedence order, with the [`super::classify_message`] test that asserts each:
 //!
-//! 1. L652 `containsIgnoreCase(errormsg, "Two-Factor Verification Required")` →
-//!    `AccountUnavailableException(msg + redirect, 5 * 60 * 1000)` →
+//! 1. contains "Two-Factor Verification Required" → temporary account block, 5 minutes →
 //!    `two_factor_required_maps_to_rate_limited_300`.
-//! 2. L662 `Regex("(?i)No server available for this filehost, Please retry after few minutes")` →
-//!    `mhm.putError(account, link, 5 * 60 * 1000, errormsg)` (link-level, not thrown) →
-//!    `host_unavailable_maps_to_transient_300`.
-//! 3. L665 `Regex("(?i)You have reached max download request")` → `mhm.putError(..., 5 * 60 *
-//!    1000, "Too many requests...")` → `too_many_requests_maps_to_rate_limited_300`.
-//! 4. L668 `Regex("(?i)You have reached max download limit of")` →
-//!    `AccountUnavailableException("Limit Reached...", 1 * 60 * 1000)` →
-//!    `max_download_limit_maps_to_rate_limited_60`.
-//! 5. L675 `Regex("(?i)Invalid file URL format\\.")` →
-//!    `PluginException(ERROR_TEMPORARILY_UNAVAILABLE, "URL format not supported...")`, no explicit
-//!    wait → `invalid_link_format_maps_to_transient_default`.
-//! 6. L681 `Regex("(?i)File not found")` or `Regex("(?i)File deleted on.*")` →
-//!    `PluginException(ERROR_FILE_NOT_FOUND)` → `file_not_found_and_file_deleted_map_to_offline`.
-//! 7. L683 `Regex("(?i)Your Account has Expired")` → `AccountUnavailableException("Account
-//!    expired", 5 * 60 * 1000)` → `account_expired_maps_to_rate_limited_300`.
-//! 8. L693 `isErrorDownloadPasswordRequiredOrWrong(errormsg)` (L717: exact-string, case-insensitive
-//!    `"This file requires password"`, via Java's own `String.matches`, not JD's substring-search
-//!    `Regex` utility) → `PluginException(ERROR_RETRY, "Wrong password entered")` →
-//!    `password_required_maps_to_permanent`.
-//! 9. L697 `Regex("(?i)Please upgrade to Elite membership")` →
-//!    `AccountUnavailableException("Daily downloadlimit reached", 10 * 60 * 1000)` →
-//!    `elite_membership_required_maps_to_rate_limited_600`.
-//! 10. L700 `Regex("(?i)Incorrect Username or Password")` → `AccountInvalidException(errormsg)` →
+//! 2. "No server available for this filehost, Please retry after few minutes" → link-level retry, 5
+//!    minutes → `host_unavailable_maps_to_transient_300`.
+//! 3. "You have reached max download request" → link-level retry, 5 minutes ("Too many requests") →
+//!    `too_many_requests_maps_to_rate_limited_300`.
+//! 4. "You have reached max download limit of" → temporary account block ("Limit Reached"), 1
+//!    minute → `max_download_limit_maps_to_rate_limited_60`.
+//! 5. "Invalid file URL format." → temporarily unavailable ("URL format not supported"), no
+//!    explicit wait → `invalid_link_format_maps_to_transient_default`.
+//! 6. "File not found" or "File deleted on…" → file not found →
+//!    `file_not_found_and_file_deleted_map_to_offline`.
+//! 7. "Your Account has Expired" → temporary account block, 5 minutes →
+//!    `account_expired_maps_to_rate_limited_300`.
+//! 8. exactly `"This file requires password"` (the whole string, case-insensitive, not a substring
+//!    search) → wrong password, retry → `password_required_maps_to_permanent`.
+//! 9. "Please upgrade to Elite membership" → temporary account block ("Daily downloadlimit
+//!    reached"), 10 minutes → `elite_membership_required_maps_to_rate_limited_600`.
+//! 10. "Incorrect Username or Password" → invalid account →
 //!     `incorrect_username_or_password_maps_to_account_invalid`.
-//! 11. L702 `Regex("(?i)Account has exceeded the daily quota")` →
-//!     `errorDailyLimitReached(null, account, errormsg)` → (link hardcoded `null` regardless of
-//!     the enclosing call's own `link`, so always the account-level branch) →
-//!     `AccountUnavailableException(msg, 5 * 60 * 1000)` →
+//! 11. "Account has exceeded the daily quota" → always the account-level daily-limit branch,
+//!     whatever link is at hand: temporary account block, 5 minutes →
 //!     `daily_quota_exceeded_maps_to_rate_limited_300`.
-//! 12. L706 final `else` → `link == null`: `AccountUnavailableException(errormsg, 10 * 60 * 1000)`;
-//!     `link != null`: `PluginException(ERROR_TEMPORARILY_UNAVAILABLE, errormsg, 5 * 60 * 1000)` →
+//! 12. anything else → without a link: temporary account block, 10 minutes; with a link:
+//!     temporarily unavailable, 5 minutes →
 //!     `unknown_message_maps_to_rate_limited_600_without_link_and_transient_300_with_link`.
 //!
-//! [`super::messages::HOST_UNSUPPORTED`] (tested by `not_supported_maps_to_unsupported`) has
-//! **no** JD counterpart in this enumeration — see its doc comment in `messages.rs`.
+//! [`super::messages::HOST_UNSUPPORTED`] (tested by `not_supported_maps_to_unsupported`) has **no**
+//! counterpart in this enumeration — see its doc comment in `messages.rs`.
 
 use std::collections::HashMap;
 
@@ -186,8 +175,8 @@ fn password_required_maps_to_permanent() {
 
 #[test]
 fn password_required_is_an_exact_match_not_a_substring() {
-    // JD checks this one via Java's own `String.matches` (whole-string), not its `Regex` utility
-    // (substring search) — extra text around the phrase must fall through to the generic bucket.
+    // This one is a whole-string match, not a substring search — extra text around the phrase must
+    // fall through to the generic bucket.
     let failure = classify_message("This file requires password to open", true);
     assert_eq!(failure.code, messages::API_ERROR);
 }

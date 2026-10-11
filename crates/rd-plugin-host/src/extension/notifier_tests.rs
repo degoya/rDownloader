@@ -9,11 +9,13 @@ fn priority() -> Vec<SettingManifest> {
         SettingManifest {
             name: "priority_info".to_owned(),
             choices: ["1", "2", "3", "4", "5"].map(str::to_owned).to_vec(),
+            multiline: false,
             default: Some("2".to_owned()),
         },
         SettingManifest {
             name: "priority_fixed".to_owned(),
             choices: ["1", "2", "3", "4", "5"].map(str::to_owned).to_vec(),
+            multiline: false,
             default: None,
         },
     ]
@@ -68,6 +70,66 @@ fn a_delivery_resolves_settings_against_the_manifest() {
             &pairs(&[("priority_info", "9"), ("priority_fixed", "")])
         ),
         pairs(&[("priority_info", "2")])
+    );
+}
+
+/// RD-1250-01: Plex's library section and the folder mapping of the media servers.
+fn media_server() -> Vec<SettingManifest> {
+    let text = |name: &str, multiline: bool| SettingManifest {
+        name: name.to_owned(),
+        choices: Vec::new(),
+        multiline,
+        default: None,
+    };
+    vec![text("section", false), text("path_mapping", true)]
+}
+
+/// Free text is saved when it keeps to the host's rule, whatever it says; a line break in a
+/// one-line setting, a control character or too much of it is refused like a wrong choice.
+#[test]
+fn free_text_is_saved_within_the_host_rule_only() {
+    let mapping = "/srv/downloads=/data/media\n/mnt/usb=/media/usb";
+    check_settings(
+        &media_server(),
+        &pairs(&[("section", "3"), ("path_mapping", mapping)]),
+    )
+    .expect("free text");
+    check_settings(&media_server(), &pairs(&[("section", "")])).expect("left unset");
+    let too_long = "x".repeat(crate::MAX_SETTING_TEXT_CHARS + 1);
+    for chosen in [
+        [("section", "3\n4")],
+        [("section", "3\u{7}")],
+        [("path_mapping", "/a=/b\t")],
+        [("path_mapping", too_long.as_str())],
+    ] {
+        assert_eq!(
+            check_settings(&media_server(), &pairs(&chosen))
+                .expect_err("refused")
+                .code
+                .as_deref(),
+            Some("plugin.setting_text_invalid"),
+            "{chosen:?}"
+        );
+    }
+}
+
+/// What the plugin reads is the text as stored; empty or no longer acceptable text is unset.
+#[test]
+fn free_text_reaches_the_plugin_as_written() {
+    let mapping = "/srv/downloads=/data/media\r\n/mnt/usb=/media/usb";
+    assert_eq!(
+        resolve_settings(
+            &media_server(),
+            &pairs(&[("section", "12"), ("path_mapping", mapping)])
+        ),
+        pairs(&[("section", "12"), ("path_mapping", mapping)])
+    );
+    assert!(
+        resolve_settings(
+            &media_server(),
+            &pairs(&[("section", ""), ("path_mapping", "/a=/b\u{0}")])
+        )
+        .is_empty()
     );
 }
 

@@ -7,12 +7,13 @@ use sqlx::{Connection, SqliteConnection};
 use super::{collector_event, delete_empty_packages, insert};
 use crate::{collector_store::insert_event, parse_id};
 
-/// `(id, file_name, url, package_id, category_id, priority, provider, file_name_declared)`
-/// row used while regrouping.
+/// `(id, file_name, url, package_id, category_id, priority, provider, file_name_declared,
+/// playlist_title)` row used while regrouping.
 ///
 /// The provider and whether the name was declared travel with the row because grouping needs
 /// them: a container the source named is a release of its own and must not be merged back
-/// into a package named after the indexer's host.
+/// into a package named after the indexer's host. The playlist title is the one the media probe
+/// listed the link from (RD-1250-03).
 type RegroupRow = (
     String,
     Option<String>,
@@ -22,6 +23,7 @@ type RegroupRow = (
     i64,
     Option<String>,
     i64,
+    Option<String>,
 );
 
 /// One batch's candidates together with the packages grouping proposes for them, carried from
@@ -42,7 +44,9 @@ pub(crate) async fn regroup(
     let mut planned: Vec<RegroupPlan> = Vec::new();
     for batch_id in batch_ids {
         let candidates: Vec<RegroupRow> = sqlx::query_as(
-            "SELECT c.id, c.file_name, c.url, c.package_id, p.category_id, p.priority, c.provider, c.file_name_declared FROM link_candidates c \
+            "SELECT c.id, c.file_name, c.url, c.package_id, p.category_id, p.priority, c.provider, c.file_name_declared, \
+             CASE WHEN json_valid(c.media_json) THEN json_extract(c.media_json, '$.playlist_title') END \
+             FROM link_candidates c \
              JOIN collector_packages p ON p.id = c.package_id \
              WHERE c.batch_id = ? AND p.auto_named = 1 AND c.state NOT IN ('enqueued', 'resolving') \
              ORDER BY p.position, c.position",
@@ -66,23 +70,29 @@ pub(crate) async fn regroup(
             let inputs: Vec<rd_collector::GroupInput<'_>> = candidates
                 .iter()
                 .enumerate()
-                .map(|(index, (_, name, _, _, _, _, provider, declared))| {
-                    rd_collector::GroupInput {
-                        index,
-                        file_name: name.as_deref(),
-                        host: &hosts[index],
-                        standalone: *declared != 0
-                            && matches!(
-                                provider.as_deref(),
-                                Some(rd_core::NZB_PROVIDER | rd_core::TORRENT_PROVIDER)
-                            ),
-                        // Regrouping an existing batch: the folder a link came from is not
-                        // stored on the candidate, so there is nothing to hint with here.
-                        // It does not have to be: a package a source named is not auto-named
-                        // (RD-120-17) and therefore never reaches this query at all.
-                        package_hint: None,
-                    }
-                })
+                .map(
+                    |(index, (_, name, _, _, _, _, provider, declared, playlist))| {
+                        rd_collector::GroupInput {
+                            index,
+                            file_name: name.as_deref(),
+                            host: &hosts[index],
+                            standalone: *declared != 0
+                                && matches!(
+                                    provider.as_deref(),
+                                    Some(rd_core::NZB_PROVIDER | rd_core::TORRENT_PROVIDER)
+                                ),
+                            // The folder a link came from is not stored on the candidate, and it
+                            // does not have to be: a package a source named is not auto-named
+                            // (RD-120-17) and never reaches this query at all. The playlist a
+                            // video was listed from is (RD-1250-03): its entries (and the
+                            // playlist's own link, which carries the first of them) form one
+                            // package named after it, however many playlists the paste held. The
+                            // package stays auto-named, so the package-name rules tidy it like
+                            // any derived name.
+                            package_hint: playlist.as_deref(),
+                        }
+                    },
+                )
                 .collect();
             rd_collector::group_links(&inputs, None, "Links")
         };

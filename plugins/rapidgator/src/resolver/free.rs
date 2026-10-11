@@ -15,8 +15,8 @@ use url::Url;
 use super::{coded, invalid_url};
 use crate::{messages, page};
 
-/// The main domain JD's `getPluginDomains()` lists first; the `rg.to`/`rapidgator.asia` aliases
-/// are rewritten to it before any request is made, exactly as `getContentURL` does.
+/// The main domain; the `rg.to`/`rapidgator.asia` aliases are rewritten to it before any
+/// request is made.
 const PRIMARY_DOMAIN: &str = "rapidgator.net";
 
 /// The header Rapidgator's countdown endpoints require; they answer HTML to anything else.
@@ -164,7 +164,7 @@ async fn submit_captcha<H: PluginHost>(
     let captcha_page = get(host, &captcha_url, Some(page_url.as_str())).await?;
     let body = captcha_page.text().into_owned();
     ip_block_failure(&body)?;
-    // JD: "Failed to find captchaform -> No captcha needed?" — the page is used as it is.
+    // No `captchaform` means no captcha is needed — the page is used as it is.
     let Some(form) = page::captcha_form(&body) else {
         return Ok(body);
     };
@@ -264,9 +264,9 @@ async fn send<H: PluginHost>(host: &H, request: HttpRequest) -> Result<HttpRespo
 
 /// Classifies a website answer of the account-less flow.
 ///
-/// A 404 *is* trusted here, unlike on the `file/download` API endpoint: JD's
-/// `checkOfflineWebsite` runs before every other website error check and maps a 404 response
-/// code straight to `ERROR_FILE_NOT_FOUND`. A 401 or 403 is a plain HTTP error rather than the
+/// A 404 *is* trusted here, unlike on the `file/download` API endpoint: the
+/// offline check runs before every other website error check and maps a 404 response code
+/// straight to a missing file. A 401 or 403 is a plain HTTP error rather than the
 /// API's refused account: no account was sent, so none can be refused, and a bot wall's 403
 /// reported as `AccountInvalid` would send the person to fix credentials they never gave
 /// (RA-PLG-01, as 1fichier's free flow does).

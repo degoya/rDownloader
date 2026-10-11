@@ -121,14 +121,15 @@ pub(crate) async fn record_check(
         }
         None => (LinkCandidateState::Error, None, None, error),
     };
+    let params_json = message.as_ref().map(params_json).transpose()?.flatten();
     let mut tx = connection.begin().await?;
     sqlx::query(
         // A name the check learned — from a content disposition or the hoster itself — is
         // declared by the source, unlike the one intake took from the address.
         "UPDATE link_candidates SET state = ?, file_name = COALESCE(?, file_name), \
          file_name_declared = CASE WHEN ? IS NULL THEN file_name_declared ELSE 1 END, \
-         size = COALESCE(?, size), error = ?, error_code = ?, checked_at = ?, cached_at = ?, \
-         cached_by = ?, media_json = COALESCE(?, media_json) \
+         size = COALESCE(?, size), error = ?, error_code = ?, error_params_json = ?, \
+         checked_at = ?, cached_at = ?, cached_by = ?, media_json = COALESCE(?, media_json) \
          WHERE id = ? AND state = 'checking'",
     )
     .bind(enum_string(state)?)
@@ -137,6 +138,7 @@ pub(crate) async fn record_check(
     .bind(size)
     .bind(message.as_ref().map(|message| message.text.clone()))
     .bind(message.and_then(|message| message.code))
+    .bind(params_json)
     .bind(now)
     .bind(cached_at)
     .bind(cached_by)
@@ -166,14 +168,16 @@ pub(crate) async fn mark_unsupported(
     let state = LinkCandidateState::Unsupported;
     let now = Utc::now();
     let cached_at = cached_by.is_some().then_some(now);
+    let params_json = params_json(&message)?;
     let mut tx = connection.begin().await?;
     sqlx::query(
-        "UPDATE link_candidates SET state = ?, error = ?, error_code = ?, checked_at = ?, \
-         cached_at = ?, cached_by = ? WHERE id = ? AND state = 'checking'",
+        "UPDATE link_candidates SET state = ?, error = ?, error_code = ?, error_params_json = ?, \
+         checked_at = ?, cached_at = ?, cached_by = ? WHERE id = ? AND state = 'checking'",
     )
     .bind(enum_string(state)?)
     .bind(message.text)
     .bind(message.code)
+    .bind(params_json)
     .bind(now)
     .bind(cached_at)
     .bind(cached_by)
@@ -184,6 +188,17 @@ pub(crate) async fn mark_unsupported(
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok(event)
+}
+
+/// A message's parameters as stored in `error_params_json` (RD-1250-03): redacted like every
+/// message that is persisted and shown, and `NULL` when there are none.
+fn params_json(message: &rd_core::CandidateMessage) -> Result<Option<String>> {
+    if message.params.is_empty() {
+        return Ok(None);
+    }
+    let mut params = message.params.clone();
+    rd_core::redact_params(&mut params);
+    Ok(Some(serde_json::to_string(&params)?))
 }
 
 pub(crate) async fn set_file_name(

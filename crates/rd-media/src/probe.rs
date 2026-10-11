@@ -66,6 +66,8 @@ struct Metadata {
     title: Option<String>,
     duration: Option<f64>,
     uploader: Option<String>,
+    /// For a playlist, the channel it belongs to; the package's name when the list has no title.
+    channel: Option<String>,
     thumbnail: Option<String>,
     webpage_url: Option<String>,
     upload_date: Option<String>,
@@ -165,12 +167,13 @@ fn candidates(
     if metadata.kind.as_deref() != Some("playlist") {
         return Ok(vec![single(metadata, url, preferred, capabilities)]);
     }
+    let playlist = playlist_title(&metadata);
     let entries: Vec<MediaCandidate> = metadata
         .entries
         .into_iter()
         .filter(|entry| !unavailable(entry))
         .take(MAX_PLAYLIST_ENTRIES)
-        .filter_map(|entry| playlist_entry(entry, preferred, capabilities))
+        .filter_map(|entry| playlist_entry(entry, playlist.clone(), preferred, capabilities))
         .collect();
     if entries.is_empty() {
         return Err(Failure::coded(
@@ -180,6 +183,16 @@ fn candidates(
         ));
     }
     Ok(entries)
+}
+
+/// What the LinkGrabber names a playlist's package (RD-1250-03): its title, else its channel.
+fn playlist_title(metadata: &Metadata) -> Option<String> {
+    [&metadata.title, &metadata.channel, &metadata.uploader]
+        .into_iter()
+        .flatten()
+        .map(|name| name.trim())
+        .find(|name| !name.is_empty())
+        .map(str::to_owned)
 }
 
 /// YouTube's stand-in for a private or deleted video in a playlist: the flat listing names it
@@ -286,6 +299,7 @@ fn single(
         upload_date: metadata.upload_date,
         extractor: metadata.extractor,
         video_id: metadata.id,
+        playlist_title: None,
     };
     MediaCandidate {
         info,
@@ -299,6 +313,7 @@ fn single(
 
 fn playlist_entry(
     entry: PlaylistEntry,
+    playlist_title: Option<String>,
     preferred: &str,
     capabilities: MediaCapabilities,
 ) -> Option<MediaCandidate> {
@@ -332,6 +347,7 @@ fn playlist_entry(
         upload_date: None,
         extractor: None,
         video_id: entry.id,
+        playlist_title,
     };
     Some(MediaCandidate {
         info,

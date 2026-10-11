@@ -748,7 +748,8 @@
       "peer_proxy_on": "configured",
       "peer_proxy_off": "none",
       "rebuild_failed": "The last session rebuild failed; the previous session keeps running.",
-      "proxy_failed": "The peer proxy cannot be resolved; without it the session does not start."
+      "proxy_failed": "The peer proxy cannot be resolved; without it the session does not start.",
+      "port_in_use": "Port in use"
     },
     "max_active_downloads": {
       "label": "Active torrent downloads",
@@ -770,7 +771,8 @@
       },
       "details": "Torrents running: {torrents} · peers connected in: {peers}",
       "proxy_hint": "A peer proxy carries outgoing connections only; incoming peers always arrive directly."
-    }
+    },
+    "port_in_use": "Another program holds port {port}, so the torrent engine does not listen there. Choose another port or close that program."
   },
   "auth_profiles": {
     "approval_description": "These sessions were sent by the browser extension. They are only used once you approve them.",

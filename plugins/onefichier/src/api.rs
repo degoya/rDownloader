@@ -28,11 +28,11 @@ pub(crate) const MATCH_HOSTS: &[&str] = &[
 
 /// Extracts the file id from a 1fichier link, e.g. `https://1fichier.com/?abc12defg3`.
 ///
-/// Mirrors JDownloader's `OneFichierCom` pattern
+/// Matches the pattern
 /// `https?://(?:www\.)?<host>/\?([a-z0-9]{5,20})`: the host (`www.`-stripped) must be one of
 /// [`MATCH_HOSTS`], the path must be exactly `/`, and the query must start with 5-20 lowercase
-/// alphanumeric characters (a trailing `&lg=en` or similar is tolerated, matching the
-/// non-anchored JD regex).
+/// alphanumeric characters (a trailing `&lg=en` or similar is tolerated, as an
+/// unanchored pattern would).
 pub(crate) fn file_id(url: &Url) -> Option<&str> {
     let host_str = url.host_str()?;
     let host = host_str.strip_prefix("www.").unwrap_or(host_str);
@@ -109,9 +109,8 @@ pub(crate) struct UserInfoResponse {
 pub(crate) use plugin_flexible::FlexibleU64;
 
 /// Classifies a `{"status":"KO","message":"..."}` envelope by the provider's `message` text.
-/// Every branch mirrors JDownloader's `OneFichierCom#handleErrorsAPI` regexes; flood messages
-/// never carry an explicit retry delay, so the fixed 5-minute cooldown JD itself applies
-/// (`AccountUnavailableException(msg, 5 * 60 * 1000)`) is used instead of parsing one.
+/// Flood messages never carry an explicit retry delay, so a fixed 5-minute cooldown is used
+/// instead of parsing one.
 fn classify_message(message: &str) -> ApiFailure {
     let lower = message.to_ascii_lowercase();
     if lower.contains("flood detected") {
@@ -131,7 +130,7 @@ fn classify_message(message: &str) -> ApiFailure {
 
 /// Checks a parsed envelope's `status`/`message` pair. 1fichier only ever sets `"status"` on
 /// error responses (`"KO"`); a success response may omit it entirely or answer with a bare
-/// `"OK"`, so — following JD's `handleErrorsAPI`, the living reference — anything other than an
+/// `"OK"`, so anything other than an
 /// explicit case-insensitive `"KO"` is treated as success.
 pub(crate) fn error_from_status(status: Option<&str>, message: Option<&str>) -> Option<ApiFailure> {
     if !status.is_some_and(|value| value.eq_ignore_ascii_case("KO")) {
@@ -203,7 +202,7 @@ mod tests {
             None
         );
         assert_eq!(file_id(&url("https://evil.example/?abc12defg3")), None);
-        // Too short to be a real id (JD requires 5-20 chars).
+        // Too short to be a real id (the pattern requires 5-20 chars).
         assert_eq!(file_id(&url("https://1fichier.com/?abcd")), None);
     }
 

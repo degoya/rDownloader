@@ -1,9 +1,9 @@
 manifest_version = 3
 plugin_type = "notifier"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000182"
 name = "Plex"
-version = "0.1.0"
+version = "0.2.0"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -21,6 +21,18 @@ slug = "plex_notifier"
 # Empty: a destination is chosen by name when a notification target is created, not matched
 # against anything.
 claims = []
+
+# Free text (RD-1250-01). Plex scans one folder only within a section, and the plugin reads
+# nothing of the library to find out which, so the person names it; unset, every section is
+# refreshed as before.
+[[extension.settings]]
+name = "section"
+
+# One `rDownloader path=server path` per line; the longest that holds the finished package's
+# folder decides. A folder no line holds refreshes the section whole.
+[[extension.settings]]
+name = "path_mapping"
+multiline = true
 
 [metadata]
 description = "Refreshes the Plex libraries when a package finishes."

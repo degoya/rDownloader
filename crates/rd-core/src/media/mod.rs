@@ -117,6 +117,11 @@ pub struct MediaInfo {
     /// The site's own id for the item.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub video_id: Option<String>,
+    /// The title of the playlist or channel the probe listed this entry from, its channel
+    /// where the listing has no title (RD-1250-03). The LinkGrabber names the entry's package
+    /// after it; `None` for a single page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playlist_title: Option<String>,
 }
 
 impl MediaInfo {

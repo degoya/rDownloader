@@ -21,7 +21,7 @@ fn the_probe_body_carries_only_the_file_id() {
 
 #[test]
 fn the_requestcaptcha_body_is_an_empty_object() {
-    // JD posts `new HashMap<String, Object>()`, not the file id — see the module doc.
+    // The body is an empty object, not the file id — see the module doc.
     assert_eq!(body_of(requestcaptcha_body()), "{}");
 }
 
@@ -33,7 +33,7 @@ fn the_captcha_body_carries_the_challenge_and_the_typed_answer() {
     );
 }
 
-/// The wait round drops the captcha fields, exactly as JD removes them from `postdata`.
+/// The wait round drops the captcha fields from the body.
 #[test]
 fn the_wait_round_body_carries_the_free_download_key_and_no_captcha_fields() {
     let body = body_of(geturl_free_key_body("abcdefghijklm", "homeHash"));
@@ -60,7 +60,7 @@ fn a_short_countdown_is_waited_out_and_a_long_one_blocks_the_ip() {
     assert_eq!(wait_step(30, 0), WaitStep::Wait(30));
     assert_eq!(wait_step(MAX_WAIT_SECONDS, 0), WaitStep::Wait(180));
     assert_eq!(wait_step(MAX_WAIT_SECONDS + 1, 0), WaitStep::Blocked(181));
-    // JD stops after five rounds in a row rather than waiting a sixth time.
+    // The flow stops after five rounds in a row rather than waiting a sixth time.
     assert_eq!(wait_step(30, MAX_WAIT_ROUNDS - 1), WaitStep::Wait(30));
     assert_eq!(wait_step(30, MAX_WAIT_ROUNDS), WaitStep::Blocked(30));
 }

@@ -16,7 +16,7 @@
 //!   is asked for.
 //! - **Account**: `GET /api/account/info`, carrying `userId`, `isPremium`, `canDownload` and
 //!   `expirationDate`. Both spellings of each field are accepted — the published examples and
-//!   the field names JDownloader's `OffCloudCom.java` reads out of the same endpoint differ in
+//!   the field names other clients read out of the same endpoint differ in
 //!   case, and guessing wrong would silently report every account as free.
 //! - **Hosters**: `GET /api/sites`, the catalogue the account's plan covers.
 //! - **Refusals**: `{"error": "<sentence>"}`, and `{"not_available": "<reason>"}` when the

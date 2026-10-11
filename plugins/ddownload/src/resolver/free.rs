@@ -1,8 +1,8 @@
 //! The account-less (free) XFS download flow, as DDownload runs it.
 //!
-//! The flow is `xfs_common::free::FreeFlow` (RD-1120-10), JD's `XFileSharingProBasic.doFree`,
-//! which `DdownloadCom.doFree` calls straight through to (it only adds the "free dialog" prompt on
-//! top). What is DDownload's own is a field each: since 2026-09-17 the file page carries the
+//! The flow is `xfs_common::free::FreeFlow` (RD-1120-10), the XFS engine's free flow, which
+//! DDownload runs unchanged. What is DDownload's own is a field each: since 2026-09-17 the file
+//! page carries the
 //! `download2` form directly and no `download1` at all (RD-108-28), so the first step is skipped
 //! when the page already offers the second; both forms are posted with `adblock_detected`
 //! cleared; the captcha scan starts at the form; the countdown is `dk2CountdownNum`; and the
@@ -27,7 +27,7 @@ const FLOW: FreeFlow = FreeFlow {
     widget_marker: page::widget_marker,
     wait_seconds: page::free_wait_seconds,
     // `page::direct_link` accepts ddownload.com and the `*.zeuscdn.org` delivery hosts this
-    // plugin's manifest allows; a free link served from another alias JD lists (`ucdn.to`) would
+    // plugin's manifest allows; a free link served from another known alias (`ucdn.to`) would
     // surface as `no_free_link` rather than as a wrong download.
     direct_link: |html, _, hints| page::direct_link(html, hints),
     referer: |_| SITE.referer_header(),

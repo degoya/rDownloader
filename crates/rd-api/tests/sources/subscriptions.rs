@@ -11,6 +11,8 @@ use axum::http::StatusCode;
 use common::{delete_json, get_json, post_json, put_json, test_harness, test_router};
 use serde_json::{Value, json};
 
+/// The bulk decision about pending items: the state it takes, the items it names (RD-1250-13).
+mod pending;
 /// Queueing items again (RD-1150-04).
 mod requeue;
 
@@ -529,23 +531,6 @@ async fn item_pages_bulk_review_and_history_cleanup_cover_the_whole_archive() {
     .await;
     assert_eq!(remaining["total"], 1);
     assert_eq!(remaining["items"][0]["item_key"], "later");
-}
-
-#[tokio::test]
-async fn bulk_review_rejects_a_state_that_is_not_a_decision() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let router = test_router(temp.path()).await;
-    let created = create(&router, "Channel").await;
-    let id = created["id"].as_str().expect("id");
-
-    let (status, response) = put_json(
-        &router,
-        &format!("/api/v1/subscriptions/{id}/items/pending"),
-        json!({ "state": "skipped" }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{response}");
-    assert_eq!(response["code"], "subscription.bulk_state_invalid");
 }
 
 #[tokio::test]

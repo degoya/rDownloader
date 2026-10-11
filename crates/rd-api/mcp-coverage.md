@@ -103,7 +103,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | A package's "not before" | Downloads > package menu | 1 | `set_package_start_after` |
 | Finding packages and files by name | Search palette | 1 | `search_queue` |
 | Exporting packages as a link file | Downloads and LinkGrabber, selection bar and package menu | 1 | `export_packages` |
-| Resolving downloads again with the plugin installed now | Downloads, selection bar and package menu | 1 | `reresolve_downloads` |
+| Resolving downloads again with the plugin installed now, at once if asked | Downloads, selection bar and package menu | 1 | `reresolve_downloads` |
 | The queue's stop mark | Downloads, row menu and transfer rail | 3 | `clear_stop_mark`, `get_queue_pause`, `set_stop_mark` |
 | A package's download window | Downloads > package menu | 2 | `get_package_download_window`, `set_package_download_window` |
 | A category's download window | Settings > Routing > category editor | 1 | `set_category_download_window` |

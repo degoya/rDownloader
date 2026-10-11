@@ -40,6 +40,12 @@ vi.mock('@/composables/useStagedResolvers', () => {
   }
 })
 
+/** The rows "Re-resolve" is resolving right now (RD-1250-05); none unless a test adds one. */
+const resolving = vi.hoisted(() => new Set<string>())
+vi.mock('@/composables/useReresolve', () => ({
+  isResolvingNow: (id: string, packageId?: string) => resolving.has(id) || (packageId !== undefined && resolving.has(packageId))
+}))
+
 interface MenuItem { label: string }
 
 /** The labels the dropdown was handed, flattened out of its groups. */
@@ -345,5 +351,26 @@ describe('TransferCard controls', () => {
     renderCard('http')
     await fireEvent.click(screen.getByRole('button', { name: downloads.transfer.show_details }))
     expect(await screen.findByLabelText(downloads.transfer.auth_profile)).toBeTruthy()
+  })
+})
+
+describe('a row being resolved now', () => {
+  it('says so in place of its state while the request runs (RD-1250-05)', () => {
+    resolving.add('p1')
+    try {
+      mountComponent(TransferCard, {
+        messages: { downloads, torrent, common },
+        props: {
+          download: {
+            id: 'd1', package_id: 'p1', kind: 'http', state: 'paused', file_name: 'release.rar',
+            source: 'https://example.invalid/release.rar',
+            committed_bytes: '0', total_bytes: '100'
+          } as unknown as Download
+        }
+      })
+      expect(screen.getByText(downloads.reresolve.resolving)).toBeTruthy()
+    } finally {
+      resolving.clear()
+    }
   })
 })

@@ -217,6 +217,7 @@ declare module 'vue' {
     SetupWizard: typeof import('./src/components/wizard/SetupWizard.vue')['default']
     ShortcutField: typeof import('./src/components/settings/ShortcutField.vue')['default']
     ShortcutsHelpModal: typeof import('./src/components/ShortcutsHelpModal.vue')['default']
+    SidebarVersion: typeof import('./src/components/SidebarVersion.vue')['default']
     SiteRuleEditor: typeof import('./src/components/settings/SiteRuleEditor.vue')['default']
     SiteRuleImportDialog: typeof import('./src/components/settings/SiteRuleImportDialog.vue')['default']
     SiteRulePackageFields: typeof import('./src/components/settings/SiteRulePackageFields.vue')['default']

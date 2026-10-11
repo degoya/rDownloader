@@ -39,8 +39,10 @@ interface FinishedPoll {
  */
 export const useSubscriptionsStore = defineStore('subscriptions', () => {
   const subscriptions = ref<Subscription[]>([])
-  const { items, itemPages, itemQueries, itemErrors, reviewSummary, loadItems, reloadItems, loadMoreItems, loadReviewSummary, noteChange } =
-    useSubscriptionItems()
+  const {
+    items, itemPages, itemQueries, itemErrors, reviewSummary, heldItems, watermarks, takeSummaryWatermarks, loadItems, reloadItems, rereadItems,
+    noteDecided, hideItems, holdItems, showHeldItems, loadMoreItems, loadReviewSummary, noteChange
+  } = useSubscriptionItems()
   const runs = ref<Record<string, SubscriptionRun[]>>({})
   const error = ref<string | null>(null)
   // A "service could not be reached" alert ends with the outage.
@@ -241,28 +243,41 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
   }
 
   async function setItemState(id: string, subscriptionId: string, state: SubscriptionItemState): Promise<void> {
-    if (await putItemState(id, state)) await reloadItems(subscriptionId)
+    if (await putItemState(id, state)) {
+      noteDecided(subscriptionId, [id])
+      await rereadItems(subscriptionId)
+    }
     await loadReviewSummary()
   }
 
   /**
-   * The same decision for the snapshot of every pending item in one subscription (RD-098-02).
-   * The server owns that snapshot and performs queue hand-offs sequentially; failures remain
-   * pending and are returned as a count while hits arriving later are untouched.
+   * The same decision for the pending items of one subscription (RD-098-02): every one of them,
+   * or those found up to `until` — the drawer's watermark, so "all" is every page of the list as
+   * it was drawn and no hit that arrived after it (RD-1250-13). The server performs queue
+   * hand-offs sequentially; failures remain pending and are returned as a count.
    */
   async function setPendingItemStates(
     subscriptionId: string,
-    state: 'queued' | 'dismissed'
+    state: 'queued' | 'dismissed',
+    until?: string
   ): Promise<SubscriptionBulkStateResponse | null> {
+    const body = until ? { state, until } : { state }
     const response = await api.PUT('/api/v1/subscriptions/{id}/items/pending', {
       params: { path: { id: subscriptionId } },
-      body: { state }
+      body
     })
     if (!response.data) {
       error.value = responseError(response)
       return null
     }
-    await reloadItems(subscriptionId)
+    // The rows on screen were all found before the watermark, so every one was decided or failed;
+    // the re-read keeps the failed ones, which are still pending.
+    noteDecided(subscriptionId, (items.value[subscriptionId] ?? []).map(item => item.id))
+    const mark = watermarks.value[subscriptionId]
+    if (mark) {
+      watermarks.value = { ...watermarks.value, [subscriptionId]: { ...mark, count: response.data.failed } }
+    }
+    await rereadItems(subscriptionId)
     await loadReviewSummary()
     return response.data
   }
@@ -310,6 +325,8 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
     itemQueries,
     itemErrors,
     reviewSummary,
+    heldItems,
+    watermarks,
     runs,
     error,
     busy,
@@ -321,6 +338,10 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
     disconnectEvents,
     loadItems,
     loadMoreItems,
+    hideItems,
+    takeSummaryWatermarks,
+    holdItems,
+    showHeldItems,
     loadReviewSummary,
     loadRuns,
     create,

@@ -128,7 +128,7 @@ pub(crate) async fn resolve<H: PluginHost>(
 
 /// Batched availability check.
 ///
-/// `/getfilesinfo` is genuinely unauthenticated — JD calls it with `account = null` — so this
+/// `/getfilesinfo` is genuinely unauthenticated — it needs no account — so this
 /// needs neither an account nor the secret gate. Every entry starts `Unknown`; a chunk that
 /// answers overwrites its own entries, and a chunk whose request fails leaves them `Unknown`
 /// rather than letting them read as offline.
@@ -136,7 +136,7 @@ pub(crate) async fn check<H: PluginHost>(
     host: &H,
     request: &CheckInput,
 ) -> Result<Vec<LinkCheck>, Failure> {
-    /// JD chunks at 100 file ids per call and loops.
+    /// At most 100 file ids go in one call; a check loops over the chunks.
     const CHUNK_SIZE: usize = 100;
 
     let mut results: Vec<LinkCheck> = request
@@ -176,7 +176,7 @@ pub(crate) async fn check<H: PluginHost>(
     Ok(results)
 }
 
-/// One `check()` entry, matched by id or `requested_id` the way JD's `checkLinks` does. An id
+/// One `check()` entry, matched by id or `requested_id`. An id
 /// absent from the response is offline.
 fn check_one(url: &str, fuid: &str, files: &[api::FileEntry]) -> LinkCheck {
     match files.iter().find(|entry| entry.matches_fuid(fuid)) {

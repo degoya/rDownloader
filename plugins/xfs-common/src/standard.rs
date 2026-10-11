@@ -2,7 +2,7 @@
 //!
 //! `ddownload`, `katfile`, `filejoker` and `xfs-generic` each bound [`crate::page`] and
 //! [`crate::free`] to the same four constants in a page module of their own, and none of them
-//! overrides one: JD's `XFileSharingProBasic.findFormDownload1Free` finds the first free form by
+//! overrides one: the XFS free flow finds the first free form by
 //! `op` = `download1` and fills `method_free` with `"Free Download"` when the page leaves it
 //! empty, the second form is found by `op` = `download2`, and the premium submission carries
 //! `"Premium Download"` (`plugins/ddownload/src/page.rs` holds the full IMPL-VERIFY record). A
@@ -36,7 +36,7 @@ pub fn free_form(fields: &[(String, String)]) -> Vec<(String, String)> {
     crate::free::free_form(fields, FREE_BUTTON)
 }
 
-/// The premium submission JDownloader sends for the raw `download2` fields.
+/// The premium submission for the raw `download2` fields.
 #[must_use]
 pub fn premium_form(fields: &[(String, String)]) -> Vec<(String, String)> {
     crate::page::premium_form(fields, PREMIUM_BUTTON)

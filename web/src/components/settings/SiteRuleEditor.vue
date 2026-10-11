@@ -5,9 +5,8 @@
  * Every part of a rule is a named field, and the steps are the typed rows `AutomationView`
  * established for its actions: a kind select, the fields that kind needs beside it, and one
  * remove control. The one thing added here is order — a rule's steps run in sequence and read
- * each other's variables, so a step can be moved up and down. JDownloader's LinkCrawler rule
- * editor is the prior art, and its missing half is the reason this component also carries the
- * trial run: an expert form with no way to try the result is where people give up.
+ * each other's variables, so a step can be moved up and down. The component also carries the trial
+ * run: an expert form with no way to try the result is where people give up.
  *
  * A page that lists several releases is one switch away (RD-1170-02): the rule's steps leave
  * one entry per release in a variable, and a second step list turns each entry into a package

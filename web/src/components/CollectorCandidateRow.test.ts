@@ -535,7 +535,7 @@ describe('CollectorCandidateRow as a mirror group (RD-110-19)', () => {
 })
 
 describe('CollectorCandidateRow and hidden hosters (RD-130-21)', () => {
-  // JDownloader's "hide links of this hoster", where the hoster is noticed: on its row.
+  // "Hide links of this hoster", where the hoster is noticed: on its row.
   it('offers to hide the links of its hoster, named', async () => {
     const { emitted } = renderRow(candidate())
     const menu = document.querySelector('[data-menu-items]') as HTMLElement

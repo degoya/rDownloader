@@ -14,7 +14,7 @@ file is the public example the feasibility measurement used, `DP3nGKJNsX`
 | `error-page-2026-09-21.html` | `GET /view/doesnotexist0/file.html` | 404, "File has been deleted or never existed" |
 | `download-captcha-invalid-2026-09-21.json` | `POST /download/DP3nGKJNsX` with the page's `token`, header `hash`, no Turnstile answer | 500 `application/json`; the same answer with `cf-turnstile-response=invalid` |
 | `embed-video-2026-09-21.html` | `GET /embed-video/DP3nGKJNsX` | 200, the site's own player; streams from `hs3.krakencloud.net` |
-| `download-ok-synthetic.json` | — | **Synthetic.** The successful answer needs a solved Turnstile and was not measured; the shape (`status: "ok"`, `url`) follows JDownloader's `KrakenfilesCom` and pyLoad's `KrakenfilesCom`, the host is a guess inside the manifest's `download_domains`. |
+| `download-ok-synthetic.json` | — | **Synthetic.** The successful answer needs a solved Turnstile and was not measured; the shape (`status: "ok"`, `url`) is the expected one, the host is a guess inside the manifest's `download_domains`. |
 
 Sanitised: the form's `token` value, the ad hash, the Cloudflare challenge parameters and
 obfuscated e-mail, the analytics id, the ad-network keys, the site-verification metas, and

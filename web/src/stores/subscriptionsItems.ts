@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { api, errorMessage, responseError } from '@/api/client'
 import type { SubscriptionItem, SubscriptionItemPage, SubscriptionReviewSummary } from '@/api/types'
 
+import { mergeUnderHand } from './heldHits'
+
 export type SubscriptionItemFilter = 'pending' | 'queued' | 'dismissed' | 'skipped' | 'all'
 
 export interface ItemQuery {
@@ -22,6 +24,24 @@ interface ItemsChange {
   lost: boolean
   /** The subscription whose finished poll wrote rows, if any. */
   wroteRowsFor: string | null
+}
+
+/**
+ * How far "all" reaches in a subscription's review list (RD-1250-13): every pending hit found up
+ * to `until`, the newest one when the list was last drawn, and how many of them there were.
+ */
+export interface ReviewWatermark {
+  until: string | null
+  count: number
+}
+
+/**
+ * The `newest_discovered_at` of a page or a review count, checked: it is data from the network,
+ * and a malformed one must leave the watermark empty rather than take the reader along.
+ */
+function newestOf(value: object): string | null {
+  const newest = 'newest_discovered_at' in value ? value.newest_discovered_at : null
+  return typeof newest === 'string' ? newest : null
 }
 
 const ITEM_PAGE_SIZE = 50
@@ -113,6 +133,35 @@ export function useSubscriptionItems() {
    * the very first hit never moved the badge.
    */
   let reviewSummaryWanted = false
+  /**
+   * True while a reader works through the lists in the review drawer (RD-1250-13).
+   *
+   * Owner, 2026-10-11: a check that wrote hits while the drawer was open put them in front of the
+   * rows being read, and "dismiss all" took them along unseen. While this holds, a re-read nobody
+   * asked for keeps the rows on screen where they are (`mergeUnderHand`) and only counts what it
+   * found besides, in `heldItems`; a read the reader starts — opening a group, a page, "show",
+   * closing the drawer — draws the list as it is.
+   */
+  const holding = ref(false)
+  /** Per subscription, the ids its last re-read found that are not on screen. */
+  const heldItems = ref<Record<string, string[]>>({})
+  /**
+   * Per subscription, the list as the reader last saw it drawn (RD-1250-13). Owner, 2026-10-11:
+   * "‚alle‘ … über alle Seiten …, aber nur die in der Liste, nicht die nachgeladenen." Set when a
+   * list is drawn or the drawer takes its groups (`takeSummaryWatermarks`), never by a re-read
+   * under `holding`; "queue all" and "dismiss all" send it as `until`.
+   */
+  const watermarks = ref<Record<string, ReviewWatermark>>({})
+  /** The lists on screen while holding: drawn by a read the reader started, and not closed since. */
+  const onScreen = new Set<string>()
+  /** Per subscription, the items this client decided while holding: those leave the screen. */
+  const decidedHere = new Map<string, Set<string>>()
+  /**
+   * The lists whose next answer draws them as they are. Kept until an answer lands rather than
+   * tied to one request: a read the reader started can be overtaken by a re-read of the stream,
+   * and that one then answers for both.
+   */
+  const drawNext = new Set<string>()
 
   /**
    * Returns the failure message, so the caller can tell an empty archive from a failed read.
@@ -120,11 +169,22 @@ export function useSubscriptionItems() {
    * `pages` consecutive pages from `page` on; more than the server answers at once
    * (`ITEM_READ_MAX`) is read in several requests, one after the other.
    */
-  async function loadItems(
+  function loadItems(
     id: string,
     state: SubscriptionItemFilter = itemQueries.value[id]?.state ?? 'pending',
     page = itemQueries.value[id]?.page ?? 1,
     pages = 1
+  ): Promise<string | null> {
+    drawNext.add(id)
+    return readItems(id, state, page, pages)
+  }
+
+  /** `loadItems` without the reader's say: under `holding` the rows on screen stay. */
+  async function readItems(
+    id: string,
+    state: SubscriptionItemFilter,
+    page: number,
+    pages: number
   ): Promise<string | null> {
     const safePage = Math.max(1, page)
     const safePages = Math.max(1, pages)
@@ -161,23 +221,101 @@ export function useSubscriptionItems() {
       // list was empty under a badge that counted them. The last page that exists is read instead;
       // the recursion ends because the page only ever decreases.
       const lastPage = Math.max(1, Math.ceil(response.data.total / ITEM_PAGE_SIZE))
-      if (!latest && safePage > lastPage) return loadItems(id, state, lastPage, safePages)
+      if (!latest && safePage > lastPage) return readItems(id, state, lastPage, safePages)
       latest = response.data
       collected.push(...response.data.items)
       if (response.data.items.length < limit) break
     }
     if (!latest) return null
     itemQueries.value = { ...itemQueries.value, [id]: { state, page: safePage, pages: safePages } }
-    itemPages.value = { ...itemPages.value, [id]: latest }
-    items.value = { ...items.value, [id]: withoutRepeats(collected) }
+    const fresh = withoutRepeats(collected)
+    const shown = items.value[id]
+    if (holding.value && shown && onScreen.has(id) && !drawNext.has(id)) {
+      // Only a read from the first hit to the last is sure that a row it lacks is decided; on a
+      // later page the row may have moved up to an earlier one.
+      const merged = mergeUnderHand(shown, fresh, {
+        complete: offset === 0 && collected.length < wanted,
+        decided: decidedHere.get(id) ?? new Set()
+      })
+      // The total the slider reads up to is the one on screen, or it would wait for the held hits.
+      const total = Math.max(0, latest.total - merged.held.length)
+      itemPages.value = { ...itemPages.value, [id]: { ...latest, total } }
+      items.value = { ...items.value, [id]: merged.items }
+      heldItems.value = { ...heldItems.value, [id]: merged.held }
+    } else {
+      if (holding.value && drawNext.has(id)) onScreen.add(id)
+      if (state === 'pending' && (!holding.value || drawNext.has(id))) {
+        const mark = { until: newestOf(latest), count: latest.total }
+        watermarks.value = { ...watermarks.value, [id]: mark }
+      }
+      drawNext.delete(id)
+      decidedHere.delete(id)
+      itemPages.value = { ...itemPages.value, [id]: latest }
+      items.value = { ...items.value, [id]: fresh }
+      heldItems.value = { ...heldItems.value, [id]: [] }
+    }
     itemErrors.value = { ...itemErrors.value, [id]: null }
     return null
+  }
+
+  /** Records that this client decided `ids`, so a re-read under `holding` takes them off screen. */
+  function noteDecided(id: string, ids: readonly string[]): void {
+    const mark = watermarks.value[id]
+    if (mark) {
+      watermarks.value = { ...watermarks.value, [id]: { ...mark, count: Math.max(0, mark.count - ids.length) } }
+    }
+    if (!holding.value) return
+    const decided = decidedHere.get(id) ?? new Set<string>()
+    for (const itemId of ids) decided.add(itemId)
+    decidedHere.set(id, decided)
+  }
+
+  /** Takes every subscription's watermark from the review counts, as the drawer shows them now. */
+  function takeSummaryWatermarks(): void {
+    const counted = reviewSummary.value.subscriptions
+    if (!Array.isArray(counted)) return
+    const next = { ...watermarks.value }
+    for (const entry of counted) {
+      next[entry.subscription_id] = { until: newestOf(entry), count: entry.pending }
+    }
+    watermarks.value = next
+  }
+
+  /** A list the reader closed is off screen: nothing it holds back is counted any more. */
+  function hideItems(id: string): void {
+    onScreen.delete(id)
+    decidedHere.delete(id)
+    heldItems.value = { ...heldItems.value, [id]: [] }
+  }
+
+  /** Draws every list with held hits as it is now — the drawer's "show" (RD-1250-13). */
+  async function showHeldItems(): Promise<void> {
+    const reads = Object.entries(heldItems.value)
+      .filter(([, held]) => held.length > 0)
+      .map(([id]) => reloadItems(id))
+    await Promise.all(reads)
+  }
+
+  /** Starts or ends the hold; ending it draws what was held, as closing the drawer does. */
+  function holdItems(on: boolean): void {
+    if (holding.value === on) return
+    holding.value = on
+    if (on) return
+    onScreen.clear()
+    decidedHere.clear()
+    void showHeldItems()
   }
 
   /** The list as it is now, with as many pages as it already holds — for the re-reads. */
   function reloadItems(id: string): Promise<string | null> {
     const query = itemQueries.value[id]
     return loadItems(id, query?.state, query?.page, query?.pages ?? 1)
+  }
+
+  /** `reloadItems` for a re-read nobody asked for, which `holding` keeps off the rows on screen. */
+  function rereadItems(id: string): Promise<string | null> {
+    const query = itemQueries.value[id]
+    return readItems(id, query?.state ?? 'pending', query?.page ?? 1, query?.pages ?? 1)
   }
 
   /**
@@ -240,7 +378,7 @@ export function useSubscriptionItems() {
   function reloadStaleItems(): void {
     for (const [id, wanted] of wantedItems) {
       if ((itemChangedGeneration.get(id) ?? -1) <= (itemReadGeneration.get(id) ?? -1)) continue
-      void loadItems(id, wanted.state, wanted.page, wanted.pages)
+      void readItems(id, wanted.state, wanted.page, wanted.pages)
     }
   }
 
@@ -300,8 +438,16 @@ export function useSubscriptionItems() {
     itemQueries,
     itemErrors,
     reviewSummary,
+    heldItems,
+    watermarks,
+    takeSummaryWatermarks,
     loadItems,
     reloadItems,
+    rereadItems,
+    noteDecided,
+    hideItems,
+    holdItems,
+    showHeldItems,
     loadMoreItems,
     loadReviewSummary,
     noteChange

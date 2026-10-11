@@ -222,7 +222,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Read the torrent engine. view=capabilities: what it supports (sequential download, encryption, DHT, a speed limit per torrent, ...); view=network_status: bound interface, kill switch, proxy, blocklist and UPnP state."
+        description = "Read the torrent engine. view=capabilities: what it supports (sequential download, encryption, DHT, a speed limit per torrent, ...); view=network_status: bound interface, kill switch, proxy, blocklist and UPnP state, and port_in_use, the fixed listen port another program holds so the engine does not listen there."
     )]
     pub async fn get_torrent_engine(
         &self,
@@ -242,7 +242,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Test the torrent engine's incoming peer port from this machine alone; no outside service is asked. Starts the engine when it is not running. verdict: reachable (a peer connected in), listening (the listener answers locally, but no peer has connected in yet, so reachability from the internet is unproven), not_listening, or unavailable (the session could not start; see error). Also reports listen_port, announce_port, local_tcp_accepted, live_torrents, incoming_peers and whether UPnP and a peer proxy are set. Refused with torrent.service_disabled while BitTorrent is switched off."
+        description = "Test the torrent engine's incoming peer port from this machine alone; no outside service is asked. Starts the engine when it is not running. verdict: reachable (a peer connected in), listening (the listener answers locally, but no peer has connected in yet, so reachability from the internet is unproven), not_listening, or unavailable (the session could not start; see error, and port_in_use when another program holds the fixed listen port). Also reports listen_port, announce_port, local_tcp_accepted, live_torrents, incoming_peers and whether UPnP and a peer proxy are set. Refused with torrent.service_disabled while BitTorrent is switched off."
     )]
     pub async fn test_torrent_port(&self) -> McpToolResult {
         let result = async {

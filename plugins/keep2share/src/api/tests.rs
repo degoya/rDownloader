@@ -13,7 +13,7 @@ fn url(value: &str) -> Url {
 
 #[test]
 fn file_id_accepts_f_file_and_preview_prefixes_with_optional_info_segment() {
-    let id = "abcdefghijklm"; // 13 chars, JD's minimum
+    let id = "abcdefghijklm"; // 13 chars, the pattern's minimum
     assert_eq!(
         file_id(&url(&format!("https://k2s.cc/file/{id}"))),
         Some(id)

@@ -23,7 +23,7 @@ pub(crate) const ADDRESS_TAKEN: &str = "SELECT EXISTS(SELECT 1 FROM link_candida
          WHERE url = ? AND state NOT IN ('duplicate', 'enqueued')) \
      OR EXISTS(SELECT 1 FROM downloads WHERE source_url = ?)";
 
-/// Intake of one submission: links are grouped into packages (JDownloader-style), duplicates
+/// Intake of one submission: links are grouped into packages, duplicates
 /// are flagged, and – when `auto_check` – every fresh link starts in `checking`.
 pub(crate) async fn add_batch(
     connection: &mut SqliteConnection,
@@ -342,6 +342,7 @@ impl BatchWrite<'_> {
             route: None,
             error: None,
             error_code: None,
+            error_params: rd_core::MessageParams::new(),
             package_id: Some(package),
             position: i64::try_from(position)? + 1,
             checked_at: None,

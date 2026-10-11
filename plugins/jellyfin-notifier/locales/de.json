@@ -2,6 +2,8 @@
   "name": "Jellyfin",
   "description": "Aktualisiert die Jellyfin-Bibliotheken, wenn ein Paket fertig ist.",
   "codes": {
-    "jellyfin_notifier.rejected": "Jellyfin hat die Aktualisierung der Bibliothek abgelehnt."
+    "jellyfin_notifier.rejected": "Jellyfin hat die Aktualisierung der Bibliothek abgelehnt.",
+    "jellyfin_notifier.setting.path_mapping": "Pfad-Abbildung",
+    "jellyfin_notifier.setting.path_mapping.description": "Eine Zeile je Ordner: Pfad in rDownloader=Pfad, den Jellyfin sieht, z. B. /downloads=/data/media. Der längste passende Pfad entscheidet, und Jellyfin durchsucht den Ordner um das Paket statt aller Bibliotheken; ohne passende Zeile werden alle Bibliotheken aktualisiert."
   }
 }

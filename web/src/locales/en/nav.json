@@ -85,6 +85,8 @@
   "version": {
     "outdated": "New version available — reload",
     "outdated_hint": "The service now runs version {version}, this page still {build}. Reload it to get the current interface.",
-    "reload": "Reload"
+    "reload": "Reload",
+    "sidebar_about": "About rDownloader",
+    "sidebar_title": "Version {version} – About rDownloader"
   }
 }

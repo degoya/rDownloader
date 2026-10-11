@@ -31,8 +31,12 @@ the grants to the person deciding whether to install it.
 
 A target can also be given settings of its own, such as a priority: declare them as
 `[[extension.settings]]` in `manifest.toml` (a name, the values offered, an optional default) and
-read them in `deliver` with `destination_settings::setting("name")`. The handbook page above shows
-how.
+read them in `deliver` with `destination_settings::setting("name")`. A setting that offers no
+values is free text -- one line, or several with `multiline = true` -- which the host holds to a
+length and a character check. The handbook page above shows how.
+
+A finished package's notification also names its folder, as the service sees it, in
+`message.package_path` (contract `0.11.0`); every other event leaves it `None`.
 
 ## Build, test, package
 

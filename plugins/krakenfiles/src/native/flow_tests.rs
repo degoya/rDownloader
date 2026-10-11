@@ -261,7 +261,7 @@ async fn an_ok_answer_without_a_link_is_a_code_never_the_page() {
     }
 }
 
-/// Any other refusal is temporary in JDownloader's reading, and the site's words travel.
+/// Any other refusal is temporary, and the site's words travel.
 #[tokio::test]
 async fn another_refusal_carries_the_sites_wording() {
     let host = MockHost::free(
@@ -333,7 +333,7 @@ async fn a_link_outside_the_download_domains_is_refused() {
     );
 }
 
-/// 403, 404 and 405 on the direct link are one thing in JDownloader's reading - too many
+/// 403, 404 and 405 on the direct link are one thing - too many
 /// connections, or a link that has expired - and the answer is to come back in an hour.
 #[tokio::test]
 async fn a_refused_or_expired_direct_link_is_a_rate_limit_for_an_hour() {

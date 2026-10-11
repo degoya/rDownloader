@@ -1,6 +1,6 @@
 //! The account-less XFS download flow itself, driven once (RD-1120-10, PL-2).
 //!
-//! Mirrors JD's `XFileSharingProBasic.doFree`: fetch the file page, post the `download1` form in
+//! The XFS free flow: fetch the file page, post the `download1` form in
 //! free mode, solve the captcha the answer asks for, wait out the countdown, post `download2`,
 //! and take the direct link from what comes back. Every page is checked for a dead end first —
 //! an IP limit above all, because hitting one means no amount of waiting or captcha solving will
@@ -162,7 +162,7 @@ impl FreeFlow {
     }
 
     /// Solves the captcha, waits out the countdown and posts `download2`. A rejected captcha is
-    /// retried once with a fresh challenge, the way JD's `download2` loop retries it.
+    /// retried once with a fresh challenge.
     async fn submit_download2<H: PluginHost>(
         &self,
         host: &H,
@@ -198,8 +198,8 @@ impl FreeFlow {
     }
 
     /// The submission for one attempt: the free fields, the captcha the page asks for answered,
-    /// and the countdown waited out. JD solves the captcha first and then waits out the
-    /// remainder, so the token is as fresh as possible when the form is finally posted.
+    /// and the countdown waited out. The captcha is solved first and then the remainder is
+    /// waited out, so the token is as fresh as possible when the form is finally posted.
     async fn submission<H: PluginHost>(
         &self,
         host: &H,

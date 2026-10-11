@@ -1,7 +1,6 @@
 //! Public Nextcloud and ownCloud folder shares in the LinkGrabber (RD-107-05).
 //!
-//! The service JDownloader does not cover at all: its 857 decrypters contain nothing for
-//! Nextcloud, ownCloud, Seafile or WebDAV. rDownloader can, because a share has a documented
+//! A share can be listed without a site rule because it has a documented
 //! public DAV endpoint that needs no key and no account — `/public.php/dav/files/<token>`
 //! from Nextcloud 29 on, `/public.php/webdav/` before that and on ownCloud.
 //!

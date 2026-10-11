@@ -5,26 +5,18 @@
 //! changes — this is the "byte-for-byte" proof that the refactor preserved ddownload's behavior.
 //!
 //! The account-less (free) flow's wrappers were added on top of that, mirroring
-//! `plugins/katfile/src/page.rs`. IMPL-VERIFY against JD's `DdownloadCom.java` (rev fetched
-//! 2026-09-02 from `mycodedoesnotcompile2/jdownloader_mirror`,
-//! `svn_trunk/src/jd/plugins/hoster/DdownloadCom.java`) and its `XFileSharingProBasic` base class
-//! (`svn_trunk/src/org/jdownloader/plugins/components/XFileSharingProBasic.java`):
-//! - **`op` values / free button label**: `DdownloadCom` overrides neither
-//!   `findFormDownload1Free` nor `findFormDownload2Free`; its `doFree` only shows the "free
-//!   dialog" and then calls `super.doFree`. So the base class's own values apply verbatim —
-//!   `XFileSharingProBasic.findFormDownload1Free` looks up the form by input field `op` =
-//!   `download1`, removes `method_premium`, and fills `method_free` with the page's own value or,
-//!   when it is missing/empty/disabled, the literal `"Free Download"`; the second form is found by
-//!   `op` = `download2` (`findFormDownload2Free`'s `getFormByInputFieldKeyValue("op",
-//!   "download2")` fallback). Those are exactly `xfs_common::standard`'s `OP_DOWNLOAD1`,
-//!   `OP_DOWNLOAD2` and `FREE_BUTTON`, which every XFS plugin uses (RD-1120-10).
-//! - **Countdown**: `DdownloadCom.regexWaittime` (dated 2026-04-21 in the source) overrides the
-//!   base class with `id="dk2CountdownNum"[^>]*>\s*(\d{1,2})` and falls back to `super`, which is
-//!   what [`free_wait_seconds`] reproduces ([`dk2_countdown_seconds`] first, then
-//!   `xfs_common::free::countdown_seconds`).
-//! - **`adblock_detected`**: both `XFileSharingProBasic.findFormDownload2Free` and
-//!   `DdownloadCom.handleCaptcha` set this field to `"0"` when the form carries it (JD's comment:
-//!   "This might increase downloadspeed for free users"), reproduced by
+//! `plugins/katfile/src/page.rs`. Checked 2026-09-02 against the stock XFS free flow:
+//! - **`op` values / free button label**: ddownload changes neither form of the stock flow, so
+//!   its values apply verbatim — the first form is found by input field `op` = `download1`,
+//!   `method_premium` is removed, and `method_free` carries the page's own value or, when it is
+//!   missing/empty/disabled, the literal `"Free Download"`; the second form is found by `op` =
+//!   `download2`. Those are exactly `xfs_common::standard`'s `OP_DOWNLOAD1`, `OP_DOWNLOAD2` and
+//!   `FREE_BUTTON`, which every XFS plugin uses (RD-1120-10).
+//! - **Countdown**: ddownload has a countdown of its own, `id="dk2CountdownNum"[^>]*>\s*(\d{1,2})`
+//!   (seen 2026-04-21), before the stock markers, which is what [`free_wait_seconds`] reproduces
+//!   ([`dk2_countdown_seconds`] first, then `xfs_common::free::countdown_seconds`).
+//! - **`adblock_detected`**: the free submission sets this field to `"0"` when the form
+//!   carries it (said to increase the download speed for free users), reproduced by
 //!   [`with_adblock_cleared`].
 //! - **Measured 2026-09-17** (RD-108-28, `tests/fixtures/file-page-2026-09-17.html`): the file
 //!   page no longer carries a `download1` form at all. It carries the `download2` form directly
@@ -32,8 +24,8 @@
 //!   widget inside that form, and ddownload's `dk2CountdownNum` countdown. The flow therefore
 //!   skips the first step when the page already offers the second, and the widget scan is
 //!   scoped to the form: the page's stylesheet mentions `h-captcha` long before the widget, and
-//!   a page-wide scan took that for the captcha kind. `DdownloadCom.handleCaptcha` expects any
-//!   of reCAPTCHA v2, hCaptcha and Turnstile, and `xfs_common::free::widget_marker` still
+//!   a page-wide scan took that for the captcha kind. The site may show any of reCAPTCHA v2,
+//!   hCaptcha and Turnstile, and `xfs_common::free::widget_marker` still
 //!   recognises all three.
 
 use xfs_common::standard::OP_DOWNLOAD2;
@@ -93,8 +85,7 @@ pub(crate) fn api_key(html: &str) -> Option<String> {
     xfs_common::login::api_key(html)
 }
 
-/// Clears ddownload's `adblock_detected` field when the form carries it, the way JD's
-/// `DdownloadCom.handleCaptcha` (and the base class's `findFormDownload2Free`) do — see the
+/// Clears ddownload's `adblock_detected` field when the form carries it — see the
 /// module doc. Forms without the field are returned unchanged; the field is never added.
 #[must_use]
 pub(crate) fn with_adblock_cleared(fields: &[(String, String)]) -> Vec<(String, String)> {
@@ -126,16 +117,15 @@ pub(crate) fn session_verdict(html: &str) -> SessionVerdict {
 
 /// The captcha widget guarding the download form, with the site key needed to solve it.
 ///
-/// Scoped to the `download2` form when the page carries one, the way JD's `handleCaptcha` is
-/// handed the form rather than the page: on the file page measured on 2026-09-17 the
-/// stylesheet mentions `h-captcha` two thousand lines before the Turnstile widget, and a
-/// page-wide scan reported an hCaptcha challenge carrying the Turnstile's site key. When the
-/// form carries no widget — or there is no such form, as in the answer to `download1` on an
-/// older installation — the page is scanned whole, so a widget the template put next to the
-/// form rather than inside it is still answered instead of the form being posted bare. That
-/// page-wide scan runs on the page without its `<style>` and `<script>` blocks, because the
-/// decoy that made the scoping necessary lives in one of them and would otherwise win again
-/// the moment the form is empty.
+/// Scoped to the `download2` form when the page carries one, the form rather than the page: on the
+/// file page measured on 2026-09-17 the stylesheet mentions `h-captcha` two thousand lines before
+/// the Turnstile widget, and a page-wide scan reported an hCaptcha challenge carrying the
+/// Turnstile's site key. When the form carries no widget — or there is no such form, as in the
+/// answer to `download1` on an older installation — the page is scanned whole, so a widget the
+/// template put next to the form rather than inside it is still answered instead of the form being
+/// posted bare. That page-wide scan runs on the page without its `<style>` and `<script>` blocks,
+/// because the decoy that made the scoping necessary lives in one of them and would otherwise win
+/// again the moment the form is empty.
 #[must_use]
 pub(crate) fn widget_marker(html: &str) -> Option<xfs_common::free::WidgetMarker> {
     xfs_common::page::form_html(html, OP_DOWNLOAD2)
@@ -152,14 +142,14 @@ fn widget_marker_outside_markup(html: &str) -> Option<xfs_common::free::WidgetMa
 
 /// Seconds to wait before the free download may be requested: ddownload's own
 /// `id="dk2CountdownNum"` marker first, then the XFS base class's generic countdown markers —
-/// exactly the order `DdownloadCom.regexWaittime` uses (see the module doc).
+/// the order the module doc describes.
 #[must_use]
 pub(crate) fn free_wait_seconds(html: &str) -> Option<u64> {
     dk2_countdown_seconds(html).or_else(|| xfs_common::free::countdown_seconds(html))
 }
 
-/// ddownload's own countdown marker, `id="dk2CountdownNum"` (JD `DdownloadCom.regexWaittime`,
-/// dated 2026-04-21). Deliberately reads the full run of digits rather than JD's `\d{1,2}`, so a
+/// ddownload's own countdown marker, `id="dk2CountdownNum"` (known since 2026-04-21).
+/// Deliberately reads the full run of digits rather than only `\d{1,2}`, so a
 /// three-digit countdown is waited out in full instead of being truncated. `None` if the marker
 /// is absent, carries no digits, or names zero seconds.
 #[must_use]
@@ -319,8 +309,7 @@ mod tests {
 </form></body></html>"#;
 
     /// The first free step: the `download1` form is found by its own `op` marker, and the free
-    /// submission keeps `method_free` while dropping `method_premium` (JD
-    /// `XFileSharingProBasic.findFormDownload1Free`).
+    /// submission keeps `method_free` while dropping `method_premium`.
     #[test]
     fn free_form_keeps_the_free_marker_and_drops_the_premium_one() {
         let fields = download1_form(DOWNLOAD1_PAGE).expect("download1 form");
@@ -333,7 +322,7 @@ mod tests {
         );
     }
 
-    /// JD's `DdownloadCom.handleCaptcha` clears this field rather than removing or adding it.
+    /// The free submission clears this field rather than removing or adding it.
     #[test]
     fn adblock_detected_is_cleared_only_when_the_form_carries_it() {
         let fields = download1_form(DOWNLOAD1_PAGE).expect("download1 form");
@@ -347,7 +336,7 @@ mod tests {
     }
 
     /// ddownload's own `dk2CountdownNum` marker wins over the base class's generic ones, and the
-    /// generic ones still apply when it is absent (JD `DdownloadCom.regexWaittime`).
+    /// generic ones still apply when it is absent.
     #[test]
     fn the_countdown_prefers_ddownloads_own_marker() {
         assert_eq!(

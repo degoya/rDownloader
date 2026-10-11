@@ -4,8 +4,7 @@
 //! code runs against the native `ResolverHost` and against the WIT imports. The two adapters
 //! that supply it - `native.rs` and `guest.rs` - hold nothing but type conversions.
 //!
-//! The flow is the one JDownloader's `KrakenfilesCom` (revision 52214) and pyLoad's
-//! `KrakenfilesCom` drive, measured again on 2026-09-21 (RD-103-08): the file page carries a
+//! The flow, measured again on 2026-09-21 (RD-103-08): the file page carries a
 //! `POST /download/<hash>` form with a hidden `token`, and the site checks a Cloudflare
 //! Turnstile answer before anything else - a post without one is `{"status":"error","msg":
 //! "captcha not valid"}` under HTTP 500. The answer to a good post is `{"status":"ok","url":
@@ -27,7 +26,7 @@ use url::Url;
 
 use crate::{messages, page};
 
-/// JDownloader waits an hour after a 403, 404 or 405 on the direct link; 405 "happens with
+/// An hour's wait after a 403, 404 or 405 on the direct link; 405 "happens with
 /// too many connections", and nothing distinguishes the three from here.
 const REFUSED_LINK_RETRY_SECONDS: u64 = 3600;
 
@@ -72,7 +71,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     let id = page::file_id(&parsed)
         .ok_or_else(|| coded(FailureKind::Unsupported, messages::UNSUPPORTED_LINK))?;
     // A rejected answer is tried once more from the top - a fresh page, a fresh token, a
-    // fresh challenge - the way JDownloader's framework retries a captcha exception. Exactly
+    // fresh challenge. Exactly
     // once: a second refusal is reported, and the scheduler decides how often to come back.
     let outcome = match attempt(host, &id).await? {
         Attempt::CaptchaRejected => attempt(host, &id).await?,
@@ -219,7 +218,7 @@ fn download_answer(response: &HttpResponse) -> Result<DownloadVerdict, Failure> 
             if message.to_ascii_lowercase().contains(CAPTCHA_REFUSAL) {
                 return Ok(DownloadVerdict::CaptchaRejected);
             }
-            // Anything else the site says is temporary in JDownloader's reading, and the
+            // Anything else the site says is temporary, and the
             // wording travels as a parameter so the person sees what the site said.
             Err(Failure::coded(
                 FailureKind::Transient(None),
@@ -286,8 +285,8 @@ async fn transfer<H: PluginHost>(
     })
 }
 
-/// What `/json/<id>` says about a link: the file, `[]` for one that is gone, and - as
-/// JDownloader reads it - a hash that is not the id asked for counts as gone too.
+/// What `/json/<id>` says about a link: the file, `[]` for one that is gone, and a
+/// hash that is not the id asked for counts as gone too.
 fn metadata_verdict(
     response: &HttpResponse,
     id: &str,
@@ -361,7 +360,7 @@ fn sanitised(message: &str) -> String {
 /// Classifies a status with the mapping every plugin shares (RD-191-07): a 404 or 410 is final,
 /// a 451 `Offline`, and a 429 carries the site's `Retry-After`. KrakenFiles takes no account, so
 /// a 401/403 — Cloudflare answers with one — is a plain HTTP error, never a refused account
-/// (RA-PLG-01). The direct link's 403-405, which JDownloader reads as "come back in an hour",
+/// (RA-PLG-01). The direct link's 403-405, read as "come back in an hour",
 /// is answered before this is asked.
 fn ensure_http_status(response: &HttpResponse) -> Result<(), Failure> {
     HttpError {

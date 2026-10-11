@@ -1,6 +1,6 @@
 //! Account-less (free) resolve coverage for the XFS two-form flow.
 //!
-//! Mirrors JD's `XFileSharingProBasic.doFree` step by step: file page -> `download1` posted
+//! The XFS free flow step by step: file page -> `download1` posted
 //! in free mode -> captcha solved and countdown waited out -> `download2` posted -> direct
 //! link. Each test drives the real resolver against queued mock responses and asserts what
 //! the plugin *did* (which requests, which captcha, which wait), not just what it returned.
@@ -107,7 +107,7 @@ async fn the_free_flow_solves_the_captcha_waits_and_posts_both_forms() {
         "{step_two}"
     );
 
-    // The countdown was waited out, and the captcha was solved before it (JD's ordering, so
+    // The countdown was waited out, and the captcha was solved before it (so
     // the token is as fresh as possible when the form is posted).
     assert_eq!(*host.waits.lock().expect("lock"), vec![30]);
     let captchas = host.captchas.lock().expect("lock");
@@ -213,7 +213,7 @@ async fn a_captcha_without_a_solver_is_reported_verbatim() {
     );
 }
 
-/// A rejected captcha is retried once with a fresh challenge, the way JD retries it.
+/// A rejected captcha is retried once with a fresh challenge.
 #[tokio::test]
 async fn a_rejected_captcha_is_retried_once_then_reported() {
     let rejected = format!("<div class=\"err\">Wrong captcha</div>{DOWNLOAD2_PAGE}");

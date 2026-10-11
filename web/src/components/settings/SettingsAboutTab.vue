@@ -185,6 +185,13 @@ const anyOpen = computed(() => open.rust || open.npm)
                 <dd class="text-sm text-highlighted">{{ about.authors.join(', ') }}</dd>
               </dl>
               <p class="mt-3 max-w-3xl text-sm leading-6 text-muted">{{ t('settings.about.credits.thanks') }}</p>
+              <!-- The dedication the status bar carried until it gave the room to the selection
+                   (RD-1250-06); here it has the space and the context. -->
+              <p data-testid="about-dedication" class="mt-3 flex flex-wrap items-center gap-1 text-sm text-toned">
+                {{ t('common.footer.made_with') }}
+                <UIcon name="i-lucide-heart" class="size-3.5 text-primary" />
+                {{ t('common.footer.by', { author: about.authors.join(', ') }) }}
+              </p>
             </UCard>
           </template>
         </div>

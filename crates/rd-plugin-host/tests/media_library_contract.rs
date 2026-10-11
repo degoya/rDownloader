@@ -22,13 +22,15 @@ const EMBY: &str = include_str!("../../../plugins/emby-notifier/manifest.toml");
 /// can only mean it leaked there.
 const TOKEN: &str = "tok3n-xYz-never-in-a-log";
 
-/// The servers' answers, modelled on what they send: Plex starts the scan and answers `200` with
-/// no body, Jellyfin and Emby queue it and answer `204`, and a wrong token is a `401` -- Plex's
-/// with its small HTML page, Jellyfin's empty, Emby's with a line of text.
+/// The servers' answers: Plex starts the scan and answers `200` (`text/html`, no body), Jellyfin
+/// and Emby queue it and answer `204`, and a wrong token is a `401` -- Jellyfin's empty, Emby's
+/// with a line of text. Recorded from Plex 1.41.6.9685, Jellyfin 10.11.0 and Emby 4.9.1.80 on
+/// 2026-10-11 (RD-1250-01); Plex's `401` page is modelled on its `404`, since the unclaimed test
+/// server admitted the Docker network without a token.
 const PLEX_STARTED: Recorded = Recorded {
     status: 200,
     reason: "OK",
-    content_type: "",
+    content_type: "text/html",
     body: "",
 };
 const PLEX_UNAUTHORIZED: Recorded = Recorded {
@@ -72,6 +74,7 @@ fn finished<'a>(destination: &'a str, secret_ref: Option<&'a str>) -> Delivery<'
         destination,
         secret_ref,
         settings: &[],
+        package_path: None,
     }
 }
 

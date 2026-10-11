@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Download } from '@/api/types'
+import type { Download, DownloadState } from '@/api/types'
 import { useClearEverythingConfirm } from '@/composables/useClearEverythingConfirm'
 import { useConfirm } from '@/composables/useConfirm'
 import { copyText } from '@/composables/useCopy'
@@ -126,17 +126,15 @@ export function useDownloadsActions(view: {
     return packageDownloads(id).some(download => states.includes(download.state))
   }
 
+  /** One request by the list filter for the whole package, whatever its size (RD-1250-08). */
   async function controlPackage(id: string, action: 'pause' | 'resume'): Promise<void> {
     if (packageControlBusy.value[id]) return
+    if (!canControlPackage(id, action)) return
     const states = action === 'pause' ? PAUSABLE_STATES : RESUMABLE_STATES
-    const ids = packageDownloads(id)
-      .filter(download => states.includes(download.state))
-      .map(download => download.id)
-    if (!ids.length) return
 
     packageControlBusy.value = { ...packageControlBusy.value, [id]: action }
     try {
-      await transfers.bulk(ids, action)
+      await transfers.bulkByFilter(action, { states: [...states] as DownloadState[], package_id: id })
     } finally {
       const remaining = { ...packageControlBusy.value }
       delete remaining[id]

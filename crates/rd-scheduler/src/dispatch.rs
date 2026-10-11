@@ -14,8 +14,11 @@ use crate::{BlockReason, ExternalRunner, SchedulerHandle, rates, worker};
 
 #[path = "dispatch_admission.rs"]
 mod admission;
+#[path = "dispatch_selection.rs"]
+mod selection;
 
 use admission::{Claim, Slots};
+use selection::Turn;
 
 impl SchedulerHandle {
     pub(crate) async fn supervise(self) {
@@ -127,7 +130,12 @@ impl SchedulerHandle {
         // Rebuilt by every pass, so a file that was paused, removed or started meanwhile stops
         // being listed as waiting for its host, and a held queue lists none.
         let mut host_waits = HashMap::new();
-        let result = self.dispatch_pass(&mut host_waits).await;
+        let result = if self.dispatch_held().await {
+            Ok(())
+        } else {
+            self.dispatch_pass(chrono::Utc::now(), &mut host_waits)
+                .await
+        };
         self.active
             .lock()
             .await
@@ -136,26 +144,23 @@ impl SchedulerHandle {
         result
     }
 
-    /// One pass over the startable files; `host_waits` collects the ones held back because
-    /// their host has no free connection (RD-1130-02).
-    async fn dispatch_pass(&self, host_waits: &mut HashMap<DownloadId, String>) -> Result<()> {
-        if self.dispatch_held().await {
-            return Ok(());
-        }
-        let now = chrono::Utc::now();
+    /// One pass over the startable files in list order as of `now`, the queue not held;
+    /// `host_waits` collects the ones held back because their host has no free connection
+    /// (RD-1130-02). Which file is offered a place and which keeps its own:
+    /// `dispatch_selection.rs` (RD-1250-07).
+    pub(crate) async fn dispatch_pass(
+        &self,
+        now: chrono::DateTime<chrono::Utc>,
+        host_waits: &mut HashMap<DownloadId, String>,
+    ) -> Result<()> {
         let active_limit = self.active_limit().await;
         // Only the rows that can start, through the state index: an idle queue of finished
         // downloads used to be loaded whole, JSON and all, twice a second (audit 1.9.1, TR-08).
-        let files = self
-            .startable_downloads()
-            .await?
-            .into_iter()
-            .filter(|file| {
-                file.state == DownloadState::Queued
-                    || file.next_retry_at.is_some_and(|retry_at| retry_at <= now)
-            })
-            .collect::<Vec<_>>();
-        if files.is_empty() {
+        let files = self.startable_downloads().await?;
+        if !files
+            .iter()
+            .any(|file| selection::turn(file, now) == Turn::Offered)
+        {
             return Ok(());
         }
         let packages = self.database.list_packages().await?;
@@ -175,9 +180,22 @@ impl SchedulerHandle {
         let mut groups: HashMap<PackageId, Vec<rd_core::DownloadFile>> = HashMap::new();
         // A switched-off kind is blocked once per pass, not once per waiting file of it.
         let mut blocked_kinds: Vec<rd_core::DownloadKind> = Vec::new();
+        // Places kept by files further up the list whose retry is close: no file after them
+        // takes one (RD-1250-07).
+        let mut kept = 0_usize;
         for file in files {
             if not_due.contains(&file.package_id) || gate.holds(&file) {
                 continue;
+            }
+            match selection::turn(&file, now) {
+                Turn::Offered => {}
+                Turn::KeepsPlace => {
+                    if self.takes_a_counted_place(file.kind) {
+                        kept += 1;
+                    }
+                    continue;
+                }
+                Turn::Waits => continue,
             }
             if !self
                 .may_start(&file, now, &destinations, &mut groups, &mut blocked_kinds)
@@ -201,7 +219,14 @@ impl SchedulerHandle {
                 .is_some_and(|(runner, _)| runner.shares_one_global_slot());
             let cancellation = CancellationToken::new();
             match self
-                .claim_slot(&file, exempt, pooled, active_limit, host, &cancellation)
+                .claim_slot(
+                    &file,
+                    exempt,
+                    pooled,
+                    active_limit.saturating_sub(kept),
+                    host,
+                    &cancellation,
+                )
                 .await
             {
                 Claim::ShuttingDown => return Ok(()),

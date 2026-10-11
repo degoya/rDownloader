@@ -4,10 +4,10 @@
 //! `wit-bindgen`'s generated types are used here, only `serde`/`serde_json`/`url`, which are
 //! available on every target.
 //!
-//! IMPL-VERIFY (against JD's `AllDebridCom.java`, the living reference — see task-5-report.md
+//! IMPL-VERIFY (see task-5-report.md
 //! for the full list): `/link/unlock` and `/link/delayed` are `POST` with an
 //! `application/x-www-form-urlencoded` body (`link=`/`id=`), not `GET` with a query string as
-//! the brief first assumed; no `agent` query parameter is sent (JD never sends one); there is no
+//! the brief first assumed; no `agent` query parameter is sent; there is no
 //! `/link/infos` batch-check endpoint, so `check()` is left unimplemented (host trait default);
 //! `/user/hosts` nests each hoster's domains under `data.hosts.<key>.domains` and
 //! `data.streams.<key>.domains`, not a flat array.
@@ -97,7 +97,7 @@ impl UnlockData {
 }
 
 /// `data` of `POST /link/delayed`: `status` is `1` = still processing, `2` = available,
-/// `3` = error (JD `AllDebridCom#cacheDLChecker`).
+/// `3` = error.
 #[derive(Deserialize)]
 pub(crate) struct DelayedData {
     pub(crate) status: Option<u32>,
@@ -170,19 +170,17 @@ pub(crate) fn merge_hosters(data: HostsData) -> Vec<String> {
 }
 
 /// Classifies a `{"status":"error","error":{"code":...,"message":...}}` envelope by the
-/// provider's `error.code`. Every branch mirrors JDownloader's `AllDebridCom#handleErrors`
-/// (`https://docs.alldebrid.com/#all-errors`):
-/// - `AUTH_MISSING_APIKEY`/`AUTH_BAD_APIKEY`/`AUTH_USER_BANNED`/`ACCOUNT_INVALID` are JD's
+/// provider's `error.code` (`https://docs.alldebrid.com/#all-errors`):
+/// - `AUTH_MISSING_APIKEY`/`AUTH_BAD_APIKEY`/`AUTH_USER_BANNED`/`ACCOUNT_INVALID` are
 ///   *permanent* account errors (bad/banned key).
-/// - `AUTH_BLOCKED` is one of JD's *temporary* account errors (5-minute retry, alongside
+/// - `AUTH_BLOCKED` is a *temporary* account error (5-minute retry, alongside
 ///   `MAINTENANCE`) — **not** grouped with the permanent auth failures above. The task brief
-///   listed it next to `AUTH_BAD_APIKEY`/`AUTH_USER_BANNED` as `AccountInvalid`; JD's source
-///   contradicts that (`accountErrorsTemporary`, not `accountErrorsPermanent`), so this follows
-///   JD and reports it as transient instead — see task-5-report.md.
+///   listed it next to `AUTH_BAD_APIKEY`/`AUTH_USER_BANNED` as `AccountInvalid`; the block
+///   lifts again, so this reports it as transient instead — see task-5-report.md.
 /// - `LINK_HOST_NOT_SUPPORTED`/`LINK_HOST_UNAVAILABLE`/`LINK_HOST_FULL`/
-///   `LINK_HOST_LIMIT_REACHED`/`USER_LINK_INVALID` are JD's `downloadErrorsHostUnavailable`
-///   bucket (identical handling for all five); the brief named only the first two, the other
-///   three are added here for parity with JD's grouping.
+///   `LINK_HOST_LIMIT_REACHED`/`USER_LINK_INVALID` are one host-unavailable bucket (identical
+///   handling for all five); the brief named only the first two, the other three belong to
+///   the same group.
 fn classify_error(code: &str, message: &str) -> ApiFailure {
     match code {
         "AUTH_MISSING_APIKEY" | "AUTH_BAD_APIKEY" | "AUTH_USER_BANNED" | "ACCOUNT_INVALID" => {
@@ -336,8 +334,8 @@ mod tests {
 
     #[test]
     fn classify_error_treats_auth_blocked_as_temporary_not_account_invalid() {
-        // Deviation from the brief: JD's `accountErrorsTemporary` set includes AUTH_BLOCKED
-        // (5-minute retry, same bucket as MAINTENANCE), not `accountErrorsPermanent`.
+        // Deviation from the brief: AUTH_BLOCKED is a temporary account error (5-minute retry,
+        // same bucket as MAINTENANCE), not a permanent one.
         let failure = classify_error("AUTH_BLOCKED", "Temporarily blocked");
         assert!(matches!(failure.kind, ErrorKind::Transient(Some(300))));
         assert_eq!(failure.code, messages::TEMPORARILY_UNAVAILABLE.0);

@@ -199,6 +199,13 @@ pub async fn add_torrent_to_collector(
     Ok(intake)
 }
 
+/// The fixed listen port another program holds, when that is why the torrent engine refused
+/// (RD-1250-04). Here so an area without its own `rd-torrent` dependency can name the conflict.
+#[must_use]
+pub fn torrent_port_in_use(error: &anyhow::Error) -> Option<u16> {
+    rd_torrent::port_in_use(error)
+}
+
 /// Refuses torrent work while the service is switched off.
 pub async fn ensure_torrent_service_enabled(state: &AppState) -> Result<(), ApiError> {
     let settings = crate::settings_store::read_settings(state).await?;

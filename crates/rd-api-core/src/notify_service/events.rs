@@ -46,11 +46,44 @@ impl NotificationService {
         let Some((kind, category_id, title, body)) = self.classify(event).await? else {
             return Ok(());
         };
-        self.queue_event(kind, category_id, &event.id.to_string(), &title, &body)
-            .await
+        let package_path = if kind == NotificationEvent::PackageCompleted {
+            self.package_folder(&event.payload).await?
+        } else {
+            None
+        };
+        self.queue_event(
+            kind,
+            category_id,
+            &event.id.to_string(),
+            &title,
+            &body,
+            package_path,
+        )
+        .await
     }
 
-    /// Queues one delivery of an event for every rule that wants it.
+    /// The folder of the package a `package.state` event names (RD-1250-01): what a media
+    /// server is asked to scan once the package is finished. Its destination is the folder
+    /// post-processing worked in and left the files in.
+    async fn package_folder(&self, payload: &serde_json::Value) -> anyhow::Result<Option<String>> {
+        let Some(id) = payload
+            .get("package_id")
+            .and_then(|value| value.as_str())
+            .and_then(|id| id.parse::<rd_core::PackageId>().ok())
+        else {
+            return Ok(None);
+        };
+        Ok(self
+            .inner
+            .database
+            .get_package(id)
+            .await?
+            .map(|package| package.destination)
+            .filter(|folder| !folder.trim().is_empty()))
+    }
+
+    /// Queues one delivery of an event for every rule that wants it. `package_path` is the
+    /// finished package's folder, kept with each delivery so a retry names it too.
     pub(super) async fn queue_event(
         &self,
         kind: NotificationEvent,
@@ -58,6 +91,7 @@ impl NotificationService {
         event_id: &str,
         title: &str,
         body: &str,
+        package_path: Option<String>,
     ) -> anyhow::Result<()> {
         for rule in self.inner.database.list_notification_rules().await? {
             if !rule.matches(kind, category_id) {
@@ -74,6 +108,7 @@ impl NotificationService {
                     event: kind,
                     title: title.to_owned(),
                     body: body.to_owned(),
+                    package_path: package_path.clone(),
                 })
                 .await?;
         }

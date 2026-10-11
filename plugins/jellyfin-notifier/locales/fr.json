@@ -2,6 +2,8 @@
   "name": "Jellyfin",
   "description": "Actualise les bibliothèques Jellyfin lorsqu’un paquet est terminé.",
   "codes": {
-    "jellyfin_notifier.rejected": "Jellyfin a refusé l’actualisation de la bibliothèque."
+    "jellyfin_notifier.rejected": "Jellyfin a refusé l’actualisation de la bibliothèque.",
+    "jellyfin_notifier.setting.path_mapping": "Correspondance des chemins",
+    "jellyfin_notifier.setting.path_mapping.description": "Une ligne par dossier : chemin dans rDownloader=chemin vu par Jellyfin, p. ex. /downloads=/data/media. Le plus long chemin correspondant décide et Jellyfin analyse le dossier qui contient le paquet au lieu de toutes les bibliothèques ; sans ligne correspondante, toutes les bibliothèques sont actualisées."
   }
 }

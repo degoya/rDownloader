@@ -1,22 +1,60 @@
-//! The one request a finished package becomes: Plex scans every library section.
+//! The one request a finished package becomes: Plex scans the package's folder in one library
+//! section, or every section when it cannot be told which folder.
 //!
-//! The notifier contract carries no path of the package (RD-1240-12, owner 2026-10-10), so the
-//! refresh is the whole library rather than one folder; a path-precise scan waits for a contract
-//! that names it. Plex starts the scan in the background and answers at once, so a refresh per
-//! finished package costs the server a scan, not a request that waits for one.
+//! Since contract `0.11.0` (RD-1250-01) the notification names the finished package's folder.
+//! Plex scans a folder only within a section (`/library/sections/<id>/refresh?path=<folder>`),
+//! and which section holds it is not asked of the server -- the plugin reads nothing of the
+//! library -- so the person names it in the `section` setting. A section and a folder the
+//! mapping holds: that folder is scanned. A section alone: that section. Neither: every
+//! section, as before. Plex starts the scan in the background and answers at once, so a refresh
+//! per finished package costs the server a scan, not a request that waits for one.
 
-/// What Plex is asked: scan every section. `all` is Plex's own spelling for that.
-pub const REFRESH_PATH: &str = "/library/sections/all/refresh";
+use plugin_guest_notifier::media_path;
+
+/// Plex's own spelling for "every section".
+pub const ALL_SECTIONS: &str = "all";
+
+/// The setting naming the library section to scan; unset, every section is.
+pub const SECTION_SETTING: &str = "section";
+
+/// The setting mapping rDownloader's folders onto the server's, one `service=server` per line.
+pub const MAPPING_SETTING: &str = "path_mapping";
 
 /// The query name Plex reads its token from. The host allows no header of that name
 /// (RD-120-60), and Plex reads the query as readily.
 pub const TOKEN_QUERY: &str = "X-Plex-Token";
+
+/// The query name Plex reads the folder to scan from.
+pub const PATH_QUERY: &str = "path";
 
 /// Whether this event is one a library refresh is for. Only a finished package adds files to
 /// the library; a rule that also sends this target other events gets no refresh for them.
 #[must_use]
 pub fn wanted(event: &str) -> bool {
     event == "package_completed"
+}
+
+/// The section the target names, `None` when it names none, or the reason it is no section:
+/// Plex numbers its sections, and anything else would be answered with a `404` on every
+/// finished package.
+///
+/// # Errors
+///
+/// When the setting holds anything but digits.
+pub fn section(setting: Option<&str>) -> Result<Option<&str>, &'static str> {
+    match setting.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(id) if id.bytes().all(|byte| byte.is_ascii_digit()) => Ok(Some(id)),
+        Some(_) => Err("The library section of this destination is not a number"),
+    }
+}
+
+/// The folder Plex is asked to scan: the package's, as the server sees it, when a section is
+/// named and the mapping holds the folder; else none, and the section is scanned whole.
+#[must_use]
+pub fn folder(section: Option<&str>, mapping: &str, package_path: Option<&str>) -> Option<String> {
+    section?;
+    media_path::mapped(mapping, package_path?)
 }
 
 /// The address to send the refresh to, or `None` when the destination is not the server's
@@ -27,7 +65,7 @@ pub fn wanted(event: &str) -> bool {
 /// reads it, which narrows the delivery to that address's host (RD-130-15); a query or fragment
 /// someone pasted along is dropped, since the refresh is a request of its own.
 #[must_use]
-pub fn endpoint(destination: &str) -> Option<String> {
+pub fn endpoint(destination: &str, section: Option<&str>) -> Option<String> {
     let destination = destination.trim();
     let written_as_address = ["https://", "http://"].iter().any(|scheme| {
         destination
@@ -42,59 +80,10 @@ pub fn endpoint(destination: &str) -> Option<String> {
         .next()
         .unwrap_or_default()
         .trim_end_matches('/');
-    Some(format!("{server}{REFRESH_PATH}"))
+    let section = section.unwrap_or(ALL_SECTIONS);
+    Some(format!("{server}/library/sections/{section}/refresh"))
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{endpoint, wanted};
-
-    #[test]
-    fn the_refresh_goes_to_the_server_the_destination_names() {
-        assert_eq!(
-            endpoint("http://192.168.1.10:32400").as_deref(),
-            Some("http://192.168.1.10:32400/library/sections/all/refresh")
-        );
-        assert_eq!(
-            endpoint(" https://plex.example.org/ ").as_deref(),
-            Some("https://plex.example.org/library/sections/all/refresh")
-        );
-        // A server behind a reverse proxy keeps its path.
-        assert_eq!(
-            endpoint("https://example.org/plex/").as_deref(),
-            Some("https://example.org/plex/library/sections/all/refresh")
-        );
-        // The scheme is read case-insensitively, as the host reads it.
-        assert_eq!(
-            endpoint("HTTPS://plex.example.org").as_deref(),
-            Some("HTTPS://plex.example.org/library/sections/all/refresh")
-        );
-    }
-
-    #[test]
-    fn a_query_or_fragment_pasted_along_is_dropped() {
-        assert_eq!(
-            endpoint("https://plex.example.org/web/index.html#!/settings").as_deref(),
-            Some("https://plex.example.org/web/index.html/library/sections/all/refresh")
-        );
-        assert_eq!(
-            endpoint("https://plex.example.org/?X-Plex-Token=pasted").as_deref(),
-            Some("https://plex.example.org/library/sections/all/refresh")
-        );
-    }
-
-    #[test]
-    fn a_destination_that_is_not_an_address_names_no_server() {
-        for destination in ["plex", "192.168.1.10:32400", "", "ftp://plex.example.org"] {
-            assert_eq!(endpoint(destination), None, "{destination}");
-        }
-    }
-
-    #[test]
-    fn only_a_finished_package_refreshes_the_library() {
-        assert!(wanted("package_completed"));
-        for event in ["package_failed", "storage_blocked", "update_available", ""] {
-            assert!(!wanted(event), "{event}");
-        }
-    }
-}
+#[path = "request_tests.rs"]
+mod tests;

@@ -1,5 +1,9 @@
 # Changes
 
+## 0.10.22
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.10.21
 
 A premium account whose daily traffic is used up is no longer reported as invalid: its downloads

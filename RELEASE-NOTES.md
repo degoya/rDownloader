@@ -12,6 +12,17 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.25.0
+
+- The queue downloads in its order again: a file that fails briefly keeps its place, and one that keeps failing waits longer instead of holding up the rest.
+- Pausing or resuming hundreds of files now happens at once instead of file by file.
+- Re-resolve can check links right away and fill in their size before the download starts; links without an account are skipped and counted.
+- Plex, Jellyfin and Emby can scan only the finished package's folder, with a path mapping from rDownloader's folders to the media server's.
+- A pasted playlist becomes a package named after it, and LinkGrabber messages show their details in your language.
+- The indexer review drawer no longer moves while you read it: new hits wait behind a button, and "all" acts only on what you see.
+- The version now sits at the bottom of the sidebar, leaving the status bar room for your selection and its size.
+- Fixed: the interface behind a reverse proxy under a sub-path, a torrent port another program already holds, and the bandwidth profile shown with none active.
+
 ## 1.24.0
 
 - LinkFilter rules decide what arriving links do: hide them, keep them, or put them into a package or category. Hidden links stay in the LinkGrabber.

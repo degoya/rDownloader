@@ -25,8 +25,8 @@ use super::{
     params_config::IdParams,
     params_handling::{body, public},
     params_remaining::{
-        RequeueParams, ReviewParams, SubscriptionItemsParams, SubscriptionRunsParams,
-        SubscriptionSwitchParams, object,
+        PendingReviewParams, RequeueParams, ReviewParams, SubscriptionItemsParams,
+        SubscriptionRunsParams, SubscriptionSwitchParams, object,
     },
 };
 use crate::subscription_handlers as subscriptions;
@@ -157,15 +157,19 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Decide every hit of one subscription that is waiting for review (id from list_subscriptions): state=queued or dismissed. Answers how many matched, how many changed and how many could not be handed over."
+        description = "Decide every hit of one subscription that is waiting for review (id from list_subscriptions): state=queued or dismissed. With until (the newest_discovered_at list_subscription_items reported) only the hits found up to that read, on every page, so one that arrived after it is not decided unseen; with item_ids (from list_subscription_items) only those of them. Answers how many matched, how many changed and how many could not be handed over."
     )]
     pub async fn review_pending_subscription_items(
         &self,
-        Parameters(params): Parameters<ReviewParams>,
+        Parameters(params): Parameters<PendingReviewParams>,
     ) -> McpToolResult {
         let result = async {
             let id = parse_id(&params.id)?;
-            let request = body(serde_json::json!({ "state": params.state }))?;
+            let request = body(object(&[
+                ("state", params.state.into()),
+                ("item_ids", params.item_ids.into()),
+                ("until", params.until.into()),
+            ]))?;
             let Json(answer) = subscriptions::set_pending_subscription_items_state(
                 State(self.state.clone()),
                 Path(id),

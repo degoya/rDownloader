@@ -46,6 +46,12 @@ impl Writer {
             DownloadsCommand::DeleteDownloads { ids, reply } => {
                 send(reply, self.delete_downloads(&ids).await);
             }
+            DownloadsCommand::PauseDownloads { ids, reply } => {
+                send(reply, self.pause_downloads(&ids).await);
+            }
+            DownloadsCommand::ResumeDownloads { ids, reply } => {
+                send(reply, self.resume_downloads(&ids).await);
+            }
             DownloadsCommand::DeleteEmptyPackage { id, reply } => {
                 send(reply, self.delete_empty_package(id).await);
             }
@@ -206,6 +212,19 @@ impl Writer {
             }
             DownloadsCommand::ReleaseResolverPin { id, reply } => {
                 send(reply, self.release_resolver_pin(id).await);
+            }
+            DownloadsCommand::RecordResolution {
+                id,
+                file_name,
+                total_bytes,
+                failure,
+                reply,
+            } => {
+                send(
+                    reply,
+                    self.record_resolution(id, file_name, total_bytes, failure)
+                        .await,
+                );
             }
         }
     }

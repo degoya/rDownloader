@@ -76,7 +76,22 @@ function pendingOf(id: string): number {
 }
 
 /** Only subscriptions with a decision still outstanding belong in the review box. */
-const groups = computed(() => indexers.value
+const liveGroups = computed(() => indexers.value.filter(subscription => pendingOf(subscription.id) > 0))
+
+/**
+ * The groups on screen while the drawer is open (RD-1250-13), taken once the counts read on
+ * opening are in (`settleOpen`).
+ *
+ * Owner, 2026-10-11: "wenn der Drawer offen ist, dürften keine Updates erfolgen … oder die Daten
+ * zwar geholt, aber noch nicht im Akkordeon angezeigt werden." A group whose first hit arrives
+ * while somebody reads would push every group under it down, so it waits with the hits the store
+ * holds back (`holdItems`) until "show" or closing the drawer. A group that runs out of hits
+ * still leaves: a row going away moves nothing in under the pointer.
+ */
+const shownGroups = ref<Set<string> | null>(null)
+
+const groups = computed(() => liveGroups.value
+  .filter(subscription => !shownGroups.value || shownGroups.value.has(subscription.id))
   .map(subscription => ({
     subscription,
     items: subscriptions.items[subscription.id] ?? [],
@@ -84,8 +99,50 @@ const groups = computed(() => indexers.value
     listTotal: subscriptions.itemPages[subscription.id]?.total ?? 0,
     page: subscriptions.itemQueries[subscription.id]?.page ?? 1,
     error: subscriptions.itemErrors[subscription.id] ?? null
-  }))
-  .filter(group => group.total > 0))
+  })))
+
+/**
+ * What "show" would bring in: per group on screen the hits past its watermark, or the rows a
+ * re-read held back if those are more, and the groups waiting.
+ */
+const held = computed(() => {
+  const inGroups = groups.value.reduce((sum, group) => {
+    const id = group.subscription.id
+    const past = group.total - (subscriptions.watermarks[id]?.count ?? group.total)
+    return sum + Math.max(0, past, subscriptions.heldItems[id]?.length ?? 0)
+  }, 0)
+  const waiting = liveGroups.value
+    .filter(subscription => shownGroups.value && !shownGroups.value.has(subscription.id))
+    .reduce((sum, subscription) => sum + pendingOf(subscription.id), 0)
+  return inGroups + waiting
+})
+
+/** The groups and their watermarks as the counts stand: what "all" means from now on. */
+function takeGroups(): void {
+  shownGroups.value = new Set(liveGroups.value.map(subscription => subscription.id))
+  subscriptions.takeSummaryWatermarks()
+}
+
+watch(open, isOpen => {
+  subscriptions.holdItems(isOpen)
+  if (!isOpen) shownGroups.value = null
+})
+
+/**
+ * Reads the counts as they are now and takes the groups they name, once per opening. The counts
+ * follow the stream, but one read may still be on its way when somebody opens the drawer, and a
+ * group taken from the older counts would wait behind "show" although it was there at opening.
+ */
+async function settleOpen(): Promise<void> {
+  if (!initialized.value) await initialize()
+  else await subscriptions.loadReviewSummary()
+  if (open.value && !shownGroups.value) takeGroups()
+}
+
+async function showHeld(): Promise<void> {
+  takeGroups()
+  await subscriptions.showHeldItems()
+}
 
 const total = computed(() => subscriptions.reviewSummary.pending_total)
 
@@ -105,7 +162,10 @@ onMounted(() => {
   void initialize()
 })
 
-onUnmounted(() => subscriptions.disconnectEvents())
+onUnmounted(() => {
+  subscriptions.holdItems(false)
+  subscriptions.disconnectEvents()
+})
 
 /**
  * Opens the drawer, loading the groups the first time it is asked for.
@@ -116,8 +176,7 @@ onUnmounted(() => subscriptions.disconnectEvents())
  */
 async function openDrawer(): Promise<void> {
   open.value = true
-  if (initialized.value) return
-  await initialize()
+  await settleOpen()
 }
 
 /**
@@ -145,7 +204,8 @@ async function loadGroup(subscriptionId: string, page: number): Promise<void> {
  * One request per subscription, because that is the endpoint there is; they go out together,
  * since each one only starts a poll on the server and answers at once. The box opens and loads
  * first, so the hits a check turns up have somewhere to appear — the store re-reads every list
- * somebody asked for whose hits the check changed (RD-109-28, RD-110-30). Feedback follows the
+ * somebody asked for whose hits the check changed (RD-109-28, RD-110-30), and holds them behind
+ * "show" while the drawer is open (RD-1250-13). Feedback follows the
  * "check now" pattern: a line saying the check was *started*, replaced by the event stream with
  * what each one found.
  */
@@ -155,8 +215,7 @@ async function checkAll(): Promise<void> {
   notice.value = null
   // Opened here and nowhere else automatically: somebody who asks for a check is asking what it
   // found, and the answer is in the drawer. A page that merely loaded is not asking anything.
-  if (!initialized.value) await initialize()
-  open.value = true
+  if (!open.value) await openDrawer()
   // Since RD-107-12 the whole box only exists with at least one indexer subscription, so this
   // button cannot be reached with none. Kept as a guard, without a notice: there is no reader to
   // tell, and "check of 0 subscriptions started" would be the alternative.
@@ -203,12 +262,17 @@ async function decide(itemId: string, subscriptionId: string, state: Subscriptio
  * The confirmation is the point: "queue everything" on a search that turns out to grab too
  * widely is exactly what the review step exists to prevent, and with ninety-eight hits the
  * mistake only shows once the queue is full. Deliberately never across subscriptions — an
- * action spanning several searches has nothing left to judge.
+ * action spanning several searches has nothing left to judge. "All" is every page of the list as
+ * it was last drawn, and the watermark goes with the request (RD-1250-13): it used to be every
+ * hit pending when the server answered, so one a check wrote a moment earlier was decided unseen.
+ * Without a watermark nothing is sent rather than everything.
  */
 async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'): Promise<void> {
   const group = groups.value.find(entry => entry.subscription.id === subscriptionId)
-  if (!group || bulkFor.value) return
-  const count = group.total
+  const mark = subscriptions.watermarks[subscriptionId]
+  if (!group || !mark?.until || bulkFor.value) return
+  const until = mark.until
+  const count = mark.count
   const name = group.subscription.name
   const queueing = state === 'queued'
   const confirmed = await confirm({
@@ -226,7 +290,7 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
   if (!confirmed) return
 
   bulkFor.value = subscriptionId
-  const result = await subscriptions.setPendingItemStates(subscriptionId, state)
+  const result = await subscriptions.setPendingItemStates(subscriptionId, state, until)
   bulkFor.value = null
   if (result && result.failed > 0) {
     toast.add({
@@ -290,6 +354,20 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
       <template #body>
         <div class="max-h-[70vh] overflow-y-auto p-3">
           <p v-if="notice" class="mb-2 text-xs" :class="noticeTone === 'error' ? 'text-error' : 'text-muted'" role="status">{{ noticeText }}</p>
+          <UAlert
+            v-if="held"
+            class="mb-2"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-list-plus"
+            :title="t('linkgrabber.indexers.held_title', { count: held }, held)"
+            :description="t('linkgrabber.indexers.held_description')"
+            data-testid="indexer-review-held"
+          >
+            <template #actions>
+              <UButton size="xs" color="info" variant="solid" :label="t('linkgrabber.indexers.show_held')" @click="showHeld" />
+            </template>
+          </UAlert>
           <p v-if="loading" class="text-sm text-muted">{{ t('common.app.loading') }}</p>
           <p v-else-if="!groups.length" class="text-sm text-muted">{{ t('linkgrabber.indexers.empty') }}</p>
           <div v-else class="space-y-2">
@@ -307,6 +385,7 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
               :busy-ids="queuing"
               :bulk-busy="bulkFor === group.subscription.id"
               @load="(page) => loadGroup(group.subscription.id, page)"
+              @close="subscriptions.hideItems(group.subscription.id)"
               @more="subscriptions.loadMoreItems(group.subscription.id)"
               @queue="(itemId) => decide(itemId, group.subscription.id, 'queued')"
               @dismiss="(itemId) => decide(itemId, group.subscription.id, 'dismissed')"

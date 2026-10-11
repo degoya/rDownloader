@@ -4,50 +4,43 @@
 //! same way and report byte-identical failures; like [`crate::api`] this module depends only on
 //! `url`, which is available on every target.
 //!
-//! IMPL-VERIFY against JD's `svn_trunk/src/jd/plugins/hoster/OneFichierCom.java` (revision 53205,
-//! the `$Revision$` tag on line 106) — `handleDownloadWebsite` lines 576-716,
-//! `errorHandlingWebsite` lines 718-866, `isPasswordProtectedFileWebsite` lines 542-550,
-//! `getContentURLWebsite` lines 286-293 and `isErrorNoFreeSlots` lines 868-874. Verified against
-//! that source:
+//! IMPL-VERIFY against the known website flow:
 //!
-//! - **The content URL keeps the uploader's domain.** `getContentURL` (lines 269-284) rebuilds
-//!   `https://<the host the link came with>/?<fid>` and JD's own comment warns that normalizing to
-//!   `1fichier.com` turns files restricted to `alterupload.com` (and the other aliases) offline.
-//!   `getContentURLWebsite` then appends `&lg=en` to force English wording — which is why
-//!   [`page_error`] only has to match JD's English markers. See [`content_url`].
-//! - **The download form is the page's first form.** JD takes `br.getForm(0)` (line 628), removes
-//!   the `save` field and puts `did=1` (lines 650-652); `dl_no_ssl=on` is only added in JD's
-//!   opt-in FORCE_HTTP mode, which has no counterpart here. Every other hidden field the page
-//!   carries (`adz` and friends) is submitted unchanged. See [`download_form`]/[`free_form`].
-//! - **A password-protected file is detected by the form, not by prose.** JD's
-//!   `isPasswordProtectedFileWebsite` looks for a form carrying a `pass` key (line 543). See
-//!   [`is_password_protected`]; this plugin has no download password to send, so it reports the
-//!   file rather than prompting the way JD does.
-//! - **The direct link.** JD reads `<a href="...">Click here to download` and falls back to an
-//!   absolute `*.1fichier.com`/`*.desfichiers.com` link (lines 696-699). See [`direct_link`].
-//! - **The wait/limit markers.** `errorHandlingWebsite`'s IP-block block (lines 820-866) collects
-//!   a stated `N minutes`, treats "IP Locked"/"Will be unlocked within 1h." as 60 minutes, and
-//!   otherwise defaults to 5 minutes for any of a list of "you can only download one file at a
-//!   time" phrasings. With `account == null` — this flow's only case — all of them end in
-//!   `LinkStatus.ERROR_IP_BLOCKED`. See [`page_error`].
+//! - **The content URL keeps the uploader's domain.** The link is rebuilt as
+//!   `https://<the host the link came with>/?<fid>`: normalizing to `1fichier.com` turns files
+//!   restricted to `alterupload.com` (and the other aliases) offline. `&lg=en` is appended to force
+//!   English wording — which is why [`page_error`] only has to match the English markers. See
+//!   [`content_url`].
+//! - **The download form is the page's first form.** The `save` field is removed and `did=1` put
+//!   in; `dl_no_ssl=on` belongs to a forced-HTTP mode that has no counterpart here. Every other
+//!   hidden field the page carries (`adz` and friends) is submitted unchanged. See
+//!   [`download_form`]/[`free_form`].
+//! - **A password-protected file is detected by the form, not by prose**: a form carrying a
+//!   `pass` key. See [`is_password_protected`]; this plugin has no download password to send, so
+//!   it reports the file rather than prompting for one.
+//! - **The direct link.** `<a href="...">Click here to download`, falling back to an absolute
+//!   `*.1fichier.com`/`*.desfichiers.com` link. See [`direct_link`].
+//! - **The wait/limit markers.** A stated `N minutes` is collected, "IP Locked"/"Will be unlocked
+//!   within 1h." is 60 minutes, and any of a list of "you can only download one file at a time"
+//!   phrasings otherwise defaults to 5 minutes. Without an account — this flow's only case — all
+//!   of them are an IP block. See [`page_error`].
 //!
-//! Assumed, not verified against JD: the French markers of JD's list are not matched here (the
-//! `&lg=en` above forces English wording, and JD's French phrasings carry accented characters that
-//! Rust sources in this workspace avoid); a page that somehow arrives in French therefore falls
-//! through to a `no_free_form`/`no_free_link` failure carrying the page's own wording as a
-//! diagnosis, rather than being silently mis-read.
+//! Assumed, not verified: French markers are not matched here (the `&lg=en` above forces English
+//! wording, and the French phrasings carry accented characters that Rust sources in this
+//! workspace avoid); a page that somehow arrives in French therefore falls through to a
+//! `no_free_form`/`no_free_link` failure carrying the page's own wording as a diagnosis, rather
+//! than being silently mis-read.
 
 use url::Url;
 
-/// Default cooldown for a limit the page states without a duration: JD's `defaultWaitMinutes = 5`
-/// (line 828).
+/// Default cooldown for a limit the page states without a duration: 5 minutes.
 const DEFAULT_IP_BLOCK_SECONDS: u64 = 300;
 
-/// "IP Locked" / "unusual usage" both carry JD's own one-hour cooldown (lines 826, 805).
+/// "IP Locked" / "unusual usage" both carry a one-hour cooldown.
 const HOUR_SECONDS: u64 = 3600;
 
 /// Phrasings that mean "this IP may not start another free download yet" without naming a
-/// duration. Lowercased fragments of JD's `is_ip_blocked` list (lines 830-843).
+/// duration, as lowercased fragments.
 const IP_BLOCK_MARKERS: &[&str] = &[
     "you must wait for another download",
     "you already downloading",
@@ -59,7 +52,7 @@ const IP_BLOCK_MARKERS: &[&str] = &[
     "without subscription, you can only download one file at",
 ];
 
-/// Phrasings that mean "there is no free guest slot right now". JD's list carries the older
+/// Phrasings that mean "there is no free guest slot right now". The older wording was
 /// "Free download is temporarily limited due to high demand"; 1fichier has since moved to the
 /// wording below, and while nothing matched, the flow walked past the notice into the
 /// direct-link fallback (RD-109-36).
@@ -82,12 +75,12 @@ pub(crate) enum PageError {
     IpBlocked(u64),
     /// A server-side problem worth retrying after the given number of seconds.
     ServerError(u64),
-    /// "Your requests are too fast" — a short throttle (JD: 30 seconds, line 750).
+    /// "Your requests are too fast" — a short throttle (30 seconds).
     TooFast,
 }
 
 /// The URL the free flow fetches: the uploader's own domain, the file id, and `&lg=en` to force
-/// English wording (JD's `getContentURLWebsite`).
+/// English wording.
 pub(crate) fn content_url(url: &Url) -> Option<String> {
     Some(format!("{}&lg=en", crate::api::canonical_link(url)?))
 }
@@ -100,7 +93,7 @@ pub(crate) struct DownloadForm {
     pub(crate) fields: Vec<(String, String)>,
 }
 
-/// The page's first form, the one JD submits (`br.getForm(0)`). `None` when the page carries no
+/// The page's first form, the one that is submitted. `None` when the page carries no
 /// form at all, which means the page is not a download page.
 pub(crate) fn download_form(html: &str) -> Option<DownloadForm> {
     let lower = html.to_ascii_lowercase();
@@ -119,14 +112,14 @@ pub(crate) fn download_form(html: &str) -> Option<DownloadForm> {
     })
 }
 
-/// Whether the form asks for a download password (JD: a form carrying a `pass` key).
+/// Whether the form asks for a download password (a form carrying a `pass` key).
 pub(crate) fn is_password_protected(form: &DownloadForm) -> bool {
     form.fields
         .iter()
         .any(|(name, _)| name.eq_ignore_ascii_case("pass"))
 }
 
-/// The submission JD sends: every field the page carried, minus `save`, plus `did=1`.
+/// The submission: every field the page carried, minus `save`, plus `did=1`.
 pub(crate) fn free_form(form: &DownloadForm) -> Vec<(String, String)> {
     let mut fields: Vec<(String, String)> = form
         .fields
@@ -147,7 +140,7 @@ pub(crate) fn encode_form(fields: &[(String, String)]) -> Vec<u8> {
         .into_bytes()
 }
 
-/// What the page says instead of handing over a download, in JD's own precedence order.
+/// What the page says instead of handing over a download, in the known precedence order.
 pub(crate) fn page_error(html: &str) -> Option<PageError> {
     let lower = html.to_ascii_lowercase();
     if after_tag(&lower, "file not found") {
@@ -181,7 +174,7 @@ fn ip_block_seconds(lower: &str) -> Option<u64> {
     if lower.contains("ip locked") || lower.contains("will be unlocked within 1h") {
         return Some(HOUR_SECONDS);
     }
-    // JD's "Unusual usage detected" case (lines 803-816): a flat one-hour block.
+    // The "Unusual usage detected" case: a flat one-hour block.
     if lower.contains("the free offer is intended to") {
         return Some(HOUR_SECONDS);
     }
@@ -194,7 +187,7 @@ fn ip_block_seconds(lower: &str) -> Option<u64> {
         .then_some(DEFAULT_IP_BLOCK_SECONDS)
 }
 
-/// The `N` of "you must wait [at least|up to] N minutes ...", tolerating JD's optional qualifier
+/// The `N` of "you must wait [at least|up to] N minutes ...", tolerating the optional qualifier
 /// wording without hard-coding it. Only a number actually followed by "minute" is accepted, so an
 /// unrelated digit nearby cannot be mistaken for a duration.
 fn minutes_after(lower: &str, marker: &str) -> Option<u64> {
@@ -221,8 +214,8 @@ fn minutes_after(lower: &str, marker: &str) -> Option<u64> {
     None
 }
 
-/// The download button's link on the page returned after posting the form. JD reads
-/// `<a href="...">Click here to download` first and falls back to an absolute link on one of the
+/// The download button's link on the page returned after posting the form:
+/// `<a href="...">Click here to download` first, falling back to an absolute link on one of the
 /// hoster's own content domains.
 pub(crate) fn direct_link(html: &str) -> Option<String> {
     let lower = html.to_ascii_lowercase();
@@ -250,8 +243,8 @@ fn href_before(html: &str, marker: usize) -> Option<String> {
 /// `<link rel="icon" href="https://img.1fichier.com/favicon.ico">` and a stylesheet beside it.
 /// `img.1fichier.com` passes [`is_content_host`], so scanning all hrefs made the favicon the
 /// first match on any page that did not carry a download button -- 1150 bytes fetched, named
-/// `download.bin` and booked as a finished 405 MB release (RD-109-36). JD reads the link out of
-/// an `<a>`, and so does this.
+/// `download.bin` and booked as a finished 405 MB release (RD-109-36). The link is read out of
+/// an `<a>`.
 fn anchor_hrefs(html: &str) -> Vec<String> {
     let lower = html.to_ascii_lowercase();
     let mut links = Vec::new();
@@ -285,7 +278,7 @@ fn quoted_value(rest: &str) -> Option<String> {
     Some(value[..end].replace("&amp;", "&"))
 }
 
-/// Whether a link points at one of the hoster's own content domains, the fallback JD accepts.
+/// Whether a link points at one of the hoster's own content domains, the accepted fallback.
 fn is_content_host(link: &str) -> bool {
     let Ok(parsed) = Url::parse(link) else {
         return false;
@@ -326,7 +319,7 @@ fn class_text(html: &str, class: &str) -> Option<String> {
 }
 
 /// `"405.44 MB"` as bytes. 1fichier prints binary units under the decimal names, so `MB` is
-/// 1024 * 1024 -- the same reading JD uses. Parsed through an integer scale rather than a float
+/// 1024 * 1024. Parsed through an integer scale rather than a float
 /// so the result is exactly reproducible.
 fn parse_size(text: &str) -> Option<u64> {
     let text = text.trim();
@@ -434,8 +427,8 @@ fn attribute<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     None
 }
 
-/// Whether `needle` appears as element text rather than anywhere at all — JD writes these markers
-/// as `>\s*<phrase>` so a stray mention in a script or a comment cannot trip them.
+/// Whether `needle` appears as element text rather than anywhere at all — the markers are
+/// `>\s*<phrase>` so a stray mention in a script or a comment cannot trip them.
 fn after_tag(lower: &str, needle: &str) -> bool {
     let mut cursor = 0;
     while let Some(offset) = lower[cursor..].find(needle) {

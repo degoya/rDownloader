@@ -748,7 +748,8 @@
       "peer_proxy_on": "configuré",
       "peer_proxy_off": "aucun",
       "rebuild_failed": "La dernière reconstruction de la session a échoué ; la session précédente continue.",
-      "proxy_failed": "Le proxy de pairs ne peut pas être résolu ; sans lui la session ne démarre pas."
+      "proxy_failed": "Le proxy de pairs ne peut pas être résolu ; sans lui la session ne démarre pas.",
+      "port_in_use": "Port occupé"
     },
     "max_active_downloads": {
       "label": "Téléchargements torrent actifs",
@@ -770,7 +771,8 @@
       },
       "details": "Torrents actifs : {torrents} · pairs entrants : {peers}",
       "proxy_hint": "Un proxy de pairs ne transporte que les connexions sortantes ; les pairs entrants arrivent toujours directement."
-    }
+    },
+    "port_in_use": "Un autre programme occupe le port {port} : le moteur torrent n'y écoute donc pas. Choisis un autre port ou ferme ce programme."
   },
   "auth_profiles": {
     "approval_description": "Ces sessions ont été envoyées par l'extension. Elles ne sont utilisées qu'après votre approbation.",

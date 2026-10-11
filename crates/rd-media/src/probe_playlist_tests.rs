@@ -1,4 +1,5 @@
-//! A playlist address becomes one candidate per video (RD-1240-37).
+//! A playlist address becomes one candidate per video (RD-1240-37), each knowing the playlist's
+//! title (RD-1250-03).
 
 use crate::select::MediaCapabilities;
 
@@ -67,6 +68,35 @@ fn a_flat_youtube_listing_becomes_one_candidate_per_available_video() {
         first.selection().is_some(),
         "a flat entry still carries a selection (RD-120-50)"
     );
+    // What the LinkGrabber names the package after, on every entry rather than "youtube.com".
+    assert!(
+        candidates.iter().all(|candidate| {
+            candidate.info.playlist_title.as_deref() == Some("Blender Fundamentals 2.8")
+        }),
+        "every entry names its playlist"
+    );
+}
+
+/// A listing without a title (a channel's tab can come without one) is named after its
+/// channel, and a blank title counts as none.
+#[test]
+fn a_playlist_without_a_title_is_named_after_its_channel() {
+    let metadata: super::Metadata = serde_json::from_value(serde_json::json!({
+        "_type": "playlist",
+        "title": "  ",
+        "channel": "Blender",
+        "uploader": "Blender Studio",
+        "entries": [
+            {"id": "a", "url": "https://www.youtube.com/watch?v=a", "title": "One", "duration": 12},
+        ],
+    }))
+    .expect("metadata");
+    let candidates = super::candidates(metadata, &probed(), "best", MediaCapabilities::complete())
+        .expect("candidates");
+    assert_eq!(
+        candidates[0].info.playlist_title.as_deref(),
+        Some("Blender")
+    );
 }
 
 #[test]
@@ -117,4 +147,8 @@ fn a_single_page_stays_one_candidate() {
         .expect("candidates");
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].info.page_url, probed);
+    assert_eq!(
+        candidates[0].info.playlist_title, None,
+        "a single page belongs to no playlist"
+    );
 }

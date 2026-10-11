@@ -272,17 +272,27 @@ also re-signs once a month. Hosting, withdrawing a version and a lost key are in
 manifest names the WIT package version you built against, and a core that does not support it
 refuses your package rather than running it against a contract you did not write for.
 
-The current package is `rdownloader:plugin@0.10.0` (RD-190-06). It changes the `postprocess`
-world: `step-input` carries `removed`, the files the pipeline removed before your step ran
-(unpacked volumes, PAR2 files, what the cleanup deleted), named like `files`, so a step that
-reads a list of files need not guess from an extension which ones are gone on purpose; and
+The current package is `rdownloader:plugin@0.11.0` (RD-1250-01). It changes the `notifier`
+world: `notification` carries `package-path`, the folder of the finished package as the service
+sees it, set for `package_completed` and `none` for every other event -- its braces made inert
+like the title's, so a folder that held one is not the folder on disk. A destination setting may
+now also be free text: declared without `choices` (and `multiline = true` for several lines), the
+host holds it to a length and a character check when the target is saved. The `notifier`
+template ignores both. A plugin of any other world builds unchanged against the new `wit/`, but
+like every plugin it has to be rebuilt: a plugin built against `0.10.0` does not load any more.
+It is refused as `plugin.capability_unknown` (unknown `api_version`) and stays listed in the
+plugin manager. Rebuild it against the new `wit/` and raise `api_version` together with your
+plugin's `version`. A template's `min_app_version` is the release the SDK came with, the
+first that accepts its `wit/` copy -- 1.25.0 for `0.11.0`.
+
+`0.10.0` (RD-190-06) changed the `postprocess` world: `step-input` carries `removed`, the
+files the pipeline removed before your step ran (unpacked volumes, PAR2 files, what the cleanup
+deleted), named like `files`, so a step that reads a list of files need not guess from an
+extension which ones are gone on purpose; and
 `complete` carries a `step-complete` record, the optional checkpoint as before plus `warnings`, a
 list of `label-part`s the host shows on the step although it passed -- a code from your own
 catalogue, its parameters and an English fallback. The `postprocess` template returns no
-warnings. A plugin of any other world builds unchanged against the new `wit/`, but like every
-plugin it has to be rebuilt: a plugin built against `0.9.0` does not load any more. It is refused
-as `plugin.capability_unknown` (unknown `api_version`) and stays listed in the plugin manager.
-Rebuild it against the new `wit/` and raise `api_version` together with your plugin's `version`.
+warnings.
 
 `0.9.0` (RD-130-11) added two functions to `interface remote-job`: `cache-kinds`, which names the kinds of source your provider's cache can
 be asked about (`torrent`, `usenet`, `hoster`), and `check-cached`, which answers for a batch of

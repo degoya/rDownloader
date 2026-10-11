@@ -63,7 +63,7 @@ fn is_settled(state: rd_core::LinkCandidateState) -> bool {
 #[tool_router(router = collector_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Paste URLs or free text into the LinkGrabber. Links are grouped into packages and checked online automatically; follow up with check_links, then enqueue_collector to start downloading. This is the right entry point for hoster/one-click links. Links an agent hands in keep to the address rule: one that points at this machine or into the local network is never checked or downloaded and carries collector.check_internal_address."
+        description = "Paste URLs or free text into the LinkGrabber. Links are grouped into packages and checked online automatically (a media playlist becomes one link per video, in a package named after the playlist); follow up with check_links, then enqueue_collector to start downloading. This is the right entry point for hoster/one-click links. Links an agent hands in keep to the address rule: one that points at this machine or into the local network is never checked or downloaded and carries collector.check_internal_address."
     )]
     pub async fn collect_links(
         &self,

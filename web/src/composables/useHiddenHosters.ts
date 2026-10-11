@@ -14,7 +14,7 @@ export interface HosterCount {
 }
 
 /**
- * Hosters the LinkGrabber hides (RD-130-21), after JDownloader's quick filter.
+ * Hosters the LinkGrabber hides (RD-130-21).
  *
  * Several at once, and independent of the hoster facet, which shows *one*. The list is part of
  * the standing mirror preference, so it is stored on the server and outlives a reload and a

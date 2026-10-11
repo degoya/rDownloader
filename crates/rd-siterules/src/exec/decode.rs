@@ -1,7 +1,7 @@
 //! `decode`: the five ways a page hides an address, and no sixth.
 //!
-//! **There is no JavaScript interpreter here, and there will not be one.** JDownloader's
-//! `GenericBase64Decrypter` covers six services on its own, and between base64, hex, rot13,
+//! **There is no JavaScript interpreter here, and there will not be one.** A base64
+//! decoder alone covers six services, and between base64, hex, rot13,
 //! percent-encoding and concatenated string literals almost every obfuscation these pages
 //! use is arithmetic on text, not a program. What is genuinely a program stays undecodable,
 //! and the run says so with `site_rules.decode_failed` — an honest refusal, not an HTML file

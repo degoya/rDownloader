@@ -2,8 +2,8 @@
 //!
 //! The alternative this replaces is asking the user to copy a `Cookie:` header out of browser
 //! devtools, which is neither obvious nor durable — the session expires and has to be pasted
-//! again. JDownloader (`XFileSharingProBasic.loginWebsite`) and pyLoad (`XFSAccount.signin`)
-//! both do the same thing instead: fetch the login page, resubmit its form with the account's
+//! again. Instead, this signs in the way the site's own form does:
+//! fetch the login page, resubmit its form with the account's
 //! credentials, and keep the `xfss` session cookie the site sets.
 //!
 //! Everything here is string work on HTML and headers, target-neutral like the rest of this
@@ -23,11 +23,10 @@ use crate::{free, page};
 /// The session cookie an XFS installation sets on a successful sign-in.
 pub const SESSION_COOKIE: &str = "xfss";
 
-/// Path of the page carrying the login form (`XFileSharingProBasic.getLoginURL`).
+/// Path of the page carrying the login form.
 pub const LOGIN_PATH: &str = "/login.html";
 
-/// Path of the account overview, which carries the API key among other things
-/// (`XFileSharingProBasic.getRelativeAccountInfoURL`).
+/// Path of the account overview, which carries the API key among other things.
 pub const ACCOUNT_INFO_PATH: &str = "/?op=my_account";
 
 /// The `op=login` form as found on the login page.
@@ -114,8 +113,7 @@ pub enum LoginOutcome {
 /// Classifies the answer to a sign-in submission.
 ///
 /// `set_cookies` are the response's `Set-Cookie` values. The messages are XFS engine template
-/// text, matched the same way JDownloader's `containsInvalidLoginsMessage` and
-/// `containsBlockedIPLoginMessage` match them.
+/// text, matched by their known wording.
 #[must_use]
 pub fn login_outcome(set_cookies: &[String], html: &str) -> LoginOutcome {
     if contains_invalid_login_message(html) {
@@ -205,7 +203,7 @@ fn contains_blocked_ip_message(html: &str) -> bool {
 
 /// Finds the account's API key on a signed-in page.
 ///
-/// Two shapes, in JDownloader's order (`XFileSharingProBasic.regexAPIKey`): the key as it
+/// Two shapes, in this order: the key as it
 /// appears in a ready-made API URL, else the lone read-only input the account page renders it
 /// in. The second is only trusted when the page holds exactly one such field — more than one
 /// and there is no telling which is the key.

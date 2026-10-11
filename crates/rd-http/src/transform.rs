@@ -187,8 +187,7 @@ impl StreamTransform {
     /// Condenses the finished chunk MACs and compares with what the provider published.
     ///
     /// A wrong key is otherwise indistinguishable from a correct download: the length
-    /// matches, the name is right, and every byte is rubbish. Neither JDownloader nor pyLoad
-    /// checks this.
+    /// matches, the name is right, and every byte is rubbish.
     pub fn verify(&self, macs: &BTreeMap<usize, [u8; BLOCK]>) -> Result<(), Failure> {
         let Some(integrity) = self.integrity() else {
             return Ok(());

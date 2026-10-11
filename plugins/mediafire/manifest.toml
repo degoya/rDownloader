@@ -1,18 +1,18 @@
 manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000000d"
 name = "MediaFire"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones).
-version = "0.1.12"
+version = "0.1.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # The hosts a share link is spelled with (RD-103-06, measured 2026-09-21): `mfi.re` and
 # `mediafire.com` redirect to `www.`, `app.mediafire.com` serves the application shell.
 match_domains = ["mediafire.com", "www.mediafire.com", "app.mediafire.com", "mfi.re", "www.mfi.re"]
-# A direct link points at `download<digits>.mediafire.com`; JDownloader also knows the
-# `mediafirecdn.com` spelling, which was not seen live.
+# A direct link points at `download<digits>.mediafire.com`; the
+# `mediafirecdn.com` spelling is known too, but was not seen live.
 download_domains = ["*.mediafire.com", "*.mediafirecdn.com"]
 # The per-IP threshold (`limitReachedTTL`) is not documented in numbers; two at a time until
 # it has been measured.

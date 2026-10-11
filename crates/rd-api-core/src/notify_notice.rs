@@ -318,6 +318,7 @@ async fn queue(database: &rd_db::Database, notice: &Notice) -> anyhow::Result<u6
             event: notice.event,
             title: notice.title.clone(),
             body: notice.body.clone(),
+            package_path: None,
         })
         .collect();
     if deliveries.is_empty() {

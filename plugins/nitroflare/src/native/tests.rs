@@ -320,8 +320,8 @@ async fn check_maps_online_offline_and_unparseable_batch() {
     assert_eq!(results[0].status, LinkStatus::Online);
     assert_eq!(results[0].file_name.as_deref(), Some("a.rar"));
     assert_eq!(results[0].size.map(|size| size.get()), Some(10));
-    // Its file id is absent from the getFileInfo response -> offline (JD treats a missing entry
-    // as unavailable, same as an explicit non-"online" status).
+    // Its file id is absent from the getFileInfo response -> offline (a missing entry counts as
+    // unavailable, same as an explicit non-"online" status).
     assert_eq!(results[1].status, LinkStatus::Offline);
     // Unparseable URL never reaches the batch call.
     assert_eq!(results[2].status, LinkStatus::Unknown);

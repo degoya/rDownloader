@@ -2,6 +2,10 @@
   "name": "Plex",
   "description": "Aktualisiert die Plex-Bibliotheken, wenn ein Paket fertig ist.",
   "codes": {
-    "plex_notifier.rejected": "Plex hat die Aktualisierung der Bibliothek abgelehnt."
+    "plex_notifier.rejected": "Plex hat die Aktualisierung der Bibliothek abgelehnt.",
+    "plex_notifier.setting.section": "Bibliothek (Section)",
+    "plex_notifier.setting.section.description": "Die Nummer der Plex-Bibliothek, in die die Downloads gehen (Plex Web zeigt sie als source=<Nummer> in der Adresse der Bibliothek). Nur damit kann Plex allein den Ordner des fertigen Pakets durchsuchen; leer werden alle Bibliotheken aktualisiert.",
+    "plex_notifier.setting.path_mapping": "Pfad-Abbildung",
+    "plex_notifier.setting.path_mapping.description": "Eine Zeile je Ordner: Pfad in rDownloader=Pfad, den Plex sieht, z. B. /downloads=/data/media. Der längste passende Pfad entscheidet; ein Paket außerhalb aller Zeilen aktualisiert die ganze Bibliothek."
   }
 }

@@ -1,11 +1,12 @@
 //! Pausing the whole queue until a set time (RD-190-20), or until somebody resumes it (the stop
 //! mark's pause, RD-1210-02).
 //!
-//! The same pause "pause all" has always been — every file that is waiting or moving is paused
-//! one by one — with an end attached. Two things come with the end. The files this pause
-//! stopped are recorded, so its end resumes exactly those and leaves a file somebody had paused
-//! before alone. And the queue is held for as long as it lasts, through the same hold battery
-//! and reconnects use, so a link added in the meantime waits instead of starting under a pause.
+//! The same pause "pause all" has always been — every file that is waiting or moving is paused,
+//! all of them together since RD-1250-08 — with an end attached. Two things come with the end.
+//! The files this pause stopped are recorded, so its end resumes exactly those and leaves a
+//! file somebody had paused before alone. And the queue is held for as long as it lasts,
+//! through the same hold battery and reconnects use, so a link added in the meantime waits
+//! instead of starting under a pause.
 //!
 //! The record is written before any file is touched, and it carries the end, so a restart
 //! finds it whichever step the previous run stopped at: before the end the hold is back at
@@ -98,9 +99,10 @@ impl SchedulerHandle {
         rd_core::failpoint!("scheduler.after_queue_pause_recorded", || anyhow::anyhow!(
             "crash point scheduler.after_queue_pause_recorded"
         ));
-        for id in stopping {
-            // A file that finished or was removed a moment ago has nothing left to pause.
-            if let Err(error) = self.pause(id).await {
+        // Together, one transaction for the waiting files (RD-1250-08). A file that finished
+        // or was removed a moment ago has nothing left to pause.
+        for (id, outcome) in stopping.iter().zip(self.pause_many(&stopping).await) {
+            if let Err(error) = outcome {
                 tracing::debug!(%error, download = %id, "a file could not be paused with the queue");
             }
         }
@@ -115,17 +117,27 @@ impl SchedulerHandle {
             return Ok(0);
         };
         self.network_hold.set(HoldSource::QueuePause, None).await;
+        // The files still paused, read once, and queued again together (RD-1250-08).
+        let paused: std::collections::HashSet<DownloadId> = self
+            .database
+            .list_downloads()
+            .await?
+            .into_iter()
+            .filter(|file| file.state == DownloadState::Paused)
+            .map(|file| file.id)
+            .collect();
+        let still_paused: Vec<DownloadId> = pause
+            .files
+            .iter()
+            .copied()
+            .filter(|id| paused.contains(id))
+            .collect();
         let mut resumed = 0;
-        for id in &pause.files {
-            let still_paused = self
-                .database
-                .get_download(*id)
-                .await?
-                .is_some_and(|file| file.state == DownloadState::Paused);
-            if !still_paused {
-                continue;
-            }
-            match self.resume(*id).await {
+        for (id, outcome) in still_paused
+            .iter()
+            .zip(self.resume_many(&still_paused).await)
+        {
+            match outcome {
                 Ok(()) => resumed += 1,
                 Err(error) => {
                     tracing::warn!(%error, download = %id, "a file could not be resumed with the queue");

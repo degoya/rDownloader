@@ -80,23 +80,22 @@ pub(crate) const API_ERROR: &str = "katfile.api_error";
 pub(crate) const INVALID_URL: &str = "katfile.invalid_url";
 
 /// The premium `download2` form (or its containing file page) carries a captcha challenge
-/// (reCaptchaV2/hCaptcha/Cloudflare Turnstile) that this plugin has no way to solve. Mirrors JD's
-/// `KatfileCom.findFormDownload2Premium` -> `XFileSharingProBasic.handleCaptcha` — see
-/// the crate's module doc for the citation; ddownload's JD plugin has no equivalent
-/// override, so this code has no counterpart in `plugins/ddownload`.
+/// (reCaptchaV2/hCaptcha/Cloudflare Turnstile) that this plugin has no way to solve — see the
+/// crate's module doc; ddownload's premium flow has no such step, so this code has no
+/// counterpart in `plugins/ddownload`.
 pub(crate) const CAPTCHA_REQUIRED: (&str, &str) = (
     "katfile.captcha_required",
     "KatFile requires solving a captcha for this download, which is not supported",
 );
 
 /// The file page (or the response after posting the premium form) reports the file is
-/// premium-only. Mirrors JD's `KatfileCom.getPremiumOnlyErrorMessage` override
+/// premium-only, by its marker
 /// (`">\s*This file is available for Premium"` / a `/?op=registration&redirect=` URL); carries
 /// the matched `reason` text. See the crate's module doc.
 pub(crate) const PREMIUM_ONLY: &str = "katfile.premium_only";
 
-/// The file page reports a pre-download wait before the file becomes downloadable. Mirrors JD's
-/// `KatfileCom.regexWaittime` override (`var estimated_time = (\d+)`, in tenths of a second);
+/// The file page reports a pre-download wait before the file becomes downloadable, read off
+/// KatFile's own marker (`var estimated_time = (\d+)`, in tenths of a second);
 /// carries the `wait_seconds` parameter. See the crate's module doc.
 pub(crate) const DOWNLOAD_WAIT: &str = "katfile.download_wait";
 
@@ -108,7 +107,7 @@ pub(crate) const NO_FREE_FORM: &str = "katfile.no_free_form";
 pub(crate) const NO_FREE_LINK: &str = "katfile.no_free_link";
 
 /// This IP may not start another free download yet; carries `wait_seconds` when the page
-/// stated one. Mirrors JD's `ERROR_IP_BLOCKED` handling in `XFileSharingProBasic.checkErrors`.
+/// stated one: the XFS engine's IP-block answer.
 pub(crate) const FREE_LIMIT_REACHED: &str = "katfile.free_limit_reached";
 
 /// The hoster rejected the captcha answer even after a fresh challenge.

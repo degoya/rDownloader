@@ -268,6 +268,7 @@ use crate::{
     indexer_search::IndexerGrabFailure,
     subscription_handlers::SubscriptionRequest,
     subscription_handlers::SubscriptionItemStateRequest,
+    subscription_handlers::SubscriptionPendingStateRequest,
     subscription_handlers::SubscriptionRequeueRequest,
     subscription_handlers::SubscriptionRequeueRefusal,
     subscription_handlers::SubscriptionRequeueResponse,
@@ -493,8 +494,5 @@ use crate::{
     rd_core::UsenetQuotaAction,
     rd_core::ImportMode,
     rd_core::Failure,
-    dto::PackageExportRequest,
-    dto::PackageExportFormat,
-    dto::ReresolveRequest,
 )))]
 pub(crate) struct Schemas;

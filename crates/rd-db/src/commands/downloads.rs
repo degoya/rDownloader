@@ -55,6 +55,18 @@ pub(crate) enum DownloadsCommand {
         ids: Vec<DownloadId>,
         reply: Reply<Vec<anyhow::Result<()>>>,
     },
+    /// Pauses many waiting rows in one transaction (RD-1250-08); one answer per id, in order,
+    /// `true` for a row that moved.
+    PauseDownloads {
+        ids: Vec<DownloadId>,
+        reply: Reply<Vec<anyhow::Result<bool>>>,
+    },
+    /// Queues many rows again in one transaction (RD-1250-08); one answer per id, in order,
+    /// `false` for a waiting mirror the scheduler resumes on its own.
+    ResumeDownloads {
+        ids: Vec<DownloadId>,
+        reply: Reply<Vec<anyhow::Result<bool>>>,
+    },
     /// Removes a package that has no files, for a caller with no download id to offer.
     DeleteEmptyPackage {
         id: rd_core::PackageId,
@@ -188,5 +200,14 @@ pub(crate) enum DownloadsCommand {
     ReleaseResolverPin {
         id: DownloadId,
         reply: Reply<Option<rd_core::ResolverPin>>,
+    },
+    /// Writes what an immediate re-resolve found on a download that is not running
+    /// (RD-1250-05).
+    RecordResolution {
+        id: DownloadId,
+        file_name: Option<String>,
+        total_bytes: Option<u64>,
+        failure: Option<rd_core::Failure>,
+        reply: Reply<()>,
     },
 }

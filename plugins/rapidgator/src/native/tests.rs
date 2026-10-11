@@ -177,9 +177,9 @@ async fn resolve_offline_file_reports_offline() {
 
 #[tokio::test]
 async fn resolve_untrusted_404_on_file_download_retries_instead_of_offline() {
-    // Exactly JD's documented bug scenario: `file/info` just confirmed the file online, but
-    // `file/download` spuriously answers 404 — JD does not trust a 404 on this specific endpoint
-    // (`trustError404=false`) and retries (60s) rather than declaring the file offline.
+    // The known bug scenario: `file/info` just confirmed the file online, but
+    // `file/download` spuriously answers 404 — a 404 on this specific endpoint is not trusted
+    // and retried (60s) rather than declaring the file offline.
     let host = MockHost::with_responses(
         vec![
             login_response(LOGIN_OK),
@@ -348,7 +348,7 @@ async fn check_maps_online_offline_and_unparseable_batch() {
     assert_eq!(results[2].status, LinkStatus::Unknown);
 
     let requests = host.requests.lock().expect("mock lock");
-    // One login + one file/info per checkable link (no batching, JD has none for this endpoint).
+    // One login + one file/info per checkable link (no batching, the endpoint has none).
     assert_eq!(requests.len(), 3);
     assert_eq!(query_value(&requests[1], "file_id"), Some("123456"));
     assert_eq!(query_value(&requests[2], "file_id"), Some("654321"));

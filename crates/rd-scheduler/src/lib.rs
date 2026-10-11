@@ -17,6 +17,8 @@ mod content_index;
 mod control;
 mod dispatch;
 #[cfg(test)]
+mod dispatch_selection_tests;
+#[cfg(test)]
 mod dispatch_tests;
 mod download_window;
 mod enqueue;
@@ -35,6 +37,7 @@ mod provider;
 mod queue_pause;
 mod rates;
 mod replay;
+mod resolve_now;
 mod retry;
 #[cfg(test)]
 mod run_guard_tests;
@@ -47,6 +50,7 @@ mod worker;
 
 pub use account_traffic::{AccountTrafficHold, TRAFFIC_CHECK_INTERVAL_MINUTES};
 pub use profile_boundary::ProfileBoundary;
+pub use resolve_now::ResolvedNow;
 pub use worker::{NetworkClient, ProviderCredential};
 
 use std::{

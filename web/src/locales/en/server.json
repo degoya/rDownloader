@@ -1304,7 +1304,13 @@
     "system.cleanup_rewrite_no_space": "The data folder has no room for a second copy of the database, so it is not rewritten.",
     "system.cleanup_rewrite_failed": "The database could not be rewritten; it is unchanged.",
     "settings.subscription_item_retention_invalid": "The days a skipped subscription entry stays whole must be between {min} and {max}.",
-    "secret.unreadable": "A stored credential cannot be read on this installation; the data folder probably comes from another machine or user account. Enter it again, or restore a full backup with its passphrase."
+    "secret.unreadable": "A stored credential cannot be read on this installation; the data folder probably comes from another machine or user account. Enter it again, or restore a full backup with its passphrase.",
+    "plugin.setting_text_invalid": "A text setting of this notification target is too long or holds a character it does not take",
+    "torrent.port_in_use": "Another program holds port {port}, so the torrent engine does not listen there; saved settings stay saved. Choose another port or close that program.",
+    "download.resolve_timeout": "The link could not be resolved in time; it resolves at its next start",
+    "download.resolve_offline": "The server says the file is gone",
+    "download.resolve_failed": "The link could not be resolved now; it resolves at its next start",
+    "download.resolve_skipped_free": "A hoster link without an account is not resolved ahead; it resolves at its start"
   },
   "capabilities": {
     "media_download": "media downloads",

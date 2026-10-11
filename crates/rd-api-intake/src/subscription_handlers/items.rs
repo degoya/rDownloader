@@ -8,13 +8,30 @@ pub struct SubscriptionItemStateRequest {
     pub state: SubscriptionItemState,
 }
 
-/// Sets every item that was pending when this request started.
+/// Body of the decision about a subscription's pending items.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct SubscriptionPendingStateRequest {
+    pub state: SubscriptionItemState,
+    /// Only these items, of those still pending in the subscription of the path (RD-1250-13): a
+    /// selection. An id that is not pending there is left out of `matched`. Without it and
+    /// `until`, every item pending when the request starts.
+    #[serde(default)]
+    pub item_ids: Option<Vec<SubscriptionItemId>>,
+    /// Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of the
+    /// list as the reader last saw it drawn — every page of it, but no hit that arrived after.
+    /// Combines with `item_ids`.
+    #[serde(default)]
+    pub until: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+/// Sets every item that was pending when this request started, or the named ones of them, or
+/// those found up to a watermark.
 #[utoipa::path(
     put,
     path = "/api/v1/subscriptions/{id}/items/pending",
     tag = "subscriptions",
     params(("id" = SubscriptionId, Path)),
-    request_body = SubscriptionItemStateRequest,
+    request_body = SubscriptionPendingStateRequest,
     responses(
         (status = 200, body = SubscriptionBulkStateResponse),
         (status = 404, body = crate::error::ErrorBody),
@@ -24,7 +41,7 @@ pub struct SubscriptionItemStateRequest {
 pub async fn set_pending_subscription_items_state(
     State(state): State<AppState>,
     Path(id): Path<SubscriptionId>,
-    Json(request): Json<SubscriptionItemStateRequest>,
+    Json(request): Json<SubscriptionPendingStateRequest>,
 ) -> Result<Json<SubscriptionBulkStateResponse>, ApiError> {
     if state.database.subscription(id).await?.is_none() {
         return Err(ApiError::not_found(
@@ -41,7 +58,14 @@ pub async fn set_pending_subscription_items_state(
             "Pending items can only be queued or dismissed",
         ));
     }
-    let ids = state.database.pending_subscription_item_ids(id).await?;
+    let mut ids = state
+        .database
+        .pending_subscription_item_ids(id, request.until)
+        .await?;
+    if let Some(wanted) = &request.item_ids {
+        let wanted: std::collections::HashSet<_> = wanted.iter().copied().collect();
+        ids.retain(|item_id| wanted.contains(item_id));
+    }
     let matched = u64::try_from(ids.len()).unwrap_or(u64::MAX);
     let updated = if request.state == SubscriptionItemState::Dismissed {
         state

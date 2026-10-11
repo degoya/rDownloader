@@ -1304,7 +1304,13 @@
     "system.cleanup_rewrite_no_space": "Im Datenordner ist kein Platz für eine zweite Kopie der Datenbank; sie wird nicht neu geschrieben.",
     "system.cleanup_rewrite_failed": "Die Datenbank konnte nicht neu geschrieben werden; sie ist unverändert.",
     "settings.subscription_item_retention_invalid": "Die Tage, die ein übersprungener Abo-Eintrag vollständig bleibt, müssen zwischen {min} und {max} liegen.",
-    "secret.unreadable": "Gespeicherte Zugangsdaten können auf dieser Installation nicht gelesen werden – der Datenordner stammt wohl von einem anderen Rechner oder Benutzerkonto. Gib sie erneut ein oder stelle ein Voll-Backup mit seiner Passphrase wieder her."
+    "secret.unreadable": "Gespeicherte Zugangsdaten können auf dieser Installation nicht gelesen werden – der Datenordner stammt wohl von einem anderen Rechner oder Benutzerkonto. Gib sie erneut ein oder stelle ein Voll-Backup mit seiner Passphrase wieder her.",
+    "plugin.setting_text_invalid": "Eine Texteinstellung dieses Ziels ist zu lang oder enthält ein Zeichen, das sie nicht annimmt",
+    "torrent.port_in_use": "Ein anderes Programm hält Port {port}, deshalb lauscht die Torrent-Engine dort nicht; gespeicherte Einstellungen bleiben gespeichert. Wähle einen anderen Port oder beende dieses Programm.",
+    "download.resolve_timeout": "Der Link konnte nicht rechtzeitig aufgelöst werden; er wird beim nächsten Start aufgelöst",
+    "download.resolve_offline": "Der Server meldet, dass die Datei nicht mehr existiert",
+    "download.resolve_failed": "Der Link konnte jetzt nicht aufgelöst werden; er wird beim nächsten Start aufgelöst",
+    "download.resolve_skipped_free": "Ein Hoster-Link ohne Konto wird nicht vorab aufgelöst; er wird beim Start aufgelöst"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

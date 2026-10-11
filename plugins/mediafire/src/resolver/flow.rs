@@ -2,8 +2,8 @@
 //!
 //! One `GET` of `/file/<key>` with a one-byte range — the page ignores it (measured), and a
 //! layout that redirected straight to the file would then hand back one byte rather than the
-//! whole file through the plugin's response cap. What comes back is read in the order JD's
-//! `MediafireCom.handleDownload` reads it: the error page it was redirected to, the malware
+//! whole file through the plugin's response cap. What comes back is read in this order:
+//! the error page it was redirected to, the malware
 //! advisory, the per-IP threshold, the password form, a wait, then the button, then a captcha
 //! form that is answered once and once only. Nothing here retries with a different identity:
 //! a threshold is reported as a wait, a refusal as a failure.

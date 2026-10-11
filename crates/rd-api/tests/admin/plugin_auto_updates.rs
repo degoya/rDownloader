@@ -68,7 +68,7 @@ fn update_fixture(
     let manifest = format!(
         r#"manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "{id}"
 name = "Update fixture {slug}"
 version = "{version}"

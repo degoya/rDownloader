@@ -15,6 +15,7 @@ import TorrentTrackerList from '@/components/TorrentTrackerList.vue'
 import TransferSourceList from '@/components/TransferSourceList.vue'
 import { scopeLabel, useAuthProfileSelector } from '@/composables/useAuthProfiles'
 import { useErrorToast } from '@/composables/useErrorToast'
+import { isResolvingNow } from '@/composables/useReresolve'
 import { useStagedResolvers } from '@/composables/useStagedResolvers'
 import { STOP_MARK_DONE_STATES, useStopMark } from '@/composables/useStopMark'
 import { useTorrentsStore } from '@/stores/torrents'
@@ -77,6 +78,8 @@ const sizeLabel = computed(() => formatByteProgress(props.download.committed_byt
  */
 const etaLabel = computed(() => formatDuration(props.etaSeconds))
 const lastError = computed(() => props.download.last_error ? translateServerMessage(props.download.last_error) : null)
+/** Being resolved at once by "Re-resolve" (RD-1250-05); the row's own state is unchanged meanwhile. */
+const resolvingNow = computed(() => isResolvingNow(props.download.id, props.download.package_id))
 /**
  * When the file is tried again on its own (RD-191-12): the retry after a failure or a hoster's
  * limit, and the round of the automatic retry a failed file waits for.
@@ -325,7 +328,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
             <UBadge color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-pause" class="shrink-0" role="img" :aria-label="t('downloads.stop_mark.glyph')" data-testid="stop-mark" />
           </UTooltip>
         </span>
-        <span class="queue-cell-state min-w-0"><UBadge :color="stateColor(props.download.state)" variant="subtle" size="sm" class="max-w-full truncate">{{ stateLabel(props.download.state, props.download) }}</UBadge></span>
+        <span class="queue-cell-state min-w-0"><UBadge :color="stateColor(resolvingNow ? 'resolving' : props.download.state)" variant="subtle" size="sm" class="max-w-full truncate" :data-resolving-now="resolvingNow || undefined">{{ resolvingNow ? t('downloads.reresolve.resolving') : stateLabel(props.download.state, props.download) }}</UBadge></span>
         <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
         <div class="queue-cell-progress items-center gap-1.5">
           <UProgress :model-value="progressOf(props.download)" size="2xs" class="flex-1" />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The LinkFilter rules (RD-1240-09), after JDownloader's LinkFilter: conditions on name, size,
+ * The LinkFilter rules (RD-1240-09): conditions on name, size,
  * file type, hoster and source decide when a link arrives whether the LinkGrabber hides it,
  * keeps it or files it into a package or category. The first enabled rule in the list that
  * matches decides, so the order is set here with the arrows.

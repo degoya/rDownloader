@@ -167,17 +167,25 @@ pub(crate) const REMOTE_JOB_CONTAINERS: &[&str] = &["torrent", "nzb", "dlc", "rs
 
 /// One setting a notification destination offers (`[[extension.settings]]`, RD-170-09).
 ///
-/// A choice among fixed values rather than free text: what a person can pick is what the
-/// plugin was written to understand, and a value outside the list is refused when the target
-/// is saved instead of being guessed at on every delivery.
+/// A choice among fixed values where there is one: what a person can pick is what the plugin
+/// was written to understand, and a value outside the list is refused when the target is saved
+/// instead of being guessed at on every delivery. A setting with no `choices` is free text
+/// (RD-1250-01) -- a media server's library section, a mapping of folders -- held to a length
+/// and a character check of the host's own (`manifest/settings.rs`) rather than to a list.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SettingManifest {
     /// The key a target stores and the plugin asks for; lowercase, digits and underscores.
     /// Its label is the plugin's own code `<slug>.setting.<name>`.
     pub name: String,
     /// Every value the setting accepts, in the order the interface offers them. A value's
-    /// label is the plugin's code `<slug>.choice.<value>`, or the value itself.
+    /// label is the plugin's code `<slug>.choice.<value>`, or the value itself. Empty: the
+    /// setting is free text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub choices: Vec<String>,
+    /// Free text only: whether it may hold several lines, one entry each, and is edited as a
+    /// text area rather than a field.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub multiline: bool,
     /// What the plugin is told when a target leaves the setting alone. Absent means the
     /// setting may stay unset, and the plugin is told `none`.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -472,9 +472,12 @@
   },
   "reresolve": {
     "action": "Neu auflösen",
-    "hint": "Mit der jetzt installierten Pluginversion neu auflösen; laufende Dateien werden kurz pausiert",
+    "hint": "Jetzt mit der installierten Pluginversion auflösen und Größe und Namen holen, ohne den Download zu starten; laufende Dateien werden kurz pausiert",
     "done": "{count} Datei wird beim nächsten Start neu aufgelöst | {count} Dateien werden beim nächsten Start neu aufgelöst",
-    "failed": "Neu auflösen fehlgeschlagen"
+    "failed": "Neu auflösen fehlgeschlagen",
+    "checked": "{resolved} aufgelöst, {failed} Fehler",
+    "resolving": "Wird aufgelöst",
+    "checked_skipped": "{resolved} aufgelöst, {failed} Fehler, {skipped} übersprungen (kein Konto)"
   },
   "stop_mark": {
     "set": "Stoppmarke hierhin",

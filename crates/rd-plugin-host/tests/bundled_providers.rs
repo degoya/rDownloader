@@ -136,7 +136,7 @@ fn url_mapping_and_aliases_survive_the_move_to_manifests() {
     assert!(rd_provider_registry::provider_for_url(&url("https://example.com/file")).is_none());
 }
 
-/// katfile.biz is the canonical domain (JDownloader's `KatfileCom.getPluginDomains()` index 0);
+/// katfile.biz is the canonical domain;
 /// the other six are aliases the site has used since, all rewriting to the same provider.
 #[test]
 fn katfile_keeps_its_canonical_domain_and_every_alias() {

@@ -31,8 +31,8 @@
 # section (RD-1220-01): git's union put a branch's new entries into the section a release had made
 # of [Unreleased] meanwhile; the driver keeps them under [Unreleased].
 CHANGELOG.md merge=rd-changelog
-# The job indexes: conflicts of table rows from both sides, then archive-jobs.sh keeps one row per
-# job where its file lies (RD-1220-01).
+# The job indexes: conflicts of table rows merged row by row against the base (RD-1250-02), then
+# archive-jobs.sh keeps one row per job where its file lies and recounts (RD-1220-01).
 docs/roadmap/jobs/README.md merge=rd-jobindex
 docs/roadmap/jobs/archive/README.md merge=rd-jobindex
 # A plugin's release notes the same way: two branches raising one plugin to the same version both

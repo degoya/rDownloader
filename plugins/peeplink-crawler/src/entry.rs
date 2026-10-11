@@ -19,7 +19,7 @@ use crate::target;
 /// all cannot turn one crawl into a thousand links; the host trims at 1.000 in any case.
 const MAX_LINKS: usize = 1_000;
 
-/// The marker `PrrpLinkIn.java` recognises a password-protected entry by, lowercase.
+/// The marker a password-protected entry is recognised by, lowercase.
 ///
 /// Matched on the whole page rather than on the `<article>`, because none of the seven
 /// recorded pages carries it and where exactly the service puts the field is therefore not

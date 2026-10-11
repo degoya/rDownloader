@@ -1304,7 +1304,13 @@
     "system.cleanup_rewrite_no_space": "Le dossier de données n'a pas de place pour une seconde copie de la base de données ; elle n'est pas réécrite.",
     "system.cleanup_rewrite_failed": "La base de données n'a pas pu être réécrite ; elle est inchangée.",
     "settings.subscription_item_retention_invalid": "Les jours pendant lesquels une entrée ignorée reste entière doivent être compris entre {min} et {max}.",
-    "secret.unreadable": "Un identifiant enregistré ne peut pas être lu sur cette installation ; le dossier de données provient sans doute d’une autre machine ou d’un autre compte utilisateur. Saisissez-le de nouveau ou restaurez une sauvegarde complète avec sa phrase secrète."
+    "secret.unreadable": "Un identifiant enregistré ne peut pas être lu sur cette installation ; le dossier de données provient sans doute d’une autre machine ou d’un autre compte utilisateur. Saisissez-le de nouveau ou restaurez une sauvegarde complète avec sa phrase secrète.",
+    "plugin.setting_text_invalid": "Un réglage texte de cette cible est trop long ou contient un caractère qu'il n'accepte pas",
+    "torrent.port_in_use": "Un autre programme occupe le port {port} : le moteur torrent n'y écoute donc pas ; les réglages enregistrés le restent. Choisis un autre port ou ferme ce programme.",
+    "download.resolve_timeout": "Le lien n’a pas pu être résolu à temps ; il le sera à son prochain démarrage",
+    "download.resolve_offline": "Le serveur indique que le fichier n’existe plus",
+    "download.resolve_failed": "Le lien n’a pas pu être résolu maintenant ; il le sera à son prochain démarrage",
+    "download.resolve_skipped_free": "Un lien d’hébergeur sans compte n’est pas résolu à l’avance ; il le sera à son démarrage"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

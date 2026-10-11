@@ -480,7 +480,10 @@
       "play": "Resume autoplay",
       "close_details": "Close details",
       "details_title": "Details"
-    }
+    },
+    "held_title": "{count} more hit | {count} more hits",
+    "held_description": "The list holds still while you work in it.",
+    "show_held": "Show"
   },
   "notices": {
     "reorder_filter_active": "The order can only be changed with no filter active – the hidden links would otherwise be sorted wrongly."

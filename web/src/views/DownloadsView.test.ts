@@ -394,6 +394,16 @@ describe('DownloadsView', () => {
     expect(await axeViolations(container)).toBe('')
   })
 
+  // RD-1250-10: at 390 px the title was clipped to "Downloac" without a sign that it was.
+  it('ends a title too long for the navbar in an ellipsis and keeps its full name', () => {
+    const navbar = { template: '<div><slot name="title" /><slot /></div>' }
+    const { getByTestId } = render(DownloadsView, { global: { plugins: [i18n], stubs: { ...stubs, UDashboardNavbar: navbar } } })
+    const title = getByTestId('downloads-title')
+    expect(title.textContent).toBe(downloads.title)
+    expect(title.getAttribute('title')).toBe(downloads.title)
+    expect(title.classList).toContain('truncate')
+    expect(title.classList).toContain('min-w-0')
+  })
 })
 
 /**

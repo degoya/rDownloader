@@ -6480,7 +6480,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Sets every item that was pending when this request started. */
+        /**
+         * Sets every item that was pending when this request started, or the named ones of them, or
+         *     those found up to a watermark.
+         */
         put: operations["set_pending_subscription_items_state"];
         post?: never;
         delete?: never;
@@ -11461,6 +11464,12 @@ export interface components {
              *     reaches the reader as that text, exactly as every candidate used to.
              */
             error_code?: string | null;
+            /**
+             * @description The parameters `error_code` is translated with, redacted (RD-1250-03): the cause in
+             *     `{detail}` of `media.ytdlp_failed`, for one. Empty for a code that takes none and for a
+             *     row written before the column existed, which the interface then shows as `error`.
+             */
+            error_params?: components["schemas"]["BTreeMap"];
             file_name?: string | null;
             /**
              * @description Whether `file_name` came from the source rather than from the link's address.
@@ -12127,6 +12136,12 @@ export interface components {
             extractor?: string | null;
             /** Format: uri */
             page_url: string;
+            /**
+             * @description The title of the playlist or channel the probe listed this entry from, its channel
+             *     where the listing has no title (RD-1250-03). The LinkGrabber names the entry's package
+             *     after it; `None` for a single page.
+             */
+            playlist_title?: string | null;
             /** @description Id of the selected variant (defaults to the configured preference). */
             selected: string;
             thumbnail?: string | null;
@@ -12518,10 +12533,16 @@ export interface components {
         };
         /** @description One setting a notification destination offers. */
         NotificationDestinationSetting: {
-            /** @description Every value the setting accepts, in the order to offer them. */
+            /**
+             * @description Every value the setting accepts, in the order to offer them. Empty: the setting is free
+             *     text (RD-1250-01), at most 256 characters on one line, or 4096 when `multiline`, without
+             *     control characters but line breaks.
+             */
             choices: string[];
             /** @description What applies while the target leaves the setting alone; absent means it may stay unset. */
             default?: string | null;
+            /** @description Free text only: whether it holds several lines, one entry each. */
+            multiline: boolean;
             /** @description The key in `config.settings`. */
             name: string;
         };
@@ -14341,8 +14362,62 @@ export interface components {
          *     whole packages.
          */
         ReresolveRequest: {
+            /**
+             * @description Resolve the files now, without downloading them, and write back the size, the name and
+             *     any failure (RD-1250-05). Off: they resolve at their next start, as before.
+             */
+            check_now?: boolean;
             ids?: components["schemas"]["DownloadId"][];
             package_ids?: components["schemas"]["PackageId"][];
+        };
+        /**
+         * @description The answer to a re-resolve: the bulk answer's counts and refusals and, with `check_now`,
+         *     what resolving each file now found.
+         */
+        ReresolveResponse: {
+            /**
+             * Format: int32
+             * @description Files that resolve anew with the plugin installed now.
+             */
+            affected: number;
+            errors: string[];
+            /**
+             * Format: int32
+             * @description With `check_now`: files whose resolution failed or found them offline.
+             */
+            failed: number;
+            /** @description The same refusals as `errors`, coded and in the same order. */
+            refusals: components["schemas"]["MessageResponse"][];
+            /**
+             * Format: int32
+             * @description With `check_now`: files that resolved, online or held in a provider's cache.
+             */
+            resolved: number;
+            /**
+             * @description With `check_now`: one entry per file that was resolved now, in request order. Files of
+             *     a kind with no resolver step (Usenet, torrents, media, remote folders) are not listed.
+             */
+            results: components["schemas"]["ReresolveResult"][];
+            /**
+             * Format: int32
+             * @description With `check_now`: hoster links without an account, which are not resolved ahead because
+             *     that would run the hoster's free flow (owner, 2026-10-11); they resolve at their start.
+             */
+            skipped: number;
+        };
+        /** @description What resolving one file now found. */
+        ReresolveResult: {
+            download_id: components["schemas"]["DownloadId"];
+            failure?: components["schemas"]["Failure"] | null;
+            /** @description The name the resolver or the server declared, as written to the file. */
+            file_name?: string | null;
+            /**
+             * @description Not resolved ahead: a hoster link without an account (`download.resolve_skipped_free`
+             *     in `failure`). Nothing was asked of the hoster and nothing written.
+             */
+            skipped: boolean;
+            status: components["schemas"]["LinkStatus"];
+            total_bytes?: components["schemas"]["ByteCount"] | null;
         };
         /** @description The entries to resolve. */
         ResolveCollectorPickRequest: {
@@ -16971,6 +17046,13 @@ export interface components {
             counts: components["schemas"]["SubscriptionItemCounts"];
             items: components["schemas"]["SubscriptionItem"][];
             /**
+             * Format: date-time
+             * @description When the newest row of the selected state filter was found, whatever the page: the
+             *     watermark a decision about "all of this list" sends as `until` (RD-1250-13). `None` for an
+             *     empty filter.
+             */
+            newest_discovered_at?: string | null;
+            /**
              * Format: int64
              * @description Number of recorded checks that the history cleanup would remove.
              */
@@ -17000,6 +17082,23 @@ export interface components {
          * @enum {string}
          */
         SubscriptionMode: "review" | "auto_queue";
+        /** @description Body of the decision about a subscription's pending items. */
+        SubscriptionPendingStateRequest: {
+            /**
+             * @description Only these items, of those still pending in the subscription of the path (RD-1250-13): a
+             *     selection. An id that is not pending there is left out of `matched`. Without it and
+             *     `until`, every item pending when the request starts.
+             */
+            item_ids?: components["schemas"]["SubscriptionItemId"][] | null;
+            state: components["schemas"]["SubscriptionItemState"];
+            /**
+             * Format: date-time
+             * @description Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of the
+             *     list as the reader last saw it drawn — every page of it, but no hit that arrived after.
+             *     Combines with `item_ids`.
+             */
+            until?: string | null;
+        };
         /** @description Create or replace one subscription. */
         SubscriptionRequest: {
             /**
@@ -17104,6 +17203,11 @@ export interface components {
         };
         /** @description Pending review count for one indexer subscription. */
         SubscriptionReviewCount: {
+            /**
+             * Format: date-time
+             * @description When the newest pending item was found: the watermark of the counted hits (RD-1250-13).
+             */
+            newest_discovered_at?: string | null;
             /** Format: int64 */
             pending: number;
             subscription_id: components["schemas"]["SubscriptionId"];
@@ -17611,6 +17715,12 @@ export interface components {
             /** @description Why the configured proxy could not be resolved, if it could not. */
             peer_proxy_error?: string | null;
             /**
+             * Format: int32
+             * @description The fixed listen port of the settings when another program holds it, so the engine does
+             *     not listen there (`torrent.port_in_use`, RD-1250-04).
+             */
+            port_in_use?: number | null;
+            /**
              * Format: int64
              * @description The session incarnation the engine is running.
              */
@@ -17734,6 +17844,13 @@ export interface components {
             local_tcp_accepted?: boolean | null;
             /** @description Whether outgoing peer connections go through a SOCKS5 proxy; incoming ones never do. */
             peer_proxy_configured: boolean;
+            /**
+             * Format: int32
+             * @description The fixed listen port another program holds, so the engine does not listen there
+             *     (`torrent.port_in_use`, RD-1250-04): the session did not start, or a rebuild onto it was
+             *     refused and the engine runs on its previous port.
+             */
+            port_in_use?: number | null;
             /** Format: date-time */
             tested_at: string;
             /** @description Whether UPnP port forwarding was requested. */
@@ -24976,13 +25093,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `affected` counts the files that resolve anew at their next start; each refusal is coded */
+            /** @description `affected` counts the files that resolve anew; with `check_now`, `resolved` and `failed` count what resolving them now found and `results` names it per file; each refusal is coded */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DownloadBulkResponse"];
+                    "application/json": components["schemas"]["ReresolveResponse"];
                 };
             };
             /** @description No download or more than 500 named */
@@ -31140,7 +31257,7 @@ export interface operations {
                     "application/json": components["schemas"]["SettingsResponse"];
                 };
             };
-            /** @description Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`) */
+            /** @description Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`; `torrent.port_in_use` when another program holds the fixed listen port) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -32898,7 +33015,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SubscriptionItemStateRequest"];
+                "application/json": components["schemas"]["SubscriptionPendingStateRequest"];
             };
         };
         responses: {

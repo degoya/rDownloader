@@ -6,7 +6,8 @@
  * it: a VPN user never learnt that the kill switch had paused every torrent, or that the session
  * rebuild after a saved change had failed and the old session was still running. The card reads
  * it when the page opens and on demand; the downloads view has its own warning while the kill
- * switch holds the torrents (`TorrentKillSwitchAlert`).
+ * switch holds the torrents (`TorrentKillSwitchAlert`). A fixed listen port another program
+ * holds has its own alert (RD-1250-04): on Windows the engine used to take such a port silently.
  */
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -72,6 +73,14 @@ defineExpose({ reload: load })
         icon="i-lucide-circle-alert"
         :title="t('settings.torrent.network_status.rebuild_failed')"
         :description="status.last_rebuild_error"
+      />
+      <UAlert
+        v-if="status.port_in_use != null"
+        color="error"
+        icon="i-lucide-plug-zap"
+        data-testid="torrent-port-in-use"
+        :title="t('settings.torrent.network_status.port_in_use')"
+        :description="t('settings.torrent.port_in_use', { port: status.port_in_use })"
       />
       <UAlert
         v-if="status.peer_proxy_error"

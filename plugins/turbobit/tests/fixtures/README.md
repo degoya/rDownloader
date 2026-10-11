@@ -4,8 +4,8 @@ Measured on 2026-09-21 with `curl -A 'Mozilla/5.0'` from WSL, without an account
 cookies, without JavaScript, against `https://turbobit.net/` and `https://app.turbobit.net/api`.
 Files whose name carries the date are live answers; files named `*-synthetic.json` were written
 by hand in the shape the feasibility measurement of the same day recorded (job file `103-10`,
-section 2) or, for everything behind the login, in the shape JDownloader's `TurbobitCore`
-(r52763) reads — nothing behind the login was measured.
+section 2) or, for everything behind the login, in the expected shape — nothing behind the
+login was measured.
 
 Sanitised before saving: the file id (`a1b2c3d4e5f6`), the file name (`Sample File 1.pdf`, the
 space is kept on purpose), the Sentry DSN and the metrics id in the SPA shell. No `sid`,

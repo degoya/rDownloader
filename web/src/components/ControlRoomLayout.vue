@@ -4,12 +4,14 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
+import { LOGO_URL } from '@/basePath'
 import CaptchaDialog from '@/components/CaptchaDialog.vue'
 import LiveAnnouncer from '@/components/LiveAnnouncer.vue'
 import NzbDropOverlay from '@/components/NzbDropOverlay.vue'
 import PreferencesFooter from '@/components/PreferencesFooter.vue'
 import RestartNotice from '@/components/RestartNotice.vue'
 import SearchPalette from '@/components/SearchPalette.vue'
+import SidebarVersion from '@/components/SidebarVersion.vue'
 import TransferRail from '@/components/TransferRail.vue'
 import UpdateNotice from '@/components/UpdateNotice.vue'
 import { useAppShortcuts } from '@/composables/useAppShortcuts'
@@ -145,7 +147,7 @@ const items = computed<NavigationMenuItem[][]>(() => [[
              face, the panel icon hidden, the tooltip and the accessible name saying what a
              click does — the way back out of the rail has to stay on screen, and stated. -->
         <div v-if="!collapsed" class="flex min-w-0 items-center gap-3 px-1">
-          <img src="/favicon.svg" alt="rDownloader" class="size-8 shrink-0" />
+          <img :src="LOGO_URL" alt="rDownloader" class="size-8 shrink-0" />
           <!-- No tagline under the name any more (owner's decision, RD-120-53): at 117 px of
                room it was cut off in all four languages, and it needed up to 223 px. -->
           <p class="min-w-0 truncate text-sm font-semibold text-highlighted">rDownloader</p>
@@ -159,7 +161,7 @@ const items = computed<NavigationMenuItem[][]>(() => [[
           :class="collapsed
             ? 'mx-auto size-8 shrink-0 bg-contain bg-center bg-no-repeat p-0 [&>[data-slot=leadingIcon]]:hidden'
             : 'ml-auto shrink-0'"
-          :style="collapsed ? { backgroundImage: 'url(/favicon.svg)' } : undefined"
+          :style="collapsed ? { backgroundImage: `url(${LOGO_URL})` } : undefined"
           :aria-label="collapsed ? t('nav.expand_sidebar') : t('nav.collapse_sidebar')"
           :title="collapsed ? t('nav.expand_sidebar') : t('nav.collapse_sidebar')"
         />
@@ -273,6 +275,9 @@ const items = computed<NavigationMenuItem[][]>(() => [[
               />
             </div>
           </UTooltip>
+          <!-- Last, so it is where the eye looks for it, and on screen in both states: the
+               status bar gave its place to the selection (RD-1250-06). -->
+          <SidebarVersion :collapsed="collapsed" />
         </div>
       </template>
     </UDashboardSidebar>

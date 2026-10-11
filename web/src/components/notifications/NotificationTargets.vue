@@ -135,6 +135,13 @@ const chosenDestination = computed(() =>
 /** Stands for "not set" in a select, which cannot carry an empty value. */
 const UNSET = '__unset__'
 
+/**
+ * The longest free text a setting takes on one line and on several (RD-1250-01); matches the
+ * host's check in `crates/rd-plugin-host/src/manifest/settings.rs`.
+ */
+const MAX_SETTING_LINE = 256
+const MAX_SETTING_TEXT = 4096
+
 const destinationSettings = computed(() => {
   const destination = chosenDestination.value
   if (!destination) return []
@@ -142,6 +149,11 @@ const destinationSettings = computed(() => {
     name: setting.name,
     label: pluginCodeText(`${destination.slug}.setting.${setting.name}`) ?? setting.name,
     description: pluginCodeText(`${destination.slug}.setting.${setting.name}.description`),
+    // A setting that offers no values is free text, typed rather than picked (RD-1250-01).
+    freeText: setting.choices.length === 0,
+    multiline: setting.multiline,
+    maxlength: setting.multiline ? MAX_SETTING_TEXT : MAX_SETTING_LINE,
+    textFallback: setting.default ?? '',
     fallback: setting.default ?? UNSET,
     items: [
       ...(setting.default == null ? [{ value: UNSET, label: t('notifications.target.setting_unset') }] : []),
@@ -158,9 +170,10 @@ function storedSettings(): Record<string, string> {
   return stored !== null && typeof stored === 'object' ? { ...(stored as Record<string, string>) } : {}
 }
 
+/** Unset, or free text emptied: the setting falls back to its default. */
 function setSetting(name: string, value: unknown): void {
   const settings = storedSettings()
-  if (value === UNSET) delete settings[name]
+  if (value === UNSET || value === '') delete settings[name]
   else settings[name] = String(value)
   setConfig('settings', settings)
 }
@@ -327,7 +340,26 @@ async function remove(target: NotificationTarget): Promise<void> {
               :label="setting.label"
               :description="setting.description"
             >
+              <UTextarea
+                v-if="setting.freeText && setting.multiline"
+                :model-value="storedSettings()[setting.name] ?? setting.textFallback"
+                :maxlength="setting.maxlength"
+                :rows="3"
+                autoresize
+                class="w-full font-mono"
+                :data-testid="`notification-setting-${setting.name}`"
+                @update:model-value="setSetting(setting.name, $event)"
+              />
+              <UInput
+                v-else-if="setting.freeText"
+                :model-value="storedSettings()[setting.name] ?? setting.textFallback"
+                :maxlength="setting.maxlength"
+                class="w-full font-mono"
+                :data-testid="`notification-setting-${setting.name}`"
+                @update:model-value="setSetting(setting.name, $event)"
+              />
               <USelect
+                v-else
                 :model-value="storedSettings()[setting.name] ?? setting.fallback"
                 :items="setting.items"
                 value-key="value"

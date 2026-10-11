@@ -8,9 +8,9 @@
 use anyhow::{Context, Result, bail};
 
 use super::checks::{
-    bounded_text, validate_domain_pattern, validate_metadata, validate_provider, validate_settings,
-    validate_slug,
+    bounded_text, validate_domain_pattern, validate_metadata, validate_provider, validate_slug,
 };
+use super::settings::validate_settings;
 use super::{
     Capabilities, CredentialKindManifest, ExtensionManifest, MANIFEST_VERSION, MAX_FUEL,
     MAX_MEMORY_BYTES, MAX_RESPONSE_BYTES, MAX_SLUG_CHARS, MAX_TIMEOUT_MILLISECONDS,

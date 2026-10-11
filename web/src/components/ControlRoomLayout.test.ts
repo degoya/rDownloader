@@ -294,6 +294,21 @@ describe('the collapsed rail', () => {
     expect([...connection.classList].filter(name => /^p[xlr]-/.test(name))).toEqual([])
   })
 
+  // RD-1250-06: the version left the status bar for the foot of the sidebar, visible in both
+  // states; what it shows in each is `SidebarVersion.test.ts`.
+  it('ends the footer with the version, linking to About, open and on the rail', async () => {
+    const { router } = mountLayout()
+    await router.isReady()
+
+    for (const collapsed of [false, true]) {
+      const version = screen.getByTestId('sidebar-version')
+      expect(screen.getByTestId('sidebar-footer').lastElementChild?.contains(version)).toBe(true)
+      expect(version.getAttribute('to')).toBe('/settings/about')
+      expect(version.getAttribute('data-collapsed')).toBe(String(collapsed))
+      if (!collapsed) await fireEvent.click(collapseButton())
+    }
+  })
+
   it('passes axe expanded and collapsed', async () => {
     const { router, container } = mountLayout()
     await router.isReady()

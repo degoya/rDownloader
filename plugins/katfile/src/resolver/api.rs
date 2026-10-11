@@ -1,7 +1,7 @@
 //! Request building, response parsing and failure classification for the shared logic.
 //!
 //! Mirrors `plugins/ddownload/src/resolver/api.rs` — KatFile runs the same XFileSharing engine —
-//! with its own domains and JD's `rewriteHost` normalisation on top.
+//! with its own domains and an alias-to-main-domain normalisation on top.
 //!
 //! Everything here speaks [`plugin_common`] rather than either host's vocabulary, which is what
 //! lets the module above it be compiled once for both.
@@ -10,7 +10,7 @@ use plugin_common::{Failure, HttpRequest, HttpResponse};
 
 use crate::messages;
 
-/// The current live main domain: `KatfileCom.getPluginDomains()`'s index 0. Every API call and
+/// The current live main domain. Every API call and
 /// the initial file-page fetch target this host, whichever alias the input link used.
 pub(crate) const PRIMARY_DOMAIN: &str = "katfile.biz";
 /// `https://katfile.biz/api` — KatFile serves its API from the main domain, unlike ddownload's
@@ -18,7 +18,7 @@ pub(crate) const PRIMARY_DOMAIN: &str = "katfile.biz";
 pub(crate) const API_BASE: &str = "https://katfile.biz/api";
 pub(crate) const API_KEY_REFERENCE: &str = "katfile_api_key";
 
-/// All seven domains JD's `getPluginDomains()` registers, each with its `www.` form.
+/// All seven known domains, each with its `www.` form.
 pub(crate) const MATCH_HOSTS: &[&str] = &[
     "katfile.biz",
     "www.katfile.biz",
@@ -36,7 +36,7 @@ pub(crate) const MATCH_HOSTS: &[&str] = &[
     "www.katfile.com",
 ];
 
-/// Rewrites a recognised alias to [`PRIMARY_DOMAIN`], mirroring JD's `KatfileCom.rewriteHost`:
+/// Rewrites a recognised alias to [`PRIMARY_DOMAIN`]:
 /// KatFile's main domain has moved five times in a year, and a link on yesterday's alias has to
 /// be browsed on today's.
 pub(crate) fn canonicalize_host(url: &str) -> String {

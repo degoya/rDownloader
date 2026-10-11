@@ -202,6 +202,14 @@ describe('SettingsAboutTab, tabs', () => {
     }
   })
 
+  it('carries the dedication the status bar gave up, with the authors the service names (RD-1250-06)', async () => {
+    const { container } = mount()
+
+    await waitFor(() => expect(container.querySelector('[data-testid="about-credits"]')).not.toBeNull())
+    const dedication = panel(container, 'about').querySelector('[data-testid="about-dedication"]')
+    expect(dedication?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Made with in Germany by Alexander Herling')
+  })
+
   it('says on the licenses tab, too, that the service did not answer', async () => {
     vi.mocked(api.GET).mockResolvedValue({ data: undefined, error: { code: 'internal' } } as never)
     mount('licenses')

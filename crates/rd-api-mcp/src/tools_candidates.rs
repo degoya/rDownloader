@@ -43,6 +43,9 @@ pub(crate) struct CandidateRow {
     pub provider: Option<String>,
     pub error: Option<String>,
     pub error_code: Option<String>,
+    /// What `error_code` is translated with (RD-1250-03), e.g. yt-dlp's error line in `detail`.
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub error_params: rd_core::MessageParams,
     /// When a provider last said it holds the file in its cache (RD-120-36): a measurement
     /// with that time, not a promise.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -79,6 +82,7 @@ impl From<rd_core::LinkCandidate> for CandidateRow {
             provider: candidate.provider,
             error: candidate.error,
             error_code: candidate.error_code,
+            error_params: candidate.error_params,
             cached_at: candidate.cached_at,
             cached_by: candidate.cached_by,
             details,
@@ -96,7 +100,7 @@ struct PerIdResult {
 #[tool_router(router = candidates_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List the links in the LinkGrabber, one row per link, with the ids every other candidate tool takes. Filter by package_id or batch_id; paginated. `details` names which views get_candidate_details has for a link; `mirror` shows its mirror group."
+        description = "List the links in the LinkGrabber, one row per link, with the ids every other candidate tool takes. Filter by package_id or batch_id; paginated. `details` names which views get_candidate_details has for a link; `mirror` shows its mirror group. A link whose check failed carries `error` (English text), its stable `error_code` and the `error_params` the code is translated with, such as yt-dlp's error line in `detail`."
     )]
     pub async fn list_candidates(
         &self,

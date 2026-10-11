@@ -1,4 +1,4 @@
-//! The queue's stop mark (RD-1210-02), JDownloader's behaviour: "stop after this".
+//! The queue's stop mark (RD-1210-02): "stop after this".
 //!
 //! A mark sits on one file or one package, never on a position, so it moves with its target when
 //! the queue is reordered and goes with it when the target is deleted (the row's foreign keys).

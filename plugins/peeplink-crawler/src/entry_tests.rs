@@ -112,14 +112,13 @@ fn no_recorded_page_asks_for_an_access_password() {
     }
 }
 
-/// The marker the password branch turns on is the one `PrrpLinkIn.java` uses, read case
-/// insensitively.
+/// The marker the password branch turns on, read case insensitively.
 ///
 /// This proves the recogniser and nothing more. **The password branch itself is untested**:
 /// no protected entry was findable on either measuring day, so there is no page to record,
 /// and inventing one would only show that the code agrees with itself (RD-110-17).
 #[test]
-fn the_password_marker_is_the_one_jdownloader_uses() {
+fn the_password_marker_is_read_case_insensitively() {
     assert!(asks_for_password(
         "<input type=\"text\" value=\"Enter Access Password\" name=\"pwd\">"
     ));

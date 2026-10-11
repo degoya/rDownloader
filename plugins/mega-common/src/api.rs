@@ -38,8 +38,8 @@ pub const ETEMPUNAVAIL: i64 = -18;
 /// MEGA's own status for "you have used your bandwidth", which is not a `Retry-After` case
 /// in the usual sense: the number of seconds rides in a header of the provider's own.
 pub const STATUS_BANDWIDTH_EXCEEDED: u16 = 509;
-/// The header MEGA puts the remaining wait in. Read out of JDownloader's MEGA plugin, which
-/// handles it (job file, section 5) -- this project has never provoked a `509` itself, and
+/// The header MEGA puts the remaining wait in, known second-hand (job file, section 5) --
+/// this project has never provoked a `509` itself, and
 /// says so rather than claiming a measurement it does not have. Nothing is lost if MEGA ever
 /// stops sending it: the standard header is tried next, and no header at all is `None`.
 const MEGA_TIME_LEFT: &str = "x-mega-time-left";

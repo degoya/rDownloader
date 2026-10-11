@@ -124,8 +124,8 @@ fn form_action(page_url: &str, form: &DownloadForm) -> Result<String, Failure> {
     }
 }
 
-/// `https://<the uploader's own domain>/` — the referer 1fichier expects, and the domain JD
-/// warns must never be normalised away.
+/// `https://<the uploader's own domain>/` — the referer 1fichier expects, and a domain that
+/// must never be normalised away.
 fn referer_for(url: &Url) -> String {
     match url.host_str() {
         Some(host) => format!("https://{host}/"),

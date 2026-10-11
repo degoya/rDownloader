@@ -980,6 +980,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/automations/{id}/versions"),
         ],
     ),
+    // RD-1250-01: the catalogue names each destination's settings, free text included; the name
+    // stays the one RD-120-55 pinned.
     covered(
         "Notification history and the destination catalogue",
         "Settings > Notifications",
@@ -1091,8 +1093,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Downloads and LinkGrabber, selection bar and package menu",
         &[any("/api/v1/packages/export")],
     ),
+    // RD-1250-05: `check_now` resolves at once; the same route and tool carry it.
     covered(
-        "Resolving downloads again with the plugin installed now",
+        "Resolving downloads again with the plugin installed now, at once if asked",
         "Downloads, selection bar and package menu",
         &[any("/api/v1/downloads/reresolve")],
     ),

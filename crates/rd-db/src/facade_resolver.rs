@@ -152,6 +152,29 @@ impl Database {
         .await
     }
 
+    /// Writes what an immediate re-resolve found (RD-1250-05): the name and the size the
+    /// resolver reported and, when it failed, the failure as the row's last error; a success
+    /// clears an earlier error of a file that waits for its turn. The size is written only
+    /// while no byte is confirmed, so a changed file is still caught by the next attempt's
+    /// validator check. Refused while the download holds its file (`StoreErrorKind::WrongState`)
+    /// and for an unknown one (`NotFound`).
+    pub async fn record_resolution(
+        &self,
+        id: DownloadId,
+        file_name: Option<String>,
+        total_bytes: Option<u64>,
+        failure: Option<rd_core::Failure>,
+    ) -> Result<()> {
+        writer::request(&self.writer, |reply| DownloadsCommand::RecordResolution {
+            id,
+            file_name,
+            total_bytes,
+            failure,
+            reply,
+        })
+        .await
+    }
+
     /// Drops resolver pins that name a version this build can no longer provide.
     ///
     /// Returns how many jobs were freed. See the writer implementation for why an

@@ -173,7 +173,7 @@ fn paused_row(package_id: rd_core::PackageId, index: usize) -> rd_db::NewDownloa
 }
 
 /// One package of `count` paused rows; answers their ids.
-async fn package_of(
+pub(crate) async fn package_of(
     harness: &common::Harness,
     root: &std::path::Path,
     name: &str,

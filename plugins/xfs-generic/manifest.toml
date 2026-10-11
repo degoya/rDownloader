@@ -1,9 +1,9 @@
 manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.10.0"
+api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000010d"
 name = "XFileSharing (generic)"
-version = "0.1.12"
+version = "0.1.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -14,20 +14,18 @@ public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # download into a hoster error, so nothing goes in here on hearsay. Every host below cleared two
 # independent checks:
 #
-# 1. JDownloader models the site as a stock XFileSharing installation — its plugin class extends
-#    `XFileSharingProBasic`. 315 of JD's hoster plugins do, naming 682 domains through
-#    `getPluginDomains()`; JD's own `getDeadDomains()` marked 90 of those as gone and they are
-#    not here.
+# 1. The site is known as a stock XFileSharing installation: of 682 domains collected from 315
+#    such hosters, 90 are known to be gone, and they are not here.
 # 2. The site answered `https://<host>/login.html` with the XFS login form (`<form name="FL">`
 #    carrying `op=login`), checked 2026-09-06 with ddownload.com as a positive control. 582
 #    candidates were probed and 371 failed — dead, moved, or never XFS — leaving the 140 sites
 #    and 140 domains below.
 #
 # What neither check proves is that this plugin's free flow completes on a given site, and that
-# is deliberate rather than overlooked. Measured against JD's own subclasses, ignoring the five
+# is deliberate rather than overlooked. Measured against the per-site variants, ignoring the five
 # tuning overrides (chunks, resume, parallelism) that 138 of them carry: 48 sites deviate from
 # the base flow in nothing at all, 75 in at most one thing, and the remainder needed real
-# per-site work in JD. So the far end of this list is where a failure is likeliest — and it
+# per-site work. So the far end of this list is where a failure is likeliest — and it
 # fails with a named cause, which is the report a user can act on. A site nobody claims is a
 # site nobody can report.
 #

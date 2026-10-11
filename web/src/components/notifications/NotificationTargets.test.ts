@@ -178,9 +178,9 @@ describe('NotificationTargets destination settings', () => {
     version: '0.10.0',
     slug: 'ntfy_notifier',
     settings: [
-      { name: 'priority_info', choices: CHOICES, default: '2' },
-      { name: 'priority_error', choices: CHOICES, default: '4' },
-      { name: 'priority_fixed', choices: CHOICES, default: null }
+      { name: 'priority_info', choices: CHOICES, multiline: false, default: '2' },
+      { name: 'priority_error', choices: CHOICES, multiline: false, default: '4' },
+      { name: 'priority_fixed', choices: CHOICES, multiline: false, default: null }
     ]
   }
   const TARGET = {
@@ -234,6 +234,65 @@ describe('NotificationTargets destination settings', () => {
 
     await screen.findByRole('heading', { name: notifications.target.form_edit })
     expect(screen.queryByTestId('notification-setting-priority_info')).toBeNull()
+  })
+})
+
+/**
+ * RD-1250-01: a setting that offers no values is free text — Plex's library section in a field,
+ * the folder mapping in a text area — saved as typed; emptied, it is left unset.
+ */
+describe('NotificationTargets free-text settings', () => {
+  const PLEX = {
+    plugin_id: 'rd-plugin-plex',
+    name: 'Plex',
+    version: '0.2.0',
+    slug: 'plex_notifier',
+    settings: [
+      { name: 'section', choices: [], multiline: false, default: null },
+      { name: 'path_mapping', choices: [], multiline: true, default: null }
+    ]
+  }
+  const TARGET = {
+    id: 't1', name: 'Library', kind: 'plugin', enabled: true, endpoint: 'http://192.168.1.10:32400',
+    config: { plugin_id: 'rd-plugin-plex', settings: { section: '3' } }, has_secret: true
+  }
+
+  beforeEach(() => {
+    get.mockReset()
+    get.mockResolvedValue({ data: [PLEX] })
+    put.mockReset()
+    put.mockResolvedValue({ data: TARGET })
+  })
+
+  it('types a section on one line and the mapping on several, and saves both', async () => {
+    mountComponent(NotificationTargets, {
+      messages: { notifications },
+      props: { modelValue: [TARGET], loading: false, loadError: null }
+    })
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/notifications/destinations'))
+    const row = screen.getByText('Library').closest('div.flex') as HTMLElement
+    await fireEvent.click(within(row).getByRole('button', { name: common.actions.edit }))
+
+    // Both fields are the stub's input; the text area is told its rows and the longer limit.
+    const section = await screen.findByTestId('notification-setting-section') as HTMLInputElement
+    const mapping = screen.getByTestId('notification-setting-path_mapping') as HTMLInputElement
+    expect(section.value).toBe('3')
+    expect(section.maxLength).toBe(256)
+    expect(section.getAttribute('rows')).toBeNull()
+    expect(mapping.value).toBe('')
+    expect(mapping.maxLength).toBe(4096)
+    expect(mapping.getAttribute('rows')).toBe('3')
+
+    // One line: the stub is an <input>, which drops a line break.
+    await fireEvent.update(mapping, '/downloads=/data/media')
+    await fireEvent.update(section, '')
+    await fireEvent.submit(section.closest('form') as HTMLFormElement)
+
+    await waitFor(() => expect(put).toHaveBeenCalled())
+    expect(put.mock.calls[0]?.[1]?.body?.config).toEqual({
+      plugin_id: 'rd-plugin-plex',
+      settings: { path_mapping: '/downloads=/data/media' }
+    })
   })
 })
 

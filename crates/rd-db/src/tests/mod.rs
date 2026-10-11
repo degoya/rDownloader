@@ -26,6 +26,7 @@ mod nzb_routing;
 mod online_check;
 mod package_names;
 mod packages;
+mod playlist_checks;
 mod recovery_volumes;
 mod remote_jobs;
 mod subscriptions;

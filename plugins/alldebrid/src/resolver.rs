@@ -48,7 +48,7 @@ pub(crate) async fn check_account<H: PluginHost>(
 }
 
 /// Unlocks one link, probing `/link/delayed` once when the API says the file is not fetchable
-/// yet. JD sleeps in a loop there; the scheduler's own re-resolve stands in for that, so this
+/// yet. Rather than sleeping in a loop there, the scheduler's own re-resolve stands in, so this
 /// probes exactly once per invocation and reports a retry instead of holding the slot.
 pub(crate) async fn resolve<H: PluginHost>(
     host: &H,
