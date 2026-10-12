@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import NavbarAction from '@/components/NavbarAction.vue'
 import { STUCK_KINDS, type StuckKind } from '@/composables/useResetFailed'
-import { DOWNLOADS_NAV_LABEL } from '@/utils/downloadsNavbar'
 
 /**
  * "Reset failed" in the Downloads header (RD-1190-15): one button, and in its menu the failed
@@ -38,12 +38,10 @@ const items = computed(() => [STUCK_KINDS.map(kind => ({
 
 <template>
   <UDropdownMenu :items="items" :content="{ align: 'end' }">
-    <UButton
+    <NavbarAction
       icon="i-lucide-rotate-ccw"
       :label="t('downloads.reset_failed.button')"
-      :aria-label="t('downloads.reset_failed.button')"
-      :title="t('downloads.reset_failed.hint')"
-      :ui="DOWNLOADS_NAV_LABEL"
+      :hint="t('downloads.reset_failed.hint')"
       color="neutral"
       variant="outline"
       :disabled="props.counts.both === 0"

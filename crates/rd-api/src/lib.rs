@@ -59,11 +59,11 @@ use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers,
     capture_agent_handlers, capture_game_mode, capture_server_update, config_handlers,
     data_reset_handlers, diagnostics_dto, diagnostics_handlers, lifecycle_handlers,
-    notify_handlers, object_storage_handlers, plugin_bundled, plugin_handlers, plugin_lifecycle,
-    plugin_repository_handlers, plugin_update_policy, providers_handlers, remote_handlers,
-    restart_handlers, restore_handlers, restore_uploads, routing_backup, settings_backup,
-    settings_backup_crypto, settings_backup_dto, settings_handlers, stats_handlers,
-    stats_retention_service, tools_handlers, update_handlers, web_push_handlers,
+    log_level_handlers, notify_handlers, object_storage_handlers, plugin_bundled, plugin_handlers,
+    plugin_lifecycle, plugin_repository_handlers, plugin_update_policy, providers_handlers,
+    remote_handlers, restart_handlers, restore_handlers, restore_uploads, routing_backup,
+    settings_backup, settings_backup_crypto, settings_backup_dto, settings_handlers,
+    stats_handlers, stats_retention_service, tools_handlers, update_handlers, web_push_handlers,
 };
 use rd_api_compat as compat;
 use rd_api_core::{
@@ -71,11 +71,11 @@ use rd_api_core::{
     postprocess_handlers, reconnect_service, storage_capacity, trace_context,
 };
 use rd_api_intake::{
-    area_backup, candidate_handlers, captcha_handlers, capture_file, capture_linkgrabber,
-    collector_handlers, container_handlers, indexer_handlers, indexer_search, link_filter_handlers,
-    nzb_handlers, regex_tester, remote_listing_handlers, site_rule_picks, site_rules_dto,
-    site_rules_handlers, stream_handlers, stream_schedule_handlers, subscription_autoqueue,
-    subscription_handlers, torrent_import,
+    area_backup, candidate_handlers, captcha_handlers, capture_click_and_load, capture_file,
+    capture_linkgrabber, collector_handlers, container_handlers, indexer_handlers, indexer_search,
+    link_filter_handlers, nzb_handlers, regex_tester, remote_listing_handlers, site_rule_picks,
+    site_rules_dto, site_rules_handlers, stream_handlers, stream_schedule_handlers,
+    subscription_autoqueue, subscription_handlers, torrent_import,
 };
 use rd_api_mcp as mcp;
 use rd_api_queue::{
@@ -200,6 +200,15 @@ pub fn router(state: AppState) -> Router {
             post(browser_session_handlers::decline_capture_browser_session),
         )
         .route("/api/v1/capture/file", post(capture_file::capture_file))
+        // Click'n'Load the browser extension took in place of the agent (RD-1260-10): `jk` is
+        // evaluated here, in the agent's sandbox, never in the browser. Its limit sits closer to
+        // the handler than the service-wide one, so it is the one the JSON extractor reads.
+        .route(
+            "/api/v1/capture/click-and-load",
+            post(capture_click_and_load::capture_click_and_load).layer(DefaultBodyLimit::max(
+                capture_click_and_load::BODY_LIMIT_BYTES,
+            )),
+        )
         .route("/api/v1/capture/nzb", post(nzb_handlers::capture_nzb))
         .route("/api/v1/capture/ping", get(handlers::capture_ping))
         .route("/api/v1/capture/events", get(event_stream::capture_events))

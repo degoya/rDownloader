@@ -116,13 +116,63 @@ async fn import(
             "Multipart field 'file' is missing",
         ));
     };
-    let content = file.bytes;
-    let source_label = file.file_name;
+    let request = ContainerRequest {
+        content: file.bytes,
+        source_label: file.file_name,
+        format: forced.or(declared),
+        enqueue,
+        passphrase,
+        package_name,
+        category_id,
+        priority,
+        source: rd_core::IngressSource::Manual,
+        // A file a token hands in is a program's choice, never the person's own hand.
+        own_hand: from_own_hand(of_caller(audit, rd_core::IngressSource::Manual)),
+    };
+    let response = import_content(&state, request).await?;
+    Ok((StatusCode::CREATED, Json(response)))
+}
+
+/// One container, read: what [`import_content`] imports.
+pub(crate) struct ContainerRequest {
+    pub(crate) content: Vec<u8>,
+    /// The file's name; with no format given, its extension names one.
+    pub(crate) source_label: Option<String>,
+    pub(crate) format: Option<ContainerFormat>,
+    pub(crate) enqueue: bool,
+    pub(crate) passphrase: Option<Passphrase>,
+    pub(crate) package_name: Option<String>,
+    pub(crate) category_id: Option<rd_core::CategoryId>,
+    pub(crate) priority: Option<rd_core::DownloadPriority>,
+    /// What the LinkGrabber records the intake as, for the routing rules.
+    pub(crate) source: rd_core::IngressSource,
+    /// Whether the person handed it in themselves; an `.rdlinks` file's addresses are held to
+    /// that (`LinkOrigin::Proposed`).
+    pub(crate) own_hand: bool,
+}
+
+/// The container import after the upload is read: shared by the import dialog's routes and
+/// `capture/file` (RD-1260-09), which reads its own body.
+pub(crate) async fn import_content(
+    state: &AppState,
+    request: ContainerRequest,
+) -> Result<ContainerImportResponse, ApiError> {
+    let ContainerRequest {
+        content,
+        source_label,
+        format: given,
+        enqueue,
+        passphrase,
+        package_name,
+        category_id,
+        priority,
+        source,
+        own_hand,
+    } = request;
     // Same convention as an NZB: `release{{password}}.dlc` carries the archive password.
     let (stem, password) =
         rd_files::strip_password_marker(source_label.as_deref().unwrap_or("import.dlc"));
-    let format = forced
-        .or(declared)
+    let format = given
         .or_else(|| ContainerFormat::from_file_name(&stem))
         .ok_or_else(|| {
             ApiError::bad_request(
@@ -145,7 +195,7 @@ async fn import(
         gallery: state.gallery_settings.read().await.clone(),
     };
     let options = DlcImportOptions {
-        source: rd_core::IngressSource::Manual,
+        source,
         source_label,
         fallback_name,
         fallback_password: password,
@@ -156,8 +206,6 @@ async fn import(
     let completed = enqueue.then(|| state.link_check.follow_completed());
     let outcome = if format == ContainerFormat::RdLinks {
         let document = read_links(&content, passphrase.as_ref()).await?;
-        // A file a token hands in is a program's choice, never the person's own hand.
-        let own_hand = from_own_hand(of_caller(audit, rd_core::IngressSource::Manual));
         let nzbs = if enqueue {
             NzbLanding::Enqueue(&state.scheduler)
         } else {
@@ -172,22 +220,19 @@ async fn import(
         )
         .await?
     } else {
-        let document = decode(&state, format, &content).await?;
+        let document = decode(state, format, &content).await?;
         crate::dlc_import::import_document(&intake, document, options).await?
     };
     if let Some(completed) = completed {
         crate::container_enqueue::after_check(state.clone(), completed, &outcome.packages);
     }
-    Ok((
-        StatusCode::CREATED,
-        Json(ContainerImportResponse {
-            format: format.as_str().to_owned(),
-            packages: outcome.packages,
-            candidates: outcome.candidates,
-            skipped_excluded: outcome.skipped_excluded,
-            nzb_imports: outcome.nzb_imports,
-        }),
-    ))
+    Ok(ContainerImportResponse {
+        format: format.as_str().to_owned(),
+        packages: outcome.packages,
+        candidates: outcome.candidates,
+        skipped_excluded: outcome.skipped_excluded,
+        nzb_imports: outcome.nzb_imports,
+    })
 }
 
 /// The `enqueue` field: absent or empty is `false`, like an unticked box.

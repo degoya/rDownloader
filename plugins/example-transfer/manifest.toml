@@ -3,7 +3,7 @@ plugin_type = "transfer"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-0000000000e1"
 name = "Example Transfer"
-version = "0.7.9"
+version = "0.7.10"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # One transfer at a time: this backend exists to demonstrate the contract, not to move data.
@@ -24,7 +24,7 @@ schemes = ["example+tcp", "example+tls"]
 
 [metadata]
 description = "Reference transfer backend demonstrating the plugin transfer contract."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

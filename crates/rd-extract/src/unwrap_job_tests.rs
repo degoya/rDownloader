@@ -334,6 +334,7 @@ async fn category_with(database: &Database, temp: &Path, unwrap: Option<bool>) -
             storage_root_id: root.id,
             relative_path: "unwrapping".to_owned(),
             is_default: false,
+            selectable: true,
             postprocess_level: None,
             script: None,
             cleanup_extensions: None,

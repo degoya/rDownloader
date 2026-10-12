@@ -42,7 +42,8 @@
     "all_languages": "Jede Sprache",
     "facet_hint": "Gilt für die ganze Liste und bleibt für das nächste Paket erhalten: wo eine Mirror-Gruppe die Wahl lässt, wählt sie den passenden Mirror, sonst blendet sie aus, was nicht passen kann.",
     "more": "Filter",
-    "more_hint": "Qualität, Sprache und Hoster bevorzugen, sortieren und neu gruppieren"
+    "more_hint": "Qualität, Sprache und Hoster bevorzugen, sortieren und neu gruppieren",
+    "set_count": "{count} Einstellung gesetzt | {count} Einstellungen gesetzt"
   },
   "empty": "Zwischenablage, Click’n’Load und manuelle Eingaben landen zuerst hier zur Prüfung. Links werden automatisch geprüft und zu Paketen gruppiert.",
   "selection_package": "{name} (Auswahl)",
@@ -636,7 +637,6 @@
     "take_all": "Alle übernehmen | 1 Release übernehmen | Alle {count} übernehmen",
     "announced": "{rule}: eine Seite wartet auf deine Auswahl"
   },
-  "selection_nzbs": "keine NZB-Importe | {count} NZB-Import | {count} NZB-Importe",
   "link_filter": {
     "unhide": "Wieder anzeigen",
     "hidden": "Ausgeblendet",

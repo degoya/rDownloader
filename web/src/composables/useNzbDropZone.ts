@@ -12,8 +12,8 @@ function dragCarriesFiles(event: DragEvent): boolean {
 
 /**
  * App-wide metadata drag & drop: shows a full-screen overlay while files are dragged over the
- * window and, on drop, hands matching `.nzb`/`.torrent` files to the LinkGrabber view
- * state in `nzbImportRequest.ts`. No-ops while the import modal is already open (it has its
+ * window and, on drop, hands matching `.nzb`/`.torrent` files and link containers to the
+ * LinkGrabber view state in `nzbImportRequest.ts` (RD-1260-11). No-ops while the import modal is already open (it has its
  * own drop zone), and hands the drop to a page that claimed it (`claimFileDrops`) instead.
  */
 export function useFileImportDropZone(): { dropActive: Ref<boolean> } {

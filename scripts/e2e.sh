@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
 # The end-to-end runs of RD-180-12 on this machine, the same files `.github/workflows/e2e.yml`
-# runs: the Chrome extension in Chromium against a fresh service (web/e2e/extension.e2e.mjs) and
-# the capture agent against one (web/e2e/capture.e2e.mjs). Both start their own throwaway service;
-# nothing here touches a running installation.
+# runs: the Chrome extension in Chromium against a fresh service (web/e2e/extension.e2e.mjs, and
+# Click'n'Load through it, web/e2e/click-and-load.e2e.mjs) and the capture agent against one
+# (web/e2e/capture.e2e.mjs). Each starts its own throwaway service; nothing here touches a running
+# installation.
 #
 # Usage:
 #   scripts/e2e.sh                     # both, with the newest binaries found (see below)
@@ -18,10 +19,11 @@
 # Lock-free: only --build's cargo call runs under the lock every heavy script takes — the
 # target's lock, a lane, the memory gate, the stamp and JOBS (scripts/lib/jobs.sh, RD-191-09).
 #
-# The extension run needs 127.0.0.1:8710 free (the one address its manifest grants at install)
-# and Playwright's Chromium (`pnpm --dir web exec playwright install chromium`, done here). The
-# capture run keeps the agent in a throwaway profile and skips the autostart step, which writes a
-# real login entry; CI runs it with RD_E2E_OS_INTEGRATION=1 on disposable runners.
+# The extension runs need 127.0.0.1:8710 free (the one address its manifest grants at install),
+# the Click'n'Load run 127.0.0.1:9666 as well, and Playwright's Chromium (`pnpm --dir web exec
+# playwright install chromium`, done here). The capture run keeps the agent in a throwaway profile
+# and skips the autostart step, which writes a real login entry; CI runs it with
+# RD_E2E_OS_INTEGRATION=1 on disposable runners.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -57,7 +59,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-            sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -110,6 +112,16 @@ if [[ "$browser" -eq 1 ]]; then
         echo "ok   the extension run"
     else
         echo "FAIL the extension run (service log: $work/extension/service/service.log)" >&2
+        failures=$((failures + 1))
+    fi
+    # Click'n'Load through the extension (RD-1260-10): 127.0.0.1:9666 has to be free, the run
+    # starts its own stand-in agent there for the second half.
+    echo "==> Click'n'Load through the Chrome extension against a fresh service"
+    if RD_E2E_SERVER="$bin_dir/rdownloader" RD_E2E_EXTENSION="$ROOT/artifacts/browser-extensions/chrome" \
+       RD_E2E_WORK="$work/click-and-load" node --test --test-reporter=spec web/e2e/click-and-load.e2e.mjs; then
+        echo "ok   the Click'n'Load run"
+    else
+        echo "FAIL the Click'n'Load run (service log: $work/click-and-load/service/service.log)" >&2
         failures=$((failures + 1))
     fi
 fi

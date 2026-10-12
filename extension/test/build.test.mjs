@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { CHROME_MIN_VERSION, FIREFOX_MIN_VERSION, FIREFOX_ONLY_PERMISSIONS, TARGETS, archiveSummary, build, manifestFor } from '../build.mjs'
+import { CHROME_MIN_VERSION, CHROME_ONLY_PERMISSIONS, FIREFOX_MIN_VERSION, FIREFOX_ONLY_PERMISSIONS, TARGETS, archiveSummary, build, manifestFor } from '../build.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -49,6 +49,30 @@ test('only the Firefox build may block a request and copy a response', () => {
   }
   assert.deepEqual(base.host_permissions, chrome.host_permissions, 'no host is granted up front for it')
   assert.deepEqual(firefox.host_permissions, base.host_permissions)
+})
+
+test('Click\'n\'Load takes the two port addresses and, in Chrome alone, session rules', () => {
+  // RD-1260-10: host access to the agent's port and nothing wider; the sites a page may hand
+  // links over from are the ones the person allowed, granted at run time.
+  assert.deepEqual(base.host_permissions, [
+    'http://127.0.0.1:8710/*',
+    'http://localhost:8710/*',
+    'http://127.0.0.1:9666/*',
+    'http://localhost:9666/*'
+  ])
+  assert.deepEqual(CHROME_ONLY_PERMISSIONS, ['declarativeNetRequestWithHostAccess'])
+  const chrome = manifestFor('chrome', base)
+  const firefox = manifestFor('firefox', base)
+  for (const permission of CHROME_ONLY_PERMISSIONS) {
+    assert.ok(chrome.permissions.includes(permission), `Chrome lacks ${permission}`)
+    assert.ok(!firefox.permissions.includes(permission), `${permission} reached Firefox`)
+    assert.ok(!base.permissions.includes(permission), `${permission} is in the base manifest`)
+  }
+  // The page's check is answered with these three files, and they are all a page can load.
+  assert.deepEqual(base.web_accessible_resources, [{
+    resources: ['src/cnl/jdcheck.js', 'src/cnl/flash.txt', 'src/cnl/success.txt'],
+    matches: ['http://*/*', 'https://*/*']
+  }])
 })
 
 test('the base manifest requests the download interception permissions', () => {
@@ -126,6 +150,9 @@ test('a real build writes two manifests, both pages and all four icons', () => {
         assert.ok(existsSync(join(dir, path)), `${target} is missing ${path}`)
       }
       assert.ok(existsSync(join(dir, '_locales', 'en', 'messages.json')), `${target} ships no catalogue`)
+      for (const path of manifest.web_accessible_resources.flatMap((entry) => entry.resources)) {
+        assert.ok(existsSync(join(dir, path)), `${target} is missing ${path}`)
+      }
     }
     const firefox = JSON.parse(readFileSync(join(out, 'firefox', 'manifest.json'), 'utf8'))
     assert.equal(firefox.background.service_worker, undefined, 'a Chrome-only key reached Firefox')

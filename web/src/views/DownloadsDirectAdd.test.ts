@@ -13,6 +13,7 @@ import { SHORTCUT_DEFINITIONS } from '@/composables/shortcutDefinitions'
 import downloads from '@/locales/en/downloads.json'
 import torrent from '@/locales/en/torrent.json'
 import { useTransfersStore } from '@/stores/transfers'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 import DownloadsView from './DownloadsView.vue'
@@ -76,13 +77,30 @@ describe('the direct job', () => {
     const { getByTestId, queryByRole, getByRole } = mountView()
     const button = getByTestId('downloads-add')
     expect(button.getAttribute('data-tour')).toBe('downloads-add')
-    expect(button.querySelector('kbd')?.textContent).toBe('a')
+    // An icon (RD-1260-06): the name is the button's, the key stands in the tooltip.
+    expect(button.getAttribute('aria-label')).toBe(downloads.add.title)
+    expect(button.getAttribute('title')).toBe(`${downloads.add.title} (A)`)
+    expect(button.textContent?.trim()).toBe('')
     expect(queryByRole('dialog')).toBeNull()
 
     await fireEvent.click(button)
     getByRole('dialog', { name: downloads.add.title })
     // The address takes the keyboard when the dialog opens.
     expect(getByTestId('direct-add-url').hasAttribute('autofocus')).toBe(true)
+  })
+
+  it('shows "Clear list" as an icon named in its tooltip, the menu keeping its key', () => {
+    const { getByTestId, getByRole } = mountView()
+    const button = getByTestId('downloads-clear-list')
+    expect(button.getAttribute('aria-label')).toBe(downloads.header.clear_list)
+    expect(button.getAttribute('title')).toBe(downloads.header.clear_list)
+    expect(button.textContent?.trim()).toBe('')
+    getByRole('button', { name: downloads.header.clear_completed })
+  })
+
+  it('renders its navbar without an axe violation', async () => {
+    const { container } = mountView()
+    expect(await axeViolations(container.querySelector('header')!)).toBe('')
   })
 
   it('opens with `a` while the list is on the page, and not after', async () => {

@@ -52,7 +52,9 @@ vi.mock('@nuxt/ui/composables', () => ({
 }))
 /** The query the view is opened with; a remote job's package link sets `package` (RD-1120-02). */
 const routeQuery = vi.hoisted(() => ({ value: {} as Record<string, unknown> }))
-vi.mock('vue-router', () => ({
+// The navbar's tooltips read the shortcut catalogue, which builds the application's router.
+vi.mock('vue-router', async importOriginal => ({
+  ...await importOriginal<typeof import('vue-router')>(),
   useRoute: () => ({ query: routeQuery.value }),
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() })
 }))

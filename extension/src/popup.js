@@ -1,4 +1,4 @@
-import { api, loadConfig, message } from './browser.js'
+import { api, loadConfig, message, openSendFilePage } from './browser.js'
 import { DECLINE_MESSAGE, createCaptchaAnswerer, hostOf } from './captcha.js'
 import { allowSite, revokeSite, siteConsented, siteHost } from './files.js'
 import { HANDOVER_REFUSALS, createHandover, scopeHost, scopeOrigin } from './handover.js'
@@ -270,6 +270,10 @@ async function init() {
       return
     }
     await sendToBackground({ text: outcome.text, sourceLabel: 'Clipboard' })
+  })
+  document.getElementById('send-file').addEventListener('click', async () => {
+    await openSendFilePage()
+    window.close()
   })
   document.getElementById('options').addEventListener('click', () => api.runtime.openOptionsPage())
   document.getElementById('version').textContent = versionLine(() => api.runtime.getManifest())

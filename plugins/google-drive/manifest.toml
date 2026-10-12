@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000110"
 name = "Google Drive"
-version = "0.1.13"
+version = "0.1.14"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # The addresses a person pastes, plus the canonical per-file API address the sibling crawler
@@ -26,7 +26,7 @@ domains = ["www.googleapis.com"]
 
 [metadata]
 description = "Resolves Google Drive files, shared links and Workspace exports through the official Drive API."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

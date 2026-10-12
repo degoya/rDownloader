@@ -1,6 +1,8 @@
 name: Self-update
 
 # RD-180-02: the portable self-update with real binaries on Linux (x86_64, aarch64) and Windows.
+# Since RD-1260-02 each update also leaves a stopped plugin preparation for the version that starts
+# next, which has to start healthy and remove it.
 # Two debug builds of this tree — the second with the patch version raised by scripts/set-version.sh — and
 # scripts/self-update-smoke.sh, which runs the first as a portable installation and hands it
 # three updates the way the service does: the next version (installed, answers, old files kept in
@@ -40,6 +42,10 @@ on:
       - crates/rd-api/src/event_stream.rs
       - crates/rdownloader/src/main.rs
       - crates/rdownloader/src/serve.rs
+      # The plugins an update prepares, and the start that takes them (RD-1260-02).
+      - crates/rd-plugin-host/src/repository_prepare.rs
+      - crates/rdownloader/src/plugin_boot.rs
+      - crates/rd-api-admin/src/pre_update_service.rs
   workflow_dispatch:
 
 permissions: {}

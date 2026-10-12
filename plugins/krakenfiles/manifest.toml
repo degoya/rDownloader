@@ -6,7 +6,7 @@ name = "KrakenFiles"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
 # older version stays installed.
-version = "0.1.14"
+version = "0.1.15"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["krakenfiles.com", "www.krakenfiles.com"]
@@ -35,7 +35,7 @@ domains = ["krakenfiles.com", "*.krakenfiles.com", "*.krakencloud.net"]
 
 [metadata]
 description = "Resolves KrakenFiles links without an account through the file page's download form and its Cloudflare Turnstile."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

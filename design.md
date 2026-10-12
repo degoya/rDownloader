@@ -15,7 +15,7 @@ hotfolders provide additional intake channels.
 | Attribute | Value |
 | --- | --- |
 | Product | rDownloader |
-| Author | Alexander Herling |
+| Author | Alexander Herling / DEGOYA.digital |
 | Repository | `https://github.com/degoya/rDownloader` |
 | License | GNU GPL v3.0 or later |
 | Backend | Rust 2024, minimum version 1.99 |
@@ -319,10 +319,13 @@ and a search. An installed service is shown ticked, and a note above the list sa
 services needing no account came with the first start and can be unticked here or switched off
 and removed later under Settings → Plugins (RD-180-14). Unticking one removes it on *Continue*,
 after one confirmation that names the services and says they stop at the next start; a service a
-download still uses stays and is named. The plugin manager lists every uninstalled service under
-*Available services* with a one-click install and stays add-only; removing there is the
-installed plugin's own delete. An update never installs a service nobody chose, and never
-reinstalls one that was removed.
+download still uses stays and is named. The plugin manager's *Catalogue* (RD-1260-02) is the same
+list in the same design for every service the release ships and every plugin a repository offers:
+installed, available or with an update waiting, a second chip row filters by that state, and each
+tile names its origin (bundled, repository, uploaded) in an outline badge. A bundled service
+installs on a click; an update and a plugin only a repository offers open the install preview
+first. It stays add-only; removing there is the installed plugin's own delete. An update never
+installs a service nobody chose, and never reinstalls one that was removed.
 
 ## Frontend and UX Design
 
@@ -474,13 +477,23 @@ prevent columns from shifting during live updates.
   search from every page: it opens the LinkGrabber's search drawer with the keyboard in its field
   (RD-180-19, RD-1230-02), going to the LinkGrabber first when another page is open (owner,
   2026-10-10; the download list's name search has no key of its own). The drawer hands its action
-  in while it is mounted and answers a request left on the way there; the navbar button shows the
-  key as a `UKbd`; while the indexer field is disabled the key lands on the
+  in while it is mounted and answers a request left on the way there; the navbar button names the
+  key in its tooltip; while the indexer field is disabled the key lands on the
   hint's link to the indexer settings, the one thing there is to do. The
   LinkGrabber hands in its navbar buttons the same way (`A` add links, `E` enqueue all, `W` add
-  all paused, `R` delete all; RD-180-23), each with its `UKbd` on the button and doing nothing
-  while that button is disabled. `A` is "add" on Downloads too: there it opens the *Direct job*
-  dialog behind the navbar button that shows the key (RD-1220-03).
+  all paused, `R` delete all; RD-180-23), each doing nothing while its button is disabled. `A` is
+  "add" on Downloads too: there it opens the *Direct job* dialog behind the navbar button
+  (RD-1220-03).
+- **A navbar action is an icon, its name and its key in the tooltip** (RD-1260-06, owner
+  2026-10-12). The Downloads and LinkGrabber navbars show every action as an icon button
+  (`NavbarAction`): the name is its `aria-label` and its tooltip, and the key that runs it stands
+  behind the name in parentheses — *Add links (A)*, *Start all (P)* — also as `aria-keyshortcuts`.
+  The key is read from the shortcut catalogue (`withShortcut`, `shortcutKeys` in
+  `shortcutDefinitions.ts`), never written beside the button, so a changed binding changes every
+  tooltip and menu hint that names it. The main action keeps its colour (*Enqueue all* solid,
+  *Start all* the primary soft); a figure or a state (the file count, *Paused until 14:00*) stays
+  text and goes first on a narrow navbar; menus behind a button keep their entries and their
+  `UKbd` hints.
 - **The key that opens a question confirms it; `X` closes every dialog** (owner, 2026-10-02).
   Every confirmation a key can start carries that key as its `confirmKey` — always, not only when
   the key started it, because a click user is not disturbed by a hint. `X` is the one plain key
@@ -500,7 +513,7 @@ prevent columns from shifting during live updates.
 - **A search that costs the other side something is asked, never typed into** (RD-180-19). The
   indexer search belongs to the LinkGrabber, because what it finds is reviewed there, and it is
   always reachable (owner, 2026-10-01): since RD-1230-02 (owner, 2026-10-09) in a `UDrawer` from
-  the bottom behind the navbar's *Search indexers* button (its `UKbd` `F`), so the page shows the
+  the bottom behind the navbar's *Search indexers* button (its key `F` in the tooltip), so the page shows the
   list rather than a form used now and then. The bottom, as the indexer subscriptions' drawer,
   because the hits are a wide table a side panel would squeeze. The drawer keeps its inputs, hits
   and row states while it is closed (the state lives with the view, not with the drawer's
@@ -913,6 +926,19 @@ not the generic word: the reader is looking for a control, and the label says wh
 yet. The remote-job form is the reference (RD-120-51); its first open after a start used to show
 the empty picker for as long as the server took to compile every plugin.
 
+### One Notification per Moment
+
+A desktop notification is an interruption, and the same news on two surfaces is two (RD-1260-04).
+Each moment has one surface: what push sends to this browser stays with push, links arriving
+stay with a running desktop agent and come from the tab only without one, and of several open
+tabs only the one holding the leader lock (`navigator.locks`) notifies. A message names a `tag`
+— per package, per status such as "queue finished" — so a later one replaces it rather than
+stacking. A notification reports a transition, not a state: a package that failed, once its files
+are settled and with how many; a countdown that started and the one that was cancelled, never a
+tick of it; a captcha that started waiting and the last one that ran out, not each answer. Quiet
+hours hold every surface back, and their end is one summary that names the first few and counts
+the rest (`desktopNotifier.ts`, `rd_notify::quiet_summary`).
+
 ### Handing Over Several Files
 
 Where a form takes files one at a time for the server, it takes several at once too — chosen with
@@ -1166,12 +1192,19 @@ recognised as drifting.
 - **An action that is not self-evident gets a label beside its icon**: test, connect, enqueue,
   duplicate. Edit and delete do not need one; a test button does. The selection bar and the
   package rows of the two queue lists are the exception below.
+- **A row whose items offer different actions keeps the shared ones in fixed columns**
+  (RD-1260-05). The account row's first line is a grid — switch, name, a slot per status icon
+  (key, cookie), then *Test*, *Edit*, *Delete* — so every account has them in the same place,
+  whatever else it offers; it never wraps. What only some items have (*Connect*, *Take over from
+  browser*, the test and traffic badges) goes to a second line under the name, drawn only when
+  there is something on it. The row measures itself (`@container`): below `@sm` *Test* keeps
+  its icon, with the name as `aria-label` and `title`, and the name is cut, not the actions.
 - **The two queue lists are built in one order** (RD-1230-02, owner 2026-10-09). The row right
-  above the list (`QueueListBar`) starts with *Select all* — its label the count, *N selected*,
-  what is selected (*3 files in 2 packages*) in its tooltip — and open/close all; then the list's
+  above the list (`QueueListBar`) starts with *Select all* — its label what is selected, packages
+  and files apart (see *A selection is counted in packages and files* below) — and open/close all; then the list's
   own search or filters; then, at the end, *Export all*, *Show metadata* and the figures. It
   stands at the list, after the notices, so the count is read where the ticks are. The selection
-  bar (`BulkActionBar`) follows it: the badge reads *N selected* in both lists, then category,
+  bar (`BulkActionBar`) follows it: the badge reads the same count in both lists, then category,
   priority and post-processing, then the actions both lists offer in one order — start (the
   LinkGrabber's enqueue), pause (its enqueue paused), show in list, export — then the list's own
   (stop, extract, rename, re-resolve; to a new package, hand over), its red ones with a count, and
@@ -1186,7 +1219,9 @@ recognised as drifting.
   repeats the icons of the rows it acts on, its order is learned once for both lists, and a second
   line cost more than the words gave; the tooltip and the accessible name still say what each
   does. A red action with a count shows its icon and the number (*↺ 3*), the sentence (*Reset 3
-  files*, *Delete 1 package*) as its name and tooltip, so the name still contains what is seen.
+  files*, *Delete 1 package*) as its name, and the tooltip adds what the number counts (*Reset 3
+  files: 3 files of the selection that are not running*, *…: 1 package whose files are all
+  selected*, RD-1260-07); every figure on a button says in its tooltip what it counts.
   From a 1440 px window the bar is one line; the actions wrap inside a group that may shrink, the
   X stands outside it, last in the tab order, and does not shrink.
 - **An action with a start-mode variant offers the variant as a second button, never as a
@@ -1653,14 +1688,25 @@ recognised as drifting.
   rows. `UCheckbox` stays: it reports only its new value, so the list notes the modifier in the
   capture phase of click and keydown (`useRangeSelection`, RD-170-13). A new list with row
   checkboxes and multi-select uses the same composable.
+- **A selection is counted in packages and files** (RD-1260-07, owner 2026-10-12). Wherever a
+  list counts what is ticked — the list bar, the selection bar, the status bar — it names both:
+  *4 packages · 11 files selected*, or *3 files in 1 package selected* while one package holds
+  them; the LinkGrabber counts links and its NZB imports after them (*3 packages · 4 links · 1 NZB
+  import selected*). A package counts as soon as one of its files is ticked, wholly or partly;
+  only the actions on whole packages (category, priority, delete package) count whole ones, and
+  their tooltips say so. Each figure takes its own plural from the catalogue (`common.units.*`,
+  `useSelectionSummary`). Where the bar is narrow the figure is the number of files (links and
+  imports) beside the selection's icon, both numbers in the tooltip and, in place of the bare
+  figure, as visually hidden text a screen reader reads — never abbreviations like
+  *4 P · 11 D*.
 - **The status bar says how much is selected.** While the LinkGrabber or the queue has rows
-  ticked, the transfer rail shows the count and the summed size — `3 selected · 5.4 GiB` — and
+  ticked, the transfer rail shows the count and the summed size — `4 packages · 11 files selected · 5.4 GiB` — and
   nothing when the selection is empty or the view is left. The sum runs over the selected
   files, links and NZB imports only; a package checkbox selects those rows, so a ticked
   package and its ticked children count once. A size nobody knows yet stays out of the sum,
   which is then a lower bound written `≥ 5.4 GiB`, with the number of unknown sizes in the
-  tooltip; with no size known there is only the count. On a narrow rail the word goes and the
-  count and size stay. The view keeps its selection and publishes only the summary
+  tooltip; with no size known there is only the count. On a narrow rail the words go and the
+  file count and the size stay. The view keeps its selection and publishes only the summary
   (`usePublishedSelection`, RD-170-14); another list with sizes publishes the same way.
 - **The status bar sets how many downloads run at once** (RD-1120-22; owner, 2026-10-06). Beside
   "N running" a compact `UInputNumber` (1–32, whole, plus and minus) behind a *max* badge holds
@@ -2056,7 +2102,7 @@ selection, tri-state folders and per-file priorities of the rules above.
 Reference implementations: `PackageGroup.vue` for expansion and row actions,
 `NotificationRules.vue` and `AutomationView.vue` for confirmed deletion,
 `SettingsRemoteJobsCard.vue` for a deletion that reaches past this machine,
-`SettingsAccountsTab.vue` for a mixed row with both labelled and icon-only actions,
+`SettingsAccountsCard.vue` for a mixed row with both labelled and icon-only actions,
 `SubscriptionItemRow.vue` for a row with a thumbnail and a shared detail block that wraps
 under its title, `CollectorCandidateRow.vue` for a leaf row on the shared grid,
 `QueueColumnHeader.vue` for a column header with resizable columns on that grid,
@@ -2146,6 +2192,21 @@ list ran from *Downloads HDD-2* to *Serien HDD-4* and had to be scrolled.
   names, never more than a handful. `ownedLists.test.ts` fails on a `USelect` whose items name a
   thing you create and holds every converted place; a fixed list whose name says otherwise (a
   *kind* of proxy, the update *channel*) is named there with its reason.
+
+**Hidden from the selection.** A thing you create may be kept out of the pickers that assign it
+by hand while everything automatic still uses it — a category switched off under *Show in the
+selection* (RD-1260-03). The rules:
+
+- **Only hand assignment hides it.** A picker that puts an entry into the thing now
+  (`pickableCategories`) leaves it out; a picker that configures automation — a rule, a
+  subscription, a hotfolder, a filter — and every list filter offer the whole list.
+- **The current value always shows.** An entry already in a hidden category shows it in its
+  picker, in its place in the list, so the field never stands empty; that makes it no more
+  selectable for the other rows.
+- **What applies by default cannot be hidden.** The switch is on and disabled while the default is
+  on, its description says why, and the service refuses the combination with a stable code.
+- **The list says so.** The row carries an outlined *Hidden* badge with an eye-off icon beside
+  the *Default* badge.
 
 ### Regex Diagram
 

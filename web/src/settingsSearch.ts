@@ -111,6 +111,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('routing.collision', 'routing', 'settings.storage.collision.label', { tab: 'roots', descriptionKey: 'settings.storage.collision.description', keywordsKey: `${K}.collision` }),
   card('routing.storage_activity', 'routing', 'settings.storage.activity.title', { tab: 'roots', descriptionKey: 'settings.storage.activity.description' }),
   card('routing.categories', 'routing', 'routing.category.title', { tab: 'categories', descriptionKey: 'routing.category.description' }),
+  field('routing.category_selectable', 'routing', 'routing.category.selectable_label', { tab: 'categories', descriptionKey: 'routing.category.selectable_description' }),
   field('routing.category_download_window', 'routing', 'routing.category.download_window_label', { tab: 'categories', descriptionKey: 'routing.category.download_window_description', keywordsKey: `${K}.download_window` }),
   card('routing.rules', 'routing', 'routing.rule.title', { tab: 'rules', descriptionKey: 'routing.rule.description' }),
   // Hotfolders
@@ -190,10 +191,9 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // Services
   card('services.switches', 'services', 'settings.services.title', { descriptionKey: 'settings.services.description', keywordsKey: `${K}.services` }),
   // Plugins
-  field('plugins.install', 'plugins', 'plugins.install.label', { tab: 'add', descriptionKey: 'plugins.install.hint' }),
+  field('plugins.install', 'plugins', 'plugins.install.label', { tab: 'catalogue', descriptionKey: 'plugins.install.hint' }),
   card('plugins.installed', 'plugins', 'plugins.installed.title', { tab: 'installed' }),
-  card('plugins.bundled', 'plugins', 'plugins.bundled.title', { tab: 'add', descriptionKey: 'plugins.bundled.description' }),
-  card('plugins.updates', 'plugins', 'plugins.updates.title', { tab: 'updates' }),
+  card('plugins.catalogue', 'plugins', 'plugins.catalogue.title', { tab: 'catalogue', descriptionKey: 'plugins.catalogue.description' }),
   card('plugins.repositories', 'plugins', 'plugins.repositories.title', { tab: 'repositories', descriptionKey: 'plugins.repositories.description' }),
   card('plugins.withdrawn', 'plugins', 'plugins.withdrawn.title', { tab: 'trust', descriptionKey: 'plugins.withdrawn.description' }),
   card('plugins.keys', 'plugins', 'plugins.keys.title', { tab: 'trust', keywordsKey: `${K}.signature` }),

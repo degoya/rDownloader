@@ -223,6 +223,8 @@ async fn run(
         PreUpdateRequest {
             target_version: target.to_owned(),
             schema_change: release.schema_change,
+            // The stored offer's, which is the manifest this release was offered from.
+            plugin_contracts: None,
         },
         audit,
     )

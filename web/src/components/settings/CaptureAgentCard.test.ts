@@ -43,7 +43,8 @@ const DEFAULTS = {
   add_all_from_linkgrabber: null,
   add_all_from_linkgrabber_paused: null,
   install_update: null,
-  restart_server: null
+  restart_server: null,
+  about: null
 }
 
 function answer(overrides: Record<string, unknown> = {}) {

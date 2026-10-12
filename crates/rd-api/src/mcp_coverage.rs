@@ -217,8 +217,10 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/backups/verifications"),
         ],
     ),
+    // RD-1260-03: `selectable`, whether the hand pickers offer a category, is a field of the
+    // category body, named in create/update_category's descriptions.
     covered(
-        "Categories",
+        "Categories, and whether the pickers offer one",
         "Settings > Routing",
         &[any("/api/v1/categories"), any("/api/v1/categories/{id}")],
     ),
@@ -335,10 +337,13 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // are the release's own, signed with the key the binary carries, so installing one confirms
     // no key and admits nobody else's code. It is the same act as switching a shipped plugin
     // on, which `set_plugin_enabled` already does. Removing a service (RD-180-14) is local and
-    // undone by installing it again, like `uninstall_plugin_version`.
+    // undone by installing it again, like `uninstall_plugin_version`. Since RD-1260-02 an install
+    // takes the repository's package when it is the same plugin signed by the same key and asks
+    // for nothing more, so still no key is confirmed; the catalogue also lists the origins, the
+    // waiting updates and what only a repository offers, which installs through the preview.
     covered(
         "Choosing the bundled services",
-        "Setup wizard, Settings > Plugins",
+        "Setup wizard, Settings > Plugins > Catalogue",
         &[any("/api/v1/plugins/bundled")],
     ),
     // ---- taken by RD-120-29 ----
@@ -376,6 +381,16 @@ pub(crate) static COVERAGE: &[Capability] = &[
         ],
     ),
     covered("The log store", "Logs", &[any("/api/v1/diagnostics/logs")]),
+    // The level the service logs at and an area on debug for a while (RD-1260-12):
+    // get_log_level, set_log_level, start_log_debug, stop_log_debug.
+    covered(
+        "The log level and a debug window",
+        "Logs, Settings > System",
+        &[
+            any("/api/v1/diagnostics/log-level"),
+            any("/api/v1/diagnostics/log-level/debug"),
+        ],
+    ),
     covered("The audit log", "Audit", &[any("/api/v1/audit/records")]),
     covered(
         "Clearing logs, audit records and statistics",
@@ -1118,6 +1133,17 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "A category's download window",
         "Settings > Routing > category editor",
         &[any("/api/v1/categories/{id}/download-window")],
+    ),
+    // ---- RD-1260-10 ----
+    omitted(
+        "Click'n'Load from the browser extension",
+        "the browser extension, not the web UI",
+        &[any("/api/v1/capture/click-and-load")],
+        "A hand-over from the browser, not a capability: the extension takes a hoster page's \
+         Click'n'Load request in place of the desktop agent and passes its fields on under its \
+         capture token, which no api: token is. What it ends in, links with their package and \
+         password in the LinkGrabber, collect_links already gives an agent, without an encrypted \
+         payload or a jk script to have evaluated.",
     ),
 ];
 

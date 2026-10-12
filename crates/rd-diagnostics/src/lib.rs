@@ -11,6 +11,8 @@
 //! * [`bundle`] — the inventory a person approves and the deterministic archive built from it.
 //! * [`notes`] — the codes that carry every line a person reads about the bundle, and the
 //!   English rendering the archive keeps for a reader outside the application.
+//! * [`log_filter`] — the filter in front of all of it: the level from the settings, an area on
+//!   debug for a while, `RUST_LOG` when set, swapped while the service runs (RD-1260-12).
 //! * [`trace_layer`] and [`otlp`] — the optional trace export (RD-110-03): a second layer
 //!   that builds an OTLP span from any span carrying a trace context, and the task that
 //!   posts batches of them. Off by default, never blocking, never retrying.
@@ -25,6 +27,7 @@
 pub mod bundle;
 pub mod capture;
 pub mod checks;
+pub mod log_filter;
 pub mod notes;
 pub mod otlp;
 pub mod sink;

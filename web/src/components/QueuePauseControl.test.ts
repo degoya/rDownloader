@@ -63,7 +63,9 @@ describe('QueuePauseControl', () => {
 
     expect(queuePause.active).toBe(true)
     expect(vi.mocked(api.PUT)).toHaveBeenCalledWith('/api/v1/queue/pause', { body: { minutes: 60 } })
-    expect(screen.getByTestId('queue-pause-resume').textContent).toMatch(/^Paused until /)
+    // An icon in the navbar too (RD-1260-06): the state beside it, the key `p` in its tooltip.
+    expect(screen.getByTestId('queue-pause-state').textContent?.trim()).toMatch(/^Paused until /)
+    expect(screen.getByTestId('queue-pause-resume').getAttribute('title')).toMatch(/ \(P\)$/)
   })
 
   it('resumes everything at a click while a timed pause holds', async () => {
@@ -90,7 +92,7 @@ describe('QueuePauseControl', () => {
     await vi.waitFor(() => expect(screen.queryByTestId('queue-pause-resume')).toBeTruthy())
 
     expect(queuePause.openEnded).toBe(true)
-    expect(screen.getByTestId('queue-pause-resume').textContent).toBe('Stopped at the stop mark')
+    expect(screen.getByTestId('queue-pause-state').textContent?.trim()).toBe('Stopped at the stop mark')
     await fireEvent.click(screen.getByRole('button', { name: 'Resume now' }))
     await vi.waitFor(() => expect(transfers.notice).toBe('1 transfer was started or resumed.'))
     expect(queuePause.active).toBe(false)

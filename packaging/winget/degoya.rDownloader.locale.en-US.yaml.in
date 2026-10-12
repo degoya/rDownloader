@@ -7,7 +7,7 @@
 PackageIdentifier: degoya.rDownloader
 PackageVersion: @VERSION@
 PackageLocale: en-US
-Publisher: degoya
+Publisher: DEGOYA.digital
 PublisherUrl: https://github.com/@OWNER@
 PublisherSupportUrl: https://github.com/@REPOSITORY@/issues
 PackageName: rDownloader

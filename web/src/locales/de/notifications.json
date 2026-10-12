@@ -124,5 +124,9 @@
     "attempts": "{count} Versuch | {count} Versuche",
     "empty": "Noch nichts zugestellt.",
     "target_removed": "gelöschtes Ziel"
+  },
+  "desktop": {
+    "quiet_summary_title": "Während der Ruhezeit: {count} Benachrichtigungen",
+    "quiet_summary_more": "und {count} weitere"
   }
 }

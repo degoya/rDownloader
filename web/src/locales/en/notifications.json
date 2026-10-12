@@ -124,5 +124,9 @@
     "attempts": "{count} attempt | {count} attempts",
     "empty": "Nothing delivered yet.",
     "target_removed": "removed destination"
+  },
+  "desktop": {
+    "quiet_summary_title": "While it was quiet: {count} notifications",
+    "quiet_summary_more": "and {count} more"
   }
 }

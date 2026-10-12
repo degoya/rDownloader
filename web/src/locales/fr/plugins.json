@@ -186,23 +186,11 @@
     "no_added_permissions": "Ne demande rien que la v{version} n’ait déjà."
   },
   "updates": {
-    "eyebrow": "Dépôts",
-    "title": "Mises à jour",
-    "description": "Versions plus récentes des dépôts activés, signées avec la clé de la version installée. Rien ne s’installe sans votre vérification, sauf si un plugin est réglé sur la mise à jour automatique.",
-    "empty": "Tous les plugins installés sont à jour.",
     "version_change": "v{from} → v{to}",
-    "from": "depuis {repository}",
     "automatic": "Automatique",
     "automatic_hint": "Installée à la prochaine vérification ; active après un redémarrage.",
     "review": "Vérifier la mise à jour",
-    "available_title": "Plugins disponibles",
-    "available_empty": "Les dépôts ne proposent rien qui ne soit déjà installé ici.",
     "review_package": "Vérifier",
-    "compatibility": {
-      "contract_unsupported": "Nécessite un autre contrat de plugin",
-      "app_too_old": "Nécessite un rDownloader plus récent",
-      "withdrawn": "Retiré"
-    },
     "adds_permissions": "Nouvelles autorisations",
     "adds_permissions_hint": "Demande plus que la version installée ; elle ne s’installe donc qu’après votre examen, même si les mises à jour sont automatiques.",
     "added_permissions": "Nouveau : {permissions}",
@@ -244,9 +232,6 @@
     "empty": "Aucun dépôt configuré."
   },
   "bundled": {
-    "eyebrow": "Lot fourni",
-    "title": "Services disponibles",
-    "description": "Ce que cette version fournit sans être installé : non choisi, supprimé ou nouveau. Un clic installe un service avec tous ses plugins ; ceux d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage.",
     "search": "Rechercher un service",
     "filter_label": "Filtrer par catégorie",
     "all": "Tous",
@@ -268,7 +253,6 @@
     "needs_account": "Nécessite un compte ou une destination",
     "install": "Installer",
     "no_match": "Aucun service ne correspond à « {query} ».",
-    "all_installed": "Tout le lot fourni est installé.",
     "none": "Cette version ne fournit aucun lot. Les plugins viennent alors d'un dépôt.",
     "failed": "{name} n'a pas pu être installé : {reason}",
     "installed": "Rien n'a été installé. | 1 plugin installé ; un plugin d’hébergeur ou de connexion fonctionne aussitôt, les autres types dès le prochain démarrage. | {count} plugins installés ; ceux d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage.",
@@ -276,9 +260,32 @@
   },
   "tabs": {
     "installed": "Installés",
-    "add": "Ajouter",
-    "updates": "Mises à jour",
     "repositories": "Dépôts",
-    "trust": "Confiance"
+    "trust": "Confiance",
+    "catalogue": "Catalogue"
+  },
+  "catalogue": {
+    "eyebrow": "Plugins",
+    "title": "Services et plugins",
+    "description": "Tout ce que cette version fournit et que les dépôts de plugins proposent : installé, disponible ou avec une mise à jour en attente. Un service vient du dépôt quand il répond, sinon du lot fourni ; les plugins d'hébergeur et de connexion fonctionnent aussitôt, les autres types au prochain démarrage.",
+    "origin": {
+      "bundled": "Fourni",
+      "repository": "Dépôt",
+      "upload": "Téléversé"
+    },
+    "origin_hint": "D'où vient le plugin : pour un service installé, d'où vient la version installée, sinon d'où une installation le prendrait maintenant.",
+    "state": {
+      "available": "Disponible",
+      "update": "Mise à jour disponible"
+    },
+    "show_label": "Filtrer par état",
+    "show": {
+      "all": "Tous",
+      "installed": "Installés",
+      "available": "Disponibles",
+      "updates": "Mises à jour"
+    },
+    "none": "Ni le lot fourni ni aucun dépôt ne propose quoi que ce soit. Sans réseau, les plugins viennent du lot à côté du programme.",
+    "none_shown": "Aucun service dans cet état."
   }
 }

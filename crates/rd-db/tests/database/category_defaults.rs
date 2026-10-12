@@ -39,6 +39,7 @@ fn category(name: &str, root_id: StorageRootId, is_default: bool) -> NewCategory
         storage_root_id: root_id,
         relative_path: name.to_lowercase(),
         is_default,
+        selectable: true,
         postprocess_level: None,
         script: None,
         cleanup_extensions: None,
@@ -256,5 +257,51 @@ async fn deleting_the_last_category_leaves_an_empty_table() {
             .await
             .expect("categories")
             .is_empty()
+    );
+}
+
+/// The default category is what applies when nothing is chosen, so it is never hidden from the
+/// pickers (RD-1260-03): not as the first category, not when the last default is coerced back,
+/// not when a hidden category is promoted because the default went.
+#[tokio::test]
+async fn the_default_category_is_always_selectable() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = database(&directory).await;
+    let root_id = root(&database).await;
+    let hidden = |name: &str, is_default: bool| NewCategory {
+        selectable: false,
+        ..category(name, root_id, is_default)
+    };
+    let alpha = database
+        .create_category(hidden("Alpha", false))
+        .await
+        .expect("alpha");
+    assert!(alpha.is_default && alpha.selectable, "the first category");
+    let bravo = database
+        .create_category(hidden("Bravo", false))
+        .await
+        .expect("bravo");
+    assert!(
+        !bravo.selectable,
+        "a category that is not the default stays hidden"
+    );
+
+    let coerced = database
+        .update_category(alpha.id, hidden("Alpha", false))
+        .await
+        .expect("update");
+    assert!(coerced.is_default && coerced.selectable, "the last default");
+
+    database.delete_category(alpha.id).await.expect("delete");
+    let promoted = database
+        .list_categories()
+        .await
+        .expect("categories")
+        .into_iter()
+        .find(|category| category.id == bravo.id)
+        .expect("bravo is still there");
+    assert!(
+        promoted.is_default && promoted.selectable,
+        "the promoted one"
     );
 }

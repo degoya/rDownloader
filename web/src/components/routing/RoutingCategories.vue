@@ -402,6 +402,9 @@ async function remove(category: Category): Promise<void> {
           <UFormField orientation="horizontal" :label="t('routing.category.default_label')" :description="t('routing.category.default_description')">
             <USwitch v-model="form.is_default" :aria-label="t('routing.category.default_label')" />
           </UFormField>
+          <UFormField orientation="horizontal" data-settings-anchor="routing.category_selectable" :label="t('routing.category.selectable_label')" :description="form.is_default ? t('routing.category.selectable_default_hint') : t('routing.category.selectable_description')">
+            <USwitch v-model="form.selectable" :disabled="form.is_default" :aria-label="t('routing.category.selectable_label')" data-testid="category-selectable-switch" />
+          </UFormField>
           <UFormField orientation="horizontal" :label="t('routing.category.cleanup_override_label')" :description="t('routing.category.cleanup_override_description')">
             <USwitch v-model="cleanupOverride" :aria-label="t('routing.category.cleanup_override_label')" />
           </UFormField>

@@ -39,6 +39,7 @@ function cleanupSummary(category: Category): string {
       <p class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted">{{ props.category.name }}</p>
       <UBadge v-if="props.editing" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
       <UBadge v-if="props.category.is_default" size="sm" color="primary" variant="subtle">{{ t('routing.category.default_badge') }}</UBadge>
+      <UBadge v-if="props.category.selectable === false" size="sm" color="neutral" variant="outline" icon="i-lucide-eye-off" :title="t('routing.category.hidden_badge_title')" data-testid="category-hidden-badge">{{ t('routing.category.hidden_badge') }}</UBadge>
       <UButton
         size="xs"
         color="neutral"

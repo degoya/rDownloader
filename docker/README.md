@@ -141,6 +141,21 @@ environment:
   TZ: "Europe/Berlin"
 ```
 
+## Log level
+
+How much the service logs — error, warning, info (the default) or debug — is set in the
+interface, under *Settings › System* or on the *Logs* page, and holds from the next line without
+restarting the container; *Debug for a while* there puts one area on debug for 15, 30 or 60
+minutes. Setting `RUST_LOG` in the container's environment overrides both for as long as the
+container runs with it, and the interface then names the value and locks its controls:
+
+```yaml
+environment:
+  RUST_LOG: "rdownloader=info,rd_=info,rd_usenet=debug"
+```
+
+Leave it unset unless a support request asks for a filter the interface does not offer.
+
 ## External tools in the image
 
 The image ships the helper binaries the service shells out to, so media downloads, streams,
@@ -430,3 +445,4 @@ scripts/docker-smoke.sh rdownloader:local
 | A storage root is badged NOT PERSISTENT | The path is not mounted — add a volume for it |
 | Media downloads fail | *Settings → Tools*; try a newer yt-dlp in `/config/vendor` |
 | Schedules fire at the wrong time | `TZ` is unset, so the container runs on UTC |
+| The log level in the interface is locked | `RUST_LOG` is set in the container's environment — remove it to choose the level there |

@@ -406,7 +406,8 @@ pin — the way out there is a new migration. The file is plain `sha384sum` outp
   each package's notes from `plugin-release-notes.sh` (RD-1140-03) and URLs into the plugin
   release `plugins-vX.Y.Z`, and `publish` attaches it to the application release; by hand
   it is `rdownloader plugin index build dist/plugins --out <file> --key <repository key>` (or the
-  same with `rd-pack`), see
+  same with `rd-pack`; `--previous <published index>` keeps the last version per plugin contract,
+  RD-1260-02, as the release passes the latest release's index), see
   `docs/plugins.md#plugin-repository-index`.
 - **`check.sh` does not run `cargo clippy --workspace --all-targets --all-features` by default.**
   That single command has taken the machine into swap and required a hard restart. Branch level

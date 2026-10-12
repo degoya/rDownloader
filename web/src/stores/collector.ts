@@ -104,22 +104,24 @@ export const useCollectorStore = defineStore('collector', () => {
    * Raises the desktop notification for freshly arrived links.
    *
    * The server emits `collector.intake` for every intake path (web UI, browser extension,
-   * hotfolder, subscriptions), so this covers all of them. The capture agent shows the same
-   * message, but it is a separate process that is often not running — the web UI should not
-   * depend on it.
+   * hotfolder, subscriptions), so this covers all of them. While a capture agent is connected it
+   * shows the toast on the desktop, and the service says so on the event (`agent_toast`): one
+   * surface per intake, so the tab stays quiet then (RD-1260-04).
    */
   function announceIntake(event: MessageEvent<string>): void {
-    let payload: { candidate_count?: number, package_count?: number }
+    let payload: { candidate_count?: number, package_count?: number, agent_toast?: boolean }
     try {
       payload = (JSON.parse(event.data) as { payload?: typeof payload }).payload ?? {}
     } catch {
       return
     }
+    if (payload.agent_toast === true) return
     const links = payload.candidate_count ?? 0
     if (links <= 0) return
     notifications.notify(
       i18n.global.t('linkgrabber.notifications.intake_title'),
-      i18n.global.t('linkgrabber.notifications.intake_body', { count: links }, links)
+      i18n.global.t('linkgrabber.notifications.intake_body', { count: links }, links),
+      { tag: 'intake' }
     )
   }
 

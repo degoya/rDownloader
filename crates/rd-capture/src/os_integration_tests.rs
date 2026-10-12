@@ -11,6 +11,8 @@ fn the_macos_helper_declares_the_scheme_and_forwards_links() {
     let applet = include_str!("../../../resources/macos/rdownloader-capture.applescript");
     assert!(applet.contains("on open location "), "{applet}");
     assert!(applet.contains("\" handle \" & quoted form of"), "{applet}");
+    // Every file of one drop in one `open`, so several end in one notification (RD-1260-09).
+    assert!(applet.contains("\" open\" & fileArguments"), "{applet}");
     // A helper from before 1.8, or one whose schemes name something else.
     assert!(!super::declares_url_scheme(
         &info.replace("<key>CFBundleURLSchemes</key>", "<key>Other</key>")
@@ -72,13 +74,38 @@ fn desktop_and_mime_outputs_cover_nzb_and_reserved_paths() {
         "/tmp/Portable 100%/$Tools/\"capture\"",
     ))
     .expect("valid desktop path");
-    assert!(desktop.contains(r#"Exec="/tmp/Portable 100%%/\$Tools/\"capture\"" open %f"#));
+    // `%F`: several files selected at once arrive in one `open`, and one notification
+    // (RD-1260-09).
+    assert!(desktop.contains(r#"Exec="/tmp/Portable 100%%/\$Tools/\"capture\"" open %F"#));
     assert!(desktop.contains("Terminal=false"));
     assert!(desktop.contains("NoDisplay=false"));
-    assert!(desktop.contains("Comment=Import NZB into rDownloader"));
     assert!(desktop.contains("Categories=Network;"));
     assert!(desktop.contains("MimeType=application/x-nzb;"));
     assert!(super::LINUX_NZB_MIME_XML.contains("<glob pattern=\"*.nzb\"/>"));
+}
+
+/// Every type the agent takes is offered by the desktop entry, and every container has its
+/// glob in the agent's MIME package (RD-1260-09).
+#[test]
+fn the_desktop_entry_offers_every_type_the_agent_takes() {
+    for (extension, kind) in crate::hand_over::HANDED_OVER {
+        let mime = match kind {
+            crate::hand_over::FileKind::Torrent => "application/x-bittorrent".to_owned(),
+            _ => format!("application/x-{}", &extension[1..]),
+        };
+        assert!(
+            super::LINUX_MIME_TYPES.contains(&format!("{mime};")),
+            "{extension}: {mime}"
+        );
+        if kind == crate::hand_over::FileKind::Container {
+            assert!(
+                super::LINUX_CONTAINER_MIME_XML.contains(&format!("<mime-type type=\"{mime}\">"))
+                    && super::LINUX_CONTAINER_MIME_XML
+                        .contains(&format!("<glob pattern=\"*{extension}\"/>")),
+                "{extension}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -88,9 +115,10 @@ fn windows_registry_entries_include_import_verb_with_exact_quoting() {
 
     assert_eq!(
         entries.len(),
-        8,
-        "expected 4 file-association entries, 3 Import verb entries and the notification \
-             AppUserModelID"
+        34,
+        "expected 4 NZB file-association entries, the notification AppUserModelID, 3 Import verb \
+         entries for each of the 7 types and the Applications key with its command and the 6 \
+         types it is offered for"
     );
     assert!(
         entries.iter().any(|entry| entry.key
@@ -182,20 +210,101 @@ fn association_remove_takes_the_notification_sender_with_it() {
     );
 }
 
-/// The deliberate restraint: rDownloader's own verb goes, the shared parent stays.
+/// The deliberate restraint: rDownloader's own verb goes, the shared parent stays -- for every
+/// type the agent takes (RD-1260-09), and for the `Applications` key it lists itself under.
 #[test]
 fn the_shared_file_association_parent_is_never_deleted() {
-    let parent = r"HKCU\Software\Classes\SystemFileAssociations\.nzb";
     let keys = super::windows_removal_keys(&super::windows_registry_entries("x"));
-    for key in &keys {
+    let mut shared = vec![r"HKCU\Software\Classes\Applications".to_owned()];
+    for (extension, _) in crate::hand_over::HANDED_OVER {
+        let parent = format!(r"HKCU\Software\Classes\SystemFileAssociations\{extension}");
         assert!(
-            !parent.starts_with(key.as_str()),
-            "{key} would take {parent} with it, and other software registers verbs there"
+            keys.contains(&format!(r"{parent}\shell\rDownloader.Import")),
+            "rDownloader's own verb for {extension} is still removed: {keys:?}"
+        );
+        shared.push(parent);
+    }
+    for parent in &shared {
+        for key in &keys {
+            assert!(
+                !parent.starts_with(key.as_str()),
+                "{key} would take {parent} with it, and other software registers there"
+            );
+        }
+    }
+}
+
+/// The containers and the torrent are offered, never claimed (RD-1260-09): nothing is written
+/// under their own extension keys, where the default program is named, while "Open with" lists
+/// the agent and every type has its "Import into rDownloader" with the exact command.
+#[test]
+fn the_containers_are_offered_without_taking_another_programs_default() {
+    let executable = r"C:\Program Files\rDownloader\rdownloader-capture.exe";
+    let entries = super::windows_registry_entries(executable);
+    let application = r"HKCU\Software\Classes\Applications\rdownloader-capture.exe";
+    let command = r#""C:\Program Files\rDownloader\rdownloader-capture.exe" open "%1""#;
+    assert!(entries.iter().any(
+        |entry| entry.key == format!(r"{application}\shell\open\command") && entry.value == command
+    ));
+    for (extension, kind) in crate::hand_over::HANDED_OVER {
+        let verb = format!(
+            r"HKCU\Software\Classes\SystemFileAssociations\{extension}\shell\rDownloader.Import"
+        );
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.key == format!(r"{verb}\command")
+                    && entry.name.is_none()
+                    && entry.value == command),
+            "{extension}"
+        );
+        if kind == crate::hand_over::FileKind::Nzb {
+            continue;
+        }
+        let own = format!(r"HKCU\Software\Classes\{extension}");
+        assert!(
+            entries.iter().all(|entry| !entry.key.starts_with(&own)),
+            "{own} names the default program and is not rDownloader's to write"
+        );
+        assert!(
+            entries.iter().any(
+                |entry| entry.key == format!(r"{application}\SupportedTypes")
+                    && entry.name == Some(extension)
+                    && entry.value.is_empty()
+            ),
+            "{extension} is not offered in Open with"
         );
     }
+}
+
+/// The helper declares every type the agent takes (RD-1260-09): the NZB as its owner, the link
+/// containers and the torrent only as an alternate, so no other program's default is displaced.
+#[test]
+fn the_macos_helper_offers_the_containers_without_owning_them() {
+    let info = include_str!("../../../resources/macos/capture-helper-Info.plist");
+    for (extension, _) in crate::hand_over::HANDED_OVER {
+        assert!(
+            info.contains(&format!("<string>{}</string>", &extension[1..])),
+            "{extension} has no imported type"
+        );
+    }
+    let (owned, offered) = info
+        .split_once("<string>Link container or torrent</string>")
+        .expect("the containers have a document type of their own");
     assert!(
-        keys.iter().any(|key| key
-            == r"HKCU\Software\Classes\SystemFileAssociations\.nzb\shell\rDownloader.Import"),
-        "rDownloader's own verb is still removed: {keys:?}"
+        owned.contains("<string>Owner</string>"),
+        "the NZB stays owned"
     );
+    let offered = offered
+        .split_once("</dict>")
+        .map_or(offered, |(head, _)| head);
+    assert!(offered.contains("<string>Alternate</string>"), "{offered}");
+    assert!(!offered.contains("<string>Owner</string>"), "{offered}");
+    for identifier in ["dlc", "ccf", "rsdf", "rdlinks", "crawljob"] {
+        assert!(
+            offered.contains(&format!("<string>org.rdownloader.{identifier}</string>")),
+            "{identifier}"
+        );
+    }
+    assert!(offered.contains("<string>org.bittorrent.torrent</string>"));
 }

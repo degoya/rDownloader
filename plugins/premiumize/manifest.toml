@@ -3,7 +3,7 @@ plugin_type = "resolver"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000002"
 name = "Premiumize.me"
-version = "0.7.17"
+version = "0.7.18"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 match_domains = ["*"]
@@ -18,7 +18,7 @@ domains = ["premiumize.me", "www.premiumize.me", "*.premiumize.me"]
 
 [metadata]
 description = "Resolves links of other hosters through a Premiumize.me account."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

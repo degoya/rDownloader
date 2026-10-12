@@ -245,7 +245,7 @@ impl Agent {
         }
         self.shown = true;
         let surface = self.state.surface();
-        match TrayHandle::build(self.mark(surface.icon), &surface) {
+        match TrayHandle::build(self.mark(surface.icon), self.marks.logo(), &surface) {
             Ok(handle) => {
                 handle.show_updates(&self.server_view, &self.update_menu);
                 self.tray = Some(handle);
@@ -335,6 +335,7 @@ impl Agent {
         }
         if let Some(enabled) = update.open_enabled {
             tray.open_item.set_enabled(enabled);
+            tray.about_item.set_enabled(enabled);
         }
         if let Some(queue) = update.queue {
             tray.show_queue(queue);
@@ -414,15 +415,22 @@ impl Agent {
     /// One command, from the menu or a shortcut: the same action either way.
     fn carry_out(&mut self, command: CaptureCommand) {
         match controls::action(command) {
-            Action::Open => {
+            // "About rDownloader" opens a page of the same address, under the same rule
+            // (RD-1260-08).
+            action @ (Action::Open | Action::About) => {
                 // A shortcut obeys the same rule as the greyed-out entry: the service that is
                 // not answering would only show an error page.
                 if !self.state.surface().open_enabled {
                     tracing::info!("rDownloader is not answering; not opening it");
                     return;
                 }
-                tracing::info!(service = %self.service, "opening rDownloader from the tray");
-                if let Err(error) = open::that_detached(self.service.as_str()) {
+                let page = match action {
+                    Action::About => config::about_page(&self.service),
+                    _ => Some(self.service.clone()),
+                };
+                let Some(page) = page else { return };
+                tracing::info!(%page, "opening rDownloader from the tray");
+                if let Err(error) = open::that_detached(page.as_str()) {
                     tracing::warn!(%error, "could not open the rDownloader web interface");
                 }
             }

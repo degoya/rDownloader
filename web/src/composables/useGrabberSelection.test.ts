@@ -184,7 +184,7 @@ describe('useGrabberSelection size', () => {
     selection.pickPackage('p1', true)
     selection.pickNzb('n1', true)
 
-    expect(selection.size.value).toEqual({ count: 3, bytes: 3500n, unknown: 0 })
+    expect(selection.size.value).toEqual({ count: 3, bytes: 3500n, unknown: 0, parts: { packages: 1, items: 2, unit: 'link', imports: 1 } })
   })
 
   it('keeps a link without a size out of the sum and counts it apart', () => {
@@ -193,8 +193,25 @@ describe('useGrabberSelection size', () => {
 
     selection.pickPackage('p1', true)
 
-    expect(selection.size.value).toEqual({ count: 2, bytes: 1000n, unknown: 1 })
+    expect(selection.size.value).toEqual({ count: 2, bytes: 1000n, unknown: 1, parts: { packages: 1, items: 2, unit: 'link', imports: 0 } })
     selection.clear()
     expect(selection.size.value.count).toBe(0)
+  })
+})
+
+/** RD-1260-07: packages and links apart, a package counted as soon as one of its links is ticked. */
+describe('useGrabberSelection parts', () => {
+  it('counts a wholly and a partly ticked package alike, and the NZB imports apart', () => {
+    const entries = ref<GrabberEntry[]>([collectorEntry('p1', ['a', 'b']), collectorEntry('p2', ['c', 'd', 'e'], 1), collectorEntry('p3', ['f'], 2), nzbEntry('n1', 3)])
+    const selection = useGrabberSelection(entries)
+
+    selection.pickPackage('p1', true)
+    selection.pickCollector('d', true)
+    expect(selection.parts.value).toEqual({ packages: 2, items: 3, unit: 'link', imports: 0 })
+
+    selection.pickNzb('n1', true)
+    expect(selection.parts.value).toEqual({ packages: 2, items: 3, unit: 'link', imports: 1 })
+    selection.clear()
+    expect(selection.parts.value).toEqual({ packages: 0, items: 0, unit: 'link', imports: 0 })
   })
 })

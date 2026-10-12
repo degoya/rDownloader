@@ -11,34 +11,35 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Hand-overs one agent accepts within [`WINDOW`], across all its listeners.
-pub(super) const MAX_HAND_OVERS: usize = 30;
+/// Hand-overs one process accepts within [`WINDOW`]: the agent across all its listeners, the
+/// service across every browser that hands Click'n'Load over (RD-1260-10).
+pub const MAX_HAND_OVERS: usize = 30;
 
 /// The sliding window [`MAX_HAND_OVERS`] counts in.
-pub(super) const WINDOW: Duration = Duration::from_secs(60);
+pub const WINDOW: Duration = Duration::from_secs(60);
 
 /// The longest package name passed on, in characters -- the length a package name may have
 /// in the queue; a longer one is cut there, not refused.
-pub(super) const MAX_PACKAGE_NAME_CHARS: usize = 200;
+pub const MAX_PACKAGE_NAME_CHARS: usize = 200;
 
 /// The longest archive password passed on, in characters. A longer one is refused: a cut
 /// password opens nothing.
-pub(super) const MAX_PASSWORD_CHARS: usize = 1024;
+pub const MAX_PASSWORD_CHARS: usize = 1024;
 
-/// The pace every listener of this process shares, so the IPv4 and the IPv6 listener do not
-/// each grant the whole allowance.
-pub(super) static SHARED: LazyLock<Arc<Pace>> =
+/// The pace every caller in this process shares, so the agent's IPv4 and IPv6 listener do not
+/// each grant the whole allowance, and two browsers handing over to one service do not either.
+pub static SHARED: LazyLock<Arc<Pace>> =
     LazyLock::new(|| Arc::new(Pace::new(MAX_HAND_OVERS, WINDOW)));
 
 /// A sliding-window count of accepted hand-overs.
-pub(super) struct Pace {
+pub struct Pace {
     limit: usize,
     window: Duration,
     recent: Mutex<VecDeque<Instant>>,
 }
 
 impl Pace {
-    pub(super) fn new(limit: usize, window: Duration) -> Self {
+    pub fn new(limit: usize, window: Duration) -> Self {
         Self {
             limit,
             window,
@@ -47,7 +48,7 @@ impl Pace {
     }
 
     /// Whether one more hand-over fits at `now`; counts it when it does.
-    pub(super) fn admit(&self, now: Instant) -> bool {
+    pub fn admit(&self, now: Instant) -> bool {
         let Ok(mut recent) = self.recent.lock() else {
             return false;
         };
@@ -66,7 +67,7 @@ impl Pace {
 }
 
 /// The package name to pass on: trimmed, empty as none, cut at [`MAX_PACKAGE_NAME_CHARS`].
-pub(super) fn package_name(raw: Option<&str>) -> Option<String> {
+pub fn package_name(raw: Option<&str>) -> Option<String> {
     raw.map(str::trim)
         .filter(|value| !value.is_empty())
         .map(|value| {
@@ -81,7 +82,7 @@ pub(super) fn package_name(raw: Option<&str>) -> Option<String> {
 
 /// The first non-empty line of `passwords`, or `Err` when it is longer than
 /// [`MAX_PASSWORD_CHARS`].
-pub(super) fn password(raw: Option<&str>) -> Result<Option<&str>, usize> {
+pub fn password(raw: Option<&str>) -> Result<Option<&str>, usize> {
     let first = raw.and_then(|value| value.lines().map(str::trim).find(|line| !line.is_empty()));
     match first {
         Some(line) if line.chars().count() > MAX_PASSWORD_CHARS => Err(line.chars().count()),

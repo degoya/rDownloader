@@ -136,7 +136,7 @@ schemes = ["example+tcp"]
 
 [metadata]
 description = "Reference transfer backend"
-author = "rDownloader project"
+author = "DEGOYA.digital"
 
 [limits]
 memory_bytes = 67108864

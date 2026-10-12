@@ -21,6 +21,8 @@ struct Inner {
     extraction: rd_extract::ExtractionService,
     power: rd_power::PowerService,
     quiet_hold: QuietHold,
+    /// The countdown the last `power.changed` announced (RD-1260-04).
+    countdown: std::sync::Mutex<CountdownNotice>,
     shutdown: CancellationToken,
 }
 
@@ -46,6 +48,7 @@ impl PowerSupervisor {
                 extraction,
                 power,
                 quiet_hold,
+                countdown: std::sync::Mutex::default(),
                 shutdown: CancellationToken::new(),
             }),
         };
@@ -121,8 +124,9 @@ impl PowerSupervisor {
             .await;
 
         let now = chrono::Utc::now();
+        let busy = unpacking || is_busy(&downloads);
         let (before_cycle, before_completed) = power.cycles().await;
-        let due = power.observe(unpacking || is_busy(&downloads), now).await;
+        let due = power.observe(busy, now).await;
         let (cycle, completed) = power.cycles().await;
         if (cycle, completed) != (before_cycle, before_completed) {
             self.inner
@@ -133,14 +137,19 @@ impl PowerSupervisor {
                 )
                 .await?;
         }
-        if let Some(pending) = &power.status(now).await.pending {
-            // A running countdown is broadcast so the UI can offer the cancel action.
+        let pending = power.status(now).await.pending;
+        // A countdown is announced when it starts and when it ends, not on every tick: each
+        // tick's event used to be one more "power action pending" notification (RD-1260-04).
+        let change = self
+            .inner
+            .countdown
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .observe(pending.as_ref(), due.is_some(), busy);
+        if let Some(payload) = change {
             self.inner.database.broadcast(rd_core::EventEnvelope::new(
                 rd_core::EventKind::PowerChanged,
-                serde_json::json!({
-                    "pending": pending.action,
-                    "runs_at": pending.runs_at,
-                }),
+                payload,
             ));
         }
         if let Some(due) = due {
@@ -188,6 +197,50 @@ impl PowerSupervisor {
                 }
             }
             CompletionAction::None => {}
+        }
+    }
+}
+
+/// The countdown last announced, so a countdown is one `power.changed` when it starts and one
+/// when it ends (RD-1260-04) -- the model is the budget gate's edge (`rd_scheduler`'s
+/// `settle_exceeded`).
+#[derive(Debug, Default)]
+struct CountdownNotice {
+    announced: Option<rd_power::PendingAction>,
+}
+
+impl CountdownNotice {
+    /// The `power.changed` payload a tick that saw `pending` announces, if any. `ran`: the tick
+    /// runs the action; `busy`: new work arrived, which calls a countdown off.
+    fn observe(
+        &mut self,
+        pending: Option<&rd_power::PendingAction>,
+        ran: bool,
+        busy: bool,
+    ) -> Option<serde_json::Value> {
+        let before = self.announced.take();
+        self.announced = pending.cloned();
+        match (before, pending) {
+            (Some(before), Some(now))
+                if before.cycle == now.cycle && before.runs_at == now.runs_at =>
+            {
+                None
+            }
+            (_, Some(now)) => Some(serde_json::json!({
+                "state": "pending",
+                "pending": now.action,
+                "runs_at": now.runs_at,
+            })),
+            (Some(before), None) if ran => Some(serde_json::json!({
+                "state": "running",
+                "action": before.action,
+            })),
+            (Some(before), None) => Some(serde_json::json!({
+                "state": "cancelled",
+                "action": before.action,
+                "reason": if busy { "new_work" } else { "cancelled" },
+            })),
+            (None, None) => None,
         }
     }
 }
@@ -243,3 +296,7 @@ fn is_busy(downloads: &[rd_core::DownloadFile]) -> bool {
 fn is_working(downloads: &[rd_core::DownloadFile]) -> bool {
     downloads.iter().any(|file| file.state.is_working())
 }
+
+#[cfg(test)]
+#[path = "power_service_tests.rs"]
+mod tests;

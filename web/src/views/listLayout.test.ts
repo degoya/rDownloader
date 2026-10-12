@@ -15,6 +15,7 @@ import downloads from '@/locales/en/downloads.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import torrent from '@/locales/en/torrent.json'
 import { useCollectorStore } from '@/stores/collector'
+import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
 import { createTestI18n, uiStubs } from '@/test/mount'
 import { LIST_BAR_ORDER, SHARED_BULK_ACTIONS } from '@/utils/listLayout'
@@ -118,7 +119,8 @@ describe.each(VIEWS)('%s around its list', (_name, view, seed) => {
     const container = await mountSelected(view, seed)
     const checkbox = container.querySelector('[data-testid="list-select-all"]') as HTMLElement
     expect(checkbox.closest('header')).toBeNull()
-    expect(checkbox.closest('label')?.textContent).toContain('2 selected')
+    // Packages and files (links) apart, by the same rule in both lists (RD-1260-07).
+    expect(checkbox.closest('label')?.textContent).toMatch(/2 (files|links) in 1 package selected/)
     // The row, the selection bar and the list follow one another with nothing between them.
     const bar = container.querySelector('[data-testid="queue-list-bar"]') as HTMLElement
     expect(bar.nextElementSibling?.getAttribute('data-testid')).toBe('bulk-action-bar')
@@ -129,7 +131,63 @@ describe.each(VIEWS)('%s around its list', (_name, view, seed) => {
     const container = await mountSelected(view, seed)
     expect(places(container, 'bulkAction')).toEqual([...SHARED_BULK_ACTIONS])
     const bar = container.querySelector('[data-testid="bulk-action-bar"]') as HTMLElement
-    expect(bar.querySelector('.numeric')?.textContent?.trim()).toBe('2 selected')
+    expect(bar.querySelector('[data-testid="bulk-selection"]')?.getAttribute('title')).toMatch(/^2 (files|links) in 1 package selected$/)
     for (const button of bar.querySelectorAll('button')) expect(button.getAttribute('aria-label')).toBeTruthy()
+  })
+})
+
+/**
+ * RD-1260-07 (owner 2026-10-12): the selection names packages and files apart wherever it is
+ * counted, and a package counts as soon as one of its rows is ticked, wholly or partly.
+ */
+describe('the selection count', () => {
+  function seedTwoDownloadPackages(): void {
+    const store = useTransfersStore()
+    store.packages = [0, 1].map(index => ({ id: `pkg-${index}`, name: `Package ${index}`, destination: '/d', priority: 'normal', created_at: '2026-09-01T10:00:00Z', kind: 'http' }) as unknown as DownloadPackage)
+    store.downloads = [[0, 0], [0, 1], [1, 0], [1, 1], [1, 2]].map(([pkg, index]) => ({
+      id: `dl-${pkg}-${index}`, package_id: `pkg-${pkg}`, file_name: `file-${pkg}-${index}.bin`, url: `https://files.example.com/${pkg}/${index}`,
+      state: 'failed', kind: 'http', committed_bytes: '0', total_bytes: '10', created_at: '2026-09-01T10:00:00Z', priority: 'normal', position: index
+    }) as unknown as Download)
+  }
+
+  function seedTwoGrabberPackages(): void {
+    const store = useCollectorStore()
+    store.packages = [0, 1].map(index => ({ id: `cpkg-${index}`, name: `Collected ${index}`, priority: 'normal', created_at: '2026-09-01T10:00:00Z', position: index }) as unknown as CollectorPackage)
+    store.candidates = [[0, 0], [0, 1], [1, 0], [1, 1], [1, 2]].map(([pkg, index]) => ({
+      id: `cand-${pkg}-${index}`, batch_id: 'batch-1', package_id: `cpkg-${pkg}`, url: `https://files.example.com/${pkg}/${index}.bin`,
+      file_name: `link-${pkg}-${index}.bin`, state: 'online', created_at: '2026-09-01T10:00:00Z', priority: 'normal', position: index
+    }) as unknown as LinkCandidate)
+  }
+
+  /** Everything ticked through the list's checkbox, then one row of the second package unticked. */
+  async function mountPartly(view: Component, seed: () => void, row: string): Promise<HTMLElement> {
+    // The queue's packages start closed; the rows to untick have to be on screen.
+    localStorage.setItem('rdownloader-open-packages', JSON.stringify(['pkg-0', 'pkg-1']))
+    const container = await mountSelected(view, seed)
+    await fireEvent.click(container.querySelector(`[data-row-key="${row}"] input[type="checkbox"]`) as HTMLElement)
+    await nextTick()
+    return container
+  }
+
+  it.each([
+    ['Downloads', DownloadsView, seedTwoDownloadPackages, 'file:dl-1-0', '2 packages · 4 files selected'],
+    ['LinkGrabber', LinkGrabberView, seedTwoGrabberPackages, 'link:cand-1-0', '2 packages · 4 links selected']
+  ] as const)('%s counts a partly ticked package in the list bar, the selection bar and the status bar', async (_name, view, seed, row, expected) => {
+    const container = await mountPartly(view, seed, row)
+    const checkbox = container.querySelector('[data-testid="list-select-all"]') as HTMLElement
+    expect(checkbox.closest('label')?.textContent).toBe(expected)
+    expect(container.querySelector('[data-testid="bulk-selection"]')?.getAttribute('title')).toBe(expected)
+    expect(useSelectionStore().size?.parts).toMatchObject({ packages: 2, items: 4 })
+  })
+
+  it('says in the tooltip what the figures on the red actions count', async () => {
+    const container = await mountPartly(DownloadsView, seedTwoDownloadPackages, 'file:dl-1-0')
+    const reset = container.querySelector('[data-testid="downloads-bulk-reset"]') as HTMLElement
+    expect(reset.textContent?.trim()).toBe('4')
+    expect(reset.getAttribute('title')).toBe('Reset 4 files: 4 files of the selection that are not running')
+    // Deleting takes whole packages only: the partly ticked one is not among them.
+    const remove = container.querySelector('[data-testid="downloads-bulk-delete-packages"]') as HTMLElement
+    expect(remove.textContent?.trim()).toBe('1')
+    expect(remove.getAttribute('title')).toBe('Delete 1 package: 1 package whose files are all selected')
   })
 })

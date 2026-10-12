@@ -82,5 +82,32 @@
   "tabs": {
     "log": "Log",
     "bundle": "Diagnostic bundle"
+  },
+  "recording": {
+    "title": "Log level",
+    "description": "What the service records. A change holds from the next line, without a restart, and is saved in the settings.",
+    "level_label": "Level",
+    "locked": "RUST_LOG={value} decides what is logged. The level and debug for a while apply once the service starts without RUST_LOG.",
+    "debug_title": "Debug for a while",
+    "debug_description": "Puts one area on debug for 15, 30 or 60 minutes; afterwards the level holds again by itself, also across a restart. Secrets stay redacted.",
+    "area_label": "Area",
+    "plugin_label": "Plugin",
+    "plugin_all": "All plugins",
+    "minutes_label": "Duration",
+    "minutes_option": "{count} minutes",
+    "start": "Start debug",
+    "active": "{area} is on debug until {until}.",
+    "stop": "End now",
+    "areas": {
+      "plugin": "Plugins",
+      "provider": "Hosters and providers",
+      "usenet": "Usenet",
+      "torrent": "Torrent",
+      "media": "Media",
+      "linkgrabber": "LinkGrabber",
+      "subscriptions": "Subscriptions",
+      "http": "HTTP",
+      "scheduler": "Scheduler"
+    }
   }
 }

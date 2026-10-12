@@ -271,6 +271,11 @@ async fn run_headless(
                 tracing::info!(?command, "shortcut pressed");
                 match crate::controls::action(command) {
                     Action::Open => open_in_browser(&service),
+                    // The app's About page, of the same address (RD-1260-08).
+                    Action::About => match crate::config::about_page(&service) {
+                        Some(page) => open_in_browser(&page),
+                        None => tracing::warn!("the About page has no address"),
+                    },
                     Action::Quit => cancellation.cancel(),
                     // As the tray's entry: nothing to switch while nothing is set up. Queue
                     // control is the service's to refuse, which the settings task logs.

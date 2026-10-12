@@ -4,9 +4,10 @@ import { useI18n } from 'vue-i18n'
 
 import AccountTrafficNotice from '@/components/AccountTrafficNotice.vue'
 import SchedulePauseNotice from '@/components/SchedulePauseNotice.vue'
+import { withShortcut } from '@/composables/shortcutDefinitions'
 import { nextOccurrence, PAUSE_DURATIONS, useQueuePauseStore } from '@/stores/queuePause'
 import { useTransfersStore } from '@/stores/transfers'
-import { DOWNLOADS_NAV_LABEL } from '@/utils/downloadsNavbar'
+import { DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
 import { formatDuration, formatPauseEnd } from '@/utils/format'
 import { clockOf, timeFieldValue } from '@/utils/timeFields'
 
@@ -21,7 +22,7 @@ import { clockOf, timeFieldValue } from '@/utils/timeFields'
  * A bandwidth profile that pauses downloads (RD-1240-30) is named beside it.
  */
 const props = withDefaults(defineProps<{
-  /** `rail`: icon-sized, the labels in the tooltip; `header`: labelled buttons. */
+  /** `rail`: small ghost icons; `header`: the navbar's outlined icons (RD-1260-06). Both name their action in the tooltip. */
   placement?: 'header' | 'rail'
 }>(), { placement: 'header' })
 
@@ -30,9 +31,9 @@ const transfers = useTransfersStore()
 const queuePause = useQueuePauseStore()
 const compact = computed(() => props.placement === 'rail')
 const size = computed(() => compact.value ? 'xs' as const : 'md' as const)
-// A narrow Downloads navbar keeps the header's icons only (RD-1240-33); the names stay as
-// `aria-label` and `title`, and the rail still says until when a timed pause holds.
-const labelUi = DOWNLOADS_NAV_LABEL
+// Icons in both places (RD-1260-06), the key `p` in the tooltip. Until when a pause holds is a
+// state, not an action, and stays text beside the button; a narrow navbar leaves it to the rail.
+const TOGGLE_KEY = 'common.shortcuts.toggle_transfers'
 
 const untilOpen = ref(false)
 const untilClock = ref('')
@@ -104,15 +105,13 @@ async function resumeNow(): Promise<void> {
         :size="size"
         color="primary"
         :variant="compact ? 'ghost' : 'soft'"
-        :label="compact ? undefined : pausedLabel"
         :aria-label="t('downloads.pause.resume_now')"
-        :ui="labelUi"
-        :title="remainingTitle"
+        :title="withShortcut(remainingTitle, TOGGLE_KEY)"
         :loading="queuePause.busy"
         data-testid="queue-pause-resume"
         @click="resumeNow"
       />
-      <span v-if="compact" class="numeric whitespace-nowrap text-primary" :title="remainingTitle">
+      <span class="numeric whitespace-nowrap text-primary" :class="compact ? undefined : ['text-sm', DOWNLOADS_NAV_WIDE]" :title="remainingTitle" data-testid="queue-pause-state">
         {{ pausedLabel }}
       </span>
     </template>
@@ -121,12 +120,10 @@ async function resumeNow(): Promise<void> {
         v-if="transfers.globalControl"
         :icon="transfers.globalControl === 'pause' ? 'i-lucide-pause' : 'i-lucide-play'"
         :size="size"
-        :label="compact ? undefined : globalLabel"
         :color="transfers.globalControl === 'pause' ? 'neutral' : 'primary'"
         :variant="compact ? 'ghost' : transfers.globalControl === 'pause' ? 'outline' : 'soft'"
         :aria-label="globalLabel"
-        :title="globalLabel"
-        :ui="labelUi"
+        :title="withShortcut(globalLabel, TOGGLE_KEY)"
         :loading="transfers.controlsBusy"
         @click="transfers.controlAll(transfers.globalControl)"
       />

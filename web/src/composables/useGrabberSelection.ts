@@ -3,7 +3,7 @@ import { computed, ref, type Ref } from 'vue'
 import type { CollectorPackage, LinkCandidate, NzbImport } from '@/api/types'
 import { useRangeSelection } from '@/composables/useRangeSelection'
 import { isEnqueueable } from '@/utils/candidateState'
-import { sumSelection } from '@/utils/selectionSize'
+import { sumSelection, type SelectionParts } from '@/utils/selectionSize'
 
 export type GrabberKind = 'collector' | 'nzb'
 
@@ -130,6 +130,13 @@ export function useGrabberSelection(entries: Ref<GrabberEntry[]>, orderedKeys?: 
   /** Raw candidate ids for `CollectorPackageGroup`, which selects by link id. */
   const collectorIdSet = computed(() => new Set(collectorIds.value))
   const count = computed(() => activeKeys.value.length)
+  /** Packages, links and NZB imports apart; a package counts once one of its links is ticked (RD-1260-07). */
+  const parts = computed<SelectionParts>(() => ({
+    packages: entries.value.filter(entry => entry.kind === 'collector' && entry.candidates.some(candidate => collectorIdSet.value.has(candidate.id))).length,
+    items: collectorIds.value.length,
+    unit: 'link',
+    imports: nzbIds.value.length
+  }))
   /**
    * The status bar's figure: one size per selected link or import (RD-170-14). A package row is
    * never a key of its own, so a ticked package and its ticked links count once.
@@ -140,7 +147,7 @@ export function useGrabberSelection(entries: Ref<GrabberEntry[]>, orderedKeys?: 
       if (entry.kind === 'nzb') sizes.set(grabberKey('nzb', entry.id), entry.item.total_bytes)
       else for (const candidate of entry.candidates) sizes.set(grabberKey('collector', candidate.id), candidate.size)
     }
-    return sumSelection(activeKeys.value.map(key => sizes.get(key)))
+    return sumSelection(activeKeys.value.map(key => sizes.get(key)), parts.value)
   })
   const state = computed<'none' | 'some' | 'all'>(() => {
     if (!count.value) return 'none'
@@ -165,5 +172,5 @@ export function useGrabberSelection(entries: Ref<GrabberEntry[]>, orderedKeys?: 
     return selectedKeys.value.has(grabberKey('nzb', id))
   }
 
-  return { selectedKeys, collectorIds, collectorIdSet, nzbIds, count, size, state, anchor, noteModifier: range.noteModifier, setCollector, pick, pickCollector, pickNzb, pickPackage, selectAll, clear, toggleAll, isNzbSelected }
+  return { selectedKeys, collectorIds, collectorIdSet, nzbIds, count, parts, size, state, anchor, noteModifier: range.noteModifier, setCollector, pick, pickCollector, pickNzb, pickPackage, selectAll, clear, toggleAll, isNzbSelected }
 }

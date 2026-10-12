@@ -12,9 +12,11 @@
 //!   it exactly once and forgets the cookies.
 //!
 //! Either way the bytes go straight to the importer, and nothing fetches the file again. What
-//! is understood: an NZB, a `.torrent`, and a ZIP of NZBs as an NNTmux cart hands it out. Any
-//! other file is refused under `capture.file_unsupported`, and the extension leaves it to the
-//! browser — which is where it would have stayed without this route.
+//! is understood: a link container -- `.dlc`, `.ccf`, `.rsdf`, `.rdlinks`, `.crawljob` -- by its
+//! name, through the LinkGrabber's container import (RD-1260-09, for the capture agent and the
+//! extension alike); then an NZB, a `.torrent`, and a ZIP of NZBs as an NNTmux cart hands it out,
+//! by their content. Any other file is refused under `capture.file_unsupported`, and the
+//! extension leaves it to the browser -- which is where it would have stayed without this route.
 
 use axum::{
     Json,
@@ -28,6 +30,7 @@ use utoipa::ToSchema;
 use crate::{
     ApiError, AppState,
     capture_fetch::{self, FetchPlan},
+    container_handlers::{ContainerImportResponse, ContainerRequest, import_content},
     container_upload::{JsonOrMultipart, MAX_JSON_CONTAINER_BYTES, decode_base64},
     dto::CollectorIntakeResponse,
     nzb_zip::{self, ZipLimits},
@@ -75,6 +78,8 @@ pub enum CaptureFileKind {
     Nzb,
     Torrent,
     NzbZip,
+    /// A link container, imported into the LinkGrabber (RD-1260-09).
+    Container,
 }
 
 /// What a hand-over became.
@@ -85,6 +90,8 @@ pub struct CaptureFileResponse {
     pub nzb_imports: Vec<rd_core::NzbImport>,
     /// The LinkGrabber intake a torrent became; absent otherwise.
     pub torrent: Option<CollectorIntakeResponse>,
+    /// The container import a link container became; absent otherwise (RD-1260-09).
+    pub container: Option<ContainerImportResponse>,
 }
 
 /// The request body before it is read: an upload, or a JSON document.
@@ -97,11 +104,11 @@ pub type CaptureFileBody = JsonOrMultipart<CaptureFileRequest>;
     request_body(content((Vec<u8> = "multipart/form-data"), (CaptureFileRequest = "application/json"))),
     responses(
         (status = 201, body = CaptureFileResponse),
-        (status = 400, description = "Not an NZB, a torrent or a ZIP of NZBs; a field, a cookie or a header is invalid; or both or neither of content and url were sent"),
+        (status = 400, description = "Not a link container, an NZB, a torrent or a ZIP of NZBs; a container that is invalid, holds no link or whose import is disabled; a field, a cookie or a header is invalid; or both or neither of content and url were sent"),
         (status = 401, description = "Capture token missing or revoked"),
         (status = 403, description = "The address, or one a redirect leads to, is on this machine or otherwise not one the service may request"),
         (status = 413, description = "The file exceeds 64 MiB (48 MiB as base64 JSON)"),
-        (status = 502, description = "The address could not be fetched")
+        (status = 502, description = "The address could not be fetched, or the decryption service did not answer")
     )
 )]
 pub async fn capture_file(
@@ -186,6 +193,30 @@ async fn import(
     file_name: Option<String>,
 ) -> Result<CaptureFileResponse, ApiError> {
     let source = rd_core::IngressSource::BrowserDownload;
+    // A link container goes by its name, and before the content is looked at: an `.rdlinks` is
+    // JSON that may carry whole NZB documents, and must reach the container import rather than
+    // be taken for an NZB (RD-1260-09).
+    if let Some(format) = container_format(file_name.as_deref()) {
+        let request = ContainerRequest {
+            content: bytes,
+            source_label: file_name,
+            format: Some(format),
+            enqueue: false,
+            passphrase: None,
+            package_name: None,
+            category_id: None,
+            priority: None,
+            source,
+            // A capture token is a program's hand, never the person's own.
+            own_hand: false,
+        };
+        return Ok(CaptureFileResponse {
+            kind: CaptureFileKind::Container,
+            nzb_imports: Vec::new(),
+            torrent: None,
+            container: Some(import_content(state, request).await?),
+        });
+    }
     if nzb_zip::is_zip(&bytes) {
         let members = tokio::task::spawn_blocking(move || -> Result<_, ApiError> {
             let members = nzb_zip::nzb_members(&bytes, ZipLimits::DEFAULT)?;
@@ -219,6 +250,7 @@ async fn import(
             kind: CaptureFileKind::NzbZip,
             nzb_imports,
             torrent: None,
+            container: None,
         });
     }
     if looks_like_torrent(&bytes) {
@@ -254,6 +286,7 @@ async fn import(
                 crawled_found: 0,
                 crawled_dropped: 0,
             }),
+            container: None,
         });
     }
     if looks_like_nzb(&bytes) {
@@ -264,12 +297,21 @@ async fn import(
             kind: CaptureFileKind::Nzb,
             nzb_imports: vec![import],
             torrent: None,
+            container: None,
         });
     }
     Err(ApiError::bad_request(
         "capture.file_unsupported",
         "The file is not an NZB, a torrent or a ZIP of NZBs",
     ))
+}
+
+/// The link container a file name announces, `{{password}}` marker aside. A plain `.txt` is a
+/// container of the import dialog, but far too general a name for a file handed over here.
+fn container_format(file_name: Option<&str>) -> Option<rd_collector::ContainerFormat> {
+    let (stem, _) = rd_files::strip_password_marker(file_name?);
+    rd_collector::ContainerFormat::from_file_name(&stem)
+        .filter(|format| *format != rd_collector::ContainerFormat::Text)
 }
 
 /// A bencoded dictionary with an `info` key: what every `.torrent` is.
@@ -292,7 +334,7 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{looks_like_nzb, looks_like_torrent};
+    use super::{container_format, looks_like_nzb, looks_like_torrent};
 
     #[test]
     fn the_kind_is_read_from_the_content_not_the_name() {
@@ -303,5 +345,23 @@ mod tests {
         assert!(looks_like_torrent(b"d8:announce3:foo4:infod4:name1:xee"));
         assert!(!looks_like_torrent(b"<nzb/>"));
         assert!(!looks_like_torrent(b"d3:foo3:bare"));
+    }
+
+    /// A container is known by its name, password marker and case aside; a text file is not
+    /// one here, and a name without one leaves the content to decide (RD-1260-09).
+    #[test]
+    fn a_container_is_known_by_its_name() {
+        use rd_collector::ContainerFormat;
+        assert_eq!(
+            container_format(Some("Release{{secret}}.DLC")),
+            Some(ContainerFormat::Dlc)
+        );
+        assert_eq!(
+            container_format(Some("holiday.rdlinks")),
+            Some(ContainerFormat::RdLinks)
+        );
+        assert_eq!(container_format(Some("links.txt")), None);
+        assert_eq!(container_format(Some("release.nzb")), None);
+        assert_eq!(container_format(None), None);
     }
 }

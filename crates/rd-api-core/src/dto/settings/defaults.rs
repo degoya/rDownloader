@@ -52,6 +52,7 @@ impl Default for SettingsResponse {
             max_chunks_per_file: 4,
             log_retention_records: default_log_retention_records(),
             log_retention_days: default_log_retention_days(),
+            log_level: rd_core::ServiceLogLevel::default(),
             audit_retention_records: default_audit_retention_records(),
             audit_retention_days: default_audit_retention_days(),
             otlp_enabled: false,

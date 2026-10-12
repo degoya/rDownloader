@@ -8,6 +8,7 @@ import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import AccountBrowserSession from '@/components/settings/AccountBrowserSession.vue'
+import AccountHosters from '@/components/settings/AccountHosters.vue'
 import AccountSignInFlow from '@/components/settings/AccountSignInFlow.vue'
 import { signsInWithCode, useAccountForm } from '@/composables/useAccountForm'
 import { useAccountHosters } from '@/composables/useAccountHosters'
@@ -119,6 +120,12 @@ function canConnect(account: Account): boolean {
   // their account secret may be the client secret needed to start the flow, so `has_secret`
   // must not hide their sign-in action.
   return provider.credentials !== 'api_key' || !account.has_secret
+}
+
+/** Whether the row needs its second line: an offer or a badge only some accounts have (RD-1260-05). */
+function hasSecondLine(account: Account): boolean {
+  return (canConnect(account) && !isOpenFlow(flowOf(account.id))) || !!browserSessionHost(account)
+    || editingAccountId.value === account.id || !!trafficHold(account.id) || !!testResults.value[account.id]
 }
 
 /** What to call a provider: its plugin's own name, the registry's, or the bare slug. */
@@ -390,10 +397,16 @@ function proxyName(id: string | null | undefined): string {
       </template>
       <template #list>
         <div class="grid gap-2">
-          <div v-for="account in accounts" :key="account.id" class="min-w-0 p-3" :class="editingRowClass(editingAccountId === account.id)">
-            <!-- Wraps: in a narrow column (the setup wizard) the buttons would otherwise push the
-                 row, and with it the whole list, past the column's edge. -->
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div v-for="account in accounts" :key="account.id" class="@container min-w-0 p-3" :class="editingRowClass(editingAccountId === account.id)">
+            <!--
+              One fixed first line (RD-1260-05): switch, name, the key and cookie slots and *Test*,
+              *Edit*, *Delete* in columns of their own, so every account has them in the same
+              place. What only some accounts have — the sign-in, the browser handover, the
+              badges — goes to a second line under the name. The row measures its own width
+              (`@container`): in a narrow column, the setup wizard's or a phone's, *Test* keeps
+              only its icon and the name is cut, rather than an action breaking onto a line.
+            -->
+            <div class="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5">
               <USwitch
                 :model-value="account.enabled"
                 :disabled="togglingAccountId === account.id"
@@ -401,45 +414,51 @@ function proxyName(id: string | null | undefined): string {
                 :title="account.enabled ? t('network.account.disable') : t('network.account.enable')"
                 @update:model-value="(value: boolean) => setAccountEnabled(account, value)"
               />
-              <div class="min-w-0 flex-1 basis-40"><p class="truncate text-sm font-medium text-highlighted">{{ account.label }}</p><p class="truncate font-mono text-2xs text-muted">{{ account.provider }} · {{ proxyName(account.proxy_profile_id) }}</p></div>
-              <UBadge v-if="editingAccountId === account.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-              <UIcon v-if="account.has_secret" name="i-lucide-key-round" class="text-primary" />
-              <UIcon v-if="account.has_cookies" name="i-lucide-cookie" class="text-warning" />
-              <UBadge v-if="trafficHold(account.id)" size="sm" color="warning" variant="subtle" icon="i-lucide-gauge" :label="t('network.account.traffic_held', { time: formatPauseEnd(trafficHold(account.id)!.next_check_at) })" data-testid="account-traffic-held" />
-              <UBadge
-                v-if="testResults[account.id]"
-                :color="testResults[account.id]!.premium ? 'success' : 'neutral'"
-                variant="subtle"
-                size="sm"
-                :title="t('network.account.last_test')"
-              >
-                {{ testBadge(account.id) }}
-              </UBadge>
-              <!-- Not offered while a sign-in runs: a second one would replace its code. -->
-              <UButton
-                v-if="canConnect(account) && !isOpenFlow(flowOf(account.id))"
-                size="xs"
-                color="primary"
-                variant="ghost"
-                icon="i-lucide-link"
-                :label="t('network.account.connect')"
-                :loading="authFlows.connectingId.value === account.id"
-                @click="connectAccount(account)"
-              />
-              <UButton
-                v-if="browserSessionHost(account)"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-cookie"
-                :label="t('network.account.browser_session.take_over')"
-                :title="t('network.account.browser_session.take_over_hint', { host: browserSessionHost(account) })"
-                :loading="browserSessions.startingId.value === account.id"
-                @click="browserSessions.begin(account.id)"
-              />
-              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="testingAccountId === account.id" @click="testAccount(account)" />
-              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('network.account.edit')" :title="t('network.account.edit')" @click="editAccount(account)" />
-              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('network.account.delete')" :title="t('network.account.delete')" :loading="deletingAccountId === account.id" @click="deleteAccount(account)" />
+              <div class="min-w-0"><p class="truncate text-sm font-medium text-highlighted">{{ account.label }}</p><p class="truncate font-mono text-2xs text-muted">{{ account.provider }} · {{ proxyName(account.proxy_profile_id) }}</p></div>
+              <div class="grid grid-cols-[1rem_1rem] gap-1" data-account-status>
+                <UIcon v-if="account.has_secret" name="i-lucide-key-round" class="col-start-1 size-4 text-primary" />
+                <UIcon v-if="account.has_cookies" name="i-lucide-cookie" class="col-start-2 size-4 text-warning" />
+              </div>
+              <div class="flex shrink-0 items-center gap-1" data-account-actions>
+                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :aria-label="t('common.actions.test')" :title="t('common.actions.test')" :ui="{ label: '@max-sm:hidden' }" :loading="testingAccountId === account.id" @click="testAccount(account)" />
+                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('network.account.edit')" :title="t('network.account.edit')" @click="editAccount(account)" />
+                <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('network.account.delete')" :title="t('network.account.delete')" :loading="deletingAccountId === account.id" @click="deleteAccount(account)" />
+              </div>
+              <div v-if="hasSecondLine(account)" class="col-span-3 col-start-2 flex flex-wrap items-center gap-2" data-account-extras>
+                <!-- Not offered while a sign-in runs: a second one would replace its code. -->
+                <UButton
+                  v-if="canConnect(account) && !isOpenFlow(flowOf(account.id))"
+                  size="xs"
+                  color="primary"
+                  variant="ghost"
+                  icon="i-lucide-link"
+                  :label="t('network.account.connect')"
+                  :loading="authFlows.connectingId.value === account.id"
+                  @click="connectAccount(account)"
+                />
+                <UButton
+                  v-if="browserSessionHost(account)"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-cookie"
+                  :label="t('network.account.browser_session.take_over')"
+                  :title="t('network.account.browser_session.take_over_hint', { host: browserSessionHost(account) })"
+                  :loading="browserSessions.startingId.value === account.id"
+                  @click="browserSessions.begin(account.id)"
+                />
+                <UBadge v-if="editingAccountId === account.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
+                <UBadge v-if="trafficHold(account.id)" size="sm" color="warning" variant="subtle" icon="i-lucide-gauge" :label="t('network.account.traffic_held', { time: formatPauseEnd(trafficHold(account.id)!.next_check_at) })" data-testid="account-traffic-held" />
+                <UBadge
+                  v-if="testResults[account.id]"
+                  :color="testResults[account.id]!.premium ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                  :title="t('network.account.last_test')"
+                >
+                  {{ testBadge(account.id) }}
+                </UBadge>
+              </div>
             </div>
             <AccountSignInFlow
               v-if="flowOf(account.id)"
@@ -453,21 +472,13 @@ function proxyName(id: string | null | undefined): string {
               @cancel="browserSessions.cancel(account.id)"
               @dismiss="browserSessions.dismiss(account.id)"
             />
-            <UCollapsible class="mt-2" @update:open="(open: boolean) => open && loadHosters(account.id)">
-              <UButton size="xs" color="neutral" variant="ghost" class="w-full justify-between" icon="i-lucide-list-checks" :label="t('network.hosters.toggle')" trailing-icon="i-lucide-chevron-down" />
-              <template #content>
-                <USeparator class="mb-2" />
-                <div>
-                  <p class="mb-2 text-xs leading-5 text-muted">{{ t('network.hosters.description') }}</p>
-                  <UInput v-model="hosterFilter" icon="i-lucide-search" size="sm" :placeholder="t('network.hosters.filter_placeholder')" class="mb-2 w-full" />
-                  <p v-if="hostersLoadingId === account.id" class="text-xs text-muted">{{ t('network.hosters.loading') }}</p>
-                  <p v-else-if="!(hostersByAccount[account.id]?.length)" class="text-xs text-muted">{{ t('network.hosters.empty') }}</p>
-                  <div v-else class="flex max-h-48 flex-wrap gap-1 overflow-y-auto">
-                    <UBadge v-for="host in visibleHosters(account.id)" :key="host" color="neutral" variant="subtle" size="sm" class="font-mono">{{ host }}</UBadge>
-                  </div>
-                </div>
-              </template>
-            </UCollapsible>
+            <AccountHosters
+              v-model:filter="hosterFilter"
+              :hosters="visibleHosters(account.id)"
+              :empty="!(hostersByAccount[account.id]?.length)"
+              :loading="hostersLoadingId === account.id"
+              @open="loadHosters(account.id)"
+            />
           </div>
           <DataState :loading="loading" :error="loadError" :empty="!accounts.length">
             <UEmpty :description="t('network.account.empty')" />

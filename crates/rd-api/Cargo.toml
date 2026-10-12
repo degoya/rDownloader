@@ -13,6 +13,7 @@ failpoints = ["rd-api-admin/failpoints"]
 anyhow.workspace = true
 axum.workspace = true
 base64.workspace = true
+chrono.workspace = true
 futures-util.workspace = true
 mime_guess.workspace = true
 rd-api-access = { path = "../rd-api-access" }
@@ -49,7 +50,6 @@ workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
-chrono.workspace = true
 dunce.workspace = true
 hex.workspace = true
 http-body-util = "0.1"

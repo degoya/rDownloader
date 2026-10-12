@@ -67,37 +67,23 @@ impl Update {
 /// Whether this build can run `entry`, judged from the index alone.
 #[must_use]
 pub fn compatibility(entry: &IndexPackage) -> PackageCompatibility {
-    if !SUPPORTED_API_VERSIONS.contains(&entry.api_version.as_str()) {
-        return PackageCompatibility::ContractUnsupported;
-    }
-    let too_old = entry.min_app_version.as_deref().is_some_and(|minimum| {
-        match (
-            semver::Version::parse(minimum),
-            semver::Version::parse(APP_VERSION),
-        ) {
-            (Ok(minimum), Ok(current)) => current < minimum,
-            _ => true,
-        }
-    });
-    if too_old {
-        PackageCompatibility::AppTooOld
-    } else {
-        PackageCompatibility::Compatible
-    }
+    super::compatibility_with(entry, SUPPORTED_API_VERSIONS, APP_VERSION)
 }
 
 /// The newest installed version of one plugin, and the key it is signed with.
-struct Newest {
-    version: semver::Version,
-    text: String,
-    fingerprint: Option<String>,
-    permissions: Permissions,
+pub(super) struct Newest {
+    pub(super) version: semver::Version,
+    pub(super) text: String,
+    pub(super) name: String,
+    pub(super) api_version: String,
+    pub(super) fingerprint: Option<String>,
+    pub(super) permissions: Permissions,
 }
 
 /// The newest installed version of each plugin id. "Newest" rather than "active": an update is
 /// a version newer than every installed one, the rule the bundled packages follow, so a version
 /// kept for a rollback is never offered again.
-fn newest_installed(installed: &[PluginManifest]) -> HashMap<String, Newest> {
+pub(super) fn newest_installed(installed: &[PluginManifest]) -> HashMap<String, Newest> {
     let mut newest: HashMap<String, Newest> = HashMap::new();
     for manifest in installed {
         let Ok(version) = semver::Version::parse(&manifest.version) else {
@@ -114,6 +100,8 @@ fn newest_installed(installed: &[PluginManifest]) -> HashMap<String, Newest> {
                 Newest {
                     version,
                     text: manifest.version.clone(),
+                    name: manifest.name.clone(),
+                    api_version: manifest.api_version.clone(),
                     fingerprint,
                     permissions: Permissions::of(manifest),
                 },

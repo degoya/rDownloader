@@ -579,7 +579,7 @@
   },
   "notifications": {
     "label": "Notifications du navigateur",
-    "description": "Affiche une notification de bureau dès qu’un téléchargement ou un post-traitement se termine. Enregistré uniquement dans ce navigateur.",
+    "description": "Affiche une notification de bureau quand la liste de téléchargements est terminée, que des téléchargements d’un paquet échouent ou que des liens arrivent – une seule fois, depuis l’un des onglets ouverts. Ce que le push envoie déjà à ce navigateur et les liens qu’annonce un agent de bureau en marche leur restent ; les heures calmes les retiennent. Enregistré uniquement dans ce navigateur.",
     "denied": "Le navigateur bloque les notifications pour cette page. Autorisez-les dans les permissions du site puis réactivez l’interrupteur.",
     "unsupported": "Ce navigateur ne prend pas en charge les notifications."
   },
@@ -955,13 +955,15 @@
   },
   "logs": {
     "eyebrow": "Stockage du journal",
-    "title": "Rétention du journal",
-    "description": "Quelle part du journal structuré le service conserve. Les entrées anciennes sont supprimées en arrière-plan ; la file d'attente n'attend jamais.",
+    "title": "Niveau et rétention du journal",
+    "description": "Ce que le service journalise et quelle part il en conserve. Les entrées anciennes sont supprimées en arrière-plan ; la file d'attente n'attend jamais.",
     "records_label": "Entrées conservées",
     "records_description": "Les entrées les plus anciennes partent en premier (1000-500000).",
     "days_label": "Jours conservés",
     "days_description": "Les entrées plus anciennes sont supprimées quel que soit leur nombre (1-365).",
-    "open": "Ouvrir le journal"
+    "open": "Ouvrir le journal",
+    "level_label": "Niveau de journalisation",
+    "level_description": "Ce que le service écrit dans la console, le journal et l’export des traces : erreurs, avertissements, info (par défaut) ou débogage. S’applique dès la ligne suivante après l’enregistrement, sans redémarrage."
   },
   "audit": {
     "eyebrow": "Audit et traçage",
@@ -1209,7 +1211,8 @@
       "add_all_from_linkgrabber": "Tout ajouter depuis le LinkGrabber",
       "add_all_from_linkgrabber_paused": "Tout ajouter depuis le LinkGrabber en pause",
       "install_update": "Installer la mise à jour de l'agent",
-      "restart_server": "Redémarrer le serveur"
+      "restart_server": "Redémarrer le serveur",
+      "about": "À propos de rDownloader"
     },
     "report": {
       "title_unavailable": "Raccourcis indisponibles",

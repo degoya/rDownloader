@@ -205,6 +205,14 @@ test('a browser that refuses extraHeaders still gets its listener', () => {
   assert.equal(before.rest[1], undefined)
 })
 
+test('Chrome reads Click\'n\'Load forms on port 9666 only, and without blocking', () => {
+  // RD-1260-10: the one listener with a request body is filtered to the agent's two addresses.
+  const forms = registered.filter((entry) => entry.name === 'webRequest.onBeforeRequest' && (entry.rest[1] ?? []).includes('requestBody'))
+  assert.equal(forms.length, 1)
+  assert.deepEqual(forms[0].rest[0], { urls: ['http://127.0.0.1:9666/*', 'http://localhost:9666/*'] })
+  assert.deepEqual(forms[0].rest[1], ['requestBody'])
+})
+
 test('no registration waits on a promise in the source either', () => {
   const source = readFileSync(join(root, 'src', 'background.js'), 'utf8')
   // A `.then(...)` in this file may only appear inside a handler, never around a registration.
@@ -225,7 +233,9 @@ test('installing rebuilds the context menu from scratch', async () => {
     ['menu', 'rdownloader-page', 'menuPage', 'page'],
     ['menu', 'rdownloader-selection', 'menuSelection', 'selection'],
     // Sharing a session needs the click as its user gesture, so it lives on the page context.
-    ['menu', 'rdownloader-session', 'menuSession', 'page']
+    ['menu', 'rdownloader-session', 'menuSession', 'page'],
+    // Local files, from any page and from the toolbar button (RD-1260-11).
+    ['menu', 'rdownloader-file', 'menuSendFile', 'page,action']
   ])
 })
 
@@ -254,6 +264,17 @@ test('each menu entry sends what it is about', async () => {
   clicked({ menuItemId: 'rdownloader-session', pageUrl: 'https://hoster.test/' }, { title: 'A page' })
   await settle()
   assert.ok(calls.some(([name, url]) => name === 'fetch' && url.endsWith('/api/v1/capture/cookies')))
+
+  // "Send file to rDownloader…" opens the extension's own page and sends nothing yet.
+  calls.length = 0
+  const opened = []
+  const create = globalThis.chrome.tabs.create
+  globalThis.chrome.tabs.create = (options) => { opened.push(options.url); return create(options) }
+  clicked({ menuItemId: 'rdownloader-file', pageUrl: 'https://hoster.test/' }, {})
+  await settle()
+  globalThis.chrome.tabs.create = create
+  assert.deepEqual(opened, ['chrome-extension://self/src/send-file.html'])
+  assert.deepEqual(calls, [])
 
   // A menu entry with nothing to send sends nothing.
   calls.length = 0

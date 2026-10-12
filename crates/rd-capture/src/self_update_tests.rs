@@ -57,6 +57,7 @@ fn release(version: &str) -> UpdateManifest {
             sha256: "ab".repeat(32),
             size: 2048,
         }],
+        plugin_contracts: Vec::new(),
     }
 }
 
@@ -314,6 +315,7 @@ fn offered(version: &str) -> State {
             changelog_anchor: None,
             artifact: None,
             schema_change: false,
+            plugin_contracts: Vec::new(),
         }),
         ..State::default()
     }

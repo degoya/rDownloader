@@ -12,6 +12,7 @@ mod delivery;
 mod executable;
 mod model;
 mod retry;
+mod summary;
 
 pub use coalesce::{Burst, Coalescer, LONGEST_SECONDS, NAMED, Occurrence, QUIET_SECONDS};
 pub use delivery::{
@@ -27,6 +28,7 @@ pub use model::{
     TargetKind,
 };
 pub use retry::{JITTER_PERCENT, MAX_ATTEMPTS, backoff, backoff_with_seed, next_attempt_at};
+pub use summary::{SUMMARY_NAMED, message_of, quiet_summary};
 
 /// Builds the idempotency key of a delivery.
 ///

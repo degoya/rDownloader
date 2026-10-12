@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**114 capabilities, 87 covered by a tool, 27 deliberately out (16 of them on the owner's line of 2026-09-23).** 481 REST operations, 259 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**116 capabilities, 88 covered by a tool, 28 deliberately out (16 of them on the owner's line of 2026-09-23).** 486 REST operations, 263 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -27,7 +27,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | The desktop agent's clipboard pause, shortcuts and game mode | Settings > Clients & API > Desktop | 2 | `get_capture_agent_settings`, `update_capture_agent_settings` |
 | Full backup: schedule, runs and history | Settings > Backup | 4 | `get_backup_status`, `list_backup_runs`, `run_backup`, `update_backup_schedule` |
 | Full backup: destinations, retention and verification | Settings > Backup | 7 | `create_backup_destination`, `delete_backup_destination`, `list_backup_archives`, `list_backup_verifications`, `preview_backup_retention`, `update_backup_destination`, `verify_backup_archive` |
-| Categories | Settings > Routing | 4 | `create_category`, `delete_category`, `list_configuration`, `update_category` |
+| Categories, and whether the pickers offer one | Settings > Routing | 4 | `create_category`, `delete_category`, `list_configuration`, `update_category` |
 | Routing rules | Settings > Routing | 4 | `create_category_rule`, `delete_category_rule`, `list_category_rules`, `update_category_rule` |
 | Storage roots | Settings > Storage | 4 | `create_storage_root`, `delete_storage_root`, `list_configuration`, `update_storage_root` |
 | Watched folders | Settings > Intake | 4 | `create_hotfolder`, `delete_hotfolder`, `list_hotfolders`, `update_hotfolder` |
@@ -41,11 +41,12 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Livestream channels | Streams | 4 | `create_stream_channel`, `delete_stream_channel`, `list_stream_channels`, `update_stream_channel` |
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
 | Installed plugins: switch and uninstall | Settings > Plugins | 5 | `list_configuration`, `remove_superseded_plugin_versions`, `set_plugin_enabled`, `uninstall_plugin_version` |
-| Choosing the bundled services | Setup wizard, Settings > Plugins | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
+| Choosing the bundled services | Setup wizard, Settings > Plugins > Catalogue | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
 | Remote jobs | Remote jobs | 7 | `choose_remote_job_entries`, `clear_remote_jobs`, `forget_remote_job`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
 | Traffic per Usenet server and its quota | Statistics, Settings > Usenet | 2 | `get_usenet_server_traffic`, `set_usenet_server_quota` |
 | The log store | Logs | 1 | `list_log_records` |
+| The log level and a debug window | Logs, Settings > System | 4 | `get_log_level`, `set_log_level`, `start_log_debug`, `stop_log_debug` |
 | The audit log | Audit | 1 | `list_audit_records` |
 | Clearing logs, audit records and statistics | Settings > System | 4 | `clear_audit_records`, `clear_log_records`, `clear_transfer_stats`, `get_data_reset_preview` |
 | Cleaning up update backups, the plugin cache and the database | Settings > System > Retention | 2 | `clean_up_data_directory`, `get_cleanup_preview` |
@@ -139,5 +140,6 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Stopping the service and the backup before an update | - | 2 | Refused from anywhere but the machine the service runs on, and meant for the launchers and the updater there. A tool that stops the service ends the MCP session that called it, and the backup before an update is the first step of a version switch that no agent performs. |
 | Setting a new administrator password without the current one | - | 1 | rdownloader auth reset-password on the machine the service runs on, and nothing else (RD-190-24): only the local control token opens the route, from this machine. Whoever holds the data directory may recover the installation; an agent that merely reaches the service must not be able to replace the password and end every session. |
 | Installing an update | Settings > System | 2 | Installing stops the service, replaces its program and starts it again: the MCP session that asked ends with the process, and a version switch is the administrator's decision in the interface, not an agent's. Downloading the update ahead of it is the first step of that install and nothing else. get_update_status shows what a download or an install is doing. |
+| Click'n'Load from the browser extension | the browser extension, not the web UI | 1 | A hand-over from the browser, not a capability: the extension takes a hoster page's Click'n'Load request in place of the desktop agent and passes its fields on under its capture token, which no api: token is. What it ends in, links with their package and password in the LinkGrabber, collect_links already gives an agent, without an encrypted payload or a jk script to have evaluated. |
 
 <!-- END generated -->

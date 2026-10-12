@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.1
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.2.0
 
 Scans only the finished package's folder instead of every library, with an optional library section and a mapping from rDownloader's paths to the paths the Plex server sees.

@@ -53,7 +53,7 @@ const hiddenSet = computed(() => [qualityFilter.value, languageFilter.value, hos
 <template>
   <USelect v-model="stateFilter" :items="stateItems" value-key="value" class="w-36" :aria-label="t('linkgrabber.filter.state_label')" />
   <UPopover :content="{ align: 'start' }">
-    <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" :label="t('linkgrabber.filter.more')" :title="t('linkgrabber.filter.more_hint')" data-testid="grabber-filter-more">
+    <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" :label="t('linkgrabber.filter.more')" :title="hiddenSet ? `${t('linkgrabber.filter.more_hint')} · ${t('linkgrabber.filter.set_count', { count: hiddenSet }, hiddenSet)}` : t('linkgrabber.filter.more_hint')" data-testid="grabber-filter-more">
       <template v-if="hiddenSet" #trailing>
         <UBadge color="primary" variant="subtle" size="sm" class="numeric">{{ hiddenSet }}</UBadge>
       </template>

@@ -51,8 +51,8 @@ pub(super) async fn insert_categories(
              direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, \
              upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, \
              unwrap_package_folder, package_name_rules_json, package_name_regex_json, \
-             download_window_json, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             download_window_json, selectable, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -101,6 +101,7 @@ pub(super) async fn insert_categories(
         .bind(crate::download_window_store::window_json(
             value.download_window.as_ref(),
         )?)
+        .bind(value.selectable)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)

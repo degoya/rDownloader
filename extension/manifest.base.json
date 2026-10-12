@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
-  "version": "1.25.1",
+  "version": "1.26.0",
   "default_locale": "en",
   "homepage_url": "https://rdownloader.net",
   "permissions": [
@@ -18,7 +18,9 @@
   ],
   "host_permissions": [
     "http://127.0.0.1:8710/*",
-    "http://localhost:8710/*"
+    "http://localhost:8710/*",
+    "http://127.0.0.1:9666/*",
+    "http://localhost:9666/*"
   ],
   "optional_host_permissions": [
     "http://*/*",
@@ -44,5 +46,18 @@
   },
   "optional_permissions": [
     "cookies"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/cnl/jdcheck.js",
+        "src/cnl/flash.txt",
+        "src/cnl/success.txt"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
   ]
 }

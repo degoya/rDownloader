@@ -10,8 +10,8 @@ import type { CaptureCommand, CaptureShortcuts } from '@/api/types'
 
 /**
  * Every tray command, in the service's order (`CaptureCommand::ALL`): the tray menu's up to
- * `quit`, then the entries that became shortcut-capable with RD-1240-24 and "Restart server"
- * (RD-1240-32).
+ * `quit`, then the entries that became shortcut-capable with RD-1240-24, "Restart server"
+ * (RD-1240-32) and "About rDownloader" (RD-1260-08).
  */
 export const CAPTURE_COMMANDS: readonly CaptureCommand[] = [
   'open',
@@ -28,7 +28,8 @@ export const CAPTURE_COMMANDS: readonly CaptureCommand[] = [
   'add_all_from_linkgrabber',
   'add_all_from_linkgrabber_paused',
   'install_update',
-  'restart_server'
+  'restart_server',
+  'about'
 ]
 
 export type ShortcutPlatform = 'windows' | 'macos' | 'linux'

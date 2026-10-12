@@ -89,10 +89,11 @@ pub(crate) async fn events(
         from_this_machine,
         granted.scopes().to_vec(),
     );
+    let agents = state.capture_agents.clone();
     let frame = move |event: EventEnvelope| {
         granted
             .may_observe(&event.kind)
-            .then(|| full_frame(&event))
+            .then(|| full_frame(&with_toast_owner(event, agents.any_connected())))
             .flatten()
     };
     let stopping = state.shutdown.clone().cancelled_owned();
@@ -117,8 +118,15 @@ pub(crate) async fn capture_events(
     let lapsed = rd_api_core::stream_standing::capture_lapsed(state.clone(), headers.clone());
     let stopping = state.shutdown.clone().cancelled_owned();
     let connection = rd_api_core::capture_agents::connect(&state, &headers).await;
+    let power = state.power.clone();
+    let frame = move |event: EventEnvelope| {
+        capture_frame(with_quiet_until(
+            event,
+            power.notifications_quiet_until(chrono::Utc::now()),
+        ))
+    };
     Sse::new(
-        open(&state.database, &headers, capture_frame)
+        open(&state.database, &headers, frame)
             .take_until(lapsed)
             .take_until(stopping)
             .map(move |frame| {
@@ -254,6 +262,33 @@ fn full_frame(event: &EventEnvelope) -> Option<Event> {
     )
 }
 
+/// An intake as the web interface is sent it, saying whether a connected capture agent shows
+/// the desktop toast for it (`agent_toast`): one surface per event, so the tab leaves it to the
+/// agent while one runs (RD-1260-04).
+fn with_toast_owner(mut event: EventEnvelope, agent_connected: bool) -> EventEnvelope {
+    if event.kind == EventKind::CollectorIntake
+        && let Some(payload) = event.payload.as_object_mut()
+    {
+        payload.insert("agent_toast".to_owned(), agent_connected.into());
+    }
+    event
+}
+
+/// An intake as the capture agent is sent it while quiet hours hold notifications back: with
+/// `quiet_until`, the moment the agent shows what it held as one toast (RD-1260-04).
+fn with_quiet_until(
+    mut event: EventEnvelope,
+    until: Option<chrono::DateTime<chrono::Utc>>,
+) -> EventEnvelope {
+    if event.kind == EventKind::CollectorIntake
+        && let Some(until) = until
+        && let Some(payload) = event.payload.as_object_mut()
+    {
+        payload.insert("quiet_until".to_owned(), serde_json::json!(until));
+    }
+    event
+}
+
 /// The frame the capture stream sends for an event, or `None` for a kind it does not carry.
 fn capture_frame(event: EventEnvelope) -> Option<Event> {
     let data = match event.kind {
@@ -342,8 +377,38 @@ mod tests {
 
     use super::{
         capture_frame, expired_payload, lagged_payload, received, redacted_captcha_signal,
-        resume_point,
+        resume_point, with_quiet_until, with_toast_owner,
     };
+
+    /// One surface per intake (RD-1260-04): the tab learns whether an agent shows the toast,
+    /// and the agent when quiet hours end; every other event passes unchanged.
+    #[test]
+    fn an_intake_names_who_shows_it_and_until_when_it_waits() {
+        let intake = || EventEnvelope::new(EventKind::CollectorIntake, serde_json::json!({}));
+        assert_eq!(
+            with_toast_owner(intake(), true).payload["agent_toast"],
+            true
+        );
+        assert_eq!(
+            with_toast_owner(intake(), false).payload["agent_toast"],
+            false
+        );
+        let until = chrono::Utc::now();
+        assert!(with_quiet_until(intake(), Some(until)).payload["quiet_until"].is_string());
+        assert!(
+            with_quiet_until(intake(), None)
+                .payload
+                .get("quiet_until")
+                .is_none()
+        );
+        let other = EventEnvelope::new(EventKind::CaptchaChanged, serde_json::json!({}));
+        assert!(
+            with_toast_owner(other, true)
+                .payload
+                .get("agent_toast")
+                .is_none()
+        );
+    }
 
     /// A subscriber that fell behind used to be handed nothing at all, which is
     /// indistinguishable from a quiet bus. It has to be told, and told how much it missed.

@@ -13,6 +13,7 @@ import { usePackageDownloadWindow } from '@/composables/usePackageDownloadWindow
 import { usePackageStartAfter } from '@/composables/usePackageStartAfter'
 import { useStopMark } from '@/composables/useStopMark'
 import { formatByteProgress, formatDuration, formatMoment, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
+import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
@@ -181,7 +182,7 @@ const stageBadge = computed(() => {
 })
 const categoryItems = computed(() => [
   { label: t('downloads.bulk.default_category'), value: NO_SELECTION },
-  ...props.categories.map(category => ({ label: category.name, value: category.id }))
+  ...pickableCategories(props.categories, props.package.category_id).map(category => ({ label: category.name, value: category.id }))
 ])
 const categoryModel = computed({
   get: () => props.package.category_id ?? NO_SELECTION,

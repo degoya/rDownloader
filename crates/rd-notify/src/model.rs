@@ -43,14 +43,18 @@ pub enum Severity {
 #[serde(rename_all = "snake_case")]
 pub enum NotificationEvent {
     PackageCompleted,
+    /// A package failed: in post-processing, or every one of its files failed, with their count
+    /// (RD-1260-04).
     PackageFailed,
     /// A storage root fell below its free-space threshold (RD-050-15).
     StorageBlocked,
     /// The active profile's traffic budget is used up (RD-050-12).
     BudgetExhausted,
-    /// A captcha is waiting for a person.
+    /// A captcha is waiting for a person while none was, or the last waiting one ran out
+    /// unanswered; once per such moment (RD-1260-04).
     CaptchaWaiting,
-    /// A queue completion action is counting down (RD-050-13).
+    /// A queue completion action started counting down (RD-050-13), or the countdown was
+    /// cancelled or called off by new work; once each, never per tick (RD-1260-04).
     PowerPending,
     /// A scheduled full backup failed, or reached only some of its destinations (RD-190-19).
     BackupFailed,

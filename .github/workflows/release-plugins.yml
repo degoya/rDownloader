@@ -97,6 +97,11 @@ jobs:
       # the repository key. Until the secret exists the release carries no index. Its URLs are
       # absolute, into the plugin release; the index itself is an asset of the application
       # release, so `releases/latest/download/rdownloader-plugin-index.json` keeps finding it.
+      # RD-1260-02: the index published so far — the latest release's, since this one is not
+      # published yet — is carried over, so per plugin and `rdownloader:plugin` contract the last
+      # version stays offered to installations that still speak an older contract. Its URLs point
+      # into the plugin releases that published them. None found (the first index) carries
+      # nothing over.
       - name: Build and sign the plugin index
         env:
           RDOWNLOADER_REPOSITORY_SIGNING_KEY: ${{ secrets.RDOWNLOADER_REPOSITORY_SIGNING_KEY }}
@@ -106,14 +111,21 @@ jobs:
             echo "::warning::RDOWNLOADER_REPOSITORY_SIGNING_KEY is not set; this release publishes no plugin index"
             exit 0
           fi
-          mkdir -p dist/plugin-index
+          mkdir -p dist/plugin-index dist/plugin-index-previous
+          previous=()
+          if curl -fsSL --retry 3 -o dist/plugin-index-previous/rdownloader-plugin-index.json \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/rdownloader-plugin-index.json"; then
+            previous=(--previous dist/plugin-index-previous/rdownloader-plugin-index.json)
+          else
+            echo "::warning::no published plugin index found; this index carries no older versions"
+          fi
           target/release-test/rd-pack plugin index build dist/plugins \
             --out dist/plugin-index/rdownloader-plugin-index.json \
             --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${PLUGIN_RELEASE_TAG}/" \
             --revocations crates/rd-plugin-host/resources/plugin-index-revocations.json \
-            --notes dist/plugin-notes
+            --notes dist/plugin-notes "${previous[@]}"
           target/release-test/rd-pack plugin index verify \
-            dist/plugin-index/rdownloader-plugin-index.json --packages dist/plugins
+            dist/plugin-index/rdownloader-plugin-index.json --packages dist/plugins "${previous[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plugin-index

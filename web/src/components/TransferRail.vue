@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import QueuePauseControl from '@/components/QueuePauseControl.vue'
 import SpeedHistoryChart from '@/components/SpeedHistoryChart.vue'
 import { useErrorToast } from '@/composables/useErrorToast'
+import { useSelectionSummary } from '@/composables/useSelectionSummary'
 import { useQueuePauseStore } from '@/stores/queuePause'
 import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
@@ -41,11 +42,14 @@ const selectionSize = computed(() => {
   if (!size || size.unknown === size.count) return null
   return size.unknown ? `≥ ${formatBytes(size.bytes)}` : formatBytes(size.bytes)
 })
+/** "4 packages · 11 files selected" (RD-1260-07); a narrow rail shows the file count, this in the tooltip. */
+const summarize = useSelectionSummary()
+const selectionSummary = computed(() => selection.size ? summarize(selection.size.parts) : '')
 const selectionTitle = computed(() => {
   const size = selection.size
   if (!size) return ''
-  if (size.unknown === size.count) return t('downloads.rail.selection_unknown_title', { count: size.count })
-  const params = { count: size.count, size: formatBytes(size.bytes), unknown: size.unknown }
+  if (size.unknown === size.count) return t('downloads.rail.selection_unknown_title', { selection: selectionSummary.value })
+  const params = { selection: selectionSummary.value, size: formatBytes(size.bytes), unknown: size.unknown }
   return t(size.unknown ? 'downloads.rail.selection_partial_title' : 'downloads.rail.selection_title', params)
 })
 
@@ -157,12 +161,15 @@ onMounted(() => void transfers.loadRailSettings())
         </UTooltip>
         <UButton icon="i-lucide-x" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.stop_mark.clear')" :title="t('downloads.stop_mark.clear')" @click="clearStopMark" />
       </span>
-      <!-- Short on a narrow rail: the count and the size, the word only once there is room. -->
+      <!-- Short on a narrow rail: the count and the size; packages and files apart once there is
+           room (RD-1260-07), both always in the tooltip and, narrow, for a screen reader in hidden
+           text in place of the bare count. -->
       <span v-if="selection.size" data-testid="rail-selection" class="flex shrink-0 items-center gap-1.5" :title="selectionTitle">
         <UIcon name="i-lucide-list-checks" class="size-3.5 shrink-0 text-primary" />
         <span class="numeric whitespace-nowrap">
-          <strong class="text-highlighted">{{ selection.size.count }}</strong>
-          <span class="hidden @min-[40rem]:inline">&nbsp;{{ t('common.units.selected') }}</span>
+          <strong class="text-highlighted @min-[80rem]:hidden" aria-hidden="true">{{ selection.size.count }}</strong>
+          <span class="sr-only @min-[80rem]:hidden" data-testid="rail-selection-spoken">{{ selectionSummary }}</span>
+          <span class="hidden @min-[80rem]:inline">{{ selectionSummary }}</span>
           <template v-if="selectionSize"> · {{ selectionSize }}</template>
         </span>
       </span>

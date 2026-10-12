@@ -57,7 +57,9 @@
     "failed_title": "Download fehlgeschlagen",
     "failed_body": "„{file}“ konnte nicht geladen werden.",
     "queue_done_title": "Downloadliste abgearbeitet",
-    "queue_done_body": "Keine Dateien fertiggestellt. | {count} Datei fertiggestellt. | {count} Dateien fertiggestellt."
+    "queue_done_body": "Keine Dateien fertiggestellt. | {count} Datei fertiggestellt. | {count} Dateien fertiggestellt.",
+    "package_failed_title": "Downloads fehlgeschlagen: {package}",
+    "package_failed_body": "{count} von {total} Dateien konnten nicht heruntergeladen werden."
   },
   "confirm": {
     "delete_package_title": "Paket löschen",
@@ -98,7 +100,9 @@
     "level_whole_packages": "Die Nachbearbeitungsstufe gilt für ganze Pakete – bitte alle Dateien eines Pakets auswählen",
     "level_packages_only": "Die Nachbearbeitungsstufe gibt es nur für Link-Pakete, nicht für NZB-Importe.",
     "extract_no_archive": "Die Auswahl enthält keine fertigen Archivdateien",
-    "reset": "{count} Datei zurücksetzen | {count} Dateien zurücksetzen"
+    "reset": "{count} Datei zurücksetzen | {count} Dateien zurücksetzen",
+    "reset_counts": "{count} Datei der Auswahl, die gerade nicht läuft | {count} Dateien der Auswahl, die gerade nicht laufen",
+    "delete_packages_counts": "{count} Paket, dessen Dateien alle ausgewählt sind | {count} Pakete, deren Dateien alle ausgewählt sind"
   },
   "package": {
     "drag_title": "Ziehen, um die Reihenfolge innerhalb der Prio-Stufe zu ändern",
@@ -311,9 +315,9 @@
     "remaining": "{total} ausstehend",
     "eta": "noch {duration}",
     "eta_title": "Geschätzte Restzeit beim aktuellen Tempo",
-    "selection_title": "{count} ausgewählt, zusammen {size}",
-    "selection_partial_title": "{count} ausgewählt, zusammen mindestens {size} – bei {unknown} ist die Größe noch unbekannt",
-    "selection_unknown_title": "{count} ausgewählt, Größe noch unbekannt",
+    "selection_title": "{selection}, zusammen {size}",
+    "selection_partial_title": "{selection}, zusammen mindestens {size} – bei {unknown} ist die Größe noch unbekannt",
+    "selection_unknown_title": "{selection}, Größe noch unbekannt",
     "parallel_max": "max.",
     "parallel_limit_aria": "Höchstzahl gleichzeitiger Downloads",
     "parallel_limit_title": "Wie viele Downloads gleichzeitig laufen dürfen ({min}–{max}); gilt sofort, ohne Neustart",

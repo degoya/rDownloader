@@ -14,8 +14,8 @@ const props = defineProps<{
   /** How much of what the list shows is ticked. */
   state: 'all' | 'some' | 'none'
   count: number
-  /** What the ticked rows are, e.g. "3 files in 2 packages": the tooltip of the count. */
-  detail?: string
+  /** What the ticked rows are, packages and files apart — "4 packages · 11 files selected" (RD-1260-07). */
+  summary: string
   /** The checkbox's accessible name ("Select all files"). */
   selectHint: string
   /** Nothing to select or open. */
@@ -40,9 +40,9 @@ const { t } = useI18n()
       <UCheckbox
         :model-value="props.state === 'all' ? true : props.state === 'some' ? 'indeterminate' : false"
         :disabled="props.empty"
-        :label="props.count ? t('common.selection.count', { count: props.count }) : t('common.actions.select_all')"
+        :label="props.count ? props.summary : t('common.actions.select_all')"
         :aria-label="props.selectHint"
-        :title="props.count ? props.detail : undefined"
+        :title="props.count ? props.summary : undefined"
         :ui="{ root: 'shrink-0', label: 'whitespace-nowrap' }"
         data-list-bar="select"
         data-testid="list-select-all"

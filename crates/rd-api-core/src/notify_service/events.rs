@@ -147,67 +147,27 @@ impl NotificationService {
         )>,
     > {
         match event.kind {
-            rd_core::EventKind::PackageState => {
-                let Some(id) = event.payload.get("package_id").and_then(|v| v.as_str()) else {
-                    return Ok(None);
-                };
-                // An id that does not parse names no row, exactly as it matched none before.
-                let Ok(package_id) = id.parse::<rd_core::PackageId>() else {
-                    return Ok(None);
-                };
-                let Some(package) = self.inner.database.get_package(package_id).await? else {
-                    return Ok(None);
-                };
-                let kind = match package.state {
-                    PackageState::Completed => NotificationEvent::PackageCompleted,
-                    PackageState::Failed => NotificationEvent::PackageFailed,
-                    _ => return Ok(None),
-                };
-                // A package the malware scan stopped says so (RD-190-14): "failed" alone would
-                // read like a broken archive, and this is the one failure somebody must not
-                // retry without looking first.
-                if kind == NotificationEvent::PackageFailed
-                    && let Some(finding) = self.malware_finding(&package.id.to_string()).await
-                {
-                    return Ok(Some((
-                        kind,
-                        package.category_id,
-                        format!("Malware found: {}", package.name),
-                        format!("{} ({finding})", package.name),
-                    )));
-                }
-                let title = match kind {
-                    NotificationEvent::PackageCompleted => {
-                        format!("Package finished: {}", package.name)
-                    }
-                    _ => format!("Package failed: {}", package.name),
-                };
+            rd_core::EventKind::PackageState => self.package_finished(&event.payload).await,
+            rd_core::EventKind::StorageCapacity
+                if super::transitions::storage_blocked(&event.payload) =>
+            {
                 Ok(Some((
-                    kind,
-                    package.category_id,
-                    title,
-                    format!("{} ({})", package.name, package.state),
+                    NotificationEvent::StorageBlocked,
+                    None,
+                    "Storage root out of space".to_owned(),
+                    "A storage root fell below its free-space threshold and takes no new work."
+                        .to_owned(),
                 )))
             }
-            rd_core::EventKind::StorageCapacity => Ok(Some((
-                NotificationEvent::StorageBlocked,
-                None,
-                "Storage root out of space".to_owned(),
-                "A storage root fell below its free-space threshold and takes no new work."
-                    .to_owned(),
-            ))),
-            rd_core::EventKind::CaptchaChanged => Ok(Some((
-                NotificationEvent::CaptchaWaiting,
-                None,
-                "A captcha is waiting".to_owned(),
-                "A download is waiting for a captcha to be answered.".to_owned(),
-            ))),
-            rd_core::EventKind::PowerChanged => Ok(Some((
-                NotificationEvent::PowerPending,
-                None,
-                "Power action pending".to_owned(),
-                "The queue is done and a power action is counting down.".to_owned(),
-            ))),
+            rd_core::EventKind::CaptchaChanged => {
+                Ok(super::transitions::captcha_notice(&event.payload)
+                    .map(|(title, body)| (NotificationEvent::CaptchaWaiting, None, title, body)))
+            }
+            rd_core::EventKind::PowerChanged => Ok(super::transitions::power_notice(
+                &event.payload,
+                event.occurred_at,
+            )
+            .map(|(title, body)| (NotificationEvent::PowerPending, None, title, body))),
             rd_core::EventKind::BandwidthChanged => Ok(budget_exhausted(&event.payload)),
             rd_core::EventKind::UsenetChanged => match usenet_quota_reached(&event.payload) {
                 // One `usenet.changed` arm for both moments (RD-1100-05 quota, RD-1100-02 hopeless).
@@ -221,6 +181,62 @@ impl NotificationService {
             }
             _ => Ok(None),
         }
+    }
+
+    /// A package that just finished or failed, decided on the event's payload (RD-1260-04): its
+    /// row is read only for the name and the category, and a package removed in the meantime is
+    /// still announced.
+    #[allow(clippy::type_complexity)]
+    async fn package_finished(
+        &self,
+        payload: &serde_json::Value,
+    ) -> anyhow::Result<
+        Option<(
+            NotificationEvent,
+            Option<rd_core::CategoryId>,
+            String,
+            String,
+        )>,
+    > {
+        let Some(kind) = super::transitions::package_outcome(payload) else {
+            return Ok(None);
+        };
+        // An id that does not parse names no row, exactly as it matched none before.
+        let Some(package_id) = payload
+            .get("package_id")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|id| id.parse::<rd_core::PackageId>().ok())
+        else {
+            return Ok(None);
+        };
+        let package = self.inner.database.get_package(package_id).await?;
+        let category_id = package.as_ref().and_then(|package| package.category_id);
+        let name = package.map_or_else(|| "A package".to_owned(), |package| package.name);
+        if kind == NotificationEvent::PackageCompleted {
+            return Ok(Some((
+                kind,
+                category_id,
+                format!("Package finished: {name}"),
+                format!("{name} ({})", PackageState::Completed),
+            )));
+        }
+        // A package the malware scan stopped says so (RD-190-14): "failed" alone would read
+        // like a broken archive, and this is the one failure somebody must not retry without
+        // looking first.
+        if let Some(finding) = self.malware_finding(&package_id.to_string()).await {
+            return Ok(Some((
+                kind,
+                category_id,
+                format!("Malware found: {name}"),
+                format!("{name} ({finding})"),
+            )));
+        }
+        Ok(Some((
+            kind,
+            category_id,
+            format!("Package failed: {name}"),
+            super::transitions::package_failed_body(payload, &name),
+        )))
     }
 
     /// A livestream recording that finished (RD-1240-17), in its package's category. Every

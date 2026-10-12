@@ -176,6 +176,8 @@ async fn without_a_passphrase_the_checked_copy_is_written_and_the_answer_says_wh
     assert_eq!(body["target_version"], "9.9.9");
     assert!(body["encrypted_backup"].is_null());
     assert_eq!(body["encrypted_backup_code"], "backup.key_missing");
+    // No release manifest names the target's plugin contracts: no plugin is fetched.
+    assert_eq!(body["plugins"]["code"], "update.plugin_contracts_unknown");
     let copy = std::path::PathBuf::from(body["database_copy"]["path"].as_str().expect("path"));
     assert!(copy.exists());
     assert!(
@@ -309,6 +311,31 @@ async fn a_target_version_that_is_no_file_name_is_refused() {
         assert_eq!(body["code"], "update.target_version_invalid");
     }
     assert!(!rd_backup::pre_update::directory(&data_directory(&harness)).exists());
+    let (status, body) = prepare(
+        &harness,
+        json!({ "target_version": "9.9.9", "plugin_contracts": ["0.12"] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["code"], "update.plugin_contracts_invalid");
+}
+
+/// RD-1260-02: with the target's contracts named and every installed plugin speaking one of
+/// them — here none is installed — nothing is fetched and nothing stands in the way.
+#[tokio::test]
+async fn an_update_on_the_same_plugin_contract_fetches_no_plugin() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let contracts: Vec<&str> = rd_plugin_host::SUPPORTED_API_VERSIONS.to_vec();
+    let (status, body) = prepare(
+        &harness,
+        json!({ "target_version": "9.9.9", "plugin_contracts": contracts }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body["plugins"]["code"].is_null(), "{body}");
+    assert_eq!(body["plugins"]["prepared"], json!([]));
+    assert_eq!(body["plugins"]["missing"], json!([]));
 }
 
 // ---- the stop with event streams open (RD-180-02, live test 2026-10-01) ----

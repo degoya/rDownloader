@@ -28,6 +28,7 @@ fn replacement(label: &str) -> ConfigReplacement {
             storage_root_id: root_id,
             relative_path: "movies".to_owned(),
             is_default: true,
+            selectable: true,
             postprocess_level: Some(rd_core::PostprocessLevel::Unpack),
             script: Some("finish.sh".to_owned()),
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
@@ -207,7 +208,6 @@ async fn replacement_swaps_all_config_atomically_and_emits_refresh_events() {
         .replace_config(replacement("old"))
         .await
         .expect("initial config");
-
     let expected = replacement("new");
     let ids = (
         expected.storage_roots[0].id,

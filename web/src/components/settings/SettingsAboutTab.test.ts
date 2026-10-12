@@ -30,7 +30,7 @@ function aboutAnswer(overrides: Record<string, unknown> = {}) {
     plugin_contracts: ['rdownloader:plugin@0.8.0'],
     platform: 'linux x86_64',
     license: 'GPL-3.0-or-later',
-    authors: ['Alexander Herling'],
+    authors: ['Alexander Herling / DEGOYA.digital'],
     links: [
       { kind: 'source', url: REPOSITORY, published: false },
       { kind: 'website', url: 'https://rdownloader.net', published: true },
@@ -80,7 +80,7 @@ describe('SettingsAboutTab', () => {
     expect(container.querySelector('[data-fact="built"]')?.textContent).toBe('unknown')
     expect(container.querySelector('[data-fact="plugin_contract"]')?.textContent).toBe('rdownloader:plugin@0.8.0')
     expect(container.querySelector('[data-fact="platform"]')?.textContent).toBe('linux x86_64')
-    expect(screen.getByText('Alexander Herling')).toBeTruthy()
+    expect(screen.getByText('Alexander Herling / DEGOYA.digital')).toBeTruthy()
   })
 
   it('writes an unpublished address out as text with a mark, and links only a published one', async () => {
@@ -220,7 +220,7 @@ describe('SettingsAboutTab, tabs', () => {
 
     await waitFor(() => expect(container.querySelector('[data-testid="about-credits"]')).not.toBeNull())
     const dedication = panel(container, 'about').querySelector('[data-testid="about-dedication"]')
-    expect(dedication?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Made with in Germany by Alexander Herling')
+    expect(dedication?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Made with in Germany by Alexander Herling / DEGOYA.digital')
   })
 
   it('says on the licenses tab, too, that the service did not answer', async () => {

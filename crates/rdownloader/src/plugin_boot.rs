@@ -1,8 +1,8 @@
 //! The plugin boot of `serve`, in the order it runs: the verifier's trust and withdrawals, the
-//! installer with its switches and version choices, the bundled packages, and the providers of
-//! what is installed.
+//! installer with its switches and version choices, the plugins an update prepared, the bundled
+//! packages, and the providers of what is installed.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use rd_db::Database;
@@ -15,6 +15,7 @@ pub(crate) async fn open_plugins(
     args: &ServeArgs,
     database: &Database,
     stored: &StoredSettings,
+    data_directory: &Path,
 ) -> Result<rd_plugin_host::PluginInstaller> {
     let plugin_verifier = rd_pack::plugin::build_plugin_verifier(
         args.plugin_development_mode,
@@ -33,6 +34,9 @@ pub(crate) async fn open_plugins(
     // under test are decided before the first package is loaded, and stay as they were read
     // here until the next start.
     load_plugin_version_choices(database, &plugins).await;
+    // Before the bundle (RD-1260-02): what the version before this one fetched from the
+    // repositories for the contract this one speaks; the bundle then fills only what it lacked.
+    install_prepared_plugins(database, &plugins, data_directory).await;
     sync_bundled_plugins(
         database,
         &plugins,
@@ -154,6 +158,27 @@ async fn load_withdrawn_plugin_keys(
         Err(error) => {
             tracing::warn!(error = %error, "could not read withdrawn plugin signing keys");
         }
+    }
+}
+
+/// Installs the plugins the preparation before an update fetched for this version, and removes
+/// every preparation (RD-1260-02). Never stops the start.
+async fn install_prepared_plugins(
+    database: &Database,
+    plugins: &rd_plugin_host::PluginInstaller,
+    data_directory: &Path,
+) {
+    let root = data_directory.join(rd_plugin_host::repository::DIRECTORY);
+    let report = rd_plugin_host::repository::install_prepared(plugins, database, &root).await;
+    for (id, version) in &report.installed {
+        tracing::info!(%id, version, "installed a plugin prepared by the update");
+    }
+    for (name, reason) in &report.rejected {
+        tracing::warn!(
+            package = name,
+            reason,
+            "a plugin prepared by the update was rejected"
+        );
     }
 }
 

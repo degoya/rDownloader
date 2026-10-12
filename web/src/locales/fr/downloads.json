@@ -57,7 +57,9 @@
     "failed_title": "Téléchargement échoué",
     "failed_body": "« {file} » n’a pas pu être téléchargé.",
     "queue_done_title": "Liste de téléchargements terminée",
-    "queue_done_body": "Aucun fichier terminé. | {count} fichier terminé. | {count} fichiers terminés."
+    "queue_done_body": "Aucun fichier terminé. | {count} fichier terminé. | {count} fichiers terminés.",
+    "package_failed_title": "Échec de téléchargements : {package}",
+    "package_failed_body": "{count} fichiers sur {total} n'ont pas pu être téléchargés."
   },
   "confirm": {
     "delete_package_title": "Supprimer le paquet",
@@ -98,7 +100,9 @@
     "level_whole_packages": "Le niveau de post-traitement s’applique aux paquets entiers – sélectionnez tous les fichiers d’un paquet",
     "level_packages_only": "Le niveau de post-traitement n'existe que pour les paquets de liens, pas pour les imports NZB.",
     "extract_no_archive": "La sélection ne contient aucun fichier d’archive terminé",
-    "reset": "Réinitialiser {count} fichier | Réinitialiser {count} fichiers"
+    "reset": "Réinitialiser {count} fichier | Réinitialiser {count} fichiers",
+    "reset_counts": "{count} fichier de la sélection qui n'est pas en cours | {count} fichiers de la sélection qui ne sont pas en cours",
+    "delete_packages_counts": "{count} paquet dont tous les fichiers sont sélectionnés | {count} paquets dont tous les fichiers sont sélectionnés"
   },
   "package": {
     "drag_title": "Glisser pour modifier l’ordre au sein du niveau de priorité",
@@ -311,9 +315,9 @@
     "remaining": "{total} en attente",
     "eta": "encore {duration}",
     "eta_title": "Temps restant estimé au rythme actuel",
-    "selection_title": "{count} sélectionnés, {size} au total",
-    "selection_partial_title": "{count} sélectionnés, au moins {size} au total – la taille de {unknown} n'est pas encore connue",
-    "selection_unknown_title": "{count} sélectionnés, taille encore inconnue",
+    "selection_title": "{selection}, {size} au total",
+    "selection_partial_title": "{selection}, au moins {size} au total – la taille de {unknown} n'est pas encore connue",
+    "selection_unknown_title": "{selection}, taille encore inconnue",
     "parallel_max": "max",
     "parallel_limit_aria": "Nombre maximal de téléchargements simultanés",
     "parallel_limit_title": "Combien de téléchargements peuvent tourner en même temps ({min}–{max}) ; s’applique aussitôt, sans redémarrage",

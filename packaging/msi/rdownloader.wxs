@@ -12,13 +12,17 @@
   know and so never removes. An upgrade is a major upgrade that removes the old program first; the
   UpgradeCode below stays the same for every version.
 
-    msiexec /i rdownloader-windows-x86_64.msi /qn [AUTOSTART=1]
+    msiexec /i rdownloader-windows-x86_64.msi /qn [AUTOSTART=1] [ASSOCIATION=1] [DROPSHORTCUT=1] [SENDTO=1]
     msiexec /x rdownloader-windows-x86_64.msi /qn
+
+  ASSOCIATION, DROPSHORTCUT and SENDTO (RD-1260-09) are the capture agent's own commands
+  `association install`, `drop-shortcut install` and `send-to install`, run for the installing user;
+  an uninstall runs their `remove` whichever of them put the entries there.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="rDownloader"
-           Manufacturer="Alexander Herling"
+           Manufacturer="DEGOYA.digital"
            Version="$(var.Version)"
            UpgradeCode="3346ED88-7297-43CC-9BA2-0478E5E2D851"
            Scope="perUser"
@@ -38,6 +42,12 @@
     <Property Id="ARPNOREPAIR" Value="1" />
     <!-- AUTOSTART=1 registers the service for the next login, for an unattended install. -->
     <Property Id="AUTOSTART" Secure="yes" />
+    <!-- The capture agent's desktop integration (RD-1260-09), each off unless set to 1: the file
+         association (NZB, the link containers and .torrent, none of whose defaults it takes), the
+         "Add to rDownloader" drop shortcut on the desktop, "rDownloader" in Send to. -->
+    <Property Id="ASSOCIATION" Secure="yes" />
+    <Property Id="DROPSHORTCUT" Secure="yes" />
+    <Property Id="SENDTO" Secure="yes" />
     <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.AutostartCheckbox)" />
 
@@ -100,9 +110,27 @@
     <SetProperty Id="CaptureAutostartRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; autostart remove"
                  Before="CaptureAutostartRemove" Sequence="execute" />
     <CustomAction Id="CaptureAutostartRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="AssociationRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; association remove"
+                 Before="AssociationRemove" Sequence="execute" />
+    <CustomAction Id="AssociationRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="DropShortcutRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; drop-shortcut remove"
+                 Before="DropShortcutRemove" Sequence="execute" />
+    <CustomAction Id="DropShortcutRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="SendToRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; send-to remove"
+                 Before="SendToRemove" Sequence="execute" />
+    <CustomAction Id="SendToRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
     <SetProperty Id="AutostartInstall" Value="&quot;[INSTALLFOLDER]rdownloader.exe&quot; autostart install"
                  Before="AutostartInstall" Sequence="execute" />
     <CustomAction Id="AutostartInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="AssociationInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; association install"
+                 Before="AssociationInstall" Sequence="execute" />
+    <CustomAction Id="AssociationInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="DropShortcutInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; drop-shortcut install"
+                 Before="DropShortcutInstall" Sequence="execute" />
+    <CustomAction Id="DropShortcutInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="SendToInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; send-to install"
+                 Before="SendToInstall" Sequence="execute" />
+    <CustomAction Id="SendToInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
     <!-- Before an upgrade checks for files in use: the running service and agent of the version
          it replaces, immediate, so the check finds nothing held. -->
     <SetProperty Id="WixQuietExecCmdLine" Value="&quot;[System64Folder]cmd.exe&quot; /c &quot;&quot;[INSTALLFOLDER]stop-rdownloader.bat&quot; all&quot;"
@@ -119,7 +147,13 @@
       <Custom Action="StopRunning" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
       <Custom Action="AutostartRemove" After="StopRunning" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="CaptureAutostartRemove" After="AutostartRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="AssociationRemove" After="CaptureAutostartRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="DropShortcutRemove" After="AssociationRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="SendToRemove" After="DropShortcutRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="AutostartInstall" After="InstallFiles" Condition="AUTOSTART=&quot;1&quot; AND NOT REMOVE" />
+      <Custom Action="AssociationInstall" After="AutostartInstall" Condition="ASSOCIATION=&quot;1&quot; AND NOT REMOVE" />
+      <Custom Action="DropShortcutInstall" After="AssociationInstall" Condition="DROPSHORTCUT=&quot;1&quot; AND NOT REMOVE" />
+      <Custom Action="SendToInstall" After="DropShortcutInstall" Condition="SENDTO=&quot;1&quot; AND NOT REMOVE" />
     </InstallExecuteSequence>
 
     <UI>

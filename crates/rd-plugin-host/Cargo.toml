@@ -57,6 +57,8 @@ zip.workspace = true
 rd-plugin-host = { path = ".", features = ["test-support"] }
 rcgen.workspace = true
 tempfile.workspace = true
+# The log budget's tests read what a plugin's lines leave behind (RD-1260-12).
+tracing-subscriber.workspace = true
 # The parity contracts run a plugin's host-side build -- the one its own unit tests run on --
 # beside its component, on the same script. Tests only: nothing is compiled into the service
 # (RD-150-18).

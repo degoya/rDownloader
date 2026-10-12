@@ -3,7 +3,7 @@ plugin_type = "stream-transform"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000132"
 name = "MEGA"
-version = "0.1.13"
+version = "0.1.14"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -77,7 +77,7 @@ filled_by = "flow"
 
 [metadata]
 description = "Resolves MEGA file links and files of the signed-in account, and describes how the host decrypts their bytes."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

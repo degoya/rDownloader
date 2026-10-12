@@ -18,7 +18,6 @@
 
 use std::{collections::HashMap, net::SocketAddr};
 
-use aes::Aes128;
 use anyhow::{Context, Result};
 use axum::{
     Form, Router,
@@ -28,23 +27,14 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use base64::{Engine, engine::general_purpose::STANDARD};
-use cbc::{
-    Decryptor,
-    cipher::{BlockModeDecrypt, KeyIvInit, block_padding::Pkcs7},
-};
 use tokio_util::sync::CancellationToken;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::client::CaptureClient;
 
-mod jk;
-mod pace;
-
-use jk::resolve_key;
-use pace::Pace;
-
-const MAX_CRYPTED_BYTES: usize = 8 * 1024 * 1024;
+// The key, the decryption, the pace and the field lengths are the shared crate's, so the
+// service's browser hand-over (RD-1260-10) keeps the same rule as this port.
+use rd_cnl::pace::{self, Pace};
 
 /// Largest request body `/flash/addcrypted2` accepts, refused before the form is decoded.
 ///
@@ -219,36 +209,8 @@ async fn add_crypted(
                 anyhow::anyhow!("CNL request contains no key"),
             )
         })?;
-    let key = resolve_key(key_source)
-        .await
-        .map_err(|error| CnlError::new(code::INVALID_KEY, error))?;
-    if encrypted.len() > MAX_CRYPTED_BYTES * 2 {
-        return Err(CnlError::new(
-            code::TOO_LARGE,
-            anyhow::anyhow!("CNL encrypted payload exceeds its size limit"),
-        ));
-    }
-    let mut payload = STANDARD
-        .decode(encrypted.trim())
-        .map_err(|error| CnlError::new(code::INVALID_PAYLOAD, error))?;
-    if payload.len() > MAX_CRYPTED_BYTES {
-        return Err(CnlError::new(
-            code::TOO_LARGE,
-            anyhow::anyhow!("CNL encrypted payload exceeds its size limit"),
-        ));
-    }
-    let decrypted = Decryptor::<Aes128>::new_from_slices(&key, &key)
-        .map_err(|error| CnlError::new(code::INVALID_KEY, anyhow::Error::new(error)))?
-        .decrypt_padded::<Pkcs7>(&mut payload)
-        .map_err(|_| {
-            CnlError::new(
-                code::INVALID_PAYLOAD,
-                anyhow::anyhow!("invalid CNL padding"),
-            )
-        })?;
-    let text = std::str::from_utf8(decrypted)
-        .map_err(|error| CnlError::new(code::INVALID_PAYLOAD, error))?;
-    submit(&state, text, &fields).await?;
+    let text = rd_cnl::decrypt(encrypted, key_source).await?;
+    submit(&state, &text, &fields).await?;
     Ok("success")
 }
 
@@ -342,6 +304,22 @@ impl CnlError {
     fn with_status(mut self, status: StatusCode) -> Self {
         self.status = status;
         self
+    }
+}
+
+impl From<rd_cnl::Refusal> for CnlError {
+    fn from(refusal: rd_cnl::Refusal) -> Self {
+        let code = match refusal.kind {
+            rd_cnl::RefusalKind::InvalidPayload => code::INVALID_PAYLOAD,
+            rd_cnl::RefusalKind::InvalidKey => code::INVALID_KEY,
+            rd_cnl::RefusalKind::NoLinks => code::NO_LINKS,
+            rd_cnl::RefusalKind::TooLarge => code::TOO_LARGE,
+            rd_cnl::RefusalKind::RateLimited => {
+                return Self::new(code::RATE_LIMITED, refusal.source)
+                    .with_status(StatusCode::TOO_MANY_REQUESTS);
+            }
+        };
+        Self::new(code, refusal.source)
     }
 }
 

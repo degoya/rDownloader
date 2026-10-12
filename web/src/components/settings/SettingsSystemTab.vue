@@ -8,6 +8,7 @@ import SectionHeader from '@/components/SectionHeader.vue'
 import StatTiles from '@/components/StatTiles.vue'
 import SettingsCleanupCard from '@/components/settings/SettingsCleanupCard.vue'
 import SettingsDataResetButton from '@/components/settings/SettingsDataResetButton.vue'
+import SettingsLogLevel from '@/components/settings/SettingsLogLevel.vue'
 import SettingsReadinessCard from '@/components/settings/SettingsReadinessCard.vue'
 import SettingsUpdateCard from '@/components/settings/SettingsUpdateCard.vue'
 import { useAppTour } from '@/composables/useAppTour'
@@ -92,7 +93,7 @@ const uiAddress = computed(() => settings.value.ui_port ? `127.0.0.1:${settings.
 
 /** The fixed facts under the status cards; the product's own tile shows its version in its slot. */
 const facts = computed(() => [
-  { key: 'about', label: t('system.facts.about'), value: 'rDownloader', hint: 'Alexander Herling · GPL-3.0-or-later', numeric: false },
+  { key: 'about', label: t('system.facts.about'), value: 'rDownloader', hint: 'DEGOYA.digital · GPL-3.0-or-later', numeric: false },
   { key: 'web_ui', label: t('system.facts.web_ui'), value: uiAddress.value, hint: settings.value.ui_port ? t('system.facts.web_ui_configured') : t('system.facts.web_ui_default') },
   { key: 'cnl2', label: t('system.facts.cnl2'), value: '127.0.0.1:9666', hint: t('system.facts.loopback_only') },
   { key: 'hotfolder', label: t('system.facts.hotfolder'), value: `${settings.value.hotfolder_poll_seconds} s`, hint: t('system.facts.hotfolder_note') },
@@ -214,6 +215,7 @@ const systems = computed(() => [
               />
             </div>
             <SettingsDataResetButton class="mt-4" target="logs" :count="dataCounts.logs" @cleared="loadDataCounts()" />
+            <SettingsLogLevel v-model="settings" class="mt-4" />
             <div class="mt-4 grid gap-4">
               <UFormField :label="t('settings.logs.records_label')" :description="t('settings.logs.records_description')">
                 <UInputNumber v-model="settings.log_retention_records" required :min="1000" :max="500000" :format-options="WHOLE" class="mt-2 w-full" />

@@ -105,3 +105,11 @@ fn a_repository_address_is_plain_https() {
         assert!(parse_https(bad).is_err(), "{bad}");
     }
 }
+
+/// The plugins an update fetches for the version it installs (RD-1260-02).
+#[path = "repository_prepare_tests.rs"]
+mod prepare;
+
+/// The newest offer per plugin, and the repository's version of a bundled package (RD-1260-02).
+#[path = "repository_select_tests.rs"]
+mod select;

@@ -106,6 +106,13 @@ impl CaptureAgents {
         versions
     }
 
+    /// Whether an agent holds its event stream open right now. One that does shows the intake
+    /// toast on its desktop, so the web interface leaves that toast to it (RD-1260-04).
+    #[must_use]
+    pub fn any_connected(&self) -> bool {
+        self.0.lock().is_ok_and(|agents| !agents.is_empty())
+    }
+
     /// Keeps the update report the settings poll in `headers` carries (RD-1210-03), for the
     /// connected agent whose token it bears. A poll without a report, from a token with no open
     /// stream, or with a report this build cannot read changes nothing.

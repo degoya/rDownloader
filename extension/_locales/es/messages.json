@@ -437,5 +437,59 @@
         "content": "$1"
       }
     }
+  },
+  "optionsClickAndLoad": {
+    "message": "Aceptar Click'n'Load sin el agente de escritorio"
+  },
+  "optionsClickAndLoadHint": {
+    "message": "En los sitios de «Sitios que entregan archivos», una página muestra su botón de Click'n'Load aunque no se ejecute el agente de escritorio, y sus enlaces van a tu rDownloader con el nombre del paquete y la contraseña. Si el agente de escritorio está en marcha, él se encarga de Click'n'Load y la extensión no interviene."
+  },
+  "cnlSent": {
+    "message": "Click'n'Load: $1 enlace(s) enviado(s) al LinkGrabber."
+  },
+  "cnlFailed": {
+    "message": "Click'n'Load falló: $1"
+  },
+  "cnlInvalidPayload": {
+    "message": "no se pudieron leer los datos de la página."
+  },
+  "cnlJkRefused": {
+    "message": "rDownloader rechazó la clave (jk) de la página. Solo se evalúa en el entorno aislado de rDownloader, nunca en el navegador."
+  },
+  "cnlNoLinks": {
+    "message": "la página no envió ningún enlace que acepte el LinkGrabber."
+  },
+  "cnlTooLarge": {
+    "message": "la página envió más de lo que acepta rDownloader."
+  },
+  "cnlRateLimited": {
+    "message": "demasiadas entregas en poco tiempo. Vuelve a intentarlo en un minuto."
+  },
+  "menuSendFile": {
+    "message": "Enviar archivo a rDownloader…"
+  },
+  "sendFileTitle": {
+    "message": "Enviar archivos a rDownloader"
+  },
+  "sendFileDrop": {
+    "message": "Suelta los archivos aquí"
+  },
+  "sendFileChoose": {
+    "message": "o elige archivos…"
+  },
+  "sendFileAccepted": {
+    "message": "Se aceptan: $1"
+  },
+  "sendFileSending": {
+    "message": "Enviando…"
+  },
+  "sendFileSent": {
+    "message": "Archivos entregados a rDownloader: $1."
+  },
+  "sendFileUnknown": {
+    "message": "No enviado, tipo de archivo desconocido: $1."
+  },
+  "sendFileRefused": {
+    "message": "Rechazado por rDownloader: $1."
   }
 }

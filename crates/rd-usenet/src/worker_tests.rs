@@ -108,6 +108,7 @@ async fn queued_import_is_downloaded_into_its_category_and_extracted() {
             storage_root_id: root.id,
             relative_path: "usenet".to_owned(),
             is_default: true,
+            selectable: true,
             postprocess_level: None,
             script: None,
             cleanup_extensions: None,
@@ -177,7 +178,6 @@ async fn queued_import_is_downloaded_into_its_category_and_extracted() {
         .expect("enqueue as package");
     assert_eq!(package.kind, rd_core::DownloadKind::Usenet);
     assert_eq!(package.nzb_import_id, Some(import.id));
-
     let scheduler = start_scheduler(directory.path(), &database).await;
     let extraction = rd_extract::ExtractionService::start(
         database.clone(),

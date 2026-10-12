@@ -183,7 +183,12 @@
     "package_names_regex_override": "Reglas regex propias",
     "package_names_regex_override_description": "Desactivado: se aplican las reglas globales. Activado: esta lista las sustituye — también vacía, y entonces no se aplica ninguna.",
     "download_window_label": "Ventana de descarga",
-    "download_window_description": "Cuándo pueden descargar los paquetes de esta categoría; la ventana propia de un paquete prevalece. Desactivada: los paquetes solo siguen el horario de ancho de banda."
+    "download_window_description": "Cuándo pueden descargar los paquetes de esta categoría; la ventana propia de un paquete prevalece. Desactivada: los paquetes solo siguen el horario de ancho de banda.",
+    "selectable_label": "Mostrar en la selección",
+    "selectable_description": "Desactivado: el LinkGrabber y las Descargas ya no ofrecen esta categoría. Las reglas, las suscripciones, las carpetas vigiladas y las interfaces la siguen usando.",
+    "selectable_default_hint": "La categoría por defecto siempre se ofrece.",
+    "hidden_badge": "OCULTA",
+    "hidden_badge_title": "No se ofrece en el LinkGrabber ni en las Descargas"
   },
   "rule": {
     "eyebrow": "Clasificador",

@@ -124,5 +124,9 @@
     "attempts": "{count} tentative | {count} tentatives",
     "empty": "Rien de livré pour l'instant.",
     "target_removed": "destination supprimée"
+  },
+  "desktop": {
+    "quiet_summary_title": "Pendant les heures calmes : {count} notifications",
+    "quiet_summary_more": "et {count} de plus"
   }
 }

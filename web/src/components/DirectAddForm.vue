@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Account, Category, DownloadPriority, ProxyProfile } from '@/api/types'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { priorityItems } from '@/utils/format'
+import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 
 const PRIORITY_ITEMS = computed(() => priorityItems())
@@ -23,7 +24,7 @@ const priority = ref<DownloadPriority>('normal')
 
 const categoryItems = computed(() => [
   { label: t('downloads.add.default_category'), value: NO_SELECTION },
-  ...props.categories.map(category => ({ label: category.name, value: category.id }))
+  ...pickableCategories(props.categories).map(category => ({ label: category.name, value: category.id }))
 ])
 const accountItems = computed(() => [
   { label: t('downloads.add.auto_resolver'), value: NO_SELECTION },

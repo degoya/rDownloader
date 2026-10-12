@@ -110,6 +110,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "an automatic update recorded with its repository before the version pointers followed it stays installed whole and listed once, and the pointers stay as they were, never half moved: the next start runs what they chose before the update, the newest version when they chose none",
     },
     CrashPoint {
+        name: "plugin.before_prepared_published",
+        owner: "rd-plugin-host",
+        invariant: "plugins fetched for an update and written under the preparation's staging name but not yet renamed to the target version are never installed: the next start removes them, the installed versions stay as they were for the bundle to replace, and the next preparation fetches them again",
+    },
+    CrashPoint {
         name: "plugin.before_version_promoted",
         owner: "rd-plugin-host",
         invariant: "a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again",

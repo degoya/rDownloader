@@ -1,6 +1,6 @@
 //! What the tray's menu and the system-wide shortcuts ask of the running agent (RD-1100-06,
-//! RD-1180-01, RD-1180-03, RD-1240-23, RD-1240-25, RD-1240-27, RD-1240-24, RD-1240-32), and
-//! the tasks that carry it out.
+//! RD-1180-01, RD-1180-03, RD-1240-23, RD-1240-25, RD-1240-27, RD-1240-24, RD-1240-32,
+//! RD-1260-08), and the tasks that carry it out.
 //!
 //! Every tray command is a [`CaptureCommand`], whether it came from a click or a key press, and
 //! [`action`] is the one place that says what each one does. The tray and, on Linux, the
@@ -77,6 +77,8 @@ pub(crate) fn channels() -> (Controls, Inbox) {
 pub(crate) enum Action {
     /// Open the web interface in the browser.
     Open,
+    /// Open the web interface's About page in the browser (RD-1260-08).
+    About,
     /// A request to the queue (RD-1100-06).
     Queue(QueueRequest),
     /// Pause or resume clipboard watching (RD-1180-01).
@@ -118,12 +120,13 @@ pub(crate) fn action(command: CaptureCommand) -> Action {
         }
         CaptureCommand::InstallUpdate => Action::InstallUpdate,
         CaptureCommand::RestartServer => Action::RestartServer,
+        CaptureCommand::About => Action::About,
     }
 }
 
 impl Controls {
-    /// Passes the agent's part of an action to its task. `Open` and `Quit` are the caller's: the
-    /// tray opens and quits on its own event loop. A task that has stopped is a log line.
+    /// Passes the agent's part of an action to its task. `Open`, `About` and `Quit` are the
+    /// caller's: the tray opens and quits on its own event loop. A task that has stopped is a log line.
     pub(crate) fn pass(&self, action: Action) {
         let sent = match action {
             Action::Queue(request) => self.queue.send(request).is_ok(),
@@ -143,7 +146,7 @@ impl Controls {
                 .send(self_update::Request::ToggleAutoInstall)
                 .is_ok(),
             Action::InstallUpdate => self.self_update.send(self_update::Request::Install).is_ok(),
-            Action::Open | Action::Quit => true,
+            Action::Open | Action::About | Action::Quit => true,
         };
         if !sent {
             tracing::warn!(
@@ -271,6 +274,7 @@ mod tests {
         );
         assert_eq!(action(CaptureCommand::InstallUpdate), Action::InstallUpdate);
         assert_eq!(action(CaptureCommand::RestartServer), Action::RestartServer);
+        assert_eq!(action(CaptureCommand::About), Action::About);
     }
 
     #[test]
@@ -281,6 +285,7 @@ mod tests {
         controls.pass(action(CaptureCommand::SendClipboard));
         controls.pass(action(CaptureCommand::AutoInstall));
         controls.pass(action(CaptureCommand::Open));
+        controls.pass(action(CaptureCommand::About));
         assert_eq!(
             inbox.queue.try_recv().ok(),
             Some(QueueRequest::Pause { minutes: Some(60) })
@@ -294,7 +299,14 @@ mod tests {
             inbox.self_update.try_recv().ok(),
             Some(crate::self_update::Request::ToggleAutoInstall)
         );
-        assert!(inbox.queue.try_recv().is_err(), "Open is the caller's own");
+        assert!(
+            inbox.queue.try_recv().is_err(),
+            "Open and About are the caller's own"
+        );
+        assert!(inbox.settings.try_recv().is_err());
+        assert!(inbox.hand_over.try_recv().is_err());
+        assert!(inbox.self_update.try_recv().is_err());
+        assert!(inbox.server_update.try_recv().is_err());
     }
 
     /// "Pause while gaming", clicked or pressed, goes to the settings follower, which holds the

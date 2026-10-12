@@ -14,7 +14,7 @@ const SearchableSelect = { props: ['modelValue', 'items'], template: '<select v-
 function mount(props: Record<string, unknown> = {}) {
   return mountComponent(BulkActionBar, {
     messages: { downloads },
-    props: { count: 3, categories: [], detail: '3 files in 2 packages', transferActions: true, ...props },
+    props: { count: 3, categories: [], summary: '2 packages · 3 files selected', transferActions: true, ...props },
     stubs: { SearchableSelect }
   })
 }
@@ -43,16 +43,25 @@ describe('BulkActionBar', () => {
     expect(getByTestId('bulk-action-bar').querySelector('[aria-label="' + common.actions.reveal + '"]')).not.toBeNull()
   })
 
-  it('says "N selected" on the badge, with what is selected in its tooltip', () => {
-    const { getByText } = mount()
-    const badge = getByText('3 selected')
-    expect(badge.getAttribute('title')).toBe('3 files in 2 packages')
+  it('names packages and files apart on the badge, narrow the file count with both in the tooltip (RD-1260-07)', () => {
+    const { getByTestId } = mount()
+    const badge = getByTestId('bulk-selection')
+    expect(badge.getAttribute('title')).toBe('2 packages · 3 files selected')
+    const [narrow, spoken, wide] = [...badge.querySelectorAll('span')].filter(span => span.textContent)
+    expect(narrow?.textContent).toBe('3')
+    expect(narrow?.classList).toContain('@min-[40rem]:hidden')
+    // A screen reader hears the whole count on a narrow bar, not the bare figure.
+    expect(narrow?.getAttribute('aria-hidden')).toBe('true')
+    expect(spoken?.textContent).toBe('2 packages · 3 files selected')
+    expect([...spoken!.classList]).toEqual(['sr-only', '@min-[40rem]:hidden'])
+    expect(wide?.textContent).toBe('2 packages · 3 files selected')
+    expect(wide?.classList).toContain('@min-[40rem]:inline')
   })
 
   it('shows a red action with a count as its icon and figure, the sentence as its name', () => {
     const danger = { template: '<button type="button" aria-label="Reset 2 files" title="Reset 2 files">2</button>' }
     const { getByRole } = render(BulkActionBar, {
-      props: { count: 3, categories: [], transferActions: true },
+      props: { count: 3, categories: [], summary: '3 files in 1 package selected', transferActions: true },
       slots: { danger },
       global: { plugins: [createTestI18n({ downloads })], stubs: { ...uiStubs, SearchableSelect } }
     })

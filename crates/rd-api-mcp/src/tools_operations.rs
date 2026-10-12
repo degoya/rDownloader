@@ -33,7 +33,7 @@ use crate::ApiError;
 #[tool_router(router = operations_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read the power state: which completion action (standby, shutdown, ...) is set and whether it lacks the local approval it needs, whether one is counting down right now and when it fires, whether quiet hours are in force and until when, and whether the machine is being kept awake."
+        description = "Read the power state: which completion action (standby, shutdown, ...) is set and whether it lacks the local approval it needs, whether one is counting down right now and when it fires, whether quiet hours are in force and until when, until when they hold notifications back (to go out as one summary per destination), and whether the machine is being kept awake."
     )]
     pub async fn get_power_status(&self) -> McpToolResult {
         let Json(status) = crate::power_handlers::power_status(State(self.state.clone())).await;

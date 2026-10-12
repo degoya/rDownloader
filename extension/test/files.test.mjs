@@ -292,6 +292,31 @@ test('a copy rDownloader refuses reaches the browser in full', async () => {
   assert.ok(!names(calls).includes('cancel'))
 })
 
+test('a DLC only its type names is copied and handed over under a container name (RD-1260-11)', async () => {
+  const calls = []
+  const filter = streamFilter(calls)
+  const { api } = browser(calls, { ...ALLOWED, filter })
+  const { handover, sent } = setup(calls, { api, bytes: { ok: true, status: 201, kind: 'container' } })
+  const url = 'https://indexer.test/container/42'
+  const response = { ...RESPONSE, url, responseHeaders: [{ name: 'Content-Type', value: 'application/x-dlc' }] }
+  assert.deepEqual(await handover.onHeadersReceived(response), {})
+  filter.ondata({ data: new TextEncoder().encode('QUJD').buffer })
+  filter.onstop()
+  assert.equal(await handover.onBrowserOnlyDownload({ ...DOWNLOAD, url, filename: '/home/me/Downloads/42', mime: 'application/x-dlc' }), true)
+  // The service knows a container by its name alone.
+  assert.equal(sent.bytes[0].body.fileName, '42.dlc')
+  assert.deepEqual(calls.at(-1), ['notify', 'fileHandedOver'])
+})
+
+test('a crawljob from Chrome goes over as its address, named as the browser saves it', async () => {
+  const calls = []
+  const { api } = browser(calls, ALLOWED)
+  const { handover, sent } = setup(calls, { api })
+  const item = { ...DOWNLOAD, url: 'https://indexer.test/jobs/season.crawljob', filename: '/home/me/Downloads/season.crawljob', mime: 'text/plain' }
+  assert.equal(await handover.onBrowserOnlyDownload(item), true)
+  assert.equal(sent.address[0].body.fileName, 'season.crawljob')
+})
+
 /** Mozilla bug 1787119: a response that turns into a download can lose its filter. */
 test('a copy that breaks off falls back to the address', async () => {
   const calls = []
@@ -321,7 +346,7 @@ test('a response over the limit is passed through and left to the browser', asyn
   assert.ok(!names(calls).some((name) => name === 'submitBytes' || name === 'submitAddress'))
 })
 
-test('only an NZB, torrent or ZIP navigation from an allowed site is ever filtered', async () => {
+test('only an NZB, torrent, ZIP or container navigation from an allowed site is ever filtered', async () => {
   const calls = []
   const filter = streamFilter(calls)
   const { api } = browser(calls, { ...ALLOWED, filter })

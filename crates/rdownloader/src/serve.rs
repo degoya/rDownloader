@@ -36,7 +36,7 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<Option<
     let listen = listen_address(args.listen, &stored);
     let controls = queue_controls();
     let scheduler_config = scheduler_config_for(&args, &runtime, listen, &controls);
-    let plugins = plugin_boot::open_plugins(&args, &database, &stored).await?;
+    let plugins = plugin_boot::open_plugins(&args, &database, &stored, &data_directory).await?;
     let mut native = startup::native_runners(
         &database,
         &secrets,

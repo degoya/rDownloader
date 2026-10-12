@@ -15,13 +15,13 @@ version: "@VERSION@"
 version_schema: semver
 section: net
 priority: optional
-maintainer: Alexander Herling
+maintainer: DEGOYA.digital
 description: |-
   Local-first download manager with a web interface
   Links, NZB files, torrents and media pages in one queue, run as a user service with a web
   interface on 127.0.0.1:8710; a desktop capture agent takes Click'n'Load, the clipboard and
   .nzb files.
-vendor: rDownloader
+vendor: DEGOYA.digital
 homepage: https://rdownloader.net
 license: GPL-3.0-or-later
 

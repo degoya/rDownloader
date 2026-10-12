@@ -29,6 +29,7 @@ fn input() -> BundleInput {
         )],
         recent_errors: Vec::new(),
         log_records_total: 0,
+        logging: Default::default(),
     }
 }
 

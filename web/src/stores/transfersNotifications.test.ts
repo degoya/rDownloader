@@ -88,7 +88,8 @@ describe('transfers store: failure notifications', () => {
     expect(notify).toHaveBeenCalledTimes(1)
     expect(notify).toHaveBeenCalledWith(
       'Download failed',
-      '“Release.part03.rar” could not be downloaded.'
+      '“Release.part03.rar” could not be downloaded.',
+      { tag: 'package-failed:pkg-1', pushEvent: 'package_failed' }
     )
   })
 

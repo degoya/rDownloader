@@ -5,8 +5,8 @@ use rd_core::{CaptureCommand, CaptureShortcuts};
 use tray_icon::{
     Icon, TrayIcon, TrayIconBuilder,
     menu::{
-        CheckMenuItem, IsMenuItem, Menu, MenuId, MenuItem, PredefinedMenuItem,
-        accelerator::Accelerator,
+        CheckMenuItem, Icon as MenuIcon, IconMenuItem, IsMenuItem, Menu, MenuId, MenuItem,
+        PredefinedMenuItem, accelerator::Accelerator,
     },
 };
 
@@ -14,16 +14,18 @@ use crate::{
     activity::{QueueEntries, QueueMenu},
     self_update::UpdateMenu,
     server_update,
-    tray_menu::MenuEntry,
+    tray_menu::{MenuEntry, title_line},
     tray_state::{GameModeEntry, Surface},
 };
 
-/// Where the queue entries go: after the two status lines, "Open rDownloader" and the separator
-/// below each, so before the clipboard entries and "Quit".
-const QUEUE_POSITION: usize = 5;
+/// Where the queue entries go: after the title, the two status lines, "Open rDownloader" with
+/// "About rDownloader" and the separator below each, so before the clipboard entries and "Quit".
+const QUEUE_POSITION: usize = 8;
 
 /// The live tray icon together with its actionable menu entries.
 pub(super) struct TrayHandle {
+    /// The title with the logo and the agent's version (RD-1260-08); never enabled.
+    title_item: IconMenuItem,
     /// Kept, not just their ids: the status line is rewritten and "Open" is greyed out while
     /// the service is not answering, which needs the items themselves. What to write on them
     /// is `tray_state`'s decision; here they are only written.
@@ -31,6 +33,9 @@ pub(super) struct TrayHandle {
     /// The server's line under the agent's, with its version and state (RD-1240-06).
     pub(super) server_item: MenuItem,
     pub(super) open_item: MenuItem,
+    /// "About rDownloader" (RD-1260-08): greyed out with "Open rDownloader", whose address it
+    /// opens a page of.
+    pub(super) about_item: MenuItem,
     /// The menu itself, for the queue entries that come and go (RD-1100-06). A handle onto the
     /// same menu the icon shows: muda's menus are shared, not copied.
     menu: Menu,
@@ -187,9 +192,11 @@ impl TrayHandle {
     /// The item of each entry: a new entry is one more arm here and in `tray_menu`.
     fn item_id(&self, entry: MenuEntry) -> &MenuId {
         match entry {
+            MenuEntry::Title => self.title_item.id(),
             MenuEntry::StatusLine => self.status_item.id(),
             MenuEntry::ServerLine => self.server_item.id(),
             MenuEntry::Open => self.open_item.id(),
+            MenuEntry::About => self.about_item.id(),
             MenuEntry::StartAll => self.start.id(),
             MenuEntry::PauseAll => self.pause_now.id(),
             MenuEntry::PauseHalfHour => self.pause_half_hour.id(),
@@ -248,6 +255,7 @@ impl TrayHandle {
                 }
                 CaptureCommand::InstallUpdate => self.update.set_accelerator(accelerator),
                 CaptureCommand::RestartServer => self.restart_server.set_accelerator(accelerator),
+                CaptureCommand::About => self.about_item.set_accelerator(accelerator),
             };
             if let Err(error) = written {
                 tracing::debug!(%error, ?command, "the menu could not show a shortcut");
@@ -257,10 +265,13 @@ impl TrayHandle {
 }
 
 impl TrayHandle {
-    /// Builds the icon and its menu as the state describes them at this moment.
-    pub(super) fn build(icon: Icon, surface: &Surface) -> Result<Self> {
+    /// Builds the icon and its menu as the state describes them at this moment; `logo` is the
+    /// title line's, `None` when it could not be made.
+    pub(super) fn build(icon: Icon, logo: Option<MenuIcon>, surface: &Surface) -> Result<Self> {
         let menu = Menu::new();
+        let title_item = IconMenuItem::new(title_line(), MenuEntry::Title.clickable(), logo, None);
         let open = MenuItem::new("Open rDownloader", surface.open_enabled, None);
+        let about_item = MenuItem::new("About rDownloader", surface.open_enabled, None);
         let quit = MenuItem::new("Quit", true, None);
         let status_item = MenuItem::new(
             &surface.status_line,
@@ -285,10 +296,13 @@ impl TrayHandle {
             surface.game_mode.checked,
             None,
         );
+        menu.append(&title_item)?;
+        menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&status_item)?;
         menu.append(&server_item)?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&open)?;
+        menu.append(&about_item)?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&clipboard_watch)?;
         menu.append(&send_clipboard)?;
@@ -302,9 +316,11 @@ impl TrayHandle {
             .build()
             .context("create the tray icon")?;
         let handle = Self {
+            title_item,
             status_item,
             server_item,
             open_item: open,
+            about_item,
             menu,
             // Untranslated, like the rest of the menu (RD-092-05); the labels are the web
             // interface's global control (RD-1101-06).

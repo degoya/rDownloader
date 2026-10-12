@@ -43,7 +43,7 @@ async function settled(): Promise<void> {
 describe('useSettingsSubTab', () => {
   it('shows the first tab on the plain page address', async () => {
     const { active, tabs } = await open('/settings/plugins')
-    expect(tabs.value.map(tab => tab.value)).toEqual(['installed', 'add', 'updates', 'repositories', 'trust'])
+    expect(tabs.value.map(tab => tab.value)).toEqual(['installed', 'catalogue', 'repositories', 'trust'])
     expect(active.value).toBe('installed')
   })
 
@@ -122,11 +122,10 @@ describe('useSettingsSubTab', () => {
 
 describe('subTabItems', () => {
   it('translates the labels, names the slots after the tabs and badges only what has a count', () => {
-    const items = subTabItems('plugins', key => `t:${key}`, { installed: 12, updates: undefined })
+    const items = subTabItems('plugins', key => `t:${key}`, { installed: 12, catalogue: undefined })
     expect(items.map(item => [item.value, item.slot, item.label, item.badge])).toEqual([
       ['installed', 'installed', 't:plugins.tabs.installed', 12],
-      ['add', 'add', 't:plugins.tabs.add', undefined],
-      ['updates', 'updates', 't:plugins.tabs.updates', undefined],
+      ['catalogue', 'catalogue', 't:plugins.tabs.catalogue', undefined],
       ['repositories', 'repositories', 't:plugins.tabs.repositories', undefined],
       ['trust', 'trust', 't:plugins.tabs.trust', undefined]
     ])

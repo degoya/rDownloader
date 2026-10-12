@@ -99,6 +99,7 @@ async fn a_category_window_is_listed_with_the_category_and_kept_by_an_edit() {
         storage_root_id: root,
         relative_path: "night".to_owned(),
         is_default: true,
+        selectable: true,
         postprocess_level: None,
         script: None,
         cleanup_extensions: None,

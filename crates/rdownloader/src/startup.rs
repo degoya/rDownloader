@@ -65,6 +65,9 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
         }
         Err(error) => return Err(error),
     };
+    // The level and a debug window still open, before the start writes more than these lines
+    // (RD-1260-12); `RUST_LOG`, when set, stays the filter.
+    rd_diagnostics::log_filter::apply_stored(&database).await;
     // Before anything compiles a plugin: the cache is part of the engine the first compile
     // builds (RD-130-06). Without it the service still starts, it only compiles every plugin.
     if let Err(error) =

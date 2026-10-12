@@ -141,7 +141,7 @@ impl ComponentResolver {
             proxy_profile_id: None,
             tls_revision: 0,
         };
-        let mut store = self.store(identity)?;
+        let mut store = self.store(identity, "match_url")?;
         let bindings = self.bindings(&mut store).await?;
         bindings
             .rdownloader_plugin_resolver()
@@ -177,11 +177,14 @@ impl ComponentResolver {
             .map_err(component_failure)
     }
 
+    /// A store for one call of `operation`, whose log lines are this plugin's (RD-1260-12).
     fn store(
         &self,
         identity: ClientIdentity,
+        operation: &'static str,
     ) -> Result<wasmtime::Store<PluginStoreState>, Failure> {
-        self.sandbox
+        let mut store = self
+            .sandbox
             .create_invocation_store(self.host_domains.clone(), Arc::clone(&self.host), identity)
             .map_err(|error| {
                 Failure::coded(
@@ -189,7 +192,14 @@ impl ComponentResolver {
                     "plugin.execution_failed",
                     format!("Plugin execution failed: {error:#}"),
                 )
-            })
+            })?;
+        store.data_mut().set_log_origin(
+            self.metadata.plugin_id.to_string(),
+            self.metadata.version.clone(),
+            "resolver",
+            operation,
+        );
+        Ok(store)
     }
 }
 
@@ -234,7 +244,7 @@ impl ComponentResolver {
             proxy_profile_id: None,
             tls_revision: 0,
         };
-        let mut store = self.store(identity)?;
+        let mut store = self.store(identity, "check_account")?;
         let bindings = self.bindings(&mut store).await?;
         let result = bindings
             .rdownloader_plugin_resolver()
@@ -274,7 +284,7 @@ impl ComponentResolver {
             url: input_url.clone(),
             client: to_wit_identity(&request.client),
         };
-        let mut store = self.store(request.client)?;
+        let mut store = self.store(request.client, "resolve")?;
         let bindings = self.bindings(&mut store).await?;
         let guest = bindings.rdownloader_plugin_resolver();
         if !guest
@@ -302,7 +312,7 @@ impl ComponentResolver {
             proxy_profile_id: None,
             tls_revision: 0,
         };
-        let mut store = self.store(identity)?;
+        let mut store = self.store(identity, "hosters")?;
         let bindings = self.bindings(&mut store).await?;
         let hosters = bindings
             .rdownloader_plugin_resolver()
@@ -327,7 +337,7 @@ impl ComponentResolver {
             urls: requested.clone(),
             client: to_wit_identity(&request.client),
         };
-        let mut store = self.store(request.client)?;
+        let mut store = self.store(request.client, "check")?;
         let bindings = self.bindings(&mut store).await?;
         let results = bindings
             .rdownloader_plugin_resolver()

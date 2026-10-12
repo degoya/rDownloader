@@ -3,7 +3,7 @@ plugin_type = "remote-job"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000181"
 name = "Seedr transfers"
-version = "0.1.13"
+version = "0.1.14"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -29,7 +29,7 @@ containers = ["torrent"]
 
 [metadata]
 description = "Runs magnets and torrent files as transfers on a Seedr account."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

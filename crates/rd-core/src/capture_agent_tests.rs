@@ -127,8 +127,8 @@ fn cmd_or_ctrl_is_ctrl_on_a_pc_and_cmd_on_a_mac() {
 ///
 /// Quit has none, and neither have "Pause while gaming" (RD-1240-23), "Install server update"
 /// (RD-1240-25), "Install updates automatically" (RD-1240-27), the two LinkGrabber entries,
-/// "Install update" (RD-1240-24) and "Restart server" (RD-1240-32): they can be assigned, but a
-/// new tray function takes no combination nobody chose.
+/// "Install update" (RD-1240-24), "Restart server" (RD-1240-32) and "About rDownloader"
+/// (RD-1260-08): they can be assigned, but a new tray function takes no combination nobody chose.
 #[test]
 fn the_defaults_pass_their_own_rules_and_quit_and_the_later_commands_have_none() {
     let defaults = CaptureShortcuts::default();
@@ -142,6 +142,7 @@ fn the_defaults_pass_their_own_rules_and_quit_and_the_later_commands_have_none()
         CaptureCommand::AddAllFromLinkGrabberPaused,
         CaptureCommand::InstallUpdate,
         CaptureCommand::RestartServer,
+        CaptureCommand::About,
     ];
     for command in CaptureCommand::ALL {
         assert_eq!(
@@ -322,4 +323,21 @@ fn the_server_restart_can_be_given_a_shortcut() {
         accepted.get(CaptureCommand::RestartServer),
         Some("CmdOrCtrl+Alt+Y")
     );
+}
+
+/// "About rDownloader" (RD-1260-08) is a command of its own with its stable name, has no default
+/// and takes a shortcut like every other.
+#[test]
+fn the_about_entry_can_be_given_a_shortcut() {
+    assert_eq!(CaptureCommand::About.as_str(), "about");
+    assert_eq!(
+        serde_json::to_value(CaptureCommand::About).expect("serialize"),
+        serde_json::json!("about")
+    );
+    let stored: CaptureShortcuts = serde_json::from_str("{}").expect("reads");
+    assert_eq!(stored.get(CaptureCommand::About), None);
+    let mut shortcuts = CaptureShortcuts::default();
+    shortcuts.set(CaptureCommand::About, Some("cmdorctrl+alt+y".to_owned()));
+    let accepted = shortcuts.validated().expect("valid");
+    assert_eq!(accepted.get(CaptureCommand::About), Some("CmdOrCtrl+Alt+Y"));
 }

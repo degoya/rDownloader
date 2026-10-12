@@ -8,7 +8,6 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use rd_db::Database;
 use rd_scheduler::SchedulerConfig;
-use tracing_subscriber::EnvFilter;
 
 mod auth_cli;
 mod completions;
@@ -422,12 +421,15 @@ async fn ensure_paths(paths: &CommonPaths) -> Result<()> {
 /// same filter, so the store holds what stderr showed and nothing more. It is installed here,
 /// before the database exists, because the lines worth keeping are the ones from start-up;
 /// its channel buffers them until `serve` opens the database and starts the sink.
+///
+/// The filter is `RUST_LOG` when set and `info` until `serve` has read the level and a running
+/// debug window from the database; it is swapped there and whenever the settings change it
+/// (RD-1260-12, `rd_diagnostics::log_filter`).
 fn init_tracing() -> Telemetry {
     use tracing_subscriber::layer::SubscriberExt as _;
     use tracing_subscriber::util::SubscriberInitExt as _;
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("rdownloader=info,rd_=info"));
+    let filter = rd_diagnostics::log_filter::layer();
     let (capture, logs) = rd_diagnostics::install();
     let (sink, spans) = rd_diagnostics::otlp::channel();
     tracing_subscriber::registry()

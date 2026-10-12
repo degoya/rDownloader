@@ -19,11 +19,10 @@ import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh
 import { useSettingsStore } from '@/stores/settings'
 import SectionHeader from '@/components/SectionHeader.vue'
 import PluginCard from './PluginCard.vue'
-import PluginBundledList from './PluginBundledList.vue'
+import PluginCatalogue from './PluginCatalogue.vue'
 import PluginIncompatibleList from './PluginIncompatibleList.vue'
 import PluginInstallPreviewModal from './PluginInstallPreviewModal.vue'
 import PluginTrustedKeys from './PluginTrustedKeys.vue'
-import PluginUpdatesList from './PluginUpdatesList.vue'
 import PluginWithdrawDialog from './PluginWithdrawDialog.vue'
 import PluginWithdrawnList from './PluginWithdrawnList.vue'
 import SettingsPluginRepositories from './SettingsPluginRepositories.vue'
@@ -31,9 +30,10 @@ import { displayName, type TrustedKey } from './pluginDisplay'
 
 /**
  * Owned by the settings view, which keeps it in the address (RD-180-15). Nine cards on one page
- * had become a long scroll to the one that was wanted, so the page is five tabs: what is
- * installed, what can be added, the updates, where packages come from, and whom this machine
- * trusts. The default is for a mount without the view, as in the tests.
+ * had become a long scroll to the one that was wanted, so the page is tabs: what is installed,
+ * the catalogue of services with their updates (one view since RD-1260-02, where the bundle and
+ * the updates were two), where packages come from, and whom this machine trusts. The default is
+ * for a mount without the view, as in the tests.
  */
 const activeTab = defineModel<string>('subTab', { default: 'installed' })
 const { t } = useI18n()
@@ -58,14 +58,12 @@ async function versionActionDone(outcome: { message: string | null, error: strin
 }
 
 const { typeTab, pluginGroups, typeGroups, visibleGroups, openSuperseded, toggleSuperseded } = usePluginGroups(plugins)
-/** The bundle's available services, re-read when the installed set changes elsewhere. */
-const bundledList = ref<InstanceType<typeof PluginBundledList> | null>(null)
-/** Only for the count in the updates tab's badge; the list reads its offers itself. */
-const updatesList = ref<InstanceType<typeof PluginUpdatesList> | null>(null)
+/** The catalogue of services and updates, re-read when the installed set changes elsewhere. */
+const catalogue = ref<InstanceType<typeof PluginCatalogue> | null>(null)
 /** The installed plugins and the waiting updates are counted in the badges, as on the routing page. */
 const tabItems = computed(() => subTabItems('plugins', t, {
   installed: pluginGroups.value.length,
-  updates: updatesList.value?.updateCount || undefined
+  catalogue: catalogue.value?.updateCount || undefined
 }))
 const trustedKeys = ref<TrustedKey[]>([])
 const packageFile = ref<File | null>(null)
@@ -153,7 +151,7 @@ async function reloadFromEvent(): Promise<void> {
     refresh(),
     refreshKeys(),
     refreshRevocations(),
-    bundledList.value?.reload()
+    catalogue.value?.reload?.()
   ])
   const failure = keyFailure ?? revocationFailure
   if (failure) error.value = failure
@@ -391,7 +389,7 @@ async function revokeKey(keyId: string): Promise<void> {
         </div>
       </template>
 
-      <template #add>
+      <template #catalogue>
         <div class="space-y-6">
           <UCard as="section">
             <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="previewUpload()">
@@ -415,12 +413,8 @@ async function revokeKey(keyId: string): Promise<void> {
             </form>
           </UCard>
 
-          <PluginBundledList ref="bundledList" @installed="onInstalled" />
+          <PluginCatalogue ref="catalogue" @installed="onInstalled" @automatic-changed="value => (automaticForAll = value)" />
         </div>
-      </template>
-
-      <template #updates>
-        <PluginUpdatesList ref="updatesList" @installed="onInstalled" @automatic-changed="value => (automaticForAll = value)" />
       </template>
 
       <template #repositories>

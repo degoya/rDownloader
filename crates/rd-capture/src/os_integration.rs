@@ -10,6 +10,16 @@ use rd_autostart::shell::run;
 #[cfg(windows)]
 use rd_autostart::shell::{reg_add, reg_delete_key_if_present};
 
+// The registry lists, testable on every host; written and removed only by the Windows functions
+// below.
+#[path = "os_integration_windows.rs"]
+mod registry;
+
+#[cfg(test)]
+use registry::{RegistryEntry, windows_registry_entries, windows_scheme_entries};
+#[cfg(any(windows, test))]
+use registry::{windows_entries, windows_removal_keys};
+
 #[derive(Clone, Copy)]
 pub(crate) enum Kind {
     Association,
@@ -63,121 +73,6 @@ fn windows_install(kind: Kind, executable: &Path) -> Result<()> {
     Ok(())
 }
 
-/// One `HKCU\Software\Classes` entry the capture agent writes, and how far removing it may go.
-///
-/// Installing and removing used to be two independent enumerations -- a list of tuples on one
-/// side, a sequence of calls on the other -- with nothing connecting them, so a key added to one
-/// side and not the other went unnoticed. That is exactly what happened to the
-/// `AppUserModelId` entry, which `association install` wrote and `association remove` left
-/// behind for good (RD-109-15).
-#[cfg_attr(not(windows), allow(dead_code))]
-struct RegistryEntry {
-    key: String,
-    /// The value name, or `None` for the key's default value.
-    name: Option<&'static str>,
-    value: String,
-    /// The key `remove` deletes for this entry, with everything under it.
-    ///
-    /// Usually the top of the entry's own branch, so several entries under one branch collapse
-    /// to a single delete. For the `SystemFileAssociations\.nzb` entries it is deliberately
-    /// *not* the top of the branch: that parent may carry verbs other installed software
-    /// registered, so removal stops at rDownloader's own `rDownloader.Import` below it. The
-    /// exception is marked here, on the entry it applies to, rather than living as a second,
-    /// differently shaped enumeration.
-    removes: String,
-}
-
-/// Every entry of one integration kind: the single source both sides move over.
-#[cfg_attr(not(windows), allow(dead_code))]
-fn windows_entries(kind: Kind, executable: &str) -> Vec<RegistryEntry> {
-    match kind {
-        Kind::Association => windows_registry_entries(executable),
-        Kind::Scheme => windows_scheme_entries(executable),
-    }
-}
-
-/// The keys `remove` deletes, in the order they were declared and without repeats.
-#[cfg_attr(not(windows), allow(dead_code))]
-fn windows_removal_keys(entries: &[RegistryEntry]) -> Vec<String> {
-    let mut keys: Vec<String> = Vec::new();
-    for entry in entries {
-        if !keys.contains(&entry.removes) {
-            keys.push(entry.removes.clone());
-        }
-    }
-    keys
-}
-
-/// The full set of `HKCU\Software\Classes` registry entries `association install`
-/// writes on Windows. Kept pure and cfg-free (no registry access, no `#[cfg(windows)]`)
-/// so it can be unit-tested on any host; `windows_install` is the only non-test consumer,
-/// which is why non-Windows builds see it as unused outside `#[cfg(test)]`.
-#[cfg_attr(not(windows), allow(dead_code))]
-fn windows_registry_entries(executable: &str) -> Vec<RegistryEntry> {
-    let extension = r"HKCU\Software\Classes\.nzb".to_owned();
-    let file_type = r"HKCU\Software\Classes\rDownloader.NZB".to_owned();
-    // The removal stops here and not at the `SystemFileAssociations\.nzb` above it: that key is
-    // shared with whatever else registers a verb for the file type.
-    let import_verb =
-        r"HKCU\Software\Classes\SystemFileAssociations\.nzb\shell\rDownloader.Import".to_owned();
-    let notification_sender = format!(r"HKCU\Software\Classes\AppUserModelId\{WINDOWS_APP_ID}");
-    vec![
-        RegistryEntry {
-            key: extension.clone(),
-            name: None,
-            value: "rDownloader.NZB".to_owned(),
-            removes: extension.clone(),
-        },
-        RegistryEntry {
-            key: extension.clone(),
-            name: Some("Content Type"),
-            value: "application/x-nzb".to_owned(),
-            removes: extension,
-        },
-        RegistryEntry {
-            key: file_type.clone(),
-            name: None,
-            value: "NZB Usenet file".to_owned(),
-            removes: file_type.clone(),
-        },
-        RegistryEntry {
-            key: format!(r"{file_type}\shell\open\command"),
-            name: None,
-            value: format!("\"{executable}\" open \"%1\""),
-            removes: file_type,
-        },
-        // Windows 11 files this verb under "Show more options" (Shift+F10) rather than the
-        // top-level context menu; top-level placement would require an IExplorerCommand
-        // handler plus sparse MSIX signing, which is deliberately out of scope here.
-        RegistryEntry {
-            key: import_verb.clone(),
-            name: None,
-            value: "Import into rDownloader".to_owned(),
-            removes: import_verb.clone(),
-        },
-        RegistryEntry {
-            key: import_verb.clone(),
-            name: Some("Icon"),
-            value: format!("\"{executable}\",0"),
-            removes: import_verb.clone(),
-        },
-        RegistryEntry {
-            key: format!(r"{import_verb}\command"),
-            name: None,
-            value: format!("\"{executable}\" open \"%1\""),
-            removes: import_verb,
-        },
-        // Names the sender of the agent's desktop notifications. An unpackaged executable has
-        // no AppUserModelID of its own, so without this the toast arrives as PowerShell.
-        RegistryEntry {
-            key: notification_sender.clone(),
-            name: Some("DisplayName"),
-            value: "rDownloader Capture".to_owned(),
-            removes: notification_sender,
-        },
-    ]
-}
-
 #[cfg(windows)]
 fn windows_remove(kind: Kind) -> Result<()> {
     // The same list `install` writes, read for its removal keys. The executable path plays no
@@ -186,44 +81,6 @@ fn windows_remove(kind: Kind) -> Result<()> {
         reg_delete_key_if_present(&key)?;
     }
     Ok(())
-}
-
-/// The `HKCU\Software\Classes` entries that register the URL scheme on Windows.
-///
-/// Kept pure and cfg-free for the same reason as [`windows_registry_entries`]: the exact
-/// quoting of the command is what decides whether an address with a space in it arrives
-/// intact, and that has to be testable on any host.
-#[cfg_attr(not(windows), allow(dead_code))]
-fn windows_scheme_entries(executable: &str) -> Vec<RegistryEntry> {
-    // One branch, so one removal key for all four -- the scheme side never had the problem the
-    // association side had, and moving it onto the same list costs nothing.
-    let scheme = r"HKCU\Software\Classes\rdownloader".to_owned();
-    vec![
-        RegistryEntry {
-            key: scheme.clone(),
-            name: None,
-            value: "URL:rDownloader Protocol".to_owned(),
-            removes: scheme.clone(),
-        },
-        RegistryEntry {
-            key: scheme.clone(),
-            name: Some("URL Protocol"),
-            value: String::new(),
-            removes: scheme.clone(),
-        },
-        RegistryEntry {
-            key: format!(r"{scheme}\DefaultIcon"),
-            name: None,
-            value: format!("\"{executable}\",0"),
-            removes: scheme.clone(),
-        },
-        RegistryEntry {
-            key: format!(r"{scheme}\shell\open\command"),
-            name: None,
-            value: format!("\"{executable}\" handle \"%1\""),
-            removes: scheme,
-        },
-    ]
 }
 
 #[cfg(target_os = "linux")]
@@ -240,6 +97,12 @@ fn linux_install(kind: Kind, executable: &Path) -> Result<()> {
             let packages = base.data_local_dir().join("mime/packages");
             std::fs::create_dir_all(&packages)?;
             std::fs::write(packages.join("rdownloader-nzb.xml"), LINUX_NZB_MIME_XML)?;
+            // The link containers' types (RD-1260-09): offered in "Open with" through the
+            // desktop entry's `MimeType`, never made their default.
+            std::fs::write(
+                packages.join(LINUX_CONTAINER_MIME_PACKAGE),
+                LINUX_CONTAINER_MIME_XML,
+            )?;
             let _ = std::process::Command::new("update-mime-database")
                 .arg(base.data_local_dir().join("mime"))
                 .status();
@@ -281,11 +144,24 @@ fn linux_install(kind: Kind, executable: &Path) -> Result<()> {
 #[cfg(target_os = "linux")]
 const LINUX_NZB_MIME_XML: &str = "<?xml version=\"1.0\"?><mime-info xmlns=\"http://www.freedesktop.org/standards/shared-mime-info\"><mime-type type=\"application/x-nzb\"><comment>NZB Usenet file</comment><glob pattern=\"*.nzb\"/></mime-type></mime-info>";
 
+/// The link containers' MIME package (RD-1260-09). `.torrent` needs none: shared-mime-info
+/// knows `application/x-bittorrent`.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const LINUX_CONTAINER_MIME_PACKAGE: &str = "rdownloader-containers.xml";
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const LINUX_CONTAINER_MIME_XML: &str = "<?xml version=\"1.0\"?><mime-info xmlns=\"http://www.freedesktop.org/standards/shared-mime-info\"><mime-type type=\"application/x-dlc\"><comment>DLC link container</comment><glob pattern=\"*.dlc\"/></mime-type><mime-type type=\"application/x-ccf\"><comment>CCF link container</comment><glob pattern=\"*.ccf\"/></mime-type><mime-type type=\"application/x-rsdf\"><comment>RSDF link container</comment><glob pattern=\"*.rsdf\"/></mime-type><mime-type type=\"application/x-rdlinks\"><comment>rDownloader link file</comment><glob pattern=\"*.rdlinks\"/></mime-type><mime-type type=\"application/x-crawljob\"><comment>Crawljob link list</comment><glob pattern=\"*.crawljob\"/></mime-type></mime-info>";
+
+/// Every MIME type the desktop entry offers the agent for: the NZB it is the default of, and the
+/// containers and the torrent it is only offered for.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const LINUX_MIME_TYPES: &str = "application/x-nzb;application/x-dlc;application/x-ccf;application/x-rsdf;application/x-rdlinks;application/x-crawljob;application/x-bittorrent;";
+
 #[cfg(target_os = "linux")]
 fn render_linux_desktop(executable: &Path) -> Result<String> {
     let executable = desktop_quote(executable)?;
     Ok(format!(
-        "[Desktop Entry]\nType=Application\nName=rDownloader Capture\nComment=Import NZB into rDownloader\nNoDisplay=false\nTerminal=false\nExec={executable} open %f\nMimeType=application/x-nzb;\nCategories=Network;\n"
+        "[Desktop Entry]\nType=Application\nName=rDownloader Capture\nComment=Import NZB files and link containers into rDownloader\nNoDisplay=false\nTerminal=false\nExec={executable} open %F\nMimeType={LINUX_MIME_TYPES}\nCategories=Network;\n"
     ))
 }
 
@@ -317,11 +193,11 @@ fn linux_remove(kind: Kind) -> Result<()> {
     }
     // The NZB mime package belongs to the file association only; removing the scheme
     // handler must not take the file type with it.
-    let mime_package = base
-        .data_local_dir()
-        .join("mime/packages/rdownloader-nzb.xml");
-    if matches!(kind, Kind::Association) && mime_package.exists() {
-        std::fs::remove_file(mime_package)?;
+    if matches!(kind, Kind::Association) {
+        let packages = base.data_local_dir().join("mime/packages");
+        for package in ["rdownloader-nzb.xml", LINUX_CONTAINER_MIME_PACKAGE] {
+            rd_autostart::shell::remove_file_if_present(&packages.join(package))?;
+        }
     }
     let _ = std::process::Command::new("update-mime-database")
         .arg(base.data_local_dir().join("mime"))

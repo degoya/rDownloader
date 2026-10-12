@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Category, DownloadPriority, PostprocessLevel } from '@/api/types'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { INHERIT_LEVEL, postprocessLevelItems, priorityItems } from '@/utils/format'
+import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 
 const PRIORITY_ITEMS = computed(() => priorityItems())
@@ -22,8 +23,11 @@ const props = defineProps<{
   busy?: boolean
   /** Show start/pause (downloader) instead of enqueue (LinkGrabber). */
   transferActions?: boolean
-  /** What the ticked rows are, e.g. "3 files in 2 packages": the badge's tooltip. */
-  detail?: string
+  /**
+   * What the ticked rows are, packages and files apart — "4 packages · 11 files selected"
+   * (RD-1260-07): the badge, and its tooltip where a narrow bar shows only `count`.
+   */
+  summary: string
   /** Nothing in the selection can be exported (the LinkGrabber's NZB imports alone). */
   exportDisabled?: boolean
   /** Category/priority act on whole packages; disable when the selection is partial. */
@@ -87,12 +91,19 @@ function applyLevel(value: string): void {
     holds; the group wraps where the bar is narrow (RD-1220-03). From 1440 px of window it is one
     line (RD-1230-02).
   -->
-  <div class="sticky top-0 z-10 flex items-center gap-2 border border-primary/40 bg-elevated p-3" data-testid="bulk-action-bar">
+  <div class="@container sticky top-0 z-10 flex items-center gap-2 border border-primary/40 bg-elevated p-3" data-testid="bulk-action-bar">
     <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2" data-testid="bulk-action-group">
-      <UBadge color="primary" variant="solid" class="numeric" :title="props.detail">{{ t('common.selection.count', { count: props.count }) }}</UBadge>
+      <!-- Narrow, the figure with the selection's icon; both numbers stay in the tooltip and, for a
+           screen reader, in hidden text in place of the bare figure (RD-1260-07). -->
+      <UBadge color="primary" variant="solid" class="numeric" :title="props.summary" data-testid="bulk-selection">
+        <UIcon name="i-lucide-list-checks" class="size-3.5 @min-[40rem]:hidden" aria-hidden="true" />
+        <span class="@min-[40rem]:hidden" aria-hidden="true">{{ props.count }}</span>
+        <span class="sr-only @min-[40rem]:hidden" data-testid="bulk-selection-spoken">{{ props.summary }}</span>
+        <span class="hidden @min-[40rem]:inline">{{ props.summary }}</span>
+      </UBadge>
       <SearchableSelect
         :model-value="categoryChoice"
-        :items="[{ label: t('downloads.bulk.default_category'), value: NO_SELECTION }, ...props.categories.map(category => ({ label: category.name, value: category.id }))]"
+        :items="[{ label: t('downloads.bulk.default_category'), value: NO_SELECTION }, ...pickableCategories(props.categories).map(category => ({ label: category.name, value: category.id }))]"
         size="sm"
         class="w-40"
         :disabled="props.packageActionsDisabled || props.busy"

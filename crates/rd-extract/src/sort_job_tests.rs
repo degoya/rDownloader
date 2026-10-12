@@ -37,6 +37,7 @@ async fn sorting_category(database: &Database, temp: &Path) -> CategoryId {
             storage_root_id: root.id,
             relative_path: "library".to_owned(),
             is_default: false,
+            selectable: true,
             postprocess_level: None,
             direct_unpack: None,
             script: None,

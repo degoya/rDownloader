@@ -154,8 +154,8 @@ describe('the settings search registry (RD-170-15)', () => {
       return entry ? settingsSearchLocation(entry) : null
     }
     expect(location('plugins.keys')).toEqual({ path: '/settings/plugins', query: { tab: 'trust' } })
-    expect(location('plugins.updates')).toEqual({ path: '/settings/plugins', query: { tab: 'updates' } })
-    expect(location('plugins.install')).toEqual({ path: '/settings/plugins', query: { tab: 'add' } })
+    expect(location('plugins.catalogue')).toEqual({ path: '/settings/plugins', query: { tab: 'catalogue' } })
+    expect(location('plugins.install')).toEqual({ path: '/settings/plugins', query: { tab: 'catalogue' } })
     expect(location('security.allowed_hosts')).toEqual({ path: '/settings/security', query: { tab: 'proxy' } })
     expect(location('network.reconnect')).toEqual({ path: '/settings/network', query: { tab: 'reconnect' } })
     expect(location('system.audit')).toEqual({ path: '/settings/system', query: { tab: 'retention' } })

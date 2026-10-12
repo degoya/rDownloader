@@ -1,17 +1,12 @@
 /**
- * When the Downloads navbar's buttons carry their words (RD-1240-33).
+ * The Downloads navbar's widths (RD-1240-33, RD-1260-06).
  *
- * The navbar measures its own width (`@container`), as the LinkGrabber's does: the labelled row
- * needs about 1150 px beside the title and the sidebar toggle, and below that it squeezed the
- * title to its first letter and, at 1024 px, pushed the toggle and the title out and cut "Clear
- * list" off at the window's edge. Below the threshold every button keeps only its icon, its name
- * staying as `aria-label` and `title`; the file count goes, the toolbar repeats it.
+ * The navbar measures its own width (`@container`), as the LinkGrabber's does. Its actions are
+ * icons at every width, each named by its `aria-label` and its tooltip (`NavbarAction`), so the
+ * row is short; what only says again what is elsewhere — the file count, the time a pause holds
+ * until — goes on a narrow navbar, as the LinkGrabber's less used actions do.
  */
-export const DOWNLOADS_NAV_LABEL = { label: 'hidden @min-[72rem]:inline' }
-/** The parts that only say again what is elsewhere: the file count. */
-export const DOWNLOADS_NAV_WIDE = 'hidden @min-[72rem]:inline-flex'
-/** The key hint, first to go. */
-export const DOWNLOADS_NAV_KBD = 'hidden @min-[80rem]:inline-flex'
+export const DOWNLOADS_NAV_WIDE = 'hidden @min-[40rem]:inline-flex'
 /**
  * The title, on its own line of text inside Nuxt UI's flex heading, so it can end in an ellipsis
  * (RD-1250-10): the heading's own `truncate` clips a flex container's text without one, and at

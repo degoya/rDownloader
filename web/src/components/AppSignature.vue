@@ -23,7 +23,7 @@ onMounted(async () => {
     <span class="flex items-center gap-1">
       {{ t('common.footer.made_with') }}
       <UIcon name="i-lucide-heart" class="size-3 text-primary" />
-      {{ t('common.footer.by', { author: 'Alexander Herling' }) }}
+      {{ t('common.footer.by', { author: 'DEGOYA.digital' }) }}
     </span>
   </div>
 </template>

@@ -34,6 +34,15 @@ export const FIREFOX_DATA_COLLECTION = {
 /** Permissions only the Firefox build carries: what copying a response takes (RD-130-16). */
 export const FIREFOX_ONLY_PERMISSIONS = ['webRequestBlocking', 'webRequestFilterResponse']
 
+/**
+ * Permissions only the Chrome build carries: answering a Click'n'Load page without the agent
+ * (RD-1260-10). Chrome has no blocking `webRequest` outside a policy install, so session rules
+ * redirect the page's requests to `127.0.0.1:9666` to the extension's own resources. The
+ * `WithHostAccess` form shows no install warning and acts only where a host grant exists: the two
+ * port addresses, and the sites the person allowed. Firefox answers from its blocking listener.
+ */
+export const CHROME_ONLY_PERMISSIONS = ['declarativeNetRequestWithHostAccess']
+
 export function archiveName(target) {
   return `rdownloader-${target}.zip`
 }
@@ -43,6 +52,7 @@ export function manifestFor(target, base) {
   if (target === 'chrome') {
     manifest.background = { service_worker: 'src/background.js', type: 'module' }
     manifest.minimum_chrome_version = CHROME_MIN_VERSION
+    manifest.permissions = [...manifest.permissions, ...CHROME_ONLY_PERMISSIONS]
   } else if (target === 'firefox') {
     manifest.background = { scripts: ['src/background.js'], type: 'module' }
     // The floor is what the project actually supports, not the oldest Firefox that would

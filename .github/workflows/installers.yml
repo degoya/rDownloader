@@ -45,6 +45,9 @@ on:
       - scripts/windows/**
       - crates/rd-autostart/**
       - crates/rd-capture/src/os_integration.rs
+      - crates/rd-capture/src/os_integration_windows.rs
+      - crates/rd-capture/src/desktop_shortcut.rs
+      - crates/rd-capture/src/hand_over.rs
   workflow_dispatch:
 
 permissions: {}
@@ -308,18 +311,37 @@ jobs:
           Set-Content "$home_\data\installers-marker" 'installers msi'
           New-Item -ItemType Directory -Force "$home_\downloads" | Out-Null
           Set-Content "$home_\downloads\installers-marker" 'installers msi'
+          # Another program owns .dlc before the agent's association is installed (RD-1260-09).
+          $classes = 'HKCU:\Software\Classes'
+          New-Item "$classes\.dlc" -Force -Value 'Other.Container' | Out-Null
+          $desktopLink = Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'Add to rDownloader.lnk'
+          $sendToLink = Join-Path ([Environment]::GetFolderPath('SendTo')) 'rDownloader.lnk'
+          $verb = "$classes\SystemFileAssociations\.dlc\shell\rDownloader.Import\command"
+          $offered = "$classes\Applications\rdownloader-capture.exe"
           # The upgrade stops the running service itself (the old version's StopRunning).
-          Msi '/i installers\second\rdownloader-windows-x86_64.msi AUTOSTART=1' second.log
+          Msi '/i installers\second\rdownloader-windows-x86_64.msi AUTOSTART=1 ASSOCIATION=1 DROPSHORTCUT=1 SENDTO=1' second.log
           if (Get-Process rdownloader -ErrorAction SilentlyContinue) { throw "the upgrade left the old service running" }
           $autostart = (Get-ItemProperty $run -Name 'rDownloader Service' -ErrorAction SilentlyContinue).'rDownloader Service'
           if (-not $autostart) { throw "AUTOSTART=1 registered no autostart" }
           Write-Host "autostart: $autostart"
+          # The three switches: the association with its verb and Open with entry, the drop
+          # shortcut and Send to; the other program's default for .dlc is still its own.
+          if (-not (Test-Path $verb)) { throw "ASSOCIATION=1 registered no 'Import into rDownloader' for .dlc" }
+          if (-not (Test-Path "$offered\SupportedTypes")) { throw "ASSOCIATION=1 put the agent in no Open with list" }
+          if ((Get-Item "$classes\.dlc").GetValue('') -ne 'Other.Container') { throw "the association took the .dlc default of another program" }
+          if (-not (Test-Path $desktopLink)) { throw "DROPSHORTCUT=1 put no shortcut on the desktop" }
+          if (-not (Test-Path $sendToLink)) { throw "SENDTO=1 put no entry in Send to" }
           Serve
           if ((Get-Content "$home_\data\installers-marker") -ne 'installers msi') { throw "the data marker did not survive the upgrade" }
           Msi '/x installers\second\rdownloader-windows-x86_64.msi' remove.log
           if (Test-Path "$program\rdownloader.exe") { throw "the uninstall left the program behind" }
           if (Test-Path $menu) { throw "the uninstall left the Start menu folder behind" }
           if (Get-ItemProperty $run -Name 'rDownloader Service' -ErrorAction SilentlyContinue) { throw "the uninstall left the autostart entry behind" }
+          foreach ($left in $verb, $offered, "$classes\rDownloader.NZB", $desktopLink, $sendToLink) {
+            if (Test-Path -LiteralPath $left) { throw "the uninstall left $left behind" }
+          }
+          if ((Get-Item "$classes\.dlc").GetValue('') -ne 'Other.Container') { throw "the uninstall took the .dlc default of another program" }
+          Remove-Item "$classes\.dlc" -Recurse -Force
           if (-not (Test-Path $db)) { throw "the uninstall took the database with it" }
           if ((Get-Content "$home_\downloads\installers-marker") -ne 'installers msi') { throw "the uninstall took the downloads with it" }
           # A language other than English (RD-1120-20): silent, its own strings bound, removed.

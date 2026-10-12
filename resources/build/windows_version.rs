@@ -21,11 +21,11 @@ BEGIN
     BEGIN
         BLOCK "040704B0"
         BEGIN
-            VALUE "CompanyName", "Alexander Herling\0"
+            VALUE "CompanyName", "DEGOYA.digital\0"
             VALUE "FileDescription", "{description}\0"
             VALUE "FileVersion", "{version}\0"
             VALUE "InternalName", "{internal_name}\0"
-            VALUE "LegalCopyright", "Copyright (c) Alexander Herling\0"
+            VALUE "LegalCopyright", "Copyright (c) DEGOYA.digital\0"
             VALUE "OriginalFilename", "{original_filename}\0"
             VALUE "ProductName", "rDownloader\0"
             VALUE "ProductVersion", "{version}\0"

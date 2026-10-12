@@ -8,6 +8,13 @@
 //! packages are the release's own, verified again from the bundle directory as they install.
 //! Removing a service takes one request too (RD-180-14), and no later start brings it back:
 //! only a fresh installation's first start installs anything new.
+//!
+//! Since RD-1260-02 the repository comes first: a service installs each plugin from the
+//! repository when one offers the bundle's version or a newer one of the same plugin — signed by
+//! the same key, asking for nothing more — and its host answers, and from the bundle only
+//! otherwise, so a machine without a network still gets every service the release ships. The
+//! catalogue is the plugin manager's one view of the plugins: the bundle's services and what only
+//! a repository offers, each plugin with its origin and its waiting update.
 
 use std::collections::{HashMap, HashSet};
 
@@ -21,8 +28,10 @@ use utoipa::{IntoParams, ToSchema};
 
 use crate::{ApiError, AppState, dto::MessageResponse};
 
+mod catalogue;
 mod dto;
 
+use catalogue::RepositoryView;
 pub use dto::*;
 
 /// At most this many services in one install or remove request; the bundle has far fewer.
@@ -55,29 +64,16 @@ fn language(locale: Option<&str>) -> String {
         .unwrap_or_else(|| "en".to_owned())
 }
 
-fn plugin_response(
-    package: &rd_plugin_host::BundledPackage,
-    installed: &HashMap<PluginId, String>,
-    language: &str,
-) -> BundledPluginResponse {
-    BundledPluginResponse {
-        id: package.manifest.id,
-        name: package.name(language).to_owned(),
-        plugin_type: package.manifest.plugin_type.as_str().to_owned(),
-        version: package.manifest.version.clone(),
-        installed_version: installed.get(&package.manifest.id).cloned(),
-    }
-}
-
 fn service_response(
     service: &rd_plugin_host::BundledService,
     installed: &HashMap<PluginId, String>,
     language: &str,
+    view: &RepositoryView,
 ) -> BundledServiceResponse {
     let plugins: Vec<BundledPluginResponse> = service
         .packages
         .iter()
-        .map(|package| plugin_response(package, installed, language))
+        .map(|package| view.plugin(package, installed.get(&package.manifest.id), language))
         .collect();
     let present = plugins
         .iter()
@@ -102,11 +98,13 @@ fn service_response(
         } else {
             BundledServiceState::Partial
         },
+        update_available: plugins.iter().any(|plugin| plugin.update.is_some()),
         plugins,
     }
 }
 
-/// The bundle by service, with what of it is installed.
+/// The bundle by service, with what of it is installed, where each plugin installs from and the
+/// update waiting for it, and what only the repositories offer (RD-1260-02).
 #[utoipa::path(
     get,
     path = "/api/v1/plugins/bundled",
@@ -120,13 +118,17 @@ pub async fn list_bundled_services(
 ) -> Result<Json<BundledCatalogueResponse>, ApiError> {
     let language = language(query.locale.as_deref());
     let installed = installed_versions(&state).await?;
-    let services = state
-        .plugins
-        .bundled_services()
+    let view = RepositoryView::read(&state).await;
+    let catalogue = state.plugins.bundled_services();
+    let services = catalogue
         .iter()
-        .map(|service| service_response(service, &installed, &language))
+        .map(|service| service_response(service, &installed, &language, &view))
         .collect();
-    Ok(Json(BundledCatalogueResponse { services }))
+    let repository_services = view.repository_services(&catalogue, &installed);
+    Ok(Json(BundledCatalogueResponse {
+        services,
+        repository_services,
+    }))
 }
 
 /// The named services, every one looked up before anything changes, so a request naming an
@@ -158,7 +160,8 @@ fn chosen_services<'a>(
         .collect()
 }
 
-/// Installs the plugins of the named services that are not installed yet.
+/// Installs the plugins of the named services that are not installed yet: each from the repository
+/// when it can be fetched there (RD-1260-02), from the bundle otherwise.
 ///
 /// One plugin that fails does not stop the others: the answer lists what was installed and what
 /// was not, and the person sees both. Every service is looked up before anything installs, so a
@@ -194,13 +197,24 @@ pub async fn install_bundled_services(
         failed: Vec::new(),
         restart_required: false,
     };
+    let wanted = chosen.iter().any(|service| {
+        service
+            .packages
+            .iter()
+            .any(|package| !done.contains(&package.manifest.id))
+    });
+    if wanted {
+        // The wizard runs before the first scheduled refresh; without a network this fails
+        // and every plugin comes from the bundle.
+        state.plugin_repositories.ensure_index().await;
+    }
     for service in chosen {
         for package in &service.packages {
             if !done.insert(package.manifest.id) {
                 continue;
             }
             match install_package(&state, &audit, package).await {
-                Ok((installed, running)) => {
+                Ok((installed, running, origin)) => {
                     response.restart_required |= !running;
                     response.installed.push(BundledPluginResponse {
                         id: installed.manifest.id,
@@ -208,6 +222,11 @@ pub async fn install_bundled_services(
                         plugin_type: installed.manifest.plugin_type.as_str().to_owned(),
                         installed_version: Some(installed.manifest.version.clone()),
                         version: installed.manifest.version,
+                        origin,
+                        repository_version: None,
+                        repository_id: None,
+                        installed_origin: Some(origin),
+                        update: None,
                     });
                 }
                 Err(error) => response.failed.push(BundledInstallFailure {
@@ -238,29 +257,65 @@ pub async fn install_bundled_services(
     Ok(Json(response))
 }
 
-/// Installs one package; the flag says whether it runs now.
+/// Installs one package, from the repository when it can be fetched there and from the bundle
+/// otherwise; says whether it runs now and where it came from.
 async fn install_package(
     state: &AppState,
     audit: &crate::audit::AuditContext,
     package: &rd_plugin_host::BundledPackage,
-) -> Result<(rd_plugin_host::InstalledPackage, bool), ApiError> {
+) -> Result<(rd_plugin_host::InstalledPackage, bool, PluginOrigin), ApiError> {
+    if let Some((offer, bytes)) = state.plugin_repositories.fetch_replacement(package).await {
+        match state.plugins.install_bytes(bytes).await {
+            Ok(installed) => {
+                if let Err(error) = state.plugin_repositories.record_install(&offer).await {
+                    // As for an update: only a later withdrawal by a third-party repository
+                    // loses its reach over this version.
+                    tracing::warn!(%error, "could not record which repository a plugin came from");
+                }
+                let running = crate::plugin_handlers::register_installed(state, &installed).await?;
+                audit_install(state, audit, &installed, Some(offer.repository_id.as_str())).await;
+                return Ok((installed, running, PluginOrigin::Repository));
+            }
+            Err(error) => tracing::warn!(
+                plugin = %package.manifest.name,
+                %error,
+                "the repository's version did not install; installing the bundled one"
+            ),
+        }
+    }
     let installed = state
         .plugins
         .install(package.path.clone())
         .await
         .map_err(crate::plugin_handlers::install_error)?;
     let running = crate::plugin_handlers::register_installed(state, &installed).await?;
-    crate::audit::record(
-        state,
-        crate::audit::AuditEvent::success(rd_core::AuditAction::PluginInstalled)
-            .by(audit)
-            .target("plugin", installed.manifest.id)
-            .named(installed.manifest.name.clone())
-            .detail("version", &installed.manifest.version)
-            .detail("source", "bundled"),
-    )
-    .await;
-    Ok((installed, running))
+    audit_install(state, audit, &installed, None).await;
+    Ok((installed, running, PluginOrigin::Bundled))
+}
+
+async fn audit_install(
+    state: &AppState,
+    audit: &crate::audit::AuditContext,
+    installed: &rd_plugin_host::InstalledPackage,
+    repository: Option<&str>,
+) {
+    let mut event = crate::audit::AuditEvent::success(rd_core::AuditAction::PluginInstalled)
+        .by(audit)
+        .target("plugin", installed.manifest.id)
+        .named(installed.manifest.name.clone())
+        .detail("version", &installed.manifest.version)
+        .detail(
+            "source",
+            if repository.is_some() {
+                "repository"
+            } else {
+                "bundled"
+            },
+        );
+    if let Some(repository) = repository {
+        event = event.detail("repository", repository);
+    }
+    crate::audit::record(state, event).await;
 }
 
 /// Removes every installed version of every plugin of the named services (RD-180-14).

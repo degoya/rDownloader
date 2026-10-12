@@ -579,7 +579,7 @@
   },
   "notifications": {
     "label": "Browser notifications",
-    "description": "Shows a desktop notification when a download or post-processing job finishes. Stored in this browser only.",
+    "description": "Shows a desktop notification when the download list finishes, downloads of a package fail or links arrive – once, from one of the open tabs. What push already sends to this browser, and links a running desktop agent announces, are left to them; quiet hours hold them back. Stored in this browser only.",
     "denied": "The browser blocked notifications for this page. Allow them in the site permissions and switch the toggle on again.",
     "unsupported": "This browser does not support notifications."
   },
@@ -955,13 +955,15 @@
   },
   "logs": {
     "eyebrow": "Log store",
-    "title": "Log retention",
-    "description": "How much of the structured log the service keeps. Older records are removed in the background; the queue never waits for it.",
+    "title": "Log level and retention",
+    "description": "What the service logs and how much of it the service keeps. Older records are removed in the background; the queue never waits for it.",
     "records_label": "Records kept",
     "records_description": "The oldest records go first (1000-500000).",
     "days_label": "Days kept",
     "days_description": "Records older than this are removed whatever the count (1-365).",
-    "open": "Open the log viewer"
+    "open": "Open the log viewer",
+    "level_label": "Log level",
+    "level_description": "What the service writes to the console, the log and the trace export: errors, warnings, info (the default) or debug. Holds from the next line after saving, without a restart."
   },
   "audit": {
     "eyebrow": "Audit and tracing",
@@ -1209,7 +1211,8 @@
       "add_all_from_linkgrabber": "Add all from LinkGrabber",
       "add_all_from_linkgrabber_paused": "Add all from LinkGrabber paused",
       "install_update": "Install agent update",
-      "restart_server": "Restart server"
+      "restart_server": "Restart server",
+      "about": "About rDownloader"
     },
     "report": {
       "title_unavailable": "Shortcuts unavailable",

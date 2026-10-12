@@ -18,6 +18,7 @@ members = [
   "crates/rd-backup",
   "crates/rd-captcha",
   "crates/rd-capture",
+  "crates/rd-cnl",
   "crates/rd-collector",
   "crates/rd-core",
   "crates/rd-crash-points",
@@ -162,7 +163,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.25.1"
+version = "1.26.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"

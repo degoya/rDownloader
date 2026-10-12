@@ -62,6 +62,13 @@ struct BuildArgs {
     /// Directory of `<package file stem>.txt` release notes; a package without one has none.
     #[arg(long)]
     notes: Option<PathBuf>,
+    /// The index published before this one, signed with the same key. Its entries are carried
+    /// over: per plugin, contract and minimum core version the newest stays, so an installation
+    /// on an older `rdownloader:plugin` contract still finds what it runs (RD-1260-02). Its URLs
+    /// are kept as they are, so they must still resolve: absolute ones into the release that
+    /// published them, relative ones beside an index whose old packages stay in place.
+    #[arg(long)]
+    previous: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -72,6 +79,10 @@ struct VerifyArgs {
     /// size.
     #[arg(long)]
     packages: Option<PathBuf>,
+    /// The index the build carried entries over from: a listed package missing from
+    /// `--packages` must be listed there with the same digest, size and URL.
+    #[arg(long)]
+    previous: Option<PathBuf>,
 }
 
 pub async fn run(args: IndexArgs) -> Result<()> {
@@ -118,11 +129,6 @@ async fn build(args: &BuildArgs) -> Result<()> {
             .with_context(|| format!("describe {}", path.display()))?;
         packages.push(entry);
     }
-    packages.sort_by(|left, right| {
-        left.name
-            .cmp(&right.name)
-            .then_with(|| left.version.cmp(&right.version))
-    });
     let revoked = match &args.revocations {
         Some(path) => {
             let bytes = tokio::fs::read(path)
@@ -133,6 +139,22 @@ async fn build(args: &BuildArgs) -> Result<()> {
         }
         None => Revocations::default(),
     };
+    if let Some(path) = &args.previous {
+        let own = rd_sign::TrustStore::new();
+        own.trust(args.key_id.clone(), key.verifying_key())?;
+        let previous = read_previous(path, &own).await?;
+        let kept = index::carry_over(&previous, &mut packages, &revoked);
+        println!(
+            "carried {kept} of {} entries over from {}",
+            previous.packages.len(),
+            path.display()
+        );
+    }
+    packages.sort_by(|left, right| {
+        left.name
+            .cmp(&right.name)
+            .then_with(|| left.version.cmp(&right.version))
+    });
 
     let issued_at = Utc::now().trunc_subsecs(0);
     let sequence = match args.sequence {
@@ -262,9 +284,37 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
     let Some(directory) = &args.packages else {
         return Ok(());
     };
+    let previous = match &args.previous {
+        Some(path) => {
+            let roots = rd_sign::trust_store_for(rd_sign::Role::Repository, Utc::now()).map_err(
+                |error| anyhow!("no repository root to read the previous index: {error}"),
+            )?;
+            Some(read_previous(path, &roots).await?)
+        }
+        None => None,
+    };
+    let mut carried = 0;
     for entry in &verified.packages {
         let file_name = entry.url.rsplit('/').next().unwrap_or(&entry.url);
         let path = directory.join(file_name);
+        if !path.is_file()
+            && let Some(previous) = &previous
+        {
+            // Carried over, so published by an earlier release: it has to be listed there as is.
+            ensure!(
+                previous.packages.iter().any(|old| old.id == entry.id
+                    && old.version == entry.version
+                    && old.package_digest == entry.package_digest
+                    && old.size == entry.size
+                    && old.url == entry.url),
+                "{} {} is neither in {} nor listed so in the previous index",
+                entry.name,
+                entry.version,
+                directory.display()
+            );
+            carried += 1;
+            continue;
+        }
         let package = tokio::fs::read(&path)
             .await
             .with_context(|| format!("read {}", path.display()))?;
@@ -277,8 +327,45 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
         );
     }
     println!(
-        "  every listed package in {} matches its digest and size",
+        "  every listed package in {} matches its digest and size; {carried} carried over unchanged",
         directory.display()
     );
     Ok(())
+}
+
+/// The index published before this one, read for its entries.
+///
+/// Held to `trust` but not to its window: it is the publisher's own earlier index, and one that
+/// expired since — a release that came later than the validity window — still names what it
+/// offered. Only the publishing side reads an index this way; an installation always checks the
+/// window.
+async fn read_previous(path: &Path, trust: &rd_sign::TrustStore) -> Result<PluginIndex> {
+    let bytes = tokio::fs::read(path)
+        .await
+        .with_context(|| format!("read previous index {}", path.display()))?;
+    ensure!(
+        bytes.len() <= index::MAX_INDEX_BYTES,
+        "{} is larger than an index may be",
+        path.display()
+    );
+    let document = rd_sign::SignedDocument::parse(&bytes)
+        .map_err(|error| anyhow!("{} cannot be read: {error}", path.display()))?;
+    let payload = document
+        .verify(index::PLUGIN_INDEX_DOMAIN, trust)
+        .map_err(|error| {
+            anyhow!(
+                "{} is not signed by the expected key: {error}",
+                path.display()
+            )
+        })?;
+    let previous: PluginIndex = serde_json::from_value(payload)
+        .with_context(|| format!("parse previous index {}", path.display()))?;
+    ensure!(
+        previous.schema_version == index::PLUGIN_INDEX_SCHEMA_VERSION,
+        "{} is schema version {}, this build writes {}",
+        path.display(),
+        previous.schema_version,
+        index::PLUGIN_INDEX_SCHEMA_VERSION
+    );
+    Ok(previous)
 }

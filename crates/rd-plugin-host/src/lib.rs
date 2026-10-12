@@ -20,6 +20,7 @@ mod install;
 mod installed;
 pub mod keyderive;
 mod locales;
+mod log_budget;
 mod manifest;
 mod native;
 mod own_endpoints;
@@ -51,6 +52,7 @@ pub use locales::{
     MAX_LOCALE_BYTES, MAX_LOCALE_FILES, PluginLocale, PluginLocaleAccount, REQUIRED_LANGUAGES,
     locale_member_language, parse_locale, valid_language, validate_locales,
 };
+pub use log_budget::MAX_LOG_LINES_PER_CALL;
 pub use manifest::{
     Capabilities, CredentialKindManifest, MANIFEST_VERSION, MAX_SETTING_LINE_CHARS,
     MAX_SETTING_TEXT_CHARS, ManifestHeader, ManifestRejection, NetHttpCapability,

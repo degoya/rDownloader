@@ -167,15 +167,14 @@ describe('IndexerSearchDrawer', () => {
 describe('the navbar button', () => {
   it('names the search, shows its key and asks for the drawer', async () => {
     const navbar = { template: '<div><slot name="right" /></div>' }
-    const button = { props: ['label', 'ariaLabel'], template: '<button type="button" v-bind="$attrs" :aria-label="ariaLabel">{{ label }}<slot name="trailing" /></button>' }
     const { emitted } = render(LinkGrabberNavbar, {
       props: { importing: false, checking: false, canCheck: true, hasEntries: true, enqueuing: false },
-      global: { plugins: [createTestI18n({ linkgrabber })], stubs: { ...uiStubs, UDashboardNavbar: navbar, UButton: button, UKbd: stubs.UKbd } }
+      global: { plugins: [createTestI18n({ linkgrabber })], stubs: { ...uiStubs, UDashboardNavbar: navbar } }
     })
     const open = screen.getByTestId('indexer-search-open')
     expect(open.getAttribute('aria-label')).toBe(linkgrabber.search.open)
-    expect(open.textContent).toContain(linkgrabber.search.open)
-    expect(within(open).getByText('f').tagName).toBe('KBD')
+    // The key in the tooltip, in parentheses (RD-1260-06).
+    expect(open.getAttribute('title')).toBe(`${linkgrabber.search.open} (F)`)
 
     await fireEvent.click(open)
     expect(emitted().search).toHaveLength(1)

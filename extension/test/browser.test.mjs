@@ -36,7 +36,8 @@ test('an unconfigured extension reads the defaults it was built with', async () 
   assert.deepEqual(await loadConfig(), {
     server: 'http://127.0.0.1:8710',
     token: '',
-    interceptDownloads: true
+    interceptDownloads: true,
+    clickAndLoad: true
   })
 })
 
@@ -45,13 +46,19 @@ test('saving and reading a configuration round-trips, and interception defaults 
   assert.deepEqual(await loadConfig(), {
     server: 'http://nas.local:8710',
     token: 'abc',
-    interceptDownloads: true
+    interceptDownloads: true,
+    clickAndLoad: true
   })
   // Only an explicit false switches it off — an absent value is not a refusal.
   await saveConfig({ server: 'http://nas.local:8710', token: 'abc', interceptDownloads: false })
   assert.equal((await loadConfig()).interceptDownloads, false)
   await saveConfig({ server: 'http://nas.local:8710', token: 'abc', interceptDownloads: true })
   assert.equal((await loadConfig()).interceptDownloads, true)
+  // Click'n'Load without the agent (RD-1260-10) is on the same way, off only when switched off.
+  await saveConfig({ server: 'http://nas.local:8710', token: 'abc', clickAndLoad: false })
+  assert.equal((await loadConfig()).clickAndLoad, false)
+  await saveConfig({ server: 'http://nas.local:8710', token: 'abc' })
+  assert.equal((await loadConfig()).clickAndLoad, true)
 })
 
 test('a missing translation shows its key rather than an empty label', () => {

@@ -28,10 +28,13 @@ use crate::{PluginType, parse_package_digest};
 
 #[path = "index_build.rs"]
 mod build;
+#[path = "index_merge.rs"]
+mod merge;
 #[path = "index_validate.rs"]
 mod validate;
 
 pub use build::{describe_package, package_url};
+pub use merge::carry_over;
 
 /// Domain separator for the index's signatures (`rd_sign::envelope`).
 pub const PLUGIN_INDEX_DOMAIN: &str = "rdownloader.plugin-index.v1";
@@ -75,7 +78,9 @@ pub struct PluginIndex {
     /// is fetched from the network on every refresh, and without an expiry a first contact
     /// would accept a replay of any genuine index ever published.
     pub not_after: DateTime<Utc>,
-    /// Every package offered, at most one entry per plugin id and version.
+    /// Every package offered, at most one entry per plugin id and version. The official index
+    /// keeps, per plugin, contract and minimum core version, the newest entry of every index
+    /// before it ([`carry_over`], RD-1260-02).
     #[serde(default)]
     pub packages: Vec<IndexPackage>,
     /// What this repository withdraws.

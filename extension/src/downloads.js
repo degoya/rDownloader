@@ -250,8 +250,8 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
     const config = await loadConfig()
     const enabled = config.interceptDownloads !== false
     if (!shouldIntercept(item, { enabled, serverOrigin: serverOriginOf(config.server), ownExtensionId })) return
-    // Decided before the pause: what stays with the browser is never touched. An NZB, torrent or
-    // ZIP is left alone without a word (RD-120-63) — unless its site is one the person allowed to
+    // Decided before the pause: what stays with the browser is never touched. An NZB, torrent,
+    // ZIP or link container is left alone without a word (RD-120-63, RD-1260-11) — unless its site is one the person allowed to
     // hand such files over, which `files` decides on its own (RD-130-16); an observed POST says
     // why (RD-109-20).
     const captured = correlateRequest(requests, item, now(), CORRELATION_WINDOW_MS)

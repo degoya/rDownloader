@@ -7,6 +7,7 @@ import type { DownloadSummary } from '@/api/types'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import type { DirectAddPayload } from '@/components/DirectAddForm.vue'
 import DirectAddModal from '@/components/DirectAddModal.vue'
+import NavbarAction from '@/components/NavbarAction.vue'
 import PackageGroup from '@/components/PackageGroup.vue'
 import QueueColumnHeader from '@/components/QueueColumnHeader.vue'
 import QueueListBar from '@/components/QueueListBar.vue'
@@ -23,7 +24,7 @@ import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { setDirectAddAction } from '@/composables/directAddAction'
-import { setClearCompletedAction } from '@/composables/shortcutDefinitions'
+import { setClearCompletedAction, shortcutKeys } from '@/composables/shortcutDefinitions'
 import { useDownloadsActions } from '@/composables/useDownloadsActions'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { usePackageExport } from '@/composables/usePackageExport'
@@ -38,6 +39,7 @@ import { useQueueReorder } from '@/composables/useQueueReorder'
 import { useQueueRows } from '@/composables/useQueueRows'
 import { useQueueSort } from '@/composables/useQueueSort'
 import { useResetFailed } from '@/composables/useResetFailed'
+import { useSelectionSummary } from '@/composables/useSelectionSummary'
 import { packageRowKey, useQueueSelection, type QueueGroup } from '@/composables/useQueueSelection'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { useAccounts } from '@/stores/accounts'
@@ -46,7 +48,7 @@ import { usePostprocessStore } from '@/stores/postprocess'
 import { useProxyProfiles } from '@/stores/proxyProfiles'
 import { usePublishedSelection } from '@/stores/selection'
 import { RESETTABLE_STATES, useTransfersStore } from '@/stores/transfers'
-import { DOWNLOADS_NAV_KBD, DOWNLOADS_NAV_LABEL, DOWNLOADS_NAV_TITLE, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
+import { DOWNLOADS_NAV_TITLE, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
 import { hasExtractable } from '@/utils/format'
 
 const { t } = useI18n()
@@ -77,7 +79,7 @@ useQueueNoticeToasts()
 const filters = computed(() => QUEUE_FILTERS.map(value => ({ label: t(`downloads.filters.${value}`), value })))
 // One red entry, apart from the rest: the only one that stops work in progress (RD-180-21).
 const clearItems = computed(() => [[
-  { label: t('downloads.header.clear_completed'), icon: 'i-lucide-circle-check', kbds: ['k'], onSelect: () => clearDownloads('completed') },
+  { label: t('downloads.header.clear_completed'), icon: 'i-lucide-circle-check', kbds: shortcutKeys('common.shortcuts.clear_completed'), onSelect: () => clearDownloads('completed') },
   { label: t('downloads.header.clear_failed'), icon: 'i-lucide-file-x-2', onSelect: () => clearDownloads('failed') },
   { label: t('downloads.header.clear_all'), icon: 'i-lucide-list-checks', onSelect: () => clearDownloads('all') }
 ], [
@@ -162,12 +164,11 @@ const stateFingerprint = computed(() => transfers.downloads.map(download => `${d
 const packageStateFingerprint = computed(() => transfers.packages.map(pkg => `${pkg.id}:${pkg.state ?? ''}`).join('|'))
 const canExtractSelection = computed(() => hasExtractable(selection.selectedDownloads.value))
 const resettableSelection = computed(() => selection.selectedDownloads.value.filter(download => RESETTABLE_STATES.includes(download.state)))
-/** "3 files in 2 packages": the tooltip of both selection counts (RD-1230-02). */
-const selectionDetail = computed(() => {
-  const files = selection.selectedDownloads.value
-  const packages = new Set(files.map(download => download.package_id)).size
-  return t('common.selection.detail', { items: t('common.units.file', { count: files.length }, files.length), packages: t('common.units.package', { count: packages }, packages) })
-})
+/** "4 packages · 11 files selected": both selection counts, a partly ticked package included (RD-1260-07). */
+const summarize = useSelectionSummary()
+const selectionSummary = computed(() => summarize(selection.parts.value))
+/** A red action's tooltip: its sentence, then what the figure on the button counts (RD-1260-07). */
+const countedTitle = (action: string, counts: string, count: number): string => `${t(action, { count }, count)}: ${t(counts, { count }, count)}`
 
 onMounted(() => {
   // `k` (RD-180-17): the same action as the menu item below, confirmation included.
@@ -245,19 +246,18 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
         <template #leading><UDashboardSidebarCollapse /></template>
         <template #title><span :class="DOWNLOADS_NAV_TITLE" :title="t('downloads.title')" data-testid="downloads-title">{{ t('downloads.title') }}</span></template>
         <template #right>
-          <UButton icon="i-lucide-plus" :label="t('downloads.add.title')" :aria-label="t('downloads.add.title')" :title="t('downloads.add.title')" :ui="DOWNLOADS_NAV_LABEL" color="neutral" variant="outline" data-tour="downloads-add" data-testid="downloads-add" @click="openDirectAdd">
-            <template #trailing><UKbd value="a" :class="DOWNLOADS_NAV_KBD" /></template>
-          </UButton>
+          <!-- Icons in the LinkGrabber's form, the name and the key in the tooltip (RD-1260-06); on a
+               narrow navbar the count goes, the list bar repeats it (`utils/downloadsNavbar.ts`). -->
+          <div class="flex items-center gap-2">
+          <NavbarAction icon="i-lucide-plus" :label="t('downloads.add.title')" shortcut="common.shortcuts.add_links" color="neutral" variant="outline" data-tour="downloads-add" data-testid="downloads-add" @click="openDirectAdd" />
           <div data-tour="downloads-controls" class="flex items-center gap-2">
-          <!-- Below the navbar's threshold the count goes (the toolbar repeats it) and the buttons
-               keep only their icons, so the row fits beside the title and never covers the
-               sidebar toggle (RD-1240-33, `utils/downloadsNavbar.ts`). -->
           <UBadge color="neutral" variant="outline" class="font-mono" :class="DOWNLOADS_NAV_WIDE">{{ t('common.units.file', { count: transfers.downloads.length }, transfers.downloads.length).toLocaleUpperCase() }}</UBadge>
           <QueuePauseControl placement="header" />
           <QueueResetFailedMenu :counts="resetFailed.counts.value" :busy="resetFailed.busy.value" @reset="resetFailed.resetShown" />
           <UDropdownMenu :items="clearItems">
-            <UButton icon="i-lucide-list-x" :label="t('downloads.header.clear_list')" :aria-label="t('downloads.header.clear_list')" :title="t('downloads.header.clear_list')" :ui="DOWNLOADS_NAV_LABEL" color="neutral" variant="outline" :loading="transfers.clearing" />
+            <NavbarAction icon="i-lucide-list-x" :label="t('downloads.header.clear_list')" color="neutral" variant="outline" :loading="transfers.clearing" data-testid="downloads-clear-list" />
           </UDropdownMenu>
+          </div>
           </div>
         </template>
       </UDashboardNavbar>
@@ -294,7 +294,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
             v-model:show-metadata="showMetadata"
             :state="selection.state.value"
             :count="selection.count.value"
-            :detail="selectionDetail"
+            :summary="selectionSummary"
             :select-hint="t('downloads.header.select_all_hint')"
             :empty="!groups.length"
             :all-open="openPackages.allOpen.value"
@@ -325,7 +325,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
           <BulkActionBar
             v-if="selection.selectedIds.value.length"
             :count="selection.selectedIds.value.length"
-            :detail="selectionDetail"
+            :summary="selectionSummary"
             :categories="categories"
             :busy="bulkBusy"
             :package-actions-disabled="!selection.fullySelectedPackageIds.value.length"
@@ -347,8 +347,8 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
             <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :aria-label="t('downloads.reresolve.action')" :title="t('downloads.reresolve.hint')" data-testid="downloads-reresolve" @click="reresolve({ ids: selection.selectedIds.value })" />
             <template #danger>
               <!-- Icon and figure; the sentence ("Reset 3 files") is the name and the tooltip (RD-1230-02). -->
-              <UButton v-if="resettableSelection.length" size="sm" color="error" variant="outline" icon="i-lucide-rotate-ccw" :label="String(resettableSelection.length)" :aria-label="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :title="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :loading="bulkBusy" data-testid="downloads-bulk-reset" @click="resetDownloads(selection.selectedIds.value)" />
-              <UButton v-if="selection.fullySelectedPackageIds.value.length" size="sm" color="error" variant="outline" icon="i-lucide-package-x" :label="String(selection.fullySelectedPackageIds.value.length)" :aria-label="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :title="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :loading="bulkBusy" data-testid="downloads-bulk-delete-packages" @click="bulkDeletePackages" />
+              <UButton v-if="resettableSelection.length" size="sm" color="error" variant="outline" icon="i-lucide-rotate-ccw" :label="String(resettableSelection.length)" :aria-label="t('downloads.bulk.reset', { count: resettableSelection.length }, resettableSelection.length)" :title="countedTitle('downloads.bulk.reset', 'downloads.bulk.reset_counts', resettableSelection.length)" :loading="bulkBusy" data-testid="downloads-bulk-reset" @click="resetDownloads(selection.selectedIds.value)" />
+              <UButton v-if="selection.fullySelectedPackageIds.value.length" size="sm" color="error" variant="outline" icon="i-lucide-package-x" :label="String(selection.fullySelectedPackageIds.value.length)" :aria-label="t('downloads.confirm.delete_packages_label', { count: selection.fullySelectedPackageIds.value.length }, selection.fullySelectedPackageIds.value.length)" :title="countedTitle('downloads.confirm.delete_packages_label', 'downloads.bulk.delete_packages_counts', selection.fullySelectedPackageIds.value.length)" :loading="bulkBusy" data-testid="downloads-bulk-delete-packages" @click="bulkDeletePackages" />
             </template>
           </BulkActionBar>
           <!--

@@ -12,14 +12,14 @@ import { mountComponent } from '@/test/mount'
 import BundledServicePicker from './BundledServicePicker.vue'
 
 const services = [
-  { key: 'a', name: 'Alpha host', category: 'hoster', description: '', state: 'missing', needs_account: false },
-  { key: 'b', name: 'Beta host', category: 'hoster', description: '', state: 'missing', needs_account: false },
-  { key: 'c', name: 'Gamma metadata', category: 'metadata', description: '', state: 'missing', needs_account: false }
+  { key: 'a', name: 'Alpha host', category: 'hoster', description: '', state: 'missing', needs_account: false, plugins: [] },
+  { key: 'b', name: 'Beta host', category: 'hoster', description: '', state: 'missing', needs_account: false, plugins: [] },
+  { key: 'c', name: 'Gamma metadata', category: 'metadata', description: '', state: 'missing', needs_account: false, plugins: [] }
 ] as unknown as BundledService[]
 
 describe('BundledServicePicker', () => {
   it('filters by the category whose radio is checked', async () => {
-    mountComponent(BundledServicePicker, { messages: { plugins }, props: { services, mode: 'install' } })
+    mountComponent(BundledServicePicker, { messages: { plugins }, props: { services, mode: 'catalogue' } })
     const filter = screen.getByRole('group', { name: plugins.bundled.filter_label })
     const all = within(filter).getByRole('radio', { name: `${plugins.bundled.all} 3` }) as HTMLInputElement
     expect(all.checked).toBe(true)

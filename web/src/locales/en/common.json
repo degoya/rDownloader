@@ -54,7 +54,7 @@
     "file": "no files | {count} file | {count} files",
     "package": "no packages | {count} package | {count} packages",
     "link": "no links | {count} link | {count} links",
-    "selected": "selected"
+    "nzb_import": "no NZB imports | {count} NZB import | {count} NZB imports"
   },
   "values": {
     "unknown": "unknown",
@@ -238,7 +238,7 @@
     "nzb_failed": "Not embedded: {list}"
   },
   "selection": {
-    "count": "{count} selected",
-    "detail": "{items} in {packages}"
+    "detail": "{items} in {packages}",
+    "summary": "{figures} selected"
   }
 }

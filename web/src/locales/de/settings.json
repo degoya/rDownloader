@@ -579,7 +579,7 @@
   },
   "notifications": {
     "label": "Browser-Benachrichtigungen",
-    "description": "Zeigt eine Desktop-Benachrichtigung, sobald ein Download oder eine Nachbearbeitung fertig ist. Wird nur in diesem Browser gespeichert.",
+    "description": "Zeigt eine Desktop-Benachrichtigung, wenn die Downloadliste fertig ist, Downloads eines Pakets fehlschlagen oder Links ankommen – einmal, aus einem der offenen Tabs. Was Push diesem Browser schon schickt und Links, die ein laufender Desktop-Agent meldet, bleiben dort; Ruhezeiten halten sie zurück. Wird nur in diesem Browser gespeichert.",
     "denied": "Der Browser blockiert Benachrichtigungen für diese Seite. Erlaube sie in den Website-Berechtigungen und schalte den Regler erneut ein.",
     "unsupported": "Dieser Browser unterstützt keine Benachrichtigungen."
   },
@@ -955,13 +955,15 @@
   },
   "logs": {
     "eyebrow": "Protokollspeicher",
-    "title": "Protokollaufbewahrung",
-    "description": "Wie viel des strukturierten Protokolls der Dienst behält. Ältere Einträge werden im Hintergrund entfernt; die Warteschlange wartet nie darauf.",
+    "title": "Protokollstufe und Aufbewahrung",
+    "description": "Was der Dienst protokolliert und wie viel davon er behält. Ältere Einträge werden im Hintergrund entfernt; die Warteschlange wartet nie darauf.",
     "records_label": "Aufbewahrte Einträge",
     "records_description": "Die ältesten Einträge gehen zuerst (1000-500000).",
     "days_label": "Aufbewahrte Tage",
     "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (1-365).",
-    "open": "Protokoll öffnen"
+    "open": "Protokoll öffnen",
+    "level_label": "Protokollstufe",
+    "level_description": "Was der Dienst in Konsole, Protokoll und Trace-Export schreibt: Fehler, Warnungen, Info (Standard) oder Debug. Gilt nach dem Speichern ab der nächsten Zeile, ohne Neustart."
   },
   "audit": {
     "eyebrow": "Audit und Tracing",
@@ -1209,7 +1211,8 @@
       "add_all_from_linkgrabber": "Alles aus dem LinkGrabber hinzufügen",
       "add_all_from_linkgrabber_paused": "Alles aus dem LinkGrabber pausiert hinzufügen",
       "install_update": "Update des Agenten installieren",
-      "restart_server": "Server neu starten"
+      "restart_server": "Server neu starten",
+      "about": "Über rDownloader"
     },
     "report": {
       "title_unavailable": "Kürzel nicht verfügbar",

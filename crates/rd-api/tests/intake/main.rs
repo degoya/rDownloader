@@ -11,6 +11,8 @@ mod common;
 mod address_rule;
 mod captcha;
 mod capture_boundary;
+mod capture_click_and_load;
+mod capture_container;
 mod capture_file;
 mod capture_intake;
 mod capture_pick;

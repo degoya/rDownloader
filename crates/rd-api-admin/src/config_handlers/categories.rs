@@ -6,6 +6,15 @@ use super::*;
 const CATEGORY_TAKEN: &str = "category.name_taken";
 const CATEGORY_TAKEN_MESSAGE: &str = "A category with this name already exists";
 
+/// The default category is what applies when nothing is chosen, so it cannot be hidden from the
+/// pickers that assign one by hand (RD-1260-03).
+fn default_not_selectable() -> ApiError {
+    ApiError::bad_request(
+        "category.default_not_selectable",
+        "The default category cannot be hidden from the selection",
+    )
+}
+
 #[utoipa::path(get, path = "/api/v1/categories", tag = "configuration", responses((status = 200, body = [rd_core::Category])))]
 pub async fn list_categories(
     State(state): State<AppState>,
@@ -42,6 +51,9 @@ pub(crate) async fn validated_category(
     allowlist
         .resolve(Path::new(&request.relative_path))
         .map_err(ApiError::from)?;
+    if request.is_default && !request.selectable {
+        return Err(default_not_selectable());
+    }
     let upload_remote = crate::dto::normalize_upload_remote(request.upload_remote)?;
     rd_api_core::object_upload_target::check_object_upload_target(
         &state.database,
@@ -54,6 +66,7 @@ pub(crate) async fn validated_category(
         storage_root_id: request.storage_root_id,
         relative_path: request.relative_path,
         is_default: request.is_default,
+        selectable: request.selectable,
         postprocess_level: request.postprocess_level,
         script: crate::postprocess_handlers::validate_script_name(request.script)?,
         cleanup_extensions: request
@@ -93,6 +106,18 @@ pub async fn update_category(
     AxumPath(id): AxumPath<rd_core::CategoryId>,
     Json(request): Json<CreateCategoryRequest>,
 ) -> Result<Json<rd_core::Category>, ApiError> {
+    // The default stays the default when the body unticks it (the store keeps one), so hiding it
+    // is refused whatever `is_default` says.
+    if !request.selectable
+        && state
+            .database
+            .list_categories()
+            .await?
+            .iter()
+            .any(|category| category.id == id && category.is_default)
+    {
+        return Err(default_not_selectable());
+    }
     let input = validated_category(&state, request).await?;
     let value = state
         .database

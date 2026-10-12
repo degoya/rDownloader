@@ -6,6 +6,7 @@ import type { Category, CollectorPackage, DownloadPriority, LinkCandidate } from
 import DragHandle from '@/components/DragHandle.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import { priorityItems, formatBytes } from '@/utils/format'
+import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 import { isEnqueueable, isUnverified } from '@/utils/candidateState'
 
@@ -77,7 +78,7 @@ const nameTitle = computed(() => props.package.queue_name
   : props.package.name)
 const categoryItems = computed(() => [
   { label: t('linkgrabber.package.default_category'), value: NO_SELECTION },
-  ...props.categories.map(category => ({ label: category.name, value: category.id }))
+  ...pickableCategories(props.categories, props.package.category_id).map(category => ({ label: category.name, value: category.id }))
 ])
 const categoryModel = computed({
   get: () => props.package.category_id ?? NO_SELECTION,

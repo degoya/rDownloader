@@ -4,8 +4,10 @@ Companion for NAS/Docker setups where the desktop capture agent cannot be instal
 context-menu entry **Download with rDownloader** on links and pages, a popup that sends the
 current page or the links in your clipboard, interception of regular browser downloads, and a
 second context-menu entry that shares a site's session with rDownloader for one domain. That one
-is in the page's context menu only — there is no button for it in the toolbar or the popup. The capture agent remains
-the option for Click'n'Load 2, clipboard monitoring and `.nzb` file association.
+is in the page's context menu only — there is no button for it in the toolbar or the popup. It
+also answers Click'n'Load 2 when no desktop agent runs (below). The capture agent remains the
+option for clipboard monitoring and `.nzb` file association, and keeps Click'n'Load whenever it
+runs.
 
 ## Download interception
 
@@ -21,10 +23,13 @@ The handoff carries the address, not the file: rDownloader fetches it again, wit
 browser's cookies. Some downloads only the browser can fetch, so the extension leaves them alone
 (RD-120-63):
 
-- **NZB, torrent and ZIP files** are never intercepted, and nothing is said about it. They are
-  recognised by the type the browser reports (`application/x-nzb`, `application/x-bittorrent`,
-  `application/zip`, `application/x-zip-compressed`) or by a `.nzb`, `.torrent` or `.zip` ending
-  on the file name, the address or an observed `Content-Disposition`. This is the case the rule
+- **NZB, torrent and ZIP files and link containers** are never intercepted, and nothing is said
+  about it. They are recognised by the type the browser reports (`application/x-nzb`,
+  `application/x-bittorrent`, `application/zip`, `application/x-zip-compressed`, and for
+  containers `application/dlc`, `application/x-dlc`, `application/x-ccf`, `application/x-rsdf`) or
+  by a `.nzb`, `.torrent`, `.zip`, `.dlc`, `.ccf`, `.rsdf`, `.rdlinks` or `.crawljob` ending on the
+  file name, the address or an observed `Content-Disposition` (containers since RD-1260-11:
+  rDownloader fetching one again would download the container, not import it). This is the case the rule
   exists for: a Newznab indexer's cart (NNTmux's `/getnzb/…`) answers only the signed-in
   session, and a fetch without it gets an error page; a one-time link is spent before the
   extension even hears of the download.
@@ -67,7 +72,10 @@ rDownloader then takes the file in one of two ways, and never fetches it a secon
 
 rDownloader takes an NZB, a `.torrent`, or a ZIP of NZBs (NNTmux's `/getnzb?id=…&zip=1`, one
 import per NZB inside; a ZIP with one broken NZB is refused whole). An NZB lands as an import in
-the LinkGrabber, a torrent as a LinkGrabber package. Anything else — a ZIP of photos, an expired
+the LinkGrabber, a torrent as a LinkGrabber package. A link container goes through the container
+import into the LinkGrabber (RD-1260-11); the service knows it by its name, so a container only
+its content type announced is handed over with the matching ending added. A DLC or CCF needs DLC
+import switched on in the settings; otherwise the browser keeps it and the notice says why. Anything else — a ZIP of photos, an expired
 session's login page — is refused and stays in the browser without a notice; any other failure
 says why and leaves the browser its copy. The browser's copy is removed only after rDownloader
 took the file. A hotfolder on the browser's download folder can see that copy for a moment; an
@@ -110,6 +118,52 @@ an extra `/capture/ping` in front of every handoff. They are gone when the brows
 
 Credential-bearing headers such as `Cookie` and `Authorization` are dropped in the extension and
 again on the server; they never travel with a captured link.
+
+## Click'n'Load without the desktop agent
+
+A hoster page with a Click'n'Load button asks `http://127.0.0.1:9666/` whether a downloader
+listens, and shows its button only if one answers. Without the desktop agent — rDownloader on a
+NAS, a computer the agent is not installed on — nothing does. The extension cannot open a port,
+so it takes those requests in the browser instead (RD-1260-10):
+
+- **From the sites you allowed only**, the same list as under *Files from a site you allowed*
+  above: the host grant given there is what lets the browser show the extension a page's request
+  to the port at all. A page from any other site is left alone.
+- **The agent first.** Before it answers a page, the extension asks the port itself (from the
+  background, once a minute and whenever a page looks for the agent). If anything answers there
+  — the desktop agent, or another Click'n'Load program — the extension answers nothing and hands
+  nothing over.
+- `/jdcheck.js` and `/flash` are answered as the agent answers them, from three files the
+  extension ships (`src/cnl/`, its only `web_accessible_resources`). A `POST` or `GET` to
+  `/flash/add` or `/flash/addcrypted2` is answered with `success`, and its fields — `crypted`,
+  `jk`, `urls`, `passwords`, `package`, `source` — go to `POST /api/v1/capture/click-and-load`
+  with the capture token. **`jk` is never run in the browser**: it travels as the string the page
+  sent, and the service reads the key out of it or evaluates it in the agent's own sandbox
+  (`crates/rd-cnl`). The links land in the LinkGrabber with the package name and the first
+  password; a notification says how many, or why rDownloader refused them (a `jk` the sandbox
+  refuses is `cnl.jk_refused`). The page hears `success` either way, so it learns nothing about
+  the decryption.
+- Firefox answers from a blocking `webRequest` listener. Chrome has none outside a policy install,
+  so `declarativeNetRequest` session rules redirect the page's requests to the port to the three
+  files — only for the allowed sites, and only while nothing answers there — and an observing
+  listener reads the form of an add the rules took.
+- **Accept Click'n'Load without the desktop agent** in the options switches it off; it is on by
+  default and needs the capture token. A preflight (`OPTIONS`) cannot be answered from an
+  extension, so a page that posts with `fetch()` and a header of its own still needs the agent.
+
+## Sending a local file
+
+**Send file to rDownloader…** — in the popup, in a page's context menu and in the toolbar
+button's own menu — opens a page of the extension with a file picker and a drop area
+(RD-1260-11). It is a page and not part of the popup because Firefox closes the popup the moment
+a file picker opens. Choose or drop one or several NZBs, torrents, ZIPs of NZBs and link
+containers (`.dlc`, `.ccf`, `.rsdf`, `.rdlinks`, `.crawljob`); each goes to
+`POST /api/v1/capture/file` like a file from an allowed site, and the whole selection ends in one
+notice: how many went over, which were refused and why. A file with any other ending is refused
+before it is sent, under the code `capture.file_type_unsupported`, and named in that notice. A
+sealed `.rdlinks` cannot be opened this way, since the page asks for no passphrase; import it in
+the LinkGrabber. Nothing here needs the desktop agent, so an rDownloader on a NAS takes local
+files from the browser alone.
 
 ## Widget captchas
 
@@ -220,7 +274,8 @@ Requested on installation:
 | `activeTab` | reading the address of the tab you are on, and only while you use one of the extension's own entries on it — it is what makes "send the current page" work at all |
 | `contextMenus`, `storage`, `notifications` | menu entries, saved settings, success/failure notices |
 | `clipboardRead` | the popup's "send links from the clipboard" action |
-| `downloads`, `webRequest` | pausing, resuming and *observing* a download so it can be handed over: the method of the request, an allowlist of harmless headers, and the `Content-Disposition`. No listener reads a request body |
+| `downloads`, `webRequest` | pausing, resuming and *observing* a download so it can be handed over: the method of the request, an allowlist of harmless headers, and the `Content-Disposition`. The one listener that reads a request body is Click'n'Load's, and it sees only requests to `127.0.0.1:9666` and `localhost:9666` |
+| host `http://127.0.0.1:9666/*`, `http://localhost:9666/*` | Click'n'Load without the desktop agent: asking whether something answers the port, and seeing a page's requests to it |
 | `alarms`, `scripting` | polling for waiting widget captchas even after the service worker was put to sleep, and injecting the reader into the hoster's page you chose to open |
 
 Requested only when you use the feature, and revocable at any time in the browser:
@@ -231,8 +286,10 @@ Requested only when you use the feature, and revocable at any time in the browse
 | host permissions | reaching an rDownloader server that is not covered by the built-in `http://127.0.0.1:8710/*` and `http://localhost:8710/*`; per captcha, for the one origin of the hoster's page, released again once answered or declined — opening that page to answer a widget captcha; and `*://<host>/*` for each site you allow to hand files over, until you revoke it |
 
 The Firefox build additionally carries `webRequestBlocking` and `webRequestFilterResponse`,
-which copying a response takes; neither reaches a site without the host grant above. Chrome's
-build has neither.
+which copying a response and answering Click'n'Load take; neither reaches a site without the host
+grant above. Chrome's build has neither, and carries `declarativeNetRequestWithHostAccess`
+instead: its session rules answer Click'n'Load, show no install warning, and act only where a
+host grant exists.
 
 The manifest's `optional_host_permissions` carries `http://*/*` and `https://*/*`. Neither is
 granted at install time and neither shows a warning; they are what makes the three per-origin
@@ -331,8 +388,9 @@ worked only because rDownloader answers `Access-Control-Allow-Origin: *` — an 
 dependency on a server header, which is now gone. An address the browser cannot parse, such as
 an unbracketed `::1`, is named as invalid instead of failing silently.
 
-The extension talks to five groups of routes with the bearer token: `POST /api/v1/capture/batches`
-for captured links, the `/api/v1/capture/captchas` routes for widget captchas,
+The extension talks to six groups of routes with the bearer token: `POST /api/v1/capture/batches`
+for captured links, `POST /api/v1/capture/click-and-load` for Click'n'Load without the agent, the
+`/api/v1/capture/captchas` routes for widget captchas,
 `GET /api/v1/capture/ping` for the connection test and the server's version,
 `POST /api/v1/capture/cookies` when you share a site's session, and the
 `/api/v1/capture/browser-sessions` routes when you hand a session over to an account. The last

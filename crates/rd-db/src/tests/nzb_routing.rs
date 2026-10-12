@@ -397,6 +397,7 @@ async fn nzb_routing_metadata_can_change_until_enqueue() {
             storage_root_id: root.id,
             relative_path: "changed".to_owned(),
             is_default: false,
+            selectable: true,
             postprocess_level: None,
             script: None,
             cleanup_extensions: None,

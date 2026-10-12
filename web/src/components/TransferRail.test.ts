@@ -23,7 +23,12 @@ import { useTransfersStore } from '@/stores/transfers'
 import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
+import type { SelectionParts } from '@/utils/selectionSize'
+
 import TransferRail from './TransferRail.vue'
+
+/** Files of the queue, `packages` of them touched; the LinkGrabber's links count the same way. */
+const files = (items: number, packages: number): SelectionParts => ({ packages, items, unit: 'file', imports: 0 })
 
 function mount() {
   mountComponent(TransferRail, { messages: { downloads }, stubs: { SpeedHistoryChart: true } })
@@ -36,14 +41,22 @@ describe('TransferRail selection', () => {
     expect(screen.queryByTestId('rail-selection')).toBeNull()
   })
 
-  it('shows the count and the summed size, and goes when the selection empties', async () => {
+  it('shows packages and files apart with the summed size, and goes when the selection empties', async () => {
     const store = mount()
     const owner = Symbol('view')
-    store.publish(owner, { count: 3, bytes: 5n * 1024n ** 3n, unknown: 0 })
+    store.publish(owner, { count: 11, bytes: 5n * 1024n ** 3n, unknown: 0, parts: files(11, 4) })
     await nextTick()
     const figure = screen.getByTestId('rail-selection')
-    expect(figure.textContent?.replace(/\s+/g, ' ').trim()).toBe('3 selected · 5.0 GiB')
-    expect(figure.getAttribute('title')).toBe('3 selected, 5.0 GiB in total')
+    // Wide, the words (RD-1260-07); narrow, the file count alone — both numbers in the tooltip.
+    expect(figure.querySelector('span.hidden')?.textContent).toBe('4 packages · 11 files selected')
+    expect(figure.querySelector('strong')?.textContent).toBe('11')
+    // Narrow, a screen reader hears the whole count instead of the bare figure.
+    expect(figure.querySelector('strong')?.getAttribute('aria-hidden')).toBe('true')
+    const spoken = screen.getByTestId('rail-selection-spoken')
+    expect(spoken.textContent).toBe('4 packages · 11 files selected')
+    expect([...spoken.classList]).toEqual(['sr-only', '@min-[80rem]:hidden'])
+    expect(figure.textContent).toContain(' · 5.0 GiB')
+    expect(figure.getAttribute('title')).toBe('4 packages · 11 files selected, 5.0 GiB in total')
 
     store.release(owner)
     await nextTick()
@@ -52,21 +65,21 @@ describe('TransferRail selection', () => {
 
   it('marks a sum that leaves out unknown sizes as a lower bound', async () => {
     const store = mount()
-    store.publish(Symbol('view'), { count: 4, bytes: 2048n, unknown: 2 })
+    store.publish(Symbol('view'), { count: 4, bytes: 2048n, unknown: 2, parts: files(4, 1) })
     await nextTick()
     const figure = screen.getByTestId('rail-selection')
     expect(figure.textContent).toContain('≥ 2.0 KiB')
-    expect(figure.getAttribute('title')).toBe('4 selected, at least 2.0 KiB in total – the size of 2 is not known yet')
+    expect(figure.getAttribute('title')).toBe('4 files in 1 package selected, at least 2.0 KiB in total – the size of 2 is not known yet')
   })
 
   // RD-1250-06: the name, the version and the dedication took the room the selection needs.
   // jsdom lays nothing out, so the widths are the live check's; the structure is pinned here.
   it('carries no product text, and keeps the selection whole while the volume line is cut', async () => {
     const store = mount()
-    store.publish(Symbol('view'), { count: 46, bytes: 1288490188n, unknown: 0 })
+    store.publish(Symbol('view'), { count: 46, bytes: 1288490188n, unknown: 0, parts: files(46, 3) })
     await nextTick()
     const rail = screen.getByTestId('rail-selection').closest('footer')
-    for (const text of ['rDownloader', common.footer.made_with, 'Alexander Herling']) {
+    for (const text of ['rDownloader', common.footer.made_with, 'DEGOYA.digital']) {
       expect(rail?.textContent, text).not.toContain(text)
     }
     const figure = screen.getByTestId('rail-selection')
@@ -77,11 +90,12 @@ describe('TransferRail selection', () => {
 
   it('shows only the count when no size is known at all', async () => {
     const store = mount()
-    store.publish(Symbol('view'), { count: 2, bytes: 0n, unknown: 2 })
+    store.publish(Symbol('view'), { count: 2, bytes: 0n, unknown: 2, parts: { packages: 1, items: 1, unit: 'link', imports: 1 } })
     await nextTick()
     const figure = screen.getByTestId('rail-selection')
-    expect(figure.textContent).not.toContain('·')
-    expect(figure.getAttribute('title')).toBe('2 selected, size not known yet')
+    expect(figure.querySelector('strong')?.textContent).toBe('2')
+    expect(figure.textContent).not.toContain('GiB')
+    expect(figure.getAttribute('title')).toBe('1 link in 1 package · 1 NZB import selected, size not known yet')
   })
 })
 

@@ -3,7 +3,7 @@ plugin_type = "crawler"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000133"
 name = "MEGA folders"
-version = "0.1.13"
+version = "0.1.14"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -26,7 +26,7 @@ claims = ["mega"]
 
 [metadata]
 description = "Lists the files behind a public MEGA folder link or a folder of the signed-in account, with names, sizes and structure."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

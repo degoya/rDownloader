@@ -119,6 +119,7 @@ row for a point that does not exist.
 | `object_storage.after_part_upload` | rd-object-storage | a part the service confirmed but that was not recorded is uploaded again under the same number, never counted as confirmed; every part recorded before is not sent again |
 | `plugin.before_install_recorded` | rd-api-admin | an automatic update whose version folder exists before its repository row was written stays installed whole and listed once, and the version pointers stay as they were: the next start runs what they chose before the update, the newest version when they chose none |
 | `plugin.before_pointers_followed` | rd-api-admin | an automatic update recorded with its repository before the version pointers followed it stays installed whole and listed once, and the pointers stay as they were, never half moved: the next start runs what they chose before the update, the newest version when they chose none |
+| `plugin.before_prepared_published` | rd-plugin-host | plugins fetched for an update and written under the preparation's staging name but not yet renamed to the target version are never installed: the next start removes them, the installed versions stay as they were for the bundle to replace, and the next preparation fetches them again |
 | `plugin.before_version_promoted` | rd-plugin-host | a package written under its staging name but not yet renamed into its version folder is never loaded or listed; the next start removes it, the installed version stays the one that runs, and the next update pass installs it again |
 | `plugin_transfer.after_pin_saved` | rd-plugin-transfer | a plugin transfer stopped after its backend version was pinned and before its first byte runs again on the pinned version and finishes with the source's bytes; when that version is gone it begins anew on the newest backend, never refused for bytes it does not have |
 | `plugin_transfer.before_checkpoint_saved` | rd-plugin-transfer | bytes a stopped plugin transfer wrote before its checkpoint was saved are continued by the next run from the part file, on the backend version pinned before its first byte and after the remote file was checked against what the first run saw; nothing past them is counted, and the finished file matches the source byte for byte |
@@ -212,6 +213,15 @@ that the next pass finds the missing archive gone (`NotFound` counts as removed)
 with the rest, and keeps the newest. A stop inside the destination's own copy is the verified
 copy's temporary name, which `rd_files::copy_verified` discards before its next copy under that
 name and which no listing takes for an archive. Both cases run with `rd-backup/failpoints`.
+
+`plugin.before_prepared_published` is the preparation of an update across a contract change
+(RD-1260-02, `PluginRepositoryService::prepare_update`): the packages the new version needs for
+the installed plugins it would refuse are fetched into `prepared/<version>.partial/` under the
+repositories' folder, and a rename to `prepared/<version>/` publishes them for that version's
+start (`install_prepared`), which installs them before it reads the bundle and then removes every
+preparation. Its case stops before the rename and asserts that the start installs nothing, removes
+the staging, leaves the refused version for the bundle, and that the next preparation fetches the
+package again. The case runs with `rd-plugin-host/failpoints`.
 
 `plugin.before_version_promoted` is an install's or update's switch (RD-170-07): the package is
 downloaded, verified and written whole into a `.install-<id>` folder beside the version folders,

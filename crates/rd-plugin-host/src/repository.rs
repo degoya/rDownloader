@@ -23,7 +23,10 @@ use std::{
 use anyhow::Context;
 use chrono::Utc;
 use rd_db::{Database, OFFICIAL_REPOSITORY_ID, PluginRepository, RepositoryCheck};
-use rd_sign::{Role, TrustStore};
+use rd_sign::Role;
+/// The trust a repository index is verified against, as [`PluginRepositoryService::with_fetcher`]
+/// takes it for the official repository.
+pub use rd_sign::TrustStore;
 
 use crate::{
     PluginInstaller,
@@ -38,12 +41,20 @@ mod fetch;
 mod manage;
 #[path = "repository_offers.rs"]
 mod offers;
+#[path = "repository_prepare.rs"]
+mod prepare;
+#[path = "repository_select.rs"]
+mod select;
 #[path = "repository_types.rs"]
 mod types;
 
 pub use apply::{WithdrawalScope, withdrawal_scope};
 pub use fetch::{FETCH_TIMEOUT_SECONDS, Fetcher, HttpFetcher};
 pub use offers::{Offer, PackageCompatibility, Update, compatibility};
+pub use prepare::{
+    PreparedInstallReport, PreparedPlugin, PreparedPlugins, UpdateTarget, install_prepared,
+};
+pub use select::{UNREACHABLE_FOR, compatibility_with, newest_compatible, replacement};
 pub(crate) use types::LoadedIndex;
 use types::manual_updates;
 pub use types::{
@@ -63,6 +74,9 @@ pub const REFRESH_HOURS_RANGE: std::ops::RangeInclusive<u32> = 1..=168;
 pub const STARTUP_DELAY: Duration = Duration::from_secs(120);
 /// The settings key the interval is stored under.
 pub const SETTINGS_KEY: &str = "plugin_repositories";
+/// The folder in the data directory the service keeps its caches, downloads and the plugins
+/// prepared for an update in.
+pub const DIRECTORY: &str = "plugin-repositories";
 
 struct Inner {
     database: Database,
@@ -75,6 +89,8 @@ struct Inner {
     policy: RwLock<Arc<dyn UpdatePolicySource>>,
     /// One refresh at a time: two would race the floor and the cache file of one repository.
     refreshing: tokio::sync::Mutex<()>,
+    /// Hosts a fetch failed at, and until when installs leave them to the bundle (RD-1260-02).
+    unreachable: RwLock<HashMap<String, std::time::Instant>>,
 }
 
 /// Repositories, their verified indexes, and the offers and updates read from them.
@@ -114,6 +130,7 @@ impl PluginRepositoryService {
             indexes: RwLock::new(HashMap::new()),
             policy: RwLock::new(manual_updates()),
             refreshing: tokio::sync::Mutex::new(()),
+            unreachable: RwLock::new(HashMap::new()),
         }))
     }
 
@@ -326,15 +343,19 @@ impl PluginRepositoryService {
         url: &url::Url,
         limit: u64,
     ) -> Result<Vec<u8>, RepositoryError> {
-        tokio::time::timeout(
+        let outcome = tokio::time::timeout(
             Duration::from_secs(FETCH_TIMEOUT_SECONDS),
             self.0.fetcher.fetch(url, limit),
         )
         .await
         .map_err(|_| {
             RepositoryError::Download(format!("no answer within {FETCH_TIMEOUT_SECONDS} seconds"))
-        })?
-        .map_err(|error| RepositoryError::Download(format!("{error:#}")))
+        })
+        .and_then(|fetched| {
+            fetched.map_err(|error| RepositoryError::Download(format!("{error:#}")))
+        });
+        self.note_reachability(url, outcome.is_ok());
+        outcome
     }
 
     fn trust(&self, repository: &PluginRepository) -> Result<TrustStore, RepositoryError> {

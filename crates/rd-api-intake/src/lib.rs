@@ -7,6 +7,7 @@
 pub mod area_backup;
 pub mod candidate_handlers;
 pub mod captcha_handlers;
+pub mod capture_click_and_load;
 pub mod capture_fetch;
 pub mod capture_file;
 pub mod capture_linkgrabber;

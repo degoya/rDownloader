@@ -71,6 +71,7 @@ pub(crate) fn manifest(channel: Channel, version: &str, sequence: u64) -> Update
         ],
         schema_change: None,
         agent_artifacts: Vec::new(),
+        plugin_contracts: Vec::new(),
     }
 }
 

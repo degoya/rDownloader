@@ -84,6 +84,8 @@ fn the_capture_scope_covers_exactly_the_capture_router() {
         "/api/v1/capture/captchas/{id}/no-widget",
         "/api/v1/capture/captchas/{id}/skip",
         "/api/v1/capture/captchas/{id}/token",
+        // Click'n'Load the browser extension took in place of the agent (RD-1260-10).
+        "/api/v1/capture/click-and-load",
         "/api/v1/capture/clipboard",
         "/api/v1/capture/cookies",
         "/api/v1/capture/events",

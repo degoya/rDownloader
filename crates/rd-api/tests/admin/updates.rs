@@ -53,6 +53,7 @@ fn manifest(version: &str, sequence: u64) -> UpdateManifest {
         }],
         schema_change: None,
         agent_artifacts: Vec::new(),
+        plugin_contracts: Vec::new(),
     }
 }
 

@@ -173,6 +173,7 @@ export function defaultSettings(): RestartSettings {
   session_max_hours: 720,
   log_retention_records: 20_000,
   log_retention_days: 14,
+  log_level: 'info',
   audit_retention_records: 100_000,
   audit_retention_days: 365,
   otlp_enabled: false,

@@ -1,8 +1,8 @@
 use url::Url;
 
 use super::{
-    decide_paired, discard_fallback_token, ensure_transport_is_safe, load_from, read_public_config,
-    store_token, stored_service_in, write_public_config,
+    about_page, decide_paired, discard_fallback_token, ensure_transport_is_safe, load_from,
+    read_public_config, store_token, stored_service_in, write_public_config,
 };
 
 fn service(address: &str) -> Url {
@@ -264,4 +264,28 @@ fn the_fallback_token_file_is_private() {
         .mode();
     assert_eq!(mode & 0o777, 0o600, "{mode:o}");
     std::fs::remove_dir_all(&directory).expect("clean up");
+}
+
+/// *About rDownloader* opens Settings > About rDownloader of the paired app, under its base path
+/// with or without the closing slash, and on the address *Open rDownloader* opens (RD-1260-08).
+#[test]
+fn the_about_page_is_the_apps_settings_about_page_under_its_base_path() {
+    let about = |address: &str| about_page(&service(address)).map(String::from);
+    assert_eq!(
+        about("http://127.0.0.1:8710").as_deref(),
+        Some("http://127.0.0.1:8710/settings/about")
+    );
+    assert_eq!(
+        about("https://nas.local/rd/").as_deref(),
+        Some("https://nas.local/rd/settings/about")
+    );
+    assert_eq!(
+        about("https://nas.local/rd").as_deref(),
+        Some("https://nas.local/rd/settings/about")
+    );
+    assert_eq!(
+        about("https://nas.local/rd/?tab=x#y").as_deref(),
+        Some("https://nas.local/rd/settings/about"),
+        "a query or fragment of the stored address is not carried over"
+    );
 }

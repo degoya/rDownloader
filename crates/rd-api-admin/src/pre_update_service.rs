@@ -11,12 +11,18 @@
 //! (`backup.key_missing`) rather than refusing: the copy alone is what the rollback of the
 //! database needs. A refusal sweeps whatever the attempt left, so no half copy stays.
 //!
+//! Then the plugins (RD-1260-02): for each installed plugin the new version's contract would
+//! refuse, the newest package the repositories offer for that contract is fetched into the
+//! repositories' preparation folder, which the new version installs from at its start before it
+//! reads the bundle. Nothing here refuses the update: a plugin without a package is named in the
+//! answer, and the bundle stays its fallback.
+//!
 //! One preparation at a time per process; a second one meanwhile is `update.prepare_running`.
 
 use std::sync::LazyLock;
 
 use rd_backup::pre_update::{self, UpdatePlan};
-use rd_core::AuditAction;
+use rd_core::{AuditAction, PluginId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -35,6 +41,38 @@ pub struct PreUpdateRequest {
     /// does, the encrypted backup is required as well, if a passphrase is set up.
     #[serde(default)]
     pub schema_change: bool,
+    /// The `rdownloader:plugin` contracts that version speaks, from the release manifest
+    /// (RD-1260-02). Absent, the stored update offer's for the same version are taken; without
+    /// either, no plugin is fetched.
+    #[serde(default)]
+    pub plugin_contracts: Option<Vec<String>>,
+}
+
+/// Most contracts one request may name.
+const MAX_PLUGIN_CONTRACTS: usize = 16;
+
+/// One plugin fetched for the new version.
+#[derive(Serialize, ToSchema)]
+pub struct PreUpdatePlugin {
+    pub plugin_id: PluginId,
+    pub name: String,
+    pub version: String,
+    pub repository_id: String,
+}
+
+/// The plugins fetched for the version the update installs (RD-1260-02).
+#[derive(Serialize, ToSchema)]
+pub struct PreUpdatePlugins {
+    /// Waiting in the preparation folder; the new version installs them at its start, before it
+    /// reads the bundle.
+    pub prepared: Vec<PreUpdatePlugin>,
+    /// Installed plugins the new version refuses that no repository had a package for, or whose
+    /// package could not be fetched: the bundle replaces them at the next start where it can.
+    pub missing: Vec<String>,
+    /// Why nothing was fetched, `null` when nothing stood in the way:
+    /// `update.plugin_contracts_unknown` when neither the request nor the release manifest names
+    /// the new version's contracts, or the repository's code when the preparation failed.
+    pub code: Option<String>,
 }
 
 /// The checked database copy.
@@ -77,13 +115,15 @@ pub struct PreUpdateResponse {
     /// Why there is no encrypted backup: `backup.key_missing`, or the stable code of the step
     /// that failed when the release changes no schema and the update may go ahead without it.
     pub encrypted_backup_code: Option<String>,
+    pub plugins: PreUpdatePlugins,
 }
 
 /// Writes and checks the backup before an update.
 ///
 /// # Errors
 ///
-/// `update.target_version_invalid` for a version that is no file name, `update.prepare_running`
+/// `update.target_version_invalid` for a version that is no file name,
+/// `update.plugin_contracts_invalid` for contracts that are no versions, `update.prepare_running`
 /// while another preparation runs, `update.backup_failed` when the update must not start.
 pub async fn prepare(
     state: &AppState,
@@ -96,6 +136,16 @@ pub async fn prepare(
             "update.target_version_invalid",
             "The target version may hold only letters, digits, '.', '_', '+' and '-'",
         ));
+    }
+    if let Some(contracts) = &request.plugin_contracts
+        && (contracts.len() > MAX_PLUGIN_CONTRACTS
+            || contracts.iter().any(|contract| !plain_contract(contract)))
+    {
+        return Err(ApiError::bad_request(
+            "update.plugin_contracts_invalid",
+            format!("Name at most {MAX_PLUGIN_CONTRACTS} plugin contracts, each a version"),
+        )
+        .with_param("max", MAX_PLUGIN_CONTRACTS));
     }
     let Ok(_preparing) = PREPARING.try_lock() else {
         return Err(ApiError::conflict(
@@ -145,9 +195,15 @@ pub async fn prepare(
         target = %target,
         "backup before the update written and checked"
     );
-    let mut event = event.detail("copy", copy.path.display());
+    let plugins = prepare_plugins(state, &target, request.plugin_contracts).await;
+    let mut event = event
+        .detail("copy", copy.path.display())
+        .detail("plugins_prepared", plugins.prepared.len());
     if let Some(code) = &encrypted_backup_code {
         event = event.detail("encrypted_backup", code);
+    }
+    if let Some(code) = &plugins.code {
+        event = event.detail("plugins", code);
     }
     crate::audit::record(state, event).await;
     Ok(PreUpdateResponse {
@@ -174,7 +230,80 @@ pub async fn prepare(
             key_fingerprint: archive.key_fingerprint,
         }),
         encrypted_backup_code,
+        plugins,
     })
+}
+
+/// `major.minor.patch` in digits, as a contract version is written.
+fn plain_contract(contract: &str) -> bool {
+    contract.len() <= 32
+        && contract.split('.').count() == 3
+        && contract
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+}
+
+/// Fetches the plugins the target version needs; see the module documentation.
+async fn prepare_plugins(
+    state: &AppState,
+    target: &str,
+    contracts: Option<Vec<String>>,
+) -> PreUpdatePlugins {
+    let contracts = match contracts.filter(|contracts| !contracts.is_empty()) {
+        Some(contracts) => contracts,
+        None => state
+            .updates
+            .stored()
+            .await
+            .offer
+            .filter(|offer| offer.version == target)
+            .map(|offer| offer.plugin_contracts)
+            .unwrap_or_default(),
+    };
+    let mut answer = PreUpdatePlugins {
+        prepared: Vec::new(),
+        missing: Vec::new(),
+        code: None,
+    };
+    if contracts.is_empty() {
+        answer.code = Some("update.plugin_contracts_unknown".to_owned());
+        return answer;
+    }
+    let outcome = state
+        .plugin_repositories
+        .prepare_update(rd_plugin_host::repository::UpdateTarget {
+            version: target,
+            contracts: &contracts,
+        })
+        .await;
+    match outcome {
+        Ok(outcome) => {
+            if !outcome.prepared.is_empty() || !outcome.missing.is_empty() {
+                tracing::info!(
+                    prepared = outcome.prepared.len(),
+                    missing = ?outcome.missing,
+                    version = %target,
+                    "plugins for the update's plugin contract fetched"
+                );
+            }
+            answer.prepared = outcome
+                .prepared
+                .into_iter()
+                .map(|plugin| PreUpdatePlugin {
+                    plugin_id: plugin.plugin_id,
+                    name: plugin.name,
+                    version: plugin.version,
+                    repository_id: plugin.repository_id,
+                })
+                .collect();
+            answer.missing = outcome.missing;
+        }
+        Err(error) => {
+            tracing::warn!(code = error.code(), %error, "the plugins for the update could not be fetched; the bundle stays their fallback");
+            answer.code = Some(error.code().to_owned());
+        }
+    }
+    answer
 }
 
 /// The encrypted full backup, when a passphrase is set up; `None` when none is.

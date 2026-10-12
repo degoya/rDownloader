@@ -225,6 +225,12 @@ async fn build(args: &BuildArgs) -> Result<()> {
         artifacts,
         schema_change: args.schema_change,
         agent_artifacts,
+        // This packager is built from the release it describes, so its plugin host's contracts
+        // are the release's (RD-1260-02).
+        plugin_contracts: rd_plugin_host::SUPPORTED_API_VERSIONS
+            .iter()
+            .map(|contract| (*contract).to_owned())
+            .collect(),
     };
     let signed = manifest::sign(&args.key_id, &key, &update)?;
     // Round trip under the signing key itself; `verify` is the check against the root.

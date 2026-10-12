@@ -82,5 +82,32 @@
   "tabs": {
     "log": "Journal",
     "bundle": "Paquet de diagnostic"
+  },
+  "recording": {
+    "title": "Niveau de journalisation",
+    "description": "Ce que le service enregistre. Un changement s’applique dès la ligne suivante, sans redémarrage, et est enregistré dans les paramètres.",
+    "level_label": "Niveau",
+    "locked": "RUST_LOG={value} décide de ce qui est journalisé. Le niveau et le débogage temporaire s’appliquent quand le service démarre sans RUST_LOG.",
+    "debug_title": "Débogage temporaire",
+    "debug_description": "Met une zone en débogage pendant 15, 30 ou 60 minutes ; ensuite le niveau s’applique de nouveau de lui-même, même après un redémarrage. Les secrets restent masqués.",
+    "area_label": "Zone",
+    "plugin_label": "Plugin",
+    "plugin_all": "Tous les plugins",
+    "minutes_label": "Durée",
+    "minutes_option": "{count} minutes",
+    "start": "Lancer le débogage",
+    "active": "{area} est en débogage jusqu’à {until}.",
+    "stop": "Terminer maintenant",
+    "areas": {
+      "plugin": "Plugins",
+      "provider": "Hébergeurs et fournisseurs",
+      "usenet": "Usenet",
+      "torrent": "Torrent",
+      "media": "Médias",
+      "linkgrabber": "LinkGrabber",
+      "subscriptions": "Abonnements",
+      "http": "HTTP",
+      "scheduler": "Planificateur"
+    }
   }
 }

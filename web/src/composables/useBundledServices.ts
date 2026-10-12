@@ -29,7 +29,9 @@ interface BundledRemoveOutcome {
 
 /**
  * The bundle by service, and installing from it (RD-160-05), shared by the wizard's "Your
- * services" step and the plugin manager's "Available" list.
+ * services" step and the plugin manager's catalogue. An install takes each plugin from the
+ * repository when it answers and from the bundle otherwise (RD-1260-02); what only a repository
+ * offers is read beside it for the catalogue, which installs it through the preview.
  *
  * A run installs one service per request, so the progress it reports is real: the bar moves when
  * a service has landed, not on a timer. One service failing does not stop the others.
@@ -37,6 +39,7 @@ interface BundledRemoveOutcome {
 export function useBundledServices() {
   const { locale } = useI18n()
   const services = ref<BundledService[]>([])
+  const repositoryServices = ref<BundledService[]>([])
   const fetchState = useFetchState()
   /** `{ done, total }` while a run is installing, `null` otherwise. */
   const progress = ref<{ done: number, total: number } | null>(null)
@@ -46,6 +49,7 @@ export function useBundledServices() {
     const answer = await listBundled(locale.value)
     if (!answer.ok) return translateServerMessage(answer.message)
     services.value = Array.isArray(answer.data?.services) ? answer.data.services : []
+    repositoryServices.value = Array.isArray(answer.data?.repository_services) ? answer.data.repository_services : []
     return null
   }
 
@@ -88,6 +92,7 @@ export function useBundledServices() {
 
   return {
     services,
+    repositoryServices,
     loading: fetchState.loading,
     loadError: fetchState.loadError,
     load: () => fetchState.load(refresh),

@@ -1,0 +1,22 @@
+[package]
+name = "rd-cnl"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Click'n'Load's one rule (RD-1260-10): the key read from `jk` or evaluated in a bounded
+# sandbox, the decryption, the pace and the field lengths. The capture agent and the service's
+# browser hand-over both use it; no plugin component links it, so it takes the workspace version.
+[dependencies]
+aes.workspace = true
+anyhow.workspace = true
+base64.workspace = true
+boa_engine.workspace = true
+cbc.workspace = true
+hex.workspace = true
+regex.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

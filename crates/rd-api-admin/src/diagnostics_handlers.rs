@@ -180,6 +180,8 @@ async fn collect_input(state: &AppState) -> Result<BundleInput, ApiError> {
         checks,
         recent_errors,
         log_records_total,
+        // What the log was recorded at, and an area on debug (RD-1260-12).
+        logging: rd_diagnostics::log_filter::controller().state(),
     })
 }
 

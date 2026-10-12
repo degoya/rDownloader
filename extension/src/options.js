@@ -96,17 +96,19 @@ async function init() {
   showTransportWarning()
   document.getElementById('token').value = config.token
   document.getElementById('intercept').checked = config.interceptDownloads !== false
+  document.getElementById('click-and-load').checked = config.clickAndLoad !== false
   document.getElementById('save').addEventListener('click', async () => {
     const server = normalizeServer(document.getElementById('server').value)
     const token = document.getElementById('token').value.trim()
     const interceptDownloads = document.getElementById('intercept').checked
+    const clickAndLoad = document.getElementById('click-and-load').checked
     const outcome = await ensurePermission(server)
     const status = saveStatus(outcome)
     if (outcome !== 'granted') {
       setStatus(message(status.key), status.ok)
       return
     }
-    await saveConfig({ server, token, interceptDownloads })
+    await saveConfig({ server, token, interceptDownloads, clickAndLoad })
     document.getElementById('server').value = server
     setStatus(message(status.key), status.ok)
   })

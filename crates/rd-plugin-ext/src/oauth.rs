@@ -207,7 +207,7 @@ claims = ["fixture"]
 
 [metadata]
 description = "A manifest, and nothing behind it."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 "#
         );
         toml::from_str(&text).expect("the fixture manifest parses")

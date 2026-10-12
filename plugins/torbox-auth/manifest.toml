@@ -3,7 +3,7 @@ plugin_type = "auth"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000122"
 name = "TorBox sign-in"
-version = "0.1.12"
+version = "0.1.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -24,7 +24,7 @@ claims = ["torbox"]
 
 [metadata]
 description = "Checks a TorBox API key against the account and says what the plan is worth."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

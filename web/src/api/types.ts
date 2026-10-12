@@ -23,7 +23,12 @@ export type CaptureShortcuts = components['schemas']['CaptureShortcuts']
 export type CaptureGameMode = components['schemas']['CaptureGameMode']
 export type CaptureCommand = components['schemas']['CaptureCommand']
 export type CaptureShortcutReport = components['schemas']['CaptureShortcutReport']
-export type Category = components['schemas']['Category']
+/**
+ * `selectable` (RD-1260-03) is spelled out until `scripts/api-contract.sh` writes it into the
+ * schema; it is optional there too (serde default), so the intersection stays true afterwards.
+ */
+interface Selectable { selectable?: boolean }
+export type Category = components['schemas']['Category'] & Selectable
 export type SortKind = components['schemas']['SortKind']
 export type SortTemplates = components['schemas']['SortTemplates']
 export type SortPreviewResponse = components['schemas']['SortPreviewResponse']
@@ -111,7 +116,7 @@ export type NotificationEvent = components['schemas']['NotificationEvent']
 export type PowerStatus = components['schemas']['PowerStatus']
 export type StorageCapacity = components['schemas']['StorageCapacityResponse']
 export type StorageCapacityRoot = components['schemas']['StorageCapacityEntry']
-export type CreateCategory = components['schemas']['CreateCategoryRequest']
+export type CreateCategory = components['schemas']['CreateCategoryRequest'] & Selectable
 export type CreateCategoryRule = components['schemas']['CreateCategoryRuleRequest']
 export type TestRegexResponse = components['schemas']['TestRegexResponse']
 export type TestRegexSampleResult = components['schemas']['TestRegexSampleResult']

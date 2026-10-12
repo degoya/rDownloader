@@ -186,23 +186,11 @@
     "no_added_permissions": "Verlangt nichts, was v{version} nicht schon hat."
   },
   "updates": {
-    "eyebrow": "Repositories",
-    "title": "Updates",
-    "description": "Neuere Versionen aus den aktivierten Repositories, signiert mit dem Schlüssel der installierten Version. Nichts wird ohne deine Prüfung installiert, außer ein Plugin ist auf automatische Updates gestellt.",
-    "empty": "Alle installierten Plugins sind aktuell.",
     "version_change": "v{from} → v{to}",
-    "from": "aus {repository}",
     "automatic": "Automatisch",
     "automatic_hint": "Wird beim nächsten Abruf installiert; aktiv nach einem Neustart.",
     "review": "Update prüfen",
-    "available_title": "Verfügbare Plugins",
-    "available_empty": "Die Repositories bieten nichts an, was hier nicht schon installiert ist.",
     "review_package": "Prüfen",
-    "compatibility": {
-      "contract_unsupported": "Braucht einen anderen Plugin-Vertrag",
-      "app_too_old": "Braucht ein neueres rDownloader",
-      "withdrawn": "Zurückgezogen"
-    },
     "adds_permissions": "Neue Rechte",
     "adds_permissions_hint": "Verlangt mehr als die installierte Version und wird deshalb erst nach deiner Prüfung installiert, auch bei automatischen Updates.",
     "added_permissions": "Neu: {permissions}",
@@ -244,9 +232,6 @@
     "empty": "Kein Repository eingerichtet."
   },
   "bundled": {
-    "eyebrow": "Paket-Bündel",
-    "title": "Verfügbare Dienste",
-    "description": "Was diese Version mitbringt, aber nicht installiert ist – nicht gewählt, entfernt oder neu. Ein Klick installiert einen Dienst mit allen seinen Plugins; Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start.",
     "search": "Dienst suchen",
     "filter_label": "Nach Kategorie filtern",
     "all": "Alle",
@@ -268,7 +253,6 @@
     "needs_account": "Konto oder Ziel nötig",
     "install": "Installieren",
     "no_match": "Kein Dienst passt zu „{query}“.",
-    "all_installed": "Alles aus dem Paket-Bündel ist installiert.",
     "none": "Dieser Build bringt kein Paket-Bündel mit. Plugins kommen dann aus einem Repository.",
     "failed": "{name} konnte nicht installiert werden: {reason}",
     "installed": "Nichts installiert. | 1 Plugin installiert; ein Hoster- oder Anmelde-Plugin läuft sofort, andere Arten ab dem nächsten Start. | {count} Plugins installiert; Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start.",
@@ -276,9 +260,32 @@
   },
   "tabs": {
     "installed": "Installiert",
-    "add": "Hinzufügen",
-    "updates": "Updates",
     "repositories": "Repositories",
-    "trust": "Vertrauen"
+    "trust": "Vertrauen",
+    "catalogue": "Katalog"
+  },
+  "catalogue": {
+    "eyebrow": "Plugins",
+    "title": "Dienste und Plugins",
+    "description": "Alles, was dieses Release mitbringt und die Plugin-Repositories anbieten: installiert, verfügbar oder mit wartendem Update. Ein Dienst kommt aus dem Repository, wenn es antwortet, sonst aus dem mitgelieferten Bündel; Hoster- und Anmelde-Plugins laufen sofort, andere Arten ab dem nächsten Start.",
+    "origin": {
+      "bundled": "Mitgeliefert",
+      "repository": "Repository",
+      "upload": "Hochgeladen"
+    },
+    "origin_hint": "Woher das Plugin kommt: bei einem installierten Dienst, woher die installierte Version stammt, sonst woher eine Installation es jetzt nähme.",
+    "state": {
+      "available": "Verfügbar",
+      "update": "Update verfügbar"
+    },
+    "show_label": "Nach Zustand filtern",
+    "show": {
+      "all": "Alle",
+      "installed": "Installiert",
+      "available": "Verfügbar",
+      "updates": "Updates"
+    },
+    "none": "Weder das Bündel noch ein Repository bietet etwas an. Ohne Netz kommen Plugins aus dem Bündel neben dem Programm.",
+    "none_shown": "Kein Dienst in diesem Zustand."
   }
 }

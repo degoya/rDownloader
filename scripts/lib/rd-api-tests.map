@@ -82,12 +82,13 @@
 ^crates/rd-api(-[a-z]+)?/src/browser_session[a-z_]*\.rs$                                  browser_session
 ^crates/rd-api(-[a-z]+)?/src/captcha_handlers(\.rs$|/)                                        captcha
 ^crates/rd-api(-[a-z]+)?/src/capture_sanitize(\.rs$|/)                                        capture_intake capture_boundary captcha event_resume browser_session auth_profiles
-^crates/rd-api(-[a-z]+)?/src/(capture_fetch|capture_file|nzb_zip)(\.rs$|/)                    capture_file
+^crates/rd-api(-[a-z]+)?/src/(capture_fetch|capture_file|nzb_zip)(\.rs$|/)                    capture_file capture_container
+^crates/rd-api(-[a-z]+)?/src/capture_click_and_load(\.rs$|/)                                 capture_click_and_load
 ^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)(\.rs$|/)                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets git_releases collector_pages capture_pick address_rule
 ^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr
 ^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr history
 ^crates/rd-api-compat/src/(lib\.rs|aria2/)                                                compat_aria2 scope_matrix scope_matrix_compat
-^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file package_export package_export_nzb
+^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file capture_container package_export package_export_nzb
 # Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
 ^crates/rd-api(-[a-z]+)?/src/(package_export|package_export_nzb|links_file|links_nzb|container_enqueue|download_handlers/reresolve(_now)?)(\.rs$|/)   package_export package_export_nzb reresolve_now mcp scope_matrix
 ^crates/rd-scheduler/src/resolve_now\.rs$                                                     + reresolve_now
@@ -99,14 +100,16 @@
 ^crates/rd-api(-[a-z]+)?/src/system_cleanup(_database)?(\.rs$|/)                              system_cleanup mcp scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/(history_handlers|history_export|history_readd_handlers|routes/history)(\.rs$|/)   history compat_sabnzbd
 ^crates/rd-api(-[a-z]+)?/src/queue_search(\.rs$|/)                                          queue_search
-^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics data_reset
+^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics data_reset log_level
+# The log level and a debug window (RD-1260-12).
+^crates/rd-api(-[a-z]+)?/src/log_level_handlers(\.rs$|/)                                      log_level diagnostics mcp scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule
 ^crates/rd-api(-[a-z]+)?/src/download_sources(\.rs$|/)                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service(\.rs$|/)                                       hotfolder_poll
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)(\.rs$|/)   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)(\.rs$|/)                mfa passkeys auth step_up password_reset restore_step_up
-^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity notification_package_path automations web_push
+^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity notification_package_path notification_counts automations web_push
 # Web Push for the installed app (RD-1240-13).
 ^crates/rd-api(-[a-z]+)?/src/(web_push|web_push_tests|web_push_handlers)(\.rs$|/)             web_push
 # Signing in through an identity provider (RD-190-15).
@@ -118,11 +121,11 @@
 ^crates/rd-api(-[a-z]+)?/src/(login_handlers|password_handlers|step_up|passkey_handlers|oidc_handlers|qbittorrent/mod)(\.rs$|/)   + sign_in_doors
 # The password reset on the host (RD-190-24): its route, and the steps it shares with the command.
 ^crates/rd-api(-[a-z]+)?/src/(password_reset_handlers|password_reset)(\.rs$|/)                password_reset auth
-^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)(\.rs$|/)   plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_superseded plugin_repositories plugin_auto_updates audit restart
+^crates/rd-api(-[a-z]+)?/src/(plugin_handlers|plugin_lifecycle|plugin_update_policy|providers_handlers|routes/plugins)(\.rs$|/)   plugin_enabled plugin_bundled plugin_bundled_removal plugin_bundled_repository plugin_versions plugin_superseded plugin_repositories plugin_auto_updates audit restart
 # The order of a key revocation, row before live verifier (audit 1.9.1, API-13; RD-1120-19).
 ^crates/rd-api(-[a-z]+)?/src/plugin_handlers(\.rs$|/)                                        + plugin_trust
-^crates/rd-api(-[a-z]+)?/src/plugin_bundled(\.rs$|/)                                        plugin_bundled plugin_bundled_removal audit
-^crates/rd-api(-[a-z]+)?/src/plugin_repository_[a-z_]+(\.rs$|/)                          plugin_repositories plugin_auto_updates audit
+^crates/rd-api(-[a-z]+)?/src/plugin_bundled(\.rs$|/)                                        plugin_bundled plugin_bundled_removal plugin_bundled_repository audit
+^crates/rd-api(-[a-z]+)?/src/plugin_repository_[a-z_]+(\.rs$|/)                          plugin_repositories plugin_auto_updates plugin_bundled_repository audit
 ^crates/rd-api(-[a-z]+)?/src/power_[a-z_]+\.rs$                                           power
 ^crates/rd-api(-[a-z]+)?/src/reconnect_[a-z_]+\.rs$                                       reconnect
 ^crates/rd-api(-[a-z]+)?/src/(replay_dto|replay_handlers)(\.rs$|/)                            replay_consent replay_restart
@@ -161,7 +164,7 @@
 ^crates/rd-api(-[a-z]+)?/src/object_storage_(fields|handlers)(\.rs$|/)                        backup_destinations backup_remote canaries address_rule object_storage_profiles
 ^crates/rd-api(-[a-z]+)?/src/object_upload_target(\.rs$|/)                                    object_storage_profiles
 ^crates/rd-api(-[a-z]+)?/src/remote_(handlers|audit)(\.rs$|/)                                 canaries secret_hosts
-^crates/rd-api(-[a-z]+)?/src/plugin_live(\.rs$|/)                                             plugin_enabled plugin_bundled plugin_bundled_removal plugin_versions plugin_repositories plugin_auto_updates
+^crates/rd-api(-[a-z]+)?/src/plugin_live(\.rs$|/)                                             plugin_enabled plugin_bundled plugin_bundled_removal plugin_bundled_repository plugin_versions plugin_repositories plugin_auto_updates
 ^crates/rd-api(-[a-z]+)?/src/destination(\.rs$|/)                                             storage_roots storage_capacity protected_roots category_move_and_reset unique_names capture_intake compat_sabnzbd torrent hotfolder_poll automations stream_schedules
 ^crates/rd-api(-[a-z]+)?/src/hosters(\.rs$|/)                                                 canaries mirrors mcp
 ^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule

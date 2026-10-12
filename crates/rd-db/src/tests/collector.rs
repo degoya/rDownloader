@@ -3,7 +3,7 @@
 use rd_core::IngressSource;
 
 use super::{proposed_pair, routing_category, routing_root};
-use crate::{Database, NewCategory, NewCategoryRule, NewStorageRoot};
+use crate::{Database, NewCategoryRule, NewStorageRoot};
 
 #[tokio::test]
 async fn category_rules_are_applied_when_links_enter_the_collector() {
@@ -23,29 +23,7 @@ async fn category_rules_are_applied_when_links_enter_the_collector() {
         )
         .await
         .expect("root");
-    let category = database
-        .create_category(NewCategory {
-            name: "Hoster".to_owned(),
-            color: "#38BDF8".to_owned(),
-            storage_root_id: root.id,
-            relative_path: "hoster".to_owned(),
-            is_default: false,
-            postprocess_level: None,
-            script: None,
-            cleanup_extensions: None,
-            recursive_unpack: None,
-            unpack_to_subfolder: None,
-            unwrap_package_folder: None,
-            direct_unpack: None,
-            malware_scan: None,
-            sfv_verify: None,
-            safe_postproc: None,
-            delete_par2: None,
-            upload_enabled: None,
-            upload_remote: None,
-        })
-        .await
-        .expect("category");
+    let category = routing_category(&database, root.id, "Hoster", false).await;
     database
         .create_category_rule(NewCategoryRule {
             name: "DDownload".to_owned(),

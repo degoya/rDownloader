@@ -40,7 +40,7 @@ pub(super) async fn category(
 #[tool_router(router = routing_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Create a download category: a name, a colour, a storage root and a folder below it, plus optional post-processing defaults (among them unwrap_package_folder: dissolve a single folder named like the package). Names are unique: a name another category has is refused with category.name_taken. A script is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
+        description = "Create a download category: a name, a colour, a storage root and a folder below it, plus optional post-processing defaults (among them unwrap_package_folder: dissolve a single folder named like the package). selectable: false hides it from the pickers that assign a category by hand (LinkGrabber, Downloads) while rules, subscriptions, hotfolders, the *arr interfaces and these tools still use it; the default category refuses it with category.default_not_selectable. Names are unique: a name another category has is refused with category.name_taken. A script is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn create_category(
         &self,
@@ -54,6 +54,7 @@ impl RdMcpServer {
                 storage_root_id: parse_id(&params.storage_root_id)?,
                 relative_path: params.relative_path,
                 is_default: params.is_default.unwrap_or(false),
+                selectable: params.selectable.unwrap_or(true),
                 postprocess_level: params.postprocess_level.map(Into::into),
                 script: params.script,
                 cleanup_extensions: params.cleanup_extensions,
@@ -80,7 +81,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one category. Only the fields you pass are changed; list nullable fields in `clear` to reset them to the global default. A name another category has is refused with category.name_taken. Naming a script the category does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
+        description = "Change one category. Only the fields you pass are changed; list nullable fields in `clear` to reset them to the global default. selectable: false hides the category from the pickers that assign one by hand (LinkGrabber, Downloads), nothing else; the default category refuses it with category.default_not_selectable. A name another category has is refused with category.name_taken. Naming a script the category does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_category(
         &self,
@@ -123,6 +124,7 @@ impl RdMcpServer {
                 },
                 relative_path: params.relative_path.unwrap_or(current.relative_path),
                 is_default: params.is_default.unwrap_or(current.is_default),
+                selectable: params.selectable.unwrap_or(current.selectable),
                 postprocess_level: merged(
                     &cleared,
                     "postprocess_level",

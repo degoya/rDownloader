@@ -5,7 +5,7 @@
  * the generated schema's (WEB-04).
  */
 import { call } from './call'
-import type { Refine } from './pluginRepositories'
+import type { PluginUpdate, Refine } from './pluginRepositories'
 import type { components } from './schema'
 
 type Schemas = components['schemas']
@@ -21,13 +21,38 @@ export type BundledCategory =
   | 'postprocess'
   | 'other'
 
+/** Where a plugin comes from (RD-1260-02). */
+export type PluginOrigin = 'bundled' | 'repository' | 'upload'
+
+/**
+ * `origin`: where an install takes the plugin from now; `installed_origin`: where the installed
+ * version came from; `update`: the update waiting for it (RD-1260-02). Optional here, so a fixture
+ * written before them still reads.
+ */
+export type BundledPlugin = Refine<Schemas['BundledPluginResponse'], {
+  origin?: PluginOrigin
+  repository_version?: string | null
+  repository_id?: string | null
+  installed_origin?: PluginOrigin | null
+  update?: PluginUpdate | null
+}>
+
 /**
  * `needs_account`: does nothing until an account or a destination is set up; `provider`: the
- * provider an account for this service is created under.
+ * provider an account for this service is created under; `update_available`: a plugin of it has
+ * an update waiting.
  */
-export type BundledService = Refine<Schemas['BundledServiceResponse'], { category: BundledCategory }>
+export type BundledService = Refine<Schemas['BundledServiceResponse'], {
+  category: BundledCategory
+  plugins: BundledPlugin[]
+  update_available?: boolean
+}>
 
-type BundledCatalogue = Refine<Schemas['BundledCatalogueResponse'], { services: BundledService[] }>
+/** `repository_services`: what only a repository offers, installed through the preview. */
+type BundledCatalogue = Refine<Schemas['BundledCatalogueResponse'], {
+  services: BundledService[]
+  repository_services?: BundledService[]
+}>
 
 export type BundledInstallFailure = Schemas['BundledInstallFailure']
 

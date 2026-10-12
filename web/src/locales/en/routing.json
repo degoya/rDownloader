@@ -183,7 +183,12 @@
     "package_names_regex_override": "Own regex rules",
     "package_names_regex_override_description": "Off: the global rules apply. On: this list replaces them — empty too, then none applies.",
     "download_window_label": "Download window",
-    "download_window_description": "When this category's packages may download; a package's own window wins. Off: the packages follow the bandwidth schedule alone."
+    "download_window_description": "When this category's packages may download; a package's own window wins. Off: the packages follow the bandwidth schedule alone.",
+    "selectable_label": "Show in the selection",
+    "selectable_description": "Off: the LinkGrabber and the Downloads no longer offer this category. Rules, subscriptions, hotfolders and the interfaces keep using it.",
+    "selectable_default_hint": "The default category is always offered.",
+    "hidden_badge": "HIDDEN",
+    "hidden_badge_title": "Not offered in the LinkGrabber and the Downloads"
   },
   "rule": {
     "eyebrow": "Classifier",

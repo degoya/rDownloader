@@ -1463,6 +1463,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capture/click-and-load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["capture_click_and_load"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capture/clipboard": {
         parameters: {
             query?: never;
@@ -2649,6 +2665,45 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diagnostics/log-level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The level and the window as they stand. */
+        get: operations["get_log_level"];
+        /**
+         * Sets the level from the Log view: saved in the settings document and in force from the next
+         *     line, without a restart.
+         */
+        put: operations["set_log_level"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/diagnostics/log-level/debug": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Puts one area on debug for 15, 30 or 60 minutes; a window already open is replaced. */
+        put: operations["start_log_debug"];
+        post?: never;
+        /** Ends the debug window now; the level holds again from the next line. */
+        delete: operations["stop_log_debug"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4450,7 +4505,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The bundle by service, with what of it is installed. */
+        /**
+         * The bundle by service, with what of it is installed, where each plugin installs from and the
+         *     update waiting for it, and what only the repositories offer (RD-1260-02).
+         */
         get: operations["list_bundled_services"];
         put?: never;
         post?: never;
@@ -4470,7 +4528,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Installs the plugins of the named services that are not installed yet.
+         * Installs the plugins of the named services that are not installed yet: each from the repository
+         *     when it can be fetched there (RD-1260-02), from the bundle otherwise.
          * @description One plugin that fails does not stop the others: the answer lists what was installed and what
          *     was not, and the person sees both. Every service is looked up before anything installs, so a
          *     request naming an unknown one changes nothing. Like every install, the plugins' provider rows
@@ -8181,6 +8240,8 @@ export interface components {
             relative_path: string;
             safe_postproc?: boolean | null;
             script?: string | null;
+            /** @description Absent in a bundle written before RD-1260-03: offered in the pickers, as then. */
+            selectable?: boolean;
             sfv_verify?: boolean | null;
             storage_root_name: string;
             unpack_to_subfolder?: boolean | null;
@@ -8304,6 +8365,13 @@ export interface components {
             username?: string | null;
         };
         BundledCatalogueResponse: {
+            /**
+             * @description What only the enabled repositories offer, one service per plugin with its id as the key
+             *     (RD-1260-02): the newest version this build runs, installed or not. Installed through the
+             *     install preview, never by `POST /api/v1/plugins/bundled/install`; the setup wizard does
+             *     not list them.
+             */
+            repository_services: components["schemas"]["BundledServiceResponse"][];
             /** @description Ordered by category, then key. Empty when the service found no bundle directory. */
             services: components["schemas"]["BundledServiceResponse"][];
         };
@@ -8320,6 +8388,10 @@ export interface components {
             /** @description Keys of the services to install, as the catalogue lists them. */
             services: string[];
         };
+        /**
+         * @description Installs a service from the repository when it is reachable and the bundle otherwise
+         *     (RD-1260-02); each installed plugin's `origin` says which.
+         */
         BundledInstallResponse: {
             /**
              * @description `plugin.bundled_installed` when everything installed runs now,
@@ -8340,11 +8412,24 @@ export interface components {
         /** @description One plugin of a bundled service. */
         BundledPluginResponse: {
             id: components["schemas"]["PluginId"];
+            installed_origin?: components["schemas"]["PluginOrigin"] | null;
             /** @description The newest installed version, `null` when the plugin is not installed. */
             installed_version?: string | null;
             name: string;
+            /**
+             * @description Where an install takes the plugin from now (RD-1260-02): `repository` when a repository
+             *     offers the bundle's version or a newer one of the same plugin, signed by the same key and
+             *     asking for nothing more, and its host answers; `bundled` otherwise. In an install's answer,
+             *     where the installed version came from.
+             */
+            origin: components["schemas"]["PluginOrigin"];
             plugin_type: string;
-            /** @description The version in the bundle. */
+            /** @description The repository that offers it, when `origin` is `repository`. */
+            repository_id?: string | null;
+            /** @description The version an install from the repository brings, when `origin` is `repository`. */
+            repository_version?: string | null;
+            update?: components["schemas"]["PluginUpdateResponse"] | null;
+            /** @description The version in the bundle; for a plugin only a repository offers, the version it offers. */
             version: string;
         };
         /** @description Body of `POST /api/v1/plugins/bundled/remove`. */
@@ -8387,6 +8472,8 @@ export interface components {
             /** @description The provider an account for this service is created under, when it has one. */
             provider?: string | null;
             state: components["schemas"]["BundledServiceState"];
+            /** @description Whether a plugin of the service has an update waiting (RD-1260-02). */
+            update_available: boolean;
         };
         /**
          * @description How much of a service is installed.
@@ -8653,7 +8740,7 @@ export interface components {
          * @description One command of the agent's tray menu, each of which a shortcut can trigger.
          * @enum {string}
          */
-        CaptureCommand: "open" | "start_all" | "pause_all" | "pause_half_hour" | "pause_hour" | "clipboard_watch" | "send_clipboard" | "game_mode" | "install_server_update" | "auto_install" | "quit" | "add_all_from_linkgrabber" | "add_all_from_linkgrabber_paused" | "install_update" | "restart_server";
+        CaptureCommand: "open" | "start_all" | "pause_all" | "pause_half_hour" | "pause_hour" | "clipboard_watch" | "send_clipboard" | "game_mode" | "install_server_update" | "auto_install" | "quit" | "add_all_from_linkgrabber" | "add_all_from_linkgrabber_paused" | "install_update" | "restart_server" | "about";
         /** @description Cookies handed over by a capture client for one approved domain. */
         CaptureCookiesRequest: {
             cookies: string;
@@ -8665,7 +8752,7 @@ export interface components {
          * @description What the file was taken as.
          * @enum {string}
          */
-        CaptureFileKind: "nzb" | "torrent" | "nzb_zip";
+        CaptureFileKind: "nzb" | "torrent" | "nzb_zip" | "container";
         /**
          * @description A file handed over as JSON: either its bytes or its address, never both.
          *
@@ -8696,6 +8783,7 @@ export interface components {
         };
         /** @description What a hand-over became. */
         CaptureFileResponse: {
+            container?: components["schemas"]["ContainerImportResponse"] | null;
             kind: components["schemas"]["CaptureFileKind"];
             /** @description The NZB imports, one per NZB; empty for a torrent. */
             nzb_imports: components["schemas"]["NzbImport"][];
@@ -8921,6 +9009,8 @@ export interface components {
          *     "no shortcut": somebody who removed one must not get it back from the next release.
          */
         CaptureShortcuts: {
+            /** @description No default either (RD-1260-08), for the same reason. */
+            about?: string | null;
             /** @description No default either (RD-1240-24): the tray functions that had no command before. */
             add_all_from_linkgrabber?: string | null;
             add_all_from_linkgrabber_paused?: string | null;
@@ -9168,6 +9258,12 @@ export interface components {
             /** @description Default post-processing script for packages in this category. */
             script?: string | null;
             seeding?: components["schemas"]["SeedingPolicyOverride"] | null;
+            /**
+             * @description Whether the pickers that assign a category by hand (LinkGrabber, Downloads) offer this
+             *     one (RD-1260-03). Off keeps it for rules, subscriptions, hotfolders, the compatibility
+             *     interfaces, REST and MCP; the default category is always selectable.
+             */
+            selectable?: boolean;
             /** @description Whether packages in this category verify `.sfv` checksums; `None` = global default. */
             sfv_verify?: boolean | null;
             sorting?: components["schemas"]["SortTemplates"] | null;
@@ -9345,6 +9441,29 @@ export interface components {
              *     updates and migrations thin out.
              */
             update_proven: boolean;
+        };
+        /**
+         * @description The fields of a Click'n'Load request, under the names the page sent them.
+         *
+         *     Either `crypted` with `jk` (`/flash/addcrypted2`) or `urls` (`/flash/add`), never both. No
+         *     `Debug`: `passwords` must not reach a log line.
+         */
+        ClickAndLoadRequest: {
+            /** @description The encrypted links, base64: AES-128-CBC with the key as its IV. At most 8 MiB decoded. */
+            crypted?: string | null;
+            /**
+             * @description The key as the page sent it in `jk` (or `key`): 32 hexadecimal digits, or a script that
+             *     returns them. Evaluated here in a bounded sandbox, never in the browser. At most 32 KiB.
+             */
+            jk?: string | null;
+            /** @description The package name; cut at 200 characters. */
+            package?: string | null;
+            /** @description The archive passwords; the first non-empty line is kept, at most 1024 characters. */
+            passwords?: string | null;
+            /** @description The page that offered the links, http or https; its host labels the batch. */
+            source?: string | null;
+            /** @description The links in the clear, one per line. At most 1 MiB. */
+            urls?: string | null;
         };
         /**
          * @description The spot clicked in a click-point captcha, in pixels of the image as the hoster served
@@ -9796,6 +9915,12 @@ export interface components {
             safe_postproc?: boolean | null;
             /** @description Default post-processing script (file name inside the scripts directory). */
             script?: string | null;
+            /**
+             * @description Whether the pickers that assign a category by hand (LinkGrabber, Downloads) offer it;
+             *     absent = `true` (RD-1260-03). The default category refuses `false` with
+             *     `category.default_not_selectable`.
+             */
+            selectable?: boolean;
             /** @description Whether packages of this category verify `.sfv` checksums (`null` = global default). */
             sfv_verify?: boolean | null;
             storage_root_id: components["schemas"]["StorageRootId"];
@@ -11647,10 +11772,56 @@ export interface components {
          */
         ListingLimit: "entry_count" | "depth";
         /**
+         * @description An area of the service a person can put on debug for a while.
+         * @enum {string}
+         */
+        LogDebugArea: "plugin" | "provider" | "usenet" | "torrent" | "media" | "linkgrabber" | "subscriptions" | "http" | "scheduler";
+        /** @description `PUT /api/v1/diagnostics/log-level/debug`. */
+        LogDebugRequest: {
+            area: components["schemas"]["LogDebugArea"];
+            /**
+             * Format: int32
+             * @description 15, 30 or 60.
+             */
+            minutes: number;
+            /**
+             * @description Only with the area `plugin`: an installed plugin's id, to put only that plugin's own
+             *     lines on debug.
+             */
+            plugin_id?: string | null;
+        };
+        /** @description One area on debug until a moment; after it the service falls back to its level by itself. */
+        LogDebugWindow: {
+            area: components["schemas"]["LogDebugArea"];
+            /** @description Only with [`LogDebugArea::Plugin`]: that one plugin's own lines instead of the host's. */
+            plugin_id?: string | null;
+            /** Format: date-time */
+            until: string;
+        };
+        /**
          * @description The severity of one stored log record, in `tracing`'s order.
          * @enum {string}
          */
         LogLevel: "trace" | "debug" | "info" | "warn" | "error";
+        /** @description `PUT /api/v1/diagnostics/log-level`. */
+        LogLevelRequest: {
+            level: components["schemas"]["ServiceLogLevel"];
+        };
+        /** @description The level, the open debug window and whether `RUST_LOG` decides instead. */
+        LogLevelResponse: {
+            /** @description The areas a debug window can open, in the order the interface offers them. */
+            areas: components["schemas"]["LogDebugArea"][];
+            debug?: components["schemas"]["LogDebugWindow"] | null;
+            /** @description The level the settings hold. */
+            level: components["schemas"]["ServiceLogLevel"];
+            /** @description The lengths a debug window may have, in minutes. */
+            minutes: number[];
+            /**
+             * @description `RUST_LOG` as the service found it at start. While it is set it is the filter, and the
+             *     level and the window cannot be changed until the service starts without it.
+             */
+            rust_log?: string | null;
+        };
         /** @description One stored record, as the layer redacted it. */
         LogRecordResponse: {
             code?: string | null;
@@ -13355,6 +13526,11 @@ export interface components {
             installed: components["schemas"]["PluginOfferResponse"][];
             updates: components["schemas"]["PluginUpdateResponse"][];
         };
+        /**
+         * @description Where a plugin comes from (RD-1260-02).
+         * @enum {string}
+         */
+        PluginOrigin: "bundled" | "repository" | "upload";
         /** @description What a package asks for. */
         PluginPermissionsResponse: {
             /** @description Capability names, `secrets:<reference>` and `net_stream:<ports>` included. */
@@ -13632,6 +13808,12 @@ export interface components {
             capabilities: components["schemas"]["PowerCapabilities"];
             /** @description Whether the machine is currently being kept awake. */
             inhibiting: boolean;
+            /**
+             * Format: date-time
+             * @description Set while quiet hours hold notifications back: when they go out, as one summary
+             *     (RD-1260-04). The web interface holds its own desktop notifications until then too.
+             */
+            notifications_quiet_until?: string | null;
             /** @description Why the queue is paused by the network context, if it is. */
             paused_reason?: string | null;
             pending?: components["schemas"]["PendingAction"] | null;
@@ -13673,8 +13855,40 @@ export interface components {
             /** Format: int64 */
             unfinished: number;
         };
+        /** @description One plugin fetched for the new version. */
+        PreUpdatePlugin: {
+            name: string;
+            plugin_id: components["schemas"]["PluginId"];
+            repository_id: string;
+            version: string;
+        };
+        /** @description The plugins fetched for the version the update installs (RD-1260-02). */
+        PreUpdatePlugins: {
+            /**
+             * @description Why nothing was fetched, `null` when nothing stood in the way:
+             *     `update.plugin_contracts_unknown` when neither the request nor the release manifest names
+             *     the new version's contracts, or the repository's code when the preparation failed.
+             */
+            code?: string | null;
+            /**
+             * @description Installed plugins the new version refuses that no repository had a package for, or whose
+             *     package could not be fetched: the bundle replaces them at the next start where it can.
+             */
+            missing: string[];
+            /**
+             * @description Waiting in the preparation folder; the new version installs them at its start, before it
+             *     reads the bundle.
+             */
+            prepared: components["schemas"]["PreUpdatePlugin"][];
+        };
         /** @description What the updater asks for. */
         PreUpdateRequest: {
+            /**
+             * @description The `rdownloader:plugin` contracts that version speaks, from the release manifest
+             *     (RD-1260-02). Absent, the stored update offer's for the same version are taken; without
+             *     either, no plugin is fetched.
+             */
+            plugin_contracts?: string[] | null;
             /**
              * @description Whether that version changes the database schema, from the release manifest. When it
              *     does, the encrypted backup is required as well, if a passphrase is set up.
@@ -13696,6 +13910,7 @@ export interface components {
             encrypted_backup_code?: string | null;
             /** @description The version running now, which the copy and the archive belong to. */
             from_version: string;
+            plugins: components["schemas"]["PreUpdatePlugins"];
             schema_change: boolean;
             target_version: string;
         };
@@ -15051,6 +15266,14 @@ export interface components {
          * @enum {string}
          */
         SegmentEnd: "open" | "split" | "disconnect" | "finished";
+        /**
+         * @description The level the service records at: the console, the stored log and the trace export alike.
+         *
+         *     Four of the five `tracing` levels: `trace` is what the libraries underneath write and
+         *     nothing a person reads, so it is not offered.
+         * @enum {string}
+         */
+        ServiceLogLevel: "debug" | "info" | "warn" | "error";
         /** @description The answer to a stop request. */
         ServiceStopResponse: {
             /**
@@ -15450,6 +15673,13 @@ export interface components {
              * @default false
              */
             linkgrabber_packages_closed_by_default: boolean;
+            /**
+             * @description The level the service logs at — console, stored log and trace export alike: `error`,
+             *     `warn`, `info` or `debug` (RD-1260-12). Applied from the next line, without a restart;
+             *     `RUST_LOG`, when the service was started with it, wins.
+             * @default info
+             */
+            log_level: components["schemas"]["ServiceLogLevel"];
             /**
              * Format: int32
              * @description Days a log record is kept at most (1-365), whatever the count.
@@ -22141,6 +22371,58 @@ export interface operations {
             };
         };
     };
+    capture_click_and_load: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClickAndLoadRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorIntakeResponse"];
+                };
+            };
+            /** @description cnl.invalid_payload, cnl.jk_refused or cnl.no_links: the payload does not decrypt, the sandbox refused jk, or no link the LinkGrabber takes */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Capture token missing or revoked */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description cnl.payload_too_large: the payload or a field exceeds its limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description cnl.rate_limited: more hand-overs than the service accepts per minute */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     set_capture_clipboard: {
         parameters: {
             query?: never;
@@ -22228,7 +22510,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureFileResponse"];
                 };
             };
-            /** @description Not an NZB, a torrent or a ZIP of NZBs; a field, a cookie or a header is invalid; or both or neither of content and url were sent */
+            /** @description Not a link container, an NZB, a torrent or a ZIP of NZBs; a container that is invalid, holds no link or whose import is disabled; a field, a cookie or a header is invalid; or both or neither of content and url were sent */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -22256,7 +22538,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The address could not be fetched */
+            /** @description The address could not be fetched, or the decryption service did not answer */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -24794,6 +25076,121 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_log_level: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogLevelResponse"];
+                };
+            };
+        };
+    };
+    set_log_level: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogLevelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogLevelResponse"];
+                };
+            };
+            /** @description `RUST_LOG` decides the filter (`diagnostics.log_level_locked`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    start_log_debug: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogDebugRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogLevelResponse"];
+                };
+            };
+            /** @description `diagnostics.debug_minutes_invalid` or `diagnostics.debug_plugin_invalid` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `RUST_LOG` decides the filter (`diagnostics.log_level_locked`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    stop_log_debug: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogLevelResponse"];
+                };
             };
         };
     };

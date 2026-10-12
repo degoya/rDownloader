@@ -32,6 +32,8 @@ vi.mock('@/api/client', () => ({
   responseError: vi.fn(() => 'The service did not answer'),
   resultMessage: vi.fn(() => '')
 }))
+// The level panel has its own test (`LogLevelPanel.test.ts`, RD-1260-12) and its own routes.
+vi.mock('@/components/logs/LogLevelPanel.vue', () => ({ default: { name: 'LogLevelPanel', render: () => null } }))
 
 const PAGE = {
   records: [

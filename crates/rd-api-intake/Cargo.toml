@@ -16,6 +16,7 @@ rand.workspace = true
 rd-api-core = { path = "../rd-api-core" }
 rd-automation = { path = "../rd-automation" }
 rd-captcha = { path = "../rd-captcha" }
+rd-cnl = { path = "../rd-cnl" }
 rd-collector = { path = "../rd-collector" }
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }

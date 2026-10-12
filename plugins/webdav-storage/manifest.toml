@@ -3,7 +3,7 @@ plugin_type = "storage"
 api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000108"
 name = "WebDAV"
-version = "0.9.12"
+version = "0.9.13"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 
@@ -20,7 +20,7 @@ claims = []
 
 [metadata]
 description = "Uploads finished packages to a WebDAV server, verifying each file before anything local is deleted."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

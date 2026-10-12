@@ -5,6 +5,7 @@ use rd_core::IngressSource;
 use reqwest::{Client, StatusCode, multipart};
 use url::Url;
 
+mod files;
 mod game_mode;
 mod identity;
 mod linkgrabber;

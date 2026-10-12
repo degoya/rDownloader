@@ -2,7 +2,7 @@ import { computed, ref, type Ref } from 'vue'
 
 import type { Download, DownloadPackage } from '@/api/types'
 import { useRangeSelection } from '@/composables/useRangeSelection'
-import { sumSelection } from '@/utils/selectionSize'
+import { sumSelection, type SelectionParts } from '@/utils/selectionSize'
 
 export interface QueueGroup { package: DownloadPackage, downloads: Download[] }
 
@@ -124,8 +124,15 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
     })
     .map(group => group.package.id))
   const count = computed(() => selectedIds.value.length)
+  /** Packages and files apart; a package counts once one of its files is ticked (RD-1260-07). */
+  const parts = computed<SelectionParts>(() => ({
+    packages: new Set(selectedDownloads.value.map(download => download.package_id).filter(Boolean)).size,
+    items: selectedDownloads.value.length,
+    unit: 'file',
+    imports: 0
+  }))
   /** The status bar's figure: selected files only, so a ticked package is its files (RD-170-14). */
-  const size = computed(() => sumSelection(selectedDownloads.value.map(download => download.total_bytes)))
+  const size = computed(() => sumSelection(selectedDownloads.value.map(download => download.total_bytes), parts.value))
   const state = computed<'none' | 'some' | 'all'>(() => {
     const total = selectableIds.value.length
     if (!count.value || !total) return 'none'
@@ -136,5 +143,5 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
     state.value === 'all' ? clear() : selectAll()
   }
 
-  return { selectedFiles, selectedDownloads, selectedIds, fullySelectedPackageIds, count, size, state, anchor, noteModifier: range.noteModifier, setFiles, pickFile, pickPackage, togglePackage, packageState, selectAll, toggleAll, clear }
+  return { selectedFiles, selectedDownloads, selectedIds, fullySelectedPackageIds, count, parts, size, state, anchor, noteModifier: range.noteModifier, setFiles, pickFile, pickPackage, togglePackage, packageState, selectAll, toggleAll, clear }
 }

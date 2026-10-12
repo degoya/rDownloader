@@ -38,15 +38,31 @@ test('intercept.js exports no body encoder and no second payload builder', () =>
   assert.equal(payload.links[0].request.has_file_upload, undefined)
 })
 
-test('no listener asks the browser for a request body', () => {
+test('no listener asks the browser for a request body, except Click\'n\'Load\'s on port 9666', () => {
   // The quoted spellings are the ones that do something: `'requestBody'` is the extraInfoSpec
   // flag a webRequest listener is registered with, `details.requestBody` is what it then yields,
   // and `body_b64` is the field the capture contract would carry it in. Prose about the removed
   // path is allowed to name it; code is not.
+  //
+  // One exception, RD-1260-10: Click'n'Load's listener reads the form a page posts to the agent's
+  // own port, and only there. `background.js` registers it with `CNL_URL_PATTERNS` — the two
+  // addresses on port 9666, held by `cnl.test.mjs` — and `cnl.js` reads the fields.
+  const READS_BODY = ['cnl.js']
+  const REGISTERS_BODY = ['background.js']
   for (const [name, text] of sources()) {
-    assert.ok(!/['"]requestBody['"]/.test(text), `${name} registers a listener with requestBody`)
-    assert.ok(!/\.requestBody\b/.test(text), `${name} reads details.requestBody`)
+    if (!REGISTERS_BODY.includes(name)) {
+      assert.ok(!/['"]requestBody['"]/.test(text), `${name} registers a listener with requestBody`)
+    }
+    if (!READS_BODY.includes(name)) {
+      assert.ok(!/\.requestBody\b/.test(text), `${name} reads details.requestBody`)
+    }
     assert.ok(!/['"]?body_b64['"]?\s*[:=]/.test(text), `${name} still fills body_b64`)
+  }
+  const background = readFileSync(join(root, 'src', 'background.js'), 'utf8')
+  const registrations = background.split('\n').filter((line) => /['"]requestBody['"]/.test(line))
+  assert.ok(registrations.length > 0, 'Click\'n\'Load reads no form at all')
+  for (const line of registrations) {
+    assert.match(line, /\{ urls: CNL_URL_PATTERNS \}/, `a body listener without the port 9666 filter: ${line.trim()}`)
   }
 })
 

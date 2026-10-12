@@ -8,14 +8,24 @@
 
 use rd_core::CaptureCommand;
 
+/// The title at the top of the menu, beside the logo: the product and the agent's version
+/// (RD-1260-08).
+pub(crate) fn title_line() -> String {
+    format!("rDownloader v{}", env!("CARGO_PKG_VERSION"))
+}
+
 /// One entry of the tray menu, separators aside.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MenuEntry {
-    /// The agent's line at the top (RD-1100-06).
+    /// The title at the very top: the logo, "rDownloader" and the agent's version (RD-1260-08).
+    Title,
+    /// The agent's line under it (RD-1100-06).
     StatusLine,
     /// The server's line under it (RD-1240-06).
     ServerLine,
     Open,
+    /// "About rDownloader": the app's About page in the browser (RD-1260-08).
+    About,
     StartAll,
     PauseAll,
     PauseHalfHour,
@@ -39,10 +49,12 @@ pub(crate) enum MenuEntry {
 
 impl MenuEntry {
     /// Every entry, in the order of the menu.
-    pub(crate) const ALL: [Self; 18] = [
+    pub(crate) const ALL: [Self; 20] = [
+        Self::Title,
         Self::StatusLine,
         Self::ServerLine,
         Self::Open,
+        Self::About,
         Self::StartAll,
         Self::PauseAll,
         Self::PauseHalfHour,
@@ -60,13 +72,14 @@ impl MenuEntry {
         Self::Quit,
     ];
 
-    /// Whether a click can ever choose the entry. The two lines and the hint are only read: the
-    /// tray builds them greyed out and never enables them. Every other entry can be chosen at
-    /// least some of the time, and is a function a shortcut can reach.
+    /// Whether a click can ever choose the entry. The title, the two lines and the hint are only
+    /// read: the tray builds them greyed out and never enables them. Every other entry can be
+    /// chosen at least some of the time, and is a function a shortcut can reach.
     pub(crate) fn clickable(self) -> bool {
         match self {
-            Self::StatusLine | Self::ServerLine | Self::PairHint => false,
+            Self::Title | Self::StatusLine | Self::ServerLine | Self::PairHint => false,
             Self::Open
+            | Self::About
             | Self::StartAll
             | Self::PauseAll
             | Self::PauseHalfHour
@@ -90,8 +103,9 @@ impl MenuEntry {
     /// accident is the one thing a stray key press should not reach (`CaptureShortcuts::quit`).
     pub(crate) fn command(self) -> Option<CaptureCommand> {
         Some(match self {
-            Self::StatusLine | Self::ServerLine | Self::PairHint => return None,
+            Self::Title | Self::StatusLine | Self::ServerLine | Self::PairHint => return None,
             Self::Open => CaptureCommand::Open,
+            Self::About => CaptureCommand::About,
             Self::StartAll => CaptureCommand::StartAll,
             Self::PauseAll => CaptureCommand::PauseAll,
             Self::PauseHalfHour => CaptureCommand::PauseHalfHour,
@@ -114,7 +128,7 @@ impl MenuEntry {
 mod tests {
     use rd_core::CaptureCommand;
 
-    use super::MenuEntry;
+    use super::{MenuEntry, title_line};
 
     /// The ratchet (RD-1240-24): an entry a click can choose comes with its command, so it can be
     /// put on a shortcut. A new tray function without one fails here, not in somebody's hands.
@@ -153,5 +167,16 @@ mod tests {
         for (index, entry) in MenuEntry::ALL.into_iter().enumerate() {
             assert!(!MenuEntry::ALL[..index].contains(&entry), "{entry:?} twice");
         }
+    }
+
+    /// The title names the product and this agent's version, and comes first (RD-1260-08).
+    #[test]
+    fn the_title_comes_first_and_names_the_agents_version() {
+        assert_eq!(MenuEntry::ALL[0], MenuEntry::Title);
+        assert_eq!(
+            title_line(),
+            format!("rDownloader v{}", env!("CARGO_PKG_VERSION"))
+        );
+        assert!(!title_line().contains('&'), "no mnemonic in the title");
     }
 }

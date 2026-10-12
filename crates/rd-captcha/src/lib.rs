@@ -185,7 +185,7 @@ impl CaptchaBroker {
     pub fn report_page_without_widget(&self, id: CaptchaId) -> SubmitOutcome {
         let outcome = self.inner.manual.report_page_without_widget(id);
         if outcome == SubmitOutcome::Delivered {
-            self.announce();
+            self.announce(PendingChange::Settled);
         }
         outcome
     }
@@ -198,7 +198,7 @@ impl CaptchaBroker {
     ) -> SubmitOutcome {
         let outcome = self.inner.manual.resolve(id, answer, source);
         if outcome == SubmitOutcome::Delivered {
-            self.announce();
+            self.announce(PendingChange::Settled);
         }
         outcome
     }
@@ -349,11 +349,12 @@ impl CaptchaBroker {
         let (pending, receiver) = self.inner.manual.enqueue(challenge, timeout);
         // Whatever ends the wait — an answer, a timeout, or the download being paused or
         // cancelled out from under this future — the queue entry goes with it.
-        let _guard = QueueGuard {
+        let mut guard = QueueGuard {
             inner: Arc::clone(&self.inner),
             id: pending.id,
+            expired: false,
         };
-        self.announce();
+        self.announce(PendingChange::Added);
         let outcome = match tokio::time::timeout(timeout, receiver).await {
             Ok(Ok(manual::Reply::Answer(answer))) => manual::ManualOutcome::Solved(answer),
             Ok(Ok(manual::Reply::Declined)) => manual::ManualOutcome::Skipped,
@@ -362,6 +363,8 @@ impl CaptchaBroker {
             Ok(Err(_)) => manual::ManualOutcome::TimedOut,
             Err(_) => manual::ManualOutcome::TimedOut,
         };
+        // Leaving the queue unanswered is the one end a person is told about (RD-1260-04).
+        guard.expired = matches!(outcome, manual::ManualOutcome::TimedOut);
         match outcome {
             manual::ManualOutcome::Solved(answer) => Ok(answer),
             manual::ManualOutcome::Skipped => Err(Failure::coded(
@@ -386,8 +389,8 @@ impl CaptchaBroker {
 
     /// Tells live clients that the pending list changed. Not persisted: a captcha only
     /// exists while a download waits for it.
-    fn announce(&self) {
-        announce(&self.inner);
+    fn announce(&self, change: PendingChange) {
+        announce(&self.inner, change);
     }
 }
 
@@ -395,22 +398,53 @@ impl CaptchaBroker {
 struct QueueGuard {
     inner: Arc<Inner>,
     id: CaptchaId,
+    /// The wait ran out with nobody answering, rather than the download going away.
+    expired: bool,
 }
 
 impl Drop for QueueGuard {
     fn drop(&mut self) {
         // An answered or skipped captcha is already gone; only report a change this made.
         if self.inner.manual.forget(self.id) {
-            announce(&self.inner);
+            let change = if self.expired {
+                PendingChange::Expired
+            } else {
+                PendingChange::Withdrawn
+            };
+            announce(&self.inner, change);
         }
     }
 }
 
-fn announce(inner: &Inner) {
+/// What moved the pending list, named in the `captcha.changed` event (RD-1260-04): a captcha
+/// arriving is news, one running out unanswered is its end, and the rest is not -- every
+/// change used to read as "A captcha is waiting".
+#[derive(Clone, Copy)]
+enum PendingChange {
+    Added,
+    /// Answered, declined, or found to have no widget on its page.
+    Settled,
+    Expired,
+    /// The download stopped waiting: paused, cancelled, removed.
+    Withdrawn,
+}
+
+impl PendingChange {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Added => "added",
+            Self::Settled => "settled",
+            Self::Expired => "expired",
+            Self::Withdrawn => "withdrawn",
+        }
+    }
+}
+
+fn announce(inner: &Inner, change: PendingChange) {
     let pending = inner.manual.pending();
     inner.database.broadcast(EventEnvelope::new(
         EventKind::CaptchaChanged,
-        serde_json::json!({ "pending": pending }),
+        serde_json::json!({ "pending": pending, "change": change.as_str() }),
     ));
 }
 

@@ -7,6 +7,7 @@ import SearchableSelect from '@/components/SearchableSelect.vue'
 import { filterImportFiles, IMPORT_ACCEPT, importPackageNameOf, isContainerFile } from '@/composables/nzbImportRequest'
 import type { FileImportEntry, FileImportInput } from '@/composables/useNzbImportModal'
 import { priorityItems } from '@/utils/format'
+import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 
 const props = defineProps<{ categories: Category[], initialFiles?: File[] }>()
@@ -27,7 +28,7 @@ const hasContainer = computed(() => files.value.some(file => isContainerFile(fil
 
 const categoryItems = computed(() => [
   { label: t('linkgrabber.nzb.modal.no_category'), value: NO_SELECTION },
-  ...props.categories.map(item => ({ label: item.name, value: item.id }))
+  ...pickableCategories(props.categories).map(item => ({ label: item.name, value: item.id }))
 ])
 
 function passwordOf(file: File): string | null {

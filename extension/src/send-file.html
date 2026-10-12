@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>rDownloader</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 0; padding: 24px; color: #0f172a; background: #f8fafc; }
+      @media (prefers-color-scheme: dark) { body { color: #e2e8f0; background: #0b1620; } #drop { border-color: #334155; } }
+      main { max-width: 560px; margin: 0 auto; }
+      #drop { display: block; margin: 16px 0; padding: 40px 16px; border: 2px dashed #cbd5e1; border-radius: 8px; text-align: center; cursor: pointer; }
+      #drop.active { border-color: #14b8b0; background: rgba(20, 184, 176, 0.1); }
+      #drop strong { display: block; margin-bottom: 6px; }
+      #drop span { color: #14b8b0; text-decoration: underline; }
+      #files { position: absolute; width: 1px; height: 1px; opacity: 0; }
+      p.hint { color: #64748b; font-size: 12px; margin: 4px 0 0; word-break: break-word; }
+      #status { margin-top: 12px; min-height: 1.2em; }
+      .ok { color: #0f938f; } .error { color: #cf3832; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h2 data-i18n="sendFileTitle"></h2>
+      <label id="drop" for="files">
+        <strong data-i18n="sendFileDrop"></strong>
+        <span data-i18n="sendFileChoose"></span>
+      </label>
+      <input id="files" type="file" multiple />
+      <p class="hint" id="accepted"></p>
+      <div id="status" role="status"></div>
+    </main>
+    <script type="module" src="send-file.js"></script>
+  </body>
+</html>

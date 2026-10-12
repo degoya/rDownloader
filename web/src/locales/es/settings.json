@@ -579,7 +579,7 @@
   },
   "notifications": {
     "label": "Notificaciones del navegador",
-    "description": "Muestra una notificación de escritorio cuando termina una descarga o un posprocesado. Se guarda solo en este navegador.",
+    "description": "Muestra una notificación de escritorio cuando termina la lista de descargas, fallan descargas de un paquete o llegan enlaces, una sola vez y desde una de las pestañas abiertas. Lo que push ya envía a este navegador y los enlaces que anuncia un agente de escritorio en marcha se quedan allí; las horas silenciosas las retienen. Se guarda solo en este navegador.",
     "denied": "El navegador bloquea las notificaciones de esta página. Permítelas en los permisos del sitio y vuelve a activar el interruptor.",
     "unsupported": "Este navegador no admite notificaciones."
   },
@@ -955,13 +955,15 @@
   },
   "logs": {
     "eyebrow": "Almacén de registros",
-    "title": "Retención del registro",
-    "description": "Cuánto del registro estructurado conserva el servicio. Las entradas antiguas se eliminan en segundo plano; la cola nunca espera por ello.",
+    "title": "Nivel y retención del registro",
+    "description": "Qué registra el servicio y cuánto de ello conserva. Las entradas antiguas se eliminan en segundo plano; la cola nunca espera por ello.",
     "records_label": "Entradas conservadas",
     "records_description": "Las entradas más antiguas se eliminan primero (1000-500000).",
     "days_label": "Días conservados",
     "days_description": "Las entradas más antiguas que esto se eliminan sea cual sea el recuento (1-365).",
-    "open": "Abrir el visor de registros"
+    "open": "Abrir el visor de registros",
+    "level_label": "Nivel de registro",
+    "level_description": "Lo que el servicio escribe en la consola, el registro y la exportación de trazas: errores, avisos, info (predeterminado) o depuración. Se aplica desde la siguiente línea tras guardar, sin reiniciar."
   },
   "audit": {
     "eyebrow": "Auditoría y trazas",
@@ -1209,7 +1211,8 @@
       "add_all_from_linkgrabber": "Añadir todo desde el LinkGrabber",
       "add_all_from_linkgrabber_paused": "Añadir todo desde el LinkGrabber en pausa",
       "install_update": "Instalar la actualización del agente",
-      "restart_server": "Reiniciar el servidor"
+      "restart_server": "Reiniciar el servidor",
+      "about": "Acerca de rDownloader"
     },
     "report": {
       "title_unavailable": "Atajos no disponibles",

@@ -53,6 +53,9 @@ pub struct BundleInput {
     pub recent_errors: Vec<LogRecord>,
     /// How many records the whole store holds.
     pub log_records_total: u64,
+    /// The level the service logs at, a running debug window and `RUST_LOG` (RD-1260-12):
+    /// what a reader needs to know to tell a quiet log from a quiet service.
+    pub logging: crate::log_filter::FilterState,
 }
 
 /// One file the bundle may contain, as the preview shows it.
@@ -148,6 +151,7 @@ struct Versions<'a> {
 
 #[derive(Serialize)]
 struct RecentErrors<'a> {
+    logging: &'a crate::log_filter::FilterState,
     log_records_total: u64,
     limit: usize,
     records: &'a [LogRecord],
@@ -246,6 +250,7 @@ fn render_entries(input: &BundleInput) -> Result<Vec<(InventoryEntry, Vec<u8>)>>
                 redactions: LOG_REDACTIONS.iter().map(|code| Note::new(code)).collect(),
             },
             json(&RecentErrors {
+                logging: &input.logging,
                 log_records_total: input.log_records_total,
                 limit: RECENT_ERRORS_LIMIT,
                 records: recent,

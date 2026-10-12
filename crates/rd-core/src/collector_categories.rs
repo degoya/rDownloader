@@ -17,6 +17,11 @@ pub struct Category {
     pub storage_root_id: StorageRootId,
     pub relative_path: String,
     pub is_default: bool,
+    /// Whether the pickers that assign a category by hand (LinkGrabber, Downloads) offer this
+    /// one (RD-1260-03). Off keeps it for rules, subscriptions, hotfolders, the compatibility
+    /// interfaces, REST and MCP; the default category is always selectable.
+    #[serde(default = "crate::default_true")]
+    pub selectable: bool,
     /// Default post-processing level for packages in this category; `None` = global default.
     #[serde(default)]
     pub postprocess_level: Option<PostprocessLevel>,

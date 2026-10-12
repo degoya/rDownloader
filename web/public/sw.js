@@ -155,11 +155,15 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close()
-  const url = event.notification.data?.url ?? inScope('./')
+  const data = event.notification.data ?? {}
+  const url = data.url ?? inScope('./')
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
       const open = windows.find(client => client.url.startsWith(SCOPE.href))
       if (!open) return self.clients.openWindow(url)
+      // A tab's own notification, shown through the worker where only it may (RD-1260-04),
+      // brings the app forward and leaves its view as it is.
+      if (data.focus) return open.focus().catch(() => undefined)
       return open.focus().then(client => (client ?? open).navigate?.(url)).catch(() => undefined)
     })
   )

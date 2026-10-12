@@ -1,10 +1,11 @@
 //! The tray's marks: the shipped artwork, the same with the activity badge, and both greyed out
 //! while clipboard watching is paused (RD-1180-01). Where the badge sits and how the grey is made
 //! is `crate::icon`, which compiles and is tested on every host; this is the decoding and the
-//! `Icon::from_rgba` around it, which need the platform crates.
+//! `Icon::from_rgba` around it, which need the platform crates. The menu's title line takes the
+//! same artwork at 16 px (RD-1260-08).
 
 use anyhow::{Context, Result};
-use tray_icon::Icon;
+use tray_icon::{Icon, menu::Icon as MenuIcon};
 
 use crate::{icon as badge, tray_state::IconKind};
 
@@ -22,6 +23,9 @@ pub(super) struct Marks {
     /// Both greyed out, while clipboard watching is paused.
     paused_idle: Icon,
     paused_busy: Icon,
+    /// The title line's logo, or `None` when it could not be made: the title then stands
+    /// without it rather than taking the tray down.
+    logo: Option<MenuIcon>,
 }
 
 impl Marks {
@@ -30,6 +34,7 @@ impl Marks {
         let mut paused = image.clone();
         badge::dim(&mut paused.rgba);
         Ok(Self {
+            logo: logo_icon(&image),
             busy: busy_icon(&image)?,
             idle: to_icon(image)?,
             paused_busy: busy_icon(&paused)?,
@@ -45,6 +50,11 @@ impl Marks {
             IconKind::PausedIdle => self.paused_idle.clone(),
             IconKind::PausedBusy => self.paused_busy.clone(),
         }
+    }
+
+    /// The menu's 16 px logo for the title line (RD-1260-08).
+    pub(super) fn logo(&self) -> Option<MenuIcon> {
+        self.logo.clone()
     }
 }
 
@@ -97,4 +107,17 @@ fn busy_icon(base: &Pixels) -> Result<Icon> {
     let mut pixels = base.rgba.clone();
     badge::paint_badge(&mut pixels, base.width, base.height);
     Icon::from_rgba(pixels, base.width, base.height).context("build the busy tray icon")
+}
+
+/// The mark at half its size for the menu's title line (RD-1260-08): the shipped 32 px artwork
+/// halved by [`crate::icon::halve`], not a second file.
+fn logo_icon(image: &Pixels) -> Option<MenuIcon> {
+    let halved = badge::halve(&image.rgba, image.width, image.height)?;
+    match MenuIcon::from_rgba(halved, image.width / 2, image.height / 2) {
+        Ok(icon) => Some(icon),
+        Err(error) => {
+            tracing::warn!(%error, "the tray menu's logo could not be built");
+            None
+        }
+    }
 }

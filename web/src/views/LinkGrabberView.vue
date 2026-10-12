@@ -37,6 +37,7 @@ import { useGrabberReorder } from '@/composables/useGrabberReorder'
 import { useOpenSections } from '@/composables/useOpenSections'
 import { usePackageOpenState } from '@/composables/usePackageOpenState'
 import { useQueueColumns } from '@/composables/useQueueColumns'
+import { useSelectionSummary } from '@/composables/useSelectionSummary'
 import { useShowMetadata } from '@/composables/useShowMetadata'
 import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useCategories } from '@/stores/categories'
@@ -79,14 +80,9 @@ const { groups, visibleLinks, nzbGroups, entries, rows, orderedSelectionKeys } =
 const selection = useGrabberSelection(entries, orderedSelectionKeys)
 // How much is ticked, shown in the status bar while this view is open (RD-170-14).
 usePublishedSelection(selection.size)
-/** "4 links in 3 packages · 1 NZB import": the tooltip of both selection counts (RD-1230-02). */
-const selectionDetail = computed(() => {
-  const links = selection.collectorIds.value
-  const packages = new Set(collector.candidates.filter(candidate => selection.collectorIdSet.value.has(candidate.id)).map(candidate => candidate.package_id)).size
-  const nzbs = selection.nzbIds.value.length
-  const parts = links.length ? [t('common.selection.detail', { items: t('common.units.link', { count: links.length }, links.length), packages: t('common.units.package', { count: packages }, packages) })] : []
-  return [...parts, ...(nzbs ? [t('linkgrabber.selection_nzbs', { count: nzbs }, nzbs)] : [])].join(' · ')
-})
+/** "3 packages · 4 links · 1 NZB import selected", counted as the queue counts (RD-1260-07). */
+const summarize = useSelectionSummary()
+const selectionSummary = computed(() => summarize(selection.parts.value))
 /** The navbar button and `f` open the indexer search (RD-1230-02). */
 const indexerSearch = ref<{ openSearch: () => Promise<void> } | null>(null)
 
@@ -308,7 +304,7 @@ function openNzbHistory(): void {
             v-model:show-metadata="showMetadata"
             :state="selection.state.value"
             :count="selection.count.value"
-            :detail="selectionDetail"
+            :summary="selectionSummary"
             :select-hint="t('linkgrabber.select_all_hint')"
             :empty="!entries.length"
             :all-open="openPackages.allOpen.value"
@@ -328,7 +324,7 @@ function openNzbHistory(): void {
           <BulkActionBar
             v-if="selection.count.value"
             :count="selection.count.value"
-            :detail="selectionDetail"
+            :summary="selectionSummary"
             :categories="categories"
             :busy="bulkBusy"
             :package-actions-disabled="!selection.count.value"

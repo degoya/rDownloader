@@ -4,7 +4,8 @@ name: E2E
 # service on Linux, Windows and macOS — pairing, `configure`, `run`, a link through the
 # `rdownloader://` handler and one through Click'n'Load, both asserted in the LinkGrabber, and
 # the autostart entry installed and removed — and on Linux the built Chrome extension in
-# Chromium, paired through its options page, sending a page from its popup. The same test files
+# Chromium, paired through its options page, sending a page from its popup, and taking a hoster
+# page's Click'n'Load without an agent and leaving it to one (RD-1260-10). The same test files
 # run locally through scripts/e2e.sh. Firefox cannot load an unpacked extension under Playwright;
 # its build is linted by ci.yml (`web-ext lint`) and its run is a live-checklist item in
 # docs/development.md.
@@ -193,6 +194,14 @@ jobs:
           RD_E2E_EXTENSION: ${{ runner.temp }}/chrome-extension
           RD_E2E_WORK: ${{ runner.temp }}/e2e-extension
         run: node --test --test-reporter=spec web/e2e/extension.e2e.mjs
+      # RD-1260-10: Click'n'Load through the extension, without an agent and beside one.
+      - name: Click'n'Load through the Chrome extension
+        if: runner.os == 'Linux'
+        env:
+          RD_E2E_SERVER: ${{ github.workspace }}/target/release-test/rdownloader
+          RD_E2E_EXTENSION: ${{ runner.temp }}/chrome-extension
+          RD_E2E_WORK: ${{ runner.temp }}/e2e-click-and-load
+        run: node --test --test-reporter=spec web/e2e/click-and-load.e2e.mjs
 
       # Logs only: the work directories also hold the throwaway vault key and capture token.
       - name: Upload the service and agent logs

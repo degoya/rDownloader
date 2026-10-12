@@ -14,10 +14,10 @@ const EMPTY_COMPONENT: &[u8] = b"\0asm\x0d\0\x01\0";
 
 /// Serves whatever the test put in; every other address is offline.
 #[derive(Default)]
-struct MapFetcher(std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>);
+pub(crate) struct MapFetcher(std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>);
 
 impl MapFetcher {
-    fn serve(&self, url: &str, bytes: Vec<u8>) {
+    pub(crate) fn serve(&self, url: &str, bytes: Vec<u8>) {
         self.0.lock().expect("lock").insert(url.to_owned(), bytes);
     }
 

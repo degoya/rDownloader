@@ -25,6 +25,7 @@ async fn seed_routing(harness: &Harness, directory: &std::path::Path) -> rd_core
             storage_root_id: root.id,
             relative_path: "movies".to_owned(),
             is_default: true,
+            selectable: true,
             postprocess_level: Some(rd_core::PostprocessLevel::Unpack),
             script: None,
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
@@ -371,4 +372,85 @@ async fn an_oversized_bundle_is_refused_before_any_write() {
         1,
         "the category ahead of the oversized rules was not created"
     );
+}
+
+/// `selectable` (RD-1260-03): stored and read back, absent meaning offered, carried by the
+/// bundle — and refused for the default category, named default or default already.
+#[tokio::test]
+async fn a_category_hidden_from_the_pickers_round_trips_and_the_default_refuses_it() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let default_id = seed_routing(&harness, directory.path()).await;
+    let (_, categories) = common::get_json(&harness.router, "/api/v1/categories").await;
+    assert_eq!(categories[0]["selectable"], true, "{categories}");
+    let root_id = categories[0]["storage_root_id"]
+        .as_str()
+        .expect("root id")
+        .to_owned();
+    let body = |name: &str, is_default: bool, selectable: bool| {
+        serde_json::json!({
+            "name": name,
+            "color": "#336699",
+            "storage_root_id": root_id,
+            "relative_path": name.to_lowercase(),
+            "is_default": is_default,
+            "selectable": selectable,
+        })
+    };
+
+    let (status, hidden) = common::post_json(
+        &harness.router,
+        "/api/v1/categories",
+        body("Automation", false, false),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{hidden}");
+    assert_eq!(hidden["selectable"], false);
+    let hidden_id = hidden["id"].as_str().expect("id").to_owned();
+    let (_, categories) = common::get_json(&harness.router, "/api/v1/categories").await;
+    let stored = categories
+        .as_array()
+        .expect("categories")
+        .iter()
+        .find(|category| category["id"] == hidden_id.as_str())
+        .expect("the hidden category is listed");
+    assert_eq!(stored["selectable"], false, "{stored}");
+
+    let mut plain = body("Plain", false, true);
+    plain.as_object_mut().expect("body").remove("selectable");
+    let (status, plain) = common::post_json(&harness.router, "/api/v1/categories", plain).await;
+    assert_eq!(status, StatusCode::CREATED, "{plain}");
+    assert_eq!(plain["selectable"], true, "absent is offered");
+
+    for (uri, request) in [
+        ("/api/v1/categories".to_owned(), body("Other", true, false)),
+        (
+            format!("/api/v1/categories/{default_id}"),
+            body("Movies", false, false),
+        ),
+        (
+            format!("/api/v1/categories/{hidden_id}"),
+            body("Automation", true, false),
+        ),
+    ] {
+        let (status, refused) = if uri.ends_with("categories") {
+            common::post_json(&harness.router, &uri, request).await
+        } else {
+            common::put_json(&harness.router, &uri, request).await
+        };
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{uri}: {refused}");
+        assert_eq!(
+            refused["code"], "category.default_not_selectable",
+            "{refused}"
+        );
+    }
+
+    let bundle = export(&harness.router).await;
+    let exported = bundle["categories"]
+        .as_array()
+        .expect("categories")
+        .iter()
+        .find(|category| category["name"] == "Automation")
+        .expect("the hidden category is exported");
+    assert_eq!(exported["selectable"], false, "{exported}");
 }

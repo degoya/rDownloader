@@ -94,6 +94,48 @@ pub(crate) fn dim(pixels: &mut [u8]) {
     }
 }
 
+/// The mark at half its size, each pixel the average of the 2x2 block it replaces: the 16 px logo
+/// of the menu's title line, made from the same 32 px artwork as the tray icon (RD-1260-08), so
+/// the two cannot drift apart.
+///
+/// The colour is averaged weighted by alpha, so the transparent edge does not darken the outline.
+/// `None` for a buffer that is not `width * height` whole pixels, or for a size that does not
+/// halve into whole pixels.
+pub(crate) fn halve(pixels: &[u8], width: u32, height: u32) -> Option<Vec<u8>> {
+    if pixel_count(width, height)? != pixels.len()
+        || width == 0
+        || height == 0
+        || !width.is_multiple_of(2)
+        || !height.is_multiple_of(2)
+    {
+        return None;
+    }
+    let (half_width, half_height) = (width / 2, height / 2);
+    let mut halved = Vec::with_capacity(pixel_count(half_width, half_height)?);
+    for y in 0..half_height {
+        for x in 0..half_width {
+            // Bounded by the length check above: `2 * y + 1 < height` and `2 * x + 1 < width`.
+            let block = [(0, 0), (1, 0), (0, 1), (1, 1)].map(|(dx, dy)| {
+                let offset =
+                    ((2 * y + dy) as usize * width as usize + (2 * x + dx) as usize) * CHANNELS;
+                &pixels[offset..offset + CHANNELS]
+            });
+            let alpha: u32 = block.iter().map(|pixel| u32::from(pixel[3])).sum();
+            halved.extend((0..3).map(|channel| {
+                let weighted: u32 = block
+                    .iter()
+                    .map(|pixel| u32::from(pixel[channel]) * u32::from(pixel[3]))
+                    .sum();
+                weighted
+                    .checked_div(alpha)
+                    .map_or(0, |value| u8::try_from(value).unwrap_or(u8::MAX))
+            }));
+            halved.push(u8::try_from(alpha / 4).unwrap_or(u8::MAX));
+        }
+    }
+    Some(halved)
+}
+
 /// Length in bytes of an RGBA buffer of this size, or `None` when it does not fit in a `usize`.
 fn pixel_count(width: u32, height: u32) -> Option<usize> {
     (width as usize)
@@ -103,7 +145,9 @@ fn pixel_count(width: u32, height: u32) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BADGE, CHANNELS, badge_centre, badge_covers, badge_radius, dim, paint_badge};
+    use super::{
+        BADGE, CHANNELS, badge_centre, badge_covers, badge_radius, dim, halve, paint_badge,
+    };
 
     /// The size of `extension/icons/icon32.png`, which is the artwork the tray actually shows.
     const SHIPPED: u32 = 32;
@@ -276,5 +320,43 @@ mod tests {
         let radius = badge_radius(SHIPPED, SHIPPED);
         let (x, y) = badge_centre(SHIPPED, SHIPPED, radius);
         assert!(painted(&icon, SHIPPED, x, y), "the badge stays in colour");
+    }
+
+    /// The title line's logo is the shipped mark at 16 px (RD-1260-08): every 2x2 block one
+    /// pixel, its colour the opaque part's, its alpha the block's average.
+    #[test]
+    fn the_logo_is_the_mark_at_half_its_size() {
+        let halved = halve(&blank(SHIPPED, SHIPPED), SHIPPED, SHIPPED).expect("halves");
+        assert_eq!(
+            halved.len(),
+            (SHIPPED / 2 * SHIPPED / 2) as usize * CHANNELS
+        );
+
+        // One opaque red pixel and three transparent ones: red, at a quarter of the alpha; the
+        // transparent black does not darken it.
+        let mut block = blank(2, 2);
+        block[..CHANNELS].copy_from_slice(&[0xFF, 0x00, 0x00, 0xFF]);
+        assert_eq!(halve(&block, 2, 2), Some(vec![0xFF, 0x00, 0x00, 0x3F]));
+        // Four opaque pixels average to their mean colour, fully opaque.
+        let block = [
+            [0x00, 0x00, 0x00, 0xFF],
+            [0xFF, 0xFF, 0xFF, 0xFF],
+            [0x00, 0x00, 0x00, 0xFF],
+            [0xFF, 0xFF, 0xFF, 0xFF],
+        ]
+        .concat();
+        assert_eq!(halve(&block, 2, 2), Some(vec![0x7F, 0x7F, 0x7F, 0xFF]));
+        assert_eq!(halve(&blank(2, 2), 2, 2), Some(vec![0, 0, 0, 0]));
+    }
+
+    /// A buffer that is not the size it claims, or a size that does not halve, gives no logo
+    /// rather than a torn one.
+    #[test]
+    fn a_buffer_that_does_not_halve_gives_no_logo() {
+        assert_eq!(halve(&blank(3, 2), 3, 2), None);
+        assert_eq!(halve(&blank(0, 0), 0, 0), None);
+        let mut short = blank(SHIPPED, SHIPPED);
+        short.truncate(short.len() - CHANNELS);
+        assert_eq!(halve(&short, SHIPPED, SHIPPED), None);
     }
 }

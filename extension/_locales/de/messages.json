@@ -437,5 +437,59 @@
         "content": "$1"
       }
     }
+  },
+  "optionsClickAndLoad": {
+    "message": "Click'n'Load ohne Desktop-Agent annehmen"
+  },
+  "optionsClickAndLoadHint": {
+    "message": "Auf den Seiten unter „Seiten, die Dateien übergeben“ zeigt eine Seite ihren Click'n'Load-Knopf auch ohne laufenden Desktop-Agent, und ihre Links gehen mit Paketname und Passwort an deinen rDownloader. Läuft der Desktop-Agent, behält er Click'n'Load, und die Erweiterung hält sich heraus."
+  },
+  "cnlSent": {
+    "message": "Click'n'Load: $1 Link(s) an den LinkGrabber gesendet."
+  },
+  "cnlFailed": {
+    "message": "Click'n'Load fehlgeschlagen: $1"
+  },
+  "cnlInvalidPayload": {
+    "message": "die Daten der Seite ließen sich nicht lesen."
+  },
+  "cnlJkRefused": {
+    "message": "rDownloader hat den Schlüssel (jk) der Seite abgelehnt. Er wird nur in rDownloaders eigener Sandbox ausgewertet, nie im Browser."
+  },
+  "cnlNoLinks": {
+    "message": "die Seite hat keinen Link gesendet, den der LinkGrabber annimmt."
+  },
+  "cnlTooLarge": {
+    "message": "die Seite hat mehr gesendet, als rDownloader annimmt."
+  },
+  "cnlRateLimited": {
+    "message": "zu viele Übergaben in kurzer Zeit. Versuch es in einer Minute erneut."
+  },
+  "menuSendFile": {
+    "message": "Datei an rDownloader senden …"
+  },
+  "sendFileTitle": {
+    "message": "Dateien an rDownloader senden"
+  },
+  "sendFileDrop": {
+    "message": "Dateien hier ablegen"
+  },
+  "sendFileChoose": {
+    "message": "oder Dateien auswählen …"
+  },
+  "sendFileAccepted": {
+    "message": "Angenommen: $1"
+  },
+  "sendFileSending": {
+    "message": "Wird gesendet …"
+  },
+  "sendFileSent": {
+    "message": "Dateien an rDownloader übergeben: $1."
+  },
+  "sendFileUnknown": {
+    "message": "Nicht gesendet, unbekannter Dateityp: $1."
+  },
+  "sendFileRefused": {
+    "message": "Von rDownloader abgelehnt: $1."
   }
 }

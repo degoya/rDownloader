@@ -5,6 +5,189 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.26.0] - 2026-10-12
+
+### Added
+
+- **A category can be hidden from the selection (RD-1260-03, owner 2026-10-12).** A switch per
+  category, *Show in the selection* (`selectable`, migration `0145`, on by default), keeps it out
+  of the pickers that assign a category by hand — the LinkGrabber's package and NZB rows, file
+  import and selection bar, the Downloads' package rows, add dialog and selection bar
+  (`pickableCategories`) — while rules, subscriptions, hotfolders, the compatibility interfaces,
+  REST, MCP and the list filters keep it; an entry already in it shows it as its value. The
+  default category refuses `selectable: false` with `category.default_not_selectable`, and one
+  coerced or promoted to default becomes selectable. The routing bundle carries the field; MCP
+  `create_category`/`update_category` take it.
+
+- **A title line with the logo and “About rDownloader” in the agent's tray (RD-1260-08, owner
+  2026-10-12).** The menu opens on an `IconMenuItem` — the mark at 16 px, halved from the tray
+  icon's own 32 px artwork (`icon::halve`), and “rDownloader v<agent version>” — not clickable,
+  with a separator below. “About rDownloader” beside “Open rDownloader” opens Settings → About
+  rDownloader of the paired app (`config::about_page`, under the base path also without the
+  closing slash), greyed out with “Open” while the server does not answer. A new
+  `CaptureCommand::About` (`about`, no default shortcut) for a global shortcut, in the settings
+  page, the shortcut list and the MCP tool descriptions; the Linux listener opens the page too.
+
+- **Files handed to the capture agent: the link containers, a desktop drop shortcut and Send to
+  (RD-1260-09, owner 2026-10-12).** `association install` offers `.dlc`, `.ccf`, `.rsdf`,
+  `.rdlinks`, `.crawljob` and `.torrent` without taking another program's default: an “Import into
+  rDownloader” verb each and the agent under “Open with” (Windows
+  `Applications\rdownloader-capture.exe` with `SupportedTypes`, split into
+  `os_integration_windows.rs`; Linux desktop entry `MimeType` with `%F` and an
+  `rdownloader-containers.xml` MIME package; macOS helper document types at rank `Alternate`, the
+  applet passing every file in one call); `remove` takes all of it back and never a shared parent.
+  `POST /api/v1/capture/file` takes the link containers by their name, checked before the content
+  sniff (an `.rdlinks` may carry NZB XML), through the LinkGrabber's container import
+  (`container_handlers::import_content`, shared with `/containers/import`): `kind: "container"`
+  and a `container` field in the answer, `.txt` left out; the browser extension (RD-1260-11) uses
+  the same route. `open` takes several files and sends each by extension (`hand_over.rs`): an NZB
+  to `capture/nzb`, a container or a torrent to `capture/file`; one notification with the count,
+  another type refused by name with `capture.file_type_unsupported`. `drop-shortcut` and `send-to` install or remove “Add to
+  rDownloader” on the desktop and “rDownloader” in Send to (Windows, `desktop_shortcut.rs`, a
+  PowerShell `WScript.Shell` helper); the MSI runs them for `ASSOCIATION=1`, `DROPSHORTCUT=1`,
+  `SENDTO=1` and removes all three on uninstall, which the installers run checks.
+  `.metalink`/`.meta4` stay out: the service reads them only as pasted text. The macOS menu-bar
+  drop is not built: it would need an Objective-C class of the agent's, which `unsafe_code`
+  forbids.
+
+- **Click'n'Load in the browser extension (RD-1260-10, owner 2026-10-12).** Without the desktop
+  agent — rDownloader on a NAS — nothing answered `127.0.0.1:9666` and a hoster page showed no
+  Click'n'Load button. On a site allowed in the popup, the extension now answers the page's
+  `/jdcheck.js` and `/flash` with resources of its own (`src/cnl/`), an add with `success`, and
+  hands `crypted`, `jk`, `urls`, `passwords`, `package` and `source` to the new
+  `POST /api/v1/capture/click-and-load` (capture token; MCP `omitted`). `jk` is never evaluated in
+  the browser: the agent's key reading, Boa sandbox, decryption and pace moved into the new crate
+  `rd-cnl`, which the agent and the route share; a `jk` the sandbox refuses is `cnl.jk_refused`,
+  reported to the person in a notification while the page hears `success`. Firefox answers from a
+  blocking listener, Chrome from `declarativeNetRequest` session rules
+  (`declarativeNetRequestWithHostAccess`, Chrome build only); the only new host permissions are
+  the two 9666 addresses. While anything answers the port the extension stands back, asked on
+  every check and once a minute. A switch in the options, on by default; an end-to-end run in
+  Chromium (`web/e2e/click-and-load.e2e.mjs`).
+
+- **Containers through the browser extension and the web interface (RD-1260-11, owner
+  2026-10-12).** The extension keeps `.dlc`, `.ccf`, `.rsdf`, `.rdlinks` and `.crawljob`
+  downloads (by ending, or by a container content type) like an NZB and, for an allowed site,
+  hands them to `POST /api/v1/capture/file` like an NZB — the bytes, or the address with the
+  site's cookies — which takes a container by its ending into the container import (the service
+  half is RD-1260-09's); a container only its content type
+  announced gets the ending added (`handOverName`). **Send file to rDownloader…** (popup,
+  page and toolbar context menu) opens an extension page with a file picker and a drop area for
+  several local files, one notice for all; another ending is refused under
+  `capture.file_type_unsupported` and named. The web interface's window drop already took
+  containers; a Vitest pins it, and the extension E2E imports a DLC both ways against a local
+  stand-in for the decryption service.
+
+- **A log level in the settings, and debug for a while (RD-1260-12, owner 2026-10-12).** The
+  filter was fixed in `init_tracing` (`RUST_LOG` or `rdownloader=info,rd_=info`). It now sits in a
+  `tracing_subscriber` reload layer (`rd_diagnostics::log_filter`) in front of the console, the
+  stored log and the trace export: `log_level` in the settings document (`error`, `warn`, `info`,
+  `debug`) holds from the next line without a restart, set under *Settings › System* or from the
+  *Logs* page (`PUT /api/v1/diagnostics/log-level`), and applied at start as soon as the database
+  is open. *Debug for a while* puts one area — crate targets plus plugin types, or one plugin id
+  through the span `plugin_log` — on debug for 15, 30 or 60 minutes
+  (`PUT`/`DELETE /api/v1/diagnostics/log-level/debug`); the end is kept under
+  `diagnostics.log_debug`, so a restart inside the window reopens it and a timer closes it.
+  `RUST_LOG` set at start wins, locks both and is named (`diagnostics.log_level_locked`); the
+  other refusals are `diagnostics.debug_minutes_invalid` and `diagnostics.debug_plugin_invalid`.
+  MCP: `get_log_level`, `set_log_level`, `start_log_debug`, `stop_log_debug`, and `log_level` in
+  `update_settings`. The bundle's `recent-errors.json` names level, window and `RUST_LOG`. The
+  plugin host's `log` writes at most 50 lines per plugin call and, at its end, one warning
+  `... n more lines suppressed` with plugin id, version and operation
+  (`plugin.log_lines_suppressed`); lines the level filters out do not count.
+
+### Changed
+
+- **DEGOYA.digital is the publisher everywhere (RD-1260-01, owner 2026-10-12).** The sidebar
+  signature, the System tab and every publisher field name "DEGOYA.digital": MSI `Manufacturer`,
+  the Windows version resource (`CompanyName`, `LegalCopyright`), nfpm `maintainer`/`vendor` and
+  winget `Publisher`. "Alexander Herling / DEGOYA.digital" stays on the About page and in the
+  repository (README, `design.md`, `docs/feature-list.md`, `web/package.json`). All 75 bundled
+  plugins and examples name "DEGOYA.digital" as `[metadata] author` instead of "rDownloader
+  project", each with its patch version raised and a maintenance section in `CHANGES.md`; the
+  fixtures follow. The MSI upgrade is decided by the unchanged `UpgradeCode` alone
+  (`MajorUpgrade`), so the new manufacturer does not leave a second installation. The versions
+  this release raises: `example-stream-transform` 0.1.10; `metadata-enricher` 0.1.12;
+  `box-crawler`, `box-oauth`, `directory-index-crawler`, `dropbox-crawler`, `dropbox-oauth`,
+  `google-drive-crawler`, `google-drive-oauth`, `hitfile`, `offcloud-cloud`, `onedrive-crawler`,
+  `onedrive-oauth`, `pcloud-crawler`, `pixeldrain-crawler`, `premiumize-crawler`, `putio-oauth`,
+  `torbox-auth` and `turbobit` 0.1.13; `box`, `dropbox`, `google-drive`, `mediafire`,
+  `mediafire-crawler`, `mega`, `mega-crawler`, `nextcloud-crawler`, `offcloud`, `onedrive`,
+  `pcloud`, `pcloud-oauth`, `peeplink-crawler`, `seedr-jobs` and `xfs-generic` 0.1.14;
+  `krakenfiles`, `mega-auth`, `pixeldrain`, `putio`, `putio-transfers`, `seedr` and `torbox`
+  0.1.15; `emby-notifier`, `jellyfin-notifier` and `plex-notifier` 0.2.1; `realdebrid-auth`
+  0.2.10; `realdebrid-torrents` 0.2.11; `example-oauth`, `premiumize-transfers`, `realdebrid` and
+  `torbox-jobs` 0.2.12; `example-transfer` 0.7.10; `alldebrid`, `debridlink`, `keep2share`,
+  `linksnappy`, `nitroflare` and `rapidgator` 0.7.16; `onefichier` 0.7.17; `premiumize` 0.7.18;
+  `filejoker` 0.7.19; `crawljob-intake` and `sponsorblock-enricher` 0.9.12; `alldebrid-auth`,
+  `debridlink-auth`, `discord-notifier`, `premiumize-auth`, `sha256-postprocess` and
+  `webdav-storage` 0.9.13; `md5-postprocess` and `telegram-notifier` 0.9.14; `rename-postprocess`
+  0.9.15; `katfile` 0.9.19; `ntfy-notifier` 0.10.7; `metalink-intake` 0.10.9; `ddownload` 0.10.23.
+
+- **Plugins come from the repository first, the bundle is the fallback (RD-1260-02, owner
+  2026-10-12).** The setup wizard and the plugin manager install each plugin of a service from the
+  plugin repository when it offers the bundle's version or a newer one of the same plugin, signed
+  by the same key and asking for nothing more, and its host answers — fetching an index first when
+  none is loaded — and from the bundle otherwise; a host that failed is skipped for five minutes
+  (`repository::replacement`, `fetch_replacement`, `ensure_index`). `GET /api/v1/plugins/bundled`
+  names each plugin's `origin`, `installed_origin` and waiting `update` and lists the
+  `repository_services`; Settings → Plugins → *Catalogue* is one card in the bundle's design that
+  replaced *Available services* and *Updates* (tabs *Add* and *Updates* gone). `rd-pack plugin
+  index build --previous` keeps the last version per plugin, contract and minimum core version
+  (`index::carry_over`; `verify --previous`), and the release passes the latest index. The update
+  manifest names the release's `plugin_contracts`; the preparation before an update fetches the
+  packages the new contract needs into `plugin-repositories/prepared/<version>/`, which that
+  version's start installs before the bundle and every start removes (`prepare_update`,
+  `install_prepared`, crash point `plugin.before_prepared_published`, answer field `plugins`). The
+  rd-api test harness gives the repositories no network.
+
+- **The Downloads and LinkGrabber navbars are icons, each key in its tooltip (RD-1260-06, owner
+  2026-10-12).** Every navbar action of both views is an icon button (`NavbarAction`) named by its
+  `aria-label` and tooltip, the key that runs it in parentheses behind the name (*Direct job
+  (A)*, *Start all (P)*, *Enqueue all (E)*) and as `aria-keyshortcuts`. The key comes from the
+  shortcut catalogue (`withShortcut`, `shortcutKeys`), as do the menus' `UKbd` hints, so a
+  changed binding changes them all; the hard-coded `UKbd` hints on the buttons are gone. The file
+  count and the time a pause holds stay text, *Start all* and *Enqueue all* keep their colour.
+
+- **A selection counts packages and files apart (RD-1260-07, owner 2026-10-12).** Four ticked
+  packages read "11 selected" in the list bar, the selection bar and the status bar, which counted
+  files without saying so. All three now say "4 packages · 11 files selected", or "3 files in 1
+  package selected" (`useSelectionSummary`, `SelectionParts` in the published `SelectionSize`); a
+  package counts as soon as one of its files is ticked, the LinkGrabber counts links and NZB
+  imports by the same rule. A narrow selection bar and status bar show the file count, both
+  numbers in the tooltip. The figures on *Reset* and *Delete packages* and on the LinkGrabber's
+  hoster and filter buttons say in their tooltip what they count. `common.selection.count`,
+  `common.units.selected` and `linkgrabber.selection_nzbs` are gone, `common.units.nzb_import` and
+  `common.selection.summary` new.
+
+### Fixed
+
+- **One notification per moment, on one surface (RD-1260-04, owner 2026-10-12).** The hub
+  decides on the event's payload, once per transition (`notify_service/transitions.rs`): a
+  package written again, a later stage or a reorder no longer sends one more "Package finished";
+  a package whose files all failed now fails (`set_package_state` names `previous`, `files`,
+  `failed_files`) and pushes `package_failed` with the count; a released storage root is no
+  "out of space"; a captcha answer or expiry no longer reads "A captcha is waiting" (one when the
+  first starts waiting, "Captcha not answered in time" when the last runs out); a power countdown
+  is one event when it starts and one when it is cancelled, not one every five seconds. Quiet
+  hours end in one summary per target (`rd_notify::quiet_summary`), hold the tab's and the
+  agent's notifications too (`PowerStatus.notifications_quiet_until`, the capture stream's
+  `quiet_until`). In the browser one tab leads (`navigator.locks`) and tags its notifications,
+  leaves to push what push sends to this browser and the intake toast to a connected agent
+  (`agent_toast`); failures come once per package with the count, "queue finished" only when
+  nothing waits (a pause is no end) and at most once in ten minutes; where only a service worker
+  may notify, it does. The extension clears its "captcha waiting" once the captcha is gone.
+
+- **The provider account row keeps one fixed line (RD-1260-05, owner 2026-10-12).** Switch, name,
+  status icons and every action shared one `flex-wrap` line in `SettingsAccountsCard.vue`; with
+  *Take over from browser* among them *Edit* and *Delete* broke onto a line of their own and the
+  icons stood elsewhere on every account. The first line is now a grid — switch, name, a slot each
+  for key and cookie, *Test*/*Edit*/*Delete* — and *Connect*, the handover and the badges go to a
+  second line under the name, drawn only when there is something on it. The row measures itself
+  (`@container`): below `@sm` *Test* is an icon with its name as `aria-label` and `title`.
+  *Supported hosters* (`AccountHosters.vue`) opens from a left-aligned chevron toggle with
+  `aria-expanded`, like the card's other folded parts. `SettingsAccountsRow.test.ts`.
+
 ## [1.25.1] - 2026-10-12
 
 ### Fixed

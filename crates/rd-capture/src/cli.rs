@@ -22,7 +22,9 @@ pub(crate) struct Cli {
 pub(crate) enum Command {
     /// Runs Click'n'Load and optional clipboard monitoring.
     Run(RunArgs),
-    /// Imports an NZB selected through an operating-system file association.
+    /// Hands files to rDownloader: NZBs, link containers (.dlc, .ccf, .rsdf, .rdlinks,
+    /// .crawljob) and torrents, as a file association, the desktop drop shortcut and Send to
+    /// start it; several at once end in one notification.
     Open(OpenArgs),
     /// Handles one `rdownloader://` address handed over by the desktop.
     Handle(HandleArgs),
@@ -30,8 +32,14 @@ pub(crate) enum Command {
     Scheme(IntegrationArgs),
     /// Saves the paired service URL and capture token for autostart.
     Configure(ConfigureArgs),
-    /// Installs or removes the per-user `.nzb` file association.
+    /// Installs or removes the per-user file association: `.nzb`, and "Import with rDownloader"
+    /// for the link containers and `.torrent` without taking another program's default.
     Association(IntegrationArgs),
+    /// Puts or removes the "Add to rDownloader" shortcut on the desktop (Windows): files dropped
+    /// on it are handed over.
+    DropShortcut(IntegrationArgs),
+    /// Puts or removes "rDownloader" in the Send to menu (Windows).
+    SendTo(IntegrationArgs),
     /// Installs or removes per-user capture-agent autostart.
     Autostart(IntegrationArgs),
     /// Pauses clipboard watching. Click'n'Load, the browser extension and rdownloader:// links
@@ -126,7 +134,10 @@ pub(crate) struct RunArgs {
 pub(crate) struct OpenArgs {
     #[command(flatten)]
     pub(crate) connection: ConnectionArgs,
-    pub(crate) path: PathBuf,
+    /// The files, as the desktop passes them: one for a double-click, several for a drop on the
+    /// shortcut or Send to (RD-1260-09).
+    #[arg(required = true)]
+    pub(crate) paths: Vec<PathBuf>,
 }
 
 #[derive(Args)]
@@ -292,6 +303,32 @@ mod tests {
                 assert!(
                     Cli::try_parse_from(["rdownloader-capture", word, flag, "x", "y"]).is_err(),
                     "{word} {flag}"
+                );
+            }
+        }
+    }
+
+    /// RD-1260-09: what Windows passes for a drop on the shortcut or Send to -- every file after
+    /// `open` -- and the two shortcut commands.
+    #[test]
+    fn open_takes_every_dropped_file_and_the_shortcuts_parse() {
+        let cli = Cli::try_parse_from([
+            "rdownloader-capture",
+            "open",
+            r"C:\Downloads\a.dlc",
+            r"C:\Downloads\b c.nzb",
+        ])
+        .expect("open parses");
+        let Some(Command::Open(args)) = cli.command else {
+            panic!("open command expected");
+        };
+        assert_eq!(args.paths.len(), 2);
+        assert!(Cli::try_parse_from(["rdownloader-capture", "open"]).is_err());
+        for word in ["drop-shortcut", "send-to"] {
+            for action in ["install", "remove"] {
+                assert!(
+                    Cli::try_parse_from(["rdownloader-capture", word, action]).is_ok(),
+                    "{word} {action}"
                 );
             }
         }

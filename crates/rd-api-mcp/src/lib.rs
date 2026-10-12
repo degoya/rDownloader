@@ -39,6 +39,7 @@ mod tools_indexers;
 mod tools_insight;
 mod tools_intake;
 mod tools_link_filters;
+mod tools_log_level;
 mod tools_notify;
 mod tools_operations;
 mod tools_package_export;
@@ -78,7 +79,7 @@ use rd_api_access::{audit_dto, audit_handlers};
 use rd_api_admin::{
     about_page, automation_handlers, backup_destination_handlers, backup_handlers,
     capture_agent_handlers, config_handlers, data_reset_handlers, diagnostics_dto,
-    diagnostics_handlers, notify_handlers, plugin_bundled, plugin_handlers,
+    diagnostics_handlers, log_level_handlers, notify_handlers, plugin_bundled, plugin_handlers,
     plugin_repository_handlers, plugin_update_policy, restart_handlers, settings_handlers,
     stats_handlers, system_cleanup, tools_handlers, update_handlers, web_push_handlers,
 };
@@ -202,6 +203,7 @@ impl RdMcpServer {
             + Self::intake_router()
             + Self::remote_router()
             + Self::insight_router()
+            + Self::log_level_router()
             + Self::candidates_router()
             + Self::grabber_router()
             + Self::queue_router()

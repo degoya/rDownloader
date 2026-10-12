@@ -199,6 +199,9 @@ pub(crate) struct CreateCategoryParams {
     pub relative_path: String,
     /// Makes this the category new packages fall into.
     pub is_default: Option<bool>,
+    /// Offered in the pickers that assign a category by hand (LinkGrabber, Downloads); omitted
+    /// = true. False is refused for the default category.
+    pub selectable: Option<bool>,
     /// Post-processing depth; omitted inherits the global level.
     pub postprocess_level: Option<PostprocessLevelParam>,
     /// User script run after post-processing, by file name.
@@ -233,6 +236,8 @@ pub(crate) struct UpdateCategoryParams {
     pub storage_root_id: Option<String>,
     pub relative_path: Option<String>,
     pub is_default: Option<bool>,
+    /// Offered in the pickers that assign a category by hand; false is refused for the default.
+    pub selectable: Option<bool>,
     pub postprocess_level: Option<PostprocessLevelParam>,
     pub script: Option<String>,
     pub cleanup_extensions: Option<Vec<String>>,

@@ -42,7 +42,8 @@
     "all_languages": "Cualquier idioma",
     "facet_hint": "Se aplica a toda la lista y se mantiene para el siguiente paquete: donde un grupo de espejos ofrece elección, elige el espejo que coincide; en el resto, oculta lo que no puede coincidir.",
     "more": "Filtros",
-    "more_hint": "Preferir calidad, idioma y hoster, ordenar y reagrupar"
+    "more_hint": "Preferir calidad, idioma y hoster, ordenar y reagrupar",
+    "set_count": "{count} ajuste establecido | {count} ajustes establecidos"
   },
   "empty": "El portapapeles, Click’n’Load y las entradas manuales llegan primero aquí para su revisión. Los enlaces se comprueban automáticamente y se agrupan en paquetes.",
   "selection_package": "{name} (selección)",
@@ -636,7 +637,6 @@
     "take_all": "Tomar todos | Tomar 1 release | Tomar los {count}",
     "announced": "{rule}: una página espera tu elección"
   },
-  "selection_nzbs": "ninguna importación NZB | {count} importación NZB | {count} importaciones NZB",
   "link_filter": {
     "unhide": "Mostrar de nuevo",
     "hidden": "Oculto",

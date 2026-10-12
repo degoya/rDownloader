@@ -6,7 +6,7 @@ name = "1fichier"
 # 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
 # the installed package (`sync_bundled` only installs newer ones) and never picks the free
 # flow up. Pinned jobs are unaffected: the older version stays installed.
-version = "0.7.16"
+version = "0.7.17"
 key_id = "rdownloader-release-v1"
 public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # IMPL-VERIFY: the account-less website flow must fetch the file page on the *same* domain the
@@ -73,7 +73,7 @@ domains = [
 
 [metadata]
 description = "Resolves 1fichier links with an API key."
-author = "rDownloader project"
+author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
 license = "MIT"
 min_app_version = "1.9.0"

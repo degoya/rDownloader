@@ -205,10 +205,10 @@ function serveInventory(installed: ReturnType<typeof plugin>[], revocations: Rev
 }
 
 /**
- * The repository list and the updates are tested on their own (RD-140-01); rendered here they
- * would only add their own requests, inputs and alerts to every query this file makes.
+ * The repository list and the catalogue are tested on their own (RD-140-01, RD-1260-02); rendered
+ * here they would only add their own requests, inputs and alerts to every query this file makes.
  */
-const CHILD_STUBS = { PluginUpdatesList: true, SettingsPluginRepositories: true }
+const CHILD_STUBS = { PluginCatalogue: true, SettingsPluginRepositories: true }
 
 function mount(
   messages: Record<string, unknown> = { plugins: pluginsCatalogue },
@@ -357,15 +357,14 @@ describe('SettingsPluginsTab sub-tabs', () => {
     return screen.getAllByRole('tab')
   }
 
-  it('offers the five tabs in order, the installed one with the number of plugins', async () => {
+  it('offers the tabs in order, the installed one with the number of plugins', async () => {
     serveInventory(inventoryFor(INSTALLED_TYPES))
     mount()
 
     await waitFor(() => expect(cardTitles().length).toBe(12))
     expect(tabs().map(tab => tab.textContent)).toEqual([
       `${pluginsCatalogue.tabs.installed}12`,
-      pluginsCatalogue.tabs.add,
-      pluginsCatalogue.tabs.updates,
+      pluginsCatalogue.tabs.catalogue,
       pluginsCatalogue.tabs.repositories,
       pluginsCatalogue.tabs.trust
     ])
@@ -383,8 +382,8 @@ describe('SettingsPluginsTab sub-tabs', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 3, name: pluginsCatalogue.keys.title })).toBeTruthy())
     // The installed cards are on another tab: mounted, but not in reach.
     expect(screen.queryAllByRole('heading', { level: 4 })).toEqual([])
-    await fireEvent.click(screen.getByRole('tab', { name: pluginsCatalogue.tabs.add }))
-    expect(emitted()['update:subTab']).toEqual([['add']])
+    await fireEvent.click(screen.getByRole('tab', { name: pluginsCatalogue.tabs.catalogue }))
+    expect(emitted()['update:subTab']).toEqual([['catalogue']])
   })
 
   it('keeps each card on its tab', async () => {
@@ -395,8 +394,7 @@ describe('SettingsPluginsTab sub-tabs', () => {
     const panel = (anchor: string) =>
       container.querySelector(`[data-settings-anchor="${anchor}"]`)?.closest('[role="tabpanel"]')?.getAttribute('data-tab')
     expect(panel('plugins.installed')).toBe('installed')
-    expect(panel('plugins.install')).toBe('add')
-    expect(panel('plugins.bundled')).toBe('add')
+    expect(panel('plugins.install')).toBe('catalogue')
     expect(panel('plugins.withdrawn')).toBe('trust')
     expect(panel('plugins.keys')).toBe('trust')
   })
@@ -939,7 +937,7 @@ describe('SettingsPluginsTab diagnostics accordion', () => {
 })
 
 /**
- * The package field on the "add" tab (RA-WEB-01). A browser reports a `.rdplug` with an empty
+ * The package field on the catalogue tab (RA-WEB-01). A browser reports a `.rdplug` with an empty
  * MIME type, and the drop zone refused every item whose type was not in `accept`'s MIME list,
  * so a dropped package was turned away although the label invites the drop. The field names
  * the extension alone now, and the service checks what it is sent.
@@ -968,7 +966,7 @@ describe('SettingsPluginsTab package upload', () => {
     const sources: unknown[] = []
     mountComponent(SettingsPluginsTab, {
       messages: { plugins: pluginsCatalogue },
-      props: { subTab: 'add' },
+      props: { subTab: 'catalogue' },
       stubs: {
         ...CHILD_STUBS,
         UFileUpload: FILE_UPLOAD_DROP_ZONE,

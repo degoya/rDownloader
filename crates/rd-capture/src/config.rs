@@ -249,6 +249,22 @@ fn stored_service_in(directory: &std::path::Path, explicit: Option<Url>) -> Opti
     }
 }
 
+/// The page *About rDownloader* opens (RD-1260-08): Settings > About rDownloader of the app the
+/// agent is paired with.
+///
+/// Built from the same address *Open rDownloader* opens, so it reaches nothing that entry would
+/// not: a relative path joined onto an `http`/`https` address keeps its scheme and host. The
+/// service's base path stays in front of it (RD-1250-09) also when the stored address lacks the
+/// closing slash, which `Url::join` would otherwise read as a file name and replace.
+pub(crate) fn about_page(service: &Url) -> Option<Url> {
+    let mut base = service.clone();
+    if !base.path().ends_with('/') {
+        let path = format!("{}/", base.path());
+        base.set_path(&path);
+    }
+    base.join("settings/about").ok()
+}
+
 pub(crate) fn config_directory() -> Result<PathBuf> {
     project_dirs().map(|paths| paths.config_dir().to_owned())
 }

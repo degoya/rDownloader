@@ -161,8 +161,28 @@ describe('useQueueSelection size', () => {
     selection.pickFile('a', true)
     selection.pickPackage('p1', true)
 
-    expect(selection.size.value).toEqual({ count: 2, bytes: 1000n, unknown: 1 })
+    expect(selection.size.value).toEqual({ count: 2, bytes: 1000n, unknown: 1, parts: { packages: 1, items: 2, unit: 'file', imports: 0 } })
     selection.selectAll()
-    expect(selection.size.value).toEqual({ count: 3, bytes: 4000n, unknown: 1 })
+    expect(selection.size.value).toEqual({ count: 3, bytes: 4000n, unknown: 1, parts: { packages: 2, items: 3, unit: 'file', imports: 0 } })
+  })
+})
+
+/** RD-1260-07: packages and files apart, a package counted as soon as one of its files is ticked. */
+describe('useQueueSelection parts', () => {
+  it('counts a wholly and a partly ticked package alike, the files one by one', () => {
+    const all = ref([file('a', 'p1'), file('b', 'p1'), file('c', 'p2'), file('d', 'p2'), file('e', 'p2'), file('f', 'p3')])
+    const groups = ref([group('p1', all.value.slice(0, 2)), group('p2', all.value.slice(2, 5)), group('p3', all.value.slice(5))])
+    const selection = useQueueSelection(groups, all)
+
+    selection.pickPackage('p1', true)
+    selection.pickFile('d', true)
+    expect(selection.parts.value).toEqual({ packages: 2, items: 3, unit: 'file', imports: 0 })
+    // The package actions (category, delete) still take only the wholly ticked package.
+    expect(selection.fullySelectedPackageIds.value).toEqual(['p1'])
+
+    selection.clear()
+    selection.pickFile('c', true)
+    selection.pickFile('e', true)
+    expect(selection.parts.value).toEqual({ packages: 1, items: 2, unit: 'file', imports: 0 })
   })
 })

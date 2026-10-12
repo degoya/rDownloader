@@ -24,21 +24,67 @@ interface EventEnvelope<T> {
   payload?: T
 }
 
+/** At most one "download list finished" per this span (RD-1260-04). */
+export const QUEUE_DONE_SPACING_MS = 10 * 60_000
+
+/** States a file of a package can still fail from: it waits or moves. */
+const MOVING_STATES: readonly string[] = PAUSABLE_STATES
+/** States in which the queue is not empty: moving, or paused and waiting to go on. */
+const WAITING_STATES: readonly string[] = [...PAUSABLE_STATES, 'paused']
+/** After these, a file does nothing more by itself; the service's reading of a failed package. */
+const SETTLED_FAILED_STATES: readonly string[] = ['failed', 'blocked', 'cancelled', 'skipped']
+
 /**
- * Turns state transitions into desktop notifications.
+ * Turns state transitions into desktop notifications (RD-1260-04).
  *
- * Failures are reported per file; the "queue finished" message fires once when the last
- * running or waiting transfer is gone and at least one file completed since work started.
+ * Failures are reported per package, once none of its files can fail any more, with how many
+ * failed — fifty failed files are one notification, not fifty. A package all of whose files
+ * failed is what push reports as `package_failed`, so it is left to push where push reaches this
+ * browser. The "queue finished" message fires when nothing waits any more — a pause is no end —
+ * at least one file completed since work started, and the last one is ten minutes ago.
  * Called inside the store's setup, since it takes the notifications composable.
  */
-export function createQueueAnnouncer(): (next: readonly Download[]) => void {
+export function createQueueAnnouncer(now: () => number = () => Date.now()): (
+  next: readonly Download[],
+  packages?: readonly DownloadPackage[]
+) => void {
   const notifications = useNotifications()
   /** Last seen state per file; `null` until the first snapshot, so a reload announces nothing. */
   let lastStates: Map<string, string> | null = null
+  /** Files that failed since their package last reported, by package. */
+  const failedSince = new Map<string, Set<string>>()
   let queueArmed = false
   let completionsSinceArm = 0
+  let queueDoneAt: number | null = null
 
-  return function announce(next: readonly Download[]): void {
+  function reportPackages(next: readonly Download[], packages: readonly DownloadPackage[]): void {
+    for (const [packageId, failed] of failedSince) {
+      const files = next.filter(download => download.package_id === packageId)
+      if (files.some(download => MOVING_STATES.includes(download.state))) continue
+      failedSince.delete(packageId)
+      const names = files.filter(download => failed.has(download.id) && FAILED_STATES.includes(download.state))
+      const [first] = names
+      if (!first) continue
+      const allFailed = files.every(download => SETTLED_FAILED_STATES.includes(download.state))
+      const options = { tag: `package-failed:${packageId}`, ...(allFailed ? { pushEvent: 'package_failed' as const } : {}) }
+      if (names.length === 1) {
+        notifications.notify(
+          t('downloads.notifications.failed_title'),
+          t('downloads.notifications.failed_body', { file: first.file_name }),
+          options
+        )
+        continue
+      }
+      const name = packages.find(entry => entry.id === packageId)?.name ?? first.file_name
+      notifications.notify(
+        t('downloads.notifications.package_failed_title', { package: name }),
+        t('downloads.notifications.package_failed_body', { count: names.length, total: files.length }),
+        options
+      )
+    }
+  }
+
+  return function announce(next: readonly Download[], packages: readonly DownloadPackage[] = []): void {
     const previous = lastStates
     if (previous) {
       for (const download of next) {
@@ -50,25 +96,28 @@ export function createQueueAnnouncer(): (next: readonly Download[]) => void {
           // unpack cleanly (RD-107-10). A package that really cannot be repaired says so
           // itself, through its own state and notification.
           if (isRecoveryVolume(download)) continue
-          notifications.notify(
-            t('downloads.notifications.failed_title'),
-            t('downloads.notifications.failed_body', { file: download.file_name })
-          )
+          const failed = failedSince.get(download.package_id) ?? new Set<string>()
+          failed.add(download.id)
+          failedSince.set(download.package_id, failed)
         } else if (download.state === 'completed') {
           completionsSinceArm += 1
         }
       }
     }
     lastStates = new Map(next.map(download => [download.id, download.state]))
+    reportPackages(next, packages)
 
-    if (next.some(download => PAUSABLE_STATES.includes(download.state))) {
+    if (next.some(download => WAITING_STATES.includes(download.state))) {
       queueArmed = true
       return
     }
-    if (queueArmed && completionsSinceArm > 0) {
+    const spaced = queueDoneAt === null || now() - queueDoneAt >= QUEUE_DONE_SPACING_MS
+    if (queueArmed && completionsSinceArm > 0 && spaced) {
+      queueDoneAt = now()
       notifications.notify(
         t('downloads.notifications.queue_done_title'),
-        t('downloads.notifications.queue_done_body', { count: completionsSinceArm }, completionsSinceArm)
+        t('downloads.notifications.queue_done_body', { count: completionsSinceArm }, completionsSinceArm),
+        { tag: 'queue-done' }
       )
     }
     queueArmed = false

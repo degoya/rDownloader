@@ -164,6 +164,7 @@ pub(crate) fn routes() -> Router<AppState> {
     restart_handlers::restart_service,
     handlers::capture_ping,
     crate::capture_file::capture_file,
+    crate::capture_click_and_load::capture_click_and_load,
     candidate_handlers::list_batches,
     candidate_handlers::list_candidates,
     candidate_handlers::delete_candidate,

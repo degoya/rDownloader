@@ -124,5 +124,9 @@
     "attempts": "{count} intento | {count} intentos",
     "empty": "Aún no se ha entregado nada.",
     "target_removed": "destino eliminado"
+  },
+  "desktop": {
+    "quiet_summary_title": "Durante las horas silenciosas: {count} notificaciones",
+    "quiet_summary_more": "y {count} más"
   }
 }

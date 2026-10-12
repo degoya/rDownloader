@@ -42,6 +42,7 @@ async fn seed_all(harness: &Harness, directory: &std::path::Path) -> SeededConfi
             storage_root_id: root.id,
             relative_path: "movies".to_owned(),
             is_default: true,
+            selectable: true,
             postprocess_level: Some(rd_core::PostprocessLevel::Unpack),
             script: None,
             cleanup_extensions: Some(vec!["nfo".to_owned()]),
@@ -248,6 +249,7 @@ async fn full_round_trip_preserves_ids_and_rekeys_secrets() {
             storage_root_id: seeded.root_id,
             relative_path: "temp".to_owned(),
             is_default: false,
+            selectable: true,
             postprocess_level: None,
             script: None,
             cleanup_extensions: None,
@@ -264,7 +266,6 @@ async fn full_round_trip_preserves_ids_and_rekeys_secrets() {
         })
         .await
         .expect("temporary category");
-
     let (status, summary) = import(&harness.router, bundle, Some("backup-passphrase")).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(summary["categories"], 1);
@@ -457,7 +458,6 @@ async fn factory_reset_restores_runtime_defaults_without_removing_configuration(
         )
         .await
         .expect("custom settings");
-
     let (status, settings) = post_json_strict(
         &harness.router,
         "/api/v1/settings/reset",

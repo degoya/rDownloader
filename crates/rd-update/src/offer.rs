@@ -34,6 +34,10 @@ pub struct Offer {
     /// an offer stored before the manifest said so reads as `true`.
     #[serde(default = "changes_schema_by_default")]
     pub schema_change: bool,
+    /// The plugin contracts the version speaks ([`UpdateManifest::plugin_contracts`]); empty when
+    /// the manifest does not say.
+    #[serde(default)]
+    pub plugin_contracts: Vec<String>,
 }
 
 const fn changes_schema_by_default() -> bool {
@@ -156,6 +160,7 @@ fn newest_in(
                 })
                 .cloned(),
             schema_change: manifest.changes_schema(),
+            plugin_contracts: manifest.plugin_contracts.clone(),
         })
 }
 

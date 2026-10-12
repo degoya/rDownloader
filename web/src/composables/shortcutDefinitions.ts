@@ -237,3 +237,17 @@ export function registeredShortcuts(): Record<string, () => void> {
     .filter(definition => definition.register !== false)
     .map(definition => [definition.keys, definition.handler]))
 }
+
+/** The keys of the entry `descriptionKey` names, as the help lists them; none for an entry that does not exist. */
+export function shortcutKeys(descriptionKey: string): string[] {
+  return SHORTCUT_DEFINITIONS.find(definition => definition.descriptionKey === descriptionKey)?.labelKeys ?? []
+}
+
+/**
+ * "Add links (A)": a tooltip with the key that runs the action in parentheses (RD-1260-06). The key
+ * is read from the entry that binds it, so a changed binding changes every tooltip that names it.
+ */
+export function withShortcut(text: string, descriptionKey?: string): string {
+  const keys = descriptionKey ? shortcutKeys(descriptionKey) : []
+  return keys.length ? `${text} (${keys.map(key => key.toUpperCase()).join('+')})` : text
+}

@@ -188,8 +188,7 @@ export const SETTINGS_SUB_TABS = {
   ],
   plugins: [
     { value: 'installed', labelKey: 'plugins.tabs.installed', icon: 'i-lucide-blocks' },
-    { value: 'add', labelKey: 'plugins.tabs.add', icon: 'i-lucide-package-plus' },
-    { value: 'updates', labelKey: 'plugins.tabs.updates', icon: 'i-lucide-refresh-cw' },
+    { value: 'catalogue', labelKey: 'plugins.tabs.catalogue', icon: 'i-lucide-package-plus' },
     { value: 'repositories', labelKey: 'plugins.tabs.repositories', icon: 'i-lucide-library' },
     { value: 'trust', labelKey: 'plugins.tabs.trust', icon: 'i-lucide-badge-check' }
   ],

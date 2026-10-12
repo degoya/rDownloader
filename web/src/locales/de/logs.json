@@ -82,5 +82,32 @@
   "tabs": {
     "log": "Protokoll",
     "bundle": "Diagnosepaket"
+  },
+  "recording": {
+    "title": "Protokollstufe",
+    "description": "Was der Dienst aufzeichnet. Eine Änderung gilt ab der nächsten Zeile, ohne Neustart, und wird in den Einstellungen gespeichert.",
+    "level_label": "Stufe",
+    "locked": "RUST_LOG={value} legt fest, was protokolliert wird. Stufe und Debug für eine Weile gelten erst, wenn der Dienst ohne RUST_LOG startet.",
+    "debug_title": "Debug für eine Weile",
+    "debug_description": "Setzt einen Bereich für 15, 30 oder 60 Minuten auf Debug; danach gilt von selbst wieder die Stufe, auch über einen Neustart hinweg. Geheimnisse bleiben geschwärzt.",
+    "area_label": "Bereich",
+    "plugin_label": "Plugin",
+    "plugin_all": "Alle Plugins",
+    "minutes_label": "Dauer",
+    "minutes_option": "{count} Minuten",
+    "start": "Debug starten",
+    "active": "{area} steht bis {until} auf Debug.",
+    "stop": "Jetzt beenden",
+    "areas": {
+      "plugin": "Plugins",
+      "provider": "Hoster und Anbieter",
+      "usenet": "Usenet",
+      "torrent": "Torrent",
+      "media": "Medien",
+      "linkgrabber": "LinkGrabber",
+      "subscriptions": "Abos",
+      "http": "HTTP",
+      "scheduler": "Planer"
+    }
   }
 }

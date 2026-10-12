@@ -437,5 +437,59 @@
         "content": "$1"
       }
     }
+  },
+  "optionsClickAndLoad": {
+    "message": "Accept Click'n'Load without the desktop agent"
+  },
+  "optionsClickAndLoadHint": {
+    "message": "On the sites listed under \"Sites that hand files over\", a page shows its Click'n'Load button even when no desktop agent runs, and its links go to your rDownloader with package name and password. A running desktop agent keeps Click'n'Load, and the extension stays out of its way."
+  },
+  "cnlSent": {
+    "message": "Click'n'Load: $1 link(s) sent to the LinkGrabber."
+  },
+  "cnlFailed": {
+    "message": "Click'n'Load failed: $1"
+  },
+  "cnlInvalidPayload": {
+    "message": "the page's data could not be read."
+  },
+  "cnlJkRefused": {
+    "message": "rDownloader refused the page's key (jk). It is evaluated only in rDownloader's own sandbox, never in the browser."
+  },
+  "cnlNoLinks": {
+    "message": "the page sent no link the LinkGrabber accepts."
+  },
+  "cnlTooLarge": {
+    "message": "the page sent more than rDownloader accepts."
+  },
+  "cnlRateLimited": {
+    "message": "too many hand-overs in a short time. Try again in a minute."
+  },
+  "menuSendFile": {
+    "message": "Send file to rDownloader…"
+  },
+  "sendFileTitle": {
+    "message": "Send files to rDownloader"
+  },
+  "sendFileDrop": {
+    "message": "Drop files here"
+  },
+  "sendFileChoose": {
+    "message": "or choose files…"
+  },
+  "sendFileAccepted": {
+    "message": "Accepted: $1"
+  },
+  "sendFileSending": {
+    "message": "Sending…"
+  },
+  "sendFileSent": {
+    "message": "Files handed over to rDownloader: $1."
+  },
+  "sendFileUnknown": {
+    "message": "Not sent, unknown file type: $1."
+  },
+  "sendFileRefused": {
+    "message": "Refused by rDownloader: $1."
   }
 }

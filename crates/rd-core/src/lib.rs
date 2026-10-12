@@ -27,6 +27,7 @@ mod history;
 mod hotfolder;
 mod ids;
 mod indexer;
+mod log_filter;
 mod media;
 mod mfa;
 mod network;
@@ -150,6 +151,10 @@ pub use ids::{
 pub use indexer::{
     Indexer, IndexerListStyle, IndexerSearch, MAX_INDEXER_AGE_DAYS, MAX_INDEXER_PRETIME,
     MAX_INDEXER_QUERY_CHARS, MIN_INDEXER_QUERY_CHARS,
+};
+pub use log_filter::{
+    LOG_DEBUG_MINUTES, LOG_DEBUG_SETTING_KEY, LogDebugArea, LogDebugWindow, LogLevelSettings,
+    PLUGIN_LOG_SPAN, ServiceLogLevel, is_directive_safe_plugin_id,
 };
 pub use media::{
     AudioCodecFamily, AudioTrack, AudioTrackPolicy, CONTAINERS, ContainerCapabilities,

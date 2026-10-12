@@ -4,16 +4,8 @@ use axum::http::{StatusCode, header};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
-use super::jk::{JK_SLOTS, MAX_CONCURRENT_JK, extract_static_key, resolve_key, resolve_key_within};
 use super::{CnlState, MAX_ADDCRYPTED_BODY_BYTES, NO_LINK_DETAIL, Pace, code, router};
 use crate::client::CaptureClient;
-
-/// For tests that expect an evaluation to finish. The production budget of 250 ms was
-/// overrun by Boa's first evaluation on a loaded GitHub runner (2026-09-25), which turned a
-/// test of the result into a test of the machine; the expiry has its own tests.
-async fn resolve_patiently(source: &str) -> anyhow::Result<[u8; 16]> {
-    resolve_key_within(source, Duration::from_secs(10)).await
-}
 
 /// A live listener on an ephemeral port, so the routing rules are exercised the way a
 /// browser would meet them rather than through a hand-built request.
@@ -54,34 +46,6 @@ fn client() -> reqwest::Client {
         .no_proxy()
         .build()
         .expect("build a client")
-}
-
-#[test]
-fn accepts_literal_or_javascript_wrapped_static_keys() {
-    let expected = [0xab_u8; 16];
-    assert_eq!(
-        extract_static_key("function f(){ return 'abababababababababababababababab'; }")
-            .expect("one unambiguous literal"),
-        Some(expected)
-    );
-    // The `key` form: the field is the key itself.
-    assert_eq!(
-        extract_static_key("  abababababababababababababababab  ").expect("a bare key"),
-        Some(expected)
-    );
-}
-
-#[tokio::test]
-async fn evaluates_non_literal_key_in_boa_without_host_apis() {
-    let script =
-        "function getKey(){ return ['abababab','abababab','abababab','abababab'].join(''); }";
-    assert_eq!(resolve_patiently(script).await.ok(), Some([0xab_u8; 16]));
-}
-
-#[tokio::test]
-async fn rejects_unbounded_javascript_loops() {
-    let script = "function getKey(){ while(true){} }";
-    assert!(resolve_key(script).await.is_err());
 }
 
 /// The agent's own NZB route is gone (RD-1200-03): `open` hands an NZB to the service itself,
@@ -275,66 +239,6 @@ async fn an_oversized_addcrypted_body_is_refused_before_it_is_decoded() {
         "the body limit has to fire before the form extractor runs, got {status_line:?}"
     );
     cancellation.cancel();
-}
-
-/// The timeout used to end only the waiting. What it has to end now is the claim on the
-/// runtime: the agent is still able to evaluate the next script right afterwards.
-#[tokio::test]
-async fn an_expired_jk_evaluation_leaves_the_agent_working() {
-    let spinning = "function getKey(){ var n=0; while(true){ n=n+1; } }";
-    let expired = resolve_key_within(spinning, Duration::from_millis(1)).await;
-    assert!(expired.is_err(), "a script that never returns must not win");
-
-    // The next caller is served, which is the property the blocking pool used to lose.
-    let script =
-        "function getKey(){ return ['abababab','abababab','abababab','abababab'].join(''); }";
-    assert_eq!(resolve_patiently(script).await.ok(), Some([0xab_u8; 16]));
-}
-
-/// A page must not be able to open one evaluation per request.
-#[tokio::test]
-async fn concurrent_jk_evaluations_are_capped() {
-    let held = JK_SLOTS
-        .try_acquire_many(u32::try_from(MAX_CONCURRENT_JK).expect("a small cap"))
-        .expect("every slot is free at the start of this test");
-    let script =
-        "function getKey(){ return ['abababab','abababab','abababab','abababab'].join(''); }";
-    let refused = resolve_key(script).await;
-    assert!(
-        refused.is_err(),
-        "with every slot taken the call has to be refused, not queued"
-    );
-    drop(held);
-    assert_eq!(resolve_patiently(script).await.ok(), Some([0xab_u8; 16]));
-}
-
-/// The old pattern matched anywhere, so an unrelated identifier or the first half of a
-/// 64-digit literal silently became the key and decryption then failed with a padding
-/// error that pointed at nothing.
-#[tokio::test]
-async fn an_ambiguous_static_key_is_refused_rather_than_guessed_at() {
-    let two_literals = "function getKey(){ var id='0123456789abcdef0123456789abcdef'; \
-                        return 'abababababababababababababababab'; }";
-    assert!(
-        extract_static_key(two_literals).is_err(),
-        "two candidates cannot be resolved by taking the first"
-    );
-    assert!(resolve_key(two_literals).await.is_err());
-
-    let sixty_four = format!("function getKey(){{ return '{}'; }}", "ab".repeat(32));
-    assert_eq!(
-        extract_static_key(&sixty_four).expect("no literal key, not an error"),
-        None,
-        "a 64-digit literal is not a 128-bit key and must not be cut in half"
-    );
-    // It is then evaluated, and the 64-digit result is refused with a reason.
-    let error = resolve_patiently(&sixty_four)
-        .await
-        .expect_err("a 64-digit result is not a key");
-    assert!(
-        error.to_string().contains("128-bit hexadecimal key"),
-        "{error}"
-    );
 }
 
 /// The refusal used to name HTTP(S) only, while the collector had long taken more.

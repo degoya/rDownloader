@@ -399,7 +399,7 @@ fn plugin_repositories(
         database.clone(),
         rd_core::data_directory()
             .unwrap_or_else(|| std::path::Path::new("data"))
-            .join("plugin-repositories"),
+            .join(rd_plugin_host::repository::DIRECTORY),
         plugins.clone(),
     )
 }

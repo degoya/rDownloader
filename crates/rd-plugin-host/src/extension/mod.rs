@@ -267,13 +267,27 @@ impl ExtensionRuntime {
         granted_secret: Option<String>,
         domains: Vec<String>,
     ) -> Result<Store<PluginStoreState>> {
-        self.sandbox.create_extension_store(
+        let mut store = self.sandbox.create_extension_store(
             domains,
             self.host.clone(),
             identity(account),
             granted_secret,
             self.writes(),
-        )
+        )?;
+        self.name_log_origin(store.data_mut());
+        Ok(store)
+    }
+
+    /// Names this plugin as the one an invocation's log lines belong to (RD-1260-12). The
+    /// operation is the plugin type: a store here serves whichever export its caller calls.
+    fn name_log_origin(&self, state: &mut PluginStoreState) {
+        let kind = self.manifest.plugin_type.as_str();
+        state.set_log_origin(
+            self.manifest.id.to_string(),
+            self.manifest.version.clone(),
+            kind,
+            kind,
+        );
     }
 
     /// Whether this plugin's type may use the methods that write at the far end.
@@ -337,6 +351,7 @@ impl ExtensionRuntime {
             source,
         )?;
         store.data_mut().own_network = self.narrowed_to_supplied(only_host);
+        self.name_log_origin(store.data_mut());
         Ok(store)
     }
 }

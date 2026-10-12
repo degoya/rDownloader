@@ -11,7 +11,9 @@ mod cnl;
 mod commands;
 mod config;
 mod controls;
+mod desktop_shortcut;
 mod game_mode;
+mod hand_over;
 mod hotkeys;
 // The badge the tray draws over its icon is plain arithmetic on an RGBA buffer, so it carries the
 // tray's gate plus `test` and is measured here; only the decoding and `Icon::from_rgba` around it
@@ -60,6 +62,7 @@ use tracing_subscriber::EnvFilter;
 use crate::{
     cli::{Cli, Command, RunArgs},
     client::CaptureClient,
+    desktop_shortcut::Place,
     supervision::{
         AgentNotice, NoticeSink, bind_click_n_load, join_addresses, supervised, wind_down,
     },
@@ -172,6 +175,8 @@ fn dispatch() -> Result<()> {
             commands::integration(args, os_integration::Kind::Association)
         }
         Some(Command::Scheme(args)) => commands::integration(args, os_integration::Kind::Scheme),
+        Some(Command::DropShortcut(args)) => commands::shortcut(args, Place::Desktop),
+        Some(Command::SendTo(args)) => commands::shortcut(args, Place::SendTo),
         Some(Command::Autostart(args)) => commands::autostart(args),
         Some(Command::Pause(args)) => runtime()?.block_on(commands::clipboard_watch(args, true)),
         Some(Command::Resume(args)) => runtime()?.block_on(commands::clipboard_watch(args, false)),

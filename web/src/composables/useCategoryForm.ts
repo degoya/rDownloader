@@ -1,4 +1,4 @@
-import { computed, reactive, type WritableComputedRef } from 'vue'
+import { computed, reactive, watch, type WritableComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Category, CreateCategory, PackageNameRegex, PackageNameRulesOverride, PostprocessLevel, SortTemplates } from '@/api/types'
@@ -75,6 +75,7 @@ export function useCategoryForm() {
     storage_root_id: '',
     relative_path: '',
     is_default: false,
+    selectable: true,
     postprocess_level: null,
     script: null,
     cleanup_extensions: null,
@@ -89,6 +90,10 @@ export function useCategoryForm() {
     upload_remote: null,
     unwrap_package_folder: null
   })
+
+  // The default is what applies when nothing is chosen, so it is always offered (RD-1260-03); the
+  // service refuses a hidden default.
+  watch(() => form.is_default, (isDefault) => { if (isDefault) form.selectable = true })
 
   /** One inherit/on/off select over `field`; `labels` gives the three item labels in that order. */
   function inheritable(field: Switchable, labels: () => [string, string, string]) {
@@ -150,6 +155,7 @@ export function useCategoryForm() {
     form.storage_root_id = rootId
     form.relative_path = ''
     form.is_default = false
+    form.selectable = true
     form.postprocess_level = null
     form.script = null
     form.recursive_unpack = null
@@ -171,6 +177,7 @@ export function useCategoryForm() {
     form.storage_root_id = category.storage_root_id
     form.relative_path = category.relative_path
     form.is_default = category.is_default
+    form.selectable = category.selectable !== false
     form.postprocess_level = category.postprocess_level ?? null
     form.script = category.script ?? null
     form.recursive_unpack = category.recursive_unpack ?? null

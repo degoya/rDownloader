@@ -512,6 +512,11 @@ pub struct SettingsResponse {
     /// Days a log record is kept at most (1-365), whatever the count.
     #[serde(default = "default_log_retention_days")]
     pub log_retention_days: u32,
+    /// The level the service logs at — console, stored log and trace export alike: `error`,
+    /// `warn`, `info` or `debug` (RD-1260-12). Applied from the next line, without a restart;
+    /// `RUST_LOG`, when the service was started with it, wins.
+    #[serde(default)]
+    pub log_level: rd_core::ServiceLogLevel,
     /// Audit records the append-only audit log keeps at most (10000-2000000); the oldest
     /// whole records go first (RD-110-03).
     #[serde(default = "default_audit_retention_records")]

@@ -140,6 +140,11 @@ pub struct UpdateManifest {
     /// without it reads as none, and a service from before it ignores it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agent_artifacts: Vec<Artifact>,
+    /// The `rdownloader:plugin` contract versions this version's plugin host speaks (RD-1260-02):
+    /// what the preparation before the update fetches plugins for. Additive — a manifest without
+    /// it reads as unknown, and the update then fetches none and leaves the plugins to the bundle.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugin_contracts: Vec<String>,
 }
 
 /// Why a manifest, a check or a download was refused. [`code`](Self::code) is the stable code

@@ -57,6 +57,18 @@ fn input() -> BundleInput {
             fields: Default::default(),
         }],
         log_records_total: 1234,
+        logging: rd_diagnostics::log_filter::FilterState {
+            level: rd_core::ServiceLogLevel::Warn,
+            debug: Some(rd_core::LogDebugWindow {
+                area: rd_core::LogDebugArea::Usenet,
+                plugin_id: None,
+                until: Utc
+                    .with_ymd_and_hms(2026, 10, 12, 18, 30, 0)
+                    .single()
+                    .expect("time"),
+            }),
+            rust_log: None,
+        },
     }
 }
 
@@ -172,6 +184,25 @@ fn no_entry_of_the_archive_carries_a_secret() {
             );
         }
     }
+}
+
+/// RD-1260-12: the log entry says what the service was logging at, so a reader can tell a
+/// quiet log from a quiet service, and names a debug window that was running.
+#[test]
+fn the_log_entry_names_the_level_and_a_running_debug_window() {
+    let built = bundle::build(&input(), &["recent-errors".to_owned()], Utc::now()).expect("bundle");
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(built.bytes)).expect("zip");
+    let mut text = String::new();
+    archive
+        .by_name("recent-errors.json")
+        .expect("entry")
+        .read_to_string(&mut text)
+        .expect("read");
+    let parsed: serde_json::Value = serde_json::from_str(&text).expect("json");
+    assert_eq!(parsed["logging"]["level"], "warn");
+    assert_eq!(parsed["logging"]["debug"]["area"], "usenet");
+    assert_eq!(parsed["logging"]["debug"]["until"], "2026-10-12T18:30:00Z");
+    assert!(parsed["logging"]["rust_log"].is_null());
 }
 
 #[test]

@@ -233,10 +233,20 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
     } else {
         state
     };
-    let state = match options.stream_recheck {
+    let mut state = match options.stream_recheck {
         Some(every) => state.with_stream_recheck(every),
         None => state,
     };
+    // No test reaches the network (RD-1260-02): installing a service and preparing an update ask
+    // the plugin repositories first, and the official address is a real one. A suite that serves
+    // an index replaces this service with one of its own.
+    state.plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+        database.clone(),
+        directory.join("plugin-repositories"),
+        state.plugins.clone(),
+        std::sync::Arc::new(OfflineFetcher),
+        None,
+    );
     // Capture intake authenticates with its own token; reading candidates back is a session
     // route, so the default stands in for an installation without an admin password.
     state.auth.set_disabled(!options.login);
@@ -259,5 +269,28 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
         secrets,
         database_path,
         scheduler,
+    }
+}
+
+/// A plugin repository fetcher without a network: every fetch fails at once.
+struct OfflineFetcher;
+
+type Fetched<'a> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<Vec<u8>>> + Send + 'a>>;
+
+// Spelled out as `async_trait` expands it, which this test crate does not depend on.
+impl rd_plugin_host::repository::Fetcher for OfflineFetcher {
+    fn fetch<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        url: &'life1 url::Url,
+        _limit: u64,
+    ) -> Fetched<'async_trait>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        let url = url.to_string();
+        Box::pin(async move { Err(anyhow::anyhow!("offline: {url}")) })
     }
 }

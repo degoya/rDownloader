@@ -42,7 +42,8 @@
     "all_languages": "Toute langue",
     "facet_hint": "S'applique à toute la liste et reste en vigueur pour le paquet suivant : là où un groupe de miroirs laisse le choix, il retient le miroir correspondant ; ailleurs, il masque ce qui ne peut pas correspondre.",
     "more": "Filtres",
-    "more_hint": "Préférer une qualité, une langue et un hébergeur, trier et regrouper"
+    "more_hint": "Préférer une qualité, une langue et un hébergeur, trier et regrouper",
+    "set_count": "{count} réglage défini | {count} réglages définis"
   },
   "empty": "Le presse-papiers, Click’n’Load et les saisies manuelles arrivent d’abord ici pour vérification. Les liens sont vérifiés automatiquement et regroupés en paquets.",
   "selection_package": "{name} (sélection)",
@@ -636,7 +637,6 @@
     "take_all": "Tout prendre | Prendre 1 release | Prendre les {count}",
     "announced": "{rule} : une page attend votre choix"
   },
-  "selection_nzbs": "aucun import NZB | {count} import NZB | {count} imports NZB",
   "link_filter": {
     "unhide": "Afficher de nouveau",
     "hidden": "Masqué",

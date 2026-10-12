@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.25.1"
+    "version": "1.26.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -4480,6 +4480,48 @@
         }
       }
     },
+    "/api/v1/capture/click-and-load": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "operationId": "capture_click_and_load",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClickAndLoadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorIntakeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "cnl.invalid_payload, cnl.jk_refused or cnl.no_links: the payload does not decrypt, the sandbox refused jk, or no link the LinkGrabber takes"
+          },
+          "401": {
+            "description": "Capture token missing or revoked"
+          },
+          "413": {
+            "description": "cnl.payload_too_large: the payload or a field exceeds its limit"
+          },
+          "429": {
+            "description": "cnl.rate_limited: more hand-overs than the service accepts per minute"
+          }
+        }
+      }
+    },
     "/api/v1/capture/clipboard": {
       "post": {
         "tags": [
@@ -4593,7 +4635,7 @@
             }
           },
           "400": {
-            "description": "Not an NZB, a torrent or a ZIP of NZBs; a field, a cookie or a header is invalid; or both or neither of content and url were sent"
+            "description": "Not a link container, an NZB, a torrent or a ZIP of NZBs; a container that is invalid, holds no link or whose import is disabled; a field, a cookie or a header is invalid; or both or neither of content and url were sent"
           },
           "401": {
             "description": "Capture token missing or revoked"
@@ -4605,7 +4647,7 @@
             "description": "The file exceeds 64 MiB (48 MiB as base64 JSON)"
           },
           "502": {
-            "description": "The address could not be fetched"
+            "description": "The address could not be fetched, or the decryption service did not answer"
           }
         }
       }
@@ -7674,6 +7716,136 @@
           },
           "404": {
             "description": "diagnostics.bundle_not_found"
+          }
+        }
+      }
+    },
+    "/api/v1/diagnostics/log-level": {
+      "get": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "The level and the window as they stand.",
+        "operationId": "get_log_level",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogLevelResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Sets the level from the Log view: saved in the settings document and in force from the next\nline, without a restart.",
+        "operationId": "set_log_level",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogLevelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogLevelResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`RUST_LOG` decides the filter (`diagnostics.log_level_locked`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/diagnostics/log-level/debug": {
+      "put": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Puts one area on debug for 15, 30 or 60 minutes; a window already open is replaced.",
+        "operationId": "start_log_debug",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogDebugRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogLevelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`diagnostics.debug_minutes_invalid` or `diagnostics.debug_plugin_invalid`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`RUST_LOG` decides the filter (`diagnostics.log_level_locked`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Ends the debug window now; the level holds again from the next line.",
+        "operationId": "stop_log_debug",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogLevelResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -12877,7 +13049,7 @@
         "tags": [
           "plugins"
         ],
-        "summary": "The bundle by service, with what of it is installed.",
+        "summary": "The bundle by service, with what of it is installed, where each plugin installs from and the\nupdate waiting for it, and what only the repositories offer (RD-1260-02).",
         "operationId": "list_bundled_services",
         "parameters": [
           {
@@ -12912,7 +13084,7 @@
         "tags": [
           "plugins"
         ],
-        "summary": "Installs the plugins of the named services that are not installed yet.",
+        "summary": "Installs the plugins of the named services that are not installed yet: each from the repository\nwhen it can be fetched there (RD-1260-02), from the bundle otherwise.",
         "description": "One plugin that fails does not stop the others: the answer lists what was installed and what\nwas not, and the person sees both. Every service is looked up before anything installs, so a\nrequest naming an unknown one changes nothing. Like every install, the plugins' provider rows\nare live at once — the accounts step can offer them straight away — and a first install of a\nresolver or a sign-in plugin runs at once too (RD-170-12); what does not says so in\n`restart_required`.",
         "operationId": "install_bundled_services",
         "requestBody": {
@@ -22329,6 +22501,10 @@
               "null"
             ]
           },
+          "selectable": {
+            "type": "boolean",
+            "description": "Absent in a bundle written before RD-1260-03: offered in the pickers, as then."
+          },
           "sfv_verify": {
             "type": [
               "boolean",
@@ -22659,9 +22835,17 @@
       "BundledCatalogueResponse": {
         "type": "object",
         "required": [
-          "services"
+          "services",
+          "repository_services"
         ],
         "properties": {
+          "repository_services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BundledServiceResponse"
+            },
+            "description": "What only the enabled repositories offer, one service per plugin with its id as the key\n(RD-1260-02): the newest version this build runs, installed or not. Installed through the\ninstall preview, never by `POST /api/v1/plugins/bundled/install`; the setup wizard does\nnot list them."
+          },
           "services": {
             "type": "array",
             "items": {
@@ -22717,6 +22901,7 @@
       },
       "BundledInstallResponse": {
         "type": "object",
+        "description": "Installs a service from the repository when it is reachable and the bundle otherwise\n(RD-1260-02); each installed plugin's `origin` says which.",
         "required": [
           "code",
           "message",
@@ -22757,11 +22942,23 @@
           "id",
           "name",
           "plugin_type",
-          "version"
+          "version",
+          "origin"
         ],
         "properties": {
           "id": {
             "$ref": "#/components/schemas/PluginId"
+          },
+          "installed_origin": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PluginOrigin",
+                "description": "Where the installed version came from: `repository` when a repository delivered it,\n`bundled` when it is the bundle's version, `upload` otherwise; `null` when not installed."
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "installed_version": {
             "type": [
@@ -22773,12 +22970,41 @@
           "name": {
             "type": "string"
           },
+          "origin": {
+            "$ref": "#/components/schemas/PluginOrigin",
+            "description": "Where an install takes the plugin from now (RD-1260-02): `repository` when a repository\noffers the bundle's version or a newer one of the same plugin, signed by the same key and\nasking for nothing more, and its host answers; `bundled` otherwise. In an install's answer,\nwhere the installed version came from."
+          },
           "plugin_type": {
             "type": "string"
           },
+          "repository_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The repository that offers it, when `origin` is `repository`."
+          },
+          "repository_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The version an install from the repository brings, when `origin` is `repository`."
+          },
+          "update": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PluginUpdateResponse",
+                "description": "The update waiting for the installed version, as `GET /api/v1/plugins/updates` lists it."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string",
-            "description": "The version in the bundle."
+            "description": "The version in the bundle; for a plugin only a repository offers, the version it offers."
           }
         }
       },
@@ -22840,6 +23066,7 @@
           "category",
           "needs_account",
           "state",
+          "update_available",
           "plugins"
         ],
         "properties": {
@@ -22876,6 +23103,10 @@
           },
           "state": {
             "$ref": "#/components/schemas/BundledServiceState"
+          },
+          "update_available": {
+            "type": "boolean",
+            "description": "Whether a plugin of the service has an update waiting (RD-1260-02)."
           }
         }
       },
@@ -23494,7 +23725,8 @@
           "add_all_from_linkgrabber",
           "add_all_from_linkgrabber_paused",
           "install_update",
-          "restart_server"
+          "restart_server",
+          "about"
         ]
       },
       "CaptureCookiesRequest": {
@@ -23530,7 +23762,8 @@
         "enum": [
           "nzb",
           "torrent",
-          "nzb_zip"
+          "nzb_zip",
+          "container"
         ]
       },
       "CaptureFileRequest": {
@@ -23591,6 +23824,17 @@
           "nzb_imports"
         ],
         "properties": {
+          "container": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ContainerImportResponse",
+                "description": "The container import a link container became; absent otherwise (RD-1260-09)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "kind": {
             "$ref": "#/components/schemas/CaptureFileKind"
           },
@@ -24055,6 +24299,13 @@
         "type": "object",
         "description": "The shortcut of every command; `None` is \"no shortcut\".\n\nA field left out of a stored or sent document takes its default, while an explicit `null` is\n\"no shortcut\": somebody who removed one must not get it back from the next release.",
         "properties": {
+          "about": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "No default either (RD-1260-08), for the same reason."
+          },
           "add_all_from_linkgrabber": {
             "type": [
               "string",
@@ -24597,6 +24848,10 @@
               }
             ]
           },
+          "selectable": {
+            "type": "boolean",
+            "description": "Whether the pickers that assign a category by hand (LinkGrabber, Downloads) offer this\none (RD-1260-03). Off keeps it for rules, subscriptions, hotfolders, the compatibility\ninterfaces, REST and MCP; the default category is always selectable."
+          },
           "sfv_verify": {
             "type": [
               "boolean",
@@ -25047,6 +25302,56 @@
             "description": "Whether the last update is proven, or none is recorded. Only then do the copies before\nupdates and migrations thin out."
           }
         }
+      },
+      "ClickAndLoadRequest": {
+        "type": "object",
+        "description": "The fields of a Click'n'Load request, under the names the page sent them.\n\nEither `crypted` with `jk` (`/flash/addcrypted2`) or `urls` (`/flash/add`), never both. No\n`Debug`: `passwords` must not reach a log line.",
+        "properties": {
+          "crypted": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The encrypted links, base64: AES-128-CBC with the key as its IV. At most 8 MiB decoded."
+          },
+          "jk": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key as the page sent it in `jk` (or `key`): 32 hexadecimal digits, or a script that\nreturns them. Evaluated here in a bounded sandbox, never in the browser. At most 32 KiB."
+          },
+          "package": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The package name; cut at 200 characters."
+          },
+          "passwords": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The archive passwords; the first non-empty line is kept, at most 1024 characters.",
+            "writeOnly": true
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The page that offered the links, http or https; its host labels the batch."
+          },
+          "urls": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The links in the clear, one per line. At most 1 MiB."
+          }
+        },
+        "additionalProperties": false
       },
       "ClickCaptchaRequest": {
         "type": "object",
@@ -26301,6 +26606,10 @@
               "null"
             ],
             "description": "Default post-processing script (file name inside the scripts directory)."
+          },
+          "selectable": {
+            "type": "boolean",
+            "description": "Whether the pickers that assign a category by hand (LinkGrabber, Downloads) offer it;\nabsent = `true` (RD-1260-03). The default category refuses `false` with\n`category.default_not_selectable`."
           },
           "sfv_verify": {
             "type": [
@@ -30974,6 +31283,71 @@
           "depth"
         ]
       },
+      "LogDebugArea": {
+        "type": "string",
+        "description": "An area of the service a person can put on debug for a while.",
+        "enum": [
+          "plugin",
+          "provider",
+          "usenet",
+          "torrent",
+          "media",
+          "linkgrabber",
+          "subscriptions",
+          "http",
+          "scheduler"
+        ]
+      },
+      "LogDebugRequest": {
+        "type": "object",
+        "description": "`PUT /api/v1/diagnostics/log-level/debug`.",
+        "required": [
+          "area",
+          "minutes"
+        ],
+        "properties": {
+          "area": {
+            "$ref": "#/components/schemas/LogDebugArea"
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "15, 30 or 60.",
+            "minimum": 0
+          },
+          "plugin_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Only with the area `plugin`: an installed plugin's id, to put only that plugin's own\nlines on debug."
+          }
+        }
+      },
+      "LogDebugWindow": {
+        "type": "object",
+        "description": "One area on debug until a moment; after it the service falls back to its level by itself.",
+        "required": [
+          "area",
+          "until"
+        ],
+        "properties": {
+          "area": {
+            "$ref": "#/components/schemas/LogDebugArea"
+          },
+          "plugin_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Only with [`LogDebugArea::Plugin`]: that one plugin's own lines instead of the host's."
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "LogLevel": {
         "type": "string",
         "description": "The severity of one stored log record, in `tracing`'s order.",
@@ -30984,6 +31358,67 @@
           "warn",
           "error"
         ]
+      },
+      "LogLevelRequest": {
+        "type": "object",
+        "description": "`PUT /api/v1/diagnostics/log-level`.",
+        "required": [
+          "level"
+        ],
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/ServiceLogLevel"
+          }
+        }
+      },
+      "LogLevelResponse": {
+        "type": "object",
+        "description": "The level, the open debug window and whether `RUST_LOG` decides instead.",
+        "required": [
+          "level",
+          "areas",
+          "minutes"
+        ],
+        "properties": {
+          "areas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogDebugArea"
+            },
+            "description": "The areas a debug window can open, in the order the interface offers them."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LogDebugWindow",
+                "description": "The open debug window, or `null`."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "level": {
+            "$ref": "#/components/schemas/ServiceLogLevel",
+            "description": "The level the settings hold."
+          },
+          "minutes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "description": "The lengths a debug window may have, in minutes."
+          },
+          "rust_log": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`RUST_LOG` as the service found it at start. While it is set it is the filter, and the\nlevel and the window cannot be changed until the service starts without it."
+          }
+        }
       },
       "LogRecordResponse": {
         "type": "object",
@@ -35116,6 +35551,15 @@
           }
         }
       },
+      "PluginOrigin": {
+        "type": "string",
+        "description": "Where a plugin comes from (RD-1260-02).",
+        "enum": [
+          "bundled",
+          "repository",
+          "upload"
+        ]
+      },
       "PluginPermissionsResponse": {
         "type": "object",
         "description": "What a package asks for.",
@@ -35932,6 +36376,14 @@
             "type": "boolean",
             "description": "Whether the machine is currently being kept awake."
           },
+          "notifications_quiet_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Set while quiet hours hold notifications back: when they go out, as one summary\n(RD-1260-04). The web interface holds its own desktop notifications until then too."
+          },
           "paused_reason": {
             "type": [
               "string",
@@ -36055,6 +36507,61 @@
           }
         }
       },
+      "PreUpdatePlugin": {
+        "type": "object",
+        "description": "One plugin fetched for the new version.",
+        "required": [
+          "plugin_id",
+          "name",
+          "version",
+          "repository_id"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "plugin_id": {
+            "$ref": "#/components/schemas/PluginId"
+          },
+          "repository_id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "PreUpdatePlugins": {
+        "type": "object",
+        "description": "The plugins fetched for the version the update installs (RD-1260-02).",
+        "required": [
+          "prepared",
+          "missing"
+        ],
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why nothing was fetched, `null` when nothing stood in the way:\n`update.plugin_contracts_unknown` when neither the request nor the release manifest names\nthe new version's contracts, or the repository's code when the preparation failed."
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Installed plugins the new version refuses that no repository had a package for, or whose\npackage could not be fetched: the bundle replaces them at the next start where it can."
+          },
+          "prepared": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreUpdatePlugin"
+            },
+            "description": "Waiting in the preparation folder; the new version installs them at its start, before it\nreads the bundle."
+          }
+        }
+      },
       "PreUpdateRequest": {
         "type": "object",
         "description": "What the updater asks for.",
@@ -36062,6 +36569,16 @@
           "target_version"
         ],
         "properties": {
+          "plugin_contracts": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "The `rdownloader:plugin` contracts that version speaks, from the release manifest\n(RD-1260-02). Absent, the stored update offer's for the same version are taken; without\neither, no plugin is fetched."
+          },
           "schema_change": {
             "type": "boolean",
             "description": "Whether that version changes the database schema, from the release manifest. When it\ndoes, the encrypted backup is required as well, if a passphrase is set up."
@@ -36080,7 +36597,8 @@
           "target_version",
           "schema_change",
           "directory",
-          "database_copy"
+          "database_copy",
+          "plugins"
         ],
         "properties": {
           "database_copy": {
@@ -36110,6 +36628,9 @@
           "from_version": {
             "type": "string",
             "description": "The version running now, which the copy and the archive belong to."
+          },
+          "plugins": {
+            "$ref": "#/components/schemas/PreUpdatePlugins"
           },
           "schema_change": {
             "type": "boolean"
@@ -39609,6 +40130,16 @@
           "finished"
         ]
       },
+      "ServiceLogLevel": {
+        "type": "string",
+        "description": "The level the service records at: the console, the stored log and the trace export alike.\n\nFour of the five `tracing` levels: `trace` is what the libraries underneath write and\nnothing a person reads, so it is not offered.",
+        "enum": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ]
+      },
       "ServiceStopResponse": {
         "type": "object",
         "description": "The answer to a stop request.",
@@ -40215,6 +40746,11 @@
             "type": "boolean",
             "description": "The same default for the LinkGrabber's packages (RD-1170-01). Off by default, as the\nLinkGrabber always showed a package's links: they are there to be reviewed.",
             "default": false
+          },
+          "log_level": {
+            "$ref": "#/components/schemas/ServiceLogLevel",
+            "description": "The level the service logs at — console, stored log and trace export alike: `error`,\n`warn`, `info` or `debug` (RD-1260-12). Applied from the next line, without a restart;\n`RUST_LOG`, when the service was started with it, wins.",
+            "default": "info"
           },
           "log_retention_days": {
             "type": "integer",

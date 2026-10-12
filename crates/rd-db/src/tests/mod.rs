@@ -69,6 +69,7 @@ async fn routing_category(
             storage_root_id: root_id,
             relative_path: name.to_lowercase(),
             is_default,
+            selectable: true,
             postprocess_level: None,
             script: None,
             cleanup_extensions: None,

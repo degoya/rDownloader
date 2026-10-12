@@ -7,6 +7,7 @@ import {
   BROWSER_ONLY_EXTENSIONS,
   BROWSER_ONLY_TYPES,
   filterHeaders,
+  handOverName,
   shouldIntercept,
   staysInBrowser
 } from '../src/intercept.js'
@@ -51,13 +52,17 @@ test('shouldIntercept guards disabled, own downloads, the server origin and non-
   assert.equal(shouldIntercept({}, options), false)
 })
 
-test('staysInBrowser keeps every NZB, torrent and ZIP type in the browser, parameters and case aside', () => {
+test('staysInBrowser keeps every NZB, torrent, ZIP and container type in the browser, parameters and case aside', () => {
   const item = { url: 'https://indexer.test/getnzb/abc', filename: '' }
   assert.deepStrictEqual(BROWSER_ONLY_TYPES, [
     'application/x-nzb',
     'application/x-bittorrent',
     'application/zip',
-    'application/x-zip-compressed'
+    'application/x-zip-compressed',
+    'application/dlc',
+    'application/x-dlc',
+    'application/x-ccf',
+    'application/x-rsdf'
   ])
   for (const mime of BROWSER_ONLY_TYPES) {
     assert.equal(staysInBrowser({ ...item, mime }), 'file', mime)
@@ -65,8 +70,8 @@ test('staysInBrowser keeps every NZB, torrent and ZIP type in the browser, param
   }
 })
 
-test('staysInBrowser keeps every NZB, torrent and ZIP extension, wherever the name comes from', () => {
-  assert.deepStrictEqual(BROWSER_ONLY_EXTENSIONS, ['.nzb', '.torrent', '.zip'])
+test('staysInBrowser keeps every NZB, torrent, ZIP and container extension, wherever the name comes from', () => {
+  assert.deepStrictEqual(BROWSER_ONLY_EXTENSIONS, ['.nzb', '.torrent', '.zip', '.dlc', '.ccf', '.rsdf', '.rdlinks', '.crawljob'])
   const plain = { url: 'https://indexer.test/get/abc', filename: '' }
   for (const extension of BROWSER_ONLY_EXTENSIONS) {
     const name = `Some.Release${extension.toUpperCase()}`
@@ -83,6 +88,19 @@ test('staysInBrowser keeps every NZB, torrent and ZIP extension, wherever the na
   }
   // An extension is a suffix, not a substring.
   assert.equal(staysInBrowser({ ...plain, filename: 'nzb-guide.pdf', url: 'https://x.test/zip/torrent.html' }), null)
+  assert.equal(staysInBrowser({ ...plain, filename: 'dlc-howto.txt', url: 'https://x.test/crawljob/rsdf.html' }), null)
+})
+
+test('handOverName gives a container the extension only its content type announced (RD-1260-11)', () => {
+  // The service knows a container by its name alone.
+  assert.equal(handOverName('get', 'application/x-dlc'), 'get.dlc')
+  assert.equal(handOverName('', 'application/dlc; charset=binary'), 'container.dlc')
+  assert.equal(handOverName('Season.DLC', 'application/dlc'), 'Season.DLC')
+  assert.equal(handOverName('release', 'APPLICATION/X-RSDF'), 'release.rsdf')
+  // Every other file keeps the name it came with, an empty one included.
+  assert.equal(handOverName('Release.nzb', 'application/x-nzb'), 'Release.nzb')
+  assert.equal(handOverName('season.crawljob', 'text/plain'), 'season.crawljob')
+  assert.equal(handOverName('', null), '')
 })
 
 test('staysInBrowser keeps an observed POST in the browser', () => {

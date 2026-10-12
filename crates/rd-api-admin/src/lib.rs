@@ -5,7 +5,7 @@
 //! profiles, diagnostics, statistics and the head of the About page; stopping the service and
 //! the backup before an update (RD-180-02, RD-180-03); a pending restart and the restart itself
 //! (RD-1240-32); and cleaning up what updates and the plugin compile cache leave behind
-//! (RD-1240-34).
+//! (RD-1240-34); the log level and a debug window (RD-1260-12).
 
 #![warn(unreachable_pub)]
 
@@ -25,6 +25,7 @@ pub mod diagnostics_checks;
 pub mod diagnostics_dto;
 pub mod diagnostics_handlers;
 pub mod lifecycle_handlers;
+pub mod log_level_handlers;
 pub mod notify_handlers;
 pub mod object_storage_handlers;
 pub mod plugin_bundled;

@@ -20,13 +20,17 @@ pub(crate) async fn create_category(
     let existing: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM categories")
         .fetch_one(&mut *tx)
         .await?;
+    let is_default = input.is_default || existing == 0;
     let value = Category {
         id: CategoryId::new(),
         name: input.name,
         color: input.color,
         storage_root_id: input.storage_root_id,
         relative_path: input.relative_path,
-        is_default: input.is_default || existing == 0,
+        is_default,
+        // The default is what applies when nothing is chosen, so it is never hidden; the REST
+        // layer refuses the explicit combination, this covers the first category (RD-1260-03).
+        selectable: input.selectable || is_default,
         postprocess_level: input.postprocess_level,
         script: input.script,
         cleanup_extensions: input.cleanup_extensions,
@@ -59,7 +63,7 @@ pub(crate) async fn create_category(
             .execute(&mut *tx)
             .await?;
     }
-    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, unwrap_package_folder, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO categories (id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, unwrap_package_folder, selectable, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(value.id.to_string())
         .bind(&value.name)
         .bind(&value.color)
@@ -79,6 +83,7 @@ pub(crate) async fn create_category(
         .bind(value.upload_enabled)
         .bind(&value.upload_remote)
         .bind(value.unwrap_package_folder)
+        .bind(value.selectable)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
@@ -117,13 +122,16 @@ pub(crate) async fn update_category(
     .bind(id.to_string())
     .fetch_one(&mut *tx)
     .await?;
+    let is_default = input.is_default || holds_only_default;
     let value = Category {
         id,
         name: input.name,
         color: input.color,
         storage_root_id: input.storage_root_id,
         relative_path: input.relative_path,
-        is_default: input.is_default || holds_only_default,
+        is_default,
+        // Kept selectable with the default it was coerced to, like the create path.
+        selectable: input.selectable || is_default,
         postprocess_level: input.postprocess_level,
         script: input.script,
         cleanup_extensions: input.cleanup_extensions,
@@ -157,7 +165,7 @@ pub(crate) async fn update_category(
     let updated = sqlx::query(
         "UPDATE categories SET name = ?, color = ?, storage_root_id = ?, relative_path = ?, \
          is_default = ?, postprocess_level = ?, script = ?, cleanup_extensions = ?, \
-         recursive_unpack = ?, unpack_to_subfolder = ?, direct_unpack = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, unwrap_package_folder = ?, updated_at = ? WHERE id = ?",
+         recursive_unpack = ?, unpack_to_subfolder = ?, direct_unpack = ?, malware_scan = ?, sfv_verify = ?, safe_postproc = ?, delete_par2 = ?, upload_enabled = ?, upload_remote = ?, unwrap_package_folder = ?, selectable = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&value.name)
     .bind(&value.color)
@@ -177,6 +185,7 @@ pub(crate) async fn update_category(
     .bind(value.upload_enabled)
     .bind(&value.upload_remote)
     .bind(value.unwrap_package_folder)
+    .bind(value.selectable)
     .bind(now)
     .bind(id.to_string())
     .execute(&mut *tx)
@@ -257,10 +266,11 @@ pub(crate) async fn delete_category(
         anyhow::bail!(StoreError::not_found("category not found"));
     }
     // Promote after the delete, never before: the partial unique index would otherwise see
-    // two defaults. A no-op when that category was the last one.
+    // two defaults. A no-op when that category was the last one. The new default becomes
+    // selectable too: it is what applies when nothing is chosen (RD-1260-03).
     if was_default {
         sqlx::query(
-            "UPDATE categories SET is_default = 1, updated_at = ? \
+            "UPDATE categories SET is_default = 1, selectable = 1, updated_at = ? \
              WHERE id = (SELECT id FROM categories ORDER BY name LIMIT 1)",
         )
         .bind(now)
@@ -280,6 +290,7 @@ pub(super) struct CategoryRow {
     storage_root_id: String,
     relative_path: String,
     is_default: bool,
+    selectable: bool,
     postprocess_level: Option<String>,
     script: Option<String>,
     cleanup_extensions: Option<String>,
@@ -310,6 +321,7 @@ impl TryFrom<CategoryRow> for Category {
             storage_root_id: parse_id(&row.storage_root_id)?,
             relative_path: row.relative_path,
             is_default: row.is_default,
+            selectable: row.selectable,
             postprocess_level: crate::models::parse_level(
                 row.postprocess_level.as_deref(),
                 "categories",

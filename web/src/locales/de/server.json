@@ -1310,7 +1310,17 @@
     "download.resolve_timeout": "Der Link konnte nicht rechtzeitig aufgelöst werden; er wird beim nächsten Start aufgelöst",
     "download.resolve_offline": "Der Server meldet, dass die Datei nicht mehr existiert",
     "download.resolve_failed": "Der Link konnte jetzt nicht aufgelöst werden; er wird beim nächsten Start aufgelöst",
-    "download.resolve_skipped_free": "Ein Hoster-Link ohne Konto wird nicht vorab aufgelöst; er wird beim Start aufgelöst"
+    "download.resolve_skipped_free": "Ein Hoster-Link ohne Konto wird nicht vorab aufgelöst; er wird beim Start aufgelöst",
+    "update.plugin_contracts_invalid": "Gib höchstens {max} Plugin-Verträge an, jeden als Version wie 0.11.0.",
+    "category.default_not_selectable": "Die Standardkategorie kann nicht aus der Auswahl ausgeblendet werden",
+    "cnl.invalid_payload": "Die Click'n'Load-Daten ließen sich nicht lesen.",
+    "cnl.jk_refused": "Der Schlüssel (jk) der Seite wurde abgelehnt. rDownloader wertet ihn nur in seiner eigenen Sandbox aus, nie im Browser.",
+    "cnl.no_links": "Die Click'n'Load-Anfrage enthält keinen Link, den der LinkGrabber annimmt.",
+    "cnl.payload_too_large": "Die Click'n'Load-Daten oder eines ihrer Felder sind zu groß.",
+    "cnl.rate_limited": "Zu viele Click'n'Load-Übergaben in kurzer Zeit. Versuch es in einer Minute erneut.",
+    "diagnostics.log_level_locked": "RUST_LOG={rust_log} legt das Protokoll fest; die Stufe gilt erst, wenn der Dienst ohne RUST_LOG startet.",
+    "diagnostics.debug_minutes_invalid": "Debug für eine Weile dauert 15, 30 oder 60 Minuten.",
+    "diagnostics.debug_plugin_invalid": "Nur der Bereich Plugin nimmt ein Plugin, und nur ein installiertes."
   },
   "capabilities": {
     "media_download": "Mediendownloads",

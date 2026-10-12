@@ -1,5 +1,6 @@
 //! The Click'n'Load key: read straight out of the `jk` field, or evaluated from its script in
-//! a bounded sandbox.
+//! a bounded sandbox. The agent and the service run it; the browser extension never does
+//! (RD-1260-10).
 
 use std::{sync::LazyLock, time::Duration};
 
@@ -17,9 +18,9 @@ const JK_BUDGET: Duration = Duration::from_millis(250);
 /// How many `jk` scripts may be evaluated at the same time.
 ///
 /// Two, because a person answering a Click'n'Load button does it once; anything beyond that is
-/// either a retry or a page trying to keep the agent busy. See [`JK_SLOTS`] for why the number
-/// has to exist at all.
-pub(super) const MAX_CONCURRENT_JK: usize = 2;
+/// either a retry or a page trying to keep the agent, or the service, busy. See [`JK_SLOTS`] for
+/// why the number has to exist at all.
+pub const MAX_CONCURRENT_JK: usize = 2;
 
 /// The slots a `jk` evaluation runs in.
 ///
@@ -33,7 +34,7 @@ pub(super) const MAX_CONCURRENT_JK: usize = 2;
 /// blocking pool, so an over-running script can no longer starve the clipboard or the
 /// notifications; and this semaphore caps how many such threads can exist, so a page cannot
 /// open one per request. A caller that finds no free slot is refused at once instead of queuing.
-pub(super) static JK_SLOTS: Semaphore = Semaphore::const_new(MAX_CONCURRENT_JK);
+pub static JK_SLOTS: Semaphore = Semaphore::const_new(MAX_CONCURRENT_JK);
 
 /// A quoted 32-character hexadecimal literal: the static Click'n'Load key as a script writes it.
 ///
@@ -64,7 +65,7 @@ static JK_FUNCTION: LazyLock<Regex> = LazyLock::new(|| {
 /// - `Ok(None)` — there is no literal key; the script has to be evaluated.
 /// - `Err(..)` — the script contains more than one candidate. That is refused rather than
 ///   resolved by taking the first, which is what the old unanchored pattern did.
-pub(super) fn extract_static_key(source: &str) -> Result<Option<[u8; 16]>> {
+pub fn extract_static_key(source: &str) -> Result<Option<[u8; 16]>> {
     let trimmed = source.trim();
     // The `key` form: the field is the key, nothing else.
     if trimmed.len() == 32 && trimmed.chars().all(|value| value.is_ascii_hexdigit()) {
@@ -88,12 +89,12 @@ pub(super) fn extract_static_key(source: &str) -> Result<Option<[u8; 16]>> {
     }
 }
 
-pub(super) async fn resolve_key(source: &str) -> Result<[u8; 16]> {
+pub async fn resolve_key(source: &str) -> Result<[u8; 16]> {
     resolve_key_within(source, JK_BUDGET).await
 }
 
 /// The body of [`resolve_key`], with the budget passed in so a test can drive the expiry.
-pub(super) async fn resolve_key_within(source: &str, budget: Duration) -> Result<[u8; 16]> {
+pub async fn resolve_key_within(source: &str, budget: Duration) -> Result<[u8; 16]> {
     if let Some(key) = extract_static_key(source)? {
         return Ok(key);
     }

@@ -25,6 +25,14 @@
 #   3. only with a debug build: a candidate that answers but is declared unhealthy
 #      (RD_UPDATE_TEST_FAIL_HEALTH): exit 2, stopped and rolled back.
 #
+# Each update also leaves plugins prepared for its target, the way a preparation stopped between
+# its fetch and the restart can (RD-1260-02): a package that does not verify, a staging folder and
+# a folder for another version under <data>/plugin-repositories/prepared/. Whichever version starts
+# next — the new one, or the old one after a rollback — has to start healthy and leave no
+# preparation behind. The fetch itself, from a signed index, is rd-plugin-host's
+# `repository::tests::refused::prepare` cases, the crash point `plugin.before_prepared_published`
+# among them.
+#
 # The manifest, the download and the hand-over by the service are rd-api's `admin::updates`
 # suite; the file switch and its crash points are rd-update's tests.
 set -euo pipefail
@@ -135,7 +143,11 @@ hand_over() {
     pid="$("$PY" -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$control")"
     copy="$(curl -fsS -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
         -d "{\"target_version\":\"$target\"}" "http://127.0.0.1:$PORT/api/v1/system/update/prepare" \
-        | "$PY" -c 'import json, sys; print(json.load(sys.stdin)["database_copy"]["path"])')" \
+        | "$PY" -c '
+import json, sys
+answer = json.load(sys.stdin)
+assert "plugins" in answer, "the answer names no plugins prepared for the update"
+print(answer["database_copy"]["path"])')" \
         || fail "the backup before the update was refused"
     "$PY" - "$(native "$archive")" "$(native "$INSTALL")" "$(native "$DATA")" "$(native "$copy")" \
         "$from" "$target" "$pid" "$EXT" "$PORT" "$DATA/update/journal.json" <<'PY'
@@ -168,6 +180,22 @@ PY
     mkdir -p "$DATA/update/updater"
     cp "$running" "$DATA/update/updater/rdownloader-updater$EXT"
     printf '%s\n' "$DATA/update/updater/rdownloader-updater$EXT"
+}
+
+# What a preparation stopped before the restart leaves for `target` (RD-1260-02): a package that
+# does not verify in the target's folder, a staging folder, and a folder for another version.
+leave_preparation() {
+    local prepared="$DATA/plugin-repositories/prepared" target="$1"
+    mkdir -p "$prepared/$target" "$prepared/$target.partial" "$prepared/0.0.1"
+    printf 'not a package\n' > "$prepared/$target/$(printf 'ab%.0s' $(seq 1 32)).rdplug"
+    printf '[]\n' > "$prepared/$target/sources.json"
+    printf 'not a package\n' > "$prepared/$target.partial/staged.rdplug"
+}
+
+# The version that started after an update took or removed every preparation.
+no_preparation_left() {
+    [[ ! -e "$DATA/plugin-repositories/prepared" ]] \
+        || fail "the plugins prepared for the update are still there after $1"
 }
 
 apply() {
@@ -238,9 +266,11 @@ ranged_before="$(curl -fsS "$FIXTURE/stats" | "$PY" -c 'import json, sys; print(
     || fail "the download fixture did not answer its counters"
 
 echo "==> 1. the next version"
+leave_preparation "$NEW_VERSION"
 code="$(apply "$updater")"
 [[ "$code" == 0 ]] || fail "the update ended with $code, not 0"
 await_version "$NEW_VERSION"
+no_preparation_left "the new version's start"
 ! grep -q 'ended by force' "$LOGS/updater-console.log" \
     || fail "the old version did not end with event streams open; the updater ended it by force"
 for pid in $STREAM_PIDS; do
@@ -295,9 +325,11 @@ else
 fi
 archive="$(candidate broken "$broken" 99.0.0 'broken readme')"
 updater="$(hand_over "$NEW_VERSION" 99.0.0 "$archive" "$INSTALL/rdownloader$EXT")"
+leave_preparation 99.0.0
 code="$(apply "$updater")"
 [[ "$code" == 2 ]] || fail "the broken update ended with $code, not 2 (rolled back)"
 await_version "$NEW_VERSION"
+no_preparation_left "the rollback"
 [[ "$(journal_field phase)" == rolled_back ]] || fail "the journal says $(journal_field phase)"
 [[ "$(journal_field reason)" == update.new_version_exited ]] || fail "the reason is $(journal_field reason)"
 grep -qx 'new readme' "$INSTALL/README.md" || fail "README.md is not the one from before the broken update"

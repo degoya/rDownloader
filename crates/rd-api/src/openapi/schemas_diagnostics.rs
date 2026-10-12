@@ -3,9 +3,9 @@
 
 use utoipa::OpenApi;
 
-use crate::{diagnostics_dto, stats_handlers};
+use crate::{diagnostics_dto, log_level_handlers, stats_handlers};
 
-/// Transfer statistics, the log store and the diagnostic bundle.
+/// Transfer statistics, the log store, the log level and the diagnostic bundle.
 #[derive(OpenApi)]
 #[openapi(components(schemas(
     stats_handlers::StatsRange,
@@ -23,6 +23,12 @@ use crate::{diagnostics_dto, stats_handlers};
     diagnostics_dto::CreateBundleRequest,
     diagnostics_dto::BundleCreatedResponse,
     rd_core::LogLevel,
+    log_level_handlers::LogLevelResponse,
+    log_level_handlers::LogLevelRequest,
+    log_level_handlers::LogDebugRequest,
+    rd_core::ServiceLogLevel,
+    rd_core::LogDebugArea,
+    rd_core::LogDebugWindow,
     rd_diagnostics::Inventory,
     rd_diagnostics::InventoryEntry,
     rd_diagnostics::Note,

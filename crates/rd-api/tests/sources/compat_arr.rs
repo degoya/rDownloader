@@ -390,6 +390,7 @@ async fn seed_category(harness: &common::Harness, directory: &std::path::Path, n
             storage_root_id: root.id,
             relative_path: name.to_owned(),
             is_default: false,
+            selectable: true,
             postprocess_level: None,
             script: None,
             cleanup_extensions: None,

@@ -110,11 +110,50 @@ export function shouldIntercept(item, { enabled, serverOrigin, ownExtensionId } 
   return true
 }
 
+/**
+ * The link containers a page may offer (RD-1260-11): imported from their bytes like an NZB, never
+ * fetched again by address. Only their name tells the service which one it is.
+ */
+export const CONTAINER_EXTENSIONS = ['.dlc', '.ccf', '.rsdf', '.rdlinks', '.crawljob']
+
+/**
+ * The content types some sites serve a container under, with the extension the name then needs.
+ * An `.rdlinks` (JSON) and a `.crawljob` (text) have no type of their own and go by name only.
+ */
+export const CONTAINER_TYPES = {
+  'application/dlc': '.dlc',
+  'application/x-dlc': '.dlc',
+  'application/x-ccf': '.ccf',
+  'application/x-rsdf': '.rsdf'
+}
+
 /** Content types of files rDownloader re-fetching by address cannot be trusted with (RD-120-63). */
-export const BROWSER_ONLY_TYPES = ['application/x-nzb', 'application/x-bittorrent', 'application/zip', 'application/x-zip-compressed']
+export const BROWSER_ONLY_TYPES = [
+  'application/x-nzb',
+  'application/x-bittorrent',
+  'application/zip',
+  'application/x-zip-compressed',
+  ...Object.keys(CONTAINER_TYPES)
+]
 
 /** File extensions of the same files, for a download whose type the browser did not report. */
-export const BROWSER_ONLY_EXTENSIONS = ['.nzb', '.torrent', '.zip']
+export const BROWSER_ONLY_EXTENSIONS = ['.nzb', '.torrent', '.zip', ...CONTAINER_EXTENSIONS]
+
+/** The bare content type, without parameters, lowercased. */
+function bareType(mime) {
+  return String(mime ?? '').split(';')[0].trim().toLowerCase()
+}
+
+/**
+ * The name a handed-over file goes under: the one given, with the container's extension added
+ * when only the content type said it was one — the service knows a container by its name alone.
+ */
+export function handOverName(name, mime) {
+  const extension = CONTAINER_TYPES[bareType(mime)]
+  const given = String(name ?? '').trim()
+  if (!extension || given.toLowerCase().endsWith(extension)) return given
+  return `${given || 'container'}${extension}`
+}
 
 function hasBrowserOnlyExtension(name) {
   const lower = String(name ?? '').trim().toLowerCase()
@@ -148,19 +187,19 @@ function dispositionNames(disposition) {
 /**
  * Why a download stays with the browser instead of going to rDownloader, or null when it may go.
  *
- * - `'file'`: an NZB, torrent or ZIP, by `item.mime` or by the extension of the file name, the
- *   address or the observed Content-Disposition. rDownloader receives only the address and fetches
- *   it again without the browser's session, and the indexer carts these usually come from answer
- *   such a fetch with an error; a one-time link is already spent by then (RD-120-63). The browser
- *   finishes them, and a hotfolder on its download folder takes them into rDownloader.
+ * - `'file'`: an NZB, torrent, ZIP or link container (RD-1260-11), by `item.mime` or by the
+ *   extension of the file name, the address or the observed Content-Disposition. rDownloader
+ *   receives only the address and fetches it again without the browser's session, and the indexer
+ *   carts these usually come from answer such a fetch with an error; a one-time link is already
+ *   spent by then (RD-120-63). The browser finishes them, and a hotfolder on its download folder
+ *   takes them into rDownloader — or, for a site the person allowed, `files.js` hands them over.
  * - `'post'`: the observed request was a POST, which cannot be repeated without its body
  *   (RD-109-20). Only an *observed* POST counts: without host access for the address the
  *   extension sees no request at all and cannot tell a POST from a GET, so such a download is
  *   still handed over as before.
  */
 export function staysInBrowser(item, captured = null) {
-  const mime = String(item?.mime ?? '').split(';')[0].trim().toLowerCase()
-  if (BROWSER_ONLY_TYPES.includes(mime)) return 'file'
+  if (BROWSER_ONLY_TYPES.includes(bareType(item?.mime))) return 'file'
   const names = [baseName(item?.filename), pathOf(item?.url), pathOf(item?.finalUrl), ...dispositionNames(captured?.contentDisposition)]
   if (names.some(hasBrowserOnlyExtension)) return 'file'
   if (String(captured?.method ?? 'GET').toUpperCase() === 'POST') return 'post'

@@ -82,5 +82,32 @@
   "tabs": {
     "log": "Registro",
     "bundle": "Paquete de diagnóstico"
+  },
+  "recording": {
+    "title": "Nivel de registro",
+    "description": "Lo que registra el servicio. Un cambio se aplica desde la siguiente línea, sin reiniciar, y se guarda en los ajustes.",
+    "level_label": "Nivel",
+    "locked": "RUST_LOG={value} decide qué se registra. El nivel y la depuración temporal se aplican cuando el servicio arranca sin RUST_LOG.",
+    "debug_title": "Depuración temporal",
+    "debug_description": "Pone un área en depuración durante 15, 30 o 60 minutos; después vuelve a regir el nivel por sí solo, también tras un reinicio. Los secretos siguen ocultos.",
+    "area_label": "Área",
+    "plugin_label": "Plugin",
+    "plugin_all": "Todos los plugins",
+    "minutes_label": "Duración",
+    "minutes_option": "{count} minutos",
+    "start": "Iniciar depuración",
+    "active": "{area} está en depuración hasta las {until}.",
+    "stop": "Terminar ahora",
+    "areas": {
+      "plugin": "Plugins",
+      "provider": "Hosters y proveedores",
+      "usenet": "Usenet",
+      "torrent": "Torrent",
+      "media": "Multimedia",
+      "linkgrabber": "LinkGrabber",
+      "subscriptions": "Suscripciones",
+      "http": "HTTP",
+      "scheduler": "Planificador"
+    }
   }
 }

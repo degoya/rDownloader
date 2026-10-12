@@ -186,23 +186,11 @@
     "no_added_permissions": "No pide nada que v{version} no tenga ya."
   },
   "updates": {
-    "eyebrow": "Repositorios",
-    "title": "Actualizaciones",
-    "description": "Versiones más nuevas de los repositorios activados, firmadas con la clave de la versión instalada. Nada se instala sin tu revisión, salvo que un plugin esté configurado para actualizarse automáticamente.",
-    "empty": "Todos los plugins instalados están al día.",
     "version_change": "v{from} → v{to}",
-    "from": "de {repository}",
     "automatic": "Automática",
     "automatic_hint": "Se instala en la siguiente comprobación; activa tras un reinicio.",
     "review": "Revisar actualización",
-    "available_title": "Plugins disponibles",
-    "available_empty": "Los repositorios no ofrecen nada que no esté ya instalado aquí.",
     "review_package": "Revisar",
-    "compatibility": {
-      "contract_unsupported": "Necesita otro contrato de plugin",
-      "app_too_old": "Necesita un rDownloader más reciente",
-      "withdrawn": "Retirado"
-    },
     "adds_permissions": "Permisos nuevos",
     "adds_permissions_hint": "Pide más que la versión instalada, así que solo se instala tras tu revisión, aunque las actualizaciones sean automáticas.",
     "added_permissions": "Nuevo: {permissions}",
@@ -244,9 +232,6 @@
     "empty": "No hay ningún repositorio configurado."
   },
   "bundled": {
-    "eyebrow": "Paquete incluido",
-    "title": "Servicios disponibles",
-    "description": "Lo que trae esta versión pero no está instalado: no elegido, eliminado o nuevo. Un clic instala un servicio con todos sus plugins; los de hoster y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
     "search": "Buscar servicios",
     "filter_label": "Filtrar por categoría",
     "all": "Todos",
@@ -268,7 +253,6 @@
     "needs_account": "Necesita una cuenta o un destino",
     "install": "Instalar",
     "no_match": "Ningún servicio coincide con «{query}».",
-    "all_installed": "Todo el paquete incluido está instalado.",
     "none": "Esta compilación no incluye paquetes. Los plugins llegan entonces de un repositorio.",
     "failed": "No se pudo instalar {name}: {reason}",
     "installed": "No se instaló nada. | 1 plugin instalado; uno de hoster o de inicio de sesión funciona al momento, los demás tipos desde el próximo inicio. | {count} plugins instalados; los de hoster y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
@@ -276,9 +260,32 @@
   },
   "tabs": {
     "installed": "Instalados",
-    "add": "Añadir",
-    "updates": "Actualizaciones",
     "repositories": "Repositorios",
-    "trust": "Confianza"
+    "trust": "Confianza",
+    "catalogue": "Catálogo"
+  },
+  "catalogue": {
+    "eyebrow": "Plugins",
+    "title": "Servicios y plugins",
+    "description": "Todo lo que trae esta versión y ofrecen los repositorios de plugins: instalado, disponible o con una actualización pendiente. Un servicio llega del repositorio cuando responde y, si no, del paquete incluido; los plugins de alojamiento y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
+    "origin": {
+      "bundled": "Incluido",
+      "repository": "Repositorio",
+      "upload": "Subido"
+    },
+    "origin_hint": "De dónde viene el plugin: en un servicio instalado, de dónde vino la versión instalada; si no, de dónde lo tomaría ahora una instalación.",
+    "state": {
+      "available": "Disponible",
+      "update": "Actualización disponible"
+    },
+    "show_label": "Filtrar por estado",
+    "show": {
+      "all": "Todos",
+      "installed": "Instalados",
+      "available": "Disponibles",
+      "updates": "Actualizaciones"
+    },
+    "none": "Ni el paquete incluido ni ningún repositorio ofrecen nada. Sin red, los plugins vienen del paquete junto al programa.",
+    "none_shown": "Ningún servicio en este estado."
   }
 }

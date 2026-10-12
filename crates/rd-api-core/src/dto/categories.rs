@@ -9,6 +9,11 @@ pub struct CreateCategoryRequest {
     pub storage_root_id: rd_core::StorageRootId,
     pub relative_path: String,
     pub is_default: bool,
+    /// Whether the pickers that assign a category by hand (LinkGrabber, Downloads) offer it;
+    /// absent = `true` (RD-1260-03). The default category refuses `false` with
+    /// `category.default_not_selectable`.
+    #[serde(default = "default_true")]
+    pub selectable: bool,
     /// Default post-processing level for packages of this category (`null` = global default).
     #[serde(default)]
     pub postprocess_level: Option<rd_core::PostprocessLevel>,

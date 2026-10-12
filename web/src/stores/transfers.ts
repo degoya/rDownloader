@@ -110,7 +110,7 @@ export const useTransfersStore = defineStore('transfers', () => {
       if (ticket !== refreshTicket) return
       applyRates(rateResponse.data)
       if (downloadResponse.data && packageResponse.data) {
-        announce(downloadResponse.data)
+        announce(downloadResponse.data, packageResponse.data)
         downloads.value = downloadResponse.data
         packages.value = packageResponse.data
         if (error.value === loadError) error.value = null

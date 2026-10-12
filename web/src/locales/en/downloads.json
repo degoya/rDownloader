@@ -57,7 +57,9 @@
     "failed_title": "Download failed",
     "failed_body": "“{file}” could not be downloaded.",
     "queue_done_title": "Download list finished",
-    "queue_done_body": "No files finished. | {count} file finished. | {count} files finished."
+    "queue_done_body": "No files finished. | {count} file finished. | {count} files finished.",
+    "package_failed_title": "Downloads failed: {package}",
+    "package_failed_body": "{count} of {total} files could not be downloaded."
   },
   "confirm": {
     "delete_package_title": "Delete package",
@@ -98,7 +100,9 @@
     "level_whole_packages": "The post-processing level applies to whole packages – select all files of a package",
     "level_packages_only": "The postprocess level exists for link packages only, not for NZB imports.",
     "extract_no_archive": "The selection contains no finished archive files",
-    "reset": "Reset {count} file | Reset {count} files"
+    "reset": "Reset {count} file | Reset {count} files",
+    "reset_counts": "{count} file of the selection that is not running | {count} files of the selection that are not running",
+    "delete_packages_counts": "{count} package whose files are all selected | {count} packages whose files are all selected"
   },
   "package": {
     "drag_title": "Drag to change the order within the priority level",
@@ -311,9 +315,9 @@
     "remaining": "{total} queued",
     "eta": "{duration} left",
     "eta_title": "Estimated remaining time at the current speed",
-    "selection_title": "{count} selected, {size} in total",
-    "selection_partial_title": "{count} selected, at least {size} in total – the size of {unknown} is not known yet",
-    "selection_unknown_title": "{count} selected, size not known yet",
+    "selection_title": "{selection}, {size} in total",
+    "selection_partial_title": "{selection}, at least {size} in total – the size of {unknown} is not known yet",
+    "selection_unknown_title": "{selection}, size not known yet",
     "parallel_max": "max",
     "parallel_limit_aria": "Maximum parallel downloads",
     "parallel_limit_title": "How many downloads may run at once ({min}–{max}); applies at once, without a restart",

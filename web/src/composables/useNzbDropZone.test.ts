@@ -15,6 +15,11 @@ describe('filterImportFiles', () => {
     expect(filterImportFiles(files).map(f => f.name)).toEqual(['one.nzb', 'two.NZB', 'three.torrent', 'four.TORRENT'])
   })
 
+  it('keeps the link containers too, which the import hands to the container import (RD-1260-11)', () => {
+    const files = [file('season.DLC'), file('b.ccf'), file('c.rsdf'), file('d.rdlinks'), file('e.crawljob'), file('f.exe')]
+    expect(filterImportFiles(files).map(f => f.name)).toEqual(['season.DLC', 'b.ccf', 'c.rsdf', 'd.rdlinks', 'e.crawljob'])
+  })
+
   it('returns an empty array when nothing matches', () => {
     expect(filterImportFiles([file('one.md'), file('two.rar')])).toEqual([])
   })

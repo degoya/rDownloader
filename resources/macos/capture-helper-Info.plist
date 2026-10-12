@@ -20,6 +20,23 @@
                 <string>org.rdownloader.nzb</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Link container or torrent</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>org.rdownloader.dlc</string>
+                <string>org.rdownloader.ccf</string>
+                <string>org.rdownloader.rsdf</string>
+                <string>org.rdownloader.rdlinks</string>
+                <string>org.rdownloader.crawljob</string>
+                <string>org.bittorrent.torrent</string>
+            </array>
+        </dict>
     </array>
     <key>CFBundleExecutable</key>
     <string>applet</string>
@@ -51,7 +68,7 @@
     <key>LSBackgroundOnly</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Opens NZB files with the local rDownloader capture agent.</string>
+    <string>Opens NZB files, link containers and torrents with the local rDownloader capture agent.</string>
     <key>UTImportedTypeDeclarations</key>
     <array>
         <dict>
@@ -72,6 +89,110 @@
                 </array>
                 <key>public.mime-type</key>
                 <string>application/x-nzb</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>DLC link container</string>
+            <key>UTTypeIdentifier</key>
+            <string>org.rdownloader.dlc</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>dlc</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>CCF link container</string>
+            <key>UTTypeIdentifier</key>
+            <string>org.rdownloader.ccf</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>ccf</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>RSDF link container</string>
+            <key>UTTypeIdentifier</key>
+            <string>org.rdownloader.rsdf</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>rsdf</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>rDownloader link file</string>
+            <key>UTTypeIdentifier</key>
+            <string>org.rdownloader.rdlinks</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>rdlinks</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>Crawljob link list</string>
+            <key>UTTypeIdentifier</key>
+            <string>org.rdownloader.crawljob</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>crawljob</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>BitTorrent file</string>
+            <key>UTTypeIdentifier</key>
+            <string>org.bittorrent.torrent</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>torrent</string>
+                </array>
+                <key>public.mime-type</key>
+                <string>application/x-bittorrent</string>
             </dict>
         </dict>
     </array>

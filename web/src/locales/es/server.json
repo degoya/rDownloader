@@ -1310,7 +1310,17 @@
     "download.resolve_timeout": "El enlace no se pudo resolver a tiempo; se resolverá en su próximo inicio",
     "download.resolve_offline": "El servidor indica que el archivo ya no existe",
     "download.resolve_failed": "El enlace no se pudo resolver ahora; se resolverá en su próximo inicio",
-    "download.resolve_skipped_free": "Un enlace de un servidor de archivos sin cuenta no se resuelve por adelantado; se resolverá al iniciarse"
+    "download.resolve_skipped_free": "Un enlace de un servidor de archivos sin cuenta no se resuelve por adelantado; se resolverá al iniciarse",
+    "update.plugin_contracts_invalid": "Indica como máximo {max} contratos de plugin, cada uno una versión como 0.11.0.",
+    "category.default_not_selectable": "La categoría predeterminada no se puede ocultar de la selección",
+    "cnl.invalid_payload": "No se pudieron leer los datos de Click'n'Load.",
+    "cnl.jk_refused": "Se rechazó la clave (jk) de la página. rDownloader solo la evalúa en su propio entorno aislado, nunca en el navegador.",
+    "cnl.no_links": "La solicitud de Click'n'Load no contiene ningún enlace que acepte el LinkGrabber.",
+    "cnl.payload_too_large": "Los datos de Click'n'Load o uno de sus campos son demasiado grandes.",
+    "cnl.rate_limited": "Demasiadas entregas de Click'n'Load en poco tiempo. Vuelve a intentarlo en un minuto.",
+    "diagnostics.log_level_locked": "RUST_LOG={rust_log} decide qué se registra; el nivel se aplica cuando el servicio arranca sin RUST_LOG.",
+    "diagnostics.debug_minutes_invalid": "La depuración temporal dura 15, 30 o 60 minutos.",
+    "diagnostics.debug_plugin_invalid": "Solo el área de plugins admite un plugin, y solo uno instalado."
   },
   "capabilities": {
     "media_download": "las descargas de medios",

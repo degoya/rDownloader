@@ -102,7 +102,8 @@ impl SchedulerHandle {
             } else if settings.storage_auto_resume && capacity.set_blocked(target, None).await {
                 tracing::info!(path = %path.display(), free, "storage root released");
                 self.requeue_capacity_blocked_of(target).await;
-                self.persist_capacity_blocks().await?;
+                self.persist_capacity_blocks(CapacityChange::Released)
+                    .await?;
             }
         }
         Ok(())
@@ -137,7 +138,8 @@ impl SchedulerHandle {
             minimum = shortfall.minimum_free_bytes,
             "storage root blocked: not enough free space"
         );
-        self.persist_capacity_blocks().await?;
+        self.persist_capacity_blocks(CapacityChange::Blocked)
+            .await?;
         Ok(true)
     }
 
@@ -147,18 +149,22 @@ impl SchedulerHandle {
             return Ok(false);
         }
         self.requeue_capacity_blocked_of(target).await;
-        self.persist_capacity_blocks().await?;
+        self.persist_capacity_blocks(CapacityChange::Released)
+            .await?;
         Ok(true)
     }
 
-    async fn persist_capacity_blocks(&self) -> Result<()> {
+    /// Writes the blocks down and announces the one transition that led here (RD-1260-04): the
+    /// event names it, because a release used to read exactly like a block and was notified as
+    /// "Storage root out of space".
+    async fn persist_capacity_blocks(&self, change: CapacityChange) -> Result<()> {
         let blocked = self.config.capacity.blocked().await;
         self.database
             .set_setting(BLOCK_STATE_KEY.to_owned(), serde_json::to_value(&blocked)?)
             .await?;
         self.database.broadcast(rd_core::EventEnvelope::new(
             rd_core::EventKind::StorageCapacity,
-            serde_json::json!({ "blocked": blocked.len() }),
+            serde_json::json!({ "blocked": blocked.len(), "change": change.as_str() }),
         ));
         Ok(())
     }
@@ -259,4 +265,20 @@ pub(crate) fn destinations_of(
         .filter(|package| !package.destination.is_empty())
         .map(|package| (package.id, PathBuf::from(&package.destination)))
         .collect()
+}
+
+/// Which transition a `storage.capacity` event announces.
+#[derive(Clone, Copy)]
+enum CapacityChange {
+    Blocked,
+    Released,
+}
+
+impl CapacityChange {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Blocked => "blocked",
+            Self::Released => "released",
+        }
+    }
 }

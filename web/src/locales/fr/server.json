@@ -1310,7 +1310,17 @@
     "download.resolve_timeout": "Le lien n’a pas pu être résolu à temps ; il le sera à son prochain démarrage",
     "download.resolve_offline": "Le serveur indique que le fichier n’existe plus",
     "download.resolve_failed": "Le lien n’a pas pu être résolu maintenant ; il le sera à son prochain démarrage",
-    "download.resolve_skipped_free": "Un lien d’hébergeur sans compte n’est pas résolu à l’avance ; il le sera à son démarrage"
+    "download.resolve_skipped_free": "Un lien d’hébergeur sans compte n’est pas résolu à l’avance ; il le sera à son démarrage",
+    "update.plugin_contracts_invalid": "Indique au plus {max} contrats de plugin, chacun une version comme 0.11.0.",
+    "category.default_not_selectable": "La catégorie par défaut ne peut pas être masquée de la sélection",
+    "cnl.invalid_payload": "Les données Click'n'Load n'ont pas pu être lues.",
+    "cnl.jk_refused": "La clé (jk) de la page a été refusée. rDownloader ne l'évalue que dans son propre bac à sable, jamais dans le navigateur.",
+    "cnl.no_links": "La requête Click'n'Load ne contient aucun lien accepté par le LinkGrabber.",
+    "cnl.payload_too_large": "Les données Click'n'Load ou l'un de leurs champs sont trop volumineux.",
+    "cnl.rate_limited": "Trop de transmissions Click'n'Load en peu de temps. Réessayez dans une minute.",
+    "diagnostics.log_level_locked": "RUST_LOG={rust_log} décide de ce qui est journalisé ; le niveau s’applique quand le service démarre sans RUST_LOG.",
+    "diagnostics.debug_minutes_invalid": "Le débogage temporaire dure 15, 30 ou 60 minutes.",
+    "diagnostics.debug_plugin_invalid": "Seule la zone Plugin accepte un plugin, et seulement un plugin installé."
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

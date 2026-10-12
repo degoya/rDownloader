@@ -2,12 +2,15 @@ on run
 	-- The helper is intentionally invisible when opened without documents.
 end run
 
+-- Every file in one `open`, so several end in one notification (RD-1260-09): NZBs, link
+-- containers and torrents, opened with the helper or dropped on it.
 on open droppedItems
 	set captureExecutable to my captureExecutablePath()
+	set fileArguments to ""
 	repeat with droppedItem in droppedItems
-		set nzbPath to POSIX path of droppedItem
-		do shell script quoted form of captureExecutable & " open " & quoted form of nzbPath
+		set fileArguments to fileArguments & " " & quoted form of (POSIX path of droppedItem)
 	end repeat
+	do shell script quoted form of captureExecutable & " open" & fileArguments
 end open
 
 -- An rdownloader:// link (CFBundleURLTypes in Info.plist), handed to the agent as it is.

@@ -186,23 +186,11 @@
     "no_added_permissions": "Asks for nothing v{version} does not already have."
   },
   "updates": {
-    "eyebrow": "Repositories",
-    "title": "Updates",
-    "description": "Newer versions from the enabled repositories, signed with the key the installed version is signed with. Nothing installs without your review unless a plugin is set to update automatically.",
-    "empty": "Every installed plugin is up to date.",
     "version_change": "v{from} → v{to}",
-    "from": "from {repository}",
     "automatic": "Automatic",
     "automatic_hint": "Installed by the next check; active after a restart.",
     "review": "Review update",
-    "available_title": "Available plugins",
-    "available_empty": "The repositories offer nothing that is not installed here.",
     "review_package": "Review",
-    "compatibility": {
-      "contract_unsupported": "Needs another plugin contract",
-      "app_too_old": "Needs a newer rDownloader",
-      "withdrawn": "Withdrawn"
-    },
     "adds_permissions": "New permissions",
     "adds_permissions_hint": "Asks for more than the installed version, so it installs only after your review, even when updates are automatic.",
     "added_permissions": "New: {permissions}",
@@ -244,9 +232,6 @@
     "empty": "No repository configured."
   },
   "bundled": {
-    "eyebrow": "Bundle",
-    "title": "Available services",
-    "description": "What this release ships but is not installed — not chosen, removed or new. One click installs a service with all its plugins; hoster and sign-in plugins run at once, other types from the next start.",
     "search": "Search services",
     "filter_label": "Filter by category",
     "all": "All",
@@ -268,7 +253,6 @@
     "needs_account": "Needs an account or destination",
     "install": "Install",
     "no_match": "No service matches “{query}”.",
-    "all_installed": "Everything in the bundle is installed.",
     "none": "This build ships no bundle. Plugins then come from a repository.",
     "failed": "{name} could not be installed: {reason}",
     "installed": "Nothing installed. | 1 plugin installed; a hoster or sign-in plugin runs at once, other types from the next start. | {count} plugins installed; hoster and sign-in plugins run at once, other types from the next start.",
@@ -276,9 +260,32 @@
   },
   "tabs": {
     "installed": "Installed",
-    "add": "Add",
-    "updates": "Updates",
     "repositories": "Repositories",
-    "trust": "Trust"
+    "trust": "Trust",
+    "catalogue": "Catalogue"
+  },
+  "catalogue": {
+    "eyebrow": "Plugins",
+    "title": "Services and plugins",
+    "description": "Everything this release ships and the plugin repositories offer: installed, available or with an update waiting. A service comes from the repository when it answers and from the bundle otherwise; hoster and sign-in plugins run at once, other types from the next start.",
+    "origin": {
+      "bundled": "Bundled",
+      "repository": "Repository",
+      "upload": "Uploaded"
+    },
+    "origin_hint": "Where the plugin comes from: for an installed service where the installed version came from, otherwise where an install would take it from now.",
+    "state": {
+      "available": "Available",
+      "update": "Update available"
+    },
+    "show_label": "Filter by state",
+    "show": {
+      "all": "All",
+      "installed": "Installed",
+      "available": "Available",
+      "updates": "Updates"
+    },
+    "none": "Neither the bundle nor a repository offers anything. Without a network, plugins come from the bundle beside the program.",
+    "none_shown": "No service in this state."
   }
 }

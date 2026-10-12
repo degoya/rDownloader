@@ -48,7 +48,6 @@ enum Reach {
 /// This is the whole rule, in the one direction that does not rot: what is not here does not
 /// reach the Linux agent. Adding a crate means adding its reason.
 const LINUX_LINKED: &[(&str, &str)] = &[
-    ("aes", "pure-Rust block cipher for the Click'n'Load payload"),
     ("anyhow", "error type"),
     (
         "arboard",
@@ -58,12 +57,6 @@ const LINUX_LINKED: &[(&str, &str)] = &[
          on Linux, so this is where the line runs",
     ),
     ("axum", "HTTP server behind Click'n'Load"),
-    ("base64", "encoding"),
-    (
-        "boa_engine",
-        "sandboxed JavaScript for container decryption",
-    ),
-    ("cbc", "block cipher mode"),
     (
         "chrono",
         "dates: the end of a queue pause, read from the summary and shown in local time",
@@ -76,7 +69,6 @@ const LINUX_LINKED: &[(&str, &str)] = &[
          xkeysym, the same client arboard links, no toolkit. Under Wayland or without a display \
          the agent registers nothing and says so",
     ),
-    ("hex", "encoding"),
     (
         "keyring",
         "credential storage; the Linux backend talks to the Secret Service over zbus, which is \
@@ -85,6 +77,11 @@ const LINUX_LINKED: &[(&str, &str)] = &[
     (
         "notify-rust",
         "desktop notifications; built with the z feature, so Linux uses zbus and no GTK",
+    ),
+    (
+        "rd-cnl",
+        "workspace crate, headless: Click'n'Load's key, sandbox and decryption, shared with the \
+         service (RD-1260-10)",
     ),
     ("rd-collector", "workspace crate, headless"),
     ("rd-autostart", "workspace crate, headless"),
@@ -95,7 +92,6 @@ const LINUX_LINKED: &[(&str, &str)] = &[
         "workspace crate, headless: the signed update manifest, the verified download and the \
          portable switch of the agent's own update (RD-1210-03)",
     ),
-    ("regex", "text"),
     ("reqwest", "HTTP client"),
     ("serde", "serialization"),
     ("serde_json", "serialization"),

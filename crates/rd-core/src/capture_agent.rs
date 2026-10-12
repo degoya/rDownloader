@@ -61,13 +61,16 @@ pub enum CaptureCommand {
     /// "Restart server": the service restarted for what waits for the next start, with the
     /// agent's `capture:server_update` right; shown only while a restart is pending (RD-1240-32).
     RestartServer,
+    /// "About rDownloader" (RD-1260-08): the connected app's Settings > About rDownloader page
+    /// in the browser, under the same rule as "Open rDownloader".
+    About,
 }
 
 impl CaptureCommand {
     /// Every command, in the order the settings list them: the tray menu's order up to "Quit",
-    /// then the entries that became shortcut-capable with RD-1240-24 and "Restart server"
-    /// (RD-1240-32).
-    pub const ALL: [Self; 15] = [
+    /// then the entries that became shortcut-capable with RD-1240-24, "Restart server"
+    /// (RD-1240-32) and "About rDownloader" (RD-1260-08).
+    pub const ALL: [Self; 16] = [
         Self::Open,
         Self::StartAll,
         Self::PauseAll,
@@ -83,6 +86,7 @@ impl CaptureCommand {
         Self::AddAllFromLinkGrabberPaused,
         Self::InstallUpdate,
         Self::RestartServer,
+        Self::About,
     ];
 
     /// The stable name, as the settings document and the API spell it.
@@ -104,6 +108,7 @@ impl CaptureCommand {
             Self::AddAllFromLinkGrabberPaused => "add_all_from_linkgrabber_paused",
             Self::InstallUpdate => "install_update",
             Self::RestartServer => "restart_server",
+            Self::About => "about",
         }
     }
 }
@@ -151,6 +156,9 @@ pub struct CaptureShortcuts {
     /// No default either (RD-1240-32), for the same reason.
     #[serde(default)]
     pub restart_server: Option<String>,
+    /// No default either (RD-1260-08), for the same reason.
+    #[serde(default)]
+    pub about: Option<String>,
 }
 
 // The defaults (owner, 2026-10-07: Ctrl+Alt+<letter> on Windows and Linux, Cmd+Option+<letter> on
@@ -197,6 +205,7 @@ impl Default for CaptureShortcuts {
             add_all_from_linkgrabber_paused: None,
             install_update: None,
             restart_server: None,
+            about: None,
         }
     }
 }
@@ -230,6 +239,7 @@ impl CaptureShortcuts {
             CaptureCommand::AddAllFromLinkGrabberPaused => &self.add_all_from_linkgrabber_paused,
             CaptureCommand::InstallUpdate => &self.install_update,
             CaptureCommand::RestartServer => &self.restart_server,
+            CaptureCommand::About => &self.about,
         }
     }
 
@@ -252,6 +262,7 @@ impl CaptureShortcuts {
             }
             CaptureCommand::InstallUpdate => &mut self.install_update,
             CaptureCommand::RestartServer => &mut self.restart_server,
+            CaptureCommand::About => &mut self.about,
         }
     }
 

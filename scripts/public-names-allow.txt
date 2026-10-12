@@ -51,6 +51,10 @@ crates/rd-capture/src/cnl.rs | JDownloader parity|"JDownloader"|jdownloader=true
 crates/rd-capture/src/cnl/tests.rs | JDownloader-compatible routes | the Click'n'Load routes
 crates/rd-capture/src/client/identity/tests.rs | "service":"JDownloader" | the Click'n'Load identity answer
 web/e2e/capture.e2e.mjs | === 'JDownloader' | the Click'n'Load identity answer
+extension/src/cnl/flash.txt | JDownloader | the Click'n'Load answer a hoster page checks for (RD-1260-10)
+extension/src/cnl/jdcheck.js | jdownloader=true | the Click'n'Load answer a hoster page checks for (RD-1260-10)
+extension/test/cnl.test.mjs | jdownloader=true|'JDownloader' | the test of the extension's Click'n'Load answers
+web/e2e/click-and-load.e2e.mjs | var jdownloader = false|window\.jdownloader|jdownloader=true | a hoster page's Click'n'Load check and the stand-in agent's answer
 crates/rd-capture/src/config.rs | or JDownloader | another program on the Click'n'Load port
 crates/rd-capture/src/main.rs | or JDownloader | another program on the Click'n'Load port
 scripts/linux/start-rdownloader.sh | or JDownloader | another program on the Click'n'Load port

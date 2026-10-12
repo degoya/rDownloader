@@ -42,7 +42,8 @@
     "all_languages": "Any language",
     "facet_hint": "Applies to the whole list and stays set for the next package: where a mirror group offers a choice it picks the matching mirror, elsewhere it hides what cannot match.",
     "more": "Filters",
-    "more_hint": "Prefer a quality, language and hoster, sort, and regroup"
+    "more_hint": "Prefer a quality, language and hoster, sort, and regroup",
+    "set_count": "{count} setting made | {count} settings made"
   },
   "empty": "Clipboard, Click'n'Load and manual input land here first for review. Links are checked automatically and grouped into packages.",
   "selection_package": "{name} (selection)",
@@ -636,7 +637,6 @@
     "take_all": "Take all | Take 1 release | Take all {count}",
     "announced": "{rule}: a page waits for your choice"
   },
-  "selection_nzbs": "no NZB imports | {count} NZB import | {count} NZB imports",
   "link_filter": {
     "unhide": "Show again",
     "hidden": "Hidden",

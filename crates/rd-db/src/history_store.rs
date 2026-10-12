@@ -20,7 +20,7 @@ type FileRow = (String, String, Option<i64>, i64, String, Option<String>);
 use crate::{enum_string, escape_like, parse_enum, parse_time, timestamp};
 
 /// Download states after which a file does nothing more by itself.
-const SETTLED_FAILED: [&str; 4] = ["failed", "blocked", "cancelled", "skipped"];
+pub(crate) const SETTLED_FAILED: [&str; 4] = ["failed", "blocked", "cancelled", "skipped"];
 
 /// The code of a package that failed in post-processing without a step that named one.
 pub const POSTPROCESS_FAILED_CODE: &str = "history.postprocess_failed";

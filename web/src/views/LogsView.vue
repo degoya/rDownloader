@@ -12,6 +12,8 @@
  * `?tab=bundle`, a value the page does not have shows the log, and a change pushes, so back and
  * forward walk the tabs. Only the shown tab is mounted; the refresh button belongs to the log
  * and is not shown beside the bundle, whose preview button is its own reload.
+ *
+ * Above the filters the level shortcut and "debug for a while" (RD-1260-12, `LogLevelPanel`).
  */
 import type { TabsItem } from '@nuxt/ui'
 import { computed, ref, watch } from 'vue'
@@ -21,6 +23,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { LogLevel, LogRecord } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import DiagnosticBundlePanel from '@/components/logs/DiagnosticBundlePanel.vue'
+import LogLevelPanel from '@/components/logs/LogLevelPanel.vue'
 import { useLogsStore } from '@/stores/logs'
 import { formatMoment } from '@/utils/format'
 
@@ -106,6 +109,8 @@ watch(active, (tab) => {
       <UTabs v-model="active" :items="tabs" :content="false" variant="pill" class="mb-4 w-full" />
       <template v-if="active === 'log'">
         <p class="mb-4 text-sm leading-6 text-muted">{{ t('logs.intro') }}</p>
+
+        <LogLevelPanel />
 
         <UCard class="mb-4">
           <form class="grid gap-3 md:grid-cols-6" @submit.prevent="store.refresh()">

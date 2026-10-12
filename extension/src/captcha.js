@@ -85,6 +85,14 @@ export function createCaptchaAnswerer({
     }
   }
 
+  async function clearNotification(notificationId) {
+    try {
+      await api.notifications?.clear?.(notificationId)
+    } catch {
+      // already closed by the person
+    }
+  }
+
   async function closeTab(tabId) {
     try {
       await api.tabs.remove(Number(tabId))
@@ -132,9 +140,15 @@ export function createCaptchaAnswerer({
     const announced = await read(ANNOUNCED_KEY, [])
     const stillAnnounced = announced.filter((id) => waiting.has(id))
     // Notification ids are kept per captcha id, so they are pruned with the captchas they
-    // announced rather than growing until somebody clicks them.
+    // announced rather than growing until somebody clicks them — and the notification goes
+    // with its captcha: "captcha waiting" stood on screen after the captcha was long answered
+    // or expired (RD-1260-04).
     const notifications = await read(NOTIFICATIONS_KEY, {})
-    for (const id of Object.keys(notifications)) if (!waiting.has(id)) delete notifications[id]
+    for (const id of Object.keys(notifications)) {
+      if (waiting.has(id)) continue
+      await clearNotification(notifications[id])
+      delete notifications[id]
+    }
     for (const widget of result.widgets) {
       if (stillAnnounced.includes(widget.id)) continue
       stillAnnounced.push(widget.id)

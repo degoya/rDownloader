@@ -1310,7 +1310,17 @@
     "download.resolve_timeout": "The link could not be resolved in time; it resolves at its next start",
     "download.resolve_offline": "The server says the file is gone",
     "download.resolve_failed": "The link could not be resolved now; it resolves at its next start",
-    "download.resolve_skipped_free": "A hoster link without an account is not resolved ahead; it resolves at its start"
+    "download.resolve_skipped_free": "A hoster link without an account is not resolved ahead; it resolves at its start",
+    "update.plugin_contracts_invalid": "Name at most {max} plugin contracts, each a version such as 0.11.0.",
+    "category.default_not_selectable": "The default category cannot be hidden from the selection",
+    "cnl.invalid_payload": "The Click'n'Load data could not be read.",
+    "cnl.jk_refused": "The page's key (jk) was refused. rDownloader evaluates it only in its own sandbox, never in the browser.",
+    "cnl.no_links": "The Click'n'Load request contains no link the LinkGrabber accepts.",
+    "cnl.payload_too_large": "The Click'n'Load data or one of its fields is too large.",
+    "cnl.rate_limited": "Too many Click'n'Load hand-overs in a short time. Try again in a minute.",
+    "diagnostics.log_level_locked": "RUST_LOG={rust_log} decides what is logged; the level applies once the service starts without RUST_LOG.",
+    "diagnostics.debug_minutes_invalid": "Debug for a while lasts 15, 30 or 60 minutes.",
+    "diagnostics.debug_plugin_invalid": "Only the plugin area takes a plugin, and only an installed one."
   },
   "capabilities": {
     "media_download": "media downloads",

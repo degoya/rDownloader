@@ -335,6 +335,8 @@ pub(crate) async fn apply_settings_reporting(
         )
         .await?;
     state.scheduler.update_runtime_settings(runtime).await?;
+    // The level holds from the next line (RD-1260-12); a debug window still open stays open.
+    crate::log_level_handlers::apply_level(settings.log_level);
     // Every running watcher re-arms its ticker on this; nothing is restarted (RD-110-31).
     state
         .hotfolders

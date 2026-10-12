@@ -183,7 +183,12 @@
     "package_names_regex_override": "Eigene Regex-Regeln",
     "package_names_regex_override_description": "Aus: die globalen Regeln gelten. An: diese Liste ersetzt sie – auch leer, dann gilt keine.",
     "download_window_label": "Download-Zeitfenster",
-    "download_window_description": "Wann die Pakete dieser Kategorie laden dürfen; ein eigenes Zeitfenster eines Pakets gewinnt. Aus: Die Pakete folgen nur dem Bandbreiten-Zeitplan."
+    "download_window_description": "Wann die Pakete dieser Kategorie laden dürfen; ein eigenes Zeitfenster eines Pakets gewinnt. Aus: Die Pakete folgen nur dem Bandbreiten-Zeitplan.",
+    "selectable_label": "In der Auswahl anzeigen",
+    "selectable_description": "Aus: LinkGrabber und Downloads bieten die Kategorie nicht mehr zur Wahl an. Regeln, Abonnements, Hotfolder und die Schnittstellen nutzen sie weiter.",
+    "selectable_default_hint": "Die Standardkategorie steht immer zur Wahl.",
+    "hidden_badge": "AUSGEBLENDET",
+    "hidden_badge_title": "Steht in LinkGrabber und Downloads nicht zur Wahl"
   },
   "rule": {
     "eyebrow": "Klassifizierer",

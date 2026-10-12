@@ -139,7 +139,7 @@ impl TransferBackend {
         url: String,
         credential_ref: Option<String>,
     ) -> Result<exports::rdownloader::plugin::transfer::RemoteFile, rd_core::Failure> {
-        let mut store = self.store(state)?;
+        let mut store = self.store(state, "probe")?;
         let bindings = self.instantiate(&mut store).await?;
         bindings
             .rdownloader_plugin_transfer()
@@ -154,7 +154,7 @@ impl TransferBackend {
         state: TransferState,
         job: exports::rdownloader::plugin::transfer::Job,
     ) -> Result<TransferOutcome, rd_core::Failure> {
-        let mut store = self.store(state)?;
+        let mut store = self.store(state, "run")?;
         let bindings = self.instantiate(&mut store).await?;
         let end = bindings
             .rdownloader_plugin_transfer()
@@ -164,17 +164,26 @@ impl TransferBackend {
         state::outcome(store.data().transfer.as_ref().expect("transfer store"), end)
     }
 
+    /// A store for one call of `operation`, whose log lines are this plugin's (RD-1260-12).
     fn store(
         &self,
         state: TransferState,
+        operation: &'static str,
     ) -> Result<wasmtime::Store<PluginStoreState>, rd_core::Failure> {
-        self.sandbox.create_transfer_store(state).map_err(|error| {
+        let mut store = self.sandbox.create_transfer_store(state).map_err(|error| {
             rd_core::Failure::coded(
                 rd_core::FailureKind::Permanent,
                 "plugin.execution_failed",
                 format!("Plugin execution failed: {error:#}"),
             )
-        })
+        })?;
+        store.data_mut().set_log_origin(
+            self.manifest.id.to_string(),
+            self.manifest.version.clone(),
+            self.manifest.plugin_type.as_str(),
+            operation,
+        );
+        Ok(store)
     }
 
     async fn instantiate(

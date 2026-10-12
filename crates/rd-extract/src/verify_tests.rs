@@ -158,6 +158,7 @@ async fn a_category_override_switches_the_sfv_check_off() {
             storage_root_id: root.id,
             relative_path: "unchecked".to_owned(),
             is_default: false,
+            selectable: true,
             postprocess_level: None,
             script: None,
             cleanup_extensions: None,

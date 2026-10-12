@@ -76,6 +76,9 @@ pub struct PluginStoreState {
     /// Next handle to hand out. Never reused within an invocation, so a stale handle is an
     /// error rather than a different socket.
     pub(crate) next_connection: u32,
+    /// The lines this invocation may still write to the service log (RD-1260-12); the
+    /// warning about the rest is written when the store is dropped.
+    pub(crate) log_budget: crate::log_budget::LogBudget,
 }
 
 impl PluginStoreState {
@@ -88,6 +91,22 @@ impl PluginStoreState {
         self.wait_budget -= requested;
         self.execution_deadline += requested;
         Some(requested)
+    }
+
+    /// Names the plugin, version and operation this invocation's log lines belong to.
+    pub(crate) fn set_log_origin(
+        &mut self,
+        plugin_id: String,
+        version: String,
+        kind: &str,
+        operation: &str,
+    ) {
+        self.log_budget.set_origin(crate::log_budget::LogOrigin {
+            plugin_id,
+            version,
+            kind: kind.to_owned(),
+            operation: operation.to_owned(),
+        });
     }
 
     /// Remaining waiting time, for diagnostics and tests.
@@ -333,6 +352,7 @@ impl SandboxEngine {
             source: None,
             connections: std::collections::HashMap::new(),
             next_connection: 1,
+            log_budget: crate::log_budget::LogBudget::default(),
         };
         let mut store = Store::new(self.engine(), state);
         store.limiter(|state| &mut state.limits);

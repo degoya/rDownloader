@@ -23,6 +23,10 @@ use crate::{
 const BUNDLE_FORMAT: &str = "rdownloader-routing-bundle";
 const BUNDLE_VERSION: u32 = 1;
 
+const fn default_true() -> bool {
+    true
+}
+
 /// One category in a routing bundle. Carries the storage root by name instead of id so the
 /// import can attach it to the target instance's root of the same name.
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -32,6 +36,9 @@ pub struct BundleRoutingCategory {
     pub storage_root_name: String,
     pub relative_path: String,
     pub is_default: bool,
+    /// Absent in a bundle written before RD-1260-03: offered in the pickers, as then.
+    #[serde(default = "default_true")]
+    pub selectable: bool,
     #[serde(default)]
     pub postprocess_level: Option<rd_core::PostprocessLevel>,
     #[serde(default)]
@@ -161,6 +168,7 @@ pub async fn export_routing(
                 storage_root_name: root_name(category.storage_root_id)?,
                 relative_path: category.relative_path.clone(),
                 is_default: category.is_default,
+                selectable: category.selectable,
                 postprocess_level: category.postprocess_level,
                 script: category.script.clone(),
                 cleanup_extensions: category.cleanup_extensions.clone(),
@@ -255,14 +263,17 @@ pub async fn import_routing(
             summary.categories_skipped += 1;
             continue;
         };
+        // Never displace the target's default category; only the first imported default may
+        // claim the slot when the target has none.
+        let is_default = entry.is_default && !has_default;
         let request = CreateCategoryRequest {
             name: entry.name,
             color: entry.color,
             storage_root_id: root.id,
             relative_path: entry.relative_path,
-            // Never displace the target's default category; only the first imported default
-            // may claim the slot when the target has none.
-            is_default: entry.is_default && !has_default,
+            is_default,
+            // A default is always offered (RD-1260-03).
+            selectable: entry.selectable || is_default,
             postprocess_level: entry.postprocess_level,
             script: entry.script,
             cleanup_extensions: entry.cleanup_extensions,

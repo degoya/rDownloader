@@ -13,6 +13,7 @@ export function categoryCopyBody(category: Category, name: string): CreateCatego
     storage_root_id: category.storage_root_id,
     relative_path: category.relative_path,
     is_default: false,
+    selectable: category.selectable !== false,
     postprocess_level: category.postprocess_level ?? null,
     script: category.script ?? null,
     cleanup_extensions: category.cleanup_extensions ? [...category.cleanup_extensions] : null,

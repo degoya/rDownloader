@@ -32,7 +32,7 @@ function plugin(overrides: Record<string, unknown> = {}) {
     id: ID,
     name: 'MEGA',
     description: 'Resolves MEGA file links.',
-    author: 'rDownloader project',
+    author: 'DEGOYA.digital',
     license: 'MIT',
     homepage: 'https://example.org/mega',
     version: '0.1.7',
@@ -95,7 +95,7 @@ describe('PluginCard', () => {
     expect(within(article).getByText('ABI 0.9.0')).toBeTruthy()
     const meta = document.querySelector('[data-plugin-meta]') as HTMLElement
     // The dots are drawn before an item, never as an item of their own that could end a line.
-    expect(Array.from(meta.children, item => item.textContent)).toEqual(['by rDownloader project', 'MIT', pluginsCatalogue.card.homepage, ID])
+    expect(Array.from(meta.children, item => item.textContent)).toEqual(['by DEGOYA.digital', 'MIT', pluginsCatalogue.card.homepage, ID])
     expect(meta.textContent).not.toContain('·')
     expect(within(meta).getByRole('link', { name: pluginsCatalogue.card.homepage }).getAttribute('rel')).toBe('noopener noreferrer')
   })

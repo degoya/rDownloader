@@ -10,6 +10,7 @@ import SearchableSelect from '@/components/SearchableSelect.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes, priorityItems } from '@/utils/format'
+import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 
 const { t } = useI18n()
@@ -71,7 +72,7 @@ const stateLabel = computed(() => props.item.duplicate
   : failed.value ? t('linkgrabber.nzb.state.failed') : t('linkgrabber.nzb.available'))
 const categoryItems = computed(() => [
   { label: t('linkgrabber.package.default_category'), value: NO_SELECTION },
-  ...props.categories.map(category => ({ label: category.name, value: category.id }))
+  ...pickableCategories(props.categories, props.item.category_id).map(category => ({ label: category.name, value: category.id }))
 ])
 const categoryModel = computed({
   get: () => props.item.category_id ?? NO_SELECTION,

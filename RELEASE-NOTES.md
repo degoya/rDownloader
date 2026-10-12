@@ -12,6 +12,17 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.26.0
+
+- Click'n'Load buttons on hoster pages now work through the browser extension, even without the desktop agent, for example when rDownloader runs on a NAS.
+- Link containers such as DLC, CCF and RSDF reach rDownloader by double-click, a desktop drop shortcut, Send to, the browser extension or a drop on the web interface.
+- Plugins now install from the plugin repository first, with the bundled ones as fallback, and an update fetches the plugins the new version needs beforehand.
+- Notifications arrive once per moment: no repeated "Package finished", no repeating captcha or power reminders, and quiet hours end with one summary.
+- A selection counts packages and files apart, for example "4 packages · 11 files selected".
+- The Downloads and LinkGrabber toolbars are icon buttons whose tooltips name the action and its key.
+- A category can be hidden from the selection lists while rules, subscriptions and filters still use it.
+- The log level can be set in the settings, with debug logging for a limited time; the tray menu shows the version and opens the About page.
+
 ## 1.25.1
 
 - Fixed: after updating the application, plugins built for the previous version are replaced by their new versions instead of staying unusable.

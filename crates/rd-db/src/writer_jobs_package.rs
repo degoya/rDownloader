@@ -34,8 +34,8 @@ impl Writer {
         &mut self,
         package_id: rd_core::PackageId,
     ) -> Result<()> {
-        let Some(current) =
-            sqlx::query_scalar::<_, String>("SELECT state FROM packages WHERE id = ?")
+        let Some((current, kind)) =
+            sqlx::query_as::<_, (String, String)>("SELECT state, kind FROM packages WHERE id = ?")
                 .bind(package_id.to_string())
                 .fetch_optional(&mut self.connection)
                 .await?
@@ -61,11 +61,21 @@ impl Writer {
             && states
                 .iter()
                 .all(|state| matches!(state.as_str(), "completed" | "skipped"));
+        // Nothing left that could still finish, and something failed: the package is over and
+        // says so, where it used to sit in the queue as `queued` and nobody was told
+        // (RD-1260-04). The same reading as the history's failed entry. Not for a Usenet set:
+        // its postponed recovery volumes wait as `skipped` and may still repair it, so only
+        // the PAR2 verdict gives it up (`nzb_hopeless`, RD-1100-02).
+        let all_failed = kind != "usenet"
+            && states.iter().any(|state| state == "failed")
+            && states
+                .iter()
+                .all(|state| crate::history_store::SETTLED_FAILED.contains(&state.as_str()));
         let next = if active {
             rd_core::PackageState::Downloading
         } else if all_completed || current == "postprocessing" {
             return Ok(());
-        } else if crate::nzb_hopeless::gave_up(&rows) {
+        } else if all_failed || crate::nzb_hopeless::gave_up(&rows) {
             // A Usenet set given up as beyond repair (RD-1100-02) ends here, not back in the
             // queue: nothing of it will run again unless somebody retries a row.
             rd_core::PackageState::Failed
@@ -81,6 +91,11 @@ impl Writer {
 
     /// Writes the package lifecycle state plus live post-processing stage and emits
     /// `package.state`.
+    ///
+    /// The event names the state before (`previous`) and, for an outcome, how many files the
+    /// package has and how many of them failed (RD-1260-04): a notification is decided on the
+    /// payload, once per transition, and no longer on whatever the package row says by the time
+    /// the event is read -- a later stage or a reorder read as one more "Package finished".
     pub(crate) async fn set_package_state(
         &mut self,
         package_id: rd_core::PackageId,
@@ -89,17 +104,34 @@ impl Writer {
         percent: Option<u8>,
         current: Option<String>,
     ) -> Result<()> {
-        let event = EventEnvelope::new(
-            EventKind::PackageState,
-            serde_json::json!({
-                "package_id": package_id,
-                "state": state,
-                "stage": stage,
-                "percent": percent,
-                "current": current,
-            }),
-        );
         let mut transaction = self.connection.begin().await?;
+        let previous = sqlx::query_scalar::<_, String>("SELECT state FROM packages WHERE id = ?")
+            .bind(package_id.to_string())
+            .fetch_optional(&mut *transaction)
+            .await?;
+        let mut payload = serde_json::json!({
+            "package_id": package_id,
+            "state": state,
+            "previous": previous,
+            "stage": stage,
+            "percent": percent,
+            "current": current,
+        });
+        if matches!(
+            state,
+            rd_core::PackageState::Completed | rd_core::PackageState::Failed
+        ) {
+            let (files, failed): (i64, i64) = sqlx::query_as(
+                "SELECT COUNT(*), COALESCE(SUM(state = 'failed'), 0) FROM downloads \
+                 WHERE package_id = ?",
+            )
+            .bind(package_id.to_string())
+            .fetch_one(&mut *transaction)
+            .await?;
+            payload["files"] = serde_json::json!(files);
+            payload["failed_files"] = serde_json::json!(failed);
+        }
+        let event = EventEnvelope::new(EventKind::PackageState, payload);
         // Stamped on the way into `Completed` and cleared on the way out, so a package that is
         // restarted starts its removal delay over rather than carrying the old one.
         let completed_at = (state == rd_core::PackageState::Completed).then_some(event.occurred_at);

@@ -35,6 +35,9 @@ pub struct PowerStatus {
     pub pending: Option<PendingAction>,
     pub quiet: bool,
     pub quiet_until: Option<DateTime<Utc>>,
+    /// Set while quiet hours hold notifications back: when they go out, as one summary
+    /// (RD-1260-04). The web interface holds its own desktop notifications until then too.
+    pub notifications_quiet_until: Option<DateTime<Utc>>,
     /// Why the queue is paused by the network context, if it is.
     pub paused_reason: Option<&'static str>,
     /// Whether the machine is currently being kept awake.
@@ -90,6 +93,27 @@ impl Default for ServiceState {
 pub struct PowerService {
     adapter: Arc<dyn PowerAdapter>,
     state: Arc<RwLock<ServiceState>>,
+    /// The quiet-hours settings once more, readable without awaiting the lock (RD-1260-04):
+    /// the capture stream decides frame by frame, synchronously, whether a toast waits.
+    quiet: Arc<std::sync::Mutex<QuietSnapshot>>,
+}
+
+/// What [`PowerService::notifications_quiet_until`] needs of the settings.
+#[derive(Debug)]
+struct QuietSnapshot {
+    hours: rd_limits::QuietHours,
+    timezone: Tz,
+    defers_notifications: bool,
+}
+
+impl Default for QuietSnapshot {
+    fn default() -> Self {
+        Self {
+            hours: rd_limits::QuietHours::default(),
+            timezone: Tz::UTC,
+            defers_notifications: false,
+        }
+    }
 }
 
 impl std::fmt::Debug for PowerService {
@@ -112,6 +136,7 @@ impl PowerService {
         Self {
             adapter,
             state: Arc::new(RwLock::new(ServiceState::default())),
+            quiet: Arc::default(),
         }
     }
 
@@ -125,8 +150,30 @@ impl PowerService {
         if !keeps_pending {
             state.pending = None;
         }
+        *self
+            .quiet
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = QuietSnapshot {
+            hours: settings.quiet_hours.clone(),
+            timezone,
+            defers_notifications: settings.quiet_hours_defer_notifications,
+        };
         state.settings = settings;
         state.timezone = timezone;
+    }
+
+    /// When the notifications quiet hours hold back go out, or `None` while none are held
+    /// (RD-1260-04). Synchronous, for the capture stream's frame filter.
+    #[must_use]
+    pub fn notifications_quiet_until(&self, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+        let quiet = self
+            .quiet
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !quiet.defers_notifications {
+            return None;
+        }
+        quiet.hours.ends_after(quiet.timezone, now)
     }
 
     /// Restores the cycle counters after a restart, so a completed cycle stays completed.
@@ -270,6 +317,11 @@ impl PowerService {
             pending: state.pending.clone(),
             quiet: state.settings.quiet_hours.is_quiet(state.timezone, now),
             quiet_until: state.settings.quiet_hours.ends_after(state.timezone, now),
+            notifications_quiet_until: if state.settings.quiet_hours_defer_notifications {
+                state.settings.quiet_hours.ends_after(state.timezone, now)
+            } else {
+                None
+            },
             paused_reason: if state.settings.pause_on_battery
                 && state.state.on_battery == Some(true)
             {

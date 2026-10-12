@@ -8,9 +8,11 @@ use crate::{
     cli::{
         ConfigureArgs, ConnectionArgs, HandleArgs, IntegrationArgs, IntegrationCommand, OpenArgs,
     },
-    client::{CaptureClient, ForeignListener},
+    client::{CaptureClient, ForeignListener, ServiceRefusal},
     clipboard::{self, HandOver},
-    config, os_integration, scheme,
+    config, desktop_shortcut,
+    hand_over::{self, FileKind},
+    os_integration, scheme,
 };
 
 pub(crate) fn configure(args: ConfigureArgs) -> Result<()> {
@@ -131,21 +133,62 @@ async fn read_at_most(path: &std::path::Path, limit: usize) -> Result<Vec<u8>> {
     Ok(content)
 }
 
-/// Imports one `.nzb` file: straight to the service, with the pairing token, once the service
-/// address has answered as rDownloader (RD-1200-03). It used to go to the Click'n'Load port
-/// without any credential, to whoever listened there.
+/// Hands files to the service: straight to it, with the pairing token, once the service address
+/// has answered as rDownloader (RD-1200-03). It used to go to the Click'n'Load port without any
+/// credential, to whoever listened there.
+///
+/// An NZB, a link container or a torrent, each to the route that reads it (RD-1260-09). Several
+/// at once -- a drop on the desktop shortcut, Send to -- end in one notification with the count;
+/// a file of another type is refused by name with `capture.file_type_unsupported`, and the others
+/// still go.
 pub(crate) async fn open(args: OpenArgs) -> Result<()> {
-    let content = read_at_most(&args.path, rd_collector::MAX_NZB_BYTES).await?;
-    let name = args
-        .path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .context("NZB filename is not Unicode")?
-        .to_owned();
     let client = connected(args.connection)?;
-    told(client.upload_nzb_bytes(name, content).await).await?;
-    println!("NZB handed to the LinkGrabber: {}", args.path.display());
-    Ok(())
+    let mut outcome = hand_over::Outcome::default();
+    for path in &args.paths {
+        let name = hand_over::display_name(path);
+        match hand_over_file(&client, path, &name).await {
+            Ok(()) => outcome.handed.push(name),
+            // Nothing goes to whoever listens there; one notification says so, for all of them.
+            Err(error) if error.is::<ForeignListener>() => return told(Err(error)).await,
+            Err(error) => outcome.refused.push((name, refusal_reason(&error))),
+        }
+    }
+    let summary = outcome.summary();
+    println!("{summary}");
+    if outcome.tells() {
+        crate::notify::toast(summary.clone()).await;
+    }
+    if outcome.refused.is_empty() {
+        Ok(())
+    } else {
+        anyhow::bail!("{summary}")
+    }
+}
+
+/// One file to the route that reads its kind.
+async fn hand_over_file(client: &CaptureClient, path: &std::path::Path, name: &str) -> Result<()> {
+    let kind = hand_over::kind_of(path)?;
+    let content = read_at_most(path, rd_collector::MAX_NZB_BYTES).await?;
+    let name = name.to_owned();
+    match kind {
+        FileKind::Nzb => client.upload_nzb_bytes(name, content).await,
+        FileKind::Container | FileKind::Torrent => client.upload_file(name, content).await,
+    }
+}
+
+/// What a refused file is reported with: the service's stable code where it sent one, the
+/// agent's own for a type it does not take, otherwise the cause.
+fn refusal_reason(error: &anyhow::Error) -> String {
+    if let Some(code) = error
+        .downcast_ref::<ServiceRefusal>()
+        .and_then(ServiceRefusal::code)
+    {
+        return code.to_owned();
+    }
+    if error.is::<hand_over::Unsupported>() {
+        return hand_over::UNSUPPORTED.to_owned();
+    }
+    error.root_cause().to_string()
 }
 
 /// Acts on one `rdownloader://` address.
@@ -175,7 +218,7 @@ pub(crate) async fn handle(args: HandleArgs) -> Result<()> {
         scheme::Action::OpenFile(path) => {
             open(OpenArgs {
                 connection: args.connection,
-                path,
+                paths: vec![path],
             })
             .await
         }
@@ -206,6 +249,25 @@ pub(crate) fn integration(args: IntegrationArgs, kind: os_integration::Kind) -> 
         IntegrationCommand::Install => os_integration::install(kind, &executable),
         IntegrationCommand::Remove => os_integration::remove(kind),
     }
+}
+
+/// `drop-shortcut` and `send-to` (RD-1260-09): the desktop's two drop targets on Windows, for the
+/// agent at the path a package manager keeps across updates, as `integration` registers it.
+pub(crate) fn shortcut(args: IntegrationArgs, place: desktop_shortcut::Place) -> Result<()> {
+    match args.command {
+        IntegrationCommand::Install => {
+            let executable = rd_autostart::stable_executable_path(
+                &std::env::current_exe().context("locate capture executable")?,
+            );
+            desktop_shortcut::install(place, &executable)?;
+            println!("rDownloader's {} installed.", place.label());
+        }
+        IntegrationCommand::Remove => {
+            desktop_shortcut::remove(place)?;
+            println!("rDownloader's {} removed.", place.label());
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn autostart(args: IntegrationArgs) -> Result<()> {

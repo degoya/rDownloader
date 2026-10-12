@@ -21,6 +21,10 @@
 //! further, until the buffer hit the oversized-frame guard. Now the reader only hands the
 //! intake on, and the announcer coalesces everything that arrives inside one window into a
 //! single toast (RD-109-09).
+//!
+//! Quiet hours hold the toasts back like every other notification (RD-1260-04): an intake that
+//! arrives while they last carries the moment they end (`quiet_until`), and the announcer keeps
+//! everything until then and shows it as one toast.
 
 use std::{future::Future, time::Duration};
 
@@ -68,6 +72,12 @@ pub(crate) struct Intake {
     /// links is how one dropped container turned into "5 links added".
     #[serde(default)]
     file_count: u32,
+    /// Set while quiet hours hold notifications back: when they end.
+    #[serde(default)]
+    quiet_until: Option<chrono::DateTime<chrono::Utc>>,
+    /// The toast reports what quiet hours held back.
+    #[serde(skip)]
+    held: bool,
 }
 
 /// Everything one window's worth of intakes amounts to, as one toast.
@@ -76,6 +86,8 @@ fn merge(left: Intake, right: Intake) -> Intake {
         candidate_count: left.candidate_count.saturating_add(right.candidate_count),
         package_count: left.package_count.saturating_add(right.package_count),
         file_count: left.file_count.saturating_add(right.file_count),
+        quiet_until: left.quiet_until.max(right.quiet_until),
+        held: left.held || right.held,
     }
 }
 
@@ -201,18 +213,35 @@ where
     while let Some(first) = intakes.recv().await {
         let mut batch = first;
         let deadline = tokio::time::sleep(window);
-        tokio::pin!(deadline);
-        loop {
-            tokio::select! {
-                () = &mut deadline => break,
-                next = intakes.recv() => match next {
-                    Some(intake) => batch = merge(batch, intake),
-                    // The stream reader is gone; report what is in hand and stop.
-                    None => break,
-                },
-            }
+        collect_until(&mut intakes, &mut batch, deadline).await;
+        // Quiet hours: what arrived waits for their end, together with whatever follows.
+        if let Some(wait) = batch
+            .quiet_until
+            .and_then(|until| (until - chrono::Utc::now()).to_std().ok())
+        {
+            batch.held = true;
+            collect_until(&mut intakes, &mut batch, tokio::time::sleep(wait)).await;
         }
         show(batch).await;
+    }
+}
+
+/// Merges what arrives into `batch` until `deadline` passes or the reader is gone.
+async fn collect_until(
+    intakes: &mut mpsc::Receiver<Intake>,
+    batch: &mut Intake,
+    deadline: tokio::time::Sleep,
+) {
+    tokio::pin!(deadline);
+    loop {
+        tokio::select! {
+            () = &mut deadline => break,
+            next = intakes.recv() => match next {
+                Some(intake) => *batch = merge(*batch, intake),
+                // The stream reader is gone; report what is in hand and stop.
+                None => break,
+            },
+        }
     }
 }
 
@@ -257,6 +286,15 @@ pub(crate) async fn toast(body: String) {
 /// Deliberately English, like the tray menu: the agent carries no translation catalogue, and
 /// the four-language rule covers `web/src/locales`.
 fn summary(intake: &Intake) -> String {
+    let text = counts(intake);
+    if intake.held {
+        format!("While it was quiet: {text}")
+    } else {
+        text
+    }
+}
+
+fn counts(intake: &Intake) -> String {
     if intake.file_count > 0 && intake.candidate_count == 0 {
         return match intake.file_count {
             1 => "NZB added to the LinkGrabber, 1 file".to_owned(),
@@ -314,16 +352,19 @@ mod tests {
             candidate_count: 1,
             package_count: 1,
             file_count: 0,
+            ..Intake::default()
         };
         let many = Intake {
             candidate_count: 8,
             package_count: 1,
             file_count: 0,
+            ..Intake::default()
         };
         let split = Intake {
             candidate_count: 8,
             package_count: 2,
             file_count: 0,
+            ..Intake::default()
         };
         assert_eq!(summary(&one), "1 link added to the LinkGrabber");
         assert_eq!(summary(&many), "8 links added to the LinkGrabber");
@@ -342,6 +383,7 @@ mod tests {
                 candidate_count: 0,
                 package_count: 1,
                 file_count: 5,
+                ..Intake::default()
             }),
             "NZB added to the LinkGrabber, 5 files"
         );
@@ -350,6 +392,7 @@ mod tests {
                 candidate_count: 0,
                 package_count: 1,
                 file_count: 1,
+                ..Intake::default()
             }),
             "NZB added to the LinkGrabber, 1 file"
         );
@@ -367,6 +410,7 @@ mod tests {
                     candidate_count: count,
                     package_count: 1,
                     file_count: 0,
+                    ..Intake::default()
                 })
                 .expect("queue the intake");
         }
@@ -422,3 +466,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "notify_quiet_tests.rs"]
+mod quiet_tests;

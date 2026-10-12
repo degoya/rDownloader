@@ -25,7 +25,7 @@
 // - The browser's copy is removed only after rDownloader said it took the file.
 
 import { request } from './api.js'
-import { baseName, headerValue, staysInBrowser } from './intercept.js'
+import { baseName, handOverName, headerValue, staysInBrowser } from './intercept.js'
 import { toNetscape } from './session.js'
 
 /** The `storage.local` key holding the hosts a person allowed. */
@@ -243,8 +243,8 @@ export function createFileHandover({
   }
 
   /**
-   * Firefox's blocking `onHeadersReceived`. Everything that is not an NZB, a torrent or a ZIP of
-   * a navigation is answered at once and synchronously; only a candidate waits for the consent
+   * Firefox's blocking `onHeadersReceived`. Everything that is not an NZB, a torrent, a ZIP or a
+   * link container of a navigation is answered at once and synchronously; only a candidate waits for the consent
    * check, so the filter is in place before a byte of it reaches the browser.
    */
   function onHeadersReceived(details) {
@@ -254,10 +254,10 @@ export function createFileHandover({
     const mime = headerValue(details.responseHeaders, 'content-type')
     const disposition = headerValue(details.responseHeaders, 'content-disposition')
     if (staysInBrowser({ mime, url: details.url }, { contentDisposition: disposition }) !== 'file') return undefined
-    return attach(details, disposition).then(() => ({}), () => ({}))
+    return attach(details, disposition, mime).then(() => ({}), () => ({}))
   }
 
-  async function attach(details, disposition) {
+  async function attach(details, disposition, mime) {
     const config = await loadConfig()
     if (!config?.token || config.interceptDownloads === false) return
     if (!(await siteConsented(api, details.url))) return
@@ -292,7 +292,7 @@ export function createFileHandover({
     filter.onerror = () => capture.settle('error')
     filter.onstop = () => {
       if (passing) return
-      deliver(config, capture, filter, chunks, responseFileName(details.url, disposition)).catch(() => {
+      deliver(config, capture, filter, chunks, handOverName(responseFileName(details.url, disposition), mime)).catch(() => {
         capture.settle('error')
       })
     }
@@ -353,8 +353,8 @@ export function createFileHandover({
   }
 
   /**
-   * An NZB, torrent or ZIP the browser started to download. Returns whether it went to
-   * rDownloader; without a consent for its site it is left exactly as RD-120-63 leaves it.
+   * An NZB, torrent, ZIP or link container the browser started to download. Returns whether it
+   * went to rDownloader; without a consent for its site it is left exactly as RD-120-63 leaves it.
    */
   async function onBrowserOnlyDownload(item) {
     const capture = captureFor(item)
@@ -399,7 +399,7 @@ export function createFileHandover({
       cookies,
       referrer: item.referrer,
       userAgent,
-      fileName: baseName(item.filename)
+      fileName: handOverName(baseName(item.filename), item.mime)
     })
     if (result.ok) {
       await removeBrowserCopy(item.id)

@@ -1,6 +1,8 @@
 import { PICK_WAITING, ping, submitCapture, submitLinks } from './api.js'
-import { api, loadConfig, message } from './browser.js'
+import { api, loadConfig, message, openSendFilePage } from './browser.js'
 import { MESSAGE_TYPES as CAPTCHA_MESSAGES, POLL_ALARM, createCaptchaAnswerer } from './captcha.js'
+import { CNL_URL_PATTERNS } from './cnl.js'
+import { createClickAndLoad } from './cnl-handover.js'
 import { createInterceptor } from './downloads.js'
 import { FILTERED_TYPES, createFileHandover } from './files.js'
 import { MESSAGE_TYPES as HANDOVER_MESSAGES, createHandover } from './handover.js'
@@ -11,6 +13,7 @@ const MENU_LINK = 'rdownloader-link'
 const MENU_PAGE = 'rdownloader-page'
 const MENU_SELECTION = 'rdownloader-selection'
 const MENU_SESSION = 'rdownloader-session'
+const MENU_FILE = 'rdownloader-file'
 
 function createMenus() {
   api.contextMenus.removeAll(() => {
@@ -20,6 +23,8 @@ function createMenus() {
     // Sharing a session is a deliberate act on the page the user is looking at; the
     // permission prompt the browser shows needs this click as its user gesture.
     api.contextMenus.create({ id: MENU_SESSION, title: message('menuSession'), contexts: ['page'] })
+    // Local files, on any page and on the toolbar button (RD-1260-11).
+    api.contextMenus.create({ id: MENU_FILE, title: message('menuSendFile'), contexts: ['page', 'action'] })
   })
 }
 
@@ -104,6 +109,8 @@ api.contextMenus.onClicked.addListener((info, tab) => {
     dispatch('contextMenus.onClicked', () => send({ text: info.selectionText, sourceLabel: 'Browser' }))
   } else if (info.menuItemId === MENU_SESSION && (info.pageUrl || tab?.url)) {
     dispatch('contextMenus.onClicked', () => sessions.share(info.pageUrl || tab.url, { name: tab?.title }))
+  } else if (info.menuItemId === MENU_FILE) {
+    dispatch('contextMenus.onClicked', () => openSendFilePage())
   }
 })
 
@@ -114,8 +121,8 @@ const sessions = createSessionSharer({
   notify: (body) => notify(message('extName'), body)
 })
 
-// NZB, torrent and ZIP files from a site the person allowed (RD-130-16): the bytes Firefox copied,
-// or the address with that host's cookies.
+// NZB, torrent and ZIP files and link containers from a site the person allowed (RD-130-16,
+// RD-1260-11): the bytes Firefox copied, or the address with that host's cookies.
 const files = createFileHandover({
   api,
   loadConfig,
@@ -159,16 +166,32 @@ const handovers = createHandover({
   notify: (body) => notify(message('extName'), body)
 })
 
+// Click'n'Load without the desktop agent (RD-1260-10), from the sites the person allowed. Firefox
+// answers the page from a blocking listener, Chrome from session rules; the port is asked first,
+// and a running agent keeps it.
+const blocking = typeof api.webRequest?.filterResponseData === 'function'
+const clickAndLoad = createClickAndLoad({
+  api,
+  loadConfig,
+  message,
+  notify: (body) => notify(message('extName'), body),
+  blocking
+})
+
 api.runtime.onInstalled.addListener(() => dispatch('captchas.schedule', () => captchas.schedule()))
 api.runtime.onStartup?.addListener(() => dispatch('captchas.schedule', () => captchas.schedule()))
 api.alarms?.onAlarm?.addListener((alarm) => dispatch('captchas.onAlarm', () => captchas.onAlarm(alarm)))
 api.alarms?.onAlarm?.addListener((alarm) =>
   dispatch('handovers.onAlarm', () => (alarm?.name === POLL_ALARM ? handovers.poll() : null)))
+api.runtime.onInstalled.addListener(() => dispatch('clickAndLoad.schedule', () => clickAndLoad.schedule()))
+api.runtime.onStartup?.addListener(() => dispatch('clickAndLoad.schedule', () => clickAndLoad.schedule()))
+api.alarms?.onAlarm?.addListener((alarm) => dispatch('clickAndLoad.onAlarm', () => clickAndLoad.onAlarm(alarm)))
 api.tabs?.onUpdated?.addListener((tabId, changeInfo) => dispatch('captchas.onTabUpdated', () => captchas.onTabUpdated(tabId, changeInfo)))
 api.tabs?.onRemoved?.addListener((tabId) => dispatch('captchas.onTabRemoved', () => captchas.onTabRemoved(tabId)))
 // Pairing or unpairing in the options page starts or stops the polling.
 api.storage?.onChanged?.addListener((changes, area) => {
   if (area === 'local' && changes.token) dispatch('captchas.schedule', () => captchas.schedule())
+  dispatch('clickAndLoad.onStorageChanged', () => clickAndLoad.onStorageChanged(changes, area))
 })
 
 api.downloads?.onCreated.addListener((item) => dispatch('interceptor.onDownloadCreated', () => interceptor.onDownloadCreated(item)))
@@ -196,11 +219,12 @@ function addRequestListener(event, handler, extraInfoSpec) {
 }
 
 // These three listeners only observe: which method a request used, which of a small
-// allowlist of headers it carried, and the Content-Disposition the server answered with. No
-// listener asks for `requestBody`, and none ever will — the POST-body path was removed with
-// RD-109-20, because no part of this extension ever requested the broad host access it needed,
-// so in a default install it never once ran. A download the page started with a POST is kept by
-// the browser and explained instead of being replayed as a GET.
+// allowlist of headers it carried, and the Content-Disposition the server answered with. None of
+// them asks for `requestBody` — the POST-body path was removed with RD-109-20, because no part of
+// this extension ever requested the broad host access it needed, so in a default install it never
+// once ran. A download the page started with a POST is kept by the browser and explained instead
+// of being replayed as a GET. The one listener that reads a body is Click'n'Load's below, and it
+// sees nothing but requests to the agent's two addresses on port 9666.
 if (api.webRequest) {
   addRequestListener(api.webRequest.onSendHeaders, interceptor.onSendHeaders, ['requestHeaders'])
   addRequestListener(api.webRequest.onHeadersReceived, interceptor.onHeadersReceived, ['responseHeaders'])
@@ -208,9 +232,22 @@ if (api.webRequest) {
   api.webRequest.onBeforeRequest.addListener(interceptor.onBeforeRequest, REQUEST_FILTER)
 }
 
-// The one blocking listener, and only where `filterResponseData` exists (Firefox, which the build
+// Click'n'Load's form fields, from requests to `127.0.0.1:9666` and `localhost:9666` only.
+// Registered after the interceptor's, and never with `<all_urls>`.
+if (api.webRequest && blocking) {
+  try {
+    api.webRequest.onBeforeRequest.addListener(clickAndLoad.onBeforeRequest, { urls: CNL_URL_PATTERNS }, ['blocking', 'requestBody'])
+  } catch (error) {
+    console.error("rdownloader: Click'n'Load without the agent is unavailable", error)
+  }
+} else if (api.webRequest) {
+  const observeClickAndLoad = (details) => dispatch('clickAndLoad.onBeforeRequest', () => clickAndLoad.onBeforeRequest(details))
+  api.webRequest.onBeforeRequest.addListener(observeClickAndLoad, { urls: CNL_URL_PATTERNS }, ['requestBody'])
+}
+
+// The other blocking listener, and only where `filterResponseData` exists (Firefox, which the build
 // grants `webRequestBlocking` and `webRequestFilterResponse`). It answers every response at once
-// except an NZB, torrent or ZIP navigation from an allowed site, which waits only until the copy
+// except an NZB, torrent, ZIP or container navigation from an allowed site, which waits only until the copy
 // is in place (RD-130-16). Chrome has no such API and never registers it.
 // A browser that refuses `blocking` throws here; that costs the copy, never the listeners below.
 if (typeof api.webRequest?.filterResponseData === 'function') {

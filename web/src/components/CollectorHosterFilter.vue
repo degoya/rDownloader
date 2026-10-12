@@ -41,7 +41,7 @@ const { t } = useI18n()
         :variant="entry.hidden ? 'ghost' : 'outline'"
         :icon="entry.hidden ? 'i-lucide-eye-off' : 'i-lucide-eye'"
         :aria-pressed="!entry.hidden"
-        :title="entry.hidden ? t('linkgrabber.hosters.show', { host: entry.hoster }) : t('linkgrabber.hosters.hide', { host: entry.hoster })"
+        :title="`${entry.hidden ? t('linkgrabber.hosters.show', { host: entry.hoster }) : t('linkgrabber.hosters.hide', { host: entry.hoster })} · ${t('common.units.link', { count: entry.count }, entry.count)}`"
         :disabled="props.busy"
         @click="emit('toggle', entry.hoster, !entry.hidden)"
       >

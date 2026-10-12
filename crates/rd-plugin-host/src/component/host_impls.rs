@@ -88,14 +88,35 @@ impl wit_host::Host for PluginStoreState {
         self.controlled_wait(seconds).await.map_err(to_wit_failure)
     }
 
+    /// At most `MAX_LOG_LINES_PER_CALL` lines per call reach the log (RD-1260-12); a line the
+    /// level filters out is not counted. Each is written in the plugin's span, so a debug
+    /// window on one plugin finds it.
     async fn log(&mut self, level: String, message: String) {
-        let message = self.redact_log(&message);
-        match level.to_ascii_lowercase().as_str() {
-            "error" => tracing::error!(plugin = true, "{message}"),
-            "warn" => tracing::warn!(plugin = true, "{message}"),
-            "debug" | "trace" => tracing::debug!(plugin = true, "{message}"),
-            _ => tracing::info!(plugin = true, "{message}"),
-        }
+        let level = match level.to_ascii_lowercase().as_str() {
+            "error" => tracing::Level::ERROR,
+            "warn" => tracing::Level::WARN,
+            "debug" | "trace" => tracing::Level::DEBUG,
+            _ => tracing::Level::INFO,
+        };
+        let span = self.log_budget.span();
+        span.in_scope(|| {
+            let enabled = match level {
+                tracing::Level::ERROR => tracing::enabled!(tracing::Level::ERROR),
+                tracing::Level::WARN => tracing::enabled!(tracing::Level::WARN),
+                tracing::Level::DEBUG => tracing::enabled!(tracing::Level::DEBUG),
+                _ => tracing::enabled!(tracing::Level::INFO),
+            };
+            if !enabled || !self.log_budget.admit() {
+                return;
+            }
+            let message = self.redact_log(&message);
+            match level {
+                tracing::Level::ERROR => tracing::error!(plugin = true, "{message}"),
+                tracing::Level::WARN => tracing::warn!(plugin = true, "{message}"),
+                tracing::Level::DEBUG => tracing::debug!(plugin = true, "{message}"),
+                _ => tracing::info!(plugin = true, "{message}"),
+            }
+        });
     }
 }
 

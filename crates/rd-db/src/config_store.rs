@@ -48,6 +48,8 @@ pub struct NewCategory {
     pub storage_root_id: StorageRootId,
     pub relative_path: String,
     pub is_default: bool,
+    /// Offered in the pickers that assign a category by hand (RD-1260-03); the default always is.
+    pub selectable: bool,
     pub postprocess_level: Option<rd_core::PostprocessLevel>,
     pub script: Option<String>,
     pub cleanup_extensions: Option<Vec<String>>,
@@ -130,7 +132,7 @@ const CATEGORY_NAME_TAKEN: &str = "a category with this name already exists";
 /// A watched folder's name is unique, and so is its folder per executor (`hotfolders`).
 const HOTFOLDER_TAKEN: &str = "a watched folder with this name or folder already exists";
 
-const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, package_name_rules_json, package_name_regex_json, unwrap_package_folder, download_window_json";
+const CATEGORY_COLUMNS: &str = "id, name, color, storage_root_id, relative_path, is_default, postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, upload_enabled, upload_remote, seeding_json, plugin_steps_json, sorting_json, package_name_rules_json, package_name_regex_json, unwrap_package_folder, download_window_json, selectable";
 
 /// Repairs the default flag across a restored bundle.
 ///

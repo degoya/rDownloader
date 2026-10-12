@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.1
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.2.0
 
 Reports the finished package's folder to Jellyfin, which scans around it instead of every library, with a mapping from rDownloader's paths to the paths the server sees.
